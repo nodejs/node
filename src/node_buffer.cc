@@ -1024,6 +1024,10 @@ void Initialize(Handle<Object> target,
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
               Integer::NewFromUnsigned(env->isolate(), kMaxLength)).FromJust();
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
+              Integer::New(env->isolate(), String::kMaxLength)).FromJust();
 }
 
 
