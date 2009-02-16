@@ -1,0 +1,6 @@
+[submodule "deps/oi"]
+	path = deps/oi
+	url = git://github.com/ry/liboi.git
+[submodule "deps/ebb"]
+	path = deps/ebb
+	url = git://github.com/ry/libebb.git
