@@ -29,7 +29,6 @@ function Initialize() { }
 
 
 function Process(request) {
-  print("hello ");
   if (options.verbose) {
     log("Processing " + request.host + request.path +
         " from " + request.referrer + "@" + request.userAgent);

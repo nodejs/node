@@ -6,6 +6,7 @@ extern "C" {
 #include "http_request.h"
 #include "js_http_request_processor.h"
 
+#include <stdio.h>
 #include <assert.h>
 #include <string>
 #include <map>
@@ -38,7 +39,12 @@ void on_headers_complete
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
-  processor->Process(request);
+  bool r = processor->Process(request);
+  if(r) {
+    printf("successful request\n");
+  } else {
+    printf("unsuccesful request\n");
+  }
 }
 
 void on_request_complete
