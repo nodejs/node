@@ -10,22 +10,23 @@ ifdef EVDIR
 	LDFLAGS += -L$(EVDIR)/lib
 endif
 
-server: server.o deps/oi/oi_socket.o deps/ebb/ebb_request_parser.o
-	g++ $(CFLAGS) $(LDFLAGS) $(V8LIB) -o server $^
+server: server.o oi_socket.o ebb_request_parser.o
+	g++ $(LDFLAGS) $(V8LIB) $^ -o server 
 
 server.o: server.cc 
-	g++ $(CFLAGS) -c $@ $<
+	g++ $(CFLAGS) -c $<
 
 ebb_request_parser.o: ebb_request_parser.c deps/ebb/ebb_request_parser.h 
-	gcc $(CFLAGS) -c $@ $<
+	gcc $(CFLAGS) -c $<
 
 ebb_request_parser.c: deps/ebb/ebb_request_parser.rl
 	ragel -s -G2 $< -o $@
 
 oi_socket.o: deps/oi/oi_socket.c deps/oi/oi_socket.h 
-	gcc $(CFLAGS) -c $@ $<
+	gcc $(CFLAGS) -c $<
 
 clean:
+	rm -f ebb_request_parser.c
 	rm -f *.o 
 	rm -f server
 
