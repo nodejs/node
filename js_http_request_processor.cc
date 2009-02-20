@@ -32,7 +32,7 @@
 #include <string>
 #include <map>
 
-#include <js_http_request_processor.h>
+#include "js_http_request_processor.h"
 
 using namespace std;
 using namespace v8;
@@ -458,115 +458,6 @@ void HttpRequestProcessor::Log
 {
   printf("Logged: %s\n", event);
 }
-
-
-/**
- * A simplified http request.
- */
-class StringHttpRequest : public HttpRequest 
-{
-public:
-  StringHttpRequest
-    ( const string& path
-    , const string& referrer
-    , const string& host
-    , const string& user_agent
-    );
-  virtual const string& Path ()      { return path_; }
-  virtual const string& Referrer ()  { return referrer_; }
-  virtual const string& Host ()      { return host_; }
-  virtual const string& UserAgent () { return user_agent_; }
-private:
-  string path_;
-  string referrer_;
-  string host_;
-  string user_agent_;
-};
-
-
-StringHttpRequest::StringHttpRequest
-  ( const string& path
-  , const string& referrer
-  , const string& host 
-  , const string& user_agent
-  ) 
-  : path_       (path)
-  , referrer_   (referrer)
-  , host_       (host)
-  , user_agent_ (user_agent) 
-{ 
-}
-
-void ParseOptions
-  ( int argc
-  , char* argv[]
-  , map<string, string>& options
-  , string* file
-  )
-{
-  for (int i = 1; i < argc; i++) {
-    string arg = argv[i];
-    int index = arg.find('=', 0);
-    if (index == string::npos) {
-      *file = arg;
-    } else {
-      string key = arg.substr(0, index);
-      string value = arg.substr(index+1);
-      options[key] = value;
-    }
-  }
-}
-
-
-// Reads a file into a v8 string.
-Handle<String> ReadFile
-  ( const string& name
-  ) 
-{
-  FILE* file = fopen(name.c_str(), "rb");
-  if (file == NULL) return Handle<String>();
-
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-  rewind(file);
-
-  char* chars = new char[size + 1];
-  chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
-    i += read;
-  }
-  fclose(file);
-  Handle<String> result = String::New(chars, size);
-  delete[] chars;
-  return result;
-}
-
-
-const int kSampleSize = 6;
-StringHttpRequest kSampleRequests[kSampleSize] = 
-  { StringHttpRequest("/process.cc", "localhost", "google.com", "firefox")
-  , StringHttpRequest("/", "localhost", "google.net", "firefox")
-  , StringHttpRequest("/", "localhost", "google.org", "safari")
-  , StringHttpRequest("/", "localhost", "yahoo.com", "ie")
-  , StringHttpRequest("/", "localhost", "yahoo.com", "safari")
-  , StringHttpRequest("/", "localhost", "yahoo.com", "firefox")
-  };
-
-
-bool ProcessEntries
-  ( HttpRequestProcessor* processor
-  , int count
-  , StringHttpRequest* reqs
-  ) 
-{
-  for (int i = 0; i < count; i++) {
-    if (!processor->Process(&reqs[i]))
-      return false;
-  }
-  return true;
-}
-
 
 void PrintMap
   ( map<string, string>* m

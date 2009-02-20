@@ -3,17 +3,20 @@ V8INC = $(HOME)/src/v8/include
 V8LIB = $(HOME)/src/v8/libv8.a
 
 CFLAGS = -g -I$(V8INC) -Ideps/oi -DHAVE_GNUTLS=0 -Ideps/ebb 
-LDFLAGS = -lev #-lefence
+LDFLAGS = -lev -pthread #-lefence
 
 ifdef EVDIR
 	CFLAGS += -I$(EVDIR)/include
 	LDFLAGS += -L$(EVDIR)/lib
 endif
 
-server: server.o oi_socket.o ebb_request_parser.o
-	g++ $(LDFLAGS) $(V8LIB) $^ -o server 
+server: js_http_request_processor.o server.o oi_socket.o ebb_request_parser.o
+	g++ -o server $^ $(LDFLAGS)  $(V8LIB) 
 
 server.o: server.cc 
+	g++ $(CFLAGS) -c $<
+	
+js_http_request_processor.o: js_http_request_processor.cc 
 	g++ $(CFLAGS) -c $<
 
 ebb_request_parser.o: ebb_request_parser.c deps/ebb/ebb_request_parser.h 
