@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 
+#include "http_request.h"
+
 using namespace std;
 using namespace v8;
 
@@ -13,17 +15,6 @@ using namespace v8;
 // and then add scripting capabilities that allow you to interact with
 // the objects through JavaScript.
 
-/**
- * A simplified http request.
- */
-class HttpRequest {
- public:
-  virtual ~HttpRequest() { }
-  virtual const string& Path() = 0;
-  virtual const string& Referrer() = 0;
-  virtual const string& Host() = 0;
-  virtual const string& UserAgent() = 0;
-};
 
 /**
  * The abstract superclass of http request processors.

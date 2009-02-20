@@ -1,13 +1,16 @@
-#include <v8.h>
-
 extern "C" {
 #include <oi.h>
 #include <ebb_request_parser.h>
 }
 
+#include "http_request.h"
+#include "js_http_request_processor.h"
+
 #include <assert.h>
 #include <string>
 #include <map>
+
+#include <v8.h>
 
 using namespace v8;
 using namespace std;
@@ -17,37 +20,7 @@ using namespace std;
 
 static oi_server server;
 static struct ev_loop *loop;
-
-class Connection {
-public:
-  Connection(void);
-  ebb_request_parser parser;
-  oi_socket socket;
-};
-
-class Request {
-public:
-  Request(Connection &);
-  string path;
-  Connection &connection_;
-  ebb_request parser_info;
-};
-
-Request::Request
-  ( Connection &connection
-  )
-  : connection_(connection)
-{
-  ebb_request_init(&parser_info);
-}
-
-Connection::Connection
-  ( void
-  )
-{
-  oi_socket_init (&socket, 30.0);
-  ebb_request_parser_init (&parser);
-}
+static JsHttpRequestProcessor *processor;
 
 void on_path
   ( ebb_request *req
@@ -55,17 +28,23 @@ void on_path
   , size_t len
   )
 {
-  Request *request = static_cast<Request*> (req->data);
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
   request->path.append(buf, len);
+}
+
+void on_headers_complete
+  ( ebb_request *req
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  processor->Process(request);
 }
 
 void on_request_complete
   ( ebb_request *req
   )
 {
-  Request *request = static_cast<Request*> (req->data);
-
-  // dispatch to javascript
 }
 
 ebb_request * on_request
@@ -74,7 +53,7 @@ ebb_request * on_request
 {
   Connection *connection = static_cast<Connection*> (data);
 
-  Request *request = new Request(*connection);
+  HttpRequest *request = new HttpRequest(*connection);
   
   request->parser_info.on_path             = on_path;
   request->parser_info.on_query_string     = NULL;
@@ -82,7 +61,7 @@ ebb_request * on_request
   request->parser_info.on_fragment         = NULL;
   request->parser_info.on_header_field     = NULL;
   request->parser_info.on_header_value     = NULL;
-  request->parser_info.on_headers_complete = NULL;
+  request->parser_info.on_headers_complete = on_headers_complete;
   request->parser_info.on_body             = NULL;
   request->parser_info.on_complete         = on_request_complete;
   request->parser_info.data                = request;
@@ -128,19 +107,16 @@ static oi_socket* new_connection
   )
 {
   Connection *connection = new Connection();
+    connection->socket.on_read    = on_read;
+    connection->socket.on_error   = NULL;
+    connection->socket.on_close   = on_close;
+    connection->socket.on_timeout = NULL;
+    connection->socket.on_drain   = on_drain;
+    connection->socket.data       = connection;
 
-  /* initialize the components of Connection */
-  oi_socket_init(&connection->socket, 30.0);
-  connection->socket.on_read    = on_read;
-  connection->socket.on_error   = NULL;
-  connection->socket.on_close   = on_close;
-  connection->socket.on_timeout = NULL;
-  connection->socket.on_drain   = on_drain;
-  connection->socket.data       = connection;
+    connection->parser.new_request = on_request;
+    connection->parser.data        = connection;
 
-  ebb_request_parser_init(&connection->parser);
-  connection->parser.new_request = on_request;
-  connection->parser.data        = connection;
 
   return &connection->socket;
 }
@@ -208,14 +184,14 @@ int main
     fprintf(stderr, "Error reading '%s'.\n", file.c_str());
     return 1;
   }
-  /*
-  HttpRequestProcessor processor(source);
+
+  processor = new JsHttpRequestProcessor(source);
   map<string, string> output;
-  if (!processor.Initialize(&options, &output)) {
+  if (!processor->Initialize(&options, &output)) {
     fprintf(stderr, "Error initializing processor.\n");
     return 1;
   }
-  */
+
 
   /////////////////////////////////////
 
