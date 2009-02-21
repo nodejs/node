@@ -21,20 +21,14 @@ public:
 
 class HttpRequest {
  public:
-  HttpRequest (Connection &c) : connection_(c) { ebb_request_init(&parser_info); }
+  HttpRequest (Connection &c) : connection(c) { ebb_request_init(&parser_info); }
   ~HttpRequest() { }
 
   const string& Path ()      { return path; }
-  const string& Referrer ()  { return referrer; }
-  const string& Host ()      { return host; }
-  const string& UserAgent () { return user_agent; }
 
   string path;
-  string referrer;
-  string host;
-  string user_agent;
 
-  Connection &connection_;
+  Connection &connection;
   ebb_request parser_info;
 };
 

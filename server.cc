@@ -45,12 +45,15 @@ void on_headers_complete
   } else {
     printf("unsuccesful request\n");
   }
+
 }
 
 void on_request_complete
   ( ebb_request *req
   )
 {
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  oi_socket_close(&request->connection.socket);
 }
 
 ebb_request * on_request

@@ -385,47 +385,36 @@ Handle<Value> JsHttpRequestProcessor::GetPath
   , const AccessorInfo& info
   )
 {
-  // Extract the C++ request object from the JavaScript wrapper.
   HttpRequest* request = UnwrapRequest(info.Holder());
-
-  // Fetch the path.
   const string& path = request->Path();
-
-  // Wrap the result in a JavaScript string and return it.
   return String::New(path.c_str(), path.length());
 }
 
-
-Handle<Value> JsHttpRequestProcessor::GetReferrer
-  ( Local<String> name
-  , const AccessorInfo& info
-  ) 
-{
-  HttpRequest* request = UnwrapRequest(info.Holder());
-  const string& path = request->Referrer();
-  return String::New(path.c_str(), path.length());
-}
-
-
-Handle<Value> JsHttpRequestProcessor::GetHost
+Handle<Value> JsHttpRequestProcessor::GetMethod
   ( Local<String> name
   , const AccessorInfo& info
   )
 {
   HttpRequest* request = UnwrapRequest(info.Holder());
-  const string& path = request->Host();
-  return String::New(path.c_str(), path.length());
-}
-
-
-Handle<Value> JsHttpRequestProcessor::GetUserAgent
-  ( Local<String> name
-  , const AccessorInfo& info
-  ) 
-{
-  HttpRequest* request = UnwrapRequest(info.Holder());
-  const string& path = request->UserAgent();
-  return String::New(path.c_str(), path.length());
+  // TODO allocate these strings only once. reference global
+  switch(request->parser_info.method) {
+    case ebb_request::EBB_COPY:      return String::New("COPY");
+    case ebb_request::EBB_DELETE:    return String::New("DELETE");
+    case ebb_request::EBB_GET:       return String::New("GET");
+    case ebb_request::EBB_HEAD:      return String::New("HEAD");
+    case ebb_request::EBB_LOCK:      return String::New("LOCK");
+    case ebb_request::EBB_MKCOL:     return String::New("MKCOL");
+    case ebb_request::EBB_MOVE:      return String::New("MOVE");
+    case ebb_request::EBB_OPTIONS:   return String::New("OPTIONS");
+    case ebb_request::EBB_POST:      return String::New("POST");
+    case ebb_request::EBB_PROPFIND:  return String::New("PROPFIND");
+    case ebb_request::EBB_PROPPATCH: return String::New("PROPPATCH");
+    case ebb_request::EBB_PUT:       return String::New("PUT");
+    case ebb_request::EBB_TRACE:     return String::New("TRACE");
+    case ebb_request::EBB_UNLOCK:    return String::New("UNLOCK");
+    default: 
+      return Null();
+  }
 }
 
 
@@ -440,9 +429,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate
 
   // Add accessors for each of the fields of the request.
   result->SetAccessor(String::NewSymbol("path"), GetPath);
-  result->SetAccessor(String::NewSymbol("referrer"), GetReferrer);
-  result->SetAccessor(String::NewSymbol("host"), GetHost);
-  result->SetAccessor(String::NewSymbol("userAgent"), GetUserAgent);
+  result->SetAccessor(String::NewSymbol("method"), GetMethod);
 
   // Again, return the result through the current handle scope.
   return handle_scope.Close(result);

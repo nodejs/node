@@ -65,12 +65,8 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
   static Handle<ObjectTemplate> MakeMapTemplate();
 
   // Callbacks that access the individual fields of request objects.
-  static Handle<Value> GetPath(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetReferrer(Local<String> name,
-                                   const AccessorInfo& info);
-  static Handle<Value> GetHost(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetUserAgent(Local<String> name,
-                                    const AccessorInfo& info);
+  static Handle<Value> GetPath (Local<String> name, const AccessorInfo& info);
+  static Handle<Value> GetMethod (Local<String> name, const AccessorInfo& info);
 
   // Callbacks that access maps
   static Handle<Value> MapGet(Local<String> name, const AccessorInfo& info);
