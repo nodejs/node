@@ -21,10 +21,11 @@ public:
 
 class HttpRequest {
  public:
-  HttpRequest (Connection &c) : connection(c) { ebb_request_init(&parser_info); }
+  HttpRequest (Connection &c) : connection(c)
+  { 
+    ebb_request_init(&parser_info); 
+  }
   ~HttpRequest() { }
-
-  const string& Path ()      { return path; }
 
   string path;
 

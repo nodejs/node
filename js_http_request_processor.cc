@@ -387,8 +387,7 @@ Handle<Value> JsHttpRequestProcessor::GetPath
   )
 {
   HttpRequest* request = UnwrapRequest(info.Holder());
-  const string& path = request->Path();
-  return String::New(path.c_str(), path.length());
+  return String::New(request->path.c_str(), request->path.length());
 }
 
 Handle<Value> JsHttpRequestProcessor::GetMethod
@@ -426,12 +425,25 @@ Handle<Value> JsHttpRequestProcessor::RespondCallback
   if (args.Length() < 1) return v8::Undefined();
   HandleScope scope;
   Handle<Value> arg = args[0];
-  Local<String> s = arg->ToString();
 
-  oi_buf *buf = oi_buf_new2(s->Length());
-  s->WriteAscii(buf->base);
+  // TODO Make sure that we write reponses in the correct order. With
+  // keep-alive it's possible that one response can return before the last
+  // one has been sent!!!
 
-  oi_socket_write(&request->connection.socket, buf);
+  if(arg == Null()) {
+
+    request->connection.socket.on_drain = oi_socket_close;
+
+  } else {
+
+    Local<String> s = arg->ToString();
+
+    oi_buf *buf = oi_buf_new2(s->Length());
+    s->WriteAscii(buf->base);
+
+    oi_socket_write(&request->connection.socket, buf);
+
+  }
 
   return v8::Undefined();
 }
