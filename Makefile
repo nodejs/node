@@ -10,8 +10,8 @@ ifdef EVDIR
 	LDFLAGS += -L$(EVDIR)/lib
 endif
 
-server: js_http_request_processor.o server.o oi_socket.o ebb_request_parser.o
-	g++ -o server $^ $(LDFLAGS)  $(V8LIB) 
+server: js_http_request_processor.o server.o oi_socket.o ebb_request_parser.o oi_buf.o
+	g++ -o server $^ $(LDFLAGS) $(V8LIB) 
 
 server.o: server.cc 
 	g++ $(CFLAGS) -c $<
@@ -20,12 +20,15 @@ js_http_request_processor.o: js_http_request_processor.cc
 	g++ $(CFLAGS) -c $<
 
 ebb_request_parser.o: ebb_request_parser.c deps/ebb/ebb_request_parser.h 
-	gcc $(CFLAGS) -c $<
+	g++ $(CFLAGS) -c $<
 
 ebb_request_parser.c: deps/ebb/ebb_request_parser.rl
 	ragel -s -G2 $< -o $@
 
 oi_socket.o: deps/oi/oi_socket.c deps/oi/oi_socket.h 
+	gcc $(CFLAGS) -c $<
+
+oi_buf.o: deps/oi/oi_buf.c deps/oi/oi_buf.h 
 	gcc $(CFLAGS) -c $<
 
 clean:

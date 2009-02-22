@@ -67,6 +67,7 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
   // Callbacks that access the individual fields of request objects.
   static Handle<Value> GetPath (Local<String> name, const AccessorInfo& info);
   static Handle<Value> GetMethod (Local<String> name, const AccessorInfo& info);
+  static Handle<Value> RespondCallback (const Arguments& args);
 
   // Callbacks that access maps
   static Handle<Value> MapGet(Local<String> name, const AccessorInfo& info);

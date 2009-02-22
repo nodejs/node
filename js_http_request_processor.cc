@@ -33,6 +33,7 @@
 #include <map>
 
 #include "js_http_request_processor.h"
+#include <oi_buf.h>
 
 using namespace std;
 using namespace v8;
@@ -398,23 +399,41 @@ Handle<Value> JsHttpRequestProcessor::GetMethod
   HttpRequest* request = UnwrapRequest(info.Holder());
   // TODO allocate these strings only once. reference global
   switch(request->parser_info.method) {
-    case ebb_request::EBB_COPY:      return String::New("COPY");
-    case ebb_request::EBB_DELETE:    return String::New("DELETE");
-    case ebb_request::EBB_GET:       return String::New("GET");
-    case ebb_request::EBB_HEAD:      return String::New("HEAD");
-    case ebb_request::EBB_LOCK:      return String::New("LOCK");
-    case ebb_request::EBB_MKCOL:     return String::New("MKCOL");
-    case ebb_request::EBB_MOVE:      return String::New("MOVE");
-    case ebb_request::EBB_OPTIONS:   return String::New("OPTIONS");
-    case ebb_request::EBB_POST:      return String::New("POST");
-    case ebb_request::EBB_PROPFIND:  return String::New("PROPFIND");
-    case ebb_request::EBB_PROPPATCH: return String::New("PROPPATCH");
-    case ebb_request::EBB_PUT:       return String::New("PUT");
-    case ebb_request::EBB_TRACE:     return String::New("TRACE");
-    case ebb_request::EBB_UNLOCK:    return String::New("UNLOCK");
+    case EBB_COPY:      return String::New("COPY");
+    case EBB_DELETE:    return String::New("DELETE");
+    case EBB_GET:       return String::New("GET");
+    case EBB_HEAD:      return String::New("HEAD");
+    case EBB_LOCK:      return String::New("LOCK");
+    case EBB_MKCOL:     return String::New("MKCOL");
+    case EBB_MOVE:      return String::New("MOVE");
+    case EBB_OPTIONS:   return String::New("OPTIONS");
+    case EBB_POST:      return String::New("POST");
+    case EBB_PROPFIND:  return String::New("PROPFIND");
+    case EBB_PROPPATCH: return String::New("PROPPATCH");
+    case EBB_PUT:       return String::New("PUT");
+    case EBB_TRACE:     return String::New("TRACE");
+    case EBB_UNLOCK:    return String::New("UNLOCK");
     default: 
       return Null();
   }
+}
+
+Handle<Value> JsHttpRequestProcessor::RespondCallback
+  ( const Arguments& args
+  ) 
+{
+  HttpRequest* request = UnwrapRequest(args.Holder());
+  if (args.Length() < 1) return v8::Undefined();
+  HandleScope scope;
+  Handle<Value> arg = args[0];
+  Local<String> s = arg->ToString();
+
+  oi_buf *buf = oi_buf_new2(s->Length());
+  s->WriteAscii(buf->base);
+
+  oi_socket_write(&request->connection.socket, buf);
+
+  return v8::Undefined();
 }
 
 
@@ -430,6 +449,7 @@ Handle<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate
   // Add accessors for each of the fields of the request.
   result->SetAccessor(String::NewSymbol("path"), GetPath);
   result->SetAccessor(String::NewSymbol("method"), GetMethod);
+  result->Set(String::New("respond"), FunctionTemplate::New(RespondCallback));
 
   // Again, return the result through the current handle scope.
   return handle_scope.Close(result);

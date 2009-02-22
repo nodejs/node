@@ -53,7 +53,6 @@ void on_request_complete
   )
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  oi_socket_close(&request->connection.socket);
 }
 
 ebb_request * on_request
