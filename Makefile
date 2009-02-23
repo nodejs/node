@@ -3,7 +3,7 @@ V8INC = $(HOME)/src/v8/include
 V8LIB = $(HOME)/src/v8/libv8.a
 
 CFLAGS = -g -I$(V8INC) -Ideps/oi -DHAVE_GNUTLS=0 -Ideps/ebb 
-LDFLAGS = -lev -pthread #-lefence
+LDFLAGS = -lev -pthread -lefence
 
 ifdef EVDIR
 	CFLAGS += -I$(EVDIR)/include

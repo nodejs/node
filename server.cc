@@ -34,7 +34,7 @@ public:
 class HttpRequest {
  public:
   HttpRequest (Connection &c);
-  ~HttpRequest() { }
+  ~HttpRequest();
 
   string path;
 
@@ -44,7 +44,7 @@ class HttpRequest {
   Persistent<Object> js_object;
 };
 
-HttpRequest* UnwrapRequest
+static HttpRequest* UnwrapRequest
   ( Handle<Object> obj
   ) 
 {
@@ -53,23 +53,44 @@ HttpRequest* UnwrapRequest
   return static_cast<HttpRequest*>(ptr);
 }
 
-Handle<Value> GetPath
-  ( Local<String> name
-  , const AccessorInfo& info
+static void make_onBody_callback
+  ( HttpRequest *request
+  , const char *base
+  , size_t length
   )
 {
-  HttpRequest* request = UnwrapRequest(info.Holder());
-  return String::New(request->path.c_str(), request->path.length());
+  HandleScope handle_scope;
+
+  Handle<Object> obj = request->js_object;
+  // XXX don't always allocate onBody strings
+  Handle<Value> onBody_val = obj->Get(String::New("onBody"));  
+  if (!onBody_val->IsFunction()) return;
+  Handle<Function> onBody = Handle<Function>::Cast(onBody_val);
+
+  TryCatch try_catch;
+  const int argc = 1;
+  Handle<Value> argv[argc];
+  
+  if(length) {
+    Handle<String> chunk = String::New(base, length);
+    argv[0] = chunk;
+  } else {
+    argv[0] = Null();
+  }
+
+  Handle<Value> result = onBody->Call(obj, argc, argv);
+
+  if (result.IsEmpty()) {
+    String::Utf8Value error(try_catch.Exception());
+    printf("error: %s\n", *error);
+  }
 }
 
-Handle<Value> GetMethod
-  ( Local<String> name
-  , const AccessorInfo& info
+static Handle<Value> GetMethodString
+  ( int method 
   )
 {
-  HttpRequest* request = UnwrapRequest(info.Holder());
-  // TODO allocate these strings only once. reference global
-  switch(request->parser_info.method) {
+  switch(method) {
     case EBB_COPY:      return String::New("COPY");
     case EBB_DELETE:    return String::New("DELETE");
     case EBB_GET:       return String::New("GET");
@@ -84,12 +105,11 @@ Handle<Value> GetMethod
     case EBB_PUT:       return String::New("PUT");
     case EBB_TRACE:     return String::New("TRACE");
     case EBB_UNLOCK:    return String::New("UNLOCK");
-    default: 
-      return Null();
   }
+  return Null();
 }
 
-Handle<Value> RespondCallback
+static Handle<Value> RespondCallback
   ( const Arguments& args
   ) 
 {
@@ -100,17 +120,22 @@ Handle<Value> RespondCallback
   // TODO Make sure that we write reponses in the correct order. With
   // keep-alive it's possible that one response can return before the last
   // one has been sent!!!
+  
+  printf("response called\n");
 
   if(arg == Null()) {
 
-    request->connection.socket.on_drain = oi_socket_close;
+    printf("response got null\n");
+    //delete request; 
 
   } else {
 
-    Local<String> s = arg->ToString();
+    Handle<String> s = arg->ToString();
+
+    printf("response called len %d\n", s->Length());
 
     oi_buf *buf = oi_buf_new2(s->Length());
-    s->WriteAscii(buf->base);
+    s->WriteAscii(buf->base, s->Length());
 
     oi_socket_write(&request->connection.socket, buf);
 
@@ -119,36 +144,23 @@ Handle<Value> RespondCallback
   return Undefined();
 }
 
+HttpRequest::~HttpRequest ()
+{
+  //make_onBody_callback(this, NULL, 0); // EOF
+
+  printf("request is being destructed\n");
+
+  connection.socket.on_drain = oi_socket_close;
+
+  HandleScope scope;
+  // delete a reference to the respond method
+  //js_object->Delete(String::New("respond"));
+  js_object.Dispose();
+}
+
 HttpRequest::HttpRequest (Connection &c) : connection(c)
 {
   ebb_request_init(&parser_info); 
-
-  HandleScope handle_scope;
-
-  if (request_template_.IsEmpty()) {
-    Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
-    raw_template->SetInternalFieldCount(1);
-
-    // Add accessors for each of the fields of the request.
-    raw_template->SetAccessor(String::NewSymbol("path"), GetPath);
-    raw_template->SetAccessor(String::NewSymbol("method"), GetMethod);
-    raw_template->Set(String::New("respond"), FunctionTemplate::New(RespondCallback));
-
-    request_template_ = Persistent<ObjectTemplate>::New(raw_template);
-  }
-  Handle<ObjectTemplate> templ = request_template_;
-
-  // Create an empty http request wrapper.
-  Handle<Object> result = templ->NewInstance();
-
-  // Wrap the raw C++ pointer in an External so it can be referenced
-  // from within JavaScript.
-  Handle<External> request_ptr = External::New(this);
-
-  // Store the request pointer in the JavaScript wrapper.
-  result->SetInternalField(0, request_ptr);
-
-  js_object = Persistent<Object>::New(result);
 }
 
 static void on_path
@@ -167,8 +179,36 @@ static void on_headers_complete
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
-  // Create a handle scope to keep the temporary object references.
   HandleScope handle_scope;
+
+  if (request_template_.IsEmpty()) {
+    Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
+    raw_template->SetInternalFieldCount(1);
+    raw_template->Set(String::New("respond"), FunctionTemplate::New(RespondCallback));
+
+    request_template_ = Persistent<ObjectTemplate>::New(raw_template);
+  }
+  Handle<ObjectTemplate> templ = request_template_;
+
+  // Create an empty http request wrapper.
+  Handle<Object> result = templ->NewInstance();
+
+  // Wrap the raw C++ pointer in an External so it can be referenced
+  // from within JavaScript.
+  Handle<External> request_ptr = External::New(request);
+
+  // Store the request pointer in the JavaScript wrapper.
+  result->SetInternalField(0, request_ptr);
+
+  result->Set ( String::NewSymbol("path")
+              , String::New(request->path.c_str(), request->path.length())
+              );
+
+  result->Set ( String::NewSymbol("method")
+              , GetMethodString(request->parser_info.method)
+              );
+
+  Persistent<Object> js_object = Persistent<Object>::New(result);
 
   // Enter this processor's context so all the remaining operations
   // take place there
@@ -180,9 +220,9 @@ static void on_headers_complete
   // Invoke the process function, giving the global object as 'this'
   // and one argument, the request.
   const int argc = 1;
-  Handle<Value> argv[argc] = { request->js_object };
-  Handle<Value> result = process_->Call(context_->Global(), argc, argv);
-  if (result.IsEmpty()) {
+  Handle<Value> argv[argc] = { js_object };
+  Handle<Value> r = process_->Call(context_->Global(), argc, argv);
+  if (r.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
     printf("error: %s\n", *error);
   }
@@ -193,20 +233,26 @@ static void on_request_complete
   )
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  //delete request;
 }
+
 
 static void on_body
   ( ebb_request *req
-  , const char *chunk
+  , const char *base
   , size_t length
   )
 {
+  printf("on body %d\n", length);
+
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
-  
+  if(length)
+    make_onBody_callback(request, base, length);
 }
 
-ebb_request * on_request
+static ebb_request * on_request
   ( void *data
   ) 
 {
@@ -236,10 +282,14 @@ static void on_read
 {
   Connection *connection = static_cast<Connection*> (socket->data);
   ebb_request_parser_execute ( &connection->parser
-                             , static_cast<const char*> (buf) // FIXME change ebb to use void*
+                             // FIXME change ebb to use void*
+                             , static_cast<const char*> (buf) 
                              , count
                              );
-  /* TODO check for errors */
+  if(ebb_request_parser_has_error(&connection->parser)) {
+    fprintf(stderr, "parse error closing connection\n");
+    oi_socket_close(&connection->socket);
+  }
 }
 
 static void on_close 
@@ -247,8 +297,8 @@ static void on_close
   )
 {
   Connection *connection = static_cast<Connection*> (socket->data);
-  /* TODO free requests */
-  free(connection);
+  // TODO free requests
+  delete connection;
 }
 
 static void on_drain 
@@ -282,7 +332,7 @@ static oi_socket* new_connection
 
 
 // Reads a file into a v8 string.
-Handle<String> ReadFile
+static Handle<String> ReadFile
   ( const string& name
   ) 
 {
@@ -305,7 +355,7 @@ Handle<String> ReadFile
   return result;
 }
 
-void ParseOptions
+static void ParseOptions
   ( int argc
   , char* argv[]
   , map<string, string>& options
@@ -325,7 +375,7 @@ void ParseOptions
   }
 }
 
-bool ExecuteScript
+static bool compile
   ( Handle<String> script
   ) 
 {
@@ -399,7 +449,7 @@ int main
   Context::Scope context_scope(context);
 
   // Compile and run the script
-  if (!ExecuteScript(source))
+  if (!compile(source))
     return false;
 
   // The script compiled and ran correctly.  Now we fetch out the
