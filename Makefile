@@ -10,15 +10,12 @@ ifdef EVDIR
 	LDFLAGS += -L$(EVDIR)/lib
 endif
 
-server: js_http_request_processor.o server.o oi_socket.o ebb_request_parser.o oi_buf.o
+server: server.o oi_socket.o ebb_request_parser.o oi_buf.o
 	g++ -o server $^ $(LDFLAGS) $(V8LIB) 
 
 server.o: server.cc 
 	g++ $(CFLAGS) -c $<
 	
-js_http_request_processor.o: js_http_request_processor.cc 
-	g++ $(CFLAGS) -c $<
-
 ebb_request_parser.o: ebb_request_parser.c deps/ebb/ebb_request_parser.h 
 	g++ $(CFLAGS) -c $<
 
