@@ -61,9 +61,10 @@ static void make_onBody_callback
 {
   HandleScope handle_scope;
 
+
   Handle<Object> obj = request->js_object;
   // XXX don't always allocate onBody strings
-  Handle<Value> onBody_val = obj->Get(String::New("onBody"));  
+  Handle<Value> onBody_val = request->js_object->Get(String::NewSymbol("onBody"));  
   if (!onBody_val->IsFunction()) return;
   Handle<Function> onBody = Handle<Function>::Cast(onBody_val);
 
@@ -78,7 +79,7 @@ static void make_onBody_callback
     argv[0] = Null();
   }
 
-  Handle<Value> result = onBody->Call(obj, argc, argv);
+  Handle<Value> result = onBody->Call(request->js_object, argc, argv);
 
   if (result.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
@@ -121,21 +122,21 @@ static Handle<Value> RespondCallback
   // keep-alive it's possible that one response can return before the last
   // one has been sent!!!
   
-  printf("response called\n");
+  //printf("response called\n");
 
   if(arg == Null()) {
 
-    printf("response got null\n");
-    //delete request; 
+    //printf("response got null\n");
+    delete request; 
 
   } else {
 
     Handle<String> s = arg->ToString();
 
-    printf("response called len %d\n", s->Length());
+    //printf("response called len %d\n", s->Length());
 
     oi_buf *buf = oi_buf_new2(s->Length());
-    s->WriteAscii(buf->base, s->Length());
+    s->WriteAscii(buf->base, 0, s->Length());
 
     oi_socket_write(&request->connection.socket, buf);
 
@@ -146,9 +147,7 @@ static Handle<Value> RespondCallback
 
 HttpRequest::~HttpRequest ()
 {
-  //make_onBody_callback(this, NULL, 0); // EOF
-
-  printf("request is being destructed\n");
+  //printf("request is being destructed\n");
 
   connection.socket.on_drain = oi_socket_close;
 
@@ -208,7 +207,7 @@ static void on_headers_complete
               , GetMethodString(request->parser_info.method)
               );
 
-  Persistent<Object> js_object = Persistent<Object>::New(result);
+  request->js_object = Persistent<Object>::New(result);
 
   // Enter this processor's context so all the remaining operations
   // take place there
@@ -220,7 +219,7 @@ static void on_headers_complete
   // Invoke the process function, giving the global object as 'this'
   // and one argument, the request.
   const int argc = 1;
-  Handle<Value> argv[argc] = { js_object };
+  Handle<Value> argv[argc] = { request->js_object };
   Handle<Value> r = process_->Call(context_->Global(), argc, argv);
   if (r.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
@@ -234,7 +233,7 @@ static void on_request_complete
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
-  //delete request;
+  make_onBody_callback(request, NULL, 0); // EOF
 }
 
 
@@ -244,7 +243,7 @@ static void on_body
   , size_t length
   )
 {
-  printf("on body %d\n", length);
+  //printf("on body %d\n", length);
 
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
@@ -416,6 +415,7 @@ static Handle<Value> LogCallback
   String::Utf8Value value(arg);
 
   printf("Logged: %s\n", *value);
+  fflush(stdout);
 
   return v8::Undefined();
 }
