@@ -329,7 +329,6 @@ static oi_socket* new_connection
   return &connection->socket;
 }
 
-
 // Reads a file into a v8 string.
 static Handle<String> ReadFile
   ( const string& name
