@@ -8,9 +8,16 @@ function Process(request) {
 
   //
   //  request.headers      => { "Content-Length": "123" }
-  //  request.http_version => "1.1"
   //
-  //log("Processing " + request.path + ". method: " + request.method);
+//  log("Processing " + request.path + ". method: " + request.method);
+//  log("version " + request.http_version);
+//  log("query_string " + request.query_string);
+//  log("fragment " + request.fragment);
+//  log("uri " + request.uri);
+//  log("headers: " + request.headers.toString());
+  //for(var f in request.headers) {
+    //log(f + ": " + request.headers[f]);
+  //}
   var s  =  "";
 
   // sends null on the last chunk.
@@ -20,8 +27,11 @@ function Process(request) {
       //this.respond(chunk.length.toString(16) + "\r\n" + evalchunk + "\r\n");
       s +=  chunk;
     } else {
+      this.respond(encode("hello world\n"));
       var output = eval(s);
-      this.respond(encode(output));
+      if(output) {
+        this.respond(encode(output));
+      }
       this.respond(encode("\n"));
       this.respond("0\r\n\r\n");
       this.respond(null);

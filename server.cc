@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string>
+#include <list>
 #include <map>
 
 #include <v8.h>
@@ -37,6 +38,12 @@ class HttpRequest {
   ~HttpRequest();
 
   string path;
+  string query_string;
+  string fragment;
+  string uri;
+
+  list<string> header_fields;
+  list<string> header_values;
 
   Connection &connection;
   ebb_request parser_info;
@@ -60,7 +67,6 @@ static void make_onBody_callback
   )
 {
   HandleScope handle_scope;
-
 
   Handle<Object> obj = request->js_object;
   // XXX don't always allocate onBody strings
@@ -153,7 +159,7 @@ HttpRequest::~HttpRequest ()
 
   HandleScope scope;
   // delete a reference to the respond method
-  //js_object->Delete(String::New("respond"));
+  js_object->Delete(String::New("respond"));
   js_object.Dispose();
 }
 
@@ -170,6 +176,68 @@ static void on_path
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
   request->path.append(buf, len);
+}
+
+static void on_uri
+  ( ebb_request *req
+  , const char *buf
+  , size_t len
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->uri.append(buf, len);
+}
+
+static void on_query_string
+  ( ebb_request *req
+  , const char *buf
+  , size_t len
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->query_string.append(buf, len);
+}
+
+static void on_fragment
+  ( ebb_request *req
+  , const char *buf
+  , size_t len
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->fragment.append(buf, len);
+}
+
+static void on_header_field
+  ( ebb_request *req
+  , const char *buf
+  , size_t len
+  , int header_index
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  if( request->header_fields.size() == header_index - 1) {
+    request->header_fields.back().append(buf, len);
+  } else { 
+    request->header_fields.push_back( string(buf, len) );
+  }
+}
+
+static void on_header_value
+  ( ebb_request *req
+  , const char *buf
+  , size_t len
+  , int header_index
+  )
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  if( request->header_values.size() == header_index - 1) {
+    request->header_values.back().append(buf, len);
+  } else { 
+    request->header_values.push_back( string(buf, len) );
+  }
 }
 
 static void on_headers_complete
@@ -203,9 +271,50 @@ static void on_headers_complete
               , String::New(request->path.c_str(), request->path.length())
               );
 
+  result->Set ( String::NewSymbol("uri")
+              , String::New(request->uri.c_str(), request->uri.length())
+              );
+
+  result->Set ( String::NewSymbol("query_string")
+              , String::New(request->query_string.c_str(), request->query_string.length())
+              );
+
+  result->Set ( String::NewSymbol("fragment")
+              , String::New(request->fragment.c_str(), request->fragment.length())
+              );
+
   result->Set ( String::NewSymbol("method")
               , GetMethodString(request->parser_info.method)
               );
+
+  char version[10];
+  snprintf ( version
+           , 10 // big enough? :)
+           , "%d.%d"
+           , request->parser_info.version_major
+           , request->parser_info.version_minor
+           ); 
+  result->Set ( String::NewSymbol("http_version")
+              , String::New(version)
+              );
+
+  
+  Handle<Object> headers = Object::New();
+  list<string>::iterator field_iterator = request->header_fields.begin();
+  list<string>::iterator value_iterator = request->header_values.begin();
+  while( value_iterator != request->header_values.end() ) {
+    string &f = *field_iterator;
+    string &v = *value_iterator;
+    
+    headers->Set( String::New(f.c_str(), f.length() )
+                , String::New(v.c_str(), v.length() ) 
+                );
+
+    field_iterator++;
+    value_iterator++;
+  }
+  result->Set(String::NewSymbol("headers"), headers);
+
 
   request->js_object = Persistent<Object>::New(result);
 
@@ -260,11 +369,11 @@ static ebb_request * on_request
   HttpRequest *request = new HttpRequest(*connection);
   
   request->parser_info.on_path             = on_path;
-  request->parser_info.on_query_string     = NULL;
-  request->parser_info.on_uri              = NULL;
-  request->parser_info.on_fragment         = NULL;
-  request->parser_info.on_header_field     = NULL;
-  request->parser_info.on_header_value     = NULL;
+  request->parser_info.on_query_string     = on_query_string;
+  request->parser_info.on_uri              = on_uri;
+  request->parser_info.on_fragment         = on_fragment;
+  request->parser_info.on_header_field     = on_header_field;
+  request->parser_info.on_header_value     = on_header_value;
   request->parser_info.on_headers_complete = on_headers_complete;
   request->parser_info.on_body             = on_body;
   request->parser_info.on_complete         = on_request_complete;
