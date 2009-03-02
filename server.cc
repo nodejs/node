@@ -1,6 +1,8 @@
 #include <oi.h>
 #include <ebb_request_parser.h>
 
+#include "tcp.h"
+
 #include <stdio.h>
 #include <assert.h>
 #include <string>
@@ -17,7 +19,7 @@ using namespace std;
 static oi_server server;
 static struct ev_loop *loop;
 
-static Persistent<Context> context_;
+static Persistent<Context> context;
 static Persistent<Function> process_;
 static Persistent<ObjectTemplate> request_template_;
 
@@ -320,7 +322,7 @@ static void on_headers_complete
 
   // Enter this processor's context so all the remaining operations
   // take place there
-  Context::Scope context_scope(context_);
+  Context::Scope context_scope(context);
 
   // Set up an exception handler before calling the Process function
   TryCatch try_catch;
@@ -329,7 +331,7 @@ static void on_headers_complete
   // and one argument, the request.
   const int argc = 1;
   Handle<Value> argv[argc] = { request->js_object };
-  Handle<Value> r = process_->Call(context_->Global(), argc, argv);
+  Handle<Value> r = process_->Call(context->Global(), argc, argv);
   if (r.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
     printf("error: %s\n", *error);
@@ -495,9 +497,13 @@ static bool compile
   // Compile the script and check for errors.
   Handle<Script> compiled_script = Script::Compile(script);
   if (compiled_script.IsEmpty()) {
+
+    Handle<Message> message = try_catch.Message();
+
     String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-    // The script failed to compile; bail out.
+
+    printf("error: %s line %d\n", *error, message->GetLineNumber());
+
     return false;
   }
 
@@ -533,6 +539,9 @@ int main
   , char *argv[]
   ) 
 {
+  loop = ev_default_loop(0);
+
+
   map<string, string> options;
   string file;
   ParseOptions(argc, argv, options, &file);
@@ -547,14 +556,12 @@ int main
     return 1;
   }
 
-  Handle<ObjectTemplate> global = ObjectTemplate::New();
-  global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
-
-  Handle<Context> context = Context::New(NULL, global);
-
-  context_ = Persistent<Context>::New(context);
-
+  context = Context::New(NULL, ObjectTemplate::New());
   Context::Scope context_scope(context);
+
+  Local<Object> g = Context::GetCurrent()->Global();
+  g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
+  g->Set( String::New("TCP"), tcp_initialize(loop));
 
   // Compile and run the script
   if (!compile(source))
@@ -579,8 +586,6 @@ int main
   /////////////////////////////////////
   /////////////////////////////////////
   /////////////////////////////////////
-
-  loop = ev_default_loop(0);
   
   oi_server_init(&server, 1024);
   server.on_connection = new_connection;
@@ -604,7 +609,7 @@ int main
 
   ev_loop(loop, 0);
 
-  context_.Dispose();
+  context.Dispose();
   process_.Dispose();
 
   return 0;

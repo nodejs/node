@@ -1,4 +1,16 @@
+WHEREAS, The usage of threads has complicated computer programming; and
 
-git submodule init
-git submodule update
-make
+WHEREAS, V8 javascript comes free of I/O and threads; and
+
+WHEREAS, Most operating systems do not provide asynchonous file system
+access.
+
+Now, therefore:
+
+This set server and client libraries were made to build simple but fast
+servers. They are provided free of charge under a permissive simple license. 
+
+Submitted by
+Ryah Dahl, Programmer
+Tim Becker, Programmer
+March 1, 2009 
