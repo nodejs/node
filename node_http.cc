@@ -81,6 +81,7 @@ class HttpRequest {
   ~HttpRequest();
 
   void MakeBodyCallback (const char *base, size_t length);
+  Local<Object> CreateJSObject ();
 
   string path;
   string query_string;
@@ -211,6 +212,83 @@ HttpRequest::HttpRequest (Connection &c) : connection(c)
   ebb_request_init(&parser_info); 
 }
 
+Local<Object>
+HttpRequest::CreateJSObject ()
+{
+  HandleScope scope;
+
+  if (request_template.IsEmpty()) {
+    Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
+    raw_template->SetInternalFieldCount(1);
+    raw_template->Set(respond_str, FunctionTemplate::New(RespondCallback));
+
+    request_template = Persistent<ObjectTemplate>::New(raw_template);
+  }
+
+  // Create an empty http request wrapper.
+  Handle<Object> result = request_template->NewInstance();
+
+  // Wrap the raw C++ pointer in an External so it can be referenced
+  // from within JavaScript.
+  Handle<External> request_ptr = External::New(this);
+
+  // Store the request pointer in the JavaScript wrapper.
+  result->SetInternalField(0, request_ptr);
+
+  result->Set ( path_str
+              , String::New(path.c_str(), path.length())
+              );
+
+  result->Set ( uri_str
+              , String::New(uri.c_str(), uri.length())
+              );
+
+  result->Set ( query_string_str
+              , String::New(query_string.c_str(), query_string.length())
+              );
+
+  result->Set ( fragment_str
+              , String::New(fragment.c_str(), fragment.length())
+              );
+
+  result->Set ( method_str
+              , GetMethodString(parser_info.method)
+              );
+
+  char version[10];
+  snprintf ( version
+           , 10 // big enough? :)
+           , "%d.%d"
+           , parser_info.version_major
+           , parser_info.version_minor
+           ); 
+  result->Set ( http_version_str
+              , String::New(version)
+              );
+
+  
+  Handle<Object> headers = Object::New();
+  list<string>::iterator field_iterator = header_fields.begin();
+  list<string>::iterator value_iterator = header_values.begin();
+  while( value_iterator != header_values.end() ) {
+    string &f = *field_iterator;
+    string &v = *value_iterator;
+    
+    headers->Set( String::New(f.c_str(), f.length() )
+                , String::New(v.c_str(), v.length() ) 
+                );
+
+    field_iterator++;
+    value_iterator++;
+  }
+  result->Set(String::NewSymbol("headers"), headers);
+
+
+  js_object = Persistent<Object>::New(result);
+
+  return scope.Close(result);
+}
+
 static void on_path
   ( ebb_request *req
   , const char *buf
@@ -289,77 +367,9 @@ static void on_headers_complete
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
-  HandleScope handle_scope;
+  HandleScope scope;
 
-  if (request_template.IsEmpty()) {
-    Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
-    raw_template->SetInternalFieldCount(1);
-    raw_template->Set(respond_str, FunctionTemplate::New(RespondCallback));
-
-    request_template = Persistent<ObjectTemplate>::New(raw_template);
-  }
-
-  // Create an empty http request wrapper.
-  Handle<Object> result = request_template->NewInstance();
-
-  // Wrap the raw C++ pointer in an External so it can be referenced
-  // from within JavaScript.
-  Handle<External> request_ptr = External::New(request);
-
-  // Store the request pointer in the JavaScript wrapper.
-  result->SetInternalField(0, request_ptr);
-
-  result->Set ( path_str
-              , String::New(request->path.c_str(), request->path.length())
-              );
-
-  result->Set ( uri_str
-              , String::New(request->uri.c_str(), request->uri.length())
-              );
-
-  result->Set ( query_string_str
-              , String::New(request->query_string.c_str(), request->query_string.length())
-              );
-
-  result->Set ( fragment_str
-              , String::New(request->fragment.c_str(), request->fragment.length())
-              );
-
-  result->Set ( method_str
-              , GetMethodString(request->parser_info.method)
-              );
-
-  char version[10];
-  snprintf ( version
-           , 10 // big enough? :)
-           , "%d.%d"
-           , request->parser_info.version_major
-           , request->parser_info.version_minor
-           ); 
-  result->Set ( http_version_str
-              , String::New(version)
-              );
-
-  
-  Handle<Object> headers = Object::New();
-  list<string>::iterator field_iterator = request->header_fields.begin();
-  list<string>::iterator value_iterator = request->header_values.begin();
-  while( value_iterator != request->header_values.end() ) {
-    string &f = *field_iterator;
-    string &v = *value_iterator;
-    
-    headers->Set( String::New(f.c_str(), f.length() )
-                , String::New(v.c_str(), v.length() ) 
-                );
-
-    field_iterator++;
-    value_iterator++;
-  }
-  result->Set(String::NewSymbol("headers"), headers);
-
-
-  request->js_object = Persistent<Object>::New(result);
-
+  Local<Object> js_request = request->CreateJSObject();
 
   // Set up an exception handler before calling the Process function
   TryCatch try_catch;
@@ -367,7 +377,7 @@ static void on_headers_complete
   // Invoke the process function, giving the global object as 'this'
   // and one argument, the request.
   const int argc = 1;
-  Handle<Value> argv[argc] = { request->js_object };
+  Handle<Value> argv[argc] = { js_request };
   Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
   if (r.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
