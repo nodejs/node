@@ -1,4 +1,4 @@
-#include "tcp.h"
+#include "node_tcp.h"
 
 #include <oi_socket.h>
 #include <oi_async.h>
@@ -88,6 +88,8 @@ static void resolve_done
 {
   TCPClient *client = static_cast<TCPClient*> (resolve_task->data);
 
+  printf("hello world\n");
+
   if(result != 0) {
     printf("error. TODO make call options error callback\n");
     client->options.Dispose();
@@ -95,7 +97,7 @@ static void resolve_done
     return;
   }
 
-  // Got the address succesfully. Let's connect now.  
+  printf("Got the address succesfully. Let's connect now.  \n");
 
   oi_socket_init(&client->socket, 30.0); // TODO adjustable timeout
 
@@ -145,8 +147,8 @@ static Handle<Value> Connect
   char host_s[host->Length()+1];  // + 1 for \0
   char port_s[port->Length()+1];
 
-  host->WriteAscii(host_s, 0, host->Length());
-  port->WriteAscii(port_s, 0, port->Length());
+  host->WriteAscii(host_s);
+  port->WriteAscii(port_s);
 
   printf("resolving host: %s, port: %s\n", host_s, port_s);
 
@@ -164,7 +166,7 @@ static Handle<Value> Connect
   oi_async_submit (&thread_pool, &client->resolve_task);
 }
 
-Handle<Object> tcp_initialize
+Handle<Object> node_tcp_initialize
   ( struct ev_loop *_loop
   )
 {

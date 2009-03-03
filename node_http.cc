@@ -1,43 +1,59 @@
-#include <oi.h>
+#include "node_http.h"
+
+#include <oi_socket.h>
 #include <ebb_request_parser.h>
 
-#include "tcp.h"
-
-#include <stdio.h>
-#include <assert.h>
 #include <string>
 #include <list>
-#include <map>
 
 #include <v8.h>
 
 using namespace v8;
 using namespace std;
 
-#define PORT "1981"
-
-static oi_server server;
+static Persistent<ObjectTemplate> request_template;
 static struct ev_loop *loop;
 
-static Persistent<Context> context;
-static Persistent<Function> process_;
-static Persistent<ObjectTemplate> request_template_;
+class Server {
+public:
+  Server (Handle<Object> _js_server);
+  ~Server ();
+
+  int Start(struct addrinfo *servinfo);
+  void Stop();
+
+  Handle<Value> Callback()
+  {
+    HandleScope scope;
+    Handle<Value> value = js_server->Get(String::New("onRequest"));
+    return scope.Close(value);
+  }
+
+private:
+  oi_server server;
+  Persistent<Object> js_server;
+};
 
 class Connection {
 public:
-  Connection ( void)
+  Connection ()
   {
     oi_socket_init (&socket, 30.0);
     ebb_request_parser_init (&parser);
   }
   ebb_request_parser parser;
   oi_socket socket;
+  Persistent<Function> js_onRequest;
+
+  friend class Server;
 };
 
 class HttpRequest {
  public:
   HttpRequest (Connection &c);
   ~HttpRequest();
+
+  void MakeBodyCallback (const char *base, size_t length);
 
   string path;
   string query_string;
@@ -62,17 +78,14 @@ static HttpRequest* UnwrapRequest
   return static_cast<HttpRequest*>(ptr);
 }
 
-static void make_onBody_callback
-  ( HttpRequest *request
-  , const char *base
-  , size_t length
-  )
+void
+HttpRequest::MakeBodyCallback (const char *base, size_t length)
 {
   HandleScope handle_scope;
-
-  Handle<Object> obj = request->js_object;
+  // 
   // XXX don't always allocate onBody strings
-  Handle<Value> onBody_val = request->js_object->Get(String::NewSymbol("onBody"));  
+  //
+  Handle<Value> onBody_val = js_object->Get(String::NewSymbol("onBody"));  
   if (!onBody_val->IsFunction()) return;
   Handle<Function> onBody = Handle<Function>::Cast(onBody_val);
 
@@ -81,13 +94,14 @@ static void make_onBody_callback
   Handle<Value> argv[argc];
   
   if(length) {
+    // TODO use array for binary data
     Handle<String> chunk = String::New(base, length);
     argv[0] = chunk;
   } else {
     argv[0] = Null();
   }
 
-  Handle<Value> result = onBody->Call(request->js_object, argc, argv);
+  Handle<Value> result = onBody->Call(js_object, argc, argv);
 
   if (result.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
@@ -250,17 +264,16 @@ static void on_headers_complete
 
   HandleScope handle_scope;
 
-  if (request_template_.IsEmpty()) {
+  if (request_template.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
     raw_template->SetInternalFieldCount(1);
-    raw_template->Set(String::New("respond"), FunctionTemplate::New(RespondCallback));
+    raw_template->Set(String::NewSymbol("respond"), FunctionTemplate::New(RespondCallback));
 
-    request_template_ = Persistent<ObjectTemplate>::New(raw_template);
+    request_template = Persistent<ObjectTemplate>::New(raw_template);
   }
-  Handle<ObjectTemplate> templ = request_template_;
 
   // Create an empty http request wrapper.
-  Handle<Object> result = templ->NewInstance();
+  Handle<Object> result = request_template->NewInstance();
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
@@ -320,9 +333,6 @@ static void on_headers_complete
 
   request->js_object = Persistent<Object>::New(result);
 
-  // Enter this processor's context so all the remaining operations
-  // take place there
-  Context::Scope context_scope(context);
 
   // Set up an exception handler before calling the Process function
   TryCatch try_catch;
@@ -331,7 +341,7 @@ static void on_headers_complete
   // and one argument, the request.
   const int argc = 1;
   Handle<Value> argv[argc] = { request->js_object };
-  Handle<Value> r = process_->Call(context->Global(), argc, argv);
+  Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
   if (r.IsEmpty()) {
     String::Utf8Value error(try_catch.Exception());
     printf("error: %s\n", *error);
@@ -343,10 +353,8 @@ static void on_request_complete
   )
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
-
-  make_onBody_callback(request, NULL, 0); // EOF
+  request->MakeBodyCallback(NULL, 0); // EOF
 }
-
 
 static void on_body
   ( ebb_request *req
@@ -354,12 +362,10 @@ static void on_body
   , size_t length
   )
 {
-  //printf("on body %d\n", length);
-
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
   if(length)
-    make_onBody_callback(request, base, length);
+    request->MakeBodyCallback(base, length);
 }
 
 static ebb_request * on_request
@@ -419,12 +425,21 @@ static void on_drain
   //oi_socket_close(&connection->socket);
 }
 
-static oi_socket* new_connection 
-  ( oi_server *server
+static oi_socket* on_connection 
+  ( oi_server *_server
   , struct sockaddr *addr
   , socklen_t len
   )
 {
+  HandleScope scope;
+
+  Server *server = static_cast<Server*> (_server->data);
+
+  Handle<Value> callback_v = server->Callback();
+
+  if(callback_v == Undefined())
+    return NULL;
+
   Connection *connection = new Connection();
     connection->socket.on_read    = on_read;
     connection->socket.on_error   = NULL;
@@ -436,159 +451,67 @@ static oi_socket* new_connection
     connection->parser.new_request = on_request;
     connection->parser.data        = connection;
 
+  Handle<Function> f = Handle<Function>::Cast(callback_v);
+  connection->js_onRequest = Persistent<Function>::New(f);
 
   return &connection->socket;
 }
 
-// Reads a file into a v8 string.
-static Handle<String> ReadFile
-  ( const string& name
-  ) 
-{
-  FILE* file = fopen(name.c_str(), "rb");
-  if (file == NULL) return Handle<String>();
-
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-  rewind(file);
-
-  char* chars = new char[size + 1];
-  chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
-    i += read;
-  }
-  fclose(file);
-  Handle<String> result = String::New(chars, size);
-  delete[] chars;
-  return result;
-}
-
-static void ParseOptions
-  ( int argc
-  , char* argv[]
-  , map<string, string>& options
-  , string* file
+static void server_destroy
+  ( Persistent<Value> _
+  , void *data
   )
 {
-  for (int i = 1; i < argc; i++) {
-    string arg = argv[i];
-    int index = arg.find('=', 0);
-    if (index == string::npos) {
-      *file = arg;
-    } else {
-      string key = arg.substr(0, index);
-      string value = arg.substr(index+1);
-      options[key] = value;
-    }
-  }
+  Server *server = static_cast<Server *> (data);
+  delete server;
 }
 
-static bool compile
-  ( Handle<String> script
-  ) 
+Server::Server (Handle<Object> _js_server)
 {
-  HandleScope handle_scope;
-
-  // We're just about to compile the script; set up an error handler to
-  // catch any exceptions the script might throw.
-  TryCatch try_catch;
-
-  // Compile the script and check for errors.
-  Handle<Script> compiled_script = Script::Compile(script);
-  if (compiled_script.IsEmpty()) {
-
-    Handle<Message> message = try_catch.Message();
-
-    String::Utf8Value error(try_catch.Exception());
-
-    printf("error: %s line %d\n", *error, message->GetLineNumber());
-
-    return false;
-  }
-
-  // Run the script!
-  Handle<Value> result = compiled_script->Run();
-  if (result.IsEmpty()) {
-    // The TryCatch above is still in effect and will have caught the error.
-    String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-    // Running the script failed; bail out.
-    return false;
-  }
-  return true;
-}
-
-static Handle<Value> LogCallback
-  ( const Arguments& args
-  ) 
-{
-  if (args.Length() < 1) return v8::Undefined();
-  HandleScope scope;
-  Handle<Value> arg = args[0];
-  String::Utf8Value value(arg);
-
-  printf("Logged: %s\n", *value);
-  fflush(stdout);
-
-  return v8::Undefined();
-}
-
-int main 
-  ( int argc
-  , char *argv[]
-  ) 
-{
-  loop = ev_default_loop(0);
-
-
-  map<string, string> options;
-  string file;
-  ParseOptions(argc, argv, options, &file);
-  if (file.empty()) {
-    fprintf(stderr, "No script was specified.\n");
-    return 1;
-  }
-  HandleScope scope;
-  Handle<String> source = ReadFile(file);
-  if (source.IsEmpty()) {
-    fprintf(stderr, "Error reading '%s'.\n", file.c_str());
-    return 1;
-  }
-
-  context = Context::New(NULL, ObjectTemplate::New());
-  Context::Scope context_scope(context);
-
-  Local<Object> g = Context::GetCurrent()->Global();
-  g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
-  g->Set( String::New("TCP"), tcp_initialize(loop));
-
-  // Compile and run the script
-  if (!compile(source))
-    return false;
-
-  // The script compiled and ran correctly.  Now we fetch out the
-  // Process function from the global object.
-  Handle<String> process_name = String::New("Process");
-  Handle<Value> process_val = context->Global()->Get(process_name);
-
-  // If there is no Process function, or if it is not a function,
-  // bail out
-  if (!process_val->IsFunction()) return false;
-
-  // It is a function; cast it to a Function
-  Handle<Function> process_fun = Handle<Function>::Cast(process_val);
-
-  // Store the function in a Persistent handle, since we also want
-  // that to remain after this call returns
-  process_ = Persistent<Function>::New(process_fun);
-
-  /////////////////////////////////////
-  /////////////////////////////////////
-  /////////////////////////////////////
-  
   oi_server_init(&server, 1024);
-  server.on_connection = new_connection;
+  server.on_connection = on_connection;
+  server.data = this;
+  HandleScope scope;
+  js_server = Persistent<Object>::New (_js_server);
+  // are we ever going to need this external?
+  js_server->SetInternalField (0, External::New(this));
+  js_server.MakeWeak (this, server_destroy);
+}
+
+Server::~Server ()
+{
+  Stop();
+  js_server.Dispose();
+  js_server.Clear(); // necessary? 
+}
+
+int
+Server::Start(struct addrinfo *servinfo) 
+{
+  int r = oi_server_listen(&server, servinfo);
+  if(r == 0)
+    oi_server_attach(&server, loop);
+  return r;
+}
+
+void
+Server::Stop() 
+{
+  oi_server_close (&server);
+  oi_server_detach (&server);
+}
+
+/* This constructor takes 2 arguments: host, port. */
+static Handle<Value>
+server_constructor (const Arguments& args) 
+{
+  if (args.Length() < 2)
+    return Undefined();
+
+  HandleScope scope;
+
+  String::AsciiValue host(args[0]->ToString());
+  String::AsciiValue port(args[1]->ToString());
 
   // get addrinfo for localhost, PORT
   struct addrinfo *servinfo;
@@ -597,20 +520,44 @@ int main
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
-  int r = getaddrinfo(NULL, PORT, &hints, &servinfo);
-  assert(r == 0);
+  int r = getaddrinfo(NULL, *port, &hints, &servinfo);
+  if (r != 0)
+    return Undefined(); // XXX raise error?
 
-  r = oi_server_listen(&server, servinfo);
-  assert(r == 0);
+  //
+  //
+  //
+  // TODO host is ignored for now assumed localhost
+  //
+  //
+  //
+  //
 
-  oi_server_attach(&server, loop);
+  Server *server = new Server(args.This());
+  if(server == NULL)
+    return Undefined(); // XXX raise error?
 
-  printf("Running at http://localhost:%s/\n", PORT);
+  r = server->Start(servinfo);
+  if (r != 0)
+    return Undefined(); // XXX raise error?
 
-  ev_loop(loop, 0);
+  printf("Running at http://localhost:%s/\n", *port);
+ 
+  return args.This();
+}
 
-  context.Dispose();
-  process_.Dispose();
+Handle<Object> node_http_initialize (struct ev_loop *_loop)
+{
+  HandleScope scope;
 
-  return 0;
+  loop = _loop;
+
+  Local<Object> http = Object::New();
+
+  Local<FunctionTemplate> server_t = FunctionTemplate::New(server_constructor);
+  server_t->InstanceTemplate()->SetInternalFieldCount(1);
+
+  http->Set(String::New("Server"), server_t->GetFunction());
+
+  return scope.Close(http);
 }
