@@ -1,4 +1,5 @@
 #include "node_http.h"
+#include "node.h"
 
 #include <oi_socket.h>
 #include <ebb_request_parser.h>
@@ -6,13 +7,10 @@
 #include <string>
 #include <list>
 
-#include <v8.h>
-
 using namespace v8;
 using namespace std;
 
 static Persistent<ObjectTemplate> request_template;
-static struct ev_loop *loop;
 
 // globals
 static Persistent<String> path_str; 
@@ -226,10 +224,9 @@ on_headers_complete (ebb_request *req)
   const int argc = 1;
   Handle<Value> argv[argc] = { js_request };
   Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (r.IsEmpty()) {
-    String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-  }
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
 }
 
 static void
@@ -346,10 +343,8 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
 
   Handle<Value> result = onBody->Call(js_object, argc, argv);
 
-  if (result.IsEmpty()) {
-    String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-  }
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
 }
 
 Local<Object>
@@ -490,7 +485,7 @@ Server::Start(struct addrinfo *servinfo)
 {
   int r = oi_server_listen(&server, servinfo);
   if(r == 0)
-    oi_server_attach(&server, loop);
+    oi_server_attach(&server, node_loop());
   return r;
 }
 
@@ -541,24 +536,22 @@ server_constructor (const Arguments& args)
   if (r != 0)
     return Undefined(); // XXX raise error?
 
-  printf("Running at http://localhost:%s/\n", *port);
- 
   return args.This();
 }
 
-Handle<Object>
-node_http_initialize (struct ev_loop *_loop)
+void
+node_http_initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  loop = _loop;
-
   Local<Object> http = Object::New();
+  target->Set (String::NewSymbol("HTTP"), http);
 
   Local<FunctionTemplate> server_t = FunctionTemplate::New(server_constructor);
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
 
   http->Set(String::New("Server"), server_t->GetFunction());
+
 
   path_str         = Persistent<String>::New( String::NewSymbol("path") );
   uri_str          = Persistent<String>::New( String::NewSymbol("uri") );
@@ -585,6 +578,4 @@ node_http_initialize (struct ev_loop *_loop)
   put_str       = Persistent<String>::New( String::New("PUT") );
   trace_str     = Persistent<String>::New( String::New("TRACE") );
   unlock_str    = Persistent<String>::New( String::New("UNLOCK") );
-
-  return scope.Close(http);
 }

@@ -3,7 +3,8 @@ function encode(data) {
   return chunk.length.toString(16) + "\r\n" + chunk + "\r\n";
 }
 
-var server = new HTTP.Server("localhost", 8000);
+var port = 8000;
+var server = new HTTP.Server("localhost", port);
 
 server.onRequest = function (request) {
 
@@ -21,8 +22,12 @@ server.onRequest = function (request) {
   request.respond("Content-Type: text/plain\r\n");
   request.respond("Transfer-Encoding: chunked\r\n");
   request.respond("\r\n");
-
 };
+
+
+log("Running at http://localhost:" + port + "/");
+
+
 /*
 server.close();
 */

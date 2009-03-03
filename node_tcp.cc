@@ -1,4 +1,5 @@
 #include "node_tcp.h"
+#include "node.h"
 
 #include <oi_socket.h>
 #include <oi_async.h>
@@ -7,6 +8,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+using namespace v8;
 
 
 /*
@@ -49,8 +51,6 @@ static struct addrinfo tcp_hints =
 /* ai_canonname  */ , 0
 /* ai_next       */ , 0
                     };
-
-static struct ev_loop *loop;
 
 class TCPClient {
 public:
@@ -110,8 +110,7 @@ static void resolve_done
   client->socket.data = client;
 
   oi_socket_connect (&client->socket, client->address);
-  oi_socket_attach (&client->socket, loop);
-
+  oi_socket_attach (&client->socket, node_loop());
 
   freeaddrinfo(client->address);
   client->address = NULL;
@@ -166,21 +165,17 @@ static Handle<Value> Connect
   oi_async_submit (&thread_pool, &client->resolve_task);
 }
 
-Handle<Object> node_tcp_initialize
-  ( struct ev_loop *_loop
-  )
+void
+node_tcp_initialize (Handle<Object> target)
 {
-  loop = _loop;
-
   oi_async_init(&thread_pool);
-  oi_async_attach(loop, &thread_pool);
+  oi_async_attach(node_loop(), &thread_pool);
 
   HandleScope scope;
 
-  Local<Object> t = Object::New();
+  Local<Object> tcp = Object::New();
+  target->Set(String::NewSymbol("TCP"), tcp);
 
-  t->Set(String::New("connect"), FunctionTemplate::New(Connect)->GetFunction());
-
-  return scope.Close(t);
+  tcp->Set(String::NewSymbol("connect"), FunctionTemplate::New(Connect)->GetFunction());
 }
 

@@ -1,7 +1,7 @@
-#include <ev.h>
-#include <v8.h>
+#include "node.h"
+#include "node_timer.h"
+
 using namespace v8;
-static struct ev_loop *loop;
 
 class Timer {
  public:
@@ -37,12 +37,12 @@ Timer::Timer (Handle<Function> _callback, int _argc, Handle<Value> _argv[], ev_t
 
   ev_timer_init (&watcher, onTimeout, after, repeat);
   watcher.data = this;
-  ev_timer_start (loop, &watcher);
+  ev_timer_start (node_loop(), &watcher);
 }
 
 Timer::~Timer ()
 {
-  ev_timer_stop (loop, &watcher);
+  ev_timer_stop (node_loop(), &watcher);
 
   callback.Dispose();
 
@@ -57,11 +57,10 @@ Timer::CallCallback ()
 
   TryCatch try_catch;
 
-  Handle<Value> r = callback->Call (Context::GetCurrent()->Global(), argc, argv);
-  if (r.IsEmpty()) {
-    String::Utf8Value error(try_catch.Exception());
-    printf("timer callback error: %s\n", *error);
-  }
+  callback->Call (Context::GetCurrent()->Global(), argc, argv);
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
 }
 
 Local<External>
@@ -166,10 +165,8 @@ static Handle<Value> setInterval
 }
 
 void
-node_timer_initialize (Handle<Object> target, struct ev_loop *_loop)
+node_timer_initialize (Handle<Object> target)
 {
-  loop = _loop;
-
   HandleScope scope;
 
   target->Set ( String::New("setTimeout")

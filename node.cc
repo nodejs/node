@@ -1,4 +1,4 @@
-#include <oi.h>
+#include "node.h"
 
 #include "node_tcp.h"
 #include "node_http.h"
@@ -6,24 +6,37 @@
 
 #include <stdio.h>
 #include <assert.h>
+
 #include <string>
 #include <list>
 #include <map>
 
-#include <v8.h>
-
 using namespace v8;
 using namespace std;
 
-static struct ev_loop *loop;
+static int exit_code = 0;
 
-static Persistent<Context> context;
-static Persistent<Function> process_;
+void
+node_fatal_exception (TryCatch &try_catch)
+{
+  HandleScope handle_scope;
+
+  Local<Message> message = try_catch.Message();
+  String::Utf8Value error(try_catch.Exception());
+
+  fprintf( stderr
+         , "Uncaught Exception. line %d '%s'\n\n"
+         , try_catch.Message()->GetLineNumber() 
+         , *error
+         );
+
+  ev_unloop(node_loop(), EVUNLOOP_ALL);
+  exit_code = 1;
+}
 
 // Reads a file into a v8 string.
-static Handle<String> ReadFile
-  ( const string& name
-  ) 
+static Handle<String>
+ReadFile (const string& name) 
 {
   FILE* file = fopen(name.c_str(), "rb");
   if (file == NULL) return Handle<String>();
@@ -44,12 +57,8 @@ static Handle<String> ReadFile
   return result;
 }
 
-static void ParseOptions
-  ( int argc
-  , char* argv[]
-  , map<string, string>& options
-  , string* file
-  )
+static void
+ParseOptions (int argc, char* argv[], map<string, string>& options, string* file)
 {
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
@@ -64,9 +73,8 @@ static void ParseOptions
   }
 }
 
-static bool compile
-  ( Handle<String> script
-  ) 
+static bool
+compile (Handle<String> script) 
 {
   HandleScope handle_scope;
 
@@ -99,26 +107,30 @@ static bool compile
   return true;
 }
 
-static Handle<Value> LogCallback
-  ( const Arguments& args
-  ) 
+static Handle<Value>
+LogCallback (const Arguments& args) 
 {
   if (args.Length() < 1) return v8::Undefined();
   HandleScope scope;
   Handle<Value> arg = args[0];
   String::Utf8Value value(arg);
 
-  printf("Logged: %s\n", *value);
+  printf("%s\n", *value);
   fflush(stdout);
 
   return v8::Undefined();
 }
 
+static void
+OnFatalError (const char* location, const char* message)
+{
+  fprintf(stderr, "Fatal error. %s %s\n", location, message);
+  ev_unloop(node_loop(), EVUNLOOP_ALL);
+}
+
 int
 main (int argc, char *argv[]) 
 {
-  loop = ev_default_loop(0);
-
   map<string, string> options;
   string file;
   ParseOptions(argc, argv, options, &file);
@@ -133,24 +145,26 @@ main (int argc, char *argv[])
     return 1;
   }
 
-  context = Context::New(NULL, ObjectTemplate::New());
+  Persistent<Context> context = Context::New(NULL, ObjectTemplate::New());
   Context::Scope context_scope(context);
 
   Local<Object> g = Context::GetCurrent()->Global();
   g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
-  g->Set( String::New("TCP"), node_tcp_initialize(loop));
-  g->Set( String::New("HTTP"), node_http_initialize(loop));
 
-  node_timer_initialize(g, loop);
+  node_tcp_initialize(g);
+  node_http_initialize(g);
+  node_timer_initialize(g);
 
+
+  V8::SetFatalErrorHandler(OnFatalError);
 
   // Compile and run the script
   if (!compile(source))
     return 1;
 
-  ev_loop(loop, 0);
+  ev_loop(node_loop(), 0);
 
   context.Dispose();
 
-  return 0;
+  return exit_code;
 }

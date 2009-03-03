@@ -2,10 +2,7 @@
 #define node_tcp_h
 
 #include <v8.h>
-#include <ev.h>
 
-using namespace v8;
-
-Handle<Object> node_tcp_initialize (struct ev_loop *);
+void node_tcp_initialize (v8::Handle<v8::Object> target);
 
 #endif
