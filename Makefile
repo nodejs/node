@@ -10,7 +10,7 @@ ifdef EVDIR
 	LDFLAGS += -L$(EVDIR)/lib
 endif
 
-node: node.o node_tcp.o node_http.o oi_socket.o oi_async.o oi_buf.o ebb_request_parser.o
+node: node.o node_tcp.o node_http.o node_timer.o oi_socket.o oi_async.o oi_buf.o ebb_request_parser.o
 	g++ -o node $^ $(LDFLAGS) $(V8LIB) 
 
 node.o: node.cc 
@@ -20,6 +20,9 @@ node_tcp.o: node_tcp.cc
 	g++ $(CFLAGS) -c $<
 
 node_http.o: node_http.cc 
+	g++ $(CFLAGS) -c $<
+	
+node_timer.o: node_timer.cc 
 	g++ $(CFLAGS) -c $<
 
 oi_socket.o: deps/oi/oi_socket.c deps/oi/oi_socket.h 

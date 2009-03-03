@@ -93,17 +93,232 @@ class HttpRequest {
 
   Connection &connection;
   ebb_request parser_info;
-
+ private:
   Persistent<Object> js_object;
 };
 
-static HttpRequest* UnwrapRequest
-  ( Handle<Object> obj
+static Handle<Value>
+GetMethodString (int method)
+{
+  switch(method) {
+    case EBB_COPY:      return copy_str;
+    case EBB_DELETE:    return delete_str;
+    case EBB_GET:       return get_str;
+    case EBB_HEAD:      return head_str;
+    case EBB_LOCK:      return lock_str;
+    case EBB_MKCOL:     return mkcol_str;
+    case EBB_MOVE:      return move_str;
+    case EBB_OPTIONS:   return options_str;
+    case EBB_POST:      return post_str;
+    case EBB_PROPFIND:  return propfind_str;
+    case EBB_PROPPATCH: return proppatch_str;
+    case EBB_PUT:       return put_str;
+    case EBB_TRACE:     return trace_str;
+    case EBB_UNLOCK:    return unlock_str;
+  }
+  return Null();
+}
+
+static Handle<Value>
+RespondCallback (const Arguments& args) 
+{
+  HandleScope scope;
+
+  Handle<External> field = Handle<External>::Cast(args.Holder()->GetInternalField(0));
+
+  HttpRequest* request = static_cast<HttpRequest*>(field->Value());
+
+  Handle<Value> arg = args[0];
+
+  // TODO Make sure that we write reponses in the correct order. With
+  // keep-alive it's possible that one response can return before the last
+  // one has been sent!!!
+  
+  //printf("response called\n");
+
+  if(arg == Null()) {
+
+    //printf("response got null\n");
+    delete request; 
+
+  } else {
+
+    Handle<String> s = arg->ToString();
+
+    //printf("response called len %d\n", s->Length());
+
+    oi_buf *buf = oi_buf_new2(s->Length());
+    s->WriteAscii(buf->base, 0, s->Length());
+
+    oi_socket_write(&request->connection.socket, buf);
+
+  }
+
+  return Undefined();
+}
+
+static void
+on_path (ebb_request *req, const char *buf, size_t len)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->path.append(buf, len);
+}
+
+static void
+on_uri (ebb_request *req, const char *buf, size_t len)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->uri.append(buf, len);
+}
+
+static void
+on_query_string (ebb_request *req, const char *buf, size_t len)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->query_string.append(buf, len);
+}
+
+static void
+on_fragment (ebb_request *req, const char *buf, size_t len)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->fragment.append(buf, len);
+}
+
+static void
+on_header_field (ebb_request *req, const char *buf, size_t len, int header_index)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  if( request->header_fields.size() == header_index - 1) {
+    request->header_fields.back().append(buf, len);
+  } else { 
+    request->header_fields.push_back( string(buf, len) );
+  }
+}
+
+static void
+on_header_value (ebb_request *req, const char *buf, size_t len, int header_index)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  if( request->header_values.size() == header_index - 1) {
+    request->header_values.back().append(buf, len);
+  } else { 
+    request->header_values.push_back( string(buf, len) );
+  }
+}
+
+static void
+on_headers_complete (ebb_request *req)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  HandleScope scope;
+
+  Local<Object> js_request = request->CreateJSObject();
+
+  // Set up an exception handler before calling the Process function
+  TryCatch try_catch;
+
+  // Invoke the process function, giving the global object as 'this'
+  // and one argument, the request.
+  const int argc = 1;
+  Handle<Value> argv[argc] = { js_request };
+  Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
+  if (r.IsEmpty()) {
+    String::Utf8Value error(try_catch.Exception());
+    printf("error: %s\n", *error);
+  }
+}
+
+static void
+on_request_complete (ebb_request *req)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+  request->MakeBodyCallback(NULL, 0); // EOF
+}
+
+static void
+on_body (ebb_request *req, const char *base, size_t length)
+{
+  HttpRequest *request = static_cast<HttpRequest*> (req->data);
+
+  if(length)
+    request->MakeBodyCallback(base, length);
+}
+
+static ebb_request * on_request
+  ( void *data
   ) 
 {
-  Handle<External> field = Handle<External>::Cast(obj->GetInternalField(0));
-  void* ptr = field->Value();
-  return static_cast<HttpRequest*>(ptr);
+  Connection *connection = static_cast<Connection*> (data);
+
+  HttpRequest *request = new HttpRequest(*connection);
+  
+  return &request->parser_info;
+}
+
+static void on_read 
+  ( oi_socket *socket
+  , const void *buf
+  , size_t count
+  )
+{
+  Connection *connection = static_cast<Connection*> (socket->data);
+  ebb_request_parser_execute ( &connection->parser
+                             // FIXME change ebb to use void*
+                             , static_cast<const char*> (buf) 
+                             , count
+                             );
+  if(ebb_request_parser_has_error(&connection->parser)) {
+    fprintf(stderr, "parse error closing connection\n");
+    oi_socket_close(&connection->socket);
+  }
+}
+
+static void on_close 
+  ( oi_socket *socket
+  )
+{
+  Connection *connection = static_cast<Connection*> (socket->data);
+  // TODO free requests
+  delete connection;
+}
+
+static void on_drain 
+  ( oi_socket *socket
+  )
+{
+  Connection *connection = static_cast<Connection*> (socket->data);
+  //oi_socket_close(&connection->socket);
+}
+
+HttpRequest::~HttpRequest ()
+{
+  //printf("request is being destructed\n");
+
+  connection.socket.on_drain = oi_socket_close;
+
+  HandleScope scope;
+  // delete a reference to the respond method
+  js_object->Delete(respond_str);
+  js_object.Dispose();
+}
+
+HttpRequest::HttpRequest (Connection &c) : connection(c)
+{
+  ebb_request_init(&parser_info); 
+  parser_info.on_path             = on_path;
+  parser_info.on_query_string     = on_query_string;
+  parser_info.on_uri              = on_uri;
+  parser_info.on_fragment         = on_fragment;
+  parser_info.on_header_field     = on_header_field;
+  parser_info.on_header_value     = on_header_value;
+  parser_info.on_headers_complete = on_headers_complete;
+  parser_info.on_body             = on_body;
+  parser_info.on_complete         = on_request_complete;
+  parser_info.data                = this;
 }
 
 void
@@ -135,81 +350,6 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
     String::Utf8Value error(try_catch.Exception());
     printf("error: %s\n", *error);
   }
-}
-
-static Handle<Value> GetMethodString
-  ( int method 
-  )
-{
-  switch(method) {
-    case EBB_COPY:      return copy_str;
-    case EBB_DELETE:    return delete_str;
-    case EBB_GET:       return get_str;
-    case EBB_HEAD:      return head_str;
-    case EBB_LOCK:      return lock_str;
-    case EBB_MKCOL:     return mkcol_str;
-    case EBB_MOVE:      return move_str;
-    case EBB_OPTIONS:   return options_str;
-    case EBB_POST:      return post_str;
-    case EBB_PROPFIND:  return propfind_str;
-    case EBB_PROPPATCH: return proppatch_str;
-    case EBB_PUT:       return put_str;
-    case EBB_TRACE:     return trace_str;
-    case EBB_UNLOCK:    return unlock_str;
-  }
-  return Null();
-}
-
-static Handle<Value> RespondCallback
-  ( const Arguments& args
-  ) 
-{
-  HttpRequest* request = UnwrapRequest(args.Holder());
-  HandleScope scope;
-  Handle<Value> arg = args[0];
-
-  // TODO Make sure that we write reponses in the correct order. With
-  // keep-alive it's possible that one response can return before the last
-  // one has been sent!!!
-  
-  //printf("response called\n");
-
-  if(arg == Null()) {
-
-    //printf("response got null\n");
-    delete request; 
-
-  } else {
-
-    Handle<String> s = arg->ToString();
-
-    //printf("response called len %d\n", s->Length());
-
-    oi_buf *buf = oi_buf_new2(s->Length());
-    s->WriteAscii(buf->base, 0, s->Length());
-
-    oi_socket_write(&request->connection.socket, buf);
-
-  }
-
-  return Undefined();
-}
-
-HttpRequest::~HttpRequest ()
-{
-  //printf("request is being destructed\n");
-
-  connection.socket.on_drain = oi_socket_close;
-
-  HandleScope scope;
-  // delete a reference to the respond method
-  js_object->Delete(respond_str);
-  js_object.Dispose();
-}
-
-HttpRequest::HttpRequest (Connection &c) : connection(c)
-{
-  ebb_request_init(&parser_info); 
 }
 
 Local<Object>
@@ -289,184 +429,9 @@ HttpRequest::CreateJSObject ()
   return scope.Close(result);
 }
 
-static void on_path
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  request->path.append(buf, len);
-}
 
-static void on_uri
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  request->uri.append(buf, len);
-}
-
-static void on_query_string
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  request->query_string.append(buf, len);
-}
-
-static void on_fragment
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  request->fragment.append(buf, len);
-}
-
-static void on_header_field
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  , int header_index
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-
-  if( request->header_fields.size() == header_index - 1) {
-    request->header_fields.back().append(buf, len);
-  } else { 
-    request->header_fields.push_back( string(buf, len) );
-  }
-}
-
-static void on_header_value
-  ( ebb_request *req
-  , const char *buf
-  , size_t len
-  , int header_index
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-
-  if( request->header_values.size() == header_index - 1) {
-    request->header_values.back().append(buf, len);
-  } else { 
-    request->header_values.push_back( string(buf, len) );
-  }
-}
-
-static void on_headers_complete
-  ( ebb_request *req
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-
-  HandleScope scope;
-
-  Local<Object> js_request = request->CreateJSObject();
-
-  // Set up an exception handler before calling the Process function
-  TryCatch try_catch;
-
-  // Invoke the process function, giving the global object as 'this'
-  // and one argument, the request.
-  const int argc = 1;
-  Handle<Value> argv[argc] = { js_request };
-  Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (r.IsEmpty()) {
-    String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-  }
-}
-
-static void on_request_complete
-  ( ebb_request *req
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-  request->MakeBodyCallback(NULL, 0); // EOF
-}
-
-static void on_body
-  ( ebb_request *req
-  , const char *base
-  , size_t length
-  )
-{
-  HttpRequest *request = static_cast<HttpRequest*> (req->data);
-
-  if(length)
-    request->MakeBodyCallback(base, length);
-}
-
-static ebb_request * on_request
-  ( void *data
-  ) 
-{
-  Connection *connection = static_cast<Connection*> (data);
-
-  HttpRequest *request = new HttpRequest(*connection);
-  
-  request->parser_info.on_path             = on_path;
-  request->parser_info.on_query_string     = on_query_string;
-  request->parser_info.on_uri              = on_uri;
-  request->parser_info.on_fragment         = on_fragment;
-  request->parser_info.on_header_field     = on_header_field;
-  request->parser_info.on_header_value     = on_header_value;
-  request->parser_info.on_headers_complete = on_headers_complete;
-  request->parser_info.on_body             = on_body;
-  request->parser_info.on_complete         = on_request_complete;
-  request->parser_info.data                = request;
-
-  return &request->parser_info;
-}
-
-static void on_read 
-  ( oi_socket *socket
-  , const void *buf
-  , size_t count
-  )
-{
-  Connection *connection = static_cast<Connection*> (socket->data);
-  ebb_request_parser_execute ( &connection->parser
-                             // FIXME change ebb to use void*
-                             , static_cast<const char*> (buf) 
-                             , count
-                             );
-  if(ebb_request_parser_has_error(&connection->parser)) {
-    fprintf(stderr, "parse error closing connection\n");
-    oi_socket_close(&connection->socket);
-  }
-}
-
-static void on_close 
-  ( oi_socket *socket
-  )
-{
-  Connection *connection = static_cast<Connection*> (socket->data);
-  // TODO free requests
-  delete connection;
-}
-
-static void on_drain 
-  ( oi_socket *socket
-  )
-{
-  Connection *connection = static_cast<Connection*> (socket->data);
-  //oi_socket_close(&connection->socket);
-}
-
-static oi_socket* on_connection 
-  ( oi_server *_server
-  , struct sockaddr *addr
-  , socklen_t len
-  )
+static oi_socket*
+on_connection (oi_server *_server, struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
 
@@ -494,10 +459,8 @@ static oi_socket* on_connection
   return &connection->socket;
 }
 
-static void server_destroy
-  ( Persistent<Value> _
-  , void *data
-  )
+static void
+server_destroy (Persistent<Value> _, void *data)
 {
   Server *server = static_cast<Server *> (data);
   delete server;
@@ -583,7 +546,8 @@ server_constructor (const Arguments& args)
   return args.This();
 }
 
-Handle<Object> node_http_initialize (struct ev_loop *_loop)
+Handle<Object>
+node_http_initialize (struct ev_loop *_loop)
 {
   HandleScope scope;
 

@@ -2,6 +2,7 @@
 
 #include "node_tcp.h"
 #include "node_http.h"
+#include "node_timer.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -113,10 +114,8 @@ static Handle<Value> LogCallback
   return v8::Undefined();
 }
 
-int main 
-  ( int argc
-  , char *argv[]
-  ) 
+int
+main (int argc, char *argv[]) 
 {
   loop = ev_default_loop(0);
 
@@ -142,9 +141,12 @@ int main
   g->Set( String::New("TCP"), node_tcp_initialize(loop));
   g->Set( String::New("HTTP"), node_http_initialize(loop));
 
+  node_timer_initialize(g, loop);
+
+
   // Compile and run the script
   if (!compile(source))
-    return false;
+    return 1;
 
   ev_loop(loop, 0);
 
