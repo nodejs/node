@@ -6,8 +6,6 @@ function encode(data) {
 var server = new HTTP.Server("localhost", 8000);
 
 server.onRequest = function (request) {
-  log( "path: " + request.path );
-  log( "query string: " + request.query_string );
 
   // onBody sends null on the last chunk.
   request.onBody = function (chunk) {

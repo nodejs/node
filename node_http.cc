@@ -14,6 +14,33 @@ using namespace std;
 static Persistent<ObjectTemplate> request_template;
 static struct ev_loop *loop;
 
+// globals
+static Persistent<String> path_str; 
+static Persistent<String> uri_str; 
+static Persistent<String> query_string_str; 
+static Persistent<String> fragment_str; 
+static Persistent<String> method_str; 
+static Persistent<String> http_version_str; 
+
+static Persistent<String> on_request_str; 
+static Persistent<String> on_body_str; 
+static Persistent<String> respond_str; 
+
+static Persistent<String> copy_str;
+static Persistent<String> delete_str;
+static Persistent<String> get_str;
+static Persistent<String> head_str;
+static Persistent<String> lock_str;
+static Persistent<String> mkcol_str;
+static Persistent<String> move_str;
+static Persistent<String> options_str;
+static Persistent<String> post_str;
+static Persistent<String> propfind_str;
+static Persistent<String> proppatch_str;
+static Persistent<String> put_str;
+static Persistent<String> trace_str;
+static Persistent<String> unlock_str;
+
 class Server {
 public:
   Server (Handle<Object> _js_server);
@@ -25,7 +52,7 @@ public:
   Handle<Value> Callback()
   {
     HandleScope scope;
-    Handle<Value> value = js_server->Get(String::New("onRequest"));
+    Handle<Value> value = js_server->Get(on_request_str);
     return scope.Close(value);
   }
 
@@ -85,7 +112,7 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
   // 
   // XXX don't always allocate onBody strings
   //
-  Handle<Value> onBody_val = js_object->Get(String::NewSymbol("onBody"));  
+  Handle<Value> onBody_val = js_object->Get(on_body_str);  
   if (!onBody_val->IsFunction()) return;
   Handle<Function> onBody = Handle<Function>::Cast(onBody_val);
 
@@ -114,20 +141,20 @@ static Handle<Value> GetMethodString
   )
 {
   switch(method) {
-    case EBB_COPY:      return String::New("COPY");
-    case EBB_DELETE:    return String::New("DELETE");
-    case EBB_GET:       return String::New("GET");
-    case EBB_HEAD:      return String::New("HEAD");
-    case EBB_LOCK:      return String::New("LOCK");
-    case EBB_MKCOL:     return String::New("MKCOL");
-    case EBB_MOVE:      return String::New("MOVE");
-    case EBB_OPTIONS:   return String::New("OPTIONS");
-    case EBB_POST:      return String::New("POST");
-    case EBB_PROPFIND:  return String::New("PROPFIND");
-    case EBB_PROPPATCH: return String::New("PROPPATCH");
-    case EBB_PUT:       return String::New("PUT");
-    case EBB_TRACE:     return String::New("TRACE");
-    case EBB_UNLOCK:    return String::New("UNLOCK");
+    case EBB_COPY:      return copy_str;
+    case EBB_DELETE:    return delete_str;
+    case EBB_GET:       return get_str;
+    case EBB_HEAD:      return head_str;
+    case EBB_LOCK:      return lock_str;
+    case EBB_MKCOL:     return mkcol_str;
+    case EBB_MOVE:      return move_str;
+    case EBB_OPTIONS:   return options_str;
+    case EBB_POST:      return post_str;
+    case EBB_PROPFIND:  return propfind_str;
+    case EBB_PROPPATCH: return proppatch_str;
+    case EBB_PUT:       return put_str;
+    case EBB_TRACE:     return trace_str;
+    case EBB_UNLOCK:    return unlock_str;
   }
   return Null();
 }
@@ -175,7 +202,7 @@ HttpRequest::~HttpRequest ()
 
   HandleScope scope;
   // delete a reference to the respond method
-  js_object->Delete(String::New("respond"));
+  js_object->Delete(respond_str);
   js_object.Dispose();
 }
 
@@ -267,7 +294,7 @@ static void on_headers_complete
   if (request_template.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = ObjectTemplate::New();
     raw_template->SetInternalFieldCount(1);
-    raw_template->Set(String::NewSymbol("respond"), FunctionTemplate::New(RespondCallback));
+    raw_template->Set(respond_str, FunctionTemplate::New(RespondCallback));
 
     request_template = Persistent<ObjectTemplate>::New(raw_template);
   }
@@ -282,23 +309,23 @@ static void on_headers_complete
   // Store the request pointer in the JavaScript wrapper.
   result->SetInternalField(0, request_ptr);
 
-  result->Set ( String::NewSymbol("path")
+  result->Set ( path_str
               , String::New(request->path.c_str(), request->path.length())
               );
 
-  result->Set ( String::NewSymbol("uri")
+  result->Set ( uri_str
               , String::New(request->uri.c_str(), request->uri.length())
               );
 
-  result->Set ( String::NewSymbol("query_string")
+  result->Set ( query_string_str
               , String::New(request->query_string.c_str(), request->query_string.length())
               );
 
-  result->Set ( String::NewSymbol("fragment")
+  result->Set ( fragment_str
               , String::New(request->fragment.c_str(), request->fragment.length())
               );
 
-  result->Set ( String::NewSymbol("method")
+  result->Set ( method_str
               , GetMethodString(request->parser_info.method)
               );
 
@@ -309,7 +336,7 @@ static void on_headers_complete
            , request->parser_info.version_major
            , request->parser_info.version_minor
            ); 
-  result->Set ( String::NewSymbol("http_version")
+  result->Set ( http_version_str
               , String::New(version)
               );
 
@@ -558,6 +585,32 @@ Handle<Object> node_http_initialize (struct ev_loop *_loop)
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
 
   http->Set(String::New("Server"), server_t->GetFunction());
+
+  path_str         = Persistent<String>::New( String::NewSymbol("path") );
+  uri_str          = Persistent<String>::New( String::NewSymbol("uri") );
+  query_string_str = Persistent<String>::New( String::NewSymbol("query_string") );
+  fragment_str     = Persistent<String>::New( String::NewSymbol("fragment") );
+  method_str       = Persistent<String>::New( String::NewSymbol("method") );
+  http_version_str = Persistent<String>::New( String::NewSymbol("http_version") );
+
+  on_request_str = Persistent<String>::New( String::NewSymbol("onRequest") );
+  on_body_str    = Persistent<String>::New( String::NewSymbol("onBody") );
+  respond_str    = Persistent<String>::New( String::NewSymbol("respond") );
+
+  copy_str      = Persistent<String>::New( String::New("COPY") );
+  delete_str    = Persistent<String>::New( String::New("DELETE") );
+  get_str       = Persistent<String>::New( String::New("GET") );
+  head_str      = Persistent<String>::New( String::New("HEAD") );
+  lock_str      = Persistent<String>::New( String::New("LOCK") );
+  mkcol_str     = Persistent<String>::New( String::New("MKCOL") );
+  move_str      = Persistent<String>::New( String::New("MOVE") );
+  options_str   = Persistent<String>::New( String::New("OPTIONS") );
+  post_str      = Persistent<String>::New( String::New("POST") );
+  propfind_str  = Persistent<String>::New( String::New("PROPFIND") );
+  proppatch_str = Persistent<String>::New( String::New("PROPPATCH") );
+  put_str       = Persistent<String>::New( String::New("PUT") );
+  trace_str     = Persistent<String>::New( String::New("TRACE") );
+  unlock_str    = Persistent<String>::New( String::New("UNLOCK") );
 
   return scope.Close(http);
 }
