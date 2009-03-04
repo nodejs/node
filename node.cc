@@ -131,6 +131,8 @@ OnFatalError (const char* location, const char* message)
 int
 main (int argc, char *argv[]) 
 {
+  V8::SetFlagsFromCommandLine(&argc, argv, true);
+
   map<string, string> options;
   string file;
   ParseOptions(argc, argv, options, &file);
