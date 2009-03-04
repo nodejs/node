@@ -1,0 +1,142 @@
+
+<html lang=en-US-x-hixie>
+ <head>
+  <title>Node API</title>
+  <link href="specification.css" rel=stylesheet>
+
+ <body class=draft>
+  <div class=head>
+   <!--
+   <p><a class=logo href="http://www.whatwg.org/" rel=home><img alt=WHATWG
+    src="../../../images/logo"></a></p>
+   -->
+
+   <h1>Node API</h1>
+
+   <h2 class="no-num no-toc"
+    id=draft-recommendation-mdash-date-01-jan-1>Draft</h2>
+
+   <dl>
+    <dt>This version:
+
+    <dd><a href="index.html">http://tinyclouds.org/node</a>
+
+   </dl>
+
+   <p class=copyright>&copy; Copyright 2009 Ryan Dahl</p>
+
+   <p class=copyright>You are granted a license to use, reproduce and create
+    derivative works of this document.</p>
+  </div>
+
+  <hr>
+
+  <h2 class="no-num no-toc" id=abstract>Abstract</h2>
+
+  <p>This specification defines a javascript API for creating
+  servers and clients based around an event loop. It is provided to document
+  Node's interface and provide a specification for similar efforts.
+
+  <h2 class="no-num no-toc" id=contents>Table of contents</h2>
+  <!--begin-toc-->
+
+  <ul class=toc>
+   <li><a href="index.html#introduction"><span class=secno>1 </span>Introduction</a>
+    <ul class=toc>
+     <li><a href="index.html#the-event-loop"><span class=secno>1.1 </span>The event loop</a>
+     <li><a href="index.html#execution-context"><span class=secno>1.2 </span>Execution context</a>
+    </ul>
+   <li><a href="index.html#http_server"><span class=secno>2 </span>HTTP Server</a>
+   <li><a href="index.html#tcp_client"><span class=secno>3 </span>TCP Client</a>
+   <li><a href="index.html#timers"><span class=secno>4 </span>Timers</a>
+  </ul>
+  <!--end-toc-->
+
+  <hr>
+
+  <h2 id=introduction><span class=secno>1 </span>Introduction</h2>
+
+  <p>This specification defines an API for creating evented servers and
+  clients in javascript. It can be considered documentation for the Node
+  project and will be versioned with that software. However, in places the
+  API is only a specification and does not reflect Node's
+  behavior&mdash;there I will try to note the difference. 
+  
+  <p>Unless otherwise noted, all functions can be considered
+  non-blocking. Non-blocking means that program execution will continue
+  without waiting for I/O (be that network or device).
+
+  <h3 id=the-event-loop><span class=secno>1.1 </span>The event loop</h3>
+
+  <p>... 
+
+  <h3 id=execution-context><span class=secno>1.2 </span>Execution context</h3>
+  
+  <p>... 
+
+  <h2 id=http_server><span class=secno>2 </span>HTTP Server</h2>
+
+  <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
+  <pre class=idl>interface <dfn id=tcpclient>TCP.Client</dfn>  {
+  readonly attribute DOMString <a href="index.html#host" title=dom-TCPCleint-host>host</a>;
+  readonly attribute DOMString <a href="index.html#port" title=dom-TCPCleint-host>port</a>;
+
+  // ready state
+  const unsigned short CONNECTING = 0;
+  const unsigned short OPEN = 1;
+  const unsigned short CLOSED = 2;
+  readonly attribute long readyState;
+
+  // networking                
+           attribute Function onopen;
+           attribute Function onrecv;
+           attribute Function onclose;
+  void send(in DOMString data);
+  void disconnect();           
+};</pre>
+
+  <h2 id=timers><span class=secno>4 </span>Timers</h2>
+
+
+  <p>Timers and Intervals allow one to schedule an event at a later date. 
+     There are four globally exposed functions 
+      <code>setTimeout</code>, 
+      <code>clearTimeout</code>,
+      <code>setInterval</code>, and
+      <code>clearInterval</code>.
+     These functions work similarly 
+     <a href="http://www.w3.org/TR/Window/#window-timers">as in the browser</a> except that
+     the <code>timerID</code> and  <code>intervalID</code> do not necessarily have
+     type <code>long</code> but are rather opaque objects.
+     
+  <dl>
+    <dt><code>setTimeout(function, milliseconds)</code></dt>
+    <dd>
+      <p>This method calls the function once after a specified number of
+         milliseconds elapses, until canceled by a call to <code>clearTimeout</code>.
+         The methods returns a <code>timerID</code> which may be used in a 
+         subsequent call to <code>clearTimeout</code> to cancel the callback.
+    </dd>
+
+  
+    <dt><code>setInterval(function, milliseconds)</code></dt>
+    <dd>
+      <p>This method calls the function every time a specified number of
+         milliseconds elapses, until canceled by a call to <code>clearInterval</code>. 
+         The methods returns a <code>intervalID</code> which may be used in a 
+         subsequent call to <code>clearInterval</code> to cancel the interval.
+    </dd>
+
+    <dt><code>clearTimeout(timerID)</code></dt>
+    <dd>
+      <p>Cancels a timeout that was set with the <code>setTimeout</code>
+        method.
+    </dd>
+
+
+    <dt><code>clearInterval(intervalID)</code></dt>
+    <dd>
+      <p>Cancels an interval that was set with the <code>setInterval</code> method.
+    </dd>
+
+  </dl>
