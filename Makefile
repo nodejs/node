@@ -40,6 +40,17 @@ ebb_request_parser.o: ebb_request_parser.c deps/ebb/ebb_request_parser.h
 ebb_request_parser.c: deps/ebb/ebb_request_parser.rl
 	ragel -s -G2 $< -o $@
 
+PASS="\033[1;32mPASS\033[0m\n" 
+FAIL="\033[1;31mFAIL\033[0m\n" 
+
+test: node test/test_*
+	@for i in test/test_*; do \
+		if [ -x $$i ]; then \
+			echo "\n\033[1m$$i\033[0m";	\
+			./$$i && echo $(PASS) || echo $(FAIL); \
+		fi \
+	done 
+
 clean:
 	rm -f ebb_request_parser.c
 	rm -f *.o 

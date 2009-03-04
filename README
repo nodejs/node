@@ -1,9 +1,20 @@
+WHEREAS, Evented, asynchornous programming better models reality; and
+
+WHEREAS, Servers organized around event loops are more efficent; and
+
 WHEREAS, The usage of threads has complicated computer programming; and
 
-WHEREAS, V8 javascript comes free of I/O and threads; and
+WHEREAS, Most operating systems do not provide asynchonous file system access.
 
-WHEREAS, Most operating systems do not provide asynchonous file system
-access.
+WHEREAS, Javascript is a language without a concept of I/O or threads; and
+
+WHEREAS, Users familar with using Javascript in the web browser already program using events and callbacks; and
+
+WHEREAS, The V8 javascript comes free of I/O and threads; and
+
+WHEREAS, The V8 javascript compiles Javascript code directly to Assembler; and
+
+WHEREAS, The libev event loop abstraction provides access to the best event loop interface on each system.
 
 Now, therefore:
 

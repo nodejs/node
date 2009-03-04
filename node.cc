@@ -118,7 +118,7 @@ LogCallback (const Arguments& args)
   printf("%s\n", *value);
   fflush(stdout);
 
-  return v8::Undefined();
+  return Undefined();
 }
 
 static void

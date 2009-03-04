@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_timer.h"
+#include <assert.h>
 
 using namespace v8;
 
@@ -111,6 +112,8 @@ setTimeout(const Arguments& args)
 
   ev_tstamp after = (double)delay / 1000.0;
 
+  if (args.Length() > 2)
+    assert(0 && "extra params to setTimeout not yet implemented.");
   int argc = 0;
   Handle<Value> argv[] = {};
   /*
@@ -162,6 +165,7 @@ static Handle<Value> setInterval
   ( const Arguments& args
   ) 
 {
+  assert(0 && "not implemented");
 }
 
 void
