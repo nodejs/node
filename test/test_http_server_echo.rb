@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require 'net/http'
 require File.dirname(__FILE__) + "/common"
 
 pid = fork do

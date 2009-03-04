@@ -1,4 +1,3 @@
-require 'net/http'
 require 'tempfile'
 
 $node = File.join(File.dirname(__FILE__), "../node")
