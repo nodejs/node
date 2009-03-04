@@ -11,7 +11,11 @@ def assert(x, msg = "")
 end
 
 def assert_equal(x, y, msg = "")
-  assert(x == y, "#{x.inspect} != #{y.inspect} #{msg}")
+  raise("expected #{x.inspect} == #{y.inspect}. #{msg}") unless x == y
+end
+
+def assert_less_than(x, y, msg = "")
+  raise("expected #{x.inspect} < #{y.inspect}. #{msg}") unless x < y
 end
 
 def wait_for_server(host, port)

@@ -154,7 +154,7 @@ main (int argc, char *argv[])
   g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
 
   Init_timer(g);
-  Init_tcp(g);
+  //Init_tcp(g);
   Init_http(g);
 
   V8::SetFatalErrorHandler(OnFatalError);
