@@ -540,7 +540,7 @@ server_constructor (const Arguments& args)
 }
 
 void
-node_http_initialize (Handle<Object> target)
+Init_http (Handle<Object> target)
 {
   HandleScope scope;
 

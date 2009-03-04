@@ -3,6 +3,6 @@
 
 #include <v8.h>
 
-void node_timer_initialize (v8::Handle<v8::Object> target);
+void Init_timer (v8::Handle<v8::Object> target);
 
 #endif //  node_timer_h

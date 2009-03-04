@@ -166,7 +166,7 @@ static Handle<Value> Connect
 }
 
 void
-node_tcp_initialize (Handle<Object> target)
+Init_tcp (Handle<Object> target)
 {
   oi_async_init(&thread_pool);
   oi_async_attach(node_loop(), &thread_pool);

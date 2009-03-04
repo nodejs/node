@@ -165,7 +165,7 @@ static Handle<Value> setInterval
 }
 
 void
-node_timer_initialize (Handle<Object> target)
+Init_timer (Handle<Object> target)
 {
   HandleScope scope;
 

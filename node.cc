@@ -151,10 +151,9 @@ main (int argc, char *argv[])
   Local<Object> g = Context::GetCurrent()->Global();
   g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
 
-  node_tcp_initialize(g);
-  node_http_initialize(g);
-  node_timer_initialize(g);
-
+  Init_timer(g);
+  Init_tcp(g);
+  Init_http(g);
 
   V8::SetFatalErrorHandler(OnFatalError);
 
