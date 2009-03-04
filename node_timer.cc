@@ -165,7 +165,26 @@ static Handle<Value> setInterval
   ( const Arguments& args
   ) 
 {
-  assert(0 && "not implemented");
+  if (args.Length() < 2)
+    return Undefined();
+
+  HandleScope scope;
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+  uint32_t delay = args[1]->Uint32Value();
+
+  ev_tstamp after = (double)delay / 1000.0;
+
+  if (args.Length() > 2)
+    assert(0 && "extra params to setInterval not yet implemented.");
+  int argc = 0;
+  Handle<Value> argv[] = {};
+
+  Timer *timer = new Timer(callback, argc, argv, after, after);
+
+  Local<External> timeoutID = timer->CreateTimeoutID();
+
+  return scope.Close(timeoutID);
 }
 
 void
