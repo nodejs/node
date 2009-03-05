@@ -64,22 +64,33 @@
   
   <p>Unless otherwise noted, all functions can be considered
   non-blocking. Non-blocking means that program execution will continue
-  without waiting for I/O (be that network or device).
+  without waiting for some I/O event (be that network or device).
+
+  
 
   <h3 id=the-event-loop><span class=secno>1.1 </span>The event loop</h3>
 
-  <p>... 
+  <p>The program is run event loop. There are no concurrent
+  operations. As long as there are pending events the program will continue
+  running. If however there arn't any pending callbacks waiting for
+  something to happen, the program will exit. 
+
+  <p>Only one callback is executed at a time. 
+
 
   <h3 id=execution-context><span class=secno>1.2 </span>Execution context</h3>
+
+  <p>Global data is shared between callbacks. 
   
-  <p>... 
+  <p> 
+    <code>spawn()</code> to start a new context/event loop? 
 
   <h2 id=http_server><span class=secno>2 </span>HTTP Server</h2>
 
   <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
-  <pre class=idl>interface <dfn id=tcpclient>TCP.Client</dfn>  {
+  <pre class=idl>interface <dfn id=tcpclient>TCPClient</dfn>  {
   readonly attribute DOMString <a href="index.html#host" title=dom-TCPCleint-host>host</a>;
-  readonly attribute DOMString <a href="index.html#port" title=dom-TCPCleint-host>port</a>;
+  readonly attribute DOMString <a href="index.html#port" title=dom-TCPCleint-port>port</a>;
 
   // ready state
   const unsigned short CONNECTING = 0;
@@ -89,16 +100,60 @@
 
   // networking                
            attribute Function onopen;
-           attribute Function onrecv;
+           attribute Function onread;
            attribute Function onclose;
-  void send(in DOMString data);
+  void write(in DOMString data);
   void disconnect();           
 };</pre>
+
+
+  </p><p>When a <code><a href="#connection0">TCPClient</a></code> object is
+   created, the the interpreter must try to establish a connection.
+
+  </p><p>The <dfn id="host" title="dom-TCPClient-host"><code>host</code></dfn>
+  attribute is the domain name of the network connection. The <dfn id="port"
+  title="dom-Connection-port"><code>port</code></dfn> attribute identifies the
+  port.
+
+  </p><p>The <dfn id="readystate0" title="dom-Connection-readyState"><code>readyState</code></dfn> attribute
+   represents the state of the connection. When the object is created it must
+   be set to <code>CONNECTING</code>.
+
+  <p id="openConnection">Once a connection is established, the <code
+title="dom-Connection-readyState"><a href="#readystate0">readyState</a></code>
+attribute's value must be changed to <code>OPEN</code>, and the <code
+title="event-connection-open"><a href="#onopen">onopen</a></code> callback will be
+made.
+
+  </p><p>When data is received, the <code title="event-connection-read"><a
+href="#onread">onread</a></code> callback will be made.</p>
+
+  <!-- conf crit for this
+  statement is in the various protocol-specific sections below. -->
+
+  <p id="closeConnection">When the connection is closed, the <code
+title="dom-Connection-readyState"><a href="#readystate0">readyState</a></code>
+attribute's value must be changed to <code>CLOSED</code>, and the <code
+title="event-connection-close"><a href="#onclose">onclose</a></code> callback
+will be made.
+
+  </p><p>The <dfn id="write" title="dom-Connection-write"><code>write()</code></dfn>
+   method transmits data using the connection. If the connection is not yet
+   established, it must raise an <code>INVALID_STATE_ERR</code> exception. 
+
+  </p><p>The <dfn id="disconnect" title="dom-Connection-disconnect"><code>disconnect()</code></dfn> method
+   must close the connection, if it is open. If the connection is already
+   closed, it must do nothing. Closing the connection causes a <code
+title="event-connection-close"><a href="#onclose">onclose</a></code> callback to be
+made and the <code title="dom-Connection-readyState"><a
+href="#readystate0">readyState</a></code> attribute's value to change, as <a
+href="#closeConnection">described above</a>.
+
 
   <h2 id=timers><span class=secno>4 </span>Timers</h2>
 
 
-  <p>Timers and Intervals allow one to schedule an event at a later date. 
+  <p>Timers allow one to schedule an event at a later date. 
      There are four globally exposed functions 
       <code>setTimeout</code>, 
       <code>clearTimeout</code>,

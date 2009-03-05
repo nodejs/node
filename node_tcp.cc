@@ -2,7 +2,7 @@
 #include "node.h"
 
 #include <oi_socket.h>
-#include <oi_async.h>
+#include <oi_buf.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,36 +10,42 @@
 
 using namespace v8;
 
+static Persistent<String> readyState_str; 
 
-/*
-  Target API
+static Persistent<Integer> readyState_CONNECTING; 
+static Persistent<Integer> readyState_OPEN; 
+static Persistent<Integer> readyState_CLOSED; 
 
-  TCP.connect({
+enum readyState { READY_STATE_CONNECTING = 0
+                , READY_STATE_OPEN       = 1
+                , READY_STATE_CLOSED     = 2
+                } ;
 
-      host: "google.com",
+class TCPClient {
+public:
+  TCPClient(Handle<Object> obj);
+  ~TCPClient();
 
-      port: 80, 
+  int Connect(char *host, char *port);
+  void Write (Handle<Value> arg);
+  void Disconnect();
 
-      connect: function () {
-          this.write("GET /search?q=hello HTTP/1.0\r\n\r\n");
-      },
+  void OnOpen();
 
-      read: function (data) {
+private:
+  oi_socket socket;
+  struct addrinfo *address;
+  Persistent<Object> js_client;
+};
 
-          request.respond("<table> <td>" + data + "</td> </table>");
 
-      },
-
-      drain: function () {
-      }, 
-
-      error: function () {
-      } 
-  });
-
-*/
-
-static oi_async thread_pool;
+static void on_connect
+  ( oi_socket *socket
+  )
+{
+  TCPClient *client = static_cast<TCPClient*> (socket->data);
+  client->OnOpen();
+}
 
 static struct addrinfo tcp_hints = 
 /* ai_flags      */ { AI_PASSIVE
@@ -52,71 +58,7 @@ static struct addrinfo tcp_hints =
 /* ai_next       */ , 0
                     };
 
-class TCPClient {
-public:
-  oi_task resolve_task;
-  oi_socket socket;
-  struct addrinfo *address;
-  Persistent<Object> options;
-};
-
-static void on_connect
-  ( oi_socket *socket
-  )
-{
-  TCPClient *client = static_cast<TCPClient*> (socket->data);
-
-  HandleScope scope;
-
-  Handle<Value> connect_value = client->options->Get( String::NewSymbol("connect") );
-  if (!connect_value->IsFunction())
-    return; // error!
-  Handle<Function> connect_cb = Handle<Function>::Cast(connect_value);
-
-  TryCatch try_catch;
-  Handle<Value> r = connect_cb->Call(client->options, 0, NULL);
-  if (r.IsEmpty()) {
-    String::Utf8Value error(try_catch.Exception());
-    printf("connect error: %s\n", *error);
-  }
-}
-
-static void resolve_done
-  ( oi_task *resolve_task
-  , int result
-  )
-{
-  TCPClient *client = static_cast<TCPClient*> (resolve_task->data);
-
-  printf("hello world\n");
-
-  if(result != 0) {
-    printf("error. TODO make call options error callback\n");
-    client->options.Dispose();
-    delete client;
-    return;
-  }
-
-  printf("Got the address succesfully. Let's connect now.  \n");
-
-  oi_socket_init(&client->socket, 30.0); // TODO adjustable timeout
-
-  client->socket.on_connect = on_connect;
-  client->socket.on_read    = NULL;
-  client->socket.on_drain   = NULL;
-  client->socket.on_error   = NULL;
-  client->socket.on_close   = NULL;
-  client->socket.on_timeout = NULL;
-  client->socket.data = client;
-
-  oi_socket_connect (&client->socket, client->address);
-  oi_socket_attach (&client->socket, node_loop());
-
-  freeaddrinfo(client->address);
-  client->address = NULL;
-}
-
-static Handle<Value> Connect
+static Handle<Value> newTCPClient
   ( const Arguments& args
   ) 
 {
@@ -125,57 +67,194 @@ static Handle<Value> Connect
 
   HandleScope scope;
 
-  Handle<Value> arg = args[0];
-  Handle<Object> options = arg->ToObject();
+  String::AsciiValue host(args[0]);
+  String::AsciiValue port(args[1]);
 
-  /* Make sure the user has provided at least host and port */   
+  TCPClient *client = new TCPClient(args.This());
+  if(client == NULL)
+    return Undefined(); // XXX raise error?
 
-  Handle<Value> host_value = options->Get( String::NewSymbol("host") );
+  int r = client->Connect(*host, *port);
+  if (r != 0)
+    return Undefined(); // XXX raise error?
 
-  if(host_value->IsUndefined()) 
-    return False();    
 
-  Handle<Value> port_value = options->Get( String::NewSymbol("port") );
+  return args.This();
+}
 
-  if(port_value->IsUndefined()) 
-    return False();    
+static TCPClient*
+UnwrapClient (Handle<Object> obj) 
+{
+  HandleScope scope;
+  Handle<External> field = Handle<External>::Cast(obj->GetInternalField(0));
+  TCPClient* client = static_cast<TCPClient*>(field->Value());
+  return client;
+}
 
-  Handle<String> host = host_value->ToString();
-  Handle<String> port = port_value->ToString();
+static Handle<Value>
+WriteCallback (const Arguments& args) 
+{
+  HandleScope scope;
+  TCPClient *client = UnwrapClient(args.Holder());
+  client->Write(args[0]);
+  return Undefined();
+}
 
-  char host_s[host->Length()+1];  // + 1 for \0
-  char port_s[port->Length()+1];
+static Handle<Value>
+DisconnectCallback (const Arguments& args) 
+{
+  HandleScope scope;
+  TCPClient *client = UnwrapClient(args.Holder());
+  client->Disconnect();
+  return Undefined();
+}
 
-  host->WriteAscii(host_s);
-  port->WriteAscii(port_s);
+static void
+client_destroy (Persistent<Value> _, void *data)
+{
+  TCPClient *client = static_cast<TCPClient *> (data);
+  delete client;
+}
 
-  printf("resolving host: %s, port: %s\n", host_s, port_s);
+TCPClient::TCPClient(Handle<Object> _js_client)
+{
+  oi_socket_init(&socket, 30.0); // TODO adjustable timeout
+  socket.on_connect = on_connect;
+  socket.on_read    = NULL;
+  socket.on_drain   = NULL;
+  socket.on_error   = NULL;
+  socket.on_close   = NULL;
+  socket.on_timeout = NULL;
+  socket.data = this;
 
-  TCPClient *client = new TCPClient;
+  HandleScope scope;
+  js_client = Persistent<Object>::New(_js_client);
+  js_client->SetInternalField (0, External::New(this));
+  js_client.MakeWeak (this, client_destroy);
+}
 
-  oi_task_init_getaddrinfo ( &client->resolve_task
-                           , resolve_done
-                           , host_s
-                           , port_s
-                           , &tcp_hints
-                           , &client->address
-                           );
-  client->options = Persistent<Object>::New(options); 
+TCPClient::~TCPClient ()
+{
+  Disconnect();
+  oi_socket_detach (&socket);
+  js_client.Dispose();
+  js_client.Clear(); // necessary? 
+}
 
-  oi_async_submit (&thread_pool, &client->resolve_task);
+int
+TCPClient::Connect(char *host, char *port)
+{
+  int r;
+
+  HandleScope scope;
+
+  js_client->Set(readyState_str, readyState_CONNECTING);
+
+  /* FIXME Blocking DNS resolution. Use oi_async. */
+  printf("resolving host: %s, port: %s\n", host, port);
+  r = getaddrinfo (host, port, &tcp_hints, &address);
+  if(r != 0)  {
+    perror("getaddrinfo");
+    return r;
+  }
+
+  r = oi_socket_connect (&socket, address);
+  if(r != 0)  {
+    perror("oi_socket_connect");
+    return r;
+  }
+  oi_socket_attach (&socket, node_loop());
+
+  freeaddrinfo(address);
+  address = NULL;
+}
+
+void TCPClient::Write (Handle<Value> arg)
+{
+  HandleScope scope;
+
+  if(arg == Null()) {
+
+    oi_socket_write_eof(&socket);
+
+  } else {
+    Local<String> s = arg->ToString();
+
+    oi_buf *buf = oi_buf_new2(s->Length());
+    s->WriteAscii(buf->base, 0, s->Length());
+
+    oi_socket_write(&socket, buf);
+  }
+}
+ 
+void
+TCPClient::Disconnect()
+{
+  oi_socket_close(&socket);
+}
+
+void TCPClient::OnOpen()
+{
+  HandleScope scope;
+
+  js_client->Set(readyState_str, readyState_OPEN);
+
+  Handle<Value> onopen_value = js_client->Get( String::NewSymbol("onopen") );
+  if (!onopen_value->IsFunction())
+    return; 
+  Handle<Function> onopen = Handle<Function>::Cast(onopen_value);
+
+  TryCatch try_catch;
+
+  Handle<Value> r = onopen->Call(js_client, 0, NULL);
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
 }
 
 void
 Init_tcp (Handle<Object> target)
 {
-  oi_async_init(&thread_pool);
-  oi_async_attach(node_loop(), &thread_pool);
-
   HandleScope scope;
+  readyState_str = Persistent<String>::New(String::NewSymbol("readyState"));
 
-  Local<Object> tcp = Object::New();
-  target->Set(String::NewSymbol("TCP"), tcp);
+  Local<FunctionTemplate> client_t = FunctionTemplate::New(newTCPClient);
 
-  tcp->Set(String::NewSymbol("connect"), FunctionTemplate::New(Connect)->GetFunction());
+  client_t->InstanceTemplate()->SetInternalFieldCount(1);
+
+  /* readyState constants */
+
+  readyState_CONNECTING = Persistent<Integer>::New(Integer::New(READY_STATE_CONNECTING));
+  client_t->InstanceTemplate()->Set ( String::NewSymbol("CONNECTING")
+                                    , readyState_CONNECTING
+                                    );
+
+  readyState_OPEN = Persistent<Integer>::New(Integer::New(READY_STATE_OPEN));
+  client_t->InstanceTemplate()->Set ( String::NewSymbol("OPEN")
+                                    , readyState_OPEN
+                                    );
+
+  readyState_CLOSED = Persistent<Integer>::New(Integer::New(READY_STATE_CLOSED));
+  client_t->InstanceTemplate()->Set ( String::NewSymbol("CLOSED")
+                                    , readyState_CLOSED
+                                    );
+
+  /* write callback */
+
+  Local<FunctionTemplate> write_t = FunctionTemplate::New(WriteCallback);
+
+  client_t->InstanceTemplate()->Set ( String::NewSymbol("write")
+                                    , write_t->GetFunction()
+                                    );
+
+  /* disconnect callback */
+
+  Local<FunctionTemplate> disconnect_t = FunctionTemplate::New(DisconnectCallback);
+
+  client_t->InstanceTemplate()->Set ( String::NewSymbol("disconnect")
+                                    , disconnect_t->GetFunction()
+                                    );
+
+  target->Set(String::NewSymbol("TCPClient"), client_t->GetFunction());
 }
 
