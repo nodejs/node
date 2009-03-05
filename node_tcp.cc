@@ -36,6 +36,7 @@ public:
   void OnClose();
 
 private:
+  int ReadyState();
   oi_socket socket;
   struct addrinfo *address;
   Persistent<Object> js_client;
@@ -189,6 +190,10 @@ void TCPClient::Write (Handle<Value> arg)
 {
   HandleScope scope;
 
+  //
+  // TODO if ReadyState() is not READY_STATE_OPEN then raise INVALID_STATE_ERR
+  //
+ 
   if(arg == Null()) {
 
     oi_socket_write_eof(&socket);
@@ -202,6 +207,12 @@ void TCPClient::Write (Handle<Value> arg)
     oi_socket_write(&socket, buf);
   }
 }
+
+int
+TCPClient::ReadyState()
+{
+  return js_client->Get(readyState_str)->IntegerValue();
+}
  
 void
 TCPClient::Disconnect()
@@ -214,7 +225,7 @@ TCPClient::OnOpen()
 {
   HandleScope scope;
 
-  assert(READY_STATE_CONNECTING == js_client->Get(readyState_str)->IntegerValue());
+  assert(READY_STATE_CONNECTING == ReadyState());
   js_client->Set(readyState_str, readyState_OPEN);
 
   Handle<Value> onopen_value = js_client->Get( String::NewSymbol("onopen") );
@@ -235,7 +246,7 @@ TCPClient::OnRead(const void *buf, size_t count)
 {
   HandleScope scope;
 
-  assert(READY_STATE_OPEN == js_client->Get(readyState_str)->IntegerValue());
+  assert(READY_STATE_OPEN == ReadyState());
 
   Handle<Value> onread_value = js_client->Get( String::NewSymbol("onread") );
   if (!onread_value->IsFunction()) return; 
@@ -265,7 +276,7 @@ TCPClient::OnClose()
 {
   HandleScope scope;
 
-  assert(READY_STATE_OPEN == js_client->Get(readyState_str)->IntegerValue());
+  assert(READY_STATE_OPEN == ReadyState());
   js_client->Set(readyState_str, readyState_CLOSED);
 
   Handle<Value> onclose_value = js_client->Get( String::NewSymbol("onclose") );

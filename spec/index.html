@@ -88,9 +88,10 @@
   <h2 id=http_server><span class=secno>2 </span>HTTP Server</h2>
 
   <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
-  <pre class=idl>interface <dfn id=tcpclient>TCPClient</dfn>  {
-  readonly attribute DOMString <a href="index.html#host" title=dom-TCPCleint-host>host</a>;
-  readonly attribute DOMString <a href="index.html#port" title=dom-TCPCleint-port>port</a>;
+  <pre class=idl>[Constructor(in String host, in String port)]
+  interface <dfn id=tcpclient>TCPClient</dfn>  {
+  readonly attribute String <a href="index.html#host">host</a>;
+  readonly attribute String <a href="index.html#port">port</a>;
 
   // ready state
   const unsigned short CONNECTING = 0;
@@ -99,55 +100,66 @@
   readonly attribute long readyState;
 
   // networking                
-           attribute Function onopen;
-           attribute Function onread;
-           attribute Function onclose;
-  void write(in DOMString data);
+    attribute Function <a href="index.html#onopen">onopen</a>;
+    attribute Function <a href="index.html#onread">onread</a>;
+    attribute Function <a href="index.html#onclose">onclose</a>;
+  void write(in String data);
   void disconnect();           
 };</pre>
 
+  <dl>
+    <dt><code>TCPClient(host, port)</code></dt>
+    <dd>
+      <p>When a <code><a href="#connection0">TCPClient</a></code> object is
+         created, the the interpreter must try to establish a connection.
+         If the <code>host</code> parameter is not an IP address it 
+         will be looked up using the DNS.
+    </dd>
 
-  </p><p>When a <code><a href="#connection0">TCPClient</a></code> object is
-   created, the the interpreter must try to establish a connection.
+    <dt><code>write(data)</code></dt>
+    <dd>
+      <p>Transmits data using the connection. If the connection is not yet
+       established, it must raise an <code>INVALID_STATE_ERR</code> exception. 
 
-  </p><p>The <dfn id="host" title="dom-TCPClient-host"><code>host</code></dfn>
-  attribute is the domain name of the network connection. The <dfn id="port"
-  title="dom-Connection-port"><code>port</code></dfn> attribute identifies the
-  port.
+       <p><code>write(null)</code> sends an EOF to the peer. Further writing
+       is disabled. However the <code>onread</code> callback may still
+       be executed.
+    </dd>
 
-  </p><p>The <dfn id="readystate0" title="dom-Connection-readyState"><code>readyState</code></dfn> attribute
+    <dt><code>disconnect()</code></dt>
+    <dd>
+      <p>Closes the connection, if it is open. If the connection is already
+       closed, it does nothing. Closing the connection causes a
+       <code>onclose</code> callback to be made and the 
+       <code><a href="#readystate0">readyState</a></code> attribute's value to
+       change to <code>CLOSED</code>.
+       Note that a connection might not be closed instantaniously. In the
+       case of secure connection some "goodbye" transmission might be sent. 
+    </dd>
+  </dl>
+
+  </p><p>The <dfn id="readystate0"><code>readyState</code></dfn> attribute
    represents the state of the connection. When the object is created it must
    be set to <code>CONNECTING</code>.
 
-  <p id="openConnection">Once a connection is established, the <code
-title="dom-Connection-readyState"><a href="#readystate0">readyState</a></code>
-attribute's value must be changed to <code>OPEN</code>, and the <code
-title="event-connection-open"><a href="#onopen">onopen</a></code> callback will be
-made.
+  <p id="onopen">Once a connection is established, the <code
+>readyState</a></code>
+attribute's value must be changed to <code>OPEN</code>, and the
+<code>onopen</code> callback will be made.
 
-  </p><p>When data is received, the <code title="event-connection-read"><a
-href="#onread">onread</a></code> callback will be made.</p>
+  <p id="onread">When data is received, the <code>onread</code> callback
+  will be made with a single parameter: a <code>String</code> containing a
+  chunk of data. The user does not have the ability to control how much data
+  is received nor the ability to stop the input besides disconnecting.
 
   <!-- conf crit for this
   statement is in the various protocol-specific sections below. -->
 
-  <p id="closeConnection">When the connection is closed, the <code
-title="dom-Connection-readyState"><a href="#readystate0">readyState</a></code>
+  <p id="onclose">When the connection is closed, the <code
+>readyState</a></code>
 attribute's value must be changed to <code>CLOSED</code>, and the <code
-title="event-connection-close"><a href="#onclose">onclose</a></code> callback
+>onclose</a></code> callback
 will be made.
-
-  </p><p>The <dfn id="write" title="dom-Connection-write"><code>write()</code></dfn>
-   method transmits data using the connection. If the connection is not yet
-   established, it must raise an <code>INVALID_STATE_ERR</code> exception. 
-
-  </p><p>The <dfn id="disconnect" title="dom-Connection-disconnect"><code>disconnect()</code></dfn> method
-   must close the connection, if it is open. If the connection is already
-   closed, it must do nothing. Closing the connection causes a <code
-title="event-connection-close"><a href="#onclose">onclose</a></code> callback to be
-made and the <code title="dom-Connection-readyState"><a
-href="#readystate0">readyState</a></code> attribute's value to change, as <a
-href="#closeConnection">described above</a>.
 
 
   <h2 id=timers><span class=secno>4 </span>Timers</h2>
