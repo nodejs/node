@@ -57,6 +57,8 @@ ReadFile (const string& name)
   return result;
 }
 
+
+
 static void
 ParseOptions (int argc, char* argv[], map<string, string>& options, string* file)
 {
@@ -121,6 +123,17 @@ LogCallback (const Arguments& args)
   return Undefined();
 }
 
+static Handle<Value>
+BlockingFileReadCallback (const Arguments& args)
+{
+  if (args.Length() < 1) return v8::Undefined();
+  HandleScope scope;
+
+  String::Utf8Value filename(args[0]);
+
+  return ReadFile (*filename);
+}
+
 static void
 OnFatalError (const char* location, const char* message)
 {
@@ -152,6 +165,10 @@ main (int argc, char *argv[])
 
   Local<Object> g = Context::GetCurrent()->Global();
   g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
+
+  g->Set( String::New("blockingFileRead")
+        , FunctionTemplate::New(BlockingFileReadCallback)->GetFunction()
+        );
 
   Init_timer(g);
   Init_tcp(g);

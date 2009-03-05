@@ -3,6 +3,8 @@
  <head>
   <title>Node API</title>
   <link href="specification.css" rel=stylesheet>
+  <!-- <link href="http://www.whatwg.org/style/specification"
+  rel=stylesheet> -->
 
  <body class=draft>
   <div class=head>
@@ -52,6 +54,8 @@
     </ul>
    <li><a href="index.html#tcp_client"><span class=secno>3 </span>TCP Client</a>
    <li><a href="index.html#timers"><span class=secno>4 </span>Timers</a>
+   <li><a href="index.html#blocking"><span class=secno>5 </span>Blocking
+   Functions</a>
   </ul>
   <!--end-toc-->
 
@@ -238,6 +242,29 @@ will be made.
     <dt><code>clearInterval(intervalID)</code></dt>
     <dd>
       <p>Cancels an interval that was set with the <code>setInterval</code> method.
+    </dd>
+
+  </dl>
+
+  <h2 id=blocking><span class=secno>5 </span>Blocking Functions</h2>
+
+  <p>Node includes a number of blocking functions in its API. Some of these 
+  will be removed in the future as the software improves. 
+
+  <dl>
+    <dt><code>log(string)</code></dt>
+    <dd>
+      <p>This function outputs the string to the stadard output device
+      (usually the console).
+      Its speed is dependent on where stdout is piped to. 
+    </dd>
+
+  
+    <dt><code>blockingFileRead(filename)</code></dt>
+    <dd>
+    <p>This method opens a file from the file system and reads returns 
+    its contents. This function can be extremely expensive depending on the
+    response time of the file system.  It should only be used in start up.
     </dd>
 
   </dl>
