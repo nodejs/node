@@ -4,6 +4,7 @@
 #include <oi_socket.h>
 #include <oi_buf.h>
 
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -31,6 +32,8 @@ public:
   void Disconnect();
 
   void OnOpen();
+  void OnRead(const void *buf, size_t count);
+  void OnClose();
 
 private:
   oi_socket socket;
@@ -39,12 +42,25 @@ private:
 };
 
 
-static void on_connect
-  ( oi_socket *socket
-  )
+static void
+on_connect (oi_socket *socket)
 {
   TCPClient *client = static_cast<TCPClient*> (socket->data);
   client->OnOpen();
+}
+
+static void
+on_close (oi_socket *socket)
+{
+  TCPClient *client = static_cast<TCPClient*> (socket->data);
+  client->OnClose();
+}
+
+static void
+on_read (oi_socket *socket, const void *buf, size_t count)
+{
+  TCPClient *client = static_cast<TCPClient*> (socket->data);
+  client->OnRead(buf, count);
 }
 
 static struct addrinfo tcp_hints = 
@@ -120,11 +136,11 @@ TCPClient::TCPClient(Handle<Object> _js_client)
 {
   oi_socket_init(&socket, 30.0); // TODO adjustable timeout
   socket.on_connect = on_connect;
-  socket.on_read    = NULL;
+  socket.on_read    = on_read;
   socket.on_drain   = NULL;
   socket.on_error   = NULL;
-  socket.on_close   = NULL;
-  socket.on_timeout = NULL;
+  socket.on_close   = on_close;
+  socket.on_timeout = on_close;
   socket.data = this;
 
   HandleScope scope;
@@ -193,10 +209,12 @@ TCPClient::Disconnect()
   oi_socket_close(&socket);
 }
 
-void TCPClient::OnOpen()
+void
+TCPClient::OnOpen()
 {
   HandleScope scope;
 
+  assert(READY_STATE_CONNECTING == js_client->Get(readyState_str)->IntegerValue());
   js_client->Set(readyState_str, readyState_OPEN);
 
   Handle<Value> onopen_value = js_client->Get( String::NewSymbol("onopen") );
@@ -207,6 +225,56 @@ void TCPClient::OnOpen()
   TryCatch try_catch;
 
   Handle<Value> r = onopen->Call(js_client, 0, NULL);
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
+}
+
+void
+TCPClient::OnRead(const void *buf, size_t count)
+{
+  HandleScope scope;
+
+  assert(READY_STATE_OPEN == js_client->Get(readyState_str)->IntegerValue());
+
+  Handle<Value> onread_value = js_client->Get( String::NewSymbol("onread") );
+  if (!onread_value->IsFunction()) return; 
+  Handle<Function> onread = Handle<Function>::Cast(onread_value);
+
+  const int argc = 1;
+  Handle<Value> argv[argc];
+
+  if(count) {
+    Handle<String> chunk = String::New((const char*)buf, count); // TODO binary data?
+    argv[0] = chunk;
+  } else {
+    // TODO eof? delete write method?
+    argv[0] = Null();
+  }
+
+  TryCatch try_catch;
+
+  Handle<Value> r = onread->Call(js_client, argc, argv);
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
+}
+
+void
+TCPClient::OnClose()
+{
+  HandleScope scope;
+
+  assert(READY_STATE_OPEN == js_client->Get(readyState_str)->IntegerValue());
+  js_client->Set(readyState_str, readyState_CLOSED);
+
+  Handle<Value> onclose_value = js_client->Get( String::NewSymbol("onclose") );
+  if (!onclose_value->IsFunction()) return; 
+  Handle<Function> onclose = Handle<Function>::Cast(onclose_value);
+
+  TryCatch try_catch;
+
+  Handle<Value> r = onclose->Call(js_client, 0, NULL);
 
   if(try_catch.HasCaught())
     node_fatal_exception(try_catch);
