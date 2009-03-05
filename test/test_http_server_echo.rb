@@ -32,7 +32,7 @@ function encode(data) {
 }
 
 var port = 8000;
-var server = new HTTP.Server("localhost", port);
+var server = new HTTPServer("localhost", port);
 
 server.onRequest = function (request) {
 

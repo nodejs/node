@@ -86,10 +86,19 @@
     <code>spawn()</code> to start a new context/event loop? 
 
   <h2 id=http_server><span class=secno>2 </span>HTTP Server</h2>
+  <pre class=idl>[Constructor(in String host, in String port)]
+interface <dfn id=httpserver>HTTPServer</dfn>  {
+  readonly attribute String <a href="index.html#host">host</a>;
+  readonly attribute String <a href="index.html#port">port</a>;
+
+  // networking                
+    attribute Function <a href="index.html#onrequest">onRequest</a>;
+  void close(); // yet not implemented
+};</pre>
 
   <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
   <pre class=idl>[Constructor(in String host, in String port)]
-  interface <dfn id=tcpclient>TCPClient</dfn>  {
+interface <dfn id=tcpclient>TCPClient</dfn>  {
   readonly attribute String <a href="index.html#host">host</a>;
   readonly attribute String <a href="index.html#port">port</a>;
 

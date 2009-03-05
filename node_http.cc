@@ -544,14 +544,10 @@ Init_http (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<Object> http = Object::New();
-  target->Set (String::NewSymbol("HTTP"), http);
-
   Local<FunctionTemplate> server_t = FunctionTemplate::New(server_constructor);
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  http->Set(String::New("Server"), server_t->GetFunction());
-
+  target->Set(String::New("HTTPServer"), server_t->GetFunction());
 
   path_str         = Persistent<String>::New( String::NewSymbol("path") );
   uri_str          = Persistent<String>::New( String::NewSymbol("uri") );
