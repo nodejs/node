@@ -47,6 +47,9 @@
      <li><a href="index.html#execution-context"><span class=secno>1.2 </span>Execution context</a>
     </ul>
    <li><a href="index.html#http_server"><span class=secno>2 </span>HTTP Server</a>
+    <ul class=toc>
+     <li><a href="index.html#http_request"><span class=secno>2.1 </span>Request object</a>
+    </ul>
    <li><a href="index.html#tcp_client"><span class=secno>3 </span>TCP Client</a>
    <li><a href="index.html#timers"><span class=secno>4 </span>Timers</a>
   </ul>
@@ -95,6 +98,28 @@ interface <dfn id=httpserver>HTTPServer</dfn>  {
     attribute Function <a href="index.html#onrequest">onRequest</a>;
   void close(); // yet not implemented
 };</pre>
+
+  <h3 id=http_request><span class=secno>2.1 </span>Request object</h3>
+  <pre class=idl>interface <dfn id=httprequest>HTTPRequest</dfn>  {
+  readonly attribute String <a href="index.html#path">path</a>;
+  readonly attribute String <a href="index.html#uri">uri</a>;
+  readonly attribute String <a href="index.html#query_string">query_string</a>;
+  readonly attribute String <a href="index.html#fragment">fragment</a>;
+  readonly attribute String <a href="index.html#method">method</a>;
+  readonly attribute String <a href="index.html#http_version">http_version</a>;
+
+  readonly attribute Object <a href="index.html#headers">headers</a>;
+
+    attribute Function <a href="index.html#onBody">onBody</a>;
+
+  void respond(in String data);
+};</pre>
+
+  <p> A request object is what is passed to <code>HTTPServer.onRequest</code>. 
+      it represents a single HTTP request. Clients might preform HTTP
+      pipelining (Keep-Alive) and send multiple requests per TCP
+      connection&mdash;this does not affect this interface.
+    
 
   <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
   <pre class=idl>[Constructor(in String host, in String port)]

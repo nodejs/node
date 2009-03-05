@@ -19,6 +19,7 @@ static Persistent<String> query_string_str;
 static Persistent<String> fragment_str; 
 static Persistent<String> method_str; 
 static Persistent<String> http_version_str; 
+static Persistent<String> headers_str; 
 
 static Persistent<String> on_request_str; 
 static Persistent<String> on_body_str; 
@@ -416,8 +417,7 @@ HttpRequest::CreateJSObject ()
     field_iterator++;
     value_iterator++;
   }
-  result->Set(String::NewSymbol("headers"), headers);
-
+  result->Set(headers_str, headers);
 
   js_object = Persistent<Object>::New(result);
 
@@ -555,6 +555,7 @@ Init_http (Handle<Object> target)
   fragment_str     = Persistent<String>::New( String::NewSymbol("fragment") );
   method_str       = Persistent<String>::New( String::NewSymbol("method") );
   http_version_str = Persistent<String>::New( String::NewSymbol("http_version") );
+  headers_str      = Persistent<String>::New( String::NewSymbol("headers") );
 
   on_request_str = Persistent<String>::New( String::NewSymbol("onRequest") );
   on_body_str    = Persistent<String>::New( String::NewSymbol("onBody") );
