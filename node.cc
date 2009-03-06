@@ -123,6 +123,7 @@ LogCallback (const Arguments& args)
   return Undefined();
 }
 
+
 static Handle<Value>
 BlockingFileReadCallback (const Arguments& args)
 {
@@ -164,11 +165,14 @@ main (int argc, char *argv[])
   Context::Scope context_scope(context);
 
   Local<Object> g = Context::GetCurrent()->Global();
-  g->Set( String::New("log"), FunctionTemplate::New(LogCallback)->GetFunction());
 
-  g->Set( String::New("blockingFileRead")
-        , FunctionTemplate::New(BlockingFileReadCallback)->GetFunction()
-        );
+  g->Set ( String::New("log")
+         , FunctionTemplate::New(LogCallback)->GetFunction()
+         );
+
+  g->Set ( String::New("blockingFileRead")
+         , FunctionTemplate::New(BlockingFileReadCallback)->GetFunction()
+         );
 
   Init_timer(g);
   Init_tcp(g);

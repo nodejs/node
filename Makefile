@@ -1,7 +1,7 @@
 EVDIR=$(HOME)/local/libev
 V8INC = $(HOME)/src/v8/include
-#V8LIB = $(HOME)/src/v8/libv8_g.a
-V8LIB = $(HOME)/src/v8/libv8.a
+V8LIB = $(HOME)/src/v8/libv8_g.a
+#V8LIB = $(HOME)/src/v8/libv8.a
 
 CFLAGS = -g -I$(V8INC) -Ideps/oi -DHAVE_GNUTLS=0 -Ideps/ebb 
 LDFLAGS = -lev -pthread # -lefence

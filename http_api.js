@@ -4,24 +4,16 @@ function encode(data) {
 }
 
 var port = 8000;
-var server = new HTTP.Server("localhost", port);
+var server = new HTTPServer("localhost", port);
 
-server.onRequest = function (request) {
+server.onrequest = function (request) {
+  log("path: " + request.path);
+  log("query string: " + request.query_string);
 
-  // onBody sends null on the last chunk.
-  request.onBody = function (chunk) {
-    if(chunk) { 
-      this.respond(encode(chunk));
-    } else {
-      this.respond(encode("\n"));
-      this.respond("0\r\n\r\n");
-      this.respond(null); // signals end-of-request
-    }
-  }
-  request.respond("HTTP/1.0 200 OK\r\n");
-  request.respond("Content-Type: text/plain\r\n");
-  request.respond("Transfer-Encoding: chunked\r\n");
+  request.respond("HTTP/1.1 200 OK\r\n");
+  request.respond("Content-Length: 0\r\n");
   request.respond("\r\n");
+  request.respond(null);
 };
 
 

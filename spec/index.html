@@ -69,10 +69,9 @@
   API is only a specification and does not reflect Node's
   behavior&mdash;there I will try to note the difference. 
   
-  <p>Unless otherwise noted, all functions can be considered
-  non-blocking. Non-blocking means that program execution will continue
-  without waiting for some I/O event (be that network or device).
-
+  <p>Unless otherwise noted, a function is non-blocking. Non-blocking means
+  that program execution will continue without waiting for an I/O event
+  (be that network or device).
   
 
   <h3 id=the-event-loop><span class=secno>1.1 </span>The event loop</h3>
@@ -81,9 +80,6 @@
   operations. As long as there are pending events the program will continue
   running. If however there arn't any pending callbacks waiting for
   something to happen, the program will exit. 
-
-  <p>Only one callback is executed at a time. 
-
 
   <h3 id=execution-context><span class=secno>1.2 </span>Execution context</h3>
 
@@ -99,9 +95,12 @@ interface <dfn id=httpserver>HTTPServer</dfn>  {
   readonly attribute String <a href="index.html#port">port</a>;
 
   // networking                
-    attribute Function <a href="index.html#onrequest">onRequest</a>;
+    attribute Function <a href="index.html#onrequest">onrequest</a>;
   void close(); // yet not implemented
 };</pre>
+
+  <p class="big-issue"> error handling? </p>
+
 
   <h3 id=http_request><span class=secno>2.1 </span>Request object</h3>
   <pre class=idl>interface <dfn id=httprequest>HTTPRequest</dfn>  {
@@ -111,19 +110,85 @@ interface <dfn id=httpserver>HTTPServer</dfn>  {
   readonly attribute String <a href="index.html#fragment">fragment</a>;
   readonly attribute String <a href="index.html#method">method</a>;
   readonly attribute String <a href="index.html#http_version">http_version</a>;
+  readonly attribute Array <a href="index.html#headers">headers</a>;
 
-  readonly attribute Object <a href="index.html#headers">headers</a>;
+  // ready state
+  const unsigned short HEADERS_RECEIVED = 0;
+  const unsigned short LOADING = 1;
+  const unsigned short DONE = 2;
+  readonly attribute long readyState;
 
-    attribute Function <a href="index.html#onBody">onBody</a>;
+    attribute Function <a href="index.html#onbody">onbody</a>;
 
-  void respond(in String data);
+  void respondHeader (in short status, in Array headers);
+  void respondBody (in ByteArray data);
 };</pre>
 
-  <p> A request object is what is passed to <code>HTTPServer.onRequest</code>. 
+  <p class="big-issue">issue: client ip address</p>
+
+  <p> A request object is what is passed to <code>HTTPServer.onrequest</code>. 
       it represents a single HTTP request. Clients might preform HTTP
       pipelining (Keep-Alive) and send multiple requests per TCP
       connection&mdash;this does not affect this interface.
+
+  <p> If any error is encountered either with the request or while using the
+      two response methods the connection to client immediately terminated.
+
+  <dl>
+    <dt><code>respondHeader(status, headers)</code></dt>
+    <dd>
+      <p>This method sends the response status line and headers.
+         This method may only be called once. After the first, calling it
+         will raise an <code>INVALID_STATE_ERR</code> exception.
+      
+      <p>The <code>status</code> argument is an integer HTTP status response code as
+         defined in 6.1 of <a href="#rfc2616">RFC 2616</a>.
+      
+      <p>The <code>header</code> argument is an <code>Array</code> of
+      tuples (a two-element <code>Array</code>). For example
+
+      <pre>[["Content-Type", "text/plain"], ["Content-Length", 10]]</pre>
+
+      <p>This array determines the response headers. If the
+        <code>header</code> parameter includes elements that are not tuples it
+        raises <code>SYNTAX_ERR</code>. If the elements of the tuples do not
+        respond to <code>toString()</code> the method raises
+        <code>SYNTAX_ERR</code>. 
+      
+      <p>Besides the author response headers interpreters should not
+        include additional response headers.  This ensures that authors 
+        have a reasonably predictable API. 
+
+      <p>If the client connection was closed for any reason, calling
+      <code>respondHeader()</code> will raise a <code>NETWORK_ERR</code>
+      exception.
+    </dd>
+
+    <dt><code>respondBody(data)</code></dt>
+    <dd>
+      <p>This method must be called after <code>respondHeader()</code>. If
+        <code>respondHeader()</code> has not been called it will raise an
+        <code>INVALID_STATE_ERR</code> exception.
+
+      <p>When given a <code>String</code> or <code>ByteArray</code> the 
+         interpreter will send the data.
+
+      <p>Given a <code>null</code> argument signals end-of-response.
+
+      <p class="note"> The author must call <code>respondBody(null)</code>
+      for each response, even if the response has no body.</p>
+
+      <p>After the end-of-response, calling <code>respondHeader()</code> or
+      <code>respondBody()</code> will raise an <code>INVALID_STATE_ERR</code> exception.
+
+      <p>If the client connection was closed for any reason, calling
+      <code>respondBody()</code> will raise a <code>NETWORK_ERR</code>
+      exception.
+
+     </dd>
+
     
+  </dl>
 
   <h2 id=tcp_client><span class=secno>3 </span>TCP Client</h2>
   <pre class=idl>[Constructor(in String host, in String port)]
@@ -141,7 +206,7 @@ interface <dfn id=tcpclient>TCPClient</dfn>  {
     attribute Function <a href="index.html#onopen">onopen</a>;
     attribute Function <a href="index.html#onread">onread</a>;
     attribute Function <a href="index.html#onclose">onclose</a>;
-  void write(in String data);
+  void write(in ByteArray data);
   void disconnect();           
 };</pre>
 
@@ -157,11 +222,12 @@ interface <dfn id=tcpclient>TCPClient</dfn>  {
     <dt><code>write(data)</code></dt>
     <dd>
       <p>Transmits data using the connection. If the connection is not yet
-       established, it must raise an <code>INVALID_STATE_ERR</code> exception. 
-
-       <p><code>write(null)</code> sends an EOF to the peer. Further writing
-       is disabled. However the <code>onread</code> callback may still
-       be executed.
+      established or the connection is closed, calling <code>write()</code>
+      will raise an <code>INVALID_STATE_ERR</code> exception. </p>
+      
+      <p><code>write(null)</code> sends an EOF to the peer. Further writing
+      is disabled. However the <code>onread</code> callback may still
+      be executed.
     </dd>
 
     <dt><code>disconnect()</code></dt>
@@ -176,18 +242,17 @@ interface <dfn id=tcpclient>TCPClient</dfn>  {
     </dd>
   </dl>
 
-  </p><p>The <dfn id="readystate0"><code>readyState</code></dfn> attribute
+  <p>The <dfn id="readystate0"><code>readyState</code></dfn> attribute
    represents the state of the connection. When the object is created it must
    be set to <code>CONNECTING</code>.
 
-  <p id="onopen">Once a connection is established, the <code
->readyState</a></code>
-attribute's value must be changed to <code>OPEN</code>, and the
-<code>onopen</code> callback will be made.
+  <p id="onopen">Once a connection is established, the
+  <code>readyState</a></code> attribute's value must be changed to
+  <code>OPEN</code>, and the <code>onopen</code> callback will be made.
 
   <p id="onread">When data is received, the <code>onread</code> callback
-  will be made with a single parameter: a <code>String</code> containing a
-  chunk of data. The user does not have the ability to control how much data
+  will be made with a single parameter: a <code>ByteArray</code> containing a
+  chunk of data. The author does not have the ability to control how much data
   is received nor the ability to stop the input besides disconnecting.
 
   <!-- conf crit for this
@@ -262,9 +327,25 @@ will be made.
   
     <dt><code>blockingFileRead(filename)</code></dt>
     <dd>
-    <p>This method opens a file from the file system and reads returns 
-    its contents. This function can be extremely expensive depending on the
-    response time of the file system.  It should only be used in start up.
+      <p>This method opens a file from the file system and returns its
+      contents as a <code>ByteArray</code>. This function can be extremely
+      expensive depending on the response time of the file system.  It should
+      only be used in start up.
     </dd>
 
   </dl>
+
+
+
+  <h2 class=no-num id=references>References</h2>
+
+
+  <dl>
+
+     <dt>[<dfn id=rfc2616>RFC2616</dfn>]
+
+     <dd><cite><a href="http://ietf.org/rfc/rfc2616">Hypertext Transfer
+         Protocol -- HTTP/1.1</a></cite>, R. Fielding, J. Gettys, J. Mogul,
+         H.  Frystyk, L. Masinter, P. Leach, T. Berners-Lee, editors.  IETF,
+         June 1999.
+

@@ -12,6 +12,67 @@ using namespace std;
 
 static Persistent<ObjectTemplate> request_template;
 
+static string status_lines[] = 
+  { "100 Continue"
+  , "101 Switching Protocols"
+#define LEVEL_100  1
+  , "200 OK"
+  , "201 Created"
+  , "202 Accepted"
+  , "203 Non-Authoritative Information" 
+  , "204 No Content"
+  , "205 Reset Content" 
+  , "206 Partial Content"
+  , "207 Multi-Status"
+#define LEVEL_200  7
+  , "300 Multiple Choices"
+  , "301 Moved Permanently"
+  , "302 Moved Temporarily"
+  , "303 See Other" 
+  , "304 Not Modified"
+  , "305 Use Proxy" 
+  , "306 unused"
+  , "307 Temporary Redirect" 
+#define LEVEL_300  7
+  , "400 Bad Request"
+  , "401 Unauthorized"
+  , "402 Payment Required"
+  , "403 Forbidden"
+  , "404 Not Found"
+  , "405 Not Allowed"
+  , "406 Not Acceptable"
+  , "407 Proxy Authentication Required" 
+  , "408 Request Time-out"
+  , "409 Conflict"
+  , "410 Gone"
+  , "411 Length Required"
+  , "412 Precondition Failed"
+  , "413 Request Entity Too Large"
+  , "414 Request-URI Too Large"
+  , "415 Unsupported Media Type"
+  , "416 Requested Range Not Satisfiable"
+  , "417 Expectation Failed" 
+  , "418 unused"
+  , "419 unused" 
+  , "420 unused" 
+  , "421 unused" 
+  , "422 Unprocessable Entity"
+  , "423 Locked"
+  , "424 Failed Dependency" 
+#define LEVEL_400  24
+  , "500 Internal Server Error"
+  , "501 Method Not Implemented"
+  , "502 Bad Gateway"
+  , "503 Service Temporarily Unavailable"
+  , "504 Gateway Time-out"
+  , "505 HTTP Version Not Supported"
+  , "506 Variant Also Negotiates" 
+  , "507 Insufficient Storage"
+  , "508 unused"
+  , "509 unused"
+  , "510 Not Extended" 
+  };
+
 // globals
 static Persistent<String> path_str; 
 static Persistent<String> uri_str; 
@@ -60,27 +121,38 @@ private:
   Persistent<Object> js_server;
 };
 
+class HttpRequest;
+
 class Connection {
 public:
-  Connection ()
-  {
-    oi_socket_init (&socket, 30.0);
-    ebb_request_parser_init (&parser);
-  }
-  ebb_request_parser parser;
-  oi_socket socket;
-  Persistent<Function> js_onRequest;
+  Connection();
+  ~Connection();
 
+  void Parse(const void *buf, size_t count);
+  void Write();
+  HttpRequest* RequestBegin ();
+  void         RequestEnd   (HttpRequest*);
+
+  oi_socket socket;
+  Persistent<Function> js_onrequest;
+
+private:
+  ebb_request_parser parser;
+  list<HttpRequest*> requests;
   friend class Server;
 };
 
 class HttpRequest {
  public:
   HttpRequest (Connection &c);
+  /* Deleted from C++ as soon as possible.
+   * Javascript object might linger. This is okay
+   */
   ~HttpRequest();
 
   void MakeBodyCallback (const char *base, size_t length);
   Local<Object> CreateJSObject ();
+  void Respond (Handle<Value> data);
 
   string path;
   string query_string;
@@ -92,7 +164,9 @@ class HttpRequest {
 
   Connection &connection;
   ebb_request parser_info;
- private:
+
+  list<oi_buf*> output;
+  bool done;
   Persistent<Object> js_object;
 };
 
@@ -123,38 +197,54 @@ RespondCallback (const Arguments& args)
 {
   HandleScope scope;
 
+  // TODO check that args.Holder()->GetInternalField(0)
+  // is not NULL if so raise INVALID_STATE_ERR
+
   Handle<External> field = Handle<External>::Cast(args.Holder()->GetInternalField(0));
-
   HttpRequest* request = static_cast<HttpRequest*>(field->Value());
+  request->Respond(args[0]);
+}
 
-  Handle<Value> arg = args[0];
+void
+HttpRequest::Respond (Handle<Value> data)
+{
+  // TODO ByteArray ?
 
-  // TODO Make sure that we write reponses in the correct order. With
-  // keep-alive it's possible that one response can return before the last
-  // one has been sent!!!
-  
-  //printf("response called\n");
-
-  if(arg == Null()) {
-
-    //printf("response got null\n");
-    delete request; 
-
+  if(data == Null()) {
+    done = true;
   } else {
-
-    Handle<String> s = arg->ToString();
-
-    //printf("response called len %d\n", s->Length());
-
+    Handle<String> s = data->ToString();
     oi_buf *buf = oi_buf_new2(s->Length());
     s->WriteAscii(buf->base, 0, s->Length());
-
-    oi_socket_write(&request->connection.socket, buf);
-
+    output.push_back(buf);
   }
 
-  return Undefined();
+  connection.Write();
 }
+
+/*
+static Handle<Value>
+RespondHeadersCallback (const Arguments& args) 
+{
+  HandleScope scope;
+
+  int status = args[0]->IntegerValue();
+  Local<Array> headers = Local<Array>::Cast(args[1]);
+
+  for(int i = 0; i < headers->Length(); i++) {
+    Local<Value> v = headers->Get(i);
+    Local<Array> pair = Local<Array>::Cast(v);
+    if(pair->Length() != 2) {
+      assert(0); //error
+    }
+
+
+
+  }
+  
+}
+*/
+
 
 static void
 on_path (ebb_request *req, const char *buf, size_t len)
@@ -224,7 +314,7 @@ on_headers_complete (ebb_request *req)
   // and one argument, the request.
   const int argc = 1;
   Handle<Value> argv[argc] = { js_request };
-  Handle<Value> r = request->connection.js_onRequest->Call(Context::GetCurrent()->Global(), argc, argv);
+  Handle<Value> r = request->connection.js_onrequest->Call(Context::GetCurrent()->Global(), argc, argv);
 
   if(try_catch.HasCaught())
     node_fatal_exception(try_catch);
@@ -252,7 +342,7 @@ static ebb_request * on_request
 {
   Connection *connection = static_cast<Connection*> (data);
 
-  HttpRequest *request = new HttpRequest(*connection);
+  HttpRequest *request = connection->RequestBegin();
   
   return &request->parser_info;
 }
@@ -264,15 +354,8 @@ static void on_read
   )
 {
   Connection *connection = static_cast<Connection*> (socket->data);
-  ebb_request_parser_execute ( &connection->parser
-                             // FIXME change ebb to use void*
-                             , static_cast<const char*> (buf) 
-                             , count
-                             );
-  if(ebb_request_parser_has_error(&connection->parser)) {
-    fprintf(stderr, "parse error closing connection\n");
-    oi_socket_close(&connection->socket);
-  }
+  write(1, buf, count);
+  connection->Parse(buf, count);  
 }
 
 static void on_close 
@@ -280,27 +363,18 @@ static void on_close
   )
 {
   Connection *connection = static_cast<Connection*> (socket->data);
-  // TODO free requests
   delete connection;
-}
-
-static void on_drain 
-  ( oi_socket *socket
-  )
-{
-  Connection *connection = static_cast<Connection*> (socket->data);
-  //oi_socket_close(&connection->socket);
 }
 
 HttpRequest::~HttpRequest ()
 {
-  //printf("request is being destructed\n");
-
-  connection.socket.on_drain = oi_socket_close;
+  connection.RequestEnd(this);
 
   HandleScope scope;
-  // delete a reference to the respond method
-  js_object->Delete(respond_str);
+  // delete a reference c++ HttpRequest
+  js_object->SetInternalField(0, Null());
+  // dispose of Persistent handle so that 
+  // it can be GC'd normally.
   js_object.Dispose();
 }
 
@@ -317,6 +391,8 @@ HttpRequest::HttpRequest (Connection &c) : connection(c)
   parser_info.on_body             = on_body;
   parser_info.on_complete         = on_request_complete;
   parser_info.data                = this;
+
+  done = false;
 }
 
 void
@@ -324,11 +400,11 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
 {
   HandleScope handle_scope;
   // 
-  // XXX don't always allocate onBody strings
+  // XXX don't always allocate onbody strings
   //
-  Handle<Value> onBody_val = js_object->Get(on_body_str);  
-  if (!onBody_val->IsFunction()) return;
-  Handle<Function> onBody = Handle<Function>::Cast(onBody_val);
+  Handle<Value> onbody_val = js_object->Get(on_body_str);  
+  if (!onbody_val->IsFunction()) return;
+  Handle<Function> onbody = Handle<Function>::Cast(onbody_val);
 
   TryCatch try_catch;
   const int argc = 1;
@@ -342,7 +418,7 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
     argv[0] = Null();
   }
 
-  Handle<Value> result = onBody->Call(js_object, argc, argv);
+  Handle<Value> result = onbody->Call(js_object, argc, argv);
 
   if(try_catch.HasCaught())
     node_fatal_exception(try_catch);
@@ -420,6 +496,7 @@ HttpRequest::CreateJSObject ()
   result->Set(headers_str, headers);
 
   js_object = Persistent<Object>::New(result);
+  // weak ref?
 
   return scope.Close(result);
 }
@@ -438,20 +515,90 @@ on_connection (oi_server *_server, struct sockaddr *addr, socklen_t len)
     return NULL;
 
   Connection *connection = new Connection();
-    connection->socket.on_read    = on_read;
-    connection->socket.on_error   = NULL;
-    connection->socket.on_close   = on_close;
-    connection->socket.on_timeout = NULL;
-    connection->socket.on_drain   = on_drain;
-    connection->socket.data       = connection;
-
-    connection->parser.new_request = on_request;
-    connection->parser.data        = connection;
 
   Handle<Function> f = Handle<Function>::Cast(callback_v);
-  connection->js_onRequest = Persistent<Function>::New(f);
+  connection->js_onrequest = Persistent<Function>::New(f);
 
   return &connection->socket;
+}
+
+Connection::Connection ()
+{
+  oi_socket_init (&socket, 30.0);
+    socket.on_read    = on_read;
+    socket.on_error   = NULL;
+    socket.on_close   = on_close;
+    socket.on_timeout = on_close;
+    socket.on_drain   = NULL;
+    socket.data       = this;
+
+  ebb_request_parser_init (&parser);
+    parser.new_request = on_request;
+    parser.data        = this;
+}
+
+Connection::~Connection ()
+{
+  list<HttpRequest*>::iterator i = requests.begin();
+  while(i != requests.end()) {
+    delete *i; // this will call RequestEnd()
+  }
+}
+
+void
+Connection::Parse(const void *buf, size_t count)
+{
+  // FIXME change ebb_request_parser to use void* arg
+  ebb_request_parser_execute ( &parser
+                             , static_cast<const char*> (buf) 
+                             , count
+                             );
+
+  if(ebb_request_parser_has_error(&parser)) {
+    fprintf(stderr, "parse error closing connection\n");
+    oi_socket_close(&socket);
+  }
+}
+
+HttpRequest *
+Connection::RequestBegin( )
+{
+  HttpRequest *request = new HttpRequest(*this);
+  requests.push_back(request);
+  return request;
+}
+
+void
+Connection::RequestEnd(HttpRequest *request)
+{
+  requests.remove(request);
+}
+
+void
+Connection::Write ( ) 
+{
+  if(requests.size() == 0)
+    return;
+
+  HttpRequest *request = requests.front(); 
+
+  while(request->output.size() > 0) {
+    oi_buf *buf = request->output.front();
+    oi_socket_write(&socket, buf);
+    request->output.pop_front();
+  }
+
+  if(request->done) {
+    if(!ebb_request_should_keep_alive(&request->parser_info)) {
+      printf("not keep-alive closing\n");
+      socket.on_drain = oi_socket_close;
+    } else {
+      printf("keep-alive\n");
+    }
+    requests.pop_front();
+    delete request;
+    Write();
+  }
 }
 
 static void
@@ -498,7 +645,7 @@ Server::Stop()
 
 /* This constructor takes 2 arguments: host, port. */
 static Handle<Value>
-server_constructor (const Arguments& args) 
+newHTTPServer (const Arguments& args) 
 {
   if (args.Length() < 2)
     return Undefined();
@@ -544,7 +691,7 @@ Init_http (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> server_t = FunctionTemplate::New(server_constructor);
+  Local<FunctionTemplate> server_t = FunctionTemplate::New(newHTTPServer);
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
 
   target->Set(String::New("HTTPServer"), server_t->GetFunction());
@@ -557,8 +704,8 @@ Init_http (Handle<Object> target)
   http_version_str = Persistent<String>::New( String::NewSymbol("http_version") );
   headers_str      = Persistent<String>::New( String::NewSymbol("headers") );
 
-  on_request_str = Persistent<String>::New( String::NewSymbol("onRequest") );
-  on_body_str    = Persistent<String>::New( String::NewSymbol("onBody") );
+  on_request_str = Persistent<String>::New( String::NewSymbol("onrequest") );
+  on_body_str    = Persistent<String>::New( String::NewSymbol("onbody") );
   respond_str    = Persistent<String>::New( String::NewSymbol("respond") );
 
   copy_str      = Persistent<String>::New( String::New("COPY") );

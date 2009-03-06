@@ -34,10 +34,10 @@ function encode(data) {
 var port = 8000;
 var server = new HTTPServer("localhost", port);
 
-server.onRequest = function (request) {
+server.onrequest = function (request) {
 
   // onBody sends null on the last chunk.
-  request.onBody = function (chunk) {
+  request.onbody = function (chunk) {
     if(chunk) { 
       this.respond(encode(chunk));
     } else {

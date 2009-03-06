@@ -182,10 +182,10 @@ body.dfnEnabled dfn { cursor: pointer; }
 }
 
 @media screen {
-  body.draft { background-image: url(/images/WD); }
-  body.cfc { background-image: url(/images/CFC); }
-  body.cfi { background-image: url(/images/CFI); }
-  body.spec { background-image: url(/images/REC); }
+  body.draft { background-image: url(http://whatwg.org/images/WD); }
+  body.cfc { background-image: url(http://whatwg.org/images/CFC); }
+  body.cfi { background-image: url(http://whatwg.org/images/CFI); }
+  body.spec { background-image: url(http://whatwg.org/images/REC); }
 }
 
 @media print {
