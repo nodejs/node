@@ -57,8 +57,6 @@ ReadFile (const string& name)
   return result;
 }
 
-
-
 static void
 ParseOptions (int argc, char* argv[], map<string, string>& options, string* file)
 {
@@ -132,7 +130,8 @@ BlockingFileReadCallback (const Arguments& args)
 
   String::Utf8Value filename(args[0]);
 
-  return ReadFile (*filename);
+  Handle<String> output = ReadFile (*filename);
+  return scope.Close(output);
 }
 
 static void
