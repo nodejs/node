@@ -137,14 +137,17 @@ RespondCallback (const Arguments& args)
 {
   HandleScope scope;
 
-  printf("respondcallback!\n");
-
   // TODO check that args.Holder()->GetInternalField(0)
   // is not NULL if so raise INVALID_STATE_ERR
-
-  Handle<External> field = Handle<External>::Cast(args.Holder()->GetInternalField(0));
+  Handle<Value> v = args.Holder()->GetInternalField(0);
+  if(v->IsUndefined()) {
+    printf("null request external\n");
+    return Undefined();
+  }
+  Handle<External> field = Handle<External>::Cast(v);
   HttpRequest* request = static_cast<HttpRequest*>(field->Value());
   request->Respond(args[0]);
+  return Undefined();
 }
 
 void
@@ -162,29 +165,6 @@ HttpRequest::Respond (Handle<Value> data)
   }
   connection.Write();
 }
-
-/*
-static Handle<Value>
-RespondHeadersCallback (const Arguments& args) 
-{
-  HandleScope scope;
-
-  int status = args[0]->IntegerValue();
-  Local<Array> headers = Local<Array>::Cast(args[1]);
-
-  for(int i = 0; i < headers->Length(); i++) {
-    Local<Value> v = headers->Get(i);
-    Local<Array> pair = Local<Array>::Cast(v);
-    if(pair->Length() != 2) {
-      assert(0); //error
-    }
-
-
-
-  }
-  
-}
-*/
 
 
 static void
@@ -215,15 +195,30 @@ on_fragment (ebb_request *req, const char *buf, size_t len)
   request->fragment.append(buf, len);
 }
 
+static const char upcase[] =
+  "\0______________________________"
+  "_________________0123456789_____"
+  "__ABCDEFGHIJKLMNOPQRSTUVWXYZ____"
+  "__ABCDEFGHIJKLMNOPQRSTUVWXYZ____"
+  "________________________________"
+  "________________________________"
+  "________________________________"
+  "________________________________";
+
 static void
 on_header_field (ebb_request *req, const char *buf, size_t len, int header_index)
 {
   HttpRequest *request = static_cast<HttpRequest*> (req->data);
 
+  char upbuf[len];
+
+  for(int i = 0; i < len; i++) 
+    upbuf[i] = upcase[buf[i]];
+
   if( request->header_fields.size() == header_index - 1) {
-    request->header_fields.back().append(buf, len);
+    request->header_fields.back().append(upbuf, len);
   } else { 
-    request->header_fields.push_back( string(buf, len) );
+    request->header_fields.push_back( string(upbuf, len) );
   }
 }
 
@@ -246,7 +241,7 @@ on_headers_complete (ebb_request *req)
 
   HandleScope scope;
 
-  Local<Object> js_request = request->CreateJSObject();
+  Handle<Object> js_request = request->CreateJSObject();
 
   // Set up an exception handler before calling the Process function
   TryCatch try_catch;
@@ -308,15 +303,13 @@ static void on_close
   ( oi_socket *socket
   )
 {
-  printf("on_close\n");
   Connection *connection = static_cast<Connection*> (socket->data);
   delete connection;
 }
 
 HttpRequest::~HttpRequest ()
 {
-  printf("request destruct %s\n", path.c_str());
-  // HandleScope scope; needed?
+  HandleScope scope; // needed?
   // delete a reference c++ HttpRequest
   js_object->SetInternalField(0, Undefined());
   // dispose of Persistent handle so that 
@@ -344,8 +337,6 @@ HttpRequest::HttpRequest (Connection &c) : connection(c)
 void
 HttpRequest::MakeBodyCallback (const char *base, size_t length)
 {
-  printf("makebodycallback\n");
-
   HandleScope handle_scope;
 
   Handle<Value> onbody_val = js_object->Get(on_body_str);  
@@ -453,7 +444,6 @@ HttpRequest::CreateJSObject ()
 static oi_socket*
 on_connection (oi_server *_server, struct sockaddr *addr, socklen_t len)
 {
-  printf("on connection\n");
   HandleScope scope;
 
   Server *server = static_cast<Server*> (_server->data);
@@ -535,8 +525,6 @@ Connection::Write ( )
   }
 
   if(request->done) {
-    printf("pop request\n");
-
     if(!ebb_request_should_keep_alive(&request->parser_info)) {
       socket.on_drain = oi_socket_close;
     } 
@@ -600,13 +588,16 @@ Server::Stop()
 static Handle<Value>
 newHTTPServer (const Arguments& args) 
 {
-  if (args.Length() < 2)
+  if (args.Length() < 3)
     return Undefined();
 
   HandleScope scope;
 
   String::AsciiValue host(args[0]->ToString());
   String::AsciiValue port(args[1]->ToString());
+
+  Handle<Function> onrequest = Handle<Function>::Cast(args[2]);
+  args.This()->Set(on_request_str, onrequest);
 
   // get addrinfo for localhost, PORT
   struct addrinfo *servinfo;
@@ -615,7 +606,8 @@ newHTTPServer (const Arguments& args)
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
-  int r = getaddrinfo(NULL, *port, &hints, &servinfo);
+  // FIXME BLOCKING
+  int r = getaddrinfo(*host, *port, &hints, &servinfo);
   if (r != 0)
     return Undefined(); // XXX raise error?
 

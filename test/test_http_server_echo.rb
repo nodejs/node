@@ -32,9 +32,7 @@ function encode(data) {
 }
 
 var port = 8000;
-var server = new HTTPServer("localhost", port);
-
-server.onrequest = function (request) {
+var server = new HTTPServer("localhost", port, function (request) {
 
   // onBody sends null on the last chunk.
   request.onbody = function (chunk) {
@@ -50,6 +48,6 @@ server.onrequest = function (request) {
   request.respond("Content-Type: text/plain\r\n");
   request.respond("Transfer-Encoding: chunked\r\n");
   request.respond("\r\n");
-};
+});
 
 log("Running at http://localhost:" + port + "/");
