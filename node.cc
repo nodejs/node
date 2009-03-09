@@ -57,58 +57,8 @@ ReadFile (const string& name)
   return result;
 }
 
-static void
-ParseOptions (int argc, char* argv[], map<string, string>& options, string* file)
-{
-  for (int i = 1; i < argc; i++) {
-    string arg = argv[i];
-    int index = arg.find('=', 0);
-    if (index == string::npos) {
-      *file = arg;
-    } else {
-      string key = arg.substr(0, index);
-      string value = arg.substr(index+1);
-      options[key] = value;
-    }
-  }
-}
-
-static bool
-compile (Handle<String> script) 
-{
-  HandleScope handle_scope;
-
-  // We're just about to compile the script; set up an error handler to
-  // catch any exceptions the script might throw.
-  TryCatch try_catch;
-
-  // Compile the script and check for errors.
-  Handle<Script> compiled_script = Script::Compile(script);
-  if (compiled_script.IsEmpty()) {
-
-    Handle<Message> message = try_catch.Message();
-
-    String::Utf8Value error(try_catch.Exception());
-
-    printf("error: %s line %d\n", *error, message->GetLineNumber());
-
-    return false;
-  }
-
-  // Run the script!
-  Handle<Value> result = compiled_script->Run();
-  if (result.IsEmpty()) {
-    // The TryCatch above is still in effect and will have caught the error.
-    String::Utf8Value error(try_catch.Exception());
-    printf("error: %s\n", *error);
-    // Running the script failed; bail out.
-    return false;
-  }
-  return true;
-}
-
 static Handle<Value>
-LogCallback (const Arguments& args) 
+Log (const Arguments& args) 
 {
   if (args.Length() < 1) return v8::Undefined();
   HandleScope scope;
@@ -123,7 +73,7 @@ LogCallback (const Arguments& args)
 
 
 static Handle<Value>
-BlockingFileReadCallback (const Arguments& args)
+BlockingFileRead (const Arguments& args)
 {
   if (args.Length() < 1) return v8::Undefined();
   HandleScope scope;
@@ -141,24 +91,111 @@ OnFatalError (const char* location, const char* message)
   ev_unloop(node_loop(), EVUNLOOP_ALL);
 }
 
+
+// Extracts a C string from a V8 Utf8Value.
+const char* ToCString(const v8::String::Utf8Value& value) {
+  return *value ? *value : "<string conversion failed>";
+}
+
+void ReportException(v8::TryCatch* try_catch) {
+  v8::HandleScope handle_scope;
+  v8::String::Utf8Value exception(try_catch->Exception());
+  const char* exception_string = ToCString(exception);
+  v8::Handle<v8::Message> message = try_catch->Message();
+  if (message.IsEmpty()) {
+    // V8 didn't provide any extra information about this error; just
+    // print the exception.
+    printf("%s\n", exception_string);
+  } else {
+    // Print (filename):(line number): (message).
+    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    const char* filename_string = ToCString(filename);
+    int linenum = message->GetLineNumber();
+    printf("%s:%i: %s\n", filename_string, linenum, exception_string);
+    // Print line of source code.
+    v8::String::Utf8Value sourceline(message->GetSourceLine());
+    const char* sourceline_string = ToCString(sourceline);
+    printf("%s\n", sourceline_string);
+    // Print wavy underline (GetUnderline is deprecated).
+    int start = message->GetStartColumn();
+    for (int i = 0; i < start; i++) {
+      printf(" ");
+    }
+    int end = message->GetEndColumn();
+    for (int i = start; i < end; i++) {
+      printf("^");
+    }
+    printf("\n");
+  }
+}
+
+
+// Executes a string within the current v8 context.
+bool ExecuteString(v8::Handle<v8::String> source,
+                   v8::Handle<v8::Value> name,
+                   bool print_result,
+                   bool report_exceptions) {
+  v8::HandleScope handle_scope;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
+  if (script.IsEmpty()) {
+    // Print errors that happened during compilation.
+    if (report_exceptions)
+      ReportException(&try_catch);
+    return false;
+  } else {
+    v8::Handle<v8::Value> result = script->Run();
+    if (result.IsEmpty()) {
+      // Print errors that happened during execution.
+      if (report_exceptions)
+        ReportException(&try_catch);
+      return false;
+    } else {
+      if (print_result && !result->IsUndefined()) {
+        // If all went well and the result wasn't undefined then print
+        // the returned value.
+        v8::String::Utf8Value str(result);
+        const char* cstr = ToCString(str);
+        printf("%s\n", cstr);
+      }
+      return true;
+    }
+  }
+}
+
+// The callback that is invoked by v8 whenever the JavaScript 'load'
+// function is called.  Loads, compiles and executes its argument
+// JavaScript file.
+v8::Handle<v8::Value> Load(const v8::Arguments& args) {
+  for (int i = 0; i < args.Length(); i++) {
+    v8::HandleScope handle_scope;
+    v8::String::Utf8Value file(args[i]);
+    if (*file == NULL) {
+      return v8::ThrowException(v8::String::New("Error loading file"));
+    }
+    v8::Handle<v8::String> source = ReadFile(*file);
+    if (source.IsEmpty()) {
+      return v8::ThrowException(v8::String::New("Error loading file"));
+    }
+    if (!ExecuteString(source, v8::String::New(*file), false, false)) {
+      return v8::ThrowException(v8::String::New("Error executing  file"));
+    }
+  }
+  return v8::Undefined();
+}
+
 int
 main (int argc, char *argv[]) 
 {
   V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-  map<string, string> options;
-  string file;
-  ParseOptions(argc, argv, options, &file);
-  if (file.empty()) {
+  if(argc != 2)  {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  HandleScope scope;
-  Handle<String> source = ReadFile(file);
-  if (source.IsEmpty()) {
-    fprintf(stderr, "Error reading '%s'.\n", file.c_str());
-    return 1;
-  }
+  string filename(argv[1]);
+
+  HandleScope handle_scope;
 
   Persistent<Context> context = Context::New(NULL, ObjectTemplate::New());
   Context::Scope context_scope(context);
@@ -166,22 +203,25 @@ main (int argc, char *argv[])
   Local<Object> g = Context::GetCurrent()->Global();
 
   g->Set ( String::New("log")
-         , FunctionTemplate::New(LogCallback)->GetFunction()
+         , FunctionTemplate::New(Log)->GetFunction()
+         );
+
+  g->Set ( String::New("load")
+         , FunctionTemplate::New(Load)->GetFunction()
          );
 
   g->Set ( String::New("blockingFileRead")
-         , FunctionTemplate::New(BlockingFileReadCallback)->GetFunction()
+         , FunctionTemplate::New(BlockingFileRead)->GetFunction()
          );
 
   Init_timer(g);
   Init_tcp(g);
   Init_http(g);
 
-  V8::SetFatalErrorHandler(OnFatalError);
+  //V8::SetFatalErrorHandler(OnFatalError);
 
-  // Compile and run the script
-  if (!compile(source))
-    return 1;
+  v8::Handle<v8::String> source = ReadFile(filename);
+  ExecuteString(source, String::New(filename.c_str()), false, true);
 
   ev_loop(node_loop(), 0);
 
