@@ -160,7 +160,14 @@ HttpRequest::Respond (Handle<Value> data)
   } else {
     Handle<String> s = data->ToString();
     oi_buf *buf = oi_buf_new2(s->Length());
-    s->WriteAscii(buf->base, 0, s->Length());
+
+    uint16_t expanded[s->Length()];
+    s->Write(expanded, 0, s->Length());
+
+    for(int i = 0; i < s->Length(); i++) {
+      buf->base[i] = expanded[i];
+    }
+
     output.push_back(buf);
   }
   connection.Write();
@@ -349,7 +356,14 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
   
   if(length) {
     // TODO ByteArray?
-    Handle<String> chunk = String::New(base, length);
+    //
+    
+    uint16_t expanded_base[length];
+    for(int i = 0; i < length; i++) {
+      expanded_base[i] = base[i];
+    }
+
+    Handle<String> chunk = String::New(expanded_base, length);
     argv[0] = chunk;
   } else {
     argv[0] = Null();

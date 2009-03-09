@@ -20,23 +20,35 @@ static int exit_code = 0;
 static Handle<String>
 ReadFile (const string& name) 
 {
+
   FILE* file = fopen(name.c_str(), "rb");
   if (file == NULL) return Handle<String>();
-
+ 
   fseek(file, 0, SEEK_END);
   int size = ftell(file);
   rewind(file);
 
-  char* chars = new char[size + 1];
+  char chars[size+1];
   chars[size] = '\0';
   for (int i = 0; i < size;) {
     int read = fread(&chars[i], 1, size - i, file);
+    if(read <= 0) {
+      perror("read()");
+    }
     i += read;
   }
+
+  uint16_t expanded_base[size+1];
+  expanded_base[size] = '\0';
+  for(int i = 0; i < size; i++) 
+    expanded_base[i] = chars[i];
+
   fclose(file);
-  Handle<String> result = String::New(chars, size);
-  delete[] chars;
-  return result;
+
+  HandleScope scope;
+  Local<String> result = String::New(expanded_base, size);
+
+  return scope.Close(result);
 }
 
 static Handle<Value>
@@ -61,7 +73,6 @@ BlockingFileRead (const Arguments& args)
   HandleScope scope;
 
   String::Utf8Value filename(args[0]);
-
   Handle<String> output = ReadFile (*filename);
   return scope.Close(output);
 }
