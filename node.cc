@@ -16,24 +16,6 @@ using namespace std;
 
 static int exit_code = 0;
 
-void
-node_fatal_exception (TryCatch &try_catch)
-{
-  HandleScope handle_scope;
-
-  Local<Message> message = try_catch.Message();
-  String::Utf8Value error(try_catch.Exception());
-
-  fprintf( stderr
-         , "Uncaught Exception. line %d '%s'\n\n"
-         , try_catch.Message()->GetLineNumber() 
-         , *error
-         );
-
-  ev_unloop(node_loop(), EVUNLOOP_ALL);
-  exit_code = 1;
-}
-
 // Reads a file into a v8 string.
 static Handle<String>
 ReadFile (const string& name) 
@@ -127,6 +109,14 @@ void ReportException(v8::TryCatch* try_catch) {
     }
     printf("\n");
   }
+}
+
+void
+node_fatal_exception (TryCatch &try_catch)
+{
+  ReportException(&try_catch);
+  ev_unloop(node_loop(), EVUNLOOP_ALL);
+  exit_code = 1;
 }
 
 
