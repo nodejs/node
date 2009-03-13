@@ -16,7 +16,7 @@ ensure
 end
 
 __END__
-var server = new HTTPServer("localhost", 8000, function (request) {
+var server = new HTTPServer(null, 8000, function (request) {
   log("request");
   request.respond("HTTP/1.1 200 OK\r\n");
   request.respond("Content-Length: 0\r\n");

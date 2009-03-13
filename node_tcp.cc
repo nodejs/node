@@ -84,14 +84,18 @@ static Handle<Value> newTCPClient
 
   HandleScope scope;
 
-  String::AsciiValue host(args[0]);
+  char *host = NULL; 
+  String::AsciiValue host_v(args[0]->ToString());
+  if(args[0]->IsString()) {
+    host = *host_v;
+  }
   String::AsciiValue port(args[1]);
 
   TCPClient *client = new TCPClient(args.This());
   if(client == NULL)
     return Undefined(); // XXX raise error?
 
-  int r = client->Connect(*host, *port);
+  int r = client->Connect(host, *port);
   if (r != 0)
     return Undefined(); // XXX raise error?
 

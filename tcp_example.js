@@ -1,33 +1,12 @@
-/*
-[Constructor(in DOMString url)]
-interface TCP.Client {
-  readonly attribute DOMString host;
-  readonly attribute DOMString port;
-
-  // ready state
-  const unsigned short CONNECTING = 0;
-  const unsigned short OPEN = 1;
-  const unsigned short CLOSED = 2;
-  readonly attribute long readyState;
-
-  // networking
-           attribute Function onopen;
-           attribute Function onrecv;
-           attribute Function onclose;
-  void send(in DOMString data);
-  void disconnect();
-};
-*/
-
-client = new TCPClient("localhost", 11222);
+client = new TCPClient("google.com", 80);
 
 log("readyState: " + client.readyState);
 //assertEqual(client.readystate, TCP.CONNECTING);
 
 client.onopen = function () {
-  log("connected to dynomite");
+  log("connected to google");
   log("readyState: " + client.readyState);
-  client.write("get 1 /\n");
+  client.write("GET / HTTP/1.1\r\n\r\n");
 };
 
 client.onread = function (chunk) {
@@ -38,8 +17,11 @@ client.onclose = function () {
   log("connection closed");
 };
 
+
+
 setTimeout(function () {
   client.disconnect();
-}, 1000);
+}, 10 * 1000);
 
 
+log("hello");

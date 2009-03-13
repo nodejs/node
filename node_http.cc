@@ -153,8 +153,6 @@ RespondCallback (const Arguments& args)
 void
 HttpRequest::Respond (Handle<Value> data)
 {
-  // TODO ByteArray ?
-
   if(data == Null()) {
     done = true;
   } else {
@@ -607,7 +605,11 @@ newHTTPServer (const Arguments& args)
 
   HandleScope scope;
 
-  String::AsciiValue host(args[0]->ToString());
+  char *host = NULL; 
+  String::AsciiValue host_v(args[0]->ToString());
+  if(args[0]->IsString()) {
+    host = *host_v;
+  }
   String::AsciiValue port(args[1]->ToString());
 
   Handle<Function> onrequest = Handle<Function>::Cast(args[2]);
@@ -621,7 +623,7 @@ newHTTPServer (const Arguments& args)
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
   // FIXME BLOCKING
-  int r = getaddrinfo(*host, *port, &hints, &servinfo);
+  int r = getaddrinfo(host, *port, &hints, &servinfo);
   if (r != 0)
     return Undefined(); // XXX raise error?
 

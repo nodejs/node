@@ -32,7 +32,7 @@ function encode(data) {
 }
 
 var port = 8000;
-var server = new HTTPServer("localhost", port, function (request) {
+var server = new HTTPServer(null, port, function (request) {
 
   // onBody sends null on the last chunk.
   request.onbody = function (chunk) {
