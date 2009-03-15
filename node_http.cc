@@ -435,7 +435,7 @@ HttpRequest::CreateJSObject ()
     string &f = *field_iterator;
     string &v = *value_iterator;
     
-    headers->Set( String::New(f.c_str(), f.length() )
+    headers->Set( String::NewSymbol(f.c_str(), f.length())
                 , String::New(v.c_str(), v.length() ) 
                 );
 

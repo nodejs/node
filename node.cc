@@ -219,7 +219,7 @@ main (int argc, char *argv[])
   Init_tcp(g);
   Init_http(g);
 
-  //V8::SetFatalErrorHandler(OnFatalError);
+  V8::SetFatalErrorHandler(OnFatalError);
 
   v8::Handle<v8::String> source = ReadFile(filename);
   ExecuteString(source, String::New(filename.c_str()), false, true);
