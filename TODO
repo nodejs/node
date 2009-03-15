@@ -1,0 +1,12 @@
+- ARGV
+
+- jslint integration. compile it into the node binary and run it
+  automatically on each execution.
+
+- signal handlers. 
+
+- stdin, stdout, stderr. Accessing these with read()/write() blocks.
+  They cannot be select()ed. They are always readable. Thus all access
+  to them needs to be done in a thread pool. (E.G. oi_file_open_stdin()) 
+
+
