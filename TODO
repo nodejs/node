@@ -1,3 +1,10 @@
+- ByteArray/Blob
+  - slice 
+  - unpack 
+  - toJSON = toString = unpack("U*")
+
+- change build system to scons.
+ 
 - ARGV
 
 - jslint integration. compile it into the node binary and run it
@@ -5,14 +12,21 @@
 
 - signal handlers. 
 
+  Signals.onHUP = function () {
+    ...
+  };
+
 - stdin, stdout, stderr. Accessing these with read()/write() blocks.
   They cannot be select()ed. They are always readable. Thus all access
   to them needs to be done in a thread pool. (E.G. oi_file_open_stdin()) 
 
-- ByteArray !!!!
+- some sort of module loading mechanism. Would be nice if it was structured
+  like rubygems.
 
 
 STANDARD LIBRARY MODULES
+
+- DNS look up (thru http://25thandclement.com/~william/projects/dns.c.html)
 
 - File (thru oi_file?)
 
