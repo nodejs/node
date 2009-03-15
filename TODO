@@ -23,3 +23,7 @@ STANDARD LIBRARY MODULES
 - Memcached (can be implemented in pure js?)
 
 - Redis  (can be implemented in pure js?)
+
+- TCPServer
+
+- HTTPClient
