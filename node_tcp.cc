@@ -308,19 +308,13 @@ Init_tcp (Handle<Object> target)
   /* readyState constants */
 
   readyState_CONNECTING = Persistent<Integer>::New(Integer::New(READY_STATE_CONNECTING));
-  client_t->InstanceTemplate()->Set ( String::NewSymbol("CONNECTING")
-                                    , readyState_CONNECTING
-                                    );
+  client_t->Set ("CONNECTING", readyState_CONNECTING);
 
   readyState_OPEN = Persistent<Integer>::New(Integer::New(READY_STATE_OPEN));
-  client_t->InstanceTemplate()->Set ( String::NewSymbol("OPEN")
-                                    , readyState_OPEN
-                                    );
+  client_t->Set ("OPEN", readyState_OPEN);
 
   readyState_CLOSED = Persistent<Integer>::New(Integer::New(READY_STATE_CLOSED));
-  client_t->InstanceTemplate()->Set ( String::NewSymbol("CLOSED")
-                                    , readyState_CLOSED
-                                    );
+  client_t->Set ("CLOSED", readyState_CLOSED);
 
   /* write callback */
 

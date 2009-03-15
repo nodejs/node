@@ -100,6 +100,8 @@ void ReportException(v8::TryCatch* try_catch) {
     // print the exception.
     printf("%s\n", exception_string);
   } else {
+    message->PrintCurrentStackTrace(stdout);
+
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);

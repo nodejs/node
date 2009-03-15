@@ -40,6 +40,8 @@ static Persistent<String> put_str;
 static Persistent<String> trace_str;
 static Persistent<String> unlock_str;
 
+#define INVALID_STATE_ERR 1
+
 class Server {
 public:
   Server (Handle<Object> _js_server);
@@ -137,11 +139,12 @@ RespondCallback (const Arguments& args)
 {
   HandleScope scope;
 
-  // TODO check that args.Holder()->GetInternalField(0)
-  // is not NULL if so raise INVALID_STATE_ERR
   Handle<Value> v = args.Holder()->GetInternalField(0);
   if(v->IsUndefined()) {
+    // check that args.Holder()->GetInternalField(0)
+    // is not NULL if so raise INVALID_STATE_ERR
     printf("null request external\n");
+    ThrowException(Integer::New(INVALID_STATE_ERR)); 
     return Undefined();
   }
   Handle<External> field = Handle<External>::Cast(v);
@@ -317,6 +320,7 @@ HttpRequest::~HttpRequest ()
   HandleScope scope; // needed?
   // delete a reference c++ HttpRequest
   js_object->SetInternalField(0, Undefined());
+  js_object->Delete(respond_str);
   // dispose of Persistent handle so that 
   // it can be GC'd normally.
   js_object.Dispose();
@@ -654,6 +658,8 @@ Init_http (Handle<Object> target)
 
   Local<FunctionTemplate> server_t = FunctionTemplate::New(newHTTPServer);
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
+  
+  server_t->Set("INVALID_STATE_ERR", Integer::New(INVALID_STATE_ERR));
 
   target->Set(String::New("HTTPServer"), server_t->GetFunction());
 
