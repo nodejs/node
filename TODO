@@ -9,4 +9,17 @@
   They cannot be select()ed. They are always readable. Thus all access
   to them needs to be done in a thread pool. (E.G. oi_file_open_stdin()) 
 
+- ByteArray !!!!
 
+
+STANDARD LIBRARY MODULES
+
+- File (thru oi_file?)
+
+- AMQP (thru 0mq?)
+
+- Postgres (thru libpq-async http://www.postgresql.org/docs/8.3/interactive/libpq-async.html)
+
+- Memcached (can be implemented in pure js?)
+
+- Redis  (can be implemented in pure js?)
