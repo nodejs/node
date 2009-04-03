@@ -1,0 +1,7 @@
+#!/bin/sh
+
+make ev.o event.o || exit
+
+nm ev.o           | perl -ne 'print "$1\n" if /\S+ [A-Z] (\S+)/' > Symbols.ev
+nm event.o        | perl -ne 'print "$1\n" if /\S+ [A-Z] (\S+)/' > Symbols.event
+

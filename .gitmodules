@@ -4,3 +4,6 @@
 [submodule "deps/ebb"]
 	path = deps/ebb
 	url = git://github.com/ry/libebb.git
+[submodule "deps/v8"]
+	path = deps/v8
+	url = git://github.com/rtyler/v8-full.git
