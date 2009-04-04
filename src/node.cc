@@ -1,4 +1,6 @@
 #include "node.h"
+#define EV_STANDALONE 1
+#include <ev.c>
 
 #include "node_tcp.h"
 #include "node_http.h"

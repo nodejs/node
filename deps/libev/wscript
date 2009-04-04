@@ -1,0 +1,55 @@
+import Options
+
+def set_options(opt):
+  pass
+  #opt.tool_options('compiler_cc')
+
+def configure(conf):
+  print "--- libev ---"
+  #conf.check_tool('compiler_cc')
+
+  platform_string = "__" + Options.platform
+  if Options.platform == "linux2":
+    platform_string = "__linux"
+  conf.define(platform_string, 1)
+
+  conf.check_cc(header_name="sys/inotify.h")
+  conf.check_cc(header_name="sys/epoll.h")
+  conf.check_cc(header_name="sys/event.h")
+  conf.check_cc(header_name="sys/queue.h")
+  conf.check_cc(header_name="port.h")
+  conf.check_cc(header_name="poll.h")
+  conf.check_cc(header_name="sys/select.h")
+  conf.check_cc(header_name="sys/eventfd.h")
+  conf.check_cc(header_name="sys/inotify.h", function_name="inotify_init")
+  conf.check_cc(header_name="sys/epoll.h", function_name="epoll_ctl")
+  conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
+  conf.check_cc(header_name="port.h", function_name="port_create")
+  conf.check_cc(header_name="poll.h", function_name="poll")
+  conf.check_cc(header_name="sys/select.h", function_name="select")
+  conf.check_cc(header_name="sys/eventfd.h", function_name="eventfd")
+  code = """
+      #include <syscall.h>
+      #include <time.h>
+
+      int main() {
+          struct timespec ts; 
+          int status = syscall (SYS_clock_gettime, CLOCK_REALTIME, &ts);
+          return 0;
+      }
+  """
+  conf.check_cc(fragment=code, define_name="HAVE_CLOCK_SYSCALL")
+  conf.check_cc(lib="rt", header_name="time.h", function_name="clock_gettime")
+  conf.check_cc(lib="rt", header_name="time.h", function_name="nanosleep")
+  conf.check_cc(lib="m", header_name="math.h", function_name="ceil")
+
+  conf.define("HAVE_CONFIG_H", 1)
+  conf.write_config_header('config.h')
+
+def build(bld):
+  libev = bld.new_task_gen("cc", "staticlib")
+  libev.source = 'ev.c'
+  libev.target = 'ev'
+  libev.name = 'ev'
+  libev.includes = '. ../..'
+

@@ -7,6 +7,8 @@
 #include <string>
 #include <list>
 
+#include <assert.h>
+
 using namespace v8;
 using namespace std;
 
@@ -160,14 +162,11 @@ HttpRequest::Respond (Handle<Value> data)
     done = true;
   } else {
     Handle<String> s = data->ToString();
-    oi_buf *buf = oi_buf_new2(s->Length());
 
-    uint16_t expanded[s->Length()];
-    s->Write(expanded, 0, s->Length());
-
-    for(int i = 0; i < s->Length(); i++) {
-      buf->base[i] = expanded[i];
-    }
+    size_t l1 = s->Utf8Length(), l2;
+    oi_buf *buf = oi_buf_new2(l1);
+    l2 = s->WriteUtf8(buf->base, l1);
+    assert(l1 == l2);
 
     output.push_back(buf);
   }

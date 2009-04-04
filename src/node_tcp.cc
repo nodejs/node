@@ -139,7 +139,7 @@ client_destroy (Persistent<Value> _, void *data)
 
 TCPClient::TCPClient(Handle<Object> _js_client)
 {
-  oi_socket_init(&socket, 30.0); // TODO adjustable timeout
+  oi_socket_init(&socket, 300.0); // TODO adjustable timeout
   socket.on_connect = on_connect;
   socket.on_read    = on_read;
   socket.on_drain   = NULL;
@@ -205,8 +205,10 @@ void TCPClient::Write (Handle<Value> arg)
   } else {
     Local<String> s = arg->ToString();
 
-    oi_buf *buf = oi_buf_new2(s->Length());
-    s->WriteAscii(buf->base, 0, s->Length());
+    size_t l1 = s->Utf8Length(), l2;
+    oi_buf *buf = oi_buf_new2(l1);
+    l2 = s->WriteUtf8(buf->base, l1);
+    assert(l1 == l2);
 
     oi_socket_write(&socket, buf);
   }
@@ -279,6 +281,8 @@ void
 TCPClient::OnClose()
 {
   HandleScope scope;
+
+  printf("onclose readyState %d\n", ReadyState());
 
   assert(READY_STATE_OPEN == ReadyState());
   js_client->Set(readyState_str, readyState_CLOSED);

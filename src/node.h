@@ -1,7 +1,9 @@
 #ifndef node_h
 #define node_h
 
+#define EV_STANDALONE 1
 #include <ev.h>
+
 #include <v8.h>
 
 void node_fatal_exception (v8::TryCatch &try_catch); 
