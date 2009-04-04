@@ -1,6 +1,4 @@
 #include "node.h"
-#define EV_STANDALONE 1
-#include <ev.c>
 
 #include "node_tcp.h"
 #include "node_http.h"
@@ -189,6 +187,28 @@ v8::Handle<v8::Value> Load(const v8::Arguments& args) {
   return v8::Undefined();
 }
 
+static ev_async thread_pool_watcher;
+
+static void 
+thread_pool_cb (EV_P_ ev_async *w, int revents)
+{
+  int r = eio_poll();
+  /* returns 0 if all requests were handled, -1 if not, or the value of EIO_FINISH if != 0 */
+  if(r == 0) ev_async_stop(EV_DEFAULT_ w);
+}
+
+static void
+thread_pool_want_poll (void)
+{
+  ev_async_send(EV_DEFAULT_ &thread_pool_watcher); 
+}
+
+void
+node_eio_submit(eio_req *req)
+{
+  ev_async_start(EV_DEFAULT_ &thread_pool_watcher);
+}
+
 int
 main (int argc, char *argv[]) 
 {
@@ -198,6 +218,8 @@ main (int argc, char *argv[])
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
+
+
   string filename(argv[1]);
 
   HandleScope handle_scope;
@@ -226,6 +248,12 @@ main (int argc, char *argv[])
   V8::SetFatalErrorHandler(OnFatalError);
 
   v8::Handle<v8::String> source = ReadFile(filename);
+
+  // start eio thread pool
+  ev_async_init(&thread_pool_watcher, thread_pool_cb);
+  ev_async_start(EV_DEFAULT_ &thread_pool_watcher);
+  eio_init(thread_pool_want_poll, NULL);
+
   ExecuteString(source, String::New(filename.c_str()), false, true);
 
   ev_loop(node_loop(), 0);

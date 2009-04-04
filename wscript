@@ -42,9 +42,7 @@ def configure(conf):
   conf.define("HAVE_CONFIG_H", 1)
   conf.write_config_header('config.h')
 
-
 def build(bld):
-
   bld.add_subdirs('deps/libeio deps/libev')
 
   ### v8
@@ -100,4 +98,4 @@ def build(bld):
     deps/ebb
   """
   node.uselib_local = "oi ev eio ebb"
-  node.uselib = "V8 PTHREAD"
+  node.uselib = "V8"
