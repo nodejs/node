@@ -1,8 +1,12 @@
 #include "node.h"
 
-#include "node_tcp.h"
+//#include "net.h"
+#include "file.h"
+#include "process.h"
 #include "node_http.h"
 #include "node_timer.h"
+
+#include "natives.h" 
 
 #include <stdio.h>
 #include <assert.h>
@@ -12,85 +16,21 @@
 #include <map>
 
 using namespace v8;
+using namespace node;
 using namespace std;
 
 static int exit_code = 0;
 
-// Reads a file into a v8 string.
-static Handle<String>
-ReadFile (const string& name) 
-{
-
-  FILE* file = fopen(name.c_str(), "rb");
-  if (file == NULL) return Handle<String>();
- 
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-  rewind(file);
-
-  char chars[size+1];
-  chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
-    if(read <= 0) {
-      perror("read()");
-    }
-    i += read;
-  }
-
-  uint16_t expanded_base[size+1];
-  expanded_base[size] = '\0';
-  for(int i = 0; i < size; i++) 
-    expanded_base[i] = chars[i];
-
-  fclose(file);
-
-  HandleScope scope;
-  Local<String> result = String::New(expanded_base, size);
-
-  return scope.Close(result);
-}
-
-static Handle<Value>
-Log (const Arguments& args) 
-{
-  if (args.Length() < 1) return v8::Undefined();
-  HandleScope scope;
-  Handle<Value> arg = args[0];
-  String::Utf8Value value(arg);
-
-  printf("%s\n", *value);
-  fflush(stdout);
-
-  return Undefined();
-}
-
-
-static Handle<Value>
-BlockingFileRead (const Arguments& args)
-{
-  if (args.Length() < 1) return v8::Undefined();
-  HandleScope scope;
-
-  String::Utf8Value filename(args[0]);
-  Handle<String> output = ReadFile (*filename);
-  return scope.Close(output);
-}
-
-static void
-OnFatalError (const char* location, const char* message)
-{
-  fprintf(stderr, "Fatal error. %s %s\n", location, message);
-  ev_unloop(node_loop(), EVUNLOOP_ALL);
-}
-
-
 // Extracts a C string from a V8 Utf8Value.
-const char* ToCString(const v8::String::Utf8Value& value) {
+const char*
+ToCString(const v8::String::Utf8Value& value)
+{
   return *value ? *value : "<string conversion failed>";
 }
 
-void ReportException(v8::TryCatch* try_catch) {
+void
+ReportException(v8::TryCatch* try_catch)
+{
   v8::HandleScope handle_scope;
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
@@ -124,6 +64,115 @@ void ReportException(v8::TryCatch* try_catch) {
   }
 }
 
+// Executes a string within the current v8 context.
+Handle<Value>
+ExecuteString(v8::Handle<v8::String> source,
+              v8::Handle<v8::Value> filename)
+{
+  HandleScope scope;
+  Handle<Script> script = Script::Compile(source, filename);
+  if (script.IsEmpty()) {
+    return ThrowException(String::New("Error compiling string"));
+  }
+
+  Handle<Value> result = script->Run();
+  if (result.IsEmpty()) {
+    return ThrowException(String::New("Error running string"));
+  }
+
+  return scope.Close(result);
+}
+
+JS_METHOD(print) 
+{
+  if (args.Length() < 1) return v8::Undefined();
+  HandleScope scope;
+  Handle<Value> arg = args[0];
+  String::Utf8Value value(arg);
+
+  printf("%s\n", *value);
+  fflush(stdout);
+
+  return Undefined();
+}
+
+
+JS_METHOD(cat) 
+{
+  if (args.Length() < 1) return v8::Undefined();
+  HandleScope scope;
+
+  String::Utf8Value filename(args[0]);
+
+  Local<String> error_msg = String::New("File I/O error");
+
+  FILE* file = fopen(*filename, "rb");
+  if (file == NULL) {
+    // Raise error
+    perror("fopen()");
+    return ThrowException(error_msg);
+  }
+ 
+  int r = fseek(file, 0, SEEK_END);
+  if (r < 0) {
+    perror("fseek()");
+    return ThrowException(error_msg);
+  }
+
+  int size = ftell(file);
+  if (size < 0) {
+    perror("ftell()");
+    return ThrowException(error_msg);
+  }
+  rewind(file);
+
+  char chars[size+1];
+  chars[size] = '\0';
+  for (int i = 0; i < size;) {
+    int read = fread(&chars[i], 1, size - i, file);
+    if(read <= 0) {
+      perror("read()");
+      return ThrowException(error_msg);
+    }
+    i += read;
+  }
+
+  uint16_t expanded_base[size+1];
+  expanded_base[size] = '\0';
+  for(int i = 0; i < size; i++) 
+    expanded_base[i] = chars[i];
+
+  fclose(file);
+
+  Local<String> contents = String::New(expanded_base, size);
+
+  return scope.Close(contents);
+}
+
+JS_METHOD(exec) 
+{
+  if (args.Length() < 2) 
+    return Undefined();
+
+  HandleScope scope;
+
+  Local<String> source = args[0]->ToString();
+  Local<String> filename = args[1]->ToString();
+
+  Handle<Value> result = ExecuteString(source, filename);
+  
+  return scope.Close(result);
+}
+
+
+static void
+OnFatalError (const char* location, const char* message)
+{
+  fprintf(stderr, "Fatal error. %s %s\n", location, message);
+  ev_unloop(node_loop(), EVUNLOOP_ALL);
+}
+
+
 void
 node_fatal_exception (TryCatch &try_catch)
 {
@@ -132,60 +181,12 @@ node_fatal_exception (TryCatch &try_catch)
   exit_code = 1;
 }
 
-
-// Executes a string within the current v8 context.
-bool ExecuteString(v8::Handle<v8::String> source,
-                   v8::Handle<v8::Value> name,
-                   bool print_result,
-                   bool report_exceptions) {
-  v8::HandleScope handle_scope;
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
-  if (script.IsEmpty()) {
-    // Print errors that happened during compilation.
-    if (report_exceptions)
-      ReportException(&try_catch);
-    return false;
-  } else {
-    v8::Handle<v8::Value> result = script->Run();
-    if (result.IsEmpty()) {
-      // Print errors that happened during execution.
-      if (report_exceptions)
-        ReportException(&try_catch);
-      return false;
-    } else {
-      if (print_result && !result->IsUndefined()) {
-        // If all went well and the result wasn't undefined then print
-        // the returned value.
-        v8::String::Utf8Value str(result);
-        const char* cstr = ToCString(str);
-        printf("%s\n", cstr);
-      }
-      return true;
-    }
-  }
+void node_exit (int code)
+{
+  exit_code = code;
+  ev_unloop(node_loop(), EVUNLOOP_ALL);
 }
 
-// The callback that is invoked by v8 whenever the JavaScript 'load'
-// function is called.  Loads, compiles and executes its argument
-// JavaScript file.
-v8::Handle<v8::Value> Load(const v8::Arguments& args) {
-  for (int i = 0; i < args.Length(); i++) {
-    v8::HandleScope handle_scope;
-    v8::String::Utf8Value file(args[i]);
-    if (*file == NULL) {
-      return v8::ThrowException(v8::String::New("Error loading file"));
-    }
-    v8::Handle<v8::String> source = ReadFile(*file);
-    if (source.IsEmpty()) {
-      return v8::ThrowException(v8::String::New("Error loading file"));
-    }
-    if (!ExecuteString(source, v8::String::New(*file), false, true)) {
-      return v8::ThrowException(v8::String::New("Error executing file"));
-    }
-  }
-  return v8::Undefined();
-}
 
 static ev_async thread_pool_watcher;
 
@@ -212,13 +213,16 @@ node_eio_submit(eio_req *req)
 int
 main (int argc, char *argv[]) 
 {
+  // start eio thread pool
+  ev_async_init(&thread_pool_watcher, thread_pool_cb);
+  eio_init(thread_pool_want_poll, NULL);
+
   V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-  if(argc != 2)  {
+  if(argc < 2)  {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-
 
   string filename(argv[1]);
 
@@ -226,35 +230,42 @@ main (int argc, char *argv[])
 
   Persistent<Context> context = Context::New(NULL, ObjectTemplate::New());
   Context::Scope context_scope(context);
+  V8::SetFatalErrorHandler(OnFatalError);
 
   Local<Object> g = Context::GetCurrent()->Global();
 
-  g->Set ( String::New("log")
-         , FunctionTemplate::New(Log)->GetFunction()
-         );
+  Local<Object> node = Object::New();
+  g->Set(String::New("node"), node);
 
-  g->Set ( String::New("load")
-         , FunctionTemplate::New(Load)->GetFunction()
-         );
+  Local<Object> blocking = Object::New();
+  node->Set(String::New("blocking"), blocking);
 
-  g->Set ( String::New("blockingFileRead")
-         , FunctionTemplate::New(BlockingFileRead)->GetFunction()
-         );
+  JS_SET_METHOD(blocking, "exec", exec);
+  JS_SET_METHOD(blocking, "cat", cat);
+  JS_SET_METHOD(blocking, "print", print);
 
+  Local<Array> arguments = Array::New(argc);
+  for (int i = 0; i < argc; i++) {
+    Local<String> arg = String::New(argv[i]);
+    arguments->Set(Integer::New(i), arg);
+  }
+  g->Set(String::New("ARGV"), arguments);
+
+  // BUILT-IN MODULES
   Init_timer(g);
-  Init_tcp(g);
+  //NodeInit_net(g);
+  NodeInit_process(g);
+  NodeInit_file(g);
   Init_http(g);
 
-  V8::SetFatalErrorHandler(OnFatalError);
-
-  v8::Handle<v8::String> source = ReadFile(filename);
-
-  // start eio thread pool
-  ev_async_init(&thread_pool_watcher, thread_pool_cb);
-  ev_async_start(EV_DEFAULT_ &thread_pool_watcher);
-  eio_init(thread_pool_want_poll, NULL);
-
-  ExecuteString(source, String::New(filename.c_str()), false, true);
+  // NATIVE JAVASCRIPT MODULES
+  TryCatch try_catch;
+  Handle<Value> result = ExecuteString(String::New(native_main), 
+                                       String::New("main.js"));
+  if (try_catch.HasCaught()) {
+    ReportException(&try_catch);
+    return 1;
+  }
 
   ev_loop(node_loop(), 0);
 
@@ -262,4 +273,3 @@ main (int argc, char *argv[])
 
   return exit_code;
 }
-

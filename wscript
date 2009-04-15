@@ -1,7 +1,10 @@
 #! /usr/bin/env python
 import Options
+import sys
 import os
 from os.path import join, dirname, abspath
+
+import js2c
 
 VERSION='0.0.1'
 APPNAME='node'
@@ -13,12 +16,12 @@ def set_options(opt):
   # the gcc module provides a --debug-level option
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
-  opt.tool_options('ragel', tdir = '.')
+  opt.tool_options('ragel', tdir=".")
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
   conf.check_tool('compiler_cc')
-  conf.check_tool('ragel', tooldir = '.')
+  conf.check_tool('ragel', tooldir=".")
 
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
@@ -42,6 +45,7 @@ def configure(conf):
   conf.define("HAVE_CONFIG_H", 1)
   conf.write_config_header('config.h')
 
+
 def build(bld):
   bld.add_subdirs('deps/libeio deps/libev')
 
@@ -53,7 +57,7 @@ def build(bld):
   v8lib = bld.env["staticlib_PATTERN"] % "v8"
   v8 = bld.new_task_gen(
     target=join("deps/v8",v8lib),
-    rule='cp -rf %s %s && cd %s && scons library=static' 
+    rule='cp -rf %s %s && cd %s && scons -Q library=static snapshot=on' 
       % ( v8dir_src
         , deps_tgt
         , v8dir_tgt
@@ -80,13 +84,29 @@ def build(bld):
   ebb.name = "ebb"
   ebb.target = "ebb"
 
+  ### src/native.cc
+  def javascript_in_c(task):
+    env = task.env
+    source = map(lambda x: x.srcpath(env), task.inputs)
+    targets = map(lambda x: x.srcpath(env), task.outputs)
+    js2c.JS2C(source, targets)
+
+  native_cc = bld.new_task_gen(
+    source="src/main.js",
+    target="src/natives.h",
+    rule=javascript_in_c,
+    before="cxx"
+  )
+
+
   ### node
   node = bld.new_task_gen("cxx", "program")
   node.target = 'node'
   node.source = """
     src/node.cc
     src/node_http.cc
-    src/node_tcp.cc
+    src/process.cc
+    src/file.cc
     src/node_timer.cc
   """
   node.includes = """
