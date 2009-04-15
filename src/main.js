@@ -42,7 +42,7 @@ function __require (path, loading_file) {
     // absolute path
     if (path.slice(0,1) === "/") {
     } else {
-        filename = node.path.join(node.path.dirname(loading_file), path);
+        //filename = node.path.join(node.path.dirname(loading_file), path);
     }
     node.blocking.print("require: " + filename);
 
@@ -75,11 +75,16 @@ function __require (path, loading_file) {
 }
 
 // main script execution.
-//__require(ARGV[1], ARGV[1]);
-//
+__require(ARGV[1], ".");
+
+/*
 fs.stat("/tmp/world", function (stat, status, msg) {
   for ( var i in stat ) {
     node.blocking.print(i + ": " + stat[i]);
   }
   node.blocking.print("done: " + status.toString() + " " + msg.toString());
+
 });
+*/
+
+//var f = new File();

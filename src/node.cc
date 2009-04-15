@@ -168,7 +168,7 @@ JS_METHOD(exec)
 static void
 OnFatalError (const char* location, const char* message)
 {
-  fprintf(stderr, "Fatal error. %s %s\n", location, message);
+  fprintf(stderr, "Fatal error: %s %s\n", location, message);
   ev_unloop(node_loop(), EVUNLOOP_ALL);
 }
 
