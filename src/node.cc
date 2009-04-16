@@ -83,20 +83,6 @@ ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
-JS_METHOD(print) 
-{
-  if (args.Length() < 1) return v8::Undefined();
-  HandleScope scope;
-  Handle<Value> arg = args[0];
-  String::Utf8Value value(arg);
-
-  printf("%s\n", *value);
-  fflush(stdout);
-
-  return Undefined();
-}
-
-
 JS_METHOD(cat) 
 {
   if (args.Length() < 1) return v8::Undefined();
@@ -242,7 +228,6 @@ main (int argc, char *argv[])
 
   JS_SET_METHOD(blocking, "exec", exec);
   JS_SET_METHOD(blocking, "cat", cat);
-  JS_SET_METHOD(blocking, "print", print);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {

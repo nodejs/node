@@ -1,3 +1,12 @@
+File.prototype.puts = function (data, callback) {
+  this.write(data + "\n", callback);
+};
+var stdout = new File();
+stdout.fd = File.STDOUT_FILENO;
+
+var stderr = new File();
+stderr.fd = File.STDERR_FILENO;
+
 // module search paths
 node.includes = ["."];
 
@@ -33,8 +42,6 @@ function __include (module, path) {
     }
 }
 
-
-
 function __require (path, loading_file) {
 
     var filename = path;
@@ -44,18 +51,7 @@ function __require (path, loading_file) {
     } else {
         //filename = node.path.join(node.path.dirname(loading_file), path);
     }
-    node.blocking.print("require: " + filename);
-
-    /*
-    for (var i = 0; i < suffixes.length; i++) {
-        var f = filename + "." + suffixes[i];
-         
-        var stats = node.blocking.stat(f);
-        for (var j in stats) {
-            node.blocking.print("stats." + j + " = " + stats[j].toString());
-        }
-    }
-    */
+    stdout.puts("require: " + filename);
     
     var source = node.blocking.cat(filename);
 
@@ -77,14 +73,3 @@ function __require (path, loading_file) {
 // main script execution.
 __require(ARGV[1], ".");
 
-/*
-fs.stat("/tmp/world", function (stat, status, msg) {
-  for ( var i in stat ) {
-    node.blocking.print(i + ": " + stat[i]);
-  }
-  node.blocking.print("done: " + status.toString() + " " + msg.toString());
-
-});
-*/
-
-//var f = new File();

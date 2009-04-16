@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 using namespace v8;
 
@@ -427,6 +428,16 @@ NodeInit_file (Handle<Object> target)
   Local<FunctionTemplate> file_template = FunctionTemplate::New(NewFile);
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("File"), file_template->GetFunction());
+
+  // class method for File
+  file_template->GetFunction()->Set(String::NewSymbol("STDIN_FILENO"),
+                                    Integer::New(STDIN_FILENO));
+
+  file_template->GetFunction()->Set(String::NewSymbol("STDOUT_FILENO"),
+                                    Integer::New(STDOUT_FILENO));
+
+  file_template->GetFunction()->Set(String::NewSymbol("STDERR_FILENO"),
+                                    Integer::New(STDERR_FILENO));
 
   JS_SET_METHOD(file_template->InstanceTemplate(), "open", file_open);
   JS_SET_METHOD(file_template->InstanceTemplate(), "close", file_close);
