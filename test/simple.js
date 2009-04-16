@@ -1,6 +1,6 @@
 var f = new File;
 
-f.open("/tmp/world", "r+", function (status) {
+f.open("/tmp/world", "a+", function (status) {
   if (status == 0) {
     node.blocking.print("file opened");
     f.write("hello world\n", function (status, written) {

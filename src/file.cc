@@ -6,11 +6,10 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
-
 using namespace v8;
 
-#define ON_OPEN v8::String::NewSymbol("onOpen")
-
+#define ON_OPEN_SYMBOL v8::String::NewSymbol("onOpen")
+#define FD_SYMBOL v8::String::NewSymbol("fd")
 
 class File;
 class Callback {
@@ -171,14 +170,12 @@ public:
 
 private:
   static void MakeWeak (Persistent<Value> _, void *data);
-  int fd_;
   Persistent<Object> handle_;
 };
 
 File::File (Handle<Object> handle)
 {
   HandleScope scope;
-  fd_ = -1;
   handle_ = Persistent<Object>::New(handle);
   Handle<External> external = External::New(this);
   handle_->SetInternalField(0, external);
@@ -215,8 +212,7 @@ File::AfterClose (eio_req *req)
   File *file = static_cast<File*>(req->data);
 
   if (req->result == 0) {
-    file->fd_ = -1;
-    file->handle_->Delete(String::NewSymbol("fd"));
+    file->handle_->Delete(FD_SYMBOL);
   }
 
   // TODO
@@ -227,7 +223,10 @@ File::AfterClose (eio_req *req)
 void
 File::Close () 
 {
-  eio_req *req = eio_close (fd_, EIO_PRI_DEFAULT, File::AfterClose, this);
+  Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
+  int fd = fd_value->IntegerValue();
+
+  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, this);
   node_eio_submit(req);
 }
 
@@ -238,15 +237,14 @@ File::AfterOpen (eio_req *req)
   HandleScope scope;
 
   if(req->result >= 0) {
-    file->fd_ = static_cast<int>(req->result);
-    file->handle_->Set(String::NewSymbol("fd"), Integer::New(file->fd_));
+    file->handle_->Set(FD_SYMBOL, Integer::New(req->result));
   }
 
-  Handle<Value> callback_value = file->handle_->Get(ON_OPEN);
+  Handle<Value> callback_value = file->handle_->Get(ON_OPEN_SYMBOL);
   if (!callback_value->IsFunction())
     return 0; 
   Handle<Function> callback = Handle<Function>::Cast(callback_value);
-  file->handle_->Delete(ON_OPEN);
+  file->handle_->Delete(ON_OPEN_SYMBOL);
 
   const int argc = 1;
   Handle<Value> argv[argc];
@@ -264,11 +262,11 @@ Handle<Value>
 File::Open (const char *path, const char *mode, Handle<Value> callback)
 {
   // make sure that we don't already have a pending open
-  if (handle_->Has(ON_OPEN)) {
+  if (handle_->Has(ON_OPEN_SYMBOL)) {
     return ThrowException(String::New("File object is already being opened."));
   }
 
-  if (callback->IsFunction()) handle_->Set(ON_OPEN, callback);
+  if (callback->IsFunction()) handle_->Set(ON_OPEN_SYMBOL, callback);
 
   // Get the current umask
   mode_t mask = umask(0); 
@@ -324,11 +322,14 @@ File::Write (char *buf, size_t length, Callback *callback)
   if (callback) 
     callback->file = this;
   // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
-  if (fd_ < 0) {
+  if (handle_->Has(FD_SYMBOL) == false) {
     printf("trying to write to a bad fd!\n");  
     return;
   }
-  eio_req *req = eio_write(fd_, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, callback);
+  Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
+  int fd = fd_value->IntegerValue();
+
+  eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, callback);
   node_eio_submit(req);
 }
 
