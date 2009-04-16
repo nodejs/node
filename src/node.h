@@ -10,6 +10,7 @@
 #define JS_SET_METHOD(obj, name, callback) \
   obj->Set(JS_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
 
+enum encoding {UTF8, RAW};
 
 void node_fatal_exception (v8::TryCatch &try_catch); 
 #define node_loop() ev_default_loop(0)

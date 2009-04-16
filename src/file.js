@@ -37,6 +37,10 @@ File.prototype.write = function (buf, callback) {
   this._addAction("write", [buf], callback);
 };
 
+File.prototype.read = function (length, callback) {
+  this._addAction("read", [length], callback);
+};
+
 File.prototype._addAction = function (method, args, callback) {
   this._actionQueue.push({ method: method 
                          , callback: callback
@@ -63,3 +67,9 @@ stdout.fd = File.STDOUT_FILENO;
 
 var stderr = new File();
 stderr.fd = File.STDERR_FILENO;
+
+
+
+Array.prototype.encodeUtf8 = function () {
+  return String.fromCharCode.apply(String, this);
+}

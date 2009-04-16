@@ -158,7 +158,7 @@ public:
   File (Handle<Object> handle);
   ~File ();
 
-  static File* Unwrap (Handle<Object> obj);
+  static File* Unwrap (Handle<Object> handle);
 
   static Handle<Value> Open (const Arguments& args);
   static int AfterOpen (eio_req *req);
@@ -169,8 +169,12 @@ public:
   static Handle<Value> Write (const Arguments& args);
   static int AfterWrite (eio_req *req);
 
+  static Handle<Value> Read (const Arguments& args);
+  static int AfterRead (eio_req *req);
 
 private:
+  bool HasUtf8Encoding (void);
+  int GetFD (void);
   static void MakeWeak (Persistent<Value> _, void *data);
   void CallTopCallback (const int argc, Handle<Value> argv[]);
   Persistent<Object> handle_;
@@ -197,12 +201,58 @@ File::~File ()
 }
 
 File*
-File::Unwrap (Handle<Object> obj)
+File::Unwrap (Handle<Object> handle)
 {
   HandleScope scope;
-  Handle<External> field = Handle<External>::Cast(obj->GetInternalField(0));
+  Handle<External> field = Handle<External>::Cast(handle->GetInternalField(0));
   File* file = static_cast<File*>(field->Value());
   return file;
+}
+
+bool
+File::HasUtf8Encoding (void)
+{
+  return false;
+}
+
+int
+File::GetFD (void)
+{
+  Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
+  int fd = fd_value->IntegerValue();
+}
+
+void
+File::CallTopCallback (const int argc, Handle<Value> argv[])
+{
+  HandleScope scope;
+
+  Local<Value> queue_value = handle_->Get(ACTION_QUEUE_SYMBOL);
+  assert(queue_value->IsArray());
+
+  Local<Array> queue = Local<Array>::Cast(queue_value);
+  Local<Value> top_value = queue->Get(Integer::New(0));
+  if (top_value->IsObject()) {
+    Local<Object> top = top_value->ToObject();
+    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
+    if (callback_value->IsFunction()) {
+      Handle<Function> callback = Handle<Function>::Cast(callback_value);
+
+      TryCatch try_catch;
+      callback->Call(handle_, argc, argv);
+      if(try_catch.HasCaught()) {
+        node_fatal_exception(try_catch);
+        return;
+      }
+    }
+  }
+
+  // poll_actions
+  Local<Value> poll_actions_value = handle_->Get(String::NewSymbol("_pollActions"));
+  assert(poll_actions_value->IsFunction());  
+  Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
+
+  poll_actions->Call(handle_, 0, NULL);
 }
 
 void
@@ -210,6 +260,21 @@ File::MakeWeak (Persistent<Value> _, void *data)
 {
   File *file = static_cast<File*> (data);
   delete file;
+}
+
+Handle<Value>
+File::Close (const Arguments& args) 
+{
+  HandleScope scope;
+
+  File *file = File::Unwrap(args.Holder());  
+
+  int fd = file->GetFD();
+
+  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
+  node_eio_submit(req);
+
+  return Undefined();
 }
 
 int
@@ -223,40 +288,6 @@ File::AfterClose (eio_req *req)
 
   const int argc = 1;
   Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-  file->CallTopCallback(argc, argv);
-
-  return 0;
-}
-
-Handle<Value>
-File::Close (const Arguments& args) 
-{
-  HandleScope scope;
-
-  File *file = File::Unwrap(args.Holder());  
-
-  Handle<Value> fd_value = file->handle_->Get(FD_SYMBOL);
-  int fd = fd_value->IntegerValue();
-
-  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
-  node_eio_submit(req);
-
-  return Undefined();
-}
-
-int
-File::AfterOpen (eio_req *req)
-{
-  File *file = static_cast<File*>(req->data);
-  HandleScope scope;
-
-  if(req->result >= 0) {
-    file->handle_->Set(FD_SYMBOL, Integer::New(req->result));
-  }
-
-  const int argc = 1;
-  Handle<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
   file->CallTopCallback(argc, argv);
 
@@ -310,55 +341,19 @@ File::Open (const Arguments& args)
   return Undefined();
 }
 
-void
-File::CallTopCallback (const int argc, Handle<Value> argv[])
-{
-  HandleScope scope;
-
-  Local<Value> queue_value = handle_->Get(ACTION_QUEUE_SYMBOL);
-  assert(queue_value->IsArray());
-
-  Local<Array> queue = Local<Array>::Cast(queue_value);
-  Local<Value> top_value = queue->Get(Integer::New(0));
-  if (top_value->IsObject()) {
-    Local<Object> top = top_value->ToObject();
-    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
-    if (callback_value->IsFunction()) {
-      Handle<Function> callback = Handle<Function>::Cast(callback_value);
-
-      TryCatch try_catch;
-      callback->Call(handle_, argc, argv);
-      if(try_catch.HasCaught()) {
-        node_fatal_exception(try_catch);
-        return;
-      }
-    }
-  }
-
-  // poll_actions
-  Local<Value> poll_actions_value = handle_->Get(String::NewSymbol("_pollActions"));
-  assert(poll_actions_value->IsFunction());  
-  Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
-
-  poll_actions->Call(handle_, 0, NULL);
-}
-
-
 int
-File::AfterWrite (eio_req *req)
+File::AfterOpen (eio_req *req)
 {
   File *file = static_cast<File*>(req->data);
-
-  char *buf = static_cast<char*>(req->ptr2);
-  delete buf;
-  size_t written = req->result;
-
   HandleScope scope;
 
-  const int argc = 2;
-  Local<Value> argv[argc];
+  if(req->result >= 0) {
+    file->handle_->Set(FD_SYMBOL, Integer::New(req->result));
+  }
+
+  const int argc = 1;
+  Handle<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
-  argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
   file->CallTopCallback(argc, argv);
 
   return 0;
@@ -403,14 +398,84 @@ File::Write (const Arguments& args)
     printf("trying to write to a bad fd!\n");  
     return Undefined();
   }
-  Handle<Value> fd_value = file->handle_->Get(FD_SYMBOL);
-  int fd = fd_value->IntegerValue();
+
+  int fd = file->GetFD();
 
   // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
   eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, file);
   node_eio_submit(req);
 
   return Undefined();
+}
+
+int
+File::AfterWrite (eio_req *req)
+{
+  File *file = static_cast<File*>(req->data);
+
+  char *buf = static_cast<char*>(req->ptr2);
+  delete buf;
+  size_t written = req->result;
+
+  HandleScope scope;
+
+  const int argc = 2;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+  argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
+  file->CallTopCallback(argc, argv);
+
+  return 0;
+}
+
+Handle<Value>
+File::Read (const Arguments& args)
+{
+  if (args.Length() < 1) return Undefined();
+  if (!args[0]->IsNumber()) return Undefined();
+
+  HandleScope scope;
+  File *file = File::Unwrap(args.Holder());
+  size_t length = args[0]->IntegerValue();
+
+  int fd = file->GetFD();
+
+  // NOTE: -1 offset in eio_read() invokes read() instead of pread()
+  //       NULL pointer tells eio to allocate it itself
+  eio_req *req = eio_read(fd, NULL, length, -1, EIO_PRI_DEFAULT, File::AfterRead, file);
+  node_eio_submit(req);
+
+  return Undefined();
+}
+
+int
+File::AfterRead (eio_req *req)
+{
+  File *file = static_cast<File*>(req->data);
+  HandleScope scope;
+
+  const int argc = 2;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+
+  Local<String> buffer;
+  size_t length = req->result;
+  char *buf = static_cast<char*>(req->ptr2);
+
+  if (file->HasUtf8Encoding()) {
+    argv[1] = String::New(buf, req->result);
+  } else {
+    // raw encoding
+    Local<Array> array = Array::New(length);
+    for (int i = 0; i < length; i++) {
+      array->Set(Integer::New(i), Integer::New(buf[i]));
+    }
+    argv[1] = array;
+  }
+
+  file->CallTopCallback(argc, argv);
+
+  return 0;
 }
 
 static Handle<Value>
@@ -452,4 +517,5 @@ NodeInit_file (Handle<Object> target)
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
+  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
 }
