@@ -9,6 +9,9 @@
 
 using namespace v8;
 
+#define ON_OPEN v8::String::NewSymbol("onOpen")
+
+
 class File;
 class Callback {
   public:
@@ -156,9 +159,7 @@ public:
 
   static File* Unwrap (Handle<Object> obj);
 
-  void OnError (const char *syscall, int errorno);
-
-  void Open (const char *path, const char *mode);
+  Handle<Value> Open (const char *path, const char *mode, Handle<Value> callback);
   static int AfterOpen (eio_req *req);
 
   void Close ();
@@ -213,6 +214,11 @@ File::AfterClose (eio_req *req)
 {
   File *file = static_cast<File*>(req->data);
 
+  if (req->result == 0) {
+    file->fd_ = -1;
+    file->handle_->Delete(String::NewSymbol("fd"));
+  }
+
   // TODO
   printf("after close\n");
   return 0;
@@ -225,77 +231,59 @@ File::Close ()
   node_eio_submit(req);
 }
 
-void
-File::OnError (const char *syscall, int errorno)
-{
-  HandleScope scope;
-
-  Handle<Value> on_error_value = handle_->Get( String::NewSymbol("onError") );
-  if (!on_error_value->IsFunction())
-    return; 
-  Handle<Function> on_error = Handle<Function>::Cast(on_error_value);
-
-  const int argc = 3;
-  Local<Value> argv[argc];
-
-  argv[0] = String::New(syscall);
-  argv[1] = Integer::New(errorno);
-  argv[2] = String::New(strerror(errorno));
-
-  TryCatch try_catch;
-  on_error->Call(handle_, argc, argv);
-
-  if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
-}
-
 int
 File::AfterOpen (eio_req *req)
 {
   File *file = static_cast<File*>(req->data);
-
   HandleScope scope;
-  TryCatch try_catch;
 
-  if(req->result < 0) {
-    file->OnError("open", req->errorno);
-    return 0;
+  if(req->result >= 0) {
+    file->fd_ = static_cast<int>(req->result);
+    file->handle_->Set(String::NewSymbol("fd"), Integer::New(file->fd_));
   }
 
-  file->fd_ = static_cast<int>(req->result);
-
-  file->handle_->Set(String::NewSymbol("fd"), Integer::New(req->result));
-  Handle<Value> on_open_value = file->handle_->Get( String::NewSymbol("onOpen") );
-  if (!on_open_value->IsFunction())
+  Handle<Value> callback_value = file->handle_->Get(ON_OPEN);
+  if (!callback_value->IsFunction())
     return 0; 
-  Handle<Function> on_open = Handle<Function>::Cast(on_open_value);
+  Handle<Function> callback = Handle<Function>::Cast(callback_value);
+  file->handle_->Delete(ON_OPEN);
 
-  on_open->Call(file->handle_, 0, NULL);
+  const int argc = 1;
+  Handle<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
 
+  TryCatch try_catch;
+  callback->Call(file->handle_, argc, argv);
   if(try_catch.HasCaught())
     node_fatal_exception(try_catch);
 
   return 0;
 }
 
-void
-File::Open (const char *path, const char *mode)
+Handle<Value>
+File::Open (const char *path, const char *mode, Handle<Value> callback)
 {
-  mode_t mask = umask(0x0700); 
+  // make sure that we don't already have a pending open
+  if (handle_->Has(ON_OPEN)) {
+    return ThrowException(String::New("File object is already being opened."));
+  }
+
+  if (callback->IsFunction()) handle_->Set(ON_OPEN, callback);
+
+  // Get the current umask
+  mode_t mask = umask(0); 
   umask(mask);
   
   int flags = O_RDONLY; // default
-  // XXX is this interpretation correct?
-  // I don't want to to use fopen() because eio doesn't support it.
+  // XXX is this interpretation of the mode correct?
+  // I don't want to to use fopen() directly because eio doesn't support it.
   switch(mode[0]) {
     case 'r':
       flags = (mode[1] == '+' ? O_RDWR : O_RDONLY); 
       break;
-
     case 'w':
       flags = O_CREAT | O_TRUNC | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
       break;
-
     case 'a':
       flags = O_APPEND | O_CREAT | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
       break;
@@ -303,6 +291,8 @@ File::Open (const char *path, const char *mode)
 
   eio_req *req = eio_open (path, flags, mask, EIO_PRI_DEFAULT, File::AfterOpen, this);
   node_eio_submit(req);
+
+  return Undefined();
 }
 
 int
@@ -364,12 +354,10 @@ JS_METHOD(file_open)
   String::Utf8Value path(args[0]->ToString());
   if (args[1]->IsString()) {
     String::AsciiValue mode(args[1]->ToString());
-    file->Open(*path, *mode);
+    return file->Open(*path, *mode, args[2]);
   } else {
-    file->Open(*path, "r");
+    return file->Open(*path, "r", args[1]);
   }
-
-  return Undefined();
 }
 
 JS_METHOD(file_close) 
