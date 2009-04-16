@@ -245,16 +245,20 @@ main (int argc, char *argv[])
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;
-  Handle<Value> result = ExecuteString(String::New(native_main), 
-                                       String::New("main.js"));
-  if (try_catch.HasCaught()) {
-    ReportException(&try_catch);
-    return 1;
-  }
+
+  ExecuteString(String::New(native_file), String::New("file.js"));
+  if (try_catch.HasCaught()) goto native_js_error; 
+
+  ExecuteString(String::New(native_main), String::New("main.js"));
+  if (try_catch.HasCaught()) goto native_js_error; 
 
   ev_loop(node_loop(), 0);
 
   context.Dispose();
 
   return exit_code;
+
+native_js_error:
+  ReportException(&try_catch);
+  return 1;
 }

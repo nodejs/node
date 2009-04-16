@@ -6,9 +6,9 @@
 #include <v8.h>
 
 #define JS_SYMBOL(name) v8::String::NewSymbol(name)
-#define JS_METHOD(name) v8::Handle<v8::Value> jsmethod_##name (const v8::Arguments& args)
+#define JS_METHOD(name) v8::Handle<v8::Value> name (const v8::Arguments& args)
 #define JS_SET_METHOD(obj, name, callback) \
-  obj->Set(JS_SYMBOL(name), v8::FunctionTemplate::New(jsmethod_##callback)->GetFunction())
+  obj->Set(JS_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
 
 
 void node_fatal_exception (v8::TryCatch &try_catch); 

@@ -1,12 +1,3 @@
-File.prototype.puts = function (data, callback) {
-  this.write(data + "\n", callback);
-};
-var stdout = new File();
-stdout.fd = File.STDOUT_FILENO;
-
-var stderr = new File();
-stderr.fd = File.STDERR_FILENO;
-
 // module search paths
 node.includes = ["."];
 

@@ -6,11 +6,12 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 
 using namespace v8;
 
-#define ON_OPEN_SYMBOL v8::String::NewSymbol("onOpen")
 #define FD_SYMBOL v8::String::NewSymbol("fd")
+#define ACTION_QUEUE_SYMBOL v8::String::NewSymbol("_actionQueue")
 
 class File;
 class Callback {
@@ -159,18 +160,19 @@ public:
 
   static File* Unwrap (Handle<Object> obj);
 
-  Handle<Value> Open (const char *path, const char *mode, Handle<Value> callback);
+  static Handle<Value> Open (const Arguments& args);
   static int AfterOpen (eio_req *req);
 
-  void Close ();
+  static Handle<Value> Close (const Arguments& args); 
   static int AfterClose (eio_req *req);
 
-  void Write (char *buf, size_t length, Callback *callback);
+  static Handle<Value> Write (const Arguments& args);
   static int AfterWrite (eio_req *req);
 
 
 private:
   static void MakeWeak (Persistent<Value> _, void *data);
+  void CallTopCallback (const int argc, Handle<Value> argv[]);
   Persistent<Object> handle_;
 };
 
@@ -178,14 +180,17 @@ File::File (Handle<Object> handle)
 {
   HandleScope scope;
   handle_ = Persistent<Object>::New(handle);
+
   Handle<External> external = External::New(this);
   handle_->SetInternalField(0, external);
   handle_.MakeWeak(this, File::MakeWeak);
+
+  handle_->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
 
 File::~File ()
 {
-  Close();
+  // XXX call close?
   handle_->SetInternalField(0, Undefined());
   handle_.Dispose();
   handle_.Clear(); 
@@ -216,19 +221,28 @@ File::AfterClose (eio_req *req)
     file->handle_->Delete(FD_SYMBOL);
   }
 
-  // TODO
-  printf("after close\n");
+  const int argc = 1;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+  file->CallTopCallback(argc, argv);
+
   return 0;
 }
 
-void
-File::Close () 
+Handle<Value>
+File::Close (const Arguments& args) 
 {
-  Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
+  HandleScope scope;
+
+  File *file = File::Unwrap(args.Holder());  
+
+  Handle<Value> fd_value = file->handle_->Get(FD_SYMBOL);
   int fd = fd_value->IntegerValue();
 
-  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, this);
+  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
   node_eio_submit(req);
+
+  return Undefined();
 }
 
 int
@@ -241,138 +255,117 @@ File::AfterOpen (eio_req *req)
     file->handle_->Set(FD_SYMBOL, Integer::New(req->result));
   }
 
-  Handle<Value> callback_value = file->handle_->Get(ON_OPEN_SYMBOL);
-  if (!callback_value->IsFunction())
-    return 0; 
-  Handle<Function> callback = Handle<Function>::Cast(callback_value);
-  file->handle_->Delete(ON_OPEN_SYMBOL);
-
   const int argc = 1;
   Handle<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
-
-  TryCatch try_catch;
-  callback->Call(file->handle_, argc, argv);
-  if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+  file->CallTopCallback(argc, argv);
 
   return 0;
 }
 
 Handle<Value>
-File::Open (const char *path, const char *mode, Handle<Value> callback)
+File::Open (const Arguments& args)
 {
-  // make sure that we don't already have a pending open
-  if (handle_->Has(ON_OPEN_SYMBOL)) {
-    return ThrowException(String::New("File object is already being opened."));
-  }
-
-  if (callback->IsFunction()) handle_->Set(ON_OPEN_SYMBOL, callback);
-
-  // Get the current umask
-  mode_t mask = umask(0); 
-  umask(mask);
-  
-  int flags = O_RDONLY; // default
-  // XXX is this interpretation of the mode correct?
-  // I don't want to to use fopen() directly because eio doesn't support it.
-  switch(mode[0]) {
-    case 'r':
-      flags = (mode[1] == '+' ? O_RDWR : O_RDONLY); 
-      break;
-    case 'w':
-      flags = O_CREAT | O_TRUNC | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
-      break;
-    case 'a':
-      flags = O_APPEND | O_CREAT | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
-      break;
-  }
-
-  eio_req *req = eio_open (path, flags, mask, EIO_PRI_DEFAULT, File::AfterOpen, this);
-  node_eio_submit(req);
-
-  return Undefined();
-}
-
-int
-File::AfterWrite (eio_req *req)
-{
-  Callback *callback = static_cast<Callback*>(req->data);
-  HandleScope scope;
-
-  char *buf = static_cast<char*>(req->ptr2);
-  delete buf;
-  size_t written = req->result;
-
-  if (callback) {
-    const int argc = 2;
-    Local<Value> argv[argc];
-    argv[0] = Integer::New(req->errorno);
-    argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
-
-    callback->Call(callback->file->handle_, argc, argv);
-
-    delete callback;
-  }
-  return 0;
-}
-
-void
-File::Write (char *buf, size_t length, Callback *callback)
-{
-  if (callback) 
-    callback->file = this;
-  // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
-  if (handle_->Has(FD_SYMBOL) == false) {
-    printf("trying to write to a bad fd!\n");  
-    return;
-  }
-  Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
-  int fd = fd_value->IntegerValue();
-
-  eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, callback);
-  node_eio_submit(req);
-}
-
-static Handle<Value>
-NewFile (const Arguments& args)
-{
-  HandleScope scope;
-  File *file = new File(args.Holder());
-  if(file == NULL)
-    return Undefined(); // XXX raise error?
-
-  return args.This();
-}
-
-JS_METHOD(file_open) 
-{
+  /* check arguments */
   if (args.Length() < 1) return Undefined();
   if (!args[0]->IsString()) return Undefined();
 
   HandleScope scope;
 
   File *file = File::Unwrap(args.Holder());  
-  String::Utf8Value path(args[0]->ToString());
-  if (args[1]->IsString()) {
-    String::AsciiValue mode(args[1]->ToString());
-    return file->Open(*path, *mode, args[2]);
-  } else {
-    return file->Open(*path, "r", args[1]);
+
+  // make sure that we don't already have a pending open
+  if (file->handle_->Has(FD_SYMBOL)) {
+    return ThrowException(String::New("File object is opened."));
   }
-}
 
-JS_METHOD(file_close) 
-{
-  HandleScope scope;
+  String::Utf8Value path(args[0]->ToString());
 
-  File *file = File::Unwrap(args.Holder());  
-  file->Close();
+  int flags = O_RDONLY; // default
+  if (args[1]->IsString()) {
+    String::AsciiValue mode_v(args[1]->ToString());
+    char *mode = *mode_v;
+    // XXX is this interpretation of the mode correct?
+    // I don't want to to use fopen() directly because eio doesn't support it.
+    switch(mode[0]) {
+      case 'r':
+        flags = (mode[1] == '+' ? O_RDWR : O_RDONLY); 
+        break;
+      case 'w':
+        flags = O_CREAT | O_TRUNC | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
+        break;
+      case 'a':
+        flags = O_APPEND | O_CREAT | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
+        break;
+    }
+  }
+
+  // Get the current umask
+  mode_t mask = umask(0); 
+  umask(mask);
+
+  eio_req *req = eio_open (*path, flags, mask, EIO_PRI_DEFAULT, File::AfterOpen, file);
+  node_eio_submit(req);
 
   return Undefined();
 }
 
-JS_METHOD(file_write) 
+void
+File::CallTopCallback (const int argc, Handle<Value> argv[])
+{
+  HandleScope scope;
+
+  Local<Value> queue_value = handle_->Get(ACTION_QUEUE_SYMBOL);
+  assert(queue_value->IsArray());
+
+  Local<Array> queue = Local<Array>::Cast(queue_value);
+  Local<Value> top_value = queue->Get(Integer::New(0));
+  if (top_value->IsObject()) {
+    Local<Object> top = top_value->ToObject();
+    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
+    if (callback_value->IsFunction()) {
+      Handle<Function> callback = Handle<Function>::Cast(callback_value);
+
+      TryCatch try_catch;
+      callback->Call(handle_, argc, argv);
+      if(try_catch.HasCaught()) {
+        node_fatal_exception(try_catch);
+        return;
+      }
+    }
+  }
+
+  // poll_actions
+  Local<Value> poll_actions_value = handle_->Get(String::NewSymbol("_pollActions"));
+  assert(poll_actions_value->IsFunction());  
+  Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
+
+  poll_actions->Call(handle_, 0, NULL);
+}
+
+
+int
+File::AfterWrite (eio_req *req)
+{
+  File *file = static_cast<File*>(req->data);
+
+  char *buf = static_cast<char*>(req->ptr2);
+  delete buf;
+  size_t written = req->result;
+
+  HandleScope scope;
+
+  const int argc = 2;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+  argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
+  file->CallTopCallback(argc, argv);
+
+  return 0;
+}
+
+Handle<Value>
+File::Write (const Arguments& args)
 {
   if (args.Length() < 1) return Undefined();
   if (!args[0]->IsString()) 
@@ -405,14 +398,31 @@ JS_METHOD(file_write)
     // bad arguments. raise error?
     return Undefined();
   }
-  
-  Callback *callback = args[1]->IsFunction() ? new Callback(args[1]) : NULL;
 
-  file->Write(buf, length, callback);
+  if (file->handle_->Has(FD_SYMBOL) == false) {
+    printf("trying to write to a bad fd!\n");  
+    return Undefined();
+  }
+  Handle<Value> fd_value = file->handle_->Get(FD_SYMBOL);
+  int fd = fd_value->IntegerValue();
+
+  // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
+  eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, file);
+  node_eio_submit(req);
 
   return Undefined();
 }
 
+static Handle<Value>
+NewFile (const Arguments& args)
+{
+  HandleScope scope;
+  File *file = new File(args.Holder());
+  if(file == NULL)
+    return Undefined(); // XXX raise error?
+
+  return args.This();
+}
 
 void
 NodeInit_file (Handle<Object> target)
@@ -429,7 +439,7 @@ NodeInit_file (Handle<Object> target)
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("File"), file_template->GetFunction());
 
-  // class method for File
+  // class methods for File
   file_template->GetFunction()->Set(String::NewSymbol("STDIN_FILENO"),
                                     Integer::New(STDIN_FILENO));
 
@@ -439,7 +449,7 @@ NodeInit_file (Handle<Object> target)
   file_template->GetFunction()->Set(String::NewSymbol("STDERR_FILENO"),
                                     Integer::New(STDERR_FILENO));
 
-  JS_SET_METHOD(file_template->InstanceTemplate(), "open", file_open);
-  JS_SET_METHOD(file_template->InstanceTemplate(), "close", file_close);
-  JS_SET_METHOD(file_template->InstanceTemplate(), "write", file_write);
+  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
+  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
+  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
 }
