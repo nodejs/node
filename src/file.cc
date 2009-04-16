@@ -4,15 +4,18 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 
 using namespace v8;
 
+class File;
 class Callback {
   public:
     Callback(Handle<Value> v);
     ~Callback();
     Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
+    File *file;
   private:
     Persistent<Function> handle_;
 };
@@ -153,11 +156,16 @@ public:
 
   static File* Unwrap (Handle<Object> obj);
 
+  void OnError (const char *syscall, int errorno);
+
   void Open (const char *path, const char *mode);
   static int AfterOpen (eio_req *req);
 
   void Close ();
   static int AfterClose (eio_req *req);
+
+  void Write (char *buf, size_t length, Callback *callback);
+  static int AfterWrite (eio_req *req);
 
 
 private:
@@ -200,7 +208,6 @@ File::MakeWeak (Persistent<Value> _, void *data)
   delete file;
 }
 
-
 int
 File::AfterClose (eio_req *req)
 {
@@ -218,6 +225,30 @@ File::Close ()
   node_eio_submit(req);
 }
 
+void
+File::OnError (const char *syscall, int errorno)
+{
+  HandleScope scope;
+
+  Handle<Value> on_error_value = handle_->Get( String::NewSymbol("onError") );
+  if (!on_error_value->IsFunction())
+    return; 
+  Handle<Function> on_error = Handle<Function>::Cast(on_error_value);
+
+  const int argc = 3;
+  Local<Value> argv[argc];
+
+  argv[0] = String::New(syscall);
+  argv[1] = Integer::New(errorno);
+  argv[2] = String::New(strerror(errorno));
+
+  TryCatch try_catch;
+  on_error->Call(handle_, argc, argv);
+
+  if(try_catch.HasCaught())
+    node_fatal_exception(try_catch);
+}
+
 int
 File::AfterOpen (eio_req *req)
 {
@@ -227,15 +258,7 @@ File::AfterOpen (eio_req *req)
   TryCatch try_catch;
 
   if(req->result < 0) {
-    // TODO
-    /*
-    const int argc = 2;
-    Local<Value> argv[argc];
-
-    argv[0] = Integer::New(errorno);
-    argv[1] = String::New(strerror(errorno));
-    */
-    printf("error opening file...handle me\n");
+    file->OnError("open", req->errorno);
     return 0;
   }
 
@@ -266,28 +289,56 @@ File::Open (const char *path, const char *mode)
   // I don't want to to use fopen() because eio doesn't support it.
   switch(mode[0]) {
     case 'r':
-      if (mode[1] == '+') 
-        flags = O_RDWR;
-      else
-        flags = O_RDONLY;
+      flags = (mode[1] == '+' ? O_RDWR : O_RDONLY); 
       break;
 
     case 'w':
-      if (mode[1] == '+') 
-        flags = O_RDWR | O_CREAT | O_TRUNC;
-      else
-        flags = O_WRONLY | O_CREAT | O_TRUNC;
+      flags = O_CREAT | O_TRUNC | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
       break;
 
     case 'a':
-      if (mode[1] == '+') 
-        flags = O_RDWR | O_APPEND | O_CREAT;
-      else
-        flags = O_WRONLY | O_APPEND | O_CREAT;
+      flags = O_APPEND | O_CREAT | (mode[1] == '+' ? O_RDWR : O_WRONLY); 
       break;
   }
 
   eio_req *req = eio_open (path, flags, mask, EIO_PRI_DEFAULT, File::AfterOpen, this);
+  node_eio_submit(req);
+}
+
+int
+File::AfterWrite (eio_req *req)
+{
+  Callback *callback = static_cast<Callback*>(req->data);
+  HandleScope scope;
+
+  char *buf = static_cast<char*>(req->ptr2);
+  delete buf;
+  size_t written = req->result;
+
+  if (callback) {
+    const int argc = 2;
+    Local<Value> argv[argc];
+    argv[0] = Integer::New(req->errorno);
+    argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
+
+    callback->Call(callback->file->handle_, argc, argv);
+
+    delete callback;
+  }
+  return 0;
+}
+
+void
+File::Write (char *buf, size_t length, Callback *callback)
+{
+  if (callback) 
+    callback->file = this;
+  // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
+  if (fd_ < 0) {
+    printf("trying to write to a bad fd!\n");  
+    return;
+  }
+  eio_req *req = eio_write(fd_, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, callback);
   node_eio_submit(req);
 }
 
@@ -331,6 +382,48 @@ JS_METHOD(file_close)
   return Undefined();
 }
 
+JS_METHOD(file_write) 
+{
+  if (args.Length() < 1) return Undefined();
+  if (!args[0]->IsString()) 
+
+  HandleScope scope;
+
+  File *file = File::Unwrap(args.Holder());
+
+  char *buf = NULL; 
+  size_t length = 0;
+
+  if (args[0]->IsString()) {
+    // utf8 encoded data
+    Local<String> string = args[0]->ToString();
+    length = string->Utf8Length();
+    buf = new char[length];
+    string->WriteUtf8(buf, length);
+    
+  } else if (args[0]->IsArray()) {
+    // binary data
+    Local<Array> array = Local<Array>::Cast(args[0]);
+    length = array->Length();
+    buf = new char[length];
+    for (int i = 0; i < length; i++) {
+      Local<Value> int_value = array->Get(Integer::New(i));
+      buf[i] = int_value->Int32Value();
+    }
+
+  } else {
+    // bad arguments. raise error?
+    return Undefined();
+  }
+  
+  Callback *callback = args[1]->IsFunction() ? new Callback(args[1]) : NULL;
+
+  file->Write(buf, length, callback);
+
+  return Undefined();
+}
+
+
 void
 NodeInit_file (Handle<Object> target)
 {
@@ -348,4 +441,5 @@ NodeInit_file (Handle<Object> target)
 
   JS_SET_METHOD(file_template->InstanceTemplate(), "open", file_open);
   JS_SET_METHOD(file_template->InstanceTemplate(), "close", file_close);
+  JS_SET_METHOD(file_template->InstanceTemplate(), "write", file_write);
 }
