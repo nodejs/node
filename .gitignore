@@ -1,4 +1,6 @@
-*.o
-ebb_request_parser.c
-server
+build
+.waf*
 tags
+.lock-wscript
+Makefile
+*.pyc
