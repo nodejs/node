@@ -1,3 +1,27 @@
+File.rename = function (file1, file2, callback) {
+  this._addAction("rename", [file1, file2], callback);
+};
+
+File.prototype.puts = function (data, callback) {
+  this.write(data + "\n", callback);
+};
+
+File.prototype.open = function (path, mode, callback) {
+  this._addAction("open", [path, mode], callback);
+};
+
+File.prototype.close = function (callback) {
+  this._addAction("close", [], callback);
+};
+
+File.prototype.write = function (buf, callback) {
+  this._addAction("write", [buf], callback);
+};
+
+File.prototype.read = function (length, callback) {
+  this._addAction("read", [length], callback);
+};
+
 // Some explanation of the File binding.
 //
 // All file operations are blocking. To get around this they are executed
@@ -20,28 +44,10 @@
 // element of _actionQueue in order to get a handle on the callback
 // function. Only after that completion callback has been made can the
 // action be shifted out of the queue.
-
-File.prototype.puts = function (data, callback) {
-  this.write(data + "\n", callback);
-};
-
-File.prototype.open = function (path, mode, callback) {
-  this._addAction("open", [path, mode], callback);
-};
-
-File.prototype.close = function (callback) {
-  this._addAction("close", [], callback);
-};
-
-File.prototype.write = function (buf, callback) {
-  this._addAction("write", [buf], callback);
-};
-
-File.prototype.read = function (length, callback) {
-  this._addAction("read", [length], callback);
-};
-
-File.prototype._addAction = function (method, args, callback) {
+// 
+// See File::CallTopCallback() in file.cc to see the other side of the
+// binding.
+File._addAction = File.prototype._addAction = function (method, args, callback) {
   this._actionQueue.push({ method: method 
                          , callback: callback
                          , args: args
@@ -49,7 +55,7 @@ File.prototype._addAction = function (method, args, callback) {
   if (this._actionQueue.length == 1) this._act();
 }
 
-File.prototype._act = function () {
+File._act = File.prototype._act = function () {
   var action = this._actionQueue[0];
   if (action)
     this["_ffi_" + action.method].apply(this, action.args);
@@ -57,7 +63,7 @@ File.prototype._act = function () {
 
 // called from C++ after each action finishes
 // (i.e. when it returns from the thread pool)
-File.prototype._pollActions = function () {
+File._pollActions = File.prototype._pollActions = function () {
   this._actionQueue.shift();
   this._act();
 };
@@ -68,8 +74,6 @@ stdout.fd = File.STDOUT_FILENO;
 var stderr = new File();
 stderr.fd = File.STDERR_FILENO;
 
+var stdin = new File();
+stdin.fd = File.STDIN_FILENO;
 
-
-Array.prototype.encodeUtf8 = function () {
-  return String.fromCharCode.apply(String, this);
-}

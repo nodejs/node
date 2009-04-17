@@ -1,6 +1,11 @@
 // module search paths
 node.includes = ["."];
 
+// This is useful for dealing with raw encodings.
+Array.prototype.encodeUtf8 = function () {
+  return String.fromCharCode.apply(String, this);
+}
+
 node.path = new function () {
     this.join = function () {
         var joined = "";
@@ -42,7 +47,7 @@ function __require (path, loading_file) {
     } else {
         //filename = node.path.join(node.path.dirname(loading_file), path);
     }
-    stdout.puts("require: " + filename);
+    //stdout.puts("require: " + filename);
     
     var source = node.blocking.cat(filename);
 

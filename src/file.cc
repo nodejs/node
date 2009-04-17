@@ -13,145 +13,49 @@ using namespace v8;
 #define FD_SYMBOL v8::String::NewSymbol("fd")
 #define ACTION_QUEUE_SYMBOL v8::String::NewSymbol("_actionQueue")
 
-class File;
-class Callback {
-  public:
-    Callback(Handle<Value> v);
-    ~Callback();
-    Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
-    File *file;
-  private:
-    Persistent<Function> handle_;
-};
+// This is the file system object which contains methods
+// for accessing the file system (like rename, mkdir, etC). 
+// In javascript it is called "File".
+static Persistent<Object> fs;
 
-Callback::Callback (Handle<Value> v)
+static void
+CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
 {
   HandleScope scope;
-  Handle<Function> f = Handle<Function>::Cast(v);
-  handle_ = Persistent<Function>::New(f);
-}
 
-Callback::~Callback ()
-{
-  handle_.Dispose();
-  handle_.Clear(); // necessary? 
-}
+  Local<Value> queue_value = handle->Get(ACTION_QUEUE_SYMBOL);
+  assert(queue_value->IsArray());
 
-Local<Value>
-Callback::Call (Handle<Object> recv, int argc, Handle<Value> argv[])
-{
-  HandleScope scope;
-  Local<Value> r = handle_->Call(recv, argc, argv);
-  return scope.Close(r);
-}
+  Local<Array> queue = Local<Array>::Cast(queue_value);
+  Local<Value> top_value = queue->Get(Integer::New(0));
+  if (top_value->IsObject()) {
+    Local<Object> top = top_value->ToObject();
+    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
+    if (callback_value->IsFunction()) {
+      Handle<Function> callback = Handle<Function>::Cast(callback_value);
 
-static int
-AfterRename (eio_req *req)
-{
-  Callback *callback = static_cast<Callback*>(req->data);
-  if (callback != NULL) {
-    HandleScope scope;
-    const int argc = 2;
-    Local<Value> argv[argc];
-
-    argv[0] = Integer::New(req->errorno);
-    argv[1] = String::New(strerror(req->errorno));
-    
-    callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    delete callback;
-  }
-  return 0;
-}
-
-JS_METHOD(rename) 
-{
-  if (args.Length() < 2)
-    return Undefined();
-
-  HandleScope scope;
-
-  String::Utf8Value path(args[0]->ToString());
-  String::Utf8Value new_path(args[1]->ToString());
-
-  Callback *callback = NULL;
-  if (!args[2]->IsUndefined()) callback = new Callback(args[2]);
-
-  eio_req *req = eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, callback);
-  node_eio_submit(req);
-
-  return Undefined();
-}
-
-static int
-AfterStat (eio_req *req)
-{
-  Callback *callback = static_cast<Callback*>(req->data);
-  if (callback != NULL) {
-    HandleScope scope;
-    const int argc = 3;
-    Local<Value> argv[argc];
-
-    Local<Object> stats = Object::New();
-    argv[0] = stats;
-    argv[1] = Integer::New(req->errorno);
-    argv[2] = String::New(strerror(req->errorno));
-
-    if (req->result == 0) {
-      struct stat *s = static_cast<struct stat*>(req->ptr2);
-
-      /* ID of device containing file */
-      stats->Set(JS_SYMBOL("dev"), Integer::New(s->st_dev));
-      /* inode number */
-      stats->Set(JS_SYMBOL("ino"), Integer::New(s->st_ino));
-      /* protection */
-      stats->Set(JS_SYMBOL("mode"), Integer::New(s->st_mode));
-      /* number of hard links */
-      stats->Set(JS_SYMBOL("nlink"), Integer::New(s->st_nlink));
-      /* user ID of owner */
-      stats->Set(JS_SYMBOL("uid"), Integer::New(s->st_uid));
-      /* group ID of owner */
-      stats->Set(JS_SYMBOL("gid"), Integer::New(s->st_gid));
-      /* device ID (if special file) */
-      stats->Set(JS_SYMBOL("rdev"), Integer::New(s->st_rdev));
-      /* total size, in bytes */
-      stats->Set(JS_SYMBOL("size"), Integer::New(s->st_size));
-      /* blocksize for filesystem I/O */
-      stats->Set(JS_SYMBOL("blksize"), Integer::New(s->st_blksize));
-      /* number of blocks allocated */
-      stats->Set(JS_SYMBOL("blocks"), Integer::New(s->st_blocks));
-      /* time of last access */
-      stats->Set(JS_SYMBOL("atime"), Date::New(1000*static_cast<double>(s->st_atime)));
-      /* time of last modification */
-      stats->Set(JS_SYMBOL("mtime"), Date::New(1000*static_cast<double>(s->st_mtime)));
-      /* time of last status change */
-      stats->Set(JS_SYMBOL("ctime"), Date::New(1000*static_cast<double>(s->st_ctime)));
+      TryCatch try_catch;
+      callback->Call(handle, argc, argv);
+      if(try_catch.HasCaught()) {
+        node_fatal_exception(try_catch);
+        return;
+      }
     }
-    
-    callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    delete callback;
   }
-  return 0;
+
+  // poll_actions
+  Local<Value> poll_actions_value = handle->Get(String::NewSymbol("_pollActions"));
+  assert(poll_actions_value->IsFunction());  
+  Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
+
+  poll_actions->Call(handle, 0, NULL);
 }
 
-JS_METHOD(stat) 
+static void
+InitActionQueue (Handle<Object> handle)
 {
-  if (args.Length() < 1)
-    return v8::Undefined();
-
-  HandleScope scope;
-
-  String::Utf8Value path(args[0]->ToString());
-
-  Callback *callback = NULL;
-  if (!args[1]->IsUndefined()) callback = new Callback(args[1]);
-
-  eio_req *req = eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, callback);
-  node_eio_submit(req);
-
-  return Undefined();
+  handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
-
-///////////////////// FILE ///////////////////// 
 
 class File {
 public:
@@ -174,22 +78,124 @@ public:
 
 private:
   bool HasUtf8Encoding (void);
+  Persistent<Object> handle_;
   int GetFD (void);
   static void MakeWeak (Persistent<Value> _, void *data);
-  void CallTopCallback (const int argc, Handle<Value> argv[]);
-  Persistent<Object> handle_;
 };
+
+class FileSystem {
+public:
+  static Handle<Value> Rename (const Arguments& args);
+  static int AfterRename (eio_req *req);
+
+  static Handle<Value> Stat (const Arguments& args);
+  static int AfterStat (eio_req *req);
+};
+
+Handle<Value>
+FileSystem::Rename (const Arguments& args)
+{
+  if (args.Length() < 2)
+    return Undefined();
+
+  HandleScope scope;
+
+  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value new_path(args[1]->ToString());
+
+  eio_req *req = eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
+  node_eio_submit(req);
+
+  return Undefined();
+}
+
+int
+FileSystem::AfterRename (eio_req *req)
+{
+  HandleScope scope;
+  const int argc = 1;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+  CallTopCallback(fs, argc, argv);
+  return 0;
+}
+
+Handle<Value>
+FileSystem::Stat (const Arguments& args)
+{
+  if (args.Length() < 1)
+    return v8::Undefined();
+
+  HandleScope scope;
+
+  String::Utf8Value path(args[0]->ToString());
+
+  eio_req *req = eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
+  node_eio_submit(req);
+
+  return Undefined();
+}
+
+int
+FileSystem::AfterStat (eio_req *req)
+{
+  HandleScope scope;
+
+  const int argc = 2;
+  Local<Value> argv[argc];
+  argv[0] = Integer::New(req->errorno);
+
+  Local<Object> stats = Object::New();
+  argv[1] = stats;
+
+  if (req->result == 0) {
+    struct stat *s = static_cast<struct stat*>(req->ptr2);
+
+    /* ID of device containing file */
+    stats->Set(JS_SYMBOL("dev"), Integer::New(s->st_dev));
+    /* inode number */
+    stats->Set(JS_SYMBOL("ino"), Integer::New(s->st_ino));
+    /* protection */
+    stats->Set(JS_SYMBOL("mode"), Integer::New(s->st_mode));
+    /* number of hard links */
+    stats->Set(JS_SYMBOL("nlink"), Integer::New(s->st_nlink));
+    /* user ID of owner */
+    stats->Set(JS_SYMBOL("uid"), Integer::New(s->st_uid));
+    /* group ID of owner */
+    stats->Set(JS_SYMBOL("gid"), Integer::New(s->st_gid));
+    /* device ID (if special file) */
+    stats->Set(JS_SYMBOL("rdev"), Integer::New(s->st_rdev));
+    /* total size, in bytes */
+    stats->Set(JS_SYMBOL("size"), Integer::New(s->st_size));
+    /* blocksize for filesystem I/O */
+    stats->Set(JS_SYMBOL("blksize"), Integer::New(s->st_blksize));
+    /* number of blocks allocated */
+    stats->Set(JS_SYMBOL("blocks"), Integer::New(s->st_blocks));
+    /* time of last access */
+    stats->Set(JS_SYMBOL("atime"), Date::New(1000*static_cast<double>(s->st_atime)));
+    /* time of last modification */
+    stats->Set(JS_SYMBOL("mtime"), Date::New(1000*static_cast<double>(s->st_mtime)));
+    /* time of last status change */
+    stats->Set(JS_SYMBOL("ctime"), Date::New(1000*static_cast<double>(s->st_ctime)));
+  }
+
+  CallTopCallback(fs, argc, argv);
+    
+  return 0;
+}
+
+///////////////////// FILE ///////////////////// 
 
 File::File (Handle<Object> handle)
 {
   HandleScope scope;
   handle_ = Persistent<Object>::New(handle);
 
+  InitActionQueue(handle);
+
   Handle<External> external = External::New(this);
   handle_->SetInternalField(0, external);
   handle_.MakeWeak(this, File::MakeWeak);
-
-  handle_->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
 
 File::~File ()
@@ -222,38 +228,6 @@ File::GetFD (void)
   int fd = fd_value->IntegerValue();
 }
 
-void
-File::CallTopCallback (const int argc, Handle<Value> argv[])
-{
-  HandleScope scope;
-
-  Local<Value> queue_value = handle_->Get(ACTION_QUEUE_SYMBOL);
-  assert(queue_value->IsArray());
-
-  Local<Array> queue = Local<Array>::Cast(queue_value);
-  Local<Value> top_value = queue->Get(Integer::New(0));
-  if (top_value->IsObject()) {
-    Local<Object> top = top_value->ToObject();
-    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
-    if (callback_value->IsFunction()) {
-      Handle<Function> callback = Handle<Function>::Cast(callback_value);
-
-      TryCatch try_catch;
-      callback->Call(handle_, argc, argv);
-      if(try_catch.HasCaught()) {
-        node_fatal_exception(try_catch);
-        return;
-      }
-    }
-  }
-
-  // poll_actions
-  Local<Value> poll_actions_value = handle_->Get(String::NewSymbol("_pollActions"));
-  assert(poll_actions_value->IsFunction());  
-  Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
-
-  poll_actions->Call(handle_, 0, NULL);
-}
 
 void
 File::MakeWeak (Persistent<Value> _, void *data)
@@ -289,7 +263,7 @@ File::AfterClose (eio_req *req)
   const int argc = 1;
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
-  file->CallTopCallback(argc, argv);
+  CallTopCallback(file->handle_, argc, argv);
 
   return 0;
 }
@@ -331,11 +305,8 @@ File::Open (const Arguments& args)
     }
   }
 
-  // Get the current umask
-  mode_t mask = umask(0); 
-  umask(mask);
-
-  eio_req *req = eio_open (*path, flags, mask, EIO_PRI_DEFAULT, File::AfterOpen, file);
+  // TODO how should the mode be set?
+  eio_req *req = eio_open (*path, flags, 0666, EIO_PRI_DEFAULT, File::AfterOpen, file);
   node_eio_submit(req);
 
   return Undefined();
@@ -354,7 +325,7 @@ File::AfterOpen (eio_req *req)
   const int argc = 1;
   Handle<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
-  file->CallTopCallback(argc, argv);
+  CallTopCallback(file->handle_, argc, argv);
 
   return 0;
 }
@@ -423,7 +394,7 @@ File::AfterWrite (eio_req *req)
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
   argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
-  file->CallTopCallback(argc, argv);
+  CallTopCallback(file->handle_, argc, argv);
 
   return 0;
 }
@@ -458,23 +429,26 @@ File::AfterRead (eio_req *req)
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
 
-  Local<String> buffer;
-  size_t length = req->result;
   char *buf = static_cast<char*>(req->ptr2);
 
-  if (file->HasUtf8Encoding()) {
-    argv[1] = String::New(buf, req->result);
+  if(req->result == 0) { 
+    // eof 
+    argv[1] = Local<Value>::New(Null());
   } else {
-    // raw encoding
-    Local<Array> array = Array::New(length);
-    for (int i = 0; i < length; i++) {
-      array->Set(Integer::New(i), Integer::New(buf[i]));
+    size_t length = req->result;
+    if (file->HasUtf8Encoding()) {
+      // utf8 encoding
+      argv[1] = String::New(buf, req->result);
+    } else {
+      // raw encoding
+      Local<Array> array = Array::New(length);
+      for (int i = 0; i < length; i++) {
+        array->Set(Integer::New(i), Integer::New(buf[i]));
+      }
+      argv[1] = array;
     }
-    argv[1] = array;
   }
-
-  file->CallTopCallback(argc, argv);
-
+  CallTopCallback(file->handle_, argc, argv);
   return 0;
 }
 
@@ -492,28 +466,27 @@ NewFile (const Arguments& args)
 void
 NodeInit_file (Handle<Object> target)
 {
-  HandleScope scope;
+  if (!fs.IsEmpty())
+    return;
 
-  Local<Object> fs = Object::New();
-  target->Set(String::NewSymbol("fs"), fs);
-  
-  JS_SET_METHOD(fs, "rename", rename);
-  JS_SET_METHOD(fs, "stat", stat);
+  HandleScope scope;
 
   Local<FunctionTemplate> file_template = FunctionTemplate::New(NewFile);
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("File"), file_template->GetFunction());
 
-  // class methods for File
-  file_template->GetFunction()->Set(String::NewSymbol("STDIN_FILENO"),
-                                    Integer::New(STDIN_FILENO));
+  fs = Persistent<Object>::New(file_template->GetFunction());
+  InitActionQueue(fs);
 
-  file_template->GetFunction()->Set(String::NewSymbol("STDOUT_FILENO"),
-                                    Integer::New(STDOUT_FILENO));
+  target->Set(String::NewSymbol("File"), fs);
 
-  file_template->GetFunction()->Set(String::NewSymbol("STDERR_FILENO"),
-                                    Integer::New(STDERR_FILENO));
+  // file system methods
+  JS_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
+  JS_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
+  fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
+  fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
+  fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
 
+  // file methods
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
   JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
