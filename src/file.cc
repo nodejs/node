@@ -18,6 +18,44 @@ using namespace v8;
 // In javascript it is called "File".
 static Persistent<Object> fs;
 
+class FileSystem {
+public:
+  static Handle<Value> Rename (const Arguments& args);
+  static int AfterRename (eio_req *req);
+
+  static Handle<Value> Stat (const Arguments& args);
+  static int AfterStat (eio_req *req);
+
+  static Handle<Value> StrError (const Arguments& args);
+};
+
+class File {
+public:
+  File (Handle<Object> handle);
+  ~File ();
+
+  static Handle<Value> New (const Arguments& args);
+
+  static Handle<Value> Open (const Arguments& args);
+  static int AfterOpen (eio_req *req);
+
+  static Handle<Value> Close (const Arguments& args); 
+  static int AfterClose (eio_req *req);
+
+  static Handle<Value> Write (const Arguments& args);
+  static int AfterWrite (eio_req *req);
+
+  static Handle<Value> Read (const Arguments& args);
+  static int AfterRead (eio_req *req);
+
+private:
+  static File* Unwrap (Handle<Object> handle);
+  bool HasUtf8Encoding (void);
+  int GetFD (void);
+  static void MakeWeak (Persistent<Value> _, void *data);
+  Persistent<Object> handle_;
+};
+
 static void
 CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
 {
@@ -56,44 +94,6 @@ InitActionQueue (Handle<Object> handle)
 {
   handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
-
-class File {
-public:
-  File (Handle<Object> handle);
-  ~File ();
-
-  static File* Unwrap (Handle<Object> handle);
-
-  static Handle<Value> Open (const Arguments& args);
-  static int AfterOpen (eio_req *req);
-
-  static Handle<Value> Close (const Arguments& args); 
-  static int AfterClose (eio_req *req);
-
-  static Handle<Value> Write (const Arguments& args);
-  static int AfterWrite (eio_req *req);
-
-  static Handle<Value> Read (const Arguments& args);
-  static int AfterRead (eio_req *req);
-
-
-private:
-  bool HasUtf8Encoding (void);
-  Persistent<Object> handle_;
-  int GetFD (void);
-  static void MakeWeak (Persistent<Value> _, void *data);
-};
-
-class FileSystem {
-public:
-  static Handle<Value> Rename (const Arguments& args);
-  static int AfterRename (eio_req *req);
-
-  static Handle<Value> Stat (const Arguments& args);
-  static int AfterStat (eio_req *req);
-
-  static Handle<Value> StrError (const Arguments& args);
-};
 
 Handle<Value>
 FileSystem::Rename (const Arguments& args)
@@ -471,8 +471,8 @@ File::AfterRead (eio_req *req)
   return 0;
 }
 
-static Handle<Value>
-NewFile (const Arguments& args)
+Handle<Value>
+File::New(const Arguments& args)
 {
   HandleScope scope;
   File *file = new File(args.Holder());
@@ -490,7 +490,7 @@ NodeInit_file (Handle<Object> target)
 
   HandleScope scope;
 
-  Local<FunctionTemplate> file_template = FunctionTemplate::New(NewFile);
+  Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   fs = Persistent<Object>::New(file_template->GetFunction());
