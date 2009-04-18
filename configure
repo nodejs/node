@@ -88,16 +88,16 @@ all-progress:
 
 install:
 	if test -n "\$(DESTDIR)"; then \\
-	    $WAF install --yes --destdir="\$(DESTDIR)" --prefix="$PREFIX"; \\
+	    $WAF install --yes --destdir="\$(DESTDIR)" ; \\
 	else \\
-	    $WAF install --yes --prefix="$PREFIX"; \\
+	    $WAF install --yes ; \\
 	fi;
 
 uninstall:
 	@if test -n "\$(DESTDIR)"; then \\
-	    $WAF uninstall --destdir="\$(DESTDIR)" --prefix="$PREFIX"; \\
+	    $WAF uninstall --destdir="\$(DESTDIR)" ; \\
 	else \\
-	    $WAF uninstall --prefix="$PREFIX"; \\
+	    $WAF uninstall ; \\
 	fi;
 
 clean:
@@ -121,17 +121,8 @@ EOF
 
 checkWAF
 
-PREFIX=/usr/local
-case $1 in
-    --prefix)
-        PREFIX=$2
-        ;;
-esac
-
-export PREFIX
 generateMakefile
 
-
-"${WAF}" configure --prefix "${PREFIX}"
+"${WAF}" configure $*
 
 exit $?
