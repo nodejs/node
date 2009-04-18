@@ -76,6 +76,7 @@ public:
   static Handle<Value> Read (const Arguments& args);
   static int AfterRead (eio_req *req);
 
+
 private:
   bool HasUtf8Encoding (void);
   Persistent<Object> handle_;
@@ -90,6 +91,8 @@ public:
 
   static Handle<Value> Stat (const Arguments& args);
   static int AfterStat (eio_req *req);
+
+  static Handle<Value> StrError (const Arguments& args);
 };
 
 Handle<Value>
@@ -182,6 +185,21 @@ FileSystem::AfterStat (eio_req *req)
   CallTopCallback(fs, argc, argv);
     
   return 0;
+}
+
+Handle<Value>
+FileSystem::StrError (const Arguments& args)
+{
+  if (args.Length() < 1) return v8::Undefined();
+  if (!args[0]->IsNumber()) return v8::Undefined();
+
+  HandleScope scope;
+
+  int errorno = args[0]->IntegerValue();
+
+  Local<String> message = String::New(strerror(errorno));
+
+  return scope.Close(message);
 }
 
 ///////////////////// FILE ///////////////////// 
@@ -483,6 +501,7 @@ NodeInit_file (Handle<Object> target)
   // file system methods
   JS_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
   JS_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
+  JS_SET_METHOD(fs, "strerror", FileSystem::StrError);
   fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
   fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
   fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));

@@ -2,6 +2,16 @@ File.rename = function (file1, file2, callback) {
   this._addAction("rename", [file1, file2], callback);
 };
 
+File.stat = function (path, callback) {
+  this._addAction("stat", [path], callback);
+};
+
+File.exists = function (path, callback) {
+  this._addAction("stat", [path], function (status) {
+      callback(status == 0);
+  });
+}
+
 File.prototype.puts = function (data, callback) {
   this.write(data + "\n", callback);
 };
