@@ -1,5 +1,5 @@
-#include "node_http.h"
 #include "node.h"
+#include "http.h"
 
 #include <oi_socket.h>
 #include <ebb_request_parser.h>
@@ -651,7 +651,7 @@ newHTTPServer (const Arguments& args)
 }
 
 void
-Init_http (Handle<Object> target)
+NodeInit_http (Handle<Object> target)
 {
   HandleScope scope;
 

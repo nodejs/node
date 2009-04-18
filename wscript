@@ -17,6 +17,12 @@ def set_options(opt):
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
   opt.tool_options('ragel', tdir=".")
+  opt.add_option( '--debug'
+                , action='store_true'
+                , default=False
+                , help='Build debug variant [Default: False]'
+                , dest='debug'
+                )
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
@@ -43,15 +49,27 @@ def configure(conf):
     conf.define("HAVE_GNUTLS", 1)
 
   conf.define("HAVE_CONFIG_H", 1)
-  conf.write_config_header('config.h')
 
-  conf.env.append_value('CXXFLAGS', '-g')
+  # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
   conf.set_env_name('debug', debug_env)
-  conf.setenv('debug')
 
+  # Configure debug variant
+  conf.setenv('debug')
+  debug_env.set_variant('debug')
+  debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
+  debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
+  conf.write_config_header("config.h")
+
+  # Configure default variant
+  conf.setenv('default')
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O2'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O2'])
+  conf.write_config_header("config.h")
 
 def build(bld):
+  # Use debug environment when --enable-debug is given
+
   bld.add_subdirs('deps/libeio deps/libev')
 
   ### v8
@@ -65,10 +83,7 @@ def build(bld):
     target=join("deps/v8",v8lib),
     rule='cp -rf %s %s && cd %s && scons -Q mode=debug library=static snapshot=on' 
     #rule='cp -rf %s %s && cd %s && scons -Q library=static snapshot=on' 
-      % ( v8dir_src
-        , deps_tgt
-        , v8dir_tgt
-        ),
+      % ( v8dir_src , deps_tgt , v8dir_tgt),
     before="cxx"
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
@@ -112,10 +127,10 @@ def build(bld):
   node.target = 'node'
   node.source = """
     src/node.cc
-    src/node_http.cc
+    src/http.cc
     src/process.cc
     src/file.cc
-    src/node_timer.cc
+    src/timers.cc
   """
   node.includes = """
     src/ 
@@ -127,3 +142,7 @@ def build(bld):
   """
   node.uselib_local = "oi ev eio ebb"
   node.uselib = "V8"
+
+  if Options.options.debug:
+    print "debug build!"
+    bld.env = bld.env_of_name('debug')

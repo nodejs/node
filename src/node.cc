@@ -3,8 +3,8 @@
 //#include "net.h"
 #include "file.h"
 #include "process.h"
-#include "node_http.h"
-#include "node_timer.h"
+#include "http.h"
+#include "timers.h"
 
 #include "natives.h" 
 
@@ -247,11 +247,11 @@ main (int argc, char *argv[])
   g->Set(String::New("ARGV"), arguments);
 
   // BUILT-IN MODULES
-  Init_timer(g);
   //NodeInit_net(g);
+  NodeInit_timers(g);
   NodeInit_process(g);
   NodeInit_file(g);
-  Init_http(g);
+  NodeInit_http(g);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;

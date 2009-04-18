@@ -1,5 +1,5 @@
 #include "node.h"
-#include "node_timer.h"
+#include "timers.h"
 #include <assert.h>
 
 using namespace v8;
@@ -188,7 +188,7 @@ static Handle<Value> setInterval
 }
 
 void
-Init_timer (Handle<Object> target)
+NodeInit_timers (Handle<Object> target)
 {
   HandleScope scope;
 
