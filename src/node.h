@@ -17,7 +17,7 @@ void node_fatal_exception (v8::TryCatch &try_catch);
 void node_exit (int code);
 
 // call this after creating a new eio event.
-void node_eio_submit(eio_req *req);
+void node_eio_warmup (void);
 
 #endif // node_h
 

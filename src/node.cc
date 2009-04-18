@@ -181,7 +181,12 @@ thread_pool_cb (EV_P_ ev_async *w, int revents)
 {
   int r = eio_poll();
   /* returns 0 if all requests were handled, -1 if not, or the value of EIO_FINISH if != 0 */
-  if(r == 0) ev_async_stop(EV_DEFAULT_ w);
+
+  // XXX is this check too heavy? 
+  //  it require three locks in eio
+  //  what's the better way?
+  if (eio_nreqs () == 0 && eio_nready() == 0 && eio_npending() == 0) 
+    ev_async_stop(EV_DEFAULT_ w);
 }
 
 static void
@@ -190,8 +195,13 @@ thread_pool_want_poll (void)
   ev_async_send(EV_DEFAULT_ &thread_pool_watcher); 
 }
 
+static void
+thread_pool_done_poll (void)
+{
+}
+
 void
-node_eio_submit(eio_req *req)
+node_eio_warmup (void)
 {
   ev_async_start(EV_DEFAULT_ &thread_pool_watcher);
 }

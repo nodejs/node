@@ -77,3 +77,6 @@ stderr.fd = File.STDERR_FILENO;
 var stdin = new File();
 stdin.fd = File.STDIN_FILENO;
 
+this.puts = function (data, callback) {
+  stdout.puts(data, callback);
+}

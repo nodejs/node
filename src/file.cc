@@ -103,8 +103,8 @@ FileSystem::Rename (const Arguments& args)
   String::Utf8Value path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
 
+  node_eio_warmup();
   eio_req *req = eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
-  node_eio_submit(req);
 
   return Undefined();
 }
@@ -130,8 +130,8 @@ FileSystem::Stat (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
 
+  node_eio_warmup();
   eio_req *req = eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
-  node_eio_submit(req);
 
   return Undefined();
 }
@@ -245,8 +245,8 @@ File::Close (const Arguments& args)
 
   int fd = file->GetFD();
 
+  node_eio_warmup();
   eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
-  node_eio_submit(req);
 
   return Undefined();
 }
@@ -306,8 +306,8 @@ File::Open (const Arguments& args)
   }
 
   // TODO how should the mode be set?
+  node_eio_warmup();
   eio_req *req = eio_open (*path, flags, 0666, EIO_PRI_DEFAULT, File::AfterOpen, file);
-  node_eio_submit(req);
 
   return Undefined();
 }
@@ -373,8 +373,8 @@ File::Write (const Arguments& args)
   int fd = file->GetFD();
 
   // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
+  node_eio_warmup();
   eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, file);
-  node_eio_submit(req);
 
   return Undefined();
 }
@@ -413,8 +413,9 @@ File::Read (const Arguments& args)
 
   // NOTE: -1 offset in eio_read() invokes read() instead of pread()
   //       NULL pointer tells eio to allocate it itself
+  node_eio_warmup();
   eio_req *req = eio_read(fd, NULL, length, -1, EIO_PRI_DEFAULT, File::AfterRead, file);
-  node_eio_submit(req);
+  assert(req);
 
   return Undefined();
 }
