@@ -26,6 +26,8 @@ def wait_for_server(host, port)
       $stderr.print "." if $DEBUG
       $stderr.flush
       sleep 0.2
+    ensure
+      socket.close
     end
   end
 end
