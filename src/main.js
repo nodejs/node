@@ -39,10 +39,7 @@ node.path = new function () {
 
     var filename = node.path.join(base_directory, name) + ".js";
     File.exists(filename, function (status) {
-      if (status) 
-        callback(filename);
-      else
-        callback(null);
+      callback(status ? filename : null);
     });
   }
 
@@ -53,16 +50,12 @@ node.path = new function () {
     this.name = name;
     this.target = target;
 
-    //puts("new Sub. name = " + name);
-
     this.load = function (base_directory, callback) {
       findScript(base_directory, name, function (filename) {
         if (filename === null) {
           stderr.puts("Cannot find a script matching: " + name);
           process.exit(1);
         }
-        //puts("load subscript: " + filename);
-        //puts("    target =  " + target);
         loadScript(filename, target, callback);
       });
     };
@@ -74,13 +67,13 @@ node.path = new function () {
 
   function Scaffold (source, filename, module) {
     // wrap the source in a strange function 
-    var source = "function (__filename) {\n" 
-               + "  var on_load;\n"
-               + "  var exports = this;\n"
-               + "  var require = this.__require;\n"
-               + "  var include = this.__include;\n"
-               +    source + "\n"
-               + "  this.__on_load = on_load;\n"
+    var source = "function (__filename) {" 
+               + "  var on_load;"
+               + "  var exports = this;"
+               + "  var require = this.__require;"
+               + "  var include = this.__include;"
+               +    source 
+               + "  this.__on_load = on_load;"
                + "};"
                ;
     // returns the function       
@@ -99,16 +92,9 @@ node.path = new function () {
     compiled.apply(module, [filename]);
 
     // The module still needs to have its submodules loaded.
-    this.module = module;
-    this.subs = module.__subs;
+    this.module  = module;
+    this.subs    = module.__subs;
     this.on_load = module.__on_load;
-
-    /*
-    puts("new Scaffold.");
-    for(var i = 0; i < this.subs.length; i++) {
-      puts("-  subs[" + i.toString() + "] " + this.subs[i].toString());
-    }
-    */
 
     // remove these references so they don't get exported.
     delete module.__subs;
@@ -123,21 +109,15 @@ node.path = new function () {
         stderr.puts("Error reading " + filename + ": " + File.strerror(status));
         process.exit(1);
       }
-
-      //puts("loadScript: " + filename);
       
       var scaffold = new Scaffold(content, filename, target);
 
       function finish() {
         if (scaffold.on_load instanceof Function)
           scaffold.on_load(); 
-        else
-          ; //puts("no on_load for " + filename + " ..  scaffold.on_load = " + scaffold.on_load);
 
         if (callback instanceof Function)
           callback();
-        else
-          ; //puts("no loadScript callback for " + filename);
       }
 
       // Each time require() or include() was called inside the script 
@@ -149,9 +129,8 @@ node.path = new function () {
         while (scaffold.subs.length > 0) {
           var sub = scaffold.subs.shift();
           sub.load(node.path.dirname(filename), function () {
-            //puts("finish sub load: " + sub.name);
-            if(scaffold.subs.length != 0) return;
-            finish();
+            if(scaffold.subs.length == 0) 
+              finish();
           });
         }
       }
