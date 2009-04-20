@@ -83,59 +83,7 @@ ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
-JS_METHOD(cat) 
-{
-  if (args.Length() < 1) return v8::Undefined();
-  HandleScope scope;
-
-  String::Utf8Value filename(args[0]);
-
-  Local<String> error_msg = String::New("File I/O error");
-
-  FILE* file = fopen(*filename, "rb");
-  if (file == NULL) {
-    // Raise error
-    perror("fopen()");
-    return ThrowException(error_msg);
-  }
- 
-  int r = fseek(file, 0, SEEK_END);
-  if (r < 0) {
-    perror("fseek()");
-    return ThrowException(error_msg);
-  }
-
-  int size = ftell(file);
-  if (size < 0) {
-    perror("ftell()");
-    return ThrowException(error_msg);
-  }
-  rewind(file);
-
-  char chars[size+1];
-  chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
-    if(read <= 0) {
-      perror("read()");
-      return ThrowException(error_msg);
-    }
-    i += read;
-  }
-
-  uint16_t expanded_base[size+1];
-  expanded_base[size] = '\0';
-  for(int i = 0; i < size; i++) 
-    expanded_base[i] = chars[i];
-
-  fclose(file);
-
-  Local<String> contents = String::New(expanded_base, size);
-
-  return scope.Close(contents);
-}
-
-JS_METHOD(exec) 
+JS_METHOD(compile) 
 {
   if (args.Length() < 2) 
     return Undefined();
@@ -233,11 +181,7 @@ main (int argc, char *argv[])
   Local<Object> node = Object::New();
   g->Set(String::New("node"), node);
 
-  Local<Object> blocking = Object::New();
-  node->Set(String::New("blocking"), blocking);
-
-  JS_SET_METHOD(blocking, "exec", exec);
-  JS_SET_METHOD(blocking, "cat", cat);
+  JS_SET_METHOD(node, "compile", compile);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {

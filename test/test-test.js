@@ -1,12 +1,9 @@
-node.blocking.print(__file__);
-/*
-if (node.path.dirname(__file__) !== "test-test.js") {
-    throw "wrong __file__ argument";
+puts(__filename);
+include("mjsunit");
+puts(__filename);
+
+function on_load () {
+  assertFalse(false, "testing the test program.");
+  puts("i think everything is okay.");
+  //mjsunit.assertEquals("test-test.js", __file__);
 }
-*/
-
-var mjsunit = require("./mjsunit.js");
-node.blocking.print(__file__);
-
-mjsunit.assertFalse(false, "testing the test program.");
-//mjsunit.assertEquals("test-test.js", __file__);
