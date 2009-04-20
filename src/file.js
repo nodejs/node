@@ -12,6 +12,30 @@ File.exists = function (path, callback) {
   });
 }
 
+File.cat = function (path, callback) {
+  var content = "";
+  var file = new File;
+
+  function readChunk () {
+    file.read(1024, function (status, chunk) {
+      if (chunk) {
+        content += chunk.encodeUtf8();
+        readChunk();
+      } else {
+        callback(0, content);
+        file.close();
+      }
+    });
+  }
+
+  file.open(path, "r", function (status) {
+    if (status == 0) 
+      readChunk();
+    else
+      callback (status);
+  });
+}
+
 File.prototype.puts = function (data, callback) {
   this.write(data + "\n", callback);
 };
