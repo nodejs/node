@@ -156,11 +156,6 @@ thread_pool_want_poll (void)
   ev_async_send(EV_DEFAULT_ &thread_pool_watcher); 
 }
 
-static void
-thread_pool_done_poll (void)
-{
-}
-
 void
 node_eio_warmup (void)
 {
