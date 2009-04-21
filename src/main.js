@@ -54,7 +54,7 @@ node.path = new function () {
     this.target = target;
 
     this.load = function (base_directory, callback) {
-      node.debug("sub.load from <" + base_directory + ">  " + this.toString());
+      //node.debug("sub.load from <" + base_directory + ">  " + this.toString());
       findScript(base_directory, name, function (filename) {
         if (filename === null) {
           stderr.puts("Cannot find a script matching: " + name);
@@ -84,7 +84,7 @@ node.path = new function () {
     var compiled = node.compile(source, filename);
 
     if (module.__on_load) {
-      node.debug("<"+ filename+"> has onload! this is bad");
+      //node.debug("<"+ filename+"> has onload! this is bad");
     }
 
     module.__subs = [];
@@ -121,15 +121,15 @@ node.path = new function () {
       
       var scaffold = new Scaffold(content, filename, target);
 
-      node.debug("after scaffold <" + filename + ">");
+      //node.debug("after scaffold <" + filename + ">");
 
       function finish() {
-        node.debug("finish 1 load <" + filename + ">");
+        //node.debug("finish 1 load <" + filename + ">");
         if (scaffold.on_load instanceof Function) {
-          node.debug("foo bar <" + filename + ">"); 
+          //node.debug("foo bar <" + filename + ">"); 
           scaffold.on_load(); 
         }
-        node.debug("finish 2 load <" + filename + ">");
+        //node.debug("finish 2 load <" + filename + ">");
 
         if (callback instanceof Function)
           callback();
@@ -146,7 +146,7 @@ node.path = new function () {
           var sub = scaffold.subs[i];
           sub.load(node.path.dirname(filename), function () {
             ncomplete += 1;
-            node.debug("<" + filename + "> ncomplete = " + ncomplete.toString() + " scaffold.subs.length = " + scaffold.subs.length.toString());
+            //node.debug("<" + filename + "> ncomplete = " + ncomplete.toString() + " scaffold.subs.length = " + scaffold.subs.length.toString());
             if (ncomplete === scaffold.subs.length)
               finish();
           });
