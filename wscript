@@ -128,6 +128,7 @@ def build(bld):
   node.source = """
     src/node.cc
     src/http.cc
+    src/net.cc
     src/process.cc
     src/file.cc
     src/timers.cc

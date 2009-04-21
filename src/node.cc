@@ -1,6 +1,6 @@
 #include "node.h"
 
-//#include "net.h"
+#include "net.h"
 #include "file.h"
 #include "process.h"
 #include "http.h"
@@ -116,7 +116,7 @@ static void
 OnFatalError (const char* location, const char* message)
 {
   fprintf(stderr, "Fatal error: %s %s\n", location, message);
-  ev_unloop(node_loop(), EVUNLOOP_ALL);
+  exit(1);
 }
 
 
@@ -205,7 +205,7 @@ main (int argc, char *argv[])
   g->Set(String::New("ARGV"), arguments);
 
   // BUILT-IN MODULES
-  //NodeInit_net(g);
+  NodeInit_net(g);
   NodeInit_timers(g);
   NodeInit_process(g);
   NodeInit_file(g);
