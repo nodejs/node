@@ -87,7 +87,7 @@ ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
-JS_METHOD(compile) 
+NODE_METHOD(compile) 
 {
   if (args.Length() < 2) 
     return Undefined();
@@ -102,7 +102,7 @@ JS_METHOD(compile)
   return scope.Close(result);
 }
 
-JS_METHOD(debug) 
+NODE_METHOD(debug) 
 {
   if (args.Length() < 1) 
     return Undefined();
@@ -194,8 +194,8 @@ main (int argc, char *argv[])
   Local<Object> node = Object::New();
   g->Set(String::New("node"), node);
 
-  JS_SET_METHOD(node, "compile", compile);
-  JS_SET_METHOD(node, "debug", debug);
+  NODE_SET_METHOD(node, "compile", compile);
+  NODE_SET_METHOD(node, "debug", debug);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {

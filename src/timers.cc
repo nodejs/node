@@ -99,8 +99,7 @@ UnwrapTimeoutID (Handle<External> timeoutID)
 //
 // * delay is the number of milliseconds (thousandths of a second) that the
 //   function call should be delayed by. 
-static Handle<Value>
-setTimeout(const Arguments& args) 
+NODE_METHOD(setTimeout)
 {
   if (args.Length() < 2)
     return Undefined();
@@ -108,7 +107,7 @@ setTimeout(const Arguments& args)
   HandleScope scope;
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
-  uint32_t delay = args[1]->Uint32Value();
+  int delay = args[1]->IntegerValue();
 
   ev_tstamp after = (double)delay / 1000.0;
 
@@ -132,9 +131,7 @@ setTimeout(const Arguments& args)
 }
 
 // clearTimeout(timeoutID)
-static Handle<Value> clearTimeout
-  ( const Arguments& args
-  ) 
+NODE_METHOD(clearTimeout)
 {
   if (args.Length() < 1)
     return Undefined();
@@ -161,9 +158,7 @@ static Handle<Value> clearTimeout
 //
 // * delay is the number of milliseconds (thousandths of a second) that the
 //   setInterval() function should wait before each call to func.
-static Handle<Value> setInterval
-  ( const Arguments& args
-  ) 
+NODE_METHOD(setInterval) 
 {
   if (args.Length() < 2)
     return Undefined();
@@ -171,7 +166,7 @@ static Handle<Value> setInterval
   HandleScope scope;
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
-  uint32_t delay = args[1]->Uint32Value();
+  int delay = args[1]->IntegerValue();
 
   ev_tstamp after = (double)delay / 1000.0;
 
@@ -192,19 +187,8 @@ NodeInit_timers (Handle<Object> target)
 {
   HandleScope scope;
 
-  target->Set ( String::New("setTimeout")
-              , FunctionTemplate::New(setTimeout)->GetFunction()
-              );
-
-  target->Set ( String::New("clearTimeout")
-              , FunctionTemplate::New(clearTimeout)->GetFunction()
-              );
-
-  target->Set ( String::New("setInterval")
-              , FunctionTemplate::New(setInterval)->GetFunction()
-              );
-
-  target->Set ( String::New("clearInterval")
-              , FunctionTemplate::New(clearTimeout)->GetFunction()
-              );
+  NODE_SET_METHOD(target, "setTimeout", setTimeout);
+  NODE_SET_METHOD(target, "clearTimeout", clearTimeout);
+  NODE_SET_METHOD(target, "setInterval", setInterval);
+  NODE_SET_METHOD(target, "clearInterval", clearTimeout);
 }

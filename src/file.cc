@@ -155,31 +155,31 @@ FileSystem::AfterStat (eio_req *req)
     struct stat *s = static_cast<struct stat*>(req->ptr2);
 
     /* ID of device containing file */
-    stats->Set(JS_SYMBOL("dev"), Integer::New(s->st_dev));
+    stats->Set(NODE_SYMBOL("dev"), Integer::New(s->st_dev));
     /* inode number */
-    stats->Set(JS_SYMBOL("ino"), Integer::New(s->st_ino));
+    stats->Set(NODE_SYMBOL("ino"), Integer::New(s->st_ino));
     /* protection */
-    stats->Set(JS_SYMBOL("mode"), Integer::New(s->st_mode));
+    stats->Set(NODE_SYMBOL("mode"), Integer::New(s->st_mode));
     /* number of hard links */
-    stats->Set(JS_SYMBOL("nlink"), Integer::New(s->st_nlink));
+    stats->Set(NODE_SYMBOL("nlink"), Integer::New(s->st_nlink));
     /* user ID of owner */
-    stats->Set(JS_SYMBOL("uid"), Integer::New(s->st_uid));
+    stats->Set(NODE_SYMBOL("uid"), Integer::New(s->st_uid));
     /* group ID of owner */
-    stats->Set(JS_SYMBOL("gid"), Integer::New(s->st_gid));
+    stats->Set(NODE_SYMBOL("gid"), Integer::New(s->st_gid));
     /* device ID (if special file) */
-    stats->Set(JS_SYMBOL("rdev"), Integer::New(s->st_rdev));
+    stats->Set(NODE_SYMBOL("rdev"), Integer::New(s->st_rdev));
     /* total size, in bytes */
-    stats->Set(JS_SYMBOL("size"), Integer::New(s->st_size));
+    stats->Set(NODE_SYMBOL("size"), Integer::New(s->st_size));
     /* blocksize for filesystem I/O */
-    stats->Set(JS_SYMBOL("blksize"), Integer::New(s->st_blksize));
+    stats->Set(NODE_SYMBOL("blksize"), Integer::New(s->st_blksize));
     /* number of blocks allocated */
-    stats->Set(JS_SYMBOL("blocks"), Integer::New(s->st_blocks));
+    stats->Set(NODE_SYMBOL("blocks"), Integer::New(s->st_blocks));
     /* time of last access */
-    stats->Set(JS_SYMBOL("atime"), Date::New(1000*static_cast<double>(s->st_atime)));
+    stats->Set(NODE_SYMBOL("atime"), Date::New(1000*static_cast<double>(s->st_atime)));
     /* time of last modification */
-    stats->Set(JS_SYMBOL("mtime"), Date::New(1000*static_cast<double>(s->st_mtime)));
+    stats->Set(NODE_SYMBOL("mtime"), Date::New(1000*static_cast<double>(s->st_mtime)));
     /* time of last status change */
-    stats->Set(JS_SYMBOL("ctime"), Date::New(1000*static_cast<double>(s->st_ctime)));
+    stats->Set(NODE_SYMBOL("ctime"), Date::New(1000*static_cast<double>(s->st_ctime)));
   }
 
   CallTopCallback(fs, argc, argv);
@@ -499,16 +499,16 @@ NodeInit_file (Handle<Object> target)
   target->Set(String::NewSymbol("File"), fs);
 
   // file system methods
-  JS_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
-  JS_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
-  JS_SET_METHOD(fs, "strerror", FileSystem::StrError);
+  NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
+  NODE_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
+  NODE_SET_METHOD(fs, "strerror", FileSystem::StrError);
   fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
   fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
   fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
 
   // file methods
-  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
-  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
-  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
-  JS_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
 }

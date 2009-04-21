@@ -5,10 +5,10 @@
 #include <eio.h>
 #include <v8.h>
 
-#define JS_SYMBOL(name) v8::String::NewSymbol(name)
-#define JS_METHOD(name) v8::Handle<v8::Value> name (const v8::Arguments& args)
-#define JS_SET_METHOD(obj, name, callback) \
-  obj->Set(JS_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
+#define NODE_SYMBOL(name) v8::String::NewSymbol(name)
+#define NODE_METHOD(name) v8::Handle<v8::Value> name (const v8::Arguments& args)
+#define NODE_SET_METHOD(obj, name, callback) \
+  obj->Set(NODE_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
 
 enum encoding {UTF8, RAW};
 
