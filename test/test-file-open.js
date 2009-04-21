@@ -1,8 +1,9 @@
 include("mjsunit");
 var assert_count = 0;
 
-function onload () {
-  var fixtures = node.path.join(script.dirname, "fixtures");
+function onLoad () {
+  var dirname = node.path.dirname(__filename);
+  var fixtures = node.path.join(dirname, "fixtures");
   var x = node.path.join(fixtures, "x.txt");
 
   file = new File;

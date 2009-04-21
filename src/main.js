@@ -72,18 +72,18 @@ node.path = new function () {
   function Scaffold (source, filename, module) {
     // wrap the source in a strange function 
     var source = "function (__filename) {" 
-               + "  var on_load;"
+               + "  var onLoad;"
                + "  var exports = this;"
                + "  var require = this.__require;"
                + "  var include = this.__include;"
                +    source 
-               + "  this.__on_load = on_load;"
+               + "  this.__onLoad = onLoad;"
                + "};"
                ;
     // returns the function       
     var compiled = node.compile(source, filename);
 
-    if (module.__on_load) {
+    if (module.__onLoad) {
       //node.debug("<"+ filename+"> has onload! this is bad");
     }
 
@@ -103,11 +103,11 @@ node.path = new function () {
     this.filename = filename;
     this.module  = module;
     this.subs    = module.__subs;
-    this.on_load = module.__on_load;
+    this.onLoad = module.__onLoad;
 
     // remove these references so they don't get exported.
     delete module.__subs;
-    delete module.__on_load;
+    delete module.__onLoad;
     delete module.__require;
     delete module.__include;
   }
@@ -125,9 +125,9 @@ node.path = new function () {
 
       function finish() {
         //node.debug("finish 1 load <" + filename + ">");
-        if (scaffold.on_load instanceof Function) {
+        if (scaffold.onLoad instanceof Function) {
           //node.debug("foo bar <" + filename + ">"); 
-          scaffold.on_load(); 
+          scaffold.onLoad(); 
         }
         //node.debug("finish 2 load <" + filename + ">");
 

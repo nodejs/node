@@ -1,6 +1,6 @@
 include("mjsunit");
 
-function on_load () {
+function onLoad () {
   assertInstanceof(setTimeout, Function);
   var starttime = new Date;
 

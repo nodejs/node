@@ -1,7 +1,7 @@
 include("mjsunit");
 var a = require("fixtures/a");
 
-function on_load () {
+function onLoad () {
   assertFalse(false, "testing the test program.");
 
   assertInstanceof(a.A, Function);
