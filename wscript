@@ -77,18 +77,18 @@ def build(bld):
   deps_tgt = join(bld.srcnode.abspath(bld.env),"deps")
   v8dir_src = join(deps_src,"v8")
   v8dir_tgt = join(deps_tgt, "v8")
-  v8lib = bld.env["staticlib_PATTERN"] % "v8_g"
-  #v8lib = bld.env["staticlib_PATTERN"] % "v8"
+  #v8lib = bld.env["staticlib_PATTERN"] % "v8_g"
+  v8lib = bld.env["staticlib_PATTERN"] % "v8"
   v8 = bld.new_task_gen(
     target=join("deps/v8",v8lib),
-    rule='cp -rf %s %s && cd %s && scons -Q mode=debug library=static snapshot=on' 
-    #rule='cp -rf %s %s && cd %s && scons -Q library=static snapshot=on' 
+    #rule='cp -rf %s %s && cd %s && scons -Q mode=debug library=static snapshot=on' 
+    rule='cp -rf %s %s && cd %s && scons -Q library=static snapshot=on' 
       % ( v8dir_src , deps_tgt , v8dir_tgt),
     before="cxx"
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
-  #bld.env["STATICLIB_V8"] = "v8"
-  bld.env["STATICLIB_V8"] = "v8_g"
+  bld.env["STATICLIB_V8"] = "v8"
+  #bld.env["STATICLIB_V8"] = "v8_g"
   bld.env["LIBPATH_V8"] = v8dir_tgt
   bld.env["LINKFLAGS_V8"] = "-pthread"
 

@@ -99,6 +99,12 @@ uninstall:
 	else \\
 	    $WAF uninstall ; \\
 	fi;
+ 
+test: all
+	@for i in test/test*.js; do \\
+		echo -n "\$\$i: "; \\
+		build/default/node \$\$i && echo pass || echo fail; \\
+	done 
 
 clean:
 	@$WAF clean
@@ -107,6 +113,7 @@ distclean:
 	@$WAF distclean
 	@-rm -rf _build_
 	@-rm -f Makefile
+	@-rm -f *.pyc
 
 check:
 	@$WAF check
@@ -114,7 +121,7 @@ check:
 dist:
 	@$WAF dist
 
-.PHONY: clean dist distclean check uninstall install all
+.PHONY: clean dist distclean check uninstall install all test
 
 EOF
 }
