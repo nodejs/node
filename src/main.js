@@ -25,8 +25,10 @@ node.path = new function () {
   };
 
   this.dirname = function (path) {
+    if (path.charAt(0) !== "/") 
+      path = "./" + path;
     var parts = path.split("/");
-    return parts.slice(0, parts.length-1);
+    return parts.slice(0, parts.length-1).join("/");
   };
 };
 
@@ -38,6 +40,7 @@ node.path = new function () {
       throw "absolute module paths are not yet supported.";
 
     var filename = node.path.join(base_directory, name) + ".js";
+
     File.exists(filename, function (status) {
       callback(status ? filename : null);
     });
@@ -51,6 +54,7 @@ node.path = new function () {
     this.target = target;
 
     this.load = function (base_directory, callback) {
+      node.debug("sub.load from <" + base_directory + ">  " + this.toString());
       findScript(base_directory, name, function (filename) {
         if (filename === null) {
           stderr.puts("Cannot find a script matching: " + name);
@@ -79,6 +83,10 @@ node.path = new function () {
     // returns the function       
     var compiled = node.compile(source, filename);
 
+    if (module.__on_load) {
+      node.debug("<"+ filename+"> has onload! this is bad");
+    }
+
     module.__subs = [];
     module.__require = function (name) {
       var target = {};
@@ -92,6 +100,7 @@ node.path = new function () {
     compiled.apply(module, [filename]);
 
     // The module still needs to have its submodules loaded.
+    this.filename = filename;
     this.module  = module;
     this.subs    = module.__subs;
     this.on_load = module.__on_load;
@@ -112,9 +121,15 @@ node.path = new function () {
       
       var scaffold = new Scaffold(content, filename, target);
 
+      node.debug("after scaffold <" + filename + ">");
+
       function finish() {
-        if (scaffold.on_load instanceof Function)
+        node.debug("finish 1 load <" + filename + ">");
+        if (scaffold.on_load instanceof Function) {
+          node.debug("foo bar <" + filename + ">"); 
           scaffold.on_load(); 
+        }
+        node.debug("finish 2 load <" + filename + ">");
 
         if (callback instanceof Function)
           callback();
@@ -126,10 +141,13 @@ node.path = new function () {
       if (scaffold.subs.length == 0) {
         finish(); 
       } else {
-        while (scaffold.subs.length > 0) {
-          var sub = scaffold.subs.shift();
+        var ncomplete = 0;
+        for (var i = 0; i < scaffold.subs.length; i++) {
+          var sub = scaffold.subs[i];
           sub.load(node.path.dirname(filename), function () {
-            if(scaffold.subs.length == 0) 
+            ncomplete += 1;
+            node.debug("<" + filename + "> ncomplete = " + ncomplete.toString() + " scaffold.subs.length = " + scaffold.subs.length.toString());
+            if (ncomplete === scaffold.subs.length)
               finish();
           });
         }

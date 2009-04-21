@@ -70,14 +70,18 @@ ExecuteString(v8::Handle<v8::String> source,
               v8::Handle<v8::Value> filename)
 {
   HandleScope scope;
+  TryCatch try_catch;
+
   Handle<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    return ThrowException(String::New("Error compiling string"));
+    ReportException(&try_catch);
+    exit(1);
   }
 
   Handle<Value> result = script->Run();
   if (result.IsEmpty()) {
-    return ThrowException(String::New("Error running string"));
+    ReportException(&try_catch);
+    exit(1);
   }
 
   return scope.Close(result);
@@ -98,6 +102,15 @@ JS_METHOD(compile)
   return scope.Close(result);
 }
 
+JS_METHOD(debug) 
+{
+  if (args.Length() < 1) 
+    return Undefined();
+  HandleScope scope;
+  String::Utf8Value msg(args[0]->ToString());
+  fprintf(stderr, "DEBUG: %s\n", *msg);
+  return Undefined();
+}
 
 static void
 OnFatalError (const char* location, const char* message)
@@ -182,6 +195,7 @@ main (int argc, char *argv[])
   g->Set(String::New("node"), node);
 
   JS_SET_METHOD(node, "compile", compile);
+  JS_SET_METHOD(node, "debug", debug);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {

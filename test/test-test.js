@@ -1,9 +1,13 @@
-puts(__filename);
 include("mjsunit");
-puts(__filename);
+var a = require("fixtures/a");
 
 function on_load () {
+  stderr.puts("hello world");
   assertFalse(false, "testing the test program.");
-  puts("i think everything is okay.");
-  //mjsunit.assertEquals("test-test.js", __file__);
+
+  assertInstanceof(a.A, Function);
+  assertEquals("A", a.A());
+
+  assertInstanceof(a.C, Function);
+  assertEquals("C", a.C());
 }
