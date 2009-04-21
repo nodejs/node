@@ -171,12 +171,14 @@ Socket::AfterResolve (eio_req *req)
 {
   Socket *socket = static_cast<Socket*> (req->data);
   struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
+  req->ptr2 = NULL;
 
   int r = 0;
   if (req->result == 0) {
     r = oi_socket_connect (&socket->socket_, address);
   }
-  freeaddrinfo(address); // this was allocated in the thread pool
+  if (address)
+    freeaddrinfo(address); 
 
   // no error. return.
   if(r == 0 && req->result == 0) {
@@ -185,7 +187,7 @@ Socket::AfterResolve (eio_req *req)
   }
 
   HandleScope scope;
-  Handle<Value> onconnect_value = socket->handle_->Get(ON_READ_SYMBOL);
+  Handle<Value> onconnect_value = socket->handle_->Get(ON_CONNECT_SYMBOL);
   if (!onconnect_value->IsFunction()) return 0; 
   Handle<Function> onconnect = Handle<Function>::Cast(onconnect_value);
 
@@ -407,6 +409,8 @@ Socket::OnTimeout (oi_socket *s)
 {
   Socket *socket = static_cast<Socket*> (s->data);
   HandleScope scope;
+
+  printf("timeout\n");
 
   Handle<Value> ontimeout_value = socket->handle_->Get( String::NewSymbol("onTimeout") );
   if (!ontimeout_value->IsFunction()) return; 
