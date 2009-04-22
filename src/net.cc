@@ -167,7 +167,11 @@ Server::ListenTCP (const Arguments& args)
 Handle<Value>
 Server::Close (const Arguments& args)
 {
+  Server *server = Server::Unwrap(args.Holder());
 
+  oi_server_close(&server->server_);
+
+  return Undefined();
 }
 
 oi_socket*
@@ -449,7 +453,6 @@ Socket::Write (const Arguments& args)
     oi_socket_write(&socket->socket_, buf);
 
   } else return ThrowException(String::New("Bad argument"));
-  
 
   return Undefined();
 }
@@ -610,5 +613,6 @@ NodeInit_net (Handle<Object> target)
   target->Set(String::NewSymbol("Server"), server_template->GetFunction());
 
   NODE_SET_METHOD(server_template->InstanceTemplate(), "listenTCP", Server::ListenTCP);
+  NODE_SET_METHOD(server_template->InstanceTemplate(), "close", Server::Close);
 }
 
