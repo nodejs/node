@@ -15,6 +15,8 @@
 
 using namespace v8;
 
+static Persistent<FunctionTemplate> socket_template;
+
 #define ON_CONNECT_SYMBOL String::NewSymbol("onConnect")
 #define ON_READ_SYMBOL String::NewSymbol("onRead")
 
@@ -80,6 +82,8 @@ private:
 
   char *host_;
   char *port_;
+
+  friend class Server;
 };
 
 Server::Server (Handle<Object> handle, int backlog)
@@ -106,25 +110,86 @@ Server::~Server ()
 Handle<Value>
 Server::New (const Arguments& args)
 {
-  ;
+  HandleScope scope;
+
+  int backlog = 1024; // default
+  if (args.Length() > 0 && args[0]->IsNumber()) 
+    backlog = args[0]->IntegerValue();
+
+  Server *server = new Server(args.Holder(), backlog);
+  if(server == NULL)
+    return Undefined(); // XXX raise error?
+
+  return args.This();
 }
 
 Handle<Value>
 Server::ListenTCP (const Arguments& args)
 {
-  ;
+  if (args.Length() < 2) return Undefined();
+  HandleScope scope;
+
+  Server *server = Server::Unwrap(args.Holder());
+
+  String::AsciiValue port(args[0]);
+
+  int callback_index = 1;
+  char *host = NULL; 
+  if (args[1]->IsString()) {
+    callback_index = 2;
+    String::AsciiValue host_v(args[1]->ToString());
+    if(args[1]->IsString()) host = *host_v;
+  }
+
+  // For servers call getaddrinfo inline. This is blocking but it shouldn't
+  // matter--ever. If someone actually complains then simply swap it out
+  // with a libeio call.
+  struct addrinfo *address = NULL;
+  int r = getaddrinfo(host, *port, &tcp_hints, &address);
+  if (r != 0)
+    return ThrowException(String::New("Error looking up hostname"));
+
+  if (!args[callback_index]->IsFunction())
+    return ThrowException(String::New("Must supply onConnection callback"));
+
+  server->handle_->Set(String::NewSymbol("onConnection"), args[callback_index]);
+
+  r = oi_server_listen(&server->server_, address);
+  if (r != 0)
+    return ThrowException(String::New("Error listening on port"));
+  oi_server_attach(&server->server_, node_loop());
+
+  freeaddrinfo(address);
+
+  return Undefined();
 }
 
 Handle<Value>
 Server::Close (const Arguments& args)
 {
-  ;
+
 }
 
 oi_socket*
-Server::OnConnection (oi_server *, struct sockaddr *remote_addr, socklen_t remote_addr_len)
+Server::OnConnection (oi_server *s, struct sockaddr *remote_addr, socklen_t remote_addr_len)
 {
-  ; 
+  Server *server = static_cast<Server*> (s->data);
+  HandleScope scope;
+
+  Socket *socket = new Socket(socket_template->GetFunction()->NewInstance(), 60.0);
+  socket->handle_->Delete(String::NewSymbol("connectTCP"));
+
+  Local<Value> callback_v = server->handle_->Get(String::NewSymbol("onConnection"));
+  if (!callback_v->IsFunction())
+    return NULL; // produce error?
+
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+  const int argc = 1;
+  Local<Value> argv[argc];
+  argv[0] =  Local<Value>::New(socket->handle_);
+  callback->Call(server->handle_, argc, argv);
+
+  return &socket->socket_;
 }
 
 Server*
@@ -220,7 +285,7 @@ Socket::ConnectTCP (const Arguments& args)
   String::AsciiValue port(args[0]);
   socket->port_ = strdup(*port);
 
-  char *host = NULL; 
+  assert(socket->host_ == NULL);
   String::AsciiValue host_v(args[1]->ToString());
   if(args[1]->IsString()) {
     socket->host_ = strdup(*host_v);
@@ -524,13 +589,13 @@ Socket::OnTimeout (oi_socket *s)
     node_fatal_exception(try_catch);
 }
 
-
 void
 NodeInit_net (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> socket_template = FunctionTemplate::New(Socket::New);
+  Local<FunctionTemplate> socket_template_local = FunctionTemplate::New(Socket::New);
+  socket_template = Persistent<FunctionTemplate>::New(socket_template_local);
   socket_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("Socket"), socket_template->GetFunction());
 
