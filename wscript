@@ -32,6 +32,7 @@ def configure(conf):
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
 
+
   # needs to match the symbols found in libeio and libev
   # __solaris
   # __linux
@@ -49,7 +50,9 @@ def configure(conf):
     conf.define("HAVE_GNUTLS", 1)
 
   conf.define("HAVE_CONFIG_H", 1)
+
   conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
+  conf.check(lib='rt', uselib_store='RT')
 
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
@@ -78,20 +81,20 @@ def build(bld):
   deps_tgt = join(bld.srcnode.abspath(bld.env),"deps")
   v8dir_src = join(deps_src,"v8")
   v8dir_tgt = join(deps_tgt, "v8")
-  v8lib = bld.env["staticlib_PATTERN"] % "v8_g"
-  #v8lib = bld.env["staticlib_PATTERN"] % "v8"
+  #v8lib = bld.env["staticlib_PATTERN"] % "v8_g"
+  v8lib = bld.env["staticlib_PATTERN"] % "v8"
   v8 = bld.new_task_gen(
     target=join("deps/v8",v8lib),
-    rule='cp -rf %s %s && cd %s && python scons.py -Q mode=debug library=static snapshot=on' 
-    #rule='cp -rf %s %s && cd %s && python scons.py -Q library=static snapshot=on' 
+    #rule='cp -rf %s %s && cd %s && python scons.py -Q mode=debug library=static snapshot=on' 
+    rule='cp -rf %s %s && cd %s && python scons.py -Q library=static snapshot=on' 
       % ( v8dir_src , deps_tgt , v8dir_tgt),
     before="cxx"
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
-  #bld.env["STATICLIB_V8"] = "v8"
-  bld.env["STATICLIB_V8"] = "v8_g"
+  bld.env["STATICLIB_V8"] = "v8"
+  #bld.env["STATICLIB_V8"] = "v8_g"
   bld.env["LIBPATH_V8"] = v8dir_tgt
-  bld.env["LINKFLAGS_V8"] = "-pthread -lrt"
+  bld.env["LINKFLAGS_V8"] = "-pthread"
 
   ### oi
   oi = bld.new_task_gen("cc", "staticlib")
@@ -143,7 +146,7 @@ def build(bld):
     deps/libebb
   """
   node.uselib_local = "oi ev eio ebb"
-  node.uselib = "V8"
+  node.uselib = "V8 RT"
 
   if Options.options.debug:
     print "debug build!"
