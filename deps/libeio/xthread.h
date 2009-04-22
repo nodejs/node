@@ -118,6 +118,10 @@ typedef pthread_t thread_t;
 # define PTHREAD_STACK_MIN 0
 #endif
 
+#ifndef XTHREAD_STACKSIZE
+# define XTHREAD_STACKSIZE sizeof (long) * 4096
+#endif
+
 static int
 thread_create (thread_t *tid, void *(*proc)(void *), void *arg)
 {
@@ -127,8 +131,11 @@ thread_create (thread_t *tid, void *(*proc)(void *), void *arg)
 
   pthread_attr_init (&attr);
   pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-  pthread_attr_setstacksize (&attr, PTHREAD_STACK_MIN < sizeof (long) * 4096 * 4
-                                    ? sizeof (long) * 4096 * 4 : PTHREAD_STACK_MIN);
+
+  if (XTHREAD_STACKSIZE > 0)
+    pthread_attr_setstacksize (&attr, PTHREAD_STACK_MIN > (XTHREAD_STACKSIZE)
+                                      ? PTHREAD_STACK_MIN : (XTHREAD_STACKSIZE));
+
 #ifdef PTHREAD_SCOPE_PROCESS
   pthread_attr_setscope (&attr, PTHREAD_SCOPE_PROCESS);
 #endif

@@ -38,6 +38,10 @@
  */
 
 #include "eio.h"
+
+#ifdef EIO_STACKSIZE
+# define XTHREAD_STACKSIZE EIO_STACKSIZE
+#endif
 #include "xthread.h"
 
 #include <errno.h>

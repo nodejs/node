@@ -245,6 +245,27 @@ If you need to know how, check the C<IO::AIO> perl module, which does
 exactly that.
 
 
+=head1 COMPILETIME CONFIGURATION
+
+These symbols, if used, must be defined when compiling F<eio.c>.
+
+=over 4
+
+=item EIO_STACKSIZE
+
+This symbol governs the stack size for each eio thread. Libeio itself
+was written to use very little stackspace, but when using C<EIO_CUSTOM>
+requests, you might want to increase this.
+
+If this symbol is undefined (the default) then libeio will use its default
+stack size (C<sizeof (long) * 4096> currently).  If it is defined, but
+C<0>, then the default operating system stack size will be used. In all
+other cases, the value must be an expression that evaluates to the desired
+stack size.
+
+=back
+
+
 =head1 PORTABILITY REQUIREMENTS
 
 In addition to a working ISO-C implementation, libeio relies on a few
