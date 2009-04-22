@@ -442,7 +442,7 @@ Socket::Write (const Arguments& args)
     oi_buf *buf = oi_buf_new2(length);
     for (int i = 0; i < length; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
-      buf->base[i] = int_value->Int32Value();
+      buf->base[i] = int_value->IntegerValue();
     }
     oi_socket_write(&socket->socket_, buf);
 
@@ -499,7 +499,7 @@ Socket::OnRead (oi_socket *s, const void *buf, size_t count)
       // raw encoding
       Local<Array> array = Array::New(count);
       for (int i = 0; i < count; i++) {
-        int val = static_cast<const int*>(buf)[i];
+        char val = static_cast<const char*>(buf)[i];
         array->Set(Integer::New(i), Integer::New(val));
       }
       argv[0] = array;
