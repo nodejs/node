@@ -1,17 +1,18 @@
 include("mjsunit");
+var N = 1000;
 function onLoad() {
   server = new Server(1024);
   var count = 0;
   server.listenTCP(12123, function (connection) {
     puts("got connection.");
     connection.onRead = function (data) {
-      assertTrue(count <= 10);
+      assertTrue(count <= N);
       if (data === null) {
         server.close();
         connection.close();
         return; 
       }
-      stdout.write ("-");
+      //stdout.write ("-");
       if (/QUIT/.exec(data)) {
         server.close();
         connection.close();
@@ -23,23 +24,23 @@ function onLoad() {
 
   socket = new Socket;
   socket.onRead = function (data) {
-    stdout.write (".");
+    //stdout.write(".");
     assertEquals("PONG", data);
     setTimeout(function() {
       count += 1; 
-      if (count < 10) {
+      if (count < N) {
         socket.write("PING");
       } else {
         stdout.write ("\n");
         socket.write("QUIT\n");
         socket.close();
       }
-    }, 100);
+    }, 10);
   };
 
   socket.onClose = function () {
     puts("socket close.");
-    assertEquals(10, count);
+    assertEquals(N, count);
   };
 
   socket.connectTCP(12123, "localhost", function (status) {
