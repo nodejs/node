@@ -423,6 +423,8 @@ Socket::Write (const Arguments& args)
   HandleScope scope;
 
   Socket *socket = Socket::Unwrap(args.Holder());
+
+  // TODO support a callback using buf->on_release
  
   if (args[0] == Null()) {
     oi_socket_write_eof(&socket->socket_);
@@ -446,10 +448,8 @@ Socket::Write (const Arguments& args)
     }
     oi_socket_write(&socket->socket_, buf);
 
-  } else {
-    // raise error bad argument.
-    assert(0);
-  }
+  } else return ThrowException(String::New("Bad argument"));
+  
 
   return Undefined();
 }
