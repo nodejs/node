@@ -29,20 +29,38 @@ static const struct addrinfo tcp_hints =
 /* ai_next       */ , NULL
                     };
 
+class Server {
+public:
+  Server (Handle<Object> handle, int backlog);
+  ~Server ();
+
+  static Handle<Value> New (const Arguments& args);
+  static Handle<Value> ListenTCP (const Arguments& args);
+  static Handle<Value> Close (const Arguments& args);
+
+private:
+  static oi_socket* OnConnection (oi_server *, struct sockaddr *, socklen_t);
+  static Server* Unwrap (Handle<Object> handle);
+  static void MakeWeak (Persistent<Value> _, void *data);
+  oi_server server_;
+  Persistent<Object> handle_;
+};
 
 class Socket {
 public:
-  Socket (Handle<Object> obj, double timeout);
+  Socket (Handle<Object> handle, double timeout);
   ~Socket ();
 
-  void SetEncoding (enum encoding);
+  void SetEncoding (Handle<Value>);
   void SetTimeout (double);
 
   static Handle<Value> New (const Arguments& args);
   static Handle<Value> Write (const Arguments& args);
   static Handle<Value> Close (const Arguments& args);
   static Handle<Value> ConnectTCP (const Arguments& args);
+  static Handle<Value> SetEncoding (const Arguments& args);
 
+private:
   static void OnConnect (oi_socket *socket);
   static void OnRead (oi_socket *s, const void *buf, size_t count);
   static void OnDrain (oi_socket *s);
@@ -50,10 +68,6 @@ public:
   static void OnClose (oi_socket *s);
   static void OnTimeout (oi_socket *s);
 
-  char *host_;
-  char *port_;
-
-private:
   static int Resolve (eio_req *req);
   static int AfterResolve (eio_req *req);
 
@@ -63,7 +77,71 @@ private:
   enum {UTF8, RAW} encoding_;
   oi_socket socket_;
   Persistent<Object> handle_;
+
+  char *host_;
+  char *port_;
 };
+
+Server::Server (Handle<Object> handle, int backlog)
+{
+  oi_server_init(&server_, backlog);
+  server_.on_connection = Server::OnConnection;
+//  server_.on_error      = Server::OnError;
+  server_.data = this;
+
+  HandleScope scope;
+  handle_ = Persistent<Object>::New(handle);
+  handle_->SetInternalField(0, External::New(this));
+  handle_.MakeWeak(this, Server::MakeWeak);
+}
+
+Server::~Server ()
+{
+  oi_server_close(&server_);
+  oi_server_detach(&server_);
+  handle_.Dispose();
+  handle_.Clear(); // necessary? 
+}
+
+Handle<Value>
+Server::New (const Arguments& args)
+{
+  ;
+}
+
+Handle<Value>
+Server::ListenTCP (const Arguments& args)
+{
+  ;
+}
+
+Handle<Value>
+Server::Close (const Arguments& args)
+{
+  ;
+}
+
+oi_socket*
+Server::OnConnection (oi_server *, struct sockaddr *remote_addr, socklen_t remote_addr_len)
+{
+  ; 
+}
+
+Server*
+Server::Unwrap (Handle<Object> handle)
+{
+  HandleScope scope;
+  Handle<External> field = Handle<External>::Cast(handle->GetInternalField(0));
+  Server* server = static_cast<Server*>(field->Value());
+  return server;
+}
+
+void
+Server::MakeWeak (Persistent<Value> _, void *data)
+{
+  Server *s = static_cast<Server*> (data);
+  delete s;
+}
 
 Handle<Value>
 Socket::New(const Arguments& args)
@@ -103,6 +181,22 @@ Socket::New(const Arguments& args)
     return Undefined(); // XXX raise error?
 
   return args.This();
+}
+
+void
+Socket::SetEncoding (Handle<Value> encoding_value)
+{
+  if (encoding_value->IsString()) {
+    HandleScope scope;
+    Local<String> encoding_string = encoding_value->ToString();
+    char buf[5]; // need enough room for "utf8" or "raw"
+    encoding_string->WriteAscii(buf, 0, 4);
+    buf[4] = '\0';
+    if(strcasecmp(buf, "utf8") == 0)
+      encoding_ = UTF8;
+    else
+      encoding_ = RAW;
+  }
 }
 
 Socket*
@@ -232,10 +326,10 @@ Socket::Socket(Handle<Object> handle, double timeout)
 
   HandleScope scope;
   handle_ = Persistent<Object>::New(handle);
-  handle_->SetInternalField (0, External::New(this));
-  handle_.MakeWeak (this, Socket::MakeWeak);
+  handle_->SetInternalField(0, External::New(this));
+  handle_.MakeWeak(this, Socket::MakeWeak);
 
-  encoding_ = UTF8;
+  encoding_ = UTF8; // default encoding.
   host_ = NULL;
   port_ = NULL;
 }
@@ -248,6 +342,14 @@ Socket::~Socket ()
   free(port_);
   handle_.Dispose();
   handle_.Clear(); // necessary? 
+}
+
+Handle<Value>
+Socket::SetEncoding (const Arguments& args) 
+{
+  Socket *socket = Socket::Unwrap(args.Holder());
+  socket->SetEncoding(args[0]);
+  return Undefined();
 }
 
 Handle<Value>
@@ -410,8 +512,6 @@ Socket::OnTimeout (oi_socket *s)
   Socket *socket = static_cast<Socket*> (s->data);
   HandleScope scope;
 
-  printf("timeout\n");
-
   Handle<Value> ontimeout_value = socket->handle_->Get( String::NewSymbol("onTimeout") );
   if (!ontimeout_value->IsFunction()) return; 
   Handle<Function> ontimeout = Handle<Function>::Cast(ontimeout_value);
@@ -438,6 +538,12 @@ NodeInit_net (Handle<Object> target)
   //NODE_SET_METHOD(socket_template->InstanceTemplate(), "connectUNIX", Socket::ConnectUNIX);
   NODE_SET_METHOD(socket_template->InstanceTemplate(), "write", Socket::Write);
   NODE_SET_METHOD(socket_template->InstanceTemplate(), "close", Socket::Close);
+  NODE_SET_METHOD(socket_template->InstanceTemplate(), "setEncoding", Socket::SetEncoding);
 
+  Local<FunctionTemplate> server_template = FunctionTemplate::New(Server::New);
+  server_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("Server"), server_template->GetFunction());
+
+  NODE_SET_METHOD(server_template->InstanceTemplate(), "listenTCP", Server::ListenTCP);
 }
 

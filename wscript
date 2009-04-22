@@ -63,8 +63,8 @@ def configure(conf):
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O2', '-g'])
-  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O2', '-g'])
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O0', '-g'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O0', '-g'])
   conf.write_config_header("config.h")
 
 def build(bld):

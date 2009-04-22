@@ -44,10 +44,10 @@ static Persistent<String> unlock_str;
 
 #define INVALID_STATE_ERR 1
 
-class Server {
+class HttpServer {
 public:
-  Server (Handle<Object> _js_server);
-  ~Server ();
+  HttpServer (Handle<Object> _js_server);
+  ~HttpServer ();
 
   int Start(struct addrinfo *servinfo);
   void Stop();
@@ -83,7 +83,7 @@ private:
   ebb_request_parser parser;
   list<HttpRequest*> requests;
   list<HttpRequest*> finished_requests;
-  friend class Server;
+  friend class HttpServer;
 };
 
 class HttpRequest {
@@ -461,7 +461,7 @@ on_connection (oi_server *_server, struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
 
-  Server *server = static_cast<Server*> (_server->data);
+  HttpServer *server = static_cast<HttpServer*> (_server->data);
 
   Handle<Value> callback_v = server->Callback();
 
@@ -560,11 +560,11 @@ Connection::Close ( )
 static void
 server_destroy (Persistent<Value> _, void *data)
 {
-  Server *server = static_cast<Server *> (data);
+  HttpServer *server = static_cast<HttpServer *> (data);
   delete server;
 }
 
-Server::Server (Handle<Object> _js_server)
+HttpServer::HttpServer (Handle<Object> _js_server)
 {
   oi_server_init(&server, 1024);
   server.on_connection = on_connection;
@@ -576,7 +576,7 @@ Server::Server (Handle<Object> _js_server)
   js_server.MakeWeak (this, server_destroy);
 }
 
-Server::~Server ()
+HttpServer::~HttpServer ()
 {
   Stop();
   js_server.Dispose();
@@ -584,7 +584,7 @@ Server::~Server ()
 }
 
 int
-Server::Start(struct addrinfo *servinfo) 
+HttpServer::Start(struct addrinfo *servinfo) 
 {
   int r = oi_server_listen(&server, servinfo);
   if(r == 0)
@@ -593,7 +593,7 @@ Server::Start(struct addrinfo *servinfo)
 }
 
 void
-Server::Stop() 
+HttpServer::Stop() 
 {
   oi_server_close (&server);
   oi_server_detach (&server);
@@ -601,7 +601,7 @@ Server::Stop()
 
 /* This constructor takes 2 arguments: host, port. */
 static Handle<Value>
-newHTTPServer (const Arguments& args) 
+newHTTPHttpServer (const Arguments& args) 
 {
   if (args.Length() < 3)
     return Undefined();
@@ -639,7 +639,7 @@ newHTTPServer (const Arguments& args)
   //
   //
 
-  Server *server = new Server(args.This());
+  HttpServer *server = new HttpServer(args.This());
   if(server == NULL)
     return Undefined(); // XXX raise error?
 
@@ -655,7 +655,7 @@ NodeInit_http (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> server_t = FunctionTemplate::New(newHTTPServer);
+  Local<FunctionTemplate> server_t = FunctionTemplate::New(newHTTPHttpServer);
   server_t->InstanceTemplate()->SetInternalFieldCount(1);
   
   server_t->Set("INVALID_STATE_ERR", Integer::New(INVALID_STATE_ERR));

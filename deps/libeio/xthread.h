@@ -127,10 +127,8 @@ thread_create (thread_t *tid, void *(*proc)(void *), void *arg)
 
   pthread_attr_init (&attr);
   pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-  /*
-  pthread_attr_setstacksize (&attr, PTHREAD_STACK_MIN < sizeof (long) * 4096
-                                    ? sizeof (long) * 4096 : PTHREAD_STACK_MIN);
-  */
+  pthread_attr_setstacksize (&attr, PTHREAD_STACK_MIN < sizeof (long) * 4096 * 4
+                                    ? sizeof (long) * 4096 * 4 : PTHREAD_STACK_MIN);
 #ifdef PTHREAD_SCOPE_PROCESS
   pthread_attr_setscope (&attr, PTHREAD_SCOPE_PROCESS);
 #endif
