@@ -365,14 +365,14 @@ File::Write (const Arguments& args)
     // utf8 encoded data
     Local<String> string = args[0]->ToString();
     length = string->Utf8Length();
-    buf = new char[length];
+    buf = static_cast<char*>(malloc(length));
     string->WriteUtf8(buf, length);
     
   } else if (args[0]->IsArray()) {
     // binary data
     Local<Array> array = Local<Array>::Cast(args[0]);
     length = array->Length();
-    buf = new char[length];
+    buf = static_cast<char*>(malloc(length));
     for (int i = 0; i < length; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf[i] = int_value->Int32Value();
@@ -402,8 +402,8 @@ File::AfterWrite (eio_req *req)
 {
   File *file = static_cast<File*>(req->data);
 
-  char *buf = static_cast<char*>(req->ptr2);
-  delete buf;
+  //char *buf = static_cast<char*>(req->ptr2);
+  free(req->ptr2);
   size_t written = req->result;
 
   HandleScope scope;

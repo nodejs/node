@@ -18,6 +18,7 @@ using namespace v8;
 static Persistent<FunctionTemplate> socket_template;
 
 #define ON_CONNECT_SYMBOL String::NewSymbol("onConnect")
+#define ON_CONNECTION_SYMBOL String::NewSymbol("onConnection")
 #define ON_READ_SYMBOL String::NewSymbol("onRead")
 
 static const struct addrinfo tcp_hints = 
@@ -101,6 +102,7 @@ Server::Server (Handle<Object> handle, int backlog)
 
 Server::~Server ()
 {
+  HandleScope scope;
   oi_server_close(&server_);
   oi_server_detach(&server_);
   handle_.Dispose();
@@ -152,7 +154,7 @@ Server::ListenTCP (const Arguments& args)
   if (!args[callback_index]->IsFunction())
     return ThrowException(String::New("Must supply onConnection callback"));
 
-  server->handle_->Set(String::NewSymbol("onConnection"), args[callback_index]);
+  server->handle_->Set(ON_CONNECTION_SYMBOL, args[callback_index]);
 
   r = oi_server_listen(&server->server_, address);
   if (r != 0)
@@ -167,10 +169,9 @@ Server::ListenTCP (const Arguments& args)
 Handle<Value>
 Server::Close (const Arguments& args)
 {
+  HandleScope scope;
   Server *server = Server::Unwrap(args.Holder());
-
   oi_server_close(&server->server_);
-
   return Undefined();
 }
 
@@ -180,10 +181,13 @@ Server::OnConnection (oi_server *s, struct sockaddr *remote_addr, socklen_t remo
   Server *server = static_cast<Server*> (s->data);
   HandleScope scope;
 
-  Socket *socket = new Socket(socket_template->GetFunction()->NewInstance(), 60.0);
+  printf("DEBUG: got connection\n");
+
+  Local<Object> socket_handle = socket_template->GetFunction()->NewInstance();
+  Socket *socket = new Socket(socket_handle, 60.0);
   socket->handle_->Delete(String::NewSymbol("connectTCP"));
 
-  Local<Value> callback_v = server->handle_->Get(String::NewSymbol("onConnection"));
+  Local<Value> callback_v = server->handle_->Get(ON_CONNECTION_SYMBOL);
   if (!callback_v->IsFunction())
     return NULL; // produce error?
 
@@ -307,6 +311,8 @@ Socket::ConnectTCP (const Arguments& args)
    */
   node_eio_warmup();
   eio_req *req = eio_custom (Socket::Resolve, EIO_PRI_DEFAULT, Socket::AfterResolve, socket);
+
+  return Undefined();
 }
 
 /* This function is executed in the thread pool. It cannot touch anything! */
@@ -387,8 +393,8 @@ Socket::Socket(Handle<Object> handle, double timeout)
   oi_socket_init(&socket_, timeout);
   socket_.on_connect = Socket::OnConnect;
   socket_.on_read    = Socket::OnRead;
-  socket_.on_drain   = Socket::OnDrain;
-  socket_.on_error   = Socket::OnError;
+//  socket_.on_drain   = Socket::OnDrain;
+//  socket_.on_error   = Socket::OnError;
   socket_.on_close   = Socket::OnClose;
   socket_.on_timeout = Socket::OnTimeout;
   socket_.data = this;
@@ -405,10 +411,16 @@ Socket::Socket(Handle<Object> handle, double timeout)
 
 Socket::~Socket ()
 {
+  HandleScope scope;
   oi_socket_close(&socket_);
   oi_socket_detach(&socket_);
   free(host_);
   free(port_);
+
+  handle_->SetInternalField(0, Undefined());
+  handle_->Delete(String::NewSymbol("write"));
+  handle_->Delete(String::NewSymbol("close"));
+
   handle_.Dispose();
   handle_.Clear(); // necessary? 
 }
@@ -416,6 +428,7 @@ Socket::~Socket ()
 Handle<Value>
 Socket::SetEncoding (const Arguments& args) 
 {
+  HandleScope scope;
   Socket *socket = Socket::Unwrap(args.Holder());
   socket->SetEncoding(args[0]);
   return Undefined();
@@ -526,7 +539,10 @@ Socket::OnClose (oi_socket *s)
   HandleScope scope;
 
   Handle<Value> onclose_value = socket->handle_->Get( String::NewSymbol("onClose") );
-  if (!onclose_value->IsFunction()) return; 
+  if (!onclose_value->IsFunction()) {
+    delete socket;
+    return;
+  }
   Handle<Function> onclose = Handle<Function>::Cast(onclose_value);
 
   TryCatch try_catch;
@@ -535,6 +551,8 @@ Socket::OnClose (oi_socket *s)
 
   if(try_catch.HasCaught())
     node_fatal_exception(try_catch);
+
+  delete socket;
 }
 
 void
