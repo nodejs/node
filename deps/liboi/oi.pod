@@ -1,0 +1,278 @@
+=head1 NAME
+
+liboi - a C library for doing evented I/O.
+
+=head1 SYNOPSIS
+
+    #include <oi.h>
+
+=head1 DESCRIPTION
+
+liboi is an object oriented library for doing evented socket and file I/O.
+The API is mostly about registering callbacks to be executed on certain
+events.
+
+Because most systems do not support asynchornous file I/O, the behavior is
+emulated with an internal thread pool. The thread pool is accessed with the
+C<oi_async> and C<oi_task> objects. Typically one will not need to use these
+directly as C<oi_file> wraps that functionality. 
+
+=head2 CONVENTIONS
+
+liboi's goal is to be very simple layer above the POSIX API. To that end it
+avoids internal allocations as much as possible. Unless otherwise noted you
+should assume all pointers passed into liboi will remain your responsibility
+to maintain.  That means you should not free the data passed into liboi
+until the object in question has completed.
+
+C<oi_socket> and C<oi_file> objects must be attached to an event loop. This
+is completed with the C<*_attach> and C<*_detach>  methods. When an object
+is detached, other methods can be called - just the loop will not churn out
+callbacks.
+
+Both C<oi_socket> and C<oi_file> contain a number of callback pointers.
+These are to be set manually after calling their initalization functions.
+All classes include a C<void *data> member which is left for you to use.
+
+=head1 ERROR HANDLING
+
+
+=head1 Sockets
+
+The C<oi_socket> structure represents a socket.
+The callbacks inside C<oi_socket> are 
+    void (*on_connect)   (oi_socket *);
+    void (*on_read)      (oi_socket *, const void *buf, size_t count);
+    void (*on_drain)     (oi_socket *);
+    void (*on_error)     (oi_socket *, struct oi_error e);
+    void (*on_close)     (oi_socket *);
+    void (*on_timeout)   (oi_socket *);
+
+A the memory for a socket is released when the C<on_close()> callback is
+made. That is, the user may free the memory for the socket with-in the
+C<on_close()> callback.
+
+=over 4
+
+=item void oi_socket_init (oi_socket *, float timeout);
+
+Initialize a socket. C<timeout> is the number of seconds of inactivity that
+is allowed before the socket closes. The timeout only starts once the
+socket is attached to a loop and open.
+
+A C<timeout> argument of 0.0 signals that no timeout should be used.
+
+After calling this function, register your callbacks manually. Thus your
+code will probably look like this 
+    oi_socket socket;
+    oi_socket_init(&socket, 60.0);
+    socket.on_connect = my_on_connect;
+    socket.on_read = my_on_read;
+    /* etc */
+
+
+=item int oi_socket_connect (oi_socket *, struct addrinfo *addrinfo);
+
+Open a client connect to the specified address. When the connection is made
+C<socket.on_connect> will be called. 
+
+Here is an example of filling in C<addrinfo> for a local TCP connection on
+port 5555:
+    struct addrinfo *servinfo;
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    r = getaddrinfo(NULL, "5555", &hints, &servinfo);
+    assert(r == 0);
+    oi_socket_connect(socket, servinfo);
+
+=item void oi_socket_attach (oi_socket *, struct ev_loop *loop);
+
+A socket must be attached to a loop in order before any callbacks will be
+made. 
+
+=item void oi_socket_detach (oi_socket *);
+
+Detaching a socket will not close the connection.
+
+=item void oi_socket_read_start (oi_socket *);
+
+This will make the socket start receiving data. When data is received the
+C<socket.on_read> callback is made. The maximum amount of data that can be
+receive at a time is controlled by C<socket.chunksize>. 
+
+The buffer returned by C<socket.on_read> is statically allocated exists only
+for the length of the callback. That means if you need to save any of the
+data coming down the line, you must copy it to a new buffer. 
+
+Ideally you will have a parser attached to the C<on_read> callback which can
+be interrupted at any time. 
+
+C<socket.chunksize> can be changed at any time.
+
+=item void oi_socket_read_stop (oi_socket *);
+
+Stops receiving data. You may receive spurious C<on_read> attempts even
+though the socket reading is stopped - be prepared to handle them. 
+
+=item void oi_socket_reset_timeout (oi_socket *);
+
+Reset the timeout to allow the socket to exist for another few seconds
+(however long you specified in the initialization function).  
+
+=item void oi_socket_write (oi_socket *socket, oi_buf *buf);
+
+Write the I<buf> to the socket. Each socket has a queue of C<oi_buf> objects
+to be written - this appends the specified buffer to the end of that queue.
+You will be notified when the queue is empty with the C<socket.on_drain()>
+callback. When the socket has written the buffer C<buf.release()> will be
+called. The release callback does not imply that the buffer was successfully
+written.
+
+=item void oi_socket_write_simple (oi_socket *, const char *str, size_t len);
+
+Sometimes you are just hacking around and need to quickly write a string to
+the socket. This convenience function allocates an C<oi_buf> object, and
+C<strdup>s  the given string. The allocated buffer will be freed by liboi
+internally. 
+
+Most production most applications will use their own memory pool and will
+not need this function. 
+
+=item void oi_socket_write_eof (oi_socket *);
+
+This closes the write end of the socket. Further writes are not allowed
+after this. 
+
+=item void oi_socket_close (oi_socket *);
+
+Attempts to close the socket. 
+
+If the socket is secure, an SSL bye message will be sent. 
+SSL recommends that you wait for a bye response from the peer however this
+tends to be overkill for most people. By default liboi will not wait for
+peer to send a matching bye message. If you require this then set
+C<socket.wait_for_secure_hangup> to 1.
+
+When the close is complete C<on_close()> is made. The C<on_close()>
+callback is not made until the program returns to the event loop. This is
+because C<on_close()> may free the socket memory and if C<on_close()> was
+called from C<oi_socket_close()>, then the socket object might unexpectedly
+be gone. To summarize: C<oi_socket_close()> does not call C<on_close()> and
+the socket memory is still accessable immediately after making calling
+C<oi_socket_close()>. 
+
+=item void oi_socket_set_secure_session (oi_socket *, gnutls_session_t);
+
+This make a socket use SSL. You must create the GnuTLS session yourself and
+assign its credentials.
+
+=back
+
+=head1 Servers
+
+A server simply listens on an address for new connections. The connections
+come in the form of C<oi_socket> objects. The key is to give a
+C<server.on_connection()> callback which returns an initialized C<oi_socket>.
+The callback looks like this 
+
+    oi_socket* (*on_connection) (oi_server *, struct sockaddr *remote_addr, socklen_t remove_addr_len);
+
+Returning NULL from C<on_connection()> will reject the connection.
+
+=over 4
+
+=item void oi_server_init (oi_server *, int backlog);
+
+Initializes a server object. C<backlog> is the argument given
+internally to C<listen()>. Set the C<server.on_connection()> callback
+after calling this.
+
+=item int oi_server_listen (oi_server *, struct addrinfo *addrinfo);
+
+Listens on the specified address. The server will not accept connections
+until it is attached to a loop, however.
+
+=item void oi_server_attach (oi_server *, struct ev_loop *loop);
+
+Attaches a server to a loop. 
+
+=item void oi_server_detach (oi_server *);
+
+Detaches a server to a loop. Does not close the server.
+
+=item void oi_server_close (oi_server *); 
+
+Stops the server from listening. 
+
+=back
+
+=head1 Files
+
+Files internally use a thread pool to operate without blocking.
+The thread pool is started once a file is attached and it continues until
+program termination. 
+
+The following callbacks are used inside of the file object
+    void (*on_open)  (oi_file *);
+    void (*on_read)  (oi_file *, size_t count);
+    void (*on_drain) (oi_file *);
+    void (*on_error) (oi_file *, struct oi_error);
+    void (*on_close) (oi_file *);
+
+=over 4
+
+=item int oi_file_init (oi_file *);
+
+Initializes a file object.
+
+=item void oi_file_attach (oi_file *, struct ev_loop *);
+
+Attaches a file object to a loop. If the thread pool has not been started,
+then it is started at this call. 
+
+=item void oi_file_detach (oi_file *);
+
+Detaches a file object from the loop.
+
+=item int  oi_file_open_path (oi_file *, const char *path, int flags, mode_t mode);
+
+Opens a file specified by the path. The C<flag> and C<mode> arguments are
+the same as used by L<open.2>. The C<file.on_open> callback is triggered
+when the file is opened. Returns 0 on success. Returns -1 if the given file
+is already open.
+
+WARNING: path argument must be valid until C<oi_file> object is closed and
+the C<file.on_close()> callback is made. I.E., liboi does not strdup the path
+pointer. 
+
+=item int oi_file_open_stdin (oi_file *);
+
+=item int oi_file_open_stdout (oi_file *);
+
+=item int oi_file_open_stderr (oi_file *);
+
+=item void oi_file_read_start (oi_file *, void *buffer, size_t bufsize);
+
+
+
+=item void oi_file_read_stop (oi_file *);
+
+=item int oi_file_write (oi_file *, oi_buf *to_write);
+
+=item int oi_file_write_simple (oi_file *, const char *, size_t);
+
+=item int oi_file_send (oi_file *source, oi_socket *destination, off_t offset, size_t length);
+
+=item void oi_file_close (oi_file *);
+
+=over 4
+
+=back
+
+=head1 AUTHOR
+
+Ryan Dahl <ry@tinyclouds.org>
+

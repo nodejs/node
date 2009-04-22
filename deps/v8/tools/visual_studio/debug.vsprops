@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="debug"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		Optimization="0"
+		PreprocessorDefinitions="DEBUG;_DEBUG;ENABLE_DISASSEMBLER"
+		RuntimeLibrary="1"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		LinkIncremental="2"
+	/>
+</VisualStudioPropertySheet>

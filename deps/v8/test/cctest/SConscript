@@ -1,0 +1,85 @@
+# Copyright 2008 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import sys
+from os.path import join, dirname, abspath
+root_dir = dirname(File('SConstruct').rfile().abspath)
+sys.path.append(join(root_dir, 'tools'))
+Import('context object_files')
+
+
+SOURCES = {
+  'all': [
+    'test-alloc.cc',
+    'test-api.cc',
+    'test-ast.cc',
+    'test-compiler.cc',
+    'test-conversions.cc',
+    'test-debug.cc',
+    'test-decls.cc',
+    'test-flags.cc',
+    'test-func-name-inference.cc',
+    'test-hashmap.cc',
+    'test-heap.cc',
+    'test-list.cc',
+    'test-lock.cc',
+    'test-mark-compact.cc',
+    'test-regexp.cc',
+    'test-serialize.cc',
+    'test-sockets.cc',
+    'test-spaces.cc',
+    'test-strings.cc',
+    'test-threads.cc',
+    'test-utils.cc'
+  ],
+  'arch:arm':  ['test-assembler-arm.cc', 'test-disasm-arm.cc'],
+  'arch:ia32': [
+    'test-assembler-ia32.cc',
+    'test-disasm-ia32.cc',
+    'test-log-ia32.cc'
+  ],
+  'os:linux':  ['test-platform-linux.cc'],
+  'os:macos':  ['test-platform-macos.cc'],
+  'os:nullos': ['test-platform-nullos.cc'],
+  'os:win32':  ['test-platform-win32.cc']
+}
+
+
+def Build():
+  cctest_files = context.GetRelevantSources(SOURCES)
+  env = Environment()
+  env.Replace(**context.flags['cctest'])
+  context.ApplyEnvOverrides(env)
+  # There seems to be a glitch in the way scons decides where to put
+  # PDB files when compiling using MSVC so we specify it manually.
+  # This should not affect any other platforms.
+  return env.Program('cctest', ['cctest.cc', cctest_files, object_files],
+      PDB='cctest.exe.pdb')
+
+
+program = Build()
+Return('program')

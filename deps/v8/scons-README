@@ -1,0 +1,204 @@
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008 The SCons Foundation
+
+                 SCons - a software construction tool
+
+This is the scons-README file for a version of SCons packaged for local
+execution--that is, execution out of a specific local directory, without
+having to install SCons as a system-wide utility.
+
+You are likely reading this file in one of the following two situations:
+
+    1)  You have unpacked an scons-local-{version} package and are
+        examining the contents.
+
+        In this case, you are presumably interested in using this
+        package to include a local copy of SCons with some other
+        software that you package, so that you can use SCons to build
+        your software without forcing all of your users to have it fully
+        installed.  Instructions for this can be found below.
+
+        If you are not looking to use SCons in this way, then please
+        use either the scons-{version} package to install SCons on your
+        system, or the scons-src-{version} package if you want the full
+        source to SCons, including its packaging code and underlying
+        tests and testing infrastructure.
+
+    2)  This file was included in some other software package so that
+        the package could be built using SCons.
+
+        In this case, follow the instructions provided with the
+        rest of the software package for how to use SCons to build
+        and/or install the software.  The file containing build and
+        installation instructions will typically be named README or
+        INSTALL.
+
+LATEST VERSION
+==============
+
+Before going further, you can check for the latest version of the
+scons-local package, or any SCons package, at the SCons download page:
+
+        http://www.scons.org/download.html
+
+
+EXECUTION REQUIREMENTS
+======================
+
+Running SCons requires Python version 1.5.2 or later.  There should be
+no other dependencies or requirements to run SCons.
+
+The default SCons configuration assumes use of the Microsoft Visual C++
+compiler suite on WIN32 systems, and assumes a C compiler named 'cc',
+a C++ compiler named 'c++', and a Fortran compiler named 'g77' (such
+as found in the GNU C compiler suite) on any other type of system.
+You may, of course, override these default values by appropriate
+configuration of Environment construction variables.
+
+
+INSTALLATION
+============
+
+Installation of this package should be as simple as unpacking the
+archive (either .tar.gz or .zip) in any directory (top-level or a
+subdirectory) within the software package with which you want to ship
+SCons.
+
+Once you have installed this package, you should write an SConstruct
+file at the top level of your source tree to build your software as you
+see fit.
+
+Then modify the build/install instructions for your package to instruct
+your users to execute SCons as follows (if you installed this package in
+your top-level directory):
+
+        $ python scons.py
+
+Or (if, for example, you installed this package in a subdirectory named
+"scons"):
+
+        $ python scons/scons.py
+
+That should be all you have to do.  (If it isn't that simple, please let
+us know!)
+
+
+CONTENTS OF THIS PACKAGE
+========================
+
+This scons-local package consists of the following:
+
+scons-LICENSE
+        A copy of the copyright and terms under which SCons is
+        distributed (the Open Source Initiative-approved MIT license).
+
+        A disclaimer has been added to the beginning to make clear that
+        this license applies only to SCons, and not to any separate
+        software you've written with which you're planning to package
+        SCons.
+
+scons-README
+        What you're looking at right now.
+
+scons-local-{version}/
+        The SCons build engine.  This is structured as a Python
+        library.
+
+scons.py
+        The SCons script itself.  The script sets up the Python
+        sys.path variable to use the build engine found in the
+        scons-local-{version}/ directory in preference to any other
+        SCons build engine installed on your system.
+
+
+DOCUMENTATION
+=============
+
+Because this package is intended to be included with other software by
+experienced users, we have not included any SCons documentation in this
+package (other than this scons-README file you're reading right now).
+
+If, however, you need documentation about SCons, then consult any of the
+following from the corresponding scons-{version} or scons-src-{version}
+package:
+
+        The RELEASE.txt file (src/RELEASE.txt file in the
+        scons-src-{version} package), which contains notes about this
+        specific release, including known problems.
+
+        The CHANGES.txt file (src/CHANGES.txt file in the
+        scons-src-{version} package), which contains a list of changes
+        since the previous release.
+
+        The scons.1 man page (doc/man/scons.1 in the scons-src-{version}
+        package), which contains a section of small examples for getting
+        started using SCons.
+
+Additional documentation for SCons is available at:
+
+        http://www.scons.org/doc.html
+
+
+LICENSING
+=========
+
+SCons is distributed under the MIT license, a full copy of which is
+available in the scons-LICENSE file in this package. The MIT license is
+an approved Open Source license, which means:
+
+        This software is OSI Certified Open Source Software.  OSI
+        Certified is a certification mark of the Open Source Initiative.
+
+More information about OSI certifications and Open Source software is
+available at:
+
+        http://www.opensource.org/
+
+
+REPORTING BUGS
+==============
+
+You can report bugs either by following the "Tracker - Bugs" link
+on the SCons project page:
+
+        http://sourceforge.net/projects/scons/
+
+or by sending mail to the SCons developers mailing list:
+
+        scons-devel@lists.sourceforge.net
+
+
+MAILING LISTS
+=============
+
+A mailing list for users of SCons is available.  You may send questions
+or comments to the list at:
+
+        scons-users@lists.sourceforge.net
+
+You may subscribe to the scons-users mailing list at:
+
+        http://lists.sourceforge.net/lists/listinfo/scons-users
+
+
+FOR MORE INFORMATION
+====================
+
+Check the SCons web site at:
+
+        http://www.scons.org/
+
+
+AUTHOR INFO
+===========
+
+Steven Knight
+knight at baldmt dot com
+http://www.baldmt.com/~knight/
+
+With plenty of help from the SCons Development team:
+        Chad Austin
+        Charles Crain
+        Steve Leblanc
+        Anthony Roach
+        Terrel Shumway
+

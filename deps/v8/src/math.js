@@ -1,0 +1,190 @@
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+// Keep reference to original values of some global properties.  This
+// has the added benefit that the code in this file is isolated from
+// changes to these properties.
+const $Infinity = global.Infinity;
+const $floor = MathFloor;
+const $random = MathRandom;
+const $abs = MathAbs;
+
+// Instance class name can only be set on functions. That is the only
+// purpose for MathConstructor.
+function MathConstructor() {}
+%FunctionSetInstanceClassName(MathConstructor, 'Math');
+const $Math = new MathConstructor();
+$Math.__proto__ = global.Object.prototype;
+%SetProperty(global, "Math", $Math, DONT_ENUM);
+
+// ECMA 262 - 15.8.2.1
+function MathAbs(x) {
+  if (%_IsSmi(x)) {
+    return x >= 0 ? x : -x;
+  } else {
+    return %Math_abs(ToNumber(x));
+  }
+}
+
+// ECMA 262 - 15.8.2.2
+function MathAcos(x) { return %Math_acos(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.3
+function MathAsin(x) { return %Math_asin(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.4
+function MathAtan(x) { return %Math_atan(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.5
+function MathAtan2(x, y) { return %Math_atan2(ToNumber(x), ToNumber(y)); }
+
+// ECMA 262 - 15.8.2.6
+function MathCeil(x) { return %Math_ceil(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.7
+function MathCos(x) { return %Math_cos(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.8
+function MathExp(x) { return %Math_exp(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.9
+function MathFloor(x) { return %Math_floor(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.10
+function MathLog(x) { return %Math_log(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.11
+function MathMax(arg1, arg2) {  // length == 2
+  var r = -$Infinity;
+  for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
+    var n = ToNumber(%_Arguments(i));
+    if (NUMBER_IS_NAN(n)) return n;
+    // Make sure +0 is consider greater than -0.
+    if (n > r || (n === 0 && r === 0 && (1 / n) > (1 / r))) r = n;
+  }
+  return r;
+}
+
+// ECMA 262 - 15.8.2.12
+function MathMin(arg1, arg2) {  // length == 2
+  var r = $Infinity;
+  for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
+    var n = ToNumber(%_Arguments(i));
+    if (NUMBER_IS_NAN(n)) return n;
+    // Make sure -0 is consider less than +0.
+    if (n < r || (n === 0 && r === 0 && (1 / n) < (1 / r))) r = n;
+  }
+  return r;
+}
+
+// ECMA 262 - 15.8.2.13
+function MathPow(x, y) { return %Math_pow(ToNumber(x), ToNumber(y)); }
+
+// ECMA 262 - 15.8.2.14
+function MathRandom() { return %Math_random(); }
+
+// ECMA 262 - 15.8.2.15
+function MathRound(x) { return %Math_round(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.16
+function MathSin(x) { return %Math_sin(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.17
+function MathSqrt(x) { return %Math_sqrt(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.18
+function MathTan(x) { return %Math_tan(ToNumber(x)); }
+
+
+// -------------------------------------------------------------------
+
+function SetupMath() {
+  // Setup math constants.
+  // ECMA-262, section 15.8.1.1.
+  %SetProperty($Math,
+               "E",
+               2.7182818284590452354,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.2.
+  %SetProperty($Math,
+               "LN10",
+               2.302585092994046,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.3.
+  %SetProperty($Math,
+               "LN2",
+               0.6931471805599453,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.4.
+  %SetProperty($Math,
+               "LOG2E",
+               1.4426950408889634,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LOG10E",
+               0.43429448190325176,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "PI",
+               3.1415926535897932,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT1_2",
+               0.7071067811865476,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT2",
+               1.4142135623730951,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+
+  // Setup non-enumerable functions of the Math object and
+  // set their names.
+  InstallFunctions($Math, DONT_ENUM, $Array(
+    "random", MathRandom,
+    "abs", MathAbs,
+    "acos", MathAcos,
+    "asin", MathAsin,
+    "atan", MathAtan,
+    "ceil", MathCeil,
+    "cos", MathCos,
+    "exp", MathExp,
+    "floor", MathFloor,
+    "log", MathLog,
+    "round", MathRound,
+    "sin", MathSin,
+    "sqrt", MathSqrt,
+    "tan", MathTan,
+    "atan2", MathAtan2,
+    "pow", MathPow,
+    "max", MathMax,
+    "min", MathMin
+  ));
+};
+
+
+SetupMath();

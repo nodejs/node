@@ -82,8 +82,8 @@ def build(bld):
   #v8lib = bld.env["staticlib_PATTERN"] % "v8"
   v8 = bld.new_task_gen(
     target=join("deps/v8",v8lib),
-    rule='cp -rf %s %s && cd %s && scons -Q mode=debug library=static snapshot=on' 
-    #rule='cp -rf %s %s && cd %s && scons -Q library=static snapshot=on' 
+    rule='cp -rf %s %s && cd %s && python scons.py -Q mode=debug library=static snapshot=on' 
+    #rule='cp -rf %s %s && cd %s && python scons.py -Q library=static snapshot=on' 
       % ( v8dir_src , deps_tgt , v8dir_tgt),
     before="cxx"
   )
@@ -91,20 +91,20 @@ def build(bld):
   #bld.env["STATICLIB_V8"] = "v8"
   bld.env["STATICLIB_V8"] = "v8_g"
   bld.env["LIBPATH_V8"] = v8dir_tgt
-  bld.env["LINKFLAGS_V8"] = "-pthread"
+  bld.env["LINKFLAGS_V8"] = "-pthread -lrt"
 
   ### oi
   oi = bld.new_task_gen("cc", "staticlib")
-  oi.source = "deps/oi/oi_socket.c deps/oi/oi_buf.c"
-  oi.includes = "deps/oi/"
+  oi.source = "deps/liboi/oi_socket.c deps/liboi/oi_buf.c"
+  oi.includes = "deps/liboi/"
   oi.name = "oi"
   oi.target = "oi"
   oi.uselib = "GNUTLS"
 
   ### ebb
   ebb = bld.new_task_gen("cc", "staticlib")
-  ebb.source = "deps/ebb/ebb_request_parser.rl"
-  ebb.includes = "deps/ebb/"
+  ebb.source = "deps/libebb/ebb_request_parser.rl"
+  ebb.includes = "deps/libebb/"
   ebb.name = "ebb"
   ebb.target = "ebb"
 
@@ -139,8 +139,8 @@ def build(bld):
     deps/v8/include
     deps/libev
     deps/libeio
-    deps/oi 
-    deps/ebb
+    deps/liboi 
+    deps/libebb
   """
   node.uselib_local = "oi ev eio ebb"
   node.uselib = "V8"

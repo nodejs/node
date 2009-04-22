@@ -1,0 +1,50 @@
+# Copyright 2008 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+prefix cctest
+
+# BUG(96): Fix this flaky test.
+test-debug/ThreadedDebugging: PASS || FAIL
+
+# BUG(281): This test fails on some Linuxes.
+test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
+
+[ $arch == arm ]
+
+test-debug: SKIP
+
+# BUG(113): Test seems flaky on ARM.
+test-spaces/LargeObjectSpace: PASS || FAIL
+
+# BUG(240): Test seems flaky on ARM.
+test-api/RegExpInterruption: SKIP
+
+# BUG(271): During exception propagation, we compare pointers into the
+# stack.  These tests fail on the ARM simulator because the C++ and
+# the JavaScript stacks are separate.
+test-api/ExceptionOrder: PASS || FAIL
+test-api/TryCatchInTryFinally: PASS || FAIL

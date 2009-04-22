@@ -4,19 +4,11 @@
 
 # Fancy colors used to beautify the output a bit.
 #
-if [ "$NOCOLOR" ] ; then
-    NORMAL=""
-    BOLD=""
-    RED=""
-    YELLOW=""
-    GREEN=""
-else
-    NORMAL='\\033[0m'
-    BOLD='\\033[01;1m'
-    RED='\\033[01;91m'
-    YELLOW='\\033[00;33m'
-    GREEN='\\033[01;92m'
-fi
+NORMAL=""
+BOLD=""
+RED=""
+YELLOW=""
+GREEN=""
 
 EXIT_SUCCESS=0
 EXIT_FAILURE=1

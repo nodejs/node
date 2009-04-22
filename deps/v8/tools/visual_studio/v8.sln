@@ -1,0 +1,101 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_base", "v8_base.vcproj", "{EC8B7909-62AF-470D-A75D-E1D89C837142}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8", "v8.vcproj", "{21E22961-22BF-4493-BD3A-868F93DA5179}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EC8B7909-62AF-470D-A75D-E1D89C837142} = {EC8B7909-62AF-470D-A75D-E1D89C837142}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_mksnapshot", "v8_mksnapshot.vcproj", "{865575D0-37E2-405E-8CBA-5F6C485B5A26}"
+	ProjectSection(ProjectDependencies) = postProject
+		{21E22961-22BF-4493-BD3A-868F93DA5179} = {21E22961-22BF-4493-BD3A-868F93DA5179}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_snapshot", "v8_snapshot.vcproj", "{C0334F9A-1168-4101-9DD8-C30FB252D435}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F} = {0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}
+		{EC8B7909-62AF-470D-A75D-E1D89C837142} = {EC8B7909-62AF-470D-A75D-E1D89C837142}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_shell_sample", "v8_shell_sample.vcproj", "{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{E131F77D-B713-48F3-B86D-097ECDCC4C3A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_process_sample", "v8_process_sample.vcproj", "{EF019874-D38A-40E3-B17C-DB5923F0A79C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_cctest", "v8_cctest.vcproj", "{97ECC711-7430-4FC4-90FD-004DA880E72A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{AD933CE2-1303-448E-89C8-60B1FDD18EC3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "d8", "d8.vcproj", "{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_snapshot_cc", "v8_snapshot_cc.vcproj", "{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26} = {865575D0-37E2-405E-8CBA-5F6C485B5A26}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Debug|Win32.Build.0 = Debug|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Release|Win32.ActiveCfg = Release|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Release|Win32.Build.0 = Release|Win32
+		{21E22961-22BF-4493-BD3A-868F93DA5179}.Debug|Win32.ActiveCfg = Debug|Win32
+		{21E22961-22BF-4493-BD3A-868F93DA5179}.Debug|Win32.Build.0 = Debug|Win32
+		{21E22961-22BF-4493-BD3A-868F93DA5179}.Release|Win32.ActiveCfg = Release|Win32
+		{21E22961-22BF-4493-BD3A-868F93DA5179}.Release|Win32.Build.0 = Release|Win32
+		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Debug|Win32.Build.0 = Debug|Win32
+		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Release|Win32.ActiveCfg = Release|Win32
+		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Release|Win32.Build.0 = Release|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Debug|Win32.Build.0 = Debug|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Release|Win32.ActiveCfg = Release|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Release|Win32.Build.0 = Release|Win32
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Debug|Win32.ActiveCfg = Debug|Win32
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Debug|Win32.Build.0 = Debug|Win32
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Release|Win32.ActiveCfg = Release|Win32
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Release|Win32.Build.0 = Release|Win32
+		{97ECC711-7430-4FC4-90FD-004DA880E72A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{97ECC711-7430-4FC4-90FD-004DA880E72A}.Debug|Win32.Build.0 = Debug|Win32
+		{97ECC711-7430-4FC4-90FD-004DA880E72A}.Release|Win32.ActiveCfg = Release|Win32
+		{97ECC711-7430-4FC4-90FD-004DA880E72A}.Release|Win32.Build.0 = Release|Win32
+		{C0334F9A-1168-4101-9DD8-C30FB252D435}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C0334F9A-1168-4101-9DD8-C30FB252D435}.Debug|Win32.Build.0 = Debug|Win32
+		{C0334F9A-1168-4101-9DD8-C30FB252D435}.Release|Win32.ActiveCfg = Release|Win32
+		{C0334F9A-1168-4101-9DD8-C30FB252D435}.Release|Win32.Build.0 = Release|Win32
+		{EC8B7909-62AF-470D-A75D-E1D89C837142}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EC8B7909-62AF-470D-A75D-E1D89C837142}.Debug|Win32.Build.0 = Debug|Win32
+		{EC8B7909-62AF-470D-A75D-E1D89C837142}.Release|Win32.ActiveCfg = Release|Win32
+		{EC8B7909-62AF-470D-A75D-E1D89C837142}.Release|Win32.Build.0 = Release|Win32
+		{EF019874-D38A-40E3-B17C-DB5923F0A79C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EF019874-D38A-40E3-B17C-DB5923F0A79C}.Debug|Win32.Build.0 = Debug|Win32
+		{EF019874-D38A-40E3-B17C-DB5923F0A79C}.Release|Win32.ActiveCfg = Release|Win32
+		{EF019874-D38A-40E3-B17C-DB5923F0A79C}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119} = {E131F77D-B713-48F3-B86D-097ECDCC4C3A}
+		{97ECC711-7430-4FC4-90FD-004DA880E72A} = {AD933CE2-1303-448E-89C8-60B1FDD18EC3}
+		{EF019874-D38A-40E3-B17C-DB5923F0A79C} = {E131F77D-B713-48F3-B86D-097ECDCC4C3A}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="release"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		RuntimeLibrary="0"
+		Optimization="2"
+		InlineFunctionExpansion="2"
+		EnableIntrinsicFunctions="true"
+		FavorSizeOrSpeed="0"
+		OmitFramePointers="true"
+		StringPooling="true"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		LinkIncremental="1"
+		OptimizeReferences="2"
+		OptimizeForWindows98="1"
+		EnableCOMDATFolding="2"
+	/>
+</VisualStudioPropertySheet>
