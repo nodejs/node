@@ -36,6 +36,7 @@ function onLoad() {
       }
     }, 100);
   };
+
   socket.onClose = function () {
     puts("socket close.");
     assertEquals(10, count);
