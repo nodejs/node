@@ -181,8 +181,6 @@ Server::OnConnection (oi_server *s, struct sockaddr *remote_addr, socklen_t remo
   Server *server = static_cast<Server*> (s->data);
   HandleScope scope;
 
-  printf("DEBUG: got connection\n");
-
   Local<Object> socket_handle = socket_template->GetFunction()->NewInstance();
   Socket *socket = new Socket(socket_handle, 60.0);
   socket->handle_->Delete(String::NewSymbol("connectTCP"));
