@@ -40,7 +40,11 @@ File.cat = function (path, callback) {
 }
 
 File.prototype.puts = function (data, callback) {
-  this.write(data + "\n", callback);
+  this.write(data + "\n", -1, callback);
+};
+
+File.prototype.print = function (data, callback) {
+  this.write(data, -1, callback);
 };
 
 File.prototype.open = function (path, mode, callback) {

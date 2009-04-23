@@ -126,7 +126,7 @@ node.path = new function () {
       function finish() {
         //node.debug("finish 1 load <" + filename + ">");
         if (scaffold.onLoad instanceof Function) {
-          //node.debug("foo bar <" + filename + ">"); 
+          //node.debug("calling onLoad for <" + filename + ">"); 
           scaffold.onLoad(); 
         }
         //node.debug("finish 2 load <" + filename + ">");

@@ -80,9 +80,9 @@ all-progress:
 
 install:
 	if test -n "\$(DESTDIR)"; then \\
-	    $WAF install --yes --destdir="\$(DESTDIR)" ; \\
+	    $WAF install --destdir="\$(DESTDIR)" ; \\
 	else \\
-	    $WAF install --yes ; \\
+	    $WAF install ; \\
 	fi;
 
 uninstall:
