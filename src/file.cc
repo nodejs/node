@@ -383,7 +383,7 @@ File::Write (const Arguments& args)
     return Undefined();
   }
 
-  size_t pos = args[1]->Uint32Value();
+  off_t pos = args[1]->IntegerValue();
 
   if (file->handle_->Has(FD_SYMBOL) == false) {
     printf("trying to write to a bad fd!\n");  
@@ -428,7 +428,7 @@ File::Read (const Arguments& args)
   HandleScope scope;
   File *file = File::Unwrap(args.Holder());
   size_t length = args[0]->IntegerValue();
-  size_t pos = args[1]->Uint32Value();
+  off_t pos = args[1]->IntegerValue();
 
   int fd = file->GetFD();
 
