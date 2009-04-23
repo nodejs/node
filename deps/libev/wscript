@@ -52,4 +52,5 @@ def build(bld):
   libev.target = 'ev'
   libev.name = 'ev'
   libev.includes = '. ../..'
+  libev.clone("debug");
 

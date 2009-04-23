@@ -117,4 +117,5 @@ def build(bld):
   libeio.target = 'eio'
   libeio.name = 'eio'
   libeio.includes = '. ../..'
+  libeio.clone("debug");
 

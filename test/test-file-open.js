@@ -10,5 +10,6 @@ function onLoad () {
   file.open(x, "r", function (status) {
     assertTrue(status == 0);
     assert_count += 1;
+    file.close();
   });
 };
