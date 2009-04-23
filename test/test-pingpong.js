@@ -12,7 +12,7 @@ function onLoad() {
         connection.close();
         return; 
       }
-      //stdout.write ("-");
+      stdout.print ("-");
       if (/QUIT/.exec(data)) {
         server.close();
         connection.close();
@@ -24,7 +24,7 @@ function onLoad() {
 
   socket = new Socket;
   socket.onRead = function (data) {
-    //stdout.write(".");
+    stdout.print (".");
     assertEquals("PONG", data);
     setTimeout(function() {
       count += 1; 
@@ -43,7 +43,7 @@ function onLoad() {
     assertEquals(N, count);
   };
 
-  socket.connectTCP(12123, "localhost", function (status) {
+  socket.connectTCP(12123, "127.0.0.1", function (status) {
     if(status != 0)
       process.exit(1);
 
