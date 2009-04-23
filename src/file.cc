@@ -351,8 +351,8 @@ File::AfterOpen (eio_req *req)
 Handle<Value>
 File::Write (const Arguments& args)
 {
-  if (args.Length() < 1) return Undefined();
-  if (!args[0]->IsString()) 
+  if (args.Length() < 2) return Undefined();
+  if (!args[1]->IsNumber()) return Undefined();
 
   HandleScope scope;
 
@@ -362,14 +362,14 @@ File::Write (const Arguments& args)
   size_t length = 0;
 
   if (args[0]->IsString()) {
-    // utf8 encoded data
+    // utf8 encoding
     Local<String> string = args[0]->ToString();
     length = string->Utf8Length();
     buf = static_cast<char*>(malloc(length));
     string->WriteUtf8(buf, length);
     
   } else if (args[0]->IsArray()) {
-    // binary data
+    // raw encoding
     Local<Array> array = Local<Array>::Cast(args[0]);
     length = array->Length();
     buf = static_cast<char*>(malloc(length));
@@ -383,6 +383,8 @@ File::Write (const Arguments& args)
     return Undefined();
   }
 
+  size_t pos = args[1]->Uint32Value();
+
   if (file->handle_->Has(FD_SYMBOL) == false) {
     printf("trying to write to a bad fd!\n");  
     return Undefined();
@@ -390,9 +392,8 @@ File::Write (const Arguments& args)
 
   int fd = file->GetFD();
 
-  // NOTE: -1 offset in eio_write() invokes write() instead of pwrite()
   node_eio_warmup();
-  eio_req *req = eio_write(fd, buf, length, -1, EIO_PRI_DEFAULT, File::AfterWrite, file);
+  eio_req *req = eio_write(fd, buf, length, pos, EIO_PRI_DEFAULT, File::AfterWrite, file);
 
   return Undefined();
 }
@@ -422,17 +423,18 @@ File::Read (const Arguments& args)
 {
   if (args.Length() < 1) return Undefined();
   if (!args[0]->IsNumber()) return Undefined();
+  if (!args[1]->IsNumber()) return Undefined();
 
   HandleScope scope;
   File *file = File::Unwrap(args.Holder());
   size_t length = args[0]->IntegerValue();
+  size_t pos = args[1]->Uint32Value();
 
   int fd = file->GetFD();
 
-  // NOTE: -1 offset in eio_read() invokes read() instead of pread()
-  //       NULL pointer tells eio to allocate it itself
+  // NOTE: NULL pointer tells eio to allocate it itself
   node_eio_warmup();
-  eio_req *req = eio_read(fd, NULL, length, -1, EIO_PRI_DEFAULT, File::AfterRead, file);
+  eio_req *req = eio_read(fd, NULL, length, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
   assert(req);
 
   return Undefined();

@@ -15,11 +15,14 @@ File.exists = function (path, callback) {
 File.cat = function (path, callback) {
   var content = "";
   var file = new File;
+  var pos = 0;
+  var chunkSize = 10*1024;
 
   function readChunk () {
-    file.read(1024, function (status, chunk) {
+    file.read(chunkSize, pos, function (status, chunk) {
       if (chunk) {
         content += chunk.encodeUtf8();
+        pos += chunk.length;
         readChunk();
       } else {
         callback(0, content);
@@ -48,12 +51,12 @@ File.prototype.close = function (callback) {
   this._addAction("close", [], callback);
 };
 
-File.prototype.write = function (buf, callback) {
-  this._addAction("write", [buf], callback);
+File.prototype.write = function (buf, pos, callback) {
+  this._addAction("write", [buf, pos], callback);
 };
 
-File.prototype.read = function (length, callback) {
-  this._addAction("read", [length], callback);
+File.prototype.read = function (length, pos, callback) {
+  this._addAction("read", [length, pos], callback);
 };
 
 // Some explanation of the File binding.
@@ -92,6 +95,7 @@ File._addAction = File.prototype._addAction = function (method, args, callback) 
 File._act = File.prototype._act = function () {
   var action = this._actionQueue[0];
   if (action)
+    // TODO FIXME what if the action throws an error?
     this["_ffi_" + action.method].apply(this, action.args);
 };
 
