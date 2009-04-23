@@ -19,12 +19,12 @@ def set_options(opt):
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
   opt.tool_options('ragel', tdir=".")
-#  opt.add_option( '--debug'
-#                , action='store_true'
-#                , default=False
-#                , help='Build debug variant [Default: False]'
-#                , dest='debug'
-#                )
+  opt.add_option( '--debug'
+                , action='store_true'
+                , default=False
+                , help='Build debug variant [Default: False]'
+                , dest='debug'
+                )
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
@@ -34,6 +34,7 @@ def configure(conf):
     fatal('ragel not found')
     exit(1)
 
+  conf.env["USE_DEBUG"] = bld.env["USE_DEBUG"]
 
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
@@ -89,7 +90,6 @@ def build(bld):
            'cd %s && ' \
            'python scons.py -Q mode=%s library=static snapshot=on'
 
-
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
     rule=v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "release"),
@@ -101,15 +101,16 @@ def build(bld):
   bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
 
   ### v8 debug
-  deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("debug")),"deps")
-  v8dir_tgt = join(deps_tgt, "v8")
+  if bld.env["USE_DEBUG"]:
+    deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("debug")),"deps")
+    v8dir_tgt = join(deps_tgt, "v8")
 
-  v8_debug = v8.clone("debug")
-  bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
-  bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
-  bld.env_of_name('debug')["LINKFLAGS_V8"] = "-pthread"
-  v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "debug")
-  v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
+    v8_debug = v8.clone("debug")
+    bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
+    bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
+    bld.env_of_name('debug')["LINKFLAGS_V8"] = "-pthread"
+    v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "debug")
+    v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
   ### oi
   oi = bld.new_task_gen("cc", "staticlib")
@@ -118,7 +119,8 @@ def build(bld):
   oi.name = "oi"
   oi.target = "oi"
   oi.uselib = "GNUTLS"
-  oi.clone("debug")
+  if bld.env["USE_DEBUG"]:
+    oi.clone("debug")
 
   ### ebb
   ebb = bld.new_task_gen("cc", "staticlib")
@@ -126,7 +128,8 @@ def build(bld):
   ebb.includes = "deps/libebb/"
   ebb.name = "ebb"
   ebb.target = "ebb"
-  ebb.clone("debug")
+  if bld.env["USE_DEBUG"]:
+    ebb.clone("debug")
 
   ### src/native.cc
   def javascript_in_c(task):
@@ -141,7 +144,8 @@ def build(bld):
     rule=javascript_in_c,
     before="cxx"
   )
-  native_cc.clone("debug")
+  if bld.env["USE_DEBUG"]:
+    native_cc.clone("debug")
 
   ### node
   node = bld.new_task_gen("cxx", "program")
@@ -164,5 +168,6 @@ def build(bld):
   """
   node.uselib_local = "oi ev eio ebb"
   node.uselib = "V8 RT"
-  node.clone("debug")
+  if bld.env["USE_DEBUG"]:
+    node.clone("debug")
 

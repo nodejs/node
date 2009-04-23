@@ -52,5 +52,6 @@ def build(bld):
   libev.target = 'ev'
   libev.name = 'ev'
   libev.includes = '. ../..'
-  libev.clone("debug");
+  if bld.env["USE_DEBUG"]:
+    libev.clone("debug");
 
