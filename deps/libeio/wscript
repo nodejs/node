@@ -117,6 +117,7 @@ def build(bld):
   libeio.target = 'eio'
   libeio.name = 'eio'
   libeio.includes = '. ../..'
+  libeio.install_path = None
   if bld.env["USE_DEBUG"]:
     libeio.clone("debug");
 

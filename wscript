@@ -34,7 +34,7 @@ def configure(conf):
     fatal('ragel not found')
     exit(1)
 
-  conf.env["USE_DEBUG"] = bld.env["USE_DEBUG"]
+  conf.env["USE_DEBUG"] = Options.options.debug
 
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
@@ -93,7 +93,8 @@ def build(bld):
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
     rule=v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "release"),
-    before="cxx"
+    before="cxx",
+    install_path = None
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   bld.env["LINKFLAGS_V8"] = "-pthread"
@@ -119,6 +120,7 @@ def build(bld):
   oi.name = "oi"
   oi.target = "oi"
   oi.uselib = "GNUTLS"
+  oi.install_path = None
   if bld.env["USE_DEBUG"]:
     oi.clone("debug")
 
@@ -128,6 +130,7 @@ def build(bld):
   ebb.includes = "deps/libebb/"
   ebb.name = "ebb"
   ebb.target = "ebb"
+  ebb.install_path = None
   if bld.env["USE_DEBUG"]:
     ebb.clone("debug")
 
@@ -144,6 +147,7 @@ def build(bld):
     rule=javascript_in_c,
     before="cxx"
   )
+  native_cc.install_path = None
   if bld.env["USE_DEBUG"]:
     native_cc.clone("debug")
 
@@ -168,6 +172,9 @@ def build(bld):
   """
   node.uselib_local = "oi ev eio ebb"
   node.uselib = "V8 RT"
+  node.install_path = '${PREFIX}/bin'
+  node.chmod = 0755
+
   if bld.env["USE_DEBUG"]:
     node.clone("debug")
 
