@@ -32,7 +32,7 @@ static const struct addrinfo tcp_hints =
 /* ai_next       */ , NULL
                     };
 
-class Server {
+class Server : node::ObjectWrap {
 public:
   Server (Handle<Object> handle, int backlog);
   ~Server ();
@@ -43,13 +43,10 @@ public:
 
 private:
   static oi_socket* OnConnection (oi_server *, struct sockaddr *, socklen_t);
-  static Server* Unwrap (Handle<Object> handle);
-  static void MakeWeak (Persistent<Value> _, void *data);
   oi_server server_;
-  Persistent<Object> handle_;
 };
 
-class Socket {
+class Socket : node::ObjectWrap {
 public:
   Socket (Handle<Object> handle, double timeout);
   ~Socket ();
@@ -74,12 +71,8 @@ private:
   static int Resolve (eio_req *req);
   static int AfterResolve (eio_req *req);
 
-  static Socket* Unwrap (Handle<Object> handle);
-  static void MakeWeak (Persistent<Value> _, void *data);
-
   enum {UTF8, RAW} encoding_;
   oi_socket socket_;
-  Persistent<Object> handle_;
 
   char *host_;
   char *port_;
@@ -88,25 +81,20 @@ private:
 };
 
 Server::Server (Handle<Object> handle, int backlog)
+  : ObjectWrap(handle)
 {
+  //HandleScope scope;
   oi_server_init(&server_, backlog);
   server_.on_connection = Server::OnConnection;
 //  server_.on_error      = Server::OnError;
   server_.data = this;
-
-  HandleScope scope;
-  handle_ = Persistent<Object>::New(handle);
-  handle_->SetInternalField(0, External::New(this));
-  handle_.MakeWeak(this, Server::MakeWeak);
 }
 
 Server::~Server ()
 {
-  HandleScope scope;
+  //HandleScope scope;
   oi_server_close(&server_);
   oi_server_detach(&server_);
-  handle_.Dispose();
-  handle_.Clear(); // necessary? 
 }
 
 Handle<Value>
@@ -131,7 +119,7 @@ Server::ListenTCP (const Arguments& args)
   if (args.Length() < 2) return Undefined();
   HandleScope scope;
 
-  Server *server = Server::Unwrap(args.Holder());
+  Server *server = NODE_UNWRAP(Server, args.Holder());
 
   String::AsciiValue port(args[0]);
 
@@ -170,7 +158,7 @@ Handle<Value>
 Server::Close (const Arguments& args)
 {
   HandleScope scope;
-  Server *server = Server::Unwrap(args.Holder());
+  Server *server = NODE_UNWRAP(Server, args.Holder());
   oi_server_close(&server->server_);
   return Undefined();
 }
@@ -196,22 +184,6 @@ Server::OnConnection (oi_server *s, struct sockaddr *remote_addr, socklen_t remo
   callback->Call(server->handle_, argc, argv);
 
   return &socket->socket_;
-}
-
-Server*
-Server::Unwrap (Handle<Object> handle)
-{
-  HandleScope scope;
-  Handle<External> field = Handle<External>::Cast(handle->GetInternalField(0));
-  Server* server = static_cast<Server*>(field->Value());
-  return server;
-}
-
-void
-Server::MakeWeak (Persistent<Value> _, void *data)
-{
-  Server *s = static_cast<Server*> (data);
-  delete s;
 }
 
 Handle<Value>
@@ -270,15 +242,6 @@ Socket::SetEncoding (Handle<Value> encoding_value)
   }
 }
 
-Socket*
-Socket::Unwrap (Handle<Object> handle) 
-{
-  HandleScope scope;
-  Handle<External> field = Handle<External>::Cast(handle->GetInternalField(0));
-  Socket* socket = static_cast<Socket*>(field->Value());
-  return socket;
-}
-
 Handle<Value>
 Socket::ConnectTCP (const Arguments& args)
 {
@@ -286,7 +249,7 @@ Socket::ConnectTCP (const Arguments& args)
     return Undefined();
 
   HandleScope scope;
-  Socket *socket = Socket::Unwrap(args.Holder());
+  Socket *socket = NODE_UNWRAP(Socket, args.Holder());
 
   String::AsciiValue port(args[0]);
   socket->port_ = strdup(*port);
@@ -374,20 +337,15 @@ Handle<Value>
 Socket::Close (const Arguments& args) 
 {
   HandleScope scope;
-  Socket *socket = Socket::Unwrap(args.Holder());
+  Socket *socket = NODE_UNWRAP(Socket, args.Holder());
   oi_socket_close(&socket->socket_);
   return Undefined();
 }
 
-void
-Socket::MakeWeak (Persistent<Value> _, void *data)
-{
-  Socket *s = static_cast<Socket*> (data);
-  delete s;
-}
-
 Socket::Socket(Handle<Object> handle, double timeout)
+  : ObjectWrap(handle)
 {
+  //HandleScope scope;
   oi_socket_init(&socket_, timeout);
   socket_.on_connect = Socket::OnConnect;
   socket_.on_read    = Socket::OnRead;
@@ -397,11 +355,6 @@ Socket::Socket(Handle<Object> handle, double timeout)
   socket_.on_timeout = Socket::OnTimeout;
   socket_.data = this;
 
-  HandleScope scope;
-  handle_ = Persistent<Object>::New(handle);
-  handle_->SetInternalField(0, External::New(this));
-  handle_.MakeWeak(this, Socket::MakeWeak);
-
   encoding_ = UTF8; // default encoding.
   host_ = NULL;
   port_ = NULL;
@@ -409,25 +362,21 @@ Socket::Socket(Handle<Object> handle, double timeout)
 
 Socket::~Socket ()
 {
-  HandleScope scope;
   oi_socket_close(&socket_);
   oi_socket_detach(&socket_);
   free(host_);
   free(port_);
 
-  handle_->SetInternalField(0, Undefined());
+  //HandleScope scope;
   handle_->Delete(String::NewSymbol("write"));
   handle_->Delete(String::NewSymbol("close"));
-
-  handle_.Dispose();
-  handle_.Clear(); // necessary? 
 }
 
 Handle<Value>
 Socket::SetEncoding (const Arguments& args) 
 {
   HandleScope scope;
-  Socket *socket = Socket::Unwrap(args.Holder());
+  Socket *socket = NODE_UNWRAP(Socket, args.Holder());
   socket->SetEncoding(args[0]);
   return Undefined();
 }
@@ -437,7 +386,7 @@ Socket::Write (const Arguments& args)
 {
   HandleScope scope;
 
-  Socket *socket = Socket::Unwrap(args.Holder());
+  Socket *socket = NODE_UNWRAP(Socket, args.Holder());
 
   // TODO support a callback using buf->on_release
  

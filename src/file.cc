@@ -30,7 +30,7 @@ public:
   static Handle<Value> StrError (const Arguments& args);
 };
 
-class File {
+class File : node::ObjectWrap {
 public:
   File (Handle<Object> handle);
   ~File ();
@@ -50,11 +50,8 @@ public:
   static int AfterRead (eio_req *req);
 
 private:
-  static File* Unwrap (Handle<Object> handle);
   bool HasUtf8Encoding (void);
   int GetFD (void);
-  static void MakeWeak (Persistent<Value> _, void *data);
-  Persistent<Object> handle_;
 };
 
 static void
@@ -206,32 +203,15 @@ FileSystem::StrError (const Arguments& args)
 ///////////////////// FILE ///////////////////// 
 
 File::File (Handle<Object> handle)
+  : ObjectWrap(handle)
 {
   HandleScope scope;
-  handle_ = Persistent<Object>::New(handle);
-
   InitActionQueue(handle);
-
-  Handle<External> external = External::New(this);
-  handle_->SetInternalField(0, external);
-  handle_.MakeWeak(this, File::MakeWeak);
 }
 
 File::~File ()
 {
-  // XXX call close?
-  handle_->SetInternalField(0, Undefined());
-  handle_.Dispose();
-  handle_.Clear(); 
-}
-
-File*
-File::Unwrap (Handle<Object> handle)
-{
-  HandleScope scope;
-  Handle<External> field = Handle<External>::Cast(handle->GetInternalField(0));
-  File* file = static_cast<File*>(field->Value());
-  return file;
+  ; // XXX call close?
 }
 
 bool
@@ -247,20 +227,12 @@ File::GetFD (void)
   int fd = fd_value->IntegerValue();
 }
 
-
-void
-File::MakeWeak (Persistent<Value> _, void *data)
-{
-  File *file = static_cast<File*> (data);
-  delete file;
-}
-
 Handle<Value>
 File::Close (const Arguments& args) 
 {
   HandleScope scope;
 
-  File *file = File::Unwrap(args.Holder());  
+  File *file = NODE_UNWRAP(File, args.Holder());
 
   int fd = file->GetFD();
 
@@ -296,7 +268,7 @@ File::Open (const Arguments& args)
 
   HandleScope scope;
 
-  File *file = File::Unwrap(args.Holder());  
+  File *file = NODE_UNWRAP(File, args.Holder());
 
   // make sure that we don't already have a pending open
   if (file->handle_->Has(FD_SYMBOL)) {
@@ -357,7 +329,7 @@ File::Write (const Arguments& args)
 
   HandleScope scope;
 
-  File *file = File::Unwrap(args.Holder());
+  File *file = NODE_UNWRAP(File, args.Holder());
 
   char *buf = NULL; 
   size_t length = 0;
@@ -427,7 +399,7 @@ File::Read (const Arguments& args)
   if (!args[1]->IsNumber()) return Undefined();
 
   HandleScope scope;
-  File *file = File::Unwrap(args.Holder());
+  File *file = NODE_UNWRAP(File, args.Holder());
   size_t length = args[0]->IntegerValue();
   off_t pos = args[1]->IntegerValue();
 

@@ -21,6 +21,43 @@ using namespace std;
 
 static int exit_code = 0;
 
+ObjectWrap::ObjectWrap (Handle<Object> handle)
+{
+  v8::HandleScope scope;
+  handle_ = v8::Persistent<v8::Object>::New(handle);
+
+  v8::Handle<v8::External> external = v8::External::New(this);
+  handle_->SetInternalField(0, external);
+  handle_.MakeWeak(this, ObjectWrap::MakeWeak);
+}
+
+ObjectWrap::~ObjectWrap ( )
+{
+  handle_->SetInternalField(0, Undefined());
+  handle_.Dispose();
+  handle_.Clear(); 
+}
+
+void*
+ObjectWrap::Unwrap (v8::Handle<v8::Object> handle)
+{
+  v8::HandleScope scope;
+  v8::Handle<v8::External> field = 
+    v8::Handle<v8::External>::Cast(handle->GetInternalField(0));
+  return field->Value();
+}
+
+void
+ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
+{
+  ObjectWrap *w = static_cast<ObjectWrap*> (data);
+  delete w;
+}
+
+
+
+
+
 // Extracts a C string from a V8 Utf8Value.
 const char*
 ToCString(const v8::String::Utf8Value& value)
