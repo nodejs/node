@@ -75,13 +75,13 @@ ExecuteString(v8::Handle<v8::String> source,
   Handle<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(&try_catch);
-    exit(1);
+    ::exit(1);
   }
 
   Handle<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(&try_catch);
-    exit(1);
+    ::exit(1);
   }
 
   return scope.Close(result);
@@ -121,19 +121,20 @@ OnFatalError (const char* location, const char* message)
   else 
     fprintf(stderr, FATAL_ERROR " %s\n", message);
 
-  exit(1);
+  ::exit(1);
 }
 
 
 void
-node_fatal_exception (TryCatch &try_catch)
+node::fatal_exception (TryCatch &try_catch)
 {
   ReportException(&try_catch);
   ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
   exit_code = 1;
 }
 
-void node_exit (int code)
+void
+node::exit (int code)
 {
   exit_code = code;
   ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
@@ -152,19 +153,19 @@ thread_pool_cb (EV_P_ ev_async *w, int revents)
   //  it require three locks in eio
   //  what's the better way?
   if (eio_nreqs () == 0 && eio_nready() == 0 && eio_npending() == 0) 
-    ev_async_stop(EV_DEFAULT_ w);
+    ev_async_stop(EV_DEFAULT_UC_ w);
 }
 
 static void
 thread_pool_want_poll (void)
 {
-  ev_async_send(EV_DEFAULT_ &thread_pool_watcher); 
+  ev_async_send(EV_DEFAULT_UC_ &thread_pool_watcher); 
 }
 
 void
-node_eio_warmup (void)
+node::eio_warmup (void)
 {
-  ev_async_start(EV_DEFAULT_ &thread_pool_watcher);
+  ev_async_start(EV_DEFAULT_UC_ &thread_pool_watcher);
 }
 
 int
@@ -207,11 +208,11 @@ main (int argc, char *argv[])
   g->Set(String::New("ARGV"), arguments);
 
   // BUILT-IN MODULES
-  NodeInit_net(g);
-  NodeInit_timers(g);
-  NodeInit_process(g);
-  NodeInit_file(g);
-  NodeInit_http(g);
+  node::Init_net(g);
+  node::Init_timers(g);
+  node::Init_process(g);
+  node::Init_file(g);
+  node::Init_http(g);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;

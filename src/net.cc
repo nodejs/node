@@ -307,7 +307,7 @@ Socket::ConnectTCP (const Arguments& args)
    * In the future I will move to a system using adns or udns: 
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_custom (Socket::Resolve, EIO_PRI_DEFAULT, Socket::AfterResolve, socket);
 
   return Undefined();
@@ -365,7 +365,7 @@ Socket::AfterResolve (eio_req *req)
 
   onconnect->Call(socket->handle_, argc, argv);
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 
   return 0;
 }
@@ -488,7 +488,7 @@ Socket::OnConnect (oi_socket *s)
   Handle<Value> r = on_connect->Call(socket->handle_, argc, argv);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 void
@@ -527,7 +527,7 @@ Socket::OnRead (oi_socket *s, const void *buf, size_t count)
   Handle<Value> r = onread->Call(socket->handle_, argc, argv);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 void
@@ -548,7 +548,7 @@ Socket::OnClose (oi_socket *s)
   Handle<Value> r = onclose->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 
   delete socket;
 }
@@ -568,7 +568,7 @@ Socket::OnDrain (oi_socket *s)
   Handle<Value> r = ondrain->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 
@@ -587,7 +587,7 @@ Socket::OnError (oi_socket *s, oi_error e)
   Handle<Value> r = onerror->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 void
@@ -605,11 +605,11 @@ Socket::OnTimeout (oi_socket *s)
   Handle<Value> r = ontimeout->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 void
-NodeInit_net (Handle<Object> target)
+node::Init_net (Handle<Object> target)
 {
   HandleScope scope;
 

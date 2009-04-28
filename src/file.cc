@@ -1,4 +1,5 @@
 #include "node.h"
+#include "file.h"
 #include <string.h>
 
 #include <sys/types.h>
@@ -75,7 +76,7 @@ CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
       TryCatch try_catch;
       callback->Call(handle, argc, argv);
       if(try_catch.HasCaught()) {
-        node_fatal_exception(try_catch);
+        node::fatal_exception(try_catch);
         return;
       }
     }
@@ -106,7 +107,7 @@ FileSystem::Rename (const Arguments& args)
   String::Utf8Value path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
 
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
 
   return Undefined();
@@ -133,7 +134,7 @@ FileSystem::Stat (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
 
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
 
   return Undefined();
@@ -263,7 +264,7 @@ File::Close (const Arguments& args)
 
   int fd = file->GetFD();
 
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
 
   return Undefined();
@@ -324,7 +325,7 @@ File::Open (const Arguments& args)
   }
 
   // TODO how should the mode be set?
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_open (*path, flags, 0666, EIO_PRI_DEFAULT, File::AfterOpen, file);
 
   return Undefined();
@@ -392,7 +393,7 @@ File::Write (const Arguments& args)
 
   int fd = file->GetFD();
 
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_write(fd, buf, length, pos, EIO_PRI_DEFAULT, File::AfterWrite, file);
 
   return Undefined();
@@ -433,7 +434,7 @@ File::Read (const Arguments& args)
   int fd = file->GetFD();
 
   // NOTE: NULL pointer tells eio to allocate it itself
-  node_eio_warmup();
+  node::eio_warmup();
   eio_req *req = eio_read(fd, NULL, length, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
   assert(req);
 
@@ -485,7 +486,7 @@ File::New(const Arguments& args)
 }
 
 void
-NodeInit_file (Handle<Object> target)
+node::Init_file (Handle<Object> target)
 {
   if (!fs.IsEmpty())
     return;

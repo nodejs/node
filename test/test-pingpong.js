@@ -1,5 +1,5 @@
 include("mjsunit");
-var N = 1000;
+var N = 100;
 function onLoad() {
   server = new Server(1024);
   var count = 0;

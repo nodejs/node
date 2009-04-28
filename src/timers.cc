@@ -48,7 +48,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
   TryCatch try_catch;
   callback->Call (Context::GetCurrent()->Global(), 0, NULL);
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 
   // use ev_is_active instead?
   if(watcher->repeat == 0.) 
@@ -132,7 +132,7 @@ Timer::clearTimeout (const Arguments& args)
 }
 
 void
-NodeInit_timers (Handle<Object> target)
+node::Init_timers (Handle<Object> target)
 {
   HandleScope scope;
 

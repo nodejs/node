@@ -260,7 +260,7 @@ on_headers_complete (ebb_request *req)
   Handle<Value> r = request->connection.js_onrequest->Call(Context::GetCurrent()->Global(), argc, argv);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 static void
@@ -373,7 +373,7 @@ HttpRequest::MakeBodyCallback (const char *base, size_t length)
   Handle<Value> result = onbody->Call(js_object, argc, argv);
 
   if(try_catch.HasCaught())
-    node_fatal_exception(try_catch);
+    node::fatal_exception(try_catch);
 }
 
 Local<Object>
@@ -651,7 +651,7 @@ newHTTPHttpServer (const Arguments& args)
 }
 
 void
-NodeInit_http (Handle<Object> target)
+node::Init_http (Handle<Object> target)
 {
   HandleScope scope;
 

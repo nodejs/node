@@ -3,6 +3,9 @@
 
 #include <v8.h>
 
-void NodeInit_net (v8::Handle<v8::Object> target);
+namespace node {
 
+void Init_net (v8::Handle<v8::Object> target);
+
+} // namespace node
 #endif

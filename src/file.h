@@ -3,6 +3,9 @@
 
 #include <v8.h>
 
-void NodeInit_file (v8::Handle<v8::Object> target);
+namespace node {
 
-#endif
+void Init_file (v8::Handle<v8::Object> target);
+
+} // namespace node
+#endif // node_file_h

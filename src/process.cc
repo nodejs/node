@@ -21,7 +21,7 @@ OnCallback (const Arguments& args)
 }
 
 void
-NodeInit_process (Handle<Object> target)
+node::Init_process (Handle<Object> target)
 {
   HandleScope scope;
 

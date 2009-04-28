@@ -3,6 +3,9 @@
 
 #include <v8.h>
 
-void NodeInit_http (v8::Handle<v8::Object> target);
+namespace node {
 
+void Init_http (v8::Handle<v8::Object> target);
+
+} // namespace node
 #endif
