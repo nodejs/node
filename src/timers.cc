@@ -68,12 +68,12 @@ Timer::Timer (Handle<Function> callback, ev_tstamp after, ev_tstamp repeat)
   ev_timer_init(&watcher_, Timer::OnTimeout, after, repeat);
   watcher_.data = this;
 
-  ev_timer_start(node_loop(), &watcher_);
+  ev_timer_start(EV_DEFAULT_UC_ &watcher_);
 }
 
 Timer::~Timer ()
 {
-  ev_timer_stop (node_loop(), &watcher_);
+  ev_timer_stop (EV_DEFAULT_UC_ &watcher_);
   handle_->SetInternalField(0, Undefined());
   handle_.Dispose();
 }

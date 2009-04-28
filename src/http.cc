@@ -588,7 +588,7 @@ HttpServer::Start(struct addrinfo *servinfo)
 {
   int r = oi_server_listen(&server, servinfo);
   if(r == 0)
-    oi_server_attach(&server, node_loop());
+    oi_server_attach(EV_DEFAULT_UC_ &server);
   return r;
 }
 

@@ -30,7 +30,7 @@ static void
 on_client_close(oi_socket *socket)
 {
   //printf("client connection closed\n");
-  ev_unloop(socket->loop, EVUNLOOP_ALL);
+  ev_unloop(EV_DEFAULT_ EVUNLOOP_ALL);
 }
 
 static oi_socket* 
@@ -87,7 +87,6 @@ int
 main(int argc, const char *argv[])
 {
   int r;
-  struct ev_loop *loop = ev_default_loop(0);
   oi_server server;
   oi_socket client;
 
@@ -133,7 +132,7 @@ main(int argc, const char *argv[])
 #endif
   r = oi_server_listen(&server, servinfo);
   assert(r == 0);
-  oi_server_attach(&server, loop);
+  oi_server_attach(EV_DEFAULT_ &server);
 
   oi_socket_init(&client, 5.0);
   client.on_read    = on_client_read;
@@ -150,9 +149,9 @@ main(int argc, const char *argv[])
 
   r = oi_socket_connect(&client, servinfo);
   assert(r == 0 && "problem connecting");
-  oi_socket_attach(&client, loop);
+  oi_socket_attach(EV_DEFAULT_ &client);
 
-  ev_loop(loop, 0);
+  ev_loop(EV_DEFAULT_ 0);
 
   assert(successful_ping_count == EXCHANGES + 1);
   assert(nconnections == 1);

@@ -22,14 +22,14 @@ typedef struct oi_socket  oi_socket;
 
 void oi_server_init          (oi_server *, int backlog);
  int oi_server_listen        (oi_server *, struct addrinfo *addrinfo);
-void oi_server_attach        (oi_server *, struct ev_loop *loop);
+void oi_server_attach        (EV_P_ oi_server *);
 void oi_server_detach        (oi_server *);
 void oi_server_close         (oi_server *); 
 
 void oi_socket_init          (oi_socket *, float timeout);
  int oi_socket_pair          (oi_socket *a, oi_socket *b); /* TODO */
  int oi_socket_connect       (oi_socket *, struct addrinfo *addrinfo);
-void oi_socket_attach        (oi_socket *, struct ev_loop *loop);
+void oi_socket_attach        (EV_P_ oi_socket *);
 void oi_socket_detach        (oi_socket *);
 void oi_socket_read_start    (oi_socket *);
 void oi_socket_read_stop     (oi_socket *);
@@ -46,7 +46,10 @@ struct oi_server {
   /* read only */
   int fd;
   int backlog;
+#if EV_MULTIPLICITY
   struct ev_loop *loop;
+#endif
+  unsigned attached:1;
   unsigned listening:1;
 
   /* private */
@@ -61,10 +64,13 @@ struct oi_server {
 struct oi_socket {
   /* read only */
   int fd;
+#if EV_MULTIPLICITY
   struct ev_loop *loop;
+#endif
   oi_server *server;
   oi_queue out_stream;
   size_t written;
+  unsigned attached:1;
   unsigned connected:1;
   unsigned secure:1;
   unsigned wait_for_secure_hangup:1;

@@ -159,7 +159,7 @@ Server::ListenTCP (const Arguments& args)
   r = oi_server_listen(&server->server_, address);
   if (r != 0)
     return ThrowException(String::New("Error listening on port"));
-  oi_server_attach(&server->server_, node_loop());
+  oi_server_attach(EV_DEFAULT_UC_ &server->server_);
 
   freeaddrinfo(address);
 
@@ -349,7 +349,7 @@ Socket::AfterResolve (eio_req *req)
 
   // no error. return.
   if(r == 0 && req->result == 0) {
-    oi_socket_attach (&socket->socket_, node_loop());
+    oi_socket_attach (EV_DEFAULT_UC_ &socket->socket_);
     return 0;
   }
 

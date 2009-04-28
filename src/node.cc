@@ -129,14 +129,14 @@ void
 node_fatal_exception (TryCatch &try_catch)
 {
   ReportException(&try_catch);
-  ev_unloop(node_loop(), EVUNLOOP_ALL);
+  ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
   exit_code = 1;
 }
 
 void node_exit (int code)
 {
   exit_code = code;
-  ev_unloop(node_loop(), EVUNLOOP_ALL);
+  ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
 }
 
 
@@ -170,6 +170,8 @@ node_eio_warmup (void)
 int
 main (int argc, char *argv[]) 
 {
+  ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
+
   // start eio thread pool
   ev_async_init(&thread_pool_watcher, thread_pool_cb);
   eio_init(thread_pool_want_poll, NULL);
@@ -220,7 +222,7 @@ main (int argc, char *argv[])
   ExecuteString(String::New(native_main), String::New("main.js"));
   if (try_catch.HasCaught()) goto native_js_error; 
 
-  ev_loop(node_loop(), 0);
+  ev_loop(EV_DEFAULT_UC_ 0);
 
   context.Dispose();
 

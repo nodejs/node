@@ -13,7 +13,6 @@
 enum encoding {UTF8, RAW};
 
 void node_fatal_exception (v8::TryCatch &try_catch); 
-#define node_loop() ev_default_loop(0)
 void node_exit (int code);
 
 // call this after creating a new eio event.

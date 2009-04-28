@@ -46,6 +46,9 @@ def configure(conf):
   conf.define("HAVE_CONFIG_H", 1)
   conf.write_config_header('config.h')
 
+  conf.env.append_value('CCFLAGS', ['-DEV_MULTIPLICITY=0'])
+  conf.env.append_value('CXXFLAGS', ['-DEV_MULTIPLICITY=0'])
+
 def build(bld):
   libev = bld.new_task_gen("cc", "staticlib")
   libev.source = 'ev.c'
