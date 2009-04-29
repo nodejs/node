@@ -32,7 +32,28 @@ node.path = new function () {
   };
 };
 
-// Namespace for module loading functionality
+// Timers
+
+function setTimeout (callback, delay) {
+  var timer = new Timer(callback, delay, 0); 
+  timer.start();
+  return timer;
+};
+
+function setInterval (callback, delay) {
+  var timer = new Timer(callback, delay, delay); 
+  timer.start();
+  return timer;
+};
+
+function clearTimeout (timer) {
+  timer.stop();
+  delete timer;
+};
+clearInterval = clearTimeout;
+
+// Modules
+
 (function () {
   function findScript(base_directory, name, callback) {
     // in the future this function will be more complicated

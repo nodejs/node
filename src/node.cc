@@ -4,7 +4,7 @@
 #include "file.h"
 #include "process.h"
 #include "http.h"
-#include "timers.h"
+#include "timer.h"
 
 #include "natives.h" 
 
@@ -246,7 +246,7 @@ main (int argc, char *argv[])
 
   // BUILT-IN MODULES
   node::Init_net(g);
-  node::Init_timers(g);
+  node::Init_timer(g);
   node::Init_process(g);
   node::Init_file(g);
   node::Init_http(g);
