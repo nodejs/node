@@ -450,10 +450,7 @@ Handle<Value>
 File::New(const Arguments& args)
 {
   HandleScope scope;
-  File *file = new File(args.Holder());
-  if(file == NULL)
-    return Undefined(); // XXX raise error?
-
+  new File(args.Holder());
   return args.This();
 }
 

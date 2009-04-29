@@ -68,9 +68,9 @@ Timer::New (const Arguments& args)
   ev_tstamp after = (double)(args[1]->IntegerValue())  / 1000.0;
   ev_tstamp repeat = (double)(args[2]->IntegerValue())  / 1000.0;
 
-  Timer *timer = new Timer(args.Holder(), callback, after, repeat);
+  new Timer(args.Holder(), callback, after, repeat);
 
-  return scope.Close(timer->handle_);
+  return args.This();
 }
 
 Handle<Value>

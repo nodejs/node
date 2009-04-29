@@ -54,9 +54,7 @@ Server::New (const Arguments& args)
   if (args.Length() > 0 && args[0]->IsNumber()) 
     backlog = args[0]->IntegerValue();
 
-  Server *server = new Server(args.Holder(), backlog);
-  if(server == NULL)
-    return Undefined(); // XXX raise error?
+  new Server(args.Holder(), backlog);
 
   return args.This();
 }
@@ -165,9 +163,7 @@ Socket::New(const Arguments& args)
     }
   }
 
-  Socket *s = new Socket(args.Holder(), timeout);
-  if(s == NULL)
-    return Undefined(); // XXX raise error?
+  new Socket(args.Holder(), timeout);
 
   return args.This();
 }
