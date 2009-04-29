@@ -158,7 +158,6 @@ def build(bld):
     src/node.cc
     src/http.cc
     src/net.cc
-    src/process.cc
     src/file.cc
     src/timer.cc
   """

@@ -45,7 +45,7 @@ function onLoad() {
 
   socket.connectTCP(12123, "127.0.0.1", function (status) {
     if(status != 0)
-      process.exit(1);
+      exit(1);
 
     socket.write("PING");
   });

@@ -2,7 +2,6 @@
 
 #include "net.h"
 #include "file.h"
-#include "process.h"
 #include "http.h"
 #include "timer.h"
 
@@ -124,6 +123,15 @@ ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
+NODE_METHOD(node_exit)
+{
+  int r = 0;
+  if (args.Length() > 0) 
+    r = args[0]->IntegerValue();
+  ::exit(r);
+  return Undefined(); 
+}
+
 NODE_METHOD(compile) 
 {
   if (args.Length() < 2) 
@@ -166,17 +174,8 @@ void
 node::fatal_exception (TryCatch &try_catch)
 {
   ReportException(&try_catch);
-  ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
-  exit_code = 1;
+  ::exit(1);
 }
-
-void
-node::exit (int code)
-{
-  exit_code = code;
-  ev_unloop(EV_DEFAULT_UC_ EVUNLOOP_ALL);
-}
-
 
 static ev_async thread_pool_watcher;
 
@@ -236,6 +235,7 @@ main (int argc, char *argv[])
 
   NODE_SET_METHOD(node, "compile", compile);
   NODE_SET_METHOD(node, "debug", debug);
+  NODE_SET_METHOD(g, "exit", node_exit);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {
@@ -244,10 +244,10 @@ main (int argc, char *argv[])
   }
   g->Set(String::New("ARGV"), arguments);
 
+
   // BUILT-IN MODULES
   node::Init_net(g);
   node::Init_timer(g);
-  node::Init_process(g);
   node::Init_file(g);
   node::Init_http(g);
 

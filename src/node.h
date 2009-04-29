@@ -15,7 +15,6 @@ namespace node {
 
 enum encoding {UTF8, RAW};
 void fatal_exception (v8::TryCatch &try_catch); 
-void exit (int code);
 void eio_warmup (void); // call this before creating a new eio event.
 
 class ObjectWrap {

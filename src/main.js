@@ -79,7 +79,7 @@ clearInterval = clearTimeout;
       findScript(base_directory, name, function (filename) {
         if (filename === null) {
           stderr.puts("Cannot find a script matching: " + name);
-          process.exit(1);
+          exit(1);
         }
         loadScript(filename, target, callback);
       });
@@ -137,7 +137,7 @@ clearInterval = clearTimeout;
     File.cat(filename, function (status, content) {
       if (status != 0) {
         stderr.puts("Error reading " + filename + ": " + File.strerror(status));
-        process.exit(1);
+        exit(1);
       }
       
       var scaffold = new Scaffold(content, filename, target);
