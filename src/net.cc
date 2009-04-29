@@ -1,8 +1,4 @@
 #include "net.h"
-#include "node.h"
-
-#include <oi_socket.h>
-#include <oi_buf.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -14,8 +10,7 @@
 #include <netdb.h>
 
 using namespace v8;
-
-static Persistent<FunctionTemplate> socket_template;
+using namespace node;
 
 #define ON_CONNECT_SYMBOL String::NewSymbol("onConnect")
 #define ON_CONNECTION_SYMBOL String::NewSymbol("onConnection")
@@ -32,53 +27,6 @@ static const struct addrinfo tcp_hints =
 /* ai_next       */ , NULL
                     };
 
-class Server : node::ObjectWrap {
-public:
-  Server (Handle<Object> handle, int backlog);
-  ~Server ();
-
-  static Handle<Value> New (const Arguments& args);
-  static Handle<Value> ListenTCP (const Arguments& args);
-  static Handle<Value> Close (const Arguments& args);
-
-private:
-  static oi_socket* OnConnection (oi_server *, struct sockaddr *, socklen_t);
-  oi_server server_;
-};
-
-class Socket : node::ObjectWrap {
-public:
-  Socket (Handle<Object> handle, double timeout);
-  ~Socket ();
-
-  void SetEncoding (Handle<Value>);
-  void SetTimeout (double);
-
-  static Handle<Value> New (const Arguments& args);
-  static Handle<Value> Write (const Arguments& args);
-  static Handle<Value> Close (const Arguments& args);
-  static Handle<Value> ConnectTCP (const Arguments& args);
-  static Handle<Value> SetEncoding (const Arguments& args);
-
-private:
-  static void OnConnect (oi_socket *socket);
-  static void OnRead (oi_socket *s, const void *buf, size_t count);
-  static void OnDrain (oi_socket *s);
-  static void OnError (oi_socket *s, oi_error e);
-  static void OnClose (oi_socket *s);
-  static void OnTimeout (oi_socket *s);
-
-  static int Resolve (eio_req *req);
-  static int AfterResolve (eio_req *req);
-
-  enum {UTF8, RAW} encoding_;
-  oi_socket socket_;
-
-  char *host_;
-  char *port_;
-
-  friend class Server;
-};
 
 Server::Server (Handle<Object> handle, int backlog)
   : ObjectWrap(handle)
@@ -169,9 +117,7 @@ Server::OnConnection (oi_server *s, struct sockaddr *remote_addr, socklen_t remo
   Server *server = static_cast<Server*> (s->data);
   HandleScope scope;
 
-  Local<Object> socket_handle = socket_template->GetFunction()->NewInstance();
-  Socket *socket = new Socket(socket_handle, 60.0);
-  socket->handle_->Delete(String::NewSymbol("connectTCP"));
+  Socket *socket = Socket::NewConnection(60.0);
 
   Local<Value> callback_v = server->handle_->Get(ON_CONNECTION_SYMBOL);
   if (!callback_v->IsFunction())
@@ -270,7 +216,7 @@ Socket::ConnectTCP (const Arguments& args)
    * In the future I will move to a system using adns or udns: 
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
-  node::eio_warmup();
+  eio_warmup();
   eio_req *req = eio_custom (Socket::Resolve, EIO_PRI_DEFAULT, Socket::AfterResolve, socket);
 
   return Undefined();
@@ -328,7 +274,7 @@ Socket::AfterResolve (eio_req *req)
 
   onconnect->Call(socket->handle_, argc, argv);
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 
   return 0;
 }
@@ -358,6 +304,18 @@ Socket::Socket(Handle<Object> handle, double timeout)
   encoding_ = UTF8; // default encoding.
   host_ = NULL;
   port_ = NULL;
+}
+
+Socket*
+Socket::NewConnection (double timeout)
+{
+  HandleScope scope;
+
+  Local<Object> socket_handle = socket_template->GetFunction()->NewInstance();
+  Socket *socket = new Socket(socket_handle, 60.0);
+  socket->handle_->Delete(String::NewSymbol("connectTCP"));
+
+  return socket;
 }
 
 Socket::~Socket ()
@@ -437,7 +395,7 @@ Socket::OnConnect (oi_socket *s)
   Handle<Value> r = on_connect->Call(socket->handle_, argc, argv);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 }
 
 void
@@ -476,7 +434,7 @@ Socket::OnRead (oi_socket *s, const void *buf, size_t count)
   Handle<Value> r = onread->Call(socket->handle_, argc, argv);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 }
 
 void
@@ -497,7 +455,7 @@ Socket::OnClose (oi_socket *s)
   Handle<Value> r = onclose->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 
   delete socket;
 }
@@ -517,7 +475,7 @@ Socket::OnDrain (oi_socket *s)
   Handle<Value> r = ondrain->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 }
 
 
@@ -536,7 +494,7 @@ Socket::OnError (oi_socket *s, oi_error e)
   Handle<Value> r = onerror->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 }
 
 void
@@ -554,16 +512,16 @@ Socket::OnTimeout (oi_socket *s)
   Handle<Value> r = ontimeout->Call(socket->handle_, 0, NULL);
 
   if(try_catch.HasCaught())
-    node::fatal_exception(try_catch);
+    fatal_exception(try_catch);
 }
 
 void
-node::Init_net (Handle<Object> target)
+Socket::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> socket_template_local = FunctionTemplate::New(Socket::New);
-  socket_template = Persistent<FunctionTemplate>::New(socket_template_local);
+  Local<FunctionTemplate> template_local = FunctionTemplate::New(Socket::New);
+  socket_template = Persistent<FunctionTemplate>::New(template_local);
   socket_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("Socket"), socket_template->GetFunction());
 
@@ -572,6 +530,12 @@ node::Init_net (Handle<Object> target)
   NODE_SET_METHOD(socket_template->InstanceTemplate(), "write", Socket::Write);
   NODE_SET_METHOD(socket_template->InstanceTemplate(), "close", Socket::Close);
   NODE_SET_METHOD(socket_template->InstanceTemplate(), "setEncoding", Socket::SetEncoding);
+}
+
+void
+Server::Initialize (Handle<Object> target)
+{
+  HandleScope scope;
 
   Local<FunctionTemplate> server_template = FunctionTemplate::New(Server::New);
   server_template->InstanceTemplate()->SetInternalFieldCount(1);

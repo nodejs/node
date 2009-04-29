@@ -246,7 +246,8 @@ main (int argc, char *argv[])
 
 
   // BUILT-IN MODULES
-  node::Init_net(g);
+  Socket::Initialize(g);
+  Server::Initialize(g);
   node::Init_timer(g);
   node::Init_file(g);
   node::Init_http(g);
