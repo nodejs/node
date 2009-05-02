@@ -53,12 +53,13 @@ protected:
       v8::Handle<v8::Object> server);
 
 private:
-  static void _OnConnect (oi_socket *s) {
+  /* liboi callbacks */
+  static void on_connect (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnConnect();
   }
 
-  static void _OnReceive (oi_socket *s, const void *buf, size_t len) {
+  static void on_read (oi_socket *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
     if (len == 0)
       connection->OnEOF();
@@ -66,22 +67,22 @@ private:
       connection->OnReceive(buf, len);
   }
 
-  static void _OnDrain (oi_socket *s) {
+  static void on_drain (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDrain();
   }
 
-  static void _OnError (oi_socket *s, oi_error e) {
+  static void on_error (oi_socket *s, oi_error e) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnError(e);
   }
 
-  static void _OnDisconnect (oi_socket *s) {
+  static void on_close (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDisconnect();
   }
 
-  static void _OnTimeout (oi_socket *s) {
+  static void on_timeout (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnTimeout();
   }
@@ -124,7 +125,7 @@ protected:
   static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
 
 private:
-  static oi_socket* _OnConnection (oi_server *s, struct sockaddr *addr, socklen_t len) {
+  static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
     Acceptor *acceptor = static_cast<Acceptor*> (s->data);
     Connection *connection = acceptor->OnConnection (addr, len);
     if (connection)
@@ -133,7 +134,7 @@ private:
       return NULL;
   }
 
-  static void _OnError (oi_server *s, struct oi_error error) {
+  static void on_error (oi_server *s, struct oi_error error) {
     Acceptor *acceptor = static_cast<Acceptor*> (s->data);
     acceptor->OnError (error);
   }

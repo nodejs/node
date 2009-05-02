@@ -94,12 +94,12 @@ Connection::Connection (Handle<Object> handle)
   port_ = NULL;
 
   oi_socket_init(&socket_, timeout);
-  socket_.on_connect = Connection::_OnConnect;
-  socket_.on_read    = Connection::_OnReceive;
-  socket_.on_drain   = Connection::_OnDrain;
-  socket_.on_error   = Connection::_OnError;
-  socket_.on_close   = Connection::_OnDisconnect;
-  socket_.on_timeout = Connection::_OnTimeout;
+  socket_.on_connect = Connection::on_connect;
+  socket_.on_read    = Connection::on_read;
+  socket_.on_drain   = Connection::on_drain;
+  socket_.on_error   = Connection::on_error;
+  socket_.on_close   = Connection::on_close;
+  socket_.on_timeout = Connection::on_timeout;
   socket_.data = this;
 }
 
@@ -370,8 +370,8 @@ Acceptor::Acceptor (Handle<Object> handle, Handle<Object> options)
   }
 
   oi_server_init(&server_, backlog);
-  server_.on_connection = Acceptor::_OnConnection;
-  server_.on_error      = Acceptor::_OnError;
+  server_.on_connection = Acceptor::on_connection;
+  server_.on_error      = Acceptor::on_error;
   server_.data = this;
 }
 
