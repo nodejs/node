@@ -13,7 +13,7 @@ public:
 
   Connection (v8::Handle<v8::Object> handle); 
   ~Connection () {
-    Disconnect();
+    Close();
   }
 
   int Connect (struct addrinfo *address) {
@@ -28,7 +28,7 @@ public:
     oi_socket_write_eof (&socket_);
   }
 
-  void Disconnect (void) {
+  void Close (void) {
     oi_socket_close (&socket_);
   }
 
@@ -37,7 +37,7 @@ protected:
   static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8SendEOF (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Disconnect (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
 
   void OnConnect (void);
   void OnReceive (const void *buf, size_t len);

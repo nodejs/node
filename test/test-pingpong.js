@@ -1,7 +1,7 @@
 include("mjsunit");
 
 var port = 12123;
-var N = 100;
+var N = 1000;
 var count = 0;
 
 function Ponger (socket, server) {
@@ -23,7 +23,7 @@ function Ponger (socket, server) {
   this.onEOF = function () {
     puts("ponger: onEOF");
     socket.send("QUIT");
-    socket.sendEOF();
+    socket.close();
   };
 
   this.onDisconnect = function () {

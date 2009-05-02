@@ -54,7 +54,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   tcp_connection_constructor = Persistent<Function>::New(t->GetFunction());
 
   NODE_SET_METHOD(t->InstanceTemplate(), "connect", Connection::v8Connect);
-  NODE_SET_METHOD(t->InstanceTemplate(), "disconnect", Connection::v8Disconnect);
+  NODE_SET_METHOD(t->InstanceTemplate(), "close", Connection::v8Close);
   NODE_SET_METHOD(t->InstanceTemplate(), "send", Connection::v8Send);
   NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
 }
@@ -169,11 +169,11 @@ Connection::v8Connect (const Arguments& args)
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
   eio_warmup();
-  eio_req *req = eio_custom( Connection::Resolve
-                           , EIO_PRI_DEFAULT
-                           , Connection::AfterResolve
-                           , connection
-                           );
+  eio_custom( Connection::Resolve
+            , EIO_PRI_DEFAULT
+            , Connection::AfterResolve
+            , connection
+            );
   return Undefined();
 }
 
@@ -221,11 +221,11 @@ Connection::AfterResolve (eio_req *req)
 }
 
 Handle<Value>
-Connection::v8Disconnect (const Arguments& args)
+Connection::v8Close (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
-  connection->Disconnect();
+  connection->Close();
   return Undefined();
 }
 
