@@ -24,7 +24,11 @@ public:
     oi_socket_write (&socket_, buf);
   }
 
-  void Disconnect () {
+  void SendEOF (void) { 
+    oi_socket_write_eof (&socket_);
+  }
+
+  void Disconnect (void) {
     oi_socket_close (&socket_);
   }
 
@@ -32,17 +36,21 @@ protected:
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8SendEOF (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Disconnect (const v8::Arguments& args);
 
   void OnConnect (void);
   void OnReceive (const void *buf, size_t len);
   void OnDrain (void);
+  void OnEOF (void);
   void OnDisconnect (void);
   void OnError (oi_error e);
   void OnTimeout (void);
 
   v8::Local<v8::Object> GetProtocol (void);
-  static v8::Local<v8::Object> NewInstance (v8::Local<v8::Function> protocol);
+  static v8::Local<v8::Object> NewServerSideInstance ( 
+      v8::Local<v8::Function> protocol, 
+      v8::Handle<v8::Object> server);
 
 private:
   static void _OnConnect (oi_socket *s) {
@@ -52,7 +60,10 @@ private:
 
   static void _OnReceive (oi_socket *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
-    connection->OnReceive(buf, len);
+    if (len == 0)
+      connection->OnEOF();
+    else
+      connection->OnReceive(buf, len);
   }
 
   static void _OnDrain (oi_socket *s) {

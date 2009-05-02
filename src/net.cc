@@ -19,6 +19,7 @@ using namespace node;
 #define ON_DRAIN_SYMBOL       String::NewSymbol("onDrain")
 #define ON_TIMEOUT_SYMBOL     String::NewSymbol("onTimeout")
 #define ON_ERROR_SYMBOL       String::NewSymbol("onError")
+#define ON_EOF_SYMBOL         String::NewSymbol("onEOF")
 
 #define SEND_SYMBOL           String::NewSymbol("send")
 #define DISCONNECT_SYMBOL     String::NewSymbol("disconnect")
@@ -55,14 +56,15 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_METHOD(t->InstanceTemplate(), "connect", Connection::v8Connect);
   NODE_SET_METHOD(t->InstanceTemplate(), "disconnect", Connection::v8Disconnect);
   NODE_SET_METHOD(t->InstanceTemplate(), "send", Connection::v8Send);
+  NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
 }
 
 Local<Object>
-Connection::NewInstance (Local<Function> protocol)
+Connection::NewServerSideInstance (Local<Function> protocol, Handle<Object> server)
 {
   HandleScope scope;
-  Handle<Value> argv[] = { protocol };
-  Local<Object> instance = tcp_connection_constructor->NewInstance(1, argv);
+  Handle<Value> argv[] = { protocol, server };
+  Local<Object> instance = tcp_connection_constructor->NewInstance(2, argv);
   return scope.Close(instance);
 }
 
@@ -124,8 +126,16 @@ Connection::v8New (const Arguments& args)
     return ThrowException(String::New("Must pass a class as the first argument."));
 
   Handle<Function> protocol = Handle<Function>::Cast(args[0]);
-  Handle<Value> argv[] = { args.This() };
-  Local<Object> protocol_instance = protocol->NewInstance(1, argv);
+
+  int argc = args.Length();
+  Handle<Value> argv[argc];
+  
+  argv[0] = args.This();
+  for (int i = 1; i < args.Length(); i++) {
+    argv[i] = args[i];
+  }
+
+  Local<Object> protocol_instance = protocol->NewInstance(argc, argv);
   args.This()->Set(PROTOCOL_SYMBOL, protocol_instance);
 
   new Connection(args.This());
@@ -252,6 +262,15 @@ Connection::v8Send (const Arguments& args)
   return Undefined();  
 }
 
+Handle<Value>
+Connection::v8SendEOF (const Arguments& args)
+{
+  HandleScope scope;
+  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  connection->SendEOF();
+  return Undefined();
+}
+
 void 
 Connection::OnReceive (const void *buf, size_t len)
 {
@@ -312,6 +331,7 @@ DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, ON_DRAIN_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnDisconnect, ON_DISCONNECT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, ON_TIMEOUT_SYMBOL)
+DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, ON_EOF_SYMBOL)
 
 void
 Acceptor::Initialize (Handle<Object> target)
@@ -367,7 +387,8 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   }
   Local<Function> protocol = Local<Function>::Cast(protocol_v);
 
-  Local<Object> connection_handle = Connection::NewInstance(protocol);
+  Local<Object> connection_handle = 
+    Connection::NewServerSideInstance(protocol, handle_);
 
   Connection *connection = new Connection(connection_handle);
   return connection;

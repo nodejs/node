@@ -4,10 +4,9 @@ var port = 12123;
 var N = 100;
 var count = 0;
 
-var server;
-
-function Ponger (socket) {
+function Ponger (socket, server) {
   this.encoding = "UTF8";
+  this.timeout = 0;
 
   this.onConnect = function () {
     puts("got socket.");
@@ -16,12 +15,20 @@ function Ponger (socket) {
   this.onReceive = function (data) {
     assertTrue(count <= N);
     stdout.print ("-");
-    if (/QUIT/.exec(data)) {
-      socket.disconnect();
-      //server.close();
-    } else if (/PING/.exec(data)) {
+    if (/PING/.exec(data)) {
       socket.send("PONG");
     }
+  };
+
+  this.onEOF = function () {
+    puts("ponger: onEOF");
+    socket.send("QUIT");
+    socket.sendEOF();
+  };
+
+  this.onDisconnect = function () {
+    puts("ponger: onDisconnect");
+    server.close();
   };
 }
 
@@ -35,27 +42,23 @@ function Pinger (socket) {
   this.onReceive = function (data) {
     stdout.print(".");
     assertEquals("PONG", data);
-    setTimeout(function() {
-      count += 1; 
-      if (count < N) {
-        socket.send("PING");
-      } else {
-        stdout.write("\n");
-        socket.send("QUIT\n");
-        socket.disconnect();
-      }
-    }, 10);
+    count += 1; 
+    if (count < N) {
+      socket.send("PING");
+    } else {
+      puts("sending FIN");
+      socket.sendEOF();
+    }
   };
 
-  this.onDisconnect = function () {
-    puts("socket close.");
+  this.onEOF = function () {
+    puts("pinger: onEOF");
     assertEquals(N, count);
-    server.close();
   };
 }
 
 function onLoad() {
-  server = new TCPServer(Ponger);
+  var server = new TCPServer(Ponger);
   server.listen(port);
 
   var client = new TCPConnection(Pinger);
