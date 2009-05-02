@@ -20,21 +20,24 @@ using namespace std;
 
 static int exit_code = 0;
 
-ObjectWrap::ObjectWrap (Handle<Object> handle)
-{
-  v8::HandleScope scope;
-  handle_ = v8::Persistent<v8::Object>::New(handle);
-
-  v8::Handle<v8::External> external = v8::External::New(this);
-  handle_->SetInternalField(0, external);
-  handle_.MakeWeak(this, ObjectWrap::MakeWeak);
-}
-
 ObjectWrap::~ObjectWrap ( )
 {
-  handle_->SetInternalField(0, Undefined());
-  handle_.Dispose();
-  handle_.Clear(); 
+  if (!handle_.IsEmpty())  {
+    handle_->SetInternalField(0, Undefined());
+    handle_.Dispose();
+    handle_.Clear(); 
+  }
+}
+
+ObjectWrap::ObjectWrap (Handle<Object> handle)
+{
+  // TODO throw exception if it's already set
+  HandleScope scope;
+  handle_ = Persistent<Object>::New(handle);
+
+  Handle<External> external = External::New(this);
+  handle_->SetInternalField(0, external);
+  handle_.MakeWeak(this, ObjectWrap::MakeWeak);
 }
 
 void*
@@ -52,7 +55,6 @@ ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
   ObjectWrap *w = static_cast<ObjectWrap*> (data);
   delete w;
 }
-
 
 
 
@@ -246,8 +248,8 @@ main (int argc, char *argv[])
 
 
   // BUILT-IN MODULES
-  Socket::Initialize(g);
-  Server::Initialize(g);
+  Acceptor::Initialize(g);
+  Connection::Initialize(g);
   node::Init_timer(g);
   node::Init_file(g);
   node::Init_http(g);

@@ -7,59 +7,127 @@
 
 namespace node {
 
-class Server : ObjectWrap {
+class Connection : public ObjectWrap {
 public:
-  Server (v8::Handle<v8::Object> handle, int backlog);
-  ~Server ();
-
-  static v8::Handle<v8::Value> New (const v8::Arguments& args);
-  static v8::Handle<v8::Value> ListenTCP (const v8::Arguments& args);
-  static v8::Handle<v8::Value> Close (const v8::Arguments& args);
-
   static void Initialize (v8::Handle<v8::Object> target);
+
+  Connection (v8::Handle<v8::Object> handle); 
+  ~Connection () {
+    Disconnect();
+  }
+
+  int Connect (struct addrinfo *address) {
+    return oi_socket_connect (&socket_, address);
+  }
+
+  void Send (oi_buf *buf) { 
+    oi_socket_write (&socket_, buf);
+  }
+
+  void Disconnect () {
+    oi_socket_close (&socket_);
+  }
+
+protected:
+  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Disconnect (const v8::Arguments& args);
+
+  void OnConnect (void);
+  void OnReceive (const void *buf, size_t len);
+  void OnDrain (void);
+  void OnDisconnect (void);
+  void OnError (oi_error e);
+  void OnTimeout (void);
+
+  v8::Local<v8::Object> GetProtocol (void);
+  static v8::Local<v8::Object> NewInstance (v8::Local<v8::Function> protocol);
+
 private:
-  static oi_socket* OnConnection (oi_server *, struct sockaddr *, socklen_t);
-  oi_server server_;
-};
+  static void _OnConnect (oi_socket *s) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnConnect();
+  }
 
-static v8::Persistent<v8::FunctionTemplate> socket_template;
+  static void _OnReceive (oi_socket *s, const void *buf, size_t len) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnReceive(buf, len);
+  }
 
-class Socket : ObjectWrap {
-public:
-  Socket (v8::Handle<v8::Object> handle, double timeout);
-  ~Socket ();
-  // also a constructor
-  static Socket* NewConnection (double timeout);
+  static void _OnDrain (oi_socket *s) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnDrain();
+  }
 
+  static void _OnError (oi_socket *s, oi_error e) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnError(e);
+  }
 
-  void SetEncoding (v8::Handle<v8::Value>);
-  void SetTimeout (double);
+  static void _OnDisconnect (oi_socket *s) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnDisconnect();
+  }
 
-  static v8::Handle<v8::Value> New (const v8::Arguments& args);
-  static v8::Handle<v8::Value> Write (const v8::Arguments& args);
-  static v8::Handle<v8::Value> Close (const v8::Arguments& args);
-  static v8::Handle<v8::Value> ConnectTCP (const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetEncoding (const v8::Arguments& args);
-
-  static void Initialize (v8::Handle<v8::Object> target);
-private:
-  static void OnConnect (oi_socket *socket);
-  static void OnRead (oi_socket *s, const void *buf, size_t count);
-  static void OnDrain (oi_socket *s);
-  static void OnError (oi_socket *s, oi_error e);
-  static void OnClose (oi_socket *s);
-  static void OnTimeout (oi_socket *s);
+  static void _OnTimeout (oi_socket *s) {
+    Connection *connection = static_cast<Connection*> (s->data);
+    connection->OnTimeout();
+  }
 
   static int Resolve (eio_req *req);
   static int AfterResolve (eio_req *req);
 
   enum encoding encoding_;
-  oi_socket socket_;
-
   char *host_;
   char *port_;
+  oi_socket socket_;
 
-  friend class Server;
+  friend class Acceptor;
+};
+
+class Acceptor : public ObjectWrap {
+public:
+  static void Initialize (v8::Handle<v8::Object> target);
+
+  Acceptor (v8::Handle<v8::Object> handle, v8::Handle<v8::Object> options);
+  ~Acceptor () { Close(); }
+
+  int Listen (struct addrinfo *address) { 
+    int r = oi_server_listen (&server_, address); 
+    if(r != 0) return r;
+    oi_server_attach (EV_DEFAULT_ &server_); 
+    return 0;
+  }
+
+  void Close ( ) { 
+    oi_server_close (&server_); 
+  }
+
+protected:
+  Connection* OnConnection (struct sockaddr *addr, socklen_t len);
+  void OnError (struct oi_error error);
+
+  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Listen (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
+
+private:
+  static oi_socket* _OnConnection (oi_server *s, struct sockaddr *addr, socklen_t len) {
+    Acceptor *acceptor = static_cast<Acceptor*> (s->data);
+    Connection *connection = acceptor->OnConnection (addr, len);
+    if (connection)
+      return &connection->socket_;
+    else
+      return NULL;
+  }
+
+  static void _OnError (oi_server *s, struct oi_error error) {
+    Acceptor *acceptor = static_cast<Acceptor*> (s->data);
+    acceptor->OnError (error);
+  }
+
+  oi_server server_;
 };
 
 } // namespace node
