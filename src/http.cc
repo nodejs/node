@@ -8,6 +8,8 @@
 #define ON_MESSAGE_SYMBOL String::NewSymbol("onMessage")
 #define MESSAGE_HANDLER_SYMBOL String::NewSymbol("messageHandler")
 #define ON_HEADERS_COMPLETE_SYMBOL String::NewSymbol("onHeadersComplete")
+#define ON_BODY_SYMBOL String::NewSymbol("onBody")
+#define ON_MESSAGE_COMPLETE_SYMBOL String::NewSymbol("onMessageComplete")
 
 #define PATH_SYMBOL String::NewSymbol("path")
 #define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
@@ -174,6 +176,7 @@ int
 HTTPConnection::on_headers_complete (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  HandleScope scope;
 
   Local<Value> message_handler_v = 
     connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
@@ -189,8 +192,6 @@ HTTPConnection::on_headers_complete (http_parser *parser)
   message_handler->Set(HTTP_VERSION_SYMBOL, String::New(version));
 
 
-
-
   Local<Value> on_headers_complete_v = message_handler->Get(ON_HEADERS_COMPLETE_SYMBOL);
   if (on_headers_complete_v->IsFunction() == false) return 0;
 
@@ -198,6 +199,67 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
 
   on_headers_complete->Call(message_handler, 0, NULL);
+
+  return 0;
+}
+
+int
+HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
+{
+  if(len == 0) return 0;
+
+  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  HandleScope scope;
+
+  Local<Value> message_handler_v = 
+    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
+  Local<Object> message_handler = message_handler_v->ToObject();
+
+  Local<Value> on_body_v = message_handler->Get(ON_BODY_SYMBOL);
+  if (on_body_v->IsFunction() == false) return 0;
+  Handle<Function> on_body = Handle<Function>::Cast(on_body_v);
+
+  Handle<Value> argv[1];
+
+  // XXX whose encoding should we check? each message should have their own, 
+  // probably. it ought to default to raw.
+  if(connection->encoding_ == UTF8) {
+    // utf8 encoding
+    Handle<String> chunk = String::New((const char*)buf, len);
+    argv[0] = chunk;
+
+  } else {
+    // raw encoding
+    Local<Array> array = Array::New(len);
+    for (size_t i = 0; i < len; i++) {
+      char val = static_cast<const char*>(buf)[i];
+      array->Set(Integer::New(i), Integer::New(val));
+    }
+    argv[0] = array;
+  }
+
+  on_body->Call(message_handler, 1, argv);
+
+  return 0;
+}
+
+int
+HTTPConnection::on_message_complete (http_parser *parser)
+{
+  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  HandleScope scope;
+
+  Local<Value> message_handler_v = 
+    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
+  Local<Object> message_handler = message_handler_v->ToObject();
+
+  Local<Value> on_msg_complete_v = message_handler->Get(ON_MESSAGE_COMPLETE_SYMBOL);
+  if (on_msg_complete_v->IsFunction()) {
+    Handle<Function> on_msg_complete = Handle<Function>::Cast(on_msg_complete_v);
+    on_msg_complete->Call(message_handler, 0, NULL);
+  }
+
+  connection->handle_->DeleteHiddenValue(MESSAGE_HANDLER_SYMBOL);
 
   return 0;
 }
@@ -214,8 +276,8 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Object> protocol, 
   parser_.on_header_field     = on_header_field;
   parser_.on_header_value     = on_header_value;
   parser_.on_headers_complete = on_headers_complete;
-  parser_.on_body             = NULL;
-  parser_.on_message_complete = NULL;
+  parser_.on_body             = on_body;
+  parser_.on_message_complete = on_message_complete;
   parser_.data = this;
 }
 

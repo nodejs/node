@@ -24,7 +24,8 @@ protected:
   static int on_header_field (http_parser *parser, const char *buf, size_t len);
   static int on_header_value (http_parser *parser, const char *buf, size_t len);
   static int on_headers_complete (http_parser *parser);
-
+  static int on_body (http_parser *parser, const char *buf, size_t len);
+  static int on_message_complete (http_parser *parser);
 
   http_parser parser_;
 };
