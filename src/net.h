@@ -11,10 +11,8 @@ class Connection : public ObjectWrap {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  Connection (v8::Handle<v8::Object> handle); 
-  ~Connection () {
-    Close();
-  }
+  Connection (v8::Handle<v8::Object> handle, v8::Handle<v8::Object> protocol); 
+  virtual ~Connection () { Close(); }
 
   int Connect (struct addrinfo *address) {
     return oi_socket_connect (&socket_, address);
@@ -39,20 +37,17 @@ protected:
   static v8::Handle<v8::Value> v8SendEOF (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
 
-  void OnConnect (void);
-  void OnReceive (const void *buf, size_t len);
-  void OnDrain (void);
-  void OnEOF (void);
-  void OnDisconnect (void);
-  void OnError (oi_error e);
-  void OnTimeout (void);
+  virtual void OnConnect (void);
+  virtual void OnReceive (const void *buf, size_t len);
+  virtual void OnDrain (void);
+  virtual void OnEOF (void);
+  virtual void OnDisconnect (void);
+  virtual void OnError (oi_error e);
+  virtual void OnTimeout (void);
 
   v8::Local<v8::Object> GetProtocol (void);
-  static v8::Local<v8::Object> NewServerSideInstance ( 
-      v8::Local<v8::Function> protocol, 
-      v8::Handle<v8::Object> server);
 
-private:
+//private:
   /* liboi callbacks */
   static void on_connect (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);

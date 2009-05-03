@@ -20,7 +20,7 @@ void eio_warmup (void); // call this before creating a new eio event.
 class ObjectWrap {
 public:
   ObjectWrap (v8::Handle<v8::Object> handle);
-  ~ObjectWrap ( );
+  virtual ~ObjectWrap ( );
 
 protected:
   static void* Unwrap (v8::Handle<v8::Object> handle);

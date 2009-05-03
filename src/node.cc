@@ -252,7 +252,7 @@ main (int argc, char *argv[])
   Connection::Initialize(g);
   node::Init_timer(g);
   node::Init_file(g);
-  node::Init_http(g);
+  HTTPClient::Initialize(g);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;

@@ -18,7 +18,6 @@ def set_options(opt):
   # the gcc module provides a --debug-level option
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
-  opt.tool_options('ragel', tdir=".")
   opt.add_option( '--debug'
                 , action='store_true'
                 , default=False
@@ -29,10 +28,6 @@ def set_options(opt):
 def configure(conf):
   conf.check_tool('compiler_cxx')
   conf.check_tool('compiler_cc')
-  conf.check_tool('ragel', tooldir=".")
-  if not conf.env['RAGEL']:
-    fatal('ragel not found')
-    exit(1)
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
@@ -124,15 +119,15 @@ def build(bld):
   if bld.env["USE_DEBUG"]:
     oi.clone("debug")
 
-  ### ebb
-  ebb = bld.new_task_gen("cc", "staticlib")
-  ebb.source = "deps/libebb/ebb_request_parser.rl"
-  ebb.includes = "deps/libebb/"
-  ebb.name = "ebb"
-  ebb.target = "ebb"
-  ebb.install_path = None
+  ### http_parser
+  http_parser = bld.new_task_gen("cc", "staticlib")
+  http_parser.source = "deps/http_parser/http_parser.c"
+  http_parser.includes = "deps/http_parser/"
+  http_parser.name = "http_parser"
+  http_parser.target = "http_parser"
+  http_parser.install_path = None
   if bld.env["USE_DEBUG"]:
-    ebb.clone("debug")
+    http_parser.clone("debug")
 
   ### src/native.cc
   def javascript_in_c(task):
@@ -167,9 +162,9 @@ def build(bld):
     deps/libev
     deps/libeio
     deps/liboi 
-    deps/libebb
+    deps/http_parser
   """
-  node.uselib_local = "oi ev eio ebb"
+  node.uselib_local = "oi ev eio http_parser"
   node.uselib = "V8 RT"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755

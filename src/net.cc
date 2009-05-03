@@ -59,21 +59,12 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
 }
 
-Local<Object>
-Connection::NewServerSideInstance (Local<Function> protocol, Handle<Object> server)
-{
-  HandleScope scope;
-  Handle<Value> argv[] = { protocol, server };
-  Local<Object> instance = tcp_connection_constructor->NewInstance(2, argv);
-  return scope.Close(instance);
-}
-
-Connection::Connection (Handle<Object> handle)
+Connection::Connection (Handle<Object> handle, Handle<Object> protocol)
   : ObjectWrap(handle) 
 {
   HandleScope scope;
 
-  Local<Object> protocol = GetProtocol();
+  handle_->Set(PROTOCOL_SYMBOL, protocol);
 
   encoding_ = RAW;
   Local<Value> encoding_v = protocol->Get(ENCODING_SYMBOL);
@@ -136,9 +127,8 @@ Connection::v8New (const Arguments& args)
   }
 
   Local<Object> protocol_instance = protocol->NewInstance(argc, argv);
-  args.This()->Set(PROTOCOL_SYMBOL, protocol_instance);
 
-  new Connection(args.This());
+  new Connection(args.This(), protocol_instance);
 
   return args.This();
 }
@@ -387,10 +377,11 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   }
   Local<Function> protocol = Local<Function>::Cast(protocol_v);
 
-  Local<Object> connection_handle = 
-    Connection::NewServerSideInstance(protocol, handle_);
+  Handle<Value> argv[] = { protocol, handle_ };
+  Local<Object> connection_handle = tcp_connection_constructor->NewInstance(2, argv);
 
-  Connection *connection = new Connection(connection_handle);
+  Connection *connection = NODE_UNWRAP(Connection, connection_handle);
+
   return connection;
 }
 

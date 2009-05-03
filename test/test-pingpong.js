@@ -14,7 +14,7 @@ function Ponger (socket, server) {
 
   this.onReceive = function (data) {
     assertTrue(count <= N);
-    stdout.print ("-");
+    stdout.print("-");
     if (/PING/.exec(data)) {
       socket.send("PONG");
     }
