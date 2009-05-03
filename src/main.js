@@ -178,4 +178,3 @@ clearInterval = clearTimeout;
 
   loadScript(ARGV[1], this);
 })();
-

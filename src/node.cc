@@ -56,9 +56,6 @@ ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
   delete w;
 }
 
-
-
-
 // Extracts a C string from a V8 Utf8Value.
 const char*
 ToCString(const v8::String::Utf8Value& value)
@@ -252,10 +249,13 @@ main (int argc, char *argv[])
   Connection::Initialize(g);
   node::Init_timer(g);
   node::Init_file(g);
-  HTTPClient::Initialize(g);
+  HTTPConnection::Initialize(g);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;
+
+  ExecuteString(String::New(native_http), String::New("http.js"));
+  if (try_catch.HasCaught()) goto native_js_error; 
 
   ExecuteString(String::New(native_file), String::New("file.js"));
   if (try_catch.HasCaught()) goto native_js_error; 
