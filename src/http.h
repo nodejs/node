@@ -43,15 +43,15 @@ protected:
 class HTTPServer : public Acceptor {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
 protected:
-  static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
 
   HTTPServer (v8::Handle<v8::Object> handle, 
               v8::Handle<v8::Function> protocol_class, 
               v8::Handle<v8::Object> options)
-    :Acceptor(handle, protocol_class, options) {};
+    : Acceptor(handle, protocol_class, options) {}
 
   Connection* OnConnection (struct sockaddr *addr, socklen_t len);
 };

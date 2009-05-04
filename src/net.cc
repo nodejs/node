@@ -342,13 +342,14 @@ Acceptor::Initialize (Handle<Object> target)
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("TCPServer"), t->GetFunction());
-
-  NODE_SET_METHOD(t->InstanceTemplate(), "listen", v8Listen);
-  NODE_SET_METHOD(t->InstanceTemplate(), "close", v8Close);
-
   constructor_template = Persistent<FunctionTemplate>::New(t);
+
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "listen", v8Listen);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
+
+  target->Set(String::NewSymbol("TCPServer"), constructor_template->GetFunction());
 }
 
 Acceptor::Acceptor (Handle<Object> handle, Handle<Function> protocol_class,  Handle<Object> options) 

@@ -78,13 +78,13 @@ HTTPConnection::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(HTTPConnection::v8NewClient);
+  Local<FunctionTemplate> t = FunctionTemplate::New(v8NewClient);
   client_constructor_template = Persistent<FunctionTemplate>::New(t);
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("HTTPClient"), client_constructor_template->GetFunction());
 
-  t = FunctionTemplate::New(HTTPConnection::v8NewServer);
+  t = FunctionTemplate::New(v8NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
   server_constructor_template->Inherit(Connection::constructor_template);
   server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
@@ -298,9 +298,8 @@ HTTPServer::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(HTTPServer::v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-
   constructor_template->Inherit(Acceptor::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("HTTPServer"), constructor_template->GetFunction());
@@ -323,7 +322,7 @@ HTTPServer::v8New (const Arguments& args)
     options = Object::New();
   }
 
-  new HTTPServer(args.Holder(), protocol_class, options);
+  new HTTPServer(args.This(), protocol_class, options);
 
   return args.This();
 }
