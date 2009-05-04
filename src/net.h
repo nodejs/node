@@ -99,8 +99,12 @@ protected:
   static v8::Handle<v8::Value> v8Listen (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
 
-  Acceptor (v8::Handle<v8::Object> handle, v8::Handle<v8::Object> options);
+  Acceptor (v8::Handle<v8::Object> handle, 
+            v8::Handle<v8::Function> protocol_class, 
+            v8::Handle<v8::Object> options);
   virtual ~Acceptor () { Close(); }
+
+  v8::Local<v8::Function> GetProtocolClass (void);
 
   int Listen (struct addrinfo *address) { 
     int r = oi_server_listen (&server_, address); 

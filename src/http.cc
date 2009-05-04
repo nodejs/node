@@ -70,7 +70,8 @@ appendHeaderValue (Handle<Value> message, Handle<Value> d)
   _append_header_value->Call(message->ToObject(), 2, argv);
 }
 
-Persistent<FunctionTemplate> HTTPConnection::constructor_template;
+Persistent<FunctionTemplate> HTTPConnection::client_constructor_template;
+Persistent<FunctionTemplate> HTTPConnection::server_constructor_template;
 
 void
 HTTPConnection::Initialize (Handle<Object> target)
@@ -78,11 +79,17 @@ HTTPConnection::Initialize (Handle<Object> target)
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(HTTPConnection::v8NewClient);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
+  client_constructor_template = Persistent<FunctionTemplate>::New(t);
+  client_constructor_template->Inherit(Connection::constructor_template);
+  client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("HTTPClient"), client_constructor_template->GetFunction());
 
-  constructor_template->Inherit(Connection::constructor_template);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("HTTPClient"), constructor_template->GetFunction());
+  t = FunctionTemplate::New(HTTPConnection::v8NewServer);
+  server_constructor_template = Persistent<FunctionTemplate>::New(t);
+  server_constructor_template->Inherit(Connection::constructor_template);
+  server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("HTTPServerSideSocket"),
+              server_constructor_template->GetFunction());
 }
 
 Handle<Value>
@@ -284,19 +291,61 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Function> protocol
   parser_.data = this;
 }
 
-HTTPServer::HTTPServer (Handle<Object> handle, Handle<Object> options)
-  :Acceptor(handle, options)
+Persistent<FunctionTemplate> HTTPServer::constructor_template;
+
+void
+HTTPServer::Initialize (Handle<Object> target)
 {
+  HandleScope scope;
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(HTTPServer::v8New);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+
+  constructor_template->Inherit(Acceptor::constructor_template);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("HTTPServer"), constructor_template->GetFunction());
 }
 
 Handle<Value>
 HTTPServer::v8New (const Arguments& args)
 {
+  HandleScope scope;
+
+  if (args.Length() < 1 || args[0]->IsFunction() == false)
+    return ThrowException(String::New("Must at give connection handler as the first argument"));
+
+  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
+  Local<Object> options;
+
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    options = args[1]->ToObject();
+  } else {
+    options = Object::New();
+  }
+
+  new HTTPServer(args.Holder(), protocol_class, options);
+
+  return args.This();
 }
 
 Connection*
 HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
 {
-}
+  HandleScope scope;
+  
+  Local<Function> protocol_class = GetProtocolClass();
+  if (protocol_class.IsEmpty()) {
+    Close();
+    return NULL;
+  }
 
+  Handle<Value> argv[] = { protocol_class };
+  Local<Object> connection_handle =
+    HTTPConnection::server_constructor_template->GetFunction()->NewInstance(1, argv);
+
+  HTTPConnection *connection = NODE_UNWRAP(HTTPConnection, connection_handle);
+  connection->SetAcceptor(handle_);
+
+  return connection;
+}
 

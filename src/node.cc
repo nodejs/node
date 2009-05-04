@@ -250,7 +250,9 @@ main (int argc, char *argv[])
 
   Acceptor::Initialize(g);
   Connection::Initialize(g);
+
   HTTPConnection::Initialize(g);
+  HTTPServer::Initialize(g);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;

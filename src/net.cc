@@ -29,6 +29,7 @@ using namespace node;
 #define SERVER_SYMBOL        String::NewSymbol("server")
 
 #define PROTOCOL_SYMBOL String::NewSymbol("protocol")
+#define PROTOCOL_CLASS_SYMBOL String::NewSymbol("protocol_class")
 
 static const struct addrinfo tcp_hints = 
 /* ai_flags      */ { AI_PASSIVE
@@ -350,10 +351,12 @@ Acceptor::Initialize (Handle<Object> target)
   constructor_template = Persistent<FunctionTemplate>::New(t);
 }
 
-Acceptor::Acceptor (Handle<Object> handle, Handle<Object> options) 
+Acceptor::Acceptor (Handle<Object> handle, Handle<Function> protocol_class,  Handle<Object> options) 
   : ObjectWrap(handle) 
 {
   HandleScope scope;
+
+  handle_->SetHiddenValue(PROTOCOL_CLASS_SYMBOL, protocol_class);
 
   int backlog = 1024; // default value
   Local<Value> backlog_v = options->Get(String::NewSymbol("backlog"));
@@ -377,12 +380,12 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
   
-  Local<Value> protocol_class_v = handle_->GetHiddenValue(PROTOCOL_SYMBOL);
-  if (!protocol_class_v->IsFunction()) {
+  Local<Function> protocol_class = GetProtocolClass();
+  if (protocol_class.IsEmpty()) {
+    printf("protocol class was empty!");
     Close();
     return NULL;
   }
-  Local<Function> protocol_class = Local<Function>::Cast(protocol_class_v);
 
   Handle<Value> argv[] = { protocol_class };
   Local<Object> connection_handle =
@@ -413,9 +416,7 @@ Acceptor::v8New (const Arguments& args)
   if (args.Length() < 1 || args[0]->IsFunction() == false)
     return ThrowException(String::New("Must at give connection handler as the first argument"));
 
-  /// set the handler
-  args.Holder()->SetHiddenValue(PROTOCOL_SYMBOL, args[0]);
-
+  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
   Local<Object> options;
 
   if (args.Length() > 1 && args[1]->IsObject()) {
@@ -424,7 +425,7 @@ Acceptor::v8New (const Arguments& args)
     options = Object::New();
   }
 
-  new Acceptor(args.Holder(), options);
+  new Acceptor(args.This(), protocol_class, options);
 
   return args.This();
 }
@@ -465,4 +466,18 @@ Acceptor::v8Close (const Arguments& args)
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
   acceptor->Close();
   return Undefined();
+}
+
+Local<v8::Function>
+Acceptor::GetProtocolClass (void)
+{
+  HandleScope scope;
+
+  Local<Value> protocol_class_v = handle_->GetHiddenValue(PROTOCOL_CLASS_SYMBOL);
+  if (protocol_class_v->IsFunction()) {
+    Local<Function> protocol_class = Local<Function>::Cast(protocol_class_v);
+    return scope.Close(protocol_class);
+  }
+
+  return Local<Function>();
 }
