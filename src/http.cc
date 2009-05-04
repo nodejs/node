@@ -23,7 +23,6 @@ using namespace v8;
 using namespace node;
 using namespace std;
 
-
 // Native Helper Functions
 
 static Persistent<Function> _fill_field; 
@@ -72,34 +71,40 @@ appendHeaderValue (Handle<Value> message, Handle<Value> d)
 }
 
 
+Persistent<FunctionTemplate> HTTPConnection::constructor_template;
+
 void
 HTTPConnection::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(HTTPConnection::v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(HTTPConnection::v8NewClient);
   t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->Inherit(Connection::constructor_template);
   target->Set(String::NewSymbol("HTTPClient"), t->GetFunction());
 
-  NODE_SET_METHOD(t->InstanceTemplate(), "connect", Connection::v8Connect);
-  NODE_SET_METHOD(t->InstanceTemplate(), "close", Connection::v8Close);
-  NODE_SET_METHOD(t->InstanceTemplate(), "send", Connection::v8Send);
-  NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
 }
 
 Handle<Value>
-HTTPConnection::v8New (const Arguments& args)
+HTTPConnection::v8NewClient (const Arguments& args)
 {
   HandleScope scope;
-
   if (args[0]->IsFunction() == false)
     return ThrowException(String::New("Must pass a class as the first argument."));
-
   Local<Function> protocol_class = Local<Function>::Cast(args[0]);
-
-  // changeme the type should come from javascript
   new HTTPConnection(args.This(), protocol_class, HTTP_RESPONSE);
+  return args.This();
+}
 
+Handle<Value>
+HTTPConnection::v8NewServer (const Arguments& args)
+{
+  HandleScope scope;
+  if (args[0]->IsFunction() == false)
+    return ThrowException(String::New("Must pass a class as the first argument."));
+  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
+  new HTTPConnection(args.This(), protocol_class, HTTP_REQUEST);
   return args.This();
 }
 
@@ -109,10 +114,12 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
   http_parser_execute(&parser_, static_cast<const char*>(buf), len);
 
   if (http_parser_has_error(&parser_)) {
-    // do something.
+    // do something?
     Close();
     return;
   }
+
+  // XXX when do we close the connection?
 }
 
 int
@@ -277,4 +284,20 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Function> protocol
   parser_.on_message_complete = on_message_complete;
   parser_.data = this;
 }
+
+HTTPServer::HTTPServer (Handle<Object> handle, Handle<Object> options)
+  :Acceptor(handle, options)
+{
+}
+
+Handle<Value>
+HTTPServer::v8New (const Arguments& args)
+{
+}
+
+Connection*
+HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
+{
+}
+
 

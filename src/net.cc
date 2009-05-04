@@ -41,23 +41,23 @@ static const struct addrinfo tcp_hints =
 /* ai_next       */ , NULL
                     };
 
-Persistent<Function> tcp_connection_constructor;
+Persistent<FunctionTemplate> Connection::constructor_template;
 
 void 
 Connection::Initialize (v8::Handle<v8::Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(Connection::v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("TCPConnection"), t->GetFunction());
 
-  tcp_connection_constructor = Persistent<Function>::New(t->GetFunction());
+  NODE_SET_METHOD(t->InstanceTemplate(), "connect", v8Connect);
+  NODE_SET_METHOD(t->InstanceTemplate(), "close", v8Close);
+  NODE_SET_METHOD(t->InstanceTemplate(), "send", v8Send);
+  NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", v8SendEOF);
 
-  NODE_SET_METHOD(t->InstanceTemplate(), "connect", Connection::v8Connect);
-  NODE_SET_METHOD(t->InstanceTemplate(), "close", Connection::v8Close);
-  NODE_SET_METHOD(t->InstanceTemplate(), "send", Connection::v8Send);
-  NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
 }
 
 Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
@@ -323,24 +323,21 @@ DEFINE_SIMPLE_CALLBACK(Connection::OnDisconnect, ON_DISCONNECT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, ON_TIMEOUT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, ON_EOF_SYMBOL)
 
+Persistent<FunctionTemplate> Acceptor::constructor_template;
+
 void
 Acceptor::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> tcp_server_template =
-    FunctionTemplate::New(Acceptor::v8New);
-  tcp_server_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("TCPServer"), tcp_server_template->GetFunction());
+  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("TCPServer"), t->GetFunction());
 
-  NODE_SET_METHOD( tcp_server_template->InstanceTemplate()
-                 , "listen"
-                 , Acceptor::v8Listen
-                 );
-  NODE_SET_METHOD( tcp_server_template->InstanceTemplate()
-                 , "close"
-                 , Acceptor::v8Close
-                 );
+  NODE_SET_METHOD(t->InstanceTemplate(), "listen", v8Listen);
+  NODE_SET_METHOD(t->InstanceTemplate(), "close", v8Close);
+
+  constructor_template = Persistent<FunctionTemplate>::New(t);
 }
 
 Acceptor::Acceptor (Handle<Object> handle, Handle<Object> options) 
@@ -378,7 +375,8 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   Local<Function> protocol_class = Local<Function>::Cast(protocol_class_v);
 
   Handle<Value> argv[] = { protocol_class };
-  Local<Object> connection_handle = tcp_connection_constructor->NewInstance(1, argv);
+  Local<Object> connection_handle =
+    Connection::constructor_template->GetFunction()->NewInstance(1, argv);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
   connection->SetAcceptor(handle_);
@@ -417,8 +415,6 @@ Acceptor::v8New (const Arguments& args)
   }
 
   new Acceptor(args.Holder(), options);
-
-  Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
 
   return args.This();
 }

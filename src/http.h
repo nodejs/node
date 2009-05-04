@@ -11,13 +11,15 @@ class HTTPConnection : public Connection {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
+protected:
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
+  static v8::Handle<v8::Value> v8NewClient (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8NewServer (const v8::Arguments& args);
+
   HTTPConnection (v8::Handle<v8::Object> handle, 
                   v8::Handle<v8::Function> protocol_class,
                   enum http_parser_type type);
 
-  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
-
-protected:
   void OnReceive (const void *buf, size_t len);
 
   static int on_message_begin (http_parser *parser);
@@ -32,6 +34,15 @@ protected:
   static int on_message_complete (http_parser *parser);
 
   http_parser parser_;
+};
+
+class HTTPServer : public Acceptor {
+public:
+  HTTPServer (v8::Handle<v8::Object> handle, v8::Handle<v8::Object> options);
+
+protected:
+  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
+  Connection* OnConnection (struct sockaddr *addr, socklen_t len);
 };
 
 } // namespace node

@@ -176,10 +176,10 @@ node::fatal_exception (TryCatch &try_catch)
   ::exit(1);
 }
 
-static ev_async thread_pool_watcher;
+static ev_async eio_watcher;
 
 static void 
-thread_pool_cb (EV_P_ ev_async *w, int revents)
+node_eio_cb (EV_P_ ev_async *w, int revents)
 {
   int r = eio_poll();
   /* returns 0 if all requests were handled, -1 if not, or the value of EIO_FINISH if != 0 */
@@ -192,15 +192,15 @@ thread_pool_cb (EV_P_ ev_async *w, int revents)
 }
 
 static void
-thread_pool_want_poll (void)
+eio_want_poll (void)
 {
-  ev_async_send(EV_DEFAULT_UC_ &thread_pool_watcher); 
+  ev_async_send(EV_DEFAULT_UC_ &eio_watcher); 
 }
 
 void
 node::eio_warmup (void)
 {
-  ev_async_start(EV_DEFAULT_UC_ &thread_pool_watcher);
+  ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
 }
 
 int
@@ -209,8 +209,8 @@ main (int argc, char *argv[])
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
 
   // start eio thread pool
-  ev_async_init(&thread_pool_watcher, thread_pool_cb);
-  eio_init(thread_pool_want_poll, NULL);
+  ev_async_init(&eio_watcher, node_eio_cb);
+  eio_init(eio_want_poll, NULL);
 
   V8::SetFlagsFromCommandLine(&argc, argv, true);
 
