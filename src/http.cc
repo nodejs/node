@@ -70,7 +70,6 @@ appendHeaderValue (Handle<Value> message, Handle<Value> d)
   _append_header_value->Call(message->ToObject(), 2, argv);
 }
 
-
 Persistent<FunctionTemplate> HTTPConnection::constructor_template;
 
 void
@@ -79,11 +78,11 @@ HTTPConnection::Initialize (Handle<Object> target)
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(HTTPConnection::v8NewClient);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->Inherit(Connection::constructor_template);
-  target->Set(String::NewSymbol("HTTPClient"), t->GetFunction());
-
   constructor_template = Persistent<FunctionTemplate>::New(t);
+
+  constructor_template->Inherit(Connection::constructor_template);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("HTTPClient"), constructor_template->GetFunction());
 }
 
 Handle<Value>

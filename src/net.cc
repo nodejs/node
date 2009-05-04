@@ -49,15 +49,16 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("TCPConnection"), t->GetFunction());
-
-  NODE_SET_METHOD(t->InstanceTemplate(), "connect", v8Connect);
-  NODE_SET_METHOD(t->InstanceTemplate(), "close", v8Close);
-  NODE_SET_METHOD(t->InstanceTemplate(), "send", v8Send);
-  NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", v8SendEOF);
 
   constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "connect", v8Connect);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "send", v8Send);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "sendEOF", v8SendEOF);
+
+  target->Set(String::NewSymbol("TCPConnection"), constructor_template->GetFunction());
 }
 
 Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)

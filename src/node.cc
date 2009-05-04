@@ -245,10 +245,11 @@ main (int argc, char *argv[])
 
 
   // BUILT-IN MODULES
-  Acceptor::Initialize(g);
-  Connection::Initialize(g);
   node::Init_timer(g);
   node::Init_file(g);
+
+  Acceptor::Initialize(g);
+  Connection::Initialize(g);
   HTTPConnection::Initialize(g);
 
   // NATIVE JAVASCRIPT MODULES
