@@ -4,7 +4,7 @@ var port = 12123;
 var N = 1000;
 var count = 0;
 
-function Ponger (socket, server) {
+function Ponger (socket) {
   this.encoding = "UTF8";
   this.timeout = 0;
 
@@ -28,7 +28,7 @@ function Ponger (socket, server) {
 
   this.onDisconnect = function () {
     puts("ponger: onDisconnect");
-    server.close();
+    socket.server.close();
   };
 }
 

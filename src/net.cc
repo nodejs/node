@@ -26,6 +26,7 @@ using namespace node;
 #define CONNECT_SYMBOL        String::NewSymbol("connect")
 #define ENCODING_SYMBOL       String::NewSymbol("encoding")
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
+#define SERVER_SYMBOL        String::NewSymbol("server")
 
 #define PROTOCOL_SYMBOL String::NewSymbol("protocol")
 
@@ -59,12 +60,18 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_METHOD(t->InstanceTemplate(), "sendEOF", Connection::v8SendEOF);
 }
 
-Connection::Connection (Handle<Object> handle, Handle<Object> protocol)
+Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
   : ObjectWrap(handle) 
 {
   HandleScope scope;
 
+  // Instanciate the protocol object
+  Handle<Value> argv[] = { handle_ };
+  Local<Object> protocol = protocol_class->NewInstance(1, argv);
   handle_->Set(PROTOCOL_SYMBOL, protocol);
+
+  // TODO use SetNamedPropertyHandler (or whatever) for encoding and timeout
+  // instead of just reading it once?
 
   encoding_ = RAW;
   Local<Value> encoding_v = protocol->Get(ENCODING_SYMBOL);
@@ -108,28 +115,21 @@ Connection::GetProtocol (void)
   return Local<Object>();
 }
 
+void
+Connection::SetAcceptor (Handle<Object> acceptor_handle)
+{
+  HandleScope scope;
+  handle_->Set(SERVER_SYMBOL, acceptor_handle);
+}
+
 Handle<Value>
 Connection::v8New (const Arguments& args)
 {
   HandleScope scope;
-
   if (args[0]->IsFunction() == false)
     return ThrowException(String::New("Must pass a class as the first argument."));
-
-  Handle<Function> protocol = Handle<Function>::Cast(args[0]);
-
-  int argc = args.Length();
-  Handle<Value> argv[argc];
-  
-  argv[0] = args.This();
-  for (int i = 1; i < args.Length(); i++) {
-    argv[i] = args[i];
-  }
-
-  Local<Object> protocol_instance = protocol->NewInstance(argc, argv);
-
-  new Connection(args.This(), protocol_instance);
-
+  Handle<Function> protocol_class = Handle<Function>::Cast(args[0]);
+  new Connection(args.This(), protocol_class);
   return args.This();
 }
 
@@ -370,17 +370,18 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
   
-  Local<Value> protocol_v = handle_->GetHiddenValue(PROTOCOL_SYMBOL);
-  if (!protocol_v->IsFunction()) {
+  Local<Value> protocol_class_v = handle_->GetHiddenValue(PROTOCOL_SYMBOL);
+  if (!protocol_class_v->IsFunction()) {
     Close();
     return NULL;
   }
-  Local<Function> protocol = Local<Function>::Cast(protocol_v);
+  Local<Function> protocol_class = Local<Function>::Cast(protocol_class_v);
 
-  Handle<Value> argv[] = { protocol, handle_ };
-  Local<Object> connection_handle = tcp_connection_constructor->NewInstance(2, argv);
+  Handle<Value> argv[] = { protocol_class };
+  Local<Object> connection_handle = tcp_connection_constructor->NewInstance(1, argv);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
+  connection->SetAcceptor(handle_);
 
   return connection;
 }

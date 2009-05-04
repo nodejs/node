@@ -7,11 +7,13 @@
 
 namespace node {
 
+class Acceptor;
+
 class Connection : public ObjectWrap {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  Connection (v8::Handle<v8::Object> handle, v8::Handle<v8::Object> protocol); 
+  Connection (v8::Handle<v8::Object> handle, v8::Handle<v8::Function> protocol_class); 
   virtual ~Connection () { Close(); }
 
   int Connect (struct addrinfo *address) {
@@ -29,6 +31,8 @@ public:
   void Close (void) {
     oi_socket_close (&socket_);
   }
+
+  void SetAcceptor (v8::Handle<v8::Object> acceptor_handle);
 
 protected:
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);

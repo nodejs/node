@@ -12,6 +12,10 @@
 #define ON_MESSAGE_COMPLETE_SYMBOL String::NewSymbol("onMessageComplete")
 
 #define PATH_SYMBOL String::NewSymbol("path")
+#define QUERY_STRING_SYMBOL String::NewSymbol("query_string")
+#define URI_SYMBOL String::NewSymbol("uri")
+#define FRAGMENT_SYMBOL String::NewSymbol("fragment")
+
 #define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
 #define HTTP_VERSION_SYMBOL String::NewSymbol("http_version")
 
@@ -20,7 +24,7 @@ using namespace node;
 using namespace std;
 
 
-// Helper Functions
+// Native Helper Functions
 
 static Persistent<Function> _fill_field; 
 static Persistent<Function> _append_header_field; 
@@ -91,20 +95,10 @@ HTTPConnection::v8New (const Arguments& args)
   if (args[0]->IsFunction() == false)
     return ThrowException(String::New("Must pass a class as the first argument."));
 
-  Handle<Function> protocol = Handle<Function>::Cast(args[0]);
-
-  int argc = args.Length();
-  Handle<Value> argv[argc];
-  
-  argv[0] = args.This();
-  for (int i = 1; i < args.Length(); i++) {
-    argv[i] = args[i];
-  }
-
-  Local<Object> protocol_instance = protocol->NewInstance(argc, argv);
+  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
 
   // changeme the type should come from javascript
-  new HTTPConnection(args.This(), protocol_instance, HTTP_RESPONSE);
+  new HTTPConnection(args.This(), protocol_class, HTTP_RESPONSE);
 
   return args.This();
 }
@@ -136,19 +130,21 @@ HTTPConnection::on_message_begin (http_parser *parser)
   return 0;
 }
 
-int
-HTTPConnection::on_path (http_parser *parser, const char *buf, size_t len)
-{
-  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
-
-  HandleScope scope;
-
-  Local<Value> message_handler_v = 
-    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
-  fillField(message_handler_v, PATH_SYMBOL, String::New(buf, len));
-
-  return 0;
+#define DEFINE_FILL_VALUE_CALLBACK(callback_name, symbol)                         \
+int                                                                               \
+HTTPConnection::callback_name (http_parser *parser, const char *buf, size_t len)  \
+{                                                                                 \
+  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);       \
+  HandleScope scope;                                                              \
+  Local<Value> message_handler_v =                                                \
+    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);                  \
+  fillField(message_handler_v, symbol, String::New(buf, len));                    \
+  return 0;                                                                       \
 }
+DEFINE_FILL_VALUE_CALLBACK(on_path, PATH_SYMBOL)
+DEFINE_FILL_VALUE_CALLBACK(on_query_string, QUERY_STRING_SYMBOL)
+DEFINE_FILL_VALUE_CALLBACK(on_uri, URI_SYMBOL)
+DEFINE_FILL_VALUE_CALLBACK(on_fragment, FRAGMENT_SYMBOL)
 
 int
 HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t len)
@@ -188,7 +184,12 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   // VERSION
   char version[10];
-  snprintf(version, 10, "%d.%d", connection->parser_.version_major, connection->parser_.version_minor); 
+  snprintf( version
+          , 10
+          , "%d.%d"
+          , connection->parser_.version_major
+          , connection->parser_.version_minor
+          ); 
   message_handler->Set(HTTP_VERSION_SYMBOL, String::New(version));
 
 
@@ -237,9 +238,7 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
     }
     argv[0] = array;
   }
-
   on_body->Call(message_handler, 1, argv);
-
   return 0;
 }
 
@@ -258,21 +257,19 @@ HTTPConnection::on_message_complete (http_parser *parser)
     Handle<Function> on_msg_complete = Handle<Function>::Cast(on_msg_complete_v);
     on_msg_complete->Call(message_handler, 0, NULL);
   }
-
   connection->handle_->DeleteHiddenValue(MESSAGE_HANDLER_SYMBOL);
-
   return 0;
 }
 
-HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Object> protocol, enum http_parser_type type)
-  : Connection(handle, protocol) 
+HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Function> protocol_class, enum http_parser_type type)
+  : Connection(handle, protocol_class) 
 {
   http_parser_init (&parser_, type);
   parser_.on_message_begin    = on_message_begin;
   parser_.on_path             = on_path;
-  parser_.on_query_string     = NULL;
-  parser_.on_uri              = NULL;
-  parser_.on_fragment         = NULL;
+  parser_.on_query_string     = on_query_string;
+  parser_.on_uri              = on_uri;
+  parser_.on_fragment         = on_fragment;
   parser_.on_header_field     = on_header_field;
   parser_.on_header_value     = on_header_value;
   parser_.on_headers_complete = on_headers_complete;
