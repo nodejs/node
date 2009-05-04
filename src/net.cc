@@ -206,9 +206,11 @@ Connection::AfterResolve (eio_req *req)
     return 0;
   }
 
-  // return error?
+ 
+  oi_error e;  // TODO better error!
+  connection->OnError(e);
 
-  return r | req->result;
+  return 0;
 }
 
 Handle<Value>
@@ -305,17 +307,24 @@ Connection::OnReceive (const void *buf, size_t len)
 void
 Connection::OnError (oi_error e)
 {
+  HandleScope scope;
+  Local<Object> protocol = GetProtocol();
+  Local<Value> callback_v = protocol->Get(ON_ERROR_SYMBOL);
+  if (!callback_v->IsFunction()) return;
+  Handle<Function> callback = Handle<Function>::Cast(callback_v);
+  // TODO call with error arg
+  callback->Call(protocol, 0, NULL);
 }
 
-#define DEFINE_SIMPLE_CALLBACK(name, symbol) \
-void name () \
-{ \
-  HandleScope scope; \
-  Local<Object> protocol = GetProtocol();\
-  Local<Value> callback_v = protocol->Get(symbol); \
-  if (!callback_v->IsFunction()) return; \
-  Handle<Function> callback = Handle<Function>::Cast(callback_v); \
-  callback->Call(protocol, 0, NULL); \
+#define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
+void name ()                                                        \
+{                                                                   \
+  HandleScope scope;                                                \
+  Local<Object> protocol = GetProtocol();                           \
+  Local<Value> callback_v = protocol->Get(symbol);                  \
+  if (!callback_v->IsFunction()) return;                            \
+  Handle<Function> callback = Handle<Function>::Cast(callback_v);   \
+  callback->Call(protocol, 0, NULL);                                \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
@@ -390,7 +399,7 @@ Acceptor::OnError (struct oi_error error)
 {
   HandleScope scope;
 
-  Local<Value> callback_v = handle_->Get(String::NewSymbol("onError"));
+  Local<Value> callback_v = handle_->Get(ON_ERROR_SYMBOL);
   if (!callback_v->IsFunction()) return;
   Local<Function> callback = Local<Function>::Cast(callback_v);
   callback->Call(handle_, 0, NULL); // TODO args
