@@ -22,7 +22,6 @@ function Ponger (socket) {
 
   this.onEOF = function () {
     puts("ponger: onEOF");
-    socket.send("QUIT");
     socket.close();
   };
 
@@ -47,7 +46,7 @@ function Pinger (socket) {
       socket.send("PING");
     } else {
       puts("sending FIN");
-      socket.sendEOF();
+      socket.close();
     }
   };
 

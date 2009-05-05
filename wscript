@@ -110,7 +110,7 @@ def build(bld):
 
   ### oi
   oi = bld.new_task_gen("cc", "staticlib")
-  oi.source = "deps/liboi/oi_socket.c deps/liboi/oi_buf.c"
+  oi.source = "deps/liboi/oi_socket.c"
   oi.includes = "deps/liboi/"
   oi.name = "oi"
   oi.target = "oi"

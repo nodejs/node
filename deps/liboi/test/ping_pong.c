@@ -2,15 +2,18 @@
 
 #define PING "PING"
 #define PONG "PONG"
-#define EXCHANGES 100
+#define EXCHANGES 500
+#define TIMEOUT 5.0
 
 int successful_ping_count; 
 
 static void 
 on_peer_read(oi_socket *socket, const void *base, size_t len)
 {
-  if(len == 0) 
+  if (len == 0) {
+    oi_socket_close(socket);
     return;
+  }
 
   char buf[2000];
   strncpy(buf, base, len);
@@ -18,12 +21,6 @@ on_peer_read(oi_socket *socket, const void *base, size_t len)
   //printf("server got message: %s\n", buf);
 
   oi_socket_write_simple(socket, PONG, sizeof PONG);
-}
-
-static void 
-on_peer_error(oi_socket *socket, struct oi_error e)
-{
-  assert(0);
 }
 
 static void 
@@ -37,9 +34,8 @@ static oi_socket*
 on_server_connection(oi_server *server, struct sockaddr *addr, socklen_t len)
 {
   oi_socket *socket = malloc(sizeof(oi_socket));
-  oi_socket_init(socket, 5.0);
+  oi_socket_init(socket, TIMEOUT);
   socket->on_read = on_peer_read;
-  socket->on_error = on_peer_error;
   socket->on_close = on_peer_close;
   socket->on_timeout = on_peer_timeout;
 
@@ -57,15 +53,20 @@ on_server_connection(oi_server *server, struct sockaddr *addr, socklen_t len)
 }
 
 static void 
-on_client_connect(oi_socket *socket)
+on_client_connect (oi_socket *socket)
 {
   //printf("client connected. sending ping\n");
   oi_socket_write_simple(socket, PING, sizeof PING);
 }
 
 static void 
-on_client_read(oi_socket *socket, const void *base, size_t len)
+on_client_read (oi_socket *socket, const void *base, size_t len)
 {
+  if(len == 0) {
+    oi_socket_close(socket);
+    return;
+  }
+
   char buf[200000];
   strncpy(buf, base, len);
   buf[len] = 0;
@@ -134,9 +135,8 @@ main(int argc, const char *argv[])
   assert(r == 0);
   oi_server_attach(EV_DEFAULT_ &server);
 
-  oi_socket_init(&client, 5.0);
+  oi_socket_init(&client, TIMEOUT);
   client.on_read    = on_client_read;
-  client.on_error   = on_client_error;
   client.on_connect = on_client_connect;
   client.on_close   = on_client_close;
   client.on_timeout = on_client_timeout;

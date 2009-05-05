@@ -19,16 +19,18 @@ protected:
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8SendEOF (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8FullClose (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8ForceClose (const v8::Arguments& args);
 
   Connection (v8::Handle<v8::Object> handle, v8::Handle<v8::Function> protocol_class); 
-  virtual ~Connection () { Close(); }
+  virtual ~Connection ();
 
   int Connect (struct addrinfo *address) { return oi_socket_connect (&socket_, address); }
-  void Send (oi_buf *buf) { oi_socket_write (&socket_, buf); }
-  void SendEOF (void) { oi_socket_write_eof (&socket_); }
-  void Close (void) { oi_socket_close (&socket_); }
+  void Send (oi_buf *buf) { oi_socket_write(&socket_, buf); }
+  void Close (void) { oi_socket_close(&socket_); }
+  void FullClose (void) { oi_socket_full_close(&socket_); }
+  void ForceClose (void) { oi_socket_force_close(&socket_); }
 
   void SetAcceptor (v8::Handle<v8::Object> acceptor_handle);
 
@@ -37,7 +39,6 @@ protected:
   virtual void OnDrain (void);
   virtual void OnEOF (void);
   virtual void OnDisconnect (void);
-  virtual void OnError (oi_error e);
   virtual void OnTimeout (void);
 
   v8::Local<v8::Object> GetProtocol (void);
@@ -63,11 +64,6 @@ private:
   static void on_drain (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDrain();
-  }
-
-  static void on_error (oi_socket *s, oi_error e) {
-    Connection *connection = static_cast<Connection*> (s->data);
-    connection->OnError(e);
   }
 
   static void on_close (oi_socket *s) {
@@ -118,7 +114,6 @@ protected:
   }
 
   virtual Connection* OnConnection (struct sockaddr *addr, socklen_t len);
-  virtual void OnError (struct oi_error error);
 
 private:
   static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
@@ -128,11 +123,6 @@ private:
       return &connection->socket_;
     else
       return NULL;
-  }
-
-  static void on_error (oi_server *s, struct oi_error error) {
-    Acceptor *acceptor = static_cast<Acceptor*> (s->data);
-    acceptor->OnError (error);
   }
 
   oi_server server_;

@@ -11,7 +11,7 @@
 
 
 #include <ev.h>
-#include <oi.h>
+#include <oi_socket.h>
 #include <gnutls/gnutls.h>
 
 #define HOST "127.0.0.1"
@@ -23,8 +23,10 @@ int nconnections;
 static void 
 on_peer_close(oi_socket *socket)
 {
+  assert(socket->errorno == 0);
   //printf("server connection closed\n");
 #if HAVE_GNUTLS
+  assert(socket->gnutls_errorno == 0);
 #if SECURE
   gnutls_deinit(socket->session);
 #endif
@@ -43,12 +45,6 @@ static void
 on_peer_timeout(oi_socket *socket)
 {
   fprintf(stderr, "peer connection timeout\n");
-  assert(0);
-}
-
-static void 
-on_client_error(oi_socket *socket, struct oi_error e)
-{
   assert(0);
 }
 

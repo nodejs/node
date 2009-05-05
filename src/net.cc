@@ -26,7 +26,7 @@ using namespace node;
 #define CONNECT_SYMBOL        String::NewSymbol("connect")
 #define ENCODING_SYMBOL       String::NewSymbol("encoding")
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
-#define SERVER_SYMBOL        String::NewSymbol("server")
+#define SERVER_SYMBOL         String::NewSymbol("server")
 
 #define PROTOCOL_SYMBOL String::NewSymbol("protocol")
 #define PROTOCOL_CLASS_SYMBOL String::NewSymbol("protocol_class")
@@ -55,9 +55,10 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "connect", v8Connect);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
   NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "send", v8Send);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "sendEOF", v8SendEOF);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "fullClose", v8FullClose);
+  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "forceClose", v8ForceClose);
 
   target->Set(String::NewSymbol("TCPConnection"), constructor_template->GetFunction());
 }
@@ -97,10 +98,15 @@ Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
   socket_.on_connect = Connection::on_connect;
   socket_.on_read    = Connection::on_read;
   socket_.on_drain   = Connection::on_drain;
-  socket_.on_error   = Connection::on_error;
   socket_.on_close   = Connection::on_close;
   socket_.on_timeout = Connection::on_timeout;
   socket_.data = this;
+}
+
+Connection::~Connection ()
+{
+  handle_->Delete(SEND_SYMBOL);
+  Close();
 }
 
 Local<Object>
@@ -207,9 +213,7 @@ Connection::AfterResolve (eio_req *req)
     return 0;
   }
 
- 
-  oi_error e;  // TODO better error!
-  connection->OnError(e);
+  connection->OnDisconnect();
 
   return 0;
 }
@@ -224,15 +228,31 @@ Connection::v8Close (const Arguments& args)
 }
 
 Handle<Value>
+Connection::v8FullClose (const Arguments& args)
+{
+  HandleScope scope;
+  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  connection->FullClose();
+  return Undefined();
+}
+
+Handle<Value>
+Connection::v8ForceClose (const Arguments& args)
+{
+  HandleScope scope;
+  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  connection->ForceClose();
+  return Undefined();
+}
+
+
+Handle<Value>
 Connection::v8Send (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
 
-  if (args[0] == Null()) {
-    oi_socket_write_eof(&connection->socket_);
-
-  } else if (args[0]->IsString()) {
+  if (args[0]->IsString()) {
     // utf8 encoding
     Local<String> s = args[0]->ToString();
     size_t length = s->Utf8Length();
@@ -254,15 +274,6 @@ Connection::v8Send (const Arguments& args)
   } else return ThrowException(String::New("Bad argument"));
 
   return Undefined();  
-}
-
-Handle<Value>
-Connection::v8SendEOF (const Arguments& args)
-{
-  HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
-  connection->SendEOF();
-  return Undefined();
 }
 
 void 
@@ -303,18 +314,6 @@ Connection::OnReceive (const void *buf, size_t len)
 
   if (try_catch.HasCaught())
     fatal_exception(try_catch); // XXX is this the right action to take?
-}
-
-void
-Connection::OnError (oi_error e)
-{
-  HandleScope scope;
-  Local<Object> protocol = GetProtocol();
-  Local<Value> callback_v = protocol->Get(ON_ERROR_SYMBOL);
-  if (!callback_v->IsFunction()) return;
-  Handle<Function> callback = Handle<Function>::Cast(callback_v);
-  // TODO call with error arg
-  callback->Call(protocol, 0, NULL);
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
@@ -372,7 +371,6 @@ Acceptor::Acceptor (Handle<Object> handle, Handle<Function> protocol_class,  Han
 
   oi_server_init(&server_, backlog);
   server_.on_connection = Acceptor::on_connection;
-  server_.on_error      = Acceptor::on_error;
   server_.data = this;
 }
 
@@ -396,17 +394,6 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   connection->SetAcceptor(handle_);
 
   return connection;
-}
-
-void
-Acceptor::OnError (struct oi_error error)
-{
-  HandleScope scope;
-
-  Local<Value> callback_v = handle_->Get(ON_ERROR_SYMBOL);
-  if (!callback_v->IsFunction()) return;
-  Local<Function> callback = Local<Function>::Cast(callback_v);
-  callback->Call(handle_, 0, NULL); // TODO args
 }
 
 Handle<Value>

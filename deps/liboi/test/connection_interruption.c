@@ -18,13 +18,6 @@ on_peer_drain(oi_socket *socket)
   oi_socket_close(socket);
 }
 
-static void 
-on_peer_error2(oi_socket *socket, struct oi_error e)
-{
-  if(e.domain == OI_ERROR_GNUTLS) return;
-  assert(0);
-}
-
 static oi_socket* 
 on_server_connection(oi_server *server, struct sockaddr *addr, socklen_t len)
 {
@@ -32,7 +25,6 @@ on_server_connection(oi_server *server, struct sockaddr *addr, socklen_t len)
   oi_socket_init(socket, TIMEOUT);
   socket->on_read    = on_peer_read;
   socket->on_drain   = on_peer_drain;
-  socket->on_error   = on_peer_error2;
   socket->on_close   = on_peer_close;
   socket->on_timeout = on_peer_timeout;
 
@@ -51,7 +43,7 @@ static void
 on_client_connect(oi_socket *socket)
 {
   //printf("on client connection\n");
-  oi_socket_write_eof(socket);
+  oi_socket_close(socket);
 }
 
 static void 
@@ -69,13 +61,18 @@ on_client_close(oi_socket *socket)
 static void 
 on_client_read(oi_socket *socket, const void *base, size_t len)
 {
+  if (len == 0) {
+    oi_socket_close(socket);
+    return;
+  }
+
   char buf[200000];
   strncpy(buf, base, len);
   buf[len] = 0;
 
   //printf("client got message: %s\n", buf);
   
-  if(strcmp(buf, "BYE") == 0) {
+  if (strcmp(buf, "BYE") == 0) {
     oi_socket_close(socket);
   } else {
     assert(0);
@@ -132,7 +129,6 @@ main(int argc, const char *argv[])
     oi_socket *client = malloc(sizeof(oi_socket));
     oi_socket_init(client, TIMEOUT);
     client->on_read    = on_client_read;
-    client->on_error   = on_client_error;
     client->on_connect = on_client_connect;
     client->on_close   = on_client_close;
     client->on_timeout = on_client_timeout;

@@ -1,5 +1,8 @@
 #include "test/common.c"
 
+// timeout must match the timeout in timeout.rb
+#define TIMEOUT 5.0
+
 int successful_ping_count; 
 
 static void 
@@ -11,19 +14,12 @@ on_peer_read(oi_socket *socket, const void *base, size_t len)
   oi_socket_write_simple(socket, base, len);
 }
 
-static void 
-on_peer_error(oi_socket *socket, struct oi_error e)
-{
-  assert(0);
-}
-
 static oi_socket* 
 on_server_connection(oi_server *server, struct sockaddr *addr, socklen_t len)
 {
   oi_socket *socket = malloc(sizeof(oi_socket));
-  oi_socket_init(socket, 5.0);
+  oi_socket_init(socket, TIMEOUT);
   socket->on_read = on_peer_read;
-  socket->on_error = on_peer_error;
   socket->on_close = on_peer_close;
   socket->on_timeout = on_peer_timeout;
 
