@@ -58,11 +58,11 @@ ObjectWrap::Detach ()
 }
 
 void*
-ObjectWrap::Unwrap (v8::Handle<v8::Object> handle)
+ObjectWrap::Unwrap (Handle<Object> handle)
 {
-  v8::HandleScope scope;
-  v8::Handle<v8::External> field = 
-    v8::Handle<v8::External>::Cast(handle->GetInternalField(0));
+  HandleScope scope;
+  Handle<External> field = 
+    Handle<External>::Cast(handle->GetInternalField(0));
   return field->Value();
 }
 

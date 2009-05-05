@@ -55,6 +55,8 @@ def configure(conf):
   conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
   conf.check(lib='rt', uselib_store='RT')
 
+  conf.check(lib='profiler', uselib_store='PROFILER')
+
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
   conf.set_env_name('debug', debug_env)
@@ -68,8 +70,8 @@ def configure(conf):
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O2'])
-  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O2'])
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
   conf.write_config_header("config.h")
 
 def build(bld):
@@ -165,7 +167,7 @@ def build(bld):
     deps/http_parser
   """
   node.uselib_local = "oi ev eio http_parser"
-  node.uselib = "V8 RT"
+  node.uselib = "V8 RT PROFILER"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 
