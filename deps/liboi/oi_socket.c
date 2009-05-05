@@ -108,8 +108,14 @@ static int
 full_close(oi_socket *socket)
 {
   //printf("close(%d)\n", socket->fd);
-  if (close(socket->fd) == -1)
-    return errno == EINTR ? AGAIN : ERROR;
+  if (close(socket->fd) == -1) {
+    if (errno == EINTR)
+      return AGAIN;
+    else {
+      socket->errorno = errno;
+      return ERROR;
+    }
+  }
 
   socket->read_action = NULL;
   socket->write_action = NULL;
@@ -135,6 +141,8 @@ half_close(oi_socket *socket)
     }
   }
   socket->write_action = NULL;
+  if (socket->read_action == NULL)
+    socket->fd = -1;
   return OKAY;
 }
 
@@ -497,7 +505,7 @@ socket_recv (oi_socket *socket)
   if (!socket->connected) {
     socket->connected = TRUE;
     if (socket->on_connect) socket->on_connect(socket);
-    return OKAY;
+    //return OKAY;
   }
 
   recved = recv(socket->fd, buf, buf_size, 0);
@@ -520,9 +528,14 @@ socket_recv (oi_socket *socket)
         socket->errorno = errno;
         return ERROR; 
 
+      case ECONNRESET:
+        socket->errorno = errno;
+        return ERROR; 
+
       default:
+        socket->errorno = errno;
         perror("recv()");
-        printf("unmatched errno %d %s\n\n", errno, strerror(errno));
+        printf("unmatched errno %d %s\n\n", socket->errorno, strerror(errno));
         assert(0 && "recv returned error that oi should have caught before.");
         return ERROR;
     }
@@ -800,6 +813,7 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
     ev_clear_pending (EV_A_ &socket->timeout_watcher);
 
     oi_socket_detach(socket);
+    assert(socket->fd == -1);
 
     if (socket->on_close) { socket->on_close(socket); }
     /* WARNING: user can free socket in on_close so no more 
@@ -877,14 +891,17 @@ void oi_socket_force_close (oi_socket *socket)
 {
   release_write_buffer(socket);
 
-  ev_clear_pending (EV_A_ &socket->write_watcher);
-  ev_clear_pending (EV_A_ &socket->read_watcher);
-  ev_clear_pending (EV_A_ &socket->timeout_watcher);
+  ev_clear_pending (SOCKET_LOOP_ &socket->write_watcher);
+  ev_clear_pending (SOCKET_LOOP_ &socket->read_watcher);
+  ev_clear_pending (SOCKET_LOOP_ &socket->timeout_watcher);
 
   socket->write_action = socket->read_action = NULL;
   // socket->errorno = OI_SOCKET_ERROR_FORCE_CLOSE
-  close(socket->fd);
-
+  //
+  
+  if (socket->fd > 0) {
+    close(socket->fd);
+  }
   socket->fd = -1;
 
   oi_socket_detach(socket);

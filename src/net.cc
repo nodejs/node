@@ -21,9 +21,6 @@ using namespace node;
 #define ON_ERROR_SYMBOL       String::NewSymbol("onError")
 #define ON_EOF_SYMBOL         String::NewSymbol("onEOF")
 
-#define SEND_SYMBOL           String::NewSymbol("send")
-#define DISCONNECT_SYMBOL     String::NewSymbol("disconnect")
-#define CONNECT_SYMBOL        String::NewSymbol("connect")
 #define ENCODING_SYMBOL       String::NewSymbol("encoding")
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
 #define SERVER_SYMBOL         String::NewSymbol("server")

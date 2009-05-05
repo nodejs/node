@@ -69,6 +69,10 @@ private:
   static void on_close (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDisconnect();
+
+    if (s->errorno)
+      printf("socket died with error %d\n", s->errorno);
+
     connection->Detach();
   }
 
