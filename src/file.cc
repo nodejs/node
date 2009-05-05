@@ -105,7 +105,7 @@ FileSystem::Rename (const Arguments& args)
   String::Utf8Value new_path(args[1]->ToString());
 
   node::eio_warmup();
-  eio_req *req = eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
+  eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
 
   return Undefined();
 }
@@ -132,7 +132,7 @@ FileSystem::Stat (const Arguments& args)
   String::Utf8Value path(args[0]->ToString());
 
   node::eio_warmup();
-  eio_req *req = eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
+  eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
 
   return Undefined();
 }
@@ -225,6 +225,7 @@ File::GetFD (void)
 {
   Handle<Value> fd_value = handle_->Get(FD_SYMBOL);
   int fd = fd_value->IntegerValue();
+  return fd;
 }
 
 Handle<Value>
@@ -237,8 +238,8 @@ File::Close (const Arguments& args)
   int fd = file->GetFD();
 
   node::eio_warmup();
-  eio_req *req = eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
-
+  eio_close (fd, EIO_PRI_DEFAULT, File::AfterClose, file);
+  file->Attach();
   return Undefined();
 }
 
@@ -255,7 +256,7 @@ File::AfterClose (eio_req *req)
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
   CallTopCallback(file->handle_, argc, argv);
-
+  file->Detach();
   return 0;
 }
 
@@ -298,8 +299,8 @@ File::Open (const Arguments& args)
 
   // TODO how should the mode be set?
   node::eio_warmup();
-  eio_req *req = eio_open (*path, flags, 0666, EIO_PRI_DEFAULT, File::AfterOpen, file);
-
+  eio_open (*path, flags, 0666, EIO_PRI_DEFAULT, File::AfterOpen, file);
+  file->Attach();
   return Undefined();
 }
 
@@ -318,6 +319,7 @@ File::AfterOpen (eio_req *req)
   argv[0] = Integer::New(req->errorno);
   CallTopCallback(file->handle_, argc, argv);
 
+  file->Detach();
   return 0;
 }
 
@@ -346,7 +348,7 @@ File::Write (const Arguments& args)
     Local<Array> array = Local<Array>::Cast(args[0]);
     length = array->Length();
     buf = static_cast<char*>(malloc(length));
-    for (int i = 0; i < length; i++) {
+    for (unsigned int i = 0; i < length; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf[i] = int_value->Int32Value();
     }
@@ -366,8 +368,9 @@ File::Write (const Arguments& args)
   int fd = file->GetFD();
 
   node::eio_warmup();
-  eio_req *req = eio_write(fd, buf, length, pos, EIO_PRI_DEFAULT, File::AfterWrite, file);
+  eio_write(fd, buf, length, pos, EIO_PRI_DEFAULT, File::AfterWrite, file);
 
+  file->Attach();
   return Undefined();
 }
 
@@ -378,7 +381,7 @@ File::AfterWrite (eio_req *req)
 
   //char *buf = static_cast<char*>(req->ptr2);
   free(req->ptr2);
-  size_t written = req->result;
+  ssize_t written = req->result;
 
   HandleScope scope;
 
@@ -388,6 +391,7 @@ File::AfterWrite (eio_req *req)
   argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
   CallTopCallback(file->handle_, argc, argv);
 
+  file->Detach();
   return 0;
 }
 
@@ -407,9 +411,9 @@ File::Read (const Arguments& args)
 
   // NOTE: NULL pointer tells eio to allocate it itself
   node::eio_warmup();
-  eio_req *req = eio_read(fd, NULL, length, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
-  assert(req);
+  eio_read(fd, NULL, length, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
 
+  file->Attach();
   return Undefined();
 }
 
@@ -436,13 +440,15 @@ File::AfterRead (eio_req *req)
     } else {
       // raw encoding
       Local<Array> array = Array::New(length);
-      for (int i = 0; i < length; i++) {
+      for (unsigned int i = 0; i < length; i++) {
         array->Set(Integer::New(i), Integer::New(buf[i]));
       }
       argv[1] = array;
     }
   }
   CallTopCallback(file->handle_, argc, argv);
+
+  file->Detach();
   return 0;
 }
 

@@ -69,6 +69,7 @@ private:
   static void on_close (oi_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDisconnect();
+    connection->Detach();
   }
 
   static void on_timeout (oi_socket *s) {
@@ -98,7 +99,7 @@ protected:
   Acceptor (v8::Handle<v8::Object> handle, 
             v8::Handle<v8::Function> protocol_class, 
             v8::Handle<v8::Object> options);
-  virtual ~Acceptor () { Close(); }
+  virtual ~Acceptor () { Close(); puts("acceptor gc'd!");}
 
   v8::Local<v8::Function> GetProtocolClass (void);
 
@@ -106,11 +107,13 @@ protected:
     int r = oi_server_listen (&server_, address); 
     if(r != 0) return r;
     oi_server_attach (EV_DEFAULT_ &server_); 
+    Attach();
     return 0;
   }
 
   void Close ( ) { 
     oi_server_close (&server_); 
+    Detach();
   }
 
   virtual Connection* OnConnection (struct sockaddr *addr, socklen_t len);

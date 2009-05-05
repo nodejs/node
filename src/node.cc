@@ -22,11 +22,9 @@ static int exit_code = 0;
 
 ObjectWrap::~ObjectWrap ( )
 {
-  if (!handle_.IsEmpty())  {
-    handle_->SetInternalField(0, Undefined());
-    handle_.Dispose();
-    handle_.Clear(); 
-  }
+  handle_->SetInternalField(0, Undefined());
+  handle_.Dispose();
+  handle_.Clear(); 
 }
 
 ObjectWrap::ObjectWrap (Handle<Object> handle)
@@ -38,6 +36,25 @@ ObjectWrap::ObjectWrap (Handle<Object> handle)
   Handle<External> external = External::New(this);
   handle_->SetInternalField(0, external);
   handle_.MakeWeak(this, ObjectWrap::MakeWeak);
+
+  attach_count_ = 0;
+  weak_ = false;
+}
+
+void
+ObjectWrap::Attach ()
+{
+  attach_count_ += 1;
+}
+
+void
+ObjectWrap::Detach ()
+{
+  attach_count_ -= 1;
+  assert(attach_count_ >= 0);
+
+  if(weak_ && attach_count_ == 0)
+    delete this;
 }
 
 void*
@@ -52,8 +69,10 @@ ObjectWrap::Unwrap (v8::Handle<v8::Object> handle)
 void
 ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
 {
-  ObjectWrap *w = static_cast<ObjectWrap*> (data);
-  delete w;
+  ObjectWrap *obj = static_cast<ObjectWrap*> (data);
+  obj->weak_ = true;
+  if (obj->attach_count_ == 0)
+    delete obj;
 }
 
 // Extracts a C string from a V8 Utf8Value.

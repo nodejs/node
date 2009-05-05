@@ -105,8 +105,13 @@ Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
 
 Connection::~Connection ()
 {
-  handle_->Delete(SEND_SYMBOL);
-  Close();
+  static int i = 0;
+  if(socket_.fd > 0) {
+    printf("garbage collecting open Connection : %d\n", i++);
+    printf("  socket->read_action: %p\n", socket_.read_action);
+    printf("  socket->write_action: %p\n", socket_.write_action);
+  }
+  ForceClose();
 }
 
 Local<Object>
@@ -128,6 +133,8 @@ Connection::SetAcceptor (Handle<Object> acceptor_handle)
 {
   HandleScope scope;
   handle_->Set(SERVER_SYMBOL, acceptor_handle);
+  
+  Attach();
 }
 
 Handle<Value>
@@ -172,6 +179,9 @@ Connection::v8Connect (const Arguments& args)
             , Connection::AfterResolve
             , connection
             );
+
+  connection->Attach();
+
   return Undefined();
 }
 
@@ -214,6 +224,7 @@ Connection::AfterResolve (eio_req *req)
   }
 
   connection->OnDisconnect();
+  connection->Detach();
 
   return 0;
 }
@@ -242,6 +253,7 @@ Connection::v8ForceClose (const Arguments& args)
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
   connection->ForceClose();
+  //connection->Detach();
   return Undefined();
 }
 

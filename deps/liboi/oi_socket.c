@@ -47,13 +47,13 @@
 
 #if HAVE_GNUTLS
 # include <gnutls/gnutls.h>
-#endif // HAVE_GNUTLS
 
 /* a few forwards 
  * they wont even be defined if not having gnutls
  * */
 static int secure_full_goodbye (oi_socket *socket);
 static int secure_half_goodbye (oi_socket *socket);
+#endif // HAVE_GNUTLS
 
 #undef TRUE
 #define TRUE 1
@@ -99,23 +99,21 @@ oi_buf_new (const char *base, size_t len)
   return buf;
 }
 
-#define CLOSE_ASAP(socket) do {           \
-  if ((socket)->read_action) {            \
-    (socket)->read_action = full_close;   \
-  }                                       \
-  if ((socket)->write_action) {           \
-    (socket)->write_action = full_close;  \
-  }                                       \
+#define CLOSE_ASAP(socket) do {         \
+  (socket)->read_action = full_close;   \
+  (socket)->write_action = full_close;  \
 } while (0)
 
 static int 
 full_close(oi_socket *socket)
 {
+  //printf("close(%d)\n", socket->fd);
   if (close(socket->fd) == -1)
     return errno == EINTR ? AGAIN : ERROR;
 
   socket->read_action = NULL;
   socket->write_action = NULL;
+  socket->fd = -1;
   return OKAY;
 }
 
@@ -124,9 +122,17 @@ half_close(oi_socket *socket)
 {
   int r = shutdown(socket->fd, SHUT_WR);
   if (r == -1) {
-    socket->errorno = errno;
-    assert(0 && "Shouldn't get an error on shutdown");
-    return ERROR;
+    switch (errno) {
+      case ENOTCONN:
+        socket->errorno = errno;
+        return ERROR;
+
+      default:
+        perror("shutdown()");
+        socket->errorno = errno;
+        assert(0 && "Shouldn't get an error on shutdown");
+        return ERROR;
+    }
   }
   socket->write_action = NULL;
   return OKAY;
@@ -141,6 +147,9 @@ change_state_for_empty_out_stream (oi_socket *socket)
    * a very complicated bunch of close logic!
    * XXX this is awful. FIXME
    */
+  if (socket->write_action == full_close || socket->read_action == full_close)
+    return;
+
   if (socket->got_half_close == FALSE) {
     if (socket->got_full_close == FALSE) {
       /* Normal situation. Didn't get any close signals. */
@@ -244,10 +253,10 @@ secure_handshake(oi_socket *socket)
     if (socket->on_connect) socket->on_connect(socket);
   }
 
-  if (socket->read_action)
+  if (socket->read_action == secure_handshake)
     socket->read_action = secure_socket_recv;
  
-  if (socket->write_action)
+  if (socket->write_action == secure_handshake)
     socket->write_action = secure_socket_send;
 
   return OKAY;
@@ -340,8 +349,11 @@ secure_socket_recv(oi_socket *socket)
 
   if (recved >= 0) {
     /* Got EOF */
-    if (recved == 0)
+    if (recved == 0) {
       socket->read_action = NULL;
+      if (socket->write_action == NULL) 
+        CLOSE_ASAP(socket);
+    }
 
     if (socket->write_action) 
       socket->write_action = secure_socket_send;
@@ -454,6 +466,7 @@ socket_send (oi_socket *socket)
 
       default:
         perror("send()");
+        printf("%p had send error\n", socket);
         assert(0 && "oi shouldn't let this happen.");
         socket->errorno = errno;
         return ERROR;
@@ -509,7 +522,7 @@ socket_recv (oi_socket *socket)
 
       default:
         perror("recv()");
-        printf("unmatched errno %d\n", errno);
+        printf("unmatched errno %d %s\n\n", errno, strerror(errno));
         assert(0 && "recv returned error that oi should have caught before.");
         return ERROR;
     }
@@ -520,6 +533,8 @@ socket_recv (oi_socket *socket)
   if (recved == 0) {
     oi_socket_read_stop(socket);
     socket->read_action = NULL;
+    if (socket->write_action == NULL)
+      CLOSE_ASAP(socket);
   }
 
   /* NOTE: EOF is signaled with recved == 0 on callback */
@@ -860,8 +875,19 @@ oi_socket_full_close (oi_socket *socket)
 
 void oi_socket_force_close (oi_socket *socket)
 {
+  release_write_buffer(socket);
+
+  ev_clear_pending (EV_A_ &socket->write_watcher);
+  ev_clear_pending (EV_A_ &socket->read_watcher);
+  ev_clear_pending (EV_A_ &socket->timeout_watcher);
+
+  socket->write_action = socket->read_action = NULL;
   // socket->errorno = OI_SOCKET_ERROR_FORCE_CLOSE
-  CLOSE_ASAP(socket);
+  close(socket->fd);
+
+  socket->fd = -1;
+
+  oi_socket_detach(socket);
 }
 
 void 
