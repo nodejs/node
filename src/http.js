@@ -4,9 +4,9 @@
 node.http.Server = function (RequestHandler, options) {
   var MAX_FIELD_SIZE = 80*1024;
   function Protocol (connection) {
-    function fillField (field, data) {
-      field = (field || "") + data;
-      if (field.length > MAX_FIELD_SIZE) {
+    function fillField (obj, field, data) {
+      obj[field] = (obj[field] || "") + data;
+      if (obj[field].length > MAX_FIELD_SIZE) {
         connection.fullClose();
         return false;
       }
@@ -76,16 +76,16 @@ node.http.Server = function (RequestHandler, options) {
 
       this.encoding = req.encoding || "raw";
       
-      this.onPath         = function (data) { return fillField(req.path, data); };
-      this.onURI          = function (data) { return fillField(req.uri, data); };
-      this.onQueryString  = function (data) { return fillField(req.query_string, data); };
-      this.onFragment     = function (data) { return fillField(req.fragment, data); };
+      this.onPath         = function (data) { return fillField(req, "path", data); };
+      this.onURI          = function (data) { return fillField(req, "uri", data); };
+      this.onQueryString  = function (data) { return fillField(req, "query_string", data); };
+      this.onFragment     = function (data) { return fillField(req, "fragment", data); };
 
       this.onHeaderField = function (data) {
         if (req.hasOwnProperty("headers")) {
           var last_pair = req.headers[req.headers.length-1];
           if (last_pair.length == 1)
-            return fillField(last_pair[0], data);
+            return fillField(last_pair, 0, data);
           else
             req.headers.push([data]);
         } else {
@@ -99,7 +99,7 @@ node.http.Server = function (RequestHandler, options) {
         if (last_pair.length == 1)
           last_pair[1] = data;
         else 
-          return fillField(last_pair[1], data);
+          return fillField(last_pair, 1, data);
         return true;
       };
 
