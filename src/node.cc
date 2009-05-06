@@ -270,8 +270,10 @@ main (int argc, char *argv[])
   Acceptor::Initialize(g);
   Connection::Initialize(g);
 
-  HTTPServer::Initialize(g);
-  HTTPConnection::Initialize(g);
+  Local<Object> http = Object::New();
+  node->Set(String::New("http"), http);
+  HTTPServer::Initialize(http);
+  HTTPConnection::Initialize(http);
 
   // NATIVE JAVASCRIPT MODULES
   TryCatch try_catch;

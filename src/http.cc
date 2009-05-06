@@ -11,10 +11,12 @@
 #define ON_BODY_SYMBOL String::NewSymbol("onBody")
 #define ON_MESSAGE_COMPLETE_SYMBOL String::NewSymbol("onMessageComplete")
 
-#define PATH_SYMBOL String::NewSymbol("path")
-#define QUERY_STRING_SYMBOL String::NewSymbol("query_string")
-#define URI_SYMBOL String::NewSymbol("uri")
-#define FRAGMENT_SYMBOL String::NewSymbol("fragment")
+#define ON_PATH_SYMBOL String::NewSymbol("onPath")
+#define ON_QUERY_STRING_SYMBOL String::NewSymbol("onQueryString")
+#define ON_URI_SYMBOL String::NewSymbol("onURI")
+#define ON_FRAGMENT_SYMBOL String::NewSymbol("onFragment")
+#define ON_HEADER_FIELD_SYMBOL String::NewSymbol("onHeaderField")
+#define ON_HEADER_VALUE_SYMBOL String::NewSymbol("onHeaderValue")
 
 #define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
 #define HTTP_VERSION_SYMBOL String::NewSymbol("http_version")
@@ -23,55 +25,11 @@ using namespace v8;
 using namespace node;
 using namespace std;
 
-// Native Helper Functions
-
-static Persistent<Function> _fill_field; 
-static Persistent<Function> _append_header_field; 
-static Persistent<Function> _append_header_value; 
-
-#define CATCH_NATIVE_HTTP_FUNCTION(variable, jsname)                         \
-do {                                                                         \
-  if (variable.IsEmpty()) {                                                  \
-    Local<Object> __g = Context::GetCurrent()->Global();                     \
-    Local<Value> __node_v = __g->Get(String::NewSymbol("node"));             \
-    Local<Object> __node = __node_v->ToObject();                             \
-    Local<Value> __http_v = __node->Get(String::NewSymbol("http"));          \
-    Local<Object> __http = __http_v->ToObject();                             \
-    Local<Value> __value = __http->Get(String::NewSymbol(jsname));           \
-    Handle<Function> __function_handle = Handle<Function>::Cast(__value);    \
-    variable = Persistent<Function>::New(__function_handle);                 \
-  }                                                                          \
-} while(0)
-
-void
-fillField (Handle<Value> message, Handle<Value> field, Handle<Value> value)
-{
-  HandleScope scope;
-  CATCH_NATIVE_HTTP_FUNCTION(_fill_field, "fillField");
-  Handle<Value> argv[] = { message, field, value };
-  _fill_field->Call(message->ToObject(), 3, argv);
-}
-
-void
-appendHeaderField (Handle<Value> message, Handle<Value> d)
-{
-  HandleScope scope;
-  CATCH_NATIVE_HTTP_FUNCTION(_append_header_field, "appendHeaderField");
-  Handle<Value> argv[] = { message, d };
-  _append_header_field->Call(message->ToObject(), 2, argv);
-}
-
-void
-appendHeaderValue (Handle<Value> message, Handle<Value> d)
-{
-  HandleScope scope;
-  CATCH_NATIVE_HTTP_FUNCTION(_append_header_value, "appendHeaderValue");
-  Handle<Value> argv[] = { message, d };
-  _append_header_value->Call(message->ToObject(), 2, argv);
-}
 
 Persistent<FunctionTemplate> HTTPConnection::client_constructor_template;
 Persistent<FunctionTemplate> HTTPConnection::server_constructor_template;
+
+static Persistent<Object> http_module;
 
 void
 HTTPConnection::Initialize (Handle<Object> target)
@@ -82,13 +40,13 @@ HTTPConnection::Initialize (Handle<Object> target)
   client_constructor_template = Persistent<FunctionTemplate>::New(t);
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("HTTPClient"), client_constructor_template->GetFunction());
+  target->Set(String::NewSymbol("Client"), client_constructor_template->GetFunction());
 
   t = FunctionTemplate::New(v8NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
   server_constructor_template->Inherit(Connection::constructor_template);
   server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("HTTPServerSideSocket"),
+  target->Set(String::NewSymbol("ServerSideSocket"),
               server_constructor_template->GetFunction());
 }
 
@@ -119,13 +77,8 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
 {
   http_parser_execute(&parser_, static_cast<const char*>(buf), len);
 
-  if (http_parser_has_error(&parser_)) {
-    // do something?
-    Close();
-    return;
-  }
-
-  // XXX when do we close the connection?
+  if (http_parser_has_error(&parser_))
+    ForceClose();
 }
 
 int
@@ -138,48 +91,50 @@ HTTPConnection::on_message_begin (http_parser *parser)
   Local<Value> on_message_v = protocol->Get(ON_MESSAGE_SYMBOL);
   if (!on_message_v->IsFunction()) return -1;
   Handle<Function> on_message = Handle<Function>::Cast(on_message_v);
+
+  TryCatch try_catch;
   Local<Object> message_handler = on_message->NewInstance();
+  if (try_catch.HasCaught()) {
+    fatal_exception(try_catch);
+    return -1;
+  }
+
   connection->handle_->SetHiddenValue(MESSAGE_HANDLER_SYMBOL, message_handler);
   return 0;
 }
 
-#define DEFINE_FILL_VALUE_CALLBACK(callback_name, symbol)                         \
-int                                                                               \
-HTTPConnection::callback_name (http_parser *parser, const char *buf, size_t len)  \
-{                                                                                 \
-  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);       \
-  HandleScope scope;                                                              \
-  Local<Value> message_handler_v =                                                \
-    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);                  \
-  fillField(message_handler_v, symbol, String::New(buf, len));                    \
-  return 0;                                                                       \
+#define DEFINE_PARSER_CALLBACK(name, symbol)                                  \
+int                                                                           \
+HTTPConnection::name (http_parser *parser, const char *buf, size_t len)       \
+{                                                                             \
+  HandleScope scope;                                                          \
+  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);   \
+  Local<Value> message_handler_v =                                            \
+    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);              \
+  if (message_handler_v->IsObject() == false)                                 \
+    return -1;                                                                \
+  Local<Object> message_handler = message_handler_v->ToObject();              \
+  Local<Value> callback_v = message_handler->Get(symbol);                     \
+  if (callback_v->IsFunction() == false)                                      \
+    return 0;                                                                 \
+  Local<Function> callback = Local<Function>::Cast(callback_v);               \
+  TryCatch try_catch;                                                         \
+  Local<Value> argv[1] = { String::New(buf, len) };                           \
+  Local<Value> ret = callback->Call(message_handler, 1, argv);                \
+  if (ret.IsEmpty()) {                                                        \
+    fatal_exception(try_catch);                                               \
+    return -2;                                                                \
+  }                                                                           \
+  if (ret->IsFalse()) return -3;                                              \
+  return 0;                                                                   \
 }
-DEFINE_FILL_VALUE_CALLBACK(on_path, PATH_SYMBOL)
-DEFINE_FILL_VALUE_CALLBACK(on_query_string, QUERY_STRING_SYMBOL)
-DEFINE_FILL_VALUE_CALLBACK(on_uri, URI_SYMBOL)
-DEFINE_FILL_VALUE_CALLBACK(on_fragment, FRAGMENT_SYMBOL)
 
-int
-HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t len)
-{
-  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
-  HandleScope scope;
-  Local<Value> message_handler_v = 
-    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
-  appendHeaderField(message_handler_v, String::New(buf, len));
-  return 0;
-}
-
-int
-HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t len)
-{
-  HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
-  HandleScope scope;
-  Local<Value> message_handler_v = 
-    connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
-  appendHeaderValue(message_handler_v, String::New(buf, len));
-  return 0;
-}
+DEFINE_PARSER_CALLBACK(on_path,         ON_PATH_SYMBOL)
+DEFINE_PARSER_CALLBACK(on_query_string, ON_QUERY_STRING_SYMBOL)
+DEFINE_PARSER_CALLBACK(on_uri,          ON_URI_SYMBOL)
+DEFINE_PARSER_CALLBACK(on_fragment,     ON_FRAGMENT_SYMBOL)
+DEFINE_PARSER_CALLBACK(on_header_field, ON_HEADER_FIELD_SYMBOL)
+DEFINE_PARSER_CALLBACK(on_header_value, ON_HEADER_VALUE_SYMBOL)
 
 int
 HTTPConnection::on_headers_complete (http_parser *parser)
@@ -211,8 +166,13 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   Handle<Function> on_headers_complete = Handle<Function>::Cast(on_headers_complete_v);
 
-
-  on_headers_complete->Call(message_handler, 0, NULL);
+  TryCatch try_catch;
+  Local<Value> ret = on_headers_complete->Call(message_handler, 0, NULL);
+  if (ret.IsEmpty()) {
+    fatal_exception(try_catch);
+    return -2;
+  }
+  if (ret->IsFalse()) return -3;
 
   return 0;
 }
@@ -235,8 +195,8 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
 
   Handle<Value> argv[1];
 
-  // XXX whose encoding should we check? each message should have their own, 
-  // probably. it ought to default to raw.
+  // TODO each message should have their encoding. 
+  // don't look at the conneciton for encoding
   if(connection->encoding_ == UTF8) {
     // utf8 encoding
     Handle<String> chunk = String::New((const char*)buf, len);
@@ -252,6 +212,15 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
     argv[0] = array;
   }
   on_body->Call(message_handler, 1, argv);
+
+  TryCatch try_catch;
+  Local<Value> ret = on_body->Call(message_handler, 0, NULL);
+  if (ret.IsEmpty()) {
+    fatal_exception(try_catch);
+    return -2;
+  }
+  if (ret->IsFalse()) return -3;
+
   return 0;
 }
 
@@ -264,13 +233,21 @@ HTTPConnection::on_message_complete (http_parser *parser)
   Local<Value> message_handler_v = 
     connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
   Local<Object> message_handler = message_handler_v->ToObject();
+  connection->handle_->DeleteHiddenValue(MESSAGE_HANDLER_SYMBOL);
 
   Local<Value> on_msg_complete_v = message_handler->Get(ON_MESSAGE_COMPLETE_SYMBOL);
-  if (on_msg_complete_v->IsFunction()) {
-    Handle<Function> on_msg_complete = Handle<Function>::Cast(on_msg_complete_v);
-    on_msg_complete->Call(message_handler, 0, NULL);
+  if (on_msg_complete_v->IsFunction() == false) 
+    return 0;
+  Handle<Function> on_msg_complete = Handle<Function>::Cast(on_msg_complete_v);
+
+  TryCatch try_catch;
+  Local<Value> ret = on_msg_complete->Call(message_handler, 0, NULL);
+  if (ret.IsEmpty()) {
+    fatal_exception(try_catch);
+    return -2;
   }
-  connection->handle_->DeleteHiddenValue(MESSAGE_HANDLER_SYMBOL);
+  if (ret->IsFalse()) return -3;
+
   return 0;
 }
 
@@ -302,7 +279,7 @@ HTTPServer::Initialize (Handle<Object> target)
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(Acceptor::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("HTTPServer"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("LowLevelServer"), constructor_template->GetFunction());
 }
 
 Handle<Value>
