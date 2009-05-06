@@ -20,41 +20,73 @@ node.http.Server = function (RequestHandler, options) {
        * are writing to responses out of order! HTTP requires that responses
        * are returned in the same order the requests come.
        */
-      var output = "";
-      this.output = output;
+      this.output = "";
 
       function send (data) {
         if (responses[0] === this) {
           connection.send(data);
         } else {
-          output += data;
+          this.output += data;
         }
       };
 
       this.sendStatus = function (status, reason) {
-        output += "HTTP/1.1 " + status.toString() + " " + reason + "\r\n";
+        // XXX http/1.0 until i get the keep-alive logic below working.
+        this.output += "HTTP/1.0 " + status.toString() + " " + reason + "\r\n";
       };
+
+      var chunked_encoding = false;
+      var connection_close = false;
 
       this.sendHeader = function (field, value) {
-        output += field + ": " + value.toString() + "\r\n";
+        this.output += field + ": " + value.toString() + "\r\n";
+        if (/Connection/i.exec(field) && /close/i.exec(value))
+          connection_close = true;
+        else if (/Transfer-Encoding/i.exec(field) && /chunk/i.exec(value))
+          chunked_encoding = true;           
+
       };
 
-      var headersSent = false;
+      var bodyBegan = false;
+
+      function toRaw(string) {
+        var a = [];
+        for (var i = 0; i < string.length; i++)
+          a.push(string.charCodeAt(i));
+        return i;
+      }
+
+      function chunkEncode (chunk) {
+        var hexlen = chunk.length.toString(16);
+        if (chunk.constructor === String)
+          return hexlen + "\r\n" + chunk + "\r\n";
+        // er..
+      }
 
       this.sendBody = function (chunk) {
-        if (headersSent === false)  {
-          output += "\r\n";
+        if (bodyBegan === false) {
+          this.output += "\r\n";
+          bodyBegan = true;
         }
-        output += chunk;
+
+        if (chunked_encoding)
+          this.output += chunkEncode(chunk)
+        else
+          this.output += chunk;
+
         if (responses[0] === this) {
-          connection.send(output);
-          output = "";
+          connection.send(this.output);
+          this.output = "";
         }
       };
 
       var finished = false;
       this.finish = function () {
+        if (chunked_encoding)
+          this.output += "0\r\n\r\n"; // last chunk
+
         this.finished = true;
+
         while (responses.length > 0 && responses[0].finished) {
           var res = responses.shift();
           connection.send(res.output);
