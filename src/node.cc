@@ -265,7 +265,8 @@ main (int argc, char *argv[])
 
   // BUILT-IN MODULES
   node::Init_timer(g);
-  node::Init_file(g);
+
+  File::Initialize(g);
 
   Acceptor::Initialize(g);
   Connection::Initialize(g);

@@ -12,16 +12,22 @@ File.exists = function (path, callback) {
   });
 }
 
-File.cat = function (path, callback) {
+File.cat = function (path, encoding, callback) {
   var content = "";
-  var file = new File;
+  var file = new File();
+  file.encoding = "utf8";
   var pos = 0;
   var chunkSize = 10*1024;
 
   function readChunk () {
     file.read(chunkSize, pos, function (status, chunk) {
       if (chunk) {
-        content += chunk.encodeUtf8();
+
+        if (chunk.constructor == String)
+          content += chunk;
+        else
+          content = content.concat(chunk);
+
         pos += chunk.length;
         readChunk();
       } else {

@@ -10,49 +10,85 @@
 #include <assert.h>
 
 using namespace v8;
+using namespace node;
 
 #define FD_SYMBOL v8::String::NewSymbol("fd")
 #define ACTION_QUEUE_SYMBOL v8::String::NewSymbol("_actionQueue")
+#define ENCODING_SYMBOL v8::String::NewSymbol("encoding")
+
+#define UTF8_SYMBOL v8::String::NewSymbol("utf8")
+#define RAW_SYMBOL v8::String::NewSymbol("raw")
+
+static void
+InitActionQueue (Handle<Object> handle)
+{
+  handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
+}
 
 // This is the file system object which contains methods
 // for accessing the file system (like rename, mkdir, etC). 
 // In javascript it is called "File".
 static Persistent<Object> fs;
 
-class FileSystem {
-public:
-  static Handle<Value> Rename (const Arguments& args);
-  static int AfterRename (eio_req *req);
+void
+File::Initialize (Handle<Object> target)
+{
+  if (!fs.IsEmpty())
+    return;
 
-  static Handle<Value> Stat (const Arguments& args);
-  static int AfterStat (eio_req *req);
+  HandleScope scope;
 
-  static Handle<Value> StrError (const Arguments& args);
-};
+  Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
+  file_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-class File : node::ObjectWrap {
-public:
-  File (Handle<Object> handle);
-  ~File ();
+  // file methods
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
+  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
 
-  static Handle<Value> New (const Arguments& args);
+  file_template->InstanceTemplate()->SetAccessor(ENCODING_SYMBOL, File::GetEncoding, File::SetEncoding);
 
-  static Handle<Value> Open (const Arguments& args);
-  static int AfterOpen (eio_req *req);
+  fs = Persistent<Object>::New(file_template->GetFunction());
+  InitActionQueue(fs);
 
-  static Handle<Value> Close (const Arguments& args); 
-  static int AfterClose (eio_req *req);
+  target->Set(String::NewSymbol("File"), fs);
 
-  static Handle<Value> Write (const Arguments& args);
-  static int AfterWrite (eio_req *req);
+  // file system methods
+  NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
+  NODE_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
+  NODE_SET_METHOD(fs, "strerror", FileSystem::StrError);
+  fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
+  fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
+  fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
+}
 
-  static Handle<Value> Read (const Arguments& args);
-  static int AfterRead (eio_req *req);
+Handle<Value>
+File::GetEncoding (Local<String> property, const AccessorInfo& info) 
+{
+  File *file = NODE_UNWRAP(File, info.This());
 
-private:
-  bool HasUtf8Encoding (void);
-  int GetFD (void);
-};
+  if (file->encoding_ == UTF8)
+    return UTF8_SYMBOL;
+  else
+    return RAW_SYMBOL;
+}
+    
+void
+File::SetEncoding (Local<String> property, Local<Value> value, const AccessorInfo& info) 
+{
+  File *file = NODE_UNWRAP(File, info.This());
+
+  if (value->IsString()) {
+    Local<String> encoding_string = value->ToString();
+    char buf[5]; // need enough room for "utf8" or "raw"
+    encoding_string->WriteAscii(buf, 0, 4);
+    buf[4] = '\0';
+    file->encoding_ = strcasecmp(buf, "utf8") == 0 ? UTF8 : RAW;
+  } else {
+    file->encoding_ = RAW;
+  }
+}
 
 static void
 CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
@@ -85,12 +121,6 @@ CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
   Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
 
   poll_actions->Call(handle, 0, NULL);
-}
-
-static void
-InitActionQueue (Handle<Object> handle)
-{
-  handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
 
 Handle<Value>
@@ -206,6 +236,7 @@ File::File (Handle<Object> handle)
   : ObjectWrap(handle)
 {
   HandleScope scope;
+  encoding_ = RAW;
   InitActionQueue(handle);
 }
 
@@ -434,7 +465,7 @@ File::AfterRead (eio_req *req)
     argv[1] = Local<Value>::New(Null());
   } else {
     size_t length = req->result;
-    if (file->HasUtf8Encoding()) {
+    if (file->encoding_ == UTF8) {
       // utf8 encoding
       argv[1] = String::New(buf, req->result);
     } else {
@@ -460,33 +491,3 @@ File::New(const Arguments& args)
   return args.This();
 }
 
-void
-node::Init_file (Handle<Object> target)
-{
-  if (!fs.IsEmpty())
-    return;
-
-  HandleScope scope;
-
-  Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
-  file_template->InstanceTemplate()->SetInternalFieldCount(1);
-
-  fs = Persistent<Object>::New(file_template->GetFunction());
-  InitActionQueue(fs);
-
-  target->Set(String::NewSymbol("File"), fs);
-
-  // file system methods
-  NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
-  NODE_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
-  NODE_SET_METHOD(fs, "strerror", FileSystem::StrError);
-  fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
-  fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
-  fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
-
-  // file methods
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
-}
