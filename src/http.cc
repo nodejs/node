@@ -4,19 +4,22 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <strings.h>
 
-#define ON_MESSAGE_SYMBOL String::NewSymbol("onMessage")
-#define MESSAGE_HANDLER_SYMBOL String::NewSymbol("messageHandler")
-#define ON_HEADERS_COMPLETE_SYMBOL String::NewSymbol("onHeadersComplete")
-#define ON_BODY_SYMBOL String::NewSymbol("onBody")
-#define ON_MESSAGE_COMPLETE_SYMBOL String::NewSymbol("onMessageComplete")
+#define ENCODING_SYMBOL             String::NewSymbol("encoding")
 
-#define ON_PATH_SYMBOL String::NewSymbol("onPath")
-#define ON_QUERY_STRING_SYMBOL String::NewSymbol("onQueryString")
-#define ON_URI_SYMBOL String::NewSymbol("onURI")
-#define ON_FRAGMENT_SYMBOL String::NewSymbol("onFragment")
-#define ON_HEADER_FIELD_SYMBOL String::NewSymbol("onHeaderField")
-#define ON_HEADER_VALUE_SYMBOL String::NewSymbol("onHeaderValue")
+#define MESSAGE_HANDLER_SYMBOL      String::NewSymbol("messageHandler")
+
+#define ON_MESSAGE_SYMBOL           String::NewSymbol("onMessage")
+#define ON_PATH_SYMBOL              String::NewSymbol("onPath")
+#define ON_QUERY_STRING_SYMBOL      String::NewSymbol("onQueryString")
+#define ON_URI_SYMBOL               String::NewSymbol("onURI")
+#define ON_FRAGMENT_SYMBOL          String::NewSymbol("onFragment")
+#define ON_HEADER_FIELD_SYMBOL      String::NewSymbol("onHeaderField")
+#define ON_HEADER_VALUE_SYMBOL      String::NewSymbol("onHeaderValue")
+#define ON_HEADERS_COMPLETE_SYMBOL  String::NewSymbol("onHeadersComplete")
+#define ON_BODY_SYMBOL              String::NewSymbol("onBody")
+#define ON_MESSAGE_COMPLETE_SYMBOL  String::NewSymbol("onMessageComplete")
 
 #define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
 #define HTTP_VERSION_SYMBOL String::NewSymbol("http_version")
@@ -180,7 +183,7 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 int
 HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
 {
-  if(len == 0) return 0;
+  assert(len != 0);
 
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
   HandleScope scope;
@@ -193,11 +196,24 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
   if (on_body_v->IsFunction() == false) return 0;
   Handle<Function> on_body = Handle<Function>::Cast(on_body_v);
 
-  Handle<Value> argv[1];
+  /* Look at the value of message_handler.encoding to decide how to
+   * send the body chunk. This is rather sloppy and unnecesary. FIXME
+   */
+  enum encoding encoding = RAW;
+  Local<Value> encoding_v = message_handler->Get(ENCODING_SYMBOL);
+  if (encoding_v->IsString()) {
+    Local<String> encoding_string = encoding_v->ToString();
+    char buf[5]; // need enough room for "utf8" or "raw"
+    encoding_string->WriteAscii(buf, 0, 4);
+    buf[4] = '\0';
+    if(strcasecmp(buf, "utf8") == 0)
+      encoding = UTF8;
+  }
 
+  Handle<Value> argv[1];
   // TODO each message should have their encoding. 
   // don't look at the conneciton for encoding
-  if(connection->encoding_ == UTF8) {
+  if(encoding == UTF8) {
     // utf8 encoding
     Handle<String> chunk = String::New((const char*)buf, len);
     argv[0] = chunk;
