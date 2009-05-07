@@ -13,9 +13,12 @@ File.exists = function (path, callback) {
 }
 
 File.cat = function (path, encoding, callback) {
-  var content = "";
   var file = new File();
-  file.encoding = "utf8";
+  file.encoding = encoding;
+
+  var content = "";
+  if (file.encoding == "raw") content = [];
+
   var pos = 0;
   var chunkSize = 10*1024;
 

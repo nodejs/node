@@ -472,6 +472,10 @@ socket_send (oi_socket *socket)
         socket->errorno = errno;
         return ERROR;
 
+      case EPIPE:
+        socket->errorno = errno;
+        return ERROR;
+        
       default:
         perror("send()");
         printf("%p had send error\n", socket);
