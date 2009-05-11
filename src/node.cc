@@ -248,6 +248,8 @@ main (int argc, char *argv[])
 
   Local<Object> g = Context::GetCurrent()->Global();
 
+  V8::PauseProfiler(); // to be resumed in Connection::on_read
+
   Local<Object> node = Object::New();
   g->Set(String::New("node"), node);
 
