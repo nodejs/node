@@ -1,6 +1,13 @@
 /* This is a wrapper around the LowLevelServer interface. It provides
  * connection handling, overflow checking, and some data buffering.
  */
+
+var connection_expression = /Connection/i;
+var transfer_encoding_expression = /Transfer-Encoding/i;
+var close_expression = /close/i;
+var chunk_expression = /chunk/i;
+var content_length_expression = /Content-Length/i;
+
 node.http.Server = function (RequestHandler, options) {
   var MAX_FIELD_SIZE = 80*1024;
   function Protocol (connection) {
@@ -74,32 +81,57 @@ node.http.Server = function (RequestHandler, options) {
             connection.send(output.shift());
       };
 
-      this.sendStatus = function (status, reason) {
-        // XXX http/1.0 until i get the keep-alive logic below working.
-        send("HTTP/1.0 " + status.toString() + " " + reason + "\r\n");
-      };
-
       var chunked_encoding = false;
       var connection_close = false;
 
-      this.sendHeader = function (field, value) {
-        send(field + ": " + value.toString() + "\r\n");
+      this.sendHeader = function (status, headers) {
 
-        if (/Connection/i.exec(field) && /close/i.exec(value))
-          connection_close = true;
+        var sent_connection_header = false;
+        var sent_transfer_encoding_header = false;
+        var sent_content_length_header = false;
 
-        else if (/Transfer-Encoding/i.exec(field) && /chunk/i.exec(value))
-          chunked_encoding = true;           
+        var reason = "Ok"; // FIXME
+        var header = "HTTP/1.0 ";
+
+        header += status.toString() + " " + reason + "\r\n";
+
+        for (var i = 0; i < headers.length; i++) {
+          var field = headers[i][0];
+          var value = headers[i][1];
+
+          header += field + ": " + value + "\r\n";
+          
+          if (connection_expression.exec(field)) {
+            sent_connection_header = true;
+            if (close_expression.exec(value))
+              connection_close = true;
+            
+          } else if (transfer_encoding_expression.exec(field)) {
+            sent_transfer_encoding_header = true;
+            if (chunk_expression.exec(value))
+              chunked_encoding = true;
+
+          } else if (content_length_expression.exec(field)) {
+            sent_content_length_header = true;
+          }
+        }
+
+        if (sent_connection_header == false)
+          header += "Connection: keep-alive\r\n";
+
+        if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
+          header += "Transfer-Encoding: chunked\r\n";
+          chunked_encoding = true;
+        }
+
+        header += "\r\n";
+
+        send(header);
       };
 
       var bodyBegan = false;
 
       this.sendBody = function (chunk) {
-        if (bodyBegan === false) {
-          send("\r\n");
-          bodyBegan = true;
-        }
-
         if (chunked_encoding) {
           send(chunk.length.toString(16));
           send("\r\n");
