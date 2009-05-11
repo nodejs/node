@@ -154,8 +154,15 @@ node.http.Server = function (RequestHandler, options) {
           }
         }
 
-        if (sent_connection_header == false)
-          header += "Connection: keep-alive\r\n";
+        // keep-alive logic 
+        if (sent_connection_header == false) {
+          if (this.should_keep_alive) {
+            header += "Connection: keep-alive\r\n";
+          } else {
+            connection_close = true;
+            header += "Connection: close\r\n";
+          }
+        }
 
         if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
           header += "Transfer-Encoding: chunked\r\n";
@@ -193,12 +200,8 @@ node.http.Server = function (RequestHandler, options) {
           responses.shift();
         }
 
-        if (responses.length == 0) {
+        if (responses.length == 0 && connection_close) {
           connection.fullClose();
-          // TODO keep-alive logic 
-          //  if http/1.0 without "Connection: keep-alive" header - yes
-          //  if http/1.1 if the request was not GET or HEAD - yes
-          //  if http/1.1 without "Connection: close" header - yes
         }
       };
     }
@@ -239,6 +242,7 @@ node.http.Server = function (RequestHandler, options) {
       this.onHeadersComplete = function () {
         req.http_version = this.http_version;
         req.method = this.method;
+        res.should_keep_alive = this.should_keep_alive;
         return req.onHeadersComplete();
       };
 

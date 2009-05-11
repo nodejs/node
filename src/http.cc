@@ -23,6 +23,7 @@
 
 #define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
 #define HTTP_VERSION_SYMBOL String::NewSymbol("http_version")
+#define SHOULD_KEEP_ALIVE_SYMBOL String::NewSymbol("should_keep_alive")
 
 using namespace v8;
 using namespace node;
@@ -162,6 +163,11 @@ HTTPConnection::on_headers_complete (http_parser *parser)
           , connection->parser_.version_minor
           ); 
   message_handler->Set(HTTP_VERSION_SYMBOL, String::New(version));
+
+  // SHOULD KEEP ALIVE
+  message_handler->Set( SHOULD_KEEP_ALIVE_SYMBOL
+                      , http_parser_should_keep_alive(&connection->parser_) ? True() : False()
+                      );
 
 
   Local<Value> on_headers_complete_v = message_handler->Get(ON_HEADERS_COMPLETE_SYMBOL);
