@@ -474,6 +474,42 @@ static Object* Runtime_IsInPrototypeChain(Arguments args) {
 }
 
 
+// Inserts an object as the hidden prototype of another object.
+static Object* Runtime_SetHiddenPrototype(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, jsobject, args[0]);
+  CONVERT_CHECKED(JSObject, proto, args[1]);
+
+  // Sanity checks.  The old prototype (that we are replacing) could
+  // theoretically be null, but if it is not null then check that we
+  // didn't already install a hidden prototype here.
+  RUNTIME_ASSERT(!jsobject->GetPrototype()->IsHeapObject() ||
+    !HeapObject::cast(jsobject->GetPrototype())->map()->is_hidden_prototype());
+  RUNTIME_ASSERT(!proto->map()->is_hidden_prototype());
+
+  // Allocate up front before we start altering state in case we get a GC.
+  Object* map_or_failure = proto->map()->CopyDropTransitions();
+  if (map_or_failure->IsFailure()) return map_or_failure;
+  Map* new_proto_map = Map::cast(map_or_failure);
+
+  map_or_failure = jsobject->map()->CopyDropTransitions();
+  if (map_or_failure->IsFailure()) return map_or_failure;
+  Map* new_map = Map::cast(map_or_failure);
+
+  // Set proto's prototype to be the old prototype of the object.
+  new_proto_map->set_prototype(jsobject->GetPrototype());
+  proto->set_map(new_proto_map);
+  new_proto_map->set_is_hidden_prototype();
+
+  // Set the object's prototype to proto.
+  new_map->set_prototype(proto);
+  jsobject->set_map(new_map);
+
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
@@ -1282,7 +1318,7 @@ class ReplacementStringBuilder {
         parts_(Factory::NewFixedArray(estimated_part_count)),
         part_count_(0),
         character_count_(0),
-        is_ascii_(StringShape(*subject).IsAsciiRepresentation()) {
+        is_ascii_(subject->IsAsciiRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(estimated_part_count > 0);
@@ -1326,7 +1362,7 @@ class ReplacementStringBuilder {
     int length = string->length();
     ASSERT(length > 0);
     AddElement(*string);
-    if (!StringShape(*string).IsAsciiRepresentation()) {
+    if (!string->IsAsciiRepresentation()) {
       is_ascii_ = false;
     }
     IncrementCharacterCount(length);
@@ -1583,14 +1619,14 @@ void CompiledReplacement::Compile(Handle<String> replacement,
                                   int capture_count,
                                   int subject_length) {
   ASSERT(replacement->IsFlat());
-  if (StringShape(*replacement).IsAsciiRepresentation()) {
+  if (replacement->IsAsciiRepresentation()) {
     AssertNoAllocation no_alloc;
     ParseReplacementPattern(&parts_,
                             replacement->ToAsciiVector(),
                             capture_count,
                             subject_length);
   } else {
-    ASSERT(StringShape(*replacement).IsTwoByteRepresentation());
+    ASSERT(replacement->IsTwoByteRepresentation());
     AssertNoAllocation no_alloc;
 
     ParseReplacementPattern(&parts_,
@@ -2165,7 +2201,7 @@ int Runtime::StringMatch(Handle<String> sub,
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (StringShape(*sub).IsAsciiRepresentation()) {
+    if (sub->IsAsciiRepresentation()) {
       uc16 pchar = pat->Get(0);
       if (pchar > String::kMaxAsciiCharCode) {
         return -1;
@@ -2190,15 +2226,15 @@ int Runtime::StringMatch(Handle<String> sub,
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (StringShape(*pat).IsAsciiRepresentation()) {
+  if (pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (StringShape(*sub).IsAsciiRepresentation()) {
+    if (sub->IsAsciiRepresentation()) {
       return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
     return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (StringShape(*sub).IsAsciiRepresentation()) {
+  if (sub->IsAsciiRepresentation()) {
     return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
   return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
@@ -2688,6 +2724,59 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 }
 
 
+Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
+                                        Handle<Object> key,
+                                        Handle<Object> value,
+                                        PropertyAttributes attr) {
+  HandleScope scope;
+
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (Array::IndexFromObject(*key, &index)) {
+    ASSERT(attr == NONE);
+
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
+    // of a string using [] notation.  We need to support this too in
+    // JavaScript.
+    // In the case of a String object we just need to redirect the assignment to
+    // the underlying string if the index is in range.  Since the underlying
+    // string does nothing with the assignment then we can ignore such
+    // assignments.
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
+      return *value;
+    }
+
+    return js_object->SetElement(index, *value);
+  }
+
+  if (key->IsString()) {
+    if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      ASSERT(attr == NONE);
+      return js_object->SetElement(index, *value);
+    } else {
+      Handle<String> key_string = Handle<String>::cast(key);
+      key_string->TryFlattenIfNotFlat();
+      return js_object->IgnoreAttributesAndSetLocalProperty(*key_string,
+                                                            *value,
+                                                            attr);
+    }
+  }
+
+  // Call-back into JavaScript to convert the key to a string.
+  bool has_pending_exception = false;
+  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
+  Handle<String> name = Handle<String>::cast(converted);
+
+  if (name->AsArrayIndex(&index)) {
+    ASSERT(attr == NONE);
+    return js_object->SetElement(index, *value);
+  } else {
+    return js_object->IgnoreAttributesAndSetLocalProperty(*name, *value, attr);
+  }
+}
+
+
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -2743,20 +2832,42 @@ static Object* Runtime_DeleteProperty(Arguments args) {
 }
 
 
+static Object* HasLocalPropertyImplementation(Handle<JSObject> object,
+                                              Handle<String> key) {
+  if (object->HasLocalProperty(*key)) return Heap::true_value();
+  // Handle hidden prototypes.  If there's a hidden prototype above this thing
+  // then we have to check it for properties, because they are supposed to
+  // look like they are on this object.
+  Handle<Object> proto(object->GetPrototype());
+  if (proto->IsJSObject() &&
+      Handle<JSObject>::cast(proto)->map()->is_hidden_prototype()) {
+    return HasLocalPropertyImplementation(Handle<JSObject>::cast(proto), key);
+  }
+  return Heap::false_value();
+}
+
+
 static Object* Runtime_HasLocalProperty(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[1]);
 
+  Object* obj = args[0];
   // Only JS objects can have properties.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
-    if (object->HasLocalProperty(key)) return Heap::true_value();
-  } else if (args[0]->IsString()) {
+  if (obj->IsJSObject()) {
+    JSObject* object = JSObject::cast(obj);
+    // Fast case - no interceptors.
+    if (object->HasRealNamedProperty(key)) return Heap::true_value();
+    // Slow case.  Either it's not there or we have an interceptor.  We should
+    // have handles for this kind of deal.
+    HandleScope scope;
+    return HasLocalPropertyImplementation(Handle<JSObject>(object),
+                                          Handle<String>(key));
+  } else if (obj->IsString()) {
     // Well, there is one exception:  Handle [] on strings.
     uint32_t index;
     if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(args[0]);
+      String* string = String::cast(obj);
       if (index < static_cast<uint32_t>(string->length()))
         return Heap::true_value();
     }
@@ -3276,7 +3387,7 @@ static Object* ConvertCaseHelper(String* s,
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = StringShape(s).IsAsciiRepresentation()
+  Object* o = s->IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
@@ -3482,6 +3593,7 @@ static Object* Runtime_NumberToSmi(Arguments args) {
   return Heap::nan_value();
 }
 
+
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -3626,7 +3738,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = StringShape(special).IsAsciiRepresentation();
+  bool ascii = special->IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -3646,7 +3758,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !StringShape(element).IsAsciiRepresentation()) {
+      if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -4158,10 +4270,12 @@ static Object* Runtime_NewObject(Arguments args) {
     JSFunction* function = JSFunction::cast(constructor);
 
     // Handle stepping into constructors if step into is active.
+#ifdef ENABLE_DEBUGGER_SUPPORT
     if (Debug::StepInActive()) {
       HandleScope scope;
       Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
     }
+#endif
 
     if (function->has_initial_map() &&
         function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
@@ -4525,12 +4639,6 @@ static Object* Runtime_StackOverflow(Arguments args) {
 }
 
 
-static Object* Runtime_DebugBreak(Arguments args) {
-  ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper();
-}
-
-
 static Object* Runtime_StackGuard(Arguments args) {
   ASSERT(args.length() == 1);
 
@@ -4707,10 +4815,10 @@ static Object* Runtime_DateParseString(Arguments args) {
   FixedArray* output_array = output->elements();
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
-  if (StringShape(*str).IsAsciiRepresentation()) {
+  if (str->IsAsciiRepresentation()) {
     result = DateParser::Parse(str->ToAsciiVector(), output_array);
   } else {
-    ASSERT(StringShape(*str).IsTwoByteRepresentation());
+    ASSERT(str->IsTwoByteRepresentation());
     result = DateParser::Parse(str->ToUC16Vector(), output_array);
   }
 
@@ -4774,14 +4882,18 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT_EQ(3, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
+  CONVERT_ARG_CHECKED(Oddball, is_json, 2)
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, line_offset->value(), true);
+  Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
+                                                         context,
+                                                         line_offset->value(),
+                                                         true,
+                                                         is_json->IsTrue());
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -4806,7 +4918,7 @@ static Object* CompileDirectEval(Handle<String> source) {
 
   // Compile source string in the current context.
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, 0, is_global);
+      Compiler::CompileEval(source, context, 0, is_global, false);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -4889,26 +5001,6 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
   call->set(0, *callee);
   call->set(1, *receiver);
   return *call;
-}
-
-
-static Object* Runtime_CompileScript(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 4);
-
-  CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(String, script, 1);
-  CONVERT_CHECKED(Smi, line_attrs, args[2]);
-  int line = line_attrs->value();
-  CONVERT_CHECKED(Smi, col_attrs, args[3]);
-  int col = col_attrs->value();
-  Handle<JSFunction> boilerplate =
-      Compiler::Compile(source, script, line, col, NULL, NULL);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate,
-                                          Handle<Context>(Top::context()));
-  return *fun;
 }
 
 
@@ -5210,12 +5302,16 @@ static Object* Runtime_GlobalPrint(Arguments args) {
   return string;
 }
 
-
+// Moves all own elements of an object, that are below a limit, to positions
+// starting at zero. All undefined values are placed after non-undefined values,
+// and are followed by non-existing element. Does not change the length
+// property.
+// Returns the number of non-undefined elements collected.
 static Object* Runtime_RemoveArrayHoles(Arguments args) {
-  ASSERT(args.length() == 1);
-  // Ignore the case if this is not a JSArray.
-  if (!args[0]->IsJSArray()) return args[0];
-  return JSArray::cast(args[0])->RemoveHoles();
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, object, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
+  return object->PrepareElementsForSort(limit);
 }
 
 
@@ -5251,8 +5347,7 @@ static Object* Runtime_EstimateNumberOfElements(Arguments args) {
 static Object* Runtime_GetArrayKeys(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
-  CONVERT_CHECKED(JSArray, raw_array, args[0]);
-  Handle<JSArray> array(raw_array);
+  CONVERT_ARG_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
   if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
@@ -5274,8 +5369,10 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
     single_interval->set(0,
                          Smi::FromInt(-1),
                          SKIP_WRITE_BARRIER);
+    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
+    uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
-        Factory::NewNumber(static_cast<double>(length));
+        Factory::NewNumber(static_cast<double>(min_length));
     single_interval->set(1, *length_object);
     return *Factory::NewJSArrayWithElements(single_interval);
   }
@@ -5313,6 +5410,13 @@ static Object* Runtime_LookupAccessor(Arguments args) {
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag, args[2]);
   return obj->LookupAccessor(name, flag->value() == 0);
+}
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+static Object* Runtime_DebugBreak(Arguments args) {
+  ASSERT(args.length() == 0);
+  return Execution::DebugBreakHelper();
 }
 
 
@@ -5928,8 +6032,8 @@ static Object* Runtime_GetCFrames(Arguments args) {
   if (result->IsFailure()) return result;
 
   static const int kMaxCFramesSize = 200;
-  OS::StackFrame frames[kMaxCFramesSize];
-  int frames_count = OS::StackWalk(frames, kMaxCFramesSize);
+  ScopedVector<OS::StackFrame> frames(kMaxCFramesSize);
+  int frames_count = OS::StackWalk(frames);
   if (frames_count == OS::kStackWalkError) {
     return Heap::undefined_value();
   }
@@ -6442,7 +6546,8 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Compiler::CompileEval(function_source,
                             context,
                             0,
-                            context->IsGlobalContext());
+                            context->IsGlobalContext(),
+                            false);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -6500,7 +6605,11 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 
   // Compile the source to be evaluated.
   Handle<JSFunction> boilerplate =
-      Handle<JSFunction>(Compiler::CompileEval(source, context, 0, true));
+      Handle<JSFunction>(Compiler::CompileEval(source,
+                                               context,
+                                               0,
+                                               true,
+                                               false));
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,
@@ -6523,9 +6632,9 @@ static bool IsExternalStringValid(Object* str) {
   if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
     return true;
   }
-  if (StringShape(String::cast(str)).IsAsciiRepresentation()) {
+  if (String::cast(str)->IsAsciiRepresentation()) {
     return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (StringShape(String::cast(str)).IsTwoByteRepresentation()) {
+  } else if (String::cast(str)->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(str)->resource() != NULL;
   } else {
     return true;
@@ -6796,6 +6905,31 @@ static Object* Runtime_SystemBreak(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
+#ifdef DEBUG
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  // Get the function and make sure it is compiled.
+  CONVERT_ARG_CHECKED(JSFunction, func, 0);
+  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
+    return Failure::Exception();
+  }
+  func->code()->PrintLn();
+#endif  // DEBUG
+  return Heap::undefined_value();
+}
+
+
+static Object* Runtime_FunctionGetInferredName(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  return f->shared()->inferred_name();
+}
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position
 // for the requested break point. For lazily compiled functions several heap
@@ -6842,21 +6976,6 @@ static Object* Runtime_GetScript(Arguments args) {
   Handle<Object> result =
       Runtime_GetScriptFromScriptName(Handle<String>(script_name));
   return *result;
-}
-
-
-static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
-#ifdef DEBUG
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  // Get the function and make sure it is compiled.
-  CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
-    return Failure::Exception();
-  }
-  func->code()->PrintLn();
-#endif  // DEBUG
-  return Heap::undefined_value();
 }
 
 

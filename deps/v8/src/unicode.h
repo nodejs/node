@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef __UNIBROW_H__
-#define __UNIBROW_H__
+#ifndef V8_UNICODE_H_
+#define V8_UNICODE_H_
 
 #include <sys/types.h>
 
@@ -276,4 +276,4 @@ struct CanonicalizationRange {
 
 }  // namespace unibrow
 
-#endif  // __UNIBROW_H__
+#endif  // V8_UNICODE_H_

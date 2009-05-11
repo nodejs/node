@@ -27,9 +27,6 @@
 
 prefix cctest
 
-# BUG(96): Fix this flaky test.
-test-debug/ThreadedDebugging: PASS || FAIL
-
 # BUG(281): This test fails on some Linuxes.
 test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 
@@ -43,8 +40,10 @@ test-spaces/LargeObjectSpace: PASS || FAIL
 # BUG(240): Test seems flaky on ARM.
 test-api/RegExpInterruption: SKIP
 
+[ $simulator == arm ]
+
 # BUG(271): During exception propagation, we compare pointers into the
 # stack.  These tests fail on the ARM simulator because the C++ and
 # the JavaScript stacks are separate.
-test-api/ExceptionOrder: PASS || FAIL
-test-api/TryCatchInTryFinally: PASS || FAIL
+test-api/ExceptionOrder: FAIL
+test-api/TryCatchInTryFinally: FAIL

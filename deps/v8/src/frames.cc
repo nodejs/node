@@ -647,10 +647,10 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   handler->Iterate(v);
   // Make sure that there's the entry frame does not contain more than
   // one stack handler.
-  if (kDebug) {
-    it.Advance();
-    ASSERT(it.done());
-  }
+#ifdef DEBUG
+  it.Advance();
+  ASSERT(it.done());
+#endif
 }
 
 

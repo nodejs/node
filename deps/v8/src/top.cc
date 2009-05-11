@@ -116,15 +116,15 @@ class PreallocatedMemoryThread: public Thread {
   // When the thread starts running it will allocate a fixed number of bytes
   // on the stack and publish the location of this memory for others to use.
   void Run() {
-    EmbeddedVector<char, 32 * 1024> local_buffer;
+    EmbeddedVector<char, 15 * 1024> local_buffer;
 
     // Initialize the buffer with a known good value.
     OS::StrNCpy(local_buffer, "Trace data was not generated.\n",
                 local_buffer.length());
 
     // Publish the local buffer and signal its availability.
-    data_ = &local_buffer[0];
-    length_ = sizeof(local_buffer);
+    data_ = local_buffer.start();
+    length_ = local_buffer.length();
     data_ready_semaphore_->Signal();
 
     while (keep_running_) {
@@ -728,8 +728,10 @@ void Top::DoThrow(Object* exception,
   bool should_return_exception = ShouldReportException(&is_caught_externally);
   bool report_exception = !is_out_of_memory && should_return_exception;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
   Debugger::OnException(exception_handle, report_exception);
+#endif
 
   // Generate the message.
   Handle<Object> message_obj;

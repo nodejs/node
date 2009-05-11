@@ -28,26 +28,26 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// -----------------------------------------------------------------------------
-// Types
-// Visual Studio C++ is missing the stdint.h header file. Instead we define
-// standard integer types for Windows here.
-
-#ifdef _MSC_VER
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;  // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#else  // _MSC_VER
-#include <stdint.h>  // for intptr_t
-#endif  // _MSC_VER
-
-
 namespace v8 { namespace internal {
+
+// Processor architecture detection.  For more info on what's defined, see:
+//   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
+//   http://www.agner.org/optimize/calling_conventions.pdf
+//   or with gcc, run: "echo | gcc -E -dM -"
+#if defined(_M_X64) || defined(__x86_64__)
+#define V8_HOST_ARCH_X64 1
+#define V8_HOST_ARCH_64_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#elif defined(_M_IX86) || defined(__i386__)
+#define V8_HOST_ARCH_IA32 1
+#define V8_HOST_ARCH_32_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#elif defined(__ARMEL__)
+#define V8_HOST_ARCH_ARM 1
+#define V8_HOST_ARCH_32_BIT 1
+#else
+#error Your architecture was not detected as supported by v8
+#endif
 
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
@@ -69,22 +69,31 @@ typedef unsigned int __my_bool__;
 typedef uint8_t byte;
 typedef byte* Address;
 
+// Define our own macros for writing 64-bit constants.  This is less fragile
+// than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
+// works on compilers that don't have it (like MSVC).
+#if V8_HOST_ARCH_64_BIT
+#ifdef _MSC_VER
+#define V8_UINT64_C(x)  (x ## UI64)
+#define V8_INT64_C(x)   (x ## I64)
+#define V8_PTR_PREFIX "ll"
+#else
+#define V8_UINT64_C(x)  (x ## UL)
+#define V8_INT64_C(x)   (x ## L)
+#define V8_PTR_PREFIX "l"
+#endif
+#else  // V8_HOST_ARCH_64_BIT
+#define V8_PTR_PREFIX ""
+#endif
+
+#define V8PRIp V8_PTR_PREFIX "x"
+
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
-typedef signed int uc32;
-
-#ifndef ARM
-#define CAN_READ_UNALIGNED 1
-#endif
+typedef int32_t uc32;
 
 // -----------------------------------------------------------------------------
 // Constants
-
-#ifdef DEBUG
-const bool kDebug = true;
-#else
-const bool kDebug = false;
-#endif  // DEBUG
 
 const int KB = 1024;
 const int MB = KB * KB;
@@ -92,35 +101,41 @@ const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
 
+const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+
 const int kCharSize     = sizeof(char);    // NOLINT
 const int kShortSize    = sizeof(short);   // NOLINT
 const int kIntSize      = sizeof(int);     // NOLINT
 const int kDoubleSize   = sizeof(double);  // NOLINT
 const int kPointerSize  = sizeof(void*);   // NOLINT
 
+#if V8_HOST_ARCH_64_BIT
+const int kPointerSizeLog2 = 3;
+#else
 const int kPointerSizeLog2 = 2;
+#endif
 
-const int kObjectAlignmentBits = 2;
-const int kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
-const int kObjectAlignment = 1 << kObjectAlignmentBits;
+const int kObjectAlignmentBits = kPointerSizeLog2;
+const intptr_t kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
+const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
 const int kHeapObjectTagSize = 2;
-const int kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
 
 // Tag information for Smi.
 const int kSmiTag = 0;
 const int kSmiTagSize = 1;
-const int kSmiTagMask = (1 << kSmiTagSize) - 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
 
 // Tag information for Failure.
 const int kFailureTag = 3;
 const int kFailureTagSize = 2;
-const int kFailureTagMask = (1 << kFailureTagSize) - 1;
+const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
 
 
 const int kBitsPerByte = 8;
@@ -129,11 +144,21 @@ const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kBitsPerInt = kIntSize * kBitsPerByte;
 
 
-// Zap-value: The value used for zapping dead objects. Should be a recognizable
-// illegal heap object pointer.
+// Zap-value: The value used for zapping dead objects.
+// Should be a recognizable hex value tagged as a heap object pointer.
+#ifdef V8_HOST_ARCH_64_BIT
+const Address kZapValue =
+    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeed));
+const Address kHandleZapValue =
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
+const Address kFromSpaceZapValue =
+    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
+#else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
+#endif
+
 
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
@@ -146,7 +171,6 @@ class Assembler;
 class BreakableStatement;
 class Code;
 class CodeGenerator;
-class CodeRegion;
 class CodeStub;
 class Context;
 class Debug;
@@ -377,13 +401,13 @@ enum StateTag {
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<int>(value) & kSmiTagMask) == kSmiTag)
+  ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
 
 #define HAS_FAILURE_TAG(value) \
-  ((reinterpret_cast<int>(value) & kFailureTagMask) == kFailureTag)
+  ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
 
 #define HAS_HEAP_OBJECT_TAG(value) \
-  ((reinterpret_cast<int>(value) & kHeapObjectTagMask) == kHeapObjectTag)
+  ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) == kHeapObjectTag)
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \
@@ -492,7 +516,7 @@ F FUNCTION_CAST(Address addr) {
 // exception'.
 //
 // Bit_cast uses the memcpy exception to move the bits from a variable of one
-// type o a variable of another type.  Of course the end result is likely to
+// type of a variable of another type.  Of course the end result is likely to
 // be implementation dependent.  Most compilers (gcc-4.2 and MSVC 2005)
 // will completely optimize bit_cast away.
 //

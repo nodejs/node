@@ -155,6 +155,7 @@ class Expression: public Node {
  public:
   virtual Expression* AsExpression()  { return this; }
 
+  virtual bool IsValidJSON() { return false; }
   virtual bool IsValidLeftHandSide() { return false; }
 
   // Mark the expression as being compiled as an expression
@@ -625,6 +626,8 @@ class Literal: public Expression {
     return handle_.is_identical_to(other->handle_);
   }
 
+  virtual bool IsValidJSON() { return true; }
+
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
   bool IsTrue() const { return handle_.is_identical_to(Factory::true_value()); }
@@ -652,6 +655,8 @@ class MaterializedLiteral: public Expression {
   // A materialized literal is simple if the values consist of only
   // constants and simple object and array literals.
   bool is_simple() const { return is_simple_; }
+
+  virtual bool IsValidJSON() { return true; }
 
   int depth() const { return depth_; }
 
@@ -704,6 +709,7 @@ class ObjectLiteral: public MaterializedLiteral {
 
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
+  virtual bool IsValidJSON();
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -751,6 +757,7 @@ class ArrayLiteral: public MaterializedLiteral {
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
+  virtual bool IsValidJSON();
 
   Handle<FixedArray> literals() const { return literals_; }
   ZoneList<Expression*>* values() const { return values_; }

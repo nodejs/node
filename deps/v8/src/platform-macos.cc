@@ -212,10 +212,11 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-int OS::StackWalk(StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<StackFrame> frames) {
 #ifndef MAC_OS_X_VERSION_10_5
   return 0;
 #else
+  int frames_size = frames.length();
   void** addresses = NewArray<void*>(frames_size);
   int frames_count = backtrace(addresses, frames_size);
 

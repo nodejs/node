@@ -167,14 +167,17 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   Heap::SetLastScriptId(Smi::FromInt(id));
 
   // Create and initialize script object.
+  Handle<Proxy> wrapper = Factory::NewProxy(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(Heap::undefined_value());
   script->set_id(Heap::last_script_id());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
+  script->set_data(Heap::undefined_value());
+  script->set_context_data(Heap::undefined_value());
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
-  script->set_wrapper(*Factory::NewProxy(0, TENURED));
+  script->set_wrapper(*wrapper);
   script->set_line_ends(Heap::undefined_value());
 
   return script;
@@ -207,14 +210,14 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::CopyMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(src->Copy(), Map);
+Handle<Map> Factory::CopyMapDropDescriptors(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->CopyDropDescriptors(), Map);
 }
 
 
 Handle<Map> Factory::CopyMap(Handle<Map> src,
                              int extra_inobject_properties) {
-  Handle<Map> copy = CopyMap(src);
+  Handle<Map> copy = CopyMapDropDescriptors(src);
   // Check that we do not overflow the instance size when adding the
   // extra inobject properties.
   int instance_size_delta = extra_inobject_properties * kPointerSize;
@@ -671,6 +674,7 @@ Handle<Object> Factory::ToObject(Handle<Object> object,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.
   Handle<Code> code(shared->code());
@@ -700,6 +704,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
   return debug_info;
 }
+#endif
 
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,

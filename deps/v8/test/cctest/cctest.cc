@@ -26,9 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <v8.h>
-#include <cstdlib>
-#include <cstring>
-#include <cstdio>
 #include "cctest.h"
 #include "debug.h"
 

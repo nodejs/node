@@ -594,6 +594,7 @@ Object* StubCache::ComputeCallMiss(int argc) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Object* StubCache::ComputeCallDebugBreak(int argc) {
   Code::Flags flags =
       Code::ComputeFlags(Code::CALL_IC, DEBUG_BREAK, NORMAL, argc);
@@ -612,6 +613,7 @@ Object* StubCache::ComputeCallDebugPrepareStepIn(int argc) {
   StubCompiler compiler;
   return FillCache(compiler.CompileCallDebugPrepareStepIn(flags));
 }
+#endif
 
 
 Object* StubCache::ComputeLazyCompile(int argc) {
@@ -836,6 +838,7 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   HandleScope scope;
   Debug::GenerateCallICDebugBreak(masm());
@@ -864,6 +867,7 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
   }
   return result;
 }
+#endif
 
 
 Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, const char* name) {

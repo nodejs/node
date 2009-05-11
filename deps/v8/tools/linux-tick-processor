@@ -1,0 +1,16 @@
+#!/bin/sh
+
+tools_dir=$(dirname "$0")
+
+if [ "$1" != "--no-build" ]
+then
+  scons -C $tools_dir/.. d8
+else
+  shift
+fi
+
+# nm spits out 'no symbols found' messages on stderr
+$tools_dir/../d8 $tools_dir/splaytree.js $tools_dir/codemap.js \
+  $tools_dir/csvparser.js $tools_dir/consarray.js \
+  $tools_dir/profile.js $tools_dir/profile_view.js \
+  $tools_dir/tickprocessor.js -- $@ 2>/dev/null

@@ -27,9 +27,6 @@
 
 #include <stdlib.h>
 
-#include <map>
-#include <string>
-
 #include "v8.h"
 
 #include "api.h"
@@ -161,7 +158,7 @@ class RegisterThreadedTest {
   }
   static int count() { return count_; }
   static RegisterThreadedTest* nth(int i) {
-    ASSERT(i < count());
+    CHECK(i < count());
     RegisterThreadedTest* current = first_;
     while (i > 0) {
       i--;
@@ -295,13 +292,13 @@ THREADED_TEST(ArgumentSignature) {
   env->Global()->Set(v8_str("Fun1"), fun->GetFunction());
 
   v8::Handle<Value> value1 = CompileRun("Fun1(4) == '';");
-  ASSERT(value1->IsTrue());
+  CHECK(value1->IsTrue());
 
   v8::Handle<Value> value2 = CompileRun("Fun1(new Cons()) == '[object Cons]';");
-  ASSERT(value2->IsTrue());
+  CHECK(value2->IsTrue());
 
   v8::Handle<Value> value3 = CompileRun("Fun1() == '';");
-  ASSERT(value3->IsTrue());
+  CHECK(value3->IsTrue());
 
   v8::Handle<v8::FunctionTemplate> cons1 = v8::FunctionTemplate::New();
   cons1->SetClassName(v8_str("Cons1"));
@@ -323,24 +320,24 @@ THREADED_TEST(ArgumentSignature) {
   v8::Handle<Value> value4 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), new Cons3()) =="
       "'[object Cons1],[object Cons2],[object Cons3]'");
-  ASSERT(value4->IsTrue());
+  CHECK(value4->IsTrue());
 
   v8::Handle<Value> value5 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), 5) == '[object Cons1],[object Cons2],'");
-  ASSERT(value5->IsTrue());
+  CHECK(value5->IsTrue());
 
   v8::Handle<Value> value6 = CompileRun(
       "Fun2(new Cons3(), new Cons2(), new Cons1()) == ',[object Cons2],'");
-  ASSERT(value6->IsTrue());
+  CHECK(value6->IsTrue());
 
   v8::Handle<Value> value7 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), new Cons3(), 'd') == "
       "'[object Cons1],[object Cons2],[object Cons3],d';");
-  ASSERT(value7->IsTrue());
+  CHECK(value7->IsTrue());
 
   v8::Handle<Value> value8 = CompileRun(
       "Fun2(new Cons1(), new Cons2()) == '[object Cons1],[object Cons2]'");
-  ASSERT(value8->IsTrue());
+  CHECK(value8->IsTrue());
 }
 
 
@@ -423,7 +420,7 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
  public:
   static int dispose_count;
 
-  explicit TestAsciiResource(char* data)
+  explicit TestAsciiResource(const char* data)
       : data_(data),
         length_(strlen(data)) { }
 
@@ -440,7 +437,7 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
     return length_;
   }
  private:
-  char* data_;
+  const char* data_;
   size_t length_;
 };
 
@@ -1394,6 +1391,7 @@ static void check_message(v8::Handle<v8::Message> message,
                           v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
   CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(7.56, message->GetScriptData()->NumberValue());
   message_received = true;
 }
 
@@ -1406,7 +1404,10 @@ THREADED_TEST(MessageHandlerData) {
   LocalContext context;
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8_str("6.75"));
-  Script::Compile(v8_str("throw 'error'"), &origin)->Run();
+  v8::Handle<v8::Script> script = Script::Compile(v8_str("throw 'error'"),
+                                                  &origin);
+  script->SetData(v8_str("7.56"));
+  script->Run();
   CHECK(message_received);
   // clear out the message listener
   v8::V8::RemoveMessageListeners(check_message);
@@ -2925,7 +2926,19 @@ THREADED_TEST(Deleter) {
 
 static v8::Handle<Value> GetK(Local<String> name, const AccessorInfo&) {
   ApiTestFuzzer::Fuzz();
-  return v8::Undefined();
+  if (name->Equals(v8_str("foo")) ||
+      name->Equals(v8_str("bar")) ||
+      name->Equals(v8_str("baz"))) {
+    return v8::Undefined();
+  }
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> IndexedGetK(uint32_t index, const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  if (index == 0 || index == 1) return v8::Undefined();
+  return v8::Handle<Value>();
 }
 
 
@@ -2942,8 +2955,8 @@ static v8::Handle<v8::Array> NamedEnum(const AccessorInfo&) {
 static v8::Handle<v8::Array> IndexedEnum(const AccessorInfo&) {
   ApiTestFuzzer::Fuzz();
   v8::Handle<v8::Array> result = v8::Array::New(2);
-  result->Set(v8::Integer::New(0), v8_str("hat"));
-  result->Set(v8::Integer::New(1), v8_str("gyt"));
+  result->Set(v8::Integer::New(0), v8_str("0"));
+  result->Set(v8::Integer::New(1), v8_str("1"));
   return result;
 }
 
@@ -2952,21 +2965,56 @@ THREADED_TEST(Enumerators) {
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   obj->SetNamedPropertyHandler(GetK, NULL, NULL, NULL, NamedEnum);
-  obj->SetIndexedPropertyHandler(NULL, NULL, NULL, NULL, IndexedEnum);
+  obj->SetIndexedPropertyHandler(IndexedGetK, NULL, NULL, NULL, IndexedEnum);
   LocalContext context;
   context->Global()->Set(v8_str("k"), obj->NewInstance());
   v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
+    "k[10] = 0;"
+    "k.a = 0;"
+    "k[5] = 0;"
+    "k.b = 0;"
+    "k[4294967295] = 0;"
+    "k.c = 0;"
+    "k[4294967296] = 0;"
+    "k.d = 0;"
+    "k[140000] = 0;"
+    "k.e = 0;"
+    "k[30000000000] = 0;"
+    "k.f = 0;"
     "var result = [];"
     "for (var prop in k) {"
     "  result.push(prop);"
     "}"
     "result"));
-  CHECK_EQ(5, result->Length());
-  CHECK_EQ(v8_str("foo"), result->Get(v8::Integer::New(0)));
-  CHECK_EQ(v8_str("bar"), result->Get(v8::Integer::New(1)));
-  CHECK_EQ(v8_str("baz"), result->Get(v8::Integer::New(2)));
-  CHECK_EQ(v8_str("hat"), result->Get(v8::Integer::New(3)));
-  CHECK_EQ(v8_str("gyt"), result->Get(v8::Integer::New(4)));
+  // Check that we get all the property names returned including the
+  // ones from the enumerators in the right order: indexed properties
+  // in numerical order, indexed interceptor properties, named
+  // properties in insertion order, named interceptor properties.
+  // This order is not mandated by the spec, so this test is just
+  // documenting our behavior.
+  CHECK_EQ(17, result->Length());
+  // Indexed properties in numerical order.
+  CHECK_EQ(v8_str("5"), result->Get(v8::Integer::New(0)));
+  CHECK_EQ(v8_str("10"), result->Get(v8::Integer::New(1)));
+  CHECK_EQ(v8_str("140000"), result->Get(v8::Integer::New(2)));
+  CHECK_EQ(v8_str("4294967295"), result->Get(v8::Integer::New(3)));
+  // Indexed interceptor properties in the order they are returned
+  // from the enumerator interceptor.
+  CHECK_EQ(v8_str("0"), result->Get(v8::Integer::New(4)));
+  CHECK_EQ(v8_str("1"), result->Get(v8::Integer::New(5)));
+  // Named properties in insertion order.
+  CHECK_EQ(v8_str("a"), result->Get(v8::Integer::New(6)));
+  CHECK_EQ(v8_str("b"), result->Get(v8::Integer::New(7)));
+  CHECK_EQ(v8_str("c"), result->Get(v8::Integer::New(8)));
+  CHECK_EQ(v8_str("4294967296"), result->Get(v8::Integer::New(9)));
+  CHECK_EQ(v8_str("d"), result->Get(v8::Integer::New(10)));
+  CHECK_EQ(v8_str("e"), result->Get(v8::Integer::New(11)));
+  CHECK_EQ(v8_str("30000000000"), result->Get(v8::Integer::New(12)));
+  CHECK_EQ(v8_str("f"), result->Get(v8::Integer::New(13)));
+  // Named interceptor properties.
+  CHECK_EQ(v8_str("foo"), result->Get(v8::Integer::New(14)));
+  CHECK_EQ(v8_str("bar"), result->Get(v8::Integer::New(15)));
+  CHECK_EQ(v8_str("baz"), result->Get(v8::Integer::New(16)));
 }
 
 
@@ -4579,40 +4627,42 @@ THREADED_TEST(CallAsFunction) {
   Local<Value> value;
   CHECK(!try_catch.HasCaught());
 
-  value = Script::Compile(v8_str("obj(42)"))->Run();
+  value = CompileRun("obj(42)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(42, value->Int32Value());
 
-  value = Script::Compile(v8_str("(function(o){return o(49)})(obj)"))->Run();
+  value = CompileRun("(function(o){return o(49)})(obj)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(49, value->Int32Value());
 
   // test special case of call as function
-  value = Script::Compile(v8_str("[obj]['0'](45)"))->Run();
+  value = CompileRun("[obj]['0'](45)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(45, value->Int32Value());
 
-  value = Script::Compile(v8_str("obj.call = Function.prototype.call;"
-                                 "obj.call(null, 87)"))->Run();
+  value = CompileRun("obj.call = Function.prototype.call;"
+                     "obj.call(null, 87)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(87, value->Int32Value());
 
   // Regression tests for bug #1116356: Calling call through call/apply
   // must work for non-function receivers.
   const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
-  value = Script::Compile(v8_str(apply_99))->Run();
+  value = CompileRun(apply_99);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(99, value->Int32Value());
 
   const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
-  value = Script::Compile(v8_str(call_17))->Run();
+  value = CompileRun(call_17);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(17, value->Int32Value());
 
-  // Try something that will cause an exception: Call the object as a
-  // constructor. This should be the last test.
-  value = Script::Compile(v8_str("new obj(42)"))->Run();
-  CHECK(try_catch.HasCaught());
+  // Check that the call-as-function handler can be called through
+  // new.  Currently, there is no way to check in the call-as-function
+  // handler if it has been called through new or not.
+  value = CompileRun("new obj(42)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(42, value->Int32Value());
 }
 
 
@@ -4685,6 +4735,44 @@ THREADED_TEST(InterceptorHasOwnProperty) {
   value = CompileRun(
       "var p = new constructor();"
       "p.hasOwnProperty('ostehaps');");
+  CHECK_EQ(false, value->BooleanValue());
+}
+
+
+static v8::Handle<Value> InterceptorHasOwnPropertyGetterGC(
+    Local<String> name,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  i::Heap::CollectAllGarbage();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorHasOwnPropertyGetterGC);
+  Local<Function> function = fun_templ->GetFunction();
+  context->Global()->Set(v8_str("constructor"), function);
+  // Let's first make some stuff so we can be sure to get a good GC.
+  CompileRun(
+      "function makestr(size) {"
+      "  switch (size) {"
+      "    case 1: return 'f';"
+      "    case 2: return 'fo';"
+      "    case 3: return 'foo';"
+      "  }"
+      "  return makestr(size >> 1) + makestr((size + 1) >> 1);"
+      "}"
+      "var x = makestr(12345);"
+      "x = makestr(31415);"
+      "x = makestr(23456);");
+  v8::Handle<Value> value = CompileRun(
+      "var o = new constructor();"
+      "o.__proto__ = new String(x);"
+      "o.hasOwnProperty('ostehaps');");
   CHECK_EQ(false, value->BooleanValue());
 }
 
@@ -5963,6 +6051,114 @@ TEST(RegExpInterruption) {
 }
 
 
+class ApplyInterruptTest {
+ public:
+  ApplyInterruptTest() : block_(NULL) {}
+  ~ApplyInterruptTest() { delete block_; }
+  void RunTest() {
+    block_ = i::OS::CreateSemaphore(0);
+    gc_count_ = 0;
+    gc_during_apply_ = 0;
+    apply_success_ = false;
+    gc_success_ = false;
+    GCThread gc_thread(this);
+    gc_thread.Start();
+    v8::Locker::StartPreemption(1);
+
+    LongRunningApply();
+    {
+      v8::Unlocker unlock;
+      gc_thread.Join();
+    }
+    v8::Locker::StopPreemption();
+    CHECK(apply_success_);
+    CHECK(gc_success_);
+  }
+ private:
+  // Number of garbage collections required.
+  static const int kRequiredGCs = 2;
+
+  class GCThread : public i::Thread {
+   public:
+    explicit GCThread(ApplyInterruptTest* test)
+        : test_(test) {}
+    virtual void Run() {
+      test_->CollectGarbage();
+    }
+   private:
+     ApplyInterruptTest* test_;
+  };
+
+  void CollectGarbage() {
+    block_->Wait();
+    while (gc_during_apply_ < kRequiredGCs) {
+      {
+        v8::Locker lock;
+        i::Heap::CollectAllGarbage();
+        gc_count_++;
+      }
+      i::OS::Sleep(1);
+    }
+    gc_success_ = true;
+  }
+
+  void LongRunningApply() {
+    block_->Signal();
+    int rounds = 0;
+    while (gc_during_apply_ < kRequiredGCs) {
+      int gc_before = gc_count_;
+      {
+        const char* c_source =
+            "function do_very_little(bar) {"
+            "  this.foo = bar;"
+            "}"
+            "for (var i = 0; i < 100000; i++) {"
+            "  do_very_little.apply(this, ['bar']);"
+            "}";
+        Local<String> source = String::New(c_source);
+        Local<Script> script = Script::Compile(source);
+        Local<Value> result = script->Run();
+        // Check that no exception was thrown.
+        CHECK(!result.IsEmpty());
+      }
+      int gc_after = gc_count_;
+      gc_during_apply_ += gc_after - gc_before;
+      rounds++;
+    }
+    apply_success_ = true;
+  }
+
+  i::Semaphore* block_;
+  int gc_count_;
+  int gc_during_apply_;
+  bool apply_success_;
+  bool gc_success_;
+};
+
+
+// Test that nothing bad happens if we get a preemption just when we were
+// about to do an apply().
+TEST(ApplyInterruption) {
+  v8::Locker lock;
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  Local<Context> local_env;
+  {
+    LocalContext env;
+    local_env = env.local();
+  }
+
+  // Local context should still be live.
+  CHECK(!local_env.IsEmpty());
+  local_env->Enter();
+
+  // Should complete without problems.
+  ApplyInterruptTest().RunTest();
+
+  local_env->Exit();
+}
+
+
 // Verify that we can clone an object
 TEST(ObjectClone) {
   v8::HandleScope scope;
@@ -5994,6 +6190,117 @@ TEST(ObjectClone) {
   clone->Set(v8_str("beta"), v8::Integer::New(456));
   CHECK_EQ(v8::Integer::New(123), obj->Get(v8_str("beta")));
   CHECK_EQ(v8::Integer::New(456), clone->Get(v8_str("beta")));
+}
+
+
+class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit AsciiVectorResource(i::Vector<const char> vector)
+      : data_(vector) {}
+  virtual ~AsciiVectorResource() {}
+  virtual size_t length() const { return data_.length(); }
+  virtual const char* data() const { return data_.start(); }
+ private:
+  i::Vector<const char> data_;
+};
+
+
+class UC16VectorResource : public v8::String::ExternalStringResource {
+ public:
+  explicit UC16VectorResource(i::Vector<const i::uc16> vector)
+      : data_(vector) {}
+  virtual ~UC16VectorResource() {}
+  virtual size_t length() const { return data_.length(); }
+  virtual const i::uc16* data() const { return data_.start(); }
+ private:
+  i::Vector<const i::uc16> data_;
+};
+
+
+static void MorphAString(i::String* string,
+                         AsciiVectorResource* ascii_resource,
+                         UC16VectorResource* uc16_resource) {
+  CHECK(i::StringShape(string).IsExternal());
+  if (string->IsAsciiRepresentation()) {
+    // Check old map is not symbol or long.
+    CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
+          string->map() == i::Heap::medium_external_ascii_string_map());
+    // Morph external string to be TwoByte string.
+    if (string->length() <= i::String::kMaxShortStringSize) {
+      string->set_map(i::Heap::short_external_string_map());
+    } else {
+      string->set_map(i::Heap::medium_external_string_map());
+    }
+    i::ExternalTwoByteString* morphed =
+         i::ExternalTwoByteString::cast(string);
+    morphed->set_resource(uc16_resource);
+  } else {
+    // Check old map is not symbol or long.
+    CHECK(string->map() == i::Heap::short_external_string_map() ||
+          string->map() == i::Heap::medium_external_string_map());
+    // Morph external string to be ASCII string.
+    if (string->length() <= i::String::kMaxShortStringSize) {
+      string->set_map(i::Heap::short_external_ascii_string_map());
+    } else {
+      string->set_map(i::Heap::medium_external_ascii_string_map());
+    }
+    i::ExternalAsciiString* morphed =
+         i::ExternalAsciiString::cast(string);
+    morphed->set_resource(ascii_resource);
+  }
+}
+
+
+// Test that we can still flatten a string if the components it is built up
+// from have been turned into 16 bit strings in the mean time.
+THREADED_TEST(MorphCompositeStringTest) {
+  const char* c_string = "Now is the time for all good men"
+                         " to come to the aid of the party";
+  uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    AsciiVectorResource ascii_resource(
+        i::Vector<const char>(c_string, strlen(c_string)));
+    UC16VectorResource uc16_resource(
+        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+
+    Local<String> lhs(v8::Utils::ToLocal(
+        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+    Local<String> rhs(v8::Utils::ToLocal(
+        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+
+    env->Global()->Set(v8_str("lhs"), lhs);
+    env->Global()->Set(v8_str("rhs"), rhs);
+
+    CompileRun(
+        "var cons = lhs + rhs;"
+        "var slice = lhs.substring(1, lhs.length - 1);"
+        "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
+
+    MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
+
+    // Now do some stuff to make sure the strings are flattened, etc.
+    CompileRun(
+        "/[^a-z]/.test(cons);"
+        "/[^a-z]/.test(slice);"
+        "/[^a-z]/.test(slice_on_cons);");
+    const char* expected_cons =
+        "Now is the time for all good men to come to the aid of the party"
+        "Now is the time for all good men to come to the aid of the party";
+    const char* expected_slice =
+        "ow is the time for all good men to come to the aid of the part";
+    const char* expected_slice_on_cons =
+        "ow is the time for all good men to come to the aid of the party"
+        "Now is the time for all good men to come to the aid of the part";
+    CHECK_EQ(String::New(expected_cons),
+             env->Global()->Get(v8_str("cons")));
+    CHECK_EQ(String::New(expected_slice),
+             env->Global()->Get(v8_str("slice")));
+    CHECK_EQ(String::New(expected_slice_on_cons),
+             env->Global()->Get(v8_str("slice_on_cons")));
+  }
 }
 
 
@@ -6041,26 +6348,6 @@ class RegExpStringModificationTest {
   }
  private:
 
-  class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
-   public:
-    explicit AsciiVectorResource(i::Vector<const char> vector)
-        : data_(vector) {}
-    virtual ~AsciiVectorResource() {}
-    virtual size_t length() const { return data_.length(); }
-    virtual const char* data() const { return data_.start(); }
-   private:
-    i::Vector<const char> data_;
-  };
-  class UC16VectorResource : public v8::String::ExternalStringResource {
-   public:
-    explicit UC16VectorResource(i::Vector<const i::uc16> vector)
-        : data_(vector) {}
-    virtual ~UC16VectorResource() {}
-    virtual size_t length() const { return data_.length(); }
-    virtual const i::uc16* data() const { return data_.start(); }
-   private:
-    i::Vector<const i::uc16> data_;
-  };
   // Number of string modifications required.
   static const int kRequiredModifications = 5;
   static const int kMaxModifications = 100;
@@ -6084,25 +6371,7 @@ class RegExpStringModificationTest {
         v8::Locker lock;
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
-        CHECK(i::StringShape(string).IsExternal());
-        if (i::StringShape(string).IsAsciiRepresentation()) {
-          // Morph external string to be TwoByte string.
-          i::ExternalAsciiString* ext_string =
-              i::ExternalAsciiString::cast(string);
-          i::ExternalTwoByteString* morphed =
-              reinterpret_cast<i::ExternalTwoByteString*>(ext_string);
-          morphed->map()->set_instance_type(i::SHORT_EXTERNAL_STRING_TYPE);
-          morphed->set_resource(&uc16_resource_);
-        } else {
-          // Morph external string to be ASCII string.
-          i::ExternalTwoByteString* ext_string =
-              i::ExternalTwoByteString::cast(string);
-          i::ExternalAsciiString* morphed =
-              reinterpret_cast<i::ExternalAsciiString*>(ext_string);
-          morphed->map()->set_instance_type(
-              i::SHORT_EXTERNAL_ASCII_STRING_TYPE);
-          morphed->set_resource(&ascii_resource_);
-        }
+        MorphAString(string, &ascii_resource_, &uc16_resource_);
         morphs_++;
       }
       i::OS::Sleep(1);
@@ -6186,4 +6455,119 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   // Check with 'with'.
   res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
   CHECK_EQ(v8::Integer::New(42), res);
+}
+
+static int force_set_set_count = 0;
+static int force_set_get_count = 0;
+bool pass_on_get = false;
+
+static v8::Handle<v8::Value> ForceSetGetter(v8::Local<v8::String> name,
+                                            const v8::AccessorInfo& info) {
+  force_set_get_count++;
+  if (pass_on_get) {
+    return v8::Handle<v8::Value>();
+  } else {
+    return v8::Int32::New(3);
+  }
+}
+
+static void ForceSetSetter(v8::Local<v8::String> name,
+                           v8::Local<v8::Value> value,
+                           const v8::AccessorInfo& info) {
+  force_set_set_count++;
+}
+
+static v8::Handle<v8::Value> ForceSetInterceptSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::AccessorInfo& info) {
+  force_set_set_count++;
+  return v8::Undefined();
+}
+
+TEST(ForceSet) {
+  force_set_get_count = 0;
+  force_set_set_count = 0;
+  pass_on_get = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::String> access_property = v8::String::New("a");
+  templ->SetAccessor(access_property, ForceSetGetter, ForceSetSetter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Ordinary properties
+  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  global->Set(simple_property, v8::Int32::New(4), v8::ReadOnly);
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should fail because the property is read-only
+  global->Set(simple_property, v8::Int32::New(5));
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should succeed even though the property is read-only
+  global->ForceSet(simple_property, v8::Int32::New(6));
+  CHECK_EQ(6, global->Get(simple_property)->Int32Value());
+
+  // Accessors
+  CHECK_EQ(0, force_set_set_count);
+  CHECK_EQ(0, force_set_get_count);
+  CHECK_EQ(3, global->Get(access_property)->Int32Value());
+  // CHECK_EQ the property shouldn't override it, just call the setter
+  // which in this case does nothing.
+  global->Set(access_property, v8::Int32::New(7));
+  CHECK_EQ(3, global->Get(access_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+  // Forcing the property to be set should override the accessor without
+  // calling it
+  global->ForceSet(access_property, v8::Int32::New(8));
+  CHECK_EQ(8, global->Get(access_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+}
+
+TEST(ForceSetWithInterceptor) {
+  force_set_get_count = 0;
+  force_set_set_count = 0;
+  pass_on_get = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(ForceSetGetter, ForceSetInterceptSetter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  v8::Handle<v8::String> some_property = v8::String::New("a");
+  CHECK_EQ(0, force_set_set_count);
+  CHECK_EQ(0, force_set_get_count);
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  // Setting the property shouldn't override it, just call the setter
+  // which in this case does nothing.
+  global->Set(some_property, v8::Int32::New(7));
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+  // Getting the property when the interceptor returns an empty handle
+  // should yield undefined, since the property isn't present on the
+  // object itself yet.
+  pass_on_get = true;
+  CHECK(global->Get(some_property)->IsUndefined());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(3, force_set_get_count);
+  // Forcing the property to be set should cause the value to be
+  // set locally without calling the interceptor.
+  global->ForceSet(some_property, v8::Int32::New(8));
+  CHECK_EQ(8, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(4, force_set_get_count);
+  // Reenabling the interceptor should cause it to take precedence over
+  // the property
+  pass_on_get = false;
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(5, force_set_get_count);
+  // The interceptor should also work for other properties
+  CHECK_EQ(3, global->Get(v8::String::New("b"))->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(6, force_set_get_count);
 }

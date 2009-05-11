@@ -47,6 +47,7 @@ SOURCES = {
     'test-heap.cc',
     'test-list.cc',
     'test-lock.cc',
+    'test-log.cc',
     'test-mark-compact.cc',
     'test-regexp.cc',
     'test-serialize.cc',
@@ -54,7 +55,8 @@ SOURCES = {
     'test-spaces.cc',
     'test-strings.cc',
     'test-threads.cc',
-    'test-utils.cc'
+    'test-utils.cc',
+    'test-version.cc'
   ],
   'arch:arm':  ['test-assembler-arm.cc', 'test-disasm-arm.cc'],
   'arch:ia32': [

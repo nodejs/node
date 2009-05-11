@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_DEBUG_H_
-#define V8_DEBUG_H_
+#ifndef V8_V8_DEBUG_H_
+#define V8_V8_DEBUG_H_
 
 #include "v8.h"
 
@@ -79,48 +79,116 @@ enum DebugEvent {
 };
 
 
-/**
- * Debug event callback function.
- *
- * \param event the type of the debug event that triggered the callback
- *   (enum DebugEvent)
- * \param exec_state execution state (JavaScript object)
- * \param event_data event specific data (JavaScript object)
- * \param data value passed by the user to SetDebugEventListener
- */
-typedef void (*DebugEventCallback)(DebugEvent event,
-                                   Handle<Object> exec_state,
-                                   Handle<Object> event_data,
-                                   Handle<Value> data);
-
-
-/**
- * Debug message callback function.
- *
- * \param message the debug message
- * \param length length of the message
- * \param data the data value passed when registering the message handler
- * A DebugMessageHandler does not take posession of the message string,
- * and must not rely on the data persisting after the handler returns.
- */
-typedef void (*DebugMessageHandler)(const uint16_t* message, int length,
-                                    void* data);
-
-/**
- * Debug host dispatch callback function.
- *
- * \param dispatch the dispatch value
- * \param data the data value passed when registering the dispatch handler
- */
-typedef void (*DebugHostDispatchHandler)(void* dispatch,
-                                         void* data);
-
-
-
 class EXPORT Debug {
  public:
+  /**
+   * A client object passed to the v8 debugger whose ownership will be taken by
+   * it. v8 is always responsible for deleting the object.
+   */
+  class ClientData {
+   public:
+    virtual ~ClientData() {}
+  };
+
+
+  /**
+   * A message object passed to the debug message handler.
+   */
+  class Message {
+   public:
+    /**
+     * Check type of message.
+     */
+    virtual bool IsEvent() const = 0;
+    virtual bool IsResponse() const = 0;
+    virtual DebugEvent GetEvent() const = 0;
+
+    /**
+     * Indicate whether this is a response to a continue command which will
+     * start the VM running after this is processed.
+     */
+    virtual bool WillStartRunning() const = 0;
+
+    /**
+     * Access to execution state and event data. Don't store these cross
+     * callbacks as their content becomes invalid. These objects are from the
+     * debugger event that started the debug message loop.
+     */
+    virtual Handle<Object> GetExecutionState() const = 0;
+    virtual Handle<Object> GetEventData() const = 0;
+
+    /**
+     * Get the debugger protocol JSON.
+     */
+    virtual Handle<String> GetJSON() const = 0;
+
+    /**
+     * Get the context active when the debug event happened. Note this is not
+     * the current active context as the JavaScript part of the debugger is
+     * running in it's own context which is entered at this point.
+     */
+    virtual Handle<Context> GetEventContext() const = 0;
+
+    /**
+     * Client data passed with the corresponding request if any. This is the
+     * client_data data value passed into Debug::SendCommand along with the
+     * request that led to the message or NULL if the message is an event. The
+     * debugger takes ownership of the data and will delete it even if there is
+     * no message handler.
+     */
+    virtual ClientData* GetClientData() const = 0;
+
+    virtual ~Message() {}
+  };
+  
+
+  /**
+   * Debug event callback function.
+   *
+   * \param event the type of the debug event that triggered the callback
+   *   (enum DebugEvent)
+   * \param exec_state execution state (JavaScript object)
+   * \param event_data event specific data (JavaScript object)
+   * \param data value passed by the user to SetDebugEventListener
+   */
+  typedef void (*EventCallback)(DebugEvent event,
+                                Handle<Object> exec_state,
+                                Handle<Object> event_data,
+                                Handle<Value> data);
+
+
+  /**
+   * Debug message callback function.
+   *
+   * \param message the debug message handler message object
+   * \param length length of the message
+   * \param client_data the data value passed when registering the message handler
+
+   * A MessageHandler does not take posession of the message string,
+   * and must not rely on the data persisting after the handler returns.
+   *
+   * This message handler is deprecated. Use MessageHandler2 instead.
+   */
+  typedef void (*MessageHandler)(const uint16_t* message, int length,
+                                 ClientData* client_data);
+
+  /**
+   * Debug message callback function.
+   *
+   * \param message the debug message handler message object
+
+   * A MessageHandler does not take posession of the message data,
+   * and must not rely on the data persisting after the handler returns.
+   */
+  typedef void (*MessageHandler2)(const Message& message);
+
+  /**
+   * Debug host dispatch callback function.
+   */
+  typedef void (*HostDispatchHandler)();
+
   // Set a C debug event listener.
-  static bool SetDebugEventListener(DebugEventCallback that,
+  static bool SetDebugEventListener(EventCallback that,
                                     Handle<Value> data = Handle<Value>());
 
   // Set a JavaScript debug event listener.
@@ -130,15 +198,17 @@ class EXPORT Debug {
   // Break execution of JavaScript.
   static void DebugBreak();
 
-  // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL,
-                                bool message_handler_thread = true);
-  static void SendCommand(const uint16_t* command, int length);
+  // Message based interface. The message protocol is JSON. NOTE the message
+  // handler thread is not supported any more parameter must be false.
+  static void SetMessageHandler(MessageHandler handler,
+                                bool message_handler_thread = false);
+  static void SetMessageHandler2(MessageHandler2 handler);
+  static void SendCommand(const uint16_t* command, int length,
+                          ClientData* client_data = NULL);
 
   // Dispatch interface.
-  static void SetHostDispatchHandler(DebugHostDispatchHandler handler,
-                                     void* data = NULL);
-  static void SendHostDispatch(void* dispatch);
+  static void SetHostDispatchHandler(HostDispatchHandler handler,
+                                     int period = 100);
 
  /**
   * Run a JavaScript function in the debugger.
@@ -176,4 +246,4 @@ class EXPORT Debug {
 #undef EXPORT
 
 
-#endif  // V8_DEBUG_H_
+#endif  // V8_V8_DEBUG_H_

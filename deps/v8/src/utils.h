@@ -406,6 +406,16 @@ class EmbeddedVector : public Vector<T> {
 };
 
 
+template <typename T>
+class ScopedVector : public Vector<T> {
+ public:
+  explicit ScopedVector(int length) : Vector<T>(NewArray<T>(length), length) { }
+  ~ScopedVector() {
+    DeleteArray(this->start());
+  }
+};
+
+
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, strlen(data));
 }
@@ -517,7 +527,7 @@ class StringBuilder {
 template <typename sourcechar, typename sinkchar>
 static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
-#ifdef CAN_READ_UNALIGNED
+#ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {
     // Number of characters in a uint32_t.
     static const int kStepSize = sizeof(uint32_t) / sizeof(*dest);  // NOLINT

@@ -130,13 +130,13 @@ static void TraceInterpreter(const byte* code_base,
 
 
 static int32_t Load32Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<int>(pc) & 3) == 0);
+  ASSERT((reinterpret_cast<intptr_t>(pc) & 3) == 0);
   return *reinterpret_cast<const int32_t *>(pc);
 }
 
 
 static int32_t Load16Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<int>(pc) & 1) == 0);
+  ASSERT((reinterpret_cast<intptr_t>(pc) & 1) == 0);
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
@@ -574,7 +574,7 @@ bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
-  if (StringShape(*subject).IsAsciiRepresentation()) {
+  if (subject->IsAsciiRepresentation()) {
     Vector<const char> subject_vector = subject->ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(code_base,

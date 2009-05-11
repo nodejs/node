@@ -155,6 +155,7 @@ const ERROR_TYPE = 'error';
 const PROPERTY_TYPE = 'property';
 const FRAME_TYPE = 'frame';
 const SCRIPT_TYPE = 'script';
+const CONTEXT_TYPE = 'context';
 
 // Maximum length when sending strings through the JSON protocol.
 const kMaxProtocolStringLength = 80;
@@ -360,6 +361,15 @@ Mirror.prototype.isFrame = function() {
  */
 Mirror.prototype.isScript = function() {
   return this instanceof ScriptMirror;
+}
+
+
+/**
+ * Check whether the mirror reflects a context.
+ * @returns {boolean} True if the mirror reflects a context
+ */
+Mirror.prototype.isContext = function() {
+  return this instanceof ContextMirror;
 }
 
 
@@ -756,6 +766,15 @@ FunctionMirror.prototype.name = function() {
 
 
 /**
+ * Returns the inferred name of the function.
+ * @return {string} Name of the function
+ */
+FunctionMirror.prototype.inferredName = function() {
+  return %FunctionGetInferredName(this.value_);
+};
+
+
+/**
  * Returns the source code for the function.
  * @return {string or undefined} The source code for the function. If the
  *     function is not resolved undefined will be returned.
@@ -854,6 +873,11 @@ UnresolvedFunctionMirror.prototype.protoObject = function() {
 
 UnresolvedFunctionMirror.prototype.name = function() {
   return this.value_;
+};
+
+
+UnresolvedFunctionMirror.prototype.inferredName = function() {
+  return undefined;
 };
 
 
@@ -1547,6 +1571,7 @@ FrameMirror.prototype.toText = function(opt_locals) {
 function ScriptMirror(script) {
   Mirror.call(this, SCRIPT_TYPE);
   this.script_ = script;
+  this.context_ = new ContextMirror(script.context_data);
   this.allocateHandle_();
 }
 inherits(ScriptMirror, Mirror);
@@ -1582,6 +1607,11 @@ ScriptMirror.prototype.columnOffset = function() {
 };
 
 
+ScriptMirror.prototype.data = function() {
+  return this.script_.data;
+};
+
+
 ScriptMirror.prototype.scriptType = function() {
   return this.script_.type;
 };
@@ -1603,6 +1633,11 @@ ScriptMirror.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
 }
 
 
+ScriptMirror.prototype.context = function() {
+  return this.context_;
+};
+
+
 ScriptMirror.prototype.toText = function() {
   var result = '';
   result += this.name();
@@ -1620,13 +1655,35 @@ ScriptMirror.prototype.toText = function() {
 
 
 /**
+ * Mirror object for context.
+ * @param {Object} data The context data
+ * @constructor
+ * @extends Mirror
+ */
+function ContextMirror(data) {
+  Mirror.call(this, CONTEXT_TYPE);
+  this.data_ = data;
+  this.allocateHandle_();
+}
+inherits(ContextMirror, Mirror);
+
+
+ContextMirror.prototype.data = function() {
+  return this.data_;
+};
+
+
+/**
  * Returns a mirror serializer
  *
  * @param {boolean} details Set to true to include details
+ * @param {Object} options Options comtrolling the serialization
+ *     The following options can be set:
+ *       includeSource: include ths full source of scripts
  * @returns {MirrorSerializer} mirror serializer
  */
-function MakeMirrorSerializer(details) {
-  return new JSONProtocolSerializer(details);
+function MakeMirrorSerializer(details, options) {
+  return new JSONProtocolSerializer(details, options);
 }
 
 
@@ -1636,8 +1693,9 @@ function MakeMirrorSerializer(details) {
  *     serialized
  * @constructor
  */
-function JSONProtocolSerializer(details) {
+function JSONProtocolSerializer(details, options) {
   this.details_ = details;
+  this.options_ = options;
   this.mirrors_ = [ ];
 }
 
@@ -1689,6 +1747,11 @@ JSONProtocolSerializer.prototype.serializeReferencedObjects = function() {
 }
 
 
+JSONProtocolSerializer.prototype.includeSource_ = function() {
+  return this.options_ && this.options_.includeSource;
+}
+
+
 JSONProtocolSerializer.prototype.add_ = function(mirror) {
   // If this mirror is already in the list just return.
   for (var i = 0; i < this.mirrors_.length; i++) {
@@ -1707,7 +1770,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
   // If serializing a reference to a mirror just return the reference and add
   // the mirror to the referenced mirrors.
   if (reference &&
-      (mirror.isValue() || mirror.isScript())) {
+      (mirror.isValue() || mirror.isScript() || mirror.isContext())) {
     this.add_(mirror);
     return '{"ref":' + mirror.handle() + '}';
   }
@@ -1716,7 +1779,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
   var content = new Array();
 
   // Add the mirror handle.
-  if (mirror.isValue() || mirror.isScript()) {
+  if (mirror.isValue() || mirror.isScript() || mirror.isContext()) {
     content.push(MakeJSONPair_('handle', NumberToJSON_(mirror.handle())));
   }
 
@@ -1782,8 +1845,29 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
                                  NumberToJSON_(mirror.columnOffset())));
       content.push(MakeJSONPair_('lineCount',
                                  NumberToJSON_(mirror.lineCount())));
+      if (mirror.data()) {
+        content.push(MakeJSONPair_('data', JSON.stringify(mirror.data())));
+      }
+      if (this.includeSource_()) {
+        content.push(MakeJSONPair_('source',
+                                   StringToJSON_(mirror.source())));
+      } else {
+        var sourceStart = mirror.source().substring(0, 80);
+        content.push(MakeJSONPair_('sourceStart',
+                                   StringToJSON_(sourceStart)));
+      }
+      content.push(MakeJSONPair_('sourceLength',
+                                 NumberToJSON_(mirror.source().length)));
       content.push(MakeJSONPair_('scriptType',
                                  NumberToJSON_(mirror.scriptType())));
+      if (mirror.context()) {
+        content.push(MakeJSONPair_('context',
+                                   this.serializeReference(mirror.context())));
+      }
+      break;
+
+    case CONTEXT_TYPE:
+      content.push(MakeJSONPair_('data', JSON.stringify(mirror.data())));
       break;
   }
 
@@ -1830,6 +1914,10 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   if (mirror.isFunction()) {
     // Add function specific properties.
     content.push(MakeJSONPair_('name', StringToJSON_(mirror.name())));
+    if (!IS_UNDEFINED(mirror.inferredName())) {
+      content.push(MakeJSONPair_('inferredName',
+                                 StringToJSON_(mirror.inferredName())));
+    }
     content.push(MakeJSONPair_('resolved', BooleanToJSON_(mirror.resolved())));
     if (mirror.resolved()) {
       content.push(MakeJSONPair_('source', StringToJSON_(mirror.source())));

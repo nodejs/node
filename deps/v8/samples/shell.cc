@@ -38,6 +38,7 @@ bool ExecuteString(v8::Handle<v8::String> source,
                    bool print_result,
                    bool report_exceptions);
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
+v8::Handle<v8::Value> Read(const v8::Arguments& args);
 v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
@@ -52,6 +53,8 @@ int RunMain(int argc, char* argv[]) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
+  // Bind the global 'read' function to the C++ Read callback.
+  global->Set(v8::String::New("read"), v8::FunctionTemplate::New(Read));
   // Bind the global 'load' function to the C++ Load callback.
   global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
   // Bind the 'quit' function
@@ -132,6 +135,25 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   printf("\n");
   fflush(stdout);
   return v8::Undefined();
+}
+
+
+// The callback that is invoked by v8 whenever the JavaScript 'read'
+// function is called.  This function loads the content of the file named in
+// the argument into a JavaScript string.
+v8::Handle<v8::Value> Read(const v8::Arguments& args) {
+  if (args.Length() != 1) {
+    return v8::ThrowException(v8::String::New("Bad parameters"));
+  }
+  v8::String::Utf8Value file(args[0]);
+  if (*file == NULL) {
+    return v8::ThrowException(v8::String::New("Error loading file"));
+  }
+  v8::Handle<v8::String> source = ReadFile(*file);
+  if (source.IsEmpty()) {
+    return v8::ThrowException(v8::String::New("Error loading file"));
+  }
+  return source;
 }
 
 

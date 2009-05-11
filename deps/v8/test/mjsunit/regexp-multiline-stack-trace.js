@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// The flags below are to test the trace-calls functionality and the
+// preallocated meessage memory.
 // Flags: --trace-calls --preallocate-message-memory
 
 /**

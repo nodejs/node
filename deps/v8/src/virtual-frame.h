@@ -191,16 +191,23 @@ class FrameElement BASE_EMBEDDED {
     data_.index_ = new_index;
   }
 
+  void set_reg(Register new_reg) {
+    ASSERT(is_register());
+    data_.reg_ = new_reg;
+  }
+
   friend class VirtualFrame;
 };
 
 
 } }  // namespace v8::internal
 
-#ifdef ARM
-#include "virtual-frame-arm.h"
-#else  // ia32
-#include "virtual-frame-ia32.h"
+#if V8_TARGET_ARCH_IA32
+#include "ia32/virtual-frame-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/virtual-frame-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/virtual-frame-arm.h"
 #endif
 
 #endif  // V8_VIRTUAL_FRAME_H_

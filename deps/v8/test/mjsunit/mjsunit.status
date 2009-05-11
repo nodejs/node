@@ -48,19 +48,19 @@ unicode-test: PASS, (PASS || FAIL) if $mode == debug
 # Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: CRASH, FAIL
 debug-continue: SKIP
-debug-evaluate-recursive: CRASH, FAIL if $mode == debug
-debug-changebreakpoint: CRASH, FAIL if $mode == debug
-debug-clearbreakpoint: CRASH, FAIL if $mode == debug
-debug-conditional-breakpoints: CRASH, FAIL if $mode == debug
-debug-evaluate: CRASH, FAIL if $mode == debug
-debug-ignore-breakpoints: CRASH, FAIL if $mode == debug
-debug-multiple-breakpoints: CRASH, FAIL if $mode == debug
-debug-setbreakpoint: CRASH, FAIL if $mode == debug
+debug-evaluate-recursive: CRASH || FAIL
+debug-changebreakpoint: CRASH || FAIL
+debug-clearbreakpoint: CRASH || FAIL
+debug-conditional-breakpoints: FAIL
+debug-evaluate: CRASH || FAIL
+debug-ignore-breakpoints: CRASH || FAIL
+debug-multiple-breakpoints: CRASH || FAIL
+debug-setbreakpoint: CRASH || FAIL || PASS
 debug-step-stub-callfunction: SKIP
 debug-stepin-constructor: CRASH, FAIL
 debug-step: SKIP
 debug-breakpoints: PASS || FAIL
-debug-handle: CRASH, FAIL if $mode == debug
+debug-handle: CRASH || FAIL || PASS
 regress/regress-269: SKIP
 
 # Bug number 130 http://code.google.com/p/v8/issues/detail?id=130

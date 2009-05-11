@@ -275,6 +275,11 @@ class RegisterAllocator BASE_EMBEDDED {
   // Unuse all the reserved registers in a register file.
   static void UnuseReserved(RegisterFile* register_file);
 
+  // True if the register is reserved by the code generator, false if it
+  // can be freely used by the allocator.
+  static bool IsReserved(int reg_code);
+  static bool IsReserved(Register reg) { return IsReserved(reg); }
+
   // Predicates and accessors for the registers' reference counts.
   bool is_used(int reg_code) const { return registers_.is_used(reg_code); }
   bool is_used(Register reg) const { return registers_.is_used(reg.code()); }

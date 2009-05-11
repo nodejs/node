@@ -411,7 +411,7 @@ class TickProcessor(object):
       number_of_accounted_ticks -= self.unaccounted_number_of_ticks
 
     number_of_non_library_ticks = number_of_accounted_ticks - self.number_of_library_ticks
-    entries.sort(key=lambda e:e.tick_count, reverse=True)
+    entries.sort(key=lambda e: (e.tick_count, e.ToString()), reverse=True)
     for entry in entries:
       if entry.tick_count > 0 and condition(entry):
         total_percentage = entry.tick_count * 100.0 / number_of_accounted_ticks

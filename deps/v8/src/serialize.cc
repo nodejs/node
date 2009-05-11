@@ -78,8 +78,8 @@ const int kPageAndOffsetMask = (1 << kPageAndOffsetBits) - 1;
 
 
 static inline AllocationSpace GetSpace(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  int space_number = (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
   if (space_number == kLOSpaceExecutable) space_number = LO_SPACE;
   else if (space_number == kLOSpacePointer) space_number = LO_SPACE;
   return static_cast<AllocationSpace>(space_number);
@@ -87,43 +87,45 @@ static inline AllocationSpace GetSpace(Address addr) {
 
 
 static inline bool IsLargeExecutableObject(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  const int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
-  if (space_number == kLOSpaceExecutable) return true;
-  return false;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  const int space_number =
+      (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
+  return (space_number == kLOSpaceExecutable);
 }
 
 
 static inline bool IsLargeFixedArray(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  const int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
-  if (space_number == kLOSpacePointer) return true;
-  return false;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  const int space_number =
+      (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
+  return (space_number == kLOSpacePointer);
 }
 
 
 static inline int PageIndex(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  return (encoded >> kPageShift) & kPageMask;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  return static_cast<int>(encoded >> kPageShift) & kPageMask;
 }
 
 
 static inline int PageOffset(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  return ((encoded >> kOffsetShift) & kOffsetMask) << kObjectAlignmentBits;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  const int offset = static_cast<int>(encoded >> kOffsetShift) & kOffsetMask;
+  return offset << kObjectAlignmentBits;
 }
 
 
 static inline int NewSpaceOffset(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  return ((encoded >> kPageAndOffsetShift) & kPageAndOffsetMask) <<
-      kObjectAlignmentBits;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  const int page_offset =
+      static_cast<int>(encoded >> kPageAndOffsetShift) & kPageAndOffsetMask;
+  return page_offset << kObjectAlignmentBits;
 }
 
 
 static inline int LargeObjectIndex(Address addr) {
-  const int encoded = reinterpret_cast<int>(addr);
-  return (encoded >> kPageAndOffsetShift) & kPageAndOffsetMask;
+  const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
+  return static_cast<int>(encoded >> kPageAndOffsetShift) & kPageAndOffsetMask;
 }
 
 
@@ -548,6 +550,7 @@ void ExternalReferenceTable::PopulateTable() {
     AddFromId(ref_table[i].type, ref_table[i].id, ref_table[i].name);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
   Add(Debug_Address(Debug::k_after_break_target_address).address(),
       DEBUG_ADDRESS,
@@ -567,6 +570,7 @@ void ExternalReferenceTable::PopulateTable() {
         Debug::k_register_address << kDebugIdShift | i,
         name.start());
   }
+#endif
 
   // Stat counters
   struct StatsRefTableEntry {
@@ -659,10 +663,6 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       4,
       "RegExpStack::limit_address()");
-  Add(ExternalReference::debug_break().address(),
-      UNCLASSIFIED,
-      5,
-      "Debug::Break()");
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
       6,
@@ -679,10 +679,28 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       9,
       "Heap::NewSpaceAllocationTopAddress()");
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Add(ExternalReference::debug_break().address(),
+      UNCLASSIFIED,
+      5,
+      "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
       10,
       "Debug::step_in_fp_addr()");
+  Add(ExternalReference::double_fp_operation(Token::ADD).address(),
+      UNCLASSIFIED,
+      11,
+      "add_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::SUB).address(),
+      UNCLASSIFIED,
+      12,
+      "sub_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::MUL).address(),
+      UNCLASSIFIED,
+      13,
+      "mul_two_doubles");
+#endif
 }
 
 
@@ -712,7 +730,9 @@ int ExternalReferenceEncoder::IndexOf(Address key) const {
   if (key == NULL) return -1;
   HashMap::Entry* entry =
       const_cast<HashMap &>(encodings_).Lookup(key, Hash(key), false);
-  return entry == NULL ? -1 : reinterpret_cast<int>(entry->value);
+  return entry == NULL
+      ? -1
+      : static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
 }
 
 
@@ -776,6 +796,10 @@ class SnapshotWriter {
 
   void PutInt(int i) {
     InsertInt(i, len_);
+  }
+
+  void PutAddress(Address p) {
+    PutBytes(reinterpret_cast<byte*>(&p), sizeof(p));
   }
 
   void PutBytes(const byte* a, int size) {
@@ -898,7 +922,8 @@ class ReferenceUpdater: public ObjectVisitor {
 
 // Helper functions for a map of encoded heap object addresses.
 static uint32_t HeapObjectHash(HeapObject* key) {
-  return reinterpret_cast<uint32_t>(key) >> 2;
+  uint32_t low32bits = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key));
+  return low32bits >> 2;
 }
 
 
@@ -1137,7 +1162,7 @@ void Serializer::PutContextStack() {
 
 void Serializer::PutEncodedAddress(Address addr) {
   writer_->PutC('P');
-  writer_->PutInt(reinterpret_cast<int>(addr));
+  writer_->PutAddress(addr);
 }
 
 
@@ -1320,7 +1345,7 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
         *p = GetObject();  // embedded object
       } else {
         ASSERT(c == 'P');  // pointer to previously serialized object
-        *p = Resolve(reinterpret_cast<Address>(reader_.GetInt()));
+        *p = Resolve(reader_.GetAddress());
       }
     } else {
       // A pointer internal to a HeapObject that we've already
@@ -1334,7 +1359,7 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 
 void Deserializer::VisitExternalReferences(Address* start, Address* end) {
   for (Address* p = start; p < end; ++p) {
-    uint32_t code = reinterpret_cast<uint32_t>(*p);
+    uint32_t code = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(*p));
     *p = reference_decoder_->Decode(code);
   }
 }
@@ -1460,7 +1485,7 @@ void Deserializer::GetContextStack() {
 
 Address Deserializer::GetEncodedAddress() {
   reader_.ExpectC('P');
-  return reinterpret_cast<Address>(reader_.GetInt());
+  return reader_.GetAddress();
 }
 
 

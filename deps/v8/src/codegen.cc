@@ -304,8 +304,10 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
                                  node->is_expression(), false, script_,
                                  node->inferred_name());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger that a new function has been added.
   Debugger::OnNewFunction(function);
+#endif
 
   // Set the expected number of properties for instances and return
   // the resulting function.
@@ -384,54 +386,66 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
-struct InlineRuntimeLUT {
-  void (CodeGenerator::*method)(ZoneList<Expression*>*);
-  const char* name;
+
+// Special cases: These 'runtime calls' manipulate the current
+// frame and are only used 1 or two places, so we generate them
+// inline instead of generating calls to them.  They are used
+// for implementing Function.prototype.call() and
+// Function.prototype.apply().
+CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
+  {&CodeGenerator::GenerateIsSmi, "_IsSmi"},
+  {&CodeGenerator::GenerateIsNonNegativeSmi, "_IsNonNegativeSmi"},
+  {&CodeGenerator::GenerateIsArray, "_IsArray"},
+  {&CodeGenerator::GenerateArgumentsLength, "_ArgumentsLength"},
+  {&CodeGenerator::GenerateArgumentsAccess, "_Arguments"},
+  {&CodeGenerator::GenerateValueOf, "_ValueOf"},
+  {&CodeGenerator::GenerateSetValueOf, "_SetValueOf"},
+  {&CodeGenerator::GenerateFastCharCodeAt, "_FastCharCodeAt"},
+  {&CodeGenerator::GenerateObjectEquals, "_ObjectEquals"},
+  {&CodeGenerator::GenerateLog, "_Log"}
 };
+
+
+CodeGenerator::InlineRuntimeLUT* CodeGenerator::FindInlineRuntimeLUT(
+    Handle<String> name) {
+  const int entries_count =
+      sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
+  for (int i = 0; i < entries_count; i++) {
+    InlineRuntimeLUT* entry = &kInlineRuntimeLUT[i];
+    if (name->IsEqualTo(CStrVector(entry->name))) {
+      return entry;
+    }
+  }
+  return NULL;
+}
 
 
 bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
-  // Special cases: These 'runtime calls' manipulate the current
-  // frame and are only used 1 or two places, so we generate them
-  // inline instead of generating calls to them.  They are used
-  // for implementing Function.prototype.call() and
-  // Function.prototype.apply().
-  static const InlineRuntimeLUT kInlineRuntimeLUT[] = {
-    {&v8::internal::CodeGenerator::GenerateIsSmi,
-     "_IsSmi"},
-    {&v8::internal::CodeGenerator::GenerateIsNonNegativeSmi,
-     "_IsNonNegativeSmi"},
-    {&v8::internal::CodeGenerator::GenerateIsArray,
-     "_IsArray"},
-    {&v8::internal::CodeGenerator::GenerateArgumentsLength,
-     "_ArgumentsLength"},
-    {&v8::internal::CodeGenerator::GenerateArgumentsAccess,
-     "_Arguments"},
-    {&v8::internal::CodeGenerator::GenerateValueOf,
-     "_ValueOf"},
-    {&v8::internal::CodeGenerator::GenerateSetValueOf,
-     "_SetValueOf"},
-    {&v8::internal::CodeGenerator::GenerateFastCharCodeAt,
-     "_FastCharCodeAt"},
-    {&v8::internal::CodeGenerator::GenerateObjectEquals,
-     "_ObjectEquals"},
-    {&v8::internal::CodeGenerator::GenerateLog,
-     "_Log"}
-  };
   Handle<String> name = node->name();
   if (name->length() > 0 && name->Get(0) == '_') {
-    for (unsigned i = 0;
-         i < sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
-         i++) {
-      const InlineRuntimeLUT* entry = kInlineRuntimeLUT + i;
-      if (name->IsEqualTo(CStrVector(entry->name))) {
-        ((*this).*(entry->method))(args);
-        return true;
-      }
+    InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
+    if (entry != NULL) {
+      ((*this).*(entry->method))(args);
+      return true;
     }
   }
   return false;
+}
+
+
+bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
+    const CodeGenerator::InlineRuntimeLUT& new_entry,
+    CodeGenerator::InlineRuntimeLUT* old_entry) {
+  InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
+  if (entry == NULL) return false;
+  if (old_entry != NULL) {
+    old_entry->name = entry->name;
+    old_entry->method = entry->method;
+  }
+  entry->name = new_entry.name;
+  entry->method = new_entry.method;
+  return true;
 }
 
 

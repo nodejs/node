@@ -559,6 +559,7 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateLoadICDebugBreak(masm);
 }
@@ -597,7 +598,7 @@ static void Generate_Return_DebugBreakEntry(MacroAssembler* masm) {
 static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateStubNoRegistersDebugBreak(masm);
 }
-
+#endif
 
 Object* Builtins::builtins_[builtin_count] = { NULL, };
 const char* Builtins::names_[builtin_count] = { NULL, };

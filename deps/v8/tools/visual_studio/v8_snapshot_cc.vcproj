@@ -18,7 +18,7 @@
 		<Configuration
 			Name="Debug|Win32"
 			ConfigurationType="10"
-			InheritedPropertySheets=".\common.vsprops;.\debug.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\ia32.vsprops;.\debug.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -36,7 +36,7 @@
 		<Configuration
 			Name="Release|Win32"
 			ConfigurationType="10"
-			InheritedPropertySheets=".\common.vsprops;.\release.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\ia32.vsprops;.\release.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"

@@ -72,7 +72,7 @@ class CodeStub BASE_EMBEDDED {
 
  protected:
   static const int kMajorBits = 5;
-  static const int kMinorBits = kBitsPerPointer - kMajorBits - kSmiTagSize;
+  static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
 
  private:
   // Generates the assembler code for the stub.

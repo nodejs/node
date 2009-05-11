@@ -389,7 +389,7 @@ enum PropertyNormalizationMode {
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST(V)                                                    \
+#define STRUCT_LIST_ALL(V)                                                \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                           \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                  \
@@ -398,10 +398,19 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)       \
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                        \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                   \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                    \
-  V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                   \
   V(SCRIPT, Script, script)
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#define STRUCT_LIST_DEBUGGER(V)                                           \
+  V(DEBUG_INFO, DebugInfo, debug_info)                                    \
+  V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)
+#else
+#define STRUCT_LIST_DEBUGGER(V)
+#endif
+
+#define STRUCT_LIST(V)                                                    \
+  STRUCT_LIST_ALL(V)                                                      \
+  STRUCT_LIST_DEBUGGER(V)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -773,8 +782,12 @@ class Smi: public Object {
   // Convert a value to a Smi object.
   static inline Smi* FromInt(int value);
 
+  static inline Smi* FromIntptr(intptr_t value);
+
   // Returns whether value can be represented in a Smi.
   static inline bool IsValid(int value);
+
+  static inline bool IsIntptrValid(intptr_t);
 
   // Casting.
   static inline Smi* cast(Object* object);
@@ -786,9 +799,10 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
+  static const int kSmiNumBits = 31;
   // Min and max limits for Smi values.
-  static const int kMinValue = -(1 << (kBitsPerPointer - (kSmiTagSize + 1)));
-  static const int kMaxValue = (1 << (kBitsPerPointer - (kSmiTagSize + 1))) - 1;
+  static const int kMinValue = -(1 << (kSmiNumBits - 1));
+  static const int kMaxValue = (1 << (kSmiNumBits - 1)) - 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
@@ -1169,6 +1183,14 @@ class JSObject: public HeapObject {
   inline bool HasFastElements();
   inline Dictionary* element_dictionary();  // Gets slow elements.
 
+  // Collects elements starting at index 0.
+  // Undefined values are placed after non-undefined values.
+  // Returns the number of non-undefined values.
+  Object* PrepareElementsForSort(uint32_t limit);
+  // As PrepareElementsForSort, but only on objects where elements is
+  // a dictionary, and it will stay a dictionary.
+  Object* PrepareSlowElementsForSort(uint32_t limit);
+
   Object* SetProperty(String* key,
                       Object* value,
                       PropertyAttributes attributes);
@@ -1233,10 +1255,14 @@ class JSObject: public HeapObject {
                           String* name,
                           PropertyAttributes* attributes);
 
+  // Tells whether this object needs to be loaded.
+  inline bool IsLoaded();
+
   bool HasProperty(String* name) {
     return GetPropertyAttribute(name) != ABSENT;
   }
 
+  // Can cause a GC if it hits an interceptor.
   bool HasLocalProperty(String* name) {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
@@ -1585,11 +1611,15 @@ class FixedArray: public Array {
   bool IsEqualTo(FixedArray* other);
 #endif
 
-  // Swap two elements.
-  void Swap(int i, int j);
+  // Swap two elements in a pair of arrays.  If this array and the
+  // numbers array are the same object, the elements are only swapped
+  // once.
+  void SwapPairs(FixedArray* numbers, int i, int j);
 
-  // Sort this array and the smis as pairs wrt. the smis.
-  void SortPairs(FixedArray* smis);
+  // Sort prefix of this array and the numbers array as pairs wrt. the
+  // numbers.  If the numbers array and the this array are the same
+  // object, the prefix of this array is sorted.
+  void SortPairs(FixedArray* numbers, uint32_t len);
 
  protected:
   // Set operation on FixedArray without using write barriers.
@@ -1992,7 +2022,6 @@ class Dictionary: public DictionaryBase {
   void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Sorting support
-  Object* RemoveHoles();
   void CopyValuesTo(FixedArray* elements);
 
   // Casting.
@@ -2301,8 +2330,7 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   int ExecutableSize() {
     // Check that the assumptions about the layout of the code object holds.
-    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
-              reinterpret_cast<unsigned int>(address()),
+    ASSERT_EQ(instruction_start() - address(),
               Code::kHeaderSize);
     return instruction_size() + Code::kHeaderSize;
   }
@@ -2384,6 +2412,10 @@ class Map: public HeapObject {
   inline byte bit_field();
   inline void set_bit_field(byte value);
 
+  // Bit field 2.
+  inline byte bit_field2();
+  inline void set_bit_field2(byte value);
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -2434,6 +2466,20 @@ class Map: public HeapObject {
     return ((1 << kIsUndetectable) & bit_field()) != 0;
   }
 
+  inline void set_needs_loading(bool value) {
+    if (value) {
+      set_bit_field2(bit_field2() | (1 << kNeedsLoading));
+    } else {
+      set_bit_field2(bit_field2() & ~(1 << kNeedsLoading));
+    }
+  }
+
+  // Does this object or function require a lazily loaded script to be
+  // run before being used?
+  inline bool needs_loading() {
+    return ((1 << kNeedsLoading) & bit_field2()) != 0;
+  }
+
   // Tells whether the instance has a call-as-function handler.
   inline void set_has_instance_call_handler() {
     set_bit_field(bit_field() | (1 << kHasInstanceCallHandler));
@@ -2461,7 +2507,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(code_cache, FixedArray)
 
   // Returns a copy of the map.
-  Object* Copy();
+  Object* CopyDropDescriptors();
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -2537,7 +2583,7 @@ class Map: public HeapObject {
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 1;
   static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
-  // The  byte at position 3 is not in use at the moment.
+  static const int kBitField2Offset = kInstanceAttributesOffset + 3;
 
   // Bit positions for bit field.
   static const int kUnused = 0;  // To be used for marking recently used maps.
@@ -2548,6 +2594,10 @@ class Map: public HeapObject {
   static const int kIsUndetectable = 5;
   static const int kHasInstanceCallHandler = 6;
   static const int kIsAccessCheckNeeded = 7;
+
+  // Bit positions for but field 2
+  static const int kNeedsLoading = 0;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
@@ -2590,6 +2640,12 @@ class Script: public Struct {
   // extracted.
   DECL_ACCESSORS(column_offset, Smi)
 
+  // [data]: additional data associated with this script.
+  DECL_ACCESSORS(data, Object)
+
+  // [context_data]: context data for the context this script was compiled in.
+  DECL_ACCESSORS(context_data, Object)
+
   // [wrapper]: the wrapper cache.
   DECL_ACCESSORS(wrapper, Proxy)
 
@@ -2610,7 +2666,9 @@ class Script: public Struct {
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
   static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
-  static const int kWrapperOffset = kColumnOffsetOffset + kPointerSize;
+  static const int kDataOffset = kColumnOffsetOffset + kPointerSize;
+  static const int kContextOffset = kDataOffset + kPointerSize;
+  static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
@@ -2659,10 +2717,6 @@ class SharedFunctionInfo: public HeapObject {
   // we can fix that when we have a better model for storing hidden data
   // on objects.
   DECL_ACCESSORS(function_data, Object)
-
-  // [lazy load data]: If the function has lazy loading, this field
-  // contains contexts and other data needed to load it.
-  DECL_ACCESSORS(lazy_load_data, Object)
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
@@ -2737,9 +2791,7 @@ class SharedFunctionInfo: public HeapObject {
       kExpectedNofPropertiesOffset + kIntSize;
   static const int kExternalReferenceDataOffset =
       kInstanceClassNameOffset + kPointerSize;
-  static const int kLazyLoadDataOffset =
-      kExternalReferenceDataOffset + kPointerSize;
-  static const int kScriptOffset = kLazyLoadDataOffset + kPointerSize;
+  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
   static const int kStartPositionAndTypeOffset = kScriptOffset + kPointerSize;
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
@@ -2791,9 +2843,6 @@ class JSFunction: public JSObject {
   // Tells whether this function is a context-independent boilerplate
   // function.
   inline bool IsBoilerplate();
-
-  // Tells whether this function needs to be loaded.
-  inline bool IsLoaded();
 
   // [literals]: Fixed array holding the materialized literals.
   //
@@ -3167,8 +3216,6 @@ class StringShape BASE_EMBEDDED {
   inline explicit StringShape(String* s);
   inline explicit StringShape(Map* s);
   inline explicit StringShape(InstanceType t);
-  inline bool IsAsciiRepresentation();
-  inline bool IsTwoByteRepresentation();
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
@@ -3219,6 +3266,9 @@ class String: public HeapObject {
   // use the length() and set_length methods.
   inline uint32_t length_field();
   inline void set_length_field(uint32_t value);
+
+  inline bool IsAsciiRepresentation();
+  inline bool IsTwoByteRepresentation();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -3859,9 +3909,6 @@ class JSArray: public JSObject {
   // Set the content of the array to the content of storage.
   inline void SetContent(FixedArray* storage);
 
-  // Support for sorting
-  Object* RemoveHoles();
-
   // Casting.
   static inline JSArray* cast(Object* obj);
 
@@ -4147,6 +4194,7 @@ class TypeSwitchInfo: public Struct {
 };
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
@@ -4252,6 +4300,7 @@ class BreakPointInfo: public Struct {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 #undef DECL_BOOLEAN_ACCESSORS

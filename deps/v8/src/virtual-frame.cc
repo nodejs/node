@@ -213,40 +213,14 @@ void VirtualFrame::SpillElementAt(int index) {
 }
 
 
-// Clear the dirty bits for the range of elements in
-// [min(stack_pointer_ + 1,begin), end).
-void VirtualFrame::SyncRange(int begin, int end) {
-  ASSERT(begin >= 0);
-  ASSERT(end <= elements_.length());
-  if (begin > stack_pointer_) {
-    // Elements between stack_pointer_ + 1 and begin must also be synced.
-    for (int i = stack_pointer_ + 1; i < end; i++) {
-      SyncElementByPushing(i);
-    }
-  } else if (end <= stack_pointer_ + 1) {
-    for (int i = begin; i < end; i++) {
-      if (!elements_[i].is_synced()) {
-          SyncElementBelowStackPointer(i);
-      }
-    }
-  } else {
-    // Split into two ranges that each satisfy a condition above.
-    SyncRange(begin, stack_pointer_ + 1);
-    SyncRange(stack_pointer_ + 1, end);
-  }
-}
-
-
 // Clear the dirty bit for the element at a given index.
 void VirtualFrame::SyncElementAt(int index) {
   if (index <= stack_pointer_) {
-    if (!elements_[index].is_synced()) {
-      SyncElementBelowStackPointer(index);
-    }
+    if (!elements_[index].is_synced()) SyncElementBelowStackPointer(index);
+  } else if (index == stack_pointer_ + 1) {
+    SyncElementByPushing(index);
   } else {
-    for (int i = stack_pointer_ + 1; i <= index; i++) {
-      SyncElementByPushing(i);
-    }
+    SyncRange(stack_pointer_ + 1, index);
   }
 }
 
@@ -310,7 +284,7 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
   ASSERT(height() >= spilled_args);
   ASSERT(dropped_args <= spilled_args);
 
-  SyncRange(0, elements_.length());
+  SyncRange(0, elements_.length() - 1);
   // Spill registers.
   for (int i = 0; i < kNumRegisters; i++) {
     if (is_used(i)) {
@@ -531,6 +505,16 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
   }
 
   return true;
+}
+
+
+// Specialization of List::ResizeAdd to non-inlined version for FrameElements.
+// The function ResizeAdd becomes a real function, whose implementation is the
+// inlined ResizeAddInternal.
+template <>
+void List<FrameElement,
+          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element) {
+  ResizeAddInternal(element);
 }
 
 } }  // namespace v8::internal

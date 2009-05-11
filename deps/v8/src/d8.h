@@ -132,13 +132,16 @@ class Shell: public i::AllStatic {
   static int Main(int argc, char* argv[]);
   static Handle<Array> GetCompletions(Handle<String> text,
                                       Handle<String> full);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<Object> DebugMessageDetails(Handle<String> message);
   static Handle<Value> DebugCommandToJSONRequest(Handle<String> command);
+#endif
 
   static Handle<Value> Print(const Arguments& args);
   static Handle<Value> Yield(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
+  static Handle<Value> Read(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:

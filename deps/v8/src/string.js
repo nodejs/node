@@ -812,6 +812,11 @@ ReplaceResultBuilder.prototype.generate = function() {
 }
 
 
+function StringToJSON(key) {
+  return CheckJSONPrimitive(this.valueOf());
+}
+
+
 // -------------------------------------------------------------------
 
 function SetupString() {
@@ -826,7 +831,7 @@ function SetupString() {
 
 
   // Setup the non-enumerable functions on the String prototype object.
-  InstallFunctions($String.prototype, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($String.prototype, DONT_ENUM, $Array(
     "valueOf", StringValueOf,
     "toString", StringToString,
     "charAt", StringCharAt,
@@ -858,7 +863,8 @@ function SetupString() {
     "small", StringSmall,
     "strike", StringStrike,
     "sub", StringSub,
-    "sup", StringSup
+    "sup", StringSup,
+    "toJSON", StringToJSON
   ));
 }
 

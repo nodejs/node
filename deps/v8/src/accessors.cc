@@ -252,6 +252,24 @@ const AccessorDescriptor Accessors::ScriptColumnOffset = {
 
 
 //
+// Accessors::ScriptData
+//
+
+
+Object* Accessors::ScriptGetData(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->data();
+}
+
+
+const AccessorDescriptor Accessors::ScriptData = {
+  ScriptGetData,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::ScriptType
 //
 
@@ -284,6 +302,25 @@ Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
 
 const AccessorDescriptor Accessors::ScriptLineEnds = {
   ScriptGetLineEnds,
+  IllegalSetter,
+  0
+};
+
+
+//
+// Accessors::ScriptGetContextData
+//
+
+
+Object* Accessors::ScriptGetContextData(Object* object, void*) {
+  HandleScope scope;
+  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+  return script->context_data();
+}
+
+
+const AccessorDescriptor Accessors::ScriptContextData = {
+  ScriptGetContextData,
   IllegalSetter,
   0
 };

@@ -145,6 +145,35 @@ runTest();
 
 
 // ----------------------------------------------------------------------
+// Indexed access.
+// ----------------------------------------------------------------------
+runTest = function() {
+  var o = [ 42, 43 ];
+
+  var initial_X = 0;
+  var X = initial_X;
+  var Y = 1;
+
+  function fieldTest(change_index) {
+    for (var i = 0; i < 10; i++) {
+      var property = o[X];
+      if (i <= change_index) {
+        assertEquals(42, property);
+      } else {
+        assertEquals(43, property);
+      }
+      if (i == change_index) X = Y;
+    }
+    X = initial_X;
+  };
+
+  for (var i = 0; i < 10; i++) fieldTest(i);
+}
+
+runTest();
+
+
+// ----------------------------------------------------------------------
 // Constant function access.
 // ----------------------------------------------------------------------
 runTest = function() {

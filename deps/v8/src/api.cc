@@ -37,6 +37,7 @@
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
+#include "version.h"
 
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
@@ -441,6 +442,40 @@ void Context::Exit() {
   i::Handle<i::Object> last_context = thread_local.RestoreContext();
   i::Top::set_context(static_cast<i::Context*>(*last_context));
   i::GlobalHandles::Destroy(last_context.location());
+}
+
+
+void Context::SetData(v8::Handle<Value> data) {
+  if (IsDeadCheck("v8::Context::SetData()")) return;
+  ENTER_V8;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      env->set_data(*raw_data);
+    }
+  }
+}
+
+
+v8::Local<v8::Value> Context::GetData() {
+  if (IsDeadCheck("v8::Context::GetData()")) return v8::Local<Value>();
+  ENTER_V8;
+  i::Object* raw_result = NULL;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      raw_result = env->data();
+    } else {
+      return Local<Value>();
+    }
+  }
+  i::Handle<i::Object> result(raw_result);
+  return Utils::ToLocal(result);
 }
 
 
@@ -1108,6 +1143,19 @@ Local<Value> Script::Id() {
 }
 
 
+void Script::SetData(v8::Handle<Value> data) {
+  ON_BAILOUT("v8::Script::SetData()", return);
+  LOG_API("Script::SetData");
+  {
+    HandleScope scope;
+    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    script->set_data(*raw_data);
+  }
+}
+
+
 // --- E x c e p t i o n s ---
 
 
@@ -1196,6 +1244,22 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
       i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
   return scope.Close(Utils::ToLocal(resource_name));
+}
+
+
+v8::Handle<Value> Message::GetScriptData() const {
+  if (IsDeadCheck("v8::Message::GetScriptResourceData()")) {
+    return Local<Value>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> obj =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  // Return this.script.data.
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+  i::Handle<i::Object> data(i::Script::cast(script->value())->data());
+  return scope.Close(Utils::ToLocal(data));
 }
 
 
@@ -1806,6 +1870,26 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
+bool v8::Object::ForceSet(v8::Handle<Value> key,
+                          v8::Handle<Value> value,
+                          v8::PropertyAttribute attribs) {
+  ON_BAILOUT("v8::Object::ForceSet()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::ForceSetProperty(
+      self,
+      key_obj,
+      value_obj,
+      static_cast<PropertyAttributes>(attribs));
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
   ENTER_V8;
@@ -2023,7 +2107,12 @@ int v8::Object::GetIdentityHash() {
   if (hash->IsSmi()) {
     hash_value = i::Smi::cast(*hash)->value();
   } else {
-    hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+    int attempts = 0;
+    do {
+      hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+      attempts++;
+    } while (hash_value == 0 && attempts < 30);
+    hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
     i::SetProperty(hidden_props,
                    hash_symbol,
                    i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
@@ -2266,9 +2355,12 @@ v8::String::ExternalStringResource*
 v8::String::GetExternalStringResource() const {
   EnsureInitialized("v8::String::GetExternalStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalTwoByteString());
-  void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-  return reinterpret_cast<ExternalStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalTwoByte()) {
+    void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    return reinterpret_cast<ExternalStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 
@@ -2276,9 +2368,12 @@ v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
   EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalAsciiString());
-  void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-  return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalAscii()) {
+    void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 
@@ -2373,7 +2468,9 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.10.4";
+  static v8::internal::EmbeddedVector<char, 128> buffer;
+  v8::internal::Version::GetString(buffer);
+  return buffer.start();
 }
 
 
@@ -2589,10 +2686,13 @@ Local<Value> v8::External::Wrap(void* data) {
   ENTER_V8;
   if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
     uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
-    int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
+    intptr_t data_value =
+        static_cast<intptr_t>(data_ptr >> kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
-    i::Handle<i::Object> obj(i::Smi::FromInt(data_value));
-    return Utils::ToLocal(obj);
+    if (i::Smi::IsIntptrValid(data_value)) {
+      i::Handle<i::Object> obj(i::Smi::FromIntptr(data_value));
+      return Utils::ToLocal(obj);
+    }
   }
   return ExternalNewImpl(data);
 }
@@ -2603,7 +2703,8 @@ void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   if (obj->IsSmi()) {
     // The external value was an aligned pointer.
-    uintptr_t result = i::Smi::cast(*obj)->value() << kAlignedPointerShift;
+    uintptr_t result = static_cast<uintptr_t>(
+        i::Smi::cast(*obj)->value()) << kAlignedPointerShift;
     return reinterpret_cast<void*>(result);
   }
   return ExternalValueImpl(obj);
@@ -3021,6 +3122,11 @@ void V8::ResumeProfiler() {
 #endif
 }
 
+int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
+#endif
+}
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
@@ -3180,8 +3286,8 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-
-bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8;
@@ -3211,31 +3317,54 @@ void Debug::DebugBreak() {
 }
 
 
-void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+static v8::Debug::MessageHandler message_handler = NULL;
+
+static void MessageHandlerWrapper(const v8::Debug::Message& message) {
+  if (message_handler) {
+    v8::String::Value json(message.GetJSON());
+    message_handler(*json, json.length(), message.GetClientData());
+  }
+}
+
+
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
+  // Message handler thread not supported any more. Parameter temporally left in
+  // the API for client compatability reasons.
+  CHECK(!message_handler_thread);
+
+  // TODO(sgjesse) support the old message handler API through a simple wrapper.
+  message_handler = handler;
+  if (message_handler != NULL) {
+    i::Debugger::SetMessageHandler(MessageHandlerWrapper);
+  } else {
+    i::Debugger::SetMessageHandler(NULL);
+  }
 }
 
 
-void Debug::SendCommand(const uint16_t* command, int length) {
+void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
+  EnsureInitialized("v8::Debug::SetMessageHandler");
+  ENTER_V8;
+  i::Debugger::SetMessageHandler(handler);
+}
+
+
+void Debug::SendCommand(const uint16_t* command, int length,
+                        ClientData* client_data) {
   if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
+  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
+                              client_data);
 }
 
 
-void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                   void* data) {
+void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
+                                   int period) {
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler, data);
-}
-
-
-void Debug::SendHostDispatch(void* dispatch) {
-  if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessHostDispatch(dispatch);
+  i::Debugger::SetHostDispatchHandler(handler, period);
 }
 
 
@@ -3263,7 +3392,7 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 bool Debug::EnableAgent(const char* name, int port) {
   return i::Debugger::StartAgent(name, port);
 }
-
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {
 

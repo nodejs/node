@@ -43,22 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_INT_FIELD(p, offset, value) \
-  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_BARRIER(object, offset) \
-  Heap::RecordWrite(object->address(), offset);
-
-
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;
@@ -374,7 +358,7 @@ Object* JSObject::GetLazyProperty(Object* receiver,
   Handle<Object> receiver_handle(receiver);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->GetPropertyWithReceiver(*receiver_handle,
@@ -393,7 +377,7 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
   Handle<String> name_handle(name);
   Handle<Object> value_handle(value);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->SetProperty(*name_handle, *value_handle, attributes);
@@ -405,7 +389,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->DeleteProperty(*name_handle);
@@ -618,8 +602,6 @@ Object* String::TryFlatten() {
       if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
-      ASSERT(StringShape(this).IsAsciiRepresentation() ==
-          StringShape(ss->buffer()).IsAsciiRepresentation());
       return this;
     }
     case kConsStringTag: {
@@ -634,7 +616,7 @@ Object* String::TryFlatten() {
       int len = length();
       Object* object;
       String* result;
-      if (StringShape(this).IsAsciiRepresentation()) {
+      if (IsAsciiRepresentation()) {
         object = Heap::AllocateRawAsciiString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
@@ -972,10 +954,11 @@ int HeapObject::SlowSizeFromMap(Map* map) {
   // Avoid calling functions such as FixedArray::cast during GC, which
   // read map pointer of this object again.
   InstanceType instance_type = map->instance_type();
+  uint32_t type = static_cast<uint32_t>(instance_type);
 
   if (instance_type < FIRST_NONSTRING_TYPE
       && (StringShape(instance_type).IsSequential())) {
-    if (StringShape(instance_type).IsAsciiRepresentation()) {
+    if ((type & kStringEncodingMask) == kAsciiStringTag) {
       SeqAsciiString* seq_ascii_this = reinterpret_cast<SeqAsciiString*>(this);
       return seq_ascii_this->SeqAsciiStringSize(instance_type);
     } else {
@@ -1174,7 +1157,7 @@ Object* JSObject::AddFastProperty(String* name,
          (index - map()->inobject_properties()) < properties()->length() ||
          map()->unused_property_fields() == 0);
   // Allocate a new map for the object.
-  Object* r = map()->Copy();
+  Object* r = map()->CopyDropDescriptors();
   if (r->IsFailure()) return r;
   Map* new_map = Map::cast(r);
   if (allow_map_transition) {
@@ -1219,7 +1202,7 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
   if (new_descriptors->IsFailure()) return new_descriptors;
 
   // Allocate a new map for the object.
-  Object* new_map = map()->Copy();
+  Object* new_map = map()->CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
 
   DescriptorArray* descriptors = DescriptorArray::cast(new_descriptors);
@@ -1377,7 +1360,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
       DescriptorArray::cast(descriptors_unchecked);
 
   // Make a new map for the object.
-  Object* new_map_unchecked = map()->Copy();
+  Object* new_map_unchecked = map()->CopyDropDescriptors();
   if (new_map_unchecked->IsFailure()) return new_map_unchecked;
   Map* new_map = Map::cast(new_map_unchecked);
   new_map->set_instance_descriptors(new_descriptors);
@@ -1800,6 +1783,17 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return value;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->IgnoreAttributesAndSetLocalProperty(
+        name,
+        value,
+        attributes);
+  }
+
   // Check for accessor in prototype chain removed here in clone.
   if (result->IsNotFound()) {
     return AddProperty(name, value, attributes);
@@ -1820,20 +1814,16 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
         return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
                                        value);
-      } else {
-        return ConvertDescriptorToField(name, value, attributes);
       }
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
-      return SetPropertyWithCallback(result->GetCallbackObject(),
-                                     name,
-                                     value,
-                                     result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes);
+      // Override callback in clone
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
@@ -2041,7 +2031,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   dictionary->SetNextEnumerationIndex(index);
 
   // Allocate new map.
-  obj = map()->Copy();
+  obj = map()->CopyDropDescriptors();
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
 
@@ -2713,24 +2703,29 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 }
 
 
-Object* Map::Copy() {
+Object* Map::CopyDropDescriptors() {
   Object* result = Heap::AllocateMap(instance_type(), instance_size());
   if (result->IsFailure()) return result;
   Map::cast(result)->set_prototype(prototype());
   Map::cast(result)->set_constructor(constructor());
   // Don't copy descriptors, so map transitions always remain a forest.
+  // If we retained the same descriptors we would have two maps
+  // pointing to the same transition which is bad because the garbage
+  // collector relies on being able to reverse pointers from transitions
+  // to maps.  If properties need to be retained use CopyDropTransitions.
   Map::cast(result)->set_instance_descriptors(Heap::empty_descriptor_array());
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
   Map::cast(result)->set_bit_field(bit_field());
+  Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
   return result;
 }
 
 
 Object* Map::CopyDropTransitions() {
-  Object* new_map = Copy();
+  Object* new_map = CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
   Object* descriptors = instance_descriptors()->RemoveTransitions();
   if (descriptors->IsFailure()) return descriptors;
@@ -2854,22 +2849,26 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  // Remove array holes from array if any.
-  Object* object = array->RemoveHoles();
-  if (object->IsFailure()) return object;
-  JSArray* compacted_array = JSArray::cast(object);
+  if (array->HasFastElements()) {
+    return UnionOfKeys(array->elements());
+  }
+  ASSERT(!array->HasFastElements());
+  Dictionary* dict = array->element_dictionary();
+  int size = dict->NumberOfElements();
 
   // Allocate a temporary fixed array.
-  int compacted_array_length = Smi::cast(compacted_array->length())->value();
-  object = Heap::AllocateFixedArray(compacted_array_length);
+  Object* object = Heap::AllocateFixedArray(size);
   if (object->IsFailure()) return object;
   FixedArray* key_array = FixedArray::cast(object);
 
+  int capacity = dict->Capacity();
+  int pos = 0;
   // Copy the elements from the JSArray to the temporary fixed array.
-  for (int i = 0; i < compacted_array_length; i++) {
-    key_array->set(i, compacted_array->GetElement(i));
+  for (int i = 0; i < capacity; i++) {
+    if (dict->IsKey(dict->KeyAt(i))) {
+      key_array->set(pos++, dict->ValueAt(i));
+    }
   }
-
   // Compute the union of this and the temporary fixed array.
   return UnionOfKeys(key_array);
 }
@@ -2885,8 +2884,11 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   // Compute how many elements are not in this.
   int extra = 0;
   for (int y = 0; y < len1; y++) {
-    if (!HasKey(this, other->get(y))) extra++;
+    Object* value = other->get(y);
+    if (!value->IsTheHole() && !HasKey(this, value)) extra++;
   }
+
+  if (extra == 0) return this;
 
   // Allocate the result
   Object* obj = Heap::AllocateFixedArray(len0 + extra);
@@ -2900,7 +2902,8 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
-    if (!HasKey(this, other->get(y))) {
+    Object* value = other->get(y);
+    if (!value->IsTheHole() && !HasKey(this, value)) {
       result->set(len0 + index, other->get(y), mode);
       index++;
     }
@@ -3231,7 +3234,7 @@ bool String::LooksValid() {
 
 
 int String::Utf8Length() {
-  if (StringShape(this).IsAsciiRepresentation()) return length();
+  if (IsAsciiRepresentation()) return length();
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
@@ -3247,7 +3250,7 @@ int String::Utf8Length() {
 
 
 Vector<const char> String::ToAsciiVector() {
-  ASSERT(StringShape(this).IsAsciiRepresentation());
+  ASSERT(IsAsciiRepresentation());
   ASSERT(IsFlat());
 
   int offset = 0;
@@ -3278,7 +3281,7 @@ Vector<const char> String::ToAsciiVector() {
 
 
 Vector<const uc16> String::ToUC16Vector() {
-  ASSERT(StringShape(this).IsTwoByteRepresentation());
+  ASSERT(IsTwoByteRepresentation());
   ASSERT(IsFlat());
 
   int offset = 0;
@@ -3302,13 +3305,6 @@ Vector<const uc16> String::ToUC16Vector() {
   }
   ASSERT(string_tag == kExternalStringTag);
   ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
-  // This is a workaround for Chromium bug 9746: http://crbug.com/9746
-  // For external strings with a deleted resource we return a special
-  // Vector which will not compare to any string when doing SymbolTable
-  // lookups.
-  if (ext->resource() == NULL) {
-    return Vector<const uc16>(NULL, length);
-  }
   const uc16* start =
       reinterpret_cast<const uc16*>(ext->resource()->data());
   return Vector<const uc16>(start + offset, length);
@@ -3381,7 +3377,7 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!StringShape(this).IsAsciiRepresentation());
+  ASSERT(!IsAsciiRepresentation());
   switch (StringShape(this).representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
@@ -3676,7 +3672,7 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         SeqAsciiString* str = SeqAsciiString::cast(input);
         return str->SeqAsciiStringReadBlock(&rbb->remaining,
                                             offset_ptr,
@@ -3697,7 +3693,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3750,7 +3746,7 @@ void FlatStringReader::RefreshState() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  is_ascii_ = StringShape(*str).IsAsciiRepresentation();
+  is_ascii_ = str->IsAsciiRepresentation();
   if (is_ascii_) {
     start_ = str->ToAsciiVector().start();
   } else {
@@ -3791,7 +3787,7 @@ void String::ReadBlockIntoBuffer(String* input,
 
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
@@ -3813,7 +3809,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -4093,7 +4089,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   const Char* pa = a.start();
   const Char* pb = b.start();
   int i = 0;
-#ifndef CAN_READ_UNALIGNED
+#ifndef V8_HOST_CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
   // then we have to check that the strings are aligned before
   // comparing them blockwise.
@@ -4112,7 +4108,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
         return false;
       }
     }
-#ifndef CAN_READ_UNALIGNED
+#ifndef V8_HOST_CAN_READ_UNALIGNED
   }
 #endif
   // Compare the remaining characters that didn't fit into a block.
@@ -4125,31 +4121,17 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
 }
 
 
-// This is a workaround for Chromium bug 9746: http://crbug.com/9746
-// Returns true if this Vector matches the problem exposed in the bug.
-template <typename T>
-static bool CheckVectorForBug9746(Vector<T> vec) {
-  // The problem is that somehow external string entries in the symbol
-  // table can have their resources collected while they are still in the
-  // table. This should not happen according to the test in the function
-  // DisposeExternalString in api.cc, but we have evidence that it does.
-  return (vec.start() == NULL) ? true : false;
-}
-
-
 static StringInputBuffer string_compare_buffer_b;
 
 
 template <typename IteratorA>
 static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
   if (b->IsFlat()) {
-    if (StringShape(b).IsAsciiRepresentation()) {
+    if (b->IsAsciiRepresentation()) {
       VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
-      Vector<const uc16> vb = b->ToUC16Vector();
-      if (CheckVectorForBug9746(vb)) return false;
-      VectorIterator<uc16> ib(vb);
+      VectorIterator<uc16> ib(b->ToUC16Vector());
       return CompareStringContents(ia, &ib);
     }
   } else {
@@ -4183,17 +4165,15 @@ bool String::SlowEquals(String* other) {
   }
 
   if (this->IsFlat()) {
-    if (StringShape(this).IsAsciiRepresentation()) {
+    if (IsAsciiRepresentation()) {
       Vector<const char> vec1 = this->ToAsciiVector();
       if (other->IsFlat()) {
-        if (StringShape(other).IsAsciiRepresentation()) {
+        if (other->IsAsciiRepresentation()) {
           Vector<const char> vec2 = other->ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
           VectorIterator<char> buf1(vec1);
-          Vector<const uc16> vec2 = other->ToUC16Vector();
-          if (CheckVectorForBug9746(vec2)) return false;
-          VectorIterator<uc16> ib(vec2);
+          VectorIterator<uc16> ib(other->ToUC16Vector());
           return CompareStringContents(&buf1, &ib);
         }
       } else {
@@ -4203,15 +4183,13 @@ bool String::SlowEquals(String* other) {
       }
     } else {
       Vector<const uc16> vec1 = this->ToUC16Vector();
-      if (CheckVectorForBug9746(vec1)) return false;
       if (other->IsFlat()) {
-        if (StringShape(other).IsAsciiRepresentation()) {
+        if (other->IsAsciiRepresentation()) {
           VectorIterator<uc16> buf1(vec1);
           VectorIterator<char> ib(other->ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
         } else {
-          Vector<const uc16> vec2 = other->ToUC16Vector();
-          if (CheckVectorForBug9746(vec2)) return false;
+          Vector<const uc16> vec2(other->ToUC16Vector());
           return CompareRawStringContents(vec1, vec2);
         }
       } else {
@@ -4256,18 +4234,6 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
-  // This is a workaround for Chromium bug 9746: http://crbug.com/9746
-  // The problem is that somehow external string entries in the symbol
-  // table can have their resources deleted while they are still in the
-  // table. This should not happen according to the test in the function
-  // DisposeExternalString in api.cc but we have evidence that it does.
-  // Thus we add this bailout here.
-  StringShape shape(this);
-  if (shape.IsExternalTwoByte()) {
-    ExternalTwoByteString* ext = ExternalTwoByteString::cast(this);
-    if (ext->resource() == NULL) return false;
-  }
-
   int slen = length();
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
   decoder->Reset(str.start(), str.length());
@@ -4678,6 +4644,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
     it.rinfo()->set_target_object(code);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4691,6 +4658,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_OBJECT);
 }
 
@@ -4712,10 +4680,12 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
       v->VisitCodeTarget(it.rinfo());
     } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
                it.rinfo()->IsCallInstruction()) {
       v->VisitDebugTarget(it.rinfo());
+#endif
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
     }
@@ -4740,6 +4710,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
     it.rinfo()->set_target_address(code->instruction_start());
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4751,6 +4722,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_ADDRESS);
 }
 
@@ -5138,7 +5110,7 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
       VMState state(EXTERNAL);
       result = getter(index, info);
     }
-    if (!result.IsEmpty()) return !result->IsUndefined();
+    if (!result.IsEmpty()) return true;
   }
   return holder_handle->HasElementPostInterceptor(*receiver_handle, index);
 }
@@ -5189,7 +5161,8 @@ Object* JSObject::GetHiddenProperties(bool create_if_needed) {
   }
 
   // Only attempt to find the hidden properties in the local object and not
-  // in the prototype chain.
+  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
+  // the general case, but in this case we know it won't hit an interceptor.
   if (!this->HasLocalProperty(key)) {
     // Hidden properties object not found. Allocate a new hidden properties
     // object if requested. Otherwise return the undefined value.
@@ -5626,72 +5599,15 @@ bool JSObject::ShouldConvertToFastElements() {
 }
 
 
-Object* Dictionary::RemoveHoles() {
-  int capacity = Capacity();
-  Object* obj = Allocate(NumberOfElements());
-  if (obj->IsFailure()) return obj;
-  Dictionary* dict = Dictionary::cast(obj);
-  uint32_t pos = 0;
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      dict->AddNumberEntry(pos++, ValueAt(i), DetailsAt(i));
-    }
-  }
-  return dict;
-}
-
-
 void Dictionary::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
   int capacity = Capacity();
+  WriteBarrierMode mode = elements->GetWriteBarrierMode();
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
-    if (IsKey(k)) elements->set(pos++, ValueAt(i));
+    if (IsKey(k)) elements->set(pos++, ValueAt(i), mode);
   }
   ASSERT(pos == elements->length());
-}
-
-
-Object* JSArray::RemoveHoles() {
-  if (HasFastElements()) {
-    int len = Smi::cast(length())->value();
-    int pos = 0;
-    FixedArray* elms = FixedArray::cast(elements());
-    for (int index = 0; index < len; index++) {
-      Object* e = elms->get(index);
-      if (!e->IsTheHole()) {
-        if (index != pos) elms->set(pos, e);
-        pos++;
-      }
-    }
-    set_length(Smi::FromInt(pos), SKIP_WRITE_BARRIER);
-    for (int index = pos; index < len; index++) {
-      elms->set_the_hole(index);
-    }
-    return this;
-  }
-
-  // Compact the sparse array if possible.
-  Dictionary* dict = element_dictionary();
-  int length = dict->NumberOfElements();
-
-  // Try to make this a fast array again.
-  if (length <= kMaxFastElementsLength) {
-    Object* obj = Heap::AllocateFixedArray(length);
-    if (obj->IsFailure()) return obj;
-    dict->CopyValuesTo(FixedArray::cast(obj));
-    set_length(Smi::FromInt(length), SKIP_WRITE_BARRIER);
-    set_elements(FixedArray::cast(obj));
-    return this;
-  }
-
-  // Make another dictionary with smaller indices.
-  Object* obj = dict->RemoveHoles();
-  if (obj->IsFailure()) return obj;
-  set_length(Smi::FromInt(length), SKIP_WRITE_BARRIER);
-  set_elements(Dictionary::cast(obj));
-  return this;
 }
 
 
@@ -5861,43 +5777,46 @@ int JSObject::NumberOfEnumProperties() {
 }
 
 
-void FixedArray::Swap(int i, int j) {
+void FixedArray::SwapPairs(FixedArray* numbers, int i, int j) {
   Object* temp = get(i);
   set(i, get(j));
   set(j, temp);
+  if (this != numbers) {
+    temp = numbers->get(i);
+    numbers->set(i, numbers->get(j));
+    numbers->set(j, temp);
+  }
 }
 
 
-static void InsertionSortPairs(FixedArray* content, FixedArray* smis) {
-  int len = smis->length();
+static void InsertionSortPairs(FixedArray* content,
+                               FixedArray* numbers,
+                               int len) {
   for (int i = 1; i < len; i++) {
     int j = i;
     while (j > 0 &&
-           Smi::cast(smis->get(j-1))->value() >
-               Smi::cast(smis->get(j))->value()) {
-      smis->Swap(j-1, j);
-      content->Swap(j-1, j);
+           (NumberToUint32(numbers->get(j - 1)) >
+            NumberToUint32(numbers->get(j)))) {
+      content->SwapPairs(numbers, j - 1, j);
       j--;
     }
   }
 }
 
 
-void HeapSortPairs(FixedArray* content, FixedArray* smis) {
+void HeapSortPairs(FixedArray* content, FixedArray* numbers, int len) {
   // In-place heap sort.
-  ASSERT(content->length() == smis->length());
-  int len = smis->length();
+  ASSERT(content->length() == numbers->length());
 
   // Bottom-up max-heap construction.
   for (int i = 1; i < len; ++i) {
     int child_index = i;
     while (child_index > 0) {
       int parent_index = ((child_index + 1) >> 1) - 1;
-      int parent_value = Smi::cast(smis->get(parent_index))->value();
-      int child_value = Smi::cast(smis->get(child_index))->value();
+      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
+      uint32_t child_value = NumberToUint32(numbers->get(child_index));
       if (parent_value < child_value) {
-        content->Swap(parent_index, child_index);
-        smis->Swap(parent_index, child_index);
+        content->SwapPairs(numbers, parent_index, child_index);
       } else {
         break;
       }
@@ -5908,25 +5827,22 @@ void HeapSortPairs(FixedArray* content, FixedArray* smis) {
   // Extract elements and create sorted array.
   for (int i = len - 1; i > 0; --i) {
     // Put max element at the back of the array.
-    content->Swap(0, i);
-    smis->Swap(0, i);
+    content->SwapPairs(numbers, 0, i);
     // Sift down the new top element.
     int parent_index = 0;
     while (true) {
       int child_index = ((parent_index + 1) << 1) - 1;
       if (child_index >= i) break;
-      uint32_t child1_value = Smi::cast(smis->get(child_index))->value();
-      uint32_t child2_value = Smi::cast(smis->get(child_index + 1))->value();
-      uint32_t parent_value = Smi::cast(smis->get(parent_index))->value();
+      uint32_t child1_value = NumberToUint32(numbers->get(child_index));
+      uint32_t child2_value = NumberToUint32(numbers->get(child_index + 1));
+      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
       if (child_index + 1 >= i || child1_value > child2_value) {
         if (parent_value > child1_value) break;
-        content->Swap(parent_index, child_index);
-        smis->Swap(parent_index, child_index);
+        content->SwapPairs(numbers, parent_index, child_index);
         parent_index = child_index;
       } else {
         if (parent_value > child2_value) break;
-        content->Swap(parent_index, child_index + 1);
-        smis->Swap(parent_index, child_index + 1);
+        content->SwapPairs(numbers, parent_index, child_index + 1);
         parent_index = child_index + 1;
       }
     }
@@ -5934,43 +5850,41 @@ void HeapSortPairs(FixedArray* content, FixedArray* smis) {
 }
 
 
-// Sort this array and the smis as pairs wrt. the (distinct) smis.
-void FixedArray::SortPairs(FixedArray* smis) {
-  ASSERT(this->length() == smis->length());
-  int len = smis->length();
+// Sort this array and the numbers as pairs wrt. the (distinct) numbers.
+void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
+  ASSERT(this->length() == numbers->length());
   // For small arrays, simply use insertion sort.
   if (len <= 10) {
-    InsertionSortPairs(this, smis);
+    InsertionSortPairs(this, numbers, len);
     return;
   }
   // Check the range of indices.
-  int min_index = Smi::cast(smis->get(0))->value();
-  int max_index = min_index;
-  int i;
+  uint32_t min_index = NumberToUint32(numbers->get(0));
+  uint32_t max_index = min_index;
+  uint32_t i;
   for (i = 1; i < len; i++) {
-    if (Smi::cast(smis->get(i))->value() < min_index) {
-      min_index = Smi::cast(smis->get(i))->value();
-    } else if (Smi::cast(smis->get(i))->value() > max_index) {
-      max_index = Smi::cast(smis->get(i))->value();
+    if (NumberToUint32(numbers->get(i)) < min_index) {
+      min_index = NumberToUint32(numbers->get(i));
+    } else if (NumberToUint32(numbers->get(i)) > max_index) {
+      max_index = NumberToUint32(numbers->get(i));
     }
   }
   if (max_index - min_index + 1 == len) {
     // Indices form a contiguous range, unless there are duplicates.
-    // Do an in-place linear time sort assuming distinct smis, but
+    // Do an in-place linear time sort assuming distinct numbers, but
     // avoid hanging in case they are not.
     for (i = 0; i < len; i++) {
-      int p;
-      int j = 0;
+      uint32_t p;
+      uint32_t j = 0;
       // While the current element at i is not at its correct position p,
       // swap the elements at these two positions.
-      while ((p = Smi::cast(smis->get(i))->value() - min_index) != i &&
+      while ((p = NumberToUint32(numbers->get(i)) - min_index) != i &&
              j++ < len) {
-        this->Swap(i, p);
-        smis->Swap(i, p);
+        SwapPairs(numbers, i, p);
       }
     }
   } else {
-    HeapSortPairs(this, smis);
+    HeapSortPairs(this, numbers, len);
     return;
   }
 }
@@ -6448,6 +6362,176 @@ template class HashTable<2, 3>;
 template class HashTable<0, 2>;
 
 
+// Collates undefined and unexisting elements below limit from position
+// zero of the elements. The object stays in Dictionary mode.
+Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
+  ASSERT(!HasFastElements());
+  // Must stay in dictionary mode, either because of requires_slow_elements,
+  // or because we are not going to sort (and therefore compact) all of the
+  // elements.
+  Dictionary* dict = element_dictionary();
+  HeapNumber* result_double = NULL;
+  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
+    // Allocate space for result before we start mutating the object.
+    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    if (new_double->IsFailure()) return new_double;
+    result_double = HeapNumber::cast(new_double);
+  }
+
+  int capacity = dict->Capacity();
+  Object* obj = Dictionary::Allocate(dict->Capacity());
+  if (obj->IsFailure()) return obj;
+  Dictionary* new_dict = Dictionary::cast(obj);
+
+  AssertNoAllocation no_alloc;
+
+  // Loose all details on properties when moving them around.
+  // Elements do not have special details like properties.
+  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
+
+  uint32_t pos = 0;
+  uint32_t undefs = 0;
+  for (int i = 0; i < capacity; i++) {
+    Object* k = dict->KeyAt(i);
+    if (dict->IsKey(k)) {
+      ASSERT(k->IsNumber());
+      ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
+      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
+      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
+      Object* value = dict->ValueAt(i);
+      uint32_t key = NumberToUint32(k);
+      if (key < limit) {
+        if (value->IsUndefined()) {
+          undefs++;
+        } else {
+          new_dict->AddNumberEntry(pos, value, no_details);
+          pos++;
+        }
+      } else {
+        new_dict->AddNumberEntry(key, value, no_details);
+      }
+    }
+  }
+
+  uint32_t result = pos;
+  while (undefs > 0) {
+    new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details);
+    pos++;
+    undefs--;
+  }
+
+  set_elements(new_dict);
+
+  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
+    return Smi::FromInt(static_cast<int>(result));
+  }
+
+  ASSERT_NE(NULL, result_double);
+  result_double->set_value(static_cast<double>(result));
+  return result_double;
+}
+
+
+// Collects all defined (non-hole) and non-undefined (array) elements at
+// the start of the elements array.
+// If the object is in dictionary mode, it is converted to fast elements
+// mode.
+Object* JSObject::PrepareElementsForSort(uint32_t limit) {
+  if (!HasFastElements()) {
+    // Convert to fast elements containing only the existing properties.
+    // Ordering is irrelevant, since we are going to sort anyway.
+    Dictionary* dict = element_dictionary();
+    if (IsJSArray() || dict->requires_slow_elements() ||
+        dict->max_number_key() >= limit) {
+      return PrepareSlowElementsForSort(limit);
+    }
+    // Convert to fast elements.
+
+    PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED: TENURED;
+    Object* new_array =
+        Heap::AllocateFixedArray(dict->NumberOfElements(), tenure);
+    if (new_array->IsFailure()) {
+      return new_array;
+    }
+    FixedArray* fast_elements = FixedArray::cast(new_array);
+    dict->CopyValuesTo(fast_elements);
+    set_elements(fast_elements);
+  }
+  ASSERT(HasFastElements());
+
+  // Collect holes at the end, undefined before that and the rest at the
+  // start, and return the number of non-hole, non-undefined values.
+
+  FixedArray* elements = this->elements();
+  uint32_t elements_length = static_cast<uint32_t>(elements->length());
+  if (limit > elements_length) {
+    limit = elements_length ;
+  }
+  if (limit == 0) {
+    return Smi::FromInt(0);
+  }
+
+  HeapNumber* result_double = NULL;
+  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
+    // Pessimistically allocate space for return value before
+    // we start mutating the array.
+    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    if (new_double->IsFailure()) return new_double;
+    result_double = HeapNumber::cast(new_double);
+  }
+
+  AssertNoAllocation no_alloc;
+
+  // Split elements into defined, undefined and the_hole, in that order.
+  // Only count locations for undefined and the hole, and fill them afterwards.
+  WriteBarrierMode write_barrier = elements->GetWriteBarrierMode();
+  unsigned int undefs = limit;
+  unsigned int holes = limit;
+  // Assume most arrays contain no holes and undefined values, so minimize the
+  // number of stores of non-undefined, non-the-hole values.
+  for (unsigned int i = 0; i < undefs; i++) {
+    Object* current = elements->get(i);
+    if (current->IsTheHole()) {
+      holes--;
+      undefs--;
+    } else if (current->IsUndefined()) {
+      undefs--;
+    } else {
+      continue;
+    }
+    // Position i needs to be filled.
+    while (undefs > i) {
+      current = elements->get(undefs);
+      if (current->IsTheHole()) {
+        holes--;
+        undefs--;
+      } else if (current->IsUndefined()) {
+        undefs--;
+      } else {
+        elements->set(i, current, write_barrier);
+        break;
+      }
+    }
+  }
+  uint32_t result = undefs;
+  while (undefs < holes) {
+    elements->set_undefined(undefs);
+    undefs++;
+  }
+  while (holes < limit) {
+    elements->set_the_hole(holes);
+    holes++;
+  }
+
+  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
+    return Smi::FromInt(static_cast<int>(result));
+  }
+  ASSERT_NE(NULL, result_double);
+  result_double->set_value(static_cast<double>(result));
+  return result_double;
+}
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
@@ -6758,7 +6842,7 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
   }
 
   // Sort the arrays wrt. enumeration order.
-  iteration_order->SortPairs(enumeration_order);
+  iteration_order->SortPairs(enumeration_order, enumeration_order->length());
 
   // Overwrite the enumeration_order with the enumeration indices.
   for (int i = 0; i < length; i++) {
@@ -7010,6 +7094,7 @@ void Dictionary::CopyKeysTo(FixedArray* storage, PropertyAttributes filter) {
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
+  storage->SortPairs(storage, index);
   ASSERT(storage->length() >= index);
 }
 
@@ -7031,7 +7116,7 @@ void Dictionary::CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array) {
        }
      }
   }
-  storage->SortPairs(sort_array);
+  storage->SortPairs(sort_array, sort_array->length());
   ASSERT(storage->length() >= index);
 }
 
@@ -7157,7 +7242,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 
   descriptors->Sort();
   // Allocate new map.
-  Object* new_map = obj->map()->Copy();
+  Object* new_map = obj->map()->CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
 
   // Transform the object.
@@ -7176,6 +7261,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.
@@ -7419,6 +7505,6 @@ int BreakPointInfo::GetBreakPointCount() {
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
 }
-
+#endif
 
 } }  // namespace v8::internal

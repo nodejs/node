@@ -555,25 +555,62 @@ static void ScanOverflowedObjects(T* it) {
 }
 
 
-bool MarkCompactCollector::MustBeMarked(Object** p) {
-  // Check whether *p is a HeapObject pointer.
-  if (!(*p)->IsHeapObject()) return false;
-  return !HeapObject::cast(*p)->IsMarked();
+bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
+  return (*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked();
 }
 
 
-void MarkCompactCollector::ProcessRoots(RootMarkingVisitor* visitor) {
-  // Mark the heap roots gray, including global variables, stack variables,
-  // etc.
+class SymbolMarkingVisitor : public ObjectVisitor {
+ public:
+  void VisitPointers(Object** start, Object** end) {
+    MarkingVisitor marker;
+    for (Object** p = start; p < end; p++) {
+      if (!(*p)->IsHeapObject()) continue;
+
+      HeapObject* object = HeapObject::cast(*p);
+      // If the object is marked, we have marked or are in the process
+      // of marking subparts.
+      if (object->IsMarked()) continue;
+
+      // The object is unmarked, we do not need to unmark to use its
+      // map.
+      Map* map = object->map();
+      object->IterateBody(map->instance_type(),
+                          object->SizeFromMap(map),
+                          &marker);
+    }
+  }
+};
+
+
+void MarkCompactCollector::MarkSymbolTable() {
+  // Objects reachable from symbols are marked as live so as to ensure
+  // that if the symbol itself remains alive after GC for any reason,
+  // and if it is a sliced string or a cons string backed by an
+  // external string (even indirectly), then the external string does
+  // not receive a weak reference callback.
+  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  // Mark the symbol table itself.
+  SetMark(symbol_table);
+  // Explicitly mark the prefix.
+  MarkingVisitor marker;
+  symbol_table->IteratePrefix(&marker);
+  ProcessMarkingStack(&marker);
+  // Mark subparts of the symbols but not the symbols themselves
+  // (unless reachable from another symbol).
+  SymbolMarkingVisitor symbol_marker;
+  symbol_table->IterateElements(&symbol_marker);
+  ProcessMarkingStack(&marker);
+}
+
+
+void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
+  // Mark the heap roots including global variables, stack variables,
+  // etc., and all objects reachable from them.
   Heap::IterateStrongRoots(visitor);
 
-  // Take care of the symbol table specially.
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
-  // 1. Mark the prefix of the symbol table gray.
-  symbol_table->IteratePrefix(visitor);
-  // 2. Mark the symbol table black (ie, do not push it on the marking stack
-  // or mark it overflowed).
-  SetMark(symbol_table);
+  // Handle the symbol table specially.
+  MarkSymbolTable();
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_stack.overflowed()) {
@@ -715,21 +752,22 @@ void MarkCompactCollector::MarkLiveObjects() {
   ASSERT(!marking_stack.overflowed());
 
   RootMarkingVisitor root_visitor;
-  ProcessRoots(&root_visitor);
+  MarkRoots(&root_visitor);
 
-  // The objects reachable from the roots are marked black, unreachable
-  // objects are white.  Mark objects reachable from object groups with at
-  // least one marked object, and continue until no new objects are
-  // reachable from the object groups.
+  // The objects reachable from the roots are marked, yet unreachable
+  // objects are unmarked.  Mark objects reachable from object groups
+  // containing at least one marked object, and continue until no new
+  // objects are reachable from the object groups.
   ProcessObjectGroups(root_visitor.stack_visitor());
 
-  // The objects reachable from the roots or object groups are marked black,
-  // unreachable objects are white.  Process objects reachable only from
-  // weak global handles.
+  // The objects reachable from the roots or object groups are marked,
+  // yet unreachable objects are unmarked.  Mark objects reachable
+  // only from weak global handles.
   //
-  // First we mark weak pointers not yet reachable.
-  GlobalHandles::MarkWeakRoots(&MustBeMarked);
-  // Then we process weak pointers and process the transitive closure.
+  // First we identify nonlive weak handles and mark them as pending
+  // destruction.
+  GlobalHandles::IdentifyWeakHandles(&IsUnmarkedHeapObject);
+  // Then we mark the objects and process the transitive closure.
   GlobalHandles::IterateWeakRoots(&root_visitor);
   while (marking_stack.overflowed()) {
     RefillMarkingStack();

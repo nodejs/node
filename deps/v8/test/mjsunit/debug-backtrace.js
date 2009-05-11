@@ -32,8 +32,12 @@ function f(x, y) {
   a=1;
 };
 
-function g() {
+var m = function() {
   new f(1);
+};
+
+function g() {
+ m();
 };
 
 
@@ -90,22 +94,26 @@ function listener(event, exec_state, event_data, data) {
     // Get the backtrace.
     var json;
     json = '{"seq":0,"type":"request","command":"backtrace"}'
-    response = new ParsedResponse(dcp.processDebugJSONRequest(json));
+    var resp = dcp.processDebugJSONRequest(json);
+    response = new ParsedResponse(resp);
     backtrace = response.body();
     assertEquals(0, backtrace.fromFrame);
-    assertEquals(3, backtrace.toFrame);
-    assertEquals(3, backtrace.totalFrames);
+    assertEquals(4, backtrace.toFrame);
+    assertEquals(4, backtrace.totalFrames);
     var frames = backtrace.frames;
-    assertEquals(3, frames.length);
+    assertEquals(4, frames.length);
     for (var i = 0; i < frames.length; i++) {
       assertEquals('frame', frames[i].type);
     }
     assertEquals(0, frames[0].index);
     assertEquals("f", response.lookup(frames[0].func.ref).name);
     assertEquals(1, frames[1].index);
-    assertEquals("g", response.lookup(frames[1].func.ref).name);
+    assertEquals("", response.lookup(frames[1].func.ref).name);
+    assertEquals("m", response.lookup(frames[1].func.ref).inferredName);
     assertEquals(2, frames[2].index);
-    assertEquals("", response.lookup(frames[2].func.ref).name);
+    assertEquals("g", response.lookup(frames[2].func.ref).name);
+    assertEquals(3, frames[3].index);
+    assertEquals("", response.lookup(frames[3].func.ref).name);
 
     // Get backtrace with two frames.
     json = '{"seq":0,"type":"request","command":"backtrace","arguments":{"fromFrame":1,"toFrame":3}}'
@@ -113,16 +121,17 @@ function listener(event, exec_state, event_data, data) {
     backtrace = response.body();
     assertEquals(1, backtrace.fromFrame);
     assertEquals(3, backtrace.toFrame);
-    assertEquals(3, backtrace.totalFrames);
+    assertEquals(4, backtrace.totalFrames);
     var frames = backtrace.frames;
     assertEquals(2, frames.length);
     for (var i = 0; i < frames.length; i++) {
       assertEquals('frame', frames[i].type);
     }
     assertEquals(1, frames[0].index);
-    assertEquals("g", response.lookup(frames[0].func.ref).name);
+    assertEquals("", response.lookup(frames[0].func.ref).name);
+    assertEquals("m", response.lookup(frames[0].func.ref).inferredName);
     assertEquals(2, frames[1].index);
-    assertEquals("", response.lookup(frames[1].func.ref).name);
+    assertEquals("g", response.lookup(frames[1].func.ref).name);
 
     // Get the individual frames.
     json = '{"seq":0,"type":"request","command":"frame"}'
@@ -158,16 +167,17 @@ function listener(event, exec_state, event_data, data) {
     response = new ParsedResponse(dcp.processDebugJSONRequest(json));
     frame = response.body();
     assertEquals(1, frame.index);
-    assertEquals("g", response.lookup(frame.func.ref).name);
+    assertEquals("", response.lookup(frame.func.ref).name);
+    assertEquals("m", response.lookup(frame.func.ref).inferredName);
     assertFalse(frame.constructCall);
     assertEquals(35, frame.line);
     assertEquals(2, frame.column);
     assertEquals(0, frame.arguments.length);
 
-    json = '{"seq":0,"type":"request","command":"frame","arguments":{"number":2}}'
+    json = '{"seq":0,"type":"request","command":"frame","arguments":{"number":3}}'
     response = new ParsedResponse(dcp.processDebugJSONRequest(json));
     frame = response.body();
-    assertEquals(2, frame.index);
+    assertEquals(3, frame.index);
     assertEquals("", response.lookup(frame.func.ref).name);
 
     // Source slices for the individual frames (they all refer to this script).

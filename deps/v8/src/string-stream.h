@@ -72,13 +72,36 @@ class NoAllocationStringAllocator: public StringAllocator {
 
 class FmtElm {
  public:
-  FmtElm(int value) : type_(INT) { data_.u_int_ = value; }  // NOLINT
-  explicit FmtElm(double value) : type_(DOUBLE) { data_.u_double_ = value; }  // NOLINT
-  FmtElm(const char* value) : type_(C_STR) { data_.u_c_str_ = value; }  // NOLINT
-  FmtElm(const Vector<const uc16>& value) : type_(LC_STR) { data_.u_lc_str_ = &value; } // NOLINT
-  FmtElm(Object* value) : type_(OBJ) { data_.u_obj_ = value; }  // NOLINT
-  FmtElm(Handle<Object> value) : type_(HANDLE) { data_.u_handle_ = value.location(); }  // NOLINT
-  FmtElm(void* value) : type_(INT) { data_.u_int_ = reinterpret_cast<int>(value); }  // NOLINT
+  FmtElm(int value) : type_(INT) {  // NOLINT
+    data_.u_int_ = value;
+  }
+  explicit FmtElm(double value) : type_(DOUBLE) {
+    data_.u_double_ = value;
+  }
+  FmtElm(const char* value) : type_(C_STR) {  // NOLINT
+    data_.u_c_str_ = value;
+  }
+  FmtElm(const Vector<const uc16>& value) : type_(LC_STR) {  // NOLINT
+    data_.u_lc_str_ = &value;
+  }
+  FmtElm(Object* value) : type_(OBJ) {  // NOLINT
+    data_.u_obj_ = value;
+  }
+  FmtElm(Handle<Object> value) : type_(HANDLE) {  // NOLINT
+    data_.u_handle_ = value.location();
+  }
+  FmtElm(void* value) : type_(INT) {  // NOLINT
+#if V8_HOST_ARCH_64_BIT
+    // TODO(x64): FmtElm needs to treat pointers as pointers, and not as
+    // ints.  This will require adding a pointer type, etc.  For now just
+    // hack it and truncate the pointer.
+    // http://code.google.com/p/v8/issues/detail?id=335
+    data_.u_int_ = 0;
+    UNIMPLEMENTED();
+#else
+    data_.u_int_ = reinterpret_cast<int>(value);
+#endif
+  }
  private:
   friend class StringStream;
   enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE };
@@ -162,8 +185,8 @@ class StringStream {
   unsigned length_;  // does not include terminating 0-character
   char* buffer_;
 
+  bool full() const { return (capacity_ - length_) == 1; }
   int space() const { return capacity_ - length_; }
-  char* cursor() const { return buffer_ + length_; }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringStream);
 };

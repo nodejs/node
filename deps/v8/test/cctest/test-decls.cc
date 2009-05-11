@@ -389,7 +389,7 @@ class AppearingPropertyContext: public DeclarationContext {
         state_ = UNKNOWN;
         return True();
       default:
-        ASSERT(state_ == UNKNOWN);
+        CHECK(state_ == UNKNOWN);
         break;
     }
     // Do the lookup in the object.
@@ -479,7 +479,7 @@ class ReappearingPropertyContext: public DeclarationContext {
         state_ = UNKNOWN;
         return False();
       default:
-        ASSERT(state_ == UNKNOWN);
+        CHECK(state_ == UNKNOWN);
         break;
     }
     // Do the lookup in the object.

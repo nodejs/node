@@ -60,7 +60,8 @@ class Compiler : public AllStatic {
   static Handle<JSFunction> CompileEval(Handle<String> source,
                                         Handle<Context> context,
                                         int line_offset,
-                                        bool is_global);
+                                        bool is_global,
+                                        bool is_json);
 
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack

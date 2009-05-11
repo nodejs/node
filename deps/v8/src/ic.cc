@@ -42,7 +42,7 @@ static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
     case UNINITIALIZED_IN_LOOP: return 'L';
-    case PREMONOMORPHIC: return '0';
+    case PREMONOMORPHIC: return 'P';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
     case MEGAMORPHIC: return 'N';
@@ -100,6 +100,7 @@ IC::IC(FrameDepth depth) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Address IC::OriginalCodeAddress() {
   HandleScope scope;
   // Compute the JavaScript frame for the frame pointer of this IC
@@ -126,7 +127,7 @@ Address IC::OriginalCodeAddress() {
   int delta = original_code->instruction_start() - code->instruction_start();
   return addr + delta;
 }
-
+#endif
 
 IC::State IC::StateFrom(Code* target, Object* receiver) {
   IC::State state = target->ic_state();
@@ -236,13 +237,14 @@ void KeyedLoadIC::Clear(Address address, Code* target) {
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  PatchInlinedMapCheck(address, Heap::null_value());
+  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
 }
 
 
 void LoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
+  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
 }
 
@@ -356,6 +358,7 @@ Object* CallIC::LoadFunction(State state,
       if (opt->IsJSFunction()) return opt;
     }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
     if (Debug::StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
@@ -365,6 +368,7 @@ Object* CallIC::LoadFunction(State state,
       Debug::HandleStepIn(function, fp(), false);
       return *function;
     }
+#endif
 
     return result;
   }
@@ -518,6 +522,31 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       return ReferenceError("not_defined", name);
     }
     LOG(SuspectReadEvent(*name, *object));
+  }
+
+  bool can_be_inlined =
+      FLAG_use_ic &&
+      state == PREMONOMORPHIC &&
+      lookup.IsValid() &&
+      lookup.IsLoaded() &&
+      lookup.IsCacheable() &&
+      lookup.holder() == *object &&
+      lookup.type() == FIELD &&
+      !object->IsAccessCheckNeeded();
+
+  if (can_be_inlined) {
+    Map* map = lookup.holder()->map();
+    // Property's index in the properties array.  If negative we have
+    // an inobject property.
+    int index = lookup.GetFieldIndex() - map->inobject_properties();
+    if (index < 0) {
+      // Index is an offset from the end of the object.
+      int offset = map->instance_size() + (index * kPointerSize);
+      if (PatchInlinedLoad(address(), map, offset)) {
+        set_target(megamorphic_stub());
+        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+      }
+    }
   }
 
   // Update inline cache and stub cache.
@@ -731,7 +760,7 @@ Object* KeyedLoadIC::Load(State state,
         !object->IsJSValue() &&
         !JSObject::cast(*object)->HasIndexedInterceptor()) {
       Map* map = JSObject::cast(*object)->map();
-      PatchInlinedMapCheck(address(), map);
+      PatchInlinedLoad(address(), map);
     }
   }
 

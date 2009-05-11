@@ -132,6 +132,8 @@
 		89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19D0E719B8F00D62E90 /* v8threads.cc */; };
 		89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19F0E719B8F00D62E90 /* variables.cc */; };
 		89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1A20E719B8F00D62E90 /* zone.cc */; };
+		89B933AF0FAA0F9600201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
+		89B933B00FAA0F9D00201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
 		89F23C3F0E78D5B2006B2466 /* accessors.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F60E719B8F00D62E90 /* accessors.cc */; };
 		89F23C400E78D5B2006B2466 /* allocation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F80E719B8F00D62E90 /* allocation.cc */; };
 		89F23C410E78D5B2006B2466 /* api.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0FA0E719B8F00D62E90 /* api.cc */; };
@@ -269,18 +271,19 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-arm.cc"; sourceTree = "<group>"; };
-		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-ia32.cc"; sourceTree = "<group>"; };
+		58242A1E0FA1F14D00BD6F59 /* json-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "json-delay.js"; sourceTree = "<group>"; };
+		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
+		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
 		58950D510F55514900F3E8BA /* jump-target.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target.h"; sourceTree = "<group>"; };
-		58950D520F55514900F3E8BA /* register-allocator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator-arm.cc"; sourceTree = "<group>"; };
-		58950D530F55514900F3E8BA /* register-allocator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator-ia32.cc"; sourceTree = "<group>"; };
+		58950D520F55514900F3E8BA /* register-allocator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "register-allocator-arm.cc"; path = "arm/register-allocator-arm.cc"; sourceTree = "<group>"; };
+		58950D530F55514900F3E8BA /* register-allocator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "register-allocator-ia32.cc"; path = "ia32/register-allocator-ia32.cc"; sourceTree = "<group>"; };
 		58950D540F55514900F3E8BA /* register-allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator.cc"; sourceTree = "<group>"; };
 		58950D550F55514900F3E8BA /* register-allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "register-allocator.h"; sourceTree = "<group>"; };
-		58950D560F55514900F3E8BA /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-arm.cc"; sourceTree = "<group>"; };
-		58950D570F55514900F3E8BA /* virtual-frame-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-arm.h"; sourceTree = "<group>"; };
-		58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-ia32.cc"; sourceTree = "<group>"; };
-		58950D590F55514900F3E8BA /* virtual-frame-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-ia32.h"; sourceTree = "<group>"; };
+		58950D560F55514900F3E8BA /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
+		58950D570F55514900F3E8BA /* virtual-frame-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-arm.h"; path = "arm/virtual-frame-arm.h"; sourceTree = "<group>"; };
+		58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
+		58950D590F55514900F3E8BA /* virtual-frame-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-ia32.h"; path = "ia32/virtual-frame-ia32.h"; sourceTree = "<group>"; };
 		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
 		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
@@ -299,8 +302,8 @@
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
 		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
 		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
-		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-ia32.h"; sourceTree = "<group>"; };
-		896448BC0E9D530500E7C516 /* codegen-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-arm.h"; sourceTree = "<group>"; };
+		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32.h"; path = "ia32/codegen-ia32.h"; sourceTree = "<group>"; };
+		896448BC0E9D530500E7C516 /* codegen-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-arm.h"; path = "arm/codegen-arm.h"; sourceTree = "<group>"; };
 		8970F2F00E719FB2006AE7B5 /* libv8.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libv8.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		897F767A0E71B4CC007ACF34 /* v8_shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = v8_shell; sourceTree = BUILT_PRODUCTS_DIR; };
 		897FF0D40E719A8500D62E90 /* v8-debug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "v8-debug.h"; sourceTree = "<group>"; };
@@ -314,20 +317,20 @@
 		897FF0FA0E719B8F00D62E90 /* api.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = api.cc; sourceTree = "<group>"; };
 		897FF0FB0E719B8F00D62E90 /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = api.h; sourceTree = "<group>"; };
 		897FF0FC0E719B8F00D62E90 /* arguments.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = arguments.h; sourceTree = "<group>"; };
-		897FF0FD0E719B8F00D62E90 /* assembler-arm-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "assembler-arm-inl.h"; sourceTree = "<group>"; };
-		897FF0FE0E719B8F00D62E90 /* assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "assembler-arm.cc"; sourceTree = "<group>"; };
-		897FF0FF0E719B8F00D62E90 /* assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "assembler-arm.h"; sourceTree = "<group>"; };
-		897FF1000E719B8F00D62E90 /* assembler-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "assembler-ia32-inl.h"; sourceTree = "<group>"; };
-		897FF1010E719B8F00D62E90 /* assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "assembler-ia32.cc"; sourceTree = "<group>"; };
-		897FF1020E719B8F00D62E90 /* assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "assembler-ia32.h"; sourceTree = "<group>"; };
+		897FF0FD0E719B8F00D62E90 /* assembler-arm-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-arm-inl.h"; path = "arm/assembler-arm-inl.h"; sourceTree = "<group>"; };
+		897FF0FE0E719B8F00D62E90 /* assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "assembler-arm.cc"; path = "arm/assembler-arm.cc"; sourceTree = "<group>"; };
+		897FF0FF0E719B8F00D62E90 /* assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-arm.h"; path = "arm/assembler-arm.h"; sourceTree = "<group>"; };
+		897FF1000E719B8F00D62E90 /* assembler-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-ia32-inl.h"; path = "ia32/assembler-ia32-inl.h"; sourceTree = "<group>"; };
+		897FF1010E719B8F00D62E90 /* assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "assembler-ia32.cc"; path = "ia32/assembler-ia32.cc"; sourceTree = "<group>"; };
+		897FF1020E719B8F00D62E90 /* assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-ia32.h"; path = "ia32/assembler-ia32.h"; sourceTree = "<group>"; };
 		897FF1030E719B8F00D62E90 /* assembler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = assembler.cc; sourceTree = "<group>"; };
 		897FF1040E719B8F00D62E90 /* assembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = assembler.h; sourceTree = "<group>"; };
 		897FF1050E719B8F00D62E90 /* ast.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ast.cc; sourceTree = "<group>"; };
 		897FF1060E719B8F00D62E90 /* ast.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ast.h; sourceTree = "<group>"; };
 		897FF1070E719B8F00D62E90 /* bootstrapper.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bootstrapper.cc; sourceTree = "<group>"; };
 		897FF1080E719B8F00D62E90 /* bootstrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bootstrapper.h; sourceTree = "<group>"; };
-		897FF1090E719B8F00D62E90 /* builtins-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "builtins-arm.cc"; sourceTree = "<group>"; };
-		897FF10A0E719B8F00D62E90 /* builtins-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "builtins-ia32.cc"; sourceTree = "<group>"; };
+		897FF1090E719B8F00D62E90 /* builtins-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "builtins-arm.cc"; path = "arm/builtins-arm.cc"; sourceTree = "<group>"; };
+		897FF10A0E719B8F00D62E90 /* builtins-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "builtins-ia32.cc"; path = "ia32/builtins-ia32.cc"; sourceTree = "<group>"; };
 		897FF10B0E719B8F00D62E90 /* builtins.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = builtins.cc; sourceTree = "<group>"; };
 		897FF10C0E719B8F00D62E90 /* builtins.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = builtins.h; sourceTree = "<group>"; };
 		897FF10D0E719B8F00D62E90 /* char-predicates-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "char-predicates-inl.h"; sourceTree = "<group>"; };
@@ -337,14 +340,14 @@
 		897FF1110E719B8F00D62E90 /* code-stubs.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "code-stubs.cc"; sourceTree = "<group>"; };
 		897FF1120E719B8F00D62E90 /* code-stubs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "code-stubs.h"; sourceTree = "<group>"; };
 		897FF1130E719B8F00D62E90 /* code.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = code.h; sourceTree = "<group>"; };
-		897FF1140E719B8F00D62E90 /* codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "codegen-arm.cc"; sourceTree = "<group>"; };
-		897FF1150E719B8F00D62E90 /* codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "codegen-ia32.cc"; sourceTree = "<group>"; };
+		897FF1140E719B8F00D62E90 /* codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "codegen-arm.cc"; path = "arm/codegen-arm.cc"; sourceTree = "<group>"; };
+		897FF1150E719B8F00D62E90 /* codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "codegen-ia32.cc"; path = "ia32/codegen-ia32.cc"; sourceTree = "<group>"; };
 		897FF1160E719B8F00D62E90 /* codegen-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-inl.h"; sourceTree = "<group>"; };
 		897FF1170E719B8F00D62E90 /* codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = codegen.cc; sourceTree = "<group>"; };
 		897FF1180E719B8F00D62E90 /* codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = codegen.h; sourceTree = "<group>"; };
 		897FF1190E719B8F00D62E90 /* compiler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = compiler.cc; sourceTree = "<group>"; };
 		897FF11A0E719B8F00D62E90 /* compiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = compiler.h; sourceTree = "<group>"; };
-		897FF11B0E719B8F00D62E90 /* constants-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "constants-arm.h"; sourceTree = "<group>"; };
+		897FF11B0E719B8F00D62E90 /* constants-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "constants-arm.h"; path = "arm/constants-arm.h"; sourceTree = "<group>"; };
 		897FF11C0E719B8F00D62E90 /* contexts.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = contexts.cc; sourceTree = "<group>"; };
 		897FF11D0E719B8F00D62E90 /* contexts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = contexts.h; sourceTree = "<group>"; };
 		897FF11E0E719B8F00D62E90 /* conversions-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "conversions-inl.h"; sourceTree = "<group>"; };
@@ -352,15 +355,15 @@
 		897FF1200E719B8F00D62E90 /* conversions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = conversions.h; sourceTree = "<group>"; };
 		897FF1210E719B8F00D62E90 /* counters.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = counters.cc; sourceTree = "<group>"; };
 		897FF1220E719B8F00D62E90 /* counters.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = counters.h; sourceTree = "<group>"; };
-		897FF1230E719B8F00D62E90 /* cpu-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "cpu-arm.cc"; sourceTree = "<group>"; };
-		897FF1240E719B8F00D62E90 /* cpu-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "cpu-ia32.cc"; sourceTree = "<group>"; };
+		897FF1230E719B8F00D62E90 /* cpu-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cpu-arm.cc"; path = "arm/cpu-arm.cc"; sourceTree = "<group>"; };
+		897FF1240E719B8F00D62E90 /* cpu-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "cpu-ia32.cc"; path = "ia32/cpu-ia32.cc"; sourceTree = "<group>"; };
 		897FF1250E719B8F00D62E90 /* cpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		897FF1260E719B8F00D62E90 /* dateparser.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = dateparser.cc; sourceTree = "<group>"; };
 		897FF1270E719B8F00D62E90 /* dateparser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dateparser.h; sourceTree = "<group>"; };
 		897FF1280E719B8F00D62E90 /* debug.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = debug.cc; sourceTree = "<group>"; };
 		897FF1290E719B8F00D62E90 /* debug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = debug.h; sourceTree = "<group>"; };
-		897FF12A0E719B8F00D62E90 /* disasm-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "disasm-arm.cc"; sourceTree = "<group>"; };
-		897FF12B0E719B8F00D62E90 /* disasm-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "disasm-ia32.cc"; sourceTree = "<group>"; };
+		897FF12A0E719B8F00D62E90 /* disasm-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "disasm-arm.cc"; path = "arm/disasm-arm.cc"; sourceTree = "<group>"; };
+		897FF12B0E719B8F00D62E90 /* disasm-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "disasm-ia32.cc"; path = "ia32/disasm-ia32.cc"; sourceTree = "<group>"; };
 		897FF12C0E719B8F00D62E90 /* disasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = disasm.h; sourceTree = "<group>"; };
 		897FF12D0E719B8F00D62E90 /* disassembler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = disassembler.cc; sourceTree = "<group>"; };
 		897FF12E0E719B8F00D62E90 /* disassembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = disassembler.h; sourceTree = "<group>"; };
@@ -371,10 +374,10 @@
 		897FF1330E719B8F00D62E90 /* factory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = factory.h; sourceTree = "<group>"; };
 		897FF1350E719B8F00D62E90 /* flags.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = flags.cc; sourceTree = "<group>"; };
 		897FF1360E719B8F00D62E90 /* flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = flags.h; sourceTree = "<group>"; };
-		897FF1370E719B8F00D62E90 /* frames-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "frames-arm.cc"; sourceTree = "<group>"; };
-		897FF1380E719B8F00D62E90 /* frames-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frames-arm.h"; sourceTree = "<group>"; };
-		897FF1390E719B8F00D62E90 /* frames-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "frames-ia32.cc"; sourceTree = "<group>"; };
-		897FF13A0E719B8F00D62E90 /* frames-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frames-ia32.h"; sourceTree = "<group>"; };
+		897FF1370E719B8F00D62E90 /* frames-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "frames-arm.cc"; path = "arm/frames-arm.cc"; sourceTree = "<group>"; };
+		897FF1380E719B8F00D62E90 /* frames-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "frames-arm.h"; path = "arm/frames-arm.h"; sourceTree = "<group>"; };
+		897FF1390E719B8F00D62E90 /* frames-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "frames-ia32.cc"; path = "ia32/frames-ia32.cc"; sourceTree = "<group>"; };
+		897FF13A0E719B8F00D62E90 /* frames-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "frames-ia32.h"; path = "ia32/frames-ia32.h"; sourceTree = "<group>"; };
 		897FF13B0E719B8F00D62E90 /* frames-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frames-inl.h"; sourceTree = "<group>"; };
 		897FF13C0E719B8F00D62E90 /* frames.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = frames.cc; sourceTree = "<group>"; };
 		897FF13D0E719B8F00D62E90 /* frames.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = frames.h; sourceTree = "<group>"; };
@@ -389,8 +392,8 @@
 		897FF1460E719B8F00D62E90 /* heap-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "heap-inl.h"; sourceTree = "<group>"; };
 		897FF1470E719B8F00D62E90 /* heap.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = heap.cc; sourceTree = "<group>"; };
 		897FF1480E719B8F00D62E90 /* heap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = heap.h; sourceTree = "<group>"; };
-		897FF1490E719B8F00D62E90 /* ic-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "ic-arm.cc"; sourceTree = "<group>"; };
-		897FF14A0E719B8F00D62E90 /* ic-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "ic-ia32.cc"; sourceTree = "<group>"; };
+		897FF1490E719B8F00D62E90 /* ic-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "ic-arm.cc"; path = "arm/ic-arm.cc"; sourceTree = "<group>"; };
+		897FF14A0E719B8F00D62E90 /* ic-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "ic-ia32.cc"; path = "ia32/ic-ia32.cc"; sourceTree = "<group>"; };
 		897FF14B0E719B8F00D62E90 /* ic-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ic-inl.h"; sourceTree = "<group>"; };
 		897FF14C0E719B8F00D62E90 /* ic.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ic.cc; sourceTree = "<group>"; };
 		897FF14D0E719B8F00D62E90 /* ic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ic.h; sourceTree = "<group>"; };
@@ -400,10 +403,10 @@
 		897FF1510E719B8F00D62E90 /* list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = list.h; sourceTree = "<group>"; };
 		897FF1520E719B8F00D62E90 /* log.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = log.cc; sourceTree = "<group>"; };
 		897FF1530E719B8F00D62E90 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log.h; sourceTree = "<group>"; };
-		897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "macro-assembler-arm.cc"; sourceTree = "<group>"; };
-		897FF1550E719B8F00D62E90 /* macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "macro-assembler-arm.h"; sourceTree = "<group>"; };
-		897FF1560E719B8F00D62E90 /* macro-assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "macro-assembler-ia32.cc"; sourceTree = "<group>"; };
-		897FF1570E719B8F00D62E90 /* macro-assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "macro-assembler-ia32.h"; sourceTree = "<group>"; };
+		897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "macro-assembler-arm.cc"; path = "arm/macro-assembler-arm.cc"; sourceTree = "<group>"; };
+		897FF1550E719B8F00D62E90 /* macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "macro-assembler-arm.h"; path = "arm/macro-assembler-arm.h"; sourceTree = "<group>"; };
+		897FF1560E719B8F00D62E90 /* macro-assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "macro-assembler-ia32.cc"; path = "ia32/macro-assembler-ia32.cc"; sourceTree = "<group>"; };
+		897FF1570E719B8F00D62E90 /* macro-assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "macro-assembler-ia32.h"; path = "ia32/macro-assembler-ia32.h"; sourceTree = "<group>"; };
 		897FF1580E719B8F00D62E90 /* macro-assembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "macro-assembler.h"; sourceTree = "<group>"; };
 		897FF1590E719B8F00D62E90 /* mark-compact.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "mark-compact.cc"; sourceTree = "<group>"; };
 		897FF15A0E719B8F00D62E90 /* mark-compact.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "mark-compact.h"; sourceTree = "<group>"; };
@@ -441,10 +444,10 @@
 		897FF17A0E719B8F00D62E90 /* serialize.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = serialize.cc; sourceTree = "<group>"; };
 		897FF17B0E719B8F00D62E90 /* serialize.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = serialize.h; sourceTree = "<group>"; };
 		897FF17C0E719B8F00D62E90 /* shell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = shell.h; sourceTree = "<group>"; };
-		897FF17D0E719B8F00D62E90 /* simulator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "simulator-arm.cc"; sourceTree = "<group>"; };
-		897FF17E0E719B8F00D62E90 /* simulator-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "simulator-arm.h"; sourceTree = "<group>"; };
-		897FF17F0E719B8F00D62E90 /* simulator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "simulator-ia32.cc"; sourceTree = "<group>"; };
-		897FF1800E719B8F00D62E90 /* simulator-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "simulator-ia32.h"; sourceTree = "<group>"; };
+		897FF17D0E719B8F00D62E90 /* simulator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "simulator-arm.cc"; path = "arm/simulator-arm.cc"; sourceTree = "<group>"; };
+		897FF17E0E719B8F00D62E90 /* simulator-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "simulator-arm.h"; path = "arm/simulator-arm.h"; sourceTree = "<group>"; };
+		897FF17F0E719B8F00D62E90 /* simulator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "simulator-ia32.cc"; path = "ia32/simulator-ia32.cc"; sourceTree = "<group>"; };
+		897FF1800E719B8F00D62E90 /* simulator-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "simulator-ia32.h"; path = "ia32/simulator-ia32.h"; sourceTree = "<group>"; };
 		897FF1810E719B8F00D62E90 /* smart-pointer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "smart-pointer.h"; sourceTree = "<group>"; };
 		897FF1820E719B8F00D62E90 /* snapshot-common.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snapshot-common.cc"; sourceTree = "<group>"; };
 		897FF1830E719B8F00D62E90 /* snapshot-empty.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snapshot-empty.cc"; sourceTree = "<group>"; };
@@ -454,8 +457,8 @@
 		897FF1870E719B8F00D62E90 /* spaces.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = spaces.h; sourceTree = "<group>"; };
 		897FF1880E719B8F00D62E90 /* string-stream.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "string-stream.cc"; sourceTree = "<group>"; };
 		897FF1890E719B8F00D62E90 /* string-stream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "string-stream.h"; sourceTree = "<group>"; };
-		897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "stub-cache-arm.cc"; sourceTree = "<group>"; };
-		897FF18B0E719B8F00D62E90 /* stub-cache-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "stub-cache-ia32.cc"; sourceTree = "<group>"; };
+		897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "stub-cache-arm.cc"; path = "arm/stub-cache-arm.cc"; sourceTree = "<group>"; };
+		897FF18B0E719B8F00D62E90 /* stub-cache-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "stub-cache-ia32.cc"; path = "ia32/stub-cache-ia32.cc"; sourceTree = "<group>"; };
 		897FF18C0E719B8F00D62E90 /* stub-cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "stub-cache.cc"; sourceTree = "<group>"; };
 		897FF18D0E719B8F00D62E90 /* stub-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "stub-cache.h"; sourceTree = "<group>"; };
 		897FF18E0E719B8F00D62E90 /* token.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = token.cc; sourceTree = "<group>"; };
@@ -495,17 +498,19 @@
 		897FF1B50E719C0900D62E90 /* shell.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = shell.cc; sourceTree = "<group>"; };
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
-		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-arm.cc"; sourceTree = "<group>"; };
-		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-ia32.cc"; sourceTree = "<group>"; };
+		897FF32F0FAA0ED200136CF6 /* version.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = version.cc; sourceTree = "<group>"; };
+		897FF3300FAA0ED200136CF6 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-arm.cc"; path = "arm/debug-arm.cc"; sourceTree = "<group>"; };
+		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-ia32.cc"; path = "ia32/debug-ia32.cc"; sourceTree = "<group>"; };
 		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
 		89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "interpreter-irregexp.cc"; sourceTree = "<group>"; };
 		89A15C670EE4665300B48DEB /* interpreter-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "interpreter-irregexp.h"; sourceTree = "<group>"; };
 		89A15C680EE4665300B48DEB /* jsregexp-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jsregexp-inl.h"; sourceTree = "<group>"; };
 		89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "platform-freebsd.cc"; sourceTree = "<group>"; };
-		89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-arm.cc"; sourceTree = "<group>"; };
-		89A15C710EE466D000B48DEB /* regexp-macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-arm.h"; sourceTree = "<group>"; };
-		89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-ia32.cc"; sourceTree = "<group>"; };
-		89A15C730EE466D000B48DEB /* regexp-macro-assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-ia32.h"; sourceTree = "<group>"; };
+		89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "regexp-macro-assembler-arm.cc"; path = "arm/regexp-macro-assembler-arm.cc"; sourceTree = "<group>"; };
+		89A15C710EE466D000B48DEB /* regexp-macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "regexp-macro-assembler-arm.h"; path = "arm/regexp-macro-assembler-arm.h"; sourceTree = "<group>"; };
+		89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "regexp-macro-assembler-ia32.cc"; path = "ia32/regexp-macro-assembler-ia32.cc"; sourceTree = "<group>"; };
+		89A15C730EE466D000B48DEB /* regexp-macro-assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "regexp-macro-assembler-ia32.h"; path = "ia32/regexp-macro-assembler-ia32.h"; sourceTree = "<group>"; };
 		89A15C740EE466D000B48DEB /* regexp-macro-assembler-irregexp-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-irregexp-inl.h"; sourceTree = "<group>"; };
 		89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-irregexp.cc"; sourceTree = "<group>"; };
 		89A15C760EE466D000B48DEB /* regexp-macro-assembler-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-irregexp.h"; sourceTree = "<group>"; };
@@ -826,6 +831,8 @@
 				897FF19E0E719B8F00D62E90 /* v8threads.h */,
 				897FF19F0E719B8F00D62E90 /* variables.cc */,
 				897FF1A00E719B8F00D62E90 /* variables.h */,
+				897FF32F0FAA0ED200136CF6 /* version.cc */,
+				897FF3300FAA0ED200136CF6 /* version.h */,
 				58950D560F55514900F3E8BA /* virtual-frame-arm.cc */,
 				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
 				58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */,
@@ -846,6 +853,7 @@
 				897FF1A70E719BC100D62E90 /* array.js */,
 				897FF1A80E719BC100D62E90 /* date-delay.js */,
 				897FF1A90E719BC100D62E90 /* debug-delay.js */,
+				58242A1E0FA1F14D00BD6F59 /* json-delay.js */,
 				897FF1AA0E719BC100D62E90 /* math.js */,
 				897FF1AB0E719BC100D62E90 /* messages.js */,
 				897FF1AC0E719BC100D62E90 /* mirror-delay.js */,
@@ -1059,7 +1067,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 		89F23C3D0E78D5B2006B2466 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1072,7 +1080,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1175,6 +1183,7 @@
 				89A88E2B0E71A6D10043BA31 /* v8.cc in Sources */,
 				89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */,
 				89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */,
+				89B933AF0FAA0F9600201304 /* version.cc in Sources */,
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
@@ -1277,6 +1286,7 @@
 				89F23C7F0E78D5B2006B2466 /* v8.cc in Sources */,
 				89F23C800E78D5B2006B2466 /* v8threads.cc in Sources */,
 				89F23C810E78D5B2006B2466 /* variables.cc in Sources */,
+				89B933B00FAA0F9D00201304 /* version.cc in Sources */,
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
@@ -1426,6 +1436,11 @@
 		893988090F2A35FA007D5254 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_IA32,
+					DEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1434,6 +1449,11 @@
 		8939880A0F2A35FA007D5254 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_IA32,
+					NDEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1446,6 +1466,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					ENABLE_DISASSEMBLER,
+					V8_TARGET_ARCH_IA32,
 					ENABLE_LOGGING_AND_PROFILING,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -1458,6 +1479,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				DEPLOYMENT_POSTPROCESSING = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_IA32,
+					NDEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8;
 				STRIP_STYLE = debugging;
@@ -1486,7 +1512,7 @@
 				DEPLOYMENT_POSTPROCESSING = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-					ARM,
+					V8_TARGET_ARCH_ARM,
 					ENABLE_DISASSEMBLER,
 					ENABLE_LOGGING_AND_PROFILING,
 				);
@@ -1502,7 +1528,7 @@
 				DEPLOYMENT_POSTPROCESSING = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-					ARM,
+					V8_TARGET_ARCH_ARM,
 				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = "v8-arm";

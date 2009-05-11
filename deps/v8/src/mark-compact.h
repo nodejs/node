@@ -172,7 +172,11 @@ class MarkCompactCollector: public AllStatic {
   static void MarkDescriptorArray(DescriptorArray* descriptors);
 
   // Mark the heap roots and all objects reachable from them.
-  static void ProcessRoots(RootMarkingVisitor* visitor);
+  static void MarkRoots(RootMarkingVisitor* visitor);
+
+  // Mark the symbol table specially.  References to symbols from the
+  // symbol table are weak.
+  static void MarkSymbolTable();
 
   // Mark objects in object groups that have at least one object in the
   // group marked.
@@ -198,8 +202,9 @@ class MarkCompactCollector: public AllStatic {
   // flag on the marking stack.
   static void RefillMarkingStack();
 
-  // Callback function for telling whether the object *p must be marked.
-  static bool MustBeMarked(Object** p);
+  // Callback function for telling whether the object *p is an unmarked
+  // heap object.
+  static bool IsUnmarkedHeapObject(Object** p);
 
 #ifdef DEBUG
   static void UpdateLiveObjectCount(HeapObject* obj);

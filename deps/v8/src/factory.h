@@ -153,7 +153,7 @@ class Factory : public AllStatic {
 
   static Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  static Handle<Map> CopyMap(Handle<Map> map);
+  static Handle<Map> CopyMapDropDescriptors(Handle<Map> map);
 
   // Copy the map adding more inobject properties if possible without
   // overflowing the instance size.
@@ -310,8 +310,9 @@ class Factory : public AllStatic {
                                                   uint32_t key,
                                                   Handle<Object> value);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
-
+#endif
 
   // Return a map using the map cache in the global context.
   // The key the an ordered set of property names.

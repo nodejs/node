@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef __UNIBROW_INL_H__
-#define __UNIBROW_INL_H__
+#ifndef V8_UNICODE_INL_H_
+#define V8_UNICODE_INL_H_
 
 #include "unicode.h"
 
@@ -235,4 +235,4 @@ Utf8InputBuffer<s>::Utf8InputBuffer(const char* data, unsigned length)
 
 }  // namespace unibrow
 
-#endif  // __UNIBROW_INL_H__
+#endif  // V8_UNICODE_INL_H_

@@ -25,10 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEBUG_H_
-#define V8_V8_DEBUG_H_
+#ifndef V8_DEBUG_H_
+#define V8_DEBUG_H_
 
-#include "../include/v8-debug.h"
 #include "assembler.h"
 #include "code-stubs.h"
 #include "debug-agent.h"
@@ -38,6 +37,8 @@
 #include "string-stream.h"
 #include "v8threads.h"
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#include "../include/v8-debug.h"
 
 namespace v8 { namespace internal {
 
@@ -131,6 +132,10 @@ class BreakLocationIterator {
  private:
   void SetDebugBreak();
   void ClearDebugBreak();
+
+  void SetDebugBreakAtIC();
+  void ClearDebugBreakAtIC();
+
   bool IsDebugBreakAtReturn();
   void SetDebugBreakAtReturn();
   void ClearDebugBreakAtReturn();
@@ -204,7 +209,7 @@ class Debug {
   static bool IsBreakStub(Code* code);
 
   // Find the builtin to use for invoking the debug break
-  static Handle<Code> FindDebugBreak(RelocInfo* rinfo);
+  static Handle<Code> FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode);
 
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared);
@@ -396,47 +401,116 @@ class Debug {
 };
 
 
-// A Queue of Vector<uint16_t> objects.  A thread-safe version is
-// LockingMessageQueue, based on this class.
-class MessageQueue BASE_EMBEDDED {
+// Message delivered to the message handler callback. This is either a debugger
+// event or the response to a command.
+class MessageImpl: public v8::Debug::Message {
  public:
-  explicit MessageQueue(int size);
-  ~MessageQueue();
+  // Create a message object for a debug event.
+  static MessageImpl NewEvent(DebugEvent event,
+                              bool running,
+                              Handle<JSObject> exec_state,
+                              Handle<JSObject> event_data);
+
+  // Create a message object for the response to a debug command.
+  static MessageImpl NewResponse(DebugEvent event,
+                                 bool running,
+                                 Handle<JSObject> exec_state,
+                                 Handle<JSObject> event_data,
+                                 Handle<String> response_json,
+                                 v8::Debug::ClientData* client_data);
+
+  // Implementation of interface v8::Debug::Message.
+  virtual bool IsEvent() const;
+  virtual bool IsResponse() const;
+  virtual DebugEvent GetEvent() const;
+  virtual bool WillStartRunning() const;
+  virtual v8::Handle<v8::Object> GetExecutionState() const;
+  virtual v8::Handle<v8::Object> GetEventData() const;
+  virtual v8::Handle<v8::String> GetJSON() const;
+  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Debug::ClientData* GetClientData() const;
+
+ private:
+  MessageImpl(bool is_event,
+              DebugEvent event,
+              bool running,
+              Handle<JSObject> exec_state,
+              Handle<JSObject> event_data,
+              Handle<String> response_json,
+              v8::Debug::ClientData* client_data);
+
+  bool is_event_;  // Does this message represent a debug event?
+  DebugEvent event_;  // Debug event causing the break.
+  bool running_;  // Will the VM start running after this event?
+  Handle<JSObject> exec_state_;  // Current execution state.
+  Handle<JSObject> event_data_;  // Data associated with the event.
+  Handle<String> response_json_;  // Response JSON if message holds a response.
+  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
+};
+
+
+// Message send by user to v8 debugger or debugger output message.
+// In addition to command text it may contain a pointer to some user data
+// which are expected to be passed along with the command reponse to message
+// handler.
+class CommandMessage {
+ public:
+  static CommandMessage New(const Vector<uint16_t>& command,
+                            v8::Debug::ClientData* data);
+  CommandMessage();
+  ~CommandMessage();
+
+  // Deletes user data and disposes of the text.
+  void Dispose();
+  Vector<uint16_t> text() const { return text_; }
+  v8::Debug::ClientData* client_data() const { return client_data_; }
+ private:
+  CommandMessage(const Vector<uint16_t>& text,
+                 v8::Debug::ClientData* data);
+
+  Vector<uint16_t> text_;
+  v8::Debug::ClientData* client_data_;
+};
+
+// A Queue of CommandMessage objects.  A thread-safe version is
+// LockingCommandMessageQueue, based on this class.
+class CommandMessageQueue BASE_EMBEDDED {
+ public:
+  explicit CommandMessageQueue(int size);
+  ~CommandMessageQueue();
   bool IsEmpty() const { return start_ == end_; }
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
   void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
  private:
   // Doubles the size of the message queue, and copies the messages.
   void Expand();
 
-  Vector<uint16_t>* messages_;
+  CommandMessage* messages_;
   int start_;
   int end_;
   int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
 };
 
 
-// LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
-// messages.  The message data is not managed by LockingMessageQueue.
+// LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
+// messages.  The message data is not managed by LockingCommandMessageQueue.
 // Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to MessageQueue.  Includes logging of all puts and gets.
-class LockingMessageQueue BASE_EMBEDDED {
+// Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
+class LockingCommandMessageQueue BASE_EMBEDDED {
  public:
-  explicit LockingMessageQueue(int size);
-  ~LockingMessageQueue();
+  explicit LockingCommandMessageQueue(int size);
+  ~LockingCommandMessageQueue();
   bool IsEmpty() const;
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
   void Clear();
  private:
-  MessageQueue queue_;
+  CommandMessageQueue queue_;
   Mutex* lock_;
-  DISALLOW_COPY_AND_ASSIGN(LockingMessageQueue);
+  DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
 
-
-class DebugMessageThread;
 
 class Debugger {
  public:
@@ -465,36 +539,27 @@ class Debugger {
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
   static void ProcessDebugEvent(v8::DebugEvent event,
-                                Handle<Object> event_data,
+                                Handle<JSObject> event_data,
                                 bool auto_continue);
   static void NotifyMessageHandler(v8::DebugEvent event,
-                                   Handle<Object> exec_state,
-                                   Handle<Object> event_data,
+                                   Handle<JSObject> exec_state,
+                                   Handle<JSObject> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::DebugMessageHandler handler, void* data,
-                                bool message_handler_thread);
-  static void TearDown();
-  static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                     void* data);
+  static void SetMessageHandler(v8::Debug::MessageHandler2 handler);
+  static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
+                                     int period);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(Vector< uint16_t> message);
-
-  // Send a message to the message handler eiher through the message thread or
-  // directly.
-  static void SendMessage(Vector<uint16_t> message);
-
-  // Send the JSON message for a debug event.
-  static bool SendEventMessage(Handle<Object> event_data);
+  static void InvokeMessageHandler(MessageImpl message);
 
   // Add a debugger command to the command queue.
-  static void ProcessCommand(Vector<const uint16_t> command);
+  static void ProcessCommand(Vector<const uint16_t> command,
+                             v8::Debug::ClientData* client_data = NULL);
 
   // Check whether there are commands in the command queue.
   static bool HasCommands();
 
-  static void ProcessHostDispatch(void* dispatch);
   static Handle<Object> Call(Handle<JSFunction> fun,
                              Handle<Object> data,
                              bool* pending_exception);
@@ -537,42 +602,18 @@ class Debugger {
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
-  static DebugMessageThread* message_thread_;
-  static v8::DebugMessageHandler message_handler_;
+  static v8::Debug::MessageHandler2 message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
-  static void* message_handler_data_;
-  static v8::DebugHostDispatchHandler host_dispatch_handler_;
-  static void* host_dispatch_handler_data_;
+  static v8::Debug::HostDispatchHandler host_dispatch_handler_;
+  static int host_dispatch_micros_;
 
   static DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
-  static LockingMessageQueue command_queue_;
-  static LockingMessageQueue message_queue_;
+  static LockingCommandMessageQueue command_queue_;
   static Semaphore* command_received_;  // Signaled for each command received.
-  static Semaphore* message_received_;  // Signalled for each message send.
 
   friend class EnterDebugger;
-  friend class DebugMessageThread;
-};
-
-
-// Thread to read messages from the message queue and invoke the debug message
-// handler in another thread as the V8 thread. This thread is started if the
-// registration of the debug message handler requested to be called in a thread
-// seperate from the V8 thread.
-class DebugMessageThread: public Thread {
- public:
-  DebugMessageThread() : keep_running_(true) {}
-  virtual ~DebugMessageThread() {}
-
-  // Main function of DebugMessageThread thread.
-  void Run();
-  void Stop();
-
- private:
-  bool keep_running_;
-  DISALLOW_COPY_AND_ASSIGN(DebugMessageThread);
 };
 
 
@@ -645,6 +686,9 @@ class EnterDebugger BASE_EMBEDDED {
 
   // Check whether there are any JavaScript frames on the stack.
   inline bool HasJavaScriptFrames() { return has_js_frames_; }
+
+  // Get the active context from before entering the debugger.
+  inline Handle<Context> GetContext() { return save_.context(); }
 
  private:
   EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
@@ -719,4 +763,6 @@ class Debug_Address {
 
 } }  // namespace v8::internal
 
-#endif  // V8_V8_DEBUG_H_
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+#endif  // V8_DEBUG_H_

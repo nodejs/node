@@ -57,6 +57,7 @@ assertEquals('function', mirror.type());
 assertFalse(mirror.isPrimitive());
 assertEquals("Function", mirror.className());
 assertEquals("f", mirror.name());
+assertEquals('undefined', typeof mirror.inferredName());
 assertFalse(mirror.resolved());
 assertEquals(void 0, mirror.source());
 assertEquals('undefined', mirror.constructorFunction().type());
@@ -75,4 +76,5 @@ assertEquals(mirror.prototypeObject().handle(), fromJSON.prototypeObject.ref, 'U
 assertEquals('undefined', refs.lookup(fromJSON.prototypeObject.ref).type, 'Unexpected prototype object type in JSON');
 assertFalse(fromJSON.resolved);
 assertEquals("f", fromJSON.name);
+assertFalse('inferredName' in fromJSON);
 assertEquals(void 0, fromJSON.source);

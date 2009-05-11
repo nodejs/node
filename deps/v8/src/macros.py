@@ -84,6 +84,8 @@ macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_REGEXP(arg)            = %HasRegExpClass(arg);
 macro IS_ARRAY(arg)             = %HasArrayClass(arg);
 macro IS_DATE(arg)              = %HasDateClass(arg);
+macro IS_NUMBER_WRAPPER(arg)    = %HasNumberClass(arg);
+macro IS_STRING_WRAPPER(arg)    = %HasStringClass(arg);
 macro IS_ERROR(arg)             = (%ClassOf(arg) === 'Error');
 macro IS_SCRIPT(arg)            = (%ClassOf(arg) === 'Script');
 macro FLOOR(arg)                = %Math_floor(arg);

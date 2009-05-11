@@ -33,10 +33,14 @@ function testLimits() {
     var addAboveMax = Number.MAX_VALUE + 1/eps;
     var mulBelowMin = Number.MIN_VALUE * (1 - eps);
     var addBelowMin = Number.MIN_VALUE - eps;
-    assertTrue(mulAboveMax == Number.MAX_VALUE || mulAboveMax == Infinity);
-    assertTrue(addAboveMax == Number.MAX_VALUE || addAboveMax == Infinity);
-    assertTrue(mulBelowMin == Number.MIN_VALUE || mulBelowMin <= 0);
-    assertTrue(addBelowMin == Number.MIN_VALUE || addBelowMin <= 0);
+    assertTrue(mulAboveMax == Number.MAX_VALUE ||
+               mulAboveMax == Infinity, "mul" + i);
+    assertTrue(addAboveMax == Number.MAX_VALUE ||
+               addAboveMax == Infinity, "add" + i);
+    assertTrue(mulBelowMin == Number.MIN_VALUE ||
+               mulBelowMin <= 0, "mul2" + i);
+    assertTrue(addBelowMin == Number.MIN_VALUE ||
+               addBelowMin <= 0, "add2" + i);
   }
 }
 

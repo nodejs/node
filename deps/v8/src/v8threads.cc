@@ -144,7 +144,9 @@ bool ThreadManager::RestoreThread() {
   char* from = state->data();
   from = HandleScopeImplementer::RestoreThread(from);
   from = Top::RestoreThread(from);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
+#endif
   from = StackGuard::RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
   from = Bootstrapper::RestoreState(from);
@@ -172,7 +174,9 @@ void ThreadManager::Unlock() {
 static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
                             Top::ArchiveSpacePerThread() +
+#ifdef ENABLE_DEBUGGER_SUPPORT
                           Debug::ArchiveSpacePerThread() +
+#endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
                    Bootstrapper::ArchiveSpacePerThread();
@@ -259,7 +263,9 @@ void ThreadManager::EagerlyArchiveThread() {
   char* to = state->data();
   to = HandleScopeImplementer::ArchiveThread(to);
   to = Top::ArchiveThread(to);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
+#endif
   to = StackGuard::ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
   to = Bootstrapper::ArchiveState(to);
@@ -303,13 +309,13 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
 
 
 int ThreadManager::CurrentId() {
-  return bit_cast<int, void*>(Thread::GetThreadLocal(thread_id_key));
+  return Thread::GetThreadLocalInt(thread_id_key);
 }
 
 
 void ThreadManager::AssignId() {
-  if (Thread::GetThreadLocal(thread_id_key) == NULL) {
-    Thread::SetThreadLocal(thread_id_key, bit_cast<void*, int>(next_id_++));
+  if (!Thread::HasThreadLocal(thread_id_key)) {
+    Thread::SetThreadLocalInt(thread_id_key, next_id_++);
   }
 }
 

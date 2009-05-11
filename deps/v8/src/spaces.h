@@ -511,11 +511,22 @@ class ObjectIterator : public Malloced {
 //
 // A HeapObjectIterator iterates objects from a given address to the
 // top of a space. The given address must be below the current
-// allocation pointer (space top). If the space top changes during
-// iteration (because of allocating new objects), the iterator does
-// not iterate new objects. The caller function must create a new
-// iterator starting from the old top in order to visit these new
-// objects. Heap::Scavenage() is such an example.
+// allocation pointer (space top). There are some caveats.
+//
+// (1) If the space top changes upward during iteration (because of
+//     allocating new objects), the iterator does not iterate objects
+//     above the original space top. The caller must create a new
+//     iterator starting from the old top in order to visit these new
+//     objects.
+//
+// (2) If new objects are allocated below the original allocation top
+//     (e.g., free-list allocation in paged spaces), the new objects
+//     may or may not be iterated depending on their position with
+//     respect to the current point of iteration.
+//
+// (3) The space top should not change downward during iteration,
+//     otherwise the iterator will return not-necessarily-valid
+//     objects.
 
 class HeapObjectIterator: public ObjectIterator {
  public:
@@ -559,17 +570,35 @@ class HeapObjectIterator: public ObjectIterator {
 
 
 // -----------------------------------------------------------------------------
-// A PageIterator iterates pages in a space.
+// A PageIterator iterates the pages in a paged space.
 //
 // The PageIterator class provides three modes for iterating pages in a space:
-//   PAGES_IN_USE iterates pages that are in use by the allocator;
-//   PAGES_USED_BY_GC iterates pages that hold relocated objects during a
-//                    mark-compact collection;
+//   PAGES_IN_USE iterates pages containing allocated objects.
+//   PAGES_USED_BY_MC iterates pages that hold relocated objects during a
+//                    mark-compact collection.
 //   ALL_PAGES iterates all pages in the space.
+//
+// There are some caveats.
+//
+// (1) If the space expands during iteration, new pages will not be
+//     returned by the iterator in any mode.
+//
+// (2) If new objects are allocated during iteration, they will appear
+//     in pages returned by the iterator.  Allocation may cause the
+//     allocation pointer or MC allocation pointer in the last page to
+//     change between constructing the iterator and iterating the last
+//     page.
+//
+// (3) The space should not shrink during iteration, otherwise the
+//     iterator will return deallocated pages.
 
 class PageIterator BASE_EMBEDDED {
  public:
-  enum Mode {PAGES_IN_USE, PAGES_USED_BY_MC, ALL_PAGES};
+  enum Mode {
+    PAGES_IN_USE,
+    PAGES_USED_BY_MC,
+    ALL_PAGES
+  };
 
   PageIterator(PagedSpace* space, Mode mode);
 
@@ -577,8 +606,9 @@ class PageIterator BASE_EMBEDDED {
   inline Page* next();
 
  private:
-  Page* cur_page_;  // next page to return
-  Page* stop_page_;  // page where to stop
+  PagedSpace* space_;
+  Page* prev_page_;  // Previous page returned.
+  Page* stop_page_;  // Page to stop at (last page returned by the iterator).
 };
 
 
@@ -809,6 +839,10 @@ class PagedSpace : public Space {
   // The first page in this space.
   Page* first_page_;
 
+  // The last page in this space.  Initially set in Setup, updated in
+  // Expand and Shrink.
+  Page* last_page_;
+
   // Normal allocation information.
   AllocationInfo allocation_info_;
 
@@ -939,14 +973,14 @@ class SemiSpace : public Space {
   // True if the address is in the address range of this semispace (not
   // necessarily below the allocation pointer).
   bool Contains(Address a) {
-    return (reinterpret_cast<uint32_t>(a) & address_mask_)
-           == reinterpret_cast<uint32_t>(start_);
+    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
+           == reinterpret_cast<uintptr_t>(start_);
   }
 
   // True if the object is a heap object in the address range of this
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Object* o) {
-    return (reinterpret_cast<uint32_t>(o) & object_mask_) == object_expected_;
+    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
   }
 
   // The offset of an address from the beginning of the space.
@@ -975,9 +1009,9 @@ class SemiSpace : public Space {
   Address age_mark_;
 
   // Masks and comparison values to test for containment in this semispace.
-  uint32_t address_mask_;
-  uint32_t object_mask_;
-  uint32_t object_expected_;
+  uintptr_t address_mask_;
+  uintptr_t object_mask_;
+  uintptr_t object_expected_;
 
  public:
   TRACK_MEMORY("SemiSpace")
@@ -1063,11 +1097,11 @@ class NewSpace : public Space {
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Address a) {
-    return (reinterpret_cast<uint32_t>(a) & address_mask_)
-        == reinterpret_cast<uint32_t>(start_);
+    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
+        == reinterpret_cast<uintptr_t>(start_);
   }
   bool Contains(Object* o) {
-    return (reinterpret_cast<uint32_t>(o) & object_mask_) == object_expected_;
+    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
   }
 
   // Return the allocated bytes in the active semispace.
@@ -1183,9 +1217,9 @@ class NewSpace : public Space {
 
   // Start address and bit mask for containment testing.
   Address start_;
-  uint32_t address_mask_;
-  uint32_t object_mask_;
-  uint32_t object_expected_;
+  uintptr_t address_mask_;
+  uintptr_t object_mask_;
+  uintptr_t object_expected_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.

@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_DATEPARSER_INL_H_
+#define V8_DATEPARSER_INL_H_
+
 namespace v8 { namespace internal {
 
 template <typename Char>
@@ -104,3 +107,5 @@ bool DateParser::Parse(Vector<Char> str, FixedArray* out) {
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_DATEPARSER_INL_H_

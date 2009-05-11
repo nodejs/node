@@ -51,6 +51,11 @@
 #error both DEBUG and NDEBUG are set
 #endif
 
+// Enable debugger support by default, unless it is in ANDROID
+#if !defined(ENABLE_DEBUGGER_SUPPORT) && !defined(ANDROID)
+#define ENABLE_DEBUGGER_SUPPORT
+#endif
+
 // Basic includes
 #include "../include/v8.h"
 #include "globals.h"

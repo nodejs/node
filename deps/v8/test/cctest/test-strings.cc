@@ -9,6 +9,7 @@
 
 #include "v8.h"
 
+#include "api.h"
 #include "factory.h"
 #include "cctest.h"
 #include "zone-inl.h"
@@ -154,7 +155,7 @@ static Handle<String> ConstructBalancedHelper(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int from,
     int to) {
-  ASSERT(to > from);
+  CHECK(to > from);
   if (to - from == 1) {
     return building_blocks[from % NUMBER_OF_BUILDING_BLOCKS];
   }
@@ -279,7 +280,7 @@ static Handle<String> ConstructSliceTree(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int from,
     int to) {
-  ASSERT(to > from);
+  CHECK(to > from);
   if (to - from <= 1)
     return SliceOf(building_blocks[from % NUMBER_OF_BUILDING_BLOCKS]);
   if (to - from == 2) {
@@ -391,9 +392,17 @@ TEST(Utf8Conversion) {
 
 class TwoByteResource: public v8::String::ExternalStringResource {
  public:
-  explicit TwoByteResource(const uint16_t* data, size_t length)
-      : data_(data), length_(length) { }
-  virtual ~TwoByteResource() { }
+  TwoByteResource(const uint16_t* data, size_t length, bool* destructed)
+      : data_(data), length_(length), destructed_(destructed) {
+    CHECK_NE(destructed, NULL);
+    *destructed_ = false;
+  }
+
+  virtual ~TwoByteResource() {
+    CHECK_NE(destructed_, NULL);
+    CHECK(!*destructed_);
+    *destructed_ = true;
+  }
 
   const uint16_t* data() const { return data_; }
   size_t length() const { return length_; }
@@ -401,46 +410,107 @@ class TwoByteResource: public v8::String::ExternalStringResource {
  private:
   const uint16_t* data_;
   size_t length_;
+  bool* destructed_;
 };
 
 
-TEST(ExternalCrBug9746) {
+// Regression test case for http://crbug.com/9746. The problem was
+// that when we marked objects reachable only through weak pointers,
+// we ended up keeping a sliced symbol alive, even though we already
+// invoked the weak callback on the underlying external string thus
+// deleting its resource.
+TEST(Regress9746) {
   InitializeVM();
-  v8::HandleScope handle_scope;
 
-  // This set of tests verifies that the workaround for Chromium bug 9746
-  // works correctly. In certain situations the external resource of a symbol
-  // is collected while the symbol is still part of the symbol table.
-  static uint16_t two_byte_data[] = {
-    't', 'w', 'o', '-', 'b', 'y', 't', 'e', ' ', 'd', 'a', 't', 'a'
-  };
-  static size_t two_byte_length =
-      sizeof(two_byte_data) / sizeof(two_byte_data[0]);
-  static const char* one_byte_data = "two-byte data";
+  // Setup lengths that guarantee we'll get slices instead of simple
+  // flat strings.
+  static const int kFullStringLength = String::kMinNonFlatLength * 2;
+  static const int kSliceStringLength = String::kMinNonFlatLength + 1;
 
-  // Allocate an external string resource and external string.
-  TwoByteResource* resource = new TwoByteResource(two_byte_data,
-                                                  two_byte_length);
-  Handle<String> string = Factory::NewExternalStringFromTwoByte(resource);
-  Vector<const char> one_byte_vec = CStrVector(one_byte_data);
-  Handle<String> compare = Factory::NewStringFromAscii(one_byte_vec);
+  uint16_t* source = new uint16_t[kFullStringLength];
+  for (int i = 0; i < kFullStringLength; i++) source[i] = '1';
+  char* key = new char[kSliceStringLength];
+  for (int i = 0; i < kSliceStringLength; i++) key[i] = '1';
+  Vector<const char> key_vector(key, kSliceStringLength);
 
-  // Verify the correct behaviour before "collecting" the external resource.
-  CHECK(string->IsEqualTo(one_byte_vec));
-  CHECK(string->Equals(*compare));
+  // Allocate an external string resource that keeps track of when it
+  // is destructed.
+  bool resource_destructed = false;
+  TwoByteResource* resource =
+      new TwoByteResource(source, kFullStringLength, &resource_destructed);
 
-  // "Collect" the external resource manually by setting the external resource
-  // pointer to NULL. Then redo the comparisons, they should not match AND
-  // not crash.
-  Handle<ExternalTwoByteString> external(ExternalTwoByteString::cast(*string));
-  external->set_resource(NULL);
-  CHECK_EQ(false, string->IsEqualTo(one_byte_vec));
-#if !defined(DEBUG)
-  // These tests only work in non-debug as there are ASSERTs in the code that
-  // do prevent the ability to even get into the broken code when running the
-  // debug version of V8.
-  CHECK_EQ(false, string->Equals(*compare));
-  CHECK_EQ(false, compare->Equals(*string));
-  CHECK_EQ(false, string->Equals(Heap::empty_string()));
-#endif  // !defined(DEBUG)
+  {
+    v8::HandleScope scope;
+
+    // Allocate an external string resource and external string. We
+    // have to go through the API to get the weak handle and the
+    // automatic destruction going.
+    Handle<String> string =
+        v8::Utils::OpenHandle(*v8::String::NewExternal(resource));
+
+    // Create a slice of the external string.
+    Handle<String> slice =
+        Factory::NewStringSlice(string, 0, kSliceStringLength);
+    CHECK_EQ(kSliceStringLength, slice->length());
+    CHECK(StringShape(*slice).IsSliced());
+
+    // Make sure the slice ends up in old space so we can morph it
+    // into a symbol.
+    while (Heap::InNewSpace(*slice)) {
+      Heap::PerformScavenge();
+    }
+
+    // Force the slice into the symbol table.
+    slice = Factory::SymbolFromString(slice);
+    CHECK(slice->IsSymbol());
+    CHECK(StringShape(*slice).IsSliced());
+
+    Handle<String> buffer(Handle<SlicedString>::cast(slice)->buffer());
+    CHECK(StringShape(*buffer).IsExternal());
+    CHECK(buffer->IsTwoByteRepresentation());
+
+    // Finally, base a script on the slice of the external string and
+    // get its wrapper. This allocates yet another weak handle that
+    // indirectly refers to the external string.
+    Handle<Script> script = Factory::NewScript(slice);
+    Handle<JSObject> wrapper = GetScriptWrapper(script);
+  }
+
+  // When we collect all garbage, we cannot get rid of the sliced
+  // symbol entry in the symbol table because it is used by the script
+  // kept alive by the weak wrapper. Make sure we don't destruct the
+  // external string.
+  Heap::CollectAllGarbage();
+  CHECK(!resource_destructed);
+
+  {
+    v8::HandleScope scope;
+
+    // Make sure the sliced symbol is still in the table.
+    Handle<String> symbol = Factory::LookupSymbol(key_vector);
+    CHECK(StringShape(*symbol).IsSliced());
+
+    // Make sure the buffer is still a two-byte external string.
+    Handle<String> buffer(Handle<SlicedString>::cast(symbol)->buffer());
+    CHECK(StringShape(*buffer).IsExternal());
+    CHECK(buffer->IsTwoByteRepresentation());
+  }
+
+  // Forcing another garbage collection should let us get rid of the
+  // slice from the symbol table. The external string remains in the
+  // heap until the next GC.
+  Heap::CollectAllGarbage();
+  CHECK(!resource_destructed);
+  v8::HandleScope scope;
+  Handle<String> key_string = Factory::NewStringFromAscii(key_vector);
+  String* out;
+  CHECK(!Heap::LookupSymbolIfExists(*key_string, &out));
+
+  // Forcing yet another garbage collection must allow us to finally
+  // get rid of the external string.
+  Heap::CollectAllGarbage();
+  CHECK(resource_destructed);
+
+  delete[] source;
+  delete[] key;
 }

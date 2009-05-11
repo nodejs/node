@@ -72,7 +72,9 @@ bool V8::Initialize(Deserializer *des) {
     v8::Locker::StartPreemption(100);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Setup(create_heap_objects);
+#endif
   StubCache::Initialize(create_heap_objects);
 
   // If we are deserializing, read the state into the now-empty heap.
@@ -110,8 +112,6 @@ void V8::TearDown() {
 
   Heap::TearDown();
   Logger::TearDown();
-
-  Debugger::TearDown();
 
   has_been_setup_ = false;
   has_been_disposed_ = true;

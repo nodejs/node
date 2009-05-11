@@ -29,16 +29,17 @@
 #include "v8.h"
 #include "debug-agent.h"
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 namespace v8 { namespace internal {
-
 
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.
-void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                 void *data) {
-  reinterpret_cast<DebuggerAgent*>(data)->DebuggerMessage(message, length);
+void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
+  DebuggerAgent::instance_->DebuggerMessage(message);
 }
 
+// static
+DebuggerAgent* DebuggerAgent::instance_ = NULL;
 
 // Debugger agent main thread.
 void DebuggerAgent::Run() {
@@ -105,7 +106,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
   // Create a new session and hook up the debug message handler.
   session_ = new DebuggerAgentSession(this, client);
-  v8::Debug::SetMessageHandler(DebuggerAgentMessageHandler, this);
+  v8::Debug::SetMessageHandler2(DebuggerAgentMessageHandler);
   session_->Start();
 }
 
@@ -123,13 +124,14 @@ void DebuggerAgent::CloseSession() {
 }
 
 
-void DebuggerAgent::DebuggerMessage(const uint16_t* message, int length) {
+void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
   ScopedLock with(session_access_);
 
   // Forward the message handling to the session.
   if (session_ != NULL) {
-    session_->DebuggerMessage(Vector<uint16_t>(const_cast<uint16_t*>(message),
-                              length));
+    v8::String::Value val(message.GetJSON());
+    session_->DebuggerMessage(Vector<uint16_t>(const_cast<uint16_t*>(*val),
+                              val.length()));
   }
 }
 
@@ -410,5 +412,6 @@ int DebuggerAgentUtil::ReceiveAll(const Socket* conn, char* data, int len) {
   return total_received;
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_DEBUGGER_SUPPORT

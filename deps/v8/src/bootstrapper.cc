@@ -530,7 +530,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
     // Allocate the function map first and then patch the prototype later
-    Handle<Map> empty_fm = Factory::CopyMap(fm);
+    Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
     empty_fm->set_instance_descriptors(*function_map_descriptors);
     empty_fm->set_prototype(global_context()->object_function()->prototype());
     empty_function->set_map(*empty_fm);
@@ -741,6 +741,19 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->set_regexp_function(*regexp_fun);
   }
 
+  {  // -- J S O N
+    Handle<String> name = Factory::NewStringFromAscii(CStrVector("JSON"));
+    Handle<JSFunction> cons = Factory::NewFunction(
+        name,
+        Factory::the_hole_value());
+    cons->SetInstancePrototype(global_context()->initial_object_prototype());
+    cons->SetInstanceClassName(*name);
+    Handle<JSObject> json_object = Factory::NewJSObject(cons, TENURED);
+    ASSERT(json_object->IsJSObject());
+    SetProperty(global, name, json_object, DONT_ENUM);
+    global_context()->set_json_object(*json_object);
+  }
+
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -820,6 +833,9 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   // Initialize the out of memory slot.
   global_context()->set_out_of_memory(Heap::false_value());
+
+  // Initialize the data slot.
+  global_context()->set_data(Heap::undefined_value());
 }
 
 
@@ -832,12 +848,16 @@ bool Genesis::CompileBuiltin(int index) {
 
 bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
   HandleScope scope;
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(true);
+#endif
   bool result =
       CompileScriptCached(name, source, &natives_cache, NULL, true);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) Top::clear_pending_exception();
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(false);
+#endif
   return result;
 }
 
@@ -853,9 +873,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
   if (!cache->Lookup(name, &boilerplate)) {
-#ifdef DEBUG
-    ASSERT(StringShape(*source).IsAsciiRepresentation());
-#endif
+    ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
         Compiler::Compile(source, script_name, 0, 0, extension, NULL);
@@ -1015,6 +1033,13 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("column_offset"),
             proxy_column_offset,
             common_attributes);
+    Handle<Proxy> proxy_data = Factory::NewProxy(&Accessors::ScriptData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("data"),
+            proxy_data,
+            common_attributes);
     Handle<Proxy> proxy_type = Factory::NewProxy(&Accessors::ScriptType);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
@@ -1029,6 +1054,14 @@ bool Genesis::InstallNatives() {
             script_descriptors,
             Factory::LookupAsciiSymbol("line_ends"),
             proxy_line_ends,
+            common_attributes);
+    Handle<Proxy> proxy_context_data =
+        Factory::NewProxy(&Accessors::ScriptContextData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("context_data"),
+            proxy_context_data,
             common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -1055,6 +1088,10 @@ bool Genesis::InstallNatives() {
               Handle<Context>(Top::context()->runtime_context()));
     SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
               Natives::GetIndex("regexp"),
+              Top::global_context(),
+              Handle<Context>(Top::context()->runtime_context()));
+    SetupLazy(Handle<JSObject>(global_context()->json_object()),
+              Natives::GetIndex("json"),
               Top::global_context(),
               Handle<Context>(Top::context()->runtime_context()));
 
@@ -1132,6 +1169,7 @@ bool Genesis::InstallSpecialObjects() {
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     // If loading fails we just bail out without installing the
@@ -1149,6 +1187,7 @@ bool Genesis::InstallSpecialObjects() {
     SetProperty(js_global, debug_string,
         Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
+#endif
 
   return true;
 }
@@ -1403,7 +1442,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
   Handle<DescriptorArray> function_map_descriptors =
       ComputeFunctionInstanceDescriptor(false, true);
-  Handle<Map> fm = Factory::CopyMap(Top::function_map());
+  Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);
 }
@@ -1442,11 +1481,20 @@ void Genesis::BuildSpecialFunctionTable() {
   Handle<JSFunction> function =
       Handle<JSFunction>(
           JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
-  Handle<JSObject> prototype =
+  Handle<JSObject> visible_prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
-  AddSpecialFunction(prototype, "pop",
+  // Remember to put push and pop on the hidden prototype if it's there.
+  Handle<JSObject> push_and_pop_prototype;
+  Handle<Object> superproto(visible_prototype->GetPrototype());
+  if (superproto->IsJSObject() &&
+      JSObject::cast(*superproto)->map()->is_hidden_prototype()) {
+    push_and_pop_prototype = Handle<JSObject>::cast(superproto);
+  } else {
+    push_and_pop_prototype = visible_prototype;
+  }
+  AddSpecialFunction(push_and_pop_prototype, "pop",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  AddSpecialFunction(prototype, "push",
+  AddSpecialFunction(push_and_pop_prototype, "push",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
 }
 

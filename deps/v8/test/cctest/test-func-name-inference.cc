@@ -221,3 +221,30 @@ TEST(AsParameter) {
   CheckFunctionName(script, "return 2", "");
   CheckFunctionName(script, "return 3", "");
 }
+
+
+TEST(MultipleFuncsConditional) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "fun1 = 0 ?\n"
+      "    function() { return 1; } :\n"
+      "    function() { return 2; }");
+  CheckFunctionName(script, "return 1", "fun1");
+  CheckFunctionName(script, "return 2", "fun1");
+}
+
+
+TEST(MultipleFuncsInLiteral) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function MyClass() {}\n"
+      "MyClass.prototype = {\n"
+      "  method1: 0 ? function() { return 1; } :\n"
+      "               function() { return 2; } }");
+  CheckFunctionName(script, "return 1", "MyClass.method1");
+  CheckFunctionName(script, "return 2", "MyClass.method1");
+}

@@ -116,6 +116,8 @@ namespace v8 { namespace internal {
   SC(keyed_load_interceptor, V8.KeyedLoadInterceptor)               \
   SC(keyed_load_inline, V8.KeyedLoadInline)                         \
   SC(keyed_load_inline_miss, V8.KeyedLoadInlineMiss)                \
+  SC(named_load_inline, V8.NamedLoadInline)                         \
+  SC(named_load_inline_miss, V8.NamedLoadInlineMiss)                \
   SC(keyed_store_field, V8.KeyedStoreField)                         \
   SC(for_in, V8.ForIn)                                              \
   SC(enum_cache_hits, V8.EnumCacheHits)                             \
@@ -159,4 +161,4 @@ class Counters : AllStatic {
 
 } }  // namespace v8::internal
 
-#endif  // V8_COUNTERS_H_
+#endif  // V8_V8_COUNTERS_H_

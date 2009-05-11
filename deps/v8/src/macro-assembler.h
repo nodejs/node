@@ -28,23 +28,25 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
-#ifdef ARM
-
-#include "constants-arm.h"
+#if V8_TARGET_ARCH_IA32
 #include "assembler.h"
-#include "assembler-arm.h"
-#include "assembler-arm-inl.h"
+#include "ia32/assembler-ia32.h"
+#include "ia32/assembler-ia32-inl.h"
 #include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-arm.h"
-
-#else  // ia32
-
+#include "ia32/macro-assembler-ia32.h"
+#elif V8_TARGET_ARCH_X64
 #include "assembler.h"
-#include "assembler-ia32.h"
-#include "assembler-ia32-inl.h"
+#include "x64/assembler-x64.h"
+#include "x64/assembler-x64-inl.h"
 #include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-ia32.h"
-
+#include "x64/macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/constants-arm.h"
+#include "assembler.h"
+#include "arm/assembler-arm.h"
+#include "arm/assembler-arm-inl.h"
+#include "code.h"  // must be after assembler_*.h
+#include "arm/macro-assembler-arm.h"
 #endif
 
 #endif  // V8_MACRO_ASSEMBLER_H_

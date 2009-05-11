@@ -118,9 +118,24 @@ class List {
   INLINE(T* NewData(int n))  { return static_cast<T*>(P::New(n * sizeof(T))); }
   INLINE(void DeleteData(T* data))  { P::Delete(data); }
 
+  // Increase the capacity of a full list, and add an element.
+  // List must be full already.
+  void ResizeAdd(const T& element);
+
+  // Inlined implementation of ResizeAdd, shared by inlined and
+  // non-inlined versions of ResizeAdd.
+  void ResizeAddInternal(const T& element);
+
   DISALLOW_COPY_AND_ASSIGN(List);
 };
 
+class FrameElement;
+
+// Add() is inlined, ResizeAdd() called by Add() is inlined except for
+// Lists of FrameElements, and ResizeAddInternal() is inlined in ResizeAdd().
+template <>
+void List<FrameElement,
+          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element);
 
 } }  // namespace v8::internal
 

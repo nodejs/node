@@ -45,7 +45,7 @@ class FuncNameInferrer BASE_EMBEDDED {
   FuncNameInferrer() :
       entries_stack_(10),
       names_stack_(5),
-      func_to_infer_(NULL),
+      funcs_to_infer_(4),
       dot_(Factory::NewStringFromAscii(CStrVector("."))) {
   }
 
@@ -57,39 +57,34 @@ class FuncNameInferrer BASE_EMBEDDED {
     entries_stack_.Add(names_stack_.length());
   }
 
-  void Leave() {
-    ASSERT(IsOpen());
-    names_stack_.Rewind(entries_stack_.RemoveLast());
-  }
-
   void PushName(Handle<String> name) {
     if (IsOpen()) {
       names_stack_.Add(name);
     }
   }
 
-  void SetFuncToInfer(FunctionLiteral* func_to_infer) {
+  void AddFunction(FunctionLiteral* func_to_infer) {
     if (IsOpen()) {
-      // If we encounter another function literal after already having
-      // encountered one, the second one replaces the first.
-      func_to_infer_ = func_to_infer;
+      funcs_to_infer_.Add(func_to_infer);
     }
   }
 
   void InferAndLeave() {
     ASSERT(IsOpen());
-    MaybeInferFunctionName();
-    Leave();
+    if (!funcs_to_infer_.is_empty()) {
+      InferFunctionsNames();
+    }
+    names_stack_.Rewind(entries_stack_.RemoveLast());
   }
 
  private:
   Handle<String> MakeNameFromStack();
   Handle<String> MakeNameFromStackHelper(int pos, Handle<String> prev);
-  void MaybeInferFunctionName();
+  void InferFunctionsNames();
 
   List<int> entries_stack_;
   List<Handle<String> > names_stack_;
-  FunctionLiteral* func_to_infer_;
+  List<FunctionLiteral*> funcs_to_infer_;
   Handle<String> dot_;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);

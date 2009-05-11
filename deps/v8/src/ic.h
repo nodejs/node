@@ -107,9 +107,11 @@ class IC {
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Computes the address in the original code when the code running is
   // containing break points (calls to DebugBreakXXX builtins).
   Address OriginalCodeAddress();
+#endif
 
   // Set the call-site target.
   void set_target(Code* code) { SetTargetAtAddress(address(), code); }
@@ -214,6 +216,11 @@ class LoadIC: public IC {
   static void GenerateStringLength(MacroAssembler* masm);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
+  // The offset from the inlined patch site to the start of the
+  // inlined load instruction.  It is 7 bytes (test eax, imm) plus
+  // 6 bytes (jne slow_label).
+  static const int kOffsetToLoadInstruction = 13;
+
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);
 
@@ -236,6 +243,12 @@ class LoadIC: public IC {
   }
 
   static void Clear(Address address, Code* target);
+
+  // Clear the use of the inlined version.
+  static void ClearInlinedVersion(Address address);
+
+  static bool PatchInlinedLoad(Address address, Object* map, int index);
+
   friend class IC;
 };
 
@@ -251,6 +264,9 @@ class KeyedLoadIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm);
   static void GeneratePreMonomorphic(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
+
+  // Clear the use of the inlined version.
+  static void ClearInlinedVersion(Address address);
 
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);
@@ -279,7 +295,7 @@ class KeyedLoadIC: public IC {
 
   // Support for patching the map that is checked in an inlined
   // version of keyed load.
-  static void PatchInlinedMapCheck(Address address, Object* map);
+  static bool PatchInlinedLoad(Address address, Object* map);
 
   friend class IC;
 };

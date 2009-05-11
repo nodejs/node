@@ -118,8 +118,9 @@ class Execution : public AllStatic {
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
   static Object* DebugBreakHelper();
+#endif
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
@@ -158,11 +159,13 @@ class StackGuard BASE_EMBEDDED {
   static void Preempt();
   static bool IsInterrupted();
   static void Interrupt();
-  static bool IsDebugBreak();
-  static void DebugBreak();
-  static bool IsDebugCommand();
-  static void DebugCommand();
   static void Continue(InterruptFlag after_what);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  static void DebugBreak();
+  static void DebugCommand();
+  static bool IsDebugBreak();
+  static bool IsDebugCommand();
+#endif
 
  private:
   // You should hold the ExecutionAccess lock when calling this method.

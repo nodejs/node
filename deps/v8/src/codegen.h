@@ -59,7 +59,9 @@
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
+//   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
+//   PatchInlineRuntimeEntry
 //   GenerateFastCaseSwitchStatement
 //   GenerateFastCaseSwitchCases
 //   TryGenerateFastCaseSwitchStatement
@@ -71,10 +73,17 @@
 //   CodeForStatementPosition
 //   CodeForSourcePosition
 
-#ifdef ARM
-#include "codegen-arm.h"
-#else
-#include "codegen-ia32.h"
+
+// Mode to overwrite BinaryExpression values.
+enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
+
+
+#if V8_TARGET_ARCH_IA32
+#include "ia32/codegen-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/codegen-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/codegen-arm.h"
 #endif
 
 namespace v8 { namespace internal {
@@ -111,6 +120,9 @@ class DeferredCode: public ZoneObject {
   JumpTarget* enter() { return &enter_; }
   void BindExit() { exit_.Bind(0); }
   void BindExit(Result* result) { exit_.Bind(result, 1); }
+  void BindExit(Result* result0, Result* result1) {
+    exit_.Bind(result0, result1, 2);
+  }
   void BindExit(Result* result0, Result* result1, Result* result2) {
     exit_.Bind(result0, result1, result2, 3);
   }

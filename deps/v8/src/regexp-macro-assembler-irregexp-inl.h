@@ -32,6 +32,8 @@
 #include "ast.h"
 #include "bytecodes-irregexp.h"
 
+#ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
+#define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
 namespace v8 { namespace internal {
 
@@ -69,3 +71,5 @@ void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_

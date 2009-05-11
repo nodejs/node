@@ -168,4 +168,65 @@ function test() {
   assertEquals(17, j, "switch with constant value");
 }
 
+
+function TrueToString() {
+  return true.toString();
+}
+
+
+function FalseToString() {
+  return false.toString();
+}
+
+
+function BoolTest() {
+  assertEquals("true", TrueToString());
+  assertEquals("true", TrueToString());
+  assertEquals("true", TrueToString());
+  assertEquals("false", FalseToString());
+  assertEquals("false", FalseToString());
+  assertEquals("false", FalseToString());
+  Boolean.prototype.toString = function() { return "foo"; }
+  assertEquals("foo", TrueToString());
+  assertEquals("foo", FalseToString());
+}
+
+
+// Some tests of shifts that get into the corners in terms of coverage.
+// We generate different code for the case where the operand is a constant.
+function ShiftTest() {
+  var x = 123;
+  assertEquals(x, x >> 0);
+  assertEquals(x, x << 0);
+  assertEquals(x, x >>> 0);
+  assertEquals(61, x >> 1);
+  assertEquals(246, x << 1);
+  assertEquals(61, x >>> 1);
+  x = -123;
+  assertEquals(x, x >> 0);
+  assertEquals(x, x << 0);
+  assertEquals(0x10000 * 0x10000 + x, x >>> 0);
+  assertEquals(-62, x >> 1);
+  assertEquals(-246, x << 1);
+  assertEquals(0x10000 * 0x8000 - 62, x >>> 1);
+  // Answer is non-Smi so the subtraction is not folded in the code
+  // generator.
+  assertEquals(-0x40000001, -0x3fffffff - 2);
+
+  x = 123;
+  assertEquals(0, x & 0);
+
+  // Answer is non-smi and lhs of << is a temporary heap number that we can
+  // overwrite.
+  x = 123.0001;
+  assertEquals(1073741824, (x * x) << 30);
+  x = 123;
+  // Answer is non-smi and lhs of << is a temporary heap number that we think
+  // we can overwrite (but we can't because it's a Smi).
+  assertEquals(1073741824, (x * x) << 30);
+}
+
+
 test();
+BoolTest();
+ShiftTest();

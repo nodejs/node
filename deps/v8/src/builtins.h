@@ -83,6 +83,7 @@ namespace v8 { namespace internal {
   V(FunctionApply,              BUILTIN, UNINITIALIZED)
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
 #define BUILTIN_LIST_DEBUG_A(V)                                \
   V(Return_DebugBreak,          BUILTIN, DEBUG_BREAK)          \
@@ -93,7 +94,9 @@ namespace v8 { namespace internal {
   V(KeyedLoadIC_DebugBreak,     KEYED_LOAD_IC, DEBUG_BREAK)    \
   V(StoreIC_DebugBreak,         STORE_IC, DEBUG_BREAK)         \
   V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)
-
+#else
+#define BUILTIN_LIST_DEBUG_A(V)
+#endif
 
 // Define list of builtins implemented in JavaScript.
 #define BUILTINS_LIST_JS(V)    \

@@ -41,10 +41,15 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;  // NOLINT
+typedef unsigned short uint16_t;  // NOLINT
 typedef int int32_t;
 typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;  // NOLINT
-typedef long long int64_t;  // NOLINT
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+// intptr_t is defined in crtdefs.h through stdio.h.
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -529,6 +534,13 @@ class V8EXPORT Script {
    * Returns the script id value.
    */
   Local<Value> Id();
+
+  /**
+   * Associate an additional data object with the script. This is mainly used
+   * with the debugger as this data object is only available through the
+   * debugger API.
+   */
+  void SetData(Handle<Value> data);
 };
 
 
@@ -540,7 +552,17 @@ class V8EXPORT Message {
   Local<String> Get() const;
   Local<String> GetSourceLine() const;
 
+  /**
+   * Returns the resource name for the script from where the function causing
+   * the error originates.
+   */
   Handle<Value> GetScriptResourceName() const;
+
+  /**
+   * Returns the resource data for the script from where the function causing
+   * the error originates.
+   */
+  Handle<Value> GetScriptData() const;
 
   /**
    * Returns the number, 1-based, of the line where the error occurred.
@@ -805,14 +827,14 @@ class V8EXPORT String : public Primitive {
   };
 
   /**
-   * Get the ExternalStringResource for an external string.  Only
-   * valid if IsExternal() returns true.
+   * Get the ExternalStringResource for an external string.  Returns
+   * NULL if IsExternal() doesn't return true.
    */
   ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalAsciiStringResource for an external ascii string.
-   * Only valid if IsExternalAscii() returns true.
+   * Returns NULL if IsExternalAscii() doesn't return true.
    */
   ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
@@ -1028,6 +1050,18 @@ class V8EXPORT Object : public Value {
   bool Set(Handle<Value> key,
            Handle<Value> value,
            PropertyAttribute attribs = None);
+
+  // Sets a local property on this object, bypassing interceptors and
+  // overriding accessors or read-only properties.
+  //
+  // Note that if the object has an interceptor the property will be set
+  // locally, but since the interceptor takes precedence the local property
+  // will only be returned if the interceptor doesn't return a value.
+  //
+  // Note also that this only works for named properties.
+  bool ForceSet(Handle<Value> key,
+                Handle<Value> value,
+                PropertyAttribute attribs = None);
   Local<Value> Get(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these
@@ -1093,6 +1127,9 @@ class V8EXPORT Object : public Value {
   /**
    * Returns the identity hash for this object. The current implemenation uses
    * a hidden property on the object to store the identity hash.
+   *
+   * The return value will never be 0. Also, it is not guaranteed to be
+   * unique.
    */
   int GetIdentityHash();
 
@@ -2043,6 +2080,24 @@ class V8EXPORT V8 {
   static void ResumeProfiler();
 
   /**
+   * If logging is performed into a memory buffer (via --logfile=*), allows to
+   * retrieve previously written messages. This can be used for retrieving
+   * profiler log data in the application. This function is thread-safe.
+   *
+   * Caller provides a destination buffer that must exist during GetLogLines
+   * call. Only whole log lines are copied into the buffer.
+   *
+   * \param from_pos specified a point in a buffer to read from, 0 is the
+   *   beginning of a buffer. It is assumed that caller updates its current
+   *   position using returned size value from the previous call.
+   * \param dest_buf destination buffer for log data.
+   * \param max_size size of the destination buffer.
+   * \returns actual size of log data copied into buffer.
+   */
+  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
+
+
+  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -2221,6 +2276,14 @@ class V8EXPORT Context {
 
   /** Returns true if V8 has a current context. */
   static bool InContext();
+
+  /**
+   * Associate an additional data object with the context. This is mainly used
+   * with the debugger to provide additional information on the context through
+   * the debugger API.
+   */
+  void SetData(Handle<Value> data);
+  Local<Value> GetData();
 
   /**
    * Stack-allocated class which sets the execution context for all

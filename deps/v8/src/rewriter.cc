@@ -194,7 +194,7 @@ void AstOptimizer::VisitFunctionLiteral(FunctionLiteral* node) {
 
   if (node->name()->length() == 0) {
     // Anonymous function.
-    func_name_inferrer_.SetFuncToInfer(node);
+    func_name_inferrer_.AddFunction(node);
   }
 }
 
@@ -282,10 +282,7 @@ void AstOptimizer::VisitAssignment(Assignment* node) {
     case Token::ASSIGN:
       // No type can be infered from the general assignment.
 
-      if (node->value()->AsFunctionLiteral() != NULL ||
-          node->value()->AsObjectLiteral() != NULL) {
-        scoped_fni.Enter();
-      }
+      scoped_fni.Enter();
       break;
     case Token::ASSIGN_BIT_OR:
     case Token::ASSIGN_BIT_XOR:

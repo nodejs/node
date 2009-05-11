@@ -258,7 +258,7 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
 }
 
 
-void GlobalHandles::MarkWeakRoots(WeakSlotCallback f) {
+void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
   for (Node* current = head_; current != NULL; current = current->next()) {
     if (current->state_ == Node::WEAK) {
       if (f(&current->object_)) {

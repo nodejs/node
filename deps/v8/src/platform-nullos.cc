@@ -215,7 +215,7 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
   UNIMPLEMENTED();
   return 0;
 }

@@ -54,14 +54,14 @@ function testArguments(dcp, arguments, success, is_script) {
   var json_response = dcp.processDebugJSONRequest(request);
   var response = safeEval(json_response);
   if (success) {
-    assertTrue(response.success, json_response);
+    assertTrue(response.success, request + ' -> ' + json_response);
     if (is_script) {
-      assertEquals('scriptName', response.body.type, json_response);
+      assertEquals('scriptName', response.body.type, request + ' -> ' + json_response);
     } else {
-      assertEquals('scriptId', response.body.type, json_response);
+      assertEquals('scriptId', response.body.type, request + ' -> ' + json_response);
     }
   } else {
-    assertFalse(response.success, json_response);
+    assertFalse(response.success, request + ' -> ' + json_response);
   }
 }
 
@@ -75,6 +75,8 @@ function listener(event, exec_state, event_data, data) {
     var request = '{' + base_request + '}'
     var response = safeEval(dcp.processDebugJSONRequest(request));
     assertFalse(response.success);
+    
+    var mirror;
 
     testArguments(dcp, '{}', false);
     testArguments(dcp, '{"type":"xx"}', false);
@@ -86,6 +88,9 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"type":"function","target":"f","line":-1}', false);
     testArguments(dcp, '{"type":"function","target":"f","column":-1}', false);
     testArguments(dcp, '{"type":"function","target":"f","ignoreCount":-1}', false);
+    testArguments(dcp, '{"type":"handle","target":"-1"}', false);
+    mirror = debug.MakeMirror(o);
+    testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', false);
 
     // Test some legal setbreakpoint requests.
     testArguments(dcp, '{"type":"function","target":"f"}', true, false);
@@ -105,6 +110,11 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"type":"scriptId","target":' + f_script_id + ',"line":' + f_line + '}', true, false);
     testArguments(dcp, '{"type":"scriptId","target":' + g_script_id + ',"line":' + g_line + '}', true, false);
     testArguments(dcp, '{"type":"scriptId","target":' + h_script_id + ',"line":' + h_line + '}', true, false);
+
+    mirror = debug.MakeMirror(f);
+    testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', true, false);
+    mirror = debug.MakeMirror(o.a);
+    testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', true, false);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -126,6 +136,8 @@ function g() {
 };
 
 eval('function h(){}');
+
+o = {a:function(){},b:function(){}}
 
 // Check the script ids for the test functions.
 f_script_id = Debug.findScript(f).id;

@@ -144,14 +144,14 @@ bool Object::IsSeqString() {
 bool Object::IsSeqAsciiString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
-         StringShape(String::cast(this)).IsAsciiRepresentation();
+         String::cast(this)->IsAsciiRepresentation();
 }
 
 
 bool Object::IsSeqTwoByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
-         StringShape(String::cast(this)).IsTwoByteRepresentation();
+         String::cast(this)->IsTwoByteRepresentation();
 }
 
 
@@ -164,14 +164,14 @@ bool Object::IsExternalString() {
 bool Object::IsExternalAsciiString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
-         StringShape(String::cast(this)).IsAsciiRepresentation();
+         String::cast(this)->IsAsciiRepresentation();
 }
 
 
 bool Object::IsExternalTwoByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
-         StringShape(String::cast(this)).IsTwoByteRepresentation();
+         String::cast(this)->IsTwoByteRepresentation();
 }
 
 
@@ -211,13 +211,28 @@ bool StringShape::IsSymbol() {
 }
 
 
-bool StringShape::IsAsciiRepresentation() {
-  return (type_ & kStringEncodingMask) == kAsciiStringTag;
+bool String::IsAsciiRepresentation() {
+  uint32_t type = map()->instance_type();
+  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
+    return SlicedString::cast(this)->buffer()->IsAsciiRepresentation();
+  }
+  if ((type & kStringRepresentationMask) == kConsStringTag &&
+      ConsString::cast(this)->second()->length() == 0) {
+    return ConsString::cast(this)->first()->IsAsciiRepresentation();
+  }
+  return (type & kStringEncodingMask) == kAsciiStringTag;
 }
 
 
-bool StringShape::IsTwoByteRepresentation() {
-  return (type_ & kStringEncodingMask) == kTwoByteStringTag;
+bool String::IsTwoByteRepresentation() {
+  uint32_t type = map()->instance_type();
+  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
+    return SlicedString::cast(this)->buffer()->IsTwoByteRepresentation();
+  } else if ((type & kStringRepresentationMask) == kConsStringTag &&
+             ConsString::cast(this)->second()->length() == 0) {
+    return ConsString::cast(this)->first()->IsTwoByteRepresentation();
+  }
+  return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
 
@@ -668,11 +683,19 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 
 
 int Smi::value() {
-  return reinterpret_cast<int>(this) >> kSmiTagSize;
+  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kSmiTagSize);
 }
 
 
 Smi* Smi::FromInt(int value) {
+  ASSERT(Smi::IsValid(value));
+  intptr_t tagged_value =
+      (static_cast<intptr_t>(value) << kSmiTagSize) | kSmiTag;
+  return reinterpret_cast<Smi*>(tagged_value);
+}
+
+
+Smi* Smi::FromIntptr(intptr_t value) {
   ASSERT(Smi::IsValid(value));
   return reinterpret_cast<Smi*>((value << kSmiTagSize) | kSmiTag);
 }
@@ -724,7 +747,7 @@ Failure* Failure::OutOfMemoryException() {
 
 
 int Failure::value() const {
-  return reinterpret_cast<int>(this) >> kFailureTagSize;
+  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kFailureTagSize);
 }
 
 
@@ -742,7 +765,8 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 Failure* Failure::Construct(Type type, int value) {
   int info = (value << kFailureTypeTagSize) | type;
   ASSERT(Smi::IsValid(info));  // Same validation check as in Smi
-  return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
+  return reinterpret_cast<Failure*>(
+      static_cast<intptr_t>((info << kFailureTagSize) | kFailureTag));
 }
 
 
@@ -763,6 +787,18 @@ bool Smi::IsValid(int value) {
   // overflow. The computation must be done w/ unsigned ints.
   bool result =
       ((static_cast<unsigned int>(value) + 0x40000000U) & 0x80000000U) == 0;
+  ASSERT(result == in_range);
+  return result;
+}
+
+
+bool Smi::IsIntptrValid(intptr_t value) {
+#ifdef DEBUG
+  bool in_range = (value >= kMinValue) && (value <= kMaxValue);
+#endif
+  // See Smi::IsValid(int) for description.
+  bool result =
+      ((static_cast<uintptr_t>(value) + 0x40000000U) < 0x80000000U);
   ASSERT(result == in_range);
   return result;
 }
@@ -1476,7 +1512,7 @@ void String::Set(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   ASSERT(StringShape(this).IsSequential());
 
-  return StringShape(this).IsAsciiRepresentation()
+  return this->IsAsciiRepresentation()
       ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
@@ -1576,11 +1612,6 @@ int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
 
 
 String* ConsString::first() {
-  ASSERT(String::cast(READ_FIELD(this, kSecondOffset))->length() != 0 ||
-      StringShape(
-          String::cast(
-              READ_FIELD(this, kFirstOffset))).IsAsciiRepresentation()
-          == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kFirstOffset));
 }
 
@@ -1613,10 +1644,6 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 
 String* SlicedString::buffer() {
-  ASSERT(
-      StringShape(
-          String::cast(READ_FIELD(this, kBufferOffset))).IsAsciiRepresentation()
-      == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kBufferOffset));
 }
 
@@ -1808,6 +1835,16 @@ byte Map::bit_field() {
 
 void Map::set_bit_field(byte value) {
   WRITE_BYTE_FIELD(this, kBitFieldOffset, value);
+}
+
+
+byte Map::bit_field2() {
+  return READ_BYTE_FIELD(this, kBitField2Offset);
+}
+
+
+void Map::set_bit_field2(byte value) {
+  WRITE_BYTE_FIELD(this, kBitField2Offset, value);
 }
 
 
@@ -2053,10 +2090,13 @@ ACCESSORS(Script, name, Object, kNameOffset)
 ACCESSORS(Script, id, Object, kIdOffset)
 ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
+ACCESSORS(Script, data, Object, kDataOffset)
+ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)
 ACCESSORS(DebugInfo, code, Code, kPatchedCodeIndex)
@@ -2066,13 +2106,13 @@ ACCESSORS(BreakPointInfo, code_position, Smi, kCodePositionIndex)
 ACCESSORS(BreakPointInfo, source_position, Smi, kSourcePositionIndex)
 ACCESSORS(BreakPointInfo, statement_position, Smi, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
+#endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object,
           kExternalReferenceDataOffset)
-ACCESSORS(SharedFunctionInfo, lazy_load_data, Object, kLazyLoadDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
@@ -2138,8 +2178,8 @@ bool JSFunction::IsBoilerplate() {
 }
 
 
-bool JSFunction::IsLoaded() {
-  return shared()->lazy_load_data() == Heap::undefined_value();
+bool JSObject::IsLoaded() {
+  return !map()->needs_loading();
 }
 
 

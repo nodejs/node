@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,18 +38,33 @@ void List<T, P>::Add(const T& element) {
   if (length_ < capacity_) {
     data_[length_++] = element;
   } else {
-    // Grow the list capacity by 50%, but make sure to let it grow
-    // even when the capacity is zero (possible initial case).
-    int new_capacity = 1 + capacity_ + (capacity_ >> 1);
-    T* new_data = NewData(new_capacity);
-    memcpy(new_data, data_, capacity_ * sizeof(T));
-    // Since the element reference could be an element of the list,
-    // assign it to the new backing store before deleting the old.
-    new_data[length_++] = element;
-    DeleteData(data_);
-    data_ = new_data;
-    capacity_ = new_capacity;
+    List<T, P>::ResizeAdd(element);
   }
+}
+
+
+// Use two layers of inlining so that the non-inlined function can
+// use the same implementation as the inlined version.
+template<typename T, class P>
+void List<T, P>::ResizeAdd(const T& element) {
+  ResizeAddInternal(element);
+}
+
+
+template<typename T, class P>
+void List<T, P>::ResizeAddInternal(const T& element) {
+  ASSERT(length_ >= capacity_);
+  // Grow the list capacity by 50%, but make sure to let it grow
+  // even when the capacity is zero (possible initial case).
+  int new_capacity = 1 + capacity_ + (capacity_ >> 1);
+  T* new_data = List<T, P>::NewData(new_capacity);
+  memcpy(new_data, data_, capacity_ * sizeof(T));
+  // Since the element reference could be an element of the list,
+  // assign it to the new backing store before deleting the old.
+  new_data[length_++] = element;
+  List<T, P>::DeleteData(data_);
+  data_ = new_data;
+  capacity_ = new_capacity;
 }
 
 

@@ -103,10 +103,10 @@ class VMState BASE_EMBEDDED {
 
 class Logger {
  public:
-  // Opens the file for logging if the right flags are set.
+  // Acquires resources for logging if the right flags are set.
   static bool Setup();
 
-  // Closes file opened in Setup.
+  // Frees resources acquired in Setup.
   static void TearDown();
 
   // Enable the computation of a sliding window of states.
@@ -174,11 +174,6 @@ class Logger {
   static void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
-  // Emits region delimiters
-  static void BeginCodeRegionEvent(CodeRegion* region,
-                                   Assembler* masm,
-                                   const char* name);
-  static void EndCodeRegionEvent(CodeRegion* region, Assembler* masm);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
@@ -206,7 +201,7 @@ class Logger {
     return current_state_ ? current_state_->state() : OTHER;
   }
 
-  static bool is_enabled() { return logfile_ != NULL; }
+  static bool is_enabled();
 
   // Pause/Resume collection of profiling data.
   // When data collection is paused, Tick events are discarded until
@@ -214,6 +209,10 @@ class Logger {
   static bool IsProfilerPaused();
   static void PauseProfiler();
   static void ResumeProfiler();
+
+  // If logging is performed into a memory buffer, allows to
+  // retrieve previously written messages. See v8.h.
+  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
  private:
 
@@ -228,17 +227,6 @@ class Logger {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
 
-  // Size of buffer used for formatting log messages.
-  static const int kMessageBufferSize = 2048;
-
-  // Buffer used for formatting log messages. This is a singleton buffer and
-  // mutex_ should be acquired before using it.
-  static char* message_buffer_;
-
-  // When logging is active, logfile_ refers the file events are written to.
-  // mutex_ should be acquired before using logfile_.
-  static FILE* logfile_;
-
   // The sampler used by the profiler and the sliding state window.
   static Ticker* ticker_;
 
@@ -246,10 +234,6 @@ class Logger {
   // points to a Profiler, that handles collection
   // of samples.
   static Profiler* profiler_;
-
-  // mutex_ is a Mutex used for enforcing exclusive
-  // access to the formatting buffer and the log file.
-  static Mutex* mutex_;
 
   // A stack of VM states.
   static VMState* current_state_;
@@ -263,7 +247,6 @@ class Logger {
 
   // Internal implementation classes with access to
   // private members.
-  friend class LogMessageBuilder;
   friend class EventLog;
   friend class TimeLog;
   friend class Profiler;
@@ -278,12 +261,12 @@ class Logger {
 // Class that extracts stack trace, used for profiling.
 class StackTracer BASE_EMBEDDED {
  public:
-  explicit StackTracer(unsigned int low_stack_bound)
+  explicit StackTracer(uintptr_t low_stack_bound)
       : low_stack_bound_(low_stack_bound) { }
   void Trace(TickSample* sample);
  private:
 
-  unsigned int low_stack_bound_;
+  uintptr_t low_stack_bound_;
 };
 
 

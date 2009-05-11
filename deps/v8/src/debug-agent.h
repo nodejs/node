@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEBUG_AGENT_H_
-#define V8_V8_DEBUG_AGENT_H_
+#ifndef V8_DEBUG_AGENT_H_
+#define V8_DEBUG_AGENT_H_
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 #include "platform.h"
 
 namespace v8 { namespace internal {
-
 
 // Forward decelrations.
 class DebuggerAgentSession;
@@ -46,15 +46,21 @@ class DebuggerAgent: public Thread {
       : name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_access_(OS::CreateMutex()), session_(NULL),
-        terminate_now_(OS::CreateSemaphore(0)) {}
-  ~DebuggerAgent() { delete server_; }
+        terminate_now_(OS::CreateSemaphore(0)) {
+    ASSERT(instance_ == NULL);
+    instance_ = this;
+  }
+  ~DebuggerAgent() {
+     instance_ = NULL;
+     delete server_;
+  }
 
   void Shutdown();
 
  private:
   void Run();
   void CreateSession(Socket* socket);
-  void DebuggerMessage(const uint16_t* message, int length);
+  void DebuggerMessage(const v8::Debug::Message& message);
   void CloseSession();
   void OnSessionClosed(DebuggerAgentSession* session);
 
@@ -66,9 +72,10 @@ class DebuggerAgent: public Thread {
   DebuggerAgentSession* session_;  // Current active session if any.
   Semaphore* terminate_now_;  // Semaphore to signal termination.
 
+  static DebuggerAgent* instance_;
+
   friend class DebuggerAgentSession;
-  friend void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                          void *data);
+  friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);
 
   DISALLOW_COPY_AND_ASSIGN(DebuggerAgent);
 };
@@ -111,7 +118,8 @@ class DebuggerAgentUtil {
   static int ReceiveAll(const Socket* conn, char* data, int len);
 };
 
-
 } }  // namespace v8::internal
 
-#endif  // V8_V8_DEBUG_AGENT_H_
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+#endif  // V8_DEBUG_AGENT_H_

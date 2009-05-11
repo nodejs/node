@@ -189,28 +189,44 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
     }
   }
 
-  // Compute the registers already reserved by values in the frame.
-  // Count the reserved registers to avoid using them.
-  RegisterFile frame_registers = RegisterAllocator::Reserved();
-  for (int i = 0; i < length; i++) {
-    FrameElement* element = elements[i];
-    if (element != NULL && element->is_register()) {
-      frame_registers.Use(element->reg());
+  // Build the new frame.  A freshly allocated frame has memory elements
+  // for the parameters and some platform-dependent elements (e.g.,
+  // return address).  Replace those first.
+  entry_frame_ = new VirtualFrame(cgen_);
+  int index = 0;
+  for (; index < entry_frame_->elements_.length(); index++) {
+    // If the element is determined, set it now.  Count registers.  Mark
+    // elements as copied exactly when they have a copy.  Undetermined
+    // elements are initially recorded as if in memory.
+    if (elements[index] != NULL) {
+      entry_frame_->elements_[index] = *elements[index];
+      entry_frame_->elements_[index].clear_copied();
+      if (elements[index]->is_register()) {
+        entry_frame_->register_locations_[elements[index]->reg().code()] =
+            index;
+      } else if (elements[index]->is_copy()) {
+        entry_frame_->elements_[elements[index]->index()].set_copied();
+      }
+    }
+  }
+  // Then fill in the rest of the frame with new elements.
+  for (; index < length; index++) {
+    if (elements[index] == NULL) {
+      entry_frame_->elements_.Add(FrameElement::MemoryElement());
+    } else {
+      entry_frame_->elements_.Add(*elements[index]);
+      entry_frame_->elements_[index].clear_copied();
+      if (elements[index]->is_register()) {
+        entry_frame_->register_locations_[elements[index]->reg().code()] =
+            index;
+      } else if (elements[index]->is_copy()) {
+        entry_frame_->elements_[elements[index]->index()].set_copied();
+      }
     }
   }
 
-  // Build the new frame.  The frame already has memory elements for
-  // the parameters (including the receiver) and the return address.
-  // We will fill it up with memory elements.
-  entry_frame_ = new VirtualFrame(cgen_);
-  while (entry_frame_->elements_.length() < length) {
-    entry_frame_->elements_.Add(FrameElement::MemoryElement());
-  }
-
-
-  // Copy the already-determined frame elements to the entry frame,
-  // and allocate any still-undetermined frame elements to registers
-  // or memory, from the top down.
+  // Allocate any still-undetermined frame elements to registers or
+  // memory, from the top down.
   for (int i = length - 1; i >= 0; i--) {
     if (elements[i] == NULL) {
       // If the value is synced on all frames, put it in memory.  This
@@ -234,7 +250,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
         if (element.is_register() &&
-            !frame_registers.is_used(element.reg())) {
+            !entry_frame_->is_used(element.reg())) {
           candidate_registers.Use(element.reg());
           if (candidate_registers.count(element.reg()) > max_count) {
             max_count = candidate_registers.count(element.reg());
@@ -245,40 +261,32 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       // If there was no preferred choice consider any free register.
       if (best_reg_code == no_reg.code_) {
         for (int j = 0; j < kNumRegisters; j++) {
-          if (!frame_registers.is_used(j)) {
+          if (!entry_frame_->is_used(j) && !RegisterAllocator::IsReserved(j)) {
             best_reg_code = j;
             break;
           }
         }
       }
 
-      // If there was a register choice, use it.  If not do nothing
-      // (the element is already recorded as in memory)
       if (best_reg_code != no_reg.code_) {
+        // If there was a register choice, use it.  Preserve the copied
+        // flag on the element.
+        bool is_copied = entry_frame_->elements_[i].is_copied();
         Register reg = { best_reg_code };
-        frame_registers.Use(reg);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
                                           FrameElement::NOT_SYNCED);
+        if (is_copied) entry_frame_->elements_[i].set_copied();
+        entry_frame_->register_locations_[best_reg_code] = i;
       }
-    } else {
-      // The element is already determined.
-      entry_frame_->elements_[i] = *elements[i];
+      // If there was no register found, the element is already
+      // recorded as in memory.
     }
   }
 
-  // Set the copied flags in the frame to be exact.  This assumes that
-  // the backing store of copies is always lower in the frame.
-  // Set the register locations to their index in the frame.
+  // Set the static type of frame elements.
   for (int i = 0; i < length; i++) {
     FrameElement* current = &entry_frame_->elements_[i];
-    current->clear_copied();
-    if (current->is_copy()) {
-      entry_frame_->elements_[current->index()].set_copied();
-    } else if (current->is_register()) {
-      entry_frame_->register_locations_[current->reg().code()] = i;
-    }
-
     if (direction_ == BIDIRECTIONAL && i >= high_water_mark) {
       current->set_static_type(StaticType::unknown());
     } else {

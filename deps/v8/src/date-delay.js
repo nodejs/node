@@ -985,6 +985,25 @@ function DateToGMTString() {
 }
 
 
+function PadInt(n) {
+  // Format integers to have at least two digits.
+  return n < 10 ? '0' + n : n;
+}
+
+
+function DateToISOString() {
+  return this.getUTCFullYear() + '-' + PadInt(this.getUTCMonth() + 1) +
+      '-' + PadInt(this.getUTCDate()) + 'T' + PadInt(this.getUTCHours()) +
+      ':' + PadInt(this.getUTCMinutes()) + ':' + PadInt(this.getUTCSeconds()) +
+      'Z';
+}
+
+
+function DateToJSON(key) {
+  return CheckJSONPrimitive(this.toISOString());
+}
+
+
 // -------------------------------------------------------------------
 
 function SetupDate() {
@@ -1000,7 +1019,7 @@ function SetupDate() {
 
   // Setup non-enumerable functions of the Date prototype object and
   // set their names.
-  InstallFunctions($Date.prototype, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($Date.prototype, DONT_ENUM, $Array(
     "toString", DateToString,
     "toDateString", DateToDateString,
     "toTimeString", DateToTimeString,
@@ -1044,7 +1063,9 @@ function SetupDate() {
     "toGMTString", DateToGMTString,
     "toUTCString", DateToUTCString,
     "getYear", DateGetYear,
-    "setYear", DateSetYear
+    "setYear", DateSetYear,
+    "toISOString", DateToISOString,
+    "toJSON", DateToJSON
   ));
 }
 

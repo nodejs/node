@@ -521,10 +521,10 @@ ExternalReference::ExternalReference(Runtime::Function* f)
 ExternalReference::ExternalReference(const IC_Utility& ic_utility)
   : address_(ic_utility.address()) {}
 
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference::ExternalReference(const Debug_Address& debug_address)
   : address_(debug_address.address()) {}
-
+#endif
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -557,29 +557,71 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit() {
 }
 
 
-ExternalReference ExternalReference::debug_break() {
-  return ExternalReference(FUNCTION_ADDR(Debug::Break));
-}
-
-
 ExternalReference ExternalReference::new_space_start() {
   return ExternalReference(Heap::NewSpaceStart());
 }
+
 
 ExternalReference ExternalReference::new_space_allocation_top_address() {
   return ExternalReference(Heap::NewSpaceAllocationTopAddress());
 }
 
+
 ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
   return ExternalReference(Heap::always_allocate_scope_depth_address());
 }
+
 
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
   return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
 }
 
+
+static double add_two_doubles(double x, double y) {
+  return x + y;
+}
+
+
+static double sub_two_doubles(double x, double y) {
+  return x - y;
+}
+
+
+static double mul_two_doubles(double x, double y) {
+  return x * y;
+}
+
+
+ExternalReference ExternalReference::double_fp_operation(
+    Token::Value operation) {
+  typedef double BinaryFPOperation(double x, double y);
+  BinaryFPOperation* function = NULL;
+  switch (operation) {
+    case Token::ADD:
+      function = &add_two_doubles;
+      break;
+    case Token::SUB:
+      function = &sub_two_doubles;
+      break;
+    case Token::MUL:
+      function = &mul_two_doubles;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return ExternalReference(FUNCTION_ADDR(function));
+}
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+ExternalReference ExternalReference::debug_break() {
+  return ExternalReference(FUNCTION_ADDR(Debug::Break));
+}
+
+
 ExternalReference ExternalReference::debug_step_in_fp_address() {
   return ExternalReference(Debug::step_in_fp_addr());
 }
+#endif
 
 } }  // namespace v8::internal

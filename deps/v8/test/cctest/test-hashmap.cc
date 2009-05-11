@@ -43,7 +43,7 @@ class IntSet {
   IntSet() : map_(DefaultMatchFun)  {}
 
   void Insert(int x) {
-    ASSERT(x != 0);  // 0 corresponds to (void*)NULL - illegal key value
+    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
     HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), Hash(x), true);
     CHECK(p != NULL);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);

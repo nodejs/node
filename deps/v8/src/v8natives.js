@@ -54,6 +54,16 @@ function InstallFunctions(object, attributes, functions) {
   }
 }
 
+// Emulates JSC by installing functions on a hidden prototype that
+// lies above the current object/prototype.  This lets you override
+// functions on String.prototype etc. and then restore the old function
+// with delete.  See http://code.google.com/p/chromium/issues/detail?id=1717
+function InstallFunctionsOnHiddenPrototype(object, attributes, functions) {
+  var hidden_prototype = new $Object();
+  %SetHiddenPrototype(object, hidden_prototype);
+  InstallFunctions(hidden_prototype, attributes, functions);
+}
+
 
 // ----------------------------------------------------------------------------
 
@@ -110,7 +120,7 @@ function GlobalEval(x) {
                          'be the global object from which eval originated');
   }
   
-  var f = %CompileString(x, 0);
+  var f = %CompileString(x, 0, false);
   if (!IS_FUNCTION(f)) return f;
 
   return f.call(this);
@@ -121,7 +131,7 @@ function GlobalEval(x) {
 function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), 0);
+    var f = %CompileString(ToString(expr), 0, false);
     f.call(%GlobalReceiver(global));
   }
   return null;
@@ -312,13 +322,19 @@ function BooleanValueOf() {
 }
 
 
+function BooleanToJSON(key) {
+  return CheckJSONPrimitive(this.valueOf());
+}
+
+
 // ----------------------------------------------------------------------------
 
 
 function SetupBoolean() {
   InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
     "toString", BooleanToString,
-    "valueOf", BooleanValueOf
+    "valueOf", BooleanValueOf,
+    "toJSON", BooleanToJSON
   ));
 }
 
@@ -418,6 +434,18 @@ function NumberToPrecision(precision) {
 }
 
 
+function CheckJSONPrimitive(val) {
+  if (!IsPrimitive(val))
+    throw MakeTypeError('result_not_primitive', ['toJSON', val]);
+  return val;
+}
+
+
+function NumberToJSON(key) {
+  return CheckJSONPrimitive(this.valueOf());
+}
+
+
 // ----------------------------------------------------------------------------
 
 function SetupNumber() {
@@ -455,7 +483,8 @@ function SetupNumber() {
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixed,
     "toExponential", NumberToExponential,
-    "toPrecision", NumberToPrecision
+    "toPrecision", NumberToPrecision,
+    "toJSON", NumberToJSON
   ));
 }
 
@@ -521,7 +550,7 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source, -1)();
+  var f = %CompileString(source, -1, false)();
   %FunctionSetName(f, "anonymous");
   return %SetNewFunctionAttributes(f);
 }

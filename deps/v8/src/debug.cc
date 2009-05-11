@@ -35,12 +35,17 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "ic.h"
+#include "ic-inl.h"
 #include "natives.h"
 #include "stub-cache.h"
 #include "log.h"
 
+#include "../include/v8-debug.h"
+
 namespace v8 { namespace internal {
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
   char* data = NewArray<char>(s->Length() + 1);
@@ -288,14 +293,8 @@ void BreakLocationIterator::SetDebugBreak() {
     // Patch the frame exit code with a break point.
     SetDebugBreakAtReturn();
   } else {
-    // Patch the original code with the current address as the current address
-    // might have changed by the inline caching since the code was copied.
-    original_rinfo()->set_target_address(rinfo()->target_address());
-
-    // Patch the code to invoke the builtin debug break function matching the
-    // calling convention used by the call site.
-    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(rinfo()));
-    rinfo()->set_target_address(dbgbrk_code->entry());
+    // Patch the IC call.
+    SetDebugBreakAtIC();
   }
   ASSERT(IsDebugBreak());
 }
@@ -306,8 +305,8 @@ void BreakLocationIterator::ClearDebugBreak() {
     // Restore the frame exit code.
     ClearDebugBreakAtReturn();
   } else {
-    // Patch the code to the original invoke.
-    rinfo()->set_target_address(original_rinfo()->target_address());
+    // Patch the IC call.
+    ClearDebugBreakAtIC();
   }
   ASSERT(!IsDebugBreak());
 }
@@ -357,6 +356,37 @@ bool BreakLocationIterator::IsDebugBreak() {
   } else {
     return Debug::IsDebugBreak(rinfo()->target_address());
   }
+}
+
+
+void BreakLocationIterator::SetDebugBreakAtIC() {
+  // Patch the original code with the current address as the current address
+  // might have changed by the inline caching since the code was copied.
+  original_rinfo()->set_target_address(rinfo()->target_address());
+
+  RelocInfo::Mode mode = rmode();
+  if (RelocInfo::IsCodeTarget(mode)) {
+    Address target = rinfo()->target_address();
+    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+
+    // Patch the code to invoke the builtin debug break function matching the
+    // calling convention used by the call site.
+    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(code, mode));
+    rinfo()->set_target_address(dbgbrk_code->entry());
+
+    // For stubs that refer back to an inlined version clear the cached map for
+    // the inlined case to always go through the IC. As long as the break point
+    // is set the patching performed by the runtime system will take place in
+    // the code copy and will therefore have no effect on the running code
+    // keeping it from using the inlined code.
+    if (code->is_keyed_load_stub()) KeyedLoadIC::ClearInlinedVersion(pc());
+  }
+}
+
+
+void BreakLocationIterator::ClearDebugBreakAtIC() {
+  // Patch the code to the original invoke.
+  rinfo()->set_target_address(original_rinfo()->target_address());
 }
 
 
@@ -1055,47 +1085,41 @@ bool Debug::IsBreakStub(Code* code) {
 
 
 // Find the builtin to use for invoking the debug break
-Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
+Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
-  RelocInfo::Mode mode = rinfo->rmode();
-
-  if (RelocInfo::IsCodeTarget(mode)) {
-    Address target = rinfo->target_address();
-    Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_inline_cache_stub()) {
-      if (code->is_call_stub()) {
-        return ComputeCallDebugBreak(code->arguments_count());
-      }
-      if (code->is_load_stub()) {
-        return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
-      }
-      if (code->is_store_stub()) {
-        return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
-      }
-      if (code->is_keyed_load_stub()) {
-        Handle<Code> result =
-            Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
-        return result;
-      }
-      if (code->is_keyed_store_stub()) {
-        Handle<Code> result =
-            Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
-        return result;
-      }
+  if (code->is_inline_cache_stub()) {
+    if (code->is_call_stub()) {
+      return ComputeCallDebugBreak(code->arguments_count());
     }
-    if (RelocInfo::IsConstructCall(mode)) {
+    if (code->is_load_stub()) {
+      return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
+    }
+    if (code->is_store_stub()) {
+      return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
+    }
+    if (code->is_keyed_load_stub()) {
       Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
+          Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
       return result;
     }
-    if (code->kind() == Code::STUB) {
-      ASSERT(code->major_key() == CodeStub::CallFunction ||
-             code->major_key() == CodeStub::StackCheck);
+    if (code->is_keyed_store_stub()) {
       Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::StubNoRegisters_DebugBreak));
+          Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
       return result;
     }
+  }
+  if (RelocInfo::IsConstructCall(mode)) {
+    Handle<Code> result =
+        Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
+    return result;
+  }
+  if (code->kind() == Code::STUB) {
+    ASSERT(code->major_key() == CodeStub::CallFunction ||
+           code->major_key() == CodeStub::StackCheck);
+    Handle<Code> result =
+        Handle<Code>(Builtins::builtin(Builtins::StubNoRegisters_DebugBreak));
+    return result;
   }
 
   UNREACHABLE();
@@ -1396,17 +1420,13 @@ Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 bool Debugger::never_unload_debugger_ = false;
-DebugMessageThread* Debugger::message_thread_ = NULL;
-v8::DebugMessageHandler Debugger::message_handler_ = NULL;
+v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::message_handler_cleared_ = false;
-void* Debugger::message_handler_data_ = NULL;
-v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
-void* Debugger::host_dispatch_handler_data_ = NULL;
+v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
-LockingMessageQueue Debugger::command_queue_(kQueueInitialSize);
-LockingMessageQueue Debugger::message_queue_(kQueueInitialSize);
+LockingCommandMessageQueue Debugger::command_queue_(kQueueInitialSize);
 Semaphore* Debugger::command_received_ = OS::CreateSemaphore(0);
-Semaphore* Debugger::message_received_ = OS::CreateSemaphore(0);
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
@@ -1534,8 +1554,8 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
     return;
   }
 
-  // Process debug event
-  ProcessDebugEvent(v8::Exception, event_data, false);
+  // Process debug event.
+  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
   // Return to continue execution from where the exception was thrown.
 }
 
@@ -1566,8 +1586,10 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
     return;
   }
 
-  // Process debug event
-  ProcessDebugEvent(v8::Break, event_data, auto_continue);
+  // Process debug event.
+  ProcessDebugEvent(v8::Break,
+                    Handle<JSObject>::cast(event_data),
+                    auto_continue);
 }
 
 
@@ -1591,8 +1613,10 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
     return;
   }
 
-  // Process debug event
-  ProcessDebugEvent(v8::BeforeCompile, event_data, false);
+  // Process debug event.
+  ProcessDebugEvent(v8::BeforeCompile,
+                    Handle<JSObject>::cast(event_data),
+                    true);
 }
 
 
@@ -1652,8 +1676,10 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   if (caught_exception) {
     return;
   }
-  // Process debug event
-  ProcessDebugEvent(v8::AfterCompile, event_data, false);
+  // Process debug event.
+  ProcessDebugEvent(v8::AfterCompile,
+                    Handle<JSObject>::cast(event_data),
+                    true);
 }
 
 
@@ -1678,12 +1704,12 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
     return;
   }
   // Process debug event.
-  ProcessDebugEvent(v8::NewFunction, event_data, false);
+  ProcessDebugEvent(v8::NewFunction, Handle<JSObject>::cast(event_data), true);
 }
 
 
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
-                                 Handle<Object> event_data,
+                                 Handle<JSObject> event_data,
                                  bool auto_continue) {
   HandleScope scope;
 
@@ -1695,7 +1721,10 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   }
   // First notify the message handler if any.
   if (message_handler_ != NULL) {
-    NotifyMessageHandler(event, exec_state, event_data, auto_continue);
+    NotifyMessageHandler(event,
+                         Handle<JSObject>::cast(exec_state),
+                         event_data,
+                         auto_continue);
   }
   // Notify registered debug event listener. This can be either a C or a
   // JavaScript function.
@@ -1703,11 +1732,11 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
     if (event_listener_->IsProxy()) {
       // C debug event listener.
       Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
-      v8::DebugEventCallback callback =
-            FUNCTION_CAST<v8::DebugEventCallback>(callback_obj->proxy());
+      v8::Debug::EventCallback callback =
+            FUNCTION_CAST<v8::Debug::EventCallback>(callback_obj->proxy());
       callback(event,
                v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
-               v8::Utils::ToLocal(Handle<JSObject>::cast(event_data)),
+               v8::Utils::ToLocal(event_data),
                v8::Utils::ToLocal(Handle<Object>::cast(event_listener_data_)));
     } else {
       // JavaScript debug event listener.
@@ -1718,7 +1747,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
       const int argc = 4;
       Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
                               exec_state.location(),
-                              event_data.location(),
+                              Handle<Object>::cast(event_data).location(),
                               event_listener_data_.location() };
       Handle<Object> result = Execution::TryCall(fun, Top::global(),
                                                  argc, argv, &caught_exception);
@@ -1748,25 +1777,26 @@ void Debugger::UnloadDebugger() {
 
 
 void Debugger::NotifyMessageHandler(v8::DebugEvent event,
-                                    Handle<Object> exec_state,
-                                    Handle<Object> event_data,
+                                    Handle<JSObject> exec_state,
+                                    Handle<JSObject> event_data,
                                     bool auto_continue) {
   HandleScope scope;
 
   if (!Debug::Load()) return;
 
   // Process the individual events.
-  bool interactive = false;
+  bool sendEventMessage = false;
   switch (event) {
     case v8::Break:
-      interactive = true;  // Break event is always interactive
+      sendEventMessage = !auto_continue;
       break;
     case v8::Exception:
-      interactive = true;  // Exception event is always interactive
+      sendEventMessage = true;
       break;
     case v8::BeforeCompile:
       break;
     case v8::AfterCompile:
+      sendEventMessage = true;
       break;
     case v8::NewFunction:
       break;
@@ -1774,8 +1804,25 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       UNREACHABLE();
   }
 
-  // Done if not interactive.
-  if (!interactive) return;
+  // The debug command interrupt flag might have been set when the command was
+  // added. It should be enough to clear the flag only once while we are in the
+  // debugger.
+  ASSERT(Debug::InDebugger());
+  StackGuard::Continue(DEBUGCOMMAND);
+
+  // Notify the debugger that a debug event has occurred unless auto continue is
+  // active in which case no event is send.
+  if (sendEventMessage) {
+    MessageImpl message = MessageImpl::NewEvent(
+        event,
+        auto_continue,
+        Handle<JSObject>::cast(exec_state),
+        Handle<JSObject>::cast(event_data));
+    InvokeMessageHandler(message);
+  }
+  if (auto_continue && !HasCommands()) {
+    return;
+  }
 
   // Get the DebugCommandProcessor.
   v8::Local<v8::Object> api_exec_state =
@@ -1792,43 +1839,28 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     return;
   }
 
-  // Notify the debugger that a debug event has occurred unless auto continue is
-  // active in which case no event is send.
-  if (!auto_continue) {
-    bool success = SendEventMessage(event_data);
-    if (!success) {
-      // If failed to notify debugger just continue running.
-      return;
-    }
-  }
-
   // Process requests from the debugger.
   while (true) {
     // Wait for new command in the queue.
-    command_received_->Wait();
-
-    // The debug command interrupt flag might have been set when the command was
-    // added.
-    StackGuard::Continue(DEBUGCOMMAND);
-
-    // Get the command from the queue.
-    Vector<uint16_t> command = command_queue_.Get();
-    Logger::DebugTag("Got request from command queue, in interactive loop.");
-    if (!Debugger::IsDebuggerActive()) {
-      return;
+    if (Debugger::host_dispatch_handler_) {
+      // In case there is a host dispatch - do periodic dispatches.
+      if (!command_received_->Wait(host_dispatch_micros_)) {
+        // Timout expired, do the dispatch.
+        Debugger::host_dispatch_handler_();
+        continue;
+      }
+    } else {
+      // In case there is no host dispatch - just wait.
+      command_received_->Wait();
     }
 
-    // Check if the command is a host dispatch.
-    if (command[0] == 0) {
-      if (Debugger::host_dispatch_handler_) {
-        int32_t dispatch = (command[1] << 16) | command[2];
-        Debugger::host_dispatch_handler_(reinterpret_cast<void*>(dispatch),
-                                         Debugger::host_dispatch_handler_data_);
-      }
-      if (auto_continue && !HasCommands()) {
-        return;
-      }
-      continue;
+    // Get the command from the queue.
+    CommandMessage command = command_queue_.Get();
+    Logger::DebugTag("Got request from command queue, in interactive loop.");
+    if (!Debugger::IsDebuggerActive()) {
+      // Delete command text and user data.
+      command.Dispose();
+      return;
     }
 
     // Invoke JavaScript to process the debug request.
@@ -1838,8 +1870,9 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::TryCatch try_catch;
     fun_name = v8::String::New("processDebugRequest");
     fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
-    request = v8::String::New(reinterpret_cast<uint16_t*>(command.start()),
-                              command.length());
+
+    request = v8::String::New(command.text().start(),
+                              command.text().length());
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { request };
     v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
@@ -1875,13 +1908,16 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       response = try_catch.Exception()->ToString();
     }
 
-    // Convert text result to C string.
-    v8::String::Value val(response);
-    Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                        response->Length());
-
     // Return the result.
-    SendMessage(str);
+    MessageImpl message = MessageImpl::NewResponse(
+        event,
+        running,
+        Handle<JSObject>::cast(exec_state),
+        Handle<JSObject>::cast(event_data),
+        Handle<String>(Utils::OpenHandle(*response)),
+        command.client_data());
+    InvokeMessageHandler(message);
+    command.Dispose();
 
     // Return from debug event processing if either the VM is put into the
     // runnning state (through a continue command) or auto continue is active
@@ -1927,18 +1963,11 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
-                                 bool message_handler_thread) {
+void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
   ScopedLock with(debugger_access_);
 
   message_handler_ = handler;
-  message_handler_data_ = data;
-  if (handler != NULL) {
-    if (!message_thread_ && message_handler_thread) {
-      message_thread_ = new DebugMessageThread();
-      message_thread_->Start();
-    }
-  } else {
+  if (handler == NULL) {
     // Indicate that the message handler was recently cleared.
     message_handler_cleared_ = true;
 
@@ -1951,87 +1980,37 @@ void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
 }
 
 
-void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                      void* data) {
+void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
+                                      int period) {
   host_dispatch_handler_ = handler;
-  host_dispatch_handler_data_ = data;
+  host_dispatch_micros_ = period * 1000;
 }
 
 
 // Calls the registered debug message handler. This callback is part of the
-// public API. Messages are kept internally as Vector<uint16_t> strings, which
-// are allocated in various places and deallocated by the calling function
-// sometime after this call.
-void Debugger::InvokeMessageHandler(Vector<uint16_t> message) {
+// public API.
+void Debugger::InvokeMessageHandler(MessageImpl message) {
   ScopedLock with(debugger_access_);
 
   if (message_handler_ != NULL) {
-    message_handler_(message.start(), message.length(), message_handler_data_);
+    message_handler_(message);
   }
-}
-
-
-void Debugger::SendMessage(Vector<uint16_t> message) {
-  if (message_thread_ == NULL) {
-    // If there is no message thread just invoke the message handler from the
-    // V8 thread.
-    InvokeMessageHandler(message);
-  } else {
-    // Put a copy of the message coming from V8 on the queue. The new copy of
-    // the event string is destroyed by the message thread.
-    Vector<uint16_t> message_copy = message.Clone();
-    Logger::DebugTag("Put message on event message_queue.");
-    message_queue_.Put(message_copy);
-    message_received_->Signal();
-  }
-}
-
-
-bool Debugger::SendEventMessage(Handle<Object> event_data) {
-  v8::HandleScope scope;
-  // Call toJSONProtocol on the debug event object.
-  v8::Local<v8::Object> api_event_data =
-      v8::Utils::ToLocal(Handle<JSObject>::cast(event_data));
-  v8::Local<v8::String> fun_name = v8::String::New("toJSONProtocol");
-  v8::Local<v8::Function> fun =
-      v8::Function::Cast(*api_event_data->Get(fun_name));
-  v8::TryCatch try_catch;
-  v8::Local<v8::Value> json_event = *fun->Call(api_event_data, 0, NULL);
-  v8::Local<v8::String> json_event_string;
-  if (!try_catch.HasCaught()) {
-    if (!json_event->IsUndefined()) {
-      json_event_string = json_event->ToString();
-      if (FLAG_trace_debug_json) {
-        PrintLn(json_event_string);
-      }
-      v8::String::Value val(json_event_string);
-      Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                           json_event_string->Length());
-      SendMessage(str);
-    } else {
-      SendMessage(Vector<uint16_t>::empty());
-    }
-  } else {
-    PrintLn(try_catch.Exception());
-    return false;
-  }
-  return true;
 }
 
 
 // Puts a command coming from the public API on the queue.  Creates
 // a copy of the command string managed by the debugger.  Up to this
 // point, the command data was managed by the API client.  Called
-// by the API client thread.  This is where the API client hands off
-// processing of the command to the DebugMessageThread thread.
-// The new copy of the command is destroyed in HandleCommand().
-void Debugger::ProcessCommand(Vector<const uint16_t> command) {
-  // Make a copy of the command. Need to cast away const for Clone to work.
-  Vector<uint16_t> command_copy =
+// by the API client thread.
+void Debugger::ProcessCommand(Vector<const uint16_t> command,
+                              v8::Debug::ClientData* client_data) {
+  // Need to cast away const.
+  CommandMessage message = CommandMessage::New(
       Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
-                       command.length()).Clone();
+                       command.length()),
+      client_data);
   Logger::DebugTag("Put command on command_queue.");
-  command_queue_.Put(command_copy);
+  command_queue_.Put(message);
   command_received_->Signal();
 
   // Set the debug command break flag to have the command processed.
@@ -2043,23 +2022,6 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
 
 bool Debugger::HasCommands() {
   return !command_queue_.IsEmpty();
-}
-
-
-void Debugger::ProcessHostDispatch(void* dispatch) {
-  // Puts a host dispatch comming from the public API on the queue.
-  uint16_t hack[3];
-  hack[0] = 0;
-  hack[1] = reinterpret_cast<uint32_t>(dispatch) >> 16;
-  hack[2] = reinterpret_cast<uint32_t>(dispatch) & 0xFFFF;
-  Logger::DebugTag("Put dispatch on command_queue.");
-  command_queue_.Put(Vector<uint16_t>(hack, 3).Clone());
-  command_received_->Signal();
-
-  // Set the debug command break flag to have the host dispatch processed.
-  if (!Debug::InDebugger()) {
-    StackGuard::DebugCommand();
-  }
 }
 
 
@@ -2118,47 +2080,152 @@ void Debugger::StopAgent() {
 }
 
 
-void Debugger::TearDown() {
-  if (message_thread_ != NULL) {
-    message_thread_->Stop();
-    delete message_thread_;
-    message_thread_ = NULL;
-  }
+MessageImpl MessageImpl::NewEvent(DebugEvent event,
+                                  bool running,
+                                  Handle<JSObject> exec_state,
+                                  Handle<JSObject> event_data) {
+  MessageImpl message(true, event, running,
+                      exec_state, event_data, Handle<String>(), NULL);
+  return message;
 }
 
 
-void DebugMessageThread::Run() {
-  // Sends debug events to an installed debugger message callback.
-  while (keep_running_) {
-    // Wait and Get are paired so that semaphore count equals queue length.
-    Debugger::message_received_->Wait();
-    Logger::DebugTag("Get message from event message_queue.");
-    Vector<uint16_t> message = Debugger::message_queue_.Get();
-    if (message.length() > 0) {
-      Debugger::InvokeMessageHandler(message);
+MessageImpl MessageImpl::NewResponse(DebugEvent event,
+                                     bool running,
+                                     Handle<JSObject> exec_state,
+                                     Handle<JSObject> event_data,
+                                     Handle<String> response_json,
+                                     v8::Debug::ClientData* client_data) {
+  MessageImpl message(false, event, running,
+                      exec_state, event_data, response_json, client_data);
+  return message;
+}
+
+
+MessageImpl::MessageImpl(bool is_event,
+                         DebugEvent event,
+                         bool running,
+                         Handle<JSObject> exec_state,
+                         Handle<JSObject> event_data,
+                         Handle<String> response_json,
+                         v8::Debug::ClientData* client_data)
+    : is_event_(is_event),
+      event_(event),
+      running_(running),
+      exec_state_(exec_state),
+      event_data_(event_data),
+      response_json_(response_json),
+      client_data_(client_data) {}
+
+
+bool MessageImpl::IsEvent() const {
+  return is_event_;
+}
+
+
+bool MessageImpl::IsResponse() const {
+  return !is_event_;
+}
+
+
+DebugEvent MessageImpl::GetEvent() const {
+  return event_;
+}
+
+
+bool MessageImpl::WillStartRunning() const {
+  return running_;
+}
+
+
+v8::Handle<v8::Object> MessageImpl::GetExecutionState() const {
+  return v8::Utils::ToLocal(exec_state_);
+}
+
+
+v8::Handle<v8::Object> MessageImpl::GetEventData() const {
+  return v8::Utils::ToLocal(event_data_);
+}
+
+
+v8::Handle<v8::String> MessageImpl::GetJSON() const {
+  v8::HandleScope scope;
+
+  if (IsEvent()) {
+    // Call toJSONProtocol on the debug event object.
+    Handle<Object> fun = GetProperty(event_data_, "toJSONProtocol");
+    if (!fun->IsJSFunction()) {
+      return v8::Handle<v8::String>();
     }
+    bool caught_exception;
+    Handle<Object> json = Execution::TryCall(Handle<JSFunction>::cast(fun),
+                                             event_data_,
+                                             0, NULL, &caught_exception);
+    if (caught_exception || !json->IsString()) {
+      return v8::Handle<v8::String>();
+    }
+    return scope.Close(v8::Utils::ToLocal(Handle<String>::cast(json)));
+  } else {
+    return v8::Utils::ToLocal(response_json_);
   }
 }
 
 
-void DebugMessageThread::Stop() {
-  keep_running_ = false;
-  Debugger::SendMessage(Vector<uint16_t>(NULL, 0));
-  Join();
+v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
+  return v8::Utils::ToLocal(Debug::debugger_entry()->GetContext());
 }
 
 
-MessageQueue::MessageQueue(int size) : start_(0), end_(0), size_(size) {
-  messages_ = NewArray<Vector<uint16_t> >(size);
+v8::Debug::ClientData* MessageImpl::GetClientData() const {
+  return client_data_;
 }
 
 
-MessageQueue::~MessageQueue() {
+CommandMessage::CommandMessage() : text_(Vector<uint16_t>::empty()),
+                                   client_data_(NULL) {
+}
+
+
+CommandMessage::CommandMessage(const Vector<uint16_t>& text,
+                               v8::Debug::ClientData* data)
+    : text_(text),
+      client_data_(data) {
+}
+
+
+CommandMessage::~CommandMessage() {
+}
+
+
+void CommandMessage::Dispose() {
+  text_.Dispose();
+  delete client_data_;
+  client_data_ = NULL;
+}
+
+
+CommandMessage CommandMessage::New(const Vector<uint16_t>& command,
+                                   v8::Debug::ClientData* data) {
+  return CommandMessage(command.Clone(), data);
+}
+
+
+CommandMessageQueue::CommandMessageQueue(int size) : start_(0), end_(0),
+                                                     size_(size) {
+  messages_ = NewArray<CommandMessage>(size);
+}
+
+
+CommandMessageQueue::~CommandMessageQueue() {
+  while (!IsEmpty()) {
+    CommandMessage m = Get();
+    m.Dispose();
+  }
   DeleteArray(messages_);
 }
 
 
-Vector<uint16_t> MessageQueue::Get() {
+CommandMessage CommandMessageQueue::Get() {
   ASSERT(!IsEmpty());
   int result = start_;
   start_ = (start_ + 1) % size_;
@@ -2166,7 +2233,7 @@ Vector<uint16_t> MessageQueue::Get() {
 }
 
 
-void MessageQueue::Put(const Vector<uint16_t>& message) {
+void CommandMessageQueue::Put(const CommandMessage& message) {
   if ((end_ + 1) % size_ == start_) {
     Expand();
   }
@@ -2175,53 +2242,57 @@ void MessageQueue::Put(const Vector<uint16_t>& message) {
 }
 
 
-void MessageQueue::Expand() {
-  MessageQueue new_queue(size_ * 2);
+void CommandMessageQueue::Expand() {
+  CommandMessageQueue new_queue(size_ * 2);
   while (!IsEmpty()) {
     new_queue.Put(Get());
   }
-  Vector<uint16_t>* array_to_free = messages_;
+  CommandMessage* array_to_free = messages_;
   *this = new_queue;
   new_queue.messages_ = array_to_free;
+  // Make the new_queue empty so that it doesn't call Dispose on any messages.
+  new_queue.start_ = new_queue.end_;
   // Automatic destructor called on new_queue, freeing array_to_free.
 }
 
 
-LockingMessageQueue::LockingMessageQueue(int size) : queue_(size) {
+LockingCommandMessageQueue::LockingCommandMessageQueue(int size)
+    : queue_(size) {
   lock_ = OS::CreateMutex();
 }
 
 
-LockingMessageQueue::~LockingMessageQueue() {
+LockingCommandMessageQueue::~LockingCommandMessageQueue() {
   delete lock_;
 }
 
 
-bool LockingMessageQueue::IsEmpty() const {
+bool LockingCommandMessageQueue::IsEmpty() const {
   ScopedLock sl(lock_);
   return queue_.IsEmpty();
 }
 
 
-Vector<uint16_t> LockingMessageQueue::Get() {
+CommandMessage LockingCommandMessageQueue::Get() {
   ScopedLock sl(lock_);
-  Vector<uint16_t> result = queue_.Get();
-  Logger::DebugEvent("Get", result);
+  CommandMessage result = queue_.Get();
+  Logger::DebugEvent("Get", result.text());
   return result;
 }
 
 
-void LockingMessageQueue::Put(const Vector<uint16_t>& message) {
+void LockingCommandMessageQueue::Put(const CommandMessage& message) {
   ScopedLock sl(lock_);
   queue_.Put(message);
-  Logger::DebugEvent("Put", message);
+  Logger::DebugEvent("Put", message.text());
 }
 
 
-void LockingMessageQueue::Clear() {
+void LockingCommandMessageQueue::Clear() {
   ScopedLock sl(lock_);
   queue_.Clear();
 }
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

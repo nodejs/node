@@ -251,11 +251,11 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       __object__ = FUNCTION_CALL;                                         \
     }                                                                     \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure()) {                             \
+    if (__object__->IsOutOfMemoryFailure() ||                             \
+        __object__->IsRetryAfterGC()) {                                   \
       /* TODO(1181417): Fix this. */                                      \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2");      \
     }                                                                     \
-    ASSERT(!__object__->IsRetryAfterGC());                                \
     RETURN_EMPTY;                                                         \
   } while (false)
 

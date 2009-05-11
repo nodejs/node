@@ -207,7 +207,7 @@ class OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  static int StackWalk(StackFrame* frames, int frames_size);
+  static int StackWalk(Vector<StackFrame> frames);
 
   // Factory method for creating platform dependent Mutex.
   // Please use delete to reclaim the storage for the returned Mutex.
@@ -350,7 +350,16 @@ class Thread: public ThreadHandle {
   static LocalStorageKey CreateThreadLocalKey();
   static void DeleteThreadLocalKey(LocalStorageKey key);
   static void* GetThreadLocal(LocalStorageKey key);
+  static int GetThreadLocalInt(LocalStorageKey key) {
+    return static_cast<int>(reinterpret_cast<intptr_t>(GetThreadLocal(key)));
+  }
   static void SetThreadLocal(LocalStorageKey key, void* value);
+  static void SetThreadLocalInt(LocalStorageKey key, int value) {
+    SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
+  }
+  static bool HasThreadLocal(LocalStorageKey key) {
+    return GetThreadLocal(key) != NULL;
+  }
 
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
@@ -483,9 +492,9 @@ class Socket {
 class TickSample {
  public:
   TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
-  unsigned int pc;  // Instruction pointer.
-  unsigned int sp;  // Stack pointer.
-  unsigned int fp;  // Frame pointer.
+  uintptr_t pc;  // Instruction pointer.
+  uintptr_t sp;  // Stack pointer.
+  uintptr_t fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
   static const int kMaxFramesCount = 100;
   EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.

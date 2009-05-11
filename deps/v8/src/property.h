@@ -245,12 +245,23 @@ class LookupResult BASE_EMBEDDED {
   // Tells whether the value needs to be loaded.
   bool IsLoaded() {
     if (lookup_type_ == DESCRIPTOR_TYPE || lookup_type_ == DICTIONARY_TYPE) {
-      Object* value = GetValue();
-      if (value->IsJSFunction()) {
-        return JSFunction::cast(value)->IsLoaded();
-      }
+      Object* target = GetLazyValue();
+      return !target->IsJSObject() || JSObject::cast(target)->IsLoaded();
     }
     return true;
+  }
+
+  Object* GetLazyValue() {
+    switch (type()) {
+      case FIELD:
+        return holder()->FastPropertyAt(GetFieldIndex());
+      case NORMAL:
+        return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+      case CONSTANT_FUNCTION:
+        return GetConstantFunction();
+      default:
+        return Smi::FromInt(0);
+    }
   }
 
   Map* GetTransitionMap() {

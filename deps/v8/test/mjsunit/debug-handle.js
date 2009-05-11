@@ -95,8 +95,8 @@ function listener(event, exec_state, event_data, data) {
 
     // Test some illegal lookup requests.
     lookupRequest(dcp, void 0, false);
-    lookupRequest(dcp, '{"handle":"a"}', false);
-    lookupRequest(dcp, '{"handle":-1}', false);
+    lookupRequest(dcp, '{"handles":["a"]}', false);
+    lookupRequest(dcp, '{"handles":[-1]}', false);
 
     // Evaluate and get some handles.
     var handle_o = evaluateRequest(dcp, '{"expression":"o"}');
@@ -109,24 +109,28 @@ function listener(event, exec_state, event_data, data) {
 
     var response;
     var count;
-    response = lookupRequest(dcp, '{"handle":' + handle_o + '}', true);
-    assertEquals(handle_o, response.body.handle);
+    response = lookupRequest(dcp, '{"handles":[' + handle_o + ']}', true);
+    var obj = response.body[handle_o];
+    assertTrue(!!obj, 'Object not found: ' + handle_o);
+    assertEquals(handle_o, obj.handle);
     count = 0;
-    for (i in response.body.properties) {
-      switch (response.body.properties[i].name) {
+    for (i in obj.properties) {
+      switch (obj.properties[i].name) {
         case 'o':
-          response.body.properties[i].ref = handle_o;
+          obj.properties[i].ref = handle_o;
           count++;
           break;
         case 'p':
-          response.body.properties[i].ref = handle_p;
+          obj.properties[i].ref = handle_p;
           count++;
           break;
       }
     }
     assertEquals(2, count, 'Either "o" or "p" not found');
-    response = lookupRequest(dcp, '{"handle":' + handle_p + '}', true);
-    assertEquals(handle_p, response.body.handle);
+    response = lookupRequest(dcp, '{"handles":[' + handle_p + ']}', true);
+    obj = response.body[handle_p];
+    assertTrue(!!obj, 'Object not found: ' + handle_p);
+    assertEquals(handle_p, obj.handle);
 
     // Check handles for functions on the stack.
     var handle_f = evaluateRequest(dcp, '{"expression":"f"}');
@@ -136,33 +140,79 @@ function listener(event, exec_state, event_data, data) {
     assertFalse(handle_f == handle_g, "f and g have he same handle");
     assertEquals(handle_g, handle_caller, "caller for f should be g");
 
-    response = lookupRequest(dcp, '{"handle":' + handle_f + '}', true);
-    assertEquals(handle_f, response.body.handle);
+    response = lookupRequest(dcp, '{"handles":[' + handle_f + ']}', true);
+    obj = response.body[handle_f];
+    assertEquals(handle_f, obj.handle);
+
     count = 0;
-    for (i in response.body.properties) {
-      var arguments = '{"handle":' + response.body.properties[i].ref + '}'
-      switch (response.body.properties[i].name) {
+    for (i in obj.properties) {
+      var ref = obj.properties[i].ref;
+      var arguments = '{"handles":[' + ref + ']}';
+      switch (obj.properties[i].name) {
         case 'name':
           var response_name;
           response_name = lookupRequest(dcp, arguments, true);
-          assertEquals('string', response_name.body.type);
-          assertEquals("f", response_name.body.value);
+          assertEquals('string', response_name.body[ref].type);
+          assertEquals("f", response_name.body[ref].value);
           count++;
           break;
         case 'length':
           var response_length;
           response_length = lookupRequest(dcp, arguments, true);
-          assertEquals('number', response_length.body.type);
-          assertEquals(1, response_length.body.value);
+          assertEquals('number', response_length.body[ref].type);
+          assertEquals(1, response_length.body[ref].value);
           count++;
           break;
         case 'caller':
-          assertEquals(handle_g, response.body.properties[i].ref);
+          assertEquals(handle_g, obj.properties[i].ref);
           count++;
           break;
       }
     }
     assertEquals(3, count, 'Either "name", "length" or "caller" not found');
+
+
+    // Resolve all at once.
+    var refs = [];
+    for (i in obj.properties) {
+      refs.push(obj.properties[i].ref);
+    }
+
+    var arguments = '{"handles":[' + refs.join(',') + ']}';
+    response = lookupRequest(dcp, arguments, true);
+    count = 0;
+    for (i in obj.properties) {
+      var ref = obj.properties[i].ref;
+      var val = response.body[ref];
+      assertTrue(!!val, 'Failed to lookup "' + obj.properties[i].name + '"');
+      switch (obj.properties[i].name) {
+        case 'name':
+          assertEquals('string', val.type);
+          assertEquals("f", val.value);
+          count++;
+          break;
+        case 'length':
+          assertEquals('number', val.type);
+          assertEquals(1, val.value);
+          count++;
+          break;
+        case 'caller':
+          assertEquals('function', val.type);
+          assertEquals(handle_g, ref);
+          count++;
+          break;
+      }
+    }
+    assertEquals(3, count, 'Either "name", "length" or "caller" not found');
+
+    count = 0;
+    for (var handle in response.body) {
+      assertTrue(refs.indexOf(parseInt(handle)) != -1,
+                 'Handle not in the request: ' + handle);
+      count++;
+    }
+    assertEquals(count, obj.properties.length, 
+                 'Unexpected number of resolved objects');
 
 
     // Indicate that all was processed.
@@ -195,5 +245,5 @@ p.p = p;
 g(o);
 
 // Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete, "listener did not run to completion");
+assertTrue(listenerComplete, "listener did not run to completion: " + exception);
 assertFalse(exception, "exception in listener")

@@ -63,5 +63,5 @@ TEST(ListAdd) {
 
   // Add an existing element, the backing store should have to grow.
   list.Add(list[0]);
-  ASSERT(list[4] == 1);
+  CHECK_EQ(1, list[4]);
 }

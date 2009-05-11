@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef REGEXP_STACK_H_
-#define REGEXP_STACK_H_
+#ifndef V8_REGEXP_STACK_H_
+#define V8_REGEXP_STACK_H_
 
 namespace v8 { namespace internal {
 
@@ -103,4 +103,4 @@ class RegExpStack {
 
 }}  // namespace v8::internal
 
-#endif /* REGEXP_STACK_H_ */
+#endif  // V8_REGEXP_STACK_H_

@@ -57,19 +57,26 @@ NoAllocationStringAllocator::NoAllocationStringAllocator(char* memory,
 
 
 bool StringStream::Put(char c) {
-  if (space() == 0) return false;
-  if (length_ >= capacity_ - 1) {
+  if (full()) return false;
+  ASSERT(length_ < capacity_);
+  // Since the trailing '\0' is not accounted for in length_ fullness is
+  // indicated by a difference of 1 between length_ and capacity_. Thus when
+  // reaching a difference of 2 we need to grow the buffer.
+  if (length_ == capacity_ - 2) {
     unsigned new_capacity = capacity_;
     char* new_buffer = allocator_->grow(&new_capacity);
     if (new_capacity > capacity_) {
       capacity_ = new_capacity;
       buffer_ = new_buffer;
     } else {
-      // Indicate truncation with dots.
-      memset(cursor(), '.', space());
-      length_ = capacity_;
-      buffer_[length_ - 2] = '\n';
-      buffer_[length_ - 1] = '\0';
+      // Reached the end of the available buffer.
+      ASSERT(capacity_ >= 5);
+      length_ = capacity_ - 1;  // Indicate fullness of the stream.
+      buffer_[length_ - 4] = '.';
+      buffer_[length_ - 3] = '.';
+      buffer_[length_ - 2] = '.';
+      buffer_[length_ - 1] = '\n';
+      buffer_[length_] = '\0';
       return false;
     }
   }
@@ -95,8 +102,7 @@ static bool IsControlChar(char c) {
 
 void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   // If we already ran out of space then return immediately.
-  if (space() == 0)
-    return;
+  if (full()) return;
   int offset = 0;
   int elm = 0;
   while (offset < format.length()) {
@@ -564,12 +570,10 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
 }
 
 
+// Only grow once to the maximum allowable size.
 char* NoAllocationStringAllocator::grow(unsigned* bytes) {
-  unsigned new_bytes = *bytes * 2;
-  if (new_bytes > size_) {
-    new_bytes = size_;
-  }
-  *bytes = new_bytes;
+  ASSERT(size_ >= *bytes);
+  *bytes = size_;
   return space_;
 }
 

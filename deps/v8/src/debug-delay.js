@@ -977,6 +977,7 @@ CompileEvent.prototype.script = function() {
 
 CompileEvent.prototype.toJSONProtocol = function() {
   var o = new ProtocolMessage();
+  o.running = true;
   if (this.before_) {
     o.event = "beforeCompile";
   } else {
@@ -1021,6 +1022,9 @@ function MakeScriptObject_(script, include_source) {
             columnOffset: script.columnOffset(),
             lineCount: script.lineCount(),
           };
+  if (!IS_UNDEFINED(script.data())) {
+    o.data = script.data();
+  }
   if (include_source) {
     o.source = script.source();
   }
@@ -1058,6 +1062,14 @@ function ProtocolMessage(request) {
 }
 
 
+ProtocolMessage.prototype.setOption = function(name, value) {
+  if (!this.options_) {
+    this.options_ = {};
+  }
+  this.options_[name] = value;
+}
+
+
 ProtocolMessage.prototype.failed = function(message) {
   this.success = false;
   this.message = message;
@@ -1086,7 +1098,7 @@ ProtocolMessage.prototype.toJSONProtocol = function() {
   if (this.body) {
     json += ',"body":';
     // Encode the body part.
-    var serializer = MakeMirrorSerializer(true);
+    var serializer = MakeMirrorSerializer(true, this.options_);
     if (this.body instanceof Mirror) {
       json += serializer.serializeValue(this.body);
     } else if (this.body instanceof Array) {
@@ -1130,7 +1142,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')', 0)();
+      request = %CompileString('(' + json_request + ')', 0, false)();
 
       // Create an initial response.
       response = this.createResponse(request);
@@ -1270,11 +1282,12 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   var ignoreCount = request.arguments.ignoreCount;
 
   // Check for legal arguments.
-  if (!type || !target) {
+  if (!type || IS_UNDEFINED(target)) {
     response.failed('Missing argument "type" or "target"');
     return;
   }
-  if (type != 'function' && type != 'script' && type != 'scriptId') {
+  if (type != 'function' && type != 'handle' &&
+      type != 'script' && type != 'scriptId') {
     response.failed('Illegal type "' + type + '"');
     return;
   }
@@ -1303,6 +1316,20 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
     // Set function break point.
     break_point_number = Debug.setBreakPoint(f, line, column, condition);
+  } else if (type == 'handle') {
+    // Find the object pointed by the specified handle.
+    var handle = parseInt(target, 10);
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    if (!mirror.isFunction()) {
+      return response.failed('Object #' + handle + '# is not a function');
+    }
+
+    // Set function break point.
+    break_point_number = Debug.setBreakPoint(mirror.value(),
+                                             line, column, condition);
   } else if (type == 'script') {
     // set script break point.
     break_point_number =
@@ -1547,20 +1574,24 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   }
 
   // Pull out arguments.
-  var handle = request.arguments.handle;
+  var handles = request.arguments.handles;
 
   // Check for legal arguments.
-  if (IS_UNDEFINED(handle)) {
-    return response.failed('Argument "handle" missing');
+  if (IS_UNDEFINED(handles)) {
+    return response.failed('Argument "handles" missing');
   }
 
-  // Lookup handle.
-  var mirror = LookupMirror(handle);
-  if (mirror) {
-    response.body = mirror;
-  } else {
-    return response.failed('Object #' + handle + '# not found');
+  // Lookup handles.
+  var mirrors = {};
+  for (var i = 0; i < handles.length; i++) {
+    var handle = handles[i];
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    mirrors[handle] = mirror;
   }
+  response.body = mirrors;
 };
 
 
@@ -1657,6 +1688,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
       includeSource = %ToBoolean(request.arguments.includeSource);
+      response.setOption('includeSource', includeSource);
     }
   }
 
@@ -1667,22 +1699,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 
   for (var i = 0; i < scripts.length; i++) {
     if (types & ScriptTypeFlag(scripts[i].type)) {
-      var script = {};
-      if (scripts[i].name) {
-        script.name = scripts[i].name;
-      }
-      script.id = scripts[i].id;
-      script.lineOffset = scripts[i].line_offset;
-      script.columnOffset = scripts[i].column_offset;
-      script.lineCount = scripts[i].lineCount();
-      if (includeSource) {
-        script.source = scripts[i].source;
-      } else {
-        script.sourceStart = scripts[i].source.substring(0, 80);
-      }
-      script.sourceLength = scripts[i].source.length;
-      script.type = scripts[i].type;
-      response.body.push(script);
+      response.body.push(MakeMirror(scripts[i]));
     }
   }
 };

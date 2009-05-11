@@ -196,6 +196,11 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> value,
                            PropertyAttributes attributes);
 
+Handle<Object> ForceSetProperty(Handle<JSObject> object,
+                                Handle<Object> key,
+                                Handle<Object> value,
+                                PropertyAttributes attributes);
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
                                                    Handle<String> key,
                                                    Handle<Object> value,
@@ -296,11 +301,11 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 // These deal with lazily loaded properties.
-void SetupLazy(Handle<JSFunction> fun,
+void SetupLazy(Handle<JSObject> obj,
                int index,
                Handle<Context> compile_context,
                Handle<Context> function_context);
-void LoadLazy(Handle<JSFunction> fun, bool* pending_exception);
+void LoadLazy(Handle<JSObject> obj, bool* pending_exception);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

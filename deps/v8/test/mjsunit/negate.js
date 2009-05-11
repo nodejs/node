@@ -30,9 +30,9 @@ const SMI_MIN = -(1 << 30);
 
 function testmulneg(a, b) {
   var base = a * b;
-  assertEquals(-base, a * -b);
-  assertEquals(-base, -a * b);
-  assertEquals(base, -a * -b);
+  assertEquals(-base, a * -b, "a * -b where a = " + a + ", b = " + b);
+  assertEquals(-base, -a * b, "-a * b where a = " + a + ", b = " + b);
+  assertEquals(base, -a * -b, "*-a * -b where a = " + a + ", b = " + b);
 }
 
 testmulneg(2, 3);

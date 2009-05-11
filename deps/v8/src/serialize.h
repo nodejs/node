@@ -70,7 +70,7 @@ class ExternalReferenceEncoder {
  private:
   HashMap encodings_;
   static uint32_t Hash(Address key) {
-    return reinterpret_cast<uint32_t>(key) >> 2;
+    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key) >> 2);
   }
 
   int IndexOf(Address key) const;
@@ -227,6 +227,12 @@ class SnapshotReader {
 
   int GetInt() {
     int result;
+    GetBytes(reinterpret_cast<Address>(&result), sizeof(result));
+    return result;
+  }
+
+  Address GetAddress() {
+    Address result;
     GetBytes(reinterpret_cast<Address>(&result), sizeof(result));
     return result;
   }

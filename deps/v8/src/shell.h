@@ -27,6 +27,9 @@
 //
 // A simple interactive shell.  Enable with --shell.
 
+#ifndef V8_SHELL_H_
+#define V8_SHELL_H_
+
 #include "../public/debug.h"
 
 namespace v8 { namespace internal {
@@ -47,3 +50,5 @@ class Shell {
 };
 
 } }  // namespace v8::internal
+
+#endif  // V8_SHELL_H_

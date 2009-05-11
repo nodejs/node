@@ -254,7 +254,7 @@ template <int> class StaticAssertionHelper { };
 
 
 #define ASSERT_TAG_ALIGNED(address) \
-  ASSERT((reinterpret_cast<int>(address) & kHeapObjectTagMask) == 0)
+  ASSERT((reinterpret_cast<intptr_t>(address) & kHeapObjectTagMask) == 0)
 
 #define ASSERT_SIZE_TAG_ALIGNED(size) ASSERT((size & kHeapObjectTagMask) == 0)
 

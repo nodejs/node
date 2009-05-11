@@ -63,11 +63,12 @@ Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
 }
 
 
-void FuncNameInferrer::MaybeInferFunctionName() {
-  if (func_to_infer_ != NULL) {
-    func_to_infer_->set_inferred_name(MakeNameFromStack());
-    func_to_infer_ = NULL;
+void FuncNameInferrer::InferFunctionsNames() {
+  Handle<String> func_name = MakeNameFromStack();
+  for (int i = 0; i < funcs_to_infer_.length(); ++i) {
+    funcs_to_infer_[i]->set_inferred_name(func_name);
   }
+  funcs_to_infer_.Rewind(0);
 }
 
 

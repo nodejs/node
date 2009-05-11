@@ -1,3 +1,61 @@
+2009-05-11: Version 1.2.3
+
+        Fixed bug in reporting of out-of-memory situations.
+
+        Introduced hidden prototypes on certain builtin prototype objects
+        such as String.prototype to emulate JSC's behavior of restoring
+        the original function when deleting functions from those prototype
+        objects.
+
+        Fixed crash bug in the register allocator.
+
+
+2009-05-04: Version 1.2.2
+
+        Fixed bug in array sorting for sparse arrays (issue 326).
+
+        Added support for adding a soname when building a shared library
+        on Linux (issue 151).
+
+        Fixed bug caused by morphing internal ASCII strings to external
+        two-byte strings.  Slices over ASCII strings have to forward ASCII
+        checks to the underlying buffer string.
+
+        Allowed API call-as-function handlers to be called as
+        constructors.
+
+        Fixed a crash bug where an external string was disposed but a
+        slice of the external string survived as a symbol.
+
+
+2009-04-27: Version 1.2.1
+
+        Added EcmaScript 5 JSON object.
+
+        Fix bug in preemption support on ARM.
+
+
+2009-04-23: Version 1.2.0
+
+        Optimized floating-point operations on ARM.
+
+        Added a number of extensions to the debugger API.
+
+        Changed the enumeration order for unsigned integer keys to always
+        be numerical order.
+
+        Added a "read" extension to the shell sample.
+
+        Added support for Array.prototype.reduce and
+        Array.prototype.reduceRight.
+
+        Added an option to the SCons build to control Microsoft Visual C++
+        link-time code generation.
+
+        Fixed a number of bugs (in particular issue 315, issue 316,
+        issue 317 and issue 318).
+
+
 2009-04-15: Version 1.1.10
 
         Fixed crash bug that occurred when loading a const variable in the
@@ -27,13 +85,13 @@
 
         Changed test-debug/ThreadedDebugging to be non-flaky (issue 96).
 
-        Fixed step-in handling for Function.prototype.apply and call in 
+        Fixed step-in handling for Function.prototype.apply and call in
         the debugger (issue 269).
 
         Fixed v8::Object::DeleteHiddenValue to not bail out when there
         are no hidden properties.
 
-        Added workaround for crash bug, where external symbol table 
+        Added workaround for crash bug, where external symbol table
         entries with deleted resources would lead to NPEs when looking
         up in the symbol table.
 

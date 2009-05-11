@@ -163,6 +163,22 @@ Handle<Value> Shell::Print(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::Read(const Arguments& args) {
+  if (args.Length() != 1) {
+    return ThrowException(String::New("Bad parameters"));
+  }
+  String::Utf8Value file(args[0]);
+  if (*file == NULL) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  Handle<String> source = ReadFile(*file);
+  if (source.IsEmpty()) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  return source;
+}
+
+
 Handle<Value> Shell::Load(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope;
@@ -246,6 +262,7 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
   Context::Scope context_scope(utility_context_);
   Handle<Object> global = utility_context_->Global();
@@ -266,6 +283,7 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
   return val;
 }
+#endif
 
 
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
@@ -381,6 +399,7 @@ void Shell::Initialize() {
   HandleScope scope;
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
+  global_template->Set(String::New("read"), FunctionTemplate::New(Read));
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
@@ -406,11 +425,13 @@ void Shell::Initialize() {
   global_template->Set(String::New("arguments"),
                        Utils::ToLocal(arguments_jsarray));
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Install the debugger object in the utility scope
   i::Debug::Load();
   i::JSObject* debug = i::Debug::debug_context()->global();
   utility_context_->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(&debug));
+#endif
 
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
@@ -436,8 +457,10 @@ void Shell::Initialize() {
   evaluation_context_ = Context::New(NULL, global_template);
   evaluation_context_->SetSecurityToken(Undefined());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Set the security token of the debug context to allow access.
   i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
+#endif
 }
 
 
@@ -555,6 +578,8 @@ void ShellThread::Run() {
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
   global_template->Set(String::New("print"),
                        FunctionTemplate::New(Shell::Print));
+  global_template->Set(String::New("read"),
+                       FunctionTemplate::New(Shell::Read));
   global_template->Set(String::New("load"),
                        FunctionTemplate::New(Shell::Load));
   global_template->Set(String::New("yield"),
@@ -690,6 +715,7 @@ int Shell::Main(int argc, char* argv[]) {
       Locker::StartPreemption(preemption_interval);
     }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
     // Run the remote debugger if requested.
     if (i::FLAG_remote_debugger) {
       RunRemoteDebugger(i::FLAG_debugger_port);
@@ -705,6 +731,7 @@ int Shell::Main(int argc, char* argv[]) {
     if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
       v8::Debug::SetDebugEventListener(HandleDebugEvent);
     }
+#endif
   }
   if (run_shell)
     RunShell();

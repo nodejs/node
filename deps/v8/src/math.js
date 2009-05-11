@@ -164,7 +164,7 @@ function SetupMath() {
 
   // Setup non-enumerable functions of the Math object and
   // set their names.
-  InstallFunctions($Math, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($Math, DONT_ENUM, $Array(
     "random", MathRandom,
     "abs", MathAbs,
     "acos", MathAcos,

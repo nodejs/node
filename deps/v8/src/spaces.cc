@@ -111,17 +111,17 @@ void HeapObjectIterator::Verify() {
 // -----------------------------------------------------------------------------
 // PageIterator
 
-PageIterator::PageIterator(PagedSpace* space, Mode mode) {
-  cur_page_ = space->first_page_;
+PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
+  prev_page_ = NULL;
   switch (mode) {
     case PAGES_IN_USE:
-      stop_page_ = space->AllocationTopPage()->next_page();
+      stop_page_ = space->AllocationTopPage();
       break;
     case PAGES_USED_BY_MC:
-      stop_page_ = space->MCRelocationTopPage()->next_page();
+      stop_page_ = space->MCRelocationTopPage();
       break;
     case ALL_PAGES:
-      stop_page_ = Page::FromAddress(NULL);
+      stop_page_ = space->last_page_;
       break;
     default:
       UNREACHABLE();
@@ -496,8 +496,11 @@ bool PagedSpace::Setup(Address start, size_t size) {
   accounting_stats_.ExpandSpace(num_pages * Page::kObjectAreaSize);
   ASSERT(Capacity() <= max_capacity_);
 
+  // Sequentially initialize remembered sets in the newly allocated
+  // pages and cache the current last page in the space.
   for (Page* p = first_page_; p->is_valid(); p = p->next_page()) {
     p->ClearRSet();
+    last_page_ = p;
   }
 
   // Use first_page_ for allocation.
@@ -676,9 +679,11 @@ bool PagedSpace::Expand(Page* last_page) {
 
   MemoryAllocator::SetNextPage(last_page, p);
 
-  // Clear remembered set of new pages.
+  // Sequentially clear remembered set of new pages and and cache the
+  // new last page in the space.
   while (p->is_valid()) {
     p->ClearRSet();
+    last_page_ = p;
     p = p->next_page();
   }
 
@@ -723,10 +728,12 @@ void PagedSpace::Shrink() {
   Page* p = MemoryAllocator::FreePages(last_page_to_keep->next_page());
   MemoryAllocator::SetNextPage(last_page_to_keep, p);
 
-  // Since pages are only freed in whole chunks, we may have kept more than
-  // pages_to_keep.
+  // Since pages are only freed in whole chunks, we may have kept more
+  // than pages_to_keep.  Count the extra pages and cache the new last
+  // page in the space.
   while (p->is_valid()) {
     pages_to_keep++;
+    last_page_ = p;
     p = p->next_page();
   }
 
@@ -811,7 +818,7 @@ bool NewSpace::Setup(Address start, int size) {
   start_ = start;
   address_mask_ = ~(size - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
-  object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
+  object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
 
   allocation_info_.top = to_space_.low();
   allocation_info_.limit = to_space_.high();
@@ -970,7 +977,7 @@ bool SemiSpace::Setup(Address start,
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
-  object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
+  object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
 
   age_mark_ = start_;
   return true;
@@ -1890,7 +1897,7 @@ static void PrintRSetRange(Address start, Address end, Object** object_p,
 
   // If the range starts on on odd numbered word (eg, for large object extra
   // remembered set ranges), print some spaces.
-  if ((reinterpret_cast<uint32_t>(start) / kIntSize) % 2 == 1) {
+  if ((reinterpret_cast<uintptr_t>(start) / kIntSize) % 2 == 1) {
     PrintF("                                    ");
   }
 
@@ -1929,7 +1936,7 @@ static void PrintRSetRange(Address start, Address end, Object** object_p,
     }
 
     // Print a newline after every odd numbered word, otherwise a space.
-    if ((reinterpret_cast<uint32_t>(rset_address) / kIntSize) % 2 == 1) {
+    if ((reinterpret_cast<uintptr_t>(rset_address) / kIntSize) % 2 == 1) {
       PrintF("\n");
     } else {
       PrintF(" ");

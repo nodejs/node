@@ -171,6 +171,8 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
+// TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
+//  which is the architecture of generated code).
 #if defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
 #else
@@ -262,9 +264,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #ifdef __GLIBC__
+  int frames_size = frames.length();
   void** addresses = NewArray<void*>(frames_size);
 
   int frames_count = backtrace(addresses, frames_size);
@@ -506,28 +509,34 @@ void LinuxSemaphore::Wait() {
 }
 
 
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
+    (ts)->tv_sec = (tv)->tv_sec;                                    \
+    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
+} while (false)
+#endif
+
+
 bool LinuxSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
-  const long kOneSecondNanos = 1000000000;  // NOLINT
 
   // Split timeout into second and nanosecond parts.
-  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
-  time_t secs = timeout / kOneSecondMicros;
+  struct timeval delta;
+  delta.tv_usec = timeout % kOneSecondMicros;
+  delta.tv_sec = timeout / kOneSecondMicros;
 
-  // Get the current realtime clock.
-  struct timespec ts;
-  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+  struct timeval current_time;
+  // Get the current time.
+  if (gettimeofday(&current_time, NULL) == -1) {
     return false;
   }
 
-  // Calculate real time for end of timeout.
-  ts.tv_nsec += nanos;
-  if (ts.tv_nsec >= kOneSecondNanos) {
-    ts.tv_nsec -= kOneSecondNanos;
-    ts.tv_nsec++;
-  }
-  ts.tv_sec += secs;
+  // Calculate time for end of timeout.
+  struct timeval end_time;
+  timeradd(&current_time, &delta, &end_time);
 
+  struct timespec ts;
+  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
   // Wait for semaphore signalled or timeout.
   while (true) {
     int result = sem_timedwait(&sem_, &ts);
@@ -591,14 +600,18 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Extracting the sample from the context is extremely machine dependent.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
-#if defined (__arm__) || defined(__thumb__)
-    sample.pc = mcontext.gregs[R15];
-    sample.sp = mcontext.gregs[R13];
-    sample.fp = mcontext.gregs[R11];
-#else
+#if V8_HOST_ARCH_IA32
     sample.pc = mcontext.gregs[REG_EIP];
     sample.sp = mcontext.gregs[REG_ESP];
     sample.fp = mcontext.gregs[REG_EBP];
+#elif V8_HOST_ARCH_X64
+    sample.pc = mcontext.gregs[REG_RIP];
+    sample.sp = mcontext.gregs[REG_RSP];
+    sample.fp = mcontext.gregs[REG_RBP];
+#elif V8_HOST_ARCH_ARM
+    sample.pc = mcontext.gregs[R15];
+    sample.sp = mcontext.gregs[R13];
+    sample.fp = mcontext.gregs[R11];
 #endif
   }
 

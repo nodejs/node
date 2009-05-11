@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Should not raise an exception.
+// Should not crash or raise an exception.
 
 function test(value) {
   if (typeof(value) == 'boolean') value = value + '';
   if (typeof(value) == 'number') value = value + '';
 }
 
-assertDoesNotThrow(test(0));
+assertDoesNotThrow('test(0)');

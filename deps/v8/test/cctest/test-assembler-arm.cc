@@ -29,8 +29,8 @@
 
 #include "disassembler.h"
 #include "factory.h"
-#include "simulator-arm.h"
-#include "assembler-arm-inl.h"
+#include "arm/simulator-arm.h"
+#include "arm/assembler-arm-inl.h"
 #include "cctest.h"
 
 using namespace v8::internal;

@@ -653,17 +653,47 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
   // Process arguments if any.
   if (args && args.length > 0) {
     var target = args;
+    var type = 'function';
+    var line;
+    var column;
     var condition;
+    var pos;
 
-    var pos = args.indexOf(' ');
+    // Check for breakpoint condition.
+    pos = args.indexOf(' ');
     if (pos > 0) {
       target = args.substring(0, pos);
       condition = args.substring(pos + 1, args.length);
     }
 
+    // Check for script breakpoint (name:line[:column]). If no ':' in break
+    // specification it is considered a function break point.
+    pos = target.indexOf(':');
+    if (pos > 0) {
+      type = 'script';
+      var tmp = target.substring(pos + 1, target.length);
+      target = target.substring(0, pos);
+      
+      // Check for both line and column.
+      pos = tmp.indexOf(':');
+      if (pos > 0) {
+        column = parseInt(tmp.substring(pos + 1, tmp.length)) - 1;
+        line = parseInt(tmp.substring(0, pos)) - 1;
+      } else {
+        line = parseInt(tmp) - 1;
+      }
+    } else if (target[0] == '#' && target[target.length - 1] == '#') {
+      type = 'handle';
+      target = target.substring(1, target.length - 1);
+    } else {
+      type = 'function';
+    }
+  
     request.arguments = {};
-    request.arguments.type = 'function';
+    request.arguments.type = type;
     request.arguments.target = target;
+    request.arguments.line = line;
+    request.arguments.column = column;
     request.arguments.condition = condition;
   } else {
     throw new Error('Invalid break arguments.');
@@ -721,6 +751,9 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   }
 
   print('break location [condition]');
+  print('  break on named function: location is a function name');
+  print('  break on function: location is #<id>#');
+  print('  break on script position: location is name:line[:column]');
   print('clear <breakpoint #>');
   print('backtrace [from frame #] [to frame #]]');
   print('frame <frame #>');
