@@ -2,6 +2,45 @@
  * connection handling, overflow checking, and some data buffering.
  */
 
+node.http.STATUS_CODES = { 100 : 'Continue'
+                         , 101 : 'Switching Protocols' 
+                         , 200 : 'OK' 
+                         , 201 : 'Created' 
+                         , 202 : 'Accepted' 
+                         , 203 : 'Non-Authoritative Information' 
+                         , 204 : 'No Content' 
+                         , 205 : 'Reset Content' 
+                         , 206 : 'Partial Content' 
+                         , 300 : 'Multiple Choices' 
+                         , 301 : 'Moved Permanently' 
+                         , 302 : 'Moved Temporarily' 
+                         , 303 : 'See Other' 
+                         , 304 : 'Not Modified' 
+                         , 305 : 'Use Proxy' 
+                         , 400 : 'Bad Request' 
+                         , 401 : 'Unauthorized' 
+                         , 402 : 'Payment Required' 
+                         , 403 : 'Forbidden' 
+                         , 404 : 'Not Found' 
+                         , 405 : 'Method Not Allowed' 
+                         , 406 : 'Not Acceptable' 
+                         , 407 : 'Proxy Authentication Required' 
+                         , 408 : 'Request Time-out' 
+                         , 409 : 'Conflict' 
+                         , 410 : 'Gone' 
+                         , 411 : 'Length Required' 
+                         , 412 : 'Precondition Failed' 
+                         , 413 : 'Request Entity Too Large' 
+                         , 414 : 'Request-URI Too Large' 
+                         , 415 : 'Unsupported Media Type' 
+                         , 500 : 'Internal Server Error' 
+                         , 501 : 'Not Implemented' 
+                         , 502 : 'Bad Gateway' 
+                         , 503 : 'Service Unavailable' 
+                         , 504 : 'Gateway Time-out' 
+                         , 505 : 'HTTP Version not supported'
+                         };
+
 var connection_expression = /Connection/i;
 var transfer_encoding_expression = /Transfer-Encoding/i;
 var close_expression = /close/i;
@@ -84,16 +123,15 @@ node.http.Server = function (RequestHandler, options) {
       var chunked_encoding = false;
       var connection_close = false;
 
-      this.sendHeader = function (status, headers) {
-
+      this.sendHeader = function (status_code, headers) {
         var sent_connection_header = false;
         var sent_transfer_encoding_header = false;
         var sent_content_length_header = false;
 
-        var reason = "Ok"; // FIXME
-        var header = "HTTP/1.0 ";
+        var header = "HTTP/1.1 ";
+        var reason = node.http.STATUS_CODES[status_code] || "unknown";
 
-        header += status.toString() + " " + reason + "\r\n";
+        header += status_code.toString() + " " + reason + "\r\n";
 
         for (var i = 0; i < headers.length; i++) {
           var field = headers[i][0];
@@ -128,8 +166,6 @@ node.http.Server = function (RequestHandler, options) {
 
         send(header);
       };
-
-      var bodyBegan = false;
 
       this.sendBody = function (chunk) {
         if (chunked_encoding) {
