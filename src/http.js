@@ -210,16 +210,16 @@ node.http.Server = function (RequestHandler, options) {
 
       this.encoding = req.encoding || "raw";
 
-      var path = req.path = "";
-      var uri = req.uri = "";
-      var query_string = req.query_string = "";
-      var fragment = req.fragment = "";
+      req.path = "";
+      req.uri = "";
+      req.query_string = "";
+      req.fragment = "";
       var headers = req.headers = [];
       
-      this.onPath         = function (data) { path += data; return true };
-      this.onURI          = function (data) { uri  += data; return true };
-      this.onQueryString  = function (data) { query_string += data; return true; };
-      this.onFragment     = function (data) { fragment += data; return true; };
+      this.onPath         = function (data) { req.path += data; return true };
+      this.onURI          = function (data) { req.uri  += data; return true };
+      this.onQueryString  = function (data) { req.query_string += data; return true; };
+      this.onFragment     = function (data) { req.fragment += data; return true; };
 
       var last_was_value = false;
 

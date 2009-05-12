@@ -21,14 +21,13 @@
 #define ON_BODY_SYMBOL              String::NewSymbol("onBody")
 #define ON_MESSAGE_COMPLETE_SYMBOL  String::NewSymbol("onMessageComplete")
 
-#define STATUS_CODE_SYMBOL String::NewSymbol("status_code")
-#define HTTP_VERSION_SYMBOL String::NewSymbol("http_version")
-#define SHOULD_KEEP_ALIVE_SYMBOL String::NewSymbol("should_keep_alive")
+#define STATUS_CODE_SYMBOL          String::NewSymbol("status_code")
+#define HTTP_VERSION_SYMBOL         String::NewSymbol("http_version")
+#define SHOULD_KEEP_ALIVE_SYMBOL    String::NewSymbol("should_keep_alive")
 
 using namespace v8;
 using namespace node;
 using namespace std;
-
 
 Persistent<FunctionTemplate> HTTPConnection::client_constructor_template;
 Persistent<FunctionTemplate> HTTPConnection::server_constructor_template;

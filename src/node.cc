@@ -293,6 +293,7 @@ main (int argc, char *argv[])
   ev_loop(EV_DEFAULT_UC_ 0);
 
   context.Dispose();
+  V8::Dispose();
 
   return exit_code;
 
