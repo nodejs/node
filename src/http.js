@@ -48,18 +48,13 @@ var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
 node.http.Server = function (RequestHandler, options) {
-  var MAX_FIELD_SIZE = 80*1024;
-  function Protocol (connection) {
-    function fillField (obj, field, data) {
-      obj[field] = (obj[field] || "") + data;
-      if (obj[field].length > MAX_FIELD_SIZE) {
-        connection.fullClose();
-        return false;
-      }
-      return true;
-    }
 
+  function Protocol (connection) {
+
+    // An array of responses for each connection. In pipelined connections
+    // we need to keep track of the order they were sent.
     var responses = [];
+
     function Response () {
       responses.push(this);
       /* This annoying output buisness is necessary for the case that users
@@ -128,10 +123,13 @@ node.http.Server = function (RequestHandler, options) {
         var sent_transfer_encoding_header = false;
         var sent_content_length_header = false;
 
-        var header = "HTTP/1.1 ";
         var reason = node.http.STATUS_CODES[status_code] || "unknown";
-
-        header += status_code.toString() + " " + reason + "\r\n";
+        var header = "HTTP/1.1 "
+                   + status_code.toString() 
+                   + " " 
+                   + reason 
+                   + "\r\n"
+                   ;
 
         for (var i = 0; i < headers.length; i++) {
           var field = headers[i][0];
@@ -187,7 +185,7 @@ node.http.Server = function (RequestHandler, options) {
         this.flush();
       };
 
-      var finished = false;
+      this.finished = false;
       this.finish = function () {
         if (chunked_encoding)
           send("0\r\n\r\n"); // last chunk
@@ -211,31 +209,36 @@ node.http.Server = function (RequestHandler, options) {
       var req = new RequestHandler(res, connection);
 
       this.encoding = req.encoding || "raw";
+
+      var path = req.path = "";
+      var uri = req.uri = "";
+      var query_string = req.query_string = "";
+      var fragment = req.fragment = "";
+      var headers = req.headers = [];
       
-      this.onPath         = function (data) { return fillField(req, "path", data); };
-      this.onURI          = function (data) { return fillField(req, "uri", data); };
-      this.onQueryString  = function (data) { return fillField(req, "query_string", data); };
-      this.onFragment     = function (data) { return fillField(req, "fragment", data); };
+      this.onPath         = function (data) { path += data; return true };
+      this.onURI          = function (data) { uri  += data; return true };
+      this.onQueryString  = function (data) { query_string += data; return true; };
+      this.onFragment     = function (data) { fragment += data; return true; };
+
+      var last_was_value = false;
 
       this.onHeaderField = function (data) {
-        if (req.hasOwnProperty("headers")) {
-          var last_pair = req.headers[req.headers.length-1];
-          if (last_pair.length == 1)
-            return fillField(last_pair, 0, data);
-          else
-            req.headers.push([data]);
-        } else {
-          req.headers = [[data]];
-        }
+        if (headers.length > 0 && last_was_value == false)
+          headers[headers.length-1][0] += data; 
+        else
+          headers.push([data]);
+        last_was_value = false;
         return true;
       };
 
       this.onHeaderValue = function (data) {
-        var last_pair = req.headers[req.headers.length-1];
+        var last_pair = headers[headers.length-1];
         if (last_pair.length == 1)
           last_pair[1] = data;
         else 
-          return fillField(last_pair, 1, data);
+          last_pair[1] += data;
+        last_was_value = true;
         return true;
       };
 
@@ -246,9 +249,13 @@ node.http.Server = function (RequestHandler, options) {
         return req.onHeadersComplete();
       };
 
-      this.onBody = function (chunk) { return req.onBody(chunk); };
+      this.onBody = function (chunk) {
+        return req.onBody(chunk);
+      };
 
-      this.onBodyComplete = function () { return req.onBodyComplete(); };
+      this.onBodyComplete = function () {
+        return req.onBodyComplete();
+      };
     };
   }
 
