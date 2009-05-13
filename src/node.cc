@@ -266,7 +266,7 @@ main (int argc, char *argv[])
 
 
   // BUILT-IN MODULES
-  node::Init_timer(g);
+  Timer::Initialize(node);
 
   File::Initialize(g);
 

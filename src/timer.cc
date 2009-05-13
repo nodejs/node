@@ -5,19 +5,18 @@
 using namespace v8;
 using namespace node;
 
-class Timer : ObjectWrap {
- public:
-  Timer(Handle<Object> handle, Handle<Function> callback, ev_tstamp after, ev_tstamp repeat);
-  ~Timer();
+void
+Timer::Initialize (Handle<Object> target)
+{
+  HandleScope scope;
 
-  static Handle<Value> New (const Arguments& args);
-  static Handle<Value> Start (const Arguments& args);
-  static Handle<Value> Stop (const Arguments& args);
+  Local<FunctionTemplate> timer_template = FunctionTemplate::New(Timer::New);
+  timer_template->InstanceTemplate()->SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("Timer"), timer_template->GetFunction());
 
- private:
-  static void OnTimeout (EV_P_ ev_timer *watcher, int revents);
-  ev_timer watcher_;
-};
+  NODE_SET_METHOD(timer_template->InstanceTemplate(), "start", Timer::Start);
+  NODE_SET_METHOD(timer_template->InstanceTemplate(), "stop", Timer::Stop);
+}
 
 void
 Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
@@ -98,17 +97,4 @@ Timer::Stop (const Arguments& args)
   ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
   timer->Detach();
   return Undefined();
-}
-
-void
-node::Init_timer (Handle<Object> target)
-{
-  HandleScope scope;
-
-  Local<FunctionTemplate> timer_template = FunctionTemplate::New(Timer::New);
-  timer_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("Timer"), timer_template->GetFunction());
-
-  NODE_SET_METHOD(timer_template->InstanceTemplate(), "start", Timer::Start);
-  NODE_SET_METHOD(timer_template->InstanceTemplate(), "stop", Timer::Stop);
 }

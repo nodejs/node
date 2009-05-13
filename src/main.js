@@ -35,13 +35,13 @@ node.path = new function () {
 // Timers
 
 function setTimeout (callback, delay) {
-  var timer = new Timer(callback, delay, 0); 
+  var timer = new node.Timer(callback, delay, 0); 
   timer.start();
   return timer;
 };
 
 function setInterval (callback, delay) {
-  var timer = new Timer(callback, delay, delay); 
+  var timer = new node.Timer(callback, delay, delay); 
   timer.start();
   return timer;
 };
