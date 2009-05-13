@@ -30,7 +30,7 @@
     }
     #toc a { color: #777; }
 
-    h1, h2, h3 { color: #9a2; }
+    h1, h2, h3 { color: inherit; }
 
     h1 {
       margin: 2em 0;
@@ -39,6 +39,7 @@
       line-height: 44px;
       font-weight: bold;
     }
+    h1 a { color: inherit; }
 
     h2 {
       margin: 2em 0;
@@ -87,11 +88,11 @@
     <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
     <p id="introduction"> Node is a purely evented I/O framework for <a
-      href="#">V8 javascript</a>.  Its goal is to enable easy development of
-    highly concurrent, small footprint programs.  For example, this is a
+      href="#">V8 javascript</a>.  It enables easy development of
+    highly concurrent, efficent network programs.  For example, this is a
     simple web server which responds with "Hello World" after waiting two
     seconds:
-<pre>
+<pre class="sh_javascript">
 node.http.server(function (msg) {
   setTimeout(function () {
     msg.sendHeader(200, [["Content-Type", "text/plain"]]);
@@ -102,11 +103,10 @@ node.http.server(function (msg) {
 </pre>
 
     <p> While one request is waiting the server will continue to accept and
-    serve other requests. This is accomplished without threads and is quite
-    efficient: handling hundreds of concurrent requests while using
-    little CPU or memory&mdash;<a href="#benchmarks">see benchmarks</a>.
-    The example might seem esoteric but similar behavior
-    is required to implement, for example, "comet" servers.
+    serve other requests. This little server can handle hundreds of
+    concurrent requests while using little CPU or memory&mdash;<a
+    href="#benchmarks">see benchmarks</a>.  The example demonstrates
+    efficency that is needed for handling long held "comet" requests.
 
     <p> Node is free to <a href="#download">download</a>, <a
       href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
@@ -123,6 +123,8 @@ node.http.server(function (msg) {
     <li>Evented programs are more efficient
       <ol>
       <li>pthread stack size
+       2mb default stack size on linux (1mb on windows, 64kb on FreeBSD)
+       of course this is adjustable 
       <li>context switching benchmark
       <li>Apache vs. Nginx 
       <li>event machine vs mongrel (neverblock)
@@ -174,7 +176,7 @@ node.http.server(function (msg) {
     the thread scheduler, a blocking server can make function calls which
     preform full network requests.
 
-    <pre>var response = db.execute("SELECT * FROM table");
+    <pre class="sh_javascript">var response = db.execute("SELECT * FROM table");
 // do something</pre> 
 
     <p> An evented server manages its concurrency itself. All connections
@@ -184,7 +186,7 @@ node.http.server(function (msg) {
     <i>blocks</i> the process. In the evented world callbacks are used
     instead of functions
 
-<pre>db.execute("SELECT * FROM table", function (response) {
+<pre class="sh_javascript">db.execute("SELECT * FROM table", function (response) {
   // do something
 });</pre>
 
