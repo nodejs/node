@@ -47,18 +47,18 @@ var close_expression = /close/i;
 var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
-node.http.Server = function (RequestHandler, options) {
+node.http.server = function (RequestHandler, options) {
 
   function Protocol (connection) {
 
-    // An array of responses for each connection. In pipelined connections
+    // An array of messages for each connection. In pipelined connections
     // we need to keep track of the order they were sent.
-    var responses = [];
+    var messages = [];
 
-    function Response () {
-      responses.push(this);
+    function Message () {
+      messages.push(this);
       /* This annoying output buisness is necessary for the case that users
-       * are writing to responses out of order! HTTP requires that responses
+       * are writing to messages out of order! HTTP requires that messages
        * are returned in the same order the requests come.
        */
 
@@ -110,7 +110,7 @@ node.http.Server = function (RequestHandler, options) {
       };
 
       this.flush = function () {
-        if (responses.length > 0 && responses[0] === this)
+        if (messages.length > 0 && messages[0] === this)
           while (output.length > 0)
             connection.send(output.shift());
       };
@@ -192,34 +192,35 @@ node.http.Server = function (RequestHandler, options) {
 
         this.finished = true;
 
-        while (responses.length > 0 && responses[0].finished) {
-          var res = responses[0];
+        while (messages.length > 0 && messages[0].finished) {
+          var res = messages[0];
           res.flush();
-          responses.shift();
+          messages.shift();
         }
 
-        if (responses.length == 0 && connection_close) {
+        if (messages.length == 0 && connection_close) {
           connection.fullClose();
         }
       };
+
+      // abstract
+      this.onBody = function () { return true; }
+      this.onBodyComplete = function () { return true; }
     }
 
     this.onMessage = function ( ) {
-      var res = new Response();
-      var req = new RequestHandler(res, connection);
+      var msg = new Message();
 
-      this.encoding = req.encoding || "raw";
-
-      req.path = "";
-      req.uri = "";
-      req.query_string = "";
-      req.fragment = "";
-      var headers = req.headers = [];
+      msg.path = "";
+      msg.uri = "";
+      msg.query_string = "";
+      msg.fragment = "";
+      var headers = msg.headers = [];
       
-      this.onPath         = function (data) { req.path += data; return true };
-      this.onURI          = function (data) { req.uri  += data; return true };
-      this.onQueryString  = function (data) { req.query_string += data; return true; };
-      this.onFragment     = function (data) { req.fragment += data; return true; };
+      this.onPath         = function (data) { msg.path += data; return true };
+      this.onURI          = function (data) { msg.uri  += data; return true };
+      this.onQueryString  = function (data) { msg.query_string += data; return true; };
+      this.onFragment     = function (data) { msg.fragment += data; return true; };
 
       var last_was_value = false;
 
@@ -243,23 +244,21 @@ node.http.Server = function (RequestHandler, options) {
       };
 
       this.onHeadersComplete = function () {
-        req.http_version = this.http_version;
-        req.method = this.method;
-        res.should_keep_alive = this.should_keep_alive;
-        return req.onHeadersComplete();
+        msg.http_version = this.http_version;
+        msg.method = this.method;
+        msg.should_keep_alive = this.should_keep_alive;
+        return RequestHandler(msg);
       };
 
       this.onBody = function (chunk) {
-        return req.onBody(chunk);
+        return msg.onBody(chunk);
       };
 
       this.onBodyComplete = function () {
-        return req.onBodyComplete();
+        return msg.onBodyComplete(chunk);
       };
     };
   }
 
-  var server = new node.http.LowLevelServer(Protocol, options);
-  this.listen = function (port, host) { server.listen(port, host); }
-  this.close = function () { server.close(); }
+  return new node.http.LowLevelServer(Protocol, options);
 };

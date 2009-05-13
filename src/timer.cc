@@ -5,6 +5,8 @@
 using namespace v8;
 using namespace node;
 
+#define CALLBACK_SYMBOL String::NewSymbol("callback")
+
 void
 Timer::Initialize (Handle<Object> target)
 {
@@ -25,7 +27,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   HandleScope scope;
 
-  Local<Value> callback_value = timer->handle_->Get(String::NewSymbol("callback"));
+  Local<Value> callback_value = timer->handle_->GetHiddenValue(CALLBACK_SYMBOL);
   if (!callback_value->IsFunction()) 
     return;
 
@@ -40,7 +42,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
    * it's rather crutial for memory leaks the conditional here test to see
    * if the watcher will make another callback.
    */ 
-  if (false == ev_is_active(&timer->watcher_))
+  if (!ev_is_active(&timer->watcher_))
     timer->Detach();
 }
 
@@ -49,13 +51,11 @@ Timer::Timer (Handle<Object> handle, Handle<Function> callback, ev_tstamp after,
 {
   HandleScope scope;
 
-  handle_->Set(String::NewSymbol("callback"), callback);
+  handle_->SetHiddenValue(CALLBACK_SYMBOL, callback);
 
   ev_timer_init(&watcher_, Timer::OnTimeout, after, repeat);
   watcher_.data = this;
 
-  ev_timer_start(EV_DEFAULT_UC_ &watcher_);
-  Attach();
 }
 
 Timer::~Timer ()

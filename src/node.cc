@@ -50,8 +50,8 @@ ObjectWrap::Attach ()
 void
 ObjectWrap::Detach ()
 {
-  attach_count_ -= 1;
-  assert(attach_count_ >= 0);
+  if (attach_count_ > 0)
+    attach_count_ -= 1;
 
   if(weak_ && attach_count_ == 0)
     delete this;
