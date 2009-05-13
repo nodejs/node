@@ -1,0 +1,222 @@
+
+<html>
+  <style>
+    body {
+      background: #22252a;
+      color: #eee;
+      font-size: 16pt;
+      line-height: 150%;
+      font-family: times, Times New Roman, times-roman, georgia, serif; 
+    }
+    #content {
+      max-width: 30em;
+      margin: 0 0 5em 10em;
+    }
+    #toc {
+      position: fixed;
+      top: 2em;
+      left: 0;
+      width: 10em;
+    }
+    #toc ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      padding-left: 1em;
+    }
+    #toc ol li {
+      margin: 0;
+      padding: 0;
+    }
+    #toc a { color: #777; }
+
+    h1, h2, h3 { color: #9a2; }
+
+    h1 {
+      margin: 2em 0;
+      padding: 0px 0px 0px 0px;
+      font-size: 51px;
+      line-height: 44px;
+      font-weight: bold;
+    }
+
+    h2 {
+      margin: 2em 0;
+      font-size: inherit;
+      line-height: inherit;
+      font-weight: bold;
+    }
+
+    h3 {
+      margin: 1em 0;
+      font-size: inherit;
+      line-height: inherit;
+      font-weight: inherit;
+    }
+
+    pre, code {
+      font-family: monospace;
+      font-size: 14pt;
+    }
+
+    a { color: #cd5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+  </style>
+  <title>node.js</title>
+  <body>
+    <div id="toc">
+      <ol>
+        <li><a href="#motivation">Motivation</a></li>
+        <li><a href="#benchmarks">Benchmarks</a></li>
+        <li><a href="#download">Download</a></li>
+        <li><a href="#install">Build</a></li>
+        <li><a href="#api">API</a>
+          <ol>
+            <li><a href="#timers">Timers</a>
+            <li><a href="#files">File System</a>
+            <li><a href="#tcp">TCP</a>
+            <li><a href="#http">HTTP</a>
+            <li><a href="#modules">Modules</a>
+          </ol>
+        </li>
+      </ol>
+    </div>
+    <div id="content">
+
+    <h1><a href="http://tinyclouds.org/node">Node</a></h1>
+
+    <p id="introduction"> Node is a purely evented I/O framework for <a
+      href="#">V8 javascript</a>.  Its goal is to enable easy development of
+    highly concurrent, small footprint programs.  For example, this is a
+    simple web server which responds with "Hello World" after waiting two
+    seconds:
+<pre>
+node.http.server(function (msg) {
+  setTimeout(function () {
+    msg.sendHeader(200, [["Content-Type", "text/plain"]]);
+    msg.sendBody("Hello World");
+    msg.finish();
+  }, 2000);
+}).listen(8000, "localhost");
+</pre>
+
+    <p> While one request is waiting the server will continue to accept and
+    serve other requests. This is accomplished without threads and is quite
+    efficient: handling hundreds of concurrent requests while using
+    little CPU or memory&mdash;<a href="#benchmarks">see benchmarks</a>.
+    The example might seem esoteric but similar behavior
+    is required to implement, for example, "comet" servers.
+
+    <p> Node is free to <a href="#download">download</a>, <a
+      href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
+
+    <h2 id="motivation">Motivation</h2>
+
+    <ol>
+    <li>Evented programming makes sense
+      <ol>
+      <li>difference between blocking/non-blocking design
+      <li>latency figures
+      <li>purely evented interfaces rule out a lot of stupidity
+      </ol>
+    <li>Evented programs are more efficient
+      <ol>
+      <li>pthread stack size
+      <li>context switching benchmark
+      <li>Apache vs. Nginx 
+      <li>event machine vs mongrel (neverblock)
+      </ol>
+    <li>The appropriateness of Javascript
+      <ol>
+      <li>No I/O 
+      <li>No Threads
+      <li>Good compiler
+      <li>Universality of the language
+      </ol>
+    </ol>
+
+    Threads are a bad model.
+
+    <p>
+    <a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
+    <pre>
+    l1 cache ~ 3
+    l2 cache ~ 14
+         ram ~ 250
+        disk ~ 41000000
+     network ~ 240000000
+    </pre>
+
+    <p> Javascript is without I/O. In the browser the DOM provides I/O,
+    but non-browser javascript interpreters have only non-standardized
+    functions to allow them print to console or access the network.
+
+    <p> Javascript is without the concept of threads.
+
+    <p> Contemporary computer infrastructure has two irreplaceable
+    languages: C and Javascript. C is the language of operating systems.
+    POSIX, the universal operating system API, is defined in C. So while you
+    can interface with operating systems in Java and Haskell, those
+    languages access must make system calls in C.  Similarly, Javascript is
+    the language of the web operating system.  In place of POSIX is the
+    DOM. You can wrap Javascript, you can compile to Javascript, but in the
+    end browsers must be interfaced with in Javascript. Portable low-level
+    systems tend to be written in C and portable web-level systems are
+    written in Javascript.
+
+    <h3>Evented vs Threaded Servers</h3>
+
+    <p> There are many methods to write internet servers but they can
+    fundamentally be divided into two camps: evented and threaded; non-blocking
+    and blocking. A blocking server accepts a connection and launches a new
+    thread to handle the connection. Because the concurrency is handled by
+    the thread scheduler, a blocking server can make function calls which
+    preform full network requests.
+
+    <pre>var response = db.execute("SELECT * FROM table");
+// do something</pre> 
+
+    <p> An evented server manages its concurrency itself. All connections
+    are handled in a single thread and callbacks are executed on certain
+    events: "socket 23 is has data to read", "socket 65's write buffer is
+    empty". An evented server executes small bits of code but never
+    <i>blocks</i> the process. In the evented world callbacks are used
+    instead of functions
+
+<pre>db.execute("SELECT * FROM table", function (response) {
+  // do something
+});</pre>
+
+
+    <h2 id="benchmarks">Benchmarks</h2>
+
+    <h2 id="download">Download</h2>
+
+    
+    <h2 id="build">Build</h2>
+
+<pre>configure
+make
+make install</pre>
+
+
+    <h2 id="api">Application Programming Interface</h2>
+
+    <p> The node executable should be given an argument pointing to a
+    javascript file. 
+
+    <h3 id="timers">Timers</h3>
+
+    <p>The timer API is the same as in the browser. The functions
+    <code>setTimeout, setInterval, cancleTimeout, and cancleInterval</code>
+
+    <h3 id="files">File System</h3>
+
+    <h3 id="tcp">TCP</h3>
+
+    <h3 id="http">HTTP</h3>
+
+    <h3 id="modules">Modules</h3>
+  </body>
+</html>
