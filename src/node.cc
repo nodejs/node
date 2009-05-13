@@ -287,7 +287,7 @@ main (int argc, char *argv[])
   ExecuteString(String::New(native_file), String::New("file.js"));
   if (try_catch.HasCaught()) goto native_js_error; 
 
-  ExecuteString(String::New(native_main), String::New("main.js"));
+  ExecuteString(String::New(native_node), String::New("node.js"));
   if (try_catch.HasCaught()) goto native_js_error; 
 
   ev_loop(EV_DEFAULT_UC_ 0);
