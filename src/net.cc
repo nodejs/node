@@ -435,14 +435,14 @@ Acceptor::v8Listen (const Arguments& args)
   if (args.Length() < 1)
     return ThrowException(String::New("Must give at least a port as argument."));
 
-  char *host = NULL;
 
   HandleScope scope;
   String::AsciiValue port(args[0]->ToString());
 
+  char *host = NULL;
   if (args[1]->IsString()) {
     String::Utf8Value host_sv(args[1]->ToString());
-    host = *host_sv;
+    host = strdup(*host_sv);
   }
 
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
@@ -452,6 +452,8 @@ Acceptor::v8Listen (const Arguments& args)
   int r = getaddrinfo(host, *port, &tcp_hints, &address);
   if (r != 0) 
     return ThrowException(String::New(strerror(errno)));
+
+  free(host);
 
   acceptor->Listen(address);
   return Undefined();
