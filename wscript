@@ -34,17 +34,6 @@ def configure(conf):
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
 
-  # needs to match the symbols found in libeio and libev
-  # __solaris
-  # __linux
-  # __freebsd
-  # __hpux
-  # __solaris
-  platform_string = "__" + Options.platform
-  if Options.platform == "linux2":
-    platform_string = "__linux"
-  conf.define(platform_string, 1)
-
   # liboi config
   print "--- liboi ---"
   if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
