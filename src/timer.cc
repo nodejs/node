@@ -7,17 +7,21 @@ using namespace node;
 
 #define CALLBACK_SYMBOL String::NewSymbol("callback")
 
+Persistent<FunctionTemplate> Timer::constructor_template;
+
 void
 Timer::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> timer_template = FunctionTemplate::New(Timer::New);
-  timer_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("Timer"), timer_template->GetFunction());
+  Local<FunctionTemplate> t = FunctionTemplate::New(Timer::New);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_METHOD(timer_template->InstanceTemplate(), "start", Timer::Start);
-  NODE_SET_METHOD(timer_template->InstanceTemplate(), "stop", Timer::Stop);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Timer::Start);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Timer::Stop);
+
+  target->Set(String::NewSymbol("Timer"), constructor_template->GetFunction());
 }
 
 void

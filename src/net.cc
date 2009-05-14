@@ -51,11 +51,11 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "connect", v8Connect);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "send", v8Send);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "fullClose", v8FullClose);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "forceClose", v8ForceClose);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", v8Connect);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", v8Send);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", v8FullClose);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", v8ForceClose);
 
   target->Set(String::NewSymbol("TCPConnection"), constructor_template->GetFunction());
 }
@@ -354,8 +354,8 @@ Acceptor::Initialize (Handle<Object> target)
 
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "listen", v8Listen);
-  NODE_SET_METHOD(constructor_template->PrototypeTemplate(), "close", v8Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", v8Listen);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
 
   target->Set(String::NewSymbol("TCPServer"), constructor_template->GetFunction());
 }

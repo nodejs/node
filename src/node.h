@@ -13,6 +13,14 @@ namespace node {
   obj->Set(NODE_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
 #define NODE_UNWRAP(type, value) static_cast<type*>(node::ObjectWrap::Unwrap(value))
 
+#define NODE_SET_PROTOTYPE_METHOD(templ, name, callback)                  \
+do {                                                                      \
+  Local<Signature> __callback##_SIG = Signature::New(templ);              \
+  Local<FunctionTemplate> __callback##_TEM =                              \
+    FunctionTemplate::New(callback, Handle<Value>() , __callback##_SIG ); \
+  templ->PrototypeTemplate()->Set(NODE_SYMBOL(name), __callback##_TEM);   \
+} while(0)
+
 enum encoding {UTF8, RAW};
 void fatal_exception (v8::TryCatch &try_catch); 
 void eio_warmup (void); // call this before creating a new eio event.

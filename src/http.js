@@ -47,7 +47,9 @@ var close_expression = /close/i;
 var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
-node.http.server = function (RequestHandler, options) {
+node.http.Server = function (RequestHandler, options) {
+  if (!(this instanceof node.http.Server))
+    throw Error("Constructor called as a function");
 
   function Protocol (connection) {
 
@@ -260,5 +262,5 @@ node.http.server = function (RequestHandler, options) {
     };
   }
 
-  return new node.http.LowLevelServer(Protocol, options);
+  this.__proto__.__proto__ = new node.http.LowLevelServer(Protocol, options);
 };

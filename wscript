@@ -53,7 +53,8 @@ def configure(conf):
   conf.define("HAVE_CONFIG_H", 1)
 
   conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
-  conf.check(lib='rt', uselib_store='RT')
+
+  #conf.check(lib='rt', uselib_store='RT')
 
   conf.check(lib='profiler', uselib_store='PROFILER')
 

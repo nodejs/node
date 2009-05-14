@@ -42,10 +42,10 @@ File::Initialize (Handle<Object> target)
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   // file methods
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_open", File::Open);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_close", File::Close);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_write", File::Write);
-  NODE_SET_METHOD(file_template->InstanceTemplate(), "_ffi_read", File::Read);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_open", File::Open);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_close", File::Close);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_write", File::Write);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_read", File::Read);
 
   file_template->InstanceTemplate()->SetAccessor(ENCODING_SYMBOL, File::GetEncoding, File::SetEncoding);
 

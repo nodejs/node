@@ -178,6 +178,7 @@ NODE_METHOD(debug)
 static void
 OnFatalError (const char* location, const char* message)
 {
+
 #define FATAL_ERROR "\033[1;31mV8 FATAL ERROR.\033[m"
   if (location)
     fprintf(stderr, FATAL_ERROR " %s %s\n", location, message);
