@@ -57,9 +57,9 @@ function Pinger (socket) {
 }
 
 function onLoad() {
-  var server = new TCPServer(Ponger);
+  var server = new node.tcp.Server(Ponger);
   server.listen(port);
 
-  var client = new TCPConnection(Pinger);
+  var client = new node.tcp.Connection(Pinger);
   client.connect(port);
 }

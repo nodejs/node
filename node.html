@@ -30,7 +30,7 @@ body {
 }
 #toc a { color: #777; }
 
-h1, h2, h3 { color: inherit; }
+h1, h2, h3 { color: #aaf; }
 
 h1 {
   margin: 2em 0;
@@ -42,7 +42,6 @@ h1 {
 h1 a { color: inherit; }
 
 h2 {
-  margin: 2em 0;
   font-size: 45px;
   line-height: inherit;
   font-weight: bold;
@@ -58,13 +57,18 @@ h3 {
 pre, code {
   font-family: monospace;
   font-size: 13pt;
+  color: #eae;
+}
+
+pre {
+  padding-left: 2em;
 }
 
 dl {
 }
 
 dt {
-  color: #f55;
+  color: #aaf;
   font-weight: bold;
 }
 
@@ -75,6 +79,11 @@ dd {
 
 a { color: #cd5; text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+.highlight {
+  background: #733;
+  padding: 0.2em 0;
+}
 
 </style>
 <title>node.js</title>
@@ -104,10 +113,11 @@ a:hover { text-decoration: underline; }
 
 <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-<p id="introduction"> Node is a purely evented I/O framework for <a
-  href="http://code.google.com/p/v8/">V8 javascript</a>.  For example, this is a
-simple web server which responds with "Hello World" after waiting two
-seconds:
+<p id="introduction"> Node is a purely asynchronous I/O framework for <a
+  href="http://code.google.com/p/v8/">V8 javascript</a>. 
+  
+<p>This is an example of a web server written with Node which responds with
+"Hello World" after waiting two seconds:
 <pre class="sh_javascript">
 new node.http.Server(function (msg) {
   setTimeout(function () {
@@ -351,7 +361,8 @@ msg.sendHeader( 200
 
 <h3 id="modules">Modules</h3>
 
-<p>Node has simple module loading.  Here is an example of loading a module:
+<p>Node has simple module loading.  Here is an example. This is the file
+<code>foo.js</code>:
 <pre>
 include("mjsunit");
 
@@ -362,14 +373,17 @@ function onLoad () {
 <p>Here the module <code>mjsunit</code> has provided the function
 <code>assertEquals()</code>.
 
-<p> The file <code>mjsunit.js</code> must be in the same directory for this
-to work. The <code>include()</code> function will take all the exported
-objects from the file and put them into the global namespace. Because file
-loading does not happen instantaniously, and because Node has a policy of
-never blocking, the callback <code>onLoad()</code> is provided to notify the
-user when all the exported functions are completely loaded.
+<p> The module file, <code>mjsunit.js</code>, must be in the same directory
+as <code>foo.js</code> for <code>include()</code> to work. The
+<code>include()</code> function will insert all the exported objects from the
+module into the global namespace.
 
-<p> To export an object, add to the special object <code>exports</code>.
+<p> Because file loading does not happen instantaneously, and because Node
+has a policy of never blocking, the callback <code>onLoad()</code> is
+provided to notify the user when all the exported functions are completely
+loaded.
+
+<p> To export an object, add to the special object <code class="highlight">exports</code>.
 Let's look at how <code>mjsunit.js</code> does this
 
 <pre>
@@ -381,7 +395,7 @@ function deepEquals (a, b) {
   // ...
 }
 
-exports.assertEquals = function (expected, found, name_opt) {
+<span class="highlight">exports</span>.assertEquals = function (expected, found, name_opt) {
   if (!deepEquals(found, expected)) {
     fail(expected, found, name_opt);
   }
@@ -393,7 +407,7 @@ exported and remain private to the module.
 <p> In addition to <code>include()</code> a module can use
 <code>require()</code>. Instead of loading the exported objects into the
 global namespace, it will return a namespace object. Again, the members of
-the namespace object can only be guarenteed to exist after the
+the namespace object can only be guaranteed to exist after the
 <code>onLoad()</code> callback is made. For example:
 <pre>
 var mjsunit = require("mjsunit");

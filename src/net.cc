@@ -57,7 +57,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", v8FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", v8ForceClose);
 
-  target->Set(String::NewSymbol("TCPConnection"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("Connection"), constructor_template->GetFunction());
 }
 
 Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
@@ -357,7 +357,7 @@ Acceptor::Initialize (Handle<Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", v8Listen);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
 
-  target->Set(String::NewSymbol("TCPServer"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
 Acceptor::Acceptor (Handle<Object> handle, Handle<Function> protocol_class,  Handle<Object> options) 

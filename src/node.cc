@@ -271,8 +271,10 @@ main (int argc, char *argv[])
 
   File::Initialize(g);
 
-  Acceptor::Initialize(g);
-  Connection::Initialize(g);
+  Local<Object> tcp = Object::New();
+  node->Set(String::New("tcp"), tcp);
+  Acceptor::Initialize(tcp);
+  Connection::Initialize(tcp);
 
   Local<Object> http = Object::New();
   node->Set(String::New("http"), http);
