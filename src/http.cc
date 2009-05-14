@@ -57,9 +57,6 @@ Handle<Value>
 HTTPConnection::v8NewClient (const Arguments& args)
 {
   HandleScope scope;
-  if (args[0]->IsFunction() == false)
-    return ThrowException(String::New("Must pass a class as the first argument."));
-  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
   new HTTPConnection(args.This(), HTTP_RESPONSE);
   return args.This();
 }
@@ -68,9 +65,6 @@ Handle<Value>
 HTTPConnection::v8NewServer (const Arguments& args)
 {
   HandleScope scope;
-  if (args[0]->IsFunction() == false)
-    return ThrowException(String::New("Must pass a class as the first argument."));
-  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
   new HTTPConnection(args.This(), HTTP_REQUEST);
   return args.This();
 }
@@ -348,6 +342,13 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
   if (!connection) return NULL;
 
   connection->SetAcceptor(handle_);
+
+  Handle<Value> argv[1] = { connection_handle };
+
+  Local<Value> ret = connection_handler->Call(handle_, 1, argv);
+
+  if (ret.IsEmpty())
+    fatal_exception(try_catch);
 
   return connection;
 }

@@ -51,8 +51,7 @@ node.http.Server = function (RequestHandler, options) {
   if (!(this instanceof node.http.Server))
     throw Error("Constructor called as a function");
 
-  function Protocol (connection) {
-
+  function ConnectionHandler (connection) {
     // An array of messages for each connection. In pipelined connections
     // we need to keep track of the order they were sent.
     var messages = [];
@@ -211,7 +210,6 @@ node.http.Server = function (RequestHandler, options) {
     }
 
     connection.onMessage = function ( ) {
-      puts("got onMessage");
       var msg = new Message();
 
       msg.path = "";
@@ -263,5 +261,5 @@ node.http.Server = function (RequestHandler, options) {
     };
   }
 
-  this.__proto__.__proto__ = new node.http.LowLevelServer(Protocol, options);
+  this.__proto__.__proto__ = new node.http.LowLevelServer(ConnectionHandler, options);
 };
