@@ -72,6 +72,8 @@ Handle<Value>
 Connection::EncodingGetter (Local<String> _, const AccessorInfo& info)
 {
   Connection *connection = NODE_UNWRAP(Connection, info.This());
+  if (!connection) return Handle<Value>();
+
   HandleScope scope;
 
   if (connection->encoding_ == UTF8)
@@ -84,6 +86,8 @@ void
 Connection::EncodingSetter (Local<String> _, Local<Value> value, const AccessorInfo& info)
 {
   Connection *connection = NODE_UNWRAP(Connection, info.This());
+  if (!connection) return;
+
   if (!value->IsString()) {
     connection->encoding_ = RAW;
     return;
@@ -148,8 +152,10 @@ Connection::v8New (const Arguments& args)
 Handle<Value>
 Connection::v8Connect (const Arguments& args)
 {
-  HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
+
+  HandleScope scope;
 
   if (args.Length() == 0 || args[0]->IsInt32() == false)
     return ThrowException(String::New("Must specify a port."));
@@ -231,6 +237,8 @@ Connection::v8Close (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
+
   connection->Close();
   return Undefined();
 }
@@ -240,6 +248,8 @@ Connection::v8FullClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
+
   connection->FullClose();
   return Undefined();
 }
@@ -249,6 +259,8 @@ Connection::v8ForceClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
+
   connection->ForceClose();
   //connection->Detach();
   return Undefined();
@@ -260,6 +272,7 @@ Connection::v8Send (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
 
   if (args[0]->IsString()) {
     // utf8 encoding
@@ -321,7 +334,7 @@ Connection::OnReceive (const void *buf, size_t len)
   callback->Call(handle_, argc, argv);
 
   if (try_catch.HasCaught())
-    fatal_exception(try_catch); // XXX is this the right action to take?
+    fatal_exception(try_catch);
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
@@ -331,7 +344,10 @@ void name ()                                                        \
   Local<Value> callback_v = handle_->Get(symbol);                   \
   if (!callback_v->IsFunction()) return;                            \
   Handle<Function> callback = Handle<Function>::Cast(callback_v);   \
+  TryCatch try_catch;                                               \
   callback->Call(handle_, 0, NULL);                                 \
+  if (try_catch.HasCaught())                                        \
+    fatal_exception(try_catch);                                     \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
@@ -397,6 +413,8 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     Connection::constructor_template->GetFunction()->NewInstance(0, NULL);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
+  if (!connection) return NULL;
+
   connection->SetAcceptor(handle_);
 
   Handle<Value> argv[1] = { connection_handle };
@@ -436,6 +454,7 @@ Handle<Value>
 Acceptor::v8Listen (const Arguments& args)
 {
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
+  if (!acceptor) return Handle<Value>();
 
   if (args.Length() < 1)
     return ThrowException(String::New("Must give at least a port as argument."));
@@ -468,6 +487,8 @@ Handle<Value>
 Acceptor::v8Close (const Arguments& args)
 {
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
+  if (!acceptor) return Handle<Value>();
+
   acceptor->Close();
   return Undefined();
 }

@@ -231,10 +231,9 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
     }
     argv[0] = array;
   }
-  on_body->Call(message_handler, 1, argv);
 
   TryCatch try_catch;
-  Local<Value> ret = on_body->Call(message_handler, 0, NULL);
+  Local<Value> ret = on_body->Call(message_handler, 1, argv);
   if (ret.IsEmpty()) {
     fatal_exception(try_catch);
     return -2;
@@ -339,6 +338,8 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
     HTTPConnection::server_constructor_template->GetFunction()->NewInstance(0, NULL);
 
   HTTPConnection *connection = NODE_UNWRAP(HTTPConnection, connection_handle);
+  if (!connection) return NULL;
+
   connection->SetAcceptor(handle_);
 
   return connection;
