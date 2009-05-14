@@ -131,3 +131,7 @@ stdin.fd = File.STDIN_FILENO;
 this.puts = function (data, callback) {
   stdout.puts(data, callback);
 }
+
+this.p = function (data, callback) {
+  puts(JSON.stringify(data), callback);
+}

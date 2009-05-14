@@ -1,4 +1,4 @@
-puts(JSON.stringify({hello: "world"}));
+p({hello: "world"});
 new node.http.Server(function (msg) {
   setTimeout(function () {
     msg.sendHeader(200, [["Content-Type", "text/plain"]]);
