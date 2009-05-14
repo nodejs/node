@@ -61,13 +61,17 @@ void*
 ObjectWrap::Unwrap (Handle<Object> handle)
 {
   HandleScope scope;
-  if(handle.IsEmpty() || handle->InternalFieldCount() == 0) {
-    ThrowException(String::New("Tried to unwrap object without internal field."));
+  if (handle.IsEmpty()) { 
+    fprintf(stderr, "Node: Tried to unwrap empty object.\n");
+    return NULL;
+  }
+  if ( handle->InternalFieldCount() == 0) {
+    fprintf(stderr, "Node: Tried to unwrap object without internal fields.\n");
     return NULL;
   }
   Local<Value> value = handle->GetInternalField(0);
   if (value.IsEmpty()) {
-    ThrowException(String::New("Tried to unwrap object with empty internal field."));
+    fprintf(stderr, "Tried to unwrap object with empty internal field.\n");
     return NULL;
   }
   Handle<External> field = Handle<External>::Cast(value);

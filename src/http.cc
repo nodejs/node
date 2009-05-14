@@ -334,8 +334,15 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
     return NULL;
   }
 
+  TryCatch try_catch;
+
   Local<Object> connection_handle =
     HTTPConnection::server_constructor_template->GetFunction()->NewInstance(0, NULL);
+
+  if (connection_handle.IsEmpty()) {
+    fatal_exception(try_catch);
+    return NULL;
+  }
 
   HTTPConnection *connection = NODE_UNWRAP(HTTPConnection, connection_handle);
   if (!connection) return NULL;

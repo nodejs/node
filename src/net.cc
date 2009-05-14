@@ -409,8 +409,15 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     return NULL;
   }
 
+  TryCatch try_catch;
+
   Local<Object> connection_handle =
     Connection::constructor_template->GetFunction()->NewInstance(0, NULL);
+  
+  if (connection_handle.IsEmpty()) {
+    fatal_exception(try_catch);
+    return NULL;
+  }
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
   if (!connection) return NULL;
@@ -419,7 +426,6 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 
   Handle<Value> argv[1] = { connection_handle };
 
-  TryCatch try_catch;
   Local<Value> ret = connection_handler->Call(handle_, 1, argv);
 
   if (ret.IsEmpty())

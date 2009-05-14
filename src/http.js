@@ -210,7 +210,8 @@ node.http.Server = function (RequestHandler, options) {
       this.onBodyComplete = function () { return true; }
     }
 
-    this.onMessage = function ( ) {
+    connection.onMessage = function ( ) {
+      puts("got onMessage");
       var msg = new Message();
 
       msg.path = "";
