@@ -1,99 +1,115 @@
 
 <html>
-  <style>
-    body {
-      background: #22252a;
-      color: #eee;
-      font-size: 16pt;
-      line-height: 150%;
-      font-family: times, Times New Roman, times-roman, georgia, serif; 
-    }
-    #content {
-      max-width: 30em;
-      margin: 0 0 5em 10em;
-    }
-    #toc {
-      position: fixed;
-      top: 2em;
-      left: 0;
-      width: 10em;
-    }
-    #toc ol {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      padding-left: 1em;
-    }
-    #toc ol li {
-      margin: 0;
-      padding: 0;
-    }
-    #toc a { color: #777; }
+<style>
+body {
+  background: #22252a;
+  color: #eee;
+  font-size: 16pt;
+  line-height: 150%;
+  font-family: times, Times New Roman, times-roman, georgia, serif; 
+}
+#content {
+  max-width: 30em;
+  margin: 0 0 5em 10em;
+}
+#toc {
+  position: fixed;
+  top: 2em;
+  left: 0;
+  width: 10em;
+}
+#toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  padding-left: 1em;
+}
+#toc ol li {
+  margin: 0;
+  padding: 0;
+}
+#toc a { color: #777; }
 
-    h1, h2, h3 { color: inherit; }
+h1, h2, h3 { color: inherit; }
 
-    h1 {
-      margin: 2em 0;
-      padding: 0px 0px 0px 0px;
-      font-size: 51px;
-      line-height: 44px;
-      font-weight: bold;
-    }
-    h1 a { color: inherit; }
+h1 {
+  margin: 2em 0;
+  padding: 0px 0px 0px 0px;
+  font-size: 51px;
+  line-height: 44px;
+  font-weight: bold;
+}
+h1 a { color: inherit; }
 
-    h2 {
-      margin: 2em 0;
-      font-size: inherit;
-      line-height: inherit;
-      font-weight: bold;
-    }
+h2 {
+  margin: 2em 0;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: bold;
+}
 
-    h3 {
-      margin: 1em 0;
-      font-size: inherit;
-      line-height: inherit;
-      font-weight: inherit;
-    }
+h3 {
+  margin: 1em 0;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+}
 
-    pre, code {
-      font-family: monospace;
-      font-size: 14pt;
-    }
+pre, code {
+  font-family: monospace;
+  font-size: 12pt;
+}
 
-    a { color: #cd5; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+dl {
+}
 
-  </style>
-  <title>node.js</title>
-  <body>
-    <div id="toc">
+dt {
+  color: #f55;
+  font-weight: bold;
+}
+
+dd {
+  margin: 1em 0;
+  margin-left: 1em;
+}
+
+a { color: #cd5; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+</style>
+<title>node.js</title>
+<body>
+<div id="toc">
+  <ol>
+    <li><a href="#motivation">Motivation</a></li>
+    <li><a href="#benchmarks">Benchmarks</a></li>
+    <li><a href="#download">Download</a></li>
+    <li><a href="#install">Build</a></li>
+    <li><a href="#api">API</a>
       <ol>
-        <li><a href="#motivation">Motivation</a></li>
-        <li><a href="#benchmarks">Benchmarks</a></li>
-        <li><a href="#download">Download</a></li>
-        <li><a href="#install">Build</a></li>
-        <li><a href="#api">API</a>
+        <li><a href="#timers">Timers</a>
+        <li><a href="#files">File System</a>
+        <li><a href="#tcp">TCP</a>
+        <li><a href="#http">HTTP</a>
           <ol>
-            <li><a href="#timers">Timers</a>
-            <li><a href="#files">File System</a>
-            <li><a href="#tcp">TCP</a>
-            <li><a href="#http">HTTP</a>
-            <li><a href="#modules">Modules</a>
+          <li><a href="#http_server">Server</a>
+          <li><a href="#http_client">Client</a>
           </ol>
-        </li>
+        <li><a href="#modules">Modules</a>
       </ol>
-    </div>
-    <div id="content">
+    </li>
+  </ol>
+</div>
+<div id="content">
 
-    <h1><a href="http://tinyclouds.org/node">Node</a></h1>
+<h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-    <p id="introduction"> Node is a purely evented I/O framework for <a
-      href="#">V8 javascript</a>.  It enables easy development of
-    highly concurrent, efficent network programs.  For example, this is a
-    simple web server which responds with "Hello World" after waiting two
-    seconds:
+<p id="introduction"> Node is a purely evented I/O framework for <a
+  href="http://code.google.com/p/v8/">V8 javascript</a>.  For example, this is a
+simple web server which responds with "Hello World" after waiting two
+seconds:
 <pre class="sh_javascript">
-node.http.server(function (msg) {
+new node.http.Server(function (msg) {
   setTimeout(function () {
     msg.sendHeader(200, [["Content-Type", "text/plain"]]);
     msg.sendBody("Hello World");
@@ -102,60 +118,67 @@ node.http.server(function (msg) {
 }).listen(8000, "localhost");
 </pre>
 
-    <p> While one request is waiting the server will continue to accept and
-    serve other requests. This little server can handle hundreds of
-    concurrent requests while using little CPU or memory&mdash;<a
-    href="#benchmarks">see benchmarks</a>.  The example demonstrates
-    efficency that is needed for handling long held "comet" requests.
+<p> This script can handle hundreds of concurrent requests while using
+little CPU or memory&mdash;<a href="#benchmarks">see benchmarks</a>.
+Check out <a href="#api">the documentation</a> for more examples.
 
-    <p> Node is free to <a href="#download">download</a>, <a
-      href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
+<p> Node is free to <a href="#download">download</a>, <a
+  href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
 
-    <h2 id="motivation">Motivation</h2>
+<h2 id="motivation">Motivation</h2>
 
-    <ol>
-    <li>Evented programming makes sense
-      <ol>
-      <li>difference between blocking/non-blocking design
-      <li>latency figures
-      <li>purely evented interfaces rule out a lot of stupidity
-      </ol>
-    <li>Evented programs are more efficient
-      <ol>
-      <li>pthread stack size
-       2mb default stack size on linux (1mb on windows, 64kb on FreeBSD)
-       of course this is adjustable 
-      <li>context switching benchmark
-      <li>Apache vs. Nginx 
-      <li>event machine vs mongrel (neverblock)
-      </ol>
-    <li>The appropriateness of Javascript
-      <ol>
-      <li>No I/O 
-      <li>No Threads
-      <li>Good compiler
-      <li>Universality of the language
-      </ol>
-    </ol>
+<ol>
+<li>Evented programming makes sense
+  <ol>
+  <li>difference between blocking/non-blocking design
+        <p> There are many methods to write internet servers but they can
+        fundamentally be divided into two camps: evented and threaded; non-blocking
+        and blocking. A blocking server accepts a connection and launches a new
+        thread to handle the connection. Because the concurrency is handled by
+        the thread scheduler, a blocking server can make function calls which
+        preform full network requests.
 
-    Threads are a bad model.
+<pre class="sh_javascript">var response = db.execute("SELECT * FROM table");
+// do something</pre> 
 
-    <p>
-    <a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
-    <pre>
-    l1 cache ~ 3
-    l2 cache ~ 14
-         ram ~ 250
-        disk ~ 41000000
-     network ~ 240000000
-    </pre>
+        <p> An evented server manages its concurrency itself. All connections
+        are handled in a single thread and callbacks are executed on certain
+        events: "socket 23 is has data to read", "socket 65's write buffer is
+        empty". An evented server executes small bits of code but never
+        <i>blocks</i> the process. In the evented world callbacks are used
+        instead of functions
 
+<pre class="sh_javascript">db.execute("SELECT * FROM table", function (response) {
+// do something
+});</pre>
+  <li><a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
+<pre>
+l1 cache ~ 3
+l2 cache ~ 14
+     ram ~ 250
+    disk ~ 41000000
+ network ~ 240000000
+</pre>
+  <li>purely evented interfaces rule out a lot of stupidity
+  </ol>
+<li>Evented programs are more efficient
+  <ol>
+  <li>pthread stack size
+   2mb default stack size on linux (1mb on windows, 64kb on FreeBSD)
+   of course this is adjustable 
+  <li>context switching benchmark
+  <li>Apache vs. Nginx 
+  <li>event machine vs mongrel (neverblock)
+  </ol>
+<li>The appropriateness of Javascript
+  <ol>
+  <li>No I/O 
     <p> Javascript is without I/O. In the browser the DOM provides I/O,
     but non-browser javascript interpreters have only non-standardized
     functions to allow them print to console or access the network.
-
-    <p> Javascript is without the concept of threads.
-
+  <li>No Threads
+  <li>Good compiler
+  <li>Universality of the language
     <p> Contemporary computer infrastructure has two irreplaceable
     languages: C and Javascript. C is the language of operating systems.
     POSIX, the universal operating system API, is defined in C. So while you
@@ -166,59 +189,159 @@ node.http.server(function (msg) {
     end browsers must be interfaced with in Javascript. Portable low-level
     systems tend to be written in C and portable web-level systems are
     written in Javascript.
+  </ol>
+</ol>
 
-    <h3>Evented vs Threaded Servers</h3>
+<h2 id="benchmarks">Benchmarks</h2>
 
-    <p> There are many methods to write internet servers but they can
-    fundamentally be divided into two camps: evented and threaded; non-blocking
-    and blocking. A blocking server accepts a connection and launches a new
-    thread to handle the connection. Because the concurrency is handled by
-    the thread scheduler, a blocking server can make function calls which
-    preform full network requests.
+<p> TODO
 
-    <pre class="sh_javascript">var response = db.execute("SELECT * FROM table");
-// do something</pre> 
+<h2 id="download">Download</h2>
 
-    <p> An evented server manages its concurrency itself. All connections
-    are handled in a single thread and callbacks are executed on certain
-    events: "socket 23 is has data to read", "socket 65's write buffer is
-    empty". An evented server executes small bits of code but never
-    <i>blocks</i> the process. In the evented world callbacks are used
-    instead of functions
+<p> TODO
 
-<pre class="sh_javascript">db.execute("SELECT * FROM table", function (response) {
-  // do something
-});</pre>
-
-
-    <h2 id="benchmarks">Benchmarks</h2>
-
-    <h2 id="download">Download</h2>
-
-    
-    <h2 id="build">Build</h2>
+<h2 id="build">Build</h2>
 
 <pre>configure
 make
 make install</pre>
 
 
-    <h2 id="api">Application Programming Interface</h2>
+<h2 id="api">Application Programming Interface</h2>
 
-    <p> The node executable should be given an argument pointing to a
-    javascript file. 
+<p> The node executable should be given an argument pointing to a
+javascript file. 
 
-    <h3 id="timers">Timers</h3>
+<h3 id="timers">Timers</h3>
 
-    <p>The timer API is the same as in the browser. The functions
-    <code>setTimeout, setInterval, cancleTimeout, and cancleInterval</code>
+<p>The timer API is the same as in the browser. The functions
+<code>setTimeout, setInterval, clearTimeout, and clearInterval</code>
 
-    <h3 id="files">File System</h3>
+<h3 id="files">File System</h3>
 
-    <h3 id="tcp">TCP</h3>
+<h3 id="tcp">TCP</h3>
 
-    <h3 id="http">HTTP</h3>
+<h3 id="http">HTTP (<code>node.http</code>)</h3>
 
-    <h3 id="modules">Modules</h3>
-  </body>
+<p> Node provides a fast web server and client interface. The interface is
+rather low-level. Node, for example, will not parse
+<code>application/x-www-form-urlencoded</code> message bodies&mdash;that is
+for higher level code to manage. The interface does abstract the
+Transfer-Encoding (i.e. chuncked or identity), Message boundarys, and
+Keep-Alive connections. 
+
+<h4 id="http_server">HTTP Server (<code>node.http.Server</code>)</h4>
+<dl>
+  <dt><code>new Server(request_handler, options)</code></dt>
+  <dd> 
+      <p>Creates a new web server. The <code>options</code> argument accepts
+      the same values as the options argument for
+      <code>node.tcp.Server</code> does. The options argument is optional. 
+
+      <p>The <code>request_handler</code> is a function which is called on 
+      each request with a <code>Message</code> object argument.
+  </dd>
+
+  <dt><code>server.listen(port, hostname)</code>
+  <dd> 
+    <p>Begin accepting connections on the specified port and hostname. If the
+    hostname is omitted, the server will accept connections directed to any
+    address.  
+  </dd>
+
+  <dt><code>server.close()</code>
+  <dd>
+    <p>Stops the server. Requests currently in progress will not be
+    interrupted.
+  </dd>
+</dl>
+    
+
+<h4>HTTP Request Message (<code>node.http.Message</code>)</h4>
+
+<p> This object is only created internally&mdash;not by the user. It is passed
+as an argument to the <code>request_handler</code> function in a web server. 
+<dl>
+  <dt><code>msg.method</code>
+  <dd>The request method as a string. Read only. Example: <code>"GET"</code>,
+  <code>"DELETE"</code>.</dd>
+
+  <dt><code>msg.uri</code>
+  <dd>The request URI as a string. Read only.
+  Example: <code>"/index.html?hello=world"</code>.</dd>
+
+  <dt><code>msg.headers</code>
+  <dd>The request headers expressed as an array of 2-element arrays. Read only.  
+  Example:
+<pre>
+[ ["Content-Length", "123"]
+, ["Content-Type", "text/plain"]
+, ["Connection", "keep-alive"]
+, ["Accept", "*/*"]
+]
+</pre>
+
+  <dt><code>msg.http_version</code></dt>
+  <dd>The HTTP protocol version as a string. Read only. Examples: <code>"1.1"</code>,
+  <code>"1.0"</code>
+
+  <dt><code>msg.connection</code></dt>
+  <dd> A reference to the <code>node.tcp.Connection</code> object. Read
+  only. Note that multiple messages can be sent on a single connection.
+  </dd>
+
+  <dt><code>msg.onBody</code></dt>
+  <dd>Callback. Should be set by the user to be informed of when a piece
+  of the message body is received. Example:
+<pre>
+msg.onBody = function (chunk) {
+  puts("part of the body: " + chunk);
+}
+</pre>
+  A piece of the body is given as the single argument. The transfer-encoding
+  has been removed. 
+
+  <dt><code>msg.onBodyComplete</code></dt>
+  <dd>Callback. Made exactly once for each message. No arguments. After
+  <code>onBodyComplete</code> is executed <code>onBody</code> will no longer be called.
+  </dd>
+
+  <dt><code>msg.sendHeader(status_code, headers)</code></dt>
+  <dd>
+    Sends a response header to the request. The status code is a 3-digit
+    HTTP status code, like <code>404</code>. The second argument,
+    <code>headers</code>, should be an array of 2-element arrays,
+    representing the response headers. 
+
+    <p>Example:
+<pre>
+var body = "hello world";
+msg.sendHeader( 200
+              , [ ["Content-Length", body.length] 
+                , ["Content-Type", "text/plain"] 
+                ]
+              );
+</pre>
+    This method must only be called once on a message and it must be called
+    before <code>msg.finish()</code> is called.
+  </dd>
+
+  <dt><code>msg.sendBody(chunk)</code></dt>
+  <dd>
+  This method must be called after <code>sendHeader</code> was called. It
+  sends a chunk of the response body. This method may be called multiple
+  times to provide successive parts of the body.
+  </dd>
+
+  <dt><code>msg.finish()</code></dt>
+  <dd>
+  This method signals that all of the response headers and body has been
+  sent; that server should consider this message complete. 
+  The method, <code>msg.finish()</code>, MUST be called on each response.
+
+</dl>
+
+<h3 id="modules">Modules</h3>
+
+</body>
 </html>
