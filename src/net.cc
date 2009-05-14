@@ -13,6 +13,9 @@
 using namespace v8;
 using namespace node;
 
+#define UTF8_SYMBOL           String::NewSymbol("utf8")
+#define RAW_SYMBOL            String::NewSymbol("raw")
+
 #define ON_RECEIVE_SYMBOL     String::NewSymbol("onReceive")
 #define ON_DISCONNECT_SYMBOL  String::NewSymbol("onDisconnect")
 #define ON_CONNECT_SYMBOL     String::NewSymbol("onConnect")
@@ -26,7 +29,7 @@ using namespace node;
 #define SERVER_SYMBOL         String::NewSymbol("server")
 
 #define PROTOCOL_SYMBOL String::NewSymbol("protocol")
-#define PROTOCOL_CLASS_SYMBOL String::NewSymbol("protocol_class")
+#define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connection_handler")
 
 static const struct addrinfo tcp_hints = 
 /* ai_flags      */ { AI_PASSIVE
@@ -57,36 +60,50 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", v8FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", v8ForceClose);
 
+  constructor_template->PrototypeTemplate()->SetAccessor(
+      String::NewSymbol("encoding"),
+      EncodingGetter,
+      EncodingSetter);
+
   target->Set(String::NewSymbol("Connection"), constructor_template->GetFunction());
 }
 
-Connection::Connection (Handle<Object> handle, Handle<Function> protocol_class)
-  : ObjectWrap(handle) 
+Handle<Value>
+Connection::EncodingGetter (Local<String> _, const AccessorInfo& info)
 {
+  Connection *connection = NODE_UNWRAP(Connection, info.This());
   HandleScope scope;
 
-  // Instanciate the protocol object
-  Handle<Value> argv[] = { handle_ };
-  Local<Object> protocol = protocol_class->NewInstance(1, argv);
-  handle_->Set(PROTOCOL_SYMBOL, protocol);
+  if (connection->encoding_ == UTF8)
+    return scope.Close(UTF8_SYMBOL);
+  else 
+    return scope.Close(RAW_SYMBOL);
+}
 
-  // TODO use SetNamedPropertyHandler (or whatever) for encoding and timeout
-  // instead of just reading it once?
-
-  encoding_ = RAW;
-  Local<Value> encoding_v = protocol->Get(ENCODING_SYMBOL);
-  if (encoding_v->IsString()) {
-    Local<String> encoding_string = encoding_v->ToString();
-    char buf[5]; // need enough room for "utf8" or "raw"
-    encoding_string->WriteAscii(buf, 0, 4);
-    buf[4] = '\0';
-    if(strcasecmp(buf, "utf8") == 0) encoding_ = UTF8;
+void
+Connection::EncodingSetter (Local<String> _, Local<Value> value, const AccessorInfo& info)
+{
+  Connection *connection = NODE_UNWRAP(Connection, info.This());
+  if (!value->IsString()) {
+    connection->encoding_ = RAW;
+    return;
   }
+  HandleScope scope;
+  Local<String> encoding = value->ToString();
+  char buf[5]; // need enough room for "utf8" or "raw"
+  encoding->WriteAscii(buf, 0, 4);
+  buf[4] = '\0';
+  if(strcasecmp(buf, "utf8") == 0)
+    connection->encoding_ = UTF8;
+  else
+    connection->encoding_ = RAW;
+}
 
-  double timeout = 0.0; // default
-  Local<Value> timeout_v = protocol->Get(TIMEOUT_SYMBOL);
-  if (encoding_v->IsInt32())
-    timeout = timeout_v->Int32Value() / 1000.0;
+Connection::Connection (Handle<Object> handle)
+  : ObjectWrap(handle) 
+{
+  encoding_ = RAW;
+  double timeout = 60.0; // default
 
   host_ = NULL;
   port_ = NULL;
@@ -111,20 +128,6 @@ Connection::~Connection ()
   ForceClose();
 }
 
-Local<Object>
-Connection::GetProtocol (void)
-{
-  HandleScope scope;
-
-  Local<Value> protocol_v = handle_->Get(PROTOCOL_SYMBOL);
-  if (protocol_v->IsObject()) {
-    Local<Object> protocol = protocol_v->ToObject();
-    return scope.Close(protocol);
-  }
-
-  return Local<Object>();
-}
-
 void
 Connection::SetAcceptor (Handle<Object> acceptor_handle)
 {
@@ -138,10 +141,7 @@ Handle<Value>
 Connection::v8New (const Arguments& args)
 {
   HandleScope scope;
-  if (args[0]->IsFunction() == false)
-    return ThrowException(String::New("Must pass a class as the first argument."));
-  Handle<Function> protocol_class = Handle<Function>::Cast(args[0]);
-  new Connection(args.This(), protocol_class);
+  new Connection(args.This());
   return args.This();
 }
 
@@ -290,8 +290,7 @@ Connection::OnReceive (const void *buf, size_t len)
 {
   HandleScope scope;
 
-  Local<Object> protocol = GetProtocol();
-  Handle<Value> callback_v = protocol->Get(ON_RECEIVE_SYMBOL);
+  Handle<Value> callback_v = handle_->Get(ON_RECEIVE_SYMBOL);
   if (!callback_v->IsFunction()) return; 
 
   Handle<Function> callback = Handle<Function>::Cast(callback_v);
@@ -319,7 +318,7 @@ Connection::OnReceive (const void *buf, size_t len)
   }
 
   TryCatch try_catch;
-  callback->Call(protocol, argc, argv);
+  callback->Call(handle_, argc, argv);
 
   if (try_catch.HasCaught())
     fatal_exception(try_catch); // XXX is this the right action to take?
@@ -329,11 +328,10 @@ Connection::OnReceive (const void *buf, size_t len)
 void name ()                                                        \
 {                                                                   \
   HandleScope scope;                                                \
-  Local<Object> protocol = GetProtocol();                           \
-  Local<Value> callback_v = protocol->Get(symbol);                  \
+  Local<Value> callback_v = handle_->Get(symbol);                   \
   if (!callback_v->IsFunction()) return;                            \
   Handle<Function> callback = Handle<Function>::Cast(callback_v);   \
-  callback->Call(protocol, 0, NULL);                                \
+  callback->Call(handle_, 0, NULL);                                 \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
@@ -360,12 +358,12 @@ Acceptor::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
-Acceptor::Acceptor (Handle<Object> handle, Handle<Function> protocol_class,  Handle<Object> options) 
+Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler,  Handle<Object> options) 
   : ObjectWrap(handle) 
 {
   HandleScope scope;
 
-  handle_->SetHiddenValue(PROTOCOL_CLASS_SYMBOL, protocol_class);
+  handle_->SetHiddenValue(CONNECTION_HANDLER_SYMBOL, connection_handler);
 
   int backlog = 1024; // default value
   Local<Value> backlog_v = options->Get(String::NewSymbol("backlog"));
@@ -388,19 +386,26 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
   
-  Local<Function> protocol_class = GetProtocolClass();
-  if (protocol_class.IsEmpty()) {
-    printf("protocol class was empty!");
+  Local<Function> connection_handler = GetConnectionHandler();
+  if (connection_handler.IsEmpty()) {
+    printf("Connection handler was empty!");
     Close();
     return NULL;
   }
 
-  Handle<Value> argv[] = { protocol_class };
   Local<Object> connection_handle =
-    Connection::constructor_template->GetFunction()->NewInstance(1, argv);
+    Connection::constructor_template->GetFunction()->NewInstance(0, NULL);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
   connection->SetAcceptor(handle_);
+
+  Handle<Value> argv[1] = { connection_handle };
+
+  TryCatch try_catch;
+  Local<Value> ret = connection_handler->Call(handle_, 1, argv);
+
+  if (ret.IsEmpty())
+    fatal_exception(try_catch);
 
   return connection;
 }
@@ -413,7 +418,7 @@ Acceptor::v8New (const Arguments& args)
   if (args.Length() < 1 || args[0]->IsFunction() == false)
     return ThrowException(String::New("Must at give connection handler as the first argument"));
 
-  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
+  Local<Function> connection_handler = Local<Function>::Cast(args[0]);
   Local<Object> options;
 
   if (args.Length() > 1 && args[1]->IsObject()) {
@@ -422,7 +427,7 @@ Acceptor::v8New (const Arguments& args)
     options = Object::New();
   }
 
-  new Acceptor(args.This(), protocol_class, options);
+  new Acceptor(args.This(), connection_handler, options);
 
   return args.This();
 }
@@ -468,15 +473,16 @@ Acceptor::v8Close (const Arguments& args)
 }
 
 Local<v8::Function>
-Acceptor::GetProtocolClass (void)
+Acceptor::GetConnectionHandler (void)
 {
   HandleScope scope;
 
-  Local<Value> protocol_class_v = handle_->GetHiddenValue(PROTOCOL_CLASS_SYMBOL);
-  if (protocol_class_v->IsFunction()) {
-    Local<Function> protocol_class = Local<Function>::Cast(protocol_class_v);
-    return scope.Close(protocol_class);
+  Local<Value> connection_handler_v = handle_->GetHiddenValue(CONNECTION_HANDLER_SYMBOL);
+  if (connection_handler_v->IsFunction()) {
+    Local<Function> connection_handler = Local<Function>::Cast(connection_handler_v);
+    return scope.Close(connection_handler);
   }
 
   return Local<Function>();
 }
+

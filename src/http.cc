@@ -60,7 +60,7 @@ HTTPConnection::v8NewClient (const Arguments& args)
   if (args[0]->IsFunction() == false)
     return ThrowException(String::New("Must pass a class as the first argument."));
   Local<Function> protocol_class = Local<Function>::Cast(args[0]);
-  new HTTPConnection(args.This(), protocol_class, HTTP_RESPONSE);
+  new HTTPConnection(args.This(), HTTP_RESPONSE);
   return args.This();
 }
 
@@ -71,7 +71,7 @@ HTTPConnection::v8NewServer (const Arguments& args)
   if (args[0]->IsFunction() == false)
     return ThrowException(String::New("Must pass a class as the first argument."));
   Local<Function> protocol_class = Local<Function>::Cast(args[0]);
-  new HTTPConnection(args.This(), protocol_class, HTTP_REQUEST);
+  new HTTPConnection(args.This(), HTTP_REQUEST);
   return args.This();
 }
 
@@ -90,8 +90,7 @@ HTTPConnection::on_message_begin (http_parser *parser)
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
   HandleScope scope;
 
-  Local<Object> protocol = connection->GetProtocol();
-  Local<Value> on_message_v = protocol->Get(ON_MESSAGE_SYMBOL);
+  Local<Value> on_message_v = connection->handle_->Get(ON_MESSAGE_SYMBOL);
   if (!on_message_v->IsFunction()) return -1;
   Handle<Function> on_message = Handle<Function>::Cast(on_message_v);
 
@@ -272,8 +271,8 @@ HTTPConnection::on_message_complete (http_parser *parser)
   return 0;
 }
 
-HTTPConnection::HTTPConnection (Handle<Object> handle, Handle<Function> protocol_class, enum http_parser_type type)
-  : Connection(handle, protocol_class) 
+HTTPConnection::HTTPConnection (Handle<Object> handle, enum http_parser_type type)
+  : Connection(handle) 
 {
   http_parser_init (&parser_, type);
   parser_.on_message_begin    = on_message_begin;
@@ -330,15 +329,14 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
   
-  Local<Function> protocol_class = GetProtocolClass();
-  if (protocol_class.IsEmpty()) {
+  Local<Function> connection_handler = GetConnectionHandler ();
+  if (connection_handler.IsEmpty()) {
     Close();
     return NULL;
   }
 
-  Handle<Value> argv[] = { protocol_class };
   Local<Object> connection_handle =
-    HTTPConnection::server_constructor_template->GetFunction()->NewInstance(1, argv);
+    HTTPConnection::server_constructor_template->GetFunction()->NewInstance(0, NULL);
 
   HTTPConnection *connection = NODE_UNWRAP(HTTPConnection, connection_handle);
   connection->SetAcceptor(handle_);

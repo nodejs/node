@@ -30,7 +30,7 @@ body {
 }
 #toc a { color: #777; }
 
-h1, h2, h3 { color: #aaf; }
+h1, h2, h3, h4 { color: #bbb; }
 
 h1 {
   margin: 2em 0;
@@ -42,22 +42,30 @@ h1 {
 h1 a { color: inherit; }
 
 h2 {
-  font-size: 45px;
+  font-size: 30px;
+  line-height: inherit;
+  font-weight: bold;
+  margin: 2em 0;
+}
+
+h3 {
+  margin: 2em 0;
+  font-size: 20px;
   line-height: inherit;
   font-weight: bold;
 }
 
-h3 {
+h4 {
   margin: 1em 0;
-  font-size: 30px;
+  font-size: inherit;
   line-height: inherit;
-  font-weight: inherit;
+  font-weight: bold;
 }
 
 pre, code {
   font-family: monospace;
   font-size: 13pt;
-  color: #eae;
+  color: #aaf;
 }
 
 pre {
@@ -137,31 +145,33 @@ Check out <a href="#api">the documentation</a> for more examples.
 
 <h2 id="motivation">Motivation</h2>
 
-<ol>
-<li>Evented programming makes sense
-  <ol>
-  <li>difference between blocking/non-blocking design
-        <p> There are many methods to write internet servers but they can
-        fundamentally be divided into two camps: evented and threaded; non-blocking
-        and blocking. A blocking server accepts a connection and launches a new
-        thread to handle the connection. Because the concurrency is handled by
-        the thread scheduler, a blocking server can make function calls which
-        preform full network requests.
+<h3>Evented Programming Makes More Sense</h3>
+
+difference between blocking/non-blocking design
+
+<p> There are many methods to write internet servers but they can
+fundamentally be divided into two camps: evented and threaded; non-blocking
+and blocking. A blocking server accepts a connection and launches a new
+thread to handle the connection. Because the concurrency is handled by
+the thread scheduler, a blocking server can make function calls which
+preform full network requests.
 
 <pre class="sh_javascript">var response = db.execute("SELECT * FROM table");
 // do something</pre> 
 
-        <p> An evented server manages its concurrency itself. All connections
-        are handled in a single thread and callbacks are executed on certain
-        events: "socket 23 is has data to read", "socket 65's write buffer is
-        empty". An evented server executes small bits of code but never
-        <i>blocks</i> the process. In the evented world callbacks are used
-        instead of functions
+<p> An evented server manages its concurrency itself. All connections
+are handled in a single thread and callbacks are executed on certain
+events: "socket 23 is has data to read", "socket 65's write buffer is
+empty". An evented server executes small bits of code but never
+<i>blocks</i> the process. In the evented world callbacks are used
+instead of functions
 
 <pre class="sh_javascript">db.execute("SELECT * FROM table", function (response) {
-// do something
+  // do something
 });</pre>
-  <li><a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
+
+
+<p><a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
 <pre>
 l1 cache ~ 3
 l2 cache ~ 14
@@ -169,9 +179,10 @@ l2 cache ~ 14
     disk ~ 41000000
  network ~ 240000000
 </pre>
-  <li>purely evented interfaces rule out a lot of stupidity
-  </ol>
-<li>Evented programs are more efficient
+
+<p>purely evented interfaces rule out a lot of stupidity
+
+<h3>Evented programs are more efficient</h3>
   <ol>
   <li>pthread stack size
    2mb default stack size on linux (1mb on windows, 64kb on FreeBSD)
@@ -180,7 +191,7 @@ l2 cache ~ 14
   <li>Apache vs. Nginx 
   <li>event machine vs mongrel (neverblock)
   </ol>
-<li>The appropriateness of Javascript
+<h3>The appropriateness of Javascript</h3>
   <ol>
   <li>No I/O 
     <p> Javascript is without I/O. In the browser the DOM provides I/O,
@@ -200,7 +211,6 @@ l2 cache ~ 14
     systems tend to be written in C and portable web-level systems are
     written in Javascript.
   </ol>
-</ol>
 
 <h2 id="benchmarks">Benchmarks</h2>
 

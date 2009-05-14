@@ -5,14 +5,13 @@ var N = 1000;
 var count = 0;
 
 function Ponger (socket) {
-  this.encoding = "UTF8";
-  this.timeout = 0;
+  socket.encoding = "UTF8";
+  socket.timeout = 0;
 
-  this.onConnect = function () {
-    puts("got socket.");
-  };
+  puts("got socket.");
 
-  this.onReceive = function (data) {
+  socket.onReceive = function (data) {
+    //puts("server recved data: " + JSON.stringify(data));
     assertTrue(count <= N);
     stdout.print("-");
     if (/PING/.exec(data)) {
@@ -20,39 +19,14 @@ function Ponger (socket) {
     }
   };
 
-  this.onEOF = function () {
+  socket.onEOF = function () {
     puts("ponger: onEOF");
     socket.close();
   };
 
-  this.onDisconnect = function () {
+  socket.onDisconnect = function () {
     puts("ponger: onDisconnect");
     socket.server.close();
-  };
-}
-
-function Pinger (socket) {
-  this.encoding = "UTF8";
-
-  this.onConnect = function () {
-    socket.send("PING");
-  };
-
-  this.onReceive = function (data) {
-    stdout.print(".");
-    assertEquals("PONG", data);
-    count += 1; 
-    if (count < N) {
-      socket.send("PING");
-    } else {
-      puts("sending FIN");
-      socket.close();
-    }
-  };
-
-  this.onEOF = function () {
-    puts("pinger: onEOF");
-    assertEquals(N, count);
   };
 }
 
@@ -60,6 +34,32 @@ function onLoad() {
   var server = new node.tcp.Server(Ponger);
   server.listen(port);
 
-  var client = new node.tcp.Connection(Pinger);
+  var client = new node.tcp.Connection();
+
+  client.encoding = "UTF8";
+
+  client.onConnect = function () {
+    puts("client is connected.");
+    client.send("PING");
+  };
+
+  client.onReceive = function (data) {
+    //puts("client recved data: " + JSON.stringify(data));
+    stdout.print(".");
+    assertEquals("PONG", data);
+    count += 1; 
+    if (count < N) {
+      client.send("PING");
+    } else {
+      puts("sending FIN");
+      client.close();
+    }
+  };
+
+  client.onEOF = function () {
+    puts("pinger: onEOF");
+    assertEquals(N, count);
+  };
+
   client.connect(port);
 }
