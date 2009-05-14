@@ -43,21 +43,21 @@ h1 a { color: inherit; }
 
 h2 {
   margin: 2em 0;
-  font-size: inherit;
+  font-size: 45px;
   line-height: inherit;
   font-weight: bold;
 }
 
 h3 {
   margin: 1em 0;
-  font-size: inherit;
+  font-size: 30px;
   line-height: inherit;
   font-weight: inherit;
 }
 
 pre, code {
   font-family: monospace;
-  font-size: 12pt;
+  font-size: 13pt;
 }
 
 dl {
@@ -298,13 +298,21 @@ msg.onBody = function (chunk) {
   puts("part of the body: " + chunk);
 }
 </pre>
-  A piece of the body is given as the single argument. The transfer-encoding
+  A chunk of the body is given as the single argument. The transfer-encoding
   has been removed. 
+  <p>The body chunk is either a String in the case of utf8 encoding or an
+  array of numbers in the case of raw encoding.
 
   <dt><code>msg.onBodyComplete</code></dt>
   <dd>Callback. Made exactly once for each message. No arguments. After
   <code>onBodyComplete</code> is executed <code>onBody</code> will no longer be called.
   </dd>
+
+  <dt><code>msg.setBodyEncoding(encoding)</code></dt>
+  <dd>
+    Set the encoding for the request body. Either <code>"utf8"</code> or
+    <code>"raw"</code>. Defaults to raw.
+    <big>TODO</big>
 
   <dt><code>msg.sendHeader(status_code, headers)</code></dt>
   <dd>
@@ -342,6 +350,59 @@ msg.sendHeader( 200
 </dl>
 
 <h3 id="modules">Modules</h3>
+
+<p>Node has simple module loading.  Here is an example of loading a module:
+<pre>
+include("mjsunit");
+
+function onLoad () {
+  assertEquals(1, 2);
+}
+</pre>
+<p>Here the module <code>mjsunit</code> has provided the function
+<code>assertEquals()</code>.
+
+<p> The file <code>mjsunit.js</code> must be in the same directory for this
+to work. The <code>include()</code> function will take all the exported
+objects from the file and put them into the global namespace. Because file
+loading does not happen instantaniously, and because Node has a policy of
+never blocking, the callback <code>onLoad()</code> is provided to notify the
+user when all the exported functions are completely loaded.
+
+<p> To export an object, add to the special object <code>exports</code>.
+Let's look at how <code>mjsunit.js</code> does this
+
+<pre>
+function fail (expected, found, name_opt) {
+  // ...
+}
+
+function deepEquals (a, b) {
+  // ...
+}
+
+exports.assertEquals = function (expected, found, name_opt) {
+  if (!deepEquals(found, expected)) {
+    fail(expected, found, name_opt);
+  }
+};
+</pre>
+<p> The functions <code>fail</code> and <code>deepEquals</code> are not
+exported and remain private to the module.
+
+<p> In addition to <code>include()</code> a module can use
+<code>require()</code>. Instead of loading the exported objects into the
+global namespace, it will return a namespace object. Again, the members of
+the namespace object can only be guarenteed to exist after the
+<code>onLoad()</code> callback is made. For example:
+<pre>
+var mjsunit = require("mjsunit");
+
+function onLoad () {
+  mjsunit.assertEquals(1, 2);
+}
+</pre>
+
 
 </body>
 </html>
