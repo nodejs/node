@@ -95,7 +95,7 @@ uninstall:
 test: all
 	@for i in test/test*.js; do \\
 		echo "\$\$i: "; \\
-		build/default/node \$\$i && echo PASS || echo FAIL; \\
+		build/debug/node \$\$i && echo PASS || echo FAIL; \\
 	done 
 
 clean:

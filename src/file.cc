@@ -487,7 +487,10 @@ Handle<Value>
 File::New(const Arguments& args)
 {
   HandleScope scope;
-  new File(args.Holder());
+
+  File *f = new File(args.Holder());
+  ObjectWrap::InformV8ofAllocation(f);
+
   return args.This();
 }
 

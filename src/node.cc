@@ -53,8 +53,10 @@ ObjectWrap::Detach ()
   if (attach_count_ > 0)
     attach_count_ -= 1;
 
-  if(weak_ && attach_count_ == 0)
+  if(weak_ && attach_count_ == 0) {
+    V8::AdjustAmountOfExternalAllocatedMemory(-size());
     delete this;
+  }
 }
 
 void*
@@ -85,6 +87,12 @@ ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
   obj->weak_ = true;
   if (obj->attach_count_ == 0)
     delete obj;
+}
+
+void
+ObjectWrap::InformV8ofAllocation (ObjectWrap *obj)
+{
+  v8::V8::AdjustAmountOfExternalAllocatedMemory(obj->size());
 }
 
 // Extracts a C string from a V8 Utf8Value.
@@ -244,6 +252,7 @@ main (int argc, char *argv[])
   ev_async_init(&eio_watcher, node_eio_cb);
   eio_init(eio_want_poll, NULL);
 
+  V8::Initialize();
   V8::SetFlagsFromCommandLine(&argc, argv, true);
 
   if(argc < 2)  {

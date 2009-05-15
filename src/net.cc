@@ -145,7 +145,10 @@ Handle<Value>
 Connection::v8New (const Arguments& args)
 {
   HandleScope scope;
-  new Connection(args.This());
+
+  Connection *c = new Connection(args.This());
+  ObjectWrap::InformV8ofAllocation(c);
+
   return args.This();
 }
 
@@ -273,6 +276,16 @@ Connection::v8Send (const Arguments& args)
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
   if (!connection) return Handle<Value>();
+
+  // XXX
+  // A lot of improvement can be made here. First of all we're allocating
+  // oi_bufs for every send which is clearly inefficent - it should use a
+  // memory pool or ring buffer.  In either case, v8 needs to be informed
+  // about our allocations deallocations via
+  // V8::AdjustAmountOfExternalAllocatedMemory to give the GC hints about
+  // what we're doing here.  Of course, expressing binary data as an array
+  // of integers is extremely inefficent. This can improved when v8 bug 270
+  // (http://code.google.com/p/v8/issues/detail?id=270) has been addressed. 
 
   if (args[0]->IsString()) {
     // utf8 encoding
@@ -451,7 +464,8 @@ Acceptor::v8New (const Arguments& args)
     options = Object::New();
   }
 
-  new Acceptor(args.This(), connection_handler, options);
+  Acceptor *a = new Acceptor(args.This(), connection_handler, options);
+  ObjectWrap::InformV8ofAllocation(a);
 
   return args.This();
 }

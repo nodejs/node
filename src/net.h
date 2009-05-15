@@ -13,6 +13,8 @@ class Connection : public ObjectWrap {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
+  virtual size_t size (void) { return sizeof(Connection); };
+
 protected:
   /* v8 interface */
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -100,6 +102,8 @@ class Acceptor : public ObjectWrap {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
+  virtual size_t size (void) { return sizeof(Acceptor); };
+
 protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
@@ -109,7 +113,7 @@ protected:
   Acceptor (v8::Handle<v8::Object> handle, 
             v8::Handle<v8::Function> connection_handler, 
             v8::Handle<v8::Object> options);
-  virtual ~Acceptor () { Close(); puts("acceptor gc'd!");}
+  virtual ~Acceptor () { Close(); }
 
   v8::Local<v8::Function> GetConnectionHandler (void);
 

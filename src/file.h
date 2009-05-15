@@ -20,6 +20,8 @@ class File : ObjectWrap {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
+  virtual size_t size (void) { return sizeof(File); } 
+
 protected:
   File (v8::Handle<v8::Object> handle);
   ~File ();

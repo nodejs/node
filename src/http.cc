@@ -43,7 +43,7 @@ HTTPConnection::Initialize (Handle<Object> target)
   client_constructor_template = Persistent<FunctionTemplate>::New(t);
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(String::NewSymbol("Client"), client_constructor_template->GetFunction());
+  target->Set(String::NewSymbol("LowLevelClient"), client_constructor_template->GetFunction());
 
   t = FunctionTemplate::New(v8NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
@@ -57,7 +57,10 @@ Handle<Value>
 HTTPConnection::v8NewClient (const Arguments& args)
 {
   HandleScope scope;
-  new HTTPConnection(args.This(), HTTP_RESPONSE);
+
+  HTTPConnection *connection = new HTTPConnection(args.This(), HTTP_RESPONSE);
+  ObjectWrap::InformV8ofAllocation(connection);
+
   return args.This();
 }
 
@@ -65,7 +68,10 @@ Handle<Value>
 HTTPConnection::v8NewServer (const Arguments& args)
 {
   HandleScope scope;
-  new HTTPConnection(args.This(), HTTP_REQUEST);
+
+  HTTPConnection *connection = new HTTPConnection(args.This(), HTTP_REQUEST);
+  ObjectWrap::InformV8ofAllocation(connection);
+
   return args.This();
 }
 
@@ -281,6 +287,13 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, enum http_parser_type typ
   parser_.data = this;
 }
 
+
+HTTPConnection::~HTTPConnection ( )
+{
+  V8::AdjustAmountOfExternalAllocatedMemory(-sizeof(HTTPConnection));
+}
+
+
 Persistent<FunctionTemplate> HTTPServer::constructor_template;
 
 void
@@ -312,7 +325,8 @@ HTTPServer::v8New (const Arguments& args)
     options = Object::New();
   }
 
-  new HTTPServer(args.This(), protocol_class, options);
+  HTTPServer *s = new HTTPServer(args.This(), protocol_class, options);
+  ObjectWrap::InformV8ofAllocation(s);
 
   return args.This();
 }

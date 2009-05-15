@@ -20,6 +20,7 @@ protected:
 
   HTTPConnection (v8::Handle<v8::Object> handle, 
                   enum http_parser_type type);
+  ~HTTPConnection ( );
 
   void OnReceive (const void *buf, size_t len);
 
@@ -46,6 +47,7 @@ public:
 
 protected:
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
+
 
   HTTPServer (v8::Handle<v8::Object> handle, 
               v8::Handle<v8::Function> protocol_class, 

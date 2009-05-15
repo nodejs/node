@@ -30,6 +30,11 @@ public:
   ObjectWrap (v8::Handle<v8::Object> handle);
   virtual ~ObjectWrap ( );
 
+  virtual size_t size (void) = 0;
+
+  /* This must be called after each new ObjectWrap creation! */
+  static void InformV8ofAllocation (node::ObjectWrap *obj);
+
 protected:
   static void* Unwrap (v8::Handle<v8::Object> handle);
   v8::Persistent<v8::Object> handle_;
