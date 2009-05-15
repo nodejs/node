@@ -269,6 +269,30 @@ Connection::v8ForceClose (const Arguments& args)
   return Undefined();
 }
 
+static void
+free_buf (oi_buf *b)
+{
+  V8::AdjustAmountOfExternalAllocatedMemory(-b->len);
+  free(b);
+}
+
+static oi_buf *
+new_buf (size_t size)
+{
+  size_t total = sizeof(oi_buf) + size;
+  void *p = malloc(total);
+  if (p == NULL) return NULL;
+
+  oi_buf *b = static_cast<oi_buf*>(p);
+  b->base = static_cast<char*>(p) + sizeof(oi_buf);
+
+  b->len = size;
+  b->release = free_buf;
+  V8::AdjustAmountOfExternalAllocatedMemory(total);
+
+  return b;
+}
+
 
 Handle<Value>
 Connection::v8Send (const Arguments& args)
@@ -291,7 +315,7 @@ Connection::v8Send (const Arguments& args)
     // utf8 encoding
     Local<String> s = args[0]->ToString();
     size_t length = s->Utf8Length();
-    oi_buf *buf = oi_buf_new2(length);
+    oi_buf *buf = new_buf(length);
     s->WriteUtf8(buf->base, length);
     connection->Send(buf);
 
@@ -299,7 +323,7 @@ Connection::v8Send (const Arguments& args)
     // raw encoding
     Handle<Array> array = Handle<Array>::Cast(args[0]);
     size_t length = array->Length();
-    oi_buf *buf = oi_buf_new2(length);
+    oi_buf *buf = new_buf(length);
     for (size_t i = 0; i < length; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf->base[i] = int_value->IntegerValue();

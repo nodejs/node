@@ -17,6 +17,11 @@ new node.http.Server(function (msg) {
 
   } else if (command == "quit") {
     msg.connection.server.close();
+    body = "quitting";
+
+  } else if (command == "fixed") {
+    body = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+
   } else {
     status = 404;
     body = "not found\n";
