@@ -252,8 +252,8 @@ main (int argc, char *argv[])
   ev_async_init(&eio_watcher, node_eio_cb);
   eio_init(eio_want_poll, NULL);
 
-  V8::Initialize();
   V8::SetFlagsFromCommandLine(&argc, argv, true);
+  V8::Initialize();
 
   if(argc < 2)  {
     fprintf(stderr, "No script was specified.\n");
@@ -317,7 +317,13 @@ main (int argc, char *argv[])
   ev_loop(EV_DEFAULT_UC_ 0);
 
   context.Dispose();
-  V8::Dispose();
+  // The following line when uncommented causes an error.
+  // To reproduce do this:
+  // > node --prof test-http_simple.js 
+  // 
+  // > curl http://localhost:8000/quit/
+  //
+  //V8::Dispose();
 
   return exit_code;
 

@@ -265,7 +265,7 @@ Connection::v8ForceClose (const Arguments& args)
   if (!connection) return Handle<Value>();
 
   connection->ForceClose();
-  //connection->Detach();
+  connection->Detach();
   return Undefined();
 }
 

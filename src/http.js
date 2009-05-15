@@ -1,7 +1,3 @@
-/* This is a wrapper around the LowLevelServer interface. It provides
- * connection handling, overflow checking, and some data buffering.
- */
-
 node.http.STATUS_CODES = { 100 : 'Continue'
                          , 101 : 'Switching Protocols' 
                          , 200 : 'OK' 
@@ -47,6 +43,9 @@ var close_expression = /close/i;
 var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
+/* This is a wrapper around the LowLevelServer interface. It provides
+ * connection handling, overflow checking, and some data buffering.
+ */
 node.http.Server = function (RequestHandler, options) {
   if (!(this instanceof node.http.Server))
     throw Error("Constructor called as a function");
@@ -62,6 +61,8 @@ node.http.Server = function (RequestHandler, options) {
        * are writing to messages out of order! HTTP requires that messages
        * are returned in the same order the requests come.
        */
+
+      this.connection = connection;
 
       var output = [];
 
@@ -142,12 +143,10 @@ node.http.Server = function (RequestHandler, options) {
             sent_connection_header = true;
             if (close_expression.exec(value))
               connection_close = true;
-            
           } else if (transfer_encoding_expression.exec(field)) {
             sent_transfer_encoding_header = true;
             if (chunk_expression.exec(value))
               chunked_encoding = true;
-
           } else if (content_length_expression.exec(field)) {
             sent_content_length_header = true;
           }
@@ -259,7 +258,107 @@ node.http.Server = function (RequestHandler, options) {
         return msg.onBodyComplete(chunk);
       };
     };
+
+    // is this really needed?
+    connection.onEOF = function () {
+      connection.close();
+    };
   }
 
   this.__proto__.__proto__ = new node.http.LowLevelServer(ConnectionHandler, options);
+};
+
+node.http.Client = function (port, host) {
+  var port = port;
+  var host = host;
+
+  var pending_messages = [];
+  function Message (method, uri, header_lines) {
+    pending_messages.push(this);
+
+    this.method   = method;
+    this.path     = path;
+    this.headers  = headers;
+
+    var chunked_encoding = false;
+    var connection_close = false;
+
+    var sent_connection_header = false;
+    var sent_transfer_encoding_header = false;
+    var sent_content_length_header = false;
+
+    var header = method + " " + uri + " HTTP/1.1\r\n";
+
+    for (var i = 0; i < header_lines.length; i++) {
+      var field = header_lines[i][0];
+      var value = header_lines[i][1];
+
+      header += field + ": " + value + "\r\n";
+      
+      if (connection_expression.exec(field)) {
+        sent_connection_header = true;
+        if (close_expression.exec(value))
+          connection_close = true;
+      } else if (transfer_encoding_expression.exec(field)) {
+        sent_transfer_encoding_header = true;
+        if (chunk_expression.exec(value))
+          chunked_encoding = true;
+      } else if (content_length_expression.exec(field)) {
+        sent_content_length_header = true;
+      }
+    }
+
+    if (sent_connection_header == false) {
+      header += "Connection: keep-alive\r\n";
+    }
+
+    if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
+      header += "Transfer-Encoding: chunked\r\n";
+      chunked_encoding = true;
+    }
+    header += "\r\n";
+            
+    var output = [header];
+
+    this.sendBody = function (chunk) {
+    };
+
+    this.finish = function () {
+    };
+  }
+  
+  function spawn_client ( ) {
+    var c = new node.http.LowLevelClient();
+
+    c.onConnect = function () {
+    };
+
+    // On response
+    c.onMessage = function () {
+    };
+  }
+  
+  this.get = function (path, headers) {
+    var m = new Message("GET", path, headers);
+    m.finish();
+    return m;
+  };
+
+  this.head = function (path, headers) {
+    var m = new Message("HEAD", path, headers);
+    m.finish();
+    return m;
+  };
+
+  this.post = function (path, headers) {
+    return new Message("POST", path, headers);
+  };
+
+  this.del = function (path, headers) {
+    return new Message("DELETE", path, headers);
+  };
+
+  this.put = function (path, headers) {
+    return new Message("PUT", path, headers);
+  };
 };
