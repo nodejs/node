@@ -138,7 +138,10 @@ new node.http.Server(function (msg) {
 
 <p> This script can handle hundreds of concurrent requests while using
 little CPU or memory&mdash;<a href="#benchmarks">see benchmarks</a>.
-Check out <a href="#api">the documentation</a> for more examples.
+
+
+
+<p> Check out <a href="#api">the API documentation</a> for more examples.
 
 <p> Node is free to <a href="#download">download</a>, <a
   href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
@@ -147,7 +150,7 @@ Check out <a href="#api">the documentation</a> for more examples.
 
 <h3>Evented Programming Makes More Sense</h3>
 
-difference between blocking/non-blocking design
+Difference between blocking/non-blocking design
 
 <p> There are many methods to write internet servers but they can
 fundamentally be divided into two camps: evented and threaded; non-blocking
@@ -371,54 +374,62 @@ msg.sendHeader( 200
 
 <h3 id="modules">Modules</h3>
 
-<p>Node has simple module loading.  Here is an example. This is the file
-<code>foo.js</code>:
+<p>Node has a simple module loading system.  In Node, files and modules are
+in one-to-one correspondence.  
+
+<p> As an example, 
+<code>foo.js</code> loads the module <code>mjsunit.js</code>.
+
+<p>The contents of <code>foo.js</code>:
+
 <pre>
 include("mjsunit");
-
 function onLoad () {
   assertEquals(1, 2);
 }
 </pre>
-<p>Here the module <code>mjsunit</code> has provided the function
-<code>assertEquals()</code>.
-
-<p> The module file, <code>mjsunit.js</code>, must be in the same directory
-as <code>foo.js</code> for <code>include()</code> to work. The
-<code>include()</code> function will insert all the exported objects from the
-module into the global namespace.
-
-<p> Because file loading does not happen instantaneously, and because Node
-has a policy of never blocking, the callback <code>onLoad()</code> is
-provided to notify the user when all the exported functions are completely
-loaded.
-
-<p> To export an object, add to the special object <code class="highlight">exports</code>.
-Let's look at how <code>mjsunit.js</code> does this
+<p>The contents of <code>mjsunit.js</code>:
 
 <pre>
 function fail (expected, found, name_opt) {
   // ...
 }
-
 function deepEquals (a, b) {
   // ...
 }
-
 <span class="highlight">exports</span>.assertEquals = function (expected, found, name_opt) {
   if (!deepEquals(found, expected)) {
     fail(expected, found, name_opt);
   }
 };
 </pre>
+
+<p>Here the module <code>mjsunit.js</code> has exported the function
+<code>assertEquals()</code>.  <code>mjsunit.js</code> must be in the
+same directory as <code>foo.js</code> for <code>include()</code> to find it.
+The module path is relative to the file calling <code>include()</code>.
+The module path does not include filename extensions like <code>.js</code>.
+
+<p> <code>include()</code> inserts the exported objects
+from the specified module into the global namespace.
+
+<p> Because file loading does not happen instantaneously, and because Node
+has a policy of never blocking, the callback <code>onLoad()</code> is
+provided to notify the user when all the included modules are loaded.
+Each file can have its own <code>onLoad()</code> callback.
+<code>onLoad()</code> will always be called exactly once for each file.
+
+<p> To export an object, add to the special <code
+  class="highlight">exports</code> object.
+
 <p> The functions <code>fail</code> and <code>deepEquals</code> are not
 exported and remain private to the module.
 
 <p> In addition to <code>include()</code> a module can use
 <code>require()</code>. Instead of loading the exported objects into the
-global namespace, it will return a namespace object. Again, the members of
-the namespace object can only be guaranteed to exist after the
-<code>onLoad()</code> callback is made. For example:
+global namespace, it will return a namespace object. The exported objects
+can only be guaranteed to exist after the <code>onLoad()</code> callback is
+made. For example:
 <pre>
 var mjsunit = require("mjsunit");
 
@@ -427,6 +438,8 @@ function onLoad () {
 }
 </pre>
 
+<p> <code>include()</code> and <code>require()</code> cannot be used after
+<code>onLoad()</code> is called. So put them at the beginning of your file.
 
 </body>
 </html>
