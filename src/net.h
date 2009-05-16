@@ -21,6 +21,7 @@ protected:
   static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
+  static v8::Handle<v8::Value> v8SendUtf8 (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8FullClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> v8ForceClose (const v8::Arguments& args);

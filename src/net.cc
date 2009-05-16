@@ -56,6 +56,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", v8Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", v8Send);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "sendUtf8", v8SendUtf8);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", v8FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", v8ForceClose);
@@ -293,6 +294,25 @@ new_buf (size_t size)
   return b;
 }
 
+Handle<Value>
+Connection::v8SendUtf8 (const Arguments& args)
+{
+  HandleScope scope;
+  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  if (!connection) return Handle<Value>();
+
+  if (!args[0]->IsString())
+    return ThrowException(String::New("Must have string argument"));
+
+  // utf8 encoding
+  Local<String> s = args[0]->ToString();
+  size_t length = s->Utf8Length();
+  oi_buf *buf = new_buf(length);
+  s->WriteUtf8(buf->base, length);
+  connection->Send(buf);
+
+  return Undefined();  
+}
 
 Handle<Value>
 Connection::v8Send (const Arguments& args)
@@ -304,19 +324,17 @@ Connection::v8Send (const Arguments& args)
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
   // oi_bufs for every send which is clearly inefficent - it should use a
-  // memory pool or ring buffer.  In either case, v8 needs to be informed
-  // about our allocations deallocations via
-  // V8::AdjustAmountOfExternalAllocatedMemory to give the GC hints about
-  // what we're doing here.  Of course, expressing binary data as an array
-  // of integers is extremely inefficent. This can improved when v8 bug 270
-  // (http://code.google.com/p/v8/issues/detail?id=270) has been addressed. 
+  // memory pool or ring buffer. Of course, expressing binary data as an
+  // array of integers is extremely inefficent. This can improved when v8
+  // bug 270 (http://code.google.com/p/v8/issues/detail?id=270) has been
+  // addressed. 
 
   if (args[0]->IsString()) {
-    // utf8 encoding
+    // ASCII encoding
     Local<String> s = args[0]->ToString();
     size_t length = s->Utf8Length();
     oi_buf *buf = new_buf(length);
-    s->WriteUtf8(buf->base, length);
+    s->WriteAscii(buf->base, 0, length);
     connection->Send(buf);
 
   } else if (args[0]->IsArray()) {
