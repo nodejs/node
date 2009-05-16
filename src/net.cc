@@ -49,17 +49,17 @@ Connection::Initialize (v8::Handle<v8::Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", v8Connect);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", v8Send);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "sendUtf8", v8SendUtf8);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", v8FullClose);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", v8ForceClose);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "sendUtf8", SendUtf8);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
       String::NewSymbol("encoding"),
@@ -143,7 +143,7 @@ Connection::SetAcceptor (Handle<Object> acceptor_handle)
 }
 
 Handle<Value>
-Connection::v8New (const Arguments& args)
+Connection::New (const Arguments& args)
 {
   HandleScope scope;
 
@@ -154,7 +154,7 @@ Connection::v8New (const Arguments& args)
 }
 
 Handle<Value>
-Connection::v8Connect (const Arguments& args)
+Connection::Connect (const Arguments& args)
 {
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
   if (!connection) return Handle<Value>();
@@ -237,7 +237,7 @@ Connection::AfterResolve (eio_req *req)
 }
 
 Handle<Value>
-Connection::v8Close (const Arguments& args)
+Connection::Close (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
@@ -248,7 +248,7 @@ Connection::v8Close (const Arguments& args)
 }
 
 Handle<Value>
-Connection::v8FullClose (const Arguments& args)
+Connection::FullClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
@@ -259,7 +259,7 @@ Connection::v8FullClose (const Arguments& args)
 }
 
 Handle<Value>
-Connection::v8ForceClose (const Arguments& args)
+Connection::ForceClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
@@ -295,7 +295,7 @@ new_buf (size_t size)
 }
 
 Handle<Value>
-Connection::v8SendUtf8 (const Arguments& args)
+Connection::SendUtf8 (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
@@ -315,7 +315,7 @@ Connection::v8SendUtf8 (const Arguments& args)
 }
 
 Handle<Value>
-Connection::v8Send (const Arguments& args)
+Connection::Send (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
@@ -418,13 +418,13 @@ Acceptor::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
 
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", v8Listen);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", v8Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", Listen);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
 
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
@@ -490,7 +490,7 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 }
 
 Handle<Value>
-Acceptor::v8New (const Arguments& args)
+Acceptor::New (const Arguments& args)
 {
   HandleScope scope;
 
@@ -513,7 +513,7 @@ Acceptor::v8New (const Arguments& args)
 }
 
 Handle<Value>
-Acceptor::v8Listen (const Arguments& args)
+Acceptor::Listen (const Arguments& args)
 {
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
   if (!acceptor) return Handle<Value>();
@@ -546,7 +546,7 @@ Acceptor::v8Listen (const Arguments& args)
 }
 
 Handle<Value>
-Acceptor::v8Close (const Arguments& args)
+Acceptor::Close (const Arguments& args)
 {
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
   if (!acceptor) return Handle<Value>();

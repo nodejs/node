@@ -39,13 +39,13 @@ HTTPConnection::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(v8NewClient);
+  Local<FunctionTemplate> t = FunctionTemplate::New(NewClient);
   client_constructor_template = Persistent<FunctionTemplate>::New(t);
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("LowLevelClient"), client_constructor_template->GetFunction());
 
-  t = FunctionTemplate::New(v8NewServer);
+  t = FunctionTemplate::New(NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
   server_constructor_template->Inherit(Connection::constructor_template);
   server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
@@ -54,7 +54,7 @@ HTTPConnection::Initialize (Handle<Object> target)
 }
 
 Handle<Value>
-HTTPConnection::v8NewClient (const Arguments& args)
+HTTPConnection::NewClient (const Arguments& args)
 {
   HandleScope scope;
 
@@ -65,7 +65,7 @@ HTTPConnection::v8NewClient (const Arguments& args)
 }
 
 Handle<Value>
-HTTPConnection::v8NewServer (const Arguments& args)
+HTTPConnection::NewServer (const Arguments& args)
 {
   HandleScope scope;
 
@@ -295,7 +295,7 @@ HTTPServer::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(v8New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(Acceptor::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
@@ -303,7 +303,7 @@ HTTPServer::Initialize (Handle<Object> target)
 }
 
 Handle<Value>
-HTTPServer::v8New (const Arguments& args)
+HTTPServer::New (const Arguments& args)
 {
   HandleScope scope;
 

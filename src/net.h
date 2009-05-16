@@ -18,13 +18,13 @@ public:
 protected:
   /* v8 interface */
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
-  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Connect (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Send (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8SendUtf8 (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8FullClose (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8ForceClose (const v8::Arguments& args);
+  static v8::Handle<v8::Value> New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Connect (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Send (const v8::Arguments& args);
+  static v8::Handle<v8::Value> SendUtf8 (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Close (const v8::Arguments& args);
+  static v8::Handle<v8::Value> FullClose (const v8::Arguments& args);
+  static v8::Handle<v8::Value> ForceClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> EncodingGetter (v8::Local<v8::String> _, const v8::AccessorInfo& info);
   static void EncodingSetter (v8::Local<v8::String> _, v8::Local<v8::Value> value, const v8::AccessorInfo& info);
 
@@ -107,9 +107,9 @@ public:
 
 protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
-  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Listen (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8Close (const v8::Arguments& args);
+  static v8::Handle<v8::Value> New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Listen (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Close (const v8::Arguments& args);
 
   Acceptor (v8::Handle<v8::Object> handle, 
             v8::Handle<v8::Function> connection_handler, 

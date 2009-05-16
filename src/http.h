@@ -15,8 +15,8 @@ public:
   static v8::Persistent<v8::FunctionTemplate> server_constructor_template;
   
 protected:
-  static v8::Handle<v8::Value> v8NewClient (const v8::Arguments& args);
-  static v8::Handle<v8::Value> v8NewServer (const v8::Arguments& args);
+  static v8::Handle<v8::Value> NewClient (const v8::Arguments& args);
+  static v8::Handle<v8::Value> NewServer (const v8::Arguments& args);
 
   HTTPConnection (v8::Handle<v8::Object> handle, 
                   enum http_parser_type type);
@@ -43,7 +43,7 @@ public:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
 protected:
-  static v8::Handle<v8::Value> v8New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> New (const v8::Arguments& args);
 
 
   HTTPServer (v8::Handle<v8::Object> handle, 
