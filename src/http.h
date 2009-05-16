@@ -25,10 +25,7 @@ protected:
   void OnReceive (const void *buf, size_t len);
 
   static int on_message_begin (http_parser *parser);
-  static int on_path (http_parser *parser, const char *at, size_t length);
-  static int on_query_string (http_parser *parser, const char *at, size_t length);
   static int on_uri (http_parser *parser, const char *at, size_t length);
-  static int on_fragment (http_parser *parser, const char *at, size_t length);
   static int on_header_field (http_parser *parser, const char *buf, size_t len);
   static int on_header_value (http_parser *parser, const char *buf, size_t len);
   static int on_headers_complete (http_parser *parser);

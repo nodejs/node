@@ -211,16 +211,10 @@ node.http.Server = function (RequestHandler, options) {
     connection.onMessage = function ( ) {
       var msg = new Message();
 
-      msg.path = "";
       msg.uri = "";
-      msg.query_string = "";
-      msg.fragment = "";
       var headers = msg.headers = [];
       
-      this.onPath         = function (data) { msg.path += data; return true };
       this.onURI          = function (data) { msg.uri  += data; return true };
-      this.onQueryString  = function (data) { msg.query_string += data; return true; };
-      this.onFragment     = function (data) { msg.fragment += data; return true; };
 
       var last_was_value = false;
 

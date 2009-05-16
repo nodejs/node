@@ -131,10 +131,7 @@ HTTPConnection::name (http_parser *parser, const char *buf, size_t len)       \
   return 0;                                                                   \
 }
 
-DEFINE_PARSER_CALLBACK(on_path,         ON_PATH_SYMBOL)
-DEFINE_PARSER_CALLBACK(on_query_string, ON_QUERY_STRING_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_uri,          ON_URI_SYMBOL)
-DEFINE_PARSER_CALLBACK(on_fragment,     ON_FRAGMENT_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_field, ON_HEADER_FIELD_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_value, ON_HEADER_VALUE_SYMBOL)
 
@@ -275,10 +272,7 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, enum http_parser_type typ
 {
   http_parser_init (&parser_, type);
   parser_.on_message_begin    = on_message_begin;
-  parser_.on_path             = on_path;
-  parser_.on_query_string     = on_query_string;
   parser_.on_uri              = on_uri;
-  parser_.on_fragment         = on_fragment;
   parser_.on_header_field     = on_header_field;
   parser_.on_header_value     = on_header_value;
   parser_.on_headers_complete = on_headers_complete;
