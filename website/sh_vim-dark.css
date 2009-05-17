@@ -1,0 +1,23 @@
+.sh_sourceCode {
+
+  font-weight: normal;
+  font-style: normal;
+}
+
+.sh_sourceCode .sh_symbol , pre.sh_sourceCode .sh_cbracket {
+  color: #bbd;
+}
+
+.sh_sourceCode .sh_keyword {
+  font-style: italic;
+}
+
+.sh_sourceCode .sh_string, pre.sh_sourceCode .sh_regexp, pre.sh_sourceCode .sh_number 
+{
+  color: #daa;
+}
+
+.sh_sourceCode .sh_comment {
+  color: #777;
+}
+

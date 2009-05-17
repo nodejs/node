@@ -30,54 +30,28 @@ body {
 }
 #toc a { color: #777; }
 
-h1, h2, h3, h4 { color: #bbb; }
-
-h1 {
-  margin: 2em 0;
-  padding: 0px 0px 0px 0px;
-  font-size: 51px;
-  line-height: 44px;
-  font-weight: bold;
+h1, h2, h3, h4 {
+  margin: 2em 0; 
 }
+
 h1 a { color: inherit; }
 
-h2 {
-  font-size: 30px;
-  line-height: inherit;
-  font-weight: bold;
-  margin: 2em 0;
-}
-
-h3 {
-  margin: 2em 0;
-  font-size: 20px;
-  line-height: inherit;
-  font-weight: bold;
-}
-
-h4 {
-  margin: 1em 0;
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: bold;
-}
 
 pre, code {
   font-family: monospace;
   font-size: 13pt;
-  color: #aaf;
+  color: #bab;
 }
 
 pre {
-  padding-left: 2em;
+  padding-left: 1em;
+  border-left: 1px solid #444;
 }
 
 dl {
 }
 
 dt {
-  color: #aaf;
-  font-weight: bold;
 }
 
 dd {
@@ -93,9 +67,13 @@ a:hover { text-decoration: underline; }
   padding: 0.2em 0;
 }
 
-</style>
+</style> 
+<script type="text/javascript" src="sh_main.min.js"></script>
+<script type="text/javascript" src="sh_javascript.min.js"></script>
+<link type="text/css" rel="stylesheet" href="sh_vim-dark.css">
+
 <title>node.js</title>
-<body>
+<body onload="sh_highlightDocument();">
 <div id="toc">
   <ol>
     <li><a href="#motivation">Motivation</a></li>
@@ -124,21 +102,16 @@ a:hover { text-decoration: underline; }
 <p id="introduction"> Node is a purely asynchronous I/O framework for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
   
-<p>This is an example of a web server written with Node which responds with
-"Hello World" after waiting two seconds:
-<pre class="sh_javascript">
-new node.http.Server(function (msg) {
+<p>This is an example of a web server written with Node which listens on
+port 8000 and responds with "Hello World" after waiting two seconds:
+<pre class="sh_javascript">new node.http.Server(function (req, res) {
   setTimeout(function () {
-    msg.sendHeader(200, [["Content-Type", "text/plain"]]);
-    msg.sendBody("Hello World");
-    msg.finish();
+    res.sendHeader(200, [["Content-Type", "text/plain"]]);
+    res.sendBody("Hello World");
+    res.finish();
   }, 2000);
-}).listen(8000, "localhost");
+}).listen(8000);
 </pre>
-
-<p> This script can handle hundreds of concurrent requests while using
-little CPU or memory&mdash;<a href="#benchmarks">see benchmarks</a>.
-
 
 
 <p> Check out <a href="#api">the API documentation</a> for more examples.
@@ -225,54 +198,62 @@ l2 cache ~ 14
 
 <h2 id="build">Build</h2>
 
-<pre>configure
+<pre>./configure
 make
 make install</pre>
 
 
 <h2 id="api">Application Programming Interface</h2>
 
-<p> The node executable should be given an argument pointing to a
-javascript file. 
+<p>Conventions: Callbacks are object members which are prefixed with
+<code class="sh_javascript">on</code>. All methods and members are camel cased. Constructors
+always have a capital first letter.
 
 <h3 id="timers">Timers</h3>
 
-<p>The timer API is the same as in the browser. The functions
-<code>setTimeout, setInterval, clearTimeout, and clearInterval</code>
+<p>Timers allow one to schedule execution of a function for a later time.
+
+<p>Timers in Node work as they do in the browser: 
+<code class="sh_javascript">setTimeout</code>, 
+<code class="sh_javascript">setInterval</code>, 
+<code class="sh_javascript">clearTimeout</code>, 
+<code class="sh_javascript">clearInterval</code>.
+See <a
+  href="https://developer.mozilla.org/en/DOM/window.setTimeout">Mozilla's
+  documentation</a> for more information.
 
 <h3 id="files">File System</h3>
 
 <h3 id="tcp">TCP</h3>
 
-<h3 id="http">HTTP (<code>node.http</code>)</h3>
+<h3 id="http">HTTP (<code class="sh_javascript">node.http</code>)</h3>
 
-<p> Node provides a fast web server and client interface. The interface is
-rather low-level. Node, for example, will not parse
-<code>application/x-www-form-urlencoded</code> message bodies&mdash;that is
-for higher level code to manage. The interface does abstract the
-Transfer-Encoding (i.e. chuncked or identity), Message boundarys, and
-Keep-Alive connections. 
+<p> Node provides a web server and client interface. The interface is rather
+low-level but complete. For example, it does not parse
+<code class="sh_javascript">application/x-www-form-urlencoded</code> message bodies. The interface
+does abstract the Transfer-Encoding (i.e. chuncked or identity), Message
+boundarys, and Keep-Alive connections. 
 
-<h4 id="http_server">HTTP Server (<code>node.http.Server</code>)</h4>
+<h4 id="http_server">HTTP Server (<code class="sh_javascript">node.http.Server</code>)</h4>
 <dl>
-  <dt><code>new Server(request_handler, options)</code></dt>
+  <dt><code class="sh_javascript">new Server(request_handler, options)</code></dt>
   <dd> 
-      <p>Creates a new web server. The <code>options</code> argument accepts
+      <p>Creates a new web server. The <code class="sh_javascript">options</code> argument accepts
       the same values as the options argument for
-      <code>node.tcp.Server</code> does. The options argument is optional. 
+      <code class="sh_javascript">node.tcp.Server</code> does. The options argument is optional. 
 
-      <p>The <code>request_handler</code> is a function which is called on 
-      each request with a <code>Message</code> object argument.
+      <p>The <code class="sh_javascript">request_handler</code> is a function which is called on 
+      each request with a <code class="sh_javascript">Message</code> object argument.
   </dd>
 
-  <dt><code>server.listen(port, hostname)</code>
+  <dt><code class="sh_javascript">server.listen(port, hostname)</code>
   <dd> 
     <p>Begin accepting connections on the specified port and hostname. If the
     hostname is omitted, the server will accept connections directed to any
     address.  
   </dd>
 
-  <dt><code>server.close()</code>
+  <dt><code class="sh_javascript">server.close()</code>
   <dd>
     <p>Stops the server. Requests currently in progress will not be
     interrupted.
@@ -280,23 +261,29 @@ Keep-Alive connections.
 </dl>
     
 
-<h4>HTTP Request Message (<code>node.http.Message</code>)</h4>
+<h4>HTTP Request Message (<code class="sh_javascript">node.http.Message</code>)</h4>
 
 <p> This object is only created internally&mdash;not by the user. It is passed
-as an argument to the <code>request_handler</code> function in a web server. 
+as an argument to the <code class="sh_javascript">request_handler</code> callback in a web server. 
+
+<p> This object, unlike in other HTTP APIs, is used as an interface for both
+the request and response. Members and callbacks reference request data, like
+<code class="sh_javascript">msg.method</code> and <code class="sh_javascript">msg.onBody</code>. The methods are for
+sending a response to this message. Like <code class="sh_javascript">msg.sendHeader()</code> and
+<code class="sh_javascript">msg.sendBody()</code>.
 <dl>
-  <dt><code>msg.method</code>
-  <dd>The request method as a string. Read only. Example: <code>"GET"</code>,
-  <code>"DELETE"</code>.</dd>
+  <dt><code class="sh_javascript">msg.method</code>
+  <dd>The request method as a string. Read only. Example: <code class="sh_javascript">"GET"</code>,
+  <code class="sh_javascript">"DELETE"</code>.</dd>
 
-  <dt><code>msg.uri</code>
+  <dt><code class="sh_javascript">msg.uri</code>
   <dd>The request URI as a string. Read only.
-  Example: <code>"/index.html?hello=world"</code>.</dd>
+  Example: <code class="sh_javascript">"/index.html?hello=world"</code>.</dd>
 
-  <dt><code>msg.headers</code>
+  <dt><code class="sh_javascript">msg.headers</code>
   <dd>The request headers expressed as an array of 2-element arrays. Read only.  
   Example:
-<pre>
+<pre class="sh_javascript">
 [ ["Content-Length", "123"]
 , ["Content-Type", "text/plain"]
 , ["Connection", "keep-alive"]
@@ -304,19 +291,19 @@ as an argument to the <code>request_handler</code> function in a web server.
 ]
 </pre>
 
-  <dt><code>msg.http_version</code></dt>
-  <dd>The HTTP protocol version as a string. Read only. Examples: <code>"1.1"</code>,
-  <code>"1.0"</code>
+  <dt><code class="sh_javascript">msg.http_version</code></dt>
+  <dd>The HTTP protocol version as a string. Read only. Examples: <code class="sh_javascript">"1.1"</code>,
+  <code class="sh_javascript">"1.0"</code>
 
-  <dt><code>msg.connection</code></dt>
-  <dd> A reference to the <code>node.tcp.Connection</code> object. Read
+  <dt><code class="sh_javascript">msg.connection</code></dt>
+  <dd> A reference to the <code class="sh_javascript">node.tcp.Connection</code> object. Read
   only. Note that multiple messages can be sent on a single connection.
   </dd>
 
-  <dt><code>msg.onBody</code></dt>
+  <dt><code class="sh_javascript">msg.onBody</code></dt>
   <dd>Callback. Should be set by the user to be informed of when a piece
   of the message body is received. Example:
-<pre>
+<pre class="sh_javascript">
 msg.onBody = function (chunk) {
   puts("part of the body: " + chunk);
 }
@@ -326,26 +313,26 @@ msg.onBody = function (chunk) {
   <p>The body chunk is either a String in the case of utf8 encoding or an
   array of numbers in the case of raw encoding.
 
-  <dt><code>msg.onBodyComplete</code></dt>
+  <dt><code class="sh_javascript">msg.onBodyComplete</code></dt>
   <dd>Callback. Made exactly once for each message. No arguments. After
-  <code>onBodyComplete</code> is executed <code>onBody</code> will no longer be called.
+  <code class="sh_javascript">onBodyComplete</code> is executed <code class="sh_javascript">onBody</code> will no longer be called.
   </dd>
 
-  <dt><code>msg.setBodyEncoding(encoding)</code></dt>
+  <dt><code class="sh_javascript">msg.setBodyEncoding(encoding)</code></dt>
   <dd>
-    Set the encoding for the request body. Either <code>"utf8"</code> or
-    <code>"raw"</code>. Defaults to raw.
+    Set the encoding for the request body. Either <code class="sh_javascript">"utf8"</code> or
+    <code class="sh_javascript">"raw"</code>. Defaults to raw.
     <big>TODO</big>
 
-  <dt><code>msg.sendHeader(status_code, headers)</code></dt>
+  <dt><code class="sh_javascript">msg.sendHeader(status_code, headers)</code></dt>
   <dd>
     Sends a response header to the request. The status code is a 3-digit
-    HTTP status code, like <code>404</code>. The second argument,
-    <code>headers</code>, should be an array of 2-element arrays,
+    HTTP status code, like <code class="sh_javascript">404</code>. The second argument,
+    <code class="sh_javascript">headers</code>, should be an array of 2-element arrays,
     representing the response headers. 
 
     <p>Example:
-<pre>
+<pre class="sh_javascript">
 var body = "hello world";
 msg.sendHeader( 200
               , [ ["Content-Length", body.length] 
@@ -354,21 +341,21 @@ msg.sendHeader( 200
               );
 </pre>
     This method must only be called once on a message and it must be called
-    before <code>msg.finish()</code> is called.
+    before <code class="sh_javascript">msg.finish()</code> is called.
   </dd>
 
-  <dt><code>msg.sendBody(chunk)</code></dt>
+  <dt><code class="sh_javascript">msg.sendBody(chunk)</code></dt>
   <dd>
-  This method must be called after <code>sendHeader</code> was called. It
+  This method must be called after <code class="sh_javascript">sendHeader</code> was called. It
   sends a chunk of the response body. This method may be called multiple
   times to provide successive parts of the body.
   </dd>
 
-  <dt><code>msg.finish()</code></dt>
+  <dt><code class="sh_javascript">msg.finish()</code></dt>
   <dd>
   This method signals that all of the response headers and body has been
   sent; that server should consider this message complete. 
-  The method, <code>msg.finish()</code>, MUST be called on each response.
+  The method, <code class="sh_javascript">msg.finish()</code>, MUST be called on each response.
 
 </dl>
 
@@ -378,19 +365,19 @@ msg.sendHeader( 200
 in one-to-one correspondence.  
 
 <p> As an example, 
-<code>foo.js</code> loads the module <code>mjsunit.js</code>.
+<code class="sh_javascript">foo.js</code> loads the module <code class="sh_javascript">mjsunit.js</code>.
 
-<p>The contents of <code>foo.js</code>:
+<p>The contents of <code class="sh_javascript">foo.js</code>:
 
-<pre>
+<pre class="sh_javascript">
 include("mjsunit");
 function onLoad () {
   assertEquals(1, 2);
 }
 </pre>
-<p>The contents of <code>mjsunit.js</code>:
+<p>The contents of <code class="sh_javascript">mjsunit.js</code>:
 
-<pre>
+<pre class="sh_javascript">
 function fail (expected, found, name_opt) {
   // ...
 }
@@ -404,33 +391,33 @@ function deepEquals (a, b) {
 };
 </pre>
 
-<p>Here the module <code>mjsunit.js</code> has exported the function
-<code>assertEquals()</code>.  <code>mjsunit.js</code> must be in the
-same directory as <code>foo.js</code> for <code>include()</code> to find it.
-The module path is relative to the file calling <code>include()</code>.
-The module path does not include filename extensions like <code>.js</code>.
+<p>Here the module <code class="sh_javascript">mjsunit.js</code> has exported the function
+<code class="sh_javascript">assertEquals()</code>.  <code class="sh_javascript">mjsunit.js</code> must be in the
+same directory as <code class="sh_javascript">foo.js</code> for <code class="sh_javascript">include()</code> to find it.
+The module path is relative to the file calling <code class="sh_javascript">include()</code>.
+The module path does not include filename extensions like <code class="sh_javascript">.js</code>.
 
-<p> <code>include()</code> inserts the exported objects
+<p> <code class="sh_javascript">include()</code> inserts the exported objects
 from the specified module into the global namespace.
 
 <p> Because file loading does not happen instantaneously, and because Node
-has a policy of never blocking, the callback <code>onLoad()</code> is
+has a policy of never blocking, the callback <code class="sh_javascript">onLoad()</code> is
 provided to notify the user when all the included modules are loaded.
-Each file can have its own <code>onLoad()</code> callback.
-<code>onLoad()</code> will always be called exactly once for each file.
+Each file can have its own <code class="sh_javascript">onLoad()</code> callback.
+<code class="sh_javascript">onLoad()</code> will always be called exactly once for each file.
 
 <p> To export an object, add to the special <code
   class="highlight">exports</code> object.
 
-<p> The functions <code>fail</code> and <code>deepEquals</code> are not
+<p> The functions <code class="sh_javascript">fail</code> and <code class="sh_javascript">deepEquals</code> are not
 exported and remain private to the module.
 
-<p> In addition to <code>include()</code> a module can use
-<code>require()</code>. Instead of loading the exported objects into the
+<p> In addition to <code class="sh_javascript">include()</code> a module can use
+<code class="sh_javascript">require()</code>. Instead of loading the exported objects into the
 global namespace, it will return a namespace object. The exported objects
-can only be guaranteed to exist after the <code>onLoad()</code> callback is
+can only be guaranteed to exist after the <code class="sh_javascript">onLoad()</code> callback is
 made. For example:
-<pre>
+<pre class="sh_javascript">
 var mjsunit = require("mjsunit");
 
 function onLoad () {
@@ -438,8 +425,8 @@ function onLoad () {
 }
 </pre>
 
-<p> <code>include()</code> and <code>require()</code> cannot be used after
-<code>onLoad()</code> is called. So put them at the beginning of your file.
+<p> <code class="sh_javascript">include()</code> and <code class="sh_javascript">require()</code> cannot be used after
+<code class="sh_javascript">onLoad()</code> is called. So put them at the beginning of your file.
 
 </body>
 </html>
