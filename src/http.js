@@ -1,3 +1,4 @@
+(function () {
 node.http.STATUS_CODES = { 100 : 'Continue'
                          , 101 : 'Switching Protocols' 
                          , 200 : 'OK' 
@@ -43,6 +44,13 @@ var close_expression = /close/i;
 var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
+function toRaw(string) {
+  var a = [];
+  for (var i = 0; i < string.length; i++)
+    a.push(string.charCodeAt(i));
+  return a;
+}
+
 /* This is a wrapper around the LowLevelServer interface. It provides
  * connection handling, overflow checking, and some data buffering.
  */
@@ -50,173 +58,165 @@ node.http.Server = function (RequestHandler, options) {
   if (!(this instanceof node.http.Server))
     throw Error("Constructor called as a function");
 
-  function ConnectionHandler (connection) {
-    // An array of messages for each connection. In pipelined connections
-    // we need to keep track of the order they were sent.
-    var messages = [];
+  function Response (connection, responses) {
+    responses.push(this);
+    this.connection = connection;
+    var output = [];
 
-    function Message () {
-      messages.push(this);
-      /* This annoying output buisness is necessary for the case that users
-       * are writing to messages out of order! HTTP requires that messages
-       * are returned in the same order the requests come.
-       */
-
-      this.connection = connection;
-
-      var output = [];
-
-      function toRaw(string) {
-        var a = [];
-        for (var i = 0; i < string.length; i++)
-          a.push(string.charCodeAt(i));
-        return a;
+    // The send method appends data onto the output array. The deal is,
+    // the data is either an array of integer, representing binary or it
+    // is a string in which case it's UTF8 encoded. 
+    // Two things to considered:
+    // - we should be able to send mixed encodings.
+    // - we don't want to call connection.send("smallstring") because that
+    //   is wasteful. *I think* its rather faster to concat inside of JS
+    // Thus I attempt to concat as much as possible.  
+    function send (data) {
+      if (output.length == 0) {
+        output.push(data);
+        return;
       }
 
-      // The send method appends data onto the output array. The deal is,
-      // the data is either an array of integer, representing binary or it
-      // is a string in which case it's UTF8 encoded. 
-      // Two things to considered:
-      // - we should be able to send mixed encodings.
-      // - we don't want to call connection.send("smallstring") because that
-      //   is wasteful. *I think* its rather faster to concat inside of JS
-      // Thus I attempt to concat as much as possible.  
-      function send (data) {
-        if (output.length == 0) {
-          output.push(data);
-          return;
-        }
+      var li = output.length-1;
 
-        var li = output.length-1;
+      if (data.constructor == String && output[li].constructor == String) {
+        output[li] += data;
+        return;
+      }
 
-        if (data.constructor == String && output[li].constructor == String) {
-          output[li] += data;
-          return;
-        }
+      if (data.constructor == Array && output[li].constructor == Array) {
+        output[li] = output[li].concat(data);
+        return;
+      }
 
-        if (data.constructor == Array && output[li].constructor == Array) {
-          output[li] = output[li].concat(data);
-          return;
-        }
+      // If the string is small enough, just convert it to binary
+      if (data.constructor == String 
+          && data.length < 128
+          && output[li].constructor == Array) 
+      {
+        output[li] = output[li].concat(toRaw(data));
+        return;
+      }
 
-        // If the string is small enough, just convert it to binary
-        if (data.constructor == String 
-            && data.length < 128
-            && output[li].constructor == Array) 
-        {
-          output[li] = output[li].concat(toRaw(data));
-          return;
-        }
+      output.push(data);
+    };
 
-        output.push(data);
-      };
+    this.flush = function () {
+      if (responses.length > 0 && responses[0] === this)
+        while (output.length > 0)
+          connection.send(output.shift());
+    };
 
-      this.flush = function () {
-        if (messages.length > 0 && messages[0] === this)
-          while (output.length > 0)
-            connection.send(output.shift());
-      };
+    var chunked_encoding = false;
+    var connection_close = false;
 
-      var chunked_encoding = false;
-      var connection_close = false;
+    this.sendHeader = function (status_code, headers) {
+      var sent_connection_header = false;
+      var sent_transfer_encoding_header = false;
+      var sent_content_length_header = false;
 
-      this.sendHeader = function (status_code, headers) {
-        var sent_connection_header = false;
-        var sent_transfer_encoding_header = false;
-        var sent_content_length_header = false;
+      var reason = node.http.STATUS_CODES[status_code] || "unknown";
+      var header = "HTTP/1.1 "
+                 + status_code.toString() 
+                 + " " 
+                 + reason 
+                 + "\r\n"
+                 ;
 
-        var reason = node.http.STATUS_CODES[status_code] || "unknown";
-        var header = "HTTP/1.1 "
-                   + status_code.toString() 
-                   + " " 
-                   + reason 
-                   + "\r\n"
-                   ;
+      for (var i = 0; i < headers.length; i++) {
+        var field = headers[i][0];
+        var value = headers[i][1];
 
-        for (var i = 0; i < headers.length; i++) {
-          var field = headers[i][0];
-          var value = headers[i][1];
-
-          header += field + ": " + value + "\r\n";
-          
-          if (connection_expression.exec(field)) {
-            sent_connection_header = true;
-            if (close_expression.exec(value))
-              connection_close = true;
-          } else if (transfer_encoding_expression.exec(field)) {
-            sent_transfer_encoding_header = true;
-            if (chunk_expression.exec(value))
-              chunked_encoding = true;
-          } else if (content_length_expression.exec(field)) {
-            sent_content_length_header = true;
-          }
-        }
-
-        // keep-alive logic 
-        if (sent_connection_header == false) {
-          if (this.should_keep_alive) {
-            header += "Connection: keep-alive\r\n";
-          } else {
+        header += field + ": " + value + "\r\n";
+        
+        if (connection_expression.exec(field)) {
+          sent_connection_header = true;
+          if (close_expression.exec(value))
             connection_close = true;
-            header += "Connection: close\r\n";
-          }
+        } else if (transfer_encoding_expression.exec(field)) {
+          sent_transfer_encoding_header = true;
+          if (chunk_expression.exec(value))
+            chunked_encoding = true;
+        } else if (content_length_expression.exec(field)) {
+          sent_content_length_header = true;
         }
+      }
 
-        if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
-          header += "Transfer-Encoding: chunked\r\n";
-          chunked_encoding = true;
-        }
-
-        header += "\r\n";
-
-        send(header);
-      };
-
-      this.sendBody = function (chunk) {
-        if (chunked_encoding) {
-          send(chunk.length.toString(16));
-          send("\r\n");
-          send(chunk);
-          send("\r\n");
+      // keep-alive logic 
+      if (sent_connection_header == false) {
+        if (this.should_keep_alive) {
+          header += "Connection: keep-alive\r\n";
         } else {
-          send(chunk);
+          connection_close = true;
+          header += "Connection: close\r\n";
         }
+      }
 
-        this.flush();
-      };
+      if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
+        header += "Transfer-Encoding: chunked\r\n";
+        chunked_encoding = true;
+      }
 
-      this.finished = false;
-      this.finish = function () {
-        if (chunked_encoding)
-          send("0\r\n\r\n"); // last chunk
+      header += "\r\n";
 
-        this.finished = true;
+      send(header);
+    };
 
-        while (messages.length > 0 && messages[0].finished) {
-          var res = messages[0];
-          res.flush();
-          messages.shift();
-        }
+    this.sendBody = function (chunk) {
+      if (chunked_encoding) {
+        send(chunk.length.toString(16));
+        send("\r\n");
+        send(chunk);
+        send("\r\n");
+      } else {
+        send(chunk);
+      }
 
-        if (messages.length == 0 && connection_close) {
-          connection.fullClose();
-        }
-      };
+      this.flush();
+    };
 
-      // abstract
-      this.onBody = function () { return true; }
-      this.onBodyComplete = function () { return true; }
-    }
+    this.finished = false;
+    this.finish = function () {
+      if (chunked_encoding)
+        send("0\r\n\r\n"); // last chunk
+
+      this.finished = true;
+
+      while (responses.length > 0 && responses[0].finished) {
+        var res = responses[0];
+        res.flush();
+        responses.shift();
+      }
+
+      if (responses.length == 0 && connection_close) {
+        connection.fullClose();
+      }
+    };
+  }
+
+  function ConnectionHandler (connection) {
+    // An array of responses for each connection. In pipelined connections
+    // we need to keep track of the order they were sent.
+    var responses = [];
 
     connection.onMessage = function ( ) {
-      var msg = new Message();
+                                            // filled in ...
+      var req = { method          : null    // at onHeadersComplete
+                , uri             : ""      // at onURI
+                , http_version    : null    // at onHeadersComplete
+                , headers         : []      // at onHeaderField, onHeaderValue
+                , onBody          : null    // by user
+                , onBodyComplete  : null    // by user
+                }
+      var res = new Response(connection, responses);
 
-      msg.uri = "";
-      var headers = msg.headers = [];
-      
-      this.onURI          = function (data) { msg.uri  += data; return true };
+      this.onURI = function (data) {
+        req.uri += data;
+        return true
+      };
 
       var last_was_value = false;
+      var headers = req.headers;
 
       this.onHeaderField = function (data) {
         if (headers.length > 0 && last_was_value == false)
@@ -238,18 +238,26 @@ node.http.Server = function (RequestHandler, options) {
       };
 
       this.onHeadersComplete = function () {
-        msg.http_version = this.http_version;
-        msg.method = this.method;
-        msg.should_keep_alive = this.should_keep_alive;
-        return RequestHandler(msg);
+        req.http_version = this.http_version;
+        req.method       = this.method;
+
+        res.should_keep_alive = this.should_keep_alive;
+
+        return RequestHandler(req, res);
       };
 
       this.onBody = function (chunk) {
-        return msg.onBody(chunk);
+        if (req.onBody)
+          return req.onBody(chunk);
+        else
+          return true;
       };
 
       this.onBodyComplete = function () {
-        return msg.onBodyComplete(chunk);
+        if (req.onBodyComplete)
+          return req.onBodyComplete(chunk);
+        else
+          return true;
       };
     };
 
@@ -266,9 +274,9 @@ node.http.Client = function (port, host) {
   var port = port;
   var host = host;
 
-  var pending_messages = [];
+  var pending_responses = [];
   function Message (method, uri, header_lines) {
-    pending_messages.push(this);
+    pending_responses.push(this);
 
     this.method   = method;
     this.path     = path;
@@ -356,3 +364,5 @@ node.http.Client = function (port, host) {
     return new Message("PUT", path, headers);
   };
 };
+
+})(); // anonymous namespace

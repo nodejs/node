@@ -1,7 +1,7 @@
-new node.http.Server(function (msg) {
+new node.http.Server(function (req, res) {
   setTimeout(function () {
-    msg.sendHeader(200, [["Content-Type", "text/plain"]]);
-    msg.sendBody("Hello World");
-    msg.finish();
+    res.sendHeader(200, [["Content-Type", "text/plain"]]);
+    res.sendBody("Hello World");
+    res.finish();
   }, 1000);
 }).listen(8000, "localhost");

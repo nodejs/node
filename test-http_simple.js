@@ -3,14 +3,14 @@ for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
 stored = {};
-new node.http.Server(function (msg) {
-  var commands = msg.uri.split("/");
+new node.http.Server(function (req, res) {
+  var commands = req.uri.split("/");
   var command = commands[1];
   var body = "";
   var arg = commands[2];
   var status = 200;
 
-  //p(msg.headers);
+  //p(req.headers);
 
   if (command == "bytes") {
     var n = parseInt(arg, 10)
@@ -26,7 +26,7 @@ new node.http.Server(function (msg) {
     body = stored[n];
 
   } else if (command == "quit") {
-    msg.connection.server.close();
+    res.connection.server.close();
     body = "quitting";
 
   } else if (command == "fixed") {
@@ -39,12 +39,12 @@ new node.http.Server(function (msg) {
 
   var content_length = body.length.toString();
 
-  msg.sendHeader( status 
+  res.sendHeader( status 
                 , [ ["Content-Type", "text/plain"]
                   , ["Content-Length", content_length]
                   ]
                 );
-  msg.sendBody(body);
+  res.sendBody(body);
           
-  msg.finish();
+  res.finish();
 }).listen(8000);
