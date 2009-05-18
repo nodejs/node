@@ -181,10 +181,9 @@ simple side-effect free functions. The programmer does not need advanced
 knowledge of POSIX to know that I/O is being performed because it looks
 differently.
 
-<p> Some find event programming cumbersome.
-I find threaded programming
+<p> Some find event programming cumbersome. I find threaded programming
 cumbersome&mdash;it's not a good abstraction of what is really happening.
-Because of this bad abstraction it's confusing and difficult to get right. 
+Because of this bad abstraction it's confusing and difficult to get right.
 Threaded programs only look good in the simpliest and most trivial
 situations&mdash;in real-life applications events lead to better
 architecture.
@@ -216,10 +215,10 @@ always have a capital first letter.
 <p>Timers allow one to schedule execution of a function for a later time.
 
 <p>Timers in Node work as they do in the browser: 
-<code class="sh_javascript">setTimeout</code>, 
-<code class="sh_javascript">setInterval</code>, 
-<code class="sh_javascript">clearTimeout</code>, 
-<code class="sh_javascript">clearInterval</code>.
+<code class="sh_javascript">setTimeout()</code>, 
+<code class="sh_javascript">setInterval()</code>, 
+<code class="sh_javascript">clearTimeout()</code>, 
+<code class="sh_javascript">clearInterval()</code>.
 See <a
   href="https://developer.mozilla.org/en/DOM/window.setTimeout">Mozilla's
   documentation</a> for more information.
@@ -239,7 +238,7 @@ boundaries, and Keep-Alive connections.
 <h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
 
 <dl>
-  <dt><code class="sh_javascript">var server = new node.http.Server(request_handler, options);</code></dt>
+  <dt><code class="sh_javascript">new node.http.Server(request_handler, options);</code></dt>
   <dd> 
       <p>Creates a new web server. 
 
@@ -266,8 +265,7 @@ boundaries, and Keep-Alive connections.
 
   <dt><code class="sh_javascript">server.close()</code>
   <dd>
-    <p>Stops the server. Requests currently in progress will not be
-    interrupted.
+    <p>Stops the server from accepting new connections.
   </dd>
 </dl>
     
@@ -284,9 +282,7 @@ class="sh_javascript">request_handler</code> callback.
   <code class="sh_javascript">"DELETE"</code>.</dd>
 
   <dt><code class="sh_javascript">req.uri</code>
-  <dd> URI object. Has many fields.
-  <dt><code>req.uri.toString()</code>
-  <dd> The original URI found in the status line.
+  <dd> URI object. 
   <dt><code>req.uri.anchor</code>
   <dt><code>req.uri.query</code>
   <dt><code>req.uri.file</code>
@@ -301,6 +297,8 @@ class="sh_javascript">request_handler</code> callback.
   <dt><code>req.uri.protocol</code>
   <dt><code>req.uri.source</code>
   <dt><code>req.uri.queryKey</code>
+  <dt><code>req.uri.toString()</code>
+  <dd> The original URI found in the status line.
 
   <dt><code class="sh_javascript">req.headers</code>
   <dd>The request headers expressed as an array of 2-element arrays. Read only.  

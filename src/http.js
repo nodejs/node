@@ -44,8 +44,8 @@ node.http.STATUS_CODES = { 100 : 'Continue'
   MIT License
 */
 
-function parseUri (str) {
-  var o   = parseUri.options,
+node.http.parseUri = function (str) {
+  var o   = node.http.parseUri.options,
     m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
     uri = {},
     i   = 14;
@@ -61,7 +61,7 @@ function parseUri (str) {
   return uri;
 };
 
-parseUri.options = {
+node.http.parseUri.options = {
   strictMode: false,
   key: [ "source"
        , "protocol"
@@ -296,7 +296,7 @@ node.http.Server = function (RequestHandler, options) {
       this.onHeadersComplete = function () {
         req.http_version = this.http_version;
         req.method       = this.method;
-        req.uri          = parseUri(req.uri);
+        req.uri          = parseUri(req.uri); // TODO parse the URI lazily
 
         res.should_keep_alive = this.should_keep_alive;
 
