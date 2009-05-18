@@ -68,7 +68,7 @@ a:hover { text-decoration: underline; }
 }
 
 </style> 
-<script type="text/javascript" src="sh_main.min.js"></script>
+<script type="text/javascript" src="sh_main.js"></script>
 <script type="text/javascript" src="sh_javascript.min.js"></script>
 <link type="text/css" rel="stylesheet" href="sh_vim-dark.css">
 
@@ -84,10 +84,12 @@ a:hover { text-decoration: underline; }
       <ol>
         <li><a href="#timers">Timers</a>
         <li><a href="#files">File System</a>
-        <li><a href="#tcp">TCP</a>
-        <li><a href="#http">HTTP</a>
+        <li><a href="#tcp">tcp</a>
+        <li><a href="#http">http</a>
           <ol>
           <li><a href="#http_server">Server</a>
+          <li><a href="#http_server_request">ServerRequest</a>
+          <li><a href="#http_server_response">ServerResponse</a>
           <li><a href="#http_client">Client</a>
           </ol>
         <li><a href="#modules">Modules</a>
@@ -99,11 +101,12 @@ a:hover { text-decoration: underline; }
 
 <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-<p id="introduction"> Node is a purely asynchronous I/O framework for <a
+<p id="introduction"> Purely asynchronous I/O for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
   
-<p>This is an example of a web server written with Node which listens on
-port 8000 and responds with "Hello World" after waiting two seconds:
+<p>This is an example of a web server written with Node which responds with
+"Hello World" after waiting two seconds:
+
 <pre class="sh_javascript">new node.http.Server(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, [["Content-Type", "text/plain"]]);
@@ -111,7 +114,20 @@ port 8000 and responds with "Hello World" after waiting two seconds:
     res.finish();
   }, 2000);
 }).listen(8000);
-</pre>
+puts("Server running at http://127.0.0.1:8000/");</pre>
+
+<p> Execution does not block on <code
+class="sh_javascript">setTimeout()</code>
+nor
+<code
+class="sh_javascript">listen(8000)</code>. 
+File I/O is also preformed without blocking. 
+In fact, not a single function in Node blocks execution. 
+There isn't even a call to run the event loop. 
+
+<p> Programmers using this environment will find it difficult to design
+their systems ineffiencely. It's impossible to make a database call from a
+web server and block other requests. 
 
 
 <p> Check out <a href="#api">the API documentation</a> for more examples.
@@ -224,26 +240,35 @@ See <a
 
 <h3 id="files">File System</h3>
 
-<h3 id="tcp">TCP</h3>
+<h3 id="tcp"><code>node.tcp</code></h3>
 
-<h3 id="http">HTTP (<code class="sh_javascript">node.http</code>)</h3>
+<h3 id="http"><code>node.http</code></h3>
 
 <p> Node provides a web server and client interface. The interface is rather
 low-level but complete. For example, it does not parse
 <code class="sh_javascript">application/x-www-form-urlencoded</code> message bodies. The interface
 does abstract the Transfer-Encoding (i.e. chuncked or identity), Message
-boundarys, and Keep-Alive connections. 
+boundaries, and Keep-Alive connections. 
 
-<h4 id="http_server">HTTP Server (<code class="sh_javascript">node.http.Server</code>)</h4>
+<h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
+
 <dl>
-  <dt><code class="sh_javascript">new Server(request_handler, options)</code></dt>
+  <dt><code class="sh_javascript">var server = new node.http.Server(request_handler, options);</code></dt>
   <dd> 
-      <p>Creates a new web server. The <code class="sh_javascript">options</code> argument accepts
-      the same values as the options argument for
-      <code class="sh_javascript">node.tcp.Server</code> does. The options argument is optional. 
+      <p>Creates a new web server. 
 
-      <p>The <code class="sh_javascript">request_handler</code> is a function which is called on 
-      each request with a <code class="sh_javascript">Message</code> object argument.
+      <p>
+      The <code>options</code> argument is optional. 
+      The <code
+      class="sh_javascript">options</code> argument accepts the same values
+      as the options argument for <code
+      class="sh_javascript">node.tcp.Server</code> does.
+
+      <p>The <code class="sh_javascript">request_handler</code> is a
+      callback which is made on each request with a 
+      <code>ServerRequest</code> and 
+      <code>ServerResponse</code> arguments.  
+
   </dd>
 
   <dt><code class="sh_javascript">server.listen(port, hostname)</code>
@@ -261,26 +286,37 @@ boundarys, and Keep-Alive connections.
 </dl>
     
 
-<h4>HTTP Request Message (<code class="sh_javascript">node.http.Message</code>)</h4>
+<h4 id="http_server_request"><code class="sh_javascript">node.http.ServerRequest</code></h4>
 
-<p> This object is only created internally&mdash;not by the user. It is passed
-as an argument to the <code class="sh_javascript">request_handler</code> callback in a web server. 
+<p> This object is created internally by a HTTP server&mdash;not by the user. 
+It is passed as the first argument to the <code
+class="sh_javascript">request_handler</code> callback. 
 
-<p> This object, unlike in other HTTP APIs, is used as an interface for both
-the request and response. Members and callbacks reference request data, like
-<code class="sh_javascript">msg.method</code> and <code class="sh_javascript">msg.onBody</code>. The methods are for
-sending a response to this message. Like <code class="sh_javascript">msg.sendHeader()</code> and
-<code class="sh_javascript">msg.sendBody()</code>.
 <dl>
-  <dt><code class="sh_javascript">msg.method</code>
+  <dt><code class="sh_javascript">req.method</code>
   <dd>The request method as a string. Read only. Example: <code class="sh_javascript">"GET"</code>,
   <code class="sh_javascript">"DELETE"</code>.</dd>
 
-  <dt><code class="sh_javascript">msg.uri</code>
-  <dd>The request URI as a string. Read only.
-  Example: <code class="sh_javascript">"/index.html?hello=world"</code>.</dd>
+  <dt><code class="sh_javascript">req.uri</code>
+  <dd> URI object. Has many fields.
+  <dt><code>req.uri.toString()</code>
+  <dd> The original URI found in the status line.
+  <dt><code>req.uri.anchor</code>
+  <dt><code>req.uri.query</code>
+  <dt><code>req.uri.file</code>
+  <dt><code>req.uri.directory</code>
+  <dt><code>req.uri.path</code>
+  <dt><code>req.uri.relative</code>
+  <dt><code>req.uri.port</code>
+  <dt><code>req.uri.host</code>
+  <dt><code>req.uri.password</code>
+  <dt><code>req.uri.user</code>
+  <dt><code>req.uri.authority</code>
+  <dt><code>req.uri.protocol</code>
+  <dt><code>req.uri.source</code>
+  <dt><code>req.uri.queryKey</code>
 
-  <dt><code class="sh_javascript">msg.headers</code>
+  <dt><code class="sh_javascript">req.headers</code>
   <dd>The request headers expressed as an array of 2-element arrays. Read only.  
   Example:
 <pre class="sh_javascript">
@@ -291,40 +327,41 @@ sending a response to this message. Like <code class="sh_javascript">msg.sendHea
 ]
 </pre>
 
-  <dt><code class="sh_javascript">msg.http_version</code></dt>
+  <dt><code class="sh_javascript">req.http_version</code></dt>
   <dd>The HTTP protocol version as a string. Read only. Examples: <code class="sh_javascript">"1.1"</code>,
   <code class="sh_javascript">"1.0"</code>
 
-  <dt><code class="sh_javascript">msg.connection</code></dt>
-  <dd> A reference to the <code class="sh_javascript">node.tcp.Connection</code> object. Read
-  only. Note that multiple messages can be sent on a single connection.
-  </dd>
-
-  <dt><code class="sh_javascript">msg.onBody</code></dt>
+  <dt><code class="sh_javascript">req.onBody</code></dt>
   <dd>Callback. Should be set by the user to be informed of when a piece
   of the message body is received. Example:
 <pre class="sh_javascript">
-msg.onBody = function (chunk) {
+req.onBody = function (chunk) {
   puts("part of the body: " + chunk);
-}
+};
 </pre>
   A chunk of the body is given as the single argument. The transfer-encoding
   has been removed. 
-  <p>The body chunk is either a String in the case of utf8 encoding or an
-  array of numbers in the case of raw encoding.
 
-  <dt><code class="sh_javascript">msg.onBodyComplete</code></dt>
+  <p>The body chunk is either a String in the case of UTF-8 encoding or an
+  array of numbers in the case of raw encoding. The body encoding is set with
+  <code class="sh_javascript">req.setBodyEncoding()</code>.
+
+  <dt><code class="sh_javascript">req.onBodyComplete</code></dt>
   <dd>Callback. Made exactly once for each message. No arguments. After
   <code class="sh_javascript">onBodyComplete</code> is executed <code class="sh_javascript">onBody</code> will no longer be called.
   </dd>
 
-  <dt><code class="sh_javascript">msg.setBodyEncoding(encoding)</code></dt>
+  <dt><code class="sh_javascript">req.setBodyEncoding(encoding)</code></dt>
   <dd>
     Set the encoding for the request body. Either <code class="sh_javascript">"utf8"</code> or
     <code class="sh_javascript">"raw"</code>. Defaults to raw.
     <big>TODO</big>
+</dl>
 
-  <dt><code class="sh_javascript">msg.sendHeader(status_code, headers)</code></dt>
+<h4 id="http_server_response"><code class="sh_javascript">node.http.ServerResponse</code></h4>
+
+<dl>
+  <dt><code class="sh_javascript">res.sendHeader(status_code, headers)</code></dt>
   <dd>
     Sends a response header to the request. The status code is a 3-digit
     HTTP status code, like <code class="sh_javascript">404</code>. The second argument,
@@ -334,28 +371,26 @@ msg.onBody = function (chunk) {
     <p>Example:
 <pre class="sh_javascript">
 var body = "hello world";
-msg.sendHeader( 200
-              , [ ["Content-Length", body.length] 
-                , ["Content-Type", "text/plain"] 
-                ]
-              );
+res.sendHeader(200, [ ["Content-Length", body.length]
+                    , ["Content-Type", "text/plain"]
+                    ]);
 </pre>
     This method must only be called once on a message and it must be called
-    before <code class="sh_javascript">msg.finish()</code> is called.
+    before <code class="sh_javascript">res.finish()</code> is called.
   </dd>
 
-  <dt><code class="sh_javascript">msg.sendBody(chunk)</code></dt>
+  <dt><code class="sh_javascript">res.sendBody(chunk)</code></dt>
   <dd>
   This method must be called after <code class="sh_javascript">sendHeader</code> was called. It
   sends a chunk of the response body. This method may be called multiple
   times to provide successive parts of the body.
   </dd>
 
-  <dt><code class="sh_javascript">msg.finish()</code></dt>
+  <dt><code class="sh_javascript">res.finish()</code></dt>
   <dd>
   This method signals that all of the response headers and body has been
   sent; that server should consider this message complete. 
-  The method, <code class="sh_javascript">msg.finish()</code>, MUST be called on each response.
+  The method, <code class="sh_javascript">res.finish()</code>, MUST be called on each response.
 
 </dl>
 

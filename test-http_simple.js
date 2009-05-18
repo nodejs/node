@@ -10,7 +10,7 @@ new node.http.Server(function (req, res) {
   var arg = commands[2];
   var status = 200;
 
-  //p(req.headers);
+  p(req.headers);
 
   if (command == "bytes") {
     var n = parseInt(arg, 10)

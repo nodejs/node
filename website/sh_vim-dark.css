@@ -4,7 +4,7 @@
   font-style: normal;
 }
 
-.sh_sourceCode .sh_symbol , pre.sh_sourceCode .sh_cbracket {
+.sh_sourceCode .sh_symbol , .sh_sourceCode .sh_cbracket {
   color: #bbd;
 }
 
@@ -12,7 +12,7 @@
   font-style: italic;
 }
 
-.sh_sourceCode .sh_string, pre.sh_sourceCode .sh_regexp, pre.sh_sourceCode .sh_number 
+.sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number 
 {
   color: #daa;
 }
