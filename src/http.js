@@ -72,6 +72,12 @@ node.http.Server = function (RequestHandler, options) {
     //   is wasteful. *I think* its rather faster to concat inside of JS
     // Thus I attempt to concat as much as possible.  
     function send (data) {
+      if (connection.readyState === "closed" || connection.readyState === "readOnly")
+      {
+        responses = [];
+        return;
+      }
+
       if (output.length == 0) {
         output.push(data);
         return;
@@ -267,7 +273,8 @@ node.http.Server = function (RequestHandler, options) {
     };
   }
 
-  this.__proto__.__proto__ = new node.http.LowLevelServer(ConnectionHandler, options);
+  this.__proto__.__proto__ =
+    new node.http.LowLevelServer(ConnectionHandler, options);
 };
 
 node.http.Client = function (port, host) {
