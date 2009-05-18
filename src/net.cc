@@ -87,25 +87,12 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
 
   HandleScope scope;
 
-  if (connection->socket_.got_full_close) {
-    return CLOSED_SYMBOL;
+  switch(connection->ReadyState()) {
+    case OPEN: return OPEN_SYMBOL;
+    case CLOSED: return CLOSED_SYMBOL;
+    case READ_ONLY: return READ_ONLY_SYMBOL;
+    case WRITE_ONLY: return WRITE_ONLY_SYMBOL;
   }
-
-  if (connection->socket_.got_half_close) {
-    if (connection->socket_.read_action)
-      return READ_ONLY_SYMBOL;
-    else
-      return CLOSED_SYMBOL;
-  }
-
-  if (connection->socket_.read_action && connection->socket_.write_action)
-    return OPEN_SYMBOL;
-  else if (connection->socket_.write_action)
-    return WRITE_ONLY_SYMBOL;
-  else if (connection->socket_.read_action)
-    return READ_ONLY_SYMBOL;
-  else
-    return CLOSED_SYMBOL;
 
   assert(0 && "This shouldnt happen");
   return ThrowException(String::New("This shouldn't happen."));
@@ -343,6 +330,11 @@ Connection::SendUtf8 (const Arguments& args)
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
   if (!connection) return Handle<Value>();
 
+  if ( connection->ReadyState() != OPEN 
+    && connection->ReadyState() != WRITE_ONLY
+     ) 
+    return ThrowException(String::New("Socket is not open for writing"));
+
   if (!args[0]->IsString())
     return ThrowException(String::New("Must have string argument"));
 
@@ -362,6 +354,11 @@ Connection::Send (const Arguments& args)
   HandleScope scope;
   Connection *connection = NODE_UNWRAP(Connection, args.Holder());
   if (!connection) return Handle<Value>();
+
+  if ( connection->ReadyState() != OPEN 
+    && connection->ReadyState() != WRITE_ONLY
+     ) 
+    return ThrowException(String::New("Socket is not open for writing"));
 
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
