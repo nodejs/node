@@ -31,6 +31,7 @@ body {
 #toc a { color: #777; }
 
 h1, h2, h3, h4 {
+  color: #B0C4DE;
   margin: 2em 0; 
 }
 
@@ -39,8 +40,8 @@ h1 a { color: inherit; }
 
 pre, code {
   font-family: monospace;
-  font-size: 13pt;
-  color: #bab;
+  font-size: 14pt;
+  color: #dcd;
 }
 
 pre {
@@ -83,9 +84,9 @@ a:hover { text-decoration: underline; }
     <li><a href="#api">API</a>
       <ol>
         <li><a href="#timers">Timers</a>
-        <li><a href="#files">File System</a>
-        <li><a href="#tcp">tcp</a>
-        <li><a href="#http">http</a>
+        <li><a href="#files">File System I/O</a>
+        <li><a href="#tcp">TCP</a>
+        <li><a href="#http">HTTP</a>
           <ol>
           <li><a href="#http_server">Server</a>
           <li><a href="#http_server_request">ServerRequest</a>
@@ -121,88 +122,73 @@ class="sh_javascript">setTimeout()</code>
 nor
 <code
 class="sh_javascript">listen(8000)</code>. 
-File I/O is also preformed without blocking. 
 In fact, not a single function in Node blocks execution. 
-There isn't even a call to run the event loop. 
 
-<p> Programmers using this environment will find it difficult to design
-their systems ineffiencely. It's impossible to make a database call from a
-web server and block other requests. 
-
+<p>Programming in Node is different.  Instead of commanding actions, Node
+scripts defining behaviors. The entire program is centered around I/O
+events. 
 
 <p> Check out <a href="#api">the API documentation</a> for more examples.
 
 <p> Node is free to <a href="#download">download</a>, <a
   href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
 
+
+
 <h2 id="motivation">Motivation</h2>
 
-<h3>Evented Programming Makes More Sense</h3>
+<p>
+I/O is hard and almost no one gets it right. 
+This is an attempt to make you to do it right by taking away all those
+sharp, dangerous tools called <i>threads</i>.
 
-Difference between blocking/non-blocking design
+<p>
+Node is forced evented programming&mdash;so by default you are doing the
+right thing.  
+Well, actually, <a
+href="http://weblogs.mozillazine.org/roadmap/archives/2007/02/threads_suck.html">Javascript
+itself is forced evented programming</a>. Node brings Javascript, in the way
+it was meant to be, out of the browser.
 
-<p> There are many methods to write internet servers but they can
-fundamentally be divided into two camps: evented and threaded; non-blocking
-and blocking. A blocking server accepts a connection and launches a new
-thread to handle the connection. Because the concurrency is handled by
-the thread scheduler, a blocking server can make function calls which
-preform full network requests.
+<p>
+<a
+href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">There
+is a major difference in the latency between memory and disk I/O.</a> It looks
+approximately like this:
 
-<pre class="sh_javascript">var response = db.execute("SELECT * FROM table");
-// do something</pre> 
-
-<p> An evented server manages its concurrency itself. All connections
-are handled in a single thread and callbacks are executed on certain
-events: "socket 23 is has data to read", "socket 65's write buffer is
-empty". An evented server executes small bits of code but never
-<i>blocks</i> the process. In the evented world callbacks are used
-instead of functions
-
-<pre class="sh_javascript">db.execute("SELECT * FROM table", function (response) {
-  // do something
-});</pre>
-
-
-<p><a href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">I/O latency</a>
 <pre>
-l1 cache ~ 3
+l1 cache ~ 3          (CPU cycles)
 l2 cache ~ 14
      ram ~ 250
     disk ~ 41000000
  network ~ 240000000
 </pre>
 
-<p>purely evented interfaces rule out a lot of stupidity
+<p>Disk and network I/O need to be treated differently than simple memory
+operations. But POSIX obscures the latency with system calls like 
 
-<h3>Evented programs are more efficient</h3>
-  <ol>
-  <li>pthread stack size
-   2mb default stack size on linux (1mb on windows, 64kb on FreeBSD)
-   of course this is adjustable 
-  <li>context switching benchmark
-  <li>Apache vs. Nginx 
-  <li>event machine vs mongrel (neverblock)
-  </ol>
-<h3>The appropriateness of Javascript</h3>
-  <ol>
-  <li>No I/O 
-    <p> Javascript is without I/O. In the browser the DOM provides I/O,
-    but non-browser javascript interpreters have only non-standardized
-    functions to allow them print to console or access the network.
-  <li>No Threads
-  <li>Good compiler
-  <li>Universality of the language
-    <p> Contemporary computer infrastructure has two irreplaceable
-    languages: C and Javascript. C is the language of operating systems.
-    POSIX, the universal operating system API, is defined in C. So while you
-    can interface with operating systems in Java and Haskell, those
-    languages access must make system calls in C.  Similarly, Javascript is
-    the language of the web operating system.  In place of POSIX is the
-    DOM. You can wrap Javascript, you can compile to Javascript, but in the
-    end browsers must be interfaced with in Javascript. Portable low-level
-    systems tend to be written in C and portable web-level systems are
-    written in Javascript.
-  </ol>
+<pre>close(file_descriptor);</pre>
+
+<p> For a TCP file descriptor, this is a round trip message to a remote
+computer that can cost billions of CPU cycles. For a hard drive file descriptor,
+<code>close()</code> could mean a couple million cycles of disk spinning. 
+The man pages don't even mention that a call might be preforming very
+long I/O operations. This ambiguity in POSIX is propagated into higher APIs.
+
+<p> In the Node API all I/O happens on the event loop and thus requires a
+callback of some sort. Calls to access foreign database do not look like
+simple side-effect free functions. The programmer does not need advanced
+knowledge of POSIX to know that I/O is being performed because it looks
+differently.
+
+<p> Some find event programming cumbersome.
+I find threaded programming
+cumbersome&mdash;it's not a good abstraction of what is really happening.
+Because of this bad abstraction it's confusing and difficult to get right. 
+Threaded programs only look good in the simpliest and most trivial
+situations&mdash;in real-life applications events lead to better
+architecture.
+
 
 <h2 id="benchmarks">Benchmarks</h2>
 
@@ -436,10 +422,10 @@ The module path does not include filename extensions like <code class="sh_javasc
 from the specified module into the global namespace.
 
 <p> Because file loading does not happen instantaneously, and because Node
-has a policy of never blocking, the callback <code class="sh_javascript">onLoad()</code> is
-provided to notify the user when all the included modules are loaded.
-Each file can have its own <code class="sh_javascript">onLoad()</code> callback.
-<code class="sh_javascript">onLoad()</code> will always be called exactly once for each file.
+has a policy of never blocking, the callback <code
+class="sh_javascript">onLoad</code> can be set and will notify the user
+when all the included modules are loaded.  Each file/module can have an <code
+class="sh_javascript">onLoad</code> callback.  
 
 <p> To export an object, add to the special <code
   class="highlight">exports</code> object.
@@ -447,14 +433,12 @@ Each file can have its own <code class="sh_javascript">onLoad()</code> callback.
 <p> The functions <code class="sh_javascript">fail</code> and <code class="sh_javascript">deepEquals</code> are not
 exported and remain private to the module.
 
-<p> In addition to <code class="sh_javascript">include()</code> a module can use
-<code class="sh_javascript">require()</code>. Instead of loading the exported objects into the
-global namespace, it will return a namespace object. The exported objects
+<p> <code>require()</code> is like <code>include()</code> except does not
+polute the global namespace. It returns a namespace object. The exported objects
 can only be guaranteed to exist after the <code class="sh_javascript">onLoad()</code> callback is
 made. For example:
 <pre class="sh_javascript">
 var mjsunit = require("mjsunit");
-
 function onLoad () {
   mjsunit.assertEquals(1, 2);
 }
