@@ -31,6 +31,12 @@ using namespace node;
 #define PROTOCOL_SYMBOL String::NewSymbol("protocol")
 #define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connection_handler")
 
+#define READY_STATE_SYMBOL  String::NewSymbol("readyState")
+#define OPEN_SYMBOL         String::NewSymbol("open")
+#define READ_ONLY_SYMBOL    String::NewSymbol("readOnly")
+#define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
+#define CLOSED_SYMBOL       String::NewSymbol("closed")
+
 static const struct addrinfo tcp_hints = 
 /* ai_flags      */ { AI_PASSIVE
 /* ai_family     */ , AF_UNSPEC
@@ -62,11 +68,47 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
-      String::NewSymbol("encoding"),
+      ENCODING_SYMBOL,
       EncodingGetter,
       EncodingSetter);
 
+  constructor_template->PrototypeTemplate()->SetAccessor(
+      READY_STATE_SYMBOL,
+      ReadyStateGetter);
+
   target->Set(String::NewSymbol("Connection"), constructor_template->GetFunction());
+}
+
+Handle<Value>
+Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
+{
+  Connection *connection = NODE_UNWRAP(Connection, info.This());
+  if (!connection) return Handle<Value>();
+
+  HandleScope scope;
+
+  if (connection->socket_.got_full_close) {
+    return CLOSED_SYMBOL;
+  }
+
+  if (connection->socket_.got_half_close) {
+    if (connection->socket_.read_action)
+      return READ_ONLY_SYMBOL;
+    else
+      return CLOSED_SYMBOL;
+  }
+
+  if (connection->socket_.read_action && connection->socket_.write_action)
+    return OPEN_SYMBOL;
+  else if (connection->socket_.write_action)
+    return WRITE_ONLY_SYMBOL;
+  else if (connection->socket_.read_action)
+    return READ_ONLY_SYMBOL;
+  else
+    return CLOSED_SYMBOL;
+
+  assert(0 && "This shouldnt happen");
+  return ThrowException(String::New("This shouldn't happen."));
 }
 
 Handle<Value>

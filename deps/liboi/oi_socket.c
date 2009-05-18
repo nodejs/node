@@ -914,9 +914,14 @@ void oi_socket_force_close (oi_socket *socket)
 void 
 oi_socket_write(oi_socket *socket, oi_buf *buf)
 {
-  assert(socket->write_action != NULL && "Do not write to a closed socket"); 
-  assert(socket->got_full_close == FALSE && "Do not write to a closing socket");
-  assert(socket->got_half_close == FALSE && "Do not write to a closing socket");
+  if (socket->write_action == NULL) {
+    assert(0 && "Do not write to a closed socket"); 
+    goto error;
+  }
+  if (socket->got_full_close == TRUE || socket->got_half_close == TRUE) {
+    assert(0 && "Do not write to a closing socket");
+    goto error;
+  }
 
   oi_queue_insert_head(&socket->out_stream, &buf->queue);
   buf->written = 0;
@@ -924,6 +929,10 @@ oi_socket_write(oi_socket *socket, oi_buf *buf)
   if (socket->attached) {
     ev_io_start(SOCKET_LOOP_ &socket->write_watcher);
   }
+  return;
+
+error:
+  if (buf->release) buf->release(buf);
 }
 
 void 
