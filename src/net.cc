@@ -67,12 +67,12 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
 
-  constructor_template->InstanceTemplate()->SetAccessor(
+  constructor_template->PrototypeTemplate()->SetAccessor(
       ENCODING_SYMBOL,
       EncodingGetter,
       EncodingSetter);
 
-  constructor_template->InstanceTemplate()->SetAccessor(
+  constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
       ReadyStateGetter);
 
@@ -88,10 +88,10 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
   HandleScope scope;
 
   switch(connection->ReadyState()) {
-    case OPEN: return OPEN_SYMBOL;
-    case CLOSED: return CLOSED_SYMBOL;
-    case READ_ONLY: return READ_ONLY_SYMBOL;
-    case WRITE_ONLY: return WRITE_ONLY_SYMBOL;
+    case OPEN: return scope.Close(OPEN_SYMBOL);
+    case CLOSED: return scope.Close(CLOSED_SYMBOL);
+    case READ_ONLY: return scope.Close(READ_ONLY_SYMBOL);
+    case WRITE_ONLY: return scope.Close(WRITE_ONLY_SYMBOL);
   }
 
   assert(0 && "This shouldnt happen");
