@@ -21,6 +21,7 @@
 #define ON_BODY_SYMBOL              String::NewSymbol("onBody")
 #define ON_MESSAGE_COMPLETE_SYMBOL  String::NewSymbol("onMessageComplete")
 
+#define METHOD_SYMBOL               String::NewSymbol("method")
 #define STATUS_CODE_SYMBOL          String::NewSymbol("status_code")
 #define HTTP_VERSION_SYMBOL         String::NewSymbol("http_version")
 #define SHOULD_KEEP_ALIVE_SYMBOL    String::NewSymbol("should_keep_alive")
@@ -135,6 +136,28 @@ DEFINE_PARSER_CALLBACK(on_uri,          ON_URI_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_field, ON_HEADER_FIELD_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_value, ON_HEADER_VALUE_SYMBOL)
 
+static Local<String>
+GetMethod (int method)
+{
+  switch (method) {
+    case HTTP_COPY:       return String::NewSymbol("COPY");
+    case HTTP_DELETE:     return String::NewSymbol("DELETE");
+    case HTTP_GET:        return String::NewSymbol("GET");
+    case HTTP_HEAD:       return String::NewSymbol("HEAD");
+    case HTTP_LOCK:       return String::NewSymbol("LOCK");
+    case HTTP_MKCOL:      return String::NewSymbol("MKCOL");
+    case HTTP_MOVE:       return String::NewSymbol("MOVE");
+    case HTTP_OPTIONS:    return String::NewSymbol("OPTIONS");
+    case HTTP_POST:       return String::NewSymbol("POST");
+    case HTTP_PROPFIND:   return String::NewSymbol("PROPFIND");
+    case HTTP_PROPPATCH:  return String::NewSymbol("PROPPATCH");
+    case HTTP_PUT:        return String::NewSymbol("PUT");
+    case HTTP_TRACE:      return String::NewSymbol("TRACE");
+    case HTTP_UNLOCK:     return String::NewSymbol("UNLOCK");
+  }
+  return Local<String>();
+}
+
 int
 HTTPConnection::on_headers_complete (http_parser *parser)
 {
@@ -144,6 +167,9 @@ HTTPConnection::on_headers_complete (http_parser *parser)
   Local<Value> message_handler_v = 
     connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
   Local<Object> message_handler = message_handler_v->ToObject();
+
+  // METHOD 
+  message_handler->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
 
   // STATUS 
   message_handler->Set(STATUS_CODE_SYMBOL, 
