@@ -5,7 +5,7 @@
 }
 
 .sh_sourceCode .sh_symbol , .sh_sourceCode .sh_cbracket {
-  color: #bbd;
+  color: #cd5;
 }
 
 .sh_sourceCode .sh_keyword {
@@ -14,7 +14,7 @@
 
 .sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number 
 {
-  color: #daa;
+  color: #B0C4DE;
 }
 
 .sh_sourceCode .sh_comment {
