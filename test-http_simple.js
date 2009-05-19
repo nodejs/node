@@ -4,7 +4,7 @@ for (var i = 0; i < 20*1024; i++) {
 }
 stored = {};
 new node.http.Server(function (req, res) {
-  var commands = req.uri.split("/");
+  var commands = req.uri.path.split("/");
   var command = commands[1];
   var body = "";
   var arg = commands[2];

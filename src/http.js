@@ -1,4 +1,5 @@
 (function () {
+CRLF = "\r\n";
 node.http.STATUS_CODES = { 100 : 'Continue'
                          , 101 : 'Switching Protocols' 
                          , 200 : 'OK' 
@@ -169,14 +170,14 @@ node.http.ServerResponse = function (connection, responses) {
                + status_code.toString() 
                + " " 
                + reason 
-               + "\r\n"
+               + CRLF
                ;
 
     for (var i = 0; i < headers.length; i++) {
       var field = headers[i][0];
       var value = headers[i][1];
 
-      header += field + ": " + value + "\r\n";
+      header += field + ": " + value + CRLF;
       
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
@@ -206,7 +207,7 @@ node.http.ServerResponse = function (connection, responses) {
       chunked_encoding = true;
     }
 
-    header += "\r\n";
+    header += CRLF;
 
     send(header);
   };
@@ -214,9 +215,9 @@ node.http.ServerResponse = function (connection, responses) {
   this.sendBody = function (chunk) {
     if (chunked_encoding) {
       send(chunk.length.toString(16));
-      send("\r\n");
+      send(CRLF);
       send(chunk);
-      send("\r\n");
+      send(CRLF);
     } else {
       send(chunk);
     }
@@ -296,7 +297,7 @@ node.http.Server = function (RequestHandler, options) {
       this.onHeadersComplete = function () {
         req.http_version = this.http_version;
         req.method       = this.method;
-        req.uri          = parseUri(req.uri); // TODO parse the URI lazily
+        req.uri          = node.http.parseUri(req.uri); // TODO parse the URI lazily
 
         res.should_keep_alive = this.should_keep_alive;
 
@@ -328,17 +329,11 @@ node.http.Server = function (RequestHandler, options) {
     new node.http.LowLevelServer(ConnectionHandler, options);
 };
 
-node.http.Client = function (port, host) {
-  var port = port;
-  var host = host;
+node.http.Client = function (port, host, options) {
+  var connection = new node.http.LowLevelClient(options);
+  var requests  = [];
 
-  var pending_responses = [];
-  function Message (method, uri, header_lines) {
-    pending_responses.push(this);
-
-    this.method   = method;
-    this.path     = path;
-    this.headers  = headers;
+  function ClientRequest (method, uri, header_lines) {
 
     var chunked_encoding = false;
     var connection_close = false;
@@ -349,11 +344,12 @@ node.http.Client = function (port, host) {
 
     var header = method + " " + uri + " HTTP/1.1\r\n";
 
+    header_lines = header_lines || [];
     for (var i = 0; i < header_lines.length; i++) {
       var field = header_lines[i][0];
       var value = header_lines[i][1];
 
-      header += field + ": " + value + "\r\n";
+      header += field + ": " + value + CRLF;
       
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
@@ -376,50 +372,165 @@ node.http.Client = function (port, host) {
       header += "Transfer-Encoding: chunked\r\n";
       chunked_encoding = true;
     }
-    header += "\r\n";
+    header += CRLF;
             
     var output = [header];
 
+    function send (data) {
+      if (output.length == 0) {
+        output.push(data);
+        return;
+      }
+
+      var li = output.length-1;
+
+      if (data.constructor == String && output[li].constructor == String) {
+        output[li] += data;
+        return;
+      }
+
+      if (data.constructor == Array && output[li].constructor == Array) {
+        output[li] = output[li].concat(data);
+        return;
+      }
+
+      // If the string is small enough, just convert it to binary
+      if (data.constructor == String 
+          && data.length < 128
+          && output[li].constructor == Array) 
+      {
+        output[li] = output[li].concat(toRaw(data));
+        return;
+      }
+
+      output.push(data);
+    };
+
     this.sendBody = function (chunk) {
+      if (chunked_encoding) {
+        send(chunk.length.toString(16));
+        send(CRLF);
+        send(chunk);
+        send(CRLF);
+      } else {
+        send(chunk);
+      }
+
+      this.flush();
     };
 
-    this.finish = function () {
+    this.flush = function ( ) {
+      if (connection.readyState !== "open") {
+        connection.connect(port, host);
+        return;
+      }
+      while (this === requests[0] && output.length > 0) {
+        connection.send(output.shift());
+      }
+    };
+
+    this.finished = false;
+    this.finish = function (responseHandler) {
+      this.responseHandler = responseHandler;
+      if (chunked_encoding)
+        send("0\r\n\r\n"); // last chunk
+
+      this.flush();
     };
   }
   
-  function spawn_client ( ) {
-    var c = new node.http.LowLevelClient();
+  connection.onConnect = function () {
+    puts("HTTP CLIENT: connected");
+    requests[0].flush();
+  };
 
-    c.onConnect = function () {
+  connection.onDisconnect = function () {
+    // If there are more requests to handle, reconnect.
+    if (requests.length > 0) {
+      puts("HTTP CLIENT: reconnecting");
+      connection.connect(port, host);
+    }
+  };
+
+  // On response
+  connection.onMessage = function () {
+    var req = requests.shift();
+    var res = { status_code   : null  // set in onHeadersComplete
+              , http_version  : null  // set in onHeadersComplete
+              , headers       : []    // set in onHeaderField/Value
+              };
+
+    var headers = res.headers;
+    var last_was_value = false;
+
+    this.onHeaderField = function (data) {
+      if (headers.length > 0 && last_was_value == false)
+        headers[headers.length-1][0] += data; 
+      else
+        headers.push([data]);
+      last_was_value = false;
+      return true;
     };
 
-    // On response
-    c.onMessage = function () {
+    this.onHeaderValue = function (data) {
+      var last_pair = headers[headers.length-1];
+      if (last_pair.length == 1)
+        last_pair[1] = data;
+      else 
+        last_pair[1] += data;
+      last_was_value = true;
+      return true;
     };
+
+    this.onHeadersComplete = function () {
+      res.status_code = this.status_code;
+      res.http_version = this.http_version;
+      res.headers = headers;
+
+      req.responseHandler(res);
+    };
+
+    this.onBody = function (chunk) {
+      if (res.onBody)
+        return res.onBody(chunk);
+      else
+        return true;
+    };
+
+    this.onMessageComplete = function () {
+      connection.close();
+
+      if (res.onBodyComplete)
+        return res.onBodyComplete();
+      else
+        return true;
+    };
+  };
+
+  function newRequest (method, uri, headers) {
+    var req = new ClientRequest(method, uri, headers);
+    requests.push(req);
+    return req;
   }
   
-  this.get = function (path, headers) {
-    var m = new Message("GET", path, headers);
-    m.finish();
-    return m;
+  this.get = function (uri, headers) {
+    return newRequest("GET", uri, headers);
   };
 
-  this.head = function (path, headers) {
-    var m = new Message("HEAD", path, headers);
-    m.finish();
-    return m;
+  this.head = function (uri, headers) {
+    return newRequest("HEAD", uri, headers);
   };
 
-  this.post = function (path, headers) {
-    return new Message("POST", path, headers);
+  this.post = function (uri, headers) {
+    return newRequest("POST", uri, headers);
   };
 
-  this.del = function (path, headers) {
-    return new Message("DELETE", path, headers);
+  this.del = function (uri, headers) {
+    return newRequest("DELETE", uri, headers);
   };
 
-  this.put = function (path, headers) {
-    return new Message("PUT", path, headers);
+  this.put = function (uri, headers) {
+    return newRequest("PUT", uri, headers);
   };
 };
 
