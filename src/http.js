@@ -250,6 +250,7 @@ node.http.ServerResponse = function (connection, responses) {
 node.http.Server = function (RequestHandler, options) {
   if (!(this instanceof node.http.Server))
     throw Error("Constructor called as a function");
+  var server = this;
 
   function ConnectionHandler (connection) {
     // An array of responses for each connection. In pipelined connections
@@ -301,7 +302,7 @@ node.http.Server = function (RequestHandler, options) {
 
         res.should_keep_alive = this.should_keep_alive;
 
-        return RequestHandler(req, res);
+        return RequestHandler.apply(server, [req, res]);
       };
 
       this.onBody = function (chunk) {
@@ -329,8 +330,8 @@ node.http.Server = function (RequestHandler, options) {
     new node.http.LowLevelServer(ConnectionHandler, options);
 };
 
-node.http.Client = function (port, host, options) {
-  var connection = new node.http.LowLevelClient(options);
+node.http.Client = function (port, host) {
+  var connection = new node.http.LowLevelClient();
   var requests  = [];
 
   function ClientRequest (method, uri, header_lines) {
@@ -440,15 +441,16 @@ node.http.Client = function (port, host, options) {
   }
   
   connection.onConnect = function () {
-    puts("HTTP CLIENT: connected");
+    //node.debug("HTTP CLIENT: connected");
     requests[0].flush();
   };
 
   connection.onDisconnect = function () {
+    //node.debug("HTTP CLIENT: disconnect");
     // If there are more requests to handle, reconnect.
     if (requests.length > 0) {
-      puts("HTTP CLIENT: reconnecting");
-      connection.connect(port, host);
+      //node.debug("HTTP CLIENT: reconnecting");
+      this.connect(port, host);
     }
   };
 

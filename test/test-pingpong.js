@@ -68,4 +68,5 @@ function onLoad() {
   };
 
   client.connect(port);
+  assertEquals("closed", client.readyState);
 }

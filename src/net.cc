@@ -28,7 +28,7 @@ using namespace node;
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
 #define SERVER_SYMBOL         String::NewSymbol("server")
 
-#define PROTOCOL_SYMBOL String::NewSymbol("protocol")
+#define PROTOCOL_SYMBOL           String::NewSymbol("protocol")
 #define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connection_handler")
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
@@ -67,12 +67,12 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
 
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       ENCODING_SYMBOL,
       EncodingGetter,
       EncodingSetter);
 
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
       ReadyStateGetter);
 
@@ -217,7 +217,6 @@ Connection::Connect (const Arguments& args)
             );
 
   connection->Attach();
-
   return Undefined();
 }
 
