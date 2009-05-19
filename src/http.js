@@ -322,7 +322,6 @@ node.http.Server = function (RequestHandler, options) {
 
     // is this really needed?
     connection.onEOF = function () {
-      puts("HTTP SERVER got eof");
       if (responses.length == 0)
         connection.close();
       else
