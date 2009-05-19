@@ -1,6 +1,6 @@
 include("mjsunit");
 
-var port = 8000;
+var port = 8222;
 
 function onLoad() {
 

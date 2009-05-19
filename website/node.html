@@ -225,10 +225,14 @@ See <a
 <h3 id="http"><code>node.http</code></h3>
 
 <p> Node provides a web server and client interface. The interface is rather
-low-level but complete. For example, it does not parse
-<code class="sh_javascript">application/x-www-form-urlencoded</code> message bodies. The interface
-does abstract the Transfer-Encoding (i.e. chuncked or identity), Message
-boundaries, and Keep-Alive connections. 
+low-level but complete. (By complete, I mean that it does not limit you from
+any of HTTP's features.) The interface abstracts the Transfer-Encoding (i.e.
+chuncked or identity), message boundaries, and persistent connections.
+Message header and body parsing needs to be done in high-level abstractions.
+
+<p> There are even lower level versions of both the server and client. You
+very likely do not need the level of granuality provided by them. There are
+no docs for those interfaces.
 
 <h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
 
