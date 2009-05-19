@@ -91,11 +91,14 @@ uninstall:
 	else \\
 	    $WAF uninstall ; \\
 	fi;
+
+FAIL=python -c 'print("\033[1;31mFAIL\033[m")'
+PASS=python -c 'print("\033[1;32mPASS\033[m")'
  
 test: all
 	@for i in test/test*.js; do \\
 		echo "\$\$i: "; \\
-		build/debug/node \$\$i && echo PASS || echo FAIL; \\
+		build/debug/node \$\$i && \$(PASS) || \$(FAIL); \\
 	done 
 
 clean:
