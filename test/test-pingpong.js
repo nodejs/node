@@ -48,23 +48,34 @@ function onLoad() {
     client.send("PING");
   };
 
+  var sent_final_ping = false;
+
   client.onReceive = function (data) {
-    assertEquals("open", client.readyState);
     //puts("client recved data: " + JSON.stringify(data));
     stdout.print(".");
     assertEquals("PONG", data);
     count += 1; 
+
+    if (sent_final_ping) {
+      assertEquals("readOnly", client.readyState);
+      return;
+    } else {
+      assertEquals("open", client.readyState);
+    }
+
     if (count < N) {
       client.send("PING");
     } else {
-      puts("sending FIN");
+      puts("sending final ping");
+      sent_final_ping = true;
+      client.send("PING");
       client.close();
     }
   };
   
   client.onEOF = function () {
     puts("pinger: onEOF");
-    assertEquals(N, count);
+    assertEquals(N+1, count);
   };
 
   client.connect(port);

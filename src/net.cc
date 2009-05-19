@@ -440,7 +440,7 @@ void name ()                                                        \
   TryCatch try_catch;                                               \
   callback->Call(handle_, 0, NULL);                                 \
   if (try_catch.HasCaught())                                        \
-    fatal_exception(try_catch);                                     \
+    node::fatal_exception(try_catch);                               \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)

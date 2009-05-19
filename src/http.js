@@ -105,6 +105,7 @@ function toRaw(string) {
 node.http.ServerResponse = function (connection, responses) {
   responses.push(this);
   this.connection = connection;
+  this.closeOnFinish = false;
   var output = [];
 
   // The send method appends data onto the output array. The deal is,
@@ -151,14 +152,7 @@ node.http.ServerResponse = function (connection, responses) {
     output.push(data);
   };
 
-  this.flush = function () {
-    if (responses.length > 0 && responses[0] === this)
-      while (output.length > 0)
-        connection.send(output.shift());
-  };
-
   var chunked_encoding = false;
-  var connection_close = false;
 
   this.sendHeader = function (status_code, headers) {
     var sent_connection_header = false;
@@ -225,6 +219,14 @@ node.http.ServerResponse = function (connection, responses) {
     this.flush();
   };
 
+  this.flush = function () {
+    if (responses.length > 0 && responses[0] === this)
+      while (output.length > 0) {
+        var out = output.shift();
+        connection.send(out);
+      }
+  };
+
   this.finished = false;
   this.finish = function () {
     if (chunked_encoding)
@@ -235,11 +237,9 @@ node.http.ServerResponse = function (connection, responses) {
     while (responses.length > 0 && responses[0].finished) {
       var res = responses[0];
       res.flush();
+      if (res.closeOnFinish)
+        connection.fullClose();
       responses.shift();
-    }
-
-    if (responses.length == 0 && connection_close) {
-      connection.fullClose();
     }
   };
 };
@@ -322,7 +322,11 @@ node.http.Server = function (RequestHandler, options) {
 
     // is this really needed?
     connection.onEOF = function () {
-      connection.close();
+      puts("HTTP SERVER got eof");
+      if (responses.length == 0)
+        connection.close();
+      else
+        responses[responses.length-1].closeOnFinish = true;
     };
   }
 
@@ -355,7 +359,7 @@ node.http.Client = function (port, host) {
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
         if (close_expression.exec(value))
-          connection_close = true;
+          this.closeOnFinish = true;
       } else if (transfer_encoding_expression.exec(field)) {
         sent_transfer_encoding_header = true;
         if (chunk_expression.exec(value))
