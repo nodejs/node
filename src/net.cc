@@ -137,11 +137,17 @@ Connection::Connection (Handle<Object> handle)
   : ObjectWrap(handle) 
 {
   encoding_ = RAW;
-  double timeout = 60.0; // default
 
   host_ = NULL;
   port_ = NULL;
 
+  Init();
+}
+
+void
+Connection::Init (void)
+{
+  double timeout = 60.0; // default
   oi_socket_init(&socket_, timeout);
   socket_.on_connect = Connection::on_connect;
   socket_.on_read    = Connection::on_read;
@@ -150,6 +156,7 @@ Connection::Connection (Handle<Object> handle)
   socket_.on_timeout = Connection::on_timeout;
   socket_.data = this;
 }
+
 
 Connection::~Connection ()
 {
@@ -189,6 +196,13 @@ Connection::Connect (const Arguments& args)
   if (!connection) return Handle<Value>();
 
   HandleScope scope;
+
+  if (connection->ReadyState() != CLOSED) {
+    return ThrowException(String::New("Socket is already connected."));
+  } else {
+    // XXX ugly.
+    connection->Init(); // in case we're reusing the socket... ?
+  }
 
   if (args.Length() == 0 || args[0]->IsInt32() == false)
     return ThrowException(String::New("Must specify a port."));
@@ -257,6 +271,8 @@ Connection::AfterResolve (eio_req *req)
     oi_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
     return 0;
   }
+
+  puts("net.cc: resolve failed");
 
   connection->OnDisconnect();
   connection->Detach();

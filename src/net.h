@@ -115,6 +115,8 @@ private:
     connection->OnTimeout();
   }
 
+  void Init (void); // constructor helper.
+
   static int Resolve (eio_req *req);
   static int AfterResolve (eio_req *req);
   char *host_;

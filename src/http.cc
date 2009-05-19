@@ -136,7 +136,7 @@ DEFINE_PARSER_CALLBACK(on_uri,          ON_URI_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_field, ON_HEADER_FIELD_SYMBOL)
 DEFINE_PARSER_CALLBACK(on_header_value, ON_HEADER_VALUE_SYMBOL)
 
-static Local<String>
+static inline Local<String>
 GetMethod (int method)
 {
   switch (method) {
@@ -169,11 +169,13 @@ HTTPConnection::on_headers_complete (http_parser *parser)
   Local<Object> message_handler = message_handler_v->ToObject();
 
   // METHOD 
-  message_handler->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
+  if (connection->parser_.type == HTTP_REQUEST)
+    message_handler->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
 
   // STATUS 
-  message_handler->Set(STATUS_CODE_SYMBOL, 
-      Integer::New(connection->parser_.status_code));
+  if (connection->parser_.type == HTTP_RESPONSE)
+    message_handler->Set(STATUS_CODE_SYMBOL, 
+        Integer::New(connection->parser_.status_code));
 
   // VERSION
   char version[10];
