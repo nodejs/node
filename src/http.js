@@ -154,14 +154,14 @@ node.http.ServerResponse = function (connection, responses) {
 
   var chunked_encoding = false;
 
-  this.sendHeader = function (status_code, headers) {
+  this.sendHeader = function (statusCode, headers) {
     var sent_connection_header = false;
     var sent_transfer_encoding_header = false;
     var sent_content_length_header = false;
 
-    var reason = node.http.STATUS_CODES[status_code] || "unknown";
+    var reason = node.http.STATUS_CODES[statusCode] || "unknown";
     var header = "HTTP/1.1 "
-               + status_code.toString() 
+               + statusCode.toString() 
                + " " 
                + reason 
                + CRLF
@@ -264,7 +264,7 @@ node.http.Server = function (RequestHandler, options) {
                                             // filled in ...
       var req = { method          : null    // at onHeadersComplete
                 , uri             : ""      // at onURI
-                , http_version    : null    // at onHeadersComplete
+                , httpVersion    : null    // at onHeadersComplete
                 , headers         : []      // at onHeaderField, onHeaderValue
                 , onBody          : null    // by user
                 , onBodyComplete  : null    // by user
@@ -302,7 +302,7 @@ node.http.Server = function (RequestHandler, options) {
       };
 
       this.onHeadersComplete = function () {
-        req.http_version = this.http_version;
+        req.httpVersion = this.httpVersion;
         req.method       = this.method;
         req.uri          = node.http.parseUri(req.uri); // TODO parse the URI lazily
 
@@ -466,9 +466,9 @@ node.http.Client = function (port, host) {
   // On response
   connection.onMessage = function () {
     var req = requests.shift();
-    var res = { status_code   : null  // set in onHeadersComplete
-              , http_version  : null  // set in onHeadersComplete
-              , headers       : []    // set in onHeaderField/Value
+    var res = { statusCode      : null  // set in onHeadersComplete
+              , httpVersion     : null  // set in onHeadersComplete
+              , headers         : []    // set in onHeaderField/Value
               , setBodyEncoding : function (enc) {
                   connection.setEncoding(enc);
                 }
@@ -497,8 +497,8 @@ node.http.Client = function (port, host) {
     };
 
     this.onHeadersComplete = function () {
-      res.status_code = this.status_code;
-      res.http_version = this.http_version;
+      res.statusCode = this.statusCode;
+      res.httpVersion = this.httpVersion;
       res.headers = headers;
 
       req.responseHandler(res);

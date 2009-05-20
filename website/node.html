@@ -263,7 +263,7 @@ class="sh_javascript">request_handler</code> callback.
 ]
 </pre>
 
-  <dt><code class="sh_javascript">req.http_version</code></dt>
+  <dt><code class="sh_javascript">req.httpVersion</code></dt>
   <dd>The HTTP protocol version as a string. Read only. Examples: <code class="sh_javascript">"1.1"</code>,
   <code class="sh_javascript">"1.0"</code>
 
@@ -296,7 +296,7 @@ req.onBody = function (chunk) {
 <h4 id="http_server_response"><code class="sh_javascript">node.http.ServerResponse</code></h4>
 
 <dl>
-  <dt><code class="sh_javascript">res.sendHeader(status_code, headers)</code></dt>
+  <dt><code class="sh_javascript">res.sendHeader(statusCode, headers)</code></dt>
   <dd>
     Sends a response header to the request. The status code is a 3-digit
     HTTP status code, like <code class="sh_javascript">404</code>. The second argument,
@@ -341,7 +341,7 @@ connection. (CURRENTLY: The client does not pipeline.)
 var google = new node.http.Client(80, "google.com");
 var req = google.get("/");
 req.finish(function (res) {
-  puts("STATUS: " + res.status_code);
+  puts("STATUS: " + res.statusCode);
   puts("HEADERS: " + JSON.stringify(res.headers));
   res.setBodyEncoding("utf8");
   res.onBody = function (chunk) {
@@ -420,10 +420,10 @@ header is completely received but before any part of the response body has been
 read. 
 
 <dl>
-  <dt><code class="sh_javascript">res.status_code</code></dt>
+  <dt><code class="sh_javascript">res.statusCode</code></dt>
   <dd>The 3-digit HTTP response status code. (E.G. <code class="sh_javascript">404</code>.)</dd>
 
-  <dt><code class="sh_javascript">res.http_version</code></dt>
+  <dt><code class="sh_javascript">res.httpVersion</code></dt>
   <dd>The HTTP version of the connected-to server. Probably either 
       <code class="sh_javascript">"1.1"</code> or 
       <code class="sh_javascript">"1.0"</code>.

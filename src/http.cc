@@ -22,8 +22,8 @@
 #define ON_MESSAGE_COMPLETE_SYMBOL  String::NewSymbol("onMessageComplete")
 
 #define METHOD_SYMBOL               String::NewSymbol("method")
-#define STATUS_CODE_SYMBOL          String::NewSymbol("status_code")
-#define HTTP_VERSION_SYMBOL         String::NewSymbol("http_version")
+#define STATUS_CODE_SYMBOL          String::NewSymbol("statusCode")
+#define HTTP_VERSION_SYMBOL         String::NewSymbol("httpVersion")
 #define SHOULD_KEEP_ALIVE_SYMBOL    String::NewSymbol("should_keep_alive")
 
 using namespace v8;
