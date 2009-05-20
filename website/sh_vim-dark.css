@@ -12,7 +12,8 @@
   font-style: italic;
 }
 
-.sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number 
+.sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number,
+.sh_sourceCode .sh_specialchar
 {
   color: #B0C4DE;
 }
