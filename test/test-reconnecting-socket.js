@@ -21,7 +21,7 @@ function onLoad () {
   var count = 0;
   var client = new node.tcp.Connection();
   
-  client.encoding = "UTF8";
+  client.setEncoding("UTF8");
   client.onConnect = function () {
     puts("client connected");
   };

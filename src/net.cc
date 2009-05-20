@@ -66,11 +66,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
-
-  constructor_template->PrototypeTemplate()->SetAccessor(
-      ENCODING_SYMBOL,
-      EncodingGetter,
-      EncodingSetter);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
@@ -96,41 +92,6 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
 
   assert(0 && "This shouldnt happen");
   return ThrowException(String::New("This shouldn't happen."));
-}
-
-Handle<Value>
-Connection::EncodingGetter (Local<String> _, const AccessorInfo& info)
-{
-  Connection *connection = NODE_UNWRAP(Connection, info.This());
-  if (!connection) return Handle<Value>();
-
-  HandleScope scope;
-
-  if (connection->encoding_ == UTF8)
-    return scope.Close(UTF8_SYMBOL);
-  else 
-    return scope.Close(RAW_SYMBOL);
-}
-
-void
-Connection::EncodingSetter (Local<String> _, Local<Value> value, const AccessorInfo& info)
-{
-  Connection *connection = NODE_UNWRAP(Connection, info.This());
-  if (!connection) return;
-
-  if (!value->IsString()) {
-    connection->encoding_ = RAW;
-    return;
-  }
-  HandleScope scope;
-  Local<String> encoding = value->ToString();
-  char buf[5]; // need enough room for "utf8" or "raw"
-  encoding->WriteAscii(buf, 0, 4);
-  buf[4] = '\0';
-  if(strcasecmp(buf, "utf8") == 0)
-    connection->encoding_ = UTF8;
-  else
-    connection->encoding_ = RAW;
 }
 
 Connection::Connection (Handle<Object> handle)
@@ -232,6 +193,33 @@ Connection::Connect (const Arguments& args)
 
   connection->Attach();
   return Undefined();
+}
+
+Handle<Value>
+Connection::SetEncoding (const Arguments& args)
+{
+  HandleScope scope;
+
+  Connection *connection = NODE_UNWRAP(Connection, args.This());
+  if (!connection) return Handle<Value>();
+
+  if (!args[0]->IsString()) {
+    connection->encoding_ = RAW;
+    return scope.Close(RAW_SYMBOL);
+  }
+  Local<String> encoding = args[0]->ToString();
+
+  char buf[5]; // need enough room for "utf8" or "raw"
+  encoding->WriteAscii(buf, 0, 4);
+  buf[4] = '\0';
+
+  if(strcasecmp(buf, "utf8") == 0) {
+    connection->encoding_ = UTF8;
+    return scope.Close(UTF8_SYMBOL);
+  } else {
+    connection->encoding_ = RAW;
+    return scope.Close(RAW_SYMBOL);
+  }
 }
 
 int

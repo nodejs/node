@@ -5,7 +5,7 @@ var N = 1000;
 var count = 0;
 
 function Ponger (socket) {
-  socket.encoding = "UTF8";
+  socket.setEncoding("utf8");
   socket.timeout = 0;
 
   puts("got socket.");
@@ -40,7 +40,7 @@ function onLoad() {
   var client = new node.tcp.Connection();
   assertEquals("closed", client.readyState);
 
-  client.encoding = "UTF8";
+  client.setEncoding("utf8");
 
   client.onConnect = function () {
     assertEquals("open", client.readyState);

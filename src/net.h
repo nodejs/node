@@ -25,11 +25,7 @@ protected:
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
   static v8::Handle<v8::Value> FullClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> ForceClose (const v8::Arguments& args);
-
-  static v8::Handle<v8::Value> EncodingGetter (v8::Local<v8::String> _,
-      const v8::AccessorInfo& info);
-  static void EncodingSetter (v8::Local<v8::String> _,
-      v8::Local<v8::Value> value, const v8::AccessorInfo& info);
+  static v8::Handle<v8::Value> SetEncoding (const v8::Arguments& args);
 
   static v8::Handle<v8::Value> ReadyStateGetter (v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
