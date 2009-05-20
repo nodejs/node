@@ -176,7 +176,7 @@ node.http.ServerResponse = function (connection, responses) {
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
         if (close_expression.exec(value))
-          connection_close = true;
+          this.closeOnFinish = true;
       } else if (transfer_encoding_expression.exec(field)) {
         sent_transfer_encoding_header = true;
         if (chunk_expression.exec(value))
@@ -191,7 +191,7 @@ node.http.ServerResponse = function (connection, responses) {
       if (this.should_keep_alive) {
         header += "Connection: keep-alive\r\n";
       } else {
-        connection_close = true;
+        this.closeOnFinish = true;
         header += "Connection: close\r\n";
       }
     }
