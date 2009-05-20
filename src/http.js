@@ -265,6 +265,9 @@ node.http.Server = function (RequestHandler, options) {
                 , headers         : []      // at onHeaderField, onHeaderValue
                 , onBody          : null    // by user
                 , onBodyComplete  : null    // by user
+                , setBodyEncoding : function (enc) {
+                    connection.setEncoding(enc);
+                  }
                 }
       var res = new node.http.ServerResponse(connection, responses);
 

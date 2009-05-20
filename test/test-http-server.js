@@ -35,6 +35,7 @@ function onLoad() {
   }).listen(port);
 
   var c = new node.tcp.Connection();
+  c.setEncoding("utf8");
   var req_sent = 0;
   c.onConnect = function () {
     //puts("send get");
@@ -45,7 +46,7 @@ function onLoad() {
 
   c.onReceive = function (chunk) {
     //puts("client recv");
-    total += chunk.encodeUtf8();
+    total += chunk;
     puts("total: " + JSON.stringify(total));
 
     if ( req_sent == 1) {
