@@ -76,7 +76,6 @@ a:hover { text-decoration: underline; }
 <body onload="sh_highlightDocument();">
 <div id="toc">
   <ol>
-    <li><a href="#motivation">Motivation</a></li>
     <li><a href="#benchmarks">Benchmarks</a></li>
     <li><a href="#download">Download</a></li>
     <li><a href="#install">Build</a></li>
@@ -101,7 +100,7 @@ a:hover { text-decoration: underline; }
 
 <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-<p id="introduction"> Purely asynchronous I/O for <a
+<p id="introduction">Purely asynchronous I/O for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
   
 <p>This is an example of a web server written with Node which responds with
@@ -116,72 +115,20 @@ a:hover { text-decoration: underline; }
 }).listen(8000);
 puts("Server running at http://127.0.0.1:8000/");</pre>
 
-<p> Execution does not block on <code
-class="sh_javascript">setTimeout()</code>
-nor
-<code
-class="sh_javascript">listen(8000)</code>. 
-In fact, not a single function in Node blocks execution. 
+<p>
+Node is an evented sandbox where users cannot execute blocking I/O. 
+This is
+already natural for Javascript programmers, as the DOM is almost entirely
+asynchronous and allows for effieceny.  The goal is to provide an easy way to create
+efficient network applications.
 
-<p> Check out <a href="#api">the API documentation</a> for more examples.
+
+<p> See <a href="#api">the API documentation</a> for more examples.
 
 <p> Node is free to <a href="#download">download</a>, <a
   href="#api">use</a>, and <a href="#modules">build upon</a>.</p>
 
 
-
-<h2 id="motivation">Motivation</h2>
-
-<p>
-I/O is hard and almost no one gets it right. 
-This is an attempt to make you to do it right by taking away all those
-sharp, dangerous tools called <i>threads</i>.
-
-<p>
-Node is forced evented programming&mdash;so by default you are doing the
-right thing.  
-Well, actually, <a
-href="http://weblogs.mozillazine.org/roadmap/archives/2007/02/threads_suck.html">Javascript
-itself is forced evented programming</a>. Node brings Javascript, in the way
-it was meant to be, out of the browser.
-
-<p>
-<a
-href="http://duartes.org/gustavo/blog/post/what-your-computer-does-while-you-wait">There
-is a major difference in the latency between memory and disk I/O.</a> It looks
-approximately like this:
-
-<pre>
-l1 cache ~ 3          (CPU cycles)
-l2 cache ~ 14
-     ram ~ 250
-    disk ~ 41000000
- network ~ 240000000
-</pre>
-
-<p>Disk and network I/O need to be treated differently than simple memory
-operations. But POSIX obscures the latency with system calls like 
-
-<pre>close(file_descriptor);</pre>
-
-<p> For a TCP file descriptor, this is a round trip message to a remote
-computer that can cost billions of CPU cycles. For a hard drive file descriptor,
-<code>close()</code> could mean a couple million cycles of disk spinning. 
-The man pages don't even mention that a call might be preforming very
-long I/O operations. This ambiguity in POSIX is propagated into higher APIs.
-
-<p> In the Node API all I/O happens on the event loop and thus requires a
-callback of some sort. Calls to access foreign database do not look like
-simple side-effect free functions. The programmer does not need advanced
-knowledge of POSIX to know that I/O is being performed because it looks
-differently.
-
-<p> Some find event programming cumbersome. I find threaded programming
-cumbersome&mdash;it's not a good abstraction of what is really happening.
-Because of this bad abstraction it's confusing and difficult to get right.
-Threaded programs only look good in the simpliest and most trivial
-situations&mdash;in real-life applications events lead to better
-architecture.
 
 
 <h2 id="benchmarks">Benchmarks</h2>
@@ -225,14 +172,9 @@ See <a
 <h3 id="http"><code>node.http</code></h3>
 
 <p> Node provides a web server and client interface. The interface is rather
-low-level but complete. (By complete, I mean that it does not limit you from
-any of HTTP's features.) The interface abstracts the Transfer-Encoding (i.e.
-chuncked or identity), message boundaries, and persistent connections.
-Message header and body parsing needs to be done in high-level abstractions.
-
-<p> There are even lower level versions of both the server and client. You
-very likely do not need the level of granuality provided by them. There are
-no docs for those interfaces.
+low-level but complete (it does not limit you from
+any of HTTP's features). The interface abstracts the transfer-encoding (i.e.
+chunked or identity), message boundaries, and persistent connections.
 
 <h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
 
@@ -281,7 +223,7 @@ class="sh_javascript">request_handler</code> callback.
   <code class="sh_javascript">"DELETE"</code>.</dd>
 
   <dt><code class="sh_javascript">req.uri</code>
-  <dd> URI object. 
+  <dd> Request URI. (Object.) 
   <dt><code>req.uri.anchor</code>
   <dt><code>req.uri.query</code>
   <dt><code>req.uri.file</code>
@@ -294,9 +236,8 @@ class="sh_javascript">request_handler</code> callback.
   <dt><code>req.uri.user</code>
   <dt><code>req.uri.authority</code>
   <dt><code>req.uri.protocol</code>
-  <dt><code>req.uri.source</code>
   <dt><code>req.uri.queryKey</code>
-  <dt><code>req.uri.toString()</code>
+  <dt><code>req.uri.toString()</code>, <code>req.uri.source</code>
   <dd> The original URI found in the status line.
 
   <dt><code class="sh_javascript">req.headers</code>
@@ -374,6 +315,54 @@ res.sendHeader(200, [ ["Content-Length", body.length]
   This method signals that all of the response headers and body has been
   sent; that server should consider this message complete. 
   The method, <code class="sh_javascript">res.finish()</code>, MUST be called on each response.
+
+</dl>
+
+<h4 id="http_client"><code class="sh_javascript">node.http.Client</code></h4>
+
+<p> An HTTP client is constructed with a server address as its argument, then
+the user issues one or more requests.  Depending on the server connected to,
+the client might pipeline the requests or reestablish the connection after each
+connection. (CURRENTLY: The client does not pipeline.)
+
+<p> Example of connecting to <code>google.com</code>
+<pre class="sh_javascript">
+var google = new node.http.Client(80, "google.com");
+var req = google.get("/");
+req.finish(function (res) {
+  puts("STATUS: " + res.status_code);
+  puts("HEADERS: " + JSON.stringify(res.headers));
+  res.setBodyEncoding("utf8");
+  res.onBody = function (chunk) {
+    puts("BODY: " + chunk);
+  };
+});
+</pre>
+
+<dl>
+  <dt><code class="sh_javascript">new node.http.Client(port, host);</code></dt>
+  <dd> Constructs a new HTTP client. <code>port</code> and <code>host</code>
+refer to the server to be connected to. A connection is not established until a
+request is issued.
+  </dd>
+
+  <dt><code class="sh_javascript">client.get(path, request_headers);</code></dt>
+  <dt><code class="sh_javascript">client.head(path, request_headers);</code></dt>
+  <dt><code class="sh_javascript">client.post(path, request_headers);</code></dt>
+  <dt><code class="sh_javascript">client.del(path, request_headers);</code></dt>
+  <dt><code class="sh_javascript">client.put(path, request_headers);</code></dt>
+  <dd> Issues a request. 
+    <code>request_headers</code> is optional. 
+    <code>request_headers</code> should be an array of 2-element arrays. 
+    Additional request headers might be added internally by Node.
+    Returns a <code>ClientRequest</code> object.
+
+    <p>Important: the request is not complete. This method only sends the
+header of the request. One needs to call <code>req.finish()</code> to finalize
+the request and retrieve the response.  (This sounds convoluted but it provides
+a chance for the user to stream a body to the server with
+<code>req.sendBody</code>.  <code>GET</code> and <code>HEAD</code> requests
+normally are without bodies but HTTP does not forbid it, so neither do we.)
 
 </dl>
 
