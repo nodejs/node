@@ -196,7 +196,10 @@ node.http.ServerResponse = function (connection, responses) {
       }
     }
 
-    if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
+    if ( sent_content_length_header == false 
+      && sent_transfer_encoding_header == false
+       ) 
+    {
       header += "Transfer-Encoding: chunked\r\n";
       chunked_encoding = true;
     }
@@ -343,7 +346,7 @@ node.http.Client = function (port, host) {
   function ClientRequest (method, uri, header_lines) {
 
     var chunked_encoding = false;
-    var connection_close = false;
+    this.closeOnFinish = false;
 
     var sent_connection_header = false;
     var sent_transfer_encoding_header = false;
@@ -380,7 +383,7 @@ node.http.Client = function (port, host) {
       chunked_encoding = true;
     }
     header += CRLF;
-            
+     
     var output = [header];
 
     function send (data) {
@@ -466,6 +469,9 @@ node.http.Client = function (port, host) {
     var res = { status_code   : null  // set in onHeadersComplete
               , http_version  : null  // set in onHeadersComplete
               , headers       : []    // set in onHeaderField/Value
+              , setBodyEncoding : function (enc) {
+                  connection.setEncoding(enc);
+                }
               };
 
     var headers = res.headers;
