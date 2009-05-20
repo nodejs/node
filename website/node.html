@@ -164,6 +164,27 @@ make install</pre>
 <code class="sh_javascript">on</code>. All methods and members are camel cased. Constructors
 always have a capital first letter.
 
+<dl>
+  <dt><code class="sh_javascript">puts(string, callback)</code></dt>
+  <dd>Outputs the <code>string</code> and a trailing new-line to <code>stdout</code>.
+  <p>The <code>callback</code> argument is optional and mostly useless: it will
+    notify the user when the operation has completed. Everything in node is
+    asynchronous; <code>puts()</code> is no exception. This might seem ridiculous
+    but, if for example, one is piping their output into an NFS'd file,
+    <code>printf()</code> will block.
+    There is an internal queue for <code>puts()</code> output, so you can be assured that
+    output will be displayed in the order it was called. 
+  </dd>
+
+  <dt><code class="sh_javascript">print(string, callback)</code></dt>
+  <dd>Like <code>puts()</code> but without the trailing new-line.</dd>
+
+  <dt><code class="sh_javascript">node.debug(string)</code></dt>
+  <dd>A synchronous output function. Will <i>block</i> the process and output the
+      string immediately to stdout. Use with care.</dd>
+
+</dl>
+
 <h3 id="timers">Timers</h3>
 
 <p>Timers allow one to schedule execution of a function for a later time.
@@ -177,7 +198,38 @@ See <a
   href="https://developer.mozilla.org/en/DOM/window.setTimeout">Mozilla's
   documentation</a> for more information.
 
-<h3 id="files">File System</h3>
+<h3 id="files">node.File</h3>
+
+<p> File system I/O has always been tricky because there are not any portable
+ways of doing non-blocking file I/O. To get around this, Node uses an internal
+thread pool to execute file system calls.  Internal request queues exist for
+each <code>node.File</code> instance so that multiple commands can be issued at
+once without worry that they will reach the file system out of order.
+Thus the following is safe:
+<pre class="sh_javascript">file.open("/tmp/blah", "w+");
+file.write("hello ");
+file.write("world");
+file.close();</pre>
+Additionally there is a process-wide queue for all commands which operate on
+the file system directory structure (like <code>rename</code> and
+<code>unlink</code>.) It's important to understand that all of these request queues are
+distinct. If, for example, you do
+<pre class="sh_javascript">fileA.write("hello");
+fileB.write("world");</pre>
+it could be that
+first <code>fileB</code> gets written to and then <code>fileA</code> gets written to. 
+So if a certain operation order is needed involving multiple files, use the
+completion callbacks:
+<pre class="sh_javascript">fileA.write("hello", function () {
+  fileB.write("world");
+});</pre>
+
+<dl>
+  <dt><code class="sh_javascript">node.File.rename()</code></dt>
+  <dd> 
+  </dd>
+</dl>
+
 
 <h3 id="tcp"><code>node.tcp</code></h3>
 
@@ -187,6 +239,19 @@ See <a
 low-level but complete (it does not limit you from
 any of HTTP's features). The interface abstracts the transfer-encoding (i.e.
 chunked or identity), message boundaries, and persistent connections.
+
+<p> HTTP message headers are represented by an array of 2-element arrays like this
+<pre class="sh_javascript">
+[ ["Content-Length", "123"]
+, ["Content-Type", "text/plain"]
+, ["Connection", "keep-alive"]
+, ["Accept", "*/*"]
+]
+</pre>
+<p><i>Dictionary-like objects are popularly used to represent HTTP headers but they are
+an incorrect abstraction. It is rare, but possible, to have multiple header lines
+with the same field. Setting multiple cookies in a single response, for
+example, can only be done with multiple <code>Cookie</code> lines.</i>
 
 <h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
 
@@ -225,8 +290,8 @@ chunked or identity), message boundaries, and persistent connections.
 
 <h4 id="http_server_request"><code class="sh_javascript">node.http.ServerRequest</code></h4>
 
-<p> This object is created internally by a HTTP server&mdash;not by the user. 
-It is passed as the first argument to the <code
+<p> This object is created internally by a HTTP server&mdash;not by the user.
+It is passed to the user as the first argument to the <code
 class="sh_javascript">request_handler</code> callback. 
 
 <dl>
@@ -254,14 +319,6 @@ class="sh_javascript">request_handler</code> callback.
 
   <dt><code class="sh_javascript">req.headers</code>
   <dd>The request headers expressed as an array of 2-element arrays. Read only.  
-  Example:
-<pre class="sh_javascript">
-[ ["Content-Length", "123"]
-, ["Content-Type", "text/plain"]
-, ["Connection", "keep-alive"]
-, ["Accept", "*/*"]
-]
-</pre>
 
   <dt><code class="sh_javascript">req.httpVersion</code></dt>
   <dd>The HTTP protocol version as a string. Read only. Examples: <code class="sh_javascript">"1.1"</code>,
@@ -294,6 +351,11 @@ req.onBody = function (chunk) {
 </dl>
 
 <h4 id="http_server_response"><code class="sh_javascript">node.http.ServerResponse</code></h4>
+
+<p> This object is created internally by a HTTP server&mdash;not by the user.
+It is passed to the user as the second argument to the <code
+class="sh_javascript">request_handler</code> callback. 
+
 
 <dl>
   <dt><code class="sh_javascript">res.sendHeader(statusCode, headers)</code></dt>
@@ -334,7 +396,7 @@ res.sendHeader(200, [ ["Content-Length", body.length]
 <p> An HTTP client is constructed with a server address as its argument, then
 the user issues one or more requests.  Depending on the server connected to,
 the client might pipeline the requests or reestablish the connection after each
-connection. (CURRENTLY: The client does not pipeline.)
+connection. <i>Currently the client does not pipeline requests.</i>
 
 <p> Example of connecting to <code>google.com</code>
 <pre class="sh_javascript">
