@@ -38,21 +38,9 @@ File::Initialize (Handle<Object> target)
 
   HandleScope scope;
 
-  Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
-  file_template->InstanceTemplate()->SetInternalFieldCount(1);
-
-  // file methods
-  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_open", File::Open);
-  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_close", File::Close);
-  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_write", File::Write);
-  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_read", File::Read);
-
-  file_template->InstanceTemplate()->SetAccessor(ENCODING_SYMBOL, File::GetEncoding, File::SetEncoding);
-
-  fs = Persistent<Object>::New(file_template->GetFunction());
+  fs = Persistent<Object>::New(target);
   InitActionQueue(fs);
 
-  target->Set(String::NewSymbol("File"), fs);
 
   // file system methods
   NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
@@ -62,6 +50,17 @@ File::Initialize (Handle<Object> target)
   fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
   fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
   fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
+
+
+  Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
+  file_template->InstanceTemplate()->SetInternalFieldCount(1);
+  // file methods
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_open", File::Open);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_close", File::Close);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_write", File::Write);
+  NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_read", File::Read);
+  file_template->InstanceTemplate()->SetAccessor(ENCODING_SYMBOL, File::GetEncoding, File::SetEncoding);
+  fs->Set(String::NewSymbol("File"), file_template->GetFunction());
 }
 
 Handle<Value>

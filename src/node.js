@@ -62,7 +62,7 @@ clearInterval = clearTimeout;
 
     var filename = node.path.join(base_directory, name) + ".js";
 
-    File.exists(filename, function (status) {
+    node.fs.exists(filename, function (status) {
       callback(status ? filename : null);
     });
   }
@@ -134,9 +134,9 @@ clearInterval = clearTimeout;
   }
 
   function loadScript (filename, target, callback) {
-    File.cat(filename, "utf8", function (status, content) {
+    node.fs.cat(filename, "utf8", function (status, content) {
       if (status != 0) {
-        stderr.puts("Error reading " + filename + ": " + File.strerror(status));
+        stderr.puts("Error reading " + filename + ": " + node.fs.strerror(status));
         exit(1);
       }
       

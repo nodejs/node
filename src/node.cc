@@ -290,7 +290,9 @@ main (int argc, char *argv[])
   // BUILT-IN MODULES
   Timer::Initialize(node);
 
-  File::Initialize(g);
+  Local<Object> fs = Object::New();
+  node->Set(String::New("fs"), fs);
+  File::Initialize(fs);
 
   Local<Object> tcp = Object::New();
   node->Set(String::New("tcp"), tcp);

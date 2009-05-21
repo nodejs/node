@@ -1,19 +1,19 @@
-File.rename = function (file1, file2, callback) {
+node.fs.rename = function (file1, file2, callback) {
   this._addAction("rename", [file1, file2], callback);
 };
 
-File.stat = function (path, callback) {
+node.fs.stat = function (path, callback) {
   this._addAction("stat", [path], callback);
 };
 
-File.exists = function (path, callback) {
+node.fs.exists = function (path, callback) {
   this._addAction("stat", [path], function (status) {
     callback(status == 0);
   });
 }
 
-File.cat = function (path, encoding, callback) {
-  var file = new File();
+node.fs.cat = function (path, encoding, callback) {
+  var file = new node.fs.File();
   file.encoding = encoding;
 
   var content = "";
@@ -48,27 +48,27 @@ File.cat = function (path, encoding, callback) {
   });
 }
 
-File.prototype.puts = function (data, callback) {
+node.fs.File.prototype.puts = function (data, callback) {
   this.write(data + "\n", -1, callback);
 };
 
-File.prototype.print = function (data, callback) {
+node.fs.File.prototype.print = function (data, callback) {
   this.write(data, -1, callback);
 };
 
-File.prototype.open = function (path, mode, callback) {
+node.fs.File.prototype.open = function (path, mode, callback) {
   this._addAction("open", [path, mode], callback);
 };
 
-File.prototype.close = function (callback) {
+node.fs.File.prototype.close = function (callback) {
   this._addAction("close", [], callback);
 };
 
-File.prototype.write = function (buf, pos, callback) {
+node.fs.File.prototype.write = function (buf, pos, callback) {
   this._addAction("write", [buf, pos], callback);
 };
 
-File.prototype.read = function (length, pos, callback) {
+node.fs.File.prototype.read = function (length, pos, callback) {
   this._addAction("read", [length, pos], callback);
 };
 
@@ -97,7 +97,7 @@ File.prototype.read = function (length, pos, callback) {
 // 
 // See File::CallTopCallback() in file.cc to see the other side of the
 // binding.
-File._addAction = File.prototype._addAction = function (method, args, callback) {
+node.fs._addAction = node.fs.File.prototype._addAction = function (method, args, callback) {
   this._actionQueue.push({ method: method 
                          , callback: callback
                          , args: args
@@ -105,7 +105,7 @@ File._addAction = File.prototype._addAction = function (method, args, callback) 
   if (this._actionQueue.length == 1) this._act();
 }
 
-File._act = File.prototype._act = function () {
+node.fs._act = node.fs.File.prototype._act = function () {
   var action = this._actionQueue[0];
   if (action)
     // TODO FIXME what if the action throws an error?
@@ -114,24 +114,24 @@ File._act = File.prototype._act = function () {
 
 // called from C++ after each action finishes
 // (i.e. when it returns from the thread pool)
-File._pollActions = File.prototype._pollActions = function () {
+node.fs._pollActions = node.fs.File.prototype._pollActions = function () {
   this._actionQueue.shift();
   this._act();
 };
 
-var stdout = new File();
-stdout.fd = File.STDOUT_FILENO;
+stdout = new node.fs.File();
+stdout.fd = node.fs.File.STDOUT_FILENO;
 
-var stderr = new File();
-stderr.fd = File.STDERR_FILENO;
+stderr = new node.fs.File();
+stderr.fd = node.fs.File.STDERR_FILENO;
 
-var stdin = new File();
-stdin.fd = File.STDIN_FILENO;
+stdin = new node.fs.File();
+stdin.fd = node.fs.File.STDIN_FILENO;
 
-this.puts = function (data, callback) {
+puts = function (data, callback) {
   stdout.puts(data, callback);
 }
 
-this.p = function (data, callback) {
+p = function (data, callback) {
   puts(JSON.stringify(data), callback);
 }
