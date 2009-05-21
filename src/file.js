@@ -8,7 +8,7 @@ File.stat = function (path, callback) {
 
 File.exists = function (path, callback) {
   this._addAction("stat", [path], function (status) {
-      callback(status == 0);
+    callback(status == 0);
   });
 }
 

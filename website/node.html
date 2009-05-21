@@ -131,7 +131,7 @@ puts("Server running at http://127.0.0.1:8000/");</pre>
 Node is an evented sandbox where users cannot execute blocking I/O. 
 This is
 already natural for Javascript programmers, as the DOM is almost entirely
-asynchronous.  The goal is to provide an easy way to create
+asynchronous.  The goal is a framework to easily create
 efficient network applications.
 
 
@@ -182,37 +182,54 @@ always have a capital first letter.
   <dt><code class="sh_javascript">node.debug(string)</code></dt>
   <dd>A synchronous output function. Will <i>block</i> the process and output the
       string immediately to stdout. Use with care.</dd>
-
 </dl>
 
 <h3 id="timers">Timers</h3>
 
-<p>Timers allow one to schedule execution of a function for a later time.
+<dl>
+  <dt><code class="sh_javascript">setTimeout(callback, delay)</code></dt>
+  <dd> To schedule execution of <code>callback</code> after <code>delay</code>
+    milliseconds.  Returns a <code>timeoutId</code> for possible use with
+    <code>clearTimeout()</code>.
 
-<p>Timers in Node work as they do in the browser: 
-<code class="sh_javascript">setTimeout()</code>, 
-<code class="sh_javascript">setInterval()</code>, 
-<code class="sh_javascript">clearTimeout()</code>, 
-<code class="sh_javascript">clearInterval()</code>.
-See <a
-  href="https://developer.mozilla.org/en/DOM/window.setTimeout">Mozilla's
-  documentation</a> for more information.
+  <dt><code class="sh_javascript">clearTimeout(timeoutId)</code></dt>
+  <dd> Prevents said timeout from triggering.
+
+  <dt><code class="sh_javascript">setInterval(callback, delay)</code></dt>
+  <dd> To schedule the repeated execution of <code>callback</code> every
+      <code>delay</code> milliseconds.  Returns a <code>intervalId</code> for
+      possible use with <code>clearInterval()</code>.
+
+  <dt><code class="sh_javascript">clearInterval(intervalId)</code></dt>
+  <dd> Stops a interval from triggering.  </dd>
+</dl>
 
 <h3 id="files">node.File</h3>
 
 <p> File system I/O has always been tricky because there are not any portable
-ways of doing non-blocking file I/O. To get around this, Node uses an internal
-thread pool to execute file system calls.  Internal request queues exist for
-each <code>node.File</code> instance so that multiple commands can be issued at
-once without worry that they will reach the file system out of order.
-Thus the following is safe:
-<pre class="sh_javascript">file.open("/tmp/blah", "w+");
+non-blocking ways to do it. To get around this, Node uses <a
+href="http://software.schmorp.de/pkg/libeio.html">an internal thread pool</a>
+to execute file system calls asynchronously.  
+
+
+<p>All file I/O calls are rather thin wrappers around standard POSIX functions.
+All calls have an optional last callback parameter 
+
+
+
+
+<p>Internal request queues exist for each file object so multiple commands can
+be issued at once without worry that they will reach the file system out of
+order.  Thus the following is safe:
+<pre class="sh_javascript">
+var file = new node.File();
+file.open("/tmp/blah", "w+");
 file.write("hello ");
 file.write("world");
 file.close();</pre>
 Additionally there is a process-wide queue for all commands which operate on
 the file system directory structure (like <code>rename</code> and
-<code>unlink</code>.) It's important to understand that all of these request queues are
+<code>unlink</code>). It's important to understand that all of these request queues are
 distinct. If, for example, you do
 <pre class="sh_javascript">fileA.write("hello");
 fileB.write("world");</pre>

@@ -58,6 +58,7 @@ File::Initialize (Handle<Object> target)
   NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
   NODE_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
   NODE_SET_METHOD(fs, "strerror", FileSystem::StrError);
+
   fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
   fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
   fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
