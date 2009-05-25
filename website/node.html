@@ -112,8 +112,14 @@ a:hover { text-decoration: underline; }
 
 <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-<p id="introduction">Purely asynchronous I/O for <a
+<p id="introduction">Purely asynchronous server-side I/O for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
+
+<p>Analogy
+<pre>
+Python     : Twisted
+Ruby       : Event Machine
+Javascript : Node</pre>
   
 <p>This is an example of a web server written with Node which responds with
 "Hello World" after waiting two seconds:
@@ -126,13 +132,6 @@ a:hover { text-decoration: underline; }
   }, 2000);
 }).listen(8000);
 puts("Server running at http://127.0.0.1:8000/");</pre>
-
-<p>
-Node is an evented sandbox where users cannot execute blocking I/O. 
-This is
-already natural for Javascript programmers, as the DOM is almost entirely
-asynchronous.  The goal is a framework to easily create
-efficient network applications.
 
 
 <p> See <a href="#api">the API documentation</a> for more examples.
@@ -163,6 +162,14 @@ make install</pre>
 <p>Conventions: Callbacks are object members which are prefixed with
 <code class="sh_javascript">on</code>. All methods and members are camel cased. Constructors
 always have a capital first letter.
+
+<p>Node uses strings to represent ASCII or UTF-8 encoded data. For the
+moment, arrays of integers are used to represent raw binary data&mdash;this
+representation is rather inefficient. In the future, <a
+href="http://code.google.com/p/v8/issues/detail?id=270">when V8 natively supports binary
+Blob objects</a>, Node will use them.
+
+<p>The following are some global general purpose functions:</p>
 
 <dl>
   <dt><code class="sh_javascript">puts(string, callback)</code></dt>
@@ -255,9 +262,9 @@ completion callbacks:
 var path = "/some/path/that/doesnt/exist";
 var file = new node.fs.File();
 file.onError = function (method, errno, msg) {
-  stderr.puts("An error occurred calling " + method + " on " + path);
+  stderr.puts("An error occurred calling " + method);
   stderr.puts(msg);
-  exit(1);
+  node.exit(1);
 }
 file.open(path, "w+")
 </pre>
@@ -314,10 +321,11 @@ file.open(path, "w+")
 
 <h3 id="http"><code>node.http</code></h3>
 
-<p> Node provides a web server and client interface. The interface is rather
-low-level but complete (it does not limit you from
-any of HTTP's features). The interface abstracts the transfer-encoding (i.e.
-chunked or identity), message boundaries, and persistent connections.
+<p>The HTTP interfaces here are designed to support many features
+of the protocol which have been traditionally difficult to handle. In
+particular, large, possibly chunked, messages. The interface is
+careful to never buffer entire requests or responses&mdash;the user is able
+to stream data.
 
 <p> HTTP message headers are represented by an array of 2-element arrays like this
 <pre class="sh_javascript">
