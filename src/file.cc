@@ -12,55 +12,40 @@
 using namespace v8;
 using namespace node;
 
-#define FD_SYMBOL v8::String::NewSymbol("fd")
-#define ACTION_QUEUE_SYMBOL v8::String::NewSymbol("_actionQueue")
-#define ENCODING_SYMBOL v8::String::NewSymbol("encoding")
+#define FD_SYMBOL           String::NewSymbol("fd")
+#define ACTION_QUEUE_SYMBOL String::NewSymbol("_actionQueue")
+#define ENCODING_SYMBOL     String::NewSymbol("encoding")
+#define CALLBACK_SYMBOL     String::NewSymbol("callbaccallback")
+#define POLL_ACTIONS_SYMBOL String::NewSymbol("_pollActions")
 
-#define UTF8_SYMBOL v8::String::NewSymbol("utf8")
-#define RAW_SYMBOL v8::String::NewSymbol("raw")
-
-static void
-InitActionQueue (Handle<Object> handle)
-{
-  handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
-}
-
-// This is the file system object which contains methods
-// for accessing the file system (like rename, mkdir, etC). 
-// In javascript it is called "File".
-static Persistent<Object> fs;
+#define UTF8_SYMBOL         String::NewSymbol("utf8")
+#define RAW_SYMBOL          String::NewSymbol("raw")
 
 void
 File::Initialize (Handle<Object> target)
 {
-  if (!fs.IsEmpty())
-    return;
-
   HandleScope scope;
 
-  fs = Persistent<Object>::New(target);
-  InitActionQueue(fs);
-
-
   // file system methods
-  NODE_SET_METHOD(fs, "_ffi_rename", FileSystem::Rename);
-  NODE_SET_METHOD(fs, "_ffi_stat", FileSystem::Stat);
-  NODE_SET_METHOD(fs, "strerror", FileSystem::StrError);
+  NODE_SET_METHOD(target, "rename",   FileSystem::Rename);
+  NODE_SET_METHOD(target, "stat",     FileSystem::Stat);
+  NODE_SET_METHOD(target, "strerror", FileSystem::StrError);
 
-  fs->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
-  fs->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
-  fs->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
+  target->Set(String::NewSymbol("STDIN_FILENO"), Integer::New(STDIN_FILENO));
+  target->Set(String::NewSymbol("STDOUT_FILENO"), Integer::New(STDOUT_FILENO));
+  target->Set(String::NewSymbol("STDERR_FILENO"), Integer::New(STDERR_FILENO));
 
 
   Local<FunctionTemplate> file_template = FunctionTemplate::New(File::New);
   file_template->InstanceTemplate()->SetInternalFieldCount(1);
+
   // file methods
   NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_open", File::Open);
   NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_close", File::Close);
   NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_write", File::Write);
   NODE_SET_PROTOTYPE_METHOD(file_template, "_ffi_read", File::Read);
   file_template->InstanceTemplate()->SetAccessor(ENCODING_SYMBOL, File::GetEncoding, File::SetEncoding);
-  fs->Set(String::NewSymbol("File"), file_template->GetFunction());
+  target->Set(String::NewSymbol("File"), file_template->GetFunction());
 }
 
 Handle<Value>
@@ -95,32 +80,15 @@ CallTopCallback (Handle<Object> handle, const int argc, Handle<Value> argv[])
 {
   HandleScope scope;
 
-  Local<Value> queue_value = handle->Get(ACTION_QUEUE_SYMBOL);
-  assert(queue_value->IsArray());
-
-  Local<Array> queue = Local<Array>::Cast(queue_value);
-  Local<Value> top_value = queue->Get(Integer::New(0));
-  if (top_value->IsObject()) {
-    Local<Object> top = top_value->ToObject();
-    Local<Value> callback_value = top->Get(String::NewSymbol("callback"));
-    if (callback_value->IsFunction()) {
-      Handle<Function> callback = Handle<Function>::Cast(callback_value);
-
-      TryCatch try_catch;
-      callback->Call(handle, argc, argv);
-      if(try_catch.HasCaught()) {
-        node::fatal_exception(try_catch);
-        return;
-      }
-    }
-  }
-
   // poll_actions
-  Local<Value> poll_actions_value = handle->Get(String::NewSymbol("_pollActions"));
+  Local<Value> poll_actions_value = handle->Get(POLL_ACTIONS_SYMBOL);
   assert(poll_actions_value->IsFunction());  
   Handle<Function> poll_actions = Handle<Function>::Cast(poll_actions_value);
 
-  poll_actions->Call(handle, 0, NULL);
+  TryCatch try_catch;
+  poll_actions->Call(handle, argc, argv);
+  if(try_catch.HasCaught())
+    node::fatal_exception(try_catch);
 }
 
 Handle<Value>
@@ -133,6 +101,13 @@ FileSystem::Rename (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
+
+  Persistent<Function> *callback = NULL;
+  if (args[2]->IsFunction()) {
+    Local<Function> l = Local<Function>::Cast(args[2]);
+    callback = new Persistent<Function>();
+    *callback = Persistent<Function>::New(l);
+  }
 
   node::eio_warmup();
   eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, NULL);
@@ -147,7 +122,18 @@ FileSystem::AfterRename (eio_req *req)
   const int argc = 1;
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
-  CallTopCallback(fs, argc, argv);
+
+  if (req->data) {
+    Persistent<Function> *callback = reinterpret_cast<Persistent<Function>*>(req->data);
+
+    TryCatch try_catch;
+    (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);
+    if(try_catch.HasCaught())
+      node::fatal_exception(try_catch);
+
+    free(callback);
+  }
+
   return 0;
 }
 
@@ -161,8 +147,15 @@ FileSystem::Stat (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
 
+  Persistent<Function> *callback = NULL;
+  if (args[1]->IsFunction()) {
+    Local<Function> l = Local<Function>::Cast(args[1]);
+    callback = new Persistent<Function>();
+    *callback = Persistent<Function>::New(l);
+  }
+
   node::eio_warmup();
-  eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, NULL);
+  eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, callback);
 
   return Undefined();
 }
@@ -180,7 +173,7 @@ FileSystem::AfterStat (eio_req *req)
   argv[1] = stats;
 
   if (req->result == 0) {
-    struct stat *s = static_cast<struct stat*>(req->ptr2);
+    struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
 
     /* ID of device containing file */
     stats->Set(NODE_SYMBOL("dev"), Integer::New(s->st_dev));
@@ -210,8 +203,17 @@ FileSystem::AfterStat (eio_req *req)
     stats->Set(NODE_SYMBOL("ctime"), Date::New(1000*static_cast<double>(s->st_ctime)));
   }
 
-  CallTopCallback(fs, argc, argv);
-    
+  if (req->data) {
+    Persistent<Function> *callback = reinterpret_cast<Persistent<Function>*>(req->data);
+
+    TryCatch try_catch;
+    (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);
+    if(try_catch.HasCaught())
+      node::fatal_exception(try_catch);
+
+    free(callback);
+  }
+
   return 0;
 }
 
@@ -237,7 +239,7 @@ File::File (Handle<Object> handle)
 {
   HandleScope scope;
   encoding_ = RAW;
-  InitActionQueue(handle);
+  handle->Set(ACTION_QUEUE_SYMBOL, Array::New());
 }
 
 File::~File ()
@@ -277,7 +279,7 @@ File::Close (const Arguments& args)
 int
 File::AfterClose (eio_req *req)
 {
-  File *file = static_cast<File*>(req->data);
+  File *file = reinterpret_cast<File*>(req->data);
 
   if (req->result == 0) {
     file->handle_->Delete(FD_SYMBOL);
@@ -338,7 +340,7 @@ File::Open (const Arguments& args)
 int
 File::AfterOpen (eio_req *req)
 {
-  File *file = static_cast<File*>(req->data);
+  File *file = reinterpret_cast<File*>(req->data);
   HandleScope scope;
 
   if(req->result >= 0) {
@@ -364,6 +366,8 @@ File::Write (const Arguments& args)
 
   File *file = NODE_UNWRAP(File, args.Holder());
 
+  off_t pos = args[1]->IntegerValue();
+
   char *buf = NULL; 
   size_t length = 0;
 
@@ -371,14 +375,14 @@ File::Write (const Arguments& args)
     // utf8 encoding
     Local<String> string = args[0]->ToString();
     length = string->Utf8Length();
-    buf = static_cast<char*>(malloc(length));
+    buf = reinterpret_cast<char*>(malloc(length));
     string->WriteUtf8(buf, length);
     
   } else if (args[0]->IsArray()) {
     // raw encoding
     Local<Array> array = Local<Array>::Cast(args[0]);
     length = array->Length();
-    buf = static_cast<char*>(malloc(length));
+    buf = reinterpret_cast<char*>(malloc(length));
     for (unsigned int i = 0; i < length; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf[i] = int_value->Int32Value();
@@ -388,8 +392,6 @@ File::Write (const Arguments& args)
     // bad arguments. raise error?
     return Undefined();
   }
-
-  off_t pos = args[1]->IntegerValue();
 
   if (file->handle_->Has(FD_SYMBOL) == false) {
     printf("trying to write to a bad fd!\n");  
@@ -408,9 +410,9 @@ File::Write (const Arguments& args)
 int
 File::AfterWrite (eio_req *req)
 {
-  File *file = static_cast<File*>(req->data);
+  File *file = reinterpret_cast<File*>(req->data);
 
-  //char *buf = static_cast<char*>(req->ptr2);
+  //char *buf = reinterpret_cast<char*>(req->ptr2);
   free(req->ptr2);
   ssize_t written = req->result;
 
@@ -429,20 +431,22 @@ File::AfterWrite (eio_req *req)
 Handle<Value>
 File::Read (const Arguments& args)
 {
-  if (args.Length() < 1) return Undefined();
-  if (!args[0]->IsNumber()) return Undefined();
-  if (!args[1]->IsNumber()) return Undefined();
-
   HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsNumber() || !args[1]->IsNumber()) {
+    return ThrowException(String::New("Bad parameter for _ffi_read()"));
+  }
+
   File *file = NODE_UNWRAP(File, args.Holder());
-  size_t length = args[0]->IntegerValue();
-  off_t pos = args[1]->IntegerValue();
+  size_t len = args[0]->IntegerValue();
+  off_t pos  = args[1]->IntegerValue();
 
   int fd = file->GetFD();
+  assert(fd >= 0);
 
-  // NOTE: NULL pointer tells eio to allocate it itself
+  // NOTE: 2nd param: NULL pointer tells eio to allocate it itself
   node::eio_warmup();
-  eio_read(fd, NULL, length, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
+  eio_read(fd, NULL, len, pos, EIO_PRI_DEFAULT, File::AfterRead, file);
 
   file->Attach();
   return Undefined();
@@ -451,32 +455,33 @@ File::Read (const Arguments& args)
 int
 File::AfterRead (eio_req *req)
 {
-  File *file = static_cast<File*>(req->data);
+  File *file = reinterpret_cast<File*>(req->data);
   HandleScope scope;
 
   const int argc = 2;
   Local<Value> argv[argc];
   argv[0] = Integer::New(req->errorno);
 
-  char *buf = static_cast<char*>(req->ptr2);
+  char *buf = reinterpret_cast<char*>(req->ptr2);
 
-  if(req->result == 0) { 
+  if (req->result == 0) { 
     // eof 
     argv[1] = Local<Value>::New(Null());
   } else {
-    size_t length = req->result;
+    size_t len = req->result;
     if (file->encoding_ == UTF8) {
       // utf8 encoding
       argv[1] = String::New(buf, req->result);
     } else {
       // raw encoding
-      Local<Array> array = Array::New(length);
-      for (unsigned int i = 0; i < length; i++) {
+      Local<Array> array = Array::New(len);
+      for (unsigned int i = 0; i < len; i++) {
         array->Set(Integer::New(i), Integer::New(buf[i]));
       }
       argv[1] = array;
     }
   }
+
   CallTopCallback(file->handle_, argc, argv);
 
   file->Detach();

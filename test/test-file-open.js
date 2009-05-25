@@ -7,8 +7,11 @@ function onLoad () {
   var x = node.path.join(fixtures, "x.txt");
 
   file = new node.fs.File;
-  file.open(x, "r", function (status) {
-    assertTrue(status == 0);
+  file.onError = function (method, errno, msg) {
+    assertTrue(false); 
+  };
+
+  file.open(x, "r", function () {
     assert_count += 1;
     file.close();
   });

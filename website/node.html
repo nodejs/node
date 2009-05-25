@@ -80,11 +80,11 @@ a:hover { text-decoration: underline; }
   <ol>
     <li><a href="#benchmarks">Benchmarks</a></li>
     <li><a href="#download">Download</a></li>
-    <li><a href="#install">Build</a></li>
+    <li><a href="#build">Build</a></li>
     <li><a href="#api">API</a>
       <ol>
         <li><a href="#timers">Timers</a>
-        <li><a href="#files">File System I/O</a>
+        <li><a href="#files">File I/O</a>
         <li><a href="#tcp">TCP</a>
           <ol>
           <li><a href="#tcp_server">Server</a>
@@ -166,12 +166,15 @@ always have a capital first letter.
 
 <dl>
   <dt><code class="sh_javascript">puts(string, callback)</code></dt>
-  <dd>Outputs the <code>string</code> and a trailing new-line to <code>stdout</code>.
+  <dd>
+      Alias for <code class="sh_javascript">stdout.puts()</code>.
+
+      Outputs the <code>string</code> and a trailing new-line to <code>stdout</code>.
   <p>The <code>callback</code> argument is optional and mostly useless: it will
     notify the user when the operation has completed. Everything in node is
     asynchronous; <code>puts()</code> is no exception. This might seem ridiculous
-    but, if for example, one is piping their output into an NFS'd file,
-    <code>printf()</code> will block.
+    but, if for example, one is piping <code>stdout</code> into an NFS file,
+    <code>printf()</code> will block from network latency.
     There is an internal queue for <code>puts()</code> output, so you can be assured that
     output will be displayed in the order it was called. 
   </dd>
@@ -204,51 +207,90 @@ always have a capital first letter.
   <dd> Stops a interval from triggering.  </dd>
 </dl>
 
-<h3 id="files">node.File</h3>
+<h3 id="files">node.fs</h3>
 
-<p> File system I/O has always been tricky because there are not any portable
-non-blocking ways to do it. To get around this, Node uses <a
+<p>Because there are not non-blocking ways to do it, asynchronous file I/O is
+tricky.  Node handles file I/O by employing <a
 href="http://software.schmorp.de/pkg/libeio.html">an internal thread pool</a>
-to execute file system calls asynchronously.  
+to execute file system calls.  
 
+<p>Internal request queues exist for each file object so that multiple commands
+can be issued at once without worry that they will be executed out-of-order.
+Thus the following is safe:
 
-<p>All file I/O calls are rather thin wrappers around standard POSIX functions.
-All calls have an optional last callback parameter 
-
-
-
-
-<p>Internal request queues exist for each file object so multiple commands can
-be issued at once without worry that they will reach the file system out of
-order.  Thus the following is safe:
 <pre class="sh_javascript">
-var file = new node.File();
+var file = new node.fs.File();
 file.open("/tmp/blah", "w+");
-file.write("hello ");
+file.write("hello");
 file.write("world");
 file.close();</pre>
-Additionally there is a process-wide queue for all commands which operate on
-the file system directory structure (like <code>rename</code> and
-<code>unlink</code>). It's important to understand that all of these request queues are
-distinct. If, for example, you do
+
+<p>
+It's important to understand that the request queues are local to a single file.
+If one does
 <pre class="sh_javascript">fileA.write("hello");
 fileB.write("world");</pre>
-it could be that
-first <code>fileB</code> gets written to and then <code>fileA</code> gets written to. 
-So if a certain operation order is needed involving multiple files, use the
+it could be that <code>fileB</code> gets written to before <code>fileA</code>
+is written to. 
+If a certain operation order is needed involving multiple files, use the
 completion callbacks:
 <pre class="sh_javascript">fileA.write("hello", function () {
   fileB.write("world");
 });</pre>
 
 <dl>
-  <dt><code class="sh_javascript">node.File.rename()</code></dt>
+  <dt><code class="sh_javascript">new node.fs.File</code></dt>
+  <dd>Creates a new file object. </dd>
+
+  <dt><code class="sh_javascript">file.open(path, mode, on_completion)</code></dt>
+  <dd>Opens the file at <code>path</code>. 
+  <p><code>mode</code> is a string: 
+    <code>"r"</code>  open for reading and writing.
+    <code>"r+"</code> open for only reading.
+    <code>"w"</code> create a new file for reading and writing; if it
+    already exists truncate it. 
+    <code>"w+"</code> create a new file for writing only; if it already
+    exists truncate it. 
+    <code>"a"</code> create a new file for writing and reading. Writes
+    append to the end of the file. 
+    <code>"a+"</code> 
+  <p>The <code>on_completion</code> is a callback that is made without
+  arguments when the operation completes. It is optional
+  If an error occurred the <code>on_completion</code> callback will not be
+  called, but the <code>file.onError</code> will be called.
+  </dd>
+
+  <dt><code class="sh_javascript">file.read(length, position, on_completion)</code></dt>
+  <dd>
+  </dd>
+
+  <dt><code class="sh_javascript">file.write(data, position, on_completion)</code></dt>
+  <dd>
+  </dd>
+
+  <dt><code class="sh_javascript">file.close(on_completion)</code></dt>
+  <dd>
+  </dd>
+</dl>
+
+<h4>File System Operations</h4>
+
+<dl>
+  <dt><code class="sh_javascript">node.fs.rename(path1, path2, on_completion)</code></dt>
+  <dd> 
+  </dd>
+
+  <dt><code class="sh_javascript">node.fs.stat(path1, on_completion)</code></dt>
   <dd> 
   </dd>
 </dl>
 
 
 <h3 id="tcp"><code>node.tcp</code></h3>
+
+<h4 id="tcp_server"><code>node.tcp.Server</code></h4>
+
+<h4 id="tcp_connection"><code>node.tcp.Connection</code></h4>
 
 <h3 id="http"><code>node.http</code></h3>
 
@@ -410,10 +452,11 @@ res.sendHeader(200, [ ["Content-Length", body.length]
 
 <h4 id="http_client"><code class="sh_javascript">node.http.Client</code></h4>
 
-<p> An HTTP client is constructed with a server address as its argument, then
-the user issues one or more requests.  Depending on the server connected to,
-the client might pipeline the requests or reestablish the connection after each
-connection. <i>Currently the client does not pipeline requests.</i>
+<p> An HTTP client is constructed with a server address as its argument, the
+returned handle is then used to issue one or more requests.  Depending on the
+server connected to, the client might pipeline the requests or reestablish the
+connection after each connection. 
+<i>Currently the implementation does not pipeline requests.</i>
 
 <p> Example of connecting to <code>google.com</code>
 <pre class="sh_javascript">
@@ -441,7 +484,9 @@ request is issued.
   <dt><code class="sh_javascript">client.post(path, request_headers);</code></dt>
   <dt><code class="sh_javascript">client.del(path, request_headers);</code></dt>
   <dt><code class="sh_javascript">client.put(path, request_headers);</code></dt>
-  <dd> Issues a request. 
+  <dd> Issues a request; if necessary establishes connection. 
+
+  <p>
     <code>request_headers</code> is optional. 
     <code>request_headers</code> should be an array of 2-element arrays. 
     Additional request headers might be added internally by Node.
@@ -450,15 +495,18 @@ request is issued.
     <p>Important: the request is not complete. This method only sends the
 header of the request. One needs to call <code>req.finish()</code> to finalize
 the request and retrieve the response.  (This sounds convoluted but it provides
-a chance for the user to stream a body to the server with
-<code>req.sendBody</code>.  <code>GET</code> and <code>HEAD</code> requests
-normally are without bodies but HTTP does not forbid it, so neither do we.)
+a chance for the user to stream a body to the server with <code
+class="sh_javascript">req.sendBody()</code>.) 
+
+    <p><i> <code>GET</code> and
+<code>HEAD</code> requests normally are without bodies but HTTP does not forbid
+it, so neither do we.</i>
 
 </dl>
 
 <h4 id="http_client_request"><code class="sh_javascript">node.http.ClientRequest</code></h4>
 
-<p>This object created internally and returned from the request methods of a
+<p>This object is created internally and returned from the request methods of a
 <code>node.http.Client</code>. It represents an <i>in-progress</i> request
 whose header has already been sent. 
 
@@ -500,7 +548,7 @@ read.
 
 <dl>
   <dt><code class="sh_javascript">res.statusCode</code></dt>
-  <dd>The 3-digit HTTP response status code. (E.G. <code class="sh_javascript">404</code>.)</dd>
+  <dd>The 3-digit HTTP response status code. E.G. <code class="sh_javascript">404</code>.</dd>
 
   <dt><code class="sh_javascript">res.httpVersion</code></dt>
   <dd>The HTTP version of the connected-to server. Probably either 
@@ -513,7 +561,7 @@ read.
 
   <dt><code class="sh_javascript">res.onBody</code></dt>
   <dd>Callback. Should be set by the user to be informed of when a piece
-  of the message body is received.
+  of the response body is received.
   A chunk of the body is given as the single argument. The transfer-encoding
   has been removed. 
 
