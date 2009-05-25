@@ -185,6 +185,9 @@ always have a capital first letter.
   <dt><code class="sh_javascript">node.debug(string)</code></dt>
   <dd>A synchronous output function. Will <i>block</i> the process and output the
       string immediately to stdout. Use with care.</dd>
+
+  <dt><code class="sh_javascript">node.exit(code)</code></dt>
+  <dd>Immediately ends the process with the specified code.</dd>
 </dl>
 
 <h3 id="timers">Timers</h3>
@@ -241,6 +244,23 @@ completion callbacks:
 <dl>
   <dt><code class="sh_javascript">new node.fs.File</code></dt>
   <dd>Creates a new file object. </dd>
+
+  <dt><code class="sh_javascript">file.onError</code></dt>
+  <dd>Callback. This is called internally anytime an error occurs with this
+  file. There are three arguments: the method name, the POSIX errno, and a
+  string describing the error.
+
+  <p>Example</p>
+<pre class="sh_javascript">
+var path = "/some/path/that/doesnt/exist";
+var file = new node.fs.File();
+file.onError = function (method, errno, msg) {
+  stderr.puts("An error occurred calling " + method + " on " + path);
+  stderr.puts(msg);
+  exit(1);
+}
+file.open(path, "w+")
+</pre>
 
   <dt><code class="sh_javascript">file.open(path, mode, on_completion)</code></dt>
   <dd>Opens the file at <code>path</code>. 
@@ -607,7 +627,7 @@ function fail (expected, found, name_opt) {
 function deepEquals (a, b) {
   // ...
 }
-<span class="highlight">exports</span>.assertEquals = function (expected, found, name_opt) {
+exports.assertEquals = function (expected, found, name_opt) {
   if (!deepEquals(found, expected)) {
     fail(expected, found, name_opt);
   }
@@ -629,8 +649,7 @@ class="sh_javascript">onLoad</code> can be set and will notify the user
 when all the included modules are loaded.  Each file/module can have an <code
 class="sh_javascript">onLoad</code> callback.  
 
-<p> To export an object, add to the special <code
-  class="highlight">exports</code> object.
+<p>To export an object, add to the special <code>exports</code> object.
 
 <p> The functions <code class="sh_javascript">fail</code> and <code class="sh_javascript">deepEquals</code> are not
 exported and remain private to the module.

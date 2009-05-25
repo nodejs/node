@@ -275,9 +275,9 @@ main (int argc, char *argv[])
   Local<Object> node = Object::New();
   g->Set(String::New("node"), node);
 
-  NODE_SET_METHOD(node, "compile", compile);
+  NODE_SET_METHOD(node, "compile", compile); // internal 
   NODE_SET_METHOD(node, "debug", debug);
-  NODE_SET_METHOD(g, "exit", node_exit);
+  NODE_SET_METHOD(node, "exit", node_exit);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {
