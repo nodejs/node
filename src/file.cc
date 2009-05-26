@@ -139,7 +139,7 @@ AfterWrite (eio_req *req)
  * Wrapper for write(2). 
  *
  * 0 fd        integer. file descriptor
- * 1 data      the data to write 
+ * 1 data      the data to write (string = utf8, array = raw)
  * 2 position  if integer, position to write at in the file.
  *             if null, write from the current position
  *
@@ -196,13 +196,11 @@ AfterUtf8Read (eio_req *req)
   argv[0] = Integer::New(req->errorno);
 
   char *buf = reinterpret_cast<char*>(req->ptr2);
-
   if (req->result == 0) { 
     // eof 
     argv[1] = Local<Value>::New(Null());
   } else {
-    size_t len = req->result;
-    argv[1] = String::New(buf, len);
+    argv[1] = String::New(buf, req->result);
   }
 
   CALL_CALLBACK_PTR(req, argc, argv);

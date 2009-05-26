@@ -515,15 +515,15 @@ function highlight(prefix, suffix, tag) {
   for (var i = 0; i < nodeList.length; i++) {
     var element = nodeList.item(i);
     var htmlClasses = sh_getClasses(element);
+    var highlighted = false;
     for (var j = 0; j < htmlClasses.length; j++) {
       var htmlClass = htmlClasses[j].toLowerCase();
-      if (htmlClass === 'sh_sourcecode') {
-        continue;
-      }
+      if (htmlClass === 'sh_none') break;
       if (htmlClass.substr(0, 3) === 'sh_') {
         var language = htmlClass.substring(3);
         if (language in sh_languages) {
           sh_highlightElement(element, sh_languages[language]);
+          highlighted = true;
         }
         else if (typeof(prefix) === 'string' && typeof(suffix) === 'string') {
           sh_load(language, element, prefix, suffix);
@@ -533,6 +533,9 @@ function highlight(prefix, suffix, tag) {
         }
         break;
       }
+    }
+    if (highlighted === false) {
+      sh_highlightElement(element, sh_languages["javascript"]);
     }
   }
 }

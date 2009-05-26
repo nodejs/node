@@ -85,6 +85,10 @@ a:hover { text-decoration: underline; }
       <ol>
         <li><a href="#timers">Timers</a>
         <li><a href="#files">File I/O</a>
+          <ol>
+          <li><a href="#file_wrappers">Wrappers</a>
+          <li><a href="#file_file">File</a>
+          </ol>
         <li><a href="#tcp">TCP</a>
           <ol>
           <li><a href="#tcp_server">Server</a>
@@ -115,16 +119,10 @@ a:hover { text-decoration: underline; }
 <p id="introduction">Purely asynchronous server-side I/O for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
 
-<p>Analogy
-<pre>
-Python     : Twisted
-Ruby       : Event Machine
-Javascript : Node</pre>
-  
 <p>This is an example of a web server written with Node which responds with
 "Hello World" after waiting two seconds:
 
-<pre class="sh_javascript">new node.http.Server(function (req, res) {
+<pre>new node.http.Server(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, [["Content-Type", "text/plain"]]);
     res.sendBody("Hello World");
@@ -152,6 +150,9 @@ puts("Server running at http://127.0.0.1:8000/");</pre>
 
 <h2 id="build">Build</h2>
 
+<p>Node currently targets the Linux and Macintosh operating systems using
+IA-32 or ARM processors. The build system requires Python.
+
 <pre>./configure
 make
 make install</pre>
@@ -160,7 +161,7 @@ make install</pre>
 <h2 id="api">API</h2>
 
 <p>Conventions: Callbacks are object members which are prefixed with
-<code class="sh_javascript">on</code>. All methods and members are camel cased. Constructors
+<code>on</code>. All methods and members are camel cased. Constructors
 always have a capital first letter.
 
 <p>Node uses strings to represent ASCII or UTF-8 encoded data. For the
@@ -169,12 +170,12 @@ representation is rather inefficient. In the future, <a
 href="http://code.google.com/p/v8/issues/detail?id=270">when V8 natively supports binary
 Blob objects</a>, Node will use them.
 
-<p>The following are some global general purpose functions:</p>
+<p>The following are global functions:</p>
 
 <dl>
-  <dt><code class="sh_javascript">puts(string, callback)</code></dt>
+  <dt><code>puts(string, callback)</code></dt>
   <dd>
-      Alias for <code class="sh_javascript">stdout.puts()</code>.
+      Alias for <code>stdout.puts()</code>.
 
       Outputs the <code>string</code> and a trailing new-line to <code>stdout</code>.
   <p>The <code>callback</code> argument is optional and mostly useless: it will
@@ -186,49 +187,103 @@ Blob objects</a>, Node will use them.
     output will be displayed in the order it was called. 
   </dd>
 
-  <dt><code class="sh_javascript">print(string, callback)</code></dt>
+  <dt><code>print(string, callback)</code></dt>
   <dd>Like <code>puts()</code> but without the trailing new-line.</dd>
 
-  <dt><code class="sh_javascript">node.debug(string)</code></dt>
+  <dt><code>node.debug(string)</code></dt>
   <dd>A synchronous output function. Will <i>block</i> the process and output the
       string immediately to stdout. Use with care.</dd>
 
-  <dt><code class="sh_javascript">node.exit(code)</code></dt>
+  <dt><code>node.exit(code)</code></dt>
   <dd>Immediately ends the process with the specified code.</dd>
 </dl>
 
 <h3 id="timers">Timers</h3>
 
 <dl>
-  <dt><code class="sh_javascript">setTimeout(callback, delay)</code></dt>
+  <dt><code>setTimeout(callback, delay)</code></dt>
   <dd> To schedule execution of <code>callback</code> after <code>delay</code>
     milliseconds.  Returns a <code>timeoutId</code> for possible use with
     <code>clearTimeout()</code>.
 
-  <dt><code class="sh_javascript">clearTimeout(timeoutId)</code></dt>
+  <dt><code>clearTimeout(timeoutId)</code></dt>
   <dd> Prevents said timeout from triggering.
 
-  <dt><code class="sh_javascript">setInterval(callback, delay)</code></dt>
+  <dt><code>setInterval(callback, delay)</code></dt>
   <dd> To schedule the repeated execution of <code>callback</code> every
       <code>delay</code> milliseconds.  Returns a <code>intervalId</code> for
       possible use with <code>clearInterval()</code>.
 
-  <dt><code class="sh_javascript">clearInterval(intervalId)</code></dt>
+  <dt><code>clearInterval(intervalId)</code></dt>
   <dd> Stops a interval from triggering.  </dd>
 </dl>
 
 <h3 id="files">node.fs</h3>
 
-<p>Because there are not non-blocking ways to do it, asynchronous file I/O is
-tricky.  Node handles file I/O by employing <a
-href="http://software.schmorp.de/pkg/libeio.html">an internal thread pool</a>
+<p>File I/O is tricky because there are not simple non-blocking ways to do it. 
+Node handles file I/O by employing <a
+href="http://software.schmorp.de/pkg/libeio.html">an internal thread
+pool</a>
 to execute file system calls.  
+
+<p>This part of the API is split into two parts: simple wrappers around
+standard POSIX file I/O functions, and a user-friendly <code>File</code>
+object.
+
+<h4 id="file_wrappers">POSIX Wrappers</h4>
+
+<p>All POSIX wrappers have a similar form. They return
+<code>undefined</code> and have a callback called <code>on_completion</code>
+as their last argument. The <code>on_completion</code> callback may be
+passed many parameters, but the first parameter is always an integer
+indicating the error status. If the status integer is zero, then the call
+was successful. Example:
+<pre>
+node.fs.unlink("/tmp/hello", function (status) {
+  if (status == 0) 
+    puts("successfully deleted /tmp/hello");
+});
+</pre>
+
+<p>There is no guaranteed ordering to the POSIX wrappers. The following is
+very much prone to error
+<pre>
+node.fs.rename("/tmp/hello", "/tmp/world");
+node.fs.stat("/tmp/world", function (status, stats) {
+  puts("stats: " + JSON.stringify(stats));
+});
+</pre>
+because it could be that <code>stat()</code> is executed before the
+<code>rename()</code>. The correct way to do this, is use the
+<code>on_completion</code> callback for <code>rename()</code>
+<pre>
+node.fs.rename("/tmp/hello", "/tmp/world", function (status) {
+  if (status != 0) return;
+  node.fs.stat("/tmp/world", function (status, stats) {
+    puts("stats: " + JSON.stringify(stats));
+  });
+});
+</pre>
+
+<dl>
+  <dt><code>node.fs.rename(path1, path2, on_completion)</code></dt>
+  <dd> 
+    <code>on_completion(status)</code>
+  </dd>
+
+  <dt><code>node.fs.stat(path, on_completion)</code></dt>
+  <dd> 
+    <code>on_completion(status, stat_object)</code>
+  </dd>
+</dl>
+
+<h4 id="file_file"><code>node.fs.File</code></h4>
 
 <p>Internal request queues exist for each file object so that multiple commands
 can be issued at once without worry that they will be executed out-of-order.
 Thus the following is safe:
 
-<pre class="sh_javascript">
+<pre>
 var file = new node.fs.File();
 file.open("/tmp/blah", "w+");
 file.write("hello");
@@ -238,27 +293,27 @@ file.close();</pre>
 <p>
 It's important to understand that the request queues are local to a single file.
 If one does
-<pre class="sh_javascript">fileA.write("hello");
+<pre>fileA.write("hello");
 fileB.write("world");</pre>
 it could be that <code>fileB</code> gets written to before <code>fileA</code>
 is written to. 
 If a certain operation order is needed involving multiple files, use the
 completion callbacks:
-<pre class="sh_javascript">fileA.write("hello", function () {
+<pre>fileA.write("hello", function () {
   fileB.write("world");
 });</pre>
 
 <dl>
-  <dt><code class="sh_javascript">new node.fs.File</code></dt>
+  <dt><code>new node.fs.File</code></dt>
   <dd>Creates a new file object. </dd>
 
-  <dt><code class="sh_javascript">file.onError</code></dt>
+  <dt><code>file.onError</code></dt>
   <dd>Callback. This is called internally anytime an error occurs with this
   file. There are three arguments: the method name, the POSIX errno, and a
   string describing the error.
 
   <p>Example</p>
-<pre class="sh_javascript">
+<pre>
 var path = "/some/path/that/doesnt/exist";
 var file = new node.fs.File();
 file.onError = function (method, errno, msg) {
@@ -269,7 +324,7 @@ file.onError = function (method, errno, msg) {
 file.open(path, "w+")
 </pre>
 
-  <dt><code class="sh_javascript">file.open(path, mode, on_completion)</code></dt>
+  <dt><code>file.open(path, mode, on_completion)</code></dt>
   <dd>Opens the file at <code>path</code>. 
   <p><code>mode</code> is a string: 
     <code>"r"</code>  open for reading and writing.
@@ -287,28 +342,16 @@ file.open(path, "w+")
   called, but the <code>file.onError</code> will be called.
   </dd>
 
-  <dt><code class="sh_javascript">file.read(length, position, on_completion)</code></dt>
+  <dt><code>file.read(length, position, on_completion)</code></dt>
   <dd>
   </dd>
 
-  <dt><code class="sh_javascript">file.write(data, position, on_completion)</code></dt>
+  <dt><code>file.write(data, position, on_completion)</code></dt>
   <dd>
   </dd>
 
-  <dt><code class="sh_javascript">file.close(on_completion)</code></dt>
+  <dt><code>file.close(on_completion)</code></dt>
   <dd>
-  </dd>
-</dl>
-
-<h4>File System Operations</h4>
-
-<dl>
-  <dt><code class="sh_javascript">node.fs.rename(path1, path2, on_completion)</code></dt>
-  <dd> 
-  </dd>
-
-  <dt><code class="sh_javascript">node.fs.stat(path1, on_completion)</code></dt>
-  <dd> 
   </dd>
 </dl>
 
@@ -328,7 +371,7 @@ careful to never buffer entire requests or responses&mdash;the user is able
 to stream data.
 
 <p> HTTP message headers are represented by an array of 2-element arrays like this
-<pre class="sh_javascript">
+<pre>
 [ ["Content-Length", "123"]
 , ["Content-Type", "text/plain"]
 , ["Connection", "keep-alive"]
@@ -340,53 +383,53 @@ an incorrect abstraction. It is rare, but possible, to have multiple header line
 with the same field. Setting multiple cookies in a single response, for
 example, can only be done with multiple <code>Cookie</code> lines.</i>
 
-<h4 id="http_server"><code class="sh_javascript">node.http.Server</code></h4>
+<h4 id="http_server"><code>node.http.Server</code></h4>
 
 <dl>
-  <dt><code class="sh_javascript">new node.http.Server(request_handler, options);</code></dt>
+  <dt><code>new node.http.Server(request_handler, options);</code></dt>
   <dd> 
       <p>Creates a new web server. 
 
       <p>
       The <code>options</code> argument is optional. 
       The <code
-      class="sh_javascript">options</code> argument accepts the same values
+     >options</code> argument accepts the same values
       as the options argument for <code
-      class="sh_javascript">node.tcp.Server</code> does.
+     >node.tcp.Server</code> does.
 
-      <p>The <code class="sh_javascript">request_handler</code> is a
+      <p>The <code>request_handler</code> is a
       callback which is made on each request with a 
       <code>ServerRequest</code> and 
       <code>ServerResponse</code> arguments.  
 
   </dd>
 
-  <dt><code class="sh_javascript">server.listen(port, hostname)</code>
+  <dt><code>server.listen(port, hostname)</code>
   <dd> 
     <p>Begin accepting connections on the specified port and hostname. If the
     hostname is omitted, the server will accept connections directed to any
     address.  
   </dd>
 
-  <dt><code class="sh_javascript">server.close()</code>
+  <dt><code>server.close()</code>
   <dd>
     <p>Stops the server from accepting new connections.
   </dd>
 </dl>
     
 
-<h4 id="http_server_request"><code class="sh_javascript">node.http.ServerRequest</code></h4>
+<h4 id="http_server_request"><code>node.http.ServerRequest</code></h4>
 
 <p> This object is created internally by a HTTP server&mdash;not by the user.
 It is passed to the user as the first argument to the <code
-class="sh_javascript">request_handler</code> callback. 
+>request_handler</code> callback. 
 
 <dl>
-  <dt><code class="sh_javascript">req.method</code>
-  <dd>The request method as a string. Read only. Example: <code class="sh_javascript">"GET"</code>,
-  <code class="sh_javascript">"DELETE"</code>.</dd>
+  <dt><code>req.method</code>
+  <dd>The request method as a string. Read only. Example: <code>"GET"</code>,
+  <code>"DELETE"</code>.</dd>
 
-  <dt><code class="sh_javascript">req.uri</code>
+  <dt><code>req.uri</code>
   <dd> Request URI. (Object.) 
   <dt><code>req.uri.anchor</code>
   <dt><code>req.uri.query</code>
@@ -404,17 +447,17 @@ class="sh_javascript">request_handler</code> callback.
   <dt><code>req.uri.toString()</code>, <code>req.uri.source</code>
   <dd> The original URI found in the status line.
 
-  <dt><code class="sh_javascript">req.headers</code>
+  <dt><code>req.headers</code>
   <dd>The request headers expressed as an array of 2-element arrays. Read only.  
 
-  <dt><code class="sh_javascript">req.httpVersion</code></dt>
-  <dd>The HTTP protocol version as a string. Read only. Examples: <code class="sh_javascript">"1.1"</code>,
-  <code class="sh_javascript">"1.0"</code>
+  <dt><code>req.httpVersion</code></dt>
+  <dd>The HTTP protocol version as a string. Read only. Examples: <code>"1.1"</code>,
+  <code>"1.0"</code>
 
-  <dt><code class="sh_javascript">req.onBody</code></dt>
+  <dt><code>req.onBody</code></dt>
   <dd>Callback. Should be set by the user to be informed of when a piece
   of the message body is received. Example:
-<pre class="sh_javascript">
+<pre>
 req.onBody = function (chunk) {
   puts("part of the body: " + chunk);
 };
@@ -424,61 +467,61 @@ req.onBody = function (chunk) {
 
   <p>The body chunk is either a String in the case of UTF-8 encoding or an
   array of numbers in the case of raw encoding. The body encoding is set with
-  <code class="sh_javascript">req.setBodyEncoding()</code>.
+  <code>req.setBodyEncoding()</code>.
 
-  <dt><code class="sh_javascript">req.onBodyComplete</code></dt>
+  <dt><code>req.onBodyComplete</code></dt>
   <dd>Callback. Made exactly once for each message. No arguments. After
-  <code class="sh_javascript">onBodyComplete</code> is executed <code class="sh_javascript">onBody</code> will no longer be called.
+  <code>onBodyComplete</code> is executed <code>onBody</code> will no longer be called.
   </dd>
 
-  <dt><code class="sh_javascript">req.setBodyEncoding(encoding)</code></dt>
+  <dt><code>req.setBodyEncoding(encoding)</code></dt>
   <dd>
-    Set the encoding for the request body. Either <code class="sh_javascript">"utf8"</code> or
-    <code class="sh_javascript">"raw"</code>. Defaults to raw.
+    Set the encoding for the request body. Either <code>"utf8"</code> or
+    <code>"raw"</code>. Defaults to raw.
 </dl>
 
-<h4 id="http_server_response"><code class="sh_javascript">node.http.ServerResponse</code></h4>
+<h4 id="http_server_response"><code>node.http.ServerResponse</code></h4>
 
 <p> This object is created internally by a HTTP server&mdash;not by the user.
 It is passed to the user as the second argument to the <code
-class="sh_javascript">request_handler</code> callback. 
+>request_handler</code> callback. 
 
 
 <dl>
-  <dt><code class="sh_javascript">res.sendHeader(statusCode, headers)</code></dt>
+  <dt><code>res.sendHeader(statusCode, headers)</code></dt>
   <dd>
     Sends a response header to the request. The status code is a 3-digit
-    HTTP status code, like <code class="sh_javascript">404</code>. The second argument,
-    <code class="sh_javascript">headers</code>, should be an array of 2-element arrays,
+    HTTP status code, like <code>404</code>. The second argument,
+    <code>headers</code>, should be an array of 2-element arrays,
     representing the response headers. 
 
     <p>Example:
-<pre class="sh_javascript">
+<pre>
 var body = "hello world";
 res.sendHeader(200, [ ["Content-Length", body.length]
                     , ["Content-Type", "text/plain"]
                     ]);
 </pre>
     This method must only be called once on a message and it must be called
-    before <code class="sh_javascript">res.finish()</code> is called.
+    before <code>res.finish()</code> is called.
   </dd>
 
-  <dt><code class="sh_javascript">res.sendBody(chunk)</code></dt>
+  <dt><code>res.sendBody(chunk)</code></dt>
   <dd>
-  This method must be called after <code class="sh_javascript">sendHeader</code> was called. It
+  This method must be called after <code>sendHeader</code> was called. It
   sends a chunk of the response body. This method may be called multiple
   times to provide successive parts of the body.
   </dd>
 
-  <dt><code class="sh_javascript">res.finish()</code></dt>
+  <dt><code>res.finish()</code></dt>
   <dd>
   This method signals that all of the response headers and body has been
   sent; that server should consider this message complete. 
-  The method, <code class="sh_javascript">res.finish()</code>, MUST be called on each response.
+  The method, <code>res.finish()</code>, MUST be called on each response.
 
 </dl>
 
-<h4 id="http_client"><code class="sh_javascript">node.http.Client</code></h4>
+<h4 id="http_client"><code>node.http.Client</code></h4>
 
 <p> An HTTP client is constructed with a server address as its argument, the
 returned handle is then used to issue one or more requests.  Depending on the
@@ -487,7 +530,7 @@ connection after each connection.
 <i>Currently the implementation does not pipeline requests.</i>
 
 <p> Example of connecting to <code>google.com</code>
-<pre class="sh_javascript">
+<pre>
 var google = new node.http.Client(80, "google.com");
 var req = google.get("/");
 req.finish(function (res) {
@@ -501,17 +544,17 @@ req.finish(function (res) {
 </pre>
 
 <dl>
-  <dt><code class="sh_javascript">new node.http.Client(port, host);</code></dt>
+  <dt><code>new node.http.Client(port, host);</code></dt>
   <dd> Constructs a new HTTP client. <code>port</code> and <code>host</code>
 refer to the server to be connected to. A connection is not established until a
 request is issued.
   </dd>
 
-  <dt><code class="sh_javascript">client.get(path, request_headers);</code></dt>
-  <dt><code class="sh_javascript">client.head(path, request_headers);</code></dt>
-  <dt><code class="sh_javascript">client.post(path, request_headers);</code></dt>
-  <dt><code class="sh_javascript">client.del(path, request_headers);</code></dt>
-  <dt><code class="sh_javascript">client.put(path, request_headers);</code></dt>
+  <dt><code>client.get(path, request_headers);</code></dt>
+  <dt><code>client.head(path, request_headers);</code></dt>
+  <dt><code>client.post(path, request_headers);</code></dt>
+  <dt><code>client.del(path, request_headers);</code></dt>
+  <dt><code>client.put(path, request_headers);</code></dt>
   <dd> Issues a request; if necessary establishes connection. 
 
   <p>
@@ -524,7 +567,7 @@ request is issued.
 header of the request. One needs to call <code>req.finish()</code> to finalize
 the request and retrieve the response.  (This sounds convoluted but it provides
 a chance for the user to stream a body to the server with <code
-class="sh_javascript">req.sendBody()</code>.) 
+>req.sendBody()</code>.) 
 
     <p><i> <code>GET</code> and
 <code>HEAD</code> requests normally are without bodies but HTTP does not forbid
@@ -532,17 +575,17 @@ it, so neither do we.</i>
 
 </dl>
 
-<h4 id="http_client_request"><code class="sh_javascript">node.http.ClientRequest</code></h4>
+<h4 id="http_client_request"><code>node.http.ClientRequest</code></h4>
 
 <p>This object is created internally and returned from the request methods of a
 <code>node.http.Client</code>. It represents an <i>in-progress</i> request
 whose header has already been sent. 
 
 <dl>
-  <dt><code class="sh_javascript">req.sendBody(chunk, encoding)</code></dt>
+  <dt><code>req.sendBody(chunk, encoding)</code></dt>
   <dd> Sends a sucessive peice of the body.  By calling this method many times,
 the user can stream a request body to a server&mdash;in that case it is
-suggested to use the <code class="sh_javascript">["Transfer-Encoding",
+suggested to use the <code>["Transfer-Encoding",
 "chunked"]</code> header line when creating the request.  
 
   <p>The <code>chunk</code> argument should be an array of integers or a string.
@@ -554,11 +597,11 @@ suggested to use the <code class="sh_javascript">["Transfer-Encoding",
 
   <p> TODO
 
-  <dt><code class="sh_javascript">req.finish(response_handler)</code></dt>
+  <dt><code>req.finish(response_handler)</code></dt>
 
   <dd> Finishes sending the request. If any parts of the body are
     unsent, it will flush them to the socket. If the request is chunked, this
-    will send the terminating <code class="sh_javascript">"0\r\n\r\n"</code>.
+    will send the terminating <code>"0\r\n\r\n"</code>.
 
   <p>The parameter <code>response_handler</code> is a user-supplied callback which will 
     be executed exactly once when the server response headers have been received. 
@@ -566,7 +609,7 @@ suggested to use the <code class="sh_javascript">["Transfer-Encoding",
     <code>ClientResponse</code> object.    
 </dl>
 
-<h4 id="http_client_response"><code class="sh_javascript">node.http.ClientResponse</code></h4>
+<h4 id="http_client_response"><code>node.http.ClientResponse</code></h4>
 
 <p>This object is created internally and passed to the
 <code>response_handler</code> callback (is given to the client in
@@ -575,19 +618,19 @@ header is completely received but before any part of the response body has been
 read. 
 
 <dl>
-  <dt><code class="sh_javascript">res.statusCode</code></dt>
-  <dd>The 3-digit HTTP response status code. E.G. <code class="sh_javascript">404</code>.</dd>
+  <dt><code>res.statusCode</code></dt>
+  <dd>The 3-digit HTTP response status code. E.G. <code>404</code>.</dd>
 
-  <dt><code class="sh_javascript">res.httpVersion</code></dt>
+  <dt><code>res.httpVersion</code></dt>
   <dd>The HTTP version of the connected-to server. Probably either 
-      <code class="sh_javascript">"1.1"</code> or 
-      <code class="sh_javascript">"1.0"</code>.
+      <code>"1.1"</code> or 
+      <code>"1.0"</code>.
   </dd>
 
-  <dt><code class="sh_javascript">res.headers</code></dt>
+  <dt><code>res.headers</code></dt>
   <dd>The response headers. An Array of 2-element arrays.</dd>
 
-  <dt><code class="sh_javascript">res.onBody</code></dt>
+  <dt><code>res.onBody</code></dt>
   <dd>Callback. Should be set by the user to be informed of when a piece
   of the response body is received.
   A chunk of the body is given as the single argument. The transfer-encoding
@@ -595,18 +638,18 @@ read.
 
   <p>The body chunk is either a <code>String</code> in the case of UTF-8
   encoding or an array of numbers in the case of raw encoding. The body 
-  encoding is set with <code class="sh_javascript">res.setBodyEncoding()</code>.
+  encoding is set with <code>res.setBodyEncoding()</code>.
 
-  <dt><code class="sh_javascript">res.onBodyComplete</code></dt>
+  <dt><code>res.onBodyComplete</code></dt>
   <dd>Callback. Made exactly once for each message. No arguments. After
-  <code class="sh_javascript">onBodyComplete</code> is executed 
-  <code class="sh_javascript">onBody</code> will no longer be called.
+  <code>onBodyComplete</code> is executed 
+  <code>onBody</code> will no longer be called.
   </dd>
 
-  <dt><code class="sh_javascript">res.setBodyEncoding(encoding)</code></dt>
+  <dt><code>res.setBodyEncoding(encoding)</code></dt>
   <dd>
-    Set the encoding for the response body. Either <code class="sh_javascript">"utf8"</code> or
-    <code class="sh_javascript">"raw"</code>. Defaults to raw.
+    Set the encoding for the response body. Either <code>"utf8"</code> or
+    <code>"raw"</code>. Defaults to raw.
   </dd>
 </dl>
 
@@ -616,19 +659,19 @@ read.
 in one-to-one correspondence.  
 
 <p> As an example, 
-<code class="sh_javascript">foo.js</code> loads the module <code class="sh_javascript">mjsunit.js</code>.
+<code>foo.js</code> loads the module <code>mjsunit.js</code>.
 
-<p>The contents of <code class="sh_javascript">foo.js</code>:
+<p>The contents of <code>foo.js</code>:
 
-<pre class="sh_javascript">
+<pre>
 include("mjsunit");
 function onLoad () {
   assertEquals(1, 2);
 }
 </pre>
-<p>The contents of <code class="sh_javascript">mjsunit.js</code>:
+<p>The contents of <code>mjsunit.js</code>:
 
-<pre class="sh_javascript">
+<pre>
 function fail (expected, found, name_opt) {
   // ...
 }
@@ -642,39 +685,39 @@ exports.assertEquals = function (expected, found, name_opt) {
 };
 </pre>
 
-<p>Here the module <code class="sh_javascript">mjsunit.js</code> has exported the function
-<code class="sh_javascript">assertEquals()</code>.  <code class="sh_javascript">mjsunit.js</code> must be in the
-same directory as <code class="sh_javascript">foo.js</code> for <code class="sh_javascript">include()</code> to find it.
-The module path is relative to the file calling <code class="sh_javascript">include()</code>.
-The module path does not include filename extensions like <code class="sh_javascript">.js</code>.
+<p>Here the module <code>mjsunit.js</code> has exported the function
+<code>assertEquals()</code>.  <code>mjsunit.js</code> must be in the
+same directory as <code>foo.js</code> for <code>include()</code> to find it.
+The module path is relative to the file calling <code>include()</code>.
+The module path does not include filename extensions like <code>.js</code>.
 
-<p> <code class="sh_javascript">include()</code> inserts the exported objects
+<p> <code>include()</code> inserts the exported objects
 from the specified module into the global namespace.
 
 <p> Because file loading does not happen instantaneously, and because Node
 has a policy of never blocking, the callback <code
-class="sh_javascript">onLoad</code> can be set and will notify the user
+>onLoad</code> can be set and will notify the user
 when all the included modules are loaded.  Each file/module can have an <code
-class="sh_javascript">onLoad</code> callback.  
+>onLoad</code> callback.  
 
 <p>To export an object, add to the special <code>exports</code> object.
 
-<p> The functions <code class="sh_javascript">fail</code> and <code class="sh_javascript">deepEquals</code> are not
+<p> The functions <code>fail</code> and <code>deepEquals</code> are not
 exported and remain private to the module.
 
 <p> <code>require()</code> is like <code>include()</code> except does not
 polute the global namespace. It returns a namespace object. The exported objects
-can only be guaranteed to exist after the <code class="sh_javascript">onLoad()</code> callback is
+can only be guaranteed to exist after the <code>onLoad()</code> callback is
 made. For example:
-<pre class="sh_javascript">
+<pre>
 var mjsunit = require("mjsunit");
 function onLoad () {
   mjsunit.assertEquals(1, 2);
 }
 </pre>
 
-<p> <code class="sh_javascript">include()</code> and <code class="sh_javascript">require()</code> cannot be used after
-<code class="sh_javascript">onLoad()</code> is called. So put them at the beginning of your file.
+<p> <code>include()</code> and <code>require()</code> cannot be used after
+<code>onLoad()</code> is called. So put them at the beginning of your file.
 
 </body>
 </html>
