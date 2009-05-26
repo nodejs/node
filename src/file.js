@@ -11,7 +11,7 @@ node.fs.cat = function (path, encoding, callback) {
     callback(-1);
   };
 
-  var content = (encoding == node.fs.UTF8 ? "" : []);
+  var content = (encoding == node.constants.UTF8 ? "" : []);
   var pos = 0;
   var chunkSize = 10*1024;
 
@@ -42,9 +42,9 @@ node.fs.File = function (options) {
   options = options || {};
 
   if (options.encoding === "utf8") {
-    self.encoding = node.fs.UTF8;
+    self.encoding = node.constants.UTF8;
   } else {
-    self.encoding = node.fs.RAW;
+    self.encoding = node.constants.RAW;
   }
 
   //node.debug("encoding: opts=" + options.encoding + " self=" + self.encoding);
@@ -104,22 +104,22 @@ node.fs.File = function (options) {
       var flags;
       switch (mode) {
         case "r":
-          flags = node.fs.O_RDONLY;
+          flags = node.constants.O_RDONLY;
           break;
         case "r+":
-          flags = node.fs.O_RDWR;
+          flags = node.constants.O_RDWR;
           break;
         case "w":
-          flags = node.fs.O_CREAT | node.fs.O_TRUNC | node.fs.O_WRONLY;
+          flags = node.constants.O_CREAT | node.constants.O_TRUNC | node.constants.O_WRONLY;
           break;
         case "w+":
-          flags = node.fs.O_CREAT | node.fs.O_TRUNC | node.fs.O_RDWR;
+          flags = node.constants.O_CREAT | node.constants.O_TRUNC | node.constants.O_RDWR;
           break;
         case "a":
-          flags = node.fs.O_APPEND | node.fs.O_CREAT | node.fs.O_WRONLY; 
+          flags = node.constants.O_APPEND | node.constants.O_CREAT | node.constants.O_WRONLY; 
           break;
         case "a+":
-          flags = node.fs.O_APPEND | node.fs.O_CREAT | node.fs.O_RDWR; 
+          flags = node.constants.O_APPEND | node.constants.O_CREAT | node.constants.O_RDWR; 
           break;
         default:
           throw "Unknown mode";
@@ -173,9 +173,9 @@ node.fs.File = function (options) {
   };
 };
 
-stdout = new node.fs.File({ fd: node.fs.STDOUT_FILENO });
-stderr = new node.fs.File({ fd: node.fs.STDERR_FILENO });
-stdin = new node.fs.File({ fd: node.fs.STDIN_FILENO });
+stdout = new node.fs.File({ fd: node.constants.STDOUT_FILENO });
+stderr = new node.fs.File({ fd: node.constants.STDERR_FILENO });
+stdin = new node.fs.File({ fd: node.constants.STDIN_FILENO });
 
 puts = function (data, callback) {
   stdout.puts(data, callback);

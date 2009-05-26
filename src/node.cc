@@ -4,6 +4,7 @@
 #include "file.h"
 #include "http.h"
 #include "timer.h"
+#include "constants.h"
 
 #include "natives.h" 
 
@@ -308,6 +309,10 @@ main (int argc, char *argv[])
 
   // BUILT-IN MODULES
   Timer::Initialize(node);
+
+  Local<Object> constants = Object::New();
+  node->Set(String::New("constants"), constants);
+  DefineConstants(constants);
 
   Local<Object> fs = Object::New();
   node->Set(String::New("fs"), fs);

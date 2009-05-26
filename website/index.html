@@ -300,7 +300,8 @@ node.fs.rename("/tmp/hello", "/tmp/world", function (status) {
 
   <dt><code>node.fs.open(path, flags, mode, on_completion(status, fd))</code></dt>
   <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/open.html">open(2)</a> 
-  <p>The constants like <code>O_CREAT</code> are defined at <code>node.fs.O_CREAT</code>.
+  <p>The constants like <code>O_CREAT</code> are defined at
+  <code>node.constants.O_CREAT</code>.
   </dd>
 
   <dt><code>node.fs.write(fd, data, position, on_completion(status, written))</code></dt>
@@ -323,8 +324,8 @@ node.fs.rename("/tmp/hello", "/tmp/world", function (status) {
   <p><code>position</code> is an integer specifying where to begin reading
   from in the file.
 
-  <p><code>encoding</code> is either <code>node.fs.UTF8</code> or
-  <code>node.fs.RAW</code>.
+  <p><code>encoding</code> is either <code>node.constants.UTF8</code> or
+  <code>node.constants.RAW</code>.
   </dt>
 </dl>
 
