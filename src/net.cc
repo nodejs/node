@@ -419,7 +419,7 @@ Connection::OnReceive (const void *buf, size_t len)
   callback->Call(handle_, argc, argv);
 
   if (try_catch.HasCaught())
-    fatal_exception(try_catch);
+    FatalException(try_catch);
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
@@ -432,7 +432,7 @@ void name ()                                                        \
   TryCatch try_catch;                                               \
   callback->Call(handle_, 0, NULL);                                 \
   if (try_catch.HasCaught())                                        \
-    node::fatal_exception(try_catch);                               \
+    node::FatalException(try_catch);                               \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
@@ -500,7 +500,7 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     Connection::constructor_template->GetFunction()->NewInstance(0, NULL);
   
   if (connection_handle.IsEmpty()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return NULL;
   }
 
@@ -514,7 +514,7 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   Local<Value> ret = connection_handler->Call(handle_, 1, argv);
 
   if (ret.IsEmpty())
-    fatal_exception(try_catch);
+    FatalException(try_catch);
 
   return connection;
 }

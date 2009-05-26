@@ -45,7 +45,7 @@ do {                                                                  \
     TryCatch try_catch;                                               \
     (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);   \
     if(try_catch.HasCaught())                                         \
-      node::fatal_exception(try_catch);                               \
+      node::FatalException(try_catch);                               \
     free(callback);                                                   \
   }                                                                   \
 } while(0)

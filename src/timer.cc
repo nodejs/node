@@ -40,7 +40,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
   TryCatch try_catch;
   callback->Call (timer->handle_, 0, NULL);
   if (try_catch.HasCaught())
-    fatal_exception(try_catch);
+    FatalException(try_catch);
 
   /* XXX i'm a bit worried if this is the correct test? 
    * it's rather crutial for memory leaks the conditional here test to see

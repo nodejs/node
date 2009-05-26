@@ -98,7 +98,7 @@ HTTPConnection::on_message_begin (http_parser *parser)
   TryCatch try_catch;
   Local<Object> message_handler = on_message->NewInstance();
   if (try_catch.HasCaught()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return -1;
   }
 
@@ -125,7 +125,7 @@ HTTPConnection::name (http_parser *parser, const char *buf, size_t len)       \
   Local<Value> argv[1] = { String::New(buf, len) };                           \
   Local<Value> ret = callback->Call(message_handler, 1, argv);                \
   if (ret.IsEmpty()) {                                                        \
-    fatal_exception(try_catch);                                               \
+    FatalException(try_catch);                                               \
     return -2;                                                                \
   }                                                                           \
   if (ret->IsFalse()) return -3;                                              \
@@ -201,7 +201,7 @@ HTTPConnection::on_headers_complete (http_parser *parser)
   TryCatch try_catch;
   Local<Value> ret = on_headers_complete->Call(message_handler, 0, NULL);
   if (ret.IsEmpty()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return -2;
   }
   if (ret->IsFalse()) return -3;
@@ -246,7 +246,7 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
   TryCatch try_catch;
   Local<Value> ret = on_body->Call(message_handler, 1, argv);
   if (ret.IsEmpty()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return -2;
   }
   if (ret->IsFalse()) return -3;
@@ -273,7 +273,7 @@ HTTPConnection::on_message_complete (http_parser *parser)
   TryCatch try_catch;
   Local<Value> ret = on_msg_complete->Call(message_handler, 0, NULL);
   if (ret.IsEmpty()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return -2;
   }
   if (ret->IsFalse()) return -3;
@@ -356,7 +356,7 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
     HTTPConnection::server_constructor_template->GetFunction()->NewInstance(0, NULL);
 
   if (connection_handle.IsEmpty()) {
-    fatal_exception(try_catch);
+    FatalException(try_catch);
     return NULL;
   }
 
@@ -370,7 +370,7 @@ HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
   Local<Value> ret = connection_handler->Call(handle_, 1, argv);
 
   if (ret.IsEmpty())
-    fatal_exception(try_catch);
+    FatalException(try_catch);
 
   return connection;
 }

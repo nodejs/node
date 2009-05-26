@@ -210,7 +210,7 @@ OnFatalError (const char* location, const char* message)
 
 
 void
-node::fatal_exception (TryCatch &try_catch)
+node::FatalException (TryCatch &try_catch)
 {
   ReportException(&try_catch);
   ::exit(1);
