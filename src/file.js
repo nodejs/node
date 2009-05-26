@@ -100,31 +100,31 @@ node.fs.File = function (options) {
 
   var internal_methods = {
     open: function (path, mode) {
-      var m = node.fs.O_RDONLY;
+      var flags;
       switch (mode) {
         case "r":
-          m = node.fs.O_RDONLY;
+          flags = node.fs.O_RDONLY;
           break;
         case "r+":
-          m = node.fs.O_RDWR;
+          flags = node.fs.O_RDWR;
           break;
         case "w":
-          m = O_CREAT | O_TRUNC | O_WRONLY;
+          flags = node.fs.O_CREAT | node.fs.O_TRUNC | node.fs.O_WRONLY;
           break;
         case "w+":
-          m = O_CREAT | O_TRUNC | O_RDWR;
+          flags = node.fs.O_CREAT | node.fs.O_TRUNC | node.fs.O_RDWR;
           break;
         case "a":
-          m = O_APPEND | O_CREAT | O_WRONLY; 
+          flags = node.fs.O_APPEND | node.fs.O_CREAT | node.fs.O_WRONLY; 
           break;
         case "a+":
-          m = O_APPEND | O_CREAT | O_RDWR; 
+          flags = node.fs.O_APPEND | node.fs.O_CREAT | node.fs.O_RDWR; 
           break;
         default:
           throw "Unknown mode";
       }
-
-      node.fs.open(path, m, 0666, function (status, fd) {
+      // fix the mode here
+      node.fs.open(path, flags, 0666, function (status, fd) {
         self.fd = fd;
         poll(status, fd);
       });
