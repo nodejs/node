@@ -516,9 +516,13 @@ function highlight(prefix, suffix, tag) {
     var element = nodeList.item(i);
     var htmlClasses = sh_getClasses(element);
     var highlighted = false;
+    var donthighlight = false;
     for (var j = 0; j < htmlClasses.length; j++) {
       var htmlClass = htmlClasses[j].toLowerCase();
-      if (htmlClass === 'sh_none') break;
+      if (htmlClass === 'sh_none') {
+        donthighlight = true
+        continue;
+      }
       if (htmlClass.substr(0, 3) === 'sh_') {
         var language = htmlClass.substring(3);
         if (language in sh_languages) {
@@ -534,7 +538,7 @@ function highlight(prefix, suffix, tag) {
         break;
       }
     }
-    if (highlighted === false) {
+    if (highlighted === false && donthighlight == false) {
       sh_highlightElement(element, sh_languages["javascript"]);
     }
   }

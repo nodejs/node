@@ -118,7 +118,7 @@ a:hover { text-decoration: underline; }
 
 <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
-<p id="introduction">Purely asynchronous server-side I/O for <a
+<p id="introduction">Purely evented server-side I/O for <a
   href="http://code.google.com/p/v8/">V8 javascript</a>. 
 
 <p>This is an example of a web server written with Node which responds with
@@ -132,6 +132,12 @@ a:hover { text-decoration: underline; }
   }, 2000);
 }).listen(8000);
 puts("Server running at http://127.0.0.1:8000/");</pre>
+
+<p> To run the server, put the code into a file <code>server.js</code>
+and call it with the <code>node</code> executable
+<pre class="sh_none">% /usr/local/bin/node server.js
+Server running at http://127.0.0.1:8000/
+</pre>
 
 
 <p> See <a href="#api">the API documentation</a> for more examples.
@@ -152,10 +158,15 @@ puts("Server running at http://127.0.0.1:8000/");</pre>
 
 <h2 id="build">Build</h2>
 
-<p>Node currently targets the Linux and Macintosh operating systems using
-IA-32 or ARM processors. The build system requires Python.
+<p>Node aims to support all POSIX operating systems (including
+Windows with mingw). However at the moment it is only being tested on
+Macintosh and Linux.
 
-<pre>./configure
+<p>V8, on which Node is built, supports only IA-32 and ARM processors. 
+
+<p> The build system requires Python.
+
+<pre class="sh_none">./configure
 make
 make install</pre>
 
