@@ -43,6 +43,7 @@ h1 a { color: inherit; }
 pre, code {
   font-family: monospace;
   font-size: 14pt;
+  color: #fee;
 }
 
 pre {
@@ -267,31 +268,53 @@ node.fs.rename("/tmp/hello", "/tmp/world", function (status) {
 
 <dl>
   <dt><code>node.fs.rename(path1, path2, on_completion(status))</code></dt>
-  <dd> 
-  <a
-    href="http://opengroup.org/onlinepubs/007908799/xsh/rename.html">rename(2)</a>
-  </dd>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/rename.html">rename(2)</a> </dd>
 
   <dt><code>node.fs.stat(path, on_completion(status, stats))</code></dt>
-  <dd> 
-  <a href="http://opengroup.org/onlinepubs/007908799/xsh/stat.html">stat(2)</a>
-  </dd>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/stat.html">stat(2)</a> </dd> 
 
   <dt><code>node.fs.unlink(path, on_completion(status))</code></dt>
-  <dd>
-  <a
-    href="http://opengroup.org/onlinepubs/007908799/xsh/unlink.html">unlink(2)</a>
-  </dd>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/unlink.html">unlink(2)</a> </dd>
 
   <dt><code>node.fs.rmdir(path, on_completion(status))</code></dt>
-  <dd> 
-  <a
-    href="http://opengroup.org/onlinepubs/007908799/xsh/rmdir.html">rmdir(2)</a>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/rmdir.html">rmdir(2)</a> </dd>
+
+  <dt><code>node.fs.close(fd, on_completion(status))</code></dt>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/close.html">close(2)</a> </dd>
+
+  <dt><code>node.fs.open(path, flags, mode, on_completion(status, fd))</code></dt>
+  <dd> <a href="http://opengroup.org/onlinepubs/007908799/xsh/open.html">open(2)</a> 
+  <p>The constants like <code>O_CREAT</code> are defined at <code>node.fs.O_CREAT</code>.
   </dd>
 
+  <dt><code>node.fs.write(fd, data, position, on_completion(status, written))</code></dt>
+  <dd> Write data to the file specified by <code>fd</code>.
+  <p><code>data</code> is either an array of integer (for raw data) or a string
+  for UTF-8 encoded characters. 
+  <p><code>position</code> refers to the offset from the beginning of the
+  file where this data should be written. If <code>null</code>, the data
+  will be written at the current position.
+
+  <p>See also <a href="http://opengroup.org/onlinepubs/007908799/xsh/pwrite.html">pwrite(2)</a> 
+
+  </dd>
+
+  <dt><code>node.fs.read(fd, length, position, encoding, on_completion(status, data))</code></dt>
+  <dd> Read data from the file specified by <code>fd</code>.
+
+  <p><code>length</code> is an integer specifying the number of bytes to read.
+
+  <p><code>position</code> is an integer specifying where to begin reading
+  from in the file.
+
+  <p><code>encoding</code> is either <code>node.fs.UTF8</code> or
+  <code>node.fs.RAW</code>.
+  </dt>
 </dl>
 
 <h4 id="file_file"><code>node.fs.File</code></h4>
+
+<p>Easy buffered file object.
 
 <p>Internal request queues exist for each file object so that multiple commands
 can be issued at once without worry that they will be executed out-of-order.
@@ -305,7 +328,7 @@ file.write("world");
 file.close();</pre>
 
 <p>
-It's important to understand that the request queues are local to a single file.
+Request queues are local to a single file.
 If one does
 <pre>fileA.write("hello");
 fileB.write("world");</pre>
@@ -318,10 +341,20 @@ completion callbacks:
 });</pre>
 
 <dl>
-  <dt><code>new node.fs.File</code></dt>
-  <dd>Creates a new file object. </dd>
+  <dt><code>new node.fs.File(options={})</code></dt>
+  <dd>Creates a new file object. 
+  
+  <p>The <code>options</code> argument is optional. It can contain the
+  following fields 
+  <ul>
+    <li><code>fd</code> &mdash; a file descriptor for the file.
+    <li><code>encoding</code> &mdash; how <code>file.read()</code> should return
+    data. Either <code>"raw"</code> or <code>"utf8"</code>. Defaults to raw.
+  </ul>
+  </dd>
 
-  <dt><code>file.onError</code></dt>
+
+  <dt><code>file.onError = function (method, errno, msg) { }</code></dt>
   <dd>Callback. This is called internally anytime an error occurs with this
   file. There are three arguments: the method name, the POSIX errno, and a
   string describing the error.
@@ -338,7 +371,7 @@ file.onError = function (method, errno, msg) {
 file.open(path, "w+")
 </pre>
 
-  <dt><code>file.open(path, mode, on_completion)</code></dt>
+  <dt><code>file.open(path, mode, on_completion())</code></dt>
   <dd>Opens the file at <code>path</code>. 
   <p><code>mode</code> is a string: 
     <code>"r"</code>  open for reading and writing.
@@ -351,20 +384,20 @@ file.open(path, "w+")
     append to the end of the file. 
     <code>"a+"</code> 
   <p>The <code>on_completion</code> is a callback that is made without
-  arguments when the operation completes. It is optional
+  arguments when the operation completes. It is optional.
   If an error occurred the <code>on_completion</code> callback will not be
   called, but the <code>file.onError</code> will be called.
   </dd>
 
-  <dt><code>file.read(length, position, on_completion)</code></dt>
+  <dt><code>file.read(length, position, on_completion(data))</code></dt>
   <dd>
   </dd>
 
-  <dt><code>file.write(data, position, on_completion)</code></dt>
+  <dt><code>file.write(data, position, on_completion(written))</code></dt>
   <dd>
   </dd>
 
-  <dt><code>file.close(on_completion)</code></dt>
+  <dt><code>file.close(on_completion())</code></dt>
   <dd>
   </dd>
 </dl>
@@ -374,7 +407,108 @@ file.open(path, "w+")
 
 <h4 id="tcp_server"><code>node.tcp.Server</code></h4>
 
+<p>Here is an example of a echo server which listens for connections on port
+7000
+<pre>
+function Echo (socket) {
+  socket.setEncoding("utf8");
+  socket.onConnect = function () {
+    socket.send("hello\r\n");
+  };
+  socket.onReceive = function (data) {
+    socket.send(data);
+  };
+  socket.onEOF = function () {
+    socket.send("goodbye\r\n");
+    socket.close();
+  };
+}
+var server = new node.tcp.Server(Echo, {backlog: 1024});
+server.listen(7000, "localhost");
+</pre>
+
+<dl>
+  <dt><code>new node.tcp.Server(connection_handler(socket), options={});</code></dt>
+  <dd>Creates a new TCP server.
+
+  <p><code>connection_handler</code> is a callback which is called
+  on each connection. It is given one argument: an instance of
+  <code>node.tcp.Connection</code>.
+
+  <p><code>options</code> for now only supports one option:
+  <code>backlog</code> which should be an integer and describes how large of
+  a connection backlog the operating system should maintain for this server.
+  The <code>backlog</code> defaults to 1024.
+  </dd> 
+
+  <dt><code>server.listen(port, host=null)</code></dt>
+  <dd>Tells the server to listen for TCP connections to <code>port</code>
+  and <code>host</code>. Note, <code>host</code> is optional. If
+  <code>host</code> is not specified the server will accept connections to
+  any IP address on the specified port. 
+  </dd>
+
+  <dt><code>server.close()</code></dt>
+  <dd> Stops the server from accepting new connections. </dd>
+</dl>   
+
+
 <h4 id="tcp_connection"><code>node.tcp.Connection</code></h4>
+
+<p>This object is used as a TCP client and also as a server-side socket for
+<code>node.tcp.Server</code>s.
+
+<dl>
+  <dt><code>new node.tcp.Connection()</code></dt>
+  <dd>Creates a new connection object.
+  </dd>
+
+  <dt><code>connection.setEncoding(encoding)</code></dt>
+  <dd>Sets the encoding (either <code>"utf8"</code> or <code>"raw"</code>)
+  for data that is received. 
+  </dd>
+
+  <dt><code>connection.send(data)</code></dt>
+  <dd>sends data on the connection
+  </dd>
+
+  <dt><code>connection.close()</code></dt>
+  <dd>Half-closes the connection. I.E. sends a FIN packet. It is possible
+  the server will still send some data.
+  </dd>
+
+  <dt><code>connection.fullClose()</code></dt>
+  <dd>Close both ends of the connection. Data that is received after this
+  call is responded to with RST packets. If you don't know about this, just use
+  <code>close()</code>.
+  </dd>
+
+  <dt><code>connection.forceClose()</code></dt>
+  <dd>Ensures that no more I/O activity happens on this socket.
+  Only necessary in case of errors (parse error or so).
+  </dd>
+
+  <dt><code>conneciton.onConnect = function () { };</code></dt>
+  <dd>Call once the connection is established.</dd>
+
+  <dt><code>conneciton.onReceive = function (data) { };</code></dt>
+  <dd>Called when data is received on the connection. Encoding of data is
+  set by <code>connection.setEncoding()</code>. <code>data</code> will
+  either be a string, in the case of utf8, or an array of integer in the
+  case of raw encoding.</dd>
+
+  <dt><code>conneciton.onEOF = function () { };</code></dt>
+  <dd>Called when the other end of the connection sends a FIN packet.
+     <code>onReceive</code> will not be called after this.
+     You should probably just call <code>connection.close()</code> in this
+     callback.
+
+  <dt><code>conneciton.onDisconnect = function () { };</code></dt>
+  <dd>Called once the connection is fully disconnected.</dd>
+
+  <dt><code>conneciton.onError = function () { };</code></dt>
+  <dd>Called on an error.</dd>
+</dl>
 
 <h3 id="http"><code>node.http</code></h3>
 
