@@ -33,6 +33,8 @@
 #include <string.h> /* memset */
 
 #include <netinet/tcp.h> /* TCP_NODELAY */
+#include <sys/types.h>
+#include <sys/socket.h> /* shutdown */
 
 #include <ev.h>
 #include <oi_socket.h>
