@@ -37,7 +37,8 @@ h1, h2, h3, h4 {
   margin: 2em 0; 
 }
 
-h1 a { color: inherit; }
+h1 code, h2 code, h3 code, h4 code { color: inherit; }
+h1 a, h2 a, h3 a, h4 a { color: inherit; }
 
 
 pre, code {
@@ -165,11 +166,15 @@ make install</pre>
 <code>on</code>. All methods and members are camel cased. Constructors
 always have a capital first letter.
 
-<p>Node uses strings to represent ASCII or UTF-8 encoded data. For the
-moment, arrays of integers are used to represent raw binary data&mdash;this
-representation is rather inefficient. In the future, <a
-href="http://code.google.com/p/v8/issues/detail?id=270">when V8 natively supports binary
-Blob objects</a>, Node will use them.
+<p>
+Node supports 3 byte-string encodings: 
+ASCII (<code>"ascii"</code>), 
+UTF-8 (<code>"utf8"</code>), and 
+raw binary (<code>"raw"</code>).
+It uses strings to represent ASCII and UTF-8 encoded data. For the moment,
+arrays of integers are used to represent raw binary  data&mdash;this
+representation is rather inefficient. This will change in the future, when <a
+  href="http://code.google.com/p/v8/issues/detail?id=270">V8 supports Blob objects</a>.
 
 <p>The following are global functions:</p>
 
@@ -463,18 +468,27 @@ server.listen(7000, "localhost");
   <dd>Creates a new connection object.
   </dd>
 
+  <dt><code>connection.readyState</code></dt>
+  <dd>Either <code>"closed"</code>, <code>"open"</code>,
+  <code>"readOnly"</code>, or <code>"writeOnly"</code>.
+  </dd>
+
   <dt><code>connection.setEncoding(encoding)</code></dt>
   <dd>Sets the encoding (either <code>"utf8"</code> or <code>"raw"</code>)
   for data that is received. 
   </dd>
 
-  <dt><code>connection.send(data)</code></dt>
-  <dd>sends data on the connection
+  <dt><code>connection.send(data, encoding="ascii")</code></dt>
+  <dd>Sends data on the connection. The data should be eithre an array of
+  integers (for raw binary) or a string (for utf8 or ascii). The second
+  parameter specifies the encoding in the case of a string&mdash;it defaults
+  to ASCII because encoding to UTF8 is rather slow.
   </dd>
 
   <dt><code>connection.close()</code></dt>
   <dd>Half-closes the connection. I.E. sends a FIN packet. It is possible
   the server will still send some data.
+     After calling this <code>readyState</code> will be <code>"readOnly"</code>.
   </dd>
 
   <dt><code>connection.fullClose()</code></dt>
@@ -500,8 +514,9 @@ server.listen(7000, "localhost");
   <dt><code>conneciton.onEOF = function () { };</code></dt>
   <dd>Called when the other end of the connection sends a FIN packet.
      <code>onReceive</code> will not be called after this.
+     After receiving this <code>readyState</code> will be <code>"writeOnly"</code>.
      You should probably just call <code>connection.close()</code> in this
-     callback.
+     callback. 
 
   <dt><code>conneciton.onDisconnect = function () { };</code></dt>
   <dd>Called once the connection is fully disconnected.</dd>
@@ -611,7 +626,7 @@ req.onBody = function (chunk) {
 };
 </pre>
   A chunk of the body is given as the single argument. The transfer-encoding
-  has been removed. 
+  has been decoded. 
 
   <p>The body chunk is either a String in the case of UTF-8 encoding or an
   array of numbers in the case of raw encoding. The body encoding is set with
@@ -654,11 +669,15 @@ res.sendHeader(200, [ ["Content-Length", body.length]
     before <code>res.finish()</code> is called.
   </dd>
 
-  <dt><code>res.sendBody(chunk)</code></dt>
+  <dt><code>res.sendBody(chunk, encoding="ascii")</code></dt>
   <dd>
   This method must be called after <code>sendHeader</code> was called. It
   sends a chunk of the response body. This method may be called multiple
   times to provide successive parts of the body.
+
+  <p>If <code>chunk</code> is a string, the second parameter specifies how
+  to encode it into a byte stream. By default the <code>encoding</code> is
+  <code>"ascii"</code>. 
   </dd>
 
   <dt><code>res.finish()</code></dt>
@@ -730,7 +749,7 @@ it, so neither do we.</i>
 whose header has already been sent. 
 
 <dl>
-  <dt><code>req.sendBody(chunk, encoding)</code></dt>
+  <dt><code>req.sendBody(chunk, encoding="ascii")</code></dt>
   <dd> Sends a sucessive peice of the body.  By calling this method many times,
 the user can stream a request body to a server&mdash;in that case it is
 suggested to use the <code>["Transfer-Encoding",
@@ -742,8 +761,6 @@ suggested to use the <code>["Transfer-Encoding",
     <code>chunk</code> is a string. The encoding argument should be either
     <code>"utf8"</code> or <code>"ascii"</code>. By default the body uses ASCII
     encoding, as it is faster.
-
-  <p> TODO
 
   <dt><code>req.finish(response_handler)</code></dt>
 

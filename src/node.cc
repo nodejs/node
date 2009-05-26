@@ -243,6 +243,25 @@ node::eio_warmup (void)
   ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
 }
 
+enum encoding
+node::ParseEncoding (Handle<Value> encoding_v)
+{
+  HandleScope scope;
+
+  if (!encoding_v->IsString())
+    return RAW;
+
+  String::Utf8Value encoding(encoding_v->ToString());
+
+  if(strcasecmp(*encoding, "utf8") == 0) {
+    return UTF8;
+  } else if (strcasecmp(*encoding, "ascii") == 0) {
+    return ASCII;
+  } else {
+    return RAW;
+  }
+}
+
 int
 main (int argc, char *argv[]) 
 {

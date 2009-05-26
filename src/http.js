@@ -102,55 +102,54 @@ function toRaw(string) {
   return a;
 }
 
+// The send method appends data onto the output array. The deal is,
+// the data is either an array of integer, representing binary or it
+// is a string in which case it's UTF8 encoded. 
+// Two things to be considered:
+// - we should be able to send mixed encodings.
+// - we don't want to call connection.send("smallstring") because that
+//   is wasteful. *I think* its rather faster to concat inside of JS
+// Thus I attempt to concat as much as possible.  
+//
+// XXX this function is extremely ugly
+function send (output, data, encoding) {
+  if (data.constructor === String)
+    encoding = encoding || "ascii";
+  else
+    encoding = "raw";
+
+  if (output.length == 0) {
+    output.push([data, encoding]);
+    return;
+  }
+
+  var li = output.length-1;
+  var last_encoding = output[li][1];
+
+  if (data.constructor === String)  {
+    if ( last_encoding === encoding
+      || (last_encoding === "utf8" && encoding === "ascii")
+       ) 
+    {
+      output[li][0] += data;
+      return;
+    }
+  }
+
+  if (data.constructor === Array && last_encoding === encoding) {
+    output[li][0] = output[li][0].concat(data);
+    return;
+  }
+
+  output.push([data, encoding]);
+};
+
 node.http.ServerResponse = function (connection, responses) {
   responses.push(this);
   this.connection = connection;
   this.closeOnFinish = false;
   var output = [];
 
-  // The send method appends data onto the output array. The deal is,
-  // the data is either an array of integer, representing binary or it
-  // is a string in which case it's UTF8 encoded. 
-  // Two things to considered:
-  // - we should be able to send mixed encodings.
-  // - we don't want to call connection.send("smallstring") because that
-  //   is wasteful. *I think* its rather faster to concat inside of JS
-  // Thus I attempt to concat as much as possible.  
-  function send (data) {
-    if (connection.readyState === "closed" || connection.readyState === "readOnly")
-    {
-      responses = [];
-      return;
-    }
-
-    if (output.length == 0) {
-      output.push(data);
-      return;
-    }
-
-    var li = output.length-1;
-
-    if (data.constructor == String && output[li].constructor == String) {
-      output[li] += data;
-      return;
-    }
-
-    if (data.constructor == Array && output[li].constructor == Array) {
-      output[li] = output[li].concat(data);
-      return;
-    }
-
-    // If the string is small enough, just convert it to binary
-    if (data.constructor == String 
-        && data.length < 128
-        && output[li].constructor == Array) 
-    {
-      output[li] = output[li].concat(toRaw(data));
-      return;
-    }
-
-    output.push(data);
-  };
 
   var chunked_encoding = false;
 
@@ -206,34 +205,39 @@ node.http.ServerResponse = function (connection, responses) {
 
     header += CRLF;
 
-    send(header);
+    send(output, header);
   };
 
-  this.sendBody = function (chunk) {
+  this.sendBody = function (chunk, encoding) {
     if (chunked_encoding) {
-      send(chunk.length.toString(16));
-      send(CRLF);
-      send(chunk);
-      send(CRLF);
+      send(output, chunk.length.toString(16));
+      send(output, CRLF);
+      send(output, chunk, encoding);
+      send(output, CRLF);
     } else {
-      send(chunk);
+      send(output, chunk, encoding);
     }
 
     this.flush();
   };
 
   this.flush = function () {
+    if (connection.readyState === "closed" || connection.readyState === "readOnly")
+    {
+      responses = [];
+      return;
+    }
     if (responses.length > 0 && responses[0] === this)
       while (output.length > 0) {
         var out = output.shift();
-        connection.send(out);
+        connection.send(out[0], out[1]);
       }
   };
 
   this.finished = false;
   this.finish = function () {
     if (chunked_encoding)
-      send("0\r\n\r\n"); // last chunk
+      send(output, "0\r\n\r\n"); // last chunk
 
     this.finished = true;
 
@@ -386,44 +390,14 @@ node.http.Client = function (port, host) {
      
     var output = [header];
 
-    function send (data) {
-      if (output.length == 0) {
-        output.push(data);
-        return;
-      }
-
-      var li = output.length-1;
-
-      if (data.constructor == String && output[li].constructor == String) {
-        output[li] += data;
-        return;
-      }
-
-      if (data.constructor == Array && output[li].constructor == Array) {
-        output[li] = output[li].concat(data);
-        return;
-      }
-
-      // If the string is small enough, just convert it to binary
-      if (data.constructor == String 
-          && data.length < 128
-          && output[li].constructor == Array) 
-      {
-        output[li] = output[li].concat(toRaw(data));
-        return;
-      }
-
-      output.push(data);
-    };
-
-    this.sendBody = function (chunk) {
+    this.sendBody = function (chunk, encoding) {
       if (chunked_encoding) {
-        send(chunk.length.toString(16));
-        send(CRLF);
-        send(chunk);
-        send(CRLF);
+        send(output, chunk.length.toString(16));
+        send(output, CRLF);
+        send(output, chunk, encoding);
+        send(output, CRLF);
       } else {
-        send(chunk);
+        send(output, chunk, encoding);
       }
 
       this.flush();
@@ -443,7 +417,7 @@ node.http.Client = function (port, host) {
     this.finish = function (responseHandler) {
       this.responseHandler = responseHandler;
       if (chunked_encoding)
-        send("0\r\n\r\n"); // last chunk
+        send(output, "0\r\n\r\n"); // last chunk
 
       this.flush();
     };

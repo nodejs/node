@@ -23,7 +23,8 @@ do {                                                                      \
   templ->PrototypeTemplate()->Set(NODE_SYMBOL(name), __callback##_TEM);   \
 } while(0)
 
-enum encoding {UTF8, RAW};
+enum encoding {ASCII, UTF8, RAW};
+enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void fatal_exception (v8::TryCatch &try_catch); 
 void eio_warmup (void); // call this before creating a new eio event.
 

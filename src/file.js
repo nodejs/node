@@ -41,10 +41,11 @@ node.fs.File = function (options) {
   var self = this;
   options = options || {};
 
-  if (options.encoding === undefined)
+  if (options.encoding === "utf8") {
+    self.encoding = node.fs.UTF8;
+  } else {
     self.encoding = node.fs.RAW;
-  else
-    self.encoding = options.encoding
+  }
 
   //node.debug("encoding: opts=" + options.encoding + " self=" + self.encoding);
   self.fd = options.fd || null;

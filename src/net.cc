@@ -62,7 +62,6 @@ Connection::Initialize (v8::Handle<v8::Object> target)
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "sendUtf8", SendUtf8);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
@@ -327,31 +326,6 @@ new_buf (size_t size)
 }
 
 Handle<Value>
-Connection::SendUtf8 (const Arguments& args)
-{
-  HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
-  if (!connection) return Handle<Value>();
-
-  if ( connection->ReadyState() != OPEN 
-    && connection->ReadyState() != WRITE_ONLY
-     ) 
-    return ThrowException(String::New("Socket is not open for writing"));
-
-  if (!args[0]->IsString())
-    return ThrowException(String::New("Must have string argument"));
-
-  // utf8 encoding
-  Local<String> s = args[0]->ToString();
-  size_t length = s->Utf8Length();
-  oi_buf *buf = new_buf(length);
-  s->WriteUtf8(buf->base, length);
-  connection->Send(buf);
-
-  return Undefined();  
-}
-
-Handle<Value>
 Connection::Send (const Arguments& args)
 {
   HandleScope scope;
@@ -372,19 +346,30 @@ Connection::Send (const Arguments& args)
   // addressed. 
 
   if (args[0]->IsString()) {
-    // ASCII encoding
+    enum encoding enc = ParseEncoding(args[1]);
     Local<String> s = args[0]->ToString();
-    size_t length = s->Utf8Length();
-    oi_buf *buf = new_buf(length);
-    s->WriteAscii(buf->base, 0, length);
+    size_t len = s->Utf8Length();
+    oi_buf *buf = new_buf(len);
+    switch (enc) {
+      case RAW:
+      case ASCII:
+        s->WriteAscii(buf->base, 0, len);
+        break;
+
+      case UTF8:
+        s->WriteUtf8(buf->base, len);
+        break;
+
+      default:
+        assert(0 && "unhandled string encoding");
+    }
     connection->Send(buf);
 
   } else if (args[0]->IsArray()) {
-    // raw encoding
     Handle<Array> array = Handle<Array>::Cast(args[0]);
-    size_t length = array->Length();
-    oi_buf *buf = new_buf(length);
-    for (size_t i = 0; i < length; i++) {
+    size_t len = array->Length();
+    oi_buf *buf = new_buf(len);
+    for (size_t i = 0; i < len; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf->base[i] = int_value->IntegerValue();
     }
