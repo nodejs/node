@@ -15,6 +15,7 @@ using namespace node;
 
 #define UTF8_SYMBOL           String::NewSymbol("utf8")
 #define RAW_SYMBOL            String::NewSymbol("raw")
+#define ASCII_SYMBOL          String::NewSymbol("ascii")
 
 #define ON_RECEIVE_SYMBOL     String::NewSymbol("onReceive")
 #define ON_DISCONNECT_SYMBOL  String::NewSymbol("onDisconnect")
@@ -206,18 +207,20 @@ Connection::SetEncoding (const Arguments& args)
     connection->encoding_ = RAW;
     return scope.Close(RAW_SYMBOL);
   }
-  Local<String> encoding = args[0]->ToString();
 
-  char buf[5]; // need enough room for "utf8" or "raw"
-  encoding->WriteAscii(buf, 0, 4);
-  buf[4] = '\0';
+  switch (ParseEncoding(args[0])) {
+    case ASCII:
+      connection->encoding_ = ASCII;
+      return scope.Close(ASCII_SYMBOL);
 
-  if(strcasecmp(buf, "utf8") == 0) {
-    connection->encoding_ = UTF8;
-    return scope.Close(UTF8_SYMBOL);
-  } else {
-    connection->encoding_ = RAW;
-    return scope.Close(RAW_SYMBOL);
+    case UTF8:
+      connection->encoding_ = UTF8;
+      return scope.Close(UTF8_SYMBOL);
+
+    case RAW:
+    default:
+      connection->encoding_ = RAW;
+      return scope.Close(RAW_SYMBOL);
   }
 }
 
