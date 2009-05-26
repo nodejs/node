@@ -227,7 +227,7 @@ pool</a>
 to execute file system calls.  
 
 <p>This part of the API is split into two parts: simple wrappers around
-standard POSIX file I/O functions, and a user-friendly <code>File</code>
+standard POSIX file I/O functions and a user-friendly <code>File</code>
 object.
 
 <h4 id="file_wrappers">POSIX Wrappers</h4>
@@ -266,15 +266,29 @@ node.fs.rename("/tmp/hello", "/tmp/world", function (status) {
 </pre>
 
 <dl>
-  <dt><code>node.fs.rename(path1, path2, on_completion)</code></dt>
+  <dt><code>node.fs.rename(path1, path2, on_completion(status))</code></dt>
   <dd> 
-    <code>on_completion(status)</code>
+  <a
+    href="http://opengroup.org/onlinepubs/007908799/xsh/rename.html">rename(2)</a>
   </dd>
 
-  <dt><code>node.fs.stat(path, on_completion)</code></dt>
+  <dt><code>node.fs.stat(path, on_completion(status, stats))</code></dt>
   <dd> 
-    <code>on_completion(status, stat_object)</code>
+  <a href="http://opengroup.org/onlinepubs/007908799/xsh/stat.html">stat(2)</a>
   </dd>
+
+  <dt><code>node.fs.unlink(path, on_completion(status))</code></dt>
+  <dd>
+  <a
+    href="http://opengroup.org/onlinepubs/007908799/xsh/unlink.html">unlink(2)</a>
+  </dd>
+
+  <dt><code>node.fs.rmdir(path, on_completion(status))</code></dt>
+  <dd> 
+  <a
+    href="http://opengroup.org/onlinepubs/007908799/xsh/rmdir.html">rmdir(2)</a>
+  </dd>
+
 </dl>
 
 <h4 id="file_file"><code>node.fs.File</code></h4>

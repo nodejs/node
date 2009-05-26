@@ -84,6 +84,30 @@ static Handle<Value> Rename (const Arguments& args)
   return Undefined();
 }
 
+DEFINE_SIMPLE_CB(Unlink)
+static Handle<Value> Unlink (const Arguments& args)
+{
+  if (args.Length() < 1 || !args[0]->IsString())
+    return ThrowException(BAD_ARGUMENTS);
+  HandleScope scope;
+  String::Utf8Value path(args[0]->ToString());
+  MAKE_CALLBACK_PTR
+  eio_unlink(*path, EIO_PRI_DEFAULT, AfterUnlink, callback);
+  return Undefined();
+}
+
+DEFINE_SIMPLE_CB(RMDir)
+static Handle<Value> RMDir (const Arguments& args)
+{
+  if (args.Length() < 1 || !args[0]->IsString())
+    return ThrowException(BAD_ARGUMENTS);
+  HandleScope scope;
+  String::Utf8Value path(args[0]->ToString());
+  MAKE_CALLBACK_PTR
+  eio_rmdir(*path, EIO_PRI_DEFAULT, AfterRMDir, callback);
+  return Undefined();
+}
+
 static int
 AfterOpen (eio_req *req)
 {
@@ -355,13 +379,15 @@ File::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  // file system methods
-  NODE_SET_METHOD(target, "rename", Rename);
-  NODE_SET_METHOD(target, "stat", Stat);
+  // POSIX Wrappers
   NODE_SET_METHOD(target, "close", Close);
   NODE_SET_METHOD(target, "open", Open);
-  NODE_SET_METHOD(target, "write", Write);
   NODE_SET_METHOD(target, "read", Read);
+  NODE_SET_METHOD(target, "rename", Rename);
+  NODE_SET_METHOD(target, "rmdir", RMDir);
+  NODE_SET_METHOD(target, "stat", Stat);
+  NODE_SET_METHOD(target, "unlink", Unlink);
+  NODE_SET_METHOD(target, "write", Write);
 
   NODE_SET_METHOD(target, "strerror",  StrError);
 
