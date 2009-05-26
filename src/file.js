@@ -5,14 +5,13 @@ node.fs.exists = function (path, callback) {
 }
 
 node.fs.cat = function (path, encoding, callback) {
-  var file = new node.fs.File();
-  file.encoding = encoding;
+  var file = new node.fs.File({encoding: encoding});
 
   file.onError = function (method, errno, msg) {
     callback(-1);
   };
 
-  var content = (file.encoding == "raw" ? "" : []);
+  var content = (encoding == node.fs.UTF8 ? "" : []);
   var pos = 0;
   var chunkSize = 10*1024;
 
@@ -38,112 +37,144 @@ node.fs.cat = function (path, encoding, callback) {
   });
 }
 
-node.fs.File.prototype.open = function (path, mode, callback) {
-  this._addAction("open", [path, mode], callback);
-};
+node.fs.File = function (options) {
+  var self = this;
+  options = options || {};
 
-node.fs.File.prototype.close = function (callback) {
-  this._addAction("close", [], callback);
-};
+  if (options.encoding === undefined)
+    self.encoding = node.fs.RAW;
+  else
+    self.encoding = options.encoding
 
-node.fs.File.prototype.read = function (length, pos, callback) {
-  this._addAction("read", [length, pos], callback);
-};
+  //node.debug("encoding: opts=" + options.encoding + " self=" + self.encoding);
+  self.fd = options.fd || null;
 
-node.fs.File.prototype.write = function (buf, pos, callback) {
-  this._addAction("write", [buf, pos], callback);
-};
+  var actionQueue = [];
+  
+  // Adds a method to the queue. 
+  function addAction (method, args, callback) {
+    var action = { method: method 
+                 , callback: callback
+                 , args: args
+                 };
+    //node.debug("add action: " + JSON.stringify(action));
+    actionQueue.push(action);
 
-node.fs.File.prototype.print = function (data, callback) {
-  this.write(data, -1, callback);
-};
-
-node.fs.File.prototype.puts = function (data, callback) {
-  this.write(data + "\n", -1, callback);
-};
-
-// Some explanation of the File binding.
-//
-// All file operations are blocking. To get around this they are executed
-// in a thread pool in C++ (libeio). 
-//
-// The ordering of method calls to a file should be preserved, so they are
-// only executed one at a time. A queue, called _actionQueue is employed. 
-//
-// The constructor File() is implemented in C++. It initlizes 
-// the member _actionQueue = []
-//
-// Any of the methods called on a file are put into this queue. When they
-// reach the head of the queue they will be executed. C++ calls the
-// method _pollActions each time it becomes idle. If there is no action
-// currently being executed then _pollActions will not be called. When
-// actions are added to an empty _actionQueue, they will be immediately
-// executed.
-//
-// When an action has completed, the C++ side is looks at the first
-// element of _actionQueue in order to get a handle on the callback
-// function. Only after that completion callback has been made can the
-// action be shifted out of the queue.
-// 
-// See File::CallTopCallback() in file.cc for the other side of the binding.
-
-
-node.fs.File.prototype._addAction = function (method, args, callback) {
-  // This adds a method to the queue. 
-  var action = { method: method 
-               , callback: callback
-               , args: args
-               };
-  this._actionQueue.push(action);
-
-  // If the queue was empty, immediately call the method.
-  if (this._actionQueue.length == 1) this._act();
-};
-
-node.fs.File.prototype._act = function () {
-  // peek at the head of the queue
-  var action = this._actionQueue[0];
-  if (action) {
-    // execute the c++ version of the method. the c++ version 
-    // is gotten by appending "_ffi_" to the method name.
-    this["_ffi_" + action.method].apply(this, action.args);
-  }
-};
-
-// called from C++ after each action finishes
-// (i.e. when it returns from the thread pool)
-node.fs.File.prototype._pollActions = function () {
-  var action = this._actionQueue[0];
-
-  var errno = arguments[0]; 
-
-  if (errno < 0) {
-    if (this.onError)
-      this.onError(action.method, errno, node.fs.strerror(errno));
-    this._actionQueue = []; // empty the queue.
-    return;
+    // If the queue was empty, immediately call the method.
+    if (actionQueue.length == 1) act();
   }
 
-  var rest = [];
-  for (var i = 1; i < arguments.length; i++)
-    rest.push(arguments[i]);
+  // called after each action finishes (when it returns from the thread pool)
+  function poll () {
+    var action = actionQueue[0];
 
-  if (action.callback)
-    action.callback.apply(this, rest);
+    var errno = arguments[0]; 
 
-  this._actionQueue.shift();
+    if (errno < 0) {
+      if (self.onError)
+        self.onError(action.method, errno, node.fs.strerror(errno));
+      actionQueue = []; // empty the queue.
+      return;
+    }
 
-  this._act();
+    var rest = [];
+    for (var i = 1; i < arguments.length; i++)
+      rest.push(arguments[i]);
+
+    //node.debug("poll action: " + JSON.stringify(action));
+    //node.debug("poll rest: " + JSON.stringify(rest));
+
+    if (action.callback)
+      action.callback.apply(this, rest);
+
+    actionQueue.shift();
+    act();
+  }
+
+  function act () {
+    var action = actionQueue[0]; // peek at the head of the queue
+    if (action) {
+      internal_methods[action.method].apply(this, action.args);
+    }
+  }
+
+  var internal_methods = {
+    open: function (path, mode) {
+      var m = node.fs.O_RDONLY;
+      switch (mode) {
+        case "r":
+          m = node.fs.O_RDONLY;
+          break;
+        case "r+":
+          m = node.fs.O_RDWR;
+          break;
+        case "w":
+          m = O_CREAT | O_TRUNC | O_WRONLY;
+          break;
+        case "w+":
+          m = O_CREAT | O_TRUNC | O_RDWR;
+          break;
+        case "a":
+          m = O_APPEND | O_CREAT | O_WRONLY; 
+          break;
+        case "a+":
+          m = O_APPEND | O_CREAT | O_RDWR; 
+          break;
+        default:
+          throw "Unknown mode";
+      }
+
+      node.fs.open(path, m, 0666, function (status, fd) {
+        self.fd = fd;
+        poll(status, fd);
+      });
+    },
+
+    close: function ( ) {
+      node.fs.close(self.fd, function (status) {
+        self.fd = null;
+        poll(status);
+      });
+    }, 
+
+    read: function (length, position) {
+      //node.debug("encoding: " + self.encoding);
+      node.fs.read(self.fd, length, position, self.encoding, poll);
+    },
+
+    write: function (data, position) {
+      node.fs.write(self.fd, data, position, poll);
+    }
+  };
+
+  self.open = function (path, mode, callback) {
+    addAction("open", [path, mode], callback);
+  };
+   
+  self.close = function (callback) {
+    addAction("close", [], callback);
+  };
+
+  self.read = function (length, pos, callback) {
+    addAction("read", [length, pos], callback);
+  };
+
+  self.write = function (buf, pos, callback) {
+    addAction("write", [buf, pos], callback);
+  };
+
+  self.print = function (data, callback) {
+    return self.write(data, null, callback);
+  };
+
+  self.puts = function (data, callback) {
+    return self.write(data + "\n", null, callback);
+  };
 };
 
-stdout = new node.fs.File();
-stdout.fd = node.fs.File.STDOUT_FILENO;
-
-stderr = new node.fs.File();
-stderr.fd = node.fs.File.STDERR_FILENO;
-
-stdin = new node.fs.File();
-stdin.fd = node.fs.File.STDIN_FILENO;
+stdout = new node.fs.File({ fd: node.fs.STDOUT_FILENO });
+stderr = new node.fs.File({ fd: node.fs.STDERR_FILENO });
+stdin = new node.fs.File({ fd: node.fs.STDIN_FILENO });
 
 puts = function (data, callback) {
   stdout.puts(data, callback);

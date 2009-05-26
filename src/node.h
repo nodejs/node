@@ -12,6 +12,8 @@ namespace node {
 #define NODE_SET_METHOD(obj, name, callback) \
   obj->Set(NODE_SYMBOL(name), v8::FunctionTemplate::New(callback)->GetFunction())
 #define NODE_UNWRAP(type, value) static_cast<type*>(node::ObjectWrap::Unwrap(value))
+#define NODE_DEFINE_CONSTANT(target, constant) \
+  (target)->Set(v8::String::NewSymbol(#constant), v8::Integer::New(constant))
 
 #define NODE_SET_PROTOTYPE_METHOD(templ, name, callback)                  \
 do {                                                                      \
