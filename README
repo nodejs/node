@@ -1,0 +1,7 @@
+To build
+
+./configure
+make 
+make install
+
+See website/index.html for documentation.

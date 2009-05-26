@@ -1,0 +1,35 @@
+This license applies to all parts of Node that are not externally
+maintained libraries.  The externally maintained libraries used by Node
+are:
+
+  - v8, located under deps/v8, which is copyrighted by the Google, Inc.
+    v8 has an MIT license. 
+
+  - libev, located under deps/libev, and libeio, located at deps/libeio. 
+    This code is copyrighted by Marc Alexander Lehmann. Both are dually
+    licensed under an MIT license and the GPL2 license.
+
+  - JSMin JavaScript minifier, located at jsmin.py.  This code is
+    copyrighted by Douglas Crockford and Baruch Even and released under
+    an MIT license.
+
+Node's license follows:
+
+Copyright 2009, Ryan Lienhart Dahl. All rights reserved.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE. 
