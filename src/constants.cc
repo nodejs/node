@@ -44,28 +44,12 @@ node::DefineConstants (Handle<Object> target)
   NODE_DEFINE_CONSTANT(target, O_APPEND);
 #endif
 
-#ifdef O_CLOEXEC
-  NODE_DEFINE_CONSTANT(target, O_CLOEXEC);
-#endif
-
-#ifdef O_DIRECT
-  NODE_DEFINE_CONSTANT(target, O_DIRECT);
-#endif
-
 #ifdef O_DIRECTORY
   NODE_DEFINE_CONSTANT(target, O_DIRECTORY);
 #endif
 
 #ifdef O_EXCL
   NODE_DEFINE_CONSTANT(target, O_EXCL);
-#endif
-
-#ifdef O_LARGEFILE
-  NODE_DEFINE_CONSTANT(target, O_LARGEFILE);
-#endif
-
-#ifdef O_NOATIME
-  NODE_DEFINE_CONSTANT(target, O_NOATIME);
 #endif
 
 #ifdef O_NOFOLLOW
