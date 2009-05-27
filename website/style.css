@@ -44,18 +44,12 @@ h1 a, h2 a, h3 a, h4 a
 pre, code {
   font-family: monospace;
   font-size: 14pt;
-  color: #fee;
+  color: #eee0e0;
 }
 
 pre {
   padding-left: 1em;
   border-left: 1px solid #444;
-}
-
-dl {
-}
-
-dt {
 }
 
 dd {

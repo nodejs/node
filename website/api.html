@@ -103,7 +103,7 @@ representation is rather inefficient. This will change in the future, when <a
   <dd> Stops a interval from triggering.  </dd>
 </dl>
 
-<h2 id="files">node.fs</h2>
+<h2 id="files"><code>node.fs</code></h2>
 
 <p>File I/O is tricky because there are not simple non-blocking ways to do it. 
 Node handles file I/O by employing <a
@@ -702,8 +702,7 @@ read.
 
 <p>Node has a simple module loading system.  In Node, files and modules are
 in one-to-one correspondence.  
-
-<p> As an example, 
+As an example, 
 <code>foo.js</code> loads the module <code>mjsunit.js</code>.
 
 <p>The contents of <code>foo.js</code>:
@@ -730,7 +729,7 @@ exports.assertEquals = function (expected, found, name_opt) {
 };
 </pre>
 
-<p>Here the module <code>mjsunit.js</code> has exported the function
+<p>The module <code>mjsunit</code> has exported a function
 <code>assertEquals()</code>.  <code>mjsunit.js</code> must be in the
 same directory as <code>foo.js</code> for <code>include()</code> to find it.
 The module path is relative to the file calling <code>include()</code>.
@@ -742,12 +741,11 @@ from the specified module into the global namespace.
 <p> Because file loading does not happen instantaneously, and because Node
 has a policy of never blocking, the callback <code
 >onLoad</code> can be set and will notify the user
-when all the included modules are loaded.  Each file/module can have an <code
+when the included modules are loaded.  Each file/module can have an <code
 >onLoad</code> callback.  
 
 <p>To export an object, add to the special <code>exports</code> object.
-
-<p> The functions <code>fail</code> and <code>deepEquals</code> are not
+The functions <code>fail</code> and <code>deepEquals</code> are not
 exported and remain private to the module.
 
 <p> <code>require()</code> is like <code>include()</code> except does not
