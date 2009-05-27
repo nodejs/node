@@ -10,11 +10,6 @@ def configure(conf):
 
   conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_create", mandatory=True)
 
-  platform_string = "__" + Options.platform
-  if Options.platform == "linux2":
-    platform_string = "__linux"
-  conf.define(platform_string, 1)
-
   conf.check_cc(msg="Checking for futimes(2)", define_name="HAVE_FUTIMES", fragment="""
     #include <sys/types.h>
     #include <sys/time.h>
@@ -66,7 +61,7 @@ def configure(conf):
     }
   """)
 
-  conf.check_cc(msg="Checking for sendfile(2)" , defines=[platform_string + "=1"] , define_name="HAVE_SENDFILE" , fragment=""" 
+  conf.check_cc(msg="Checking for sendfile(2)" , define_name="HAVE_SENDFILE" , fragment=""" 
     # include <sys/types.h>
     #if __linux
     # include <sys/sendfile.h>

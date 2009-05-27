@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+# /usr/bin/env python
 import Options
 import sys
 import os
@@ -31,6 +31,11 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
+
+  if sys.platform.startswith("freebsd"):
+    if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
+      fatal("install the libexecinfo port. devel/libexecinfo")
+
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
 
@@ -42,8 +47,6 @@ def configure(conf):
   conf.define("HAVE_CONFIG_H", 1)
 
   conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
-
-  #conf.check(lib='rt', uselib_store='RT')
 
   conf.check(lib='profiler', uselib_store='PROFILER')
 
@@ -158,7 +161,7 @@ def build(bld):
     deps/http_parser
   """
   node.uselib_local = "oi ev eio http_parser"
-  node.uselib = "V8 RT PROFILER"
+  node.uselib = "V8 EXECINFO PROFILER"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 

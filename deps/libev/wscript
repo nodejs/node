@@ -8,11 +8,6 @@ def configure(conf):
   print "--- libev ---"
   #conf.check_tool('compiler_cc')
 
-  platform_string = "__" + Options.platform
-  if Options.platform == "linux2":
-    platform_string = "__linux"
-  conf.define(platform_string, 1)
-
   conf.check_cc(header_name="sys/inotify.h")
   conf.check_cc(header_name="sys/epoll.h")
   conf.check_cc(header_name="sys/event.h")
