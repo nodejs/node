@@ -1,7 +1,9 @@
-To build
+Purely evented I/O for V8 javascript.
 
+See http://tinyclouds.org/node for more information.
+
+
+To build
 ./configure
 make 
 make install
-
-See http://tinyclouds.org/node or website/index.html for documentation.

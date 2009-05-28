@@ -37,8 +37,73 @@ and execute it with the <code>node</code> program
 Server running at http://127.0.0.1:8000/
 </pre>
 
-
 <p> See the <a href="api.html">API documentation</a> for more examples.
+
+<p> Node's goal is to provide easy, scalable concurrency. In the above example,
+the 2 second delay does not prevent the server from handling new requests.
+
+Node notifies the operating system (through <code>epoll(7)</code>) that it
+should be notified when the 2 seconds are up, or if a new connection is
+made&mdash;then it goes to sleep. If someone new connects, then it executes
+the callback again. Each connection is only a small allocation on the heap.
+
+<p>This is in contrast to most scripting languages (and all other
+server-side javascript systems) where OS threads are employed to have
+concurrency. But thread-based networking 
+<a href="http://www.sics.se/~joe/apachevsyaws.html">is</a>
+<a href="http://www.kegel.com/c10k.html">relatively</a>
+<a href="http://bulk.fefe.de/scalable-networking.pdf">inefficient</a>
+<!-- TODO needs links -->
+and 
+difficult 
+to 
+use. 
+Node will show much better memory performance under high-loads 
+<!-- TODO benchmark -->
+than other systems (i.e. all other javascript server-side systems)
+which allocate 2mb thread stacks for each connection.
+
+<p>For networking, Node is similar to systems like
+Ruby's <a href="http://rubyeventmachine.com/">Event Machine</a>
+or
+Python's <a href="http://twistedmatrix.com/">Twisted</a>.
+But Node also provides full access to the file system in a non-blocking way.
+(This is done by using an internal thread pool to handle file system calls.)
+Because Javascript does not have I/O libraries and because <i>nothing</i> in
+Node blocks, a Node programmer is going to find it difficult to write slow
+servers&mdash;even if they don't understand how the concurrency system
+works.
+
+<p>Node's HTTP API has grown out of my difficulties while developing for
+Merb and Ebb. Because of limiting low-level design choices, streaming data
+through Rack-based frameworks is difficult or impossible.  Streaming is
+important for large requests or responses (uploads or downloads), so that
+the data is not buffered in memory.  Other small problems, the incorrect
+assumption that all message headers have unique fields are dealt with. The
+result is a fast, scalable, and complete low-level HTTP API which can be
+built upon.
+
+<p> Evented program is different. It requires the program to change how they
+view the problem. But it provides many benefits and it more closely matches
+what the machine is actually doing. In someways threaded programming is like
+fitting a square block into a round hole, and all of the deadlocks and
+memory inefficiencies that come from that are a result of the struggle.
+Javascript, thankfully, has no concept of threads
+<a
+href="http://weblogs.mozillazine.org/roadmap/archives/2007/02/threads_suck.html"
+>and never will</a>. It has a very lucid closures and anonymous functions,
+which make evented programming tolerable.
+
+<p> "But what about multiple-processor concurrency?", you ask. "Threads are
+necessary to scale programs to multi-core computers." The name <i>Node</i>
+should give some hint at how it is envisioned being used.  Processes are
+necessary to scale to multi-core computers, not memory-sharing threads.  The
+fundamentals of scalable systems are fast networking and non-blocking
+design&mdash;the rest is message passing.  In the future, I'd like Node to
+be able to spawn new processes, have a library for passing JSON messages,
+and be able accept connections from multiple processes (a pre-fork server);
+but these are things that fit into the current design and do not require
+threads.
 
 <p> Node is released under an MIT license.</p>
 
@@ -56,11 +121,10 @@ href="http://s3.amazonaws.com/four.livejournal/20090527/node-0.0.1.tar.gz">node-
 
 <h2 id="build">Build</h2>
 
-<p>Node aims to support all POSIX operating systems (including
-Windows with mingw) but at the moment it is only being tested on
-Linux, Macintosh, and FreeBSD.
-The build system requires Python.
-V8, on which Node is built, supports only IA-32 and ARM processors. 
+<p>Node eventually wants to support all POSIX operating systems (including
+Windows with mingw) but at the moment it is only being tested on Linux,
+Macintosh, and FreeBSD.  The build system requires Python.  V8, on which
+Node is built, supports only IA-32 and ARM processors. 
 
 <pre class="sh_none">
 ./configure
@@ -68,7 +132,9 @@ make
 make install
 </pre>
 
-<p>To run the unit tests
+<p> Then have a look at the <a href="api.html">API documentation</a>.
+
+<p>To run the tests
 
 <pre class="sh_none">
 ./configure --debug
