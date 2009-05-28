@@ -9,6 +9,8 @@
 #include "natives.h" 
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 #include <assert.h>
 
 #include <string>
@@ -150,13 +152,13 @@ ExecuteString(v8::Handle<v8::String> source,
   Handle<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(&try_catch);
-    ::exit(1);
+    exit(1);
   }
 
   Handle<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(&try_catch);
-    ::exit(1);
+    exit(1);
   }
 
   return scope.Close(result);
@@ -167,7 +169,7 @@ NODE_METHOD(node_exit)
   int r = 0;
   if (args.Length() > 0) 
     r = args[0]->IntegerValue();
-  ::exit(r);
+  exit(r);
   return Undefined(); 
 }
 
@@ -206,7 +208,7 @@ OnFatalError (const char* location, const char* message)
   else 
     fprintf(stderr, FATAL_ERROR " %s\n", message);
 
-  ::exit(1);
+  exit(1);
 }
 
 
@@ -214,7 +216,7 @@ void
 node::FatalException (TryCatch &try_catch)
 {
   ReportException(&try_catch);
-  ::exit(1);
+  exit(1);
 }
 
 static ev_async eio_watcher;
