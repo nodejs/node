@@ -102,44 +102,11 @@ function toRaw(string) {
   return a;
 }
 
-// The send method appends data onto the output array. The deal is,
-// the data is either an array of integer, representing binary or it
-// is a string in which case it's UTF8 encoded. 
-// Two things to be considered:
-// - we should be able to send mixed encodings.
-// - we don't want to call connection.send("smallstring") because that
-//   is wasteful. *I think* its rather faster to concat inside of JS
-// Thus I attempt to concat as much as possible.  
-//
-// XXX this function is extremely ugly
 function send (output, data, encoding) {
   if (data.constructor === String)
     encoding = encoding || "ascii";
   else
     encoding = "raw";
-
-  if (output.length == 0) {
-    output.push([data, encoding]);
-    return;
-  }
-
-  var li = output.length-1;
-  var last_encoding = output[li][1];
-
-  if (data.constructor === String)  {
-    if ( last_encoding === encoding
-      || (last_encoding === "utf8" && encoding === "ascii")
-       ) 
-    {
-      output[li][0] += data;
-      return;
-    }
-  }
-
-  if (data.constructor === Array && last_encoding === encoding) {
-    output[li][0] = output[li][0].concat(data);
-    return;
-  }
 
   output.push([data, encoding]);
 };
