@@ -298,7 +298,6 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, enum http_parser_type typ
 
 HTTPConnection::~HTTPConnection ( )
 {
-  V8::AdjustAmountOfExternalAllocatedMemory(-sizeof(HTTPConnection));
 }
 
 
