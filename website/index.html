@@ -1,5 +1,9 @@
 <html>
 <style>
+  ul {
+    padding: 0;
+    margin: 0;
+  }
 </style> 
 <script type="text/javascript" src="sh_main.js"></script>
 <script type="text/javascript" src="sh_javascript.min.js"></script>
@@ -9,6 +13,13 @@
 <title>node.js</title>
 <body onload="sh_highlightDocument();">
 <div id="toc">
+  <ol>
+    <li><a href="#audience">Audience</a>
+    <li><a href="#about">About</a>
+    <li><a href="#download">Download</a>
+    <li><a href="#build">Build</a>
+    <li><a href="api.html">Documentation</a>
+  </ol>
 </div>
 <div id="content">
 
@@ -39,6 +50,17 @@ Server running at http://127.0.0.1:8000/
 
 <p> See the <a href="api.html">API documentation</a> for more examples.
 
+<h2 id=audience>Audience</h2>
+
+<p>This project is for those interested in 
+<ul>
+<li>server-side javascript
+<li>developing evented servers
+<li>developing new web frameworks
+</ul>
+
+<h2 id=about>About</h2>
+
 <p> Node's goal is to provide an easy way to build scalable network
 programs.
 In the above example, the 2 second delay does not prevent the server from
@@ -65,13 +87,12 @@ difficult
 to 
 use. 
 
-<p>
-Node will show much better memory efficency under high-loads 
+Node will show much better memory efficiency under high-loads 
 <!-- TODO benchmark -->
 than systems which allocate 2mb thread stacks for each connection.
 
-<p>Users of Node are free from worries of dead-locking the
-process&mdash;there are no locks.  In fact, there arn't even blocking
+Users of Node are free from worries of dead-locking the
+process&mdash;there are no locks.  In fact, there aren't even blocking
 functions. Because nothing blocks, Node can be given to less-than-export
 programmers to build servers.
 
@@ -79,7 +100,7 @@ programmers to build servers.
 Ruby's <a href="http://rubyeventmachine.com/">Event Machine</a>
 or
 Python's <a href="http://twistedmatrix.com/">Twisted</a>.
-But Node takes the paradigm. 
+But Node takes the mode event-based API further. 
 In other systems, there is always a blocking call to start the event-loop.
 Typically one sets up behavior through callbacks and at the end starts the
 server through a  call like <code>EventMachine::run()</code>. In Node, 
@@ -87,13 +108,13 @@ there is no such thing. By default Node enters the event loop after
 executing the input script. Node exits the event loop when there are no more
 callbacks to perform. 
 
-<p>Node's HTTP server has grown out of my difficulties developing
-and working with web servers.  For example, streaming data through most web
-frameworks is difficult or impossible.  Or like the oft-made false
+<p>Node's HTTP API has grown out of my difficulties developing
+and working with web servers. For example, streaming data through most web
+frameworks is difficult or impossible. Or like the oft-made false
 assumption that all message headers have unique fields.  Node attempts to
-correct these problems by providing a low-level but complete HTTP API.
-Coupled with Node's purely evented infrastructure, it will make a solid foundation for
-future frameworks.
+correct these and other problems in its API.
+Coupled with Node's purely evented infrastructure, it will make a solid
+foundation for future frameworks.
 
 <p> <i>But what about multiple-processor concurrency? Threads are necessary
 to scale programs to multi-core computers.</i> The name <i>Node</i> should
@@ -104,9 +125,6 @@ design&mdash;the rest is message passing.  In the future, I'd like Node to
 to be able to spawn new processes (probably using the <a
 href="http://www.whatwg.org/specs/web-workers/current-work/">Web Workers
 API</a>), but this is something that fits well into the current design.
-
-<p> Node is released under an MIT license.</p>
-
 
 <h2 id="download">Download</h2>
 
@@ -122,8 +140,10 @@ href="http://s3.amazonaws.com/four.livejournal/20090527/node-0.0.1.tar.gz">node-
 <h2 id="build">Build</h2>
 
 <p>Node eventually wants to support all POSIX operating systems (including
-Windows with mingw) but at the moment it is only being tested on Linux,
-Macintosh, and FreeBSD.  The build system requires Python.  V8, on which
+Windows with MinGW) but at the moment it is only being tested on
+<b>Linux</b>,
+<b>Macintosh</b>, and 
+<b>FreeBSD</b>.  The build system requires Python.  V8, on which
 Node is built, supports only IA-32 and ARM processors. V8 is included in the
 Node distribution. There are no dependencies.
 
