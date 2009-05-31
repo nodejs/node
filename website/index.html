@@ -76,7 +76,7 @@ executes the callback, if the timeout expires, it executes the inner
 callback. Each connection is only a small heap allocation.
 
 <p>This is in contrast to today's more common model
-where OS threads are employed for concurrency. But thread-based networking 
+where OS threads are employed for concurrency. Thread-based networking 
 <a href="http://www.sics.se/~joe/apachevsyaws.html">is</a>
 <a href="http://www.kegel.com/c10k.html">relatively</a>
 <a href="http://bulk.fefe.de/scalable-networking.pdf">inefficient</a>
@@ -91,30 +91,30 @@ Node will show much better memory efficiency under high-loads
 <!-- TODO benchmark -->
 than systems which allocate 2mb thread stacks for each connection.
 
-Users of Node are free from worries of dead-locking the
-process&mdash;there are no locks.  In fact, there aren't even blocking
-functions. Because nothing blocks, Node can be given to less-than-export
-programmers to build servers.
+Furthermore, users of Node are free from worries of dead-locking the
+process&mdash;there are no locks.  No function in Node directly performs
+I/O, so the processes never blocks. Because nothing blocks, less-than-expert
+programmers are able to develop fast systems.
 
-<p>Node is similar to systems like
+<p>Node is similar in design to systems like
 Ruby's <a href="http://rubyeventmachine.com/">Event Machine</a>
 or
 Python's <a href="http://twistedmatrix.com/">Twisted</a>.
-But Node takes the mode event-based API further. 
-In other systems, there is always a blocking call to start the event-loop.
-Typically one sets up behavior through callbacks and at the end starts the
-server through a  call like <code>EventMachine::run()</code>. In Node, 
-there is no such thing. By default Node enters the event loop after
+Node takes the event model a bit further.  For example, in other systems
+there is always a blocking call to start the event-loop.  Typically one
+defines behavior through callbacks at the beginning of a script and at the
+end starts a server through a  call like <code>EventMachine::run()</code>.
+In Node, it works differently.  By default Node enters the event loop after
 executing the input script. Node exits the event loop when there are no more
-callbacks to perform. 
+callbacks to perform. The event loop is completely hidden from the user.
 
-<p>Node's HTTP API has grown out of my difficulties developing
-and working with web servers. For example, streaming data through most web
-frameworks is difficult or impossible. Or like the oft-made false
-assumption that all message headers have unique fields.  Node attempts to
-correct these and other problems in its API.
-Coupled with Node's purely evented infrastructure, it will make a solid
-foundation for future frameworks.
+
+<p>Node's HTTP API has grown out of my difficulties developing and working
+with web servers. For example, streaming data through most web frameworks is
+impossible. Or the oft-made false assumption that all message headers have
+unique fields.  Node attempts to correct these and other problems in its
+API.  Coupled with Node's purely evented infrastructure, it will make a
+solid foundation for future web libraries/frameworks.
 
 <p> <i>But what about multiple-processor concurrency? Threads are necessary
 to scale programs to multi-core computers.</i> The name <i>Node</i> should
