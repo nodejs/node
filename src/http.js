@@ -45,6 +45,10 @@ node.http.STATUS_CODES = { 100 : 'Continue'
   MIT License
 */
 
+function decode (s) {
+  return decodeURIComponent(s.replace(/\+/g, ' '));
+}
+
 node.http.parseUri = function (str) {
   var o   = node.http.parseUri.options,
     m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
@@ -55,7 +59,11 @@ node.http.parseUri = function (str) {
 
   uri[o.q.name] = {};
   uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
-    if ($1) uri[o.q.name][$1] = $2;
+    if ($1) {
+      var key = decode($1);
+      var val = decode($2);
+      uri[o.q.name][key] = val;
+    }
   });
   uri.toString = function () { return str; };
 
@@ -80,7 +88,7 @@ node.http.parseUri.options = {
        , "anchor"
        ],
   q: {
-    name:   "queryKey",
+    name:   "params",
     parser: /(?:^|&)([^&=]*)=?([^&]*)/g
   },
   parser: {
