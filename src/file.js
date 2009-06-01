@@ -8,12 +8,13 @@ node.fs.cat = function (path, encoding, callback) {
   var file = new node.fs.File({encoding: encoding});
 
   file.onError = function (method, errno, msg) {
+    //node.debug("cat error");
     callback(-1);
   };
 
   var content = (encoding == node.constants.UTF8 ? "" : []);
   var pos = 0;
-  var chunkSize = 10*1024;
+  var chunkSize = 16*1024;
 
   function readChunk () {
     file.read(chunkSize, pos, function (chunk) {
@@ -32,10 +33,8 @@ node.fs.cat = function (path, encoding, callback) {
     });
   }
 
-  file.open(path, "r", function () {
-    readChunk();
-  });
-}
+  file.open(path, "r", function () { readChunk(); });
+};
 
 node.fs.File = function (options) {
   var self = this;
@@ -71,7 +70,11 @@ node.fs.File = function (options) {
 
     var errno = arguments[0]; 
 
-    if (errno < 0) {
+    //node.debug("poll errno: " + JSON.stringify(errno));
+    //node.debug("poll action: " + JSON.stringify(action));
+    //node.debug("poll rest: " + JSON.stringify(rest));
+
+    if (errno !== 0) {
       if (self.onError)
         self.onError(action.method, errno, node.fs.strerror(errno));
       actionQueue = []; // empty the queue.
@@ -81,9 +84,6 @@ node.fs.File = function (options) {
     var rest = [];
     for (var i = 1; i < arguments.length; i++)
       rest.push(arguments[i]);
-
-    //node.debug("poll action: " + JSON.stringify(action));
-    //node.debug("poll rest: " + JSON.stringify(rest));
 
     if (action.callback)
       action.callback.apply(this, rest);

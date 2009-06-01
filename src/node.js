@@ -136,7 +136,7 @@ clearInterval = clearTimeout;
   function loadScript (filename, target, callback) {
     node.fs.cat(filename, "utf8", function (status, content) {
       if (status != 0) {
-        stderr.puts("Error reading " + filename + ": " + node.fs.strerror(status));
+        stderr.puts("Error reading " + filename);
         node.exit(1);
       }
       
