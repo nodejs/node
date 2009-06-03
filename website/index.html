@@ -93,7 +93,7 @@ than systems which allocate 2mb thread stacks for each connection.
 
 Furthermore, users of Node are free from worries of dead-locking the
 process&mdash;there are no locks.  No function in Node directly performs
-I/O, so the processes never blocks. Because nothing blocks, less-than-expert
+I/O, so the process never blocks. Because nothing blocks, less-than-expert
 programmers are able to develop fast systems.
 
 <p>Node is similar in design to systems like
@@ -104,17 +104,17 @@ Node takes the event model a bit further.  For example, in other systems
 there is always a blocking call to start the event-loop.  Typically one
 defines behavior through callbacks at the beginning of a script and at the
 end starts a server through a  call like <code>EventMachine::run()</code>.
-In Node, it works differently.  By default Node enters the event loop after
+In Node it works differently.  By default Node enters the event loop after
 executing the input script. Node exits the event loop when there are no more
-callbacks to perform. The event loop is completely hidden from the user.
-
+callbacks to perform. Like in traditional browser javascript, the event loop
+is hidden from the user.
 
 <p>Node's HTTP API has grown out of my difficulties developing and working
 with web servers. For example, streaming data through most web frameworks is
 impossible. Or the oft-made false assumption that all message headers have
 unique fields.  Node attempts to correct these and other problems in its
 API.  Coupled with Node's purely evented infrastructure, it will make a
-solid foundation for future web libraries/frameworks.
+more comprehensive foundation for future web libraries/frameworks.
 
 <p> <i>But what about multiple-processor concurrency? Threads are necessary
 to scale programs to multi-core computers.</i> The name <i>Node</i> should
@@ -131,9 +131,8 @@ API</a>), but this is something that fits well into the current design.
 <p><a href="http://github.com/ry/node/tree/master">The git repo</a>
 
 <ul>
-<li> 2009.05.27 <a
-href="http://s3.amazonaws.com/four.livejournal/20090527/node-0.0.1.tar.gz">node-0.0.1.tar.gz</a>
-(2.8mb)
+<li> 2009.05.31 <a href="http://s3.amazonaws.com/four.livejournal/20090531/node-0.0.2.tar.gz">node-0.0.2.tar.gz</a>
+<li> 2009.05.27 <a href="http://s3.amazonaws.com/four.livejournal/20090527/node-0.0.1.tar.gz">node-0.0.1.tar.gz</a>
 </ul>
 
 
