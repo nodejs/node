@@ -26,7 +26,8 @@ function Ponger (socket) {
     socket.close();
   };
 
-  socket.onDisconnect = function () {
+  socket.onDisconnect = function (had_error) {
+    assertFalse(had_error);
     assertEquals("closed", socket.readyState);
     puts("ponger: onDisconnect");
     socket.server.close();

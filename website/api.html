@@ -398,8 +398,13 @@ server.listen(7000, "localhost");
      You should probably just call <code>connection.close()</code> in this
      callback. 
 
-  <dt><code>conneciton.onDisconnect = function () { };</code></dt>
-  <dd>Called once the connection is fully disconnected.</dd>
+  <dt><code>conneciton.onDisconnect = function (had_error) { };</code></dt>
+  <dd>Called once the connection is fully disconnected.
+  
+  <p>The callback is passed one boolean argument <code>had_error</code>.
+  This lets one know if the connect was closed due to an error. (TODO: look
+  up error codes.)
+  </dd>
 
   <dt><code>conneciton.onError = function () { };</code></dt>
   <dd>Called on an error.</dd>

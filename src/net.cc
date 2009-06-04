@@ -422,6 +422,23 @@ Connection::OnReceive (const void *buf, size_t len)
     FatalException(try_catch);
 }
 
+void 
+Connection::OnDisconnect ()
+{
+  HandleScope scope;
+  Local<Value> callback_v = handle_->Get(ON_DISCONNECT_SYMBOL);
+  if (!callback_v->IsFunction()) return;
+  Handle<Function> callback = Handle<Function>::Cast(callback_v);
+
+  Handle<Value> argv[1];
+  argv[0] = socket_.errorno == 0 ? False() : True();
+
+  TryCatch try_catch;
+  callback->Call(handle_, 1, argv);
+  if (try_catch.HasCaught())
+    node::FatalException(try_catch);
+}
+
 #define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
 void name ()                                                        \
 {                                                                   \
@@ -437,7 +454,6 @@ void name ()                                                        \
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, ON_DRAIN_SYMBOL)
-DEFINE_SIMPLE_CALLBACK(Connection::OnDisconnect, ON_DISCONNECT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, ON_TIMEOUT_SYMBOL)
 DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, ON_EOF_SYMBOL)
 

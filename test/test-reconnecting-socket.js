@@ -3,7 +3,7 @@ var port = 8921;
 
 function onLoad () {
 
-  new node.tcp.Server(function (socket) {
+  var server = new node.tcp.Server(function (socket) {
     puts("new connection");
     socket.onConnect = function () {
       socket.send("hello\r\n");
@@ -13,10 +13,12 @@ function onLoad () {
       socket.close();
     };
 
-    socket.onDisconnect = function () {
-      socket.server.close();
+    socket.onDisconnect = function (had_error) {
+      //puts("server had_error: " + JSON.stringify(had_error));
+      assertFalse(had_error);
     };
-  }).listen(port);
+  });
+  server.listen(port);
 
   var count = 0;
   var client = new node.tcp.Connection();
@@ -32,10 +34,13 @@ function onLoad () {
     client.fullClose();
   };
 
-  client.onDisconnect = function () {
+  client.onDisconnect = function (had_error) {
+    assertFalse(had_error);
     puts("client disconnected");
-    if (count++ < 5)
-      client.connect(port);
+    if (count++ < 5) 
+      client.connect(port); // reconnect
+    else
+      server.close();
   };
 
   client.connect(port);
