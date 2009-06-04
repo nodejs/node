@@ -21,8 +21,8 @@ req.finish(function (res) {
 });
 
 setTimeout(function () {
-  var req2 = c.get("/something/else", []);
-  puts("start req2");
+  var req2 = c.get("/something/else");
+  //node.debug("start req2");
   req2.finish(function (res) {
     puts("response 2: " + res.statusCode.toString());
 

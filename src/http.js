@@ -324,6 +324,7 @@ node.http.Client = function (port, host) {
   var self = this;
 
   function ClientRequest (method, uri, header_lines) {
+    this.uri = uri;
 
     var chunked_encoding = false;
     this.closeOnFinish = false;
@@ -364,7 +365,8 @@ node.http.Client = function (port, host) {
     }
     header += CRLF;
      
-    var output = [header];
+    var output = [];
+    send(output, header);
 
     this.sendBody = function (chunk, encoding) {
       if (chunked_encoding) {
@@ -380,12 +382,13 @@ node.http.Client = function (port, host) {
     };
 
     this.flush = function ( ) {
-      if (connection.readyState !== "open") {
+      if (connection.readyState == "closed") {
         connection.connect(port, host);
         return;
       }
       while (this === requests[0] && output.length > 0) {
-        connection.send(output.shift());
+        var out = output.shift();
+        connection.send(out[0], out[1]);
       }
     };
 
@@ -400,8 +403,14 @@ node.http.Client = function (port, host) {
   }
   
   connection.onConnect = function () {
-    //node.debug("HTTP CLIENT: connected");
+    //node.debug("HTTP CLIENT onConnect. readyState = " + connection.readyState);
+    //node.debug("requests[0].uri =  " + requests[0].uri);
     requests[0].flush();
+  };
+
+  connection.onEOF = function () {
+    //node.debug("onEOF. readyState = " + connection.readyState);
+    connection.close();
   };
 
   connection.onDisconnect = function (had_error) {
@@ -410,7 +419,7 @@ node.http.Client = function (port, host) {
       return;
     }
      
-    //node.debug("HTTP CLIENT: disconnect");
+    //node.debug("HTTP CLIENT onDisconnect. readyState = " + connection.readyState);
     // If there are more requests to handle, reconnect.
     if (requests.length > 0) {
       //node.debug("HTTP CLIENT: reconnecting");

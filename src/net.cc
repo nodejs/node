@@ -185,13 +185,12 @@ Connection::Connect (const Arguments& args)
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
   eio_warmup();
+  connection->Attach();
   eio_custom( Connection::Resolve
             , EIO_PRI_DEFAULT
             , Connection::AfterResolve
             , connection
             );
-
-  connection->Attach();
   return Undefined();
 }
 
