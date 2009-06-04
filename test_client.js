@@ -1,5 +1,9 @@
 var c = new node.http.Client(8000, "127.0.0.1");
 
+c.onError = function () {
+  puts("http client connection error.");
+};
+
 var req = c.get("/bytes/123", [["Accept", "*/*"]]);
 req.finish(function (res) {
   puts("response 1: " + res.statusCode.toString());

@@ -321,6 +321,7 @@ node.http.Server = function (RequestHandler, options) {
 node.http.Client = function (port, host) {
   var connection = new node.http.LowLevelClient();
   var requests  = [];
+  var self = this;
 
   function ClientRequest (method, uri, header_lines) {
 
@@ -403,7 +404,12 @@ node.http.Client = function (port, host) {
     requests[0].flush();
   };
 
-  connection.onDisconnect = function () {
+  connection.onDisconnect = function (had_error) {
+    if (had_error) {
+      if (self.onError) self.onError();
+      return;
+    }
+     
     //node.debug("HTTP CLIENT: disconnect");
     // If there are more requests to handle, reconnect.
     if (requests.length > 0) {
