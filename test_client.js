@@ -1,8 +1,8 @@
-var c = new node.http.Client(8000, "localhost")
+var c = new node.http.Client(8000, "127.0.0.1");
 
 var req = c.get("/bytes/123", [["Accept", "*/*"]]);
 req.finish(function (res) {
-  puts("response 1: " + res.status_code.toString());
+  puts("response 1: " + res.statusCode.toString());
 
   res.onBody = function (chunk) {
     chunk = chunk.encodeUtf8();
@@ -18,8 +18,9 @@ req.finish(function (res) {
 
 setTimeout(function () {
   var req2 = c.get("/something/else", []);
+  puts("start req2");
   req2.finish(function (res) {
-    puts("response 2: " + res.status_code.toString());
+    puts("response 2: " + res.statusCode.toString());
 
     res.onBody = function (chunk) {
       chunk = chunk.encodeUtf8();
