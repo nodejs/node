@@ -421,6 +421,13 @@ server.listen(7000, "localhost");</pre>
     <dt><code>new node.tcp.Connection()</code></dt>
     <dd>Creates a new connection object.</dd>
 
+    <dt><code>connection.connect(port, host="127.0.0.1")</code></dt>
+    <dd>
+      Opens a connection to the specified <code>port</code> and
+      <code>host</code>. If the second parameter is omitted, localhost is
+      assumed. 
+    </dd>
+
     <dt><code>connection.readyState</code></dt>
     <dd>
       Either <code>"closed"</code>, <code>"open"</code>, 
