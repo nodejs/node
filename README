@@ -2,6 +2,9 @@ Purely evented I/O for V8 javascript.
 
 See http://tinyclouds.org/node for more information.
 
+For help and discussion subscribe to the mailing list at 
+http://groups.google.com/group/nodejs or send an email to 
+nodejs+subscribe@googlegroups.com.
 
 To build
 ./configure
