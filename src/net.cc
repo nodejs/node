@@ -38,15 +38,18 @@ using namespace node;
 #define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
-static const struct addrinfo tcp_hints = 
-/* ai_flags      */ { AI_PASSIVE
-/* ai_family     */ , AF_UNSPEC
+static const struct addrinfo server_tcp_hints = 
+/* ai_flags      */ { AI_PASSIVE | AI_NUMERICSERV
+/* ai_family     */ , AF_INET //AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
-/* ai_protocol   */ , 0
-/* ai_addrlen    */ , 0
-/* ai_addr       */ , NULL
-/* ai_canonname  */ , NULL
-/* ai_next       */ , NULL
+                    , 0
+                    };
+
+static const struct addrinfo client_tcp_hints = 
+/* ai_flags      */ { AI_NUMERICSERV
+/* ai_family     */ , AF_INET //AF_UNSPEC
+/* ai_socktype   */ , SOCK_STREAM
+                    , 0
                     };
 
 Persistent<FunctionTemplate> Connection::constructor_template;
@@ -228,7 +231,7 @@ Connection::Resolve (eio_req *req)
 {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
-  req->result = getaddrinfo(connection->host_, connection->port_, &tcp_hints, &address);
+  req->result = getaddrinfo(connection->host_, connection->port_, &client_tcp_hints, &address);
   req->ptr2 = address;
 
   free(connection->host_);
@@ -566,7 +569,6 @@ Acceptor::Listen (const Arguments& args)
   if (args.Length() < 1)
     return ThrowException(String::New("Must give at least a port as argument."));
 
-
   HandleScope scope;
   String::AsciiValue port(args[0]->ToString());
 
@@ -580,11 +582,10 @@ Acceptor::Listen (const Arguments& args)
   // matter--ever. If someone actually complains then simply swap it out
   // with a libeio call.
   struct addrinfo *address = NULL;
-  int r = getaddrinfo(host, *port, &tcp_hints, &address);
-  if (r != 0) 
-    return ThrowException(String::New(strerror(errno)));
-
+  int r = getaddrinfo(host, *port, &server_tcp_hints, &address);
   free(host);
+  if (r != 0)
+    return ThrowException(String::New(strerror(errno)));
 
   acceptor->Listen(address);
   return Undefined();
