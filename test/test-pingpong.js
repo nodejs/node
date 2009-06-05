@@ -27,6 +27,7 @@ function Ponger (socket) {
   };
 
   socket.onDisconnect = function (had_error) {
+    assertEquals("127.0.0.1", socket.remoteAddress);
     assertFalse(had_error);
     assertEquals("closed", socket.readyState);
     puts("ponger: onDisconnect");

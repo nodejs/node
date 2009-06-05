@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <arpa/inet.h> /* inet_ntop */
 
 using namespace v8;
 using namespace node;
@@ -28,9 +29,10 @@ using namespace node;
 #define ENCODING_SYMBOL       String::NewSymbol("encoding")
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
 #define SERVER_SYMBOL         String::NewSymbol("server")
+#define REMOTE_ADDRESS_SYMBOL String::NewSymbol("remoteAddress")
 
 #define PROTOCOL_SYMBOL           String::NewSymbol("protocol")
-#define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connection_handler")
+#define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connectionHandler")
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
@@ -521,6 +523,24 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     FatalException(try_catch);
     return NULL;
   }
+
+  char ip4[INET_ADDRSTRLEN];
+  char ip6[INET6_ADDRSTRLEN];
+  Local<String> remote_address;
+  if (addr->sa_family == AF_INET) {
+    struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(addr);
+    inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
+    remote_address = String::New(ip4);
+
+  } else if (addr->sa_family == AF_INET6) {
+    struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(addr);
+    inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
+    remote_address = String::New(ip6);
+
+  } else {
+    assert(0 && "received a bad sa_family");
+  }
+  connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
   if (!connection) return NULL;

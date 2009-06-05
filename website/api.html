@@ -428,6 +428,14 @@ server.listen(7000, "localhost");</pre>
       assumed. 
     </dd>
 
+    <dt><code>connection.remoteAddress</code></dt>
+    <dd>
+      The string representation of the remote IP address.  For example, 
+      <code>"74.125.127.100"</code> or <code>"2001:4860:a005::68"</code>.
+      
+      <p>This member is only present in server-side connections.</p>
+    </dd>
+
     <dt><code>connection.readyState</code></dt>
     <dd>
       Either <code>"closed"</code>, <code>"open"</code>, 

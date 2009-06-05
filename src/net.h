@@ -160,10 +160,7 @@ private:
   static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
     Acceptor *acceptor = static_cast<Acceptor*> (s->data);
     Connection *connection = acceptor->OnConnection (addr, len);
-    if (connection)
-      return &connection->socket_;
-    else
-      return NULL;
+    return &connection->socket_;
   }
 
   oi_server server_;
