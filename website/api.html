@@ -751,6 +751,12 @@ req.finish(function (res) {
       </p>
 
       <p>
+        Do remember to include the <code>Content-Length</code> header if you
+        plan on sending a body. If you plan on streaming the body, perhaps
+        set <code>Transfer-Encoding: chunked</code>.
+      </p>
+
+      <p>
         Important: the request is not complete. This method only sends
         the header of the request. One needs to call
         <code>req.finish()</code> to finalize the request and retrieve

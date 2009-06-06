@@ -359,16 +359,17 @@ node.http.Client = function (port, host) {
       header += "Connection: keep-alive\r\n";
     }
 
-    if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
-      header += "Transfer-Encoding: chunked\r\n";
-      chunked_encoding = true;
-    }
     header += CRLF;
      
     var output = [];
     send(output, header);
 
     this.sendBody = function (chunk, encoding) {
+      if (sent_content_length_header == false && chunked_encoding == false) {
+        throw "Content-Length header (or Transfer-Encoding:chunked) not set";
+        return;
+      }
+
       if (chunked_encoding) {
         send(output, chunk.length.toString(16));
         send(output, CRLF);
