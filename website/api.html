@@ -880,7 +880,7 @@ req.finish(function (res) {
   <p>The contents of <code>foo.js</code>:</p>
 
   <pre>
-include("mjsunit");
+include("mjsunit.js");
 function onLoad () {
   assertEquals(1, 2);
 }</pre>
@@ -900,12 +900,11 @@ exports.assertEquals = function (expected, found, name_opt) {
 };</pre>
 
   <p>
-    The module <code>mjsunit</code> has exported a function
+    The module <code>mjsunit.js</code> has exported a function
     <code>assertEquals()</code>.  <code>mjsunit.js</code> must be
     in the same directory as <code>foo.js</code> for
     <code>include()</code> to find it. The module path is relative
-    to the file calling <code>include()</code>. The module path does
-    not include filename extensions like <code>.js</code>.
+    to the file calling <code>include()</code>. 
   </p>
 
   <p>
@@ -935,7 +934,7 @@ exports.assertEquals = function (expected, found, name_opt) {
     after the <code>onLoad()</code> callback is made. For example:
   </p>
   <pre>
-var mjsunit = require("mjsunit");
+var mjsunit = require("mjsunit.js");
 function onLoad () {
   mjsunit.assertEquals(1, 2);
 }</pre>

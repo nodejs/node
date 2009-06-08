@@ -1,16 +1,38 @@
-// module search paths
-node.includes = ["."];
+// Timers
+
+function setTimeout (callback, delay) {
+  var timer = new node.Timer(callback, delay, 0); 
+  timer.start();
+  return timer;
+}
+
+function setInterval (callback, delay) {
+  var timer = new node.Timer(callback, delay, delay); 
+  timer.start();
+  return timer;
+}
+
+function clearTimeout (timer) {
+  timer.stop();
+  delete timer;
+}
+
+clearInterval = clearTimeout;
 
 // This is useful for dealing with raw encodings.
 Array.prototype.encodeUtf8 = function () {
   return String.fromCharCode.apply(String, this);
-}
+};
 
 node.path = new function () {
   this.join = function () {
     var joined = "";
     for (var i = 0; i < arguments.length; i++) {
       var part = arguments[i].toString();
+
+      if (part === ".") continue;
+      while (/^\.\//.exec(part)) part = part.replace(/^\.\//, "");
+
       if (i === 0) {
         part = part.replace(/\/*$/, "/");
       } else if (i === arguments.length - 1) {
@@ -32,149 +54,93 @@ node.path = new function () {
   };
 };
 
-// Timers
+// Module
 
-function setTimeout (callback, delay) {
-  var timer = new node.Timer(callback, delay, 0); 
-  timer.start();
-  return timer;
+node.Module = function (o) {
+  this.parent = o.parent;
+  this.target = o.target || {};
+
+  if (!o.path)   throw "path argument required";
+  if (o.path.charAt(0) == "/")
+    throw "Absolute module paths are not yet supported in Node";
+
+  var dir = o.base_directory || ".";
+  this.filename = node.path.join(dir, o.path);
+
+  this.loaded = false;
+  this.exited = false;
+  this.children = [];
 };
 
-function setInterval (callback, delay) {
-  var timer = new node.Timer(callback, delay, delay); 
-  timer.start();
-  return timer;
-};
+node.Module.prototype.load = function (callback) {
+  var self = this;
+  if (self.loaded) 
+    throw "Module '" + self.filename + "' is already loaded.";
 
-function clearTimeout (timer) {
-  timer.stop();
-  delete timer;
-};
-clearInterval = clearTimeout;
-
-// Modules
-
-(function () {
-  function findScript(base_directory, name, callback) {
-    // in the future this function will be more complicated
-    if (name.charAt(0) == "/")
-      throw "absolute module paths are not yet supported.";
-
-    var filename = node.path.join(base_directory, name) + ".js";
-
-    node.fs.exists(filename, function (status) {
-      callback(status ? filename : null);
-    });
-  }
-
-  // Constructor for submodule.
-  // "name" is like a path but without .js. e.g. "database/mysql"
-  // "target" is an object into which the submodule will be loaded.
-  function Sub (name, target) {
-    this.name = name;
-    this.target = target;
-
-    this.load = function (base_directory, callback) {
-      //node.debug("sub.load from <" + base_directory + ">  " + this.toString());
-      findScript(base_directory, name, function (filename) {
-        if (filename === null) {
-          stderr.puts("Cannot find a script matching: " + name);
-          node.exit(1);
-        }
-        loadScript(filename, target, callback);
-      });
-    };
-
-    this.toString = function () {
-      return "[sub name=" + name + " target=" + target.toString() + "]";
-    }
-  }
-
-  function Scaffold (source, filename, module) {
-    // wrap the source in a strange function 
-    var source = "function (__filename) {" 
-               + "  var onLoad;"
-               + "  var exports = this;"
-               + "  var require = this.__require;"
-               + "  var include = this.__include;"
-               +    source 
-               + "  this.__onLoad = onLoad;"
-               + "};"
-               ;
-    // returns the function       
-    var compiled = node.compile(source, filename);
-
-    if (module.__onLoad) {
-      //node.debug("<"+ filename+"> has onload! this is bad");
+  node.fs.cat(self.filename, "utf8", function (status, content) {
+    if (status != 0) {
+      stderr.puts("Error reading " + self.filename);
+      node.exit(1);
     }
 
-    module.__subs = [];
-    module.__require = function (name) {
-      var target = {};
-      module.__subs.push(new Sub(name, target));
-      return target;
-    }
-    module.__include = function (name) {
-      module.__subs.push(new Sub(name, module));
-    }
-    // execute the script of interest
-    compiled.apply(module, [filename]);
+    self.target.__require = function (path) { return self.newChild(path, {}); };
+    self.target.__include = function (path) { self.newChild(path, self.target); };
 
-    // The module still needs to have its submodules loaded.
-    this.filename = filename;
-    this.module  = module;
-    this.subs    = module.__subs;
-    this.onLoad = module.__onLoad;
-
-    // remove these references so they don't get exported.
-    delete module.__subs;
-    delete module.__onLoad;
-    delete module.__require;
-    delete module.__include;
-  }
-
-  function loadScript (filename, target, callback) {
-    node.fs.cat(filename, "utf8", function (status, content) {
-      if (status != 0) {
-        stderr.puts("Error reading " + filename);
-        node.exit(1);
-      }
+    // create wrapper function
+    var wrapper = "function (__filename) {\n" 
+                + "  var onLoad;\n"
+                + "  var onExit;\n"
+                + "  var exports = this;\n"
+                + "  var require = this.__require;\n"
+                + "  var include = this.__include;\n"
+                +    content 
+                + "\n"
+                + "  this.__onLoad = onLoad;\n"
+                + "  this.__onExit = onExit;\n"
+                + "};\n"
+                ;
+    var compiled_wrapper = node.compile(wrapper, self.filename);
       
-      var scaffold = new Scaffold(content, filename, target);
+    // execute the script of interest
+    compiled_wrapper.apply(self.target, [self.filename]);
+    self.onLoad = self.target.__onLoad;
+    self.onExit = self.target.__onExit;
 
-      //node.debug("after scaffold <" + filename + ">");
+    self.loadChildren(function () {
+      if (self.onLoad) self.onLoad();
+      self.loaded = true;
+      if (callback) callback();
+    });
+  });
+};
 
-      function finish() {
-        //node.debug("finish 1 load <" + filename + ">");
-        if (scaffold.onLoad instanceof Function) {
-          //node.debug("calling onLoad for <" + filename + ">"); 
-          scaffold.onLoad(); 
-        }
-        //node.debug("finish 2 load <" + filename + ">");
+node.Module.prototype.newChild = function (path, target) {
+  var child = new node.Module({ 
+    target: target,
+    path: path,
+    base_directory: node.path.dirname(this.filename),
+    parent: this
+  });
+  this.children.push(child);
+  return target;
+};
 
-        if (callback instanceof Function)
-          callback();
-      }
-
-      // Each time require() or include() was called inside the script 
-      // a key/value was added to scaffold.__subs.
-      // Now we loop though each one and recursively load each.
-      if (scaffold.subs.length == 0) {
-        finish(); 
-      } else {
-        var ncomplete = 0;
-        for (var i = 0; i < scaffold.subs.length; i++) {
-          var sub = scaffold.subs[i];
-          sub.load(node.path.dirname(filename), function () {
-            ncomplete += 1;
-            //node.debug("<" + filename + "> ncomplete = " + ncomplete.toString() + " scaffold.subs.length = " + scaffold.subs.length.toString());
-            if (ncomplete === scaffold.subs.length)
-              finish();
-          });
-        }
-      }
+node.Module.prototype.loadChildren = function (callback) {
+  var children = this.children;
+  if (children.length == 0 && callback) callback();
+  var nloaded = 0;
+  for (var i = 0; i < children.length; i++) {
+    var child = children[i];
+    child.load(function () {
+      nloaded += 1;
+      if (nloaded == children.length && callback) callback(); 
     });
   }
+};
 
-  loadScript(ARGV[1], this);
-})();
+node.Module.prototype.exit = function (callback) {
+  throw "not implemented";
+};
+
+// Load the root module. I.E. the command line argument.
+(new node.Module({ path: ARGV[1], target: this })).load();

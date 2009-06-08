@@ -1,4 +1,4 @@
-include("mjsunit");
+include("mjsunit.js");
 
 function onLoad () {
   var dirname = node.path.dirname(__filename);

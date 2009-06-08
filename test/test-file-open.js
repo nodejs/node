@@ -1,4 +1,4 @@
-include("mjsunit");
+include("mjsunit.js");
 var assert_count = 0;
 
 function onLoad () {

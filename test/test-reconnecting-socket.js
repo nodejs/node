@@ -1,4 +1,4 @@
-include("mjsunit");
+include("mjsunit.js");
 var port = 8921;
 
 function onLoad () {

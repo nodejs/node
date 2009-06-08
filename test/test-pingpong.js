@@ -1,4 +1,4 @@
-include("mjsunit");
+include("mjsunit.js");
 
 var port = 12123;
 var N = 1000;
