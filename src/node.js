@@ -100,8 +100,6 @@ node.Module.prototype.load = function (callback) {
                 + "};\n"
                 ;
     var compiled_wrapper = node.compile(wrapper, self.filename);
-      
-    // execute the script of interest
     compiled_wrapper.apply(self.target, [self.filename]);
     self.onLoad = self.target.__onLoad;
     self.onExit = self.target.__onExit;

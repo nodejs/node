@@ -37,6 +37,4 @@ function onExit () {
 
   assertInstanceof(d2.D, Function);
   assertEquals("D done", d2.D());
-
-  node.debug("test-module-loading.js onExit() called");
 }

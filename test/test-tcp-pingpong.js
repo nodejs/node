@@ -4,17 +4,15 @@ var port = 12123;
 var N = 1000;
 var count = 0;
 
+var sent_final_ping = false;
+
 function Ponger (socket) {
   socket.setEncoding("utf8");
   socket.timeout = 0;
 
-  puts("got socket.");
-
   socket.onReceive = function (data) {
     assertEquals("open", socket.readyState);
-    //puts("server recved data: " + JSON.stringify(data));
     assertTrue(count <= N);
-    stdout.print("-");
     if (/PING/.exec(data)) {
       socket.send("PONG");
     }
@@ -22,7 +20,6 @@ function Ponger (socket) {
 
   socket.onEOF = function () {
     assertEquals("writeOnly", socket.readyState);
-    puts("ponger: onEOF");
     socket.close();
   };
 
@@ -30,7 +27,6 @@ function Ponger (socket) {
     assertEquals("127.0.0.1", socket.remoteAddress);
     assertFalse(had_error);
     assertEquals("closed", socket.readyState);
-    puts("ponger: onDisconnect");
     socket.server.close();
   };
 }
@@ -46,15 +42,10 @@ function onLoad() {
 
   client.onConnect = function () {
     assertEquals("open", client.readyState);
-    puts("client is connected.");
     client.send("PING");
   };
 
-  var sent_final_ping = false;
-
   client.onReceive = function (data) {
-    //puts("client recved data: " + JSON.stringify(data));
-    stdout.print(".");
     assertEquals("PONG", data);
     count += 1; 
 
@@ -68,7 +59,6 @@ function onLoad() {
     if (count < N) {
       client.send("PING");
     } else {
-      puts("sending final ping");
       sent_final_ping = true;
       client.send("PING");
       client.close();
@@ -76,10 +66,13 @@ function onLoad() {
   };
   
   client.onEOF = function () {
-    puts("pinger: onEOF");
-    assertEquals(N+1, count);
   };
 
   client.connect(port);
   assertEquals("closed", client.readyState);
+}
+
+function onExit () {
+  assertEquals(N+1, count);
+  assertTrue(sent_final_ping);
 }

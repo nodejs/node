@@ -5,7 +5,6 @@ exports.D = function () {
 };
 
 function onExit () {
-  node.debug("d.js onExit called");
   string = "D done";
 }
 

@@ -1,5 +1,8 @@
 include("mjsunit.js");
-var assert_count = 0;
+
+var got_error = false;
+var opened = false;
+var closed = false;
 
 function onLoad () {
   var dirname = node.path.dirname(__filename);
@@ -7,12 +10,18 @@ function onLoad () {
   var x = node.path.join(fixtures, "x.txt");
 
   file = new node.fs.File;
-  file.onError = function (method, errno, msg) {
-    assertTrue(false); 
-  };
+  file.onError = function () { got_error = true };
 
   file.open(x, "r", function () {
-    assert_count += 1;
-    file.close();
+    opened = true
+    file.close(function () {
+      closed = true;
+    });
   });
-};
+}
+
+function onExit () {
+  assertFalse(got_error);
+  assertTrue(opened);
+  assertTrue(closed);
+}

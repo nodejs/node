@@ -351,7 +351,10 @@ main (int argc, char *argv[])
   Local<Value> exit_v = node->Get(String::New("exit"));
   assert(exit_v->IsFunction());
   Handle<Function> exit_f = Handle<Function>::Cast(exit_v);
+  TryCatch try_catch;
   exit_f->Call(g, 0, NULL);
+  if (try_catch.HasCaught())
+    node::FatalException(try_catch);
 
   context.Dispose();
   // The following line when uncommented causes an error.

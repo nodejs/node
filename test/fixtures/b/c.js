@@ -11,6 +11,5 @@ exports.D = function () {
 };
 
 function onExit () {
-  puts("c.js onExit called");
   string = "C done";
 }
