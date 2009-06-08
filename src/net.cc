@@ -41,14 +41,14 @@ using namespace node;
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
 static const struct addrinfo server_tcp_hints = 
-/* ai_flags      */ { AI_PASSIVE | AI_NUMERICSERV
+/* ai_flags      */ { AI_PASSIVE 
 /* ai_family     */ , AF_INET //AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
                     };
 
 static const struct addrinfo client_tcp_hints = 
-/* ai_flags      */ { AI_NUMERICSERV
+/* ai_flags      */ { 0
 /* ai_family     */ , AF_INET //AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
