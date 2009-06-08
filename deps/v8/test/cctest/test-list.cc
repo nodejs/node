@@ -65,3 +65,37 @@ TEST(ListAdd) {
   list.Add(list[0]);
   CHECK_EQ(1, list[4]);
 }
+
+// Test that we can add all elements from a list to another list.
+TEST(ListAddAll) {
+  List<int, ZeroingAllocationPolicy> list(4);
+  list.Add(0);
+  list.Add(1);
+  list.Add(2);
+
+  CHECK_EQ(3, list.length());
+  for (int i = 0; i < 3; i++) {
+    CHECK_EQ(i, list[i]);
+  }
+
+  List<int, ZeroingAllocationPolicy> other_list(4);
+
+  // Add no elements to list since other_list is empty.
+  list.AddAll(other_list);
+  CHECK_EQ(3, list.length());
+  for (int i = 0; i < 3; i++) {
+    CHECK_EQ(i, list[i]);
+  }
+
+  // Add three elements to other_list.
+  other_list.Add(0);
+  other_list.Add(1);
+  other_list.Add(2);
+
+  // Copy the three elements from other_list to list.
+  list.AddAll(other_list);
+  CHECK_EQ(6, list.length());
+  for (int i = 0; i < 6; i++) {
+    CHECK_EQ(i % 3, list[i]);
+  }
+}

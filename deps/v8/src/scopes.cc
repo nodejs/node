@@ -31,7 +31,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Zone allocator for use with LocalsMap.
@@ -112,7 +113,7 @@ Scope::Scope()
     locals_(false),
     temps_(0),
     params_(0),
-    nonlocals_(0),
+    dynamics_(NULL),
     unresolved_(0),
     decls_(0) {
 }
@@ -123,10 +124,9 @@ Scope::Scope(Scope* outer_scope, Type type)
     inner_scopes_(4),
     type_(type),
     scope_name_(Factory::empty_symbol()),
-    locals_(),
     temps_(4),
     params_(4),
-    nonlocals_(4),
+    dynamics_(NULL),
     unresolved_(16),
     decls_(4),
     receiver_(NULL),
@@ -302,6 +302,8 @@ template void Scope::CollectUsedVariables(
     List<Variable*, FreeStoreAllocationPolicy>* locals);
 template void Scope::CollectUsedVariables(
     List<Variable*, PreallocatedStorage>* locals);
+template void Scope::CollectUsedVariables(
+    List<Variable*, ZoneListAllocationPolicy>* locals);
 
 
 void Scope::AllocateVariables(Handle<Context> context) {
@@ -405,6 +407,14 @@ static void PrintVar(PrettyPrinter* printer, int indent, Variable* var) {
 }
 
 
+static void PrintMap(PrettyPrinter* printer, int indent, LocalsMap* map) {
+  for (LocalsMap::Entry* p = map->Start(); p != NULL; p = map->Next(p)) {
+    Variable* var = reinterpret_cast<Variable*>(p->value);
+    PrintVar(printer, indent, var);
+  }
+}
+
+
 void Scope::Print(int n) {
   int n0 = (n > 0 ? n : 0);
   int n1 = n0 + 2;  // indentation
@@ -465,14 +475,14 @@ void Scope::Print(int n) {
   }
 
   Indent(n1, "// local vars\n");
-  for (LocalsMap::Entry* p = locals_.Start(); p != NULL; p = locals_.Next(p)) {
-    Variable* var = reinterpret_cast<Variable*>(p->value);
-    PrintVar(&printer, n1, var);
-  }
+  PrintMap(&printer, n1, &locals_);
 
-  Indent(n1, "// nonlocal vars\n");
-  for (int i = 0; i < nonlocals_.length(); i++)
-    PrintVar(&printer, n1, nonlocals_[i]);
+  Indent(n1, "// dynamic vars\n");
+  if (dynamics_ != NULL) {
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC));
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_LOCAL));
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_GLOBAL));
+  }
 
   // Print inner scopes (disable by providing negative n).
   if (n >= 0) {
@@ -488,22 +498,15 @@ void Scope::Print(int n) {
 
 
 Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
-  // Space optimization: reuse existing non-local with the same name
-  // and mode.
-  for (int i = 0; i < nonlocals_.length(); i++) {
-    Variable* var = nonlocals_[i];
-    if (var->name().is_identical_to(name) && var->mode() == mode) {
-      return var;
-    }
+  if (dynamics_ == NULL) dynamics_ = new DynamicScopePart();
+  LocalsMap* map = dynamics_->GetMap(mode);
+  Variable* var = map->Lookup(name);
+  if (var == NULL) {
+    // Declare a new non-local.
+    var = map->Declare(NULL, name, mode, true, false);
+    // Allocate it by giving it a dynamic lookup.
+    var->rewrite_ = new Slot(var, Slot::LOOKUP, -1);
   }
-
-  // Otherwise create a new non-local and add it to the list.
-  Variable* var = new Variable(NULL, name, mode, true, false);
-  nonlocals_.Add(var);
-
-  // Allocate it by giving it a dynamic lookup.
-  var->rewrite_ = new Slot(var, Slot::LOOKUP, -1);
-
   return var;
 }
 
@@ -617,14 +620,6 @@ void Scope::ResolveVariable(Scope* global_scope,
         ASSERT(global_scope != NULL);
         var = new Variable(global_scope, proxy->name(),
                            Variable::DYNAMIC, true, false);
-        // Ideally we simply rewrite these variables into property
-        // accesses. Unfortunately, we cannot do this here at the
-        // moment because then we can't differentiate between
-        // global variable ('x') and global property ('this.x') access.
-        // If 'x' doesn't exist, the former leads to an error, while the
-        // latter returns undefined. Sigh...
-        // var->rewrite_ = new Property(new Literal(env_->global()),
-        //                              new Literal(proxy->name()));
 
       } else if (scope_inside_with_) {
         // If we are inside a with statement we give up and look up

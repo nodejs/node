@@ -30,7 +30,8 @@
 
 #include <stdlib.h>
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
@@ -40,8 +41,6 @@ template <typename T>
 static inline bool IsPowerOf2(T x) {
   return (x & (x - 1)) == 0;
 }
-
-
 
 
 // The C++ standard leaves the semantics of '>>' undefined for
@@ -56,7 +55,7 @@ static inline int ArithmeticShiftRight(int x, int s) {
 // This allows conversion of Addresses and integral types into
 // 0-relative int offsets.
 template <typename T>
-static inline int OffsetFrom(T x) {
+static inline intptr_t OffsetFrom(T x) {
   return x - static_cast<T>(0);
 }
 
@@ -65,7 +64,7 @@ static inline int OffsetFrom(T x) {
 // This allows conversion of 0-relative int offsets into Addresses and
 // integral types.
 template <typename T>
-static inline T AddressFrom(int x) {
+static inline T AddressFrom(intptr_t x) {
   return static_cast<T>(0) + x;
 }
 
@@ -204,6 +203,12 @@ inline byte* DecodeUnsignedIntBackward(byte* p, unsigned int* x) {
   *x = r | ((static_cast<unsigned int>(b) - 128) << s);
   return p;
 }
+
+
+// ----------------------------------------------------------------------------
+// Hash function.
+
+uint32_t ComputeIntegerHash(uint32_t key);
 
 
 // ----------------------------------------------------------------------------
@@ -374,6 +379,9 @@ class Vector {
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
 
+ protected:
+  void set_start(T* start) { start_ = start; }
+
  private:
   T* start_;
   int length_;
@@ -401,6 +409,22 @@ template <typename T, int kSize>
 class EmbeddedVector : public Vector<T> {
  public:
   EmbeddedVector() : Vector<T>(buffer_, kSize) { }
+
+  // When copying, make underlying Vector to reference our buffer.
+  EmbeddedVector(const EmbeddedVector& rhs)
+      : Vector<T>(rhs) {
+    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    set_start(buffer_);
+  }
+
+  EmbeddedVector& operator=(const EmbeddedVector& rhs) {
+    if (this == &rhs) return *this;
+    Vector<T>::operator=(rhs);
+    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    set_start(buffer_);
+    return *this;
+  }
+
  private:
   T buffer_[kSize];
 };

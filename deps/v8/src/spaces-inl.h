@@ -31,7 +31,8 @@
 #include "memory.h"
 #include "spaces.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // -----------------------------------------------------------------------------
@@ -92,8 +93,10 @@ Address Page::AllocationTop() {
 
 
 void Page::ClearRSet() {
+#ifndef V8_HOST_ARCH_64_BIT
   // This method can be called in all rset states.
   memset(RSetStart(), 0, kRSetEndOffset - kRSetStartOffset);
+#endif
 }
 
 
@@ -157,9 +160,14 @@ void Page::UnsetRSet(Address address, int offset) {
 
 
 bool Page::IsRSetSet(Address address, int offset) {
+#ifdef V8_HOST_ARCH_64_BIT
+  // TODO(X64): Reenable when RSet works.
+  return true;
+#else  // V8_HOST_ARCH_64_BIT
   uint32_t bitmask = 0;
   Address rset_address = ComputeRSetBitPosition(address, offset, &bitmask);
   return (Memory::uint32_at(rset_address) & bitmask) != 0;
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
@@ -194,7 +202,7 @@ bool MemoryAllocator::IsPageInSpace(Page* p, PagedSpace* space) {
 
 Page* MemoryAllocator::GetNextPage(Page* p) {
   ASSERT(p->is_valid());
-  int raw_addr = p->opaque_header & ~Page::kPageAlignmentMask;
+  intptr_t raw_addr = p->opaque_header & ~Page::kPageAlignmentMask;
   return Page::FromAddress(AddressFrom<Address>(raw_addr));
 }
 
@@ -207,7 +215,7 @@ int MemoryAllocator::GetChunkId(Page* p) {
 
 void MemoryAllocator::SetNextPage(Page* prev, Page* next) {
   ASSERT(prev->is_valid());
-  int chunk_id = prev->opaque_header & Page::kPageAlignmentMask;
+  int chunk_id = GetChunkId(prev);
   ASSERT_PAGE_ALIGNED(next->address());
   prev->opaque_header = OffsetFrom(next->address()) | chunk_id;
 }

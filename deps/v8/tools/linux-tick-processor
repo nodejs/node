@@ -1,16 +1,15 @@
 #!/bin/sh
 
-tools_dir=$(dirname "$0")
+tools_path=`cd $(dirname "$0");pwd`
+[ "$D8_PATH" ] || D8_PATH=$tools_path/..
+d8_exec=$D8_PATH/d8
 
-if [ "$1" != "--no-build" ]
-then
-  scons -C $tools_dir/.. d8
-else
-  shift
-fi
+# compile d8 if it doesn't exist, assuming this script
+# resides in the repository.
+[ -x $d8_exec ] || scons -j4 -C $D8_PATH -Y $tools_path/.. d8
 
-# nm spits out 'no symbols found' messages on stderr
-$tools_dir/../d8 $tools_dir/splaytree.js $tools_dir/codemap.js \
-  $tools_dir/csvparser.js $tools_dir/consarray.js \
-  $tools_dir/profile.js $tools_dir/profile_view.js \
-  $tools_dir/tickprocessor.js -- $@ 2>/dev/null
+# nm spits out 'no symbols found' messages to stderr.
+$d8_exec $tools_path/splaytree.js $tools_path/codemap.js \
+  $tools_path/csvparser.js $tools_path/consarray.js \
+  $tools_path/profile.js $tools_path/profile_view.js \
+  $tools_path/tickprocessor.js -- $@ 2>/dev/null

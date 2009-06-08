@@ -33,7 +33,8 @@
 #include "factory.h"
 #include "scanner.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 int HexValue(uc32 c) {
   if ('0' <= c && c <= '9')

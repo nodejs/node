@@ -16,10 +16,10 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
-// This implementation of the DeltaBlue benchmark is derived 
-// from the Smalltalk implementation by John Maloney and Mario 
-// Wolczko. Some parts have been translated directly, whereas 
-// others have been modified more aggresively to make it feel 
+// This implementation of the DeltaBlue benchmark is derived
+// from the Smalltalk implementation by John Maloney and Mario
+// Wolczko. Some parts have been translated directly, whereas
+// others have been modified more aggresively to make it feel
 // more like a JavaScript program.
 
 

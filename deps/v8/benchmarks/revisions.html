@@ -20,6 +20,25 @@ the benchmark suite.
 
 </p>
 
+<div class="subtitle"><h3>Version 5 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v5/run.html">link</a>)</h3></div>
+
+<p>Removed a duplicate line in the base random seed code.
+</p>
+
+<div class="subtitle"><h3>Version 4 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v4/run.html">link</a>)</h3></div>
+
+<p>The <i>Splay</i> benchmark is a newcomer in version 4.  It
+manipulates a splay tree by adding and removing data nodes, thus
+exercising the memory management subsystem of the JavaScript engine.
+</p>
+
+<p>
+Furthermore, all the unused parts of the Prototype library were
+removed from the RayTrace benchmark. This does not affect the running
+of the benchmark.
+</p>
+
+
 <div class="subtitle"><h3>Version 3 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v3/run.html">link</a>)</h3></div>
 
 <p>Version 3 adds a new benchmark, <i>RegExp</i>.  The RegExp
@@ -32,9 +51,10 @@ encoded using ROT13 in a way that does not affect how the regexps
 match their input.
 </p>
 
+
 <div class="subtitle"><h3>Version 2 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v2/run.html">link</a>)</h3></div>
 
-<p>For version 2 the crypto benchmark was fixed.  Previously, the
+<p>For version 2 the Crypto benchmark was fixed.  Previously, the
 decryption stage was given plaintext as input, which resulted in an
 error.  Now, the decryption stage is given the output of the
 encryption stage as input.  The result is checked against the original
@@ -48,6 +68,7 @@ removed. </p>
 results of their calculations.  This is to avoid accidentally
 obtaining scores that are the result of an incorrect JavaScript engine
 optimization.</p>
+
 
 <div class="subtitle"><h3>Version 1 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v1/run.html">link</a>)</h3></div>
 

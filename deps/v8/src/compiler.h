@@ -28,9 +28,12 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include "frame-element.h"
 #include "parser.h"
+#include "zone.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The V8 compiler
 //
@@ -59,7 +62,6 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<JSFunction> CompileEval(Handle<String> source,
                                         Handle<Context> context,
-                                        int line_offset,
                                         bool is_global,
                                         bool is_json);
 
@@ -68,6 +70,22 @@ class Compiler : public AllStatic {
   // overflow.
   static bool CompileLazy(Handle<SharedFunctionInfo> shared, int loop_nesting);
 };
+
+
+// During compilation we need a global list of handles to constants
+// for frame elements.  When the zone gets deleted, we make sure to
+// clear this list of handles as well.
+class CompilationZoneScope : public ZoneScope {
+ public:
+  explicit CompilationZoneScope(ZoneScopeMode mode) : ZoneScope(mode) { }
+  virtual ~CompilationZoneScope() {
+    if (ShouldDeleteOnExit()) {
+      FrameElement::ClearConstantList();
+      Result::ClearConstantList();
+    }
+  }
+};
+
 
 } }  // namespace v8::internal
 

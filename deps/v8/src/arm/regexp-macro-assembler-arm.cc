@@ -30,7 +30,8 @@
 #include "regexp-macro-assembler.h"
 #include "arm/regexp-macro-assembler-arm.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 RegExpMacroAssemblerARM::RegExpMacroAssemblerARM() {
   UNIMPLEMENTED();

@@ -28,7 +28,8 @@
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {

@@ -31,7 +31,8 @@
 #include "zone.h"
 #include "v8-counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 inline void* Zone::New(int size) {

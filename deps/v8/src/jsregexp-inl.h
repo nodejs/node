@@ -33,7 +33,8 @@
 #include "regexp-macro-assembler.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 template <typename C>

@@ -31,7 +31,7 @@
 // Create mirror and JSON representation.
 var mirror = debug.MakeMirror(null);
 var serializer = debug.MakeMirrorSerializer();
-var json = serializer.serializeValue(mirror);
+var json = JSON.stringify(serializer.serializeValue(mirror));
 
 // Check the mirror hierachy.
 assertTrue(mirror instanceof debug.Mirror);

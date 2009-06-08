@@ -29,14 +29,8 @@
 
 #include "hashmap.h"
 
-namespace v8 { namespace internal {
-
-
-static inline bool IsPowerOf2(uint32_t x) {
-  ASSERT(x != 0);
-  return (x & (x - 1)) == 0;
-}
-
+namespace v8 {
+namespace internal {
 
 Allocator HashMap::DefaultAllocator;
 
@@ -66,7 +60,7 @@ HashMap::~HashMap() {
 HashMap::Entry* HashMap::Lookup(void* key, uint32_t hash, bool insert) {
   // Find a matching entry.
   Entry* p = Probe(key, hash);
-    if (p->key != NULL) {
+  if (p->key != NULL) {
     return p;
   }
 
@@ -88,6 +82,65 @@ HashMap::Entry* HashMap::Lookup(void* key, uint32_t hash, bool insert) {
 
   // No entry found and none inserted.
   return NULL;
+}
+
+
+void HashMap::Remove(void* key, uint32_t hash) {
+  // Lookup the entry for the key to remove.
+  Entry* p = Probe(key, hash);
+  if (p->key == NULL) {
+    // Key not found nothing to remove.
+    return;
+  }
+
+  // To remove an entry we need to ensure that it does not create an empty
+  // entry that will cause the search for another entry to stop too soon. If all
+  // the entries between the entry to remove and the next empty slot have their
+  // initial position inside this interval, clearing the entry to remove will
+  // not break the search. If, while searching for the next empty entry, an
+  // entry is encountered which does not have its initial position between the
+  // entry to remove and the position looked at, then this entry can be moved to
+  // the place of the entry to remove without breaking the search for it. The
+  // entry made vacant by this move is now the entry to remove and the process
+  // starts over.
+  // Algorithm from http://en.wikipedia.org/wiki/Open_addressing.
+
+  // This guarantees loop termination as there is at least one empty entry so
+  // eventually the removed entry will have an empty entry after it.
+  ASSERT(occupancy_ < capacity_);
+
+  // p is the candidate entry to clear. q is used to scan forwards.
+  Entry* q = p;  // Start at the entry to remove.
+  while (true) {
+    // Move q to the next entry.
+    q = q + 1;
+    if (q == map_end()) {
+      q = map_;
+    }
+
+    // All entries between p and q have their initial position between p and q
+    // and the entry p can be cleared without breaking the search for these
+    // entries.
+    if (q->key == NULL) {
+      break;
+    }
+
+    // Find the initial position for the entry at position q.
+    Entry* r = map_ + (q->hash & (capacity_ - 1));
+
+    // If the entry at position q has its initial position outside the range
+    // between p and q it can be moved forward to position p and will still be
+    // found. There is now a new candidate entry for clearing.
+    if ((q > p && (r <= p || r > q)) ||
+        (q < p && (r <= p && r > q))) {
+      *p = *q;
+      p = q;
+    }
+  }
+
+  // Clear the entry which is allowed to en emptied.
+  p->key = NULL;
+  occupancy_--;
 }
 
 
@@ -126,7 +179,7 @@ HashMap::Entry* HashMap::Probe(void* key, uint32_t hash) {
   const Entry* end = map_end();
   ASSERT(map_ <= p && p < end);
 
-  ASSERT(occupancy_ < capacity_);  // guarantees loop termination
+  ASSERT(occupancy_ < capacity_);  // Guarantees loop termination.
   while (p->key != NULL && (hash != p->hash || !match_(key, p->key))) {
     p++;
     if (p >= end) {

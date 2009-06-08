@@ -33,6 +33,7 @@
 #include "debug-agent.h"
 #include "execution.h"
 #include "factory.h"
+#include "hashmap.h"
 #include "platform.h"
 #include "string-stream.h"
 #include "v8threads.h"
@@ -40,7 +41,8 @@
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Forward declarations.
@@ -144,6 +146,42 @@ class BreakLocationIterator {
 };
 
 
+// Cache of all script objects in the heap. When a script is added a weak handle
+// to it is created and that weak handle is stored in the cache. The weak handle
+// callback takes care of removing the script from the cache. The key used in
+// the cache is the script id.
+class ScriptCache : private HashMap {
+ public:
+  ScriptCache() : HashMap(ScriptMatch), collected_scripts_(10) {}
+  virtual ~ScriptCache() { Clear(); }
+
+  // Add script to the cache.
+  void Add(Handle<Script> script);
+
+  // Return the scripts in the cache.
+  Handle<FixedArray> GetScripts();
+
+  // Generate debugger events for collected scripts.
+  void ProcessCollectedScripts();
+
+ private:
+  // Calculate the hash value from the key (script id).
+  static uint32_t Hash(int key) { return ComputeIntegerHash(key); }
+
+  // Scripts match if their keys (script id) match.
+  static bool ScriptMatch(void* key1, void* key2) { return key1 == key2; }
+
+  // Clear the cache releasing all the weak handles.
+  void Clear();
+
+  // Weak handle callback for scripts in the cache.
+  static void HandleWeakScript(v8::Persistent<v8::Value> obj, void* data);
+
+  // List used during GC to temporarily store id's of collected scripts.
+  List<int> collected_scripts_;
+};
+
+
 // Linked list holding debug info objects. The debug info objects are kept as
 // weak handles to avoid a debug info object to keep a function alive.
 class DebugInfoListNode {
@@ -230,9 +268,6 @@ class Debug {
   }
   static int break_id() { return thread_local_.break_id_; }
 
-
-
-
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
   static void HandleStepIn(Handle<JSFunction> function,
                            Address fp,
@@ -247,11 +282,19 @@ class Debug {
     thread_local_.debugger_entry_ = entry;
   }
 
-  static bool preemption_pending() {
-    return thread_local_.preemption_pending_;
+  // Check whether any of the specified interrupts are pending.
+  static bool is_interrupt_pending(InterruptFlag what) {
+    return (thread_local_.pending_interrupts_ & what) != 0;
   }
-  static void set_preemption_pending(bool preemption_pending) {
-    thread_local_.preemption_pending_ = preemption_pending;
+
+  // Set specified interrupts as pending.
+  static void set_interrupts_pending(InterruptFlag what) {
+    thread_local_.pending_interrupts_ |= what;
+  }
+
+  // Clear specified interrupts from pending.
+  static void clear_interrupt_pending(InterruptFlag what) {
+    thread_local_.pending_interrupts_ &= ~static_cast<int>(what);
   }
 
   // Getter and setter for the disable break state.
@@ -307,6 +350,15 @@ class Debug {
   // Mirror cache handling.
   static void ClearMirrorCache();
 
+  // Script cache handling.
+  static void CreateScriptCache();
+  static void DestroyScriptCache();
+  static void AddScriptToScriptCache(Handle<Script> script);
+  static Handle<FixedArray> GetLoadedScripts();
+
+  // Garbage collection notifications.
+  static void AfterGarbageCollection();
+
   // Code generation assumptions.
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
@@ -343,6 +395,11 @@ class Debug {
 
   // Boolean state indicating whether any break points are set.
   static bool has_break_points_;
+
+  // Cache of all scripts in the heap.
+  static ScriptCache* script_cache_;
+
+  // List of active debug info objects.
   static DebugInfoListNode* debug_info_list_;
 
   static bool disable_break_;
@@ -382,8 +439,8 @@ class Debug {
     // Top debugger entry.
     EnterDebugger* debugger_entry_;
 
-    // Preemption happened while debugging.
-    bool preemption_pending_;
+    // Pending interrupts scheduled while debugging.
+    int pending_interrupts_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -532,12 +589,15 @@ class Debugger {
   static Handle<Object> MakeCompileEvent(Handle<Script> script,
                                          bool before,
                                          bool* caught_exception);
+  static Handle<Object> MakeScriptCollectedEvent(int id,
+                                                 bool* caught_exception);
   static void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   static void OnException(Handle<Object> exception, bool uncaught);
   static void OnBeforeCompile(Handle<Script> script);
   static void OnAfterCompile(Handle<Script> script,
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
+  static void OnScriptCollected(int id);
   static void ProcessDebugEvent(v8::DebugEvent event,
                                 Handle<JSObject> event_data,
                                 bool auto_continue);
@@ -578,7 +638,7 @@ class Debugger {
     ScopedLock with(debugger_access_);
 
     // Check whether the message handler was been cleared.
-    if (message_handler_cleared_) {
+    if (debugger_unload_pending_) {
       UnloadDebugger();
     }
 
@@ -595,6 +655,7 @@ class Debugger {
 
  private:
   static bool IsDebuggerActive();
+  static void ListenersChanged();
 
   static Mutex* debugger_access_;  // Mutex guarding debugger variables.
   static Handle<Object> event_listener_;  // Global handle to listener.
@@ -603,7 +664,7 @@ class Debugger {
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
   static v8::Debug::MessageHandler2 message_handler_;
-  static bool message_handler_cleared_;  // Was message handler cleared?
+  static bool debugger_unload_pending_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
   static int host_dispatch_micros_;
 
@@ -626,7 +687,8 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : prev_(Debug::debugger_entry()),
         has_js_frames_(!it_.done()) {
-    ASSERT(prev_ == NULL ? !Debug::preemption_pending() : true);
+    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(PREEMPT));
+    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(DEBUGBREAK));
 
     // Link recursive debugger entry.
     Debug::set_debugger_entry(this);
@@ -656,22 +718,42 @@ class EnterDebugger BASE_EMBEDDED {
     // Restore to the previous break state.
     Debug::SetBreak(break_frame_id_, break_id_);
 
-    // Request preemption when leaving the last debugger entry and a preemption
-    // had been recorded while debugging. This is to avoid starvation in some
-    // debugging scenarios.
-    if (prev_ == NULL && Debug::preemption_pending()) {
-      StackGuard::Preempt();
-      Debug::set_preemption_pending(false);
-    }
-
-    // If there are commands in the queue when leaving the debugger request that
-    // these commands are processed.
-    if (prev_ == NULL && Debugger::HasCommands()) {
-      StackGuard::DebugCommand();
-    }
-
-    // If leaving the debugger with the debugger no longer active unload it.
+    // Check for leaving the debugger.
     if (prev_ == NULL) {
+      // Clear mirror cache when leaving the debugger. Skip this if there is a
+      // pending exception as clearing the mirror cache calls back into
+      // JavaScript. This can happen if the v8::Debug::Call is used in which
+      // case the exception should end up in the calling code.
+      if (!Top::has_pending_exception()) {
+        // Try to avoid any pending debug break breaking in the clear mirror
+        // cache JavaScript code.
+        if (StackGuard::IsDebugBreak()) {
+          Debug::set_interrupts_pending(DEBUGBREAK);
+          StackGuard::Continue(DEBUGBREAK);
+        }
+        Debug::ClearMirrorCache();
+      }
+
+      // Request preemption and debug break when leaving the last debugger entry
+      // if any of these where recorded while debugging.
+      if (Debug::is_interrupt_pending(PREEMPT)) {
+        // This re-scheduling of preemption is to avoid starvation in some
+        // debugging scenarios.
+        Debug::clear_interrupt_pending(PREEMPT);
+        StackGuard::Preempt();
+      }
+      if (Debug::is_interrupt_pending(DEBUGBREAK)) {
+        Debug::clear_interrupt_pending(DEBUGBREAK);
+        StackGuard::DebugBreak();
+      }
+
+      // If there are commands in the queue when leaving the debugger request
+      // that these commands are processed.
+      if (Debugger::HasCommands()) {
+        StackGuard::DebugCommand();
+      }
+
+      // If leaving the debugger with the debugger no longer active unload it.
       if (!Debugger::IsDebuggerActive()) {
         Debugger::UnloadDebugger();
       }

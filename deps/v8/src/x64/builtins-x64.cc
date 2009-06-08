@@ -25,3 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+#include "codegen-inl.h"
+
+namespace v8 {
+namespace internal {
+
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                Builtins::CFunctionId id) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+} }  // namespace v8::internal
+
+

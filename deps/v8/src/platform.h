@@ -60,7 +60,8 @@ enum {
 
 #define INFINITY HUGE_VAL
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 int isfinite(double x);
 } }
 int isnan(double x);
@@ -105,7 +106,8 @@ int random();
 
 #endif  // __GNUC__
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 double ceiling(double x);
 
@@ -491,7 +493,7 @@ class Socket {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
+  TickSample() : pc(0), sp(0), fp(0), state(OTHER), frames_count(0) {}
   uintptr_t pc;  // Instruction pointer.
   uintptr_t sp;  // Stack pointer.
   uintptr_t fp;  // Frame pointer.
@@ -518,9 +520,10 @@ class Sampler {
   // Is the sampler used for profiling.
   inline bool IsProfiling() { return profiling_; }
 
-  class PlatformData;
- protected:
+  // Whether the sampler is running (that is, consumes resources).
   inline bool IsActive() { return active_; }
+
+  class PlatformData;
 
  private:
   int interval_;

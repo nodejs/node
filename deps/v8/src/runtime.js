@@ -327,6 +327,18 @@ function CALL_NON_FUNCTION() {
 }
 
 
+function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
+  var callee = %GetCalledFunction();
+  var delegate = %GetConstructorDelegate(callee);
+  if (!IS_FUNCTION(delegate)) {
+    throw %MakeTypeError('called_non_callable', [typeof callee]);
+  }
+
+  var parameters = %NewArguments(delegate);
+  return delegate.apply(callee, parameters);
+}
+
+
 function APPLY_PREPARE(args) {
   var length;
   // First check whether length is a positive Smi and args is an array.  This is the

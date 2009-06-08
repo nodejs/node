@@ -36,16 +36,18 @@
 #include "serialize.h"
 #include "string-stream.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef ENABLE_DISASSEMBLER
 
 void Disassembler::Dump(FILE* f, byte* begin, byte* end) {
   for (byte* pc = begin; pc < end; pc++) {
     if (f == NULL) {
-      PrintF("%p  %4d  %02x\n", pc, pc - begin, *pc);
+      PrintF("%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n", pc, pc - begin, *pc);
     } else {
-      fprintf(f, "%p  %4d  %02x\n", pc, pc - begin, *pc);
+      fprintf(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
+              reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);
     }
   }
 }
@@ -144,8 +146,8 @@ static int DecodeIt(FILE* f,
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
         OS::SNPrintF(decode_buffer,
-                     "%08x      jump table entry %4d",
-                     reinterpret_cast<int32_t>(ptr),
+                     "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
+                     ptr,
                      ptr - begin);
         pc += 4;
       } else {

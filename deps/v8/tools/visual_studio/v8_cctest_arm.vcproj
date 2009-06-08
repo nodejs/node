@@ -200,6 +200,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-log-utils.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-mark-compact.cc"
 			>
 		</File>

@@ -40,30 +40,8 @@
 #include "macro-assembler.h"
 #include "serialize.h"
 
-namespace v8 { namespace internal {
-
-// -----------------------------------------------------------------------------
-// Implementation of Register
-
-Register eax = { 0 };
-Register ecx = { 1 };
-Register edx = { 2 };
-Register ebx = { 3 };
-Register esp = { 4 };
-Register ebp = { 5 };
-Register esi = { 6 };
-Register edi = { 7 };
-Register no_reg = { -1 };
-
-XMMRegister xmm0 = { 0 };
-XMMRegister xmm1 = { 1 };
-XMMRegister xmm2 = { 2 };
-XMMRegister xmm3 = { 3 };
-XMMRegister xmm4 = { 4 };
-XMMRegister xmm5 = { 5 };
-XMMRegister xmm6 = { 6 };
-XMMRegister xmm7 = { 7 };
-
+namespace v8 {
+namespace internal {
 
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
@@ -256,20 +234,6 @@ Operand::Operand(Register index,
 }
 
 
-void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  ASSERT(len_ == 1);
-  ASSERT((scale & -4) == 0);
-  buf_[1] = scale << 6 | index.code() << 3 | base.code();
-  len_ = 2;
-}
-
-
-void Operand::set_disp8(int8_t disp) {
-  ASSERT(len_ == 1 || len_ == 2);
-  *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
-}
-
-
 bool Operand::is_reg(Register reg) const {
   return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
       && ((buf_[0] & 0x07) == reg.code());  // register codes match.
@@ -288,7 +252,7 @@ static void InitCoverageLog();
 #endif
 
 // spare_buffer_
-static byte* spare_buffer_ = NULL;
+byte* Assembler::spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
   if (buffer == NULL) {

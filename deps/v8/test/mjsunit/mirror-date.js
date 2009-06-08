@@ -32,7 +32,7 @@ function testDateMirror(d, iso8601) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(d);
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
+  var json = JSON.stringify(serializer.serializeValue(mirror));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -55,9 +55,9 @@ function testDateMirror(d, iso8601) {
   assertEquals(iso8601, fromJSON.value);
 }
 
-
 // Test Date values.
-testDateMirror(new Date(Date.parse("Dec 25, 1995 1:30 UTC")), "1995-12-25T01:30:00.000Z");
+testDateMirror(new Date(Date.parse("Dec 25, 1995 1:30 UTC")),
+               "1995-12-25T01:30:00Z");
 d = new Date();
 d.setUTCFullYear(1967);
 d.setUTCMonth(0); // January.
@@ -66,10 +66,10 @@ d.setUTCHours(9);
 d.setUTCMinutes(22);
 d.setUTCSeconds(59);
 d.setUTCMilliseconds(0);
-testDateMirror(d, "1967-01-17T09:22:59.000Z");
+testDateMirror(d, "1967-01-17T09:22:59Z");
 d.setUTCMilliseconds(1);
-testDateMirror(d, "1967-01-17T09:22:59.001Z");
-d.setUTCMilliseconds(12);
-testDateMirror(d, "1967-01-17T09:22:59.012Z");
-d.setUTCMilliseconds(123);
-testDateMirror(d, "1967-01-17T09:22:59.123Z");
+testDateMirror(d, "1967-01-17T09:22:59Z");
+d.setUTCSeconds(12);
+testDateMirror(d, "1967-01-17T09:22:12Z");
+d.setUTCSeconds(36);
+testDateMirror(d, "1967-01-17T09:22:36Z");

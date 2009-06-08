@@ -28,7 +28,8 @@
 #ifndef V8_IA32_FRAMES_IA32_H_
 #define V8_IA32_FRAMES_IA32_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Register lists

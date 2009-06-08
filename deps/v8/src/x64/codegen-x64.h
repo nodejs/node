@@ -28,7 +28,8 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations
 class DeferredCode;
@@ -332,8 +333,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   Scope* scope() const { return scope_; }
 
-  // Clearing and generating deferred code.
-  void ClearDeferred();
+  // Generating deferred code.
   void ProcessDeferred();
 
   bool is_eval() { return is_eval_; }
@@ -473,12 +473,19 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
+  struct InlineRuntimeLUT {
+    void (CodeGenerator::*method)(ZoneList<Expression*>*);
+    const char* name;
+  };
+  static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
   bool CheckForInlineRuntimeCall(CallRuntime* node);
+  static bool PatchInlineRuntimeEntry(Handle<String> name,
+                                      const InlineRuntimeLUT& new_entry,
+                                      InlineRuntimeLUT* old_entry);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc);
-  Handle<Code> ComputeCallInitializeInLoop(int argc);
+  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.
@@ -570,14 +577,14 @@ class CodeGenerator: public AstVisitor {
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
-  // True if the registers are valid for entry to a block.  There should be
-  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  // True if the registers are valid for entry to a block.  There should
+  // be no frame-external references to (non-reserved) registers.
   bool HasValidEntryRegisters();
 #endif
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
-  List<DeferredCode*> deferred_;
+  ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code
@@ -603,6 +610,8 @@ class CodeGenerator: public AstVisitor {
   // called from spilled code, because they do not leave the virtual frame
   // in a spilled state.
   bool in_spilled_code_;
+
+  static InlineRuntimeLUT kInlineRuntimeLUT[];
 
   friend class VirtualFrame;
   friend class JumpTarget;

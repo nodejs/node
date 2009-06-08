@@ -42,7 +42,8 @@
 
 #include "assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //
@@ -82,8 +83,6 @@ struct Register {
   int code_;
 };
 
-
-const int kNumRegisters = 16;
 
 extern Register no_reg;
 extern Register r0;
@@ -622,8 +621,8 @@ class Assembler : public Malloced {
   // Pseudo instructions
   void nop()  { mov(r0, Operand(r0)); }
 
-  void push(Register src) {
-    str(src, MemOperand(sp, 4, NegPreIndex), al);
+  void push(Register src, Condition cond = al) {
+    str(src, MemOperand(sp, 4, NegPreIndex), cond);
   }
 
   void pop(Register dst) {

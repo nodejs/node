@@ -28,7 +28,8 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Define list of builtins implemented in C.
 #define BUILTIN_LIST_C(V)                          \
@@ -42,7 +43,8 @@ namespace v8 { namespace internal {
   V(ArrayPop)                                      \
                                                    \
   V(HandleApiCall)                                 \
-  V(HandleApiCallAsFunction)
+  V(HandleApiCallAsFunction)                       \
+  V(HandleApiCallAsConstructor)
 
 
 // Define list of builtins implemented in assembly.
@@ -99,35 +101,36 @@ namespace v8 { namespace internal {
 #endif
 
 // Define list of builtins implemented in JavaScript.
-#define BUILTINS_LIST_JS(V)    \
-  V(EQUALS, 1)                 \
-  V(STRICT_EQUALS, 1)          \
-  V(COMPARE, 2)                \
-  V(ADD, 1)                    \
-  V(SUB, 1)                    \
-  V(MUL, 1)                    \
-  V(DIV, 1)                    \
-  V(MOD, 1)                    \
-  V(BIT_OR, 1)                 \
-  V(BIT_AND, 1)                \
-  V(BIT_XOR, 1)                \
-  V(UNARY_MINUS, 0)            \
-  V(BIT_NOT, 0)                \
-  V(SHL, 1)                    \
-  V(SAR, 1)                    \
-  V(SHR, 1)                    \
-  V(DELETE, 1)                 \
-  V(IN, 1)                     \
-  V(INSTANCE_OF, 1)            \
-  V(GET_KEYS, 0)               \
-  V(FILTER_KEY, 1)             \
-  V(CALL_NON_FUNCTION, 0)      \
-  V(TO_OBJECT, 0)              \
-  V(TO_NUMBER, 0)              \
-  V(TO_STRING, 0)              \
-  V(STRING_ADD_LEFT, 1)        \
-  V(STRING_ADD_RIGHT, 1)       \
-  V(APPLY_PREPARE, 1)          \
+#define BUILTINS_LIST_JS(V)              \
+  V(EQUALS, 1)                           \
+  V(STRICT_EQUALS, 1)                    \
+  V(COMPARE, 2)                          \
+  V(ADD, 1)                              \
+  V(SUB, 1)                              \
+  V(MUL, 1)                              \
+  V(DIV, 1)                              \
+  V(MOD, 1)                              \
+  V(BIT_OR, 1)                           \
+  V(BIT_AND, 1)                          \
+  V(BIT_XOR, 1)                          \
+  V(UNARY_MINUS, 0)                      \
+  V(BIT_NOT, 0)                          \
+  V(SHL, 1)                              \
+  V(SAR, 1)                              \
+  V(SHR, 1)                              \
+  V(DELETE, 1)                           \
+  V(IN, 1)                               \
+  V(INSTANCE_OF, 1)                      \
+  V(GET_KEYS, 0)                         \
+  V(FILTER_KEY, 1)                       \
+  V(CALL_NON_FUNCTION, 0)                \
+  V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0) \
+  V(TO_OBJECT, 0)                        \
+  V(TO_NUMBER, 0)                        \
+  V(TO_STRING, 0)                        \
+  V(STRING_ADD_LEFT, 1)                  \
+  V(STRING_ADD_RIGHT, 1)                 \
+  V(APPLY_PREPARE, 1)                    \
   V(APPLY_OVERFLOW, 1)
 
 

@@ -28,7 +28,8 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The interface to C++ runtime functions.
 
@@ -37,7 +38,10 @@ namespace v8 { namespace internal {
 // release and debug mode.
 // This macro should only be used by the macro RUNTIME_FUNCTION_LIST.
 
-#define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
+// WARNING: RUNTIME_FUNCTION_LIST_ALWAYS_* is a very large macro that caused
+// MSVC Intellisense to crash.  It was broken into two macros to work around
+// this problem. Please avoid large recursive macros whenever possible.
+#define RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   /* Property access */ \
   F(GetProperty, 2) \
   F(KeyedGetProperty, 2) \
@@ -60,6 +64,7 @@ namespace v8 { namespace internal {
   /* Utilities */ \
   F(GetCalledFunction, 0) \
   F(GetFunctionDelegate, 1) \
+  F(GetConstructorDelegate, 1) \
   F(NewArguments, 1) \
   F(NewArgumentsFast, 3) \
   F(LazyCompile, 1) \
@@ -153,8 +158,9 @@ namespace v8 { namespace internal {
   F(NumberToRadixString, 2) \
   F(NumberToFixed, 2) \
   F(NumberToExponential, 2) \
-  F(NumberToPrecision, 2) \
-  \
+  F(NumberToPrecision, 2)
+
+#define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2) \
   F(FunctionSetLength, 2) \
@@ -195,7 +201,7 @@ namespace v8 { namespace internal {
   F(NumberIsFinite, 1) \
   \
   /* Globals */ \
-  F(CompileString, 3) \
+  F(CompileString, 2) \
   F(GlobalPrint, 1) \
   \
   /* Eval */ \
@@ -320,7 +326,8 @@ namespace v8 { namespace internal {
 // via a native call by name (from within JS code).
 
 #define RUNTIME_FUNCTION_LIST(F) \
-  RUNTIME_FUNCTION_LIST_ALWAYS(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
   RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 
@@ -379,6 +386,9 @@ class Runtime : public AllStatic {
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyAttributes attr);
+
+  static Object* ForceDeleteObjectProperty(Handle<JSObject> object,
+                                           Handle<Object> key);
 
   static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
 

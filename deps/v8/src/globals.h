@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,7 +28,8 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Processor architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
@@ -77,16 +78,23 @@ typedef byte* Address;
 #define V8_UINT64_C(x)  (x ## UI64)
 #define V8_INT64_C(x)   (x ## I64)
 #define V8_PTR_PREFIX "ll"
-#else
+#else  // _MSC_VER
 #define V8_UINT64_C(x)  (x ## UL)
 #define V8_INT64_C(x)   (x ## L)
 #define V8_PTR_PREFIX "l"
-#endif
+#endif  // _MSC_VER
 #else  // V8_HOST_ARCH_64_BIT
 #define V8_PTR_PREFIX ""
-#endif
+#endif  // V8_HOST_ARCH_64_BIT
 
-#define V8PRIp V8_PTR_PREFIX "x"
+#define V8PRIxPTR V8_PTR_PREFIX "x"
+#define V8PRIdPTR V8_PTR_PREFIX "d"
+
+// Fix for Mac OS X defining uintptr_t as "unsigned long":
+#if defined(__APPLE__) && defined(__MACH__)
+#undef V8PRIxPTR
+#define V8PRIxPTR "lx"
+#endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
@@ -103,11 +111,12 @@ const int kMinInt = -kMaxInt - 1;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 
-const int kCharSize     = sizeof(char);    // NOLINT
-const int kShortSize    = sizeof(short);   // NOLINT
-const int kIntSize      = sizeof(int);     // NOLINT
-const int kDoubleSize   = sizeof(double);  // NOLINT
-const int kPointerSize  = sizeof(void*);   // NOLINT
+const int kCharSize     = sizeof(char);      // NOLINT
+const int kShortSize    = sizeof(short);     // NOLINT
+const int kIntSize      = sizeof(int);       // NOLINT
+const int kDoubleSize   = sizeof(double);    // NOLINT
+const int kPointerSize  = sizeof(void*);     // NOLINT
+const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
@@ -116,9 +125,12 @@ const int kPointerSizeLog2 = 2;
 #endif
 
 const int kObjectAlignmentBits = kPointerSizeLog2;
-const intptr_t kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
 const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
+const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
+// Desired alignment for pointers.
+const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -232,6 +244,7 @@ class ObjectGroup;
 class TickSample;
 class VirtualMemory;
 class Mutex;
+class ZoneScopeInfo;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 
@@ -314,8 +327,6 @@ typedef void (*InlineCacheCallback)(Code* code, Address ic);
 enum InlineCacheState {
   // Has never been executed.
   UNINITIALIZED,
-  // Has never been executed, but is in a loop.
-  UNINITIALIZED_IN_LOOP,
   // Has been executed but monomorhic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
@@ -327,6 +338,12 @@ enum InlineCacheState {
   // Special states for debug break or step in prepare stubs.
   DEBUG_BREAK,
   DEBUG_PREPARE_STEP_IN
+};
+
+
+enum InLoopFlag {
+  NOT_IN_LOOP,
+  IN_LOOP
 };
 
 
@@ -411,7 +428,11 @@ enum StateTag {
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \
-  ((value + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+  (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+
+// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+#define POINTER_SIZE_ALIGN(value)                               \
+  (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

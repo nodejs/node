@@ -28,7 +28,8 @@
 #ifndef V8_SMART_POINTER_H_
 #define V8_SMART_POINTER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // A 'scoped array pointer' that calls DeleteArray on its pointer when the

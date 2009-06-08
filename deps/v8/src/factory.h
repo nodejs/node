@@ -29,8 +29,10 @@
 #define V8_FACTORY_H_
 
 #include "heap.h"
+#include "zone-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Interface for handle based allocation.
@@ -202,8 +204,10 @@ class Factory : public AllStatic {
       Handle<JSFunction> boilerplate,
       Handle<Context> context);
 
-  static Handle<Code> NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
-                              Code::Flags flags, Handle<Object> self_reference);
+  static Handle<Code> NewCode(const CodeDesc& desc,
+                              ZoneScopeInfo* sinfo,
+                              Code::Flags flags,
+                              Handle<Object> self_reference);
 
   static Handle<Code> CopyCode(Handle<Code> code);
 

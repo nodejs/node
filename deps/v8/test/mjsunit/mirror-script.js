@@ -25,14 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 // Test the mirror object for scripts.
 
-function testScriptMirror(f, file_name, file_lines, script_type, script_source) {
+function testScriptMirror(f, file_name, file_lines, type, compilation_type,
+                          source, eval_from_line) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(f).script();
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
+  var json = JSON.stringify(serializer.serializeValue(mirror));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -53,13 +54,17 @@ function testScriptMirror(f, file_name, file_lines, script_type, script_source) 
   if (file_lines > 0) {
     assertEquals(file_lines, mirror.lineCount());
   }
-  assertEquals(script_type, mirror.scriptType());
-  if (script_source) {
-    assertEquals(script_source, mirror.source());
+  assertEquals(type, mirror.scriptType());
+  assertEquals(compilation_type, mirror.compilationType(), "compilation type");
+  if (source) {
+    assertEquals(source, mirror.source());
+  }
+  if (eval_from_line) {
+    assertEquals(eval_from_line,  mirror.evalFromLocation().line);
   }
   
   // Parse JSON representation and check.
-  var fromJSON = eval('(' + json + ')');
+  var fromJSON = JSON.parse(json);
   assertEquals('script', fromJSON.type);
   name = fromJSON.name;
   if (name) {
@@ -72,15 +77,18 @@ function testScriptMirror(f, file_name, file_lines, script_type, script_source) 
   if (file_lines > 0) {
     assertEquals(file_lines, fromJSON.lineCount);
   }
-  assertEquals(script_type, fromJSON.scriptType);  
+  assertEquals(type, fromJSON.scriptType);
+  assertEquals(compilation_type, fromJSON.compilationType);
 }
 
 
 // Test the script mirror for different functions.
-testScriptMirror(function(){}, 'mirror-script.js', 92, 2);
-testScriptMirror(Math.sin, 'native math.js', -1, 0);
-testScriptMirror(eval('function(){}'), null, 1, 2, 'function(){}');
-testScriptMirror(eval('function(){\n  }'), null, 2, 2, 'function(){\n  }');
+testScriptMirror(function(){}, 'mirror-script.js', 100, 2, 0);
+testScriptMirror(Math.sin, 'native math.js', -1, 0, 0);
+testScriptMirror(eval('function(){}'), null, 1, 2, 1, 'function(){}', 87);
+testScriptMirror(eval('function(){\n  }'), null, 2, 2, 1, 'function(){\n  }', 88);
+testScriptMirror(%CompileString("({a:1,b:2})", true), null, 1, 2, 2, '({a:1,b:2})');
+testScriptMirror(%CompileString("({a:1,\n  b:2})", true), null, 2, 2, 2, '({a:1,\n  b:2})');
 
 // Test taking slices of source.
 var mirror = debug.MakeMirror(eval('function(){\n  1;\n}')).script();

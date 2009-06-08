@@ -41,6 +41,10 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+// When compiling on MinGW stdint.h is available.
+#ifdef __MINGW32__
+#include <stdint.h>
+#else  // __MINGW32__
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef short int16_t;  // NOLINT
@@ -49,7 +53,8 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-// intptr_t is defined in crtdefs.h through stdio.h.
+// intptr_t and friends are defined in crtdefs.h through stdio.h.
+#endif  // __MINGW32__
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -1051,7 +1056,7 @@ class V8EXPORT Object : public Value {
            Handle<Value> value,
            PropertyAttribute attribs = None);
 
-  // Sets a local property on this object, bypassing interceptors and
+  // Sets a local property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
   // Note that if the object has an interceptor the property will be set
@@ -1062,13 +1067,21 @@ class V8EXPORT Object : public Value {
   bool ForceSet(Handle<Value> key,
                 Handle<Value> value,
                 PropertyAttribute attribs = None);
+
   Local<Value> Get(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.
   bool Has(Handle<String> key);
+
   bool Delete(Handle<String> key);
+
+  // Delete a property on this object bypassing interceptors and
+  // ignoring dont-delete attributes.
+  bool ForceDelete(Handle<Value> key);
+
   bool Has(uint32_t index);
+
   bool Delete(uint32_t index);
 
   /**
@@ -2080,6 +2093,11 @@ class V8EXPORT V8 {
   static void ResumeProfiler();
 
   /**
+   * Return whether profiler is currently paused.
+   */
+  static bool IsProfilerPaused();
+
+  /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to
    * retrieve previously written messages. This can be used for retrieving
    * profiler log data in the application. This function is thread-safe.
@@ -2244,6 +2262,13 @@ class V8EXPORT Context {
 
   /** Returns the context that is on the top of the stack. */
   static Local<Context> GetCurrent();
+
+  /**
+   * Returns the context of the calling JavaScript code.  That is the
+   * context of the top-most JavaScript frame.  If there are no
+   * JavaScript frames an empty handle is returned.
+   */
+  static Local<Context> GetCalling();
 
   /**
    * Sets the security token for the context.  To access an object in

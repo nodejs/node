@@ -31,7 +31,8 @@
 #include "mark-compact.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
@@ -121,6 +122,15 @@ PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
       stop_page_ = space->MCRelocationTopPage();
       break;
     case ALL_PAGES:
+#ifdef DEBUG
+      // Verify that the cached last page in the space is actually the
+      // last page.
+      for (Page* p = space->first_page_; p->is_valid(); p = p->next_page()) {
+        if (!p->next_page()->is_valid()) {
+          ASSERT(space->last_page_ == p);
+        }
+      }
+#endif
       stop_page_ = space->last_page_;
       break;
     default:
@@ -731,6 +741,7 @@ void PagedSpace::Shrink() {
   // Since pages are only freed in whole chunks, we may have kept more
   // than pages_to_keep.  Count the extra pages and cache the new last
   // page in the space.
+  last_page_ = last_page_to_keep;
   while (p->is_valid()) {
     pages_to_keep++;
     last_page_ = p;
@@ -1321,6 +1332,13 @@ int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(size_in_bytes);
 
+  // We don't use the freelists in compacting mode.  This makes it more like a
+  // GC that only has mark-sweep-compact and doesn't have a mark-sweep
+  // collector.
+  if (FLAG_always_compact) {
+    return size_in_bytes;
+  }
+
   // Early return to drop too-small blocks on the floor (one or two word
   // blocks cannot hold a map pointer, a size field, and a pointer to the
   // next block in the free list).
@@ -1352,6 +1370,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
     if ((free_[index].head_node_ = node->next()) == NULL) RemoveSize(index);
     available_ -= size_in_bytes;
     *wasted_bytes = 0;
+    ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
     return node;
   }
   // Search the size list for the best fit.
@@ -1363,6 +1382,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
     *wasted_bytes = 0;
     return Failure::RetryAfterGC(size_in_bytes, owner_);
   }
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   int rem = cur - index;
   int rem_bytes = rem << kPointerSizeLog2;
   FreeListNode* cur_node = FreeListNode::FromAddress(free_[cur].head_node_);
@@ -1443,6 +1463,7 @@ void MapSpaceFreeList::Free(Address start) {
     Memory::Address_at(start + i) = kZapValue;
   }
 #endif
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(Map::kSize);
   node->set_next(head_);
@@ -1456,6 +1477,7 @@ Object* MapSpaceFreeList::Allocate() {
     return Failure::RetryAfterGC(Map::kSize, owner_);
   }
 
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   FreeListNode* node = FreeListNode::FromAddress(head_);
   head_ = node->next();
   available_ -= Map::kSize;
@@ -2412,6 +2434,13 @@ void LargeObjectSpace::ClearRSet() {
 void LargeObjectSpace::IterateRSet(ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
 
+  static void* lo_rset_histogram = StatsTable::CreateHistogram(
+      "V8.RSetLO",
+      0,
+      // Keeping this histogram's buckets the same as the paged space histogram.
+      Page::kObjectAreaSize / kPointerSize,
+      30);
+
   LargeObjectIterator it(this);
   while (it.has_next()) {
     // We only have code, sequential strings, or fixed arrays in large
@@ -2422,15 +2451,18 @@ void LargeObjectSpace::IterateRSet(ObjectSlotCallback copy_object_func) {
       // Iterate the normal page remembered set range.
       Page* page = Page::FromAddress(object->address());
       Address object_end = object->address() + object->Size();
-      Heap::IterateRSetRange(page->ObjectAreaStart(),
-                             Min(page->ObjectAreaEnd(), object_end),
-                             page->RSetStart(),
-                             copy_object_func);
+      int count = Heap::IterateRSetRange(page->ObjectAreaStart(),
+                                         Min(page->ObjectAreaEnd(), object_end),
+                                         page->RSetStart(),
+                                         copy_object_func);
 
       // Iterate the extra array elements.
       if (object_end > page->ObjectAreaEnd()) {
-        Heap::IterateRSetRange(page->ObjectAreaEnd(), object_end,
-                               object_end, copy_object_func);
+        count += Heap::IterateRSetRange(page->ObjectAreaEnd(), object_end,
+                                        object_end, copy_object_func);
+      }
+      if (lo_rset_histogram != NULL) {
+        StatsTable::AddHistogramSample(lo_rset_histogram, count);
       }
     }
   }

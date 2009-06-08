@@ -29,7 +29,8 @@
 
 #include "v8-counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define HT(name, caption) \
   HistogramTimer Counters::name = { #caption, NULL, false, 0, 0 }; \

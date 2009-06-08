@@ -25,3 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// CPU specific code for x64 independent of OS goes here.
+
+#include "v8.h"
+
+#include "cpu.h"
+#include "macro-assembler.h"
+
+namespace v8 {
+namespace internal {
+
+void CPU::Setup() {
+  CpuFeatures::Probe();
+}
+
+
+void CPU::FlushICache(void* start, size_t size) {
+  // No need to flush the instruction cache on Intel. On Intel instruction
+  // cache flushing is only necessary when multiple cores running the same
+  // code simultaneously. V8 (and JavaScript) is single threaded and when code
+  // is patched on an intel CPU the core performing the patching will have its
+  // own instruction cache updated automatically.
+
+  // If flushing of the instruction cache becomes necessary Windows has the
+  // API function FlushInstructionCache.
+}
+
+
+void CPU::DebugBreak() {
+#ifdef _MSC_VER
+  // To avoid Visual Studio runtime support the following code can be used
+  // instead
+  // __asm { int 3 }
+  __debugbreak();
+#else
+  asm("int $3");
+#endif
+}
+
+} }  // namespace v8::internal

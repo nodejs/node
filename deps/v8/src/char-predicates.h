@@ -28,7 +28,8 @@
 #ifndef V8_CHAR_PREDICATES_H_
 #define V8_CHAR_PREDICATES_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Unicode character predicates as defined by ECMA-262, 3rd,
 // used for lexical analysis.

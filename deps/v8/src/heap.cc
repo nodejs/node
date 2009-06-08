@@ -40,7 +40,8 @@
 #include "scopeinfo.h"
 #include "v8threads.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define ROOT_ALLOCATION(type, name) type* Heap::name##_;
   ROOT_LIST(ROOT_ALLOCATION)
@@ -282,6 +283,9 @@ void Heap::GarbageCollectionEpilogue() {
   Counters::number_of_symbols.Set(symbol_table->NumberOfElements());
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
+#endif
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug::AfterGarbageCollection();
 #endif
 }
 
@@ -537,8 +541,39 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
+// A queue of pointers and maps of to-be-promoted objects during a
+// scavenge collection.
+class PromotionQueue {
+ public:
+  void Initialize(Address start_address) {
+    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
+  }
+
+  bool is_empty() { return front_ <= rear_; }
+
+  void insert(HeapObject* object, Map* map) {
+    *(--rear_) = object;
+    *(--rear_) = map;
+    // Assert no overflow into live objects.
+    ASSERT(reinterpret_cast<Address>(rear_) >= Heap::new_space()->top());
+  }
+
+  void remove(HeapObject** object, Map** map) {
+    *object = *(--front_);
+    *map = Map::cast(*(--front_));
+    // Assert no underflow.
+    ASSERT(front_ >= rear_);
+  }
+
+ private:
+  // The front of the queue is higher in memory than the rear.
+  HeapObject** front_;
+  HeapObject** rear_;
+};
+
+
 // Shared state read by the scavenge collector and set by ScavengeObject.
-static Address promoted_rear = NULL;
+static PromotionQueue promotion_queue;
 
 
 #ifdef DEBUG
@@ -624,8 +659,7 @@ void Heap::Scavenge() {
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
   Address new_space_front = new_space_.ToSpaceLow();
-  Address promoted_front = new_space_.ToSpaceHigh();
-  promoted_rear = new_space_.ToSpaceHigh();
+  promotion_queue.Initialize(new_space_.ToSpaceHigh());
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
@@ -634,15 +668,36 @@ void Heap::Scavenge() {
   // Copy objects reachable from weak pointers.
   GlobalHandles::IterateWeakRoots(&scavenge_visitor);
 
+#if V8_HOST_ARCH_64_BIT
+  // TODO(X64): Make this go away again. We currently disable RSets for
+  // 64-bit-mode.
+  HeapObjectIterator old_pointer_iterator(old_pointer_space_);
+  while (old_pointer_iterator.has_next()) {
+    HeapObject* heap_object = old_pointer_iterator.next();
+    heap_object->Iterate(&scavenge_visitor);
+  }
+  HeapObjectIterator map_iterator(map_space_);
+  while (map_iterator.has_next()) {
+    HeapObject* heap_object = map_iterator.next();
+    heap_object->Iterate(&scavenge_visitor);
+  }
+  LargeObjectIterator lo_iterator(lo_space_);
+  while (lo_iterator.has_next()) {
+    HeapObject* heap_object = lo_iterator.next();
+    if (heap_object->IsFixedArray()) {
+      heap_object->Iterate(&scavenge_visitor);
+    }
+  }
+#else  // V8_HOST_ARCH_64_BIT
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
+#endif   // V8_HOST_ARCH_64_BIT
 
   do {
     ASSERT(new_space_front <= new_space_.top());
-    ASSERT(promoted_front >= promoted_rear);
 
     // The addresses new_space_front and new_space_.top() define a
     // queue of unprocessed copied objects.  Process them until the
@@ -653,15 +708,26 @@ void Heap::Scavenge() {
       new_space_front += object->Size();
     }
 
-    // The addresses promoted_front and promoted_rear define a queue
-    // of unprocessed addresses of promoted objects.  Process them
-    // until the queue is empty.
-    while (promoted_front > promoted_rear) {
-      promoted_front -= kPointerSize;
-      HeapObject* object =
-          HeapObject::cast(Memory::Object_at(promoted_front));
-      object->Iterate(&scavenge_visitor);
-      UpdateRSet(object);
+    // Promote and process all the to-be-promoted objects.
+    while (!promotion_queue.is_empty()) {
+      HeapObject* source;
+      Map* map;
+      promotion_queue.remove(&source, &map);
+      // Copy the from-space object to its new location (given by the
+      // forwarding address) and fix its map.
+      HeapObject* target = source->map_word().ToForwardingAddress();
+      CopyBlock(reinterpret_cast<Object**>(target->address()),
+                reinterpret_cast<Object**>(source->address()),
+                source->SizeFromMap(map));
+      target->set_map(map);
+
+#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+      // Update NewSpace stats if necessary.
+      RecordCopiedObject(target);
+#endif
+      // Visit the newly copied object for pointers to new space.
+      target->Iterate(&scavenge_visitor);
+      UpdateRSet(target);
     }
 
     // Take another spin if there are now unswept objects in new space
@@ -735,6 +801,8 @@ class UpdateRSetVisitor: public ObjectVisitor {
 
 
 int Heap::UpdateRSet(HeapObject* obj) {
+#ifndef V8_HOST_ARCH_64_BIT
+  // TODO(X64) Reenable RSet when we have a working 64-bit layout of Page.
   ASSERT(!InNewSpace(obj));
   // Special handling of fixed arrays to iterate the body based on the start
   // address and offset.  Just iterating the pointers as in UpdateRSetVisitor
@@ -756,6 +824,7 @@ int Heap::UpdateRSet(HeapObject* obj) {
     UpdateRSetVisitor v;
     obj->Iterate(&v);
   }
+#endif  // V8_HOST_ARCH_64_BIT
   return obj->Size();
 }
 
@@ -818,34 +887,12 @@ HeapObject* Heap::MigrateObject(HeapObject* source,
   // Set the forwarding address.
   source->set_map_word(MapWord::FromForwardingAddress(target));
 
-  // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+  // Update NewSpace stats if necessary.
   RecordCopiedObject(target);
 #endif
 
   return target;
-}
-
-
-// Inlined function.
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    *p = first_word.ToForwardingAddress();
-    return;
-  }
-
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
 }
 
 
@@ -879,6 +926,11 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   }
 
   int object_size = object->SizeFromMap(first_word.ToMap());
+  // We rely on live objects in new space to be at least two pointers,
+  // so we can store the from-space address and map pointer of promoted
+  // objects in the to space.
+  ASSERT(object_size >= 2 * kPointerSize);
+
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
     OldSpace* target_space = Heap::TargetSpace(object);
@@ -886,16 +938,29 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
            target_space == Heap::old_data_space_);
     Object* result = target_space->AllocateRaw(object_size);
     if (!result->IsFailure()) {
-      *p = MigrateObject(object, HeapObject::cast(result), object_size);
+      HeapObject* target = HeapObject::cast(result);
       if (target_space == Heap::old_pointer_space_) {
-        // Record the object's address at the top of the to space, to allow
-        // it to be swept by the scavenger.
-        promoted_rear -= kPointerSize;
-        Memory::Object_at(promoted_rear) = *p;
+        // Save the from-space object pointer and its map pointer at the
+        // top of the to space to be swept and copied later.  Write the
+        // forwarding address over the map word of the from-space
+        // object.
+        promotion_queue.insert(object, first_word.ToMap());
+        object->set_map_word(MapWord::FromForwardingAddress(target));
+
+        // Give the space allocated for the result a proper map by
+        // treating it as a free list node (not linked into the free
+        // list).
+        FreeListNode* node = FreeListNode::FromAddress(target->address());
+        node->set_size(object_size);
+
+        *p = target;
       } else {
+        // Objects promoted to the data space can be copied immediately
+        // and not revisited---we will never sweep that space for
+        // pointers and the copied objects do not contain pointers to
+        // new space objects.
+        *p = MigrateObject(object, target, object_size);
 #ifdef DEBUG
-        // Objects promoted to the data space should not have pointers to
-        // new space.
         VerifyNonPointerSpacePointersVisitor v;
         (*p)->Iterate(&v);
 #endif
@@ -960,7 +1025,7 @@ bool Heap::CreateInitialMaps() {
   meta_map_ = reinterpret_cast<Map*>(obj);
   meta_map()->set_map(meta_map());
 
-  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, Array::kHeaderSize);
+  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
   if (obj->IsFailure()) return false;
   fixed_array_map_ = Map::cast(obj);
 
@@ -1017,37 +1082,37 @@ bool Heap::CreateInitialMaps() {
   STRING_TYPE_LIST(ALLOCATE_STRING_MAP);
 #undef ALLOCATE_STRING_MAP
 
-  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_short_string_map_ = Map::cast(obj);
   undetectable_short_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_string_map_ = Map::cast(obj);
   undetectable_medium_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_long_string_map_ = Map::cast(obj);
   undetectable_long_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_short_ascii_string_map_ = Map::cast(obj);
   undetectable_short_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_ascii_string_map_ = Map::cast(obj);
   undetectable_medium_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_long_ascii_string_map_ = Map::cast(obj);
   undetectable_long_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kHeaderSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
   if (obj->IsFailure()) return false;
   byte_array_map_ = Map::cast(obj);
 
@@ -1663,7 +1728,7 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 
 
 Object* Heap::CreateCode(const CodeDesc& desc,
-                         ScopeInfo<>* sinfo,
+                         ZoneScopeInfo* sinfo,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
   // Compute size
@@ -2599,12 +2664,13 @@ void Heap::ZapFromSpace() {
 #endif  // DEBUG
 
 
-void Heap::IterateRSetRange(Address object_start,
-                            Address object_end,
-                            Address rset_start,
-                            ObjectSlotCallback copy_object_func) {
+int Heap::IterateRSetRange(Address object_start,
+                           Address object_end,
+                           Address rset_start,
+                           ObjectSlotCallback copy_object_func) {
   Address object_address = object_start;
   Address rset_address = rset_start;
+  int set_bits_count = 0;
 
   // Loop over all the pointers in [object_start, object_end).
   while (object_address < object_end) {
@@ -2621,6 +2687,7 @@ void Heap::IterateRSetRange(Address object_start,
           // If this pointer does not need to be remembered anymore, clear
           // the remembered set bit.
           if (!Heap::InNewSpace(*object_p)) result_rset &= ~bitmask;
+          set_bits_count++;
         }
         object_address += kPointerSize;
       }
@@ -2634,6 +2701,7 @@ void Heap::IterateRSetRange(Address object_start,
     }
     rset_address += kIntSize;
   }
+  return set_bits_count;
 }
 
 
@@ -2641,11 +2709,20 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
   ASSERT(space == old_pointer_space_ || space == map_space_);
 
+  static void* paged_rset_histogram = StatsTable::CreateHistogram(
+      "V8.RSetPaged",
+      0,
+      Page::kObjectAreaSize / kPointerSize,
+      30);
+
   PageIterator it(space, PageIterator::PAGES_IN_USE);
   while (it.has_next()) {
     Page* page = it.next();
-    IterateRSetRange(page->ObjectAreaStart(), page->AllocationTop(),
-                     page->RSetStart(), copy_object_func);
+    int count = IterateRSetRange(page->ObjectAreaStart(), page->AllocationTop(),
+                                 page->RSetStart(), copy_object_func);
+    if (paged_rset_histogram != NULL) {
+      StatsTable::AddHistogramSample(paged_rset_histogram, count);
+    }
   }
 }
 

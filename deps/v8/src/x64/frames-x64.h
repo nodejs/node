@@ -28,7 +28,8 @@
 #ifndef V8_X64_FRAMES_X64_H_
 #define V8_X64_FRAMES_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // TODO(x64): This is a stub, mostly just a copy of the ia32 bit version.
 // This will all need to change to be correct for x64.
@@ -40,17 +41,17 @@ typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 class StackHandlerConstants : public AllStatic {
  public:
-  static const int kNextOffset  = -1 * kPointerSize;
-  static const int kPPOffset    = -1 * kPointerSize;
-  static const int kFPOffset    = -1 * kPointerSize;
+  static const int kNextOffset  = 0 * kPointerSize;
+  static const int kPPOffset    = 1 * kPointerSize;
+  static const int kFPOffset    = 2 * kPointerSize;
 
-  static const int kCodeOffset  = -1 * kPointerSize;
+  static const int kCodeOffset  = 3 * kPointerSize;
 
-  static const int kStateOffset = -1 * kPointerSize;
-  static const int kPCOffset    = -1 * kPointerSize;
+  static const int kStateOffset = 4 * kPointerSize;
+  static const int kPCOffset    = 5 * kPointerSize;
 
   static const int kAddressDisplacement = -1 * kPointerSize;
-  static const int kSize = kPCOffset + kPointerSize;
+  static const int kSize = 6 * kPointerSize;
 };
 
 

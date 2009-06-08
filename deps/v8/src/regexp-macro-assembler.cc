@@ -31,7 +31,8 @@
 #include "assembler.h"
 #include "regexp-macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 RegExpMacroAssembler::RegExpMacroAssembler() {
 }

@@ -39,7 +39,8 @@
 #include "arm/assembler-arm-inl.h"
 #include "serialize.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -----------------------------------------------------------------------------
 // Implementation of Register and CRegister
@@ -211,6 +212,7 @@ enum {
   // Instruction bit masks
   RdMask     = 15 << 12,  // in str instruction
   CondMask   = 15 << 28,
+  CoprocessorMask = 15 << 8,
   OpCodeMask = 15 << 21,  // in data-processing instructions
   Imm24Mask  = (1 << 24) - 1,
   Off12Mask  = (1 << 12) - 1,
@@ -616,7 +618,8 @@ void Assembler::addrmod4(Instr instr, Register rn, RegList rl) {
 
 void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
   // unindexed addressing is not encoded by this function
-  ASSERT((instr & ~(CondMask | P | U | N | W | L)) == (B27 | B26));
+  ASSERT_EQ((B27 | B26),
+            (instr & ~(CondMask | CoprocessorMask | P | U | N | W | L)));
   ASSERT(x.rn_.is_valid() && !x.rm_.is_valid());
   int am = x.am_;
   int offset_8 = x.offset_;

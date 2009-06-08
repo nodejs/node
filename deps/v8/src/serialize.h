@@ -30,7 +30,8 @@
 
 #include "hashmap.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // A TypeCode is used to distinguish different kinds of external reference.
 // It is a single bit to make testing for types easy.

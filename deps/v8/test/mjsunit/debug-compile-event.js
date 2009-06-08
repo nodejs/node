@@ -32,8 +32,11 @@ Debug = debug.Debug
 var exception = false;  // Exception in debug event listener.
 var before_compile_count = 0;
 var after_compile_count = 0;
-var current_source = '';  // Current source compiled.
-var source_count = 0;  // Total number of scource sompiled.
+var current_source = '';  // Current source being compiled.
+var source_count = 0;  // Total number of scources compiled.
+var host_compilations = 0;  // Number of scources compiled through the API.
+var eval_compilations = 0;  // Number of scources compiled through eval.
+var json_compilations = 0;  // Number of scources compiled through JSON.parse.
 
 
 function compileSource(source) {
@@ -52,19 +55,41 @@ function listener(event, exec_state, event_data, data) {
         before_compile_count++;
       } else {
         after_compile_count++;
+        switch (event_data.script().compilationType()) {
+          case Debug.ScriptCompilationType.Host:
+            host_compilations++;
+            break;
+          case Debug.ScriptCompilationType.Eval:
+            eval_compilations++;
+            break;
+          case Debug.ScriptCompilationType.JSON:
+            json_compilations++;
+            break;
+        }
       }
-      
+
       // If the compiled source contains 'eval' there will be additional compile
       // events for the source inside eval.
       if (current_source.indexOf('eval') == 0) {
         // For source with 'eval' there will be compile events with substrings
         // as well as with with the exact source.
         assertTrue(current_source.indexOf(event_data.script().source()) >= 0);
+      } else if (current_source.indexOf('JSON.parse') == 0) {
+        // For JSON the JSON source will be in parentheses.
+        var s = event_data.script().source();
+        if (s[0] == '(') {
+          s = s.substring(1, s.length - 2);
+        }
+        assertTrue(current_source.indexOf(s) >= 0);
       } else {
         // For source without 'eval' there will be a compile events with the
         // exact source.
         assertEquals(current_source, event_data.script().source());
       }
+      // Check that script context is included into the event message.
+      var json = event_data.toJSONProtocol();
+      var msg = eval('(' + json + ')');
+      assertTrue('context' in msg.body.script);
     }
   } catch (e) {
     exception = e
@@ -82,6 +107,8 @@ compileSource('eval("a=2")');
 source_count++;  // Using eval causes additional compilation event.
 compileSource('eval("eval(\'function(){return a;}\')")');
 source_count += 2;  // Using eval causes additional compilation event.
+compileSource('JSON.parse("{a:1,b:2}")');
+source_count++;  // Using JSON.parse causes additional compilation event.
 
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")
@@ -89,7 +116,11 @@ assertFalse(exception, "exception in listener")
 // Number of before and after compile events should be the same.
 assertEquals(before_compile_count, after_compile_count);
 
-// Check the actual number of events.
+// Check the actual number of events (no compilation through the API as all
+// source compiled through eval except for one JSON.parse call).
 assertEquals(source_count, after_compile_count);
+assertEquals(0, host_compilations);
+assertEquals(source_count - 1, eval_compilations);
+assertEquals(1, json_compilations);
 
 Debug.setListener(null);

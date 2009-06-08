@@ -38,7 +38,8 @@
 #include "conversions.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The fast double-to-int conversion routine does not guarantee
 // rounding towards zero.

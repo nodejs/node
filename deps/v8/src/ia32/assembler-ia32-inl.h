@@ -39,7 +39,8 @@
 
 #include "cpu.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
@@ -158,7 +159,7 @@ Immediate::Immediate(const char* s) {
 }
 
 
-Immediate::Immediate(Label *internal_offset) {
+Immediate::Immediate(Label* internal_offset) {
   x_ = reinterpret_cast<int32_t>(internal_offset);
   rmode_ = RelocInfo::INTERNAL_REFERENCE;
 }
@@ -274,6 +275,22 @@ void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
   buf_[0] = mod << 6 | rm.code();
   len_ = 1;
+}
+
+
+void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
+  ASSERT(len_ == 1);
+  ASSERT((scale & -4) == 0);
+  // Use SIB with no index register only for base esp.
+  ASSERT(!index.is(esp) || base.is(esp));
+  buf_[1] = scale << 6 | index.code() << 3 | base.code();
+  len_ = 2;
+}
+
+
+void Operand::set_disp8(int8_t disp) {
+  ASSERT(len_ == 1 || len_ == 2);
+  *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
 }
 
 

@@ -31,7 +31,8 @@
 
 #include "snapshot.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 const byte Snapshot::data_[] = { 0 };
 int Snapshot::size_ = 0;

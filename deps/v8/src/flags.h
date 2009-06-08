@@ -29,7 +29,8 @@
 
 #include "checks.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE

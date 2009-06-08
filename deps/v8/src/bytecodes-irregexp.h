@@ -29,7 +29,8 @@
 #ifndef V8_BYTECODES_IRREGEXP_H_
 #define V8_BYTECODES_IRREGEXP_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static const int BYTECODE_MASK = 0xff;

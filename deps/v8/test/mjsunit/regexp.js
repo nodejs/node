@@ -375,3 +375,16 @@ assertFalse(/x([0-7]%%%x|[0-6]%%%y)/.test('x7%%%y'), 'qt8');
 
 // Don't hang on this one.
 /[^\xfe-\xff]*/.test("");
+
+
+var long = "a";
+for (var i = 0; i < 100000; i++) {
+  long = "a?" + long;
+}
+// Don't crash on this one, but maybe throw an exception.
+try {
+  RegExp(long).exec("a");
+} catch (e) {
+  assertTrue(String(e).indexOf("Stack overflow") >= 0, "overflow");
+}
+

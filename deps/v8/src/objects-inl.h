@@ -40,7 +40,8 @@
 #include "conversions-inl.h"
 #include "property.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 PropertyDetails::PropertyDetails(Smi* smi) {
   value_ = smi->value();
@@ -764,9 +765,11 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 
 Failure* Failure::Construct(Type type, int value) {
   int info = (value << kFailureTypeTagSize) | type;
+  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
+  // happen to be identical at the moment.
   ASSERT(Smi::IsValid(info));  // Same validation check as in Smi
   return reinterpret_cast<Failure*>(
-      static_cast<intptr_t>((info << kFailureTagSize) | kFailureTag));
+      (static_cast<intptr_t>(info) << kFailureTagSize) | kFailureTag);
 }
 
 
@@ -1794,7 +1797,7 @@ int HeapObject::SizeFromMap(Map* map) {
 
 
 void Map::set_instance_size(int value) {
-  ASSERT((value & ~(kPointerSize - 1)) == value);
+  ASSERT_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
   ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
@@ -1895,6 +1898,11 @@ Code::Kind Code::kind() {
 }
 
 
+InLoopFlag Code::ic_in_loop() {
+  return ExtractICInLoopFromFlags(flags());
+}
+
+
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
@@ -1941,11 +1949,13 @@ bool Code::is_inline_cache_stub() {
 
 
 Code::Flags Code::ComputeFlags(Kind kind,
+                               InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                PropertyType type,
                                int argc) {
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
+  if (in_loop) bits |= kFlagsICInLoopMask;
   bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
   bits |= argc << kFlagsArgumentsCountShift;
@@ -1953,6 +1963,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
   Flags result = static_cast<Flags>(bits);
   ASSERT(ExtractKindFromFlags(result) == kind);
   ASSERT(ExtractICStateFromFlags(result) == ic_state);
+  ASSERT(ExtractICInLoopFromFlags(result) == in_loop);
   ASSERT(ExtractTypeFromFlags(result) == type);
   ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
   return result;
@@ -1961,8 +1972,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
+                                          InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(kind, MONOMORPHIC, type, argc);
+  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc);
 }
 
 
@@ -1975,6 +1987,12 @@ Code::Kind Code::ExtractKindFromFlags(Flags flags) {
 InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
   int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
   return static_cast<InlineCacheState>(bits);
+}
+
+
+InLoopFlag Code::ExtractICInLoopFromFlags(Flags flags) {
+  int bits = (flags & kFlagsICInLoopMask);
+  return bits != 0 ? IN_LOOP : NOT_IN_LOOP;
 }
 
 
@@ -2094,7 +2112,11 @@ ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
+ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
+ACCESSORS(Script, eval_from_function, Object, kEvalFromFunctionOffset)
+ACCESSORS(Script, eval_from_instructions_offset, Smi,
+          kEvalFrominstructionsOffsetOffset)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
@@ -2533,6 +2555,24 @@ PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
 
 bool JSObject::HasElement(uint32_t index) {
   return HasElementWithReceiver(this, index);
+}
+
+
+Smi* JSObject::InterceptorPropertyLookupHint(String* name) {
+  // TODO(antonm): Do we want to do any shortcuts for global object?
+  if (HasFastProperties()) {
+    LookupResult lookup;
+    LocalLookupRealNamedProperty(name, &lookup);
+    if (lookup.IsValid()) {
+      if (lookup.type() == FIELD && lookup.IsCacheable()) {
+        return Smi::FromInt(lookup.GetFieldIndex());
+      }
+    } else {
+      return Smi::FromInt(kLookupInPrototype);
+    }
+  }
+
+  return Smi::FromInt(kLookupInHolder);
 }
 
 

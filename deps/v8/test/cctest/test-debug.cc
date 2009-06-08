@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "compilation-cache.h"
 #include "debug.h"
 #include "platform.h"
 #include "stub-cache.h"
@@ -370,7 +371,8 @@ static void PrepareStep(StepAction step_action) {
 
 // This function is in namespace v8::internal to be friend with class
 // v8::internal::Debug.
-namespace v8 { namespace internal {  // NOLINT
+namespace v8 {
+namespace internal {
 
 // Collect the currently debugged functions.
 Handle<FixedArray> GetDebuggedFunctions() {
@@ -3311,6 +3313,82 @@ TEST(HiddenPrototypePropertyMirror) {
 }
 
 
+static v8::Handle<v8::Value> ProtperyXNativeGetter(
+    v8::Local<v8::String> property, const v8::AccessorInfo& info) {
+  return v8::Integer::New(10);
+}
+
+
+TEST(NativeGetterPropertyMirror) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Handle<v8::String> name = v8::String::New("x");
+  // Create object with named accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(name, &ProtperyXNativeGetter, NULL,
+      v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
+
+  // Create object with named property getter.
+  env->Global()->Set(v8::String::New("instance"), named->NewInstance());
+  CHECK_EQ(10, CompileRun("instance.x")->Int32Value());
+
+  // Get mirror for the object with property getter.
+  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CHECK(CompileRun(
+      "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
+
+  CompileRun("named_names = instance_mirror.propertyNames();");
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().isNumber()")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().value() == 10")->BooleanValue());
+}
+
+
+static v8::Handle<v8::Value> ProtperyXNativeGetterThrowingError(
+    v8::Local<v8::String> property, const v8::AccessorInfo& info) {
+  return CompileRun("throw new Error('Error message');");
+}
+
+
+TEST(NativeGetterThrowingErrorPropertyMirror) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Handle<v8::String> name = v8::String::New("x");
+  // Create object with named accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(name, &ProtperyXNativeGetterThrowingError, NULL,
+      v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
+
+  // Create object with named property getter.
+  env->Global()->Set(v8::String::New("instance"), named->NewInstance());
+
+  // Get mirror for the object with property getter.
+  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CHECK(CompileRun(
+      "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("named_names = instance_mirror.propertyNames();");
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().isError()")->BooleanValue());
+
+  // Check that the message is that passed to the Error constructor.
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().message() == 'Error message'")->
+          BooleanValue());
+}
+
+
+
 // Multithreaded tests of JSON debugger protocol
 
 // Support classes
@@ -4166,11 +4244,8 @@ TEST(DebuggerUnload) {
 }
 
 
-// Debugger message handler which counts the number of times it is called.
-static int message_handler_hit_count = 0;
-static void MessageHandlerHitCount(const v8::Debug::Message& message) {
-  message_handler_hit_count++;
-
+// Sends continue command to the debugger.
+static void SendContinueCommand() {
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_continue =
@@ -4179,6 +4254,15 @@ static void MessageHandlerHitCount(const v8::Debug::Message& message) {
      "\"command\":\"continue\"}";
 
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+}
+
+
+// Debugger message handler which counts the number of times it is called.
+static int message_handler_hit_count = 0;
+static void MessageHandlerHitCount(const v8::Debug::Message& message) {
+  message_handler_hit_count++;
+
+  SendContinueCommand();
 }
 
 
@@ -4525,6 +4609,8 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
 TEST(DebugGetLoadedScripts) {
   v8::HandleScope scope;
   DebugLocalContext env;
+  env.ExposeDebug();
+
   EmptyExternalStringResource source_ext_str;
   v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
   v8::Handle<v8::Script> evil_script = v8::Script::Compile(source);
@@ -4538,11 +4624,15 @@ TEST(DebugGetLoadedScripts) {
   i::FLAG_allow_natives_syntax = true;
   CompileRun(
       "var scripts = %DebugGetLoadedScripts();"
-      "for (var i = 0; i < scripts.length; ++i) {"
-      "    scripts[i].line_ends;"
+      "var count = scripts.length;"
+      "for (var i = 0; i < count; ++i) {"
+      "  scripts[i].line_ends;"
       "}");
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
+
+  // Some scripts are retrieved - at least the number of native scripts.
+  CHECK_GT((*env)->Global()->Get(v8::String::New("count"))->Int32Value(), 8);
 }
 
 
@@ -4574,7 +4664,6 @@ TEST(ScriptNameAndData) {
   v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
   script1->SetData(v8::String::New("data"));
   script1->Run();
-  v8::Script::Compile(script, &origin1)->Run();
   v8::Local<v8::Function> f;
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
@@ -4582,6 +4671,15 @@ TEST(ScriptNameAndData) {
   CHECK_EQ(1, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
   CHECK_EQ("data", last_script_data_hit);
+
+  // Compile the same script again without setting data. As the compilation
+  // cache is disabled when debugging expect the data to be missing.
+  v8::Script::Compile(script, &origin1)->Run();
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ("", last_script_data_hit);  // Undefined results in empty string.
 
   v8::Local<v8::String> data_obj_source = v8::String::New(
     "({ a: 'abc',\n"
@@ -4595,7 +4693,7 @@ TEST(ScriptNameAndData) {
   script2->SetData(data_obj);
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
   CHECK_EQ("abc 123", last_script_data_hit);
 }
@@ -4612,16 +4710,9 @@ static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
       expected_context_data));
   message_handler_hit_count++;
 
-  const int kBufferSize = 1000;
-  uint16_t buffer[kBufferSize];
-  const char* command_continue =
-    "{\"seq\":0,"
-     "\"type\":\"request\","
-     "\"command\":\"continue\"}";
-
   // Send a continue command for break events.
   if (message.GetEvent() == v8::Break) {
-    v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+    SendContinueCommand();
   }
 }
 
@@ -4679,4 +4770,418 @@ TEST(ContextData) {
 
   // Two times compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 4);
+
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Debug message handler which issues a debug break when it hits a break event.
+static int message_handler_break_hit_count = 0;
+static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
+  // Schedule a debug break for break events.
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    message_handler_break_hit_count++;
+    if (message_handler_break_hit_count == 1) {
+      v8::Debug::DebugBreak();
+    }
+  }
+
+  // Issue a continue command if this event will not cause the VM to start
+  // running.
+  if (!message.WillStartRunning()) {
+    SendContinueCommand();
+  }
+}
+
+
+// Test that a debug break can be scheduled while in a message handler.
+TEST(DebugBreakInMessageHandler) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  v8::Debug::SetMessageHandler2(DebugBreakMessageHandler);
+
+  // Test functions.
+  const char* script = "function f() { debugger; } function g() { }";
+  CompileRun(script);
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("g")));
+
+  // Call f then g. The debugger statement in f will casue a break which will
+  // cause another break.
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, message_handler_break_hit_count);
+  // Calling g will not cause any additional breaks.
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, message_handler_break_hit_count);
+}
+
+
+// Debug event handler which gets the function on the top frame and schedules a
+// break a number of times.
+static void DebugEventDebugBreak(
+    v8::DebugEvent event,
+    v8::Handle<v8::Object> exec_state,
+    v8::Handle<v8::Object> event_data,
+    v8::Handle<v8::Value> data) {
+
+  if (event == v8::Break) {
+    break_point_hit_count++;
+
+    // Get the name of the top frame function.
+    if (!frame_function_name.IsEmpty()) {
+      // Get the name of the function.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
+                                                               argc, argv);
+      if (result->IsUndefined()) {
+        last_function_hit[0] = '\0';
+      } else {
+        CHECK(result->IsString());
+        v8::Handle<v8::String> function_name(result->ToString());
+        function_name->WriteAscii(last_function_hit);
+      }
+    }
+
+    // Keep forcing breaks.
+    if (break_point_hit_count < 20) {
+      v8::Debug::DebugBreak();
+    }
+  }
+}
+
+
+TEST(RegExpDebugBreak) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  i::FLAG_regexp_native = true;
+
+  // Create a function for checking the function when hitting a break point.
+  frame_function_name = CompileFunction(&env,
+                                        frame_function_name_source,
+                                        "frame_function_name");
+
+  // Test RegExp which matches white spaces and comments at the begining of a
+  // source line.
+  const char* script =
+    "var sourceLineBeginningSkip = /^(?:[ \\v\\h]*(?:\\/\\*.*?\\*\\/)*)*/;\n"
+    "function f(s) { return s.match(sourceLineBeginningSkip)[0].length; }";
+
+  v8::Local<v8::Function> f = CompileFunction(script, "f");
+  const int argc = 1;
+  v8::Handle<v8::Value> argv[argc] = { v8::String::New("  /* xxx */ a=0;") };
+  v8::Local<v8::Value> result = f->Call(env->Global(), argc, argv);
+  CHECK_EQ(12, result->Int32Value());
+
+  v8::Debug::SetDebugEventListener(DebugEventDebugBreak);
+  v8::Debug::DebugBreak();
+  result = f->Call(env->Global(), argc, argv);
+
+  CHECK_EQ(20, break_point_hit_count);
+  CHECK_EQ("exec", last_function_hit);
+}
+
+
+// Common part of EvalContextData and NestedBreakEventContextData tests.
+static void ExecuteScriptForContextCheck() {
+  // Create a context.
+  v8::Persistent<v8::Context> context_1;
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::Handle<v8::ObjectTemplate>();
+  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
+  context_1 = v8::Context::New(NULL, global_template, global_object);
+
+  // Default data value is undefined.
+  CHECK(context_1->GetData()->IsUndefined());
+
+  // Set and check a data value.
+  v8::Handle<v8::Value> data_1 = v8::Number::New(1);
+  context_1->SetData(data_1);
+  CHECK(context_1->GetData()->StrictEquals(data_1));
+
+  // Simple test function with eval that causes a break.
+  const char* source = "function f() { eval('debugger;'); }";
+
+  // Enter and run function in the context.
+  {
+    v8::Context::Scope context_scope(context_1);
+    expected_context = context_1;
+    expected_context_data = data_1;
+    v8::Local<v8::Function> f = CompileFunction(source, "f");
+    f->Call(context_1->Global(), 0, NULL);
+  }
+}
+
+
+// Test which creates a context and sets embedder data on it. Checks that this
+// data is set correctly and that when the debug message handler is called for
+// break event in an eval statement the expected context is the one returned by
+// Message.GetEventContext.
+TEST(EvalContextData) {
+  v8::HandleScope scope;
+  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
+
+  ExecuteScriptForContextCheck();
+
+  // One time compile event and one time break event.
+  CHECK_GT(message_handler_hit_count, 2);
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+static bool sent_eval = false;
+static int break_count = 0;
+static int continue_command_send_count = 0;
+// Check that the expected context is the one generating the debug event
+// including the case of nested break event.
+static void DebugEvalContextCheckMessageHandler(
+    const v8::Debug::Message& message) {
+  CHECK(message.GetEventContext() == expected_context);
+  CHECK(message.GetEventContext()->GetData()->StrictEquals(
+      expected_context_data));
+  message_handler_hit_count++;
+
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    break_count++;
+    if (!sent_eval) {
+      sent_eval = true;
+
+      const int kBufferSize = 1000;
+      uint16_t buffer[kBufferSize];
+      const char* eval_command =
+        "{\"seq\":0,"
+         "\"type\":\"request\","
+         "\"command\":\"evaluate\","
+         "arguments:{\"expression\":\"debugger;\","
+         "\"global\":true,\"disable_break\":false}}";
+
+      // Send evaluate command.
+      v8::Debug::SendCommand(buffer, AsciiToUtf16(eval_command, buffer));
+      return;
+    } else {
+      // It's a break event caused by the evaluation request above.
+      SendContinueCommand();
+      continue_command_send_count++;
+    }
+  } else if (message.IsResponse() && continue_command_send_count < 2) {
+    // Response to the evaluation request. We're still on the breakpoint so
+    // send continue.
+    SendContinueCommand();
+    continue_command_send_count++;
+  }
+}
+
+
+// Tests that context returned for break event is correct when the event occurs
+// in 'evaluate' debugger request.
+TEST(NestedBreakEventContextData) {
+  v8::HandleScope scope;
+  break_count = 0;
+  message_handler_hit_count = 0;
+  v8::Debug::SetMessageHandler2(DebugEvalContextCheckMessageHandler);
+
+  ExecuteScriptForContextCheck();
+
+  // One time compile event and two times break event.
+  CHECK_GT(message_handler_hit_count, 3);
+
+  // One break from the source and another from the evaluate request.
+  CHECK_EQ(break_count, 2);
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Debug event listener which counts the script collected events.
+int script_collected_count = 0;
+static void DebugEventScriptCollectedEvent(v8::DebugEvent event,
+                                           v8::Handle<v8::Object> exec_state,
+                                           v8::Handle<v8::Object> event_data,
+                                           v8::Handle<v8::Value> data) {
+  // Count the number of breaks.
+  if (event == v8::ScriptCollected) {
+    script_collected_count++;
+  }
+}
+
+
+// Test that scripts collected are reported through the debug event listener.
+TEST(ScriptCollectedEvent) {
+  break_point_hit_count = 0;
+  script_collected_count = 0;
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Request the loaded scripts to initialize the debugger script cache.
+  Debug::GetLoadedScripts();
+
+  // Do garbage collection to ensure that only the script in this test will be
+  // collected afterwards.
+  Heap::CollectAllGarbage();
+
+  script_collected_count = 0;
+  v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
+                                   v8::Undefined());
+  {
+    v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
+    v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+  }
+
+  // Do garbage collection to collect the script above which is no longer
+  // referenced.
+  Heap::CollectAllGarbage();
+
+  CHECK_EQ(2, script_collected_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Debug event listener which counts the script collected events.
+int script_collected_message_count = 0;
+static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
+  // Count the number of scripts collected.
+  if (message.IsEvent() && message.GetEvent() == v8::ScriptCollected) {
+    script_collected_message_count++;
+    v8::Handle<v8::Context> context = message.GetEventContext();
+    CHECK(context.IsEmpty());
+  }
+}
+
+
+// Test that GetEventContext doesn't fail and return empty handle for
+// ScriptCollected events.
+TEST(ScriptCollectedEventContext) {
+  script_collected_message_count = 0;
+  v8::HandleScope scope;
+
+  { // Scope for the DebugLocalContext.
+    DebugLocalContext env;
+
+    // Request the loaded scripts to initialize the debugger script cache.
+    Debug::GetLoadedScripts();
+
+    // Do garbage collection to ensure that only the script in this test will be
+    // collected afterwards.
+    Heap::CollectAllGarbage();
+
+    v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
+    {
+      v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
+      v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+    }
+  }
+
+  // Do garbage collection to collect the script above which is no longer
+  // referenced.
+  Heap::CollectAllGarbage();
+
+  CHECK_EQ(2, script_collected_message_count);
+
+  v8::Debug::SetMessageHandler2(NULL);
+}
+
+
+// Debug event listener which counts the after compile events.
+int after_compile_message_count = 0;
+static void AfterCompileMessageHandler(const v8::Debug::Message& message) {
+  // Count the number of scripts collected.
+  if (message.IsEvent()) {
+    if (message.GetEvent() == v8::AfterCompile) {
+      after_compile_message_count++;
+    } else if (message.GetEvent() == v8::Break) {
+      SendContinueCommand();
+    }
+  }
+}
+
+
+// Tests that after compile event is sent as many times as there are scripts
+// compiled.
+TEST(AfterCompileMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  after_compile_message_count = 0;
+  const char* script = "var a=1";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Debug::DebugBreak();
+  v8::Script::Compile(v8::String::New(script))->Run();
+
+  // Setting listener to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  // Compilation cache should be disabled when debugger is active.
+  CHECK_EQ(2, after_compile_message_count);
+}
+
+
+// Tests that break event is sent when message handler is reset.
+TEST(BreakMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  after_compile_message_count = 0;
+  const char* script = "function f() {};";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Debug::DebugBreak();
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+
+  // Setting message handler to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  // Compilation cache should be disabled when debugger is active.
+  CHECK_EQ(1, after_compile_message_count);
+}
+
+
+static int exception_event_count = 0;
+static void ExceptionMessageHandler(const v8::Debug::Message& message) {
+  if (message.IsEvent() && message.GetEvent() == v8::Exception) {
+    exception_event_count++;
+    SendContinueCommand();
+  }
+}
+
+
+// Tests that exception event is sent when message handler is reset.
+TEST(ExceptionMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  exception_event_count = 0;
+  const char* script = "function f() {throw new Error()};";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(ExceptionMessageHandler);
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+
+  // Setting message handler to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  CHECK_EQ(1, exception_event_count);
 }

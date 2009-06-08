@@ -30,7 +30,8 @@
 #include "ast.h"
 #include "scanner.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // Character predicates
@@ -48,8 +49,12 @@ StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
 // ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : data_(NULL) {
-  Initialize(NULL, 0);
+UTF8Buffer::UTF8Buffer() {
+  static const int kInitialCapacity = 1 * KB;
+  data_ = NewArray<char>(kInitialCapacity);
+  limit_ = ComputeLimit(data_, kInitialCapacity);
+  Reset();
+  ASSERT(Capacity() == kInitialCapacity && pos() == 0);
 }
 
 
@@ -58,33 +63,27 @@ UTF8Buffer::~UTF8Buffer() {
 }
 
 
-void UTF8Buffer::Initialize(char* src, int length) {
-  DeleteArray(data_);
-  data_ = src;
-  size_ = length;
-  Reset();
-}
-
-
-void UTF8Buffer::AddChar(uc32 c) {
-  const int min_size = 1024;
-  if (pos_ + static_cast<int>(unibrow::Utf8::kMaxEncodedSize) > size_) {
-    int new_size = size_ * 2;
-    if (new_size < min_size) {
-      new_size = min_size;
-    }
-    char* new_data = NewArray<char>(new_size);
-    memcpy(new_data, data_, pos_);
+void UTF8Buffer::AddCharSlow(uc32 c) {
+  static const int kCapacityGrowthLimit = 1 * MB;
+  if (cursor_ > limit_) {
+    int old_capacity = Capacity();
+    int old_position = pos();
+    int new_capacity =
+        Min(old_capacity * 2, old_capacity + kCapacityGrowthLimit);
+    char* new_data = NewArray<char>(new_capacity);
+    memcpy(new_data, data_, old_position);
     DeleteArray(data_);
     data_ = new_data;
-    size_ = new_size;
+    cursor_ = new_data + old_position;
+    limit_ = ComputeLimit(new_data, new_capacity);
+    ASSERT(Capacity() == new_capacity && pos() == old_position);
   }
-  if (static_cast<unsigned>(c) < unibrow::Utf8::kMaxOneByteChar) {
-    data_[pos_++] = c;  // common case: 7bit ASCII
+  if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
+    *cursor_++ = c;  // Common case: 7-bit ASCII.
   } else {
-    pos_ += unibrow::Utf8::Encode(&data_[pos_], c);
+    cursor_ += unibrow::Utf8::Encode(cursor_, c);
   }
-  ASSERT(pos_ <= size_);
+  ASSERT(pos() <= Capacity());
 }
 
 
@@ -172,9 +171,10 @@ void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
   ASSERT(kCharacterLookaheadBufferSize == 1);
   Advance();
 
-  // Skip initial whitespace (allowing HTML comment ends) and scan
-  // first token.
-  SkipWhiteSpace(true);
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
   Scan();
 }
 
@@ -246,18 +246,19 @@ static inline bool IsByteOrderMark(uc32 c) {
 }
 
 
-void Scanner::SkipWhiteSpace(bool initial) {
-  has_line_terminator_before_next_ = initial;
+bool Scanner::SkipWhiteSpace() {
+  int start_position = source_pos();
 
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
     while (kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (kIsLineTerminator.get(c0_))
+      if (kIsLineTerminator.get(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
+      }
       Advance();
     }
 
@@ -279,7 +280,8 @@ void Scanner::SkipWhiteSpace(bool initial) {
       }
       PushBack('-');  // undo Advance()
     }
-    return;
+    // Return whether or not we skipped any characters.
+    return source_pos() != start_position;
   }
 }
 
@@ -296,7 +298,7 @@ Token::Value Scanner::SkipSingleLineComment() {
     Advance();
   }
 
-  return Token::COMMENT;
+  return Token::WHITESPACE;
 }
 
 
@@ -316,7 +318,7 @@ Token::Value Scanner::SkipMultiLineComment() {
     // matches the behaviour of SpiderMonkey and KJS.
     if (ch == '*' && c0_ == '/') {
       c0_ = ' ';
-      return Token::COMMENT;
+      return Token::WHITESPACE;
     }
   }
 
@@ -342,18 +344,238 @@ Token::Value Scanner::ScanHtmlComment() {
 
 void Scanner::Scan() {
   Token::Value token;
-  bool has_line_terminator = false;
+  has_line_terminator_before_next_ = false;
   do {
-    SkipWhiteSpace(has_line_terminator);
-
-    // Remember the line terminator in previous loop
-    has_line_terminator = has_line_terminator_before_next();
-
     // Remember the position of the next token
     next_.location.beg_pos = source_pos();
 
-    token = ScanToken();
-  } while (token == Token::COMMENT);
+    switch (c0_) {
+      case ' ':
+      case '\t':
+        Advance();
+        token = Token::WHITESPACE;
+        break;
+
+      case '\n':
+        Advance();
+        has_line_terminator_before_next_ = true;
+        token = Token::WHITESPACE;
+        break;
+
+      case '"': case '\'':
+        token = ScanString();
+        break;
+
+      case '<':
+        // < <= << <<= <!--
+        Advance();
+        if (c0_ == '=') {
+          token = Select(Token::LTE);
+        } else if (c0_ == '<') {
+          token = Select('=', Token::ASSIGN_SHL, Token::SHL);
+        } else if (c0_ == '!') {
+          token = ScanHtmlComment();
+        } else {
+          token = Token::LT;
+        }
+        break;
+
+      case '>':
+        // > >= >> >>= >>> >>>=
+        Advance();
+        if (c0_ == '=') {
+          token = Select(Token::GTE);
+        } else if (c0_ == '>') {
+          // >> >>= >>> >>>=
+          Advance();
+          if (c0_ == '=') {
+            token = Select(Token::ASSIGN_SAR);
+          } else if (c0_ == '>') {
+            token = Select('=', Token::ASSIGN_SHR, Token::SHR);
+          } else {
+            token = Token::SAR;
+          }
+        } else {
+          token = Token::GT;
+        }
+        break;
+
+      case '=':
+        // = == ===
+        Advance();
+        if (c0_ == '=') {
+          token = Select('=', Token::EQ_STRICT, Token::EQ);
+        } else {
+          token = Token::ASSIGN;
+        }
+        break;
+
+      case '!':
+        // ! != !==
+        Advance();
+        if (c0_ == '=') {
+          token = Select('=', Token::NE_STRICT, Token::NE);
+        } else {
+          token = Token::NOT;
+        }
+        break;
+
+      case '+':
+        // + ++ +=
+        Advance();
+        if (c0_ == '+') {
+          token = Select(Token::INC);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_ADD);
+        } else {
+          token = Token::ADD;
+        }
+        break;
+
+      case '-':
+        // - -- --> -=
+        Advance();
+        if (c0_ == '-') {
+          Advance();
+          if (c0_ == '>' && has_line_terminator_before_next_) {
+            // For compatibility with SpiderMonkey, we skip lines that
+            // start with an HTML comment end '-->'.
+            token = SkipSingleLineComment();
+          } else {
+            token = Token::DEC;
+          }
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_SUB);
+        } else {
+          token = Token::SUB;
+        }
+        break;
+
+      case '*':
+        // * *=
+        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
+        break;
+
+      case '%':
+        // % %=
+        token = Select('=', Token::ASSIGN_MOD, Token::MOD);
+        break;
+
+      case '/':
+        // /  // /* /=
+        Advance();
+        if (c0_ == '/') {
+          token = SkipSingleLineComment();
+        } else if (c0_ == '*') {
+          token = SkipMultiLineComment();
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_DIV);
+        } else {
+          token = Token::DIV;
+        }
+        break;
+
+      case '&':
+        // & && &=
+        Advance();
+        if (c0_ == '&') {
+          token = Select(Token::AND);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_BIT_AND);
+        } else {
+          token = Token::BIT_AND;
+        }
+        break;
+
+      case '|':
+        // | || |=
+        Advance();
+        if (c0_ == '|') {
+          token = Select(Token::OR);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_BIT_OR);
+        } else {
+          token = Token::BIT_OR;
+        }
+        break;
+
+      case '^':
+        // ^ ^=
+        token = Select('=', Token::ASSIGN_BIT_XOR, Token::BIT_XOR);
+        break;
+
+      case '.':
+        // . Number
+        Advance();
+        if (IsDecimalDigit(c0_)) {
+          token = ScanNumber(true);
+        } else {
+          token = Token::PERIOD;
+        }
+        break;
+
+      case ':':
+        token = Select(Token::COLON);
+        break;
+
+      case ';':
+        token = Select(Token::SEMICOLON);
+        break;
+
+      case ',':
+        token = Select(Token::COMMA);
+        break;
+
+      case '(':
+        token = Select(Token::LPAREN);
+        break;
+
+      case ')':
+        token = Select(Token::RPAREN);
+        break;
+
+      case '[':
+        token = Select(Token::LBRACK);
+        break;
+
+      case ']':
+        token = Select(Token::RBRACK);
+        break;
+
+      case '{':
+        token = Select(Token::LBRACE);
+        break;
+
+      case '}':
+        token = Select(Token::RBRACE);
+        break;
+
+      case '?':
+        token = Select(Token::CONDITIONAL);
+        break;
+
+      case '~':
+        token = Select(Token::BIT_NOT);
+        break;
+
+      default:
+        if (kIsIdentifierStart.get(c0_)) {
+          token = ScanIdentifier();
+        } else if (IsDecimalDigit(c0_)) {
+          token = ScanNumber(false);
+        } else if (SkipWhiteSpace()) {
+          token = Token::WHITESPACE;
+        } else if (c0_ < 0) {
+          token = Token::EOS;
+        } else {
+          token = Select(Token::ILLEGAL);
+        }
+        break;
+    }
+
+    // Continue scanning for tokens as long as we're just skipping
+    // whitespace.
+  } while (token == Token::WHITESPACE);
 
   next_.location.end_pos = source_pos();
   next_.token = token;
@@ -495,147 +717,6 @@ Token::Value Scanner::Select(uc32 next, Token::Value then, Token::Value else_) {
 }
 
 
-Token::Value Scanner::ScanToken() {
-  switch (c0_) {
-    // strings
-    case '"': case '\'':
-      return ScanString();
-
-    case '<':
-      // < <= << <<= <!--
-      Advance();
-      if (c0_ == '=') return Select(Token::LTE);
-      if (c0_ == '<') return Select('=', Token::ASSIGN_SHL, Token::SHL);
-      if (c0_ == '!') return ScanHtmlComment();
-      return Token::LT;
-
-    case '>':
-      // > >= >> >>= >>> >>>=
-      Advance();
-      if (c0_ == '=') return Select(Token::GTE);
-      if (c0_ == '>') {
-        // >> >>= >>> >>>=
-        Advance();
-        if (c0_ == '=') return Select(Token::ASSIGN_SAR);
-        if (c0_ == '>') return Select('=', Token::ASSIGN_SHR, Token::SHR);
-        return Token::SAR;
-      }
-      return Token::GT;
-
-    case '=':
-      // = == ===
-      Advance();
-      if (c0_ == '=') return Select('=', Token::EQ_STRICT, Token::EQ);
-      return Token::ASSIGN;
-
-    case '!':
-      // ! != !==
-      Advance();
-      if (c0_ == '=') return Select('=', Token::NE_STRICT, Token::NE);
-      return Token::NOT;
-
-    case '+':
-      // + ++ +=
-      Advance();
-      if (c0_ == '+') return Select(Token::INC);
-      if (c0_ == '=') return Select(Token::ASSIGN_ADD);
-      return Token::ADD;
-
-    case '-':
-      // - -- -=
-      Advance();
-      if (c0_ == '-') return Select(Token::DEC);
-      if (c0_ == '=') return Select(Token::ASSIGN_SUB);
-      return Token::SUB;
-
-    case '*':
-      // * *=
-      return Select('=', Token::ASSIGN_MUL, Token::MUL);
-
-    case '%':
-      // % %=
-      return Select('=', Token::ASSIGN_MOD, Token::MOD);
-
-    case '/':
-      // /  // /* /=
-      Advance();
-      if (c0_ == '/') return SkipSingleLineComment();
-      if (c0_ == '*') return SkipMultiLineComment();
-      if (c0_ == '=') return Select(Token::ASSIGN_DIV);
-      return Token::DIV;
-
-    case '&':
-      // & && &=
-      Advance();
-      if (c0_ == '&') return Select(Token::AND);
-      if (c0_ == '=') return Select(Token::ASSIGN_BIT_AND);
-      return Token::BIT_AND;
-
-    case '|':
-      // | || |=
-      Advance();
-      if (c0_ == '|') return Select(Token::OR);
-      if (c0_ == '=') return Select(Token::ASSIGN_BIT_OR);
-      return Token::BIT_OR;
-
-    case '^':
-      // ^ ^=
-      return Select('=', Token::ASSIGN_BIT_XOR, Token::BIT_XOR);
-
-    case '.':
-      // . Number
-      Advance();
-      if (IsDecimalDigit(c0_)) return ScanNumber(true);
-      return Token::PERIOD;
-
-    case ':':
-      return Select(Token::COLON);
-
-    case ';':
-      return Select(Token::SEMICOLON);
-
-    case ',':
-      return Select(Token::COMMA);
-
-    case '(':
-      return Select(Token::LPAREN);
-
-    case ')':
-      return Select(Token::RPAREN);
-
-    case '[':
-      return Select(Token::LBRACK);
-
-    case ']':
-      return Select(Token::RBRACK);
-
-    case '{':
-      return Select(Token::LBRACE);
-
-    case '}':
-      return Select(Token::RBRACE);
-
-    case '?':
-      return Select(Token::CONDITIONAL);
-
-    case '~':
-      return Select(Token::BIT_NOT);
-
-    default:
-      if (kIsIdentifierStart.get(c0_))
-        return ScanIdentifier();
-      if (IsDecimalDigit(c0_))
-        return ScanNumber(false);
-      if (c0_ < 0)
-        return Token::EOS;
-      return Select(Token::ILLEGAL);
-  }
-
-  UNREACHABLE();
-  return Token::ILLEGAL;
-}
-
-
 // Returns true if any decimal digits were scanned, returns false otherwise.
 void Scanner::ScanDecimalDigits() {
   while (IsDecimalDigit(c0_))
@@ -734,7 +815,6 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
 
 Token::Value Scanner::ScanIdentifier() {
   ASSERT(kIsIdentifierStart.get(c0_));
-
   bool has_escapes = false;
 
   StartLiteral();
@@ -746,8 +826,10 @@ Token::Value Scanner::ScanIdentifier() {
     if (!kIsIdentifierStart.get(c)) return Token::ILLEGAL;
     AddChar(c);
   } else {
-    AddCharAdvance();
+    AddChar(c0_);
+    Advance();
   }
+
   // Scan the rest of the identifier characters.
   while (kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
@@ -757,19 +839,22 @@ Token::Value Scanner::ScanIdentifier() {
       if (!kIsIdentifierPart.get(c)) return Token::ILLEGAL;
       AddChar(c);
     } else {
-      AddCharAdvance();
+      AddChar(c0_);
+      Advance();
     }
   }
   TerminateLiteral();
 
   // We don't have any 1-letter keywords (this is probably a common case).
-  if ((next_.literal_end - next_.literal_pos) == 1)
+  if ((next_.literal_end - next_.literal_pos) == 1) {
     return Token::IDENTIFIER;
+  }
 
   // If the identifier contains unicode escapes, it must not be
   // resolved to a keyword.
-  if (has_escapes)
+  if (has_escapes) {
     return Token::IDENTIFIER;
+  }
 
   return Token::Lookup(&literals_.data()[next_.literal_pos]);
 }

@@ -29,7 +29,8 @@
 
 #include "token.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef DEBUG
 #define T(name, string, precedence) #name,

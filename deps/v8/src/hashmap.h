@@ -28,7 +28,8 @@
 #ifndef V8_HASHMAP_H_
 #define V8_HASHMAP_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Allocator defines the memory allocator interface
@@ -74,6 +75,9 @@ class HashMap {
   // corresponding key, key hash, and NULL value.
   // Otherwise, NULL is returned.
   Entry* Lookup(void* key, uint32_t hash, bool insert);
+
+  // Removes the entry with matching key.
+  void Remove(void* key, uint32_t hash);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();

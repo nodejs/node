@@ -28,7 +28,8 @@
 #ifndef V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 #define V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class RegExpMacroAssemblerARM: public RegExpMacroAssembler {
  public:

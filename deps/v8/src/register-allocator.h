@@ -30,7 +30,18 @@
 
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+#if V8_TARGET_ARCH_IA32
+#include "ia32/register-allocator-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/register-allocator-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/register-allocator-arm.h"
+#else
+#error Unsupported target architecture.
+#endif
+
+namespace v8 {
+namespace internal {
 
 
 // -------------------------------------------------------------------------
@@ -100,7 +111,10 @@ class StaticType BASE_EMBEDDED {
   explicit StaticType(StaticTypeEnum static_type) : static_type_(static_type) {}
 
   // StaticTypeEnum static_type_;
-  byte static_type_;
+  StaticTypeEnum static_type_;
+
+  friend class FrameElement;
+  friend class Result;
 };
 
 
@@ -119,26 +133,20 @@ class Result BASE_EMBEDDED {
   };
 
   // Construct an invalid result.
-  explicit Result(CodeGenerator* cgen)
-      : static_type_(),
-        type_(INVALID),
-        cgen_(cgen) {}
+  Result() { invalidate(); }
 
   // Construct a register Result.
-  Result(Register reg,
-         CodeGenerator* cgen);
+  explicit Result(Register reg);
 
   // Construct a register Result with a known static type.
-  Result(Register reg,
-         CodeGenerator* cgen,
-         StaticType static_type);
+  Result(Register reg, StaticType static_type);
 
   // Construct a Result whose value is a compile-time constant.
-  Result(Handle<Object> value, CodeGenerator * cgen)
-      : static_type_(StaticType::TypeOf(*value)),
-        type_(CONSTANT),
-        cgen_(cgen) {
-    data_.handle_ = value.location();
+  explicit Result(Handle<Object> value) {
+    value_ = StaticTypeField::encode(StaticType::TypeOf(*value).static_type_)
+        | TypeField::encode(CONSTANT)
+        | DataField::encode(ConstantList()->length());
+    ConstantList()->Add(value);
   }
 
   // The copy constructor and assignment operators could each create a new
@@ -157,25 +165,51 @@ class Result BASE_EMBEDDED {
 
   inline ~Result();
 
+  // Static indirection table for handles to constants.  If a Result
+  // represents a constant, the data contains an index into this table
+  // of handles to the actual constants.
+  typedef ZoneList<Handle<Object> > ZoneObjectList;
+
+  static ZoneObjectList* ConstantList() {
+    static ZoneObjectList list(10);
+    return &list;
+  }
+
+  // Clear the constants indirection table.
+  static void ClearConstantList() {
+    ConstantList()->Clear();
+  }
+
   inline void Unuse();
 
-  StaticType static_type() const { return static_type_; }
-  void set_static_type(StaticType static_type) { static_type_ = static_type; }
+  StaticType static_type() const {
+    return StaticType(StaticTypeField::decode(value_));
+  }
 
-  Type type() const { return static_cast<Type>(type_); }
+  void set_static_type(StaticType type) {
+    value_ = value_ & ~StaticTypeField::mask();
+    value_ = value_ | StaticTypeField::encode(type.static_type_);
+  }
+
+  Type type() const { return TypeField::decode(value_); }
+
+  void invalidate() { value_ = TypeField::encode(INVALID); }
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
 
   Register reg() const {
-    ASSERT(type() == REGISTER);
-    return data_.reg_;
+    ASSERT(is_register());
+    uint32_t reg = DataField::decode(value_);
+    Register result;
+    result.code_ = reg;
+    return result;
   }
 
   Handle<Object> handle() const {
     ASSERT(type() == CONSTANT);
-    return Handle<Object>(data_.handle_);
+    return ConstantList()->at(DataField::decode(value_));
   }
 
   // Move this result to an arbitrary register.  The register is not
@@ -189,17 +223,15 @@ class Result BASE_EMBEDDED {
   void ToRegister(Register reg);
 
  private:
-  StaticType static_type_;
-  byte type_;
+  uint32_t value_;
 
-  union {
-    Register reg_;
-    Object** handle_;
-  } data_;
+  class StaticTypeField: public BitField<StaticType::StaticTypeEnum, 0, 3> {};
+  class TypeField: public BitField<Type, 3, 2> {};
+  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
 
-  CodeGenerator* cgen_;
+  inline void CopyTo(Result* destination) const;
 
-  void CopyTo(Result* destination) const;
+  friend class CodeGeneratorScope;
 };
 
 
@@ -219,42 +251,50 @@ class RegisterFile BASE_EMBEDDED {
     }
   }
 
-  // Predicates and accessors for the reference counts.  The versions
-  // that take a register code rather than a register are for
-  // convenience in loops over the register codes.
-  bool is_used(int reg_code) const { return ref_counts_[reg_code] > 0; }
-  bool is_used(Register reg) const { return is_used(reg.code()); }
-  int count(int reg_code) const { return ref_counts_[reg_code]; }
-  int count(Register reg) const { return count(reg.code()); }
+  // Predicates and accessors for the reference counts.
+  bool is_used(int num) {
+    ASSERT(0 <= num && num < kNumRegisters);
+    return ref_counts_[num] > 0;
+  }
+
+  int count(int num) {
+    ASSERT(0 <= num && num < kNumRegisters);
+    return ref_counts_[num];
+  }
 
   // Record a use of a register by incrementing its reference count.
-  void Use(Register reg) {
-    ref_counts_[reg.code()]++;
+  void Use(int num) {
+    ASSERT(0 <= num && num < kNumRegisters);
+    ref_counts_[num]++;
   }
 
   // Record that a register will no longer be used by decrementing its
   // reference count.
-  void Unuse(Register reg) {
-    ASSERT(!reg.is(no_reg));
-    ASSERT(is_used(reg.code()));
-    ref_counts_[reg.code()]--;
+  void Unuse(int num) {
+    ASSERT(is_used(num));
+    ref_counts_[num]--;
   }
 
   // Copy the reference counts from this register file to the other.
-  void CopyTo(RegisterFile* other);
+  void CopyTo(RegisterFile* other) {
+    for (int i = 0; i < kNumRegisters; i++) {
+      other->ref_counts_[i] = ref_counts_[i];
+    }
+  }
 
  private:
+  static const int kNumRegisters = RegisterAllocatorConstants::kNumRegisters;
+
   int ref_counts_[kNumRegisters];
 
-  // Very fast inlined loop to find a free register.
-  // Used in RegisterAllocator::AllocateWithoutSpilling.
-  // Returns kNumRegisters if no free register found.
-  inline int ScanForFreeRegister() {
-    int i = 0;
-    for (; i < kNumRegisters ; ++i) {
-      if (ref_counts_[i] == 0) break;
+  // Very fast inlined loop to find a free register.  Used in
+  // RegisterAllocator::AllocateWithoutSpilling.  Returns
+  // kInvalidRegister if no free register found.
+  int ScanForFreeRegister() {
+    for (int i = 0; i < RegisterAllocatorConstants::kNumRegisters; i++) {
+      if (!is_used(i)) return i;
     }
-    return i;
+    return RegisterAllocatorConstants::kInvalidRegister;
   }
 
   friend class RegisterAllocator;
@@ -267,55 +307,62 @@ class RegisterFile BASE_EMBEDDED {
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
+  static const int kNumRegisters =
+      RegisterAllocatorConstants::kNumRegisters;
+  static const int kInvalidRegister =
+      RegisterAllocatorConstants::kInvalidRegister;
+
   explicit RegisterAllocator(CodeGenerator* cgen) : cgen_(cgen) {}
 
-  // A register file with each of the reserved registers counted once.
-  static RegisterFile Reserved();
-
-  // Unuse all the reserved registers in a register file.
-  static void UnuseReserved(RegisterFile* register_file);
-
   // True if the register is reserved by the code generator, false if it
-  // can be freely used by the allocator.
-  static bool IsReserved(int reg_code);
-  static bool IsReserved(Register reg) { return IsReserved(reg); }
+  // can be freely used by the allocator Defined in the
+  // platform-specific XXX-inl.h files..
+  static inline bool IsReserved(Register reg);
+
+  // Convert between (unreserved) assembler registers and allocator
+  // numbers.  Defined in the platform-specific XXX-inl.h files.
+  static inline int ToNumber(Register reg);
+  static inline Register ToRegister(int num);
 
   // Predicates and accessors for the registers' reference counts.
-  bool is_used(int reg_code) const { return registers_.is_used(reg_code); }
-  bool is_used(Register reg) const { return registers_.is_used(reg.code()); }
-  int count(int reg_code) const { return registers_.count(reg_code); }
-  int count(Register reg) const { return registers_.count(reg.code()); }
+  bool is_used(int num) { return registers_.is_used(num); }
+  bool is_used(Register reg) { return registers_.is_used(ToNumber(reg)); }
+
+  int count(int num) { return registers_.count(num); }
+  int count(Register reg) { return registers_.count(ToNumber(reg)); }
 
   // Explicitly record a reference to a register.
-  void Use(Register reg) { registers_.Use(reg); }
+  void Use(int num) { registers_.Use(num); }
+  void Use(Register reg) { registers_.Use(ToNumber(reg)); }
 
   // Explicitly record that a register will no longer be used.
-  void Unuse(Register reg) { registers_.Unuse(reg); }
-
-  // Initialize the register allocator for entry to a JS function.  On
-  // entry, the registers used by the JS calling convention are
-  // externally referenced (ie, outside the virtual frame); and the
-  // other registers are free.
-  void Initialize();
+  void Unuse(int num) { registers_.Unuse(num); }
+  void Unuse(Register reg) { registers_.Unuse(ToNumber(reg)); }
 
   // Reset the register reference counts to free all non-reserved registers.
-  // A frame-external reference is kept to each of the reserved registers.
-  void Reset();
+  void Reset() { registers_.Reset(); }
+
+  // Initialize the register allocator for entry to a JS function.  On
+  // entry, the (non-reserved) registers used by the JS calling
+  // convention are referenced and the other (non-reserved) registers
+  // are free.
+  inline void Initialize();
 
   // Allocate a free register and return a register result if possible or
   // fail and return an invalid result.
   Result Allocate();
 
-  // Allocate a specific register if possible, spilling it from the frame if
-  // necessary, or else fail and return an invalid result.
+  // Allocate a specific register if possible, spilling it from the
+  // current frame if necessary, or else fail and return an invalid
+  // result.
   Result Allocate(Register target);
 
-  // Allocate a free register without spilling any from the current frame or
-  // fail and return an invalid result.
+  // Allocate a free register without spilling any from the current
+  // frame or fail and return an invalid result.
   Result AllocateWithoutSpilling();
 
-  // Allocate a free byte register without spilling any from the
-  // current frame or fail and return an invalid result.
+  // Allocate a free byte register without spilling any from the current
+  // frame or fail and return an invalid result.
   Result AllocateByteRegisterWithoutSpilling();
 
   // Copy the internal state to a register file, to be restored later by
@@ -324,6 +371,7 @@ class RegisterAllocator BASE_EMBEDDED {
     registers_.CopyTo(register_file);
   }
 
+  // Restore the internal state.
   void RestoreFrom(RegisterFile* register_file) {
     register_file->CopyTo(&registers_);
   }

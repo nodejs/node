@@ -280,7 +280,10 @@ static void ExecSubprocess(int* exec_error_fds,
   // Only get here if the exec failed.  Write errno to the parent to tell
   // them it went wrong.  If it went well the pipe is closed.
   int err = errno;
-  write(exec_error_fds[kWriteFD], &err, sizeof(err));
+  int bytes_written;
+  do {
+    bytes_written = write(exec_error_fds[kWriteFD], &err, sizeof(err));
+  } while (bytes_written == -1 && errno == EINTR);
   // Return (and exit child process).
 }
 

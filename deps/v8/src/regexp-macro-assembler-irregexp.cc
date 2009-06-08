@@ -33,7 +33,8 @@
 #include "regexp-macro-assembler-irregexp-inl.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)

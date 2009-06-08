@@ -43,7 +43,8 @@
 #include "stub-cache.h"
 #include "regexp-stack.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // -----------------------------------------------------------------------------
@@ -90,13 +91,13 @@ int Label::pos() const {
 //                     bits, the lowest 7 bits written first.
 //
 // data-jump + pos:    00 1110 11,
-//                     signed int, lowest byte written first
+//                     signed intptr_t, lowest byte written first
 //
 // data-jump + st.pos: 01 1110 11,
-//                     signed int, lowest byte written first
+//                     signed intptr_t, lowest byte written first
 //
 // data-jump + comm.:  10 1110 11,
-//                     signed int, lowest byte written first
+//                     signed intptr_t, lowest byte written first
 //
 const int kMaxRelocModes = 14;
 
@@ -158,7 +159,7 @@ void RelocInfoWriter::WriteTaggedPC(uint32_t pc_delta, int tag) {
 }
 
 
-void RelocInfoWriter::WriteTaggedData(int32_t data_delta, int tag) {
+void RelocInfoWriter::WriteTaggedData(intptr_t data_delta, int tag) {
   *--pos_ = data_delta << kPositionTypeTagBits | tag;
 }
 
@@ -178,11 +179,12 @@ void RelocInfoWriter::WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag) {
 }
 
 
-void RelocInfoWriter::WriteExtraTaggedData(int32_t data_delta, int top_tag) {
+void RelocInfoWriter::WriteExtraTaggedData(intptr_t data_delta, int top_tag) {
   WriteExtraTag(kDataJumpTag, top_tag);
-  for (int i = 0; i < kIntSize; i++) {
+  for (int i = 0; i < kIntptrSize; i++) {
     *--pos_ = data_delta;
-    data_delta = ArithmeticShiftRight(data_delta, kBitsPerByte);
+  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+    data_delta = data_delta >> kBitsPerByte;
   }
 }
 
@@ -205,11 +207,13 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for data.
-    int32_t data_delta = rinfo->data() - last_data_;
+    intptr_t data_delta = rinfo->data() - last_data_;
     int pos_type_tag = rmode == RelocInfo::POSITION ? kNonstatementPositionTag
                                                     : kStatementPositionTag;
     // Check if data is small enough to fit in a tagged byte.
-    if (is_intn(data_delta, kSmallDataBits)) {
+    // We cannot use is_intn because data_delta is not an int32_t.
+    if (data_delta >= -(1 << (kSmallDataBits-1)) &&
+        data_delta < 1 << (kSmallDataBits-1)) {
       WriteTaggedPC(pc_delta, kPositionTag);
       WriteTaggedData(data_delta, pos_type_tag);
       last_data_ = rinfo->data();
@@ -263,9 +267,9 @@ inline void RelocIterator::AdvanceReadPC() {
 
 
 void RelocIterator::AdvanceReadData() {
-  int32_t x = 0;
-  for (int i = 0; i < kIntSize; i++) {
-    x |= *--pos_ << i * kBitsPerByte;
+  intptr_t x = 0;
+  for (int i = 0; i < kIntptrSize; i++) {
+    x |= static_cast<intptr_t>(*--pos_) << i * kBitsPerByte;
   }
   rinfo_.data_ += x;
 }
@@ -294,7 +298,8 @@ inline int RelocIterator::GetPositionTypeTag() {
 
 inline void RelocIterator::ReadTaggedData() {
   int8_t signed_b = *pos_;
-  rinfo_.data_ += ArithmeticShiftRight(signed_b, kPositionTypeTagBits);
+  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+  rinfo_.data_ += signed_b >> kPositionTypeTagBits;
 }
 
 

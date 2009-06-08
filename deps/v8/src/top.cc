@@ -34,7 +34,8 @@
 #include "string-stream.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
@@ -44,6 +45,7 @@ NoAllocationStringAllocator* preallocated_message_space = NULL;
 Address top_addresses[] = {
 #define C(name) reinterpret_cast<Address>(Top::name()),
     TOP_ADDRESS_LIST(C)
+    TOP_ADDRESS_LIST_PROF(C)
 #undef C
     NULL
 };
@@ -90,6 +92,9 @@ void Top::Iterate(ObjectVisitor* v) {
 void Top::InitializeThreadLocal() {
   thread_local_.c_entry_fp_ = 0;
   thread_local_.handler_ = 0;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  thread_local_.js_entry_sp_ = 0;
+#endif
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
   thread_local_.context_ = NULL;
@@ -878,6 +883,15 @@ bool Top::is_out_of_memory() {
 Handle<Context> Top::global_context() {
   GlobalObject* global = thread_local_.context_->global();
   return Handle<Context>(global->global_context());
+}
+
+
+Handle<Context> Top::GetCallingGlobalContext() {
+  JavaScriptFrameIterator it;
+  if (it.done()) return Handle<Context>::null();
+  JavaScriptFrame* frame = it.frame();
+  Context* context = Context::cast(frame->context());
+  return Handle<Context>(context->global_context());
 }
 
 

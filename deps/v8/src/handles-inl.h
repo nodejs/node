@@ -33,7 +33,8 @@
 #include "handles.h"
 #include "api.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 template<class T>
 Handle<T>::Handle(T* obj) {

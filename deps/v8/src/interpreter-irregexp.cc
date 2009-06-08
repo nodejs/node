@@ -36,7 +36,8 @@
 #include "interpreter-irregexp.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize;

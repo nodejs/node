@@ -30,7 +30,8 @@
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // Result implementation.
@@ -38,12 +39,13 @@ namespace v8 { namespace internal {
 void Result::ToRegister() {
   ASSERT(is_valid());
   if (is_constant()) {
-    Result fresh = cgen_->allocator()->Allocate();
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    if (cgen_->IsUnsafeSmi(handle())) {
-      cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+    if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+      CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
     } else {
-      cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+      CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                 Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
     *this = fresh;
@@ -55,23 +57,24 @@ void Result::ToRegister() {
 void Result::ToRegister(Register target) {
   ASSERT(is_valid());
   if (!is_register() || !reg().is(target)) {
-    Result fresh = cgen_->allocator()->Allocate(target);
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate(target);
     ASSERT(fresh.is_valid());
     if (is_register()) {
-      cgen_->masm()->mov(fresh.reg(), reg());
+      CodeGeneratorScope::Current()->masm()->mov(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      if (cgen_->IsUnsafeSmi(handle())) {
-        cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+        CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
       } else {
-        cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                   Immediate(handle()));
       }
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
-    ASSERT(cgen_->has_valid_frame());
-    cgen_->frame()->Spill(target);
-    ASSERT(cgen_->allocator()->count(target) == 1);
+    ASSERT(CodeGeneratorScope::Current()->has_valid_frame());
+    CodeGeneratorScope::Current()->frame()->Spill(target);
+    ASSERT(CodeGeneratorScope::Current()->allocator()->count(target) == 1);
   }
   ASSERT(is_register());
   ASSERT(reg().is(target));
@@ -81,53 +84,13 @@ void Result::ToRegister(Register target) {
 // -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
-RegisterFile RegisterAllocator::Reserved() {
-  RegisterFile reserved;
-  reserved.Use(esp);
-  reserved.Use(ebp);
-  reserved.Use(esi);
-  return reserved;
-}
-
-
-void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
-  register_file->ref_counts_[esp.code()] = 0;
-  register_file->ref_counts_[ebp.code()] = 0;
-  register_file->ref_counts_[esi.code()] = 0;
-}
-
-
-bool RegisterAllocator::IsReserved(int reg_code) {
-  // Test below relies on the order of register codes.
-  return reg_code >= esp.code() && reg_code <= esi.code();
-}
-
-
-void RegisterAllocator::Initialize() {
-  Reset();
-  // The following register is live on function entry, saved in the
-  // frame, and available for allocation during execution.
-  Use(edi);  // JS function.
-}
-
-
-void RegisterAllocator::Reset() {
-  registers_.Reset();
-  // The following registers are live on function entry and reserved
-  // during execution.
-  Use(esp);  // Stack pointer.
-  Use(ebp);  // Frame pointer (caller's frame pointer on entry).
-  Use(esi);  // Context (callee's context on entry).
-}
-
-
 Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
   Result result = AllocateWithoutSpilling();
   // Check that the register is a byte register.  If not, unuse the
   // register if valid and return an invalid result.
   if (result.is_valid() && !result.reg().is_byte_register()) {
     result.Unuse();
-    return Result(cgen_);
+    return Result();
   }
   return result;
 }

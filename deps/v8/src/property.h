@@ -28,7 +28,8 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Abstraction for elements in instance-descriptor arrays.

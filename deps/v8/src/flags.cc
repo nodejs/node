@@ -35,7 +35,8 @@
 #include "string-stream.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
@@ -86,9 +87,9 @@ struct Flag {
     return *reinterpret_cast<const char**>(valptr_);
   }
 
-  void set_string_value(const char *value, bool owns_ptr) {
+  void set_string_value(const char* value, bool owns_ptr) {
     ASSERT(type_ == TYPE_STRING);
-    const char **ptr = reinterpret_cast<const char **>(valptr_);
+    const char** ptr = reinterpret_cast<const char**>(valptr_);
     if (owns_ptr_ && *ptr != NULL) DeleteArray(*ptr);
     *ptr = value;
     owns_ptr_ = owns_ptr;

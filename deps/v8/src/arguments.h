@@ -28,7 +28,8 @@
 #ifndef V8_ARGUMENTS_H_
 #define V8_ARGUMENTS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Arguments provides access to runtime call parameters.
 //

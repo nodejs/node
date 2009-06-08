@@ -32,7 +32,8 @@
 #include "macro-assembler.h"
 #include "jsregexp.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef DEBUG
 
@@ -941,6 +942,8 @@ void Script::ScriptPrint() {
   column_offset()->ShortPrint();
   PrintF("\n - type: ");
   type()->ShortPrint();
+  PrintF("\n - id: ");
+  id()->ShortPrint();
   PrintF("\n");
 }
 

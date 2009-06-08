@@ -62,7 +62,8 @@
 #include "platform.h"
 
 
-namespace assembler { namespace arm {
+namespace assembler {
+namespace arm {
 
 namespace v8i = v8::internal;
 

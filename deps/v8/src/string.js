@@ -120,20 +120,26 @@ function StringIndexOf(searchString /* position */) {  // length == 1
 // ECMA-262 section 15.5.4.8
 function StringLastIndexOf(searchString /* position */) {  // length == 1
   var sub = ToString(this);
+  var subLength = sub.length;
   var pat = ToString(searchString);
-  var index = (%_ArgumentsLength() > 1)
-      ? ToNumber(%_Arguments(1) /* position */)
-      : $NaN;
-  var firstIndex;
-  if ($isNaN(index)) {
-    firstIndex = sub.length - pat.length;
-  } else {
-    firstIndex = TO_INTEGER(index);
-    if (firstIndex + pat.length > sub.length) {
-      firstIndex = sub.length - pat.length;
+  var patLength = pat.length;
+  var index = subLength - patLength;
+  if (%_ArgumentsLength() > 1) {
+    var position = ToNumber(%_Arguments(1));
+    if (!$isNaN(position)) {
+      position = TO_INTEGER(position);
+      if (position < 0) {
+        position = 0;
+      }
+      if (position + patLength < subLength) {
+        index = position
+      }
     }
   }
-  return %StringLastIndexOf(sub, pat, firstIndex);
+  if (index < 0) {
+    return -1;
+  }
+  return %StringLastIndexOf(sub, pat, index);
 }
 
 

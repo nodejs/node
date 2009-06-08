@@ -28,7 +28,8 @@
 #ifndef V8_ZONE_H_
 #define V8_ZONE_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Zone scopes are in one of two modes.  Either they delete the zone
@@ -180,8 +181,13 @@ class ZoneScope BASE_EMBEDDED {
     nesting_++;
   }
 
-  ~ZoneScope() {
-    if (--nesting_ == 0 && mode_ == DELETE_ON_EXIT) Zone::DeleteAll();
+  virtual ~ZoneScope() {
+    if (ShouldDeleteOnExit()) Zone::DeleteAll();
+    --nesting_;
+  }
+
+  bool ShouldDeleteOnExit() {
+    return nesting_ == 1 && mode_ == DELETE_ON_EXIT;
   }
 
   // For ZoneScopes that do not delete on exit by default, call this

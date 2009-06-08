@@ -30,7 +30,8 @@
 
 #include "frames-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 #define RETURN_IF_SCHEDULED_EXCEPTION() \
@@ -64,6 +65,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+#endif
   bool stack_is_cooked_;
   inline bool stack_is_cooked() { return stack_is_cooked_; }
   inline void set_stack_is_cooked(bool value) { stack_is_cooked_ = value; }
@@ -82,11 +86,20 @@ class ThreadLocalTop BASE_EMBEDDED {
   C(pending_exception_address)         \
   C(external_caught_exception_address)
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+#define TOP_ADDRESS_LIST_PROF(C)       \
+  C(js_entry_sp_address)
+#else
+#define TOP_ADDRESS_LIST_PROF(C)
+#endif
+
+
 class Top {
  public:
   enum AddressId {
 #define C(name) k_##name,
     TOP_ADDRESS_LIST(C)
+    TOP_ADDRESS_LIST_PROF(C)
 #undef C
     k_top_address_count
   };
@@ -178,6 +191,16 @@ class Top {
   }
   static inline Address* handler_address() { return &thread_local_.handler_; }
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Bottom JS entry (see StackTracer::Trace in log.cc).
+  static Address js_entry_sp(ThreadLocalTop* thread) {
+    return thread->js_entry_sp_;
+  }
+  static inline Address* js_entry_sp_address() {
+    return &thread_local_.js_entry_sp_;
+  }
+#endif
+
   // Generated code scratch locations.
   static void* formal_count_address() { return &thread_local_.formal_count_; }
 
@@ -255,7 +278,12 @@ class Top {
     return context()->global_proxy();
   }
 
+  // Returns the current global context.
   static Handle<Context> global_context();
+
+  // Returns the global context of the calling JavaScript code.  That
+  // is, the global context of the top-most JavaScript frame.
+  static Handle<Context> GetCallingGlobalContext();
 
   static Handle<JSBuiltinsObject> builtins() {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());

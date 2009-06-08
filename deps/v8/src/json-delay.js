@@ -29,7 +29,7 @@ var $JSON = global.JSON;
 
 function ParseJSONUnfiltered(text) {
   var s = $String(text);
-  var f = %CompileString("(" + text + ")", -1, true);
+  var f = %CompileString("(" + text + ")", true);
   return f();
 }
 

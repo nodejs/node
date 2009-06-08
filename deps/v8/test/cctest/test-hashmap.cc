@@ -38,20 +38,29 @@ static bool DefaultMatchFun(void* a, void* b) {
 }
 
 
+typedef uint32_t (*IntKeyHash)(uint32_t key);
+
+
 class IntSet {
  public:
-  IntSet() : map_(DefaultMatchFun)  {}
+  explicit IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
 
   void Insert(int x) {
     CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), Hash(x), true);
+    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x), true);
     CHECK(p != NULL);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     // we don't care about p->value
   }
 
+  void Remove(int x) {
+    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
+    map_.Remove(reinterpret_cast<void*>(x), hash_(x));
+  }
+
   bool Present(int x) {
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), Hash(x), false);
+    HashMap::Entry* p =
+        map_.Lookup(reinterpret_cast<void*>(x), hash_(x), false);
     if (p != NULL) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
@@ -72,13 +81,17 @@ class IntSet {
   }
 
  private:
+  IntKeyHash hash_;
   HashMap map_;
-  static uint32_t Hash(uint32_t key)  { return key * 23; }
 };
 
 
-TEST(Set) {
-  IntSet set;
+static uint32_t Hash(uint32_t key)  { return 23; }
+static uint32_t CollisionHash(uint32_t key)  { return key & 0x3; }
+
+
+void TestSet(IntKeyHash hash, int size) {
+  IntSet set(hash);
   CHECK_EQ(0, set.occupancy());
 
   set.Insert(1);
@@ -96,6 +109,18 @@ TEST(Set) {
   CHECK(!set.Present(4));
   CHECK_EQ(3, set.occupancy());
 
+  set.Remove(1);
+  CHECK(!set.Present(1));
+  CHECK(set.Present(2));
+  CHECK(set.Present(3));
+  CHECK_EQ(2, set.occupancy());
+
+  set.Remove(3);
+  CHECK(!set.Present(1));
+  CHECK(set.Present(2));
+  CHECK(!set.Present(3));
+  CHECK_EQ(1, set.occupancy());
+
   set.Clear();
   CHECK_EQ(0, set.occupancy());
 
@@ -103,21 +128,49 @@ TEST(Set) {
   const int start = 453;
   const int factor = 13;
   const int offset = 7;
-  const uint32_t n = 1000;
+  const uint32_t n = size;
 
   int x = start;
   for (uint32_t i = 0; i < n; i++) {
     CHECK_EQ(i, static_cast<double>(set.occupancy()));
     set.Insert(x);
-    x = x*factor + offset;
+    x = x * factor + offset;
   }
+  CHECK_EQ(n, static_cast<double>(set.occupancy()));
 
   // Verify the same sequence of values.
   x = start;
   for (uint32_t i = 0; i < n; i++) {
     CHECK(set.Present(x));
-    x = x*factor + offset;
+    x = x * factor + offset;
   }
-
   CHECK_EQ(n, static_cast<double>(set.occupancy()));
+
+  // Remove all these values.
+  x = start;
+  for (uint32_t i = 0; i < n; i++) {
+    CHECK_EQ(n - i, static_cast<double>(set.occupancy()));
+    CHECK(set.Present(x));
+    set.Remove(x);
+    CHECK(!set.Present(x));
+    x = x * factor + offset;
+
+    // Verify the the expected values are still there.
+    int y = start;
+    for (uint32_t j = 0; j < n; j++) {
+      if (j <= i) {
+        CHECK(!set.Present(y));
+      } else {
+        CHECK(set.Present(y));
+      }
+      y = y * factor + offset;
+    }
+  }
+  CHECK_EQ(0, set.occupancy());
+}
+
+
+TEST(Set) {
+  TestSet(Hash, 100);
+  TestSet(CollisionHash, 50);
 }

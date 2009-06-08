@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "compilation-cache.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
@@ -464,6 +465,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -484,6 +486,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -505,6 +508,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -527,35 +531,43 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
 
 THREADED_TEST(UsingExternalString) {
-  v8::HandleScope scope;
-  uint16_t* two_byte_string = AsciiToTwoByteString("test string");
-  Local<String> string = String::NewExternal(new TestResource(two_byte_string));
-  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
-  CHECK(isymbol->IsSymbol());
+  {
+    v8::HandleScope scope;
+    uint16_t* two_byte_string = AsciiToTwoByteString("test string");
+    Local<String> string =
+        String::NewExternal(new TestResource(two_byte_string));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    CHECK(isymbol->IsSymbol());
+  }
+  i::Heap::CollectAllGarbage();
 }
 
 
 THREADED_TEST(UsingExternalAsciiString) {
-  v8::HandleScope scope;
-  const char* one_byte_string = "test string";
-  Local<String> string = String::NewExternal(
-      new TestAsciiResource(i::StrDup(one_byte_string)));
-  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
-  CHECK(isymbol->IsSymbol());
+  {
+    v8::HandleScope scope;
+    const char* one_byte_string = "test string";
+    Local<String> string = String::NewExternal(
+        new TestAsciiResource(i::StrDup(one_byte_string)));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    CHECK(isymbol->IsSymbol());
+  }
+  i::Heap::CollectAllGarbage();
 }
 
 
@@ -1324,6 +1336,38 @@ THREADED_TEST(HiddenProperties) {
 
   CHECK(obj->DeleteHiddenValue(key));
   CHECK(obj->GetHiddenValue(key).IsEmpty());
+}
+
+
+static v8::Handle<Value> InterceptorForHiddenProperties(
+    Local<String> name, const AccessorInfo& info) {
+  // Make sure objects move.
+  bool saved_always_compact = i::FLAG_always_compact;
+  if (!i::FLAG_never_compact) {
+    i::FLAG_always_compact = true;
+  }
+  // The whole goal of this interceptor is to cause a GC during local property
+  // lookup.
+  i::Heap::CollectAllGarbage();
+  i::FLAG_always_compact = saved_always_compact;
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(HiddenPropertiesWithInterceptors) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+
+  // Associate an interceptor with an object and start setting hidden values.
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorForHiddenProperties);
+  Local<v8::Function> function = fun_templ->GetFunction();
+  Local<v8::Object> obj = function->NewInstance();
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(2302)));
+  CHECK_EQ(2302, obj->GetHiddenValue(key)->Int32Value());
 }
 
 
@@ -4471,10 +4515,6 @@ THREADED_TEST(EvalAliasedDynamic) {
   v8::HandleScope scope;
   LocalContext current;
 
-  // This sets 'global' to the real global object (as opposed to the
-  // proxy). It is highly implementation dependent, so take care.
-  current->Global()->Set(v8_str("global"), current->Global()->GetPrototype());
-
   // Tests where aliased eval can only be resolved dynamically.
   Local<Script> script =
       Script::Compile(v8_str("function f(x) { "
@@ -4483,7 +4523,7 @@ THREADED_TEST(EvalAliasedDynamic) {
                              "}"
                              "foo = 0;"
                              "result1 = f(new Object());"
-                             "result2 = f(global);"
+                             "result2 = f(this);"
                              "var x = new Object();"
                              "x.eval = function(x) { return 1; };"
                              "result3 = f(x);"));
@@ -4498,7 +4538,7 @@ THREADED_TEST(EvalAliasedDynamic) {
                            "  var bar = 2;"
                            "  with (x) { return eval('bar'); }"
                            "}"
-                           "f(global)"));
+                           "f(this)"));
   script->Run();
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
@@ -4585,6 +4625,44 @@ THREADED_TEST(CrossEval) {
 }
 
 
+// Test that calling eval in a context which has been detached from
+// its global throws an exception.  This behavior is consistent with
+// other JavaScript implementations.
+THREADED_TEST(EvalInDetachedGlobal) {
+  v8::HandleScope scope;
+
+  v8::Persistent<Context> context0 = Context::New();
+  v8::Persistent<Context> context1 = Context::New();
+
+  // Setup function in context0 that uses eval from context0.
+  context0->Enter();
+  v8::Handle<v8::Value> fun =
+      CompileRun("var x = 42;"
+                 "(function() {"
+                 "  var e = eval;"
+                 "  return function(s) { return e(s); }"
+                 "})()");
+  context0->Exit();
+
+  // Put the function into context1 and call it before and after
+  // detaching the global.  Before detaching, the call succeeds and
+  // after detaching and exception is thrown.
+  context1->Enter();
+  context1->Global()->Set(v8_str("fun"), fun);
+  v8::Handle<v8::Value> x_value = CompileRun("fun('x')");
+  CHECK_EQ(42, x_value->Int32Value());
+  context0->DetachGlobal();
+  v8::TryCatch catcher;
+  x_value = CompileRun("fun('x')");
+  CHECK(x_value.IsEmpty());
+  CHECK(catcher.HasCaught());
+  context1->Exit();
+
+  context1.Dispose();
+  context0.Dispose();
+}
+
+
 THREADED_TEST(CrossLazyLoad) {
   v8::HandleScope scope;
   LocalContext other;
@@ -4607,6 +4685,12 @@ THREADED_TEST(CrossLazyLoad) {
 
 static v8::Handle<Value> call_as_function(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  if (args.IsConstructCall()) {
+    if (args[0]->IsInt32()) {
+       return v8_num(-args[0]->Int32Value());
+    }
+  }
+
   return args[0];
 }
 
@@ -4660,9 +4744,9 @@ THREADED_TEST(CallAsFunction) {
   // Check that the call-as-function handler can be called through
   // new.  Currently, there is no way to check in the call-as-function
   // handler if it has been called through new or not.
-  value = CompileRun("new obj(42)");
+  value = CompileRun("new obj(43)");
   CHECK(!try_catch.HasCaught());
-  CHECK_EQ(42, value->Int32Value());
+  CHECK_EQ(-43, value->Int32Value());
 }
 
 
@@ -4777,6 +4861,23 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
 }
 
 
+typedef v8::Handle<Value> (*NamedPropertyGetter)(Local<String> property,
+                                                 const AccessorInfo& info);
+
+
+static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
+                                   const char* source,
+                                   int expected) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(getter);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(source);
+  CHECK_EQ(expected, value->Int32Value());
+}
+
+
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
@@ -4787,17 +4888,100 @@ static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
 
 // This test should hit the load IC for the interceptor case.
 THREADED_TEST(InterceptorLoadIC) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetNamedPropertyHandler(InterceptorLoadICGetter);
-  LocalContext context;
-  context->Global()->Set(v8_str("o"), templ->NewInstance());
-  v8::Handle<Value> value = CompileRun(
+  CheckInterceptorLoadIC(InterceptorLoadICGetter,
     "var result = 0;"
     "for (var i = 0; i < 1000; i++) {"
     "  result = o.x;"
-    "}");
-  CHECK_EQ(42, value->Int32Value());
+    "}",
+    42);
+}
+
+
+// Below go several tests which verify that JITing for various
+// configurations of interceptor and explicit fields works fine
+// (those cases are special cased to get better performance).
+
+static v8::Handle<Value> InterceptorLoadXICGetter(Local<String> name,
+                                                 const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8_str("x")->Equals(name)
+      ? v8::Integer::New(42) : v8::Handle<v8::Value>();
+}
+
+
+THREADED_TEST(InterceptorLoadICWithFieldOnHolder) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithSubstitutedProto) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.__proto__ = { 'y': 239 };"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithPropertyOnProto) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.__proto__.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICUndefined) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = (o.y == undefined) ? 239 : 42;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithOverride) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "fst = new Object();  fst.__proto__ = o;"
+    "snd = new Object();  snd.__proto__ = fst;"
+    "var result1 = 0;"
+    "for (var i = 0; i < 1000;  i++) {"
+    "  result1 = snd.x;"
+    "}"
+    "fst.x = 239;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = snd.x;"
+    "}"
+    "result + result1",
+    239 + 42);
+}
+
+
+static v8::Handle<Value> InterceptorLoadICGetter0(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(v8_str("x")->Equals(name));
+  return v8::Integer::New(0);
+}
+
+
+THREADED_TEST(InterceptorReturningZero) {
+  CheckInterceptorLoadIC(InterceptorLoadICGetter0,
+     "o.x == undefined ? 1 : 0",
+     0);
 }
 
 
@@ -6570,4 +6754,136 @@ TEST(ForceSetWithInterceptor) {
   CHECK_EQ(3, global->Get(v8::String::New("b"))->Int32Value());
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(6, force_set_get_count);
+}
+
+
+THREADED_TEST(ForceDelete) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Ordinary properties
+  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  global->Set(simple_property, v8::Int32::New(4), v8::DontDelete);
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should fail because the property is dont-delete.
+  CHECK(!global->Delete(simple_property));
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should succeed even though the property is dont-delete.
+  CHECK(global->ForceDelete(simple_property));
+  CHECK(global->Get(simple_property)->IsUndefined());
+}
+
+
+static int force_delete_interceptor_count = 0;
+static bool pass_on_delete = false;
+
+
+static v8::Handle<v8::Boolean> ForceDeleteDeleter(
+    v8::Local<v8::String> name,
+    const v8::AccessorInfo& info) {
+  force_delete_interceptor_count++;
+  if (pass_on_delete) {
+    return v8::Handle<v8::Boolean>();
+  } else {
+    return v8::True();
+  }
+}
+
+
+THREADED_TEST(ForceDeleteWithInterceptor) {
+  force_delete_interceptor_count = 0;
+  pass_on_delete = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(0, 0, 0, ForceDeleteDeleter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  v8::Handle<v8::String> some_property = v8::String::New("a");
+  global->Set(some_property, v8::Integer::New(42), v8::DontDelete);
+
+  // Deleting a property should get intercepted and nothing should
+  // happen.
+  CHECK_EQ(0, force_delete_interceptor_count);
+  CHECK(global->Delete(some_property));
+  CHECK_EQ(1, force_delete_interceptor_count);
+  CHECK_EQ(42, global->Get(some_property)->Int32Value());
+  // Deleting the property when the interceptor returns an empty
+  // handle should not delete the property since it is DontDelete.
+  pass_on_delete = true;
+  CHECK(!global->Delete(some_property));
+  CHECK_EQ(2, force_delete_interceptor_count);
+  CHECK_EQ(42, global->Get(some_property)->Int32Value());
+  // Forcing the property to be deleted should delete the value
+  // without calling the interceptor.
+  CHECK(global->ForceDelete(some_property));
+  CHECK(global->Get(some_property)->IsUndefined());
+  CHECK_EQ(2, force_delete_interceptor_count);
+}
+
+
+v8::Persistent<Context> calling_context0;
+v8::Persistent<Context> calling_context1;
+v8::Persistent<Context> calling_context2;
+
+
+// Check that the call to the callback is initiated in
+// calling_context2, the directly calling context is calling_context1
+// and the callback itself is in calling_context0.
+static v8::Handle<Value> GetCallingContextCallback(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(Context::GetCurrent() == calling_context0);
+  CHECK(Context::GetCalling() == calling_context1);
+  CHECK(Context::GetEntered() == calling_context2);
+  return v8::Integer::New(42);
+}
+
+
+THREADED_TEST(GetCallingContext) {
+  v8::HandleScope scope;
+
+  calling_context0 = Context::New();
+  calling_context1 = Context::New();
+  calling_context2 = Context::New();
+
+  // Allow cross-domain access.
+  Local<String> token = v8_str("<security token>");
+  calling_context0->SetSecurityToken(token);
+  calling_context1->SetSecurityToken(token);
+  calling_context2->SetSecurityToken(token);
+
+  // Create an object with a C++ callback in context0.
+  calling_context0->Enter();
+  Local<v8::FunctionTemplate> callback_templ =
+      v8::FunctionTemplate::New(GetCallingContextCallback);
+  calling_context0->Global()->Set(v8_str("callback"),
+                                  callback_templ->GetFunction());
+  calling_context0->Exit();
+
+  // Expose context0 in context1 and setup a function that calls the
+  // callback function.
+  calling_context1->Enter();
+  calling_context1->Global()->Set(v8_str("context0"),
+                                  calling_context0->Global());
+  CompileRun("function f() { context0.callback() }");
+  calling_context1->Exit();
+
+  // Expose context1 in context2 and call the callback function in
+  // context0 indirectly through f in context1.
+  calling_context2->Enter();
+  calling_context2->Global()->Set(v8_str("context1"),
+                                  calling_context1->Global());
+  CompileRun("context1.f()");
+  calling_context2->Exit();
+
+  // Dispose the contexts to allow them to be garbage collected.
+  calling_context0.Dispose();
+  calling_context1.Dispose();
+  calling_context2.Dispose();
+  calling_context0.Clear();
+  calling_context1.Clear();
+  calling_context2.Clear();
 }

@@ -30,7 +30,8 @@
 #include "codegen-inl.h"
 #include "debug.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // Currently debug break is not supported in frame exit code on ARM.

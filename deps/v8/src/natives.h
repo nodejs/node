@@ -28,7 +28,8 @@
 #ifndef V8_NATIVES_H_
 #define V8_NATIVES_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 typedef bool (*NativeSourceCallback)(Vector<const char> name,
                                      Vector<const char> source,

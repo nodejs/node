@@ -44,8 +44,9 @@ function testErrorMirror(e) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(e);
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = JSON.stringify(serializer.serializeValue(mirror));
+  var refs = new MirrorRefCache(
+      JSON.stringify(serializer.serializeReferencedObjects()));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);

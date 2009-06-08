@@ -30,7 +30,8 @@
 #include "factory.h"
 #include "string-stream.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 static const int kMentionedObjectCacheMaxSize = 256;
 static List<HeapObject*, PreallocatedStorage>* debug_object_cache = NULL;

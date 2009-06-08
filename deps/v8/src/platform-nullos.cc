@@ -37,7 +37,8 @@
 #include "platform.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Give V8 the opportunity to override the default ceil behaviour.
 double ceiling(double x) {

@@ -37,7 +37,7 @@ var m = function() {
 };
 
 function g() {
- m();
+  m();
 };
 
 
@@ -80,8 +80,9 @@ function listener(event, exec_state, event_data, data) {
   {
     // The expected backtrace is
     // 0: f
-    // 1: g
-    // 2: [anonymous]
+    // 1: m
+    // 2: g
+    // 3: [anonymous]
     
     var response;
     var backtrace;
@@ -132,6 +133,23 @@ function listener(event, exec_state, event_data, data) {
     assertEquals("m", response.lookup(frames[0].func.ref).inferredName);
     assertEquals(2, frames[1].index);
     assertEquals("g", response.lookup(frames[1].func.ref).name);
+
+    // Get backtrace with bottom two frames.
+    json = '{"seq":0,"type":"request","command":"backtrace","arguments":{"fromFrame":0,"toFrame":2, "bottom":true}}'
+    response = new ParsedResponse(dcp.processDebugJSONRequest(json));
+    backtrace = response.body();
+    assertEquals(2, backtrace.fromFrame);
+    assertEquals(4, backtrace.toFrame);
+    assertEquals(4, backtrace.totalFrames);
+    var frames = backtrace.frames;
+    assertEquals(2, frames.length);
+    for (var i = 0; i < frames.length; i++) {
+      assertEquals('frame', frames[i].type);
+    }
+    assertEquals(2, frames[0].index);
+    assertEquals("g", response.lookup(frames[0].func.ref).name);
+    assertEquals(3, frames[1].index);
+    assertEquals("", response.lookup(frames[1].func.ref).name);
 
     // Get the individual frames.
     json = '{"seq":0,"type":"request","command":"frame"}'

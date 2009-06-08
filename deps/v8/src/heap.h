@@ -28,7 +28,10 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
-namespace v8 { namespace internal {
+#include "zone-inl.h"
+
+namespace v8 {
+namespace internal {
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                             \
@@ -570,7 +573,7 @@ class Heap : public AllStatic {
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
-                            ScopeInfo<>* sinfo,
+                            ZoneScopeInfo* sinfo,
                             Code::Flags flags,
                             Handle<Object> self_reference);
 
@@ -664,10 +667,11 @@ class Heap : public AllStatic {
   // Iterates a range of remembered set addresses starting with rset_start
   // corresponding to the range of allocated pointers
   // [object_start, object_end).
-  static void IterateRSetRange(Address object_start,
-                               Address object_end,
-                               Address rset_start,
-                               ObjectSlotCallback copy_object_func);
+  // Returns the number of bits that were set.
+  static int IterateRSetRange(Address object_start,
+                              Address object_end,
+                              Address rset_start,
+                              ObjectSlotCallback copy_object_func);
 
   // Returns whether the object resides in new space.
   static inline bool InNewSpace(Object* object);

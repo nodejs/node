@@ -31,7 +31,8 @@
 #include "scopes.h"
 #include "usage-analyzer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Weight boundaries
 static const int MinWeight = 1;
@@ -444,6 +445,7 @@ WeightScaler::~WeightScaler() {
 
 bool AnalyzeVariableUsage(FunctionLiteral* lit) {
   if (!FLAG_usage_computation) return true;
+  HistogramTimerScope timer(&Counters::usage_analysis);
   return UsageComputer::Traverse(lit);
 }
 

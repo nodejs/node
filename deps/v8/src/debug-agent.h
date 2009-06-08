@@ -32,7 +32,8 @@
 #include "../include/v8-debug.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward decelrations.
 class DebuggerAgentSession;

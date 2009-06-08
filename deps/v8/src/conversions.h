@@ -28,7 +28,8 @@
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The fast double-to-int conversion routine does not guarantee
 // rounding towards zero.

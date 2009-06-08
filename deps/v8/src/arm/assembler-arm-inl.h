@@ -41,7 +41,8 @@
 #include "cpu.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Condition NegateCondition(Condition cc) {
   ASSERT(cc != al);

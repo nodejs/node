@@ -66,15 +66,27 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"types":"xx"}', false);
 
     // Test legal scripts requests.
-    var request = '{' + base_request + '}'
-    var response = safeEval(dcp.processDebugJSONRequest(request));
-    assertTrue(response.success);
     testArguments(dcp, '{}', true);
     testArguments(dcp, '{"types":1}', true);
     testArguments(dcp, '{"types":2}', true);
     testArguments(dcp, '{"types":4}', true);
     testArguments(dcp, '{"types":7}', true);
     testArguments(dcp, '{"types":0xFF}', true);
+
+    // Test request for all scripts.
+    var request = '{' + base_request + '}'
+    var response = safeEval(dcp.processDebugJSONRequest(request));
+    assertTrue(response.success);
+
+    // Test filtering by id.
+    assertEquals(2, response.body.length);
+    var script = response.body[0];
+    var request = '{' + base_request + ',"arguments":{"ids":[' +
+                  script.id + ']}}';
+    var response = safeEval(dcp.processDebugJSONRequest(request));
+    assertTrue(response.success);
+    assertEquals(1, response.body.length);
+    assertEquals(script.id, response.body[0].id);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -91,5 +103,6 @@ Debug.setListener(listener);
 debugger;
 
 // Make sure that the debug event listener vas invoked with no exceptions.
-assertTrue(listenerComplete, "listener did not run to completion");
+assertTrue(listenerComplete,
+           "listener did not run to completion, exception: " + exception);
 assertFalse(exception, "exception in listener")

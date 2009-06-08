@@ -37,7 +37,8 @@
 #include "jsregexp.h"
 #include "jump-target.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The abstract syntax tree is an intermediate, light-weight
 // representation of the parsed JavaScript code suitable for

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -50,7 +50,6 @@
 //           - JSBuiltinsObject
 //         - JSGlobalProxy
 //         - JSValue
-//         - Script
 //       - Array
 //         - ByteArray
 //         - FixedArray
@@ -83,8 +82,10 @@
 //         - AccessCheckInfo
 //         - InterceptorInfo
 //         - CallHandlerInfo
-//         - FunctionTemplateInfo
-//         - ObjectTemplateInfo
+//         - TemplateInfo
+//           - FunctionTemplateInfo
+//           - ObjectTemplateInfo
+//         - Script
 //         - SignatureInfo
 //         - TypeSwitchInfo
 //         - DebugInfo
@@ -108,7 +109,8 @@ enum PropertyAttributes {
   // a non-existent property.
 };
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // PropertyDetails captures type and attributes for a property.
@@ -295,12 +297,14 @@ enum PropertyNormalizationMode {
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, short_symbol)            \
-  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, medium_symbol)          \
-  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, long_symbol)              \
-  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, short_ascii_symbol)  \
-  V(MEDIUM_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_symbol)\
-  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, long_ascii_symbol)    \
+  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, short_symbol)           \
+  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, medium_symbol)         \
+  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, long_symbol)             \
+  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, short_ascii_symbol) \
+  V(MEDIUM_ASCII_SYMBOL_TYPE,                                                  \
+    SeqAsciiString::kAlignedSize,                                              \
+    medium_ascii_symbol)                                                       \
+  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, long_ascii_symbol)   \
   V(SHORT_CONS_SYMBOL_TYPE, ConsString::kSize, short_cons_symbol)              \
   V(MEDIUM_CONS_SYMBOL_TYPE, ConsString::kSize, medium_cons_symbol)            \
   V(LONG_CONS_SYMBOL_TYPE, ConsString::kSize, long_cons_symbol)                \
@@ -337,12 +341,14 @@ enum PropertyNormalizationMode {
   V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE,                                           \
     ExternalAsciiString::kSize,                                                \
     long_external_ascii_symbol)                                                \
-  V(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize, short_string)            \
-  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize, medium_string)          \
-  V(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize, long_string)              \
-  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, short_ascii_string)  \
-  V(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_string)\
-  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, long_ascii_string)    \
+  V(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize, short_string)           \
+  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize, medium_string)         \
+  V(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize, long_string)             \
+  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, short_ascii_string) \
+  V(MEDIUM_ASCII_STRING_TYPE,                                                  \
+    SeqAsciiString::kAlignedSize,                                              \
+    medium_ascii_string)                                                       \
+  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, long_ascii_string)   \
   V(SHORT_CONS_STRING_TYPE, ConsString::kSize, short_cons_string)              \
   V(MEDIUM_CONS_STRING_TYPE, ConsString::kSize, medium_cons_string)            \
   V(LONG_CONS_STRING_TYPE, ConsString::kSize, long_cons_string)                \
@@ -771,8 +777,10 @@ class Object BASE_EMBEDDED {
 
 
 // Smi represents integer Numbers that can be stored in 31 bits.
+// TODO(X64) Increase to 53 bits?
 // Smis are immediate which means they are NOT allocated in the heap.
 // The this pointer has the following format: [31 bit signed int] 0
+// TODO(X64): 31 bits signed int sign-extended to 63 bits.
 // Smi stands for small integer.
 class Smi: public Object {
  public:
@@ -1267,9 +1275,12 @@ class JSObject: public HeapObject {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
 
-  Object* DeleteProperty(String* name);
-  Object* DeleteElement(uint32_t index);
-  Object* DeleteLazyProperty(LookupResult* result, String* name);
+  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  Object* DeleteProperty(String* name, DeleteMode mode);
+  Object* DeleteElement(uint32_t index, DeleteMode mode);
+  Object* DeleteLazyProperty(LookupResult* result,
+                             String* name,
+                             DeleteMode mode);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -1285,11 +1296,6 @@ class JSObject: public HeapObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
-
-  // Return the object's hidden properties object. If the object has no hidden
-  // properties and create_if_needed is true, then a new hidden property object
-  // will be allocated. Otherwise the Heap::undefined_value is returned.
-  Object* GetHiddenProperties(bool create_if_needed);
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -1345,6 +1351,14 @@ class JSObject: public HeapObject {
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
+
+  inline Smi* InterceptorPropertyLookupHint(String* name);
+  Object* GetInterceptorPropertyWithLookupHint(JSObject* receiver,
+                                               Smi* lookup_hint,
+                                               String* name,
+                                               PropertyAttributes* attributes);
+  static const int kLookupInHolder = -1;
+  static const int kLookupInPrototype = -2;
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -1508,10 +1522,10 @@ class JSObject: public HeapObject {
 
   Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  Object* DeletePropertyPostInterceptor(String* name);
+  Object* DeletePropertyPostInterceptor(String* name, DeleteMode mode);
   Object* DeletePropertyWithInterceptor(String* name);
 
-  Object* DeleteElementPostInterceptor(uint32_t index);
+  Object* DeleteElementPostInterceptor(uint32_t index, DeleteMode mode);
   Object* DeleteElementWithInterceptor(uint32_t index);
 
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
@@ -1537,6 +1551,14 @@ class JSObject: public HeapObject {
 
   void LookupInDescriptor(String* name, LookupResult* result);
 
+  // Attempts to get property with a named interceptor getter.  Returns
+  // |true| and stores result into |result| if succesful, otherwise
+  // returns |false|
+  bool GetPropertyWithInterceptorProper(JSObject* receiver,
+                                        String* name,
+                                        PropertyAttributes* attributes,
+                                        Object** result);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
 
@@ -1555,6 +1577,7 @@ class Array: public HeapObject {
   // Layout descriptor.
   static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = kLengthOffset + kIntSize;
+  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Array);
@@ -1600,6 +1623,9 @@ class FixedArray: public Array {
 
   // Casting.
   static inline FixedArray* cast(Object* obj);
+
+  // Align data at kPointerSize, even if Array.kHeaderSize isn't aligned.
+  static const int kHeaderSize = POINTER_SIZE_ALIGN(Array::kHeaderSize);
 
   // Dispatched behavior.
   int FixedArraySize() { return SizeFor(length()); }
@@ -2034,7 +2060,7 @@ class Dictionary: public DictionaryBase {
   int FindNumberEntry(uint32_t index);
 
   // Delete a property from the dictionary.
-  Object* DeleteProperty(int entry);
+  Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
 
   // Type specific at put (default NONE attributes is used when adding).
   Object* AtStringPut(String* key, Object* value);
@@ -2152,7 +2178,7 @@ class ByteArray: public Array {
   inline int get_int(int index);
 
   static int SizeFor(int length) {
-    return kHeaderSize + OBJECT_SIZE_ALIGN(length);
+    return OBJECT_SIZE_ALIGN(kHeaderSize + length);
   }
   // We use byte arrays for free blocks in the heap.  Given a desired size in
   // bytes that is a multiple of the word size and big enough to hold a byte
@@ -2246,9 +2272,10 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
-  inline InlineCacheState ic_state();  // only valid for IC stubs
-  inline PropertyType type();  // only valid for monomorphic IC stubs
-  inline int arguments_count();  // only valid for call IC stubs
+  inline InlineCacheState ic_state();  // Only valid for IC stubs.
+  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs..
+  inline PropertyType type();  // Only valid for monomorphic IC stubs.
+  inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
@@ -2270,16 +2297,20 @@ class Code: public HeapObject {
 
   // Flags operations.
   static inline Flags ComputeFlags(Kind kind,
+                                   InLoopFlag in_loop = NOT_IN_LOOP,
                                    InlineCacheState ic_state = UNINITIALIZED,
                                    PropertyType type = NORMAL,
                                    int argc = -1);
 
-  static inline Flags ComputeMonomorphicFlags(Kind kind,
-                                              PropertyType type,
-                                              int argc = -1);
+  static inline Flags ComputeMonomorphicFlags(
+      Kind kind,
+      PropertyType type,
+      InLoopFlag in_loop = NOT_IN_LOOP,
+      int argc = -1);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
+  static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
@@ -2349,6 +2380,9 @@ class Code: public HeapObject {
   void CodePrint();
   void CodeVerify();
 #endif
+  // Code entry points are aligned to 32 bytes.
+  static const int kCodeAlignment = 32;
+  static const int kCodeAlignmentMask = kCodeAlignment - 1;
 
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
@@ -2356,14 +2390,11 @@ class Code: public HeapObject {
   static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
-  // Add filler objects to align the instruction start following right after
+  // Add padding to align the instruction start following right after
   // the Code object header.
-  static const int kFiller6Offset = kKindSpecificFlagsOffset + kIntSize;
-  static const int kFiller7Offset = kFiller6Offset + kIntSize;
-  static const int kHeaderSize = kFiller7Offset + kIntSize;
-
-  // Code entry points are aligned to 32 bytes.
-  static const int kCodeAlignment = 32;
+  static const int kHeaderSize =
+      (kKindSpecificFlagsOffset + kIntSize + kCodeAlignmentMask) &
+          ~kCodeAlignmentMask;
 
   // Byte offsets within kKindSpecificFlagsOffset.
   static const int kICFlagOffset = kKindSpecificFlagsOffset + 0;
@@ -2371,14 +2402,19 @@ class Code: public HeapObject {
 
   // Flags layout.
   static const int kFlagsICStateShift        = 0;
-  static const int kFlagsKindShift           = 3;
-  static const int kFlagsTypeShift           = 6;
-  static const int kFlagsArgumentsCountShift = 9;
+  static const int kFlagsICInLoopShift       = 3;
+  static const int kFlagsKindShift           = 4;
+  static const int kFlagsTypeShift           = 7;
+  static const int kFlagsArgumentsCountShift = 10;
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 000000111
-  static const int kFlagsKindMask           = 0x00000038;  // 000111000
-  static const int kFlagsTypeMask           = 0x000001C0;  // 111000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFFE00;
+  static const int kFlagsICStateMask        = 0x00000007;  // 0000000111
+  static const int kFlagsICInLoopMask       = 0x00000008;  // 0000001000
+  static const int kFlagsKindMask           = 0x00000070;  // 0001110000
+  static const int kFlagsTypeMask           = 0x00000380;  // 1110000000
+  static const int kFlagsArgumentsCountMask = 0xFFFFFC00;
+
+  static const int kFlagsNotUsedInLookup =
+      (kFlagsICInLoopMask | kFlagsTypeMask);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
@@ -2572,7 +2608,7 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kSize = kCodeCacheOffset + kIntSize;
+  static const int kSize = kCodeCacheOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -2595,7 +2631,7 @@ class Map: public HeapObject {
   static const int kHasInstanceCallHandler = 6;
   static const int kIsAccessCheckNeeded = 7;
 
-  // Bit positions for but field 2
+  // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
 
  private:
@@ -2613,17 +2649,23 @@ class Struct: public HeapObject {
 };
 
 
-// Script types.
-enum ScriptType {
-  SCRIPT_TYPE_NATIVE,
-  SCRIPT_TYPE_EXTENSION,
-  SCRIPT_TYPE_NORMAL
-};
-
-
 // Script describes a script which has been added to the VM.
 class Script: public Struct {
  public:
+  // Script types.
+  enum Type {
+    TYPE_NATIVE,
+    TYPE_EXTENSION,
+    TYPE_NORMAL
+  };
+
+  // Script compilation types.
+  enum CompilationType {
+    COMPILATION_TYPE_HOST,
+    COMPILATION_TYPE_EVAL,
+    COMPILATION_TYPE_JSON
+  };
+
   // [source]: the script source.
   DECL_ACCESSORS(source, Object)
 
@@ -2652,8 +2694,19 @@ class Script: public Struct {
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
 
-  // [line_ends]: array of line ends positions
+  // [compilation]: how the the script was compiled.
+  DECL_ACCESSORS(compilation_type, Smi)
+
+  // [line_ends]: array of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
+
+  // [eval_from_function]: for eval scripts the funcion from which eval was
+  // called.
+  DECL_ACCESSORS(eval_from_function, Object)
+
+  // [eval_from_instructions_offset]: the instruction offset in the code for the
+  // function from which eval was called where eval was called.
+  DECL_ACCESSORS(eval_from_instructions_offset, Smi)
 
   static inline Script* cast(Object* obj);
 
@@ -2670,9 +2723,13 @@ class Script: public Struct {
   static const int kContextOffset = kDataOffset + kPointerSize;
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
+  static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kSize = kIdOffset + kPointerSize;
+  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kEvalFrominstructionsOffsetOffset =
+      kEvalFromFunctionOffset + kPointerSize;
+  static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
@@ -2781,21 +2838,23 @@ class SharedFunctionInfo: public HeapObject {
   static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
+  // (An even number of integers has a size that is a multiple of a pointer.)
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
   static const int kLengthOffset = kCodeOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
-  static const int kInstanceClassNameOffset =
+  static const int kStartPositionAndTypeOffset =
       kExpectedNofPropertiesOffset + kIntSize;
+  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
+  static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
+  static const int kInstanceClassNameOffset =
+      kFunctionTokenPositionOffset + kIntSize;
   static const int kExternalReferenceDataOffset =
       kInstanceClassNameOffset + kPointerSize;
   static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
-  static const int kStartPositionAndTypeOffset = kScriptOffset + kPointerSize;
-  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
-  static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
-  static const int kDebugInfoOffset = kFunctionTokenPositionOffset + kIntSize;
+  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kSize = kInferredNameOffset + kPointerSize;
 
@@ -3105,7 +3164,7 @@ class JSRegExp: public JSObject {
 #endif
 
   static const int kDataOffset = JSObject::kHeaderSize;
-  static const int kSize = kDataOffset + kIntSize;
+  static const int kSize = kDataOffset + kPointerSize;
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -3370,6 +3429,7 @@ class String: public HeapObject {
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kSize = kLengthOffset + kIntSize;
+  // Notice: kSize is not pointer-size aligned if pointers are 64-bit.
 
   // Limits on sizes of different types of strings.
   static const int kMaxShortStringSize = 63;
@@ -3518,11 +3578,12 @@ class SeqAsciiString: public SeqString {
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
-    return kHeaderSize + OBJECT_SIZE_ALIGN(length * kCharSize);
+    return OBJECT_SIZE_ALIGN(kHeaderSize + length * kCharSize);
   }
 
   // Layout description.
   static const int kHeaderSize = String::kSize;
+  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Support for StringInputBuffer.
   inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
@@ -3563,11 +3624,12 @@ class SeqTwoByteString: public SeqString {
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {
-    return kHeaderSize + OBJECT_SIZE_ALIGN(length * kShortSize);
+    return OBJECT_SIZE_ALIGN(kHeaderSize + length * kShortSize);
   }
 
   // Layout description.
   static const int kHeaderSize = String::kSize;
+  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Support for StringInputBuffer.
   inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
@@ -3617,7 +3679,7 @@ class ConsString: public String {
   void ConsStringIterateBody(ObjectVisitor* v);
 
   // Layout description.
-  static const int kFirstOffset = String::kSize;
+  static const int kFirstOffset = POINTER_SIZE_ALIGN(String::kSize);
   static const int kSecondOffset = kFirstOffset + kPointerSize;
   static const int kSize = kSecondOffset + kPointerSize;
 
@@ -3661,9 +3723,18 @@ class SlicedString: public String {
   void SlicedStringIterateBody(ObjectVisitor* v);
 
   // Layout description
+#if V8_HOST_ARCH_64_BIT
+  // Optimizations expect buffer to be located at same offset as a ConsString's
+  // first substring. In 64 bit mode we have room for the size before the
+  // buffer.
+  static const int kStartOffset = String::kSize;
+  static const int kBufferOffset = kStartOffset + kIntSize;
+  static const int kSize = kBufferOffset + kPointerSize;
+#else
   static const int kBufferOffset = String::kSize;
   static const int kStartOffset = kBufferOffset + kPointerSize;
   static const int kSize = kStartOffset + kIntSize;
+#endif
 
   // Support for StringInputBuffer.
   inline const unibrow::byte* SlicedStringReadBlock(ReadBlockBuffer* buffer,
@@ -3693,7 +3764,7 @@ class ExternalString: public String {
   static inline ExternalString* cast(Object* obj);
 
   // Layout description.
-  static const int kResourceOffset = String::kSize;
+  static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
   static const int kSize = kResourceOffset + kPointerSize;
 
  private:
@@ -4153,7 +4224,7 @@ class ObjectTemplateInfo: public TemplateInfo {
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
   static const int kInternalFieldCountOffset =
       kConstructorOffset + kPointerSize;
-  static const int kSize = kInternalFieldCountOffset + kHeaderSize;
+  static const int kSize = kInternalFieldCountOffset + kPointerSize;
 };
 
 

@@ -28,7 +28,8 @@
 #ifndef V8_DATEPARSER_INL_H_
 #define V8_DATEPARSER_INL_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 template <typename Char>
 bool DateParser::Parse(Vector<Char> str, FixedArray* out) {

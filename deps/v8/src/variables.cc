@@ -31,7 +31,8 @@
 #include "scopes.h"
 #include "variables.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // Implementation UseCount.

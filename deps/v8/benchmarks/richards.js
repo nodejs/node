@@ -30,7 +30,7 @@
 // benchmark from:
 //
 //    http://www.cl.cam.ac.uk/~mr10/Bench.html
-// 
+//
 // The benchmark was originally implemented in BCPL by
 // Martin Richards.
 

@@ -39,7 +39,8 @@
 #include <opagent.h>  // NOLINT
 #endif
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class OProfileAgent {
  public:

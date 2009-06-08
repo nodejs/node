@@ -31,7 +31,8 @@
 #include "debug.h"
 #include "scopeinfo.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 JSBuiltinsObject* Context::builtins() {
   GlobalObject* object = global();

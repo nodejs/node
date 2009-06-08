@@ -35,7 +35,8 @@
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 /*
  * This assembler uses the following register assignment convention
@@ -1194,10 +1195,11 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
   const byte* new_address = StringCharacterPosition(*subject, start_index);
 
   if (start_address != new_address) {
-    // If there is a difference, update start and end addresses in the
-    // RegExp stack frame to match the new value.
+    // If there is a difference, update the object pointer and start and end
+    // addresses in the RegExp stack frame to match the new value.
     const byte* end_address = frame_entry<const byte* >(re_frame, kInputEnd);
     int byte_length = end_address - start_address;
+    frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;
   }

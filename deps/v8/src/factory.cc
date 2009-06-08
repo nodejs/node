@@ -33,7 +33,8 @@
 #include "factory.h"
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
@@ -176,9 +177,12 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_column_offset(Smi::FromInt(0));
   script->set_data(Heap::undefined_value());
   script->set_context_data(Heap::undefined_value());
-  script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
+  script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
+  script->set_compilation_type(Smi::FromInt(Script::COMPILATION_TYPE_HOST));
   script->set_wrapper(*wrapper);
   script->set_line_ends(Heap::undefined_value());
+  script->set_eval_from_function(Heap::undefined_value());
+  script->set_eval_from_instructions_offset(Smi::FromInt(0));
 
   return script;
 }
@@ -509,8 +513,10 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 }
 
 
-Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
-                              Code::Flags flags, Handle<Object> self_ref) {
+Handle<Code> Factory::NewCode(const CodeDesc& desc,
+                              ZoneScopeInfo* sinfo,
+                              Code::Flags flags,
+                              Handle<Object> self_ref) {
   CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags, self_ref), Code);
 }
 

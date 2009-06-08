@@ -31,10 +31,15 @@
 
 
 // A benchmark has a name (string) and a function that will be run to
-// do the performance measurement.
-function Benchmark(name, run) {
+// do the performance measurement. The optional setup and tearDown
+// arguments are functions that will be invoked before and after
+// running the benchmark, but the running time of these functions will
+// not be accounted for in the benchmark score.
+function Benchmark(name, run, setup, tearDown) {
   this.name = name;
   this.run = run;
+  this.Setup = setup ? setup : function() { };
+  this.TearDown = tearDown ? tearDown : function() { };
 }
 
 
@@ -73,7 +78,7 @@ BenchmarkSuite.suites = [];
 // Scores are not comparable across versions. Bump the version if
 // you're making changes that will affect that scores, e.g. if you add
 // a new benchmark or change an existing one.
-BenchmarkSuite.version = '3';
+BenchmarkSuite.version = '5';
 
 
 // To make the benchmark results predictable, we replace Math.random
@@ -85,7 +90,6 @@ Math.random = (function() {
     seed = ((seed + 0x7ed55d16) + (seed << 12))  & 0xffffffff;
     seed = ((seed ^ 0xc761c23c) ^ (seed >>> 19)) & 0xffffffff;
     seed = ((seed + 0x165667b1) + (seed << 5))   & 0xffffffff;
-    seed = ((seed + 0xd3a2646c) ^ (seed << 9))   & 0xffffffff;
     seed = ((seed + 0xd3a2646c) ^ (seed << 9))   & 0xffffffff;
     seed = ((seed + 0xfd7046c5) + (seed << 3))   & 0xffffffff;
     seed = ((seed ^ 0xb55a4f09) ^ (seed >>> 16)) & 0xffffffff;
@@ -114,7 +118,7 @@ BenchmarkSuite.RunSuites = function(runner) {
         continuation = suite.RunStep(runner);
       }
       if (continuation && typeof window != 'undefined' && window.setTimeout) {
-        window.setTimeout(RunStep, 100);
+        window.setTimeout(RunStep, 25);
         return;
       }
     }
@@ -194,7 +198,7 @@ BenchmarkSuite.prototype.NotifyError = function(error) {
 
 // Runs a single benchmark for at least a second and computes the
 // average time it takes to run a single iteration.
-BenchmarkSuite.prototype.RunSingle = function(benchmark) {
+BenchmarkSuite.prototype.RunSingleBenchmark = function(benchmark) {
   var elapsed = 0;
   var start = new Date();
   for (var n = 0; elapsed < 1000; n++) {
@@ -216,18 +220,45 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
   var length = this.benchmarks.length;
   var index = 0;
   var suite = this;
-  function RunNext() {
+
+  // Run the setup, the actual benchmark, and the tear down in three
+  // separate steps to allow the framework to yield between any of the
+  // steps.
+
+  function RunNextSetup() {
     if (index < length) {
       try {
-        suite.RunSingle(suite.benchmarks[index++]);
+        suite.benchmarks[index].Setup();
       } catch (e) {
         suite.NotifyError(e);
         return null;
       }
-      return RunNext;
+      return RunNextBenchmark;
     }
     suite.NotifyResult();
     return null;
   }
-  return RunNext();
+
+  function RunNextBenchmark() {
+    try {
+      suite.RunSingleBenchmark(suite.benchmarks[index]);
+    } catch (e) {
+      suite.NotifyError(e);
+      return null;
+    }
+    return RunNextTearDown;
+  }
+
+  function RunNextTearDown() {
+    try {
+      suite.benchmarks[index++].TearDown();
+    } catch (e) {
+      suite.NotifyError(e);
+      return null;
+    }
+    return RunNextSetup;
+  }
+
+  // Start out running the setup.
+  return RunNextSetup();
 }

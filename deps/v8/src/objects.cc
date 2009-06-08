@@ -41,7 +41,8 @@
 #include "disassembler.h"
 #endif
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
@@ -384,7 +385,9 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
 }
 
 
-Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
+Object* JSObject::DeleteLazyProperty(LookupResult* result,
+                                     String* name,
+                                     DeleteMode mode) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -392,7 +395,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
   LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
-  return this_handle->DeleteProperty(*name_handle);
+  return this_handle->DeleteProperty(*name_handle, mode);
 }
 
 
@@ -536,6 +539,9 @@ void Failure::FailurePrint() {
 
 Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
   ASSERT((space & ~kSpaceTagMask) == 0);
+  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
+  // happen to be identical at the moment.
+
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | space;
   // We can't very well allocate a heap number in this situation, and if the
@@ -1736,8 +1742,10 @@ Object* JSObject::SetProperty(LookupResult* result,
       }
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
-      if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
+      if (value == result->GetConstantFunction()) return value;
+      // Preserve the attributes of this existing property.
+      attributes = result->GetAttributes();
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
@@ -1817,8 +1825,10 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       }
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
-      if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
+      if (value == result->GetConstantFunction()) return value;
+      // Preserve the attributes of this existing property.
+      attributes = result->GetAttributes();
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
@@ -2112,7 +2122,7 @@ Object* JSObject::NormalizeElements() {
 }
 
 
-Object* JSObject::DeletePropertyPostInterceptor(String* name) {
+Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
@@ -2126,7 +2136,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name) {
   // Attempt to remove the property from the property dictionary.
   Dictionary* dictionary = property_dictionary();
   int entry = dictionary->FindStringEntry(name);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
+  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   return Heap::true_value();
 }
 
@@ -2156,13 +2166,15 @@ Object* JSObject::DeletePropertyWithInterceptor(String* name) {
       return *v8::Utils::OpenHandle(*result);
     }
   }
-  Object* raw_result = this_handle->DeletePropertyPostInterceptor(*name_handle);
+  Object* raw_result =
+      this_handle->DeletePropertyPostInterceptor(*name_handle, NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
 
 
-Object* JSObject::DeleteElementPostInterceptor(uint32_t index) {
+Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
+                                               DeleteMode mode) {
   if (HasFastElements()) {
     uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -2175,7 +2187,7 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index) {
   ASSERT(!HasFastElements());
   Dictionary* dictionary = element_dictionary();
   int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
+  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   return Heap::true_value();
 }
 
@@ -2206,13 +2218,14 @@ Object* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
-  Object* raw_result = this_handle->DeleteElementPostInterceptor(index);
+  Object* raw_result =
+      this_handle->DeleteElementPostInterceptor(index, NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
 
 
-Object* JSObject::DeleteElement(uint32_t index) {
+Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
@@ -2224,10 +2237,14 @@ Object* JSObject::DeleteElement(uint32_t index) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return Heap::false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteElement(index);
+    return JSGlobalObject::cast(proto)->DeleteElement(index, mode);
   }
 
   if (HasIndexedInterceptor()) {
+    // Skip interceptor if forcing deletion.
+    if (mode == FORCE_DELETION) {
+      return DeleteElementPostInterceptor(index, mode);
+    }
     return DeleteElementWithInterceptor(index);
   }
 
@@ -2242,13 +2259,13 @@ Object* JSObject::DeleteElement(uint32_t index) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
+    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   }
   return Heap::true_value();
 }
 
 
-Object* JSObject::DeleteProperty(String* name) {
+Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   // ECMA-262, 3rd, 8.6.2.5
   ASSERT(name->IsString());
 
@@ -2263,23 +2280,32 @@ Object* JSObject::DeleteProperty(String* name) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return Heap::false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteProperty(name);
+    return JSGlobalObject::cast(proto)->DeleteProperty(name, mode);
   }
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return DeleteElement(index);
+    return DeleteElement(index, mode);
   } else {
     LookupResult result;
     LocalLookup(name, &result);
     if (!result.IsValid()) return Heap::true_value();
-    if (result.IsDontDelete()) return Heap::false_value();
+    // Ignore attributes if forcing a deletion.
+    if (result.IsDontDelete() && mode != FORCE_DELETION) {
+      return Heap::false_value();
+    }
     // Check for interceptor.
     if (result.type() == INTERCEPTOR) {
+      // Skip interceptor if forcing a deletion.
+      if (mode == FORCE_DELETION) {
+        return DeletePropertyPostInterceptor(name, mode);
+      }
       return DeletePropertyWithInterceptor(name);
     }
     if (!result.IsLoaded()) {
-      return JSObject::cast(this)->DeleteLazyProperty(&result, name);
+      return JSObject::cast(this)->DeleteLazyProperty(&result,
+                                                      name,
+                                                      mode);
     }
     // Normalize object if needed.
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
@@ -2287,7 +2313,7 @@ Object* JSObject::DeleteProperty(String* name) {
     // Make sure the properties are normalized before removing the entry.
     Dictionary* dictionary = property_dictionary();
     int entry = dictionary->FindStringEntry(name);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
+    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
     return Heap::true_value();
   }
 }
@@ -3433,8 +3459,8 @@ const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
 
 
 void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                                     unsigned* offset_ptr,
-                                                     unsigned max_chars) {
+                                                           unsigned* offset_ptr,
+                                                           unsigned max_chars) {
   unsigned chars_read = 0;
   unsigned offset = *offset_ptr;
   while (chars_read < max_chars) {
@@ -4852,7 +4878,6 @@ const char* Code::Kind2String(Kind kind) {
 const char* Code::ICState2String(InlineCacheState state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
-    case UNINITIALIZED_IN_LOOP: return "UNINITIALIZED_IN_LOOP";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
@@ -5142,42 +5167,6 @@ bool JSObject::HasLocalElement(uint32_t index) {
   } else {
     return element_dictionary()->FindNumberEntry(index) != -1;
   }
-}
-
-
-Object* JSObject::GetHiddenProperties(bool create_if_needed) {
-  String* key = Heap::hidden_symbol();
-  if (this->HasFastProperties()) {
-    // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden symbol. Since the
-    // hidden symbols hash code is zero (and no other string has hash
-    // code zero) it will always occupy the first entry if present.
-    DescriptorArray* descriptors = this->map()->instance_descriptors();
-    DescriptorReader r(descriptors);
-    if (!r.eos() && (r.GetKey() == key) && r.IsProperty()) {
-      ASSERT(r.type() == FIELD);
-      return FastPropertyAt(r.GetFieldIndex());
-    }
-  }
-
-  // Only attempt to find the hidden properties in the local object and not
-  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
-  // the general case, but in this case we know it won't hit an interceptor.
-  if (!this->HasLocalProperty(key)) {
-    // Hidden properties object not found. Allocate a new hidden properties
-    // object if requested. Otherwise return the undefined value.
-    if (create_if_needed) {
-      Object* obj = Heap::AllocateJSObject(
-          Top::context()->global_context()->object_function());
-      if (obj->IsFailure()) {
-        return obj;
-      }
-      return this->SetProperty(key, obj, DONT_ENUM);
-    } else {
-      return Heap::undefined_value();
-    }
-  }
-  return this->GetProperty(key);
 }
 
 
@@ -5646,9 +5635,11 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-Object* JSObject::GetPropertyWithInterceptor(JSObject* receiver,
-                                             String* name,
-                                             PropertyAttributes* attributes) {
+bool JSObject::GetPropertyWithInterceptorProper(
+    JSObject* receiver,
+    String* name,
+    PropertyAttributes* attributes,
+    Object** result_object) {
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -5669,19 +5660,93 @@ Object* JSObject::GetPropertyWithInterceptor(JSObject* receiver,
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (Top::has_scheduled_exception()) {
+      return false;
+    }
     if (!result.IsEmpty()) {
       *attributes = NONE;
-      return *v8::Utils::OpenHandle(*result);
+      *result_object = *v8::Utils::OpenHandle(*result);
+      return true;
     }
   }
 
-  Object* raw_result = holder_handle->GetPropertyPostInterceptor(
+  return false;
+}
+
+
+Object* JSObject::GetInterceptorPropertyWithLookupHint(
+    JSObject* receiver,
+    Smi* lookup_hint,
+    String* name,
+    PropertyAttributes* attributes) {
+  HandleScope scope;
+  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSObject> holder_handle(this);
+  Handle<String> name_handle(name);
+
+  Object* result = NULL;
+  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+    return result;
+  } else {
+    RETURN_IF_SCHEDULED_EXCEPTION();
+  }
+
+  int property_index = lookup_hint->value();
+  if (property_index >= 0) {
+    result = holder_handle->FastPropertyAt(property_index);
+  } else {
+    switch (property_index) {
+      case kLookupInPrototype: {
+          Object* pt = holder_handle->GetPrototype();
+          *attributes = ABSENT;
+          if (pt == Heap::null_value()) return Heap::undefined_value();
+          result = pt->GetPropertyWithReceiver(
+              *receiver_handle,
+              *name_handle,
+              attributes);
+          RETURN_IF_SCHEDULED_EXCEPTION();
+        }
+        break;
+
+      case kLookupInHolder:
+        result = holder_handle->GetPropertyPostInterceptor(
+            *receiver_handle,
+            *name_handle,
+            attributes);
+        RETURN_IF_SCHEDULED_EXCEPTION();
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  return result;
+}
+
+
+Object* JSObject::GetPropertyWithInterceptor(
+    JSObject* receiver,
+    String* name,
+    PropertyAttributes* attributes) {
+  HandleScope scope;
+  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSObject> holder_handle(this);
+  Handle<String> name_handle(name);
+
+  Object* result = NULL;
+  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+    return result;
+  } else {
+    RETURN_IF_SCHEDULED_EXCEPTION();
+  }
+
+  result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,
       *name_handle,
       attributes);
   RETURN_IF_SCHEDULED_EXCEPTION();
-  return raw_result;
+  return result;
 }
 
 
@@ -5965,20 +6030,6 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
 int JSObject::GetEnumElementKeys(FixedArray* storage) {
   return GetLocalElementKeys(storage,
                              static_cast<PropertyAttributes>(DONT_ENUM));
-}
-
-
-// Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-static uint32_t ComputeIntegerHash(uint32_t key) {
-  uint32_t hash = key;
-  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
-  hash = hash ^ (hash >> 12);
-  hash = hash + (hash << 2);
-  hash = hash ^ (hash >> 4);
-  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
-  hash = hash ^ (hash >> 16);
-  return hash;
 }
 
 
@@ -6725,7 +6776,10 @@ class MapNameKey : public HashTableKey {
   virtual HashFunction GetHashFunction() { return MapNameHash; }
 
   static uint32_t MapNameHashHelper(Map* map, String* name) {
-    return reinterpret_cast<uint32_t>(map) ^ name->Hash();
+    // Uses only lower 32 bits if pointers are larger.
+    uintptr_t addr_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
+    return addr_hash ^ name->Hash();
   }
 
   static uint32_t MapNameHash(Object* obj) {
@@ -6907,9 +6961,12 @@ void Dictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 }
 
 
-Object* Dictionary::DeleteProperty(int entry) {
+Object* Dictionary::DeleteProperty(int entry, JSObject::DeleteMode mode) {
   PropertyDetails details = DetailsAt(entry);
-  if (details.IsDontDelete()) return Heap::false_value();
+  // Ignore attributes if forcing a deletion.
+  if (details.IsDontDelete() && mode == JSObject::NORMAL_DELETION) {
+    return Heap::false_value();
+  }
   SetEntry(entry, Heap::null_value(), Heap::null_value(), Smi::FromInt(0));
   ElementRemoved();
   return Heap::true_value();

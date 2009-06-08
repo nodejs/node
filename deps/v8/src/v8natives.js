@@ -115,12 +115,16 @@ function GlobalParseFloat(string) {
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
-  if (this !== global && this !== %GlobalReceiver(global)) {
-    throw new $EvalError('The "this" object passed to eval must ' + 
+  var global_receiver = %GlobalReceiver(global);
+  var this_is_global_receiver = (this === global_receiver);
+  var global_is_detached = (global === global_receiver);
+
+  if (!this_is_global_receiver || global_is_detached) {
+    throw new $EvalError('The "this" object passed to eval must ' +
                          'be the global object from which eval originated');
   }
-  
-  var f = %CompileString(x, 0, false);
+
+  var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
 
   return f.call(this);
@@ -131,7 +135,7 @@ function GlobalEval(x) {
 function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), 0, false);
+    var f = %CompileString(ToString(expr), false);
     f.call(%GlobalReceiver(global));
   }
   return null;
@@ -550,7 +554,7 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source, -1, false)();
+  var f = %CompileString(source, false)();
   %FunctionSetName(f, "anonymous");
   return %SetNewFunctionAttributes(f);
 }

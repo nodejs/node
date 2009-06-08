@@ -28,7 +28,8 @@
 #ifndef V8_ARM_CONSTANTS_ARM_H_
 #define V8_ARM_CONSTANTS_ARM_H_
 
-namespace assembler { namespace arm {
+namespace assembler {
+namespace arm {
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate ARM instructions.

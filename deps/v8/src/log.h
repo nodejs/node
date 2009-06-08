@@ -28,7 +28,8 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Logger is used for collecting logging information from V8 during
 // execution. The result is dumped to a file.
@@ -75,7 +76,7 @@ class LogMessageBuilder;
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(Call)                           \
   do {                                      \
-    if (v8::internal::Logger::is_enabled()) \
+    if (v8::internal::Logger::IsEnabled()) \
       v8::internal::Logger::Call;           \
   } while (false)
 #else
@@ -201,7 +202,7 @@ class Logger {
     return current_state_ ? current_state_->state() : OTHER;
   }
 
-  static bool is_enabled();
+  static bool IsEnabled();
 
   // Pause/Resume collection of profiling data.
   // When data collection is paused, Tick events are discarded until
@@ -214,7 +215,16 @@ class Logger {
   // retrieve previously written messages. See v8.h.
   static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
+  // Logs all compiled functions found in the heap.
+  static void LogCompiledFunctions();
+
  private:
+
+  // Profiler's sampling interval (in milliseconds).
+  static const int kSamplingIntervalMs = 1;
+
+  // Emits the profiler's first message.
+  static void ProfilerBeginEvent();
 
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
@@ -226,6 +236,12 @@ class Logger {
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
+
+  // Stops logging and profiling in case of insufficient resources.
+  static void StopLoggingAndProfiling();
+
+  // Returns whether profiler's sampler is active.
+  static bool IsProfilerSamplerActive();
 
   // The sampler used by the profiler and the sliding state window.
   static Ticker* ticker_;
@@ -252,6 +268,8 @@ class Logger {
   friend class Profiler;
   friend class SlidingStateWindow;
   friend class VMState;
+
+  friend class LoggerTestHelper;
 #else
   static bool is_enabled() { return false; }
 #endif
@@ -259,14 +277,9 @@ class Logger {
 
 
 // Class that extracts stack trace, used for profiling.
-class StackTracer BASE_EMBEDDED {
+class StackTracer : public AllStatic {
  public:
-  explicit StackTracer(uintptr_t low_stack_bound)
-      : low_stack_bound_(low_stack_bound) { }
-  void Trace(TickSample* sample);
- private:
-
-  uintptr_t low_stack_bound_;
+  static void Trace(TickSample* sample);
 };
 
 

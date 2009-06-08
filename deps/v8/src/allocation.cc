@@ -29,7 +29,8 @@
 
 #include "v8.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 void* Malloced::New(size_t size) {

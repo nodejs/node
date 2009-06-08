@@ -13,6 +13,7 @@
 #include "top.h"
 #include "cctest.h"
 #include "disassembler.h"
+#include "register-allocator-inl.h"
 
 using v8::Function;
 using v8::Local;
@@ -36,13 +37,11 @@ static v8::Persistent<v8::Context> env;
 
 
 static struct {
-  StackTracer* tracer;
   TickSample* sample;
-} trace_env = { NULL, NULL };
+} trace_env = { NULL };
 
 
-static void InitTraceEnv(StackTracer* tracer, TickSample* sample) {
-  trace_env.tracer = tracer;
+static void InitTraceEnv(TickSample* sample) {
   trace_env.sample = sample;
 }
 
@@ -52,7 +51,7 @@ static void DoTrace(Address fp) {
   // sp is only used to define stack high bound
   trace_env.sample->sp =
       reinterpret_cast<unsigned int>(trace_env.sample) - 10240;
-  trace_env.tracer->Trace(trace_env.sample);
+  StackTracer::Trace(trace_env.sample);
 }
 
 
@@ -98,6 +97,8 @@ class TraceExtension : public v8::Extension {
       v8::Handle<String> name);
   static v8::Handle<v8::Value> Trace(const v8::Arguments& args);
   static v8::Handle<v8::Value> JSTrace(const v8::Arguments& args);
+  static v8::Handle<v8::Value> JSEntrySP(const v8::Arguments& args);
+  static v8::Handle<v8::Value> JSEntrySPLevel2(const v8::Arguments& args);
  private:
   static Address GetFP(const v8::Arguments& args);
   static const char* kSource;
@@ -106,8 +107,9 @@ class TraceExtension : public v8::Extension {
 
 const char* TraceExtension::kSource =
     "native function trace();"
-    "native function js_trace();";
-
+    "native function js_trace();"
+    "native function js_entry_sp();"
+    "native function js_entry_sp_level2();";
 
 v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
     v8::Handle<String> name) {
@@ -115,6 +117,10 @@ v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(TraceExtension::Trace);
   } else if (name->Equals(String::New("js_trace"))) {
     return v8::FunctionTemplate::New(TraceExtension::JSTrace);
+  } else if (name->Equals(String::New("js_entry_sp"))) {
+    return v8::FunctionTemplate::New(TraceExtension::JSEntrySP);
+  } else if (name->Equals(String::New("js_entry_sp_level2"))) {
+    return v8::FunctionTemplate::New(TraceExtension::JSEntrySPLevel2);
   } else {
     CHECK(false);
     return v8::Handle<v8::FunctionTemplate>();
@@ -142,6 +148,34 @@ v8::Handle<v8::Value> TraceExtension::JSTrace(const v8::Arguments& args) {
 }
 
 
+static Address GetJsEntrySp() {
+  CHECK_NE(NULL, Top::GetCurrentThread());
+  return Top::js_entry_sp(Top::GetCurrentThread());
+}
+
+
+v8::Handle<v8::Value> TraceExtension::JSEntrySP(const v8::Arguments& args) {
+  CHECK_NE(0, GetJsEntrySp());
+  return v8::Undefined();
+}
+
+
+static void CompileRun(const char* source) {
+  Script::Compile(String::New(source))->Run();
+}
+
+
+v8::Handle<v8::Value> TraceExtension::JSEntrySPLevel2(
+    const v8::Arguments& args) {
+  v8::HandleScope scope;
+  const Address js_entry_sp = GetJsEntrySp();
+  CHECK_NE(0, js_entry_sp);
+  CompileRun("js_entry_sp();");
+  CHECK_EQ(js_entry_sp, GetJsEntrySp());
+  return v8::Undefined();
+}
+
+
 static TraceExtension kTraceExtension;
 v8::DeclareExtension kTraceExtensionDeclaration(&kTraceExtension);
 
@@ -160,11 +194,6 @@ static void InitializeVM() {
 
 static Handle<JSFunction> CompileFunction(const char* source) {
   return v8::Utils::OpenHandle(*Script::Compile(String::New(source)));
-}
-
-
-static void CompileRun(const char* source) {
-  Script::Compile(String::New(source))->Run();
 }
 
 
@@ -198,7 +227,8 @@ static Handle<v8::internal::String> NewString(const char* s) {
 }
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class CodeGeneratorPatcher {
  public:
@@ -253,8 +283,7 @@ static void CreateTraceCallerFunction(const char* func_name,
 
 TEST(CFromJSStackTrace) {
   TickSample sample;
-  StackTracer tracer(reinterpret_cast<uintptr_t>(&sample));
-  InitTraceEnv(&tracer, &sample);
+  InitTraceEnv(&sample);
 
   InitializeVM();
   v8::HandleScope scope;
@@ -275,8 +304,7 @@ TEST(CFromJSStackTrace) {
 
 TEST(PureJSStackTrace) {
   TickSample sample;
-  StackTracer tracer(reinterpret_cast<uintptr_t>(&sample));
-  InitTraceEnv(&tracer, &sample);
+  InitTraceEnv(&sample);
 
   InitializeVM();
   v8::HandleScope scope;
@@ -321,11 +349,22 @@ static int CFunc(int depth) {
 
 TEST(PureCStackTrace) {
   TickSample sample;
-  StackTracer tracer(reinterpret_cast<uintptr_t>(&sample));
-  InitTraceEnv(&tracer, &sample);
+  InitTraceEnv(&sample);
   // Check that sampler doesn't crash
   CHECK_EQ(10, CFunc(10));
 }
 
+
+TEST(JsEntrySp) {
+  InitializeVM();
+  v8::HandleScope scope;
+  CHECK_EQ(0, GetJsEntrySp());
+  CompileRun("a = 1; b = a + 1;");
+  CHECK_EQ(0, GetJsEntrySp());
+  CompileRun("js_entry_sp();");
+  CHECK_EQ(0, GetJsEntrySp());
+  CompileRun("js_entry_sp_level2();");
+  CHECK_EQ(0, GetJsEntrySp());
+}
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

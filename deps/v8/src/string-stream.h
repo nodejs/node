@@ -28,7 +28,8 @@
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class StringAllocator {

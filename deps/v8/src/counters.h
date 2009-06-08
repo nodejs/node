@@ -28,7 +28,8 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // StatsCounters is an interface for plugging into external
 // counters for monitoring.  Counters can be looked up and
@@ -74,7 +75,7 @@ class StatsTable : public AllStatic {
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
-  static void *CreateHistogram(const char* name,
+  static void* CreateHistogram(const char* name,
                                int min,
                                int max,
                                size_t buckets) {

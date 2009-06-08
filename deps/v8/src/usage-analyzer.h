@@ -28,7 +28,8 @@
 #ifndef V8_USAGE_ANALYZER_H_
 #define V8_USAGE_ANALYZER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Compute usage counts for all variables.
 // Used for variable allocation.

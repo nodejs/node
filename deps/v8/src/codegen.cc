@@ -38,27 +38,41 @@
 #include "scopeinfo.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
-DeferredCode::DeferredCode(CodeGenerator* generator)
-  : generator_(generator),
-    masm_(generator->masm()),
-    enter_(generator),
-    exit_(generator, JumpTarget::BIDIRECTIONAL),
-    statement_position_(masm_->current_statement_position()),
-    position_(masm_->current_position()) {
-  generator->AddDeferred(this);
+
+CodeGenerator* CodeGeneratorScope::top_ = NULL;
+
+
+DeferredCode::DeferredCode()
+    : masm_(CodeGeneratorScope::Current()->masm()),
+      statement_position_(masm_->current_statement_position()),
+      position_(masm_->current_position()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
+
+  CodeGeneratorScope::Current()->AddDeferred(this);
 #ifdef DEBUG
   comment_ = "";
 #endif
-}
 
-
-void CodeGenerator::ClearDeferred() {
-  for (int i = 0; i < deferred_.length(); i++) {
-    deferred_[i]->Clear();
+  // Copy the register locations from the code generator's frame.
+  // These are the registers that will be spilled on entry to the
+  // deferred code and restored on exit.
+  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
+  int sp_offset = frame->fp_relative(frame->stack_pointer_);
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int loc = frame->register_location(i);
+    if (loc == VirtualFrame::kIllegalIndex) {
+      registers_[i] = kIgnore;
+    } else if (frame->elements_[loc].is_synced()) {
+      // Needs to be restored on exit but not saved on entry.
+      registers_[i] = frame->fp_relative(loc) | kSyncedFlag;
+    } else {
+      int offset = frame->fp_relative(loc);
+      registers_[i] = (offset < sp_offset) ? kPush : offset;
+    }
   }
 }
 
@@ -66,17 +80,19 @@ void CodeGenerator::ClearDeferred() {
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
-    MacroAssembler* masm = code->masm();
+    ASSERT(masm_ == code->masm());
     // Record position of deferred code stub.
-    masm->RecordStatementPosition(code->statement_position());
+    masm_->RecordStatementPosition(code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
-      masm->RecordPosition(code->position());
+      masm_->RecordPosition(code->position());
     }
     // Generate the code.
-    Comment cmnt(masm, code->comment());
+    Comment cmnt(masm_, code->comment());
+    masm_->bind(code->entry_label());
+    code->SaveRegisters();
     code->Generate();
-    ASSERT(code->enter()->is_bound());
-    code->Clear();
+    code->RestoreRegisters();
+    masm_->jmp(code->exit_label());
   }
 }
 
@@ -104,7 +120,6 @@ void CodeGenerator::SetFrame(VirtualFrame* new_frame,
 void CodeGenerator::DeleteFrame() {
   if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
-    delete frame_;
     frame_ = NULL;
   }
 }
@@ -155,17 +170,21 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   // Generate code.
   const int initial_buffer_size = 4 * KB;
   CodeGenerator cgen(initial_buffer_size, script, is_eval);
+  CodeGeneratorScope scope(&cgen);
   cgen.GenCode(flit);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
 
-  // Allocate and install the code.
+  // Allocate and install the code.  Time the rest of this function as
+  // code creation.
+  HistogramTimerScope timer(&Counters::code_creation);
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
-  ScopeInfo<> sinfo(flit->scope());
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
+  ZoneScopeInfo sinfo(flit->scope());
+  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
   Handle<Code> code = Factory::NewCode(desc,
                                        &sinfo,
                                        flags,
@@ -206,7 +225,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::is_enabled()) return false;
+  if (!Logger::IsEnabled()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     static Vector<const char> kRegexp = CStrVector("regexp");
@@ -317,17 +336,18 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
 }
 
 
-Handle<Code> CodeGenerator::ComputeCallInitialize(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc), Code);
-}
-
-
-Handle<Code> CodeGenerator::ComputeCallInitializeInLoop(int argc) {
-  // Force the creation of the corresponding stub outside loops,
-  // because it will be used when clearing the ICs later - when we
-  // don't know if we're inside a loop or not.
-  ComputeCallInitialize(argc);
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitializeInLoop(argc), Code);
+Handle<Code> CodeGenerator::ComputeCallInitialize(
+    int argc,
+    InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc, in_loop), Code);
 }
 
 
@@ -507,8 +527,8 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
     // frame.  Otherwise, we have to merge the existing one to the
     // start frame as part of the previous case.
     if (!has_valid_frame()) {
-      RegisterFile non_frame_registers = RegisterAllocator::Reserved();
-      SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
+      RegisterFile empty;
+      SetFrame(new VirtualFrame(start_frame), &empty);
     } else {
       frame_->MergeTo(start_frame);
     }

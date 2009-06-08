@@ -133,6 +133,9 @@ DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "Minimum length for automatic enable preparsing")
 
+// compilation-cache.cc
+DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
@@ -333,6 +336,9 @@ DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
 DEFINE_bool(prof_auto, true,
             "Used with --prof, starts profiling automatically")
+DEFINE_bool(prof_lazy, false,
+            "Used with --prof, only does sampling and logging"
+            " when profiler is active (implies --noprof_auto).")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")

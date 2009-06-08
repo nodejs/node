@@ -30,54 +30,28 @@
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // Result implementation.
 
-Result::Result(Register reg, CodeGenerator* cgen)
-    : static_type_(),
-      type_(REGISTER),
-      cgen_(cgen) {
-  data_.reg_ = reg;
-  ASSERT(reg.is_valid());
-  cgen_->allocator()->Use(reg);
+
+Result::Result(Register reg) {
+  ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
+  CodeGeneratorScope::Current()->allocator()->Use(reg);
+  value_ = StaticTypeField::encode(StaticType::UNKNOWN_TYPE)
+      | TypeField::encode(REGISTER)
+      | DataField::encode(reg.code_);
 }
 
 
-Result::Result(Register reg, CodeGenerator* cgen, StaticType static_type)
-    : static_type_(static_type),
-      type_(REGISTER),
-      cgen_(cgen) {
-  data_.reg_ = reg;
-  ASSERT(reg.is_valid());
-  cgen_->allocator()->Use(reg);
-}
-
-
-void Result::CopyTo(Result* destination) const {
-  destination->static_type_ = static_type_;
-  destination->type_ = type();
-  destination->cgen_ = cgen_;
-
-  if (is_register()) {
-    destination->data_.reg_ = reg();
-    cgen_->allocator()->Use(reg());
-  } else if (is_constant()) {
-    destination->data_.handle_ = data_.handle_;
-  } else {
-    ASSERT(!is_valid());
-  }
-}
-
-
-// -------------------------------------------------------------------------
-// RegisterFile implementation.
-
-void RegisterFile::CopyTo(RegisterFile* other) {
-  for (int i = 0; i < kNumRegisters; i++) {
-    other->ref_counts_[i] = ref_counts_[i];
-  }
+Result::Result(Register reg, StaticType type) {
+  ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
+  CodeGeneratorScope::Current()->allocator()->Use(reg);
+  value_ = StaticTypeField::encode(type.static_type_)
+      | TypeField::encode(REGISTER)
+      | DataField::encode(reg.code_);
 }
 
 
@@ -87,12 +61,11 @@ void RegisterFile::CopyTo(RegisterFile* other) {
 
 Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
-  int free_reg = registers_.ScanForFreeRegister();
-  if (free_reg < kNumRegisters) {
-    Register free_result = { free_reg };
-    return Result(free_result, cgen_);
+  int num = registers_.ScanForFreeRegister();
+  if (num == RegisterAllocator::kInvalidRegister) {
+    return Result();
   }
-  return Result(cgen_);
+  return Result(RegisterAllocator::ToRegister(num));
 }
 
 
@@ -104,7 +77,7 @@ Result RegisterAllocator::Allocate() {
     Register free_reg = cgen_->frame()->SpillAnyRegister();
     if (free_reg.is_valid()) {
       ASSERT(!is_used(free_reg));
-      return Result(free_reg, cgen_);
+      return Result(free_reg);
     }
   }
   return result;
@@ -114,7 +87,7 @@ Result RegisterAllocator::Allocate() {
 Result RegisterAllocator::Allocate(Register target) {
   // If the target is not referenced, it can simply be allocated.
   if (!is_used(target)) {
-    return Result(target, cgen_);
+    return Result(target);
   }
   // If the target is only referenced in the frame, it can be spilled and
   // then allocated.
@@ -122,10 +95,10 @@ Result RegisterAllocator::Allocate(Register target) {
   if (cgen_->frame()->is_used(target) && count(target) == 1)  {
     cgen_->frame()->Spill(target);
     ASSERT(!is_used(target));
-    return Result(target, cgen_);
+    return Result(target);
   }
   // Otherwise (if it's referenced outside the frame) we cannot allocate it.
-  return Result(cgen_);
+  return Result();
 }
 
 

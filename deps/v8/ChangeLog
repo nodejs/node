@@ -1,3 +1,92 @@
+2009-06-08: Version 1.2.7
+
+        Improved debugger and profiler support.
+
+        Reduced compilation time by improving the handling of deferred
+        code.
+
+        Optimized interceptor accesses where the property is on the object
+        on which the interceptors is attached.
+
+        Fixed compilation problem on GCC 4.4 by changing the stack
+        alignment to 16 bytes.
+
+        Fixed handle creation to follow stric aliasing rules.
+
+        Fixed compilation on FreeBSD.
+
+        Introduced API for forcing the deletion of a property ignoring
+        interceptors and attributes.
+
+
+2009-05-29: Version 1.2.6
+
+        Added a histogram recording hit rates at different levels of the
+        compilation cache.
+
+        Added stack overflow check for the RegExp analysis phase. Previously a
+        very long regexp graph could overflow the stack with recursive calls.
+
+        Use a dynamic buffer when collecting log events in memory.
+
+        Added start/stop events to the profiler log.
+
+        Fixed infinite loop which could happen when setting a debug break while
+        executing a RegExp compiled to native code.
+
+        Fixed handling of lastIndexOf called with negative index (issue 351).
+
+        Fixed irregular crash in profiler test (issue 358).
+
+        Fixed compilation issues with some versions of gcc.
+
+
+2009-05-26: Version 1.2.5
+
+        Fixed bug in initial boundary check for Boyer-Moore text
+        search (issue 349).
+
+        Fixed compilation issues with MinGW and gcc 4.3+ and added support
+        for armv7 and cortex-a8 architectures.  Patches by Lei Zhang and
+        Craig Schlenter.
+
+        Added a script cache to the debugger.
+
+        Optimized compilation performance by improving internal data
+        structures and avoiding expensive property load optimizations for
+        code that's infrequently executed.
+
+        Exposed the calling JavaScript context through the static API
+        function Context::GetCalling().
+
+
+2009-05-18: Version 1.2.4
+
+        Improved performance of floating point number allocation for ARM
+        platforms.
+
+        Fixed crash when using the instanceof operator on functions with
+        number values in their prototype chain (issue 341).
+
+        Optimized virtual frame operations in the code generator to speed
+        up compilation time and allocated the frames in the zone.
+
+        Made the representation of virtual frames and jump targets in the
+        code generator much more compact.
+
+        Avoided linear search for non-locals in scope code when resolving
+        variables inside with and eval scopes.
+
+        Optimized lexical scanner by dealing with whitespace as part of
+        the token scanning instead of as a separate step before it.
+
+        Changed the scavenging collector so that promoted objects do not
+        reside in the old generation while their remembered set is being
+        swept for pointers into the young generation.
+
+        Fixed numeric overflow handling when compiling count operations.
+
+
 2009-05-11: Version 1.2.3
 
         Fixed bug in reporting of out-of-memory situations.

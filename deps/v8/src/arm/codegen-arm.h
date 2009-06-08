@@ -28,7 +28,8 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations
 class DeferredCode;
@@ -193,8 +194,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   Scope* scope() const { return scope_; }
 
-  // Clearing and generating deferred code.
-  void ClearDeferred();
+  // Generating deferred code.
   void ProcessDeferred();
 
   bool is_eval() { return is_eval_; }
@@ -205,6 +205,8 @@ class CodeGenerator: public AstVisitor {
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
 
+  // We don't track loop nesting level on ARM yet.
+  int loop_nesting() const { return 0; }
 
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
@@ -317,8 +319,7 @@ class CodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc);
-  Handle<Code> ComputeCallInitializeInLoop(int argc);
+  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.

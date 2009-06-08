@@ -46,7 +46,8 @@
 #include "smart-pointer.h"
 #include "parser.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 #define RUNTIME_ASSERT(value) do {                                   \
@@ -1420,6 +1421,7 @@ class ReplacementStringBuilder {
 
   void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
+    ASSERT(parts_->length() > part_count_);
     parts_->set(part_count_, element);
     part_count_++;
   }
@@ -1589,6 +1591,7 @@ class CompiledReplacement {
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i));
             }
+            ASSERT(capture_ref <= capture_count);
             parts->Add(ReplacementPart::SubjectCapture(capture_ref));
             last = next_index + 1;
           }
@@ -1723,7 +1726,7 @@ static Object* StringReplaceRegExpWithString(String* subject,
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  ZoneScope zone(DELETE_ON_EXIT);
+  CompilationZoneScope zone(DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -2035,7 +2038,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   BoyerMoorePopulateGoodSuffixTable(pattern, start);
   pchar last_char = pattern[m - 1];
   // Continue search from i.
-  do {
+  while (idx <= n - m) {
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
@@ -2061,7 +2064,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       }
       idx += shift;
     }
-  } while (idx <= n - m);
+  }
 
   return -1;
 }
@@ -2376,7 +2379,7 @@ static Object* Runtime_StringMatch(Arguments args) {
   }
   int length = subject->length();
 
-  ZoneScope zone_space(DELETE_ON_EXIT);
+  CompilationZoneScope zone_space(DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;
@@ -2777,6 +2780,42 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
 }
 
 
+Object* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
+                                           Handle<Object> key) {
+  HandleScope scope;
+
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (Array::IndexFromObject(*key, &index)) {
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the
+    // characters of a string using [] notation.  In the case of a
+    // String object we just need to redirect the deletion to the
+    // underlying string if the index is in range.  Since the
+    // underlying string does nothing with the deletion, we can ignore
+    // such deletions.
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
+      return Heap::true_value();
+    }
+
+    return js_object->DeleteElement(index, JSObject::FORCE_DELETION);
+  }
+
+  Handle<String> key_string;
+  if (key->IsString()) {
+    key_string = Handle<String>::cast(key);
+  } else {
+    // Call-back into JavaScript to convert the key to a string.
+    bool has_pending_exception = false;
+    Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+    if (has_pending_exception) return Failure::Exception();
+    key_string = Handle<String>::cast(converted);
+  }
+
+  key_string->TryFlattenIfNotFlat();
+  return js_object->DeleteProperty(*key_string, JSObject::FORCE_DELETION);
+}
+
+
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -2828,7 +2867,7 @@ static Object* Runtime_DeleteProperty(Arguments args) {
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  return object->DeleteProperty(key);
+  return object->DeleteProperty(key, JSObject::NORMAL_DELETION);
 }
 
 
@@ -4316,9 +4355,15 @@ static Object* Runtime_LazyCompile(Arguments args) {
   }
 #endif
 
-  // Compile the target function.
+  // Compile the target function.  Here we compile using CompileLazyInLoop in
+  // order to get the optimized version.  This helps code like delta-blue
+  // that calls performance-critical routines through constructors.  A
+  // constructor call doesn't use a CallIC, it uses a LoadIC followed by a
+  // direct call.  Since the in-loop tracking takes place through CallICs
+  // this means that things called through constructors are never known to
+  // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazy(function, KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -4353,6 +4398,14 @@ static Object* Runtime_GetFunctionDelegate(Arguments args) {
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(!args[0]->IsJSFunction());
   return *Execution::GetFunctionDelegate(args.at<Object>(0));
+}
+
+
+static Object* Runtime_GetConstructorDelegate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(!args[0]->IsJSFunction());
+  return *Execution::GetConstructorDelegate(args.at<Object>(0));
 }
 
 
@@ -4442,10 +4495,16 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
+// TODO(x64): Definitely!
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {
+#if V8_HOST_ARCH_64_BIT
+  UNIMPLEMENTED();
+  return 0;
+#else
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
+#endif
 }
 
 
@@ -4882,16 +4941,14 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT_EQ(3, args.length());
+  ASSERT_EQ(2, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(Smi, line_offset, 1);
-  CONVERT_ARG_CHECKED(Oddball, is_json, 2)
+  CONVERT_ARG_CHECKED(Oddball, is_json, 1)
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
   Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
                                                          context,
-                                                         line_offset->value(),
                                                          true,
                                                          is_json->IsTrue());
   if (boilerplate.is_null()) return Failure::Exception();
@@ -4918,7 +4975,7 @@ static Object* CompileDirectEval(Handle<String> source) {
 
   // Compile source string in the current context.
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, 0, is_global, false);
+      Compiler::CompileEval(source, context, is_global, false);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5422,7 +5479,7 @@ static Object* Runtime_DebugBreak(Arguments args) {
 
 // Helper functions for wrapping and unwrapping stack frame ids.
 static Smi* WrapFrameId(StackFrame::Id id) {
-  ASSERT(IsAligned(OffsetFrom(id), 4));
+  ASSERT(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
   return Smi::FromInt(id >> 2);
 }
 
@@ -5471,7 +5528,8 @@ static int LocalPrototypeChainLength(JSObject* obj) {
 }
 
 
-static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
+static Object* DebugLookupResultValue(Object* receiver, String* name,
+                                      LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
@@ -5496,11 +5554,9 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
       return result->GetConstantFunction();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
-      if (structure->IsProxy()) {
-        AccessorDescriptor* callback =
-            reinterpret_cast<AccessorDescriptor*>(
-                Proxy::cast(structure)->proxy());
-        value = (callback->getter)(receiver, callback->data);
+      if (structure->IsProxy() || structure->IsAccessorInfo()) {
+        value = receiver->GetPropertyWithCallback(
+            receiver, structure, name, result->holder());
         if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
@@ -5546,6 +5602,17 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
+  // Make sure to set the current context to the context before the debugger was
+  // entered (if the debugger is entered). The reason for switching context here
+  // is that for some property lookups (accessors and interceptors) callbacks
+  // into the embedding application can occour, and the embedding application
+  // could have the assumption that its own global context is the current
+  // context and not some internal debugger context.
+  SaveContext save;
+  if (Debug::InDebugger()) {
+    Top::set_context(*Debug::debugger_entry()->GetContext());
+  }
+
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (obj->IsJSGlobalProxy()) {
@@ -5580,15 +5647,29 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   }
 
   if (result.IsProperty()) {
+    // LookupResult is not GC safe as all its members are raw object pointers.
+    // When calling DebugLookupResultValue GC can happen as this might invoke
+    // callbacks. After the call to DebugLookupResultValue the callback object
+    // in the LookupResult might still be needed. Put it into a handle for later
+    // use.
+    PropertyType result_type = result.type();
+    Handle<Object> result_callback_obj;
+    if (result_type == CALLBACKS) {
+      result_callback_obj = Handle<Object>(result.GetCallbackObject());
+    }
+
+    // Find the actual value. Don't use result after this call as it's content
+    // can be invalid.
     bool caught_exception = false;
-    Object* value = DebugLookupResultValue(*obj, &result,
+    Object* value = DebugLookupResultValue(*obj, *name, &result,
                                            &caught_exception);
     if (value->IsFailure()) return value;
     Handle<Object> value_handle(value);
+
     // If the callback object is a fixed array then it contains JavaScript
     // getter and/or setter.
-    bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
-                                  result.GetCallbackObject()->IsFixedArray();
+    bool hasJavaScriptAccessors = result_type == CALLBACKS &&
+                                  result_callback_obj->IsFixedArray();
     Handle<FixedArray> details =
         Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
     details->set(0, *value_handle);
@@ -5617,7 +5698,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(*obj, &result, NULL);
+    return DebugLookupResultValue(*obj, *name, &result, NULL);
   }
   return Heap::undefined_value();
 }
@@ -6031,6 +6112,11 @@ static Object* Runtime_GetCFrames(Arguments args) {
   Object* result = Runtime_CheckExecutionState(args);
   if (result->IsFailure()) return result;
 
+#if V8_HOST_ARCH_64_BIT
+  UNIMPLEMENTED();
+  return Heap::undefined_value();
+#else
+
   static const int kMaxCFramesSize = 200;
   ScopedVector<OS::StackFrame> frames(kMaxCFramesSize);
   int frames_count = OS::StackWalk(frames);
@@ -6062,6 +6148,7 @@ static Object* Runtime_GetCFrames(Arguments args) {
     frames_array->set(i, *frame_value);
   }
   return *Factory::NewJSArrayWithElements(frames_array);
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
@@ -6545,7 +6632,6 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<JSFunction> boilerplate =
       Compiler::CompileEval(function_source,
                             context,
-                            0,
                             context->IsGlobalContext(),
                             false);
   if (boilerplate.is_null()) return Failure::Exception();
@@ -6607,7 +6693,6 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<JSFunction> boilerplate =
       Handle<JSFunction>(Compiler::CompileEval(source,
                                                context,
-                                               0,
                                                true,
                                                false));
   if (boilerplate.is_null()) return Failure::Exception();
@@ -6626,67 +6711,15 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 }
 
 
-// If an object given is an external string, check that the underlying
-// resource is accessible. For other kinds of objects, always return true.
-static bool IsExternalStringValid(Object* str) {
-  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
-    return true;
-  }
-  if (String::cast(str)->IsAsciiRepresentation()) {
-    return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (String::cast(str)->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(str)->resource() != NULL;
-  } else {
-    return true;
-  }
-}
-
-
-// Helper function used by Runtime_DebugGetLoadedScripts below.
-static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
-  NoHandleAllocation ha;
-  AssertNoAllocation no_alloc;
-
-  // Scan heap for Script objects.
-  int count = 0;
-  HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
-    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
-      if (instances != NULL && count < instances_size) {
-        instances->set(count, obj);
-      }
-      count++;
-    }
-  }
-
-  return count;
-}
-
-
 static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
-  // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
-  // rid of all the cached script wrappers and the second gets rid of the
-  // scripts which is no longer referenced.
-  Heap::CollectAllGarbage();
-  Heap::CollectAllGarbage();
-
-  // Get the number of scripts.
-  int count;
-  count = DebugGetLoadedScripts(NULL, 0);
-
-  // Allocate an array to hold the result.
-  Handle<FixedArray> instances = Factory::NewFixedArray(count);
-
   // Fill the script objects.
-  count = DebugGetLoadedScripts(*instances, count);
+  Handle<FixedArray> instances = Debug::GetLoadedScripts();
 
   // Convert the script objects to proper JS objects.
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < instances->length(); i++) {
     Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
     // Get the script wrapper in a local handle before calling GetScriptWrapper,
     // because using

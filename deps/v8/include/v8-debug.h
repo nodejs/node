@@ -75,7 +75,8 @@ enum DebugEvent {
   Exception = 2,
   NewFunction = 3,
   BeforeCompile = 4,
-  AfterCompile  = 5
+  AfterCompile  = 5,
+  ScriptCollected = 6
 };
 
 

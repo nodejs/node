@@ -44,8 +44,9 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(obj);
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = JSON.stringify(serializer.serializeValue(mirror));
+  var refs = new MirrorRefCache(
+      JSON.stringify(serializer.serializeReferencedObjects()));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierachy');
@@ -105,7 +106,7 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   assertEquals(names.length, fromJSON.properties.length, 'Some properties missing in JSON');
   for (var i = 0; i < fromJSON.properties.length; i++) {
     var name = fromJSON.properties[i].name;
-    if (!name) name = fromJSON.properties[i].index;
+    if (typeof name == 'undefined') name = fromJSON.properties[i].index;
     var found = false;
     for (var j = 0; j < names.length; j++) {
       if (names[j] == name) {
@@ -156,7 +157,6 @@ function Point(x,y) {
   this.x_ = x;
   this.y_ = y;
 }
-
 
 // Test a number of different objects.
 testObjectMirror({}, 'Object', 'Object');

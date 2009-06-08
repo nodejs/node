@@ -28,7 +28,8 @@
 #ifndef V8_REWRITER_H_
 #define V8_REWRITER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Currently, the rewriter takes function literals (only top-level)

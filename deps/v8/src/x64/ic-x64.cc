@@ -25,3 +25,152 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#include "codegen-inl.h"
+#include "ic-inl.h"
+#include "runtime.h"
+#include "stub-cache.h"
+
+namespace v8 {
+namespace internal {
+
+
+void KeyedLoadIC::ClearInlinedVersion(Address address) {
+  UNIMPLEMENTED();
+}
+
+void KeyedLoadIC::Generate(MacroAssembler* masm,
+                           ExternalReference const& f) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   Object* callback) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
+                                                JSObject* object,
+                                                JSObject* holder,
+                                                int index) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+                                                  int index,
+                                                  Map* transition,
+                                                  String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+void LoadIC::ClearInlinedVersion(Address address) {
+  UNIMPLEMENTED();
+}
+
+void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateMiss(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateNormal(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
+} }  // namespace v8::internal

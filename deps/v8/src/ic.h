@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,8 @@
 
 #include "assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.
@@ -120,7 +121,8 @@ class IC {
   static void TraceIC(const char* type,
                       Handle<String> name,
                       State old_state,
-                      Code* new_target);
+                      Code* new_target,
+                      const char* extra_info = "");
 #endif
 
   static Failure* TypeError(const char* type,

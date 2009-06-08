@@ -28,7 +28,8 @@
 #ifndef V8_ALLOCATION_H_
 #define V8_ALLOCATION_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // A class that controls whether allocation is allowed.  This is for

@@ -32,7 +32,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static int CompareLocal(Variable* const* v, Variable* const* w) {
@@ -566,5 +567,6 @@ void ScopeInfo<Allocator>::Print() {
 // Make sure the classes get instantiated by the template system.
 template class ScopeInfo<FreeStoreAllocationPolicy>;
 template class ScopeInfo<PreallocatedStorage>;
+template class ScopeInfo<ZoneListAllocationPolicy>;
 
 } }  // namespace v8::internal

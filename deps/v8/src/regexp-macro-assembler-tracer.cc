@@ -30,7 +30,8 @@
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-tracer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     RegExpMacroAssembler* assembler) :

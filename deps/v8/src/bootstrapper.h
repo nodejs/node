@@ -29,7 +29,8 @@
 #ifndef V8_BOOTSTRAPPER_H_
 #define V8_BOOTSTRAPPER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.

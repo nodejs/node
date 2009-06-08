@@ -28,7 +28,8 @@
 #ifndef V8_VERSION_H_
 #define V8_VERSION_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class Version {
  public:

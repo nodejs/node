@@ -36,7 +36,8 @@
 #if !defined(__arm__)
 
 // Only build the simulator if not compiling for real ARM hardware.
-namespace assembler { namespace arm {
+namespace assembler {
+namespace arm {
 
 using ::v8::internal::Object;
 using ::v8::internal::PrintF;

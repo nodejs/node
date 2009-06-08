@@ -36,9 +36,39 @@
 #include "runtime.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define __ ACCESS_MASM(masm_)
+
+// -------------------------------------------------------------------------
+// Platform-specific DeferredCode functions.
+
+void DeferredCode::SaveRegisters() {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ push(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore && (action & kSyncedFlag) == 0) {
+      __ mov(Operand(ebp, action), RegisterAllocator::ToRegister(i));
+    }
+  }
+}
+
+
+void DeferredCode::RestoreRegisters() {
+  // Restore registers in reverse order due to the stack.
+  for (int i = RegisterAllocator::kNumRegisters - 1; i >= 0; i--) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ pop(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore) {
+      action &= ~kSyncedFlag;
+      __ mov(RegisterAllocator::ToRegister(i), Operand(ebp, action));
+    }
+  }
+}
+
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -72,7 +102,8 @@ CodeGenState::~CodeGenState() {
 // -------------------------------------------------------------------------
 // CodeGenerator implementation
 
-CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
+CodeGenerator::CodeGenerator(int buffer_size,
+                             Handle<Script> script,
                              bool is_eval)
     : is_eval_(is_eval),
       script_(script),
@@ -107,13 +138,25 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
-  frame_ = new VirtualFrame(this);
+  frame_ = new VirtualFrame();
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
   loop_nesting_ += fun->loop_nesting();
 
-  {
+  JumpTarget::set_compiling_deferred_code(false);
+
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    frame_->SpillAll();
+    __ int3();
+  }
+#endif
+
+  // New scope to get automatic timing calculation.
+  {  // NOLINT
+    HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
     // Entry:
@@ -125,19 +168,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     allocator_->Initialize();
     frame_->Enter();
 
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      frame_->SpillAll();
-      __ int3();
-    }
-#endif
-
     // Allocate space for locals and initialize them.
-    frame_->AllocateStackSlots(scope_->num_stack_slots());
+    frame_->AllocateStackSlots();
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
-    function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
+    function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
 
     // Allocate the arguments object and copy the parameters into it.
@@ -278,7 +313,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         ASSERT(!function_return_is_shadowed_);
         CodeForReturnPosition(fun);
         frame_->PrepareForReturn();
-        Result undefined(Factory::undefined_value(), this);
+        Result undefined(Factory::undefined_value());
         if (function_return_.is_bound()) {
           function_return_.Jump(&undefined);
         } else {
@@ -293,7 +328,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         // control does not flow off the end of the body so we did not
         // compile an artificial return statement just above, and (b) there
         // are return statements in the body but (c) they are all shadowed.
-        Result return_value(this);
+        Result return_value;
         // Though this is a (possibly) backward block, the frames can
         // only differ on their top element.
         function_return_.Bind(&return_value, 1);
@@ -313,10 +348,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   DeleteFrame();
 
   // Process any deferred code using the register allocator.
-  if (HasStackOverflow()) {
-    ClearDeferred();
-  } else {
+  if (!HasStackOverflow()) {
+    HistogramTimerScope deferred_timer(&Counters::deferred_code_generation);
+    JumpTarget::set_compiling_deferred_code(true);
     ProcessDeferred();
+    JumpTarget::set_compiling_deferred_code(false);
   }
 
   // There is no need to delete the register allocator, it is a
@@ -382,26 +418,25 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
                                                          JumpTarget* slow) {
   ASSERT(slot->type() == Slot::CONTEXT);
   ASSERT(tmp.is_register());
-  Result context(esi, this);
+  Register context = esi;
 
   for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
         slow->Branch(not_equal, not_taken);
       }
-      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp;
+      context = tmp.reg();
     }
   }
   // Check that last extension is NULL.
-  __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
-         Immediate(0));
+  __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   slow->Branch(not_equal, not_taken);
-  __ mov(tmp.reg(), ContextOperand(context.reg(), Context::FCONTEXT_INDEX));
+  __ mov(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
   return ContextOperand(tmp.reg(), slot->index());
 }
 
@@ -461,14 +496,14 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  JumpTarget true_target(this);
-  JumpTarget false_target(this);
+  JumpTarget true_target;
+  JumpTarget false_target;
   ControlDestination dest(&true_target, &false_target, true);
   LoadCondition(x, typeof_state, &dest, false);
 
   if (dest.false_was_fall_through()) {
     // The false target was just bound.
-    JumpTarget loaded(this);
+    JumpTarget loaded;
     frame_->Push(Factory::false_value());
     // There may be dangling jumps to the true target.
     if (true_target.is_linked()) {
@@ -481,7 +516,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   } else if (dest.is_used()) {
     // There is true, and possibly false, control flow (with true as
     // the fall through).
-    JumpTarget loaded(this);
+    JumpTarget loaded;
     frame_->Push(Factory::true_value());
     if (false_target.is_linked()) {
       loaded.Jump();
@@ -497,7 +532,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // short-circuited boolean operators).
     ASSERT(has_valid_frame());
     if (true_target.is_linked() || false_target.is_linked()) {
-      JumpTarget loaded(this);
+      JumpTarget loaded;
       loaded.Jump();  // Don't lose the current TOS.
       if (true_target.is_linked()) {
         true_target.Bind();
@@ -771,39 +806,35 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
-// A deferred code class implementing binary operations on likely smis.
-// This class generates both inline code and deferred code.
-// The fastest path is implemented inline.  Deferred code calls
-// the GenericBinaryOpStub stub for slow cases.
+// Call the specialized stub for a binary operation.
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
-  DeferredInlineBinaryOperation(CodeGenerator* generator,
-                                Token::Value op,
-                                OverwriteMode mode,
-                                GenericBinaryFlags flags)
-      : DeferredCode(generator), stub_(op, mode, flags), op_(op) {
+  DeferredInlineBinaryOperation(Token::Value op,
+                                Register dst,
+                                Register left,
+                                Register right,
+                                OverwriteMode mode)
+      : op_(op), dst_(dst), left_(left), right_(right), mode_(mode) {
     set_comment("[ DeferredInlineBinaryOperation");
   }
-
-  // Consumes its arguments, left and right, leaving them invalid.
-  Result GenerateInlineCode(Result* left, Result* right);
 
   virtual void Generate();
 
  private:
-  GenericBinaryOpStub stub_;
   Token::Value op_;
+  Register dst_;
+  Register left_;
+  Register right_;
+  OverwriteMode mode_;
 };
 
 
 void DeferredInlineBinaryOperation::Generate() {
-  Result left(generator());
-  Result right(generator());
-  enter()->Bind(&left, &right);
-  generator()->frame()->Push(&left);
-  generator()->frame()->Push(&right);
-  Result answer = generator()->frame()->CallStub(&stub_, 2);
-  exit_.Jump(&answer);
+  __ push(left_);
+  __ push(right_);
+  GenericBinaryOpStub stub(op_, mode_, SMI_CODE_INLINED);
+  __ CallStub(&stub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
@@ -853,7 +884,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
-      Result answer(this);
+      Result answer;
       if (left_is_string) {
         if (right_is_string) {
           // TODO(lrn): if (left.is_constant() && right.is_constant())
@@ -999,31 +1030,342 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
+// Implements a binary operation using a deferred code object and some
+// inline code to operate on smis quickly.
 void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                              Result* left,
                                              Result* right,
                                              OverwriteMode overwrite_mode) {
-  // Implements a binary operation using a deferred code object
-  // and some inline code to operate on smis quickly.
+  // Special handling of div and mod because they use fixed registers.
+  if (op == Token::DIV || op == Token::MOD) {
+    // We need eax as the quotient register, edx as the remainder
+    // register, neither left nor right in eax or edx, and left copied
+    // to eax.
+    Result quotient;
+    Result remainder;
+    bool left_is_in_eax = false;
+    // Step 1: get eax for quotient.
+    if ((left->is_register() && left->reg().is(eax)) ||
+        (right->is_register() && right->reg().is(eax))) {
+      // One or both is in eax.  Use a fresh non-edx register for
+      // them.
+      Result fresh = allocator_->Allocate();
+      ASSERT(fresh.is_valid());
+      if (fresh.reg().is(edx)) {
+        remainder = fresh;
+        fresh = allocator_->Allocate();
+        ASSERT(fresh.is_valid());
+      }
+      if (left->is_register() && left->reg().is(eax)) {
+        quotient = *left;
+        *left = fresh;
+        left_is_in_eax = true;
+      }
+      if (right->is_register() && right->reg().is(eax)) {
+        quotient = *right;
+        *right = fresh;
+      }
+      __ mov(fresh.reg(), eax);
+    } else {
+      // Neither left nor right is in eax.
+      quotient = allocator_->Allocate(eax);
+    }
+    ASSERT(quotient.is_register() && quotient.reg().is(eax));
+    ASSERT(!(left->is_register() && left->reg().is(eax)));
+    ASSERT(!(right->is_register() && right->reg().is(eax)));
+
+    // Step 2: get edx for remainder if necessary.
+    if (!remainder.is_valid()) {
+      if ((left->is_register() && left->reg().is(edx)) ||
+          (right->is_register() && right->reg().is(edx))) {
+        Result fresh = allocator_->Allocate();
+        ASSERT(fresh.is_valid());
+        if (left->is_register() && left->reg().is(edx)) {
+          remainder = *left;
+          *left = fresh;
+        }
+        if (right->is_register() && right->reg().is(edx)) {
+          remainder = *right;
+          *right = fresh;
+        }
+        __ mov(fresh.reg(), edx);
+      } else {
+        // Neither left nor right is in edx.
+        remainder = allocator_->Allocate(edx);
+      }
+    }
+    ASSERT(remainder.is_register() && remainder.reg().is(edx));
+    ASSERT(!(left->is_register() && left->reg().is(edx)));
+    ASSERT(!(right->is_register() && right->reg().is(edx)));
+
+    left->ToRegister();
+    right->ToRegister();
+    frame_->Spill(eax);
+    frame_->Spill(edx);
+
+    // Check that left and right are smi tagged.
+    DeferredInlineBinaryOperation* deferred =
+        new DeferredInlineBinaryOperation(op,
+                                          (op == Token::DIV) ? eax : edx,
+                                          left->reg(),
+                                          right->reg(),
+                                          overwrite_mode);
+    if (left->reg().is(right->reg())) {
+      __ test(left->reg(), Immediate(kSmiTagMask));
+    } else {
+      // Use the quotient register as a scratch for the tag check.
+      if (!left_is_in_eax) __ mov(eax, left->reg());
+      left_is_in_eax = false;  // About to destroy the value in eax.
+      __ or_(eax, Operand(right->reg()));
+      ASSERT(kSmiTag == 0);  // Adjust test if not the case.
+      __ test(eax, Immediate(kSmiTagMask));
+    }
+    deferred->Branch(not_zero);
+
+    if (!left_is_in_eax) __ mov(eax, left->reg());
+    // Sign extend eax into edx:eax.
+    __ cdq();
+    // Check for 0 divisor.
+    __ test(right->reg(), Operand(right->reg()));
+    deferred->Branch(zero);
+    // Divide edx:eax by the right operand.
+    __ idiv(right->reg());
+
+    // Complete the operation.
+    if (op == Token::DIV) {
+      // Check for negative zero result.  If result is zero, and divisor
+      // is negative, return a floating point negative zero.  The
+      // virtual frame is unchanged in this block, so local control flow
+      // can use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(left->reg(), Operand(left->reg()));
+      __ j(not_zero, &non_zero_result);
+      __ test(right->reg(), Operand(right->reg()));
+      deferred->Branch(negative);
+      __ bind(&non_zero_result);
+      // Check for the corner case of dividing the most negative smi by
+      // -1. We cannot use the overflow flag, since it is not set by
+      // idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      __ cmp(eax, 0x40000000);
+      deferred->Branch(equal);
+      // Check that the remainder is zero.
+      __ test(edx, Operand(edx));
+      deferred->Branch(not_zero);
+      // Tag the result and store it in the quotient register.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      deferred->BindExit();
+      left->Unuse();
+      right->Unuse();
+      frame_->Push(&quotient);
+    } else {
+      ASSERT(op == Token::MOD);
+      // Check for a negative zero result.  If the result is zero, and
+      // the dividend is negative, return a floating point negative
+      // zero.  The frame is unchanged in this block, so local control
+      // flow can use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(edx, Operand(edx));
+      __ j(not_zero, &non_zero_result, taken);
+      __ test(left->reg(), Operand(left->reg()));
+      deferred->Branch(negative);
+      __ bind(&non_zero_result);
+      deferred->BindExit();
+      left->Unuse();
+      right->Unuse();
+      frame_->Push(&remainder);
+    }
+    return;
+  }
+
+  // Special handling of shift operations because they use fixed
+  // registers.
+  if (op == Token::SHL || op == Token::SHR || op == Token::SAR) {
+    // Move left out of ecx if necessary.
+    if (left->is_register() && left->reg().is(ecx)) {
+      *left = allocator_->Allocate();
+      ASSERT(left->is_valid());
+      __ mov(left->reg(), ecx);
+    }
+    right->ToRegister(ecx);
+    left->ToRegister();
+    ASSERT(left->is_register() && !left->reg().is(ecx));
+    ASSERT(right->is_register() && right->reg().is(ecx));
+
+    // We will modify right, it must be spilled.
+    frame_->Spill(ecx);
+
+    // Use a fresh answer register to avoid spilling the left operand.
+    Result answer = allocator_->Allocate();
+    ASSERT(answer.is_valid());
+    // Check that both operands are smis using the answer register as a
+    // temporary.
+    DeferredInlineBinaryOperation* deferred =
+        new DeferredInlineBinaryOperation(op,
+                                          answer.reg(),
+                                          left->reg(),
+                                          ecx,
+                                          overwrite_mode);
+    __ mov(answer.reg(), left->reg());
+    __ or_(answer.reg(), Operand(ecx));
+    __ test(answer.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(not_zero);
+
+    // Untag both operands.
+    __ mov(answer.reg(), left->reg());
+    __ sar(answer.reg(), kSmiTagSize);
+    __ sar(ecx, kSmiTagSize);
+    // Perform the operation.
+    switch (op) {
+      case Token::SAR:
+        __ sar(answer.reg());
+        // No checks of result necessary
+        break;
+      case Token::SHR: {
+        Label result_ok;
+        __ shr(answer.reg());
+        // Check that the *unsigned* result fits in a smi.  Neither of
+        // the two high-order bits can be set:
+        //  * 0x80000000: high bit would be lost when smi tagging.
+        //  * 0x40000000: this number would convert to negative when smi
+        //    tagging.
+        // These two cases can only happen with shifts by 0 or 1 when
+        // handed a valid smi.  If the answer cannot be represented by a
+        // smi, restore the left and right arguments, and jump to slow
+        // case.  The low bit of the left argument may be lost, but only
+        // in a case where it is dropped anyway.
+        __ test(answer.reg(), Immediate(0xc0000000));
+        __ j(zero, &result_ok);
+        ASSERT(kSmiTag == 0);
+        __ shl(ecx, kSmiTagSize);
+        deferred->Jump();
+        __ bind(&result_ok);
+        break;
+      }
+      case Token::SHL: {
+        Label result_ok;
+        __ shl(answer.reg());
+        // Check that the *signed* result fits in a smi.
+        __ cmp(answer.reg(), 0xc0000000);
+        __ j(positive, &result_ok);
+        ASSERT(kSmiTag == 0);
+        __ shl(ecx, kSmiTagSize);
+        deferred->Jump();
+        __ bind(&result_ok);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    // Smi-tag the result in answer.
+    ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+    __ lea(answer.reg(),
+           Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
+    deferred->BindExit();
+    left->Unuse();
+    right->Unuse();
+    frame_->Push(&answer);
+    return;
+  }
+
+  // Handle the other binary operations.
+  left->ToRegister();
+  right->ToRegister();
+  // A newly allocated register answer is used to hold the answer.  The
+  // registers containing left and right are not modified so they don't
+  // need to be spilled in the fast case.
+  Result answer = allocator_->Allocate();
+  ASSERT(answer.is_valid());
+
+  // Perform the smi tag check.
   DeferredInlineBinaryOperation* deferred =
-      new DeferredInlineBinaryOperation(this, op, overwrite_mode,
-                                        SMI_CODE_INLINED);
-  // Generate the inline code that handles some smi operations,
-  // and jumps to the deferred code for everything else.
-  Result answer = deferred->GenerateInlineCode(left, right);
-  deferred->BindExit(&answer);
+      new DeferredInlineBinaryOperation(op,
+                                        answer.reg(),
+                                        left->reg(),
+                                        right->reg(),
+                                        overwrite_mode);
+  if (left->reg().is(right->reg())) {
+    __ test(left->reg(), Immediate(kSmiTagMask));
+  } else {
+    __ mov(answer.reg(), left->reg());
+    __ or_(answer.reg(), Operand(right->reg()));
+    ASSERT(kSmiTag == 0);  // Adjust test if not the case.
+    __ test(answer.reg(), Immediate(kSmiTagMask));
+  }
+  deferred->Branch(not_zero);
+  __ mov(answer.reg(), left->reg());
+  switch (op) {
+    case Token::ADD:
+      __ add(answer.reg(), Operand(right->reg()));  // Add optimistically.
+      deferred->Branch(overflow);
+      break;
+
+    case Token::SUB:
+      __ sub(answer.reg(), Operand(right->reg()));  // Subtract optimistically.
+      deferred->Branch(overflow);
+      break;
+
+    case Token::MUL: {
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
+      // Remove smi tag from the left operand (but keep sign).
+      // Left-hand operand has been copied into answer.
+      __ sar(answer.reg(), kSmiTagSize);
+      // Do multiplication of smis, leaving result in answer.
+      __ imul(answer.reg(), Operand(right->reg()));
+      // Go slow on overflows.
+      deferred->Branch(overflow);
+      // Check for negative zero result.  If product is zero, and one
+      // argument is negative, go to slow case.  The frame is unchanged
+      // in this block, so local control flow can use a Label rather
+      // than a JumpTarget.
+      Label non_zero_result;
+      __ test(answer.reg(), Operand(answer.reg()));
+      __ j(not_zero, &non_zero_result, taken);
+      __ mov(answer.reg(), left->reg());
+      __ or_(answer.reg(), Operand(right->reg()));
+      deferred->Branch(negative);
+      __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
+      __ bind(&non_zero_result);
+      break;
+    }
+
+    case Token::BIT_OR:
+      __ or_(answer.reg(), Operand(right->reg()));
+      break;
+
+    case Token::BIT_AND:
+      __ and_(answer.reg(), Operand(right->reg()));
+      break;
+
+    case Token::BIT_XOR:
+      __ xor_(answer.reg(), Operand(right->reg()));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+  deferred->BindExit();
+  left->Unuse();
+  right->Unuse();
   frame_->Push(&answer);
 }
 
 
+// Call the appropriate binary operation stub to compute src op value
+// and leave the result in dst.
 class DeferredInlineSmiOperation: public DeferredCode {
  public:
-  DeferredInlineSmiOperation(CodeGenerator* generator,
-                             Token::Value op,
+  DeferredInlineSmiOperation(Token::Value op,
+                             Register dst,
+                             Register src,
                              Smi* value,
                              OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        op_(op),
+      : op_(op),
+        dst_(dst),
+        src_(src),
         value_(value),
         overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiOperation");
@@ -1033,31 +1375,35 @@ class DeferredInlineSmiOperation: public DeferredCode {
 
  private:
   Token::Value op_;
+  Register dst_;
+  Register src_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 void DeferredInlineSmiOperation::Generate() {
-  Result left(generator());
-  enter()->Bind(&left);
-  generator()->frame()->Push(&left);
-  generator()->frame()->Push(value_);
-  GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
+  __ push(src_);
+  __ push(Immediate(value_));
+  GenericBinaryOpStub stub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  __ CallStub(&stub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
+// Call the appropriate binary operation stub to compute value op src
+// and leave the result in dst.
 class DeferredInlineSmiOperationReversed: public DeferredCode {
  public:
-  DeferredInlineSmiOperationReversed(CodeGenerator* generator,
-                                     Token::Value op,
+  DeferredInlineSmiOperationReversed(Token::Value op,
+                                     Register dst,
                                      Smi* value,
+                                     Register src,
                                      OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        op_(op),
+      : op_(op),
+        dst_(dst),
         value_(value),
+        src_(src),
         overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiOperationReversed");
   }
@@ -1066,36 +1412,38 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
 
  private:
   Token::Value op_;
+  Register dst_;
   Smi* value_;
+  Register src_;
   OverwriteMode overwrite_mode_;
 };
 
 
 void DeferredInlineSmiOperationReversed::Generate() {
-  Result right(generator());
-  enter()->Bind(&right);
-  generator()->frame()->Push(value_);
-  generator()->frame()->Push(&right);
+  __ push(Immediate(value_));
+  __ push(src_);
   GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
+  __ CallStub(&igostub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
+// The result of src + value is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
 class DeferredInlineSmiAdd: public DeferredCode {
  public:
-  DeferredInlineSmiAdd(CodeGenerator* generator,
+  DeferredInlineSmiAdd(Register dst,
                        Smi* value,
                        OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        value_(value),
-        overwrite_mode_(overwrite_mode) {
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiAdd");
   }
 
   virtual void Generate();
 
  private:
+  Register dst_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1103,33 +1451,31 @@ class DeferredInlineSmiAdd: public DeferredCode {
 
 void DeferredInlineSmiAdd::Generate() {
   // Undo the optimistic add operation and call the shared stub.
-  Result left(generator());  // Initially left + value_.
-  enter()->Bind(&left);
-  left.ToRegister();
-  generator()->frame()->Spill(left.reg());
-  __ sub(Operand(left.reg()), Immediate(value_));
-  generator()->frame()->Push(&left);
-  generator()->frame()->Push(value_);
+  __ sub(Operand(dst_), Immediate(value_));
+  __ push(dst_);
+  __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
+  __ CallStub(&igostub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
+// The result of value + src is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
 class DeferredInlineSmiAddReversed: public DeferredCode {
  public:
-  DeferredInlineSmiAddReversed(CodeGenerator* generator,
+  DeferredInlineSmiAddReversed(Register dst,
                                Smi* value,
                                OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        value_(value),
-        overwrite_mode_(overwrite_mode) {
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiAddReversed");
   }
 
   virtual void Generate();
 
  private:
+  Register dst_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1137,33 +1483,32 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
 void DeferredInlineSmiAddReversed::Generate() {
   // Undo the optimistic add operation and call the shared stub.
-  Result right(generator());  // Initially value_ + right.
-  enter()->Bind(&right);
-  right.ToRegister();
-  generator()->frame()->Spill(right.reg());
-  __ sub(Operand(right.reg()), Immediate(value_));
-  generator()->frame()->Push(value_);
-  generator()->frame()->Push(&right);
+  __ sub(Operand(dst_), Immediate(value_));
+  __ push(Immediate(value_));
+  __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
+  __ CallStub(&igostub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
+// The result of src - value is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative subtraction and call the
+// appropriate specialized stub for subtract.  The result is left in
+// dst.
 class DeferredInlineSmiSub: public DeferredCode {
  public:
-  DeferredInlineSmiSub(CodeGenerator* generator,
+  DeferredInlineSmiSub(Register dst,
                        Smi* value,
                        OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        value_(value),
-        overwrite_mode_(overwrite_mode) {
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiSub");
   }
 
   virtual void Generate();
 
  private:
+  Register dst_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1171,47 +1516,12 @@ class DeferredInlineSmiSub: public DeferredCode {
 
 void DeferredInlineSmiSub::Generate() {
   // Undo the optimistic sub operation and call the shared stub.
-  Result left(generator());  // Initially left - value_.
-  enter()->Bind(&left);
-  left.ToRegister();
-  generator()->frame()->Spill(left.reg());
-  __ add(Operand(left.reg()), Immediate(value_));
-  generator()->frame()->Push(&left);
-  generator()->frame()->Push(value_);
+  __ add(Operand(dst_), Immediate(value_));
+  __ push(dst_);
+  __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
-}
-
-
-class DeferredInlineSmiSubReversed: public DeferredCode {
- public:
-  DeferredInlineSmiSubReversed(CodeGenerator* generator,
-                               Smi* value,
-                               OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        value_(value),
-        overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiSubReversed");
-  }
-
-  virtual void Generate();
-
- private:
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-void DeferredInlineSmiSubReversed::Generate() {
-  // Call the shared stub.
-  Result right(generator());
-  enter()->Bind(&right);
-  generator()->frame()->Push(value_);
-  generator()->frame()->Push(&right);
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-  Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit_.Jump(&answer);
+  __ CallStub(&igostub);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
 
@@ -1229,7 +1539,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
   // TODO(199): Optimize some special cases of operations involving a
   // smi literal (multiply by 2, shift by 0, etc.).
   if (IsUnsafeSmi(value)) {
-    Result unsafe_operand(value, this);
+    Result unsafe_operand(value);
     if (reversed) {
       LikelySmiBinaryOperation(op, &unsafe_operand, operand,
                                overwrite_mode);
@@ -1247,134 +1557,162 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
   switch (op) {
     case Token::ADD: {
-      DeferredCode* deferred = NULL;
-      if (reversed) {
-        deferred = new DeferredInlineSmiAddReversed(this, smi_value,
-                                                    overwrite_mode);
-      } else {
-        deferred = new DeferredInlineSmiAdd(this, smi_value, overwrite_mode);
-      }
       operand->ToRegister();
       frame_->Spill(operand->reg());
+
+      // Optimistically add.  Call the specialized add stub if the
+      // result is not a smi or overflows.
+      DeferredCode* deferred = NULL;
+      if (reversed) {
+        deferred = new DeferredInlineSmiAddReversed(operand->reg(),
+                                                    smi_value,
+                                                    overwrite_mode);
+      } else {
+        deferred = new DeferredInlineSmiAdd(operand->reg(),
+                                            smi_value,
+                                            overwrite_mode);
+      }
       __ add(Operand(operand->reg()), Immediate(value));
-      deferred->enter()->Branch(overflow, operand, not_taken);
+      deferred->Branch(overflow);
       __ test(operand->reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, operand, not_taken);
-      deferred->BindExit(operand);
+      deferred->Branch(not_zero);
+      deferred->BindExit();
       frame_->Push(operand);
       break;
     }
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      Result answer(this);  // Only allocate a new register if reversed.
+      Result answer;  // Only allocate a new register if reversed.
       if (reversed) {
+        // The reversed case is only hit when the right operand is not a
+        // constant.
+        ASSERT(operand->is_register());
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
-        deferred = new DeferredInlineSmiSubReversed(this,
-                                                    smi_value,
-                                                    overwrite_mode);
         __ Set(answer.reg(), Immediate(value));
-        // We are in the reversed case so they can't both be Smi constants.
-        ASSERT(operand->is_register());
+        deferred = new DeferredInlineSmiOperationReversed(op,
+                                                          answer.reg(),
+                                                          smi_value,
+                                                          operand->reg(),
+                                                          overwrite_mode);
         __ sub(answer.reg(), Operand(operand->reg()));
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
-        deferred = new DeferredInlineSmiSub(this,
+        answer = *operand;
+        deferred = new DeferredInlineSmiSub(operand->reg(),
                                             smi_value,
                                             overwrite_mode);
         __ sub(Operand(operand->reg()), Immediate(value));
-        answer = *operand;
       }
-      deferred->enter()->Branch(overflow, operand, not_taken);
+      deferred->Branch(overflow);
       __ test(answer.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, operand, not_taken);
+      deferred->Branch(not_zero);
+      deferred->BindExit();
       operand->Unuse();
-      deferred->BindExit(&answer);
       frame_->Push(&answer);
       break;
     }
 
-    case Token::SAR: {
+    case Token::SAR:
       if (reversed) {
-        Result constant_operand(value, this);
+        Result constant_operand(value);
         LikelySmiBinaryOperation(op, &constant_operand, operand,
                                  overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
-        DeferredCode* deferred =
-            new DeferredInlineSmiOperation(this, Token::SAR, smi_value,
-                                           overwrite_mode);
         operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
         __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, operand, not_taken);
+        deferred->Branch(not_zero);
         if (shift_value > 0) {
-          frame_->Spill(operand->reg());
           __ sar(operand->reg(), shift_value);
           __ and_(operand->reg(), ~kSmiTagMask);
         }
-        deferred->BindExit(operand);
+        deferred->BindExit();
         frame_->Push(operand);
       }
       break;
-    }
 
-    case Token::SHR: {
+    case Token::SHR:
       if (reversed) {
-        Result constant_operand(value, this);
+        Result constant_operand(value);
         LikelySmiBinaryOperation(op, &constant_operand, operand,
                                  overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
-        DeferredCode* deferred =
-            new DeferredInlineSmiOperation(this, Token::SHR, smi_value,
-                                           overwrite_mode);
         operand->ToRegister();
-        __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, operand, not_taken);
         Result answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           answer.reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
         __ mov(answer.reg(), operand->reg());
         __ sar(answer.reg(), kSmiTagSize);
         __ shr(answer.reg(), shift_value);
         // A negative Smi shifted right two is in the positive Smi range.
         if (shift_value < 2) {
           __ test(answer.reg(), Immediate(0xc0000000));
-          deferred->enter()->Branch(not_zero, operand, not_taken);
+          deferred->Branch(not_zero);
         }
         operand->Unuse();
         ASSERT(kSmiTagSize == times_2);  // Adjust the code if not true.
         __ lea(answer.reg(),
                Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
-        deferred->BindExit(&answer);
+        deferred->BindExit();
         frame_->Push(&answer);
       }
       break;
-    }
 
-    case Token::SHL: {
+    case Token::SHL:
       if (reversed) {
-        Result constant_operand(value, this);
+        Result constant_operand(value);
         LikelySmiBinaryOperation(op, &constant_operand, operand,
                                  overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
-        DeferredCode* deferred =
-            new DeferredInlineSmiOperation(this, Token::SHL, smi_value,
-                                           overwrite_mode);
         operand->ToRegister();
-        __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, operand, not_taken);
-        if (shift_value != 0) {
+        if (shift_value == 0) {
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             operand->reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          __ test(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+          deferred->BindExit();
+          frame_->Push(operand);
+        } else {
+          // Use a fresh temporary for nonzero shift values.
           Result answer = allocator()->Allocate();
           ASSERT(answer.is_valid());
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             answer.reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          __ test(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
           // We do no shifts, only the Smi conversion, if shift_value is 1.
@@ -1382,35 +1720,37 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
             __ shl(answer.reg(), shift_value - 1);
           }
           // Convert int result to Smi, checking that it is in int range.
-          ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+          ASSERT(kSmiTagSize == 1);  // adjust code if not the case
           __ add(answer.reg(), Operand(answer.reg()));
-          deferred->enter()->Branch(overflow, operand, not_taken);
+          deferred->Branch(overflow);
+          deferred->BindExit();
           operand->Unuse();
-          deferred->BindExit(&answer);
           frame_->Push(&answer);
-        } else {
-          deferred->BindExit(operand);
-          frame_->Push(operand);
         }
       }
       break;
-    }
 
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
       DeferredCode* deferred = NULL;
       if (reversed) {
-        deferred = new DeferredInlineSmiOperationReversed(this, op, smi_value,
+        deferred = new DeferredInlineSmiOperationReversed(op,
+                                                          operand->reg(),
+                                                          smi_value,
+                                                          operand->reg(),
                                                           overwrite_mode);
       } else {
-        deferred =  new DeferredInlineSmiOperation(this, op, smi_value,
+        deferred =  new DeferredInlineSmiOperation(op,
+                                                   operand->reg(),
+                                                   operand->reg(),
+                                                   smi_value,
                                                    overwrite_mode);
       }
-      operand->ToRegister();
       __ test(operand->reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, operand, not_taken);
-      frame_->Spill(operand->reg());
+      deferred->Branch(not_zero);
       if (op == Token::BIT_AND) {
         __ and_(Operand(operand->reg()), Immediate(value));
       } else if (op == Token::BIT_XOR) {
@@ -1423,13 +1763,13 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           __ or_(Operand(operand->reg()), Immediate(value));
         }
       }
-      deferred->BindExit(operand);
+      deferred->BindExit();
       frame_->Push(operand);
       break;
     }
 
     default: {
-      Result constant_operand(value, this);
+      Result constant_operand(value);
       if (reversed) {
         LikelySmiBinaryOperation(op, &constant_operand, operand,
                                  overwrite_mode);
@@ -1478,8 +1818,8 @@ void CodeGenerator::Comparison(Condition cc,
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
-  Result left_side(this);
-  Result right_side(this);
+  Result left_side;
+  Result right_side;
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == greater || cc == less_equal) {
     cc = ReverseCondition(cc);
@@ -1534,7 +1874,7 @@ void CodeGenerator::Comparison(Condition cc,
       // where both sides are Smis.
       left_side.ToRegister();
       ASSERT(left_side.is_valid());
-      JumpTarget is_smi(this);
+      JumpTarget is_smi;
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_smi.Branch(zero, &left_side, &right_side, taken);
 
@@ -1605,7 +1945,7 @@ void CodeGenerator::Comparison(Condition cc,
         (right_side.is_constant() && !right_side.handle()->IsSmi());
     left_side.ToRegister();
     right_side.ToRegister();
-    JumpTarget is_smi(this);
+    JumpTarget is_smi;
     if (!known_non_smi) {
       // Check for the smi case.
       Result temp = allocator_->Allocate();
@@ -1645,12 +1985,14 @@ void CodeGenerator::Comparison(Condition cc,
 
 class CallFunctionStub: public CodeStub {
  public:
-  explicit CallFunctionStub(int argc) : argc_(argc) { }
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
   int argc_;
+  InLoopFlag in_loop_;
 
 #ifdef DEBUG
   void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
@@ -1658,6 +2000,7 @@ class CallFunctionStub: public CodeStub {
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
 };
 
 
@@ -1675,7 +2018,8 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   Result answer = frame_->CallStub(&call_function, arg_count + 1);
   // Restore context and replace function on the stack with the
   // result of the stub invocation.
@@ -1686,8 +2030,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 class DeferredStackCheck: public DeferredCode {
  public:
-  explicit DeferredStackCheck(CodeGenerator* generator)
-      : DeferredCode(generator) {
+  DeferredStackCheck() {
     set_comment("[ DeferredStackCheck");
   }
 
@@ -1696,21 +2039,18 @@ class DeferredStackCheck: public DeferredCode {
 
 
 void DeferredStackCheck::Generate() {
-  enter()->Bind();
   StackCheckStub stub;
-  Result ignored = generator()->frame()->CallStub(&stub, 0);
-  ignored.Unuse();
-  exit_.Jump();
+  __ CallStub(&stub);
 }
 
 
 void CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
-    DeferredStackCheck* deferred = new DeferredStackCheck(this);
+    DeferredStackCheck* deferred = new DeferredStackCheck;
     ExternalReference stack_guard_limit =
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    deferred->enter()->Branch(below, not_taken);
+    deferred->Branch(below);
     deferred->BindExit();
   }
 }
@@ -1750,7 +2090,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
   VisitStatements(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -1760,13 +2100,14 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  frame_->Push(pairs);
+  // Call the runtime to declare the globals.  The inevitable call
+  // will sync frame elements to memory anyway, so we do it eagerly to
+  // allow us to push the arguments directly into place.
+  frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Duplicate the context register.
-  Result context(esi, this);
-  frame_->Push(&context);
-
-  frame_->Push(Smi::FromInt(is_eval() ? 1 : 0));
+  frame_->EmitPush(Immediate(pairs));
+  frame_->EmitPush(esi);  // The context is the second argument.
+  frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -1786,24 +2127,25 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->is_dynamic());
-    // For now, just do a runtime call.  Duplicate the context register.
-    Result context(esi, this);
-    frame_->Push(&context);
-    frame_->Push(var->name());
+    // For now, just do a runtime call.  Sync the virtual frame eagerly
+    // so we can simply push the arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     // Declaration nodes are always introduced in one of two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
-    frame_->Push(Smi::FromInt(attr));
+    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      frame_->Push(Factory::the_hole_value());
+      frame_->EmitPush(Immediate(Factory::the_hole_value()));
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
-      frame_->Push(Smi::FromInt(0));  // no initial value!
+      frame_->EmitPush(Immediate(Smi::FromInt(0)));  // no initial value!
     }
     Result ignored = frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
@@ -1864,10 +2206,10 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   bool has_else_stm = node->HasElseStatement();
 
   CodeForStatementPosition(node);
-  JumpTarget exit(this);
+  JumpTarget exit;
   if (has_then_stm && has_else_stm) {
-    JumpTarget then(this);
-    JumpTarget else_(this);
+    JumpTarget then;
+    JumpTarget else_;
     ControlDestination dest(&then, &else_, true);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
 
@@ -1894,7 +2236,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 
   } else if (has_then_stm) {
     ASSERT(!has_else_stm);
-    JumpTarget then(this);
+    JumpTarget then;
     ControlDestination dest(&then, &exit, true);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
 
@@ -1914,7 +2256,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 
   } else if (has_else_stm) {
     ASSERT(!has_then_stm);
-    JumpTarget else_(this);
+    JumpTarget else_;
     ControlDestination dest(&exit, &else_, false);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
 
@@ -2026,7 +2368,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatementPosition(node);
   Load(node->expression());
-  Result context(this);
+  Result context;
   if (node->is_catch_block()) {
     context = frame_->CallRuntime(Runtime::kPushCatchContext, 1);
   } else {
@@ -2081,8 +2423,8 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  JumpTarget setup_default(this);
-  JumpTarget is_smi(this);
+  JumpTarget setup_default;
+  JumpTarget is_smi;
 
   // A non-null default label pointer indicates a default case among
   // the case labels.  Otherwise we use the break target as a
@@ -2127,7 +2469,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // frame of the correct height can be merged to).  Keep a copy to
   // restore at the start of every label.  Create a jump target and
   // bind it to set its entry frame properly.
-  JumpTarget entry_target(this, JumpTarget::BIDIRECTIONAL);
+  JumpTarget entry_target(JumpTarget::BIDIRECTIONAL);
   entry_target.Bind(&smi_value);
   VirtualFrame* start_frame = new VirtualFrame(frame_);
 
@@ -2177,8 +2519,6 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
       __ WriteInternalReference(entry_pos, *case_targets[i]);
     }
   }
-
-  delete start_frame;
 }
 
 
@@ -2186,7 +2526,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   // Compile the switch value.
   Load(node->tag());
@@ -2199,7 +2539,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   int length = cases->length();
   CaseClause* default_clause = NULL;
 
-  JumpTarget next_test(this);
+  JumpTarget next_test;
   // Compile the case label expressions and comparisons.  Exit early
   // if a comparison is unconditionally true.  The target next_test is
   // bound before the loop in order to indicate control flow to the
@@ -2207,7 +2547,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   next_test.Bind();
   for (int i = 0; i < length && !next_test.is_unused(); i++) {
     CaseClause* clause = cases->at(i);
-    clause->body_target()->Initialize(this);
     // The default is not a test, but remember it for later.
     if (clause->is_default()) {
       default_clause = clause;
@@ -2278,7 +2617,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
           if (clause->is_default()) {
             clause->body_target()->Bind();
           } else {
-            JumpTarget body(this);
+            JumpTarget body;
             body.Jump();
             clause->body_target()->Bind();
             frame_->Drop();
@@ -2316,7 +2655,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -2337,21 +2676,21 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget body(JumpTarget::BIDIRECTIONAL);
       IncrementLoopNesting();
 
       // Label the top of the loop for the backward jump if necessary.
       if (info == ALWAYS_TRUE) {
         // Use the continue target.
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
         // No need to label it.
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
       } else {
         // Continue is the test, so use the backward body target.
         ASSERT(info == DONT_KNOW);
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         body.Bind();
       }
 
@@ -2410,27 +2749,25 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       JumpTarget body;
       if (test_at_bottom) {
-        body.Initialize(this, JumpTarget::BIDIRECTIONAL);
-      } else {
-        body.Initialize(this);
+        body.set_direction(JumpTarget::BIDIRECTIONAL);
       }
 
       // Based on the condition analysis, compile the test as necessary.
       if (info == ALWAYS_TRUE) {
         // We will not compile the test expression.  Label the top of
         // the loop with the continue target.
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else {
         ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
         if (test_at_bottom) {
           // Continue is the test at the bottom, no need to label the
           // test at the top.  The body is a backward target.
-          node->continue_target()->Initialize(this);
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         } else {
           // Label the test at the top as the continue target.  The
           // body is a forward-only target.
-          node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
           node->continue_target()->Bind();
         }
         // Compile the test with the body as the true target and
@@ -2513,15 +2850,13 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Target for backward edge if no test at the bottom, otherwise
       // unused.
-      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget loop(JumpTarget::BIDIRECTIONAL);
 
       // Target for backward edge if there is a test at the bottom,
       // otherwise used as target for test at the top.
       JumpTarget body;
       if (test_at_bottom) {
-        body.Initialize(this, JumpTarget::BIDIRECTIONAL);
-      } else {
-        body.Initialize(this);
+        body.set_direction(JumpTarget::BIDIRECTIONAL);
       }
 
       // Based on the condition analysis, compile the test as necessary.
@@ -2530,11 +2865,11 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         // the loop.
         if (node->next() == NULL) {
           // Use the continue target if there is no update expression.
-          node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
           node->continue_target()->Bind();
         } else {
           // Otherwise use the backward loop target.
-          node->continue_target()->Initialize(this);
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
           loop.Bind();
         }
       } else {
@@ -2542,16 +2877,16 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         if (test_at_bottom) {
           // Continue is either the update expression or the test at
           // the bottom, no need to label the test at the top.
-          node->continue_target()->Initialize(this);
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         } else if (node->next() == NULL) {
           // We are not recompiling the test at the bottom and there
           // is no update expression.
-          node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
           node->continue_target()->Bind();
         } else {
           // We are not recompiling the test at the bottom and there
           // is an update expression.
-          node->continue_target()->Initialize(this);
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
           loop.Bind();
         }
 
@@ -2651,16 +2986,16 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
-  JumpTarget primitive(this);
-  JumpTarget jsobject(this);
-  JumpTarget fixed_array(this);
-  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
-  JumpTarget end_del_check(this);
-  JumpTarget exit(this);
+  JumpTarget primitive;
+  JumpTarget jsobject;
+  JumpTarget fixed_array;
+  JumpTarget entry(JumpTarget::BIDIRECTIONAL);
+  JumpTarget end_del_check;
+  JumpTarget exit;
 
   // Get the object to enumerate over (converted to JSObject).
   LoadAndSpill(node->enumerable());
@@ -2745,8 +3080,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   entry.Bind();
   // Grab the current frame's height for the break and continue
   // targets only after all the state is pushed on the frame.
-  node->break_target()->Initialize(this);
-  node->continue_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ mov(eax, frame_->ElementAt(0));  // load the current count
   __ cmp(eax, frame_->ElementAt(1));  // compare to the array length
@@ -2841,12 +3176,12 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryCatch");
   CodeForStatementPosition(node);
 
-  JumpTarget try_block(this);
-  JumpTarget exit(this);
+  JumpTarget try_block;
+  JumpTarget exit;
 
   try_block.Call();
   // --- Catch block ---
@@ -2937,7 +3272,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // Generate unlink code for the (formerly) shadowing targets that
   // have been jumped to.  Deallocate each shadow target.
-  Result return_value(this);
+  Result return_value;
   for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain; be careful not to destroy the TOS if
@@ -2972,7 +3307,6 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
         shadows[i]->other_target()->Jump();
       }
     }
-    delete shadows[i];
   }
 
   exit.Bind();
@@ -2981,7 +3315,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryFinally");
   CodeForStatementPosition(node);
 
@@ -2990,8 +3324,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  JumpTarget try_block(this);
-  JumpTarget finally_block(this);
+  JumpTarget try_block;
+  JumpTarget finally_block;
 
   try_block.Call();
 
@@ -3070,7 +3404,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       // on the virtual frame.  We must preserve it until it is
       // pushed.
       if (i == kReturnShadowIndex) {
-        Result return_value(this);
+        Result return_value;
         shadows[i]->Bind(&return_value);
         return_value.ToRegister(eax);
       } else {
@@ -3143,7 +3477,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         } else {
           // Branch around the preparation for return which may emit
           // code.
-          JumpTarget skip(this);
+          JumpTarget skip;
           skip.Branch(not_equal);
           frame_->PrepareForReturn();
           original->Jump(&return_value);
@@ -3153,12 +3487,11 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         original->Branch(equal);
       }
     }
-    delete shadows[i];
   }
 
   if (has_valid_frame()) {
     // Check if we need to rethrow the exception.
-    JumpTarget exit(this);
+    JumpTarget exit;
     __ cmp(Operand(ecx), Immediate(Smi::FromInt(THROWING)));
     exit.Branch(not_equal);
 
@@ -3186,13 +3519,18 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+  // Call the runtime to instantiate the function boilerplate object.
+  // The inevitable call will sync frame elements to memory anyway, so
+  // we do it eagerly to allow us to push the arguments directly into
+  // place.
   ASSERT(boilerplate->IsBoilerplate());
+  frame_->SyncRange(0, frame_->element_count() - 1);
 
   // Push the boilerplate on the stack.
-  frame_->Push(boilerplate);
+  frame_->EmitPush(Immediate(boilerplate));
 
   // Create a new closure.
-  frame_->Push(esi);
+  frame_->EmitPush(esi);
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }
@@ -3218,9 +3556,9 @@ void CodeGenerator::VisitFunctionBoilerplateLiteral(
 
 void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
-  JumpTarget then(this);
-  JumpTarget else_(this);
-  JumpTarget exit(this);
+  JumpTarget then;
+  JumpTarget else_;
+  JumpTarget exit;
   ControlDestination dest(&then, &else_, true);
   LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
 
@@ -3252,9 +3590,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    JumpTarget slow(this);
-    JumpTarget done(this);
-    Result value(this);
+    JumpTarget slow;
+    JumpTarget done;
+    Result value;
 
     // Generate fast-case code for variables that might be shadowed by
     // eval-introduced variables.  Eval is used a lot without
@@ -3298,8 +3636,12 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     }
 
     slow.Bind();
-    frame_->Push(esi);
-    frame_->Push(slot->var()->name());
+    // A runtime call is inevitable.  We eagerly sync frame elements
+    // to memory so that we can push the arguments directly into place
+    // on top of the frame.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
     if (typeof_state == INSIDE_TYPEOF) {
       value =
           frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
@@ -3317,9 +3659,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     //
     // We currently spill the virtual frame because constants use the
     // potentially unsafe direct-frame access of SlotOperand.
-    VirtualFrame::SpilledScope spilled_scope(this);
+    VirtualFrame::SpilledScope spilled_scope;
     Comment cmnt(masm_, "[ Load const");
-    JumpTarget exit(this);
+    JumpTarget exit;
     __ mov(ecx, SlotOperand(slot, ecx));
     __ cmp(ecx, Factory::the_hole_value());
     exit.Branch(not_equal);
@@ -3354,7 +3696,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     JumpTarget* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
-  Result context(esi, this);
+  Register context = esi;
   Result tmp = allocator_->Allocate();
   ASSERT(tmp.is_valid());  // All non-reserved registers were available.
 
@@ -3363,14 +3705,14 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
         slow->Branch(not_equal, not_taken);
       }
       // Load next context in chain.
-      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp;
+      context = tmp.reg();
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.  If we have reached an eval scope, we check
@@ -3383,8 +3725,8 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
-    if (!context.reg().is(tmp.reg())) {
-      __ mov(tmp.reg(), context.reg());
+    if (!context.is(tmp.reg())) {
+      __ mov(tmp.reg(), context);
     }
     __ bind(&next);
     // Terminate at global context.
@@ -3400,7 +3742,6 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     __ jmp(&next);
     __ bind(&fast);
   }
-  context.Unuse();
   tmp.Unuse();
 
   // All extension objects were empty and it is safe to use a global
@@ -3425,11 +3766,15 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    // For now, just do a runtime call.
-    frame_->Push(esi);
-    frame_->Push(slot->var()->name());
+    // For now, just do a runtime call.  Since the call is inevitable,
+    // we eagerly sync the virtual frame so we can directly push the
+    // arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
 
-    Result value(this);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
+
+    Result value;
     if (init_state == CONST_INIT) {
       // Same as the case for a normal store, but ignores attribute
       // (e.g. READ_ONLY) of context slot so that we can initialize const
@@ -3457,7 +3802,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   } else {
     ASSERT(!slot->var()->is_dynamic());
 
-    JumpTarget exit(this);
+    JumpTarget exit;
     if (init_state == CONST_INIT) {
       ASSERT(slot->var()->mode() == Variable::CONST);
       // Only the first const initialization must be executed (the slot
@@ -3467,7 +3812,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // We spill the frame in the code below because the direct-frame
       // access of SlotOperand is potentially unsafe with an unspilled
       // frame.
-      VirtualFrame::SpilledScope spilled_scope(this);
+      VirtualFrame::SpilledScope spilled_scope;
       Comment cmnt(masm_, "[ Init const");
       __ mov(ecx, SlotOperand(slot, ecx));
       __ cmp(ecx, Factory::the_hole_value());
@@ -3557,44 +3902,45 @@ bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
 }
 
 
+// Materialize the regexp literal 'node' in the literals array
+// 'literals' of the function.  Leave the regexp boilerplate in
+// 'boilerplate'.
 class DeferredRegExpLiteral: public DeferredCode {
  public:
-  DeferredRegExpLiteral(CodeGenerator* generator, RegExpLiteral* node)
-      : DeferredCode(generator), node_(node) {
+  DeferredRegExpLiteral(Register boilerplate,
+                        Register literals,
+                        RegExpLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
     set_comment("[ DeferredRegExpLiteral");
   }
 
-  virtual void Generate();
+  void Generate();
 
  private:
+  Register boilerplate_;
+  Register literals_;
   RegExpLiteral* node_;
 };
 
 
 void DeferredRegExpLiteral::Generate() {
-  Result literals(generator());
-  enter()->Bind(&literals);
   // Since the entry is undefined we call the runtime system to
   // compute the literal.
-
-  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  frame->Push(&literals);
+  __ push(literals_);
   // Literal index (1).
-  frame->Push(Smi::FromInt(node_->literal_index()));
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
   // RegExp pattern (2).
-  frame->Push(node_->pattern());
+  __ push(Immediate(node_->pattern()));
   // RegExp flags (3).
-  frame->Push(node_->flags());
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  exit_.Jump(&boilerplate);
+  __ push(Immediate(node_->flags()));
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  if (!boilerplate_.is(eax)) __ mov(boilerplate_, eax);
 }
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   Comment cmnt(masm_, "[ RegExp Literal");
-  DeferredRegExpLiteral* deferred = new DeferredRegExpLiteral(this, node);
 
   // Retrieve the literals array and check the allocated entry.  Begin
   // with a writable copy of the function of this activation in a
@@ -3609,67 +3955,63 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
 
   // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   Result boilerplate = allocator_->Allocate();
   ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
 
   // Check whether we need to materialize the RegExp object.  If so,
   // jump to the deferred code passing the literals array.
+  DeferredRegExpLiteral* deferred =
+      new DeferredRegExpLiteral(boilerplate.reg(), literals.reg(), node);
   __ cmp(boilerplate.reg(), Factory::undefined_value());
-  deferred->enter()->Branch(equal, &literals, not_taken);
-
+  deferred->Branch(equal);
+  deferred->BindExit();
   literals.Unuse();
-  // The deferred code returns the boilerplate object.
-  deferred->BindExit(&boilerplate);
 
   // Push the boilerplate object.
   frame_->Push(&boilerplate);
 }
 
 
-// This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateObjectLiteral.
-// Each created boilerplate is stored in the JSFunction and they are
-// therefore context dependent.
+// Materialize the object literal 'node' in the literals array
+// 'literals' of the function.  Leave the object boilerplate in
+// 'boilerplate'.
 class DeferredObjectLiteral: public DeferredCode {
  public:
-  DeferredObjectLiteral(CodeGenerator* generator,
+  DeferredObjectLiteral(Register boilerplate,
+                        Register literals,
                         ObjectLiteral* node)
-      : DeferredCode(generator), node_(node) {
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
     set_comment("[ DeferredObjectLiteral");
   }
 
-  virtual void Generate();
+  void Generate();
 
  private:
+  Register boilerplate_;
+  Register literals_;
   ObjectLiteral* node_;
 };
 
 
 void DeferredObjectLiteral::Generate() {
-  Result literals(generator());
-  enter()->Bind(&literals);
   // Since the entry is undefined we call the runtime system to
   // compute the literal.
-
-  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  frame->Push(&literals);
+  __ push(literals_);
   // Literal index (1).
-  frame->Push(Smi::FromInt(node_->literal_index()));
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
   // Constant properties (2).
-  frame->Push(node_->constant_properties());
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  exit_.Jump(&boilerplate);
+  __ push(Immediate(node_->constant_properties()));
+  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  if (!boilerplate_.is(eax)) __ mov(boilerplate_, eax);
 }
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
-  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
 
   // Retrieve the literals array and check the allocated entry.  Begin
   // with a writable copy of the function of this activation in a
@@ -3684,20 +4026,20 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
 
   // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   Result boilerplate = allocator_->Allocate();
   ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
 
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code passing the literals array.
+  DeferredObjectLiteral* deferred =
+      new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
   __ cmp(boilerplate.reg(), Factory::undefined_value());
-  deferred->enter()->Branch(equal, &literals, not_taken);
-
+  deferred->Branch(equal);
+  deferred->BindExit();
   literals.Unuse();
-  // The deferred code returns the boilerplate object.
-  deferred->BindExit(&boilerplate);
 
   // Push the boilerplate object.
   frame_->Push(&boilerplate);
@@ -3767,47 +4109,42 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-// This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateArrayLiteralBoilerplate.
-// Each created boilerplate is stored in the JSFunction and they are
-// therefore context dependent.
+// Materialize the array literal 'node' in the literals array 'literals'
+// of the function.  Leave the array boilerplate in 'boilerplate'.
 class DeferredArrayLiteral: public DeferredCode {
  public:
-  DeferredArrayLiteral(CodeGenerator* generator,
+  DeferredArrayLiteral(Register boilerplate,
+                       Register literals,
                        ArrayLiteral* node)
-      : DeferredCode(generator), node_(node) {
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
     set_comment("[ DeferredArrayLiteral");
   }
 
-  virtual void Generate();
+  void Generate();
 
  private:
+  Register boilerplate_;
+  Register literals_;
   ArrayLiteral* node_;
 };
 
 
 void DeferredArrayLiteral::Generate() {
-  Result literals(generator());
-  enter()->Bind(&literals);
   // Since the entry is undefined we call the runtime system to
   // compute the literal.
-
-  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  frame->Push(&literals);
+  __ push(literals_);
   // Literal index (1).
-  frame->Push(Smi::FromInt(node_->literal_index()));
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
   // Constant properties (2).
-  frame->Push(node_->literals());
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  exit_.Jump(&boilerplate);
+  __ push(Immediate(node_->literals()));
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  if (!boilerplate_.is(eax)) __ mov(boilerplate_, eax);
 }
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
 
   // Retrieve the literals array and check the allocated entry.  Begin
   // with a writable copy of the function of this activation in a
@@ -3822,24 +4159,23 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
 
   // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   Result boilerplate = allocator_->Allocate();
   ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
 
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code passing the literals array.
+  DeferredArrayLiteral* deferred =
+      new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
   __ cmp(boilerplate.reg(), Factory::undefined_value());
-  deferred->enter()->Branch(equal, &literals, not_taken);
-
+  deferred->Branch(equal);
+  deferred->BindExit();
   literals.Unuse();
-  // The deferred code returns the boilerplate object.
-  deferred->BindExit(&boilerplate);
 
-  // Push the resulting array literal on the stack.
+  // Push the resulting array literal boilerplate on the stack.
   frame_->Push(&boilerplate);
-
   // Clone the boilerplate object.
   Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
   if (node->depth() == 1) {
@@ -4058,15 +4394,23 @@ void CodeGenerator::VisitCall(Call* node) {
     // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
     // ----------------------------------
 
-    // Load the function
-    frame_->Push(esi);
-    frame_->Push(var->name());
+    // Load the function from the context.  Sync the frame so we can
+    // push the arguments directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
-    // eax: slot value; edx: receiver
+    // The runtime call returns a pair of values in eax and edx.  The
+    // looked-up function is in eax and the receiver is in edx.  These
+    // register references are not ref counted here.  We spill them
+    // eagerly since they are arguments to an inevitable call (and are
+    // not sharable by the arguments).
+    ASSERT(!allocator()->is_used(eax));
+    frame_->EmitPush(eax);
 
     // Load the receiver.
-    frame_->Push(eax);
-    frame_->Push(edx);
+    ASSERT(!allocator()->is_used(edx));
+    frame_->EmitPush(edx);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -4218,7 +4562,8 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   // Call the function.
   CodeForSourcePosition(node->position());
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   result = frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore the context and overwrite the function on the stack with
@@ -4282,13 +4627,13 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 
-  JumpTarget slow_case(this);
-  JumpTarget end(this);
-  JumpTarget not_a_flat_string(this);
-  JumpTarget a_cons_string(this);
-  JumpTarget try_again_with_new_string(this, JumpTarget::BIDIRECTIONAL);
-  JumpTarget ascii_string(this);
-  JumpTarget got_char_code(this);
+  JumpTarget slow_case;
+  JumpTarget end;
+  JumpTarget not_a_flat_string;
+  JumpTarget a_cons_string;
+  JumpTarget try_again_with_new_string(JumpTarget::BIDIRECTIONAL);
+  JumpTarget ascii_string;
+  JumpTarget got_char_code;
 
   Load(args->at(0));
   Load(args->at(1));
@@ -4436,7 +4781,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument
   // in register eax.  Create a constant result for it.
-  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   Result result = frame_->CallStub(&stub, &count);
@@ -4446,7 +4791,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  JumpTarget leave(this);
+  JumpTarget leave;
   Load(args->at(0));  // Load the object.
   frame_->Dup();
   Result object = frame_->Pop();
@@ -4470,7 +4815,7 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
-  JumpTarget leave(this);
+  JumpTarget leave;
   Load(args->at(0));  // Load the object.
   Load(args->at(1));  // Load the value.
   Result value = frame_->Pop();
@@ -4519,7 +4864,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Result key = frame_->Pop();
   // Explicitly create a constant result.
-  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   Result result = frame_->CallStub(&stub, &key, &count);
@@ -4582,9 +4927,10 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   }
 
   if (function == NULL) {
-    // Call the JS runtime function.  Pass 0 as the loop nesting depth
-    // because we do not handle runtime calls specially in loops.
-    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, 0);
+    // Call the JS runtime function.
+    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
+                                       arg_count,
+                                       loop_nesting_);
     frame_->RestoreContextRegister();
     frame_->SetElementAt(0, &answer);
   } else {
@@ -4633,12 +4979,17 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-        // lookup the context holding the named variable
-        frame_->Push(esi);
-        frame_->Push(variable->name());
+        // Call the runtime to look up the context holding the named
+        // variable.  Sync the virtual frame eagerly so we can push the
+        // arguments directly into place.
+        frame_->SyncRange(0, frame_->element_count() - 1);
+        frame_->EmitPush(esi);
+        frame_->EmitPush(Immediate(variable->name()));
         Result context = frame_->CallRuntime(Runtime::kLookupContext, 2);
-        frame_->Push(&context);
-        frame_->Push(variable->name());
+        ASSERT(context.is_register());
+        frame_->EmitPush(context.reg());
+        context.Unuse();
+        frame_->EmitPush(Immediate(variable->name()));
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
                                               CALL_FUNCTION, 2);
         frame_->Push(&answer);
@@ -4699,8 +5050,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::BIT_NOT: {
         // Smi check.
-        JumpTarget smi_label(this);
-        JumpTarget continue_label(this);
+        JumpTarget smi_label;
+        JumpTarget continue_label;
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -4723,7 +5074,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::ADD: {
         // Smi check.
-        JumpTarget continue_label(this);
+        JumpTarget continue_label;
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -4745,57 +5096,89 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-class DeferredCountOperation: public DeferredCode {
+// The value in dst was optimistically incremented or decremented.  The
+// result overflowed or was not smi tagged.  Undo the operation, call
+// into the runtime to convert the argument to a number, and call the
+// specialized add or subtract stub.  The result is left in dst.
+class DeferredPrefixCountOperation: public DeferredCode {
  public:
-  DeferredCountOperation(CodeGenerator* generator,
-                         bool is_postfix,
-                         bool is_increment,
-                         int target_size)
-      : DeferredCode(generator),
-        is_postfix_(is_postfix),
-        is_increment_(is_increment),
-        target_size_(target_size) {
+  DeferredPrefixCountOperation(Register dst, bool is_increment)
+      : dst_(dst), is_increment_(is_increment) {
     set_comment("[ DeferredCountOperation");
   }
 
   virtual void Generate();
 
  private:
-  bool is_postfix_;
+  Register dst_;
   bool is_increment_;
-  int target_size_;
 };
 
 
-void DeferredCountOperation::Generate() {
-  CodeGenerator* cgen = generator();
-  Result value(cgen);
-  enter()->Bind(&value);
-  VirtualFrame* frame = cgen->frame();
+void DeferredPrefixCountOperation::Generate() {
   // Undo the optimistic smi operation.
-  value.ToRegister();
-  frame->Spill(value.reg());
   if (is_increment_) {
-    __ sub(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+    __ sub(Operand(dst_), Immediate(Smi::FromInt(1)));
   } else {
-    __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+    __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
-  frame->Push(&value);
-  value = frame->InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION, 1);
-  frame->Push(&value);
-  if (is_postfix_) {  // Fix up copy of old value with ToNumber(value).
-    // This is only safe because VisitCountOperation makes this frame slot
-    // beneath the reference a register, which is spilled at the above call.
-    // We cannot safely write to constants or copies below the water line.
-    frame->StoreToElementAt(target_size_ + 1);
-  }
-  frame->Push(Smi::FromInt(1));
+  __ push(dst_);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  __ push(eax);
+  __ push(Immediate(Smi::FromInt(1)));
   if (is_increment_) {
-    value = frame->CallRuntime(Runtime::kNumberAdd, 2);
+    __ CallRuntime(Runtime::kNumberAdd, 2);
   } else {
-    value = frame->CallRuntime(Runtime::kNumberSub, 2);
+    __ CallRuntime(Runtime::kNumberSub, 2);
   }
-  exit_.Jump(&value);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
+}
+
+
+// The value in dst was optimistically incremented or decremented.  The
+// result overflowed or was not smi tagged.  Undo the operation and call
+// into the runtime to convert the argument to a number.  Update the
+// original value in old.  Call the specialized add or subtract stub.
+// The result is left in dst.
+class DeferredPostfixCountOperation: public DeferredCode {
+ public:
+  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
+      : dst_(dst), old_(old), is_increment_(is_increment) {
+    set_comment("[ DeferredCountOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Register old_;
+  bool is_increment_;
+};
+
+
+void DeferredPostfixCountOperation::Generate() {
+  // Undo the optimistic smi operation.
+  if (is_increment_) {
+    __ sub(Operand(dst_), Immediate(Smi::FromInt(1)));
+  } else {
+    __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
+  }
+  __ push(dst_);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+
+  // Save the result of ToNumber to use as the old value.
+  __ push(eax);
+
+  // Call the runtime for the addition or subtraction.
+  __ push(eax);
+  __ push(Immediate(Smi::FromInt(1)));
+  if (is_increment_) {
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    __ CallRuntime(Runtime::kNumberSub, 2);
+  }
+  if (!dst_.is(eax)) __ mov(dst_, eax);
+  __ pop(old_);
 }
 
 
@@ -4808,96 +5191,93 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Variable* var = node->expression()->AsVariableProxy()->AsVariable();
   bool is_const = (var != NULL && var->mode() == Variable::CONST);
 
-  // Postfix operators need a stack slot under the reference to hold
-  // the old value while the new one is being stored.
-  if (is_postfix) {
-    frame_->Push(Smi::FromInt(0));
-  }
+  // Postfix operations need a stack slot under the reference to hold
+  // the old value while the new value is being stored.  This is so that
+  // in the case that storing the new value requires a call, the old
+  // value will be in the frame to be spilled.
+  if (is_postfix) frame_->Push(Smi::FromInt(0));
 
   { Reference target(this, node->expression());
     if (target.is_illegal()) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
-      if (!is_postfix) {
-        frame_->Push(Smi::FromInt(0));
-      }
+      if (!is_postfix) frame_->Push(Smi::FromInt(0));
       return;
     }
     target.TakeValue(NOT_INSIDE_TYPEOF);
 
-    DeferredCountOperation* deferred =
-        new DeferredCountOperation(this, is_postfix,
-                                   is_increment, target.size());
+    Result new_value = frame_->Pop();
+    new_value.ToRegister();
 
-    Result value = frame_->Pop();
-    value.ToRegister();
-
-    // Postfix: Store the old value as the result.
+    Result old_value;  // Only allocated in the postfix case.
     if (is_postfix) {
-      // Explicitly back the slot for the old value with a new register.
-      // This improves performance in some cases.
-      Result old_value = allocator_->Allocate();
+      // Allocate a temporary to preserve the old value.
+      old_value = allocator_->Allocate();
       ASSERT(old_value.is_valid());
-      __ mov(old_value.reg(), value.reg());
-      // SetElement must not create a constant element or a copy in this slot,
-      // since we will write to it, below the waterline, in deferred code.
-      frame_->SetElementAt(target.size(), &old_value);
+      __ mov(old_value.reg(), new_value.reg());
     }
+    // Ensure the new value is writable.
+    frame_->Spill(new_value.reg());
 
-    // Perform optimistic increment/decrement.  Ensure the value is
-    // writable.
-    frame_->Spill(value.reg());
-    ASSERT(allocator_->count(value.reg()) == 1);
-
-    // In order to combine the overflow and the smi check, we need to
-    // be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate
-    // overflow and smi checks.
+    // In order to combine the overflow and the smi tag check, we need
+    // to be able to allocate a byte register.  We attempt to do so
+    // without spilling.  If we fail, we will generate separate overflow
+    // and smi tag checks.
     //
-    // We need to allocate and clear the temporary byte register
-    // before performing the count operation since clearing the
-    // register using xor will clear the overflow flag.
+    // We allocate and clear the temporary byte register before
+    // performing the count operation since clearing the register using
+    // xor will clear the overflow flag.
     Result tmp = allocator_->AllocateByteRegisterWithoutSpilling();
     if (tmp.is_valid()) {
       __ Set(tmp.reg(), Immediate(0));
     }
 
-    if (is_increment) {
-      __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+    DeferredCode* deferred = NULL;
+    if (is_postfix) {
+      deferred = new DeferredPostfixCountOperation(new_value.reg(),
+                                                   old_value.reg(),
+                                                   is_increment);
     } else {
-      __ sub(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+      deferred = new DeferredPrefixCountOperation(new_value.reg(),
+                                                  is_increment);
     }
 
-    // If the count operation didn't overflow and the result is a
-    // valid smi, we're done. Otherwise, we jump to the deferred
-    // slow-case code.
-    //
-    // We combine the overflow and the smi check if we could
-    // successfully allocate a temporary byte register.
+    if (is_increment) {
+      __ add(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
+    } else {
+      __ sub(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
+    }
+
+    // If the count operation didn't overflow and the result is a valid
+    // smi, we're done. Otherwise, we jump to the deferred slow-case
+    // code.
     if (tmp.is_valid()) {
+      // We combine the overflow and the smi tag check if we could
+      // successfully allocate a temporary byte register.
       __ setcc(overflow, tmp.reg());
-      __ or_(Operand(value.reg()), tmp.reg());
+      __ or_(Operand(tmp.reg()), new_value.reg());
+      __ test(tmp.reg(), Immediate(kSmiTagMask));
       tmp.Unuse();
-      __ test(value.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, &value, not_taken);
-    } else {  // Otherwise we test separately for overflow and smi check.
-      deferred->enter()->Branch(overflow, &value, not_taken);
-      __ test(value.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, &value, not_taken);
+      deferred->Branch(not_zero);
+    } else {
+      // Otherwise we test separately for overflow and smi tag.
+      deferred->Branch(overflow);
+      __ test(new_value.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
     }
+    deferred->BindExit();
 
-    // Store the new value in the target if not const.
-    deferred->BindExit(&value);
-    frame_->Push(&value);
-    if (!is_const) {
-      target.SetValue(NOT_CONST_INIT);
-    }
+    // Postfix: store the old value in the allocated slot under the
+    // reference.
+    if (is_postfix) frame_->SetElementAt(target.size(), &old_value);
+
+    frame_->Push(&new_value);
+    // Non-constant: update the reference.
+    if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
-  // Postfix: Discard the new value and use the old.
-  if (is_postfix) {
-    frame_->Drop();
-  }
+  // Postfix: drop the new value and use the old.
+  if (is_postfix) frame_->Drop();
 }
 
 
@@ -4918,7 +5298,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // is necessary because we assume that if we get control flow on the
   // last path out of an expression we got it on all paths.
   if (op == Token::AND) {
-    JumpTarget is_true(this);
+    JumpTarget is_true;
     ControlDestination dest(&is_true, destination()->false_target(), true);
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
 
@@ -4956,8 +5336,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // We have a materialized value on the frame, so we exit with
       // one on all paths.  There are possibly also jumps to is_true
       // from nested subexpressions.
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       // Avoid popping the result if it converts to 'false' using the
       // standard ToBoolean() conversion as described in ECMA-262,
@@ -4981,7 +5361,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
 
   } else if (op == Token::OR) {
-    JumpTarget is_false(this);
+    JumpTarget is_false;
     ControlDestination dest(destination()->true_target(), &is_false, false);
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
 
@@ -5018,8 +5398,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // We have a materialized value on the frame, so we exit with
       // one on all paths.  There are possibly also jumps to is_false
       // from nested subexpressions.
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       // Avoid popping the result if it converts to 'true' using the
       // standard ToBoolean() conversion as described in ECMA-262,
@@ -5248,10 +5628,14 @@ bool CodeGenerator::HasValidEntryRegisters() {
 #endif
 
 
+// Emit a LoadIC call to get the value from receiver and leave it in
+// dst.  The receiver register is restored after the call.
 class DeferredReferenceGetNamedValue: public DeferredCode {
  public:
-  DeferredReferenceGetNamedValue(CodeGenerator* cgen, Handle<String> name)
-      : DeferredCode(cgen), name_(name) {
+  DeferredReferenceGetNamedValue(Register dst,
+                                 Register receiver,
+                                 Handle<String> name)
+      : dst_(dst), receiver_(receiver),  name_(name) {
     set_comment("[ DeferredReferenceGetNamedValue");
   }
 
@@ -5261,39 +5645,41 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
 
  private:
   Label patch_site_;
+  Register dst_;
+  Register receiver_;
   Handle<String> name_;
 };
 
 
 void DeferredReferenceGetNamedValue::Generate() {
-  CodeGenerator* cgen = generator();
-  Result receiver(cgen);
-  enter()->Bind(&receiver);
-
-  cgen->frame()->Push(&receiver);
-  cgen->frame()->Push(name_);
-  Result answer = cgen->frame()->CallLoadIC(RelocInfo::CODE_TARGET);
+  __ push(receiver_);
+  __ Set(ecx, Immediate(name_));
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test eax instruction to indicate
   // that the inobject property case was inlined.
-  ASSERT(answer.is_register() && answer.reg().is(eax));
-  // Store the delta to the map check instruction here in the test instruction.
-  // Use masm_-> instead of the double underscore macro since the latter can't
-  // return a value.
+  //
+  // Store the delta to the map check instruction here in the test
+  // instruction.  Use masm_-> instead of the __ macro since the
+  // latter can't return a value.
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
-  // Here we use masm_-> instead of the double underscore macro because
-  // this is the instruction that gets patched and coverage code gets in
-  // the way.
-  masm_->test(answer.reg(), Immediate(-delta_to_patch_site));
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->test(eax, Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::named_load_inline_miss, 1);
-  receiver = cgen->frame()->Pop();
-  exit_.Jump(&receiver, &answer);
+
+  if (!dst_.is(eax)) __ mov(dst_, eax);
+  __ pop(receiver_);
 }
 
 
 class DeferredReferenceGetKeyedValue: public DeferredCode {
  public:
-  DeferredReferenceGetKeyedValue(CodeGenerator* generator, bool is_global)
-      : DeferredCode(generator), is_global_(is_global) {
+  explicit DeferredReferenceGetKeyedValue(Register dst,
+                                          Register receiver,
+                                          Register key,
+                                          bool is_global)
+      : dst_(dst), receiver_(receiver), key_(key), is_global_(is_global) {
     set_comment("[ DeferredReferenceGetKeyedValue");
   }
 
@@ -5303,17 +5689,16 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
  private:
   Label patch_site_;
+  Register dst_;
+  Register receiver_;
+  Register key_;
   bool is_global_;
 };
 
 
 void DeferredReferenceGetKeyedValue::Generate() {
-  CodeGenerator* cgen = generator();
-  Result receiver(cgen);
-  Result key(cgen);
-  enter()->Bind(&receiver, &key);
-  cgen->frame()->Push(&receiver);  // First IC argument.
-  cgen->frame()->Push(&key);       // Second IC argument.
+  __ push(receiver_);  // First IC argument.
+  __ push(key_);       // Second IC argument.
 
   // Calculate the delta from the IC call instruction to the map check
   // cmp instruction in the inlined version.  This delta is stored in
@@ -5321,32 +5706,25 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   RelocInfo::Mode mode = is_global_
                          ? RelocInfo::CODE_TARGET_CONTEXT
                          : RelocInfo::CODE_TARGET;
-  Result value = cgen->frame()->CallKeyedLoadIC(mode);
-  // The result needs to be specifically the eax register because the
-  // offset to the patch site will be expected in a test eax
-  // instruction.
-  ASSERT(value.is_register() && value.reg().is(eax));
+  __ call(ic, mode);
   // The delta from the start of the map-compare instruction to the
-  // test instruction.  We use masm_ directly here instead of the
-  // double underscore macro because the macro sometimes uses macro
-  // expansion to turn into something that can't return a value.  This
-  // is encountered when doing generated code coverage tests.
+  // test instruction.  We use masm_-> directly here instead of the __
+  // macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
-  // Here we use masm_-> instead of the double underscore macro because this
-  // is the instruction that gets patched and coverage code gets in the way.
-  masm_->test(value.reg(), Immediate(-delta_to_patch_site));
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->test(eax, Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
-  // The receiver and key were spilled by the call, so their state as
-  // constants or copies has been changed.  Thus, they need to be
-  // "mergable" in the block at the exit label and are therefore
-  // passed as return results here.
-  key = cgen->frame()->Pop();
-  receiver = cgen->frame()->Pop();
-  exit_.Jump(&receiver, &key, &value);
+  if (!dst_.is(eax)) __ mov(dst_, eax);
+  __ pop(key_);
+  __ pop(receiver_);
 }
 
 
@@ -5395,9 +5773,13 @@ void Reference::GetValue(TypeofState typeof_state) {
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
 
-      if (is_global || cgen_->scope()->is_global_scope()) {
-        // Do not inline the inobject property case for loads from the
-        // global object or loads in toplevel code.
+      // Do not inline the inobject property case for loads from the global
+      // object.  Also do not inline for unoptimized code.  This saves time
+      // in the code generator.  Unoptimized code is toplevel code or code
+      // that is not in a loop.
+      if (is_global ||
+          cgen_->scope()->is_global_scope() ||
+          cgen_->loop_nesting() == 0) {
         Comment cmnt(masm, "[ Load from named Property");
         cgen_->frame()->Push(GetName());
 
@@ -5413,19 +5795,20 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         // Inline the inobject property case.
         Comment cmnt(masm, "[ Inlined named property load");
-        DeferredReferenceGetNamedValue* deferred =
-            new DeferredReferenceGetNamedValue(cgen_, GetName());
         Result receiver = cgen_->frame()->Pop();
         receiver.ToRegister();
-        // Check that the receiver is a heap object.
-        __ test(receiver.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(zero, &receiver, not_taken);
 
-        // Preallocate the value register to ensure that there is no
-        // spill emitted between the patch site label and the offset in
-        // the load instruction.
         Result value = cgen_->allocator()->Allocate();
         ASSERT(value.is_valid());
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(value.reg(),
+                                               receiver.reg(),
+                                               GetName());
+
+        // Check that the receiver is a heap object.
+        __ test(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(zero);
+
         __ bind(deferred->patch_site());
         // This is the map check instruction that will be patched (so we can't
         // use the double underscore macro that may insert instructions).
@@ -5434,7 +5817,7 @@ void Reference::GetValue(TypeofState typeof_state) {
                   Immediate(Factory::null_value()));
         // This branch is always a forwards branch so it's always a fixed
         // size which allows the assert below to succeed and patching to work.
-        deferred->enter()->Branch(not_equal, &receiver, not_taken);
+        deferred->Branch(not_equal);
 
         // The delta from the patch label to the load offset must be
         // statically known.
@@ -5447,7 +5830,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         masm->mov(value.reg(), FieldOperand(receiver.reg(), offset));
 
         __ IncrementCounter(&Counters::named_load_inline, 1);
-        deferred->BindExit(&receiver, &value);
+        deferred->BindExit();
         cgen_->frame()->Push(&receiver);
         cgen_->frame()->Push(&value);
       }
@@ -5467,20 +5850,34 @@ void Reference::GetValue(TypeofState typeof_state) {
       // patch the map check if appropriate.
       if (cgen_->loop_nesting() > 0) {
         Comment cmnt(masm, "[ Inlined array index load");
-        DeferredReferenceGetKeyedValue* deferred =
-            new DeferredReferenceGetKeyedValue(cgen_, is_global);
 
         Result key = cgen_->frame()->Pop();
         Result receiver = cgen_->frame()->Pop();
         key.ToRegister();
         receiver.ToRegister();
 
+        // Use a fresh temporary to load the elements without destroying
+        // the receiver which is needed for the deferred slow case.
+        Result elements = cgen_->allocator()->Allocate();
+        ASSERT(elements.is_valid());
+
+        // Use a fresh temporary for the index and later the loaded
+        // value.
+        Result index = cgen_->allocator()->Allocate();
+        ASSERT(index.is_valid());
+
+        DeferredReferenceGetKeyedValue* deferred =
+            new DeferredReferenceGetKeyedValue(index.reg(),
+                                               receiver.reg(),
+                                               key.reg(),
+                                               is_global);
+
         // Check that the receiver is not a smi (only needed if this
         // is not a load from the global context) and that it has the
         // expected map.
         if (!is_global) {
           __ test(receiver.reg(), Immediate(kSmiTagMask));
-          deferred->enter()->Branch(zero, &receiver, &key, not_taken);
+          deferred->Branch(zero);
         }
 
         // Initially, use an invalid map. The map is patched in the IC
@@ -5489,32 +5886,28 @@ void Reference::GetValue(TypeofState typeof_state) {
         // Use masm-> here instead of the double underscore macro since extra
         // coverage code can interfere with the patching.
         masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::null_value()));
-        deferred->enter()->Branch(not_equal, &receiver, &key, not_taken);
+                  Immediate(Factory::null_value()));
+        deferred->Branch(not_equal);
 
         // Check that the key is a smi.
         __ test(key.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, &receiver, &key, not_taken);
+        deferred->Branch(not_zero);
 
         // Get the elements array from the receiver and check that it
         // is not a dictionary.
-        Result elements = cgen_->allocator()->Allocate();
-        ASSERT(elements.is_valid());
         __ mov(elements.reg(),
                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
         __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
                Immediate(Factory::hash_table_map()));
-        deferred->enter()->Branch(equal, &receiver, &key, not_taken);
+        deferred->Branch(equal);
 
         // Shift the key to get the actual index value and check that
         // it is within bounds.
-        Result index = cgen_->allocator()->Allocate();
-        ASSERT(index.is_valid());
         __ mov(index.reg(), key.reg());
         __ sar(index.reg(), kSmiTagSize);
         __ cmp(index.reg(),
                FieldOperand(elements.reg(), Array::kLengthOffset));
-        deferred->enter()->Branch(above_equal, &receiver, &key, not_taken);
+        deferred->Branch(above_equal);
 
         // Load and check that the result is not the hole.  We could
         // reuse the index or elements register for the value.
@@ -5531,12 +5924,12 @@ void Reference::GetValue(TypeofState typeof_state) {
         elements.Unuse();
         index.Unuse();
         __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
-        deferred->enter()->Branch(equal, &receiver, &key, not_taken);
+        deferred->Branch(equal);
         __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
+        deferred->BindExit();
         // Restore the receiver and key to the frame and push the
         // result on top of it.
-        deferred->BindExit(&receiver, &key, &value);
         cgen_->frame()->Push(&receiver);
         cgen_->frame()->Push(&key);
         cgen_->frame()->Push(&value);
@@ -5683,340 +6076,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ ret(1 * kPointerSize);
 }
 
-
-#undef __
-#define __ ACCESS_MASM(masm_)
-
-Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
-                                                         Result* right) {
-  // Perform fast-case smi code for the operation (left <op> right) and
-  // returns the result in a Result.
-  // If any fast-case tests fail, it jumps to the slow-case deferred code,
-  // which calls the binary operation stub, with the arguments (in registers)
-  // on top of the frame.
-  // Consumes its arguments (sets left and right to invalid and frees their
-  // registers).
-
-  left->ToRegister();
-  right->ToRegister();
-  // A newly allocated register answer is used to hold the answer.
-  // The registers containing left and right are not modified in
-  // most cases, so they usually don't need to be spilled in the fast case.
-  Result answer = generator()->allocator()->Allocate();
-
-  ASSERT(answer.is_valid());
-  // Perform the smi check.
-  if (left->reg().is(right->reg())) {
-    __ test(left->reg(), Immediate(kSmiTagMask));
-  } else {
-    __ mov(answer.reg(), left->reg());
-    __ or_(answer.reg(), Operand(right->reg()));
-    ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-    __ test(answer.reg(), Immediate(kSmiTagMask));
-  }
-  enter()->Branch(not_zero, left, right, not_taken);
-
-  // All operations start by copying the left argument into answer.
-  __ mov(answer.reg(), left->reg());
-  switch (op_) {
-    case Token::ADD:
-      __ add(answer.reg(), Operand(right->reg()));  // add optimistically
-      enter()->Branch(overflow, left, right, not_taken);
-      break;
-
-    case Token::SUB:
-      __ sub(answer.reg(), Operand(right->reg()));  // subtract optimistically
-      enter()->Branch(overflow, left, right, not_taken);
-      break;
-
-    case Token::MUL: {
-      // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below if not the case
-      // Remove tag from the left operand (but keep sign).
-      // Left hand operand has been copied into answer.
-      __ sar(answer.reg(), kSmiTagSize);
-      // Do multiplication of smis, leaving result in answer.
-      __ imul(answer.reg(), Operand(right->reg()));
-      // Go slow on overflows.
-      enter()->Branch(overflow, left, right, not_taken);
-      // Check for negative zero result.  If product is zero,
-      // and one argument is negative, go to slow case.
-      // The frame is unchanged in this block, so local control flow can
-      // use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(answer.reg(), Operand(answer.reg()));
-      __ j(not_zero, &non_zero_result, taken);
-      __ mov(answer.reg(), left->reg());
-      __ or_(answer.reg(), Operand(right->reg()));
-      enter()->Branch(negative, left, right, not_taken);
-      __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
-      __ bind(&non_zero_result);
-      break;
-    }
-
-    case Token::DIV:  // Fall through.
-    case Token::MOD: {
-      // Div and mod use the registers eax and edx.  Left and right must
-      // be preserved, because the original operands are needed if we switch
-      // to the slow case.  Move them if either is in eax or edx.
-      // The Result answer should be changed into an alias for eax.
-      // Precondition:
-      // The Results left and right are valid.  They may be the same register,
-      // and may be unspilled.  The Result answer is valid and is distinct
-      // from left and right, and is spilled.
-      // The value in left is copied to answer.
-
-      Result reg_eax = generator()->allocator()->Allocate(eax);
-      Result reg_edx = generator()->allocator()->Allocate(edx);
-      // These allocations may have failed, if one of left, right, or answer
-      // is in register eax or edx.
-      bool left_copied_to_eax = false;  // We will make sure this becomes true.
-
-      // Part 1: Get eax
-      if (answer.reg().is(eax)) {
-        reg_eax = answer;
-        left_copied_to_eax = true;
-      } else if (right->reg().is(eax) || left->reg().is(eax)) {
-        // We need a non-edx register to move one or both of left and right to.
-        // We use answer if it is not edx, otherwise we allocate one.
-        if (answer.reg().is(edx)) {
-          reg_edx = answer;
-          answer = generator()->allocator()->Allocate();
-          ASSERT(answer.is_valid());
-        }
-
-        if (left->reg().is(eax)) {
-          reg_eax = *left;
-          left_copied_to_eax = true;
-          *left = answer;
-        }
-        if (right->reg().is(eax)) {
-          reg_eax = *right;
-          *right = answer;
-        }
-        __ mov(answer.reg(), eax);
-      }
-      // End of Part 1.
-      // reg_eax is valid, and neither left nor right is in eax.
-      ASSERT(reg_eax.is_valid());
-      ASSERT(!left->reg().is(eax));
-      ASSERT(!right->reg().is(eax));
-
-      // Part 2: Get edx
-      // reg_edx is invalid if and only if either left, right,
-      // or answer is in edx.  If edx is valid, then either edx
-      // was free, or it was answer, but answer was reallocated.
-      if (answer.reg().is(edx)) {
-        reg_edx = answer;
-      } else if (right->reg().is(edx) || left->reg().is(edx)) {
-        // Is answer used?
-        if (answer.reg().is(eax) || answer.reg().is(left->reg()) ||
-            answer.reg().is(right->reg())) {
-          answer = generator()->allocator()->Allocate();
-          ASSERT(answer.is_valid());  // We cannot hit both Allocate() calls.
-        }
-        if (left->reg().is(edx)) {
-          reg_edx = *left;
-          *left = answer;
-        }
-        if (right->reg().is(edx)) {
-          reg_edx = *right;
-          *right = answer;
-        }
-        __ mov(answer.reg(), edx);
-      }
-      // End of Part 2
-      ASSERT(reg_edx.is_valid());
-      ASSERT(!left->reg().is(eax));
-      ASSERT(!right->reg().is(eax));
-
-      answer = reg_eax;  // May free answer, if it was never used.
-      generator()->frame()->Spill(eax);
-      if (!left_copied_to_eax) {
-        __ mov(eax, left->reg());
-        left_copied_to_eax = true;
-      }
-      generator()->frame()->Spill(edx);
-
-      // Postcondition:
-      // reg_eax, reg_edx are valid, correct, and spilled.
-      // reg_eax contains the value originally in left
-      // left and right are not eax or edx.  They may or may not be
-      // spilled or distinct.
-      // answer is an alias for reg_eax.
-
-      // Sign extend eax into edx:eax.
-      __ cdq();
-      // Check for 0 divisor.
-      __ test(right->reg(), Operand(right->reg()));
-      enter()->Branch(zero, left, right, not_taken);
-      // Divide edx:eax by the right operand.
-      __ idiv(right->reg());
-      if (op_ == Token::DIV) {
-        // Check for negative zero result.  If result is zero, and divisor
-        // is negative, return a floating point negative zero.
-        // The frame is unchanged in this block, so local control flow can
-        // use a Label rather than a JumpTarget.
-        Label non_zero_result;
-        __ test(left->reg(), Operand(left->reg()));
-        __ j(not_zero, &non_zero_result, taken);
-        __ test(right->reg(), Operand(right->reg()));
-        enter()->Branch(negative, left, right, not_taken);
-        __ bind(&non_zero_result);
-        // Check for the corner case of dividing the most negative smi
-        // by -1. We cannot use the overflow flag, since it is not set
-        // by idiv instruction.
-        ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-        __ cmp(eax, 0x40000000);
-        enter()->Branch(equal, left, right, not_taken);
-        // Check that the remainder is zero.
-        __ test(edx, Operand(edx));
-        enter()->Branch(not_zero, left, right, not_taken);
-        // Tag the result and store it in register temp.
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(answer.reg(), Operand(eax, eax, times_1, kSmiTag));
-      } else {
-        ASSERT(op_ == Token::MOD);
-        // Check for a negative zero result.  If the result is zero, and the
-        // dividend is negative, return a floating point negative zero.
-        // The frame is unchanged in this block, so local control flow can
-        // use a Label rather than a JumpTarget.
-        Label non_zero_result;
-        __ test(edx, Operand(edx));
-        __ j(not_zero, &non_zero_result, taken);
-        __ test(left->reg(), Operand(left->reg()));
-        enter()->Branch(negative, left, right, not_taken);
-        __ bind(&non_zero_result);
-        // The answer is in edx.
-        answer = reg_edx;
-      }
-      break;
-    }
-    case Token::BIT_OR:
-      __ or_(answer.reg(), Operand(right->reg()));
-      break;
-
-    case Token::BIT_AND:
-      __ and_(answer.reg(), Operand(right->reg()));
-      break;
-
-    case Token::BIT_XOR:
-      __ xor_(answer.reg(), Operand(right->reg()));
-      break;
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      // Move right into ecx.
-      // Left is in two registers already, so even if left or answer is ecx,
-      // we can move right to it, and use the other one.
-      // Right operand must be in register cl because x86 likes it that way.
-      if (right->reg().is(ecx)) {
-        // Right is already in the right place.  Left may be in the
-        // same register, which causes problems. Always use answer
-        // instead of left, even if left is not ecx, since this avoids
-        // spilling left.
-        *left = answer;
-      } else if (left->reg().is(ecx)) {
-        generator()->frame()->Spill(left->reg());
-        __ mov(left->reg(), right->reg());
-        *right = *left;
-        *left = answer;  // Use copy of left in answer as left.
-      } else if (answer.reg().is(ecx)) {
-        __ mov(answer.reg(), right->reg());
-        *right = answer;
-      } else {
-        Result reg_ecx = generator()->allocator()->Allocate(ecx);
-        ASSERT(reg_ecx.is_valid());
-        __ mov(ecx, right->reg());
-        *right = reg_ecx;
-        // Answer and left both contain the left operand.  Use answer, so
-        // left is not spilled.
-        *left = answer;
-      }
-      ASSERT(left->reg().is_valid());
-      ASSERT(!left->reg().is(ecx));
-      ASSERT(right->reg().is(ecx));
-      answer.Unuse();  // Answer may now be being used for left or right.
-      // We will modify left and right, which we do not do in any other
-      // binary operation.  The exits to slow code need to restore the
-      // original values of left and right, or at least values that give
-      // the same answer.
-
-      // We are modifying left and right.  They must be spilled!
-      generator()->frame()->Spill(left->reg());
-      generator()->frame()->Spill(right->reg());
-
-      // Remove tags from operands (but keep sign).
-      __ sar(left->reg(), kSmiTagSize);
-      __ sar(ecx, kSmiTagSize);
-      // Perform the operation.
-      switch (op_) {
-        case Token::SAR:
-          __ sar(left->reg());
-          // No checks of result necessary
-          break;
-        case Token::SHR: {
-          __ shr(left->reg());
-          // Check that the *unsigned* result fits in a smi.
-          // Neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging.
-          // - 0x40000000: this number would convert to negative when
-          // Smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi.
-          // If the answer cannot be represented by a SMI, restore
-          // the left and right arguments, and jump to slow case.
-          // The low bit of the left argument may be lost, but only
-          // in a case where it is dropped anyway.
-          JumpTarget result_ok(generator());
-          __ test(left->reg(), Immediate(0xc0000000));
-          result_ok.Branch(zero, left, taken);
-          __ shl(left->reg());
-          ASSERT(kSmiTag == 0);
-          __ shl(left->reg(), kSmiTagSize);
-          __ shl(right->reg(), kSmiTagSize);
-          enter()->Jump(left, right);
-          result_ok.Bind(left);
-          break;
-        }
-        case Token::SHL: {
-          __ shl(left->reg());
-          // Check that the *signed* result fits in a smi.
-          JumpTarget result_ok(generator());
-          __ cmp(left->reg(), 0xc0000000);
-          result_ok.Branch(positive, left, taken);
-
-          __ shr(left->reg());
-          ASSERT(kSmiTag == 0);
-          __ shl(left->reg(), kSmiTagSize);
-          __ shl(right->reg(), kSmiTagSize);
-          enter()->Jump(left, right);
-          result_ok.Bind(left);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
-      // Smi-tag the result, in left, and make answer an alias for left->
-      answer = *left;
-      answer.ToRegister();
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(answer.reg(),
-             Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
-      break;
-
-    default:
-      UNREACHABLE();
-      break;
-  }
-  left->Unuse();
-  right->Unuse();
-  return answer;
-}
-
-
-#undef __
-#define __ ACCESS_MASM(masm)
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (eax <op> ebx) and
@@ -7101,6 +7160,9 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Label not_outermost_js, not_outermost_js_2;
+#endif
 
   // Setup frame.
   __ push(ebp);
@@ -7118,6 +7180,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
   __ push(Operand::StaticVariable(c_entry_fp));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ j(NegateCondition(equal), &not_outermost_js);
+  __ mov(Operand::StaticVariable(js_entry_sp), ebp);
+  __ bind(&not_outermost_js);
+#endif
 
   // Call a faked try-block that does the invoke.
   __ call(&invoke);
@@ -7162,6 +7233,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Pop next_sp.
   __ add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current EBP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+  __ cmp(ebp, Operand::StaticVariable(js_entry_sp));
+  __ j(NegateCondition(equal), &not_outermost_js_2);
+  __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ bind(&not_outermost_js_2);
+#endif
+
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
   __ pop(Operand::StaticVariable(ExternalReference(Top::k_c_entry_fp_address)));
@@ -7186,7 +7266,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
 
   // Check that the left hand is a JS object.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // ebx - object map
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // eax - object map
   __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(less, &slow, not_taken);
@@ -7198,6 +7278,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
 
   // Check that the function prototype is a JS object.
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &slow, not_taken);
   __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);

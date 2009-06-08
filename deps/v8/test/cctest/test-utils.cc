@@ -152,6 +152,13 @@ TEST(Utils1) {
   CHECK_EQ(0, FastD2I(0.345));
   CHECK_EQ(1, FastD2I(1.234));
   CHECK_EQ(1000000, FastD2I(1000000.123));
+  // Check that >> is implemented as arithmetic shift right.
+  // If this is not true, then ArithmeticShiftRight() must be changed,
+  // There are also documented right shifts in assembler.cc of
+  // int8_t and intptr_t signed integers.
+  CHECK_EQ(-2, -8 >> 2);
+  CHECK_EQ(-2, static_cast<int8_t>(-8) >> 2);
+  CHECK_EQ(-2, static_cast<intptr_t>(-8) >> 2);
 }
 
 

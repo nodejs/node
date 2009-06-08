@@ -42,8 +42,9 @@ MirrorRefCache.prototype.lookup = function(handle) {
 
 var mirror = new debug.UnresolvedFunctionMirror("f");
 var serializer = debug.MakeMirrorSerializer();
-var json = serializer.serializeValue(mirror);
-var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+var json = JSON.stringify(serializer.serializeValue(mirror));
+var refs = new MirrorRefCache(
+    JSON.stringify(serializer.serializeReferencedObjects()));
 
 // Check the mirror hierachy for unresolved functions.
 assertTrue(mirror instanceof debug.Mirror);

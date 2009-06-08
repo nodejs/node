@@ -31,7 +31,8 @@
 #include "log.h"
 #include "v8-counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 int Heap::MaxHeapObjectSize() {
   return Page::kMaxHeapObjectSize;
@@ -145,7 +146,9 @@ void Heap::RecordWrite(Address address, int offset) {
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
+#ifndef V8_HOST_ARCH_64_BIT
   Page::SetRSet(address, offset);
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
@@ -188,6 +191,27 @@ void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
       *dst++ = *src++;
     } while (remaining > 0);
   }
+}
+
+
+void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
+  ASSERT(InFromSpace(object));
+
+  // We use the first word (where the map pointer usually is) of a heap
+  // object to record the forwarding pointer.  A forwarding pointer can
+  // point to an old space, the code space, or the to space of the new
+  // generation.
+  MapWord first_word = object->map_word();
+
+  // If the first word is a forwarding address, the object has already been
+  // copied.
+  if (first_word.IsForwardingAddress()) {
+    *p = first_word.ToForwardingAddress();
+    return;
+  }
+
+  // Call the slow part of scavenge object.
+  return ScavengeObjectSlow(p, object);
 }
 
 

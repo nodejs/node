@@ -451,7 +451,7 @@ void Shell::Initialize() {
   i::Handle<i::JSFunction> script_fun = Utils::OpenHandle(*script);
   i::Handle<i::Script> script_object =
       i::Handle<i::Script>(i::Script::cast(script_fun->shared()->script()));
-  script_object->set_type(i::Smi::FromInt(i::SCRIPT_TYPE_NATIVE));
+  script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
 
   // Create the evaluation context
   evaluation_context_ = Context::New(NULL, global_template);
@@ -487,7 +487,7 @@ void Shell::OnExit() {
 }
 
 
-static char* ReadChars(const char *name, int* size_out) {
+static char* ReadChars(const char* name, int* size_out) {
   v8::Unlocker unlocker;  // Release the V8 lock while reading files.
   FILE* file = i::OS::FOpen(name, "rb");
   if (file == NULL) return NULL;
@@ -659,7 +659,7 @@ int Shell::Main(int argc, char* argv[]) {
         use_preemption = false;
       } else if (strcmp(str, "--preemption-interval") == 0) {
         if (i + 1 < argc) {
-          char *end = NULL;
+          char* end = NULL;
           preemption_interval = strtol(argv[++i], &end, 10);  // NOLINT
           if (preemption_interval <= 0 || *end != '\0' || errno == ERANGE) {
             printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
@@ -687,9 +687,9 @@ int Shell::Main(int argc, char* argv[]) {
         i++;
       } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
         int size = 0;
-        const char *files = ReadChars(argv[++i], &size);
+        const char* files = ReadChars(argv[++i], &size);
         if (files == NULL) return 1;
-        ShellThread *thread =
+        ShellThread* thread =
             new ShellThread(threads.length(),
                             i::Vector<const char>(files, size));
         thread->Start();
@@ -736,7 +736,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (run_shell)
     RunShell();
   for (int i = 0; i < threads.length(); i++) {
-    i::Thread *thread = threads[i];
+    i::Thread* thread = threads[i];
     thread->Join();
     delete thread;
   }

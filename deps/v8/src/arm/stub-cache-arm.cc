@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,8 @@
 #include "codegen-inl.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
@@ -61,7 +62,7 @@ static void ProbeTable(MacroAssembler* masm,
 
   // Check that the flags match what we're looking for.
   __ ldr(offset, FieldMemOperand(offset, Code::kFlagsOffset));
-  __ and_(offset, offset, Operand(~Code::kFlagsTypeMask));
+  __ and_(offset, offset, Operand(~Code::kFlagsNotUsedInLookup));
   __ cmp(offset, Operand(flags));
   __ b(ne, &miss);
 
@@ -245,6 +246,7 @@ void StubCompiler::GenerateLoadCallback(MacroAssembler* masm,
 void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
                                            JSObject* object,
                                            JSObject* holder,
+                                           Smi* lookup_hint,
                                            Register receiver,
                                            Register name,
                                            Register scratch1,
@@ -262,11 +264,13 @@ void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ push(name);  // name
+  __ mov(scratch1, Operand(lookup_hint));
+  __ push(scratch1);
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 3);
+  __ TailCallRuntime(load_ic_property, 4);
 }
 
 
@@ -494,7 +498,9 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
                                            int index,
-                                           String* name) {
+                                           String* name,
+                                           Code::Flags flags) {
+  ASSERT_EQ(FIELD, Code::ExtractTypeFromFlags(flags));
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
@@ -538,14 +544,16 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(FIELD, name);
+  return GetCodeWithFlags(flags, name);
 }
 
 
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
-                                              CheckType check) {
+                                              CheckType check,
+                                              Code::Flags flags) {
+  ASSERT_EQ(CONSTANT_FUNCTION, Code::ExtractTypeFromFlags(flags));
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
@@ -663,7 +671,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (function->shared()->name()->IsString()) {
     function_name = String::cast(function->shared()->name());
   }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCodeWithFlags(flags, function_name);
 }
 
 
@@ -904,7 +912,15 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  GenerateLoadInterceptor(masm(), object, holder, r0, r2, r3, r1, &miss);
+  GenerateLoadInterceptor(masm(),
+                          object,
+                          holder,
+                          holder->InterceptorPropertyLookupHint(name),
+                          r0,
+                          r2,
+                          r3,
+                          r1,
+                          &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1010,7 +1026,15 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  GenerateLoadInterceptor(masm(), receiver, holder, r0, r2, r3, r1, &miss);
+  GenerateLoadInterceptor(masm(),
+                          receiver,
+                          holder,
+                          Smi::FromInt(JSObject::kLookupInHolder),
+                          r0,
+                          r2,
+                          r3,
+                          r1,
+                          &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 

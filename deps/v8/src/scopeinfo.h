@@ -30,7 +30,8 @@
 
 #include "variables.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Scope information represents information about a functions's
 // scopes (currently only one, because we don't do any inlining)
@@ -149,6 +150,18 @@ class ScopeInfo BASE_EMBEDDED {
   List<Handle<String>, Allocator > context_slots_;
   List<Variable::Mode, Allocator > context_modes_;
 };
+
+class ZoneScopeInfo: public ScopeInfo<ZoneListAllocationPolicy> {
+ public:
+  // Create a ZoneScopeInfo instance from a scope.
+  explicit ZoneScopeInfo(Scope* scope)
+      : ScopeInfo<ZoneListAllocationPolicy>(scope) {}
+
+  // Create a ZoneScopeInfo instance from a Code object.
+  explicit ZoneScopeInfo(Code* code)
+      :  ScopeInfo<ZoneListAllocationPolicy>(code) {}
+};
+
 
 } }  // namespace v8::internal
 

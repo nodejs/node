@@ -28,7 +28,8 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class RegExpMacroAssembler;
@@ -1309,7 +1310,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 class Analysis: public NodeVisitor {
  public:
   explicit Analysis(bool ignore_case)
-      : ignore_case_(ignore_case) { }
+      : ignore_case_(ignore_case), error_message_(NULL) { }
   void EnsureAnalyzed(RegExpNode* node);
 
 #define DECLARE_VISIT(Type)                                          \
@@ -1318,8 +1319,17 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
   virtual void VisitLoopChoice(LoopChoiceNode* that);
 
+  bool has_failed() { return error_message_ != NULL; }
+  const char* error_message() {
+    ASSERT(error_message_ != NULL);
+    return error_message_;
+  }
+  void fail(const char* error_message) {
+    error_message_ = error_message;
+  }
  private:
   bool ignore_case_;
+  const char* error_message_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };

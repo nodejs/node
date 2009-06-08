@@ -2,7 +2,7 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
-# 
+#
 #     * Redistributions of source code must retain the above copyright
 #       notice, this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above
@@ -12,7 +12,7 @@
 #     * Neither the name of Google Inc. nor the names of its
 #       contributors may be used to endorse or promote products derived
 #       from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,6 +29,7 @@
   'variables': {
     'chromium_code': 1,
     'msvs_use_common_release': 0,
+    'gcc_version%': 'unknown',
     'base_source_files': [
       '../../src/arm/assembler-arm-inl.h',
       '../../src/arm/assembler-arm.cc',
@@ -135,6 +136,7 @@
       '../../src/frames-inl.h',
       '../../src/frames.cc',
       '../../src/frames.h',
+      '../../src/frame-element.h',
       '../../src/func-name-inferrer.cc',
       '../../src/func-name-inferrer.h',
       '../../src/global-handles.cc',
@@ -155,6 +157,7 @@
       '../../src/interpreter-irregexp.h',
       '../../src/jump-target.cc',
       '../../src/jump-target.h',
+      '../../src/jump-target-inl.h',
       '../../src/jsregexp-inl.h',
       '../../src/jsregexp.cc',
       '../../src/jsregexp.h',
@@ -162,6 +165,8 @@
       '../../src/list.h',
       '../../src/log.cc',
       '../../src/log.h',
+      '../../src/log-utils.cc',
+      '../../src/log-utils.h',
       '../../src/macro-assembler.h',
       '../../src/mark-compact.cc',
       '../../src/mark-compact.h',
@@ -296,6 +301,16 @@
             'cflags': [
               '-fomit-frame-pointer',
               '-O3',
+            ],
+            'conditions': [
+              [ 'gcc_version=="44"', {
+                'cflags': [
+                    # Avoid gcc 4.4 strict aliasing issues in dtoa.c
+                    '-fno-strict-aliasing',
+                    # Avoid crashes with gcc 4.4 in the v8 test suite.
+                    '-fno-tree-vrp',
+                ],
+              }],
             ],
             'cflags_cc': [
               '-fno-rtti',

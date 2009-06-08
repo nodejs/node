@@ -28,47 +28,53 @@
 #ifndef V8_FUNC_NAME_INFERRER_H_
 #define V8_FUNC_NAME_INFERRER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
 // Inference is performed in cases when an anonymous function is assigned
 // to a variable or a property (see test-func-name-inference.cc for examples.)
-
+//
 // The basic idea is that during AST traversal LHSs of expressions are
 // always visited before RHSs. Thus, during visiting the LHS, a name can be
 // collected, and during visiting the RHS, a function literal can be collected.
 // Inference is performed while leaving the assignment node.
-
 class FuncNameInferrer BASE_EMBEDDED {
  public:
-  FuncNameInferrer() :
-      entries_stack_(10),
-      names_stack_(5),
-      funcs_to_infer_(4),
-      dot_(Factory::NewStringFromAscii(CStrVector("."))) {
+  FuncNameInferrer()
+      : entries_stack_(10),
+        names_stack_(5),
+        funcs_to_infer_(4),
+        dot_(Factory::NewStringFromAscii(CStrVector("."))) {
   }
 
+  // Returns whether we have entered name collection state.
   bool IsOpen() const { return !entries_stack_.is_empty(); }
 
+  // Pushes an enclosing the name of enclosing function onto names stack.
   void PushEnclosingName(Handle<String> name);
 
+  // Enters name collection state.
   void Enter() {
     entries_stack_.Add(names_stack_.length());
   }
 
+  // Pushes an encountered name onto names stack when in collection state.
   void PushName(Handle<String> name) {
     if (IsOpen()) {
       names_stack_.Add(name);
     }
   }
 
+  // Adds a function to infer name for.
   void AddFunction(FunctionLiteral* func_to_infer) {
     if (IsOpen()) {
       funcs_to_infer_.Add(func_to_infer);
     }
   }
 
+  // Infers a function name and leaves names collection state.
   void InferAndLeave() {
     ASSERT(IsOpen());
     if (!funcs_to_infer_.is_empty()) {
@@ -78,13 +84,18 @@ class FuncNameInferrer BASE_EMBEDDED {
   }
 
  private:
+  // Constructs a full name in dotted notation from gathered names.
   Handle<String> MakeNameFromStack();
+
+  // A helper function for MakeNameFromStack.
   Handle<String> MakeNameFromStackHelper(int pos, Handle<String> prev);
+
+  // Performs name inferring for added functions.
   void InferFunctionsNames();
 
-  List<int> entries_stack_;
-  List<Handle<String> > names_stack_;
-  List<FunctionLiteral*> funcs_to_infer_;
+  ZoneList<int> entries_stack_;
+  ZoneList<Handle<String> > names_stack_;
+  ZoneList<FunctionLiteral*> funcs_to_infer_;
   Handle<String> dot_;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
@@ -95,15 +106,17 @@ class FuncNameInferrer BASE_EMBEDDED {
 // leaving scope.
 class ScopedFuncNameInferrer BASE_EMBEDDED {
  public:
-  explicit ScopedFuncNameInferrer(FuncNameInferrer* inferrer) :
-      inferrer_(inferrer),
-      is_entered_(false) {}
+  explicit ScopedFuncNameInferrer(FuncNameInferrer* inferrer)
+      : inferrer_(inferrer),
+        is_entered_(false) {}
+
   ~ScopedFuncNameInferrer() {
     if (is_entered_) {
       inferrer_->InferAndLeave();
     }
   }
 
+  // Triggers the wrapped inferrer into name collection state.
   void Enter() {
     inferrer_->Enter();
     is_entered_ = true;

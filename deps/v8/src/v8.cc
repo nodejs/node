@@ -33,16 +33,23 @@
 #include "stub-cache.h"
 #include "oprofile-agent.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
+bool V8::is_running_ = false;
 bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
+bool V8::has_fatal_error_ = false;
 
 bool V8::Initialize(Deserializer *des) {
   bool create_heap_objects = des == NULL;
-  if (HasBeenDisposed()) return false;
-  if (HasBeenSetup()) return true;
+  if (has_been_disposed_ || has_fatal_error_) return false;
+  if (IsRunning()) return true;
+
+  is_running_ = true;
   has_been_setup_ = true;
+  has_fatal_error_ = false;
+  has_been_disposed_ = false;
 #ifdef DEBUG
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure;
@@ -58,7 +65,7 @@ bool V8::Initialize(Deserializer *des) {
   // Setup the object heap
   ASSERT(!Heap::HasBeenSetup());
   if (!Heap::Setup(create_heap_objects)) {
-    has_been_setup_ = false;
+    SetFatalError();
     return false;
   }
 
@@ -94,9 +101,14 @@ bool V8::Initialize(Deserializer *des) {
 }
 
 
+void V8::SetFatalError() {
+  is_running_ = false;
+  has_fatal_error_ = true;
+}
+
+
 void V8::TearDown() {
-  if (HasBeenDisposed()) return;
-  if (!HasBeenSetup()) return;
+  if (!has_been_setup_ || has_been_disposed_) return;
 
   OProfileAgent::TearDown();
 
@@ -113,8 +125,9 @@ void V8::TearDown() {
   Heap::TearDown();
   Logger::TearDown();
 
-  has_been_setup_ = false;
+  is_running_ = false;
   has_been_disposed_ = true;
 }
+
 
 } }  // namespace v8::internal

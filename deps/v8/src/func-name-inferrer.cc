@@ -30,7 +30,8 @@
 #include "ast.h"
 #include "func-name-inferrer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 void FuncNameInferrer::PushEnclosingName(Handle<String> name) {

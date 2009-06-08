@@ -30,7 +30,8 @@
 #include "api.h"
 #include "global-handles.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class GlobalHandles::Node : public Malloced {
  public:

@@ -38,7 +38,8 @@
 #include "arm/frames-arm.h"
 #endif
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 inline Address StackHandler::address() const {

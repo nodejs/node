@@ -29,7 +29,8 @@
 
 #include "dateparser.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 bool DateParser::DayComposer::Write(FixedArray* output) {
   int year = 0;  // Default year is 0 (=> 2000) for KJS compatibility.

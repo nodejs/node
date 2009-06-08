@@ -25,3 +25,64 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+#include "disasm.h"
+
+namespace disasm {
+
+Disassembler::Disassembler(NameConverter const& converter)
+    : converter_(converter) {
+  UNIMPLEMENTED();
+}
+
+
+Disassembler::~Disassembler() {
+  UNIMPLEMENTED();
+}
+
+
+const char* NameConverter::NameOfAddress(unsigned char* addr) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameOfCPURegister(int reg) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+int Disassembler::ConstantPoolSizeAt(unsigned char* addr) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+                                    unsigned char* instruction) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+const char* NameConverter::NameOfByteCPURegister(int a) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+const char* NameConverter::NameOfXMMRegister(int a) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+const char* NameConverter::NameOfConstant(unsigned char* a) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+const char* NameConverter::NameInCode(unsigned char* a) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+}  // namespace disasm

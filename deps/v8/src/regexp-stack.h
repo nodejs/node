@@ -28,7 +28,8 @@
 #ifndef V8_REGEXP_STACK_H_
 #define V8_REGEXP_STACK_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Maintains a per-v8thread stack area that can be used by irregexp
 // implementation for its backtracking stack.

@@ -55,7 +55,8 @@
 #include "platform.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // 0 is never a valid thread id on FreeBSD since tids and pids share a
 // name space and pid 0 is used to kill the group (see man 2 kill).

@@ -32,14 +32,17 @@
 #include "cctest.h"
 
 
+using ::v8::internal::CStrVector;
+using ::v8::internal::Factory;
 using ::v8::internal::Handle;
+using ::v8::internal::Heap;
 using ::v8::internal::JSFunction;
 using ::v8::internal::Object;
+using ::v8::internal::Runtime;
 using ::v8::internal::Script;
+using ::v8::internal::SmartPointer;
 using ::v8::internal::SharedFunctionInfo;
 using ::v8::internal::String;
-
-namespace i = ::v8::internal;
 
 
 static v8::Persistent<v8::Context> env;
@@ -66,19 +69,19 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
   // Find the position of a given func source substring in the source.
   Handle<String> func_pos_str =
-      i::Factory::NewStringFromAscii(i::CStrVector(func_pos_src));
-  int func_pos = i::Runtime::StringMatch(script_src, func_pos_str, 0);
+      Factory::NewStringFromAscii(CStrVector(func_pos_src));
+  int func_pos = Runtime::StringMatch(script_src, func_pos_str, 0);
   CHECK_NE(0, func_pos);
 
   // Obtain SharedFunctionInfo for the function.
   Object* shared_func_info_ptr =
-      i::Runtime::FindSharedFunctionInfoInScript(i_script, func_pos);
-  CHECK(shared_func_info_ptr != i::Heap::undefined_value());
+      Runtime::FindSharedFunctionInfoInScript(i_script, func_pos);
+  CHECK(shared_func_info_ptr != Heap::undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));
 
   // Verify inferred function name.
-  i::SmartPointer<char> inferred_name =
+  SmartPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
   CHECK_EQ(ref_inferred_name, *inferred_name);
 }

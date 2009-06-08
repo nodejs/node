@@ -34,7 +34,8 @@
 #include "top.h"
 #include "zone-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 template <class C>
@@ -288,6 +289,24 @@ const AccessorDescriptor Accessors::ScriptType = {
 
 
 //
+// Accessors::ScriptCompilationType
+//
+
+
+Object* Accessors::ScriptGetCompilationType(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->compilation_type();
+}
+
+
+const AccessorDescriptor Accessors::ScriptCompilationType = {
+  ScriptGetCompilationType,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::ScriptGetLineEnds
 //
 
@@ -313,14 +332,61 @@ const AccessorDescriptor Accessors::ScriptLineEnds = {
 
 
 Object* Accessors::ScriptGetContextData(Object* object, void*) {
-  HandleScope scope;
-  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
-  return script->context_data();
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->context_data();
 }
 
 
 const AccessorDescriptor Accessors::ScriptContextData = {
   ScriptGetContextData,
+  IllegalSetter,
+  0
+};
+
+
+//
+// Accessors::ScriptGetEvalFromFunction
+//
+
+
+Object* Accessors::ScriptGetEvalFromFunction(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->eval_from_function();
+}
+
+
+const AccessorDescriptor Accessors::ScriptEvalFromFunction = {
+  ScriptGetEvalFromFunction,
+  IllegalSetter,
+  0
+};
+
+
+//
+// Accessors::ScriptGetEvalFromPosition
+//
+
+
+Object* Accessors::ScriptGetEvalFromPosition(Object* object, void*) {
+  HandleScope scope;
+  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+
+  // If this is not a script compiled through eval there is no eval position.
+  int compilation_type = Smi::cast(script->compilation_type())->value();
+  if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
+    return Heap::undefined_value();
+  }
+
+  // Get the function from where eval was called and find the source position
+  // from the instruction offset.
+  Handle<Code> code(JSFunction::cast(script->eval_from_function())->code());
+  return Smi::FromInt(code->SourcePosition(code->instruction_start() +
+                      script->eval_from_instructions_offset()->value()));
+}
+
+
+const AccessorDescriptor Accessors::ScriptEvalFromPosition = {
+  ScriptGetEvalFromPosition,
   IllegalSetter,
   0
 };

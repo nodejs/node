@@ -52,7 +52,6 @@
 //   CodeGenerator
 //   ~CodeGenerator
 //   ProcessDeferred
-//   ClearDeferred
 //   GenCode
 //   BuildBoilerplate
 //   ComputeCallInitialize
@@ -86,14 +85,34 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 #include "arm/codegen-arm.h"
 #endif
 
-namespace v8 { namespace internal {
+#include "register-allocator.h"
+
+namespace v8 {
+namespace internal {
 
 
-// Use lazy compilation; defaults to true.
-// NOTE: Do not remove non-lazy compilation until we can properly
-//       install extensions with lazy compilation enabled. At the
-//       moment, this doesn't work for the extensions in Google3,
-//       and we can only run the tests with --nolazy.
+// Code generation can be nested.  Code generation scopes form a stack
+// of active code generators.
+class CodeGeneratorScope BASE_EMBEDDED {
+ public:
+  explicit CodeGeneratorScope(CodeGenerator* cgen) {
+    previous_ = top_;
+    top_ = cgen;
+  }
+
+  ~CodeGeneratorScope() {
+    top_ = previous_;
+  }
+
+  static CodeGenerator* Current() {
+    ASSERT(top_ != NULL);
+    return top_;
+  }
+
+ private:
+  static CodeGenerator* top_;
+  CodeGenerator* previous_;
+};
 
 
 // Deferred code objects are small pieces of code that are compiled
@@ -101,52 +120,56 @@ namespace v8 { namespace internal {
 // paths thereby avoiding expensive jumps around uncommon code parts.
 class DeferredCode: public ZoneObject {
  public:
-  explicit DeferredCode(CodeGenerator* generator);
+  DeferredCode();
   virtual ~DeferredCode() { }
 
   virtual void Generate() = 0;
 
-  // Unuse the entry and exit targets, deallocating all virtual frames
-  // held by them.  It will be impossible to emit a (correct) jump
-  // into or out of the deferred code after clearing.
-  void Clear() {
-    enter_.Unuse();
-    exit_.Unuse();
-  }
-
-  MacroAssembler* masm() const { return masm_; }
-  CodeGenerator* generator() const { return generator_; }
-
-  JumpTarget* enter() { return &enter_; }
-  void BindExit() { exit_.Bind(0); }
-  void BindExit(Result* result) { exit_.Bind(result, 1); }
-  void BindExit(Result* result0, Result* result1) {
-    exit_.Bind(result0, result1, 2);
-  }
-  void BindExit(Result* result0, Result* result1, Result* result2) {
-    exit_.Bind(result0, result1, result2, 3);
-  }
+  MacroAssembler* masm() { return masm_; }
 
   int statement_position() const { return statement_position_; }
   int position() const { return position_; }
+
+  Label* entry_label() { return &entry_label_; }
+  Label* exit_label() { return &exit_label_; }
 
 #ifdef DEBUG
   void set_comment(const char* comment) { comment_ = comment; }
   const char* comment() const { return comment_; }
 #else
-  inline void set_comment(const char* comment) { }
+  void set_comment(const char* comment) { }
   const char* comment() const { return ""; }
 #endif
 
+  inline void Jump();
+  inline void Branch(Condition cc);
+  void BindExit() { masm_->bind(&exit_label_); }
+
+  void SaveRegisters();
+  void RestoreRegisters();
+
  protected:
-  CodeGenerator* const generator_;
-  MacroAssembler* const masm_;
-  JumpTarget enter_;
-  JumpTarget exit_;
+  MacroAssembler* masm_;
 
  private:
+  // Constants indicating special actions.  They should not be multiples
+  // of kPointerSize so they will not collide with valid offsets from
+  // the frame pointer.
+  static const int kIgnore = -1;
+  static const int kPush = 1;
+
+  // This flag is ored with a valid offset from the frame pointer, so
+  // it should fit in the low zero bits of a valid offset.
+  static const int kSyncedFlag = 2;
+
   int statement_position_;
   int position_;
+
+  Label entry_label_;
+  Label exit_label_;
+
+  int registers_[RegisterAllocator::kNumRegisters];
+
 #ifdef DEBUG
   const char* comment_;
 #endif

@@ -30,18 +30,62 @@
 #include "api.h"
 #include "ast.h"
 #include "bootstrapper.h"
+#include "compiler.h"
 #include "platform.h"
 #include "runtime.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class ParserFactory;
 class ParserLog;
 class TemporaryScope;
+class Target;
+
 template <typename T> class ZoneListWrapper;
+
+
+// PositionStack is used for on-stack allocation of token positions for
+// new expressions. Please look at ParseNewExpression.
+
+class PositionStack  {
+ public:
+  explicit PositionStack(bool* ok) : top_(NULL), ok_(ok) {}
+  ~PositionStack() { ASSERT(!*ok_ || is_empty()); }
+
+  class Element  {
+   public:
+    Element(PositionStack* stack, int value) {
+      previous_ = stack->top();
+      value_ = value;
+      stack->set_top(this);
+    }
+
+   private:
+    Element* previous() { return previous_; }
+    int value() { return value_; }
+    friend class PositionStack;
+    Element* previous_;
+    int value_;
+  };
+
+  bool is_empty() { return top_ == NULL; }
+  int pop() {
+    ASSERT(!is_empty());
+    int result = top_->value();
+    top_ = top_->previous();
+    return result;
+  }
+
+ private:
+  Element* top() { return top_; }
+  void set_top(Element* value) { top_ = value; }
+  Element* top_;
+  bool* ok_;
+};
 
 
 class Parser {
@@ -92,7 +136,8 @@ class Parser {
 
   TemporaryScope* temp_scope_;
   Mode mode_;
-  List<Node*>* target_stack_;  // for break, continue statements
+
+  Target* target_stack_;  // for break, continue statements
   bool allow_natives_syntax_;
   v8::Extension* extension_;
   ParserFactory* factory_;
@@ -149,7 +194,8 @@ class Parser {
   Expression* ParseLeftHandSideExpression(bool* ok);
   Expression* ParseNewExpression(bool* ok);
   Expression* ParseMemberExpression(bool* ok);
-  Expression* ParseMemberWithNewPrefixesExpression(List<int>* new_prefixes,
+  Expression* ParseNewPrefix(PositionStack* stack, bool* ok);
+  Expression* ParseMemberWithNewPrefixesExpression(PositionStack* stack,
                                                    bool* ok);
   Expression* ParsePrimaryExpression(bool* ok);
   Expression* ParseArrayLiteral(bool* ok);
@@ -207,7 +253,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterTargetUse(BreakTarget* target, int index);
+  void RegisterTargetUse(BreakTarget* target, Target* stop);
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);
@@ -970,35 +1016,39 @@ VariableProxy* PreParser::Declare(Handle<String> name, Variable::Mode mode,
 
 class Target BASE_EMBEDDED {
  public:
-  Target(Parser* parser, Node* node) : parser_(parser) {
-    parser_->target_stack_->Add(node);
+  Target(Parser* parser, Node* node)
+      : parser_(parser), node_(node), previous_(parser_->target_stack_) {
+    parser_->target_stack_ = this;
   }
 
   ~Target() {
-    parser_->target_stack_->RemoveLast();
+    parser_->target_stack_ = previous_;
   }
+
+  Target* previous() { return previous_; }
+  Node* node() { return node_; }
 
  private:
   Parser* parser_;
+  Node* node_;
+  Target* previous_;
 };
 
 
 class TargetScope BASE_EMBEDDED {
  public:
   explicit TargetScope(Parser* parser)
-      : parser_(parser), previous_(parser->target_stack_), stack_(0) {
-    parser_->target_stack_ = &stack_;
+      : parser_(parser), previous_(parser->target_stack_) {
+    parser->target_stack_ = NULL;
   }
 
   ~TargetScope() {
-    ASSERT(stack_.is_empty());
     parser_->target_stack_ = previous_;
   }
 
  private:
   Parser* parser_;
-  List<Node*>* previous_;
-  List<Node*> stack_;
+  Target* previous_;
 };
 
 
@@ -1096,7 +1146,7 @@ bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       unibrow::CharacterStream* stream,
                                       bool in_global_context) {
-  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(&Counters::parse);
   Counters::total_parse_size.Increment(source->length());
@@ -1149,7 +1199,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    Handle<String> name,
                                    int start_position,
                                    bool is_expression) {
-  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
   source->TryFlattenIfNotFlat();
   Counters::total_parse_size.Increment(source->length());
@@ -2791,7 +2841,8 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-Expression* Parser::ParseNewExpression(bool* ok) {
+
+Expression* Parser::ParseNewPrefix(PositionStack* stack, bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
@@ -2803,32 +2854,37 @@ Expression* Parser::ParseNewExpression(bool* ok) {
   // many we have parsed. This information is then passed on to the
   // member expression parser, which is only allowed to match argument
   // lists as long as it has 'new' prefixes left
-  List<int> new_positions(4);
-  while (peek() == Token::NEW) {
-    Consume(Token::NEW);
-    new_positions.Add(scanner().location().beg_pos);
-  }
-  ASSERT(new_positions.length() > 0);
+  Expect(Token::NEW, CHECK_OK);
+  PositionStack::Element pos(stack, scanner().location().beg_pos);
 
-  Expression* result =
-      ParseMemberWithNewPrefixesExpression(&new_positions, CHECK_OK);
-  while (!new_positions.is_empty()) {
-    int last = new_positions.RemoveLast();
+  Expression* result;
+  if (peek() == Token::NEW) {
+    result = ParseNewPrefix(stack, CHECK_OK);
+  } else {
+    result = ParseMemberWithNewPrefixesExpression(stack, CHECK_OK);
+  }
+
+  if (!stack->is_empty()) {
+    int last = stack->pop();
     result = NEW(CallNew(result, new ZoneList<Expression*>(0), last));
   }
   return result;
 }
 
 
-Expression* Parser::ParseMemberExpression(bool* ok) {
-  static List<int> new_positions(0);
-  return ParseMemberWithNewPrefixesExpression(&new_positions, ok);
+Expression* Parser::ParseNewExpression(bool* ok) {
+  PositionStack stack(ok);
+  return ParseNewPrefix(&stack, ok);
 }
 
 
-Expression* Parser::ParseMemberWithNewPrefixesExpression(
-    List<int>* new_positions,
-    bool* ok) {
+Expression* Parser::ParseMemberExpression(bool* ok) {
+  return ParseMemberWithNewPrefixesExpression(NULL, ok);
+}
+
+
+Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
+                                                         bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
@@ -2864,10 +2920,10 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(
         break;
       }
       case Token::LPAREN: {
-        if (new_positions->is_empty()) return result;
+        if ((stack == NULL) || stack->is_empty()) return result;
         // Consume one of the new prefixes (already parsed).
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
-        int last = new_positions->RemoveLast();
+        int last = stack->pop();
         result = NEW(CallNew(result, args, last));
         break;
       }
@@ -3547,8 +3603,8 @@ Handle<String> Parser::ParseIdentifierOrGetOrSet(bool* is_get,
 
 
 bool Parser::TargetStackContainsLabel(Handle<String> label) {
-  for (int i = target_stack_->length(); i-- > 0;) {
-    BreakableStatement* stat = target_stack_->at(i)->AsBreakableStatement();
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
+    BreakableStatement* stat = t->node()->AsBreakableStatement();
     if (stat != NULL && ContainsLabel(stat->labels(), label))
       return true;
   }
@@ -3558,13 +3614,12 @@ bool Parser::TargetStackContainsLabel(Handle<String> label) {
 
 BreakableStatement* Parser::LookupBreakTarget(Handle<String> label, bool* ok) {
   bool anonymous = label.is_null();
-  for (int i = target_stack_->length(); i-- > 0;) {
-    BreakableStatement* stat = target_stack_->at(i)->AsBreakableStatement();
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
+    BreakableStatement* stat = t->node()->AsBreakableStatement();
     if (stat == NULL) continue;
-
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
-      RegisterTargetUse(stat->break_target(), i);
+      RegisterTargetUse(stat->break_target(), t->previous());
       return stat;
     }
   }
@@ -3575,13 +3630,13 @@ BreakableStatement* Parser::LookupBreakTarget(Handle<String> label, bool* ok) {
 IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
                                                  bool* ok) {
   bool anonymous = label.is_null();
-  for (int i = target_stack_->length(); i-- > 0;) {
-    IterationStatement* stat = target_stack_->at(i)->AsIterationStatement();
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
+    IterationStatement* stat = t->node()->AsIterationStatement();
     if (stat == NULL) continue;
 
     ASSERT(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
-      RegisterTargetUse(stat->continue_target(), i);
+      RegisterTargetUse(stat->continue_target(), t->previous());
       return stat;
     }
   }
@@ -3589,12 +3644,12 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterTargetUse(BreakTarget* target, int index) {
-  // Register that a break target found at the given index in the
+void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
+  // Register that a break target found at the given stop in the
   // target stack has been used from the top of the target stack. Add
   // the break target to any TargetCollectors passed on the stack.
-  for (int i = target_stack_->length(); i-- > index;) {
-    TargetCollector* collector = target_stack_->at(i)->AsTargetCollector();
+  for (Target* t = target_stack_; t != stop; t = t->previous()) {
+    TargetCollector* collector = t->node()->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target);
   }
 }

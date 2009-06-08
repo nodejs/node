@@ -28,19 +28,44 @@
 #ifndef V8_REGISTER_ALLOCATOR_INL_H_
 #define V8_REGISTER_ALLOCATOR_INL_H_
 
+#include "codegen.h"
 #include "register-allocator.h"
 #include "virtual-frame.h"
 
-namespace v8 { namespace internal {
+#if V8_TARGET_ARCH_IA32
+#include "ia32/register-allocator-ia32-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/register-allocator-x64-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/register-allocator-arm-inl.h"
+#else
+#error Unsupported target architecture.
+#endif
+
+
+namespace v8 {
+namespace internal {
 
 Result::~Result() {
-  if (is_register()) cgen_->allocator()->Unuse(reg());
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+  }
 }
 
 
 void Result::Unuse() {
-  if (is_register()) cgen_->allocator()->Unuse(reg());
-  type_ = INVALID;
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+  }
+  invalidate();
+}
+
+
+void Result::CopyTo(Result* destination) const {
+  destination->value_ = value_;
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Use(reg());
+  }
 }
 
 

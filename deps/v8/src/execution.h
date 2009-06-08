@@ -28,7 +28,8 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Flag used to set the interrupt causes.
@@ -129,6 +130,10 @@ class Execution : public AllStatic {
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Handle<Object> object);
+
+  // Get a function delegate (or undefined) for the given non-function
+  // object. Used for support calling objects as constructors.
+  static Handle<Object> GetConstructorDelegate(Handle<Object> object);
 };
 
 

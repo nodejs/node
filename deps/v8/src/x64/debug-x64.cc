@@ -25,3 +25,59 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+#include "v8.h"
+
+#include "codegen-inl.h"
+#include "debug.h"
+
+
+namespace v8 {
+namespace internal {
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateReturnDebugBreakEntry(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED
+}
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+} }  // namespace v8::internal

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,13 +35,13 @@
 #include "runtime.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef DEBUG
 static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
-    case UNINITIALIZED_IN_LOOP: return 'L';
     case PREMONOMORPHIC: return 'P';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
@@ -60,12 +60,14 @@ static char TransitionMarkFromState(IC::State state) {
 void IC::TraceIC(const char* type,
                  Handle<String> name,
                  State old_state,
-                 Code* new_target) {
+                 Code* new_target,
+                 const char* extra_info) {
   if (FLAG_trace_ic) {
     State new_state = StateFrom(new_target, Heap::undefined_value());
-    PrintF("[%s (%c->%c) ", type,
+    PrintF("[%s (%c->%c)%s", type,
            TransitionMarkFromState(old_state),
-           TransitionMarkFromState(new_state));
+           TransitionMarkFromState(new_state),
+           extra_info);
     name->Print();
     PrintF("]\n");
   }
@@ -226,8 +228,10 @@ void IC::Clear(Address address) {
 
 void CallIC::Clear(Address address, Code* target) {
   State state = target->ic_state();
-  if (state == UNINITIALIZED || state == UNINITIALIZED_IN_LOOP) return;
-  Code* code = StubCache::FindCallInitialize(target->arguments_count());
+  InLoopFlag in_loop = target->ic_in_loop();
+  if (state == UNINITIALIZED) return;
+  Code* code =
+      StubCache::FindCallInitialize(target->arguments_count(), in_loop);
   SetTargetAtAddress(address, code);
 }
 
@@ -390,21 +394,22 @@ void CallIC::UpdateCaches(LookupResult* lookup,
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
+  InLoopFlag in_loop = target()->ic_in_loop();
   Object* code = NULL;
 
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    code = StubCache::ComputeCallPreMonomorphic(argc);
+    code = StubCache::ComputeCallPreMonomorphic(argc, in_loop);
   } else if (state == MONOMORPHIC) {
-    code = StubCache::ComputeCallMegamorphic(argc);
+    code = StubCache::ComputeCallMegamorphic(argc, in_loop);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
         int index = lookup->GetFieldIndex();
-        code = StubCache::ComputeCallField(argc, *name, *object,
+        code = StubCache::ComputeCallField(argc, in_loop, *name, *object,
                                            lookup->holder(), index);
         break;
       }
@@ -413,7 +418,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         // call; used for rewriting to monomorphic state and making sure
         // that the code stub is in the stub cache.
         JSFunction* function = lookup->GetConstantFunction();
-        code = StubCache::ComputeCallConstant(argc, *name, *object,
+        code = StubCache::ComputeCallConstant(argc, in_loop, *name, *object,
                                               lookup->holder(), function);
         break;
       }
@@ -425,7 +430,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         if (!object->IsJSObject()) return;
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
         if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeCallNormal(argc, *name, *receiver);
+        code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
         break;
       }
       case INTERCEPTOR: {
@@ -443,14 +448,15 @@ void CallIC::UpdateCaches(LookupResult* lookup,
   if (code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED || state == UNINITIALIZED_IN_LOOP ||
-      state == PREMONOMORPHIC || state == MONOMORPHIC ||
+  if (state == UNINITIALIZED ||
+      state == PREMONOMORPHIC ||
+      state == MONOMORPHIC ||
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
   }
 
 #ifdef DEBUG
-  TraceIC("CallIC", name, state, target());
+  TraceIC("CallIC", name, state, target(), in_loop ? " (in-loop)" : "");
 #endif
 }
 
@@ -1088,14 +1094,27 @@ Object* CallIC_Miss(Arguments args) {
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   Object* result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
-  if (state != UNINITIALIZED_IN_LOOP || !result->IsJSFunction())
-    return result;
 
-  // Compile the function with the knowledge that it's called from
-  // within a loop. This enables further optimization of the function.
+  // The first time the inline cache is updated may be the first time the
+  // function it references gets called.  If the function was lazily compiled
+  // then the first call will trigger a compilation.  We check for this case
+  // and we do the compilation immediately, instead of waiting for the stub
+  // currently attached to the JSFunction object to trigger compilation.  We
+  // do this in the case where we know that the inline cache is inside a loop,
+  // because then we know that we want to optimize the function.
+  if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
+    return result;
+  }
+
+  // Compile now with optimization.
   HandleScope scope;
   Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
-  if (!function->is_compiled()) CompileLazyInLoop(function, CLEAR_EXCEPTION);
+  InLoopFlag in_loop = ic.target()->ic_in_loop();
+  if (in_loop == IN_LOOP) {
+    CompileLazyInLoop(function, CLEAR_EXCEPTION);
+  } else {
+    CompileLazy(function, CLEAR_EXCEPTION);
+  }
   return *function;
 }
 

@@ -36,7 +36,8 @@
 #ifndef V8_CPU_H_
 #define V8_CPU_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // CPU

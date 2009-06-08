@@ -33,7 +33,8 @@
 using namespace v8::internal;
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 void SetVersion(int major, int minor, int build, int patch,
                 bool candidate, const char* soname) {

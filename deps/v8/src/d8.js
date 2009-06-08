@@ -93,6 +93,13 @@ Debug.ScriptType = { Native: 0,
                      Normal: 2 };
 
 
+// The different types of script compilations matching enum
+// Script::CompilationType in objects.h.
+Debug.ScriptCompilationType = { Host: 0,
+                                Eval: 1,
+                                JSON: 2 };
+
+
 // Current debug state.
 const kNoFrame = -1;
 Debug.State = {
@@ -498,9 +505,26 @@ DebugRequest.prototype.stepCommandToJSONRequest_ = function(args) {
 DebugRequest.prototype.backtraceCommandToJSONRequest_ = function(args) {
   // Build a backtrace request from the text command.
   var request = this.createRequest('backtrace');
+  
+  // Default is to show top 10 frames.
+  request.arguments = {};
+  request.arguments.fromFrame = 0;
+  request.arguments.toFrame = 10;
+
   args = args.split(/\s*[ ]+\s*/g);
-  if (args.length == 2) {
-    request.arguments = {};
+  if (args.length == 1 && args[0].length > 0) {
+    var frameCount = parseInt(args[0]);
+    if (frameCount > 0) {
+      // Show top frames.
+      request.arguments.fromFrame = 0;
+      request.arguments.toFrame = frameCount;
+    } else {
+      // Show bottom frames.
+      request.arguments.fromFrame = 0;
+      request.arguments.toFrame = -frameCount;
+      request.arguments.bottom = true;
+    }
+  } else if (args.length == 2) {
     var fromFrame = parseInt(args[0]);
     var toFrame = parseInt(args[1]);
     if (isNaN(fromFrame) || fromFrame < 0) {
@@ -513,9 +537,13 @@ DebugRequest.prototype.backtraceCommandToJSONRequest_ = function(args) {
       throw new Error('Invalid arguments start frame cannot be larger ' +
                       'than end frame.');
     }
+    // Show frame range.
     request.arguments.fromFrame = fromFrame;
     request.arguments.toFrame = toFrame + 1;
+  } else if (args.length > 2) {
+    throw new Error('Invalid backtrace arguments.');
   }
+
   return request.toJSONProtocol();
 };
 
@@ -755,7 +783,7 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('  break on function: location is #<id>#');
   print('  break on script position: location is name:line[:column]');
   print('clear <breakpoint #>');
-  print('backtrace [from frame #] [to frame #]]');
+  print('backtrace [n] | [-n] | [from to]');
   print('frame <frame #>');
   print('step [in | next | out| min [step count]]');
   print('print <expression>');
@@ -942,7 +970,18 @@ function DebugResponseDetails(response) {
           if (body[i].name) {
             result += body[i].name;
           } else {
-            result += '[unnamed] ';
+            if (body[i].compilationType == Debug.ScriptCompilationType.Eval) {
+              result += 'eval from ';
+              var script_value = response.lookup(body[i].evalFromScript.ref);
+              result += ' ' + script_value.field('name');
+              result += ':' + (body[i].evalFromLocation.line + 1);
+              result += ':' + body[i].evalFromLocation.column;
+            } else if (body[i].compilationType ==
+                       Debug.ScriptCompilationType.JSON) {
+              result += 'JSON ';
+            } else {  // body[i].compilation == Debug.ScriptCompilationType.Host
+              result += '[unnamed] ';
+            }
           }
           result += ' (lines: ';
           result += body[i].lineCount;
@@ -1101,6 +1140,15 @@ function ProtocolValue(value, packet) {
  */
 ProtocolValue.prototype.type = function() {
   return this.value_.type;
+}
+
+
+/**
+ * Get a metadata field from a protocol value. 
+ * @return {Object} the metadata field value
+ */
+ProtocolValue.prototype.field = function(name) {
+  return this.value_[name];
 }
 
 

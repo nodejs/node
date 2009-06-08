@@ -30,7 +30,8 @@
 
 #include "apiutils.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
@@ -118,15 +119,15 @@ class HandleScope {
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
-  static inline void** CreateHandle(void* value) {
+  static inline Object** CreateHandle(Object* value) {
     void** result = current_.next;
     if (result == current_.limit) result = Extend();
     // Update the current next field, set the value in the created
     // handle, and return the result.
     ASSERT(result < current_.limit);
     current_.next = result + 1;
-    *result = value;
-    return result;
+    *reinterpret_cast<Object**>(result) = value;
+    return reinterpret_cast<Object**>(result);
   }
 
  private:
@@ -201,6 +202,9 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
+                                   Handle<Object> key);
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
                                                    Handle<String> key,
                                                    Handle<Object> value,
@@ -228,6 +232,9 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
 
 Handle<Object> GetPrototype(Handle<Object> obj);
 
+// Return the object's hidden properties object. If the object has no hidden
+// properties and create_if_needed is true, then a new hidden property object
+// will be allocated. Otherwise the Heap::undefined_value is returned.
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj, bool create_if_needed);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);

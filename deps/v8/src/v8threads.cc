@@ -261,6 +261,8 @@ void ThreadManager::EagerlyArchiveThread() {
   ThreadState* state = lazily_archived_thread_state_;
   state->LinkInto(ThreadState::IN_USE_LIST);
   char* to = state->data();
+  // Ensure that data containing GC roots are archived first, and handle them
+  // in ThreadManager::Iterate(ObjectVisitor*).
   to = HandleScopeImplementer::ArchiveThread(to);
   to = Top::ArchiveThread(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT

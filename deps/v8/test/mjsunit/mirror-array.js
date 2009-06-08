@@ -44,8 +44,9 @@ function testArrayMirror(a, names) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(a);
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = JSON.stringify(serializer.serializeValue(mirror));
+  var refs = new MirrorRefCache(
+      JSON.stringify(serializer.serializeReferencedObjects()));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierachy');

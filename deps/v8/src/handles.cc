@@ -37,7 +37,8 @@
 #include "natives.h"
 #include "runtime.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
@@ -221,6 +222,12 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
 }
 
 
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
+                                   Handle<Object> key) {
+  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(object, key), Object);
+}
+
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(
     Handle<JSObject> object,
     Handle<String> key,
@@ -229,6 +236,7 @@ Handle<Object> IgnoreAttributesAndSetLocalProperty(
   CALL_HEAP_FUNCTION(object->
       IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
 }
+
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
@@ -273,19 +281,49 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
-  CALL_HEAP_FUNCTION(obj->GetHiddenProperties(create_if_needed), Object);
+  Handle<String> key = Factory::hidden_symbol();
+
+  if (obj->HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = obj->map()->instance_descriptors();
+    DescriptorReader r(descriptors, 0);  // Explicitly position reader at zero.
+    if (!r.eos() && (r.GetKey() == *key) && r.IsProperty()) {
+      ASSERT(r.type() == FIELD);
+      return Handle<Object>(obj->FastPropertyAt(r.GetFieldIndex()));
+    }
+  }
+
+  // Only attempt to find the hidden properties in the local object and not
+  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
+  // the general case in the presence of interceptors.
+  if (!obj->HasLocalProperty(*key)) {
+    // Hidden properties object not found. Allocate a new hidden properties
+    // object if requested. Otherwise return the undefined value.
+    if (create_if_needed) {
+      Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
+      return SetProperty(obj, key, hidden_obj, DONT_ENUM);
+    } else {
+      return Factory::undefined_value();
+    }
+  }
+  return GetProperty(obj, key);
 }
 
 
 Handle<Object> DeleteElement(Handle<JSObject> obj,
                              uint32_t index) {
-  CALL_HEAP_FUNCTION(obj->DeleteElement(index), Object);
+  CALL_HEAP_FUNCTION(obj->DeleteElement(index, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 
 Handle<Object> DeleteProperty(Handle<JSObject> obj,
                               Handle<String> prop) {
-  CALL_HEAP_FUNCTION(obj->DeleteProperty(*prop), Object);
+  CALL_HEAP_FUNCTION(obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 

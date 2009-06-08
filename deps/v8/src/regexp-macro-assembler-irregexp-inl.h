@@ -35,7 +35,8 @@
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,

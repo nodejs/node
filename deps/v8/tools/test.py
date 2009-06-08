@@ -164,6 +164,8 @@ class SimpleProgressIndicator(ProgressIndicator):
       print "Command: %s" % EscapeCommand(failed.command)
       if failed.HasCrashed():
         print "--- CRASHED ---"
+      if failed.HasTimedOut():
+        print "--- TIMEOUT ---"
     if len(self.failed) == 0:
       print "==="
       print "=== All tests succeeded"
@@ -207,6 +209,9 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       if output.HasCrashed():
         sys.stdout.write('C')
         sys.stdout.flush()
+      elif output.HasTimedOut():
+        sys.stdout.write('T')
+        sys.stdout.flush()
       else:
         sys.stdout.write('F')
         sys.stdout.flush()
@@ -245,6 +250,8 @@ class CompactProgressIndicator(ProgressIndicator):
       print "Command: %s" % EscapeCommand(output.command)
       if output.HasCrashed():
         print "--- CRASHED ---"
+      if output.HasTimedOut():
+        print "--- TIMEOUT ---"
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):
@@ -381,6 +388,9 @@ class TestOutput(object):
       return self.output.exit_code < 0 and \
              self.output.exit_code != -signal.SIGABRT
 
+  def HasTimedOut(self):
+    return self.output.timed_out;
+    
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
     if self.test.IsNegative():

@@ -31,7 +31,8 @@
 #include "token.h"
 #include "char-predicates-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class UTF8Buffer {
@@ -39,16 +40,33 @@ class UTF8Buffer {
   UTF8Buffer();
   ~UTF8Buffer();
 
-  void Initialize(char* src, int length);
-  void AddChar(uc32 c);
-  void Reset() { pos_ = 0; }
-  int pos() const { return pos_; }
+  void AddChar(uc32 c) {
+    if (cursor_ <= limit_ &&
+        static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
+      *cursor_++ = static_cast<char>(c);
+    } else {
+      AddCharSlow(c);
+    }
+  }
+
+  void Reset() { cursor_ = data_; }
+  int pos() const { return cursor_ - data_; }
   char* data() const { return data_; }
 
  private:
   char* data_;
-  int size_;
-  int pos_;
+  char* cursor_;
+  char* limit_;
+
+  int Capacity() const {
+    return (limit_ - data_) + unibrow::Utf8::kMaxEncodedSize;
+  }
+
+  static char* ComputeLimit(char* data, int capacity) {
+    return (data + capacity) - unibrow::Utf8::kMaxEncodedSize;
+  }
+
+  void AddCharSlow(uc32 c);
 };
 
 
@@ -204,7 +222,7 @@ class Scanner {
   void Advance();
   void PushBack(uc32 ch);
 
-  void SkipWhiteSpace(bool initial);
+  bool SkipWhiteSpace();
   Token::Value SkipSingleLineComment();
   Token::Value SkipMultiLineComment();
 
@@ -212,7 +230,6 @@ class Scanner {
   inline Token::Value Select(uc32 next, Token::Value then, Token::Value else_);
 
   void Scan();
-  Token::Value ScanToken();
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifier();

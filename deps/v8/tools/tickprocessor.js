@@ -273,10 +273,6 @@ TickProcessor.prototype.printStatistics = function() {
     this.printCounter(this.ticks_.unaccounted, this.ticks_.total);
   }
 
-  // Disable initialization of 'funcName', 'url', 'lineNumber' as
-  // we don't use it and it just wastes time.
-  devtools.profiler.ProfileView.Node.prototype.initFuncInfo = function() {};
-
   var flatProfile = this.profile_.getFlatProfile();
   var flatView = this.viewBuilder_.buildView(flatProfile);
   // Sort by self time, desc, then by name, desc.

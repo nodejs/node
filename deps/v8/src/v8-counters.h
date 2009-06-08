@@ -30,18 +30,30 @@
 
 #include "counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
-#define HISTOGRAM_TIMER_LIST(HT)                                 \
-  HT(gc_compactor, V8.GCCompactor) /* GC Compactor time */       \
-  HT(gc_scavenger, V8.GCScavenger) /* GC Scavenger time */       \
-  HT(gc_context, V8.GCContext)     /* GC context cleanup time */ \
-  HT(compile, V8.Compile)          /* Compile time*/             \
-  HT(compile_eval, V8.CompileEval) /* Eval compile time */       \
-  HT(compile_lazy, V8.CompileLazy) /* Lazy compile time */       \
-  HT(parse, V8.Parse)              /* Parse time */              \
-  HT(parse_lazy, V8.ParseLazy)     /* Lazy parse time */         \
-  HT(pre_parse, V8.PreParse)       /* Pre-parse time */
+#define HISTOGRAM_TIMER_LIST(HT)                                      \
+  /* Garbage collection timers. */                                    \
+  HT(gc_compactor, V8.GCCompactor)                                    \
+  HT(gc_scavenger, V8.GCScavenger)                                    \
+  HT(gc_context, V8.GCContext) /* GC context cleanup time */          \
+  /* Parsing timers. */                                               \
+  HT(parse, V8.Parse)                                                 \
+  HT(parse_lazy, V8.ParseLazy)                                        \
+  HT(pre_parse, V8.PreParse)                                          \
+  /* Total compilation times. */                                      \
+  HT(compile, V8.Compile)                                             \
+  HT(compile_eval, V8.CompileEval)                                    \
+  HT(compile_lazy, V8.CompileLazy)                                    \
+  /* Individual compiler passes. */                                   \
+  HT(rewriting, V8.Rewriting)                                         \
+  HT(usage_analysis, V8.UsageAnalysis)                                \
+  HT(variable_allocation, V8.VariableAllocation)                      \
+  HT(ast_optimization, V8.ASTOptimization)                            \
+  HT(code_generation, V8.CodeGeneration)                              \
+  HT(deferred_code_generation, V8.DeferredCodeGeneration)             \
+  HT(code_creation, V8.CodeCreation)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
@@ -124,7 +136,8 @@ namespace v8 { namespace internal {
   SC(enum_cache_misses, V8.EnumCacheMisses)                         \
   SC(reloc_info_count, V8.RelocInfoCount)                           \
   SC(reloc_info_size, V8.RelocInfoSize)                             \
-  SC(zone_segment_bytes, V8.ZoneSegmentBytes)
+  SC(zone_segment_bytes, V8.ZoneSegmentBytes)                       \
+  SC(compute_entry_frame, V8.ComputeEntryFrame)
 
 
 // This file contains all the v8 counters that are in use.

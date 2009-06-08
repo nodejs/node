@@ -30,7 +30,8 @@
 #include "debug-agent.h"
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.

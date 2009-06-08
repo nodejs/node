@@ -29,7 +29,8 @@
 #include "top.h"
 #include "regexp-stack.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 RegExpStack::RegExpStack() {
   // Initialize, if not already initialized.

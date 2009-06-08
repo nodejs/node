@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,7 +32,8 @@
 #include "ic-inl.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -----------------------------------------------------------------------
 // StubCache implementation.
@@ -369,6 +370,7 @@ Object* StubCache::ComputeKeyedStoreField(String* name, JSObject* receiver,
 
 
 Object* StubCache::ComputeCallConstant(int argc,
+                                       InLoopFlag in_loop,
                                        String* name,
                                        Object* object,
                                        JSObject* holder,
@@ -387,7 +389,10 @@ Object* StubCache::ComputeCallConstant(int argc,
   }
 
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::CALL_IC, CONSTANT_FUNCTION, argc);
+      Code::ComputeMonomorphicFlags(Code::CALL_IC,
+                                    CONSTANT_FUNCTION,
+                                    in_loop,
+                                    argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     if (object->IsJSObject()) {
@@ -405,7 +410,7 @@ Object* StubCache::ComputeCallConstant(int argc,
     if (!function->is_compiled()) return Failure::InternalError();
     // Compile the stub - only create stubs for fully compiled functions.
     CallStubCompiler compiler(argc);
-    code = compiler.CompileCallConstant(object, holder, function, check);
+    code = compiler.CompileCallConstant(object, holder, function, check, flags);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("CallIC", Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
@@ -416,6 +421,7 @@ Object* StubCache::ComputeCallConstant(int argc,
 
 
 Object* StubCache::ComputeCallField(int argc,
+                                    InLoopFlag in_loop,
                                     String* name,
                                     Object* object,
                                     JSObject* holder,
@@ -430,11 +436,14 @@ Object* StubCache::ComputeCallField(int argc,
     object = holder;
   }
 
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC, FIELD, argc);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
+                                                    FIELD,
+                                                    in_loop,
+                                                    argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc);
-    code = compiler.CompileCallField(object, holder, index, name);
+    code = compiler.CompileCallField(object, holder, index, name, flags);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("CallIC", Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
@@ -460,7 +469,10 @@ Object* StubCache::ComputeCallInterceptor(int argc,
   }
 
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::CALL_IC, INTERCEPTOR, argc);
+      Code::ComputeMonomorphicFlags(Code::CALL_IC,
+                                    INTERCEPTOR,
+                                    NOT_IN_LOOP,
+                                    argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc);
@@ -475,9 +487,10 @@ Object* StubCache::ComputeCallInterceptor(int argc,
 
 
 Object* StubCache::ComputeCallNormal(int argc,
+                                     InLoopFlag in_loop,
                                      String* name,
                                      JSObject* receiver) {
-  Object* code = ComputeCallNormal(argc);
+  Object* code = ComputeCallNormal(argc, in_loop);
   if (code->IsFailure()) return code;
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -522,9 +535,9 @@ static Object* FillCache(Object* code) {
 }
 
 
-Code* StubCache::FindCallInitialize(int argc) {
+Code* StubCache::FindCallInitialize(int argc, InLoopFlag in_loop) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, UNINITIALIZED, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, in_loop, UNINITIALIZED, NORMAL, argc);
   Object* result = ProbeCache(flags);
   ASSERT(!result->IsUndefined());
   // This might be called during the marking phase of the collector
@@ -533,9 +546,9 @@ Code* StubCache::FindCallInitialize(int argc) {
 }
 
 
-Object* StubCache::ComputeCallInitialize(int argc) {
+Object* StubCache::ComputeCallInitialize(int argc, InLoopFlag in_loop) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, UNINITIALIZED, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, in_loop, UNINITIALIZED, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -543,20 +556,9 @@ Object* StubCache::ComputeCallInitialize(int argc) {
 }
 
 
-Object* StubCache::ComputeCallInitializeInLoop(int argc) {
+Object* StubCache::ComputeCallPreMonomorphic(int argc, InLoopFlag in_loop) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, UNINITIALIZED_IN_LOOP, NORMAL, argc);
-  Object* probe = ProbeCache(flags);
-  if (!probe->IsUndefined()) return probe;
-  StubCompiler compiler;
-  return FillCache(compiler.CompileCallInitialize(flags));
-}
-
-
-
-Object* StubCache::ComputeCallPreMonomorphic(int argc) {
-  Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, PREMONOMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, in_loop, PREMONOMORPHIC, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -564,9 +566,9 @@ Object* StubCache::ComputeCallPreMonomorphic(int argc) {
 }
 
 
-Object* StubCache::ComputeCallNormal(int argc) {
+Object* StubCache::ComputeCallNormal(int argc, InLoopFlag in_loop) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, MONOMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, in_loop, MONOMORPHIC, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -574,9 +576,9 @@ Object* StubCache::ComputeCallNormal(int argc) {
 }
 
 
-Object* StubCache::ComputeCallMegamorphic(int argc) {
+Object* StubCache::ComputeCallMegamorphic(int argc, InLoopFlag in_loop) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, MEGAMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, in_loop, MEGAMORPHIC, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -586,7 +588,7 @@ Object* StubCache::ComputeCallMegamorphic(int argc) {
 
 Object* StubCache::ComputeCallMiss(int argc) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::STUB, MEGAMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(Code::STUB, NOT_IN_LOOP, MEGAMORPHIC, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -597,7 +599,7 @@ Object* StubCache::ComputeCallMiss(int argc) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Object* StubCache::ComputeCallDebugBreak(int argc) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, DEBUG_BREAK, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, DEBUG_BREAK, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -607,7 +609,11 @@ Object* StubCache::ComputeCallDebugBreak(int argc) {
 
 Object* StubCache::ComputeCallDebugPrepareStepIn(int argc) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, DEBUG_PREPARE_STEP_IN, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC,
+                         NOT_IN_LOOP,
+                         DEBUG_PREPARE_STEP_IN,
+                         NORMAL,
+                         argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -618,7 +624,7 @@ Object* StubCache::ComputeCallDebugPrepareStepIn(int argc) {
 
 Object* StubCache::ComputeLazyCompile(int argc) {
   Code::Flags flags =
-      Code::ComputeFlags(Code::STUB, UNINITIALIZED, NORMAL, argc);
+      Code::ComputeFlags(Code::STUB, NOT_IN_LOOP, UNINITIALIZED, NORMAL, argc);
   Object* probe = ProbeCache(flags);
   if (!probe->IsUndefined()) return probe;
   StubCompiler compiler;
@@ -713,10 +719,12 @@ Object* LoadInterceptorProperty(Arguments args) {
   JSObject* recv = JSObject::cast(args[0]);
   JSObject* holder = JSObject::cast(args[1]);
   String* name = String::cast(args[2]);
+  Smi* lookup_hint = Smi::cast(args[3]);
   ASSERT(holder->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Object* result = holder->GetPropertyWithInterceptor(recv, name, &attr);
 
+  Object* result = holder->GetInterceptorPropertyWithLookupHint(
+      recv, lookup_hint, name, &attr);
   if (result->IsFailure()) return result;
 
   // If the property is present, return it.
@@ -917,7 +925,10 @@ Object* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
 
 Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC, type, argc);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
+                                                    type,
+                                                    NOT_IN_LOOP,
+                                                    argc);
   return GetCodeWithFlags(flags, name);
 }
 

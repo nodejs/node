@@ -30,7 +30,8 @@
 
 #include "list-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Structure for tracking global handles.
 // A single list keeps all the allocated global handles.

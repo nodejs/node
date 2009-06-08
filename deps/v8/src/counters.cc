@@ -30,7 +30,8 @@
 #include "counters.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 CounterLookupCallback StatsTable::lookup_function_ = NULL;
 CreateHistogramCallback StatsTable::create_histogram_function_ = NULL;

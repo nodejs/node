@@ -31,7 +31,8 @@
 #include "scanner.h"
 #include "allocation.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class ParserMessage : public Malloced {

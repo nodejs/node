@@ -33,7 +33,8 @@
 #include "serialize.h"
 #include "snapshot.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 bool Snapshot::Deserialize(const byte* content, int len) {
   Deserializer des(content, len);

@@ -46,15 +46,25 @@ devtools.profiler.ViewBuilder = function(samplingRate) {
  * Builds a profile view for the specified call tree.
  *
  * @param {devtools.profiler.CallTree} callTree A call tree.
+ * @param {boolean} opt_bottomUpViewWeights Whether remapping
+ *     of self weights for a bottom up view is needed.
  */
 devtools.profiler.ViewBuilder.prototype.buildView = function(
-    callTree) {
+    callTree, opt_bottomUpViewWeights) {
   var head;
   var samplingRate = this.samplingRate;
+  var createViewNode = this.createViewNode;
   callTree.traverse(function(node, viewParent) {
-    var viewNode = new devtools.profiler.ProfileView.Node(
-        node.label, node.totalWeight * samplingRate,
-        node.selfWeight * samplingRate, head);
+    var totalWeight = node.totalWeight * samplingRate;
+    var selfWeight = node.selfWeight * samplingRate;
+    if (opt_bottomUpViewWeights === true) {
+      if (viewParent === head) {
+        selfWeight = totalWeight;
+      } else {
+        selfWeight = 0;
+      }
+    }
+    var viewNode = createViewNode(node.label, totalWeight, selfWeight, head);
     if (viewParent) {
       viewParent.addChild(viewNode);
     } else {
@@ -62,41 +72,50 @@ devtools.profiler.ViewBuilder.prototype.buildView = function(
     }
     return viewNode;
   });
-  var view = new devtools.profiler.ProfileView(head);
+  var view = this.createView(head);
   return view;
 };
 
 
 /**
+ * Factory method for a profile view.
+ *
+ * @param {devtools.profiler.ProfileView.Node} head View head node.
+ * @return {devtools.profiler.ProfileView} Profile view.
+ */
+devtools.profiler.ViewBuilder.prototype.createView = function(head) {
+  return new devtools.profiler.ProfileView(head);
+};
+
+
+/**
+ * Factory method for a profile view node.
+ *
+ * @param {string} internalFuncName A fully qualified function name.
+ * @param {number} totalTime Amount of time that application spent in the
+ *     corresponding function and its descendants (not that depending on
+ *     profile they can be either callees or callers.)
+ * @param {number} selfTime Amount of time that application spent in the
+ *     corresponding function only.
+ * @param {devtools.profiler.ProfileView.Node} head Profile view head.
+ * @return {devtools.profiler.ProfileView.Node} Profile view node.
+ */
+devtools.profiler.ViewBuilder.prototype.createViewNode = function(
+    funcName, totalTime, selfTime, head) {
+  return new devtools.profiler.ProfileView.Node(
+      funcName, totalTime, selfTime, head);
+};
+
+
+/**
  * Creates a Profile View object. It allows to perform sorting
- * and filtering actions on the profile. Profile View mimicks
- * the Profile object from WebKit's JSC profiler.
+ * and filtering actions on the profile.
  *
  * @param {devtools.profiler.ProfileView.Node} head Head (root) node.
  * @constructor
  */
 devtools.profiler.ProfileView = function(head) {
   this.head = head;
-  this.title = '';
-  this.uid = '';
-  this.heavyProfile = null;
-  this.treeProfile = null;
-  this.flatProfile = null;
-};
-
-
-/**
- * Updates references between profiles. This is needed for WebKit
- * ProfileView.
- */
-devtools.profiler.ProfileView.prototype.updateProfilesRefs = function() {
-  var profileNames = ["treeProfile", "heavyProfile", "flatProfile"];
-  for (var i = 0; i < profileNames.length; ++i) {
-    var destProfile = this[profileNames[i]];
-    for (var j = 0; j < profileNames.length; ++j) {
-      destProfile[profileNames[j]] = this[profileNames[j]];
-    }
-  }
 };
 
 
@@ -111,73 +130,6 @@ devtools.profiler.ProfileView.prototype.sort = function(sortFunc) {
   this.traverse(function (node) {
     node.sortChildren(sortFunc);
   });
-};
-
-
-/**
- * Sorts the profile view by self time, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortSelfTimeAscending = function() {
-  this.sort(function (node1, node2) {
-      return node1.selfTime - node2.selfTime; });
-};
-
-
-/**
- * Sorts the profile view by self time, descending.
- */
-devtools.profiler.ProfileView.prototype.sortSelfTimeDescending = function() {
-  this.sort(function (node1, node2) {
-      return node2.selfTime - node1.selfTime; });
-};
-
-
-/**
- * Sorts the profile view by total time, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortTotalTimeAscending = function() {
-  this.sort(function (node1, node2) {
-      return node1.totalTime - node2.totalTime; });
-};
-
-
-/**
- * Sorts the profile view by total time, descending.
- */
-devtools.profiler.ProfileView.prototype.sortTotalTimeDescending = function() {
-  this.sort(function (node1, node2) {
-      return node2.totalTime - node1.totalTime; });
-};
-
-
-/**
- * String comparator compatible with Array.sort requirements.
- *
- * @param {string} s1 First string.
- * @param {string} s2 Second string.
- */
-devtools.profiler.ProfileView.compareStrings = function(s1, s2) {
-  return s1 < s2 ? -1 : (s1 > s2 ? 1 : 0);
-};
-
-
-/**
- * Sorts the profile view by function name, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortFunctionNameAscending = function() {
-  this.sort(function (node1, node2) {
-      return devtools.profiler.ProfileView.compareStrings(
-          node1.functionName, node2.functionName); });
-};
-
-
-/**
- * Sorts the profile view by function name, descending.
- */
-devtools.profiler.ProfileView.prototype.sortFunctionNameDescending = function() {
-  this.sort(function (node1, node2) {
-      return devtools.profiler.ProfileView.compareStrings(
-          node2.functionName, node1.functionName); });
 };
 
 
@@ -212,63 +164,12 @@ devtools.profiler.ProfileView.prototype.traverse = function(f) {
  */
 devtools.profiler.ProfileView.Node = function(
     internalFuncName, totalTime, selfTime, head) {
-  this.callIdentifier = 0;
   this.internalFuncName = internalFuncName;
-  this.initFuncInfo();
   this.totalTime = totalTime;
   this.selfTime = selfTime;
   this.head = head;
   this.parent = null;
   this.children = [];
-  this.visible = true;
-};
-
-
-/**
- * RegEx for stripping V8's prefixes of compiled functions.
- */
-devtools.profiler.ProfileView.Node.FUNC_NAME_STRIP_RE =
-    /^(?:LazyCompile|Function): (.*)$/;
-
-
-/**
- * RegEx for extracting script source URL and line number.
- */
-devtools.profiler.ProfileView.Node.FUNC_NAME_PARSE_RE = /^([^ ]+) (.*):(\d+)$/;
-
-
-/**
- * RegEx for removing protocol name from URL.
- */
-devtools.profiler.ProfileView.Node.URL_PARSE_RE = /^(?:http:\/)?.*\/([^/]+)$/;
-
-
-/**
- * Inits 'functionName', 'url', and 'lineNumber' fields using 'internalFuncName'
- * field.
- */
-devtools.profiler.ProfileView.Node.prototype.initFuncInfo = function() {
-  var nodeAlias = devtools.profiler.ProfileView.Node;
-  this.functionName = this.internalFuncName;
-
-  var strippedName = nodeAlias.FUNC_NAME_STRIP_RE.exec(this.functionName);
-  if (strippedName) {
-    this.functionName = strippedName[1];
-  }
-
-  var parsedName = nodeAlias.FUNC_NAME_PARSE_RE.exec(this.functionName);
-  if (parsedName) {
-    this.url = parsedName[2];
-    var parsedUrl = nodeAlias.URL_PARSE_RE.exec(this.url);
-    if (parsedUrl) {
-      this.url = parsedUrl[1];
-    }
-    this.functionName = parsedName[1];
-    this.lineNumber = parsedName[3];
-  } else {
-    this.url = '';
-    this.lineNumber = 0;
-  }
 };
 
 

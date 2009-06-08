@@ -39,7 +39,8 @@
 #include "stub-cache.h"
 #include "v8threads.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Encoding: a RelativeAddress must be able to fit in a pointer:
 // it is encoded as an Address with (from MS to LS bits):

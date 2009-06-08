@@ -28,7 +28,8 @@
 #ifndef V8_MARK_COMPACT_H_
 #define V8_MARK_COMPACT_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Callback function, returns whether an object is alive. The heap size
 // of the object is returned in size. It optionally updates the offset

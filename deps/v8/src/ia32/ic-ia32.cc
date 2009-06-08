@@ -32,7 +32,8 @@
 #include "runtime.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
@@ -426,7 +427,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Probe the stub cache.
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, MONOMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx);
 
   // If the stub cache probing failed, the receiver might be a value.
@@ -635,7 +636,9 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, kPointerSize));
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
   StubCache::GenerateProbe(masm, flags, eax, ecx, ebx);
 
   // Cache miss: Jump to runtime.
@@ -838,7 +841,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // Get the receiver from the stack and probe the stub cache.
   __ mov(edx, Operand(esp, 4));
-  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx);
 
   // Cache miss: Jump to runtime.

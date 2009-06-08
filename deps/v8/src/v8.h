@@ -73,7 +73,8 @@
 #include "heap-inl.h"
 #include "messages.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class V8 : public AllStatic {
  public:
@@ -85,13 +86,23 @@ class V8 : public AllStatic {
   // deserialized data into an empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
-  static bool HasBeenSetup() { return has_been_setup_; }
-  static bool HasBeenDisposed() { return has_been_disposed_; }
+  static bool IsRunning() { return is_running_; }
+  // To be dead you have to have lived
+  static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
+  static void SetFatalError();
 
   // Report process out of memory. Implementation found in api.cc.
   static void FatalProcessOutOfMemory(const char* location);
  private:
+  // True if engine is currently running
+  static bool is_running_;
+  // True if V8 has ever been run
   static bool has_been_setup_;
+  // True if error has been signaled for current engine
+  // (reset to false if engine is restarted)
+  static bool has_fatal_error_;
+  // True if engine has been shut down
+  // (reset if engine is restarted)
   static bool has_been_disposed_;
 };
 

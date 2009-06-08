@@ -28,7 +28,8 @@
 #ifndef V8_DISASSEMBLER_H_
 #define V8_DISASSEMBLER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class Disassembler : public AllStatic {
  public:

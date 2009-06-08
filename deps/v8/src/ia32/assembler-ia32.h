@@ -37,7 +37,8 @@
 #ifndef V8_IA32_ASSEMBLER_IA32_H_
 #define V8_IA32_ASSEMBLER_IA32_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //
@@ -78,17 +79,15 @@ struct Register {
   int code_;
 };
 
-const int kNumRegisters = 8;
-
-extern Register eax;
-extern Register ecx;
-extern Register edx;
-extern Register ebx;
-extern Register esp;
-extern Register ebp;
-extern Register esi;
-extern Register edi;
-extern Register no_reg;
+const Register eax = { 0 };
+const Register ecx = { 1 };
+const Register edx = { 2 };
+const Register ebx = { 3 };
+const Register esp = { 4 };
+const Register ebp = { 5 };
+const Register esi = { 6 };
+const Register edi = { 7 };
+const Register no_reg = { -1 };
 
 
 struct XMMRegister {
@@ -101,14 +100,14 @@ struct XMMRegister {
   int code_;
 };
 
-extern XMMRegister xmm0;
-extern XMMRegister xmm1;
-extern XMMRegister xmm2;
-extern XMMRegister xmm3;
-extern XMMRegister xmm4;
-extern XMMRegister xmm5;
-extern XMMRegister xmm6;
-extern XMMRegister xmm7;
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -815,6 +814,8 @@ class Assembler : public Malloced {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+  // A previously allocated buffer of kMinimalBufferSize bytes, or NULL.
+  static byte* spare_buffer_;
 
   // code generation
   byte* pc_;  // the program counter; moves forward

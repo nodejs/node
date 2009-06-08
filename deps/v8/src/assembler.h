@@ -40,7 +40,8 @@
 #include "zone-inl.h"
 #include "token.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // -----------------------------------------------------------------------------
@@ -271,8 +272,8 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
-  inline void WriteExtraTaggedData(int32_t data_delta, int top_tag);
-  inline void WriteTaggedData(int32_t data_delta, int tag);
+  inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
+  inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
 
   byte* pos_;
@@ -423,8 +424,6 @@ class ExternalReference BASE_EMBEDDED {
 // -----------------------------------------------------------------------------
 // Utility functions
 
-// Move these into inline file?
-
 static inline bool is_intn(int x, int n)  {
   return -(1 << (n-1)) <= x && x < (1 << (n-1));
 }
@@ -436,9 +435,11 @@ static inline bool is_uintn(int x, int n) {
   return (x & -(1 << n)) == 0;
 }
 
+static inline bool is_uint2(int x)  { return is_uintn(x, 2); }
 static inline bool is_uint3(int x)  { return is_uintn(x, 3); }
 static inline bool is_uint4(int x)  { return is_uintn(x, 4); }
 static inline bool is_uint5(int x)  { return is_uintn(x, 5); }
+static inline bool is_uint6(int x)  { return is_uintn(x, 6); }
 static inline bool is_uint8(int x)  { return is_uintn(x, 8); }
 static inline bool is_uint12(int x)  { return is_uintn(x, 12); }
 static inline bool is_uint16(int x)  { return is_uintn(x, 16); }

@@ -36,7 +36,8 @@
 #include "handles-inl.h"
 
 // Forward declaration of MessageLocation.
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 class MessageLocation;
 } }  // namespace v8::internal
 
@@ -57,7 +58,8 @@ class V8Message {
 };
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 struct Language;
 class SourceInfo;

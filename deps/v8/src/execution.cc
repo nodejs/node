@@ -43,7 +43,8 @@
 #include "debug.h"
 #include "v8threads.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static Handle<Object> Invoke(bool construct,
@@ -182,6 +183,24 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
       HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
         Top::global_context()->call_as_function_delegate());
+  }
+
+  return Factory::undefined_value();
+}
+
+
+Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
+  ASSERT(!object->IsJSFunction());
+
+  // If you return a function from here, it will be called when an
+  // attempt is made to call the given object as a constructor.
+
+  // Objects created through the API can have an instance-call handler
+  // that should be used when calling the object as a function.
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
+    return Handle<JSFunction>(
+        Top::global_context()->call_as_constructor_delegate());
   }
 
   return Factory::undefined_value();
@@ -569,31 +588,13 @@ Object* Execution::DebugBreakHelper() {
     return Heap::undefined_value();
   }
 
-  // Don't break in system functions. If the current function is
-  // either in the builtins object of some context or is in the debug
-  // context just return with the debug break stack guard active.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  Object* fun = frame->function();
-  if (fun->IsJSFunction()) {
-    GlobalObject* global = JSFunction::cast(fun)->context()->global();
-    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return Heap::undefined_value();
-    }
-  }
-
-  // Check for debug command break only.
+  // Collect the break state before clearing the flags.
   bool debug_command_only =
       StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
 
   // Clear the debug request flags.
   StackGuard::Continue(DEBUGBREAK);
   StackGuard::Continue(DEBUGCOMMAND);
-
-  // If debug command only and already in debugger ignore it.
-  if (debug_command_only && Debug::InDebugger()) {
-    return Heap::undefined_value();
-  }
 
   HandleScope scope;
   // Enter the debugger. Just continue if we fail to enter the debugger.
@@ -602,7 +603,8 @@ Object* Execution::DebugBreakHelper() {
     return Heap::undefined_value();
   }
 
-  // Notify the debug event listeners.
+  // Notify the debug event listeners. Indicate auto continue if the break was
+  // a debug command break.
   Debugger::OnDebugBreak(Factory::undefined_value(), debug_command_only);
 
   // Return to continue execution.

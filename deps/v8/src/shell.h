@@ -32,7 +32,8 @@
 
 #include "../public/debug.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Debug event handler for interactive debugging.
 void handle_debug_event(v8::DebugEvent event,

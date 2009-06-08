@@ -40,3 +40,21 @@ pages where it occurs and the number of times it is executed while
 loading each page.  Finally the literal letters in the data are
 encoded using ROT13 in a way that does not affect how the regexps
 match their input.
+
+
+Changes from Version 3 to Version 4
+===================================
+
+The Splay benchmark is a newcomer in version 4.  It manipulates a
+splay tree by adding and removing data nodes, thus exercising the
+memory management subsystem of the JavaScript engine.
+
+Furthermore, all the unused parts of the Prototype library were
+removed from the RayTrace benchmark. This does not affect the running
+of the benchmark.
+
+
+Changes from Version 4 to Version 5
+===================================
+
+Removed duplicate line in random seed code.

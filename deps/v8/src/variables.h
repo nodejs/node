@@ -30,7 +30,8 @@
 
 #include "zone.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class UseCount BASE_EMBEDDED {
  public:

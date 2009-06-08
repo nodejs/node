@@ -113,6 +113,6 @@ q = new Point(1,2);
 // Enter debugger causing the event listener to be called.
 debugger;
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")
 assertTrue(listenerComplete, "listener did not run to completion");

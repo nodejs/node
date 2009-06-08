@@ -30,7 +30,8 @@
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // Result implementation.
@@ -48,56 +49,10 @@ void Result::ToRegister(Register target) {
 // -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
-RegisterFile RegisterAllocator::Reserved() {
-  RegisterFile reserved;
-  reserved.Use(sp);
-  reserved.Use(fp);
-  reserved.Use(cp);
-  reserved.Use(pc);
-  return reserved;
-}
-
-
-void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
-  register_file->ref_counts_[sp.code()] = 0;
-  register_file->ref_counts_[fp.code()] = 0;
-  register_file->ref_counts_[cp.code()] = 0;
-  register_file->ref_counts_[pc.code()] = 0;
-}
-
-
-bool RegisterAllocator::IsReserved(int reg_code) {
-  return (reg_code == sp.code())
-      || (reg_code == fp.code())
-      || (reg_code == cp.code())
-      || (reg_code == pc.code());
-}
-
-
-void RegisterAllocator::Initialize() {
-  Reset();
-  // The following registers are live on function entry, saved in the
-  // frame, and available for allocation during execution.
-  Use(r1);  // JS function.
-  Use(lr);  // Return address.
-}
-
-
-void RegisterAllocator::Reset() {
-  registers_.Reset();
-  // The following registers are live on function entry and reserved
-  // during execution.
-  Use(sp);  // Stack pointer.
-  Use(fp);  // Frame pointer (caller's frame pointer on entry).
-  Use(cp);  // Context context (callee's context on entry).
-  Use(pc);  // Program counter.
-}
-
-
 Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  // No byte registers on ARM.
+  UNREACHABLE();
+  return Result();
 }
 
 

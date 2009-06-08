@@ -30,7 +30,8 @@
 
 #include "list.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 template<typename T, class P>
@@ -40,6 +41,17 @@ void List<T, P>::Add(const T& element) {
   } else {
     List<T, P>::ResizeAdd(element);
   }
+}
+
+
+template<typename T, class P>
+void List<T, P>::AddAll(const List<T, P>& other) {
+  int result_length = length_ + other.length_;
+  if (capacity_ < result_length) Resize(result_length);
+  for (int i = 0; i < other.length_; i++) {
+    data_[length_ + i] = other.data_[i];
+  }
+  length_ = result_length;
 }
 
 
@@ -57,11 +69,18 @@ void List<T, P>::ResizeAddInternal(const T& element) {
   // Grow the list capacity by 50%, but make sure to let it grow
   // even when the capacity is zero (possible initial case).
   int new_capacity = 1 + capacity_ + (capacity_ >> 1);
+  // Since the element reference could be an element of the list, copy
+  // it out of the old backing storage before resizing.
+  T temp = element;
+  Resize(new_capacity);
+  data_[length_++] = temp;
+}
+
+
+template<typename T, class P>
+void List<T, P>::Resize(int new_capacity) {
   T* new_data = List<T, P>::NewData(new_capacity);
   memcpy(new_data, data_, capacity_ * sizeof(T));
-  // Since the element reference could be an element of the list,
-  // assign it to the new backing store before deleting the old.
-  new_data[length_++] = element;
   List<T, P>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;

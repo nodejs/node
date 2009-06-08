@@ -28,7 +28,8 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Stub is base classes of all stubs.
@@ -81,6 +82,10 @@ class CodeStub BASE_EMBEDDED {
   // Returns information for computing the number key.
   virtual Major MajorKey() = 0;
   virtual int MinorKey() = 0;
+
+  // The CallFunctionStub needs to override this so it can encode whether a
+  // lazily generated function should be fully optimized or not.
+  virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
   // Returns a name for logging/debugging purposes.
   virtual const char* GetName() { return MajorName(MajorKey()); }

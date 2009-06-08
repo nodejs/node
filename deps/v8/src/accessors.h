@@ -28,27 +28,31 @@
 #ifndef V8_ACCESSORS_H_
 #define V8_ACCESSORS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
 #define ACCESSOR_DESCRIPTOR_LIST(V) \
-  V(FunctionPrototype)   \
-  V(FunctionLength)      \
-  V(FunctionName)        \
-  V(FunctionArguments)   \
-  V(FunctionCaller)      \
-  V(ArrayLength)         \
-  V(StringLength)        \
-  V(ScriptSource)        \
-  V(ScriptName)          \
-  V(ScriptId)            \
-  V(ScriptLineOffset)    \
-  V(ScriptColumnOffset)  \
-  V(ScriptData)          \
-  V(ScriptType)          \
-  V(ScriptLineEnds)      \
-  V(ScriptContextData)   \
+  V(FunctionPrototype)              \
+  V(FunctionLength)                 \
+  V(FunctionName)                   \
+  V(FunctionArguments)              \
+  V(FunctionCaller)                 \
+  V(ArrayLength)                    \
+  V(StringLength)                   \
+  V(ScriptSource)                   \
+  V(ScriptName)                     \
+  V(ScriptId)                       \
+  V(ScriptLineOffset)               \
+  V(ScriptColumnOffset)             \
+  V(ScriptData)                     \
+  V(ScriptType)                     \
+  V(ScriptCompilationType)          \
+  V(ScriptLineEnds)                 \
+  V(ScriptContextData)              \
+  V(ScriptEvalFromFunction)         \
+  V(ScriptEvalFromPosition)         \
   V(ObjectPrototype)
 
 // Accessors contains all predefined proxy accessors.
@@ -88,8 +92,11 @@ class Accessors : public AllStatic {
   static Object* ScriptGetColumnOffset(Object* object, void*);
   static Object* ScriptGetData(Object* object, void*);
   static Object* ScriptGetType(Object* object, void*);
+  static Object* ScriptGetCompilationType(Object* object, void*);
   static Object* ScriptGetLineEnds(Object* object, void*);
   static Object* ScriptGetContextData(Object* object, void*);
+  static Object* ScriptGetEvalFromFunction(Object* object, void*);
+  static Object* ScriptGetEvalFromPosition(Object* object, void*);
   static Object* ObjectGetPrototype(Object* receiver, void*);
   static Object* ObjectSetPrototype(JSObject* receiver, Object* value, void*);
 

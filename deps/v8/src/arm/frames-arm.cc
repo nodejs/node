@@ -31,7 +31,8 @@
 #include "arm/assembler-arm-inl.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 StackFrame::Type StackFrame::ComputeType(State* state) {

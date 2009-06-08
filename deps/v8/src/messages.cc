@@ -33,7 +33,8 @@
 #include "spaces-inl.h"
 #include "top.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // If no message listeners have been registered this one is called

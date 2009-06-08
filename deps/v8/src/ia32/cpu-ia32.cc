@@ -32,7 +32,8 @@
 #include "cpu.h"
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 void CPU::Setup() {
   CpuFeatures::Probe();
@@ -46,7 +47,7 @@ void CPU::FlushICache(void* start, size_t size) {
   // is patched on an intel CPU the core performing the patching will have its
   // own instruction cache updated automatically.
 
-  // If flushing of the instruction cache becomes necessary Windows have the
+  // If flushing of the instruction cache becomes necessary Windows has the
   // API function FlushInstructionCache.
 }
 

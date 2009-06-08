@@ -66,7 +66,8 @@
 #include "constants-arm.h"
 
 
-namespace assembler { namespace arm {
+namespace assembler {
+namespace arm {
 
 class Simulator {
  public:

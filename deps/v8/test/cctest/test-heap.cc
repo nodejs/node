@@ -36,34 +36,43 @@ TEST(HeapMaps) {
   InitializeVM();
   CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, Array::kHeaderSize);
+  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, Array::kAlignedSize);
   CheckMap(Heap::long_string_map(), LONG_STRING_TYPE,
-           SeqTwoByteString::kHeaderSize);
+           SeqTwoByteString::kAlignedSize);
 }
 
 
 static void CheckOddball(Object* obj, const char* string) {
   CHECK(obj->IsOddball());
+#ifndef V8_HOST_ARCH_64_BIT
+// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
 static void CheckSmi(int value, const char* string) {
+#ifndef V8_HOST_ARCH_64_BIT
+// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string =
       *Execution::ToString(Handle<Object>(Smi::FromInt(value)), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
 static void CheckNumber(double value, const char* string) {
   Object* obj = Heap::NumberFromDouble(value);
   CHECK(obj->IsNumber());
+#ifndef V8_HOST_ARCH_64_BIT
+// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
@@ -178,12 +187,16 @@ TEST(HeapObjects) {
 
 TEST(Tagging) {
   InitializeVM();
+  int request = 24;
+  ASSERT_EQ(request, OBJECT_SIZE_ALIGN(request));
   CHECK(Smi::FromInt(42)->IsSmi());
-  CHECK(Failure::RetryAfterGC(12, NEW_SPACE)->IsFailure());
-  CHECK_EQ(12, Failure::RetryAfterGC(12, NEW_SPACE)->requested());
-  CHECK_EQ(NEW_SPACE, Failure::RetryAfterGC(12, NEW_SPACE)->allocation_space());
+  CHECK(Failure::RetryAfterGC(request, NEW_SPACE)->IsFailure());
+  CHECK_EQ(request, Failure::RetryAfterGC(request, NEW_SPACE)->requested());
+  CHECK_EQ(NEW_SPACE,
+           Failure::RetryAfterGC(request, NEW_SPACE)->allocation_space());
   CHECK_EQ(OLD_POINTER_SPACE,
-           Failure::RetryAfterGC(12, OLD_POINTER_SPACE)->allocation_space());
+           Failure::RetryAfterGC(request,
+                                 OLD_POINTER_SPACE)->allocation_space());
   CHECK(Failure::Exception()->IsFailure());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
@@ -315,7 +328,7 @@ static bool WeakPointerCleared = false;
 static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Value> handle,
                                          void* id) {
   USE(handle);
-  if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
+  if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
 }
 
 
@@ -385,7 +398,7 @@ TEST(WeakGlobalHandlesMark) {
 static void TestDeleteWeakGlobalHandleCallback(
     v8::Persistent<v8::Value> handle,
     void* id) {
-  if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
+  if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
   handle.Dispose();
 }
 
@@ -540,7 +553,7 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(first));
 
   // delete first
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
 
   // add first and then second
@@ -550,9 +563,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(second));
 
   // delete first and then second
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(obj->HasLocalProperty(second));
-  CHECK(obj->DeleteProperty(second));
+  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
   CHECK(!obj->HasLocalProperty(second));
 
@@ -563,9 +576,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(second));
 
   // delete second and then first
-  CHECK(obj->DeleteProperty(second));
+  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
   CHECK(obj->HasLocalProperty(first));
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
   CHECK(!obj->HasLocalProperty(second));
 

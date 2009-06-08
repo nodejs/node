@@ -28,7 +28,8 @@
 #ifndef V8_ARM_FRAMES_ARM_H_
 #define V8_ARM_FRAMES_ARM_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // The ARM ABI does not specify the usage of register r9, which may be reserved

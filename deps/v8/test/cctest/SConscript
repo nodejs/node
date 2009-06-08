@@ -48,6 +48,7 @@ SOURCES = {
     'test-list.cc',
     'test-lock.cc',
     'test-log.cc',
+    'test-log-utils.cc',
     'test-mark-compact.cc',
     'test-regexp.cc',
     'test-serialize.cc',
@@ -64,6 +65,7 @@ SOURCES = {
     'test-disasm-ia32.cc',
     'test-log-ia32.cc'
   ],
+  'arch:x64': ['test-assembler-x64.cc'],
   'os:linux':  ['test-platform-linux.cc'],
   'os:macos':  ['test-platform-macos.cc'],
   'os:nullos': ['test-platform-nullos.cc'],

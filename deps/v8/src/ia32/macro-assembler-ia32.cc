@@ -33,7 +33,8 @@
 #include "runtime.h"
 #include "serialize.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.
@@ -560,8 +561,8 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
 
 
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
-                                          Register scratch,
-                                          Label* miss) {
+                                            Register scratch,
+                                            Label* miss) {
   Label same_contexts;
 
   ASSERT(!holder_reg.is(scratch));
@@ -631,7 +632,7 @@ void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,
                                       Register op,
                                       JumpTarget* then_target) {
-  JumpTarget ok(cgen);
+  JumpTarget ok;
   test(result, Operand(result));
   ok.Branch(not_zero, taken);
   test(op, Operand(op));
