@@ -944,6 +944,23 @@ function onLoad () {
     used after <code>onLoad()</code> is called. So put them at the
     beginning of your file.
   </p>
+
+  <p>
+    Additionally when <code>node.exit()</code> is called or when
+    a program exits naturally, the function <code>onExit()</code> will be
+    called for each module (children first).
+    The <code>onExit()</code> callback cannot perform I/O as the process is
+    going to forcably exit in several microseconds, however it is a good
+    hook to perform some constant time checks of the module's state. 
+    It's useful for unit tests.
+  </p>
+
+  <p>
+    Just to reiterate: <code>onExit()</code>, is not the place to close
+    files or shutdown servers. The process will exit before they get
+    performed. 
+  </p>
+
 </div>
 </body>
 </html>

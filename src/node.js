@@ -138,9 +138,41 @@ node.Module.prototype.loadChildren = function (callback) {
   }
 };
 
-node.Module.prototype.exit = function (callback) {
-  throw "not implemented";
+node.Module.prototype.exitChildren = function (callback) {
+  var children = this.children;
+  if (children.length == 0 && callback) callback();
+  var nexited = 0;
+  for (var i = 0; i < children.length; i++) {
+    children[i].exit(function () {
+      nexited += 1;
+      if (nexited == children.length && callback) callback(); 
+    });
+  }
 };
 
-// Load the root module. I.E. the command line argument.
-(new node.Module({ path: ARGV[1], target: this })).load();
+node.Module.prototype.exit = function (callback) {
+  var self = this;
+
+  if (self.exited) 
+    throw "Module '" + self.filename + "' is already exited.";
+
+  this.exitChildren(function () {
+    if (self.onExit) {
+      self.onExit();
+    } 
+    self.exited = true;
+    if (callback) callback()
+  });
+};
+
+(function () {
+  // Load the root module. I.E. the command line argument.
+  root_module = new node.Module({ path: ARGV[1], target: this });
+  root_module.load();
+
+  node.exit = function (code) {
+    root_module.exit(function () {
+      node.reallyExit(code);
+    });
+  };
+}())

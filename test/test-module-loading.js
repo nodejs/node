@@ -21,3 +21,22 @@ function onLoad () {
   assertInstanceof(d2.D, Function);
   assertEquals("D", d2.D());
 }
+
+function onExit () {
+  assertInstanceof(a.A, Function);
+  assertEquals("A done", a.A());
+
+  assertInstanceof(a.C, Function);
+  assertEquals("C done", a.C());
+
+  assertInstanceof(a.D, Function);
+  assertEquals("D done", a.D());
+
+  assertInstanceof(d.D, Function);
+  assertEquals("D done", d.D());
+
+  assertInstanceof(d2.D, Function);
+  assertEquals("D done", d2.D());
+
+  node.debug("test-module-loading.js onExit() called");
+}

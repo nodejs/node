@@ -21,8 +21,6 @@ using namespace v8;
 using namespace node;
 using namespace std;
 
-static int exit_code = 0;
-
 ObjectWrap::~ObjectWrap ( )
 {
   handle_->SetInternalField(0, Undefined());
@@ -265,6 +263,20 @@ node::ParseEncoding (Handle<Value> encoding_v)
   }
 }
 
+static void
+ExecuteNativeJS (const char *filename, const char *data)
+{
+  HandleScope scope;
+  TryCatch try_catch;
+  ExecuteString(String::New(data), String::New(filename));
+  if (try_catch.HasCaught())  {
+    puts("There is an error in Node's built-in javascript");
+    puts("This should be reported as a bug!");
+    ReportException(&try_catch);
+    exit(1);
+  }
+}
+
 int
 main (int argc, char *argv[]) 
 {
@@ -299,7 +311,7 @@ main (int argc, char *argv[])
 
   NODE_SET_METHOD(node, "compile", compile); // internal 
   NODE_SET_METHOD(node, "debug", debug);
-  NODE_SET_METHOD(node, "exit", node_exit);
+  NODE_SET_METHOD(node, "reallyExit", node_exit);
 
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {
@@ -307,7 +319,6 @@ main (int argc, char *argv[])
     arguments->Set(Integer::New(i), arg);
   }
   g->Set(String::New("ARGV"), arguments);
-
 
   // BUILT-IN MODULES
   Timer::Initialize(node);
@@ -330,19 +341,17 @@ main (int argc, char *argv[])
   HTTPServer::Initialize(http);
   HTTPConnection::Initialize(http);
 
-  // NATIVE JAVASCRIPT MODULES
-  TryCatch try_catch;
-
-  ExecuteString(String::New(native_http), String::New("http.js"));
-  if (try_catch.HasCaught()) goto native_js_error; 
-
-  ExecuteString(String::New(native_file), String::New("file.js"));
-  if (try_catch.HasCaught()) goto native_js_error; 
-
-  ExecuteString(String::New(native_node), String::New("node.js"));
-  if (try_catch.HasCaught()) goto native_js_error; 
+  ExecuteNativeJS("http.js", native_http);
+  ExecuteNativeJS("file.js", native_file);
+  ExecuteNativeJS("node.js", native_node);
 
   ev_loop(EV_DEFAULT_UC_ 0);
+
+  // call node.exit() 
+  Local<Value> exit_v = node->Get(String::New("exit"));
+  assert(exit_v->IsFunction());
+  Handle<Function> exit_f = Handle<Function>::Cast(exit_v);
+  exit_f->Call(g, 0, NULL);
 
   context.Dispose();
   // The following line when uncommented causes an error.
@@ -353,9 +362,5 @@ main (int argc, char *argv[])
   //
   //V8::Dispose();
 
-  return exit_code;
-
-native_js_error:
-  ReportException(&try_catch);
-  return 1;
+  return 0;
 }
