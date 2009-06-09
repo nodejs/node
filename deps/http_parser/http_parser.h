@@ -1,8 +1,7 @@
-/* Copyright (c) 2008 Ryan Dahl (ry@tinyclouds.org)
- * All rights reserved.
+/* Copyright (c) 2008, 2009 Ryan Dahl (ry@tinyclouds.org)
+ * Based on Zed Shaw's Mongrel, copyright (c) Zed A. Shaw
  *
- * This parser is based on code from Zed Shaw's Mongrel.
- * Copyright (c) 2005 Zed A. Shaw
+ * All rights reserved.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -72,14 +71,21 @@ struct http_parser {
 
   size_t chunk_size;
   unsigned eating:1;
+  unsigned buffer_overflow:1;
   size_t body_read;
 
   const char *header_field_mark; 
+  size_t      header_field_size; 
   const char *header_value_mark; 
+  size_t      header_value_size; 
   const char *query_string_mark; 
+  size_t      query_string_size; 
   const char *path_mark; 
+  size_t      path_size; 
   const char *uri_mark; 
+  size_t      uri_size; 
   const char *fragment_mark; 
+  size_t      fragment_size; 
 
   /** READ-ONLY **/
   unsigned short status_code; /* responses only */

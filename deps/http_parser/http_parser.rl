@@ -1,7 +1,5 @@
 /* Copyright (c) 2008, 2009 Ryan Dahl (ry@tinyclouds.org)
- *
- * Based on Zed Shaw's Mongrel.
- * Copyright (c) 2005 Zed A. Shaw
+ * Based on Zed Shaw's Mongrel, copyright (c) Zed A. Shaw
  *
  * All rights reserved.
  * 
@@ -25,8 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
  */
 #include "http_parser.h"
-
-#include <assert.h>
+#ifndef NDEBUG
+# include <assert.h>
+#endif
 
 static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
                      ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
@@ -42,38 +41,50 @@ static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
 #define MIN(a,b) (a < b ? a : b)
 #define NULL (void*)(0)
 
-#define REMAINING (pe - p)
-#define CALLBACK(FOR)                                                       \
-  if (parser->FOR##_mark && parser->on_##FOR) {                             \
-    callback_return_value =                                                 \
-      parser->on_##FOR(parser, parser->FOR##_mark, p - parser->FOR##_mark); \
-  }
+#define MAX_FIELD_SIZE 80*1024
 
-#define RESET_PARSER(parser) \
-    parser->chunk_size = 0; \
-    parser->eating = 0; \
-    parser->header_field_mark = NULL; \
-    parser->header_value_mark = NULL; \
-    parser->query_string_mark = NULL; \
-    parser->path_mark = NULL; \
-    parser->uri_mark = NULL; \
-    parser->fragment_mark = NULL; \
-    parser->status_code = 0; \
-    parser->method = 0; \
-    parser->transfer_encoding = HTTP_IDENTITY; \
-    parser->version_major = 0; \
-    parser->version_minor = 0; \
-    parser->keep_alive = -1; \
-    parser->content_length = 0; \
+#define REMAINING (pe - p)
+#define CALLBACK(FOR)                                                \
+do {                                                                 \
+  if (parser->FOR##_mark) {                                          \
+    parser->FOR##_size += p - parser->FOR##_mark;                    \
+    if (parser->FOR##_size > MAX_FIELD_SIZE) {                       \
+      parser->buffer_overflow = TRUE;                                \
+      return 0;                                                      \
+    }                                                                \
+    if (parser->on_##FOR) {                                          \
+      callback_return_value = parser->on_##FOR(parser,               \
+        parser->FOR##_mark,                                          \
+        p - parser->FOR##_mark);                                     \
+    }                                                                \
+  }                                                                  \
+} while(0)
+
+#define RESET_PARSER(parser)                                         \
+    parser->chunk_size = 0;                                          \
+    parser->eating = 0;                                              \
+    parser->header_field_mark = NULL;                                \
+    parser->header_value_mark = NULL;                                \
+    parser->query_string_mark = NULL;                                \
+    parser->path_mark = NULL;                                        \
+    parser->uri_mark = NULL;                                         \
+    parser->fragment_mark = NULL;                                    \
+    parser->status_code = 0;                                         \
+    parser->method = 0;                                              \
+    parser->transfer_encoding = HTTP_IDENTITY;                       \
+    parser->version_major = 0;                                       \
+    parser->version_minor = 0;                                       \
+    parser->keep_alive = -1;                                         \
+    parser->content_length = 0;                                      \
     parser->body_read = 0; 
 
-#define END_REQUEST                                \
-do {                                               \
-    if (parser->on_message_complete) {             \
-      callback_return_value =                      \
-        parser->on_message_complete(parser);       \
-    }                                              \
-    RESET_PARSER(parser);                          \
+#define END_REQUEST                                                  \
+do {                                                                 \
+    if (parser->on_message_complete) {                               \
+      callback_return_value =                                        \
+        parser->on_message_complete(parser);                         \
+    }                                                                \
+    RESET_PARSER(parser);                                            \
 } while (0)
 
 #define SKIP_BODY(nskip)                                             \
@@ -100,47 +111,76 @@ do {                                                                 \
 %%{
   machine http_parser;
 
-  action mark_header_field   { parser->header_field_mark   = p; }
-  action mark_header_value   { parser->header_value_mark   = p; }
-  action mark_fragment       { parser->fragment_mark       = p; }
-  action mark_query_string   { parser->query_string_mark   = p; }
-  action mark_request_path   { parser->path_mark           = p; }
-  action mark_request_uri    { parser->uri_mark            = p; }
+  action mark_header_field {
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
+
+  action mark_header_value {
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
+
+  action mark_fragment {
+    parser->fragment_mark = p;
+    parser->fragment_size = 0;
+  }
+
+  action mark_query_string {
+    parser->query_string_mark = p;
+    parser->query_string_size = 0;
+  }
+
+  action mark_request_path {
+    parser->path_mark = p;
+    parser->path_size = 0;
+  }
+
+  action mark_request_uri {
+    parser->uri_mark = p;
+    parser->uri_size = 0;
+  }
 
   action header_field {
     CALLBACK(header_field);
     if (callback_return_value != 0) fbreak;
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 
   action header_value {
     CALLBACK(header_value);
     if (callback_return_value != 0) fbreak;
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 
   action request_uri { 
     CALLBACK(uri);
     if (callback_return_value != 0) fbreak;
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 
   action fragment { 
     CALLBACK(fragment);
     if (callback_return_value != 0) fbreak;
     parser->fragment_mark = NULL;
+    parser->fragment_size = 0;
   }
 
   action query_string { 
     CALLBACK(query_string);
     if (callback_return_value != 0) fbreak;
     parser->query_string_mark = NULL;
+    parser->query_string_size = 0;
   }
 
   action request_path {
     CALLBACK(path);
     if (callback_return_value != 0) fbreak;
     parser->path_mark = NULL;
+    parser->path_size = 0;
   }
 
   action headers_complete {
@@ -226,7 +266,6 @@ do {                                                                 \
       }
     }
   }
-
 
   CRLF = "\r\n";
 
@@ -348,6 +387,7 @@ http_parser_init (http_parser *parser, enum http_parser_type type)
   %% write init;
   parser->cs = cs;
   parser->type = type;
+  parser->buffer_overflow = 0;
 
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
@@ -406,6 +446,7 @@ out:
 int
 http_parser_has_error (http_parser *parser) 
 {
+  if (parser->buffer_overflow) return TRUE;
   return parser->cs == http_parser_error;
 }
 
