@@ -16,6 +16,8 @@ are:
     snippit. It is copyrighted 2007 by Steven Levithan and released under an
     MIT license.
 
+  - WAF build system. Copyrighted Thomas Nagy. Released under an MIT license.
+
 Additionally deps/http_parser is based on Zed Shaw's Mongrel.  Mongrel is
 copyrighted by Zed Shaw and distributed under GPL2 or a permissive open
 licence. See deps/http_parser/LICENCE for more information.
