@@ -125,7 +125,6 @@ node.http.ServerResponse = function (connection, responses) {
   this.closeOnFinish = false;
   var output = [];
 
-
   var chunked_encoding = false;
 
   this.sendHeader = function (statusCode, headers) {
@@ -314,8 +313,7 @@ node.http.Server = function (RequestHandler, options) {
     };
   }
 
-  this.__proto__.__proto__ =
-    new node.http.LowLevelServer(ConnectionHandler, options);
+  this.__proto__ = new node.http.LowLevelServer(ConnectionHandler, options);
 };
 
 node.http.Client = function (port, host) {
@@ -410,7 +408,6 @@ node.http.Client = function (port, host) {
   };
 
   connection.onEOF = function () {
-    //node.debug("onEOF. readyState = " + connection.readyState);
     connection.close();
   };
 
