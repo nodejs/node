@@ -52,6 +52,13 @@ node.path = new function () {
     var parts = path.split("/");
     return parts.slice(0, parts.length-1).join("/");
   };
+
+  this.filename = function (path) {
+    if (path.charAt(0) !== "/") 
+      path = "./" + path;
+    var parts = path.split("/");
+    return parts[parts.length-1];
+  };
 };
 
 // Module
@@ -165,7 +172,11 @@ node.Module.prototype.exit = function (callback) {
 
 (function () {
   // Load the root module. I.E. the command line argument.
-  root_module = new node.Module({ path: ARGV[1], target: this });
+  root_module = new node.Module({ 
+    path: node.path.filename(ARGV[1]), 
+    base_directory: node.path.dirname(ARGV[1]),
+    target: this 
+  });
   root_module.load();
 
   node.exit = function (code) {
