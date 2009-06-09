@@ -7,11 +7,18 @@ are:
 
   - libev, located under deps/libev, and libeio, located at deps/libeio. 
     This code is copyrighted by Marc Alexander Lehmann. Both are dually
-    licensed under an MIT license and the GPL2 license.
+    licensed under MIT and GPL2.
 
   - JSMin JavaScript minifier, located at jsmin.py.  This code is
-    copyrighted by Douglas Crockford and Baruch Even and released under
-    an MIT license.
+    copyrighted by Douglas Crockford and Baruch Even and has an MIT license.
+
+  - parseUri, a URI parser, is located in src/http.js. This is just a small
+    snippit. It is copyrighted 2007 by Steven Levithan and released under an
+    MIT license.
+
+Additionally deps/http_parser is based on Zed Shaw's Mongrel.  Mongrel is
+copyrighted by Zed Shaw and distributed under GPL2 or a permissive open
+licence. See deps/http_parser/LICENCE for more information.
 
 Node's license follows:
 
