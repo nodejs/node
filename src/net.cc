@@ -5,11 +5,11 @@
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h> /* inet_ntop */
+#include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
 using namespace v8;
 using namespace node;
