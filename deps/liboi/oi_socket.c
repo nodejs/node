@@ -466,22 +466,7 @@ socket_send (oi_socket *socket)
 #endif 
         return AGAIN;
 
-      case ECONNREFUSED:
-        socket->errorno = errno;
-        return ERROR;
-        
-      case ECONNRESET:
-        socket->errorno = errno;
-        return ERROR;
-
-      case EPIPE:
-        socket->errorno = errno;
-        return ERROR;
-        
       default:
-        perror("send()");
-        printf("%p had send error\n", socket);
-        assert(0 && "oi shouldn't let this happen.");
         socket->errorno = errno;
         return ERROR;
     }
@@ -528,21 +513,8 @@ socket_recv (oi_socket *socket)
       case EINTR:  
         return AGAIN;
 
-      /* A remote host refused to allow the network connection (typically
-       * because it is not running the requested service). */
-      case ECONNREFUSED:
-        socket->errorno = errno;
-        return ERROR; 
-
-      case ECONNRESET:
-        socket->errorno = errno;
-        return ERROR; 
-
       default:
         socket->errorno = errno;
-        perror("recv()");
-        printf("unmatched errno %d %s\n\n", socket->errorno, strerror(errno));
-        assert(0 && "recv returned error that oi should have caught before.");
         return ERROR;
     }
   }
