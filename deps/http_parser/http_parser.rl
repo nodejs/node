@@ -23,9 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
  */
 #include "http_parser.h"
-#ifndef NDEBUG
-# include <assert.h>
-#endif
+#include <limits.h>
+#include <assert.h>
 
 static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
                      ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
@@ -198,6 +197,10 @@ do {                                                                 \
   }
 
   action content_length {
+    if (parser->content_length > INT_MAX) {
+      parser->buffer_overflow = TRUE;
+      return 0;
+    }
     parser->content_length *= 10;
     parser->content_length += *p - '0';
   }
@@ -308,7 +311,7 @@ do {                                                                 \
            | "UNLOCK"    %{ parser->method = HTTP_UNLOCK;    }
            ); # Not allowing extension methods
 
-  HTTP_Version = "HTTP/" digit+ $version_major "." digit+ $version_minor;
+  HTTP_Version = "HTTP/" digit $version_major "." digit $version_minor;
 
   scheme = ( alpha | digit | "+" | "-" | "." )* ;
   absolute_uri = (scheme ":" (uchar | reserved )*);

@@ -1,8 +1,6 @@
 #line 1 "http_parser.rl"
 /* Copyright (c) 2008, 2009 Ryan Dahl (ry@tinyclouds.org)
- *
- * Based on Zed Shaw's Mongrel.
- * Copyright (c) 2005 Zed A. Shaw
+ * Based on Zed Shaw's Mongrel, copyright (c) Zed A. Shaw
  *
  * All rights reserved.
  * 
@@ -26,7 +24,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
  */
 #include "http_parser.h"
-
+#include <limits.h>
 #include <assert.h>
 
 static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
@@ -43,38 +41,50 @@ static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
 #define MIN(a,b) (a < b ? a : b)
 #define NULL (void*)(0)
 
-#define REMAINING (pe - p)
-#define CALLBACK(FOR)                                                       \
-  if (parser->FOR##_mark && parser->on_##FOR) {                             \
-    callback_return_value =                                                 \
-      parser->on_##FOR(parser, parser->FOR##_mark, p - parser->FOR##_mark); \
-  }
+#define MAX_FIELD_SIZE 80*1024
 
-#define RESET_PARSER(parser) \
-    parser->chunk_size = 0; \
-    parser->eating = 0; \
-    parser->header_field_mark = NULL; \
-    parser->header_value_mark = NULL; \
-    parser->query_string_mark = NULL; \
-    parser->path_mark = NULL; \
-    parser->uri_mark = NULL; \
-    parser->fragment_mark = NULL; \
-    parser->status_code = 0; \
-    parser->method = 0; \
-    parser->transfer_encoding = HTTP_IDENTITY; \
-    parser->version_major = 0; \
-    parser->version_minor = 0; \
-    parser->keep_alive = -1; \
-    parser->content_length = 0; \
+#define REMAINING (pe - p)
+#define CALLBACK(FOR)                                                \
+do {                                                                 \
+  if (parser->FOR##_mark) {                                          \
+    parser->FOR##_size += p - parser->FOR##_mark;                    \
+    if (parser->FOR##_size > MAX_FIELD_SIZE) {                       \
+      parser->buffer_overflow = TRUE;                                \
+      return 0;                                                      \
+    }                                                                \
+    if (parser->on_##FOR) {                                          \
+      callback_return_value = parser->on_##FOR(parser,               \
+        parser->FOR##_mark,                                          \
+        p - parser->FOR##_mark);                                     \
+    }                                                                \
+  }                                                                  \
+} while(0)
+
+#define RESET_PARSER(parser)                                         \
+    parser->chunk_size = 0;                                          \
+    parser->eating = 0;                                              \
+    parser->header_field_mark = NULL;                                \
+    parser->header_value_mark = NULL;                                \
+    parser->query_string_mark = NULL;                                \
+    parser->path_mark = NULL;                                        \
+    parser->uri_mark = NULL;                                         \
+    parser->fragment_mark = NULL;                                    \
+    parser->status_code = 0;                                         \
+    parser->method = 0;                                              \
+    parser->transfer_encoding = HTTP_IDENTITY;                       \
+    parser->version_major = 0;                                       \
+    parser->version_minor = 0;                                       \
+    parser->keep_alive = -1;                                         \
+    parser->content_length = 0;                                      \
     parser->body_read = 0; 
 
-#define END_REQUEST                                \
-do {                                               \
-    if (parser->on_message_complete) {             \
-      callback_return_value =                      \
-        parser->on_message_complete(parser);       \
-    }                                              \
-    RESET_PARSER(parser);                          \
+#define END_REQUEST                                                  \
+do {                                                                 \
+    if (parser->on_message_complete) {                               \
+      callback_return_value =                                        \
+        parser->on_message_complete(parser);                         \
+    }                                                                \
+    RESET_PARSER(parser);                                            \
 } while (0)
 
 #define SKIP_BODY(nskip)                                             \
@@ -98,11 +108,11 @@ do {                                                                 \
   }                                                                  \
 } while (0)
 
-#line 340 "http_parser.rl"
+#line 382 "http_parser.rl"
 
 
 
-#line 106 "http_parser.c"
+#line 116 "http_parser.c"
 static const int http_parser_start = 1;
 static const int http_parser_first_final = 267;
 static const int http_parser_error = 0;
@@ -113,20 +123,21 @@ static const int http_parser_en_Requests = 269;
 static const int http_parser_en_Responses = 270;
 static const int http_parser_en_main = 1;
 
-#line 343 "http_parser.rl"
+#line 385 "http_parser.rl"
 
 void
 http_parser_init (http_parser *parser, enum http_parser_type type) 
 {
   int cs = 0;
   
-#line 124 "http_parser.c"
+#line 134 "http_parser.c"
 	{
 	cs = http_parser_start;
 	}
-#line 349 "http_parser.rl"
+#line 391 "http_parser.rl"
   parser->cs = cs;
   parser->type = type;
+  parser->buffer_overflow = 0;
 
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
@@ -167,7 +178,7 @@ http_parser_execute (http_parser *parser, const char *buffer, size_t len)
   if (parser->uri_mark)            parser->uri_mark            = buffer;
 
   
-#line 171 "http_parser.c"
+#line 182 "http_parser.c"
 	{
 	if ( p == pe )
 		goto _test_eof;
@@ -460,7 +471,7 @@ st1:
 case 1:
 	goto tr0;
 tr0:
-#line 331 "http_parser.rl"
+#line 373 "http_parser.rl"
 	{
     p--;
     if (parser->type == HTTP_REQUEST) {
@@ -474,7 +485,7 @@ st267:
 	if ( ++p == pe )
 		goto _test_eof267;
 case 267:
-#line 478 "http_parser.c"
+#line 489 "http_parser.c"
 	goto st0;
 st0:
 cs = 0;
@@ -495,7 +506,7 @@ case 2:
 		goto tr3;
 	goto st0;
 tr1:
-#line 186 "http_parser.rl"
+#line 229 "http_parser.rl"
 	{
     parser->chunk_size *= 16;
     parser->chunk_size += unhex[(int)*p];
@@ -505,7 +516,7 @@ st3:
 	if ( ++p == pe )
 		goto _test_eof3;
 case 3:
-#line 509 "http_parser.c"
+#line 520 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto st4;
 		case 48: goto tr1;
@@ -564,7 +575,7 @@ case 6:
 	goto st0;
 tr9:
 	cs = 268;
-#line 203 "http_parser.rl"
+#line 246 "http_parser.rl"
 	{
     END_REQUEST;
     if (parser->type == HTTP_REQUEST) {
@@ -578,7 +589,7 @@ st268:
 	if ( ++p == pe )
 		goto _test_eof268;
 case 268:
-#line 582 "http_parser.c"
+#line 593 "http_parser.c"
 	goto st0;
 st7:
 	if ( ++p == pe )
@@ -616,7 +627,7 @@ case 8:
 		goto st4;
 	goto st8;
 tr3:
-#line 186 "http_parser.rl"
+#line 229 "http_parser.rl"
 	{
     parser->chunk_size *= 16;
     parser->chunk_size += unhex[(int)*p];
@@ -626,7 +637,7 @@ st9:
 	if ( ++p == pe )
 		goto _test_eof9;
 case 9:
-#line 630 "http_parser.c"
+#line 641 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto st10;
 		case 59: goto st14;
@@ -653,7 +664,7 @@ st11:
 case 11:
 	goto tr14;
 tr14:
-#line 191 "http_parser.rl"
+#line 234 "http_parser.rl"
 	{
     SKIP_BODY(MIN(parser->chunk_size, REMAINING));
     if (callback_return_value != 0) {p++; cs = 12; goto _out;}
@@ -670,7 +681,7 @@ st12:
 	if ( ++p == pe )
 		goto _test_eof12;
 case 12:
-#line 674 "http_parser.c"
+#line 685 "http_parser.c"
 	if ( (*p) == 13 )
 		goto st13;
 	goto st0;
@@ -863,14 +874,14 @@ case 19:
 	goto st0;
 tr45:
 	cs = 269;
-#line 146 "http_parser.rl"
+#line 185 "http_parser.rl"
 	{
     if(parser->on_headers_complete) {
       callback_return_value = parser->on_headers_complete(parser);
       if (callback_return_value != 0) {p++; goto _out;}
     }
   }
-#line 212 "http_parser.rl"
+#line 255 "http_parser.rl"
 	{
     if (parser->transfer_encoding == HTTP_CHUNKED) {
       cs = 2;
@@ -893,7 +904,7 @@ st269:
 	if ( ++p == pe )
 		goto _test_eof269;
 case 269:
-#line 897 "http_parser.c"
+#line 908 "http_parser.c"
 	switch( (*p) ) {
 		case 67: goto tr311;
 		case 68: goto tr312;
@@ -908,7 +919,7 @@ case 269:
 	}
 	goto st0;
 tr311:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -920,7 +931,7 @@ st20:
 	if ( ++p == pe )
 		goto _test_eof20;
 case 20:
-#line 924 "http_parser.c"
+#line 935 "http_parser.c"
 	if ( (*p) == 79 )
 		goto st21;
 	goto st0;
@@ -946,66 +957,66 @@ case 23:
 		goto tr24;
 	goto st0;
 tr24:
-#line 256 "http_parser.rl"
+#line 298 "http_parser.rl"
 	{ parser->method = HTTP_COPY;      }
 	goto st24;
 tr154:
-#line 257 "http_parser.rl"
+#line 299 "http_parser.rl"
 	{ parser->method = HTTP_DELETE;    }
 	goto st24;
 tr157:
-#line 258 "http_parser.rl"
+#line 300 "http_parser.rl"
 	{ parser->method = HTTP_GET;       }
 	goto st24;
 tr161:
-#line 259 "http_parser.rl"
+#line 301 "http_parser.rl"
 	{ parser->method = HTTP_HEAD;      }
 	goto st24;
 tr165:
-#line 260 "http_parser.rl"
+#line 302 "http_parser.rl"
 	{ parser->method = HTTP_LOCK;      }
 	goto st24;
 tr171:
-#line 261 "http_parser.rl"
+#line 303 "http_parser.rl"
 	{ parser->method = HTTP_MKCOL;     }
 	goto st24;
 tr174:
-#line 262 "http_parser.rl"
+#line 304 "http_parser.rl"
 	{ parser->method = HTTP_MOVE;      }
 	goto st24;
 tr181:
-#line 263 "http_parser.rl"
+#line 305 "http_parser.rl"
 	{ parser->method = HTTP_OPTIONS;   }
 	goto st24;
 tr187:
-#line 264 "http_parser.rl"
+#line 306 "http_parser.rl"
 	{ parser->method = HTTP_POST;      }
 	goto st24;
 tr195:
-#line 265 "http_parser.rl"
+#line 307 "http_parser.rl"
 	{ parser->method = HTTP_PROPFIND;  }
 	goto st24;
 tr200:
-#line 266 "http_parser.rl"
+#line 308 "http_parser.rl"
 	{ parser->method = HTTP_PROPPATCH; }
 	goto st24;
 tr202:
-#line 267 "http_parser.rl"
+#line 309 "http_parser.rl"
 	{ parser->method = HTTP_PUT;       }
 	goto st24;
 tr207:
-#line 268 "http_parser.rl"
+#line 310 "http_parser.rl"
 	{ parser->method = HTTP_TRACE;     }
 	goto st24;
 tr213:
-#line 269 "http_parser.rl"
+#line 311 "http_parser.rl"
 	{ parser->method = HTTP_UNLOCK;    }
 	goto st24;
 st24:
 	if ( ++p == pe )
 		goto _test_eof24;
 case 24:
-#line 1009 "http_parser.c"
+#line 1020 "http_parser.c"
 	switch( (*p) ) {
 		case 42: goto tr25;
 		case 43: goto tr26;
@@ -1022,94 +1033,112 @@ case 24:
 		goto tr26;
 	goto st0;
 tr25:
-#line 108 "http_parser.rl"
-	{ parser->uri_mark            = p; }
+#line 138 "http_parser.rl"
+	{
+    parser->uri_mark = p;
+    parser->uri_size = 0;
+  }
 	goto st25;
 st25:
 	if ( ++p == pe )
 		goto _test_eof25;
 case 25:
-#line 1033 "http_parser.c"
+#line 1047 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr29;
 		case 35: goto tr30;
 	}
 	goto st0;
 tr29:
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st26;
 tr124:
-#line 105 "http_parser.rl"
-	{ parser->fragment_mark       = p; }
-#line 128 "http_parser.rl"
+#line 123 "http_parser.rl"
+	{
+    parser->fragment_mark = p;
+    parser->fragment_size = 0;
+  }
+#line 164 "http_parser.rl"
 	{ 
     CALLBACK(fragment);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->fragment_mark = NULL;
+    parser->fragment_size = 0;
   }
 	goto st26;
 tr127:
-#line 128 "http_parser.rl"
+#line 164 "http_parser.rl"
 	{ 
     CALLBACK(fragment);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->fragment_mark = NULL;
+    parser->fragment_size = 0;
   }
 	goto st26;
 tr135:
-#line 140 "http_parser.rl"
+#line 178 "http_parser.rl"
 	{
     CALLBACK(path);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->path_mark = NULL;
+    parser->path_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st26;
 tr141:
-#line 106 "http_parser.rl"
-	{ parser->query_string_mark   = p; }
-#line 134 "http_parser.rl"
+#line 128 "http_parser.rl"
+	{
+    parser->query_string_mark = p;
+    parser->query_string_size = 0;
+  }
+#line 171 "http_parser.rl"
 	{ 
     CALLBACK(query_string);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->query_string_mark = NULL;
+    parser->query_string_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st26;
 tr145:
-#line 134 "http_parser.rl"
+#line 171 "http_parser.rl"
 	{ 
     CALLBACK(query_string);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->query_string_mark = NULL;
+    parser->query_string_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 26; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st26;
 st26:
 	if ( ++p == pe )
 		goto _test_eof26;
 case 26:
-#line 1113 "http_parser.c"
+#line 1142 "http_parser.c"
 	if ( (*p) == 72 )
 		goto st27;
 	goto st0;
@@ -1149,7 +1178,7 @@ case 31:
 		goto tr36;
 	goto st0;
 tr36:
-#line 176 "http_parser.rl"
+#line 219 "http_parser.rl"
 	{
     parser->version_major *= 10;
     parser->version_major += *p - '0';
@@ -1159,11 +1188,9 @@ st32:
 	if ( ++p == pe )
 		goto _test_eof32;
 case 32:
-#line 1163 "http_parser.c"
+#line 1192 "http_parser.c"
 	if ( (*p) == 46 )
 		goto st33;
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr36;
 	goto st0;
 st33:
 	if ( ++p == pe )
@@ -1173,7 +1200,7 @@ case 33:
 		goto tr38;
 	goto st0;
 tr38:
-#line 181 "http_parser.rl"
+#line 224 "http_parser.rl"
 	{
     parser->version_minor *= 10;
     parser->version_minor += *p - '0';
@@ -1183,65 +1210,71 @@ st34:
 	if ( ++p == pe )
 		goto _test_eof34;
 case 34:
-#line 1187 "http_parser.c"
+#line 1214 "http_parser.c"
 	if ( (*p) == 13 )
 		goto st35;
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr38;
 	goto st0;
 tr49:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
-#line 116 "http_parser.rl"
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 35; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st35;
 tr52:
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 35; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st35;
 tr71:
-#line 174 "http_parser.rl"
+#line 217 "http_parser.rl"
 	{ parser->keep_alive = FALSE; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 35; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st35;
 tr81:
-#line 173 "http_parser.rl"
+#line 216 "http_parser.rl"
 	{ parser->keep_alive = TRUE; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 35; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st35;
 tr122:
-#line 170 "http_parser.rl"
+#line 213 "http_parser.rl"
 	{ parser->transfer_encoding = HTTP_IDENTITY; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 35; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st35;
 st35:
 	if ( ++p == pe )
 		goto _test_eof35;
 case 35:
-#line 1245 "http_parser.c"
+#line 1278 "http_parser.c"
 	if ( (*p) == 10 )
 		goto st36;
 	goto st0;
@@ -1285,14 +1318,17 @@ case 37:
 		goto tr45;
 	goto st0;
 tr42:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st38;
 st38:
 	if ( ++p == pe )
 		goto _test_eof38;
 case 38:
-#line 1296 "http_parser.c"
+#line 1332 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st38;
 		case 58: goto tr47;
@@ -1318,44 +1354,51 @@ case 38:
 		goto st38;
 	goto st0;
 tr47:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 39; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st39;
 st39:
 	if ( ++p == pe )
 		goto _test_eof39;
 case 39:
-#line 1333 "http_parser.c"
+#line 1370 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr49;
 		case 32: goto st39;
 	}
 	goto tr48;
 tr48:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st40;
 st40:
 	if ( ++p == pe )
 		goto _test_eof40;
 case 40:
-#line 1347 "http_parser.c"
+#line 1387 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr52;
 	goto st40;
 tr43:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st41;
 st41:
 	if ( ++p == pe )
 		goto _test_eof41;
 case 41:
-#line 1359 "http_parser.c"
+#line 1402 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st38;
 		case 58: goto tr47;
@@ -1653,18 +1696,19 @@ case 50:
 		goto st38;
 	goto st0;
 tr63:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 51; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st51;
 st51:
 	if ( ++p == pe )
 		goto _test_eof51;
 case 51:
-#line 1668 "http_parser.c"
+#line 1712 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr49;
 		case 32: goto st51;
@@ -1675,14 +1719,17 @@ case 51:
 	}
 	goto tr48;
 tr65:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st52;
 st52:
 	if ( ++p == pe )
 		goto _test_eof52;
 case 52:
-#line 1686 "http_parser.c"
+#line 1733 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr52;
 		case 76: goto st53;
@@ -1727,14 +1774,17 @@ case 56:
 		goto tr71;
 	goto st40;
 tr66:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st57;
 st57:
 	if ( ++p == pe )
 		goto _test_eof57;
 case 57:
-#line 1738 "http_parser.c"
+#line 1788 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr52;
 		case 69: goto st58;
@@ -2153,18 +2203,19 @@ case 77:
 		goto st38;
 	goto st0;
 tr92:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 78; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st78;
 st78:
 	if ( ++p == pe )
 		goto _test_eof78;
 case 78:
-#line 2168 "http_parser.c"
+#line 2219 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr49;
 		case 32: goto st78;
@@ -2173,17 +2224,28 @@ case 78:
 		goto tr94;
 	goto tr48;
 tr94:
-#line 160 "http_parser.rl"
+#line 199 "http_parser.rl"
 	{
+    if (parser->content_length > INT_MAX) {
+      parser->buffer_overflow = TRUE;
+      return 0;
+    }
     parser->content_length *= 10;
     parser->content_length += *p - '0';
   }
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st79;
 tr95:
-#line 160 "http_parser.rl"
+#line 199 "http_parser.rl"
 	{
+    if (parser->content_length > INT_MAX) {
+      parser->buffer_overflow = TRUE;
+      return 0;
+    }
     parser->content_length *= 10;
     parser->content_length += *p - '0';
   }
@@ -2192,21 +2254,24 @@ st79:
 	if ( ++p == pe )
 		goto _test_eof79;
 case 79:
-#line 2196 "http_parser.c"
+#line 2258 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr52;
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr95;
 	goto st40;
 tr44:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st80;
 st80:
 	if ( ++p == pe )
 		goto _test_eof80;
 case 80:
-#line 2210 "http_parser.c"
+#line 2275 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st38;
 		case 58: goto tr47;
@@ -2709,20 +2774,21 @@ case 96:
 		goto st38;
 	goto st0;
 tr112:
-#line 171 "http_parser.rl"
+#line 214 "http_parser.rl"
 	{ parser->transfer_encoding = HTTP_CHUNKED;  }
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 97; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st97;
 st97:
 	if ( ++p == pe )
 		goto _test_eof97;
 case 97:
-#line 2726 "http_parser.c"
+#line 2792 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr49;
 		case 32: goto st97;
@@ -2730,14 +2796,17 @@ case 97:
 	}
 	goto tr48;
 tr114:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st98;
 st98:
 	if ( ++p == pe )
 		goto _test_eof98;
 case 98:
-#line 2741 "http_parser.c"
+#line 2810 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr52;
 		case 100: goto st99;
@@ -2805,62 +2874,72 @@ case 105:
 		goto tr122;
 	goto st40;
 tr30:
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st106;
 tr136:
-#line 140 "http_parser.rl"
+#line 178 "http_parser.rl"
 	{
     CALLBACK(path);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->path_mark = NULL;
+    parser->path_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st106;
 tr142:
-#line 106 "http_parser.rl"
-	{ parser->query_string_mark   = p; }
-#line 134 "http_parser.rl"
+#line 128 "http_parser.rl"
+	{
+    parser->query_string_mark = p;
+    parser->query_string_size = 0;
+  }
+#line 171 "http_parser.rl"
 	{ 
     CALLBACK(query_string);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->query_string_mark = NULL;
+    parser->query_string_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st106;
 tr146:
-#line 134 "http_parser.rl"
+#line 171 "http_parser.rl"
 	{ 
     CALLBACK(query_string);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->query_string_mark = NULL;
+    parser->query_string_size = 0;
   }
-#line 122 "http_parser.rl"
+#line 157 "http_parser.rl"
 	{ 
     CALLBACK(uri);
     if (callback_return_value != 0) {p++; cs = 106; goto _out;}
     parser->uri_mark = NULL;
+    parser->uri_size = 0;
   }
 	goto st106;
 st106:
 	if ( ++p == pe )
 		goto _test_eof106;
 case 106:
-#line 2864 "http_parser.c"
+#line 2943 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr124;
 		case 37: goto tr125;
@@ -2875,14 +2954,17 @@ case 106:
 		goto st0;
 	goto tr123;
 tr123:
-#line 105 "http_parser.rl"
-	{ parser->fragment_mark       = p; }
+#line 123 "http_parser.rl"
+	{
+    parser->fragment_mark = p;
+    parser->fragment_size = 0;
+  }
 	goto st107;
 st107:
 	if ( ++p == pe )
 		goto _test_eof107;
 case 107:
-#line 2886 "http_parser.c"
+#line 2968 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr127;
 		case 37: goto st108;
@@ -2897,14 +2979,17 @@ case 107:
 		goto st0;
 	goto st107;
 tr125:
-#line 105 "http_parser.rl"
-	{ parser->fragment_mark       = p; }
+#line 123 "http_parser.rl"
+	{
+    parser->fragment_mark = p;
+    parser->fragment_size = 0;
+  }
 	goto st108;
 st108:
 	if ( ++p == pe )
 		goto _test_eof108;
 case 108:
-#line 2908 "http_parser.c"
+#line 2993 "http_parser.c"
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
 			goto st109;
@@ -2928,14 +3013,17 @@ case 109:
 		goto st107;
 	goto st0;
 tr26:
-#line 108 "http_parser.rl"
-	{ parser->uri_mark            = p; }
+#line 138 "http_parser.rl"
+	{
+    parser->uri_mark = p;
+    parser->uri_size = 0;
+  }
 	goto st110;
 st110:
 	if ( ++p == pe )
 		goto _test_eof110;
 case 110:
-#line 2939 "http_parser.c"
+#line 3027 "http_parser.c"
 	switch( (*p) ) {
 		case 43: goto st110;
 		case 58: goto st111;
@@ -2953,14 +3041,17 @@ case 110:
 		goto st110;
 	goto st0;
 tr28:
-#line 108 "http_parser.rl"
-	{ parser->uri_mark            = p; }
+#line 138 "http_parser.rl"
+	{
+    parser->uri_mark = p;
+    parser->uri_size = 0;
+  }
 	goto st111;
 st111:
 	if ( ++p == pe )
 		goto _test_eof111;
 case 111:
-#line 2964 "http_parser.c"
+#line 3055 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr29;
 		case 34: goto st0;
@@ -3000,16 +3091,22 @@ case 113:
 		goto st111;
 	goto st0;
 tr27:
-#line 108 "http_parser.rl"
-	{ parser->uri_mark            = p; }
-#line 107 "http_parser.rl"
-	{ parser->path_mark           = p; }
+#line 138 "http_parser.rl"
+	{
+    parser->uri_mark = p;
+    parser->uri_size = 0;
+  }
+#line 133 "http_parser.rl"
+	{
+    parser->path_mark = p;
+    parser->path_size = 0;
+  }
 	goto st114;
 st114:
 	if ( ++p == pe )
 		goto _test_eof114;
 case 114:
-#line 3013 "http_parser.c"
+#line 3110 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr135;
 		case 34: goto st0;
@@ -3050,18 +3147,19 @@ case 116:
 		goto st114;
 	goto st0;
 tr138:
-#line 140 "http_parser.rl"
+#line 178 "http_parser.rl"
 	{
     CALLBACK(path);
     if (callback_return_value != 0) {p++; cs = 117; goto _out;}
     parser->path_mark = NULL;
+    parser->path_size = 0;
   }
 	goto st117;
 st117:
 	if ( ++p == pe )
 		goto _test_eof117;
 case 117:
-#line 3065 "http_parser.c"
+#line 3163 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr141;
 		case 34: goto st0;
@@ -3075,14 +3173,17 @@ case 117:
 		goto st0;
 	goto tr140;
 tr140:
-#line 106 "http_parser.rl"
-	{ parser->query_string_mark   = p; }
+#line 128 "http_parser.rl"
+	{
+    parser->query_string_mark = p;
+    parser->query_string_size = 0;
+  }
 	goto st118;
 st118:
 	if ( ++p == pe )
 		goto _test_eof118;
 case 118:
-#line 3086 "http_parser.c"
+#line 3187 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr145;
 		case 34: goto st0;
@@ -3096,14 +3197,17 @@ case 118:
 		goto st0;
 	goto st118;
 tr143:
-#line 106 "http_parser.rl"
-	{ parser->query_string_mark   = p; }
+#line 128 "http_parser.rl"
+	{
+    parser->query_string_mark = p;
+    parser->query_string_size = 0;
+  }
 	goto st119;
 st119:
 	if ( ++p == pe )
 		goto _test_eof119;
 case 119:
-#line 3107 "http_parser.c"
+#line 3211 "http_parser.c"
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
 			goto st120;
@@ -3127,7 +3231,7 @@ case 120:
 		goto st118;
 	goto st0;
 tr312:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3139,7 +3243,7 @@ st121:
 	if ( ++p == pe )
 		goto _test_eof121;
 case 121:
-#line 3143 "http_parser.c"
+#line 3247 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st122;
 	goto st0;
@@ -3179,7 +3283,7 @@ case 126:
 		goto tr154;
 	goto st0;
 tr313:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3191,7 +3295,7 @@ st127:
 	if ( ++p == pe )
 		goto _test_eof127;
 case 127:
-#line 3195 "http_parser.c"
+#line 3299 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st128;
 	goto st0;
@@ -3210,7 +3314,7 @@ case 129:
 		goto tr157;
 	goto st0;
 tr314:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3222,7 +3326,7 @@ st130:
 	if ( ++p == pe )
 		goto _test_eof130;
 case 130:
-#line 3226 "http_parser.c"
+#line 3330 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st131;
 	goto st0;
@@ -3248,7 +3352,7 @@ case 133:
 		goto tr161;
 	goto st0;
 tr315:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3260,7 +3364,7 @@ st134:
 	if ( ++p == pe )
 		goto _test_eof134;
 case 134:
-#line 3264 "http_parser.c"
+#line 3368 "http_parser.c"
 	if ( (*p) == 79 )
 		goto st135;
 	goto st0;
@@ -3286,7 +3390,7 @@ case 137:
 		goto tr165;
 	goto st0;
 tr316:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3298,7 +3402,7 @@ st138:
 	if ( ++p == pe )
 		goto _test_eof138;
 case 138:
-#line 3302 "http_parser.c"
+#line 3406 "http_parser.c"
 	switch( (*p) ) {
 		case 75: goto st139;
 		case 79: goto st143;
@@ -3354,7 +3458,7 @@ case 145:
 		goto tr174;
 	goto st0;
 tr317:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3366,7 +3470,7 @@ st146:
 	if ( ++p == pe )
 		goto _test_eof146;
 case 146:
-#line 3370 "http_parser.c"
+#line 3474 "http_parser.c"
 	if ( (*p) == 80 )
 		goto st147;
 	goto st0;
@@ -3413,7 +3517,7 @@ case 152:
 		goto tr181;
 	goto st0;
 tr318:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3425,7 +3529,7 @@ st153:
 	if ( ++p == pe )
 		goto _test_eof153;
 case 153:
-#line 3429 "http_parser.c"
+#line 3533 "http_parser.c"
 	switch( (*p) ) {
 		case 79: goto st154;
 		case 82: goto st157;
@@ -3554,7 +3658,7 @@ case 170:
 		goto tr202;
 	goto st0;
 tr319:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3566,7 +3670,7 @@ st171:
 	if ( ++p == pe )
 		goto _test_eof171;
 case 171:
-#line 3570 "http_parser.c"
+#line 3674 "http_parser.c"
 	if ( (*p) == 82 )
 		goto st172;
 	goto st0;
@@ -3599,7 +3703,7 @@ case 175:
 		goto tr207;
 	goto st0;
 tr320:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3611,7 +3715,7 @@ st176:
 	if ( ++p == pe )
 		goto _test_eof176;
 case 176:
-#line 3615 "http_parser.c"
+#line 3719 "http_parser.c"
 	if ( (*p) == 78 )
 		goto st177;
 	goto st0;
@@ -3652,14 +3756,14 @@ case 181:
 	goto st0;
 tr233:
 	cs = 270;
-#line 146 "http_parser.rl"
+#line 185 "http_parser.rl"
 	{
     if(parser->on_headers_complete) {
       callback_return_value = parser->on_headers_complete(parser);
       if (callback_return_value != 0) {p++; goto _out;}
     }
   }
-#line 212 "http_parser.rl"
+#line 255 "http_parser.rl"
 	{
     if (parser->transfer_encoding == HTTP_CHUNKED) {
       cs = 2;
@@ -3682,12 +3786,12 @@ st270:
 	if ( ++p == pe )
 		goto _test_eof270;
 case 270:
-#line 3686 "http_parser.c"
+#line 3790 "http_parser.c"
 	if ( (*p) == 72 )
 		goto tr321;
 	goto st0;
 tr321:
-#line 153 "http_parser.rl"
+#line 192 "http_parser.rl"
 	{
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
@@ -3699,7 +3803,7 @@ st182:
 	if ( ++p == pe )
 		goto _test_eof182;
 case 182:
-#line 3703 "http_parser.c"
+#line 3807 "http_parser.c"
 	if ( (*p) == 84 )
 		goto st183;
 	goto st0;
@@ -3732,7 +3836,7 @@ case 186:
 		goto tr218;
 	goto st0;
 tr218:
-#line 176 "http_parser.rl"
+#line 219 "http_parser.rl"
 	{
     parser->version_major *= 10;
     parser->version_major += *p - '0';
@@ -3742,11 +3846,9 @@ st187:
 	if ( ++p == pe )
 		goto _test_eof187;
 case 187:
-#line 3746 "http_parser.c"
+#line 3850 "http_parser.c"
 	if ( (*p) == 46 )
 		goto st188;
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr218;
 	goto st0;
 st188:
 	if ( ++p == pe )
@@ -3756,7 +3858,7 @@ case 188:
 		goto tr220;
 	goto st0;
 tr220:
-#line 181 "http_parser.rl"
+#line 224 "http_parser.rl"
 	{
     parser->version_minor *= 10;
     parser->version_minor += *p - '0';
@@ -3766,11 +3868,9 @@ st189:
 	if ( ++p == pe )
 		goto _test_eof189;
 case 189:
-#line 3770 "http_parser.c"
+#line 3872 "http_parser.c"
 	if ( (*p) == 32 )
 		goto st190;
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr220;
 	goto st0;
 st190:
 	if ( ++p == pe )
@@ -3780,7 +3880,7 @@ case 190:
 		goto tr222;
 	goto st0;
 tr222:
-#line 165 "http_parser.rl"
+#line 208 "http_parser.rl"
 	{
     parser->status_code *= 10;
     parser->status_code += *p - '0';
@@ -3790,12 +3890,12 @@ st191:
 	if ( ++p == pe )
 		goto _test_eof191;
 case 191:
-#line 3794 "http_parser.c"
+#line 3894 "http_parser.c"
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr223;
 	goto st0;
 tr223:
-#line 165 "http_parser.rl"
+#line 208 "http_parser.rl"
 	{
     parser->status_code *= 10;
     parser->status_code += *p - '0';
@@ -3805,12 +3905,12 @@ st192:
 	if ( ++p == pe )
 		goto _test_eof192;
 case 192:
-#line 3809 "http_parser.c"
+#line 3909 "http_parser.c"
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr224;
 	goto st0;
 tr224:
-#line 165 "http_parser.rl"
+#line 208 "http_parser.rl"
 	{
     parser->status_code *= 10;
     parser->status_code += *p - '0';
@@ -3820,7 +3920,7 @@ st193:
 	if ( ++p == pe )
 		goto _test_eof193;
 case 193:
-#line 3824 "http_parser.c"
+#line 3924 "http_parser.c"
 	if ( (*p) == 32 )
 		goto st194;
 	goto st0;
@@ -3850,58 +3950,66 @@ case 195:
 		goto st195;
 	goto st0;
 tr237:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
-#line 116 "http_parser.rl"
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 196; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st196;
 tr240:
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 196; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st196;
 tr259:
-#line 174 "http_parser.rl"
+#line 217 "http_parser.rl"
 	{ parser->keep_alive = FALSE; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 196; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st196;
 tr269:
-#line 173 "http_parser.rl"
+#line 216 "http_parser.rl"
 	{ parser->keep_alive = TRUE; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 196; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st196;
 tr310:
-#line 170 "http_parser.rl"
+#line 213 "http_parser.rl"
 	{ parser->transfer_encoding = HTTP_IDENTITY; }
-#line 116 "http_parser.rl"
+#line 150 "http_parser.rl"
 	{
     CALLBACK(header_value);
     if (callback_return_value != 0) {p++; cs = 196; goto _out;}
     parser->header_value_mark = NULL;
+    parser->header_value_size = 0;
   }
 	goto st196;
 st196:
 	if ( ++p == pe )
 		goto _test_eof196;
 case 196:
-#line 3905 "http_parser.c"
+#line 4013 "http_parser.c"
 	if ( (*p) == 10 )
 		goto st197;
 	goto st0;
@@ -3945,14 +4053,17 @@ case 198:
 		goto tr233;
 	goto st0;
 tr230:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st199;
 st199:
 	if ( ++p == pe )
 		goto _test_eof199;
 case 199:
-#line 3956 "http_parser.c"
+#line 4067 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st199;
 		case 58: goto tr235;
@@ -3978,44 +4089,51 @@ case 199:
 		goto st199;
 	goto st0;
 tr235:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 200; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st200;
 st200:
 	if ( ++p == pe )
 		goto _test_eof200;
 case 200:
-#line 3993 "http_parser.c"
+#line 4105 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr237;
 		case 32: goto st200;
 	}
 	goto tr236;
 tr236:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st201;
 st201:
 	if ( ++p == pe )
 		goto _test_eof201;
 case 201:
-#line 4007 "http_parser.c"
+#line 4122 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr240;
 	goto st201;
 tr231:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st202;
 st202:
 	if ( ++p == pe )
 		goto _test_eof202;
 case 202:
-#line 4019 "http_parser.c"
+#line 4137 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st199;
 		case 58: goto tr235;
@@ -4313,18 +4431,19 @@ case 211:
 		goto st199;
 	goto st0;
 tr251:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 212; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st212;
 st212:
 	if ( ++p == pe )
 		goto _test_eof212;
 case 212:
-#line 4328 "http_parser.c"
+#line 4447 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr237;
 		case 32: goto st212;
@@ -4335,14 +4454,17 @@ case 212:
 	}
 	goto tr236;
 tr253:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st213;
 st213:
 	if ( ++p == pe )
 		goto _test_eof213;
 case 213:
-#line 4346 "http_parser.c"
+#line 4468 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr240;
 		case 76: goto st214;
@@ -4387,14 +4509,17 @@ case 217:
 		goto tr259;
 	goto st201;
 tr254:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st218;
 st218:
 	if ( ++p == pe )
 		goto _test_eof218;
 case 218:
-#line 4398 "http_parser.c"
+#line 4523 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr240;
 		case 69: goto st219;
@@ -4813,18 +4938,19 @@ case 238:
 		goto st199;
 	goto st0;
 tr280:
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 239; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st239;
 st239:
 	if ( ++p == pe )
 		goto _test_eof239;
 case 239:
-#line 4828 "http_parser.c"
+#line 4954 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr237;
 		case 32: goto st239;
@@ -4833,17 +4959,28 @@ case 239:
 		goto tr282;
 	goto tr236;
 tr282:
-#line 160 "http_parser.rl"
+#line 199 "http_parser.rl"
 	{
+    if (parser->content_length > INT_MAX) {
+      parser->buffer_overflow = TRUE;
+      return 0;
+    }
     parser->content_length *= 10;
     parser->content_length += *p - '0';
   }
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st240;
 tr283:
-#line 160 "http_parser.rl"
+#line 199 "http_parser.rl"
 	{
+    if (parser->content_length > INT_MAX) {
+      parser->buffer_overflow = TRUE;
+      return 0;
+    }
     parser->content_length *= 10;
     parser->content_length += *p - '0';
   }
@@ -4852,21 +4989,24 @@ st240:
 	if ( ++p == pe )
 		goto _test_eof240;
 case 240:
-#line 4856 "http_parser.c"
+#line 4993 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr240;
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr283;
 	goto st201;
 tr232:
-#line 103 "http_parser.rl"
-	{ parser->header_field_mark   = p; }
+#line 113 "http_parser.rl"
+	{
+    parser->header_field_mark = p;
+    parser->header_field_size = 0;
+  }
 	goto st241;
 st241:
 	if ( ++p == pe )
 		goto _test_eof241;
 case 241:
-#line 4870 "http_parser.c"
+#line 5010 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st199;
 		case 58: goto tr235;
@@ -5369,20 +5509,21 @@ case 257:
 		goto st199;
 	goto st0;
 tr300:
-#line 171 "http_parser.rl"
+#line 214 "http_parser.rl"
 	{ parser->transfer_encoding = HTTP_CHUNKED;  }
-#line 110 "http_parser.rl"
+#line 143 "http_parser.rl"
 	{
     CALLBACK(header_field);
     if (callback_return_value != 0) {p++; cs = 258; goto _out;}
     parser->header_field_mark = NULL;
+    parser->header_field_size = 0;
   }
 	goto st258;
 st258:
 	if ( ++p == pe )
 		goto _test_eof258;
 case 258:
-#line 5386 "http_parser.c"
+#line 5527 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr237;
 		case 32: goto st258;
@@ -5390,14 +5531,17 @@ case 258:
 	}
 	goto tr236;
 tr302:
-#line 104 "http_parser.rl"
-	{ parser->header_value_mark   = p; }
+#line 118 "http_parser.rl"
+	{
+    parser->header_value_mark = p;
+    parser->header_value_size = 0;
+  }
 	goto st259;
 st259:
 	if ( ++p == pe )
 		goto _test_eof259;
 case 259:
-#line 5401 "http_parser.c"
+#line 5545 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr240;
 		case 100: goto st260;
@@ -5739,7 +5883,7 @@ case 266:
 	_test_eof: {}
 	_out: {}
 	}
-#line 391 "http_parser.rl"
+#line 434 "http_parser.rl"
 
   parser->cs = cs;
 
@@ -5758,6 +5902,7 @@ out:
 int
 http_parser_has_error (http_parser *parser) 
 {
+  if (parser->buffer_overflow) return TRUE;
   return parser->cs == http_parser_error;
 }
 

@@ -29,6 +29,10 @@ struct message {
   enum { NONE=0, FIELD, VALUE } last_header_element;
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
   int should_keep_alive;
+
+  int message_begin_cb_called;
+  int headers_complete_cb_called;
+  int message_complete_cb_called;
 };
 
 static struct message messages[5];
@@ -422,6 +426,8 @@ message_complete_cb (http_parser *parser)
   messages[num_messages].method = parser->method;
   messages[num_messages].status_code = parser->status_code;
 
+  messages[num_messages].message_complete_cb_called = TRUE;
+
   num_messages++;
   return 0;
 }
@@ -429,6 +435,14 @@ message_complete_cb (http_parser *parser)
 int
 message_begin_cb (http_parser *_)
 {
+  messages[num_messages].message_begin_cb_called = TRUE;
+  return 0;
+}
+
+int
+headers_complete_cb (http_parser *_)
+{
+  messages[num_messages].headers_complete_cb_called = TRUE;
   return 0;
 }
 
@@ -449,7 +463,7 @@ parser_init (enum http_parser_type type)
   parser.on_fragment          = fragment_cb;
   parser.on_query_string      = query_string_cb;
   parser.on_body              = body_cb;
-  parser.on_headers_complete  = NULL;
+  parser.on_headers_complete  = headers_complete_cb;
   parser.on_message_complete  = message_complete_cb;
 }
 
@@ -461,6 +475,10 @@ message_eq (int index, const struct message *expected)
 
   assert(m->method == expected->method);
   assert(m->status_code == expected->status_code);
+
+  assert(m->message_begin_cb_called);
+  assert(m->headers_complete_cb_called);
+  assert(m->message_complete_cb_called);
 
   assert(0 == strcmp(m->body, expected->body));
   assert(0 == strcmp(m->fragment, expected->fragment));
