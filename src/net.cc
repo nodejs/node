@@ -11,8 +11,6 @@
 #include <arpa/inet.h> /* inet_ntop */
 #include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
-#include <pthread.h>
-
 using namespace v8;
 using namespace node;
 
