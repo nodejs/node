@@ -11,6 +11,8 @@
 #include <arpa/inet.h> /* inet_ntop */
 #include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
+#include <pthread.h>
+
 using namespace v8;
 using namespace node;
 
@@ -183,6 +185,12 @@ Connection::Connect (const Arguments& args)
     connection->host_ = strdup(*host_sv);
   }
   
+#ifdef __APPLE__
+  /* Bypass the thread pool and do it sync on this broken ass platform */
+  eio_req *req = static_cast<eio_req*>(malloc(sizeof(eio_req)));
+  req->data = connection;
+  Connection::Resolve(req);
+#else
   /* For the moment I will do DNS lookups in the eio thread pool. This is
    * sub-optimal and cannot handle massive numbers of requests but it is 
    * quite portable. 
@@ -196,7 +204,64 @@ Connection::Connect (const Arguments& args)
             , Connection::AfterResolve
             , connection
             );
+#endif // __APPLE__
   return Undefined();
+}
+
+int
+Connection::Resolve (eio_req *req)
+{
+  Connection *connection = static_cast<Connection*> (req->data);
+  struct addrinfo *address = NULL;
+  req->result = getaddrinfo(connection->host_, connection->port_, &client_tcp_hints, &address);
+  req->ptr2 = address;
+
+  free(connection->host_);
+  connection->host_ = NULL;
+
+  free(connection->port_);
+  connection->port_ = NULL;
+
+#ifdef __APPLE__
+  Connection::AfterResolve(req);
+#endif // __APPLE__
+
+  return 0;
+}
+
+int
+Connection::AfterResolve (eio_req *req)
+{
+  Connection *connection = static_cast<Connection*> (req->data);
+  struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
+
+  req->ptr2 = NULL;
+
+  int r = 0;
+  if (req->result == 0) {
+    r = connection->Connect(address);
+  }
+
+  if (address) freeaddrinfo(address); 
+
+  // no error. return.
+  if (r == 0 && req->result == 0) {
+    oi_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
+    goto out;
+  }
+
+  puts("net.cc: resolve failed");
+
+  connection->OnDisconnect();
+  connection->Detach();
+
+out:
+
+#ifdef __APPLE__
+  free(req);
+#endif // __APPLE__
+
+  return 0;
 }
 
 Handle<Value>
@@ -226,52 +291,6 @@ Connection::SetEncoding (const Arguments& args)
       connection->encoding_ = RAW;
       return scope.Close(RAW_SYMBOL);
   }
-}
-
-int
-Connection::Resolve (eio_req *req)
-{
-  Connection *connection = static_cast<Connection*> (req->data);
-  struct addrinfo *address = NULL;
-  req->result = getaddrinfo(connection->host_, connection->port_, &client_tcp_hints, &address);
-  req->ptr2 = address;
-
-  free(connection->host_);
-  connection->host_ = NULL;
-
-  free(connection->port_);
-  connection->port_ = NULL;
-
-  return 0;
-}
-
-int
-Connection::AfterResolve (eio_req *req)
-{
-  Connection *connection = static_cast<Connection*> (req->data);
-  struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
-
-  req->ptr2 = NULL;
-
-  int r = 0;
-  if (req->result == 0) {
-    r = connection->Connect(address);
-  }
-
-  if (address) freeaddrinfo(address); 
-
-  // no error. return.
-  if (r == 0 && req->result == 0) {
-    oi_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
-    return 0;
-  }
-
-  puts("net.cc: resolve failed");
-
-  connection->OnDisconnect();
-  connection->Detach();
-
-  return 0;
 }
 
 Handle<Value>
