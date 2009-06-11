@@ -68,8 +68,8 @@ function onLoad() {
   client.onEOF = function () {
   };
 
-  client.connect(port);
   assertEquals("closed", client.readyState);
+  client.connect(port);
 }
 
 function onExit () {

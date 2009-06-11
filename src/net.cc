@@ -184,7 +184,10 @@ Connection::Connect (const Arguments& args)
   }
   
 #ifdef __APPLE__
-  /* Bypass the thread pool and do it sync on this broken ass platform */
+  /* HACK: Bypass the thread pool and do it sync on Macintosh.
+   * Experiecing strange error where execution halts on 
+   * getaddrinfo() and CPU goes to 100%. FIXME.
+   */
   eio_req *req = static_cast<eio_req*>(malloc(sizeof(eio_req)));
   req->data = connection;
   Connection::Resolve(req);
