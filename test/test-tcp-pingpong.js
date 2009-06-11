@@ -69,7 +69,7 @@ function onLoad() {
   };
 
   assertEquals("closed", client.readyState);
-  client.connect(port);
+  client.connect(port, "localhost");
 }
 
 function onExit () {
