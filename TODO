@@ -1,0 +1,25 @@
+Major features planned: (somewhat ordered)
+
+- require/include HTTP URLs
+
+- C++ API for external modules/plugins
+  (Some sort of module build system?)
+
+- Posgres module
+  (http://www.postgresql.org/docs/8.1/static/libpq-async.html)
+
+- Support AF_UNIX named pipes
+
+- Signal handlers
+
+- popen() (perhaps with bidirectional stream?)
+
+- Internally replace getaddrinfo() with udns
+  http://www.corpit.ru/mjt/udns.html
+  JS resolver interface
+
+- TLS
+
+- UDP interface
+
+- Socket pairs
