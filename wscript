@@ -31,6 +31,7 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
+  conf.check(lib='profiler', uselib_store='PROFILER')
 
   if sys.platform.startswith("freebsd"):
     if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
@@ -41,14 +42,15 @@ def configure(conf):
 
   # liboi config
   print "--- liboi ---"
-  if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
-    conf.define("HAVE_GNUTLS", 1)
+
+
+  # Not using TLS yet
+  # if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
+  #   conf.define("HAVE_GNUTLS", 1)
 
   conf.define("HAVE_CONFIG_H", 1)
 
   conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
-
-  conf.check(lib='profiler', uselib_store='PROFILER')
 
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
@@ -109,7 +111,7 @@ def build(bld):
   oi.includes = "deps/liboi/ deps/libev/"
   oi.name = "oi"
   oi.target = "oi"
-  oi.uselib = "GNUTLS"
+  # oi.uselib = "GNUTLS"
   oi.install_path = None
   if bld.env["USE_DEBUG"]:
     oi.clone("debug")
