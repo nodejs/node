@@ -43,7 +43,7 @@ function onLoad() {
   c.onReceive = function (chunk) {
     server_response += chunk;
 
-    if ( requests_sent == 1) {
+    if (requests_sent == 1) {
       c.send("POST /quit HTTP/1.1\r\n\r\n");
       c.close();
       assertEquals(c.readyState, "readOnly");

@@ -622,7 +622,7 @@ server.listen(7000, "localhost");</pre>
       <code>"1.1"</code>, <code>"1.0"</code>
     </dd>
     
-    <dt><code>req.onBody</code></dt>
+    <dt><code>req.onBody = function (chunk) { }; </code></dt>
     <dd>
       Callback. Should be set by the user to be informed of when a
       piece of the message body is received. Example:
@@ -640,7 +640,7 @@ req.onBody = function (chunk) {
       </p>
     </dd>
     
-    <dt><code>req.onBodyComplete</code></dt>
+    <dt><code>req.onBodyComplete = function () { };</code></dt>
     <dd>
       Callback. Made exactly once for each message. No arguments.
       After <code>onBodyComplete</code> is executed
@@ -651,6 +651,14 @@ req.onBody = function (chunk) {
     <dd>
       Set the encoding for the request body. Either <code>"utf8"</code>
       or <code>"raw"</code>. Defaults to raw.
+    </dd>
+
+    <dt><code>req.interrupt()</code></dt>
+    <dd>
+      Interrupt the request. You will not receive anymore callbacks.
+      This is useful if, for example someone is streaming up a file but it
+      is too large and neesd to be stopped. The connection to the client
+      will be closed immediately. 
     </dd>
   </dl>
 

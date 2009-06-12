@@ -80,9 +80,7 @@ void
 HTTPConnection::OnReceive (const void *buf, size_t len)
 {
   http_parser_execute(&parser_, static_cast<const char*>(buf), len);
-
-  if (http_parser_has_error(&parser_))
-    ForceClose();
+  if (http_parser_has_error(&parser_)) ForceClose();
 }
 
 int
@@ -187,16 +185,15 @@ HTTPConnection::on_headers_complete (http_parser *parser)
           ); 
   message_handler->Set(HTTP_VERSION_SYMBOL, String::New(version));
 
-  // SHOULD KEEP ALIVE
-  message_handler->Set( SHOULD_KEEP_ALIVE_SYMBOL
-                      , http_parser_should_keep_alive(&connection->parser_) ? True() : False()
-                      );
+  message_handler->Set(SHOULD_KEEP_ALIVE_SYMBOL, 
+      http_parser_should_keep_alive(&connection->parser_) ? True() : False());
 
-
-  Local<Value> on_headers_complete_v = message_handler->Get(ON_HEADERS_COMPLETE_SYMBOL);
+  Local<Value> on_headers_complete_v =
+    message_handler->Get(ON_HEADERS_COMPLETE_SYMBOL);
   if (on_headers_complete_v->IsFunction() == false) return 0;
 
-  Handle<Function> on_headers_complete = Handle<Function>::Cast(on_headers_complete_v);
+  Handle<Function> on_headers_complete =
+    Handle<Function>::Cast(on_headers_complete_v);
 
   TryCatch try_catch;
   Local<Value> ret = on_headers_complete->Call(message_handler, 0, NULL);

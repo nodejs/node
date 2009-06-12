@@ -239,22 +239,24 @@ node.http.Server = function (RequestHandler, options) {
     var responses = [];
 
     connection.onMessage = function ( ) {
+      var interrupted = false;
                                             // filled in ...
       var req = { method          : null    // at onHeadersComplete
                 , uri             : ""      // at onURI
-                , httpVersion    : null    // at onHeadersComplete
+                , httpVersion     : null    // at onHeadersComplete
                 , headers         : []      // at onHeaderField, onHeaderValue
                 , onBody          : null    // by user
                 , onBodyComplete  : null    // by user
+                , interrupt       : function ( ) { interrupted = true; }
                 , setBodyEncoding : function (enc) {
                     connection.setEncoding(enc);
                   }
-                }
+                };
       var res = new node.http.ServerResponse(connection, responses);
 
       this.onURI = function (data) {
         req.uri += data;
-        return true
+        return !interrupted;
       };
 
       var last_was_value = false;
@@ -266,7 +268,7 @@ node.http.Server = function (RequestHandler, options) {
         else
           headers.push([data]);
         last_was_value = false;
-        return true;
+        return !interrupted;
       };
 
       this.onHeaderValue = function (data) {
@@ -276,31 +278,29 @@ node.http.Server = function (RequestHandler, options) {
         else 
           last_pair[1] += data;
         last_was_value = true;
-        return true;
+        return !interrupted;
       };
 
       this.onHeadersComplete = function () {
         req.httpVersion = this.httpVersion;
-        req.method       = this.method;
-        req.uri          = node.http.parseUri(req.uri); // TODO parse the URI lazily
-
+        req.method = this.method;
+        // TODO parse the URI lazily?
+        req.uri = node.http.parseUri(req.uri);
         res.should_keep_alive = this.should_keep_alive;
 
-        return RequestHandler.apply(server, [req, res]);
+        RequestHandler.apply(server, [req, res]);
+
+        return !interrupted;
       };
 
       this.onBody = function (chunk) {
-        if (req.onBody)
-          return req.onBody(chunk);
-        else
-          return true;
+        if (req.onBody) req.onBody(chunk);
+        return !interrupted;
       };
 
       this.onMessageComplete = function () {
-        if (req.onBodyComplete)
-          return req.onBodyComplete();
-        else
-          return true;
+        if (req.onBodyComplete) req.onBodyComplete();
+        return !interrupted;
       };
     };
 
