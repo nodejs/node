@@ -262,12 +262,12 @@ HTTPConnection::on_message_complete (http_parser *parser)
 
   Local<Value> message_handler_v = 
     connection->handle_->GetHiddenValue(MESSAGE_HANDLER_SYMBOL);
-  Local<Object> message_handler = message_handler_v->ToObject();
   connection->handle_->DeleteHiddenValue(MESSAGE_HANDLER_SYMBOL);
 
+  Local<Object> message_handler = message_handler_v->ToObject();
+
   Local<Value> on_msg_complete_v = message_handler->Get(ON_MESSAGE_COMPLETE_SYMBOL);
-  if (on_msg_complete_v->IsFunction() == false) 
-    return 0;
+  if (on_msg_complete_v->IsFunction() == false) return 0;
   Handle<Function> on_msg_complete = Handle<Function>::Cast(on_msg_complete_v);
 
   TryCatch try_catch;

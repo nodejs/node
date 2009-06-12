@@ -296,9 +296,9 @@ node.http.Server = function (RequestHandler, options) {
           return true;
       };
 
-      this.onBodyComplete = function () {
+      this.onMessageComplete = function () {
         if (req.onBodyComplete)
-          return req.onBodyComplete(chunk);
+          return req.onBodyComplete();
         else
           return true;
       };
@@ -464,6 +464,7 @@ node.http.Client = function (port, host) {
       res.headers = headers;
 
       req.responseHandler(res);
+      return true;
     };
 
     this.onBody = function (chunk) {

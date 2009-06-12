@@ -19,10 +19,12 @@ function onLoad () {
       this.close();
     }
 
-    res.sendHeader(200, [["Content-Type", "text/plain"]]);
-    res.sendBody("The path was " + req.uri.path);
-    res.finish();
-    responses_sent += 1;
+    req.onBodyComplete = function () {
+      res.sendHeader(200, [["Content-Type", "text/plain"]]);
+      res.sendBody("The path was " + req.uri.path);
+      res.finish();
+      responses_sent += 1;
+    };
   }).listen(PORT);
 
   var client = new node.http.Client(PORT);
