@@ -295,12 +295,6 @@ HTTPConnection::HTTPConnection (Handle<Object> handle, enum http_parser_type typ
   parser_.data = this;
 }
 
-
-HTTPConnection::~HTTPConnection ( )
-{
-}
-
-
 Persistent<FunctionTemplate> HTTPServer::constructor_template;
 
 void
