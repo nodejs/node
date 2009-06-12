@@ -71,7 +71,7 @@ struct http_parser {
 
   size_t chunk_size;
   unsigned eating:1;
-  unsigned buffer_overflow:1;
+  unsigned error:1;
   size_t body_read;
 
   const char *header_field_mark; 

@@ -48,7 +48,7 @@ do {                                                                 \
   if (parser->FOR##_mark) {                                          \
     parser->FOR##_size += p - parser->FOR##_mark;                    \
     if (parser->FOR##_size > MAX_FIELD_SIZE) {                       \
-      parser->buffer_overflow = TRUE;                                \
+      parser->error = TRUE;                                          \
       return 0;                                                      \
     }                                                                \
     if (parser->on_##FOR) {                                          \
@@ -142,42 +142,60 @@ do {                                                                 \
 
   action header_field {
     CALLBACK(header_field);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->header_field_mark = NULL;
     parser->header_field_size = 0;
   }
 
   action header_value {
     CALLBACK(header_value);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->header_value_mark = NULL;
     parser->header_value_size = 0;
   }
 
   action request_uri { 
     CALLBACK(uri);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->uri_mark = NULL;
     parser->uri_size = 0;
   }
 
   action fragment { 
     CALLBACK(fragment);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->fragment_mark = NULL;
     parser->fragment_size = 0;
   }
 
   action query_string { 
     CALLBACK(query_string);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->query_string_mark = NULL;
     parser->query_string_size = 0;
   }
 
   action request_path {
     CALLBACK(path);
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
     parser->path_mark = NULL;
     parser->path_size = 0;
   }
@@ -185,20 +203,26 @@ do {                                                                 \
   action headers_complete {
     if(parser->on_headers_complete) {
       callback_return_value = parser->on_headers_complete(parser);
-      if (callback_return_value != 0) fbreak;
+      if (callback_return_value != 0) {
+        parser->error = TRUE;
+        return 0;
+      }
     }
   }
 
   action begin_message {
     if(parser->on_message_begin) {
       callback_return_value = parser->on_message_begin(parser);
-      if (callback_return_value != 0) fbreak;
+      if (callback_return_value != 0) {
+        parser->error = TRUE;
+        return 0;
+      }
     }
   }
 
   action content_length {
     if (parser->content_length > INT_MAX) {
-      parser->buffer_overflow = TRUE;
+      parser->error = TRUE;
       return 0;
     }
     parser->content_length *= 10;
@@ -233,7 +257,10 @@ do {                                                                 \
 
   action skip_chunk_data {
     SKIP_BODY(MIN(parser->chunk_size, REMAINING));
-    if (callback_return_value != 0) fbreak;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
 
     fhold; 
     if (parser->chunk_size > REMAINING) {
@@ -261,7 +288,11 @@ do {                                                                 \
       p += 1;  
 
       SKIP_BODY(MIN(REMAINING, parser->content_length));
-      if (callback_return_value != 0) fbreak;
+
+      if (callback_return_value != 0) {
+        parser->error = TRUE;
+        return 0;
+      }
 
       fhold;
       if(parser->chunk_size > REMAINING) {
@@ -390,7 +421,7 @@ http_parser_init (http_parser *parser, enum http_parser_type type)
   %% write init;
   parser->cs = cs;
   parser->type = type;
-  parser->buffer_overflow = 0;
+  parser->error = 0;
 
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
@@ -420,7 +451,10 @@ http_parser_execute (http_parser *parser, const char *buffer, size_t len)
   if (0 < parser->chunk_size && parser->eating) {
     /* eat body */
     SKIP_BODY(MIN(len, parser->chunk_size));
-    if (callback_return_value != 0) goto out;
+    if (callback_return_value != 0) {
+      parser->error = TRUE;
+      return 0;
+    }
   }
 
   if (parser->header_field_mark)   parser->header_field_mark   = buffer;
@@ -441,7 +475,6 @@ http_parser_execute (http_parser *parser, const char *buffer, size_t len)
   CALLBACK(path);
   CALLBACK(uri);
 
-out:
   assert(p <= pe && "buffer overflow after parsing execute");
   return(p - buffer);
 }
@@ -449,7 +482,7 @@ out:
 int
 http_parser_has_error (http_parser *parser) 
 {
-  if (parser->buffer_overflow) return TRUE;
+  if (parser->error) return TRUE;
   return parser->cs == http_parser_error;
 }
 
