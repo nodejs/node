@@ -44,7 +44,6 @@ public:
 protected:
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
 
-
   HTTPServer (v8::Handle<v8::Object> handle, 
               v8::Handle<v8::Function> protocol_class, 
               v8::Handle<v8::Object> options)

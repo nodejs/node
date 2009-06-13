@@ -162,7 +162,8 @@ ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
-NODE_METHOD(node_exit)
+v8::Handle<v8::Value>
+node_exit (const v8::Arguments& args)
 {
   int r = 0;
   if (args.Length() > 0) 
@@ -171,7 +172,8 @@ NODE_METHOD(node_exit)
   return Undefined(); 
 }
 
-NODE_METHOD(compile) 
+v8::Handle<v8::Value>
+compile (const v8::Arguments& args)
 {
   if (args.Length() < 2) 
     return Undefined();
@@ -186,7 +188,8 @@ NODE_METHOD(compile)
   return scope.Close(result);
 }
 
-NODE_METHOD(debug) 
+v8::Handle<v8::Value>
+debug (const v8::Arguments& args)
 {
   if (args.Length() < 1) 
     return Undefined();
