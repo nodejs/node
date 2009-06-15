@@ -140,7 +140,6 @@ Connection::SetAcceptor (Handle<Object> acceptor_handle)
 {
   HandleScope scope;
   handle_->Set(SERVER_SYMBOL, acceptor_handle);
-  
   Attach();
 }
 
@@ -544,37 +543,52 @@ SetRemoteAddress (Local<Object> connection_handle, struct sockaddr *addr)
   connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
 }
 
+Handle<FunctionTemplate>
+Acceptor::GetConnectionTemplate (void)
+{
+  return Connection::constructor_template;
+}
+
+Connection*
+Acceptor::UnwrapConnection (Local<Object> connection)
+{
+  HandleScope scope;
+  return NODE_UNWRAP(Connection, connection);
+}
+
 Connection*
 Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
   
-  Local<Function> connection_handler = GetConnectionHandler();
-  if (connection_handler.IsEmpty()) {
+  Local<Value> connection_handler_v =
+    handle_->GetHiddenValue(CONNECTION_HANDLER_SYMBOL);
+  if (!connection_handler_v->IsFunction()) {
     printf("Connection handler was empty!");
     Close();
     return NULL;
   }
+  Local<Function> connection_handler =
+    Local<Function>::Cast(connection_handler_v);
 
   TryCatch try_catch;
 
-  Local<Object> connection_handle =
-    Connection::constructor_template->GetFunction()->NewInstance(0, NULL);
+  Local<Object> js_connection =
+    GetConnectionTemplate()->GetFunction()->NewInstance(0, NULL);
   
-  if (connection_handle.IsEmpty()) {
+  if (js_connection.IsEmpty()) {
     FatalException(try_catch);
     return NULL;
   }
 
-  SetRemoteAddress(connection_handle, addr);
+  SetRemoteAddress(js_connection, addr);
 
-  Connection *connection = NODE_UNWRAP(Connection, connection_handle);
+  Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
 
   connection->SetAcceptor(handle_);
 
-  Handle<Value> argv[1] = { connection_handle };
-
+  Handle<Value> argv[1] = { js_connection };
   Local<Value> ret = connection_handler->Call(handle_, 1, argv);
 
   if (ret.IsEmpty())
@@ -646,18 +660,3 @@ Acceptor::Close (const Arguments& args)
   acceptor->Close();
   return Undefined();
 }
-
-Local<v8::Function>
-Acceptor::GetConnectionHandler (void)
-{
-  HandleScope scope;
-
-  Local<Value> connection_handler_v = handle_->GetHiddenValue(CONNECTION_HANDLER_SYMBOL);
-  if (connection_handler_v->IsFunction()) {
-    Local<Function> connection_handler = Local<Function>::Cast(connection_handler_v);
-    return scope.Close(connection_handler);
-  }
-
-  return Local<Function>();
-}
-

@@ -25,6 +25,8 @@ function onLoad () {
       res.finish();
       responses_sent += 1;
     };
+
+    assertEquals("127.0.0.1", res.connection.remoteAddress);
   }).listen(PORT);
 
   var client = new node.http.Client(PORT);

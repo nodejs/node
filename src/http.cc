@@ -329,39 +329,16 @@ HTTPServer::New (const Arguments& args)
   return args.This();
 }
 
+Handle<FunctionTemplate>
+HTTPServer::GetConnectionTemplate (void)
+{
+  return HTTPConnection::server_constructor_template;
+}
+
 Connection*
-HTTPServer::OnConnection (struct sockaddr *addr, socklen_t len)
+HTTPServer::UnwrapConnection (Local<Object> connection)
 {
   HandleScope scope;
-  
-  Local<Function> connection_handler = GetConnectionHandler ();
-  if (connection_handler.IsEmpty()) {
-    Close();
-    return NULL;
-  }
-
-  TryCatch try_catch;
-
-  Local<Object> connection_handle =
-    HTTPConnection::server_constructor_template->GetFunction()->NewInstance(0, NULL);
-
-  if (connection_handle.IsEmpty()) {
-    FatalException(try_catch);
-    return NULL;
-  }
-
-  HTTPConnection *connection = NODE_UNWRAP(HTTPConnection, connection_handle);
-  if (!connection) return NULL;
-
-  connection->SetAcceptor(handle_);
-
-  Handle<Value> argv[1] = { connection_handle };
-
-  Local<Value> ret = connection_handler->Call(handle_, 1, argv);
-
-  if (ret.IsEmpty())
-    FatalException(try_catch);
-
-  return connection;
+  return NODE_UNWRAP(HTTPConnection, connection);
 }
 

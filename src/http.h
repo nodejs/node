@@ -49,7 +49,8 @@ protected:
               v8::Handle<v8::Object> options)
     : Acceptor(handle, protocol_class, options) {}
 
-  Connection* OnConnection (struct sockaddr *addr, socklen_t len);
+  v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);
+  Connection* UnwrapConnection (v8::Local<v8::Object> connection);
 };
 
 } // namespace node

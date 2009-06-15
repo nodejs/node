@@ -139,8 +139,6 @@ protected:
             v8::Handle<v8::Object> options);
   virtual ~Acceptor () { Close(); }
 
-  v8::Local<v8::Function> GetConnectionHandler (void);
-
   int Listen (struct addrinfo *address) { 
     int r = oi_server_listen (&server_, address); 
     if(r != 0) return r;
@@ -154,9 +152,11 @@ protected:
     Detach();
   }
 
-  virtual Connection* OnConnection (struct sockaddr *addr, socklen_t len);
+  virtual v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);
+  virtual Connection* UnwrapConnection (v8::Local<v8::Object> connection);
 
 private:
+  Connection* OnConnection (struct sockaddr *addr, socklen_t len);
   static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
     Acceptor *acceptor = static_cast<Acceptor*> (s->data);
     Connection *connection = acceptor->OnConnection (addr, len);
