@@ -177,10 +177,8 @@ stdout = new node.fs.File({ fd: node.constants.STDOUT_FILENO });
 stderr = new node.fs.File({ fd: node.constants.STDERR_FILENO });
 stdin = new node.fs.File({ fd: node.constants.STDIN_FILENO });
 
-puts = function (data, callback) {
-  stdout.puts(data, callback);
-}
-
+puts  = stdout.puts;
+print = stdout.print;
 p = function (data, callback) {
   puts(JSON.stringify(data), callback);
 }
