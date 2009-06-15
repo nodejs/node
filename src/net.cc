@@ -41,15 +41,15 @@ using namespace node;
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
 static const struct addrinfo server_tcp_hints = 
-/* ai_flags      */ { AI_PASSIVE 
-/* ai_family     */ , AF_INET //AF_UNSPEC
+/* ai_flags      */ { AI_PASSIVE | AI_ADDRCONFIG
+/* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
                     };
 
 static const struct addrinfo client_tcp_hints = 
-/* ai_flags      */ { 0
-/* ai_family     */ , AF_INET //AF_UNSPEC
+/* ai_flags      */ { AI_ADDRCONFIG
+/* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
                     };
@@ -522,6 +522,28 @@ Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler, 
   server_.data = this;
 }
 
+static void
+SetRemoteAddress (Local<Object> connection_handle, struct sockaddr *addr)
+{
+  HandleScope scope;
+  char ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
+  Local<String> remote_address;
+  if (addr->sa_family == AF_INET) {
+    struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(addr);
+    inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
+    remote_address = String::New(ip4);
+
+  } else if (addr->sa_family == AF_INET6) {
+    struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(addr);
+    inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
+    remote_address = String::New(ip6);
+
+  } else {
+    assert(0 && "received a bad sa_family");
+  }
+  connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
+}
+
 Connection*
 Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
@@ -544,23 +566,7 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     return NULL;
   }
 
-  char ip4[INET_ADDRSTRLEN];
-  char ip6[INET6_ADDRSTRLEN];
-  Local<String> remote_address;
-  if (addr->sa_family == AF_INET) {
-    struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(addr);
-    inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
-    remote_address = String::New(ip4);
-
-  } else if (addr->sa_family == AF_INET6) {
-    struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(addr);
-    inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
-    remote_address = String::New(ip6);
-
-  } else {
-    assert(0 && "received a bad sa_family");
-  }
-  connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
+  SetRemoteAddress(connection_handle, addr);
 
   Connection *connection = NODE_UNWRAP(Connection, connection_handle);
   if (!connection) return NULL;
@@ -619,7 +625,7 @@ Acceptor::Listen (const Arguments& args)
   }
 
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
-  // matter--ever. If someone actually complains then simply swap it out
+  // matter much. If someone actually complains then simply swap it out
   // with a libeio call.
   struct addrinfo *address = NULL;
   int r = getaddrinfo(host, *port, &server_tcp_hints, &address);

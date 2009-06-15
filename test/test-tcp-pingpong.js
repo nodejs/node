@@ -10,6 +10,8 @@ function Ponger (socket) {
   socket.setEncoding("utf8");
   socket.timeout = 0;
 
+  assertEquals("127.0.0.1", socket.remoteAddress);
+
   socket.onReceive = function (data) {
     assertEquals("open", socket.readyState);
     assertTrue(count <= N);
@@ -24,14 +26,13 @@ function Ponger (socket) {
   };
 
   socket.onDisconnect = function (had_error) {
-    assertEquals("127.0.0.1", socket.remoteAddress);
     assertFalse(had_error);
     assertEquals("closed", socket.readyState);
     socket.server.close();
   };
 }
 
-function onLoad() {
+function onLoad () {
   var server = new node.tcp.Server(Ponger);
   server.listen(port);
 
