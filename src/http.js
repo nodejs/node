@@ -385,7 +385,12 @@ node.http.Client = function (port, host) {
         connection.connect(port, host);
         return;
       }
-      while (this === requests[0] && output.length > 0) {
+      //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
+      while ( this === requests[0]
+           && output.length > 0
+           && connection.readyState == "open"
+            )
+      {
         var out = output.shift();
         connection.send(out[0], out[1]);
       }
@@ -403,7 +408,7 @@ node.http.Client = function (port, host) {
   
   connection.onConnect = function () {
     //node.debug("HTTP CLIENT onConnect. readyState = " + connection.readyState);
-    //node.debug("requests[0].uri =  " + requests[0].uri);
+    //node.debug("requests[0].uri = '" + requests[0].uri + "'");
     requests[0].flush();
   };
 
