@@ -259,22 +259,51 @@ Connection::Resolve (eio_req *req)
   return 0;
 }
 
+static struct addrinfo *
+AddressDefaultToIPv4 (struct addrinfo *address_list)
+{
+  struct addrinfo *address = NULL;
+
+/*
+  char ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
+  for (address = address_list; address != NULL; address = address->ai_next) {
+    if (address->ai_family == AF_INET) {
+      struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(address->ai_addr);
+      inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
+      printf("%s\n", ip4);
+
+    } else if (address->ai_family == AF_INET6) {
+      struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(address->ai_addr);
+      inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
+      printf("%s\n", ip6);
+    }
+  }
+*/
+
+  for (address = address_list; address != NULL; address = address->ai_next) {
+    if (address->ai_addr->sa_family == AF_INET) break;
+  }
+
+  if (address == NULL) address = address_list;
+
+  return address;
+}
+
 int
 Connection::AfterResolve (eio_req *req)
 {
   Connection *connection = static_cast<Connection*> (req->data);
-  struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
+  struct addrinfo *address = NULL,
+                  *address_list = static_cast<struct addrinfo *>(req->ptr2);
 
-  req->ptr2 = NULL; // ?
+  address = AddressDefaultToIPv4(address_list);
 
   connection->opening = false;
 
   int r = 0;
-  if (req->result == 0) {
-    r = connection->Connect(address);
-  }
+  if (req->result == 0) r = connection->Connect(address);
 
-  if (address) freeaddrinfo(address); 
+  if (address_list) freeaddrinfo(address_list); 
 
   // no error. return.
   if (r == 0 && req->result == 0) {
@@ -282,16 +311,22 @@ Connection::AfterResolve (eio_req *req)
     goto out;
   }
 
-  puts("net.cc: resolve failed");
+  /* RESOLVE ERROR */
+
+  /* TODO: the whole resolve process should be moved into oi_socket.
+   * The fact that I'm modifying a read-only variable here should be 
+   * good evidence of this.
+   */
+  connection->socket_.errorno = r | req->result;
 
   connection->OnDisconnect();
+
   connection->Detach();
 
 out:
 #ifdef __APPLE__
   free(req);
 #endif
-
   return 0;
 }
 
@@ -672,11 +707,14 @@ Acceptor::Listen (const Arguments& args)
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
   // matter much. If someone actually complains then simply swap it out
   // with a libeio call.
-  struct addrinfo *address = NULL;
-  int r = getaddrinfo(host, *port, &server_tcp_hints, &address);
+  struct addrinfo *address = NULL,
+                  *address_list = NULL;
+  int r = getaddrinfo(host, *port, &server_tcp_hints, &address_list);
   free(host);
   if (r != 0)
     return ThrowException(String::New(strerror(errno)));
+
+  address = AddressDefaultToIPv4(address_list);
 
   acceptor->Listen(address);
   return Undefined();
