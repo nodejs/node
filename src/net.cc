@@ -36,6 +36,7 @@ using namespace node;
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
+#define OPENING_SYMBOL      String::NewSymbol("opening")
 #define READ_ONLY_SYMBOL    String::NewSymbol("readOnly")
 #define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
@@ -90,6 +91,7 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
 
   switch(connection->ReadyState()) {
     case OPEN: return scope.Close(OPEN_SYMBOL);
+    case OPENING: return scope.Close(OPENING_SYMBOL);
     case CLOSED: return scope.Close(CLOSED_SYMBOL);
     case READ_ONLY: return scope.Close(READ_ONLY_SYMBOL);
     case WRITE_ONLY: return scope.Close(WRITE_ONLY_SYMBOL);
@@ -113,6 +115,7 @@ Connection::Connection (Handle<Object> handle)
 void
 Connection::Init (void)
 {
+  opening = false;
   double timeout = 60.0; // default
   oi_socket_init(&socket_, timeout);
   socket_.on_connect = Connection::on_connect;
@@ -154,6 +157,30 @@ Connection::New (const Arguments& args)
   return args.This();
 }
 
+enum Connection::readyState
+Connection::ReadyState (void)
+{
+  if (socket_.got_full_close)
+    return CLOSED;
+
+  if (socket_.got_half_close)
+    return (socket_.read_action == NULL ? CLOSED : READ_ONLY);
+
+  if (socket_.read_action && socket_.write_action)
+    return OPEN;
+
+  else if (socket_.write_action)
+    return WRITE_ONLY;
+
+  else if (socket_.read_action)
+    return READ_ONLY;
+
+  else if (opening)
+    return OPENING;
+  
+  return CLOSED;
+}
+
 Handle<Value>
 Connection::Connect (const Arguments& args)
 {
@@ -163,7 +190,7 @@ Connection::Connect (const Arguments& args)
   HandleScope scope;
 
   if (connection->ReadyState() != CLOSED) {
-    return ThrowException(String::New("Socket is already connected."));
+    return ThrowException(String::New("Socket is not in CLOSED state."));
   } else {
     // XXX ugly.
     connection->Init(); // in case we're reusing the socket... ?
@@ -173,6 +200,7 @@ Connection::Connect (const Arguments& args)
     return ThrowException(String::New("Must specify a port."));
 
   String::AsciiValue port_sv(args[0]->ToString());
+  if (connection->port_) printf("connection->port_ = '%s'\n", connection->port_);
   assert(connection->port_ == NULL);
   connection->port_ = strdup(*port_sv);
 
@@ -181,6 +209,8 @@ Connection::Connect (const Arguments& args)
     String::Utf8Value host_sv(args[1]->ToString());
     connection->host_ = strdup(*host_sv);
   }
+
+  connection->opening = true;
   
 #ifdef __APPLE__
   /* HACK: Bypass the thread pool and do it sync on Macintosh.
@@ -224,7 +254,7 @@ Connection::Resolve (eio_req *req)
 
 #ifdef __APPLE__
   Connection::AfterResolve(req);
-#endif // __APPLE__
+#endif
 
   return 0;
 }
@@ -235,7 +265,9 @@ Connection::AfterResolve (eio_req *req)
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
 
-  req->ptr2 = NULL;
+  req->ptr2 = NULL; // ?
+
+  connection->opening = false;
 
   int r = 0;
   if (req->result == 0) {
@@ -256,10 +288,9 @@ Connection::AfterResolve (eio_req *req)
   connection->Detach();
 
 out:
-
 #ifdef __APPLE__
   free(req);
-#endif // __APPLE__
+#endif
 
   return 0;
 }

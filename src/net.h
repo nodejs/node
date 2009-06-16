@@ -52,24 +52,9 @@ protected:
 
   enum encoding encoding_;
 
-  enum readyState { OPEN, CLOSED, READ_ONLY, WRITE_ONLY };
-  enum readyState ReadyState ( )
-  {
-    if (socket_.got_full_close)
-      return CLOSED;
-
-    if (socket_.got_half_close)
-      return (socket_.read_action == NULL ? CLOSED : READ_ONLY);
-
-    if (socket_.read_action && socket_.write_action)
-      return OPEN;
-    else if (socket_.write_action)
-      return WRITE_ONLY;
-    else if (socket_.read_action)
-      return READ_ONLY;
-    
-    return CLOSED;
-  }
+  enum readyState { OPEN, OPENING, CLOSED, READ_ONLY, WRITE_ONLY };
+  bool opening;
+  enum readyState ReadyState (void);
 
 private:
 
