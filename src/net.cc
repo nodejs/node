@@ -717,6 +717,9 @@ Acceptor::Listen (const Arguments& args)
   address = AddressDefaultToIPv4(address_list);
 
   acceptor->Listen(address);
+
+  if (address_list) freeaddrinfo(address_list); 
+
   return Undefined();
 }
 
