@@ -96,11 +96,13 @@ FAIL=python -c 'print("\033[1;31mFAIL\033[m")'
 PASS=python -c 'print("\033[1;32mPASS\033[m")'
  
 test: all
-	@for i in test/test*.js; do \\
-		echo "default \$\$i: "; \\
+	@for i in test/test*.js; do                         \\
+		echo "default \$\$i: ";                           \\
 		build/default/node \$\$i && \$(PASS) || \$(FAIL); \\
-		echo "debug \$\$i: "; \\
-		build/debug/node \$\$i && \$(PASS) || \$(FAIL); \\
+    if [ -e build/debug/node ]; then                  \\
+      echo "debug \$\$i: ";                           \\
+      build/debug/node \$\$i && \$(PASS) || \$(FAIL); \\
+    fi;                                               \\
 	done 
 
 clean:
