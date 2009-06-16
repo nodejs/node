@@ -24,6 +24,12 @@ def set_options(opt):
                 , help='Build debug variant [Default: False]'
                 , dest='debug'
                 )
+  opt.add_option( '--efence'
+                , action='store_true'
+                , default=False
+                , help='Build with -lefence for debugging [Default: False]'
+                , dest='efence'
+                )
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
@@ -31,18 +37,18 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
-  conf.check(lib='profiler', uselib_store='PROFILER')
+  if Options.options.debug:
+    conf.check(lib='profiler', uselib_store='PROFILER')
+
+  if Options.options.efence:
+    conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
   if sys.platform.startswith("freebsd"):
     if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
-      fatal("install the libexecinfo port. devel/libexecinfo")
+      fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
-
-  # liboi config
-  print "--- liboi ---"
-
 
   # Not using TLS yet
   # if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
@@ -163,7 +169,7 @@ def build(bld):
     deps/http_parser
   """
   node.uselib_local = "oi ev eio http_parser"
-  node.uselib = "V8 EXECINFO PROFILER"
+  node.uselib = "V8 EXECINFO PROFILER EFENCE"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 

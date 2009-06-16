@@ -36,6 +36,7 @@ using namespace node;
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
+#define OPENING_SYMBOL      String::NewSymbol("opening")
 #define READ_ONLY_SYMBOL    String::NewSymbol("readOnly")
 #define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
@@ -90,6 +91,7 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
 
   switch(connection->ReadyState()) {
     case OPEN: return scope.Close(OPEN_SYMBOL);
+    case OPENING: return scope.Close(OPENING_SYMBOL);
     case CLOSED: return scope.Close(CLOSED_SYMBOL);
     case READ_ONLY: return scope.Close(READ_ONLY_SYMBOL);
     case WRITE_ONLY: return scope.Close(WRITE_ONLY_SYMBOL);
@@ -113,6 +115,7 @@ Connection::Connection (Handle<Object> handle)
 void
 Connection::Init (void)
 {
+  opening = false;
   double timeout = 60.0; // default
   oi_socket_init(&socket_, timeout);
   socket_.on_connect = Connection::on_connect;
@@ -154,6 +157,30 @@ Connection::New (const Arguments& args)
   return args.This();
 }
 
+enum Connection::readyState
+Connection::ReadyState (void)
+{
+  if (socket_.got_full_close)
+    return CLOSED;
+
+  if (socket_.got_half_close)
+    return (socket_.read_action == NULL ? CLOSED : READ_ONLY);
+
+  if (socket_.read_action && socket_.write_action)
+    return OPEN;
+
+  else if (socket_.write_action)
+    return WRITE_ONLY;
+
+  else if (socket_.read_action)
+    return READ_ONLY;
+
+  else if (opening)
+    return OPENING;
+  
+  return CLOSED;
+}
+
 Handle<Value>
 Connection::Connect (const Arguments& args)
 {
@@ -163,7 +190,7 @@ Connection::Connect (const Arguments& args)
   HandleScope scope;
 
   if (connection->ReadyState() != CLOSED) {
-    return ThrowException(String::New("Socket is already connected."));
+    return ThrowException(String::New("Socket is not in CLOSED state."));
   } else {
     // XXX ugly.
     connection->Init(); // in case we're reusing the socket... ?
@@ -173,6 +200,7 @@ Connection::Connect (const Arguments& args)
     return ThrowException(String::New("Must specify a port."));
 
   String::AsciiValue port_sv(args[0]->ToString());
+  if (connection->port_) printf("connection->port_ = '%s'\n", connection->port_);
   assert(connection->port_ == NULL);
   connection->port_ = strdup(*port_sv);
 
@@ -181,6 +209,8 @@ Connection::Connect (const Arguments& args)
     String::Utf8Value host_sv(args[1]->ToString());
     connection->host_ = strdup(*host_sv);
   }
+
+  connection->opening = true;
   
 #ifdef __APPLE__
   /* HACK: Bypass the thread pool and do it sync on Macintosh.
@@ -224,25 +254,56 @@ Connection::Resolve (eio_req *req)
 
 #ifdef __APPLE__
   Connection::AfterResolve(req);
-#endif // __APPLE__
+#endif
 
   return 0;
+}
+
+static struct addrinfo *
+AddressDefaultToIPv4 (struct addrinfo *address_list)
+{
+  struct addrinfo *address = NULL;
+
+/*
+  char ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
+  for (address = address_list; address != NULL; address = address->ai_next) {
+    if (address->ai_family == AF_INET) {
+      struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(address->ai_addr);
+      inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
+      printf("%s\n", ip4);
+
+    } else if (address->ai_family == AF_INET6) {
+      struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(address->ai_addr);
+      inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
+      printf("%s\n", ip6);
+    }
+  }
+*/
+
+  for (address = address_list; address != NULL; address = address->ai_next) {
+    if (address->ai_addr->sa_family == AF_INET) break;
+  }
+
+  if (address == NULL) address = address_list;
+
+  return address;
 }
 
 int
 Connection::AfterResolve (eio_req *req)
 {
   Connection *connection = static_cast<Connection*> (req->data);
-  struct addrinfo *address = static_cast<struct addrinfo *>(req->ptr2);
+  struct addrinfo *address = NULL,
+                  *address_list = static_cast<struct addrinfo *>(req->ptr2);
 
-  req->ptr2 = NULL;
+  address = AddressDefaultToIPv4(address_list);
+
+  connection->opening = false;
 
   int r = 0;
-  if (req->result == 0) {
-    r = connection->Connect(address);
-  }
+  if (req->result == 0) r = connection->Connect(address);
 
-  if (address) freeaddrinfo(address); 
+  if (address_list) freeaddrinfo(address_list); 
 
   // no error. return.
   if (r == 0 && req->result == 0) {
@@ -250,17 +311,22 @@ Connection::AfterResolve (eio_req *req)
     goto out;
   }
 
-  puts("net.cc: resolve failed");
+  /* RESOLVE ERROR */
+
+  /* TODO: the whole resolve process should be moved into oi_socket.
+   * The fact that I'm modifying a read-only variable here should be 
+   * good evidence of this.
+   */
+  connection->socket_.errorno = r | req->result;
 
   connection->OnDisconnect();
+
   connection->Detach();
 
 out:
-
 #ifdef __APPLE__
   free(req);
-#endif // __APPLE__
-
+#endif
   return 0;
 }
 
@@ -641,13 +707,19 @@ Acceptor::Listen (const Arguments& args)
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
   // matter much. If someone actually complains then simply swap it out
   // with a libeio call.
-  struct addrinfo *address = NULL;
-  int r = getaddrinfo(host, *port, &server_tcp_hints, &address);
+  struct addrinfo *address = NULL,
+                  *address_list = NULL;
+  int r = getaddrinfo(host, *port, &server_tcp_hints, &address_list);
   free(host);
   if (r != 0)
     return ThrowException(String::New(strerror(errno)));
 
+  address = AddressDefaultToIPv4(address_list);
+
   acceptor->Listen(address);
+
+  if (address_list) freeaddrinfo(address_list); 
+
   return Undefined();
 }
 
