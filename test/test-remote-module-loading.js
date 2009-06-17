@@ -16,3 +16,5 @@ function onLoad() {
   assertEquals("A", a.A());
   
 }
+
+// TODO: Add tests for remote require using a timeout
