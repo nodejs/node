@@ -25,3 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#include "frames-inl.h"
+
+namespace v8 {
+namespace internal {
+
+StackFrame::Type ExitFrame::GetStateForFramePointer(unsigned char* a,
+                                                    StackFrame::State* b) {
+  // TODO(X64): UNIMPLEMENTED
+  return NONE;
+}
+
+int JavaScriptFrame::GetProvidedParametersCount() const {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
+  UNIMPLEMENTED();
+  return NONE;
+}
+
+byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+void ExitFrame::Iterate(ObjectVisitor* a) const {
+  UNIMPLEMENTED();
+}
+
+byte* InternalFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+byte* JavaScriptFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+} }  // namespace v8::internal

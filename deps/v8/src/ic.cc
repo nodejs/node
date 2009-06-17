@@ -849,6 +849,20 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
 }
 
 
+static bool StoreICableLookup(LookupResult* lookup) {
+  // Bail out if we didn't find a result.
+  if (!lookup->IsValid() || !lookup->IsCacheable()) return false;
+
+  // If the property is read-only, we leave the IC in its current
+  // state.
+  if (lookup->IsReadOnly()) return false;
+
+  if (!lookup->IsLoaded()) return false;
+
+  return true;
+}
+
+
 Object* StoreIC::Store(State state,
                        Handle<Object> object,
                        Handle<String> name,
@@ -873,12 +887,12 @@ Object* StoreIC::Store(State state,
   }
 
   // Lookup the property locally in the receiver.
-  LookupResult lookup;
-  receiver->LocalLookup(*name, &lookup);
-
-  // Update inline cache and stub cache.
-  if (FLAG_use_ic && lookup.IsLoaded()) {
-    UpdateCaches(&lookup, state, receiver, name, value);
+  if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+    LookupResult lookup;
+    receiver->LocalLookup(*name, &lookup);
+    if (StoreICableLookup(&lookup)) {
+      UpdateCaches(&lookup, state, receiver, name, value);
+    }
   }
 
   // Set the property.
@@ -893,14 +907,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<Object> value) {
   ASSERT(lookup->IsLoaded());
   // Skip JSGlobalProxy.
-  if (receiver->IsJSGlobalProxy()) return;
+  ASSERT(!receiver->IsJSGlobalProxy());
 
-  // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return;
-
-  // If the property is read-only, we leave the IC in its current
-  // state.
-  if (lookup->IsReadOnly()) return;
+  ASSERT(StoreICableLookup(lookup));
 
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its

@@ -25,3 +25,66 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#include "codegen-inl.h"
+#include "register-allocator-inl.h"
+
+namespace v8 {
+namespace internal {
+
+// -------------------------------------------------------------------------
+// Result implementation.
+
+void Result::ToRegister() {
+  ASSERT(is_valid());
+  if (is_constant()) {
+    // TODO(X64): Handle constant results.
+    /*
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
+    ASSERT(fresh.is_valid());
+    if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+      CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
+    } else {
+      CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                 Immediate(handle()));
+    }
+    // This result becomes a copy of the fresh one.
+    *this = fresh;
+    */
+  }
+  ASSERT(is_register());
+}
+
+
+void Result::ToRegister(Register target) {
+  ASSERT(is_valid());
+  if (!is_register() || !reg().is(target)) {
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate(target);
+    ASSERT(fresh.is_valid());
+    if (is_register()) {
+      CodeGeneratorScope::Current()->masm()->movq(fresh.reg(), reg());
+    } else {
+      ASSERT(is_constant());
+      /*
+      TODO(X64): Handle constant results.
+      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+        CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
+      } else {
+        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                   Immediate(handle()));
+      }
+      */
+    }
+    *this = fresh;
+  } else if (is_register() && reg().is(target)) {
+    ASSERT(CodeGeneratorScope::Current()->has_valid_frame());
+    CodeGeneratorScope::Current()->frame()->Spill(target);
+    ASSERT(CodeGeneratorScope::Current()->allocator()->count(target) == 1);
+  }
+  ASSERT(is_register());
+  ASSERT(reg().is(target));
+}
+
+
+} }  // namespace v8::internal

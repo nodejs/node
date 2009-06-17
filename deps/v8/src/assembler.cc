@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -363,7 +363,7 @@ void RelocIterator::next() {
           if (SetMode(DebugInfoModeFromTag(top_tag))) return;
         } else {
           // Otherwise, just skip over the data.
-          Advance(kIntSize);
+          Advance(kIntptrSize);
         }
       } else {
         AdvanceReadPC();
@@ -508,7 +508,7 @@ void RelocInfo::Verify() {
 // Implementation of ExternalReference
 
 ExternalReference::ExternalReference(Builtins::CFunctionId id)
-  : address_(Builtins::c_function_address(id)) {}
+  : address_(Redirect(Builtins::c_function_address(id))) {}
 
 
 ExternalReference::ExternalReference(Builtins::Name name)
@@ -516,15 +516,15 @@ ExternalReference::ExternalReference(Builtins::Name name)
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id)
-  : address_(Runtime::FunctionForId(id)->entry) {}
+  : address_(Redirect(Runtime::FunctionForId(id)->entry)) {}
 
 
 ExternalReference::ExternalReference(Runtime::Function* f)
-  : address_(f->entry) {}
+  : address_(Redirect(f->entry)) {}
 
 
 ExternalReference::ExternalReference(const IC_Utility& ic_utility)
-  : address_(ic_utility.address()) {}
+  : address_(Redirect(ic_utility.address())) {}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference::ExternalReference(const Debug_Address& debug_address)
@@ -543,9 +543,20 @@ ExternalReference::ExternalReference(const SCTableReference& table_ref)
   : address_(table_ref.address()) {}
 
 
+ExternalReference ExternalReference::perform_gc_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(Runtime::PerformGC)));
+}
+
+
 ExternalReference ExternalReference::builtin_passed_function() {
   return ExternalReference(&Builtins::builtin_passed_function);
 }
+
+
+ExternalReference ExternalReference::random_positive_smi_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(V8::RandomPositiveSmi)));
+}
+
 
 ExternalReference ExternalReference::the_hole_value_location() {
   return ExternalReference(Factory::the_hole_value().location());
@@ -614,13 +625,17 @@ ExternalReference ExternalReference::double_fp_operation(
     default:
       UNREACHABLE();
   }
-  return ExternalReference(FUNCTION_ADDR(function));
+  // Passing true as 2nd parameter indicates that they return an fp value.
+  return ExternalReference(Redirect(FUNCTION_ADDR(function), true));
 }
+
+
+ExternalReferenceRedirector* ExternalReference::redirector_ = NULL;
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference ExternalReference::debug_break() {
-  return ExternalReference(FUNCTION_ADDR(Debug::Break));
+  return ExternalReference(Redirect(FUNCTION_ADDR(Debug::Break)));
 }
 
 

@@ -223,9 +223,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Check for number.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &number);
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ cmp(r3, Operand(HEAP_NUMBER_TYPE));
+  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE);
   __ b(ne, &non_number);
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -272,9 +270,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ b(eq, miss);
 
   // Check that the value is a JSFunction.
-  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-  __ cmp(r0, Operand(JS_FUNCTION_TYPE));
+  __ CompareObjectType(r1, r0, r0, JS_FUNCTION_TYPE);
   __ b(ne, miss);
 
   // Check that the function has been loaded.
@@ -312,10 +308,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
-  // Check that the receiver is a valid JS object.
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ cmp(r0, Operand(FIRST_JS_OBJECT_TYPE));
+  // Check that the receiver is a valid JS object.  Put the map in r3.
+  __ CompareObjectType(r1, r3, r0, FIRST_JS_OBJECT_TYPE);
   __ b(lt, &miss);
 
   // If this assert fails, we have to check upper bound too.
@@ -392,9 +386,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
   __ tst(r2, Operand(kSmiTagMask));
   __ b(eq, &invoke);
-  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE);
   __ b(eq, &global);
   __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
   __ b(ne, &invoke);
@@ -447,10 +439,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
-  // Check that the receiver is a valid JS object.
-  __ ldr(r3, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
+  // Check that the receiver is a valid JS object.  Put the map in r3.
+  __ CompareObjectType(r0, r3, r1, FIRST_JS_OBJECT_TYPE);
   __ b(lt, &miss);
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
@@ -510,6 +500,12 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {}
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  return false;
+}
+
+void KeyedStoreIC::ClearInlinedVersion(Address address) {}
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {}
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
   return false;
 }
 

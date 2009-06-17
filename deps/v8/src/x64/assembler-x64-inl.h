@@ -151,11 +151,6 @@ void RelocInfo::apply(int delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
     *p -= delta;  // relocate entry
-  } else if (rmode_ == JS_RETURN && IsCallInstruction()) {
-    // Special handling of js_return when a break point is set (call
-    // instruction has been inserted).
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_ + 1);
-    *p -= delta;  // relocate entry
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
@@ -249,27 +244,9 @@ Object** RelocInfo::call_object_address() {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp) {
-  len_ = 1;
-  if (base.is(rsp) || base.is(r12)) {
-    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(kTimes1, rsp, base);
-  }
-
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    set_modrm(0, rsp);
-  } else if (is_int8(disp)) {
-    set_modrm(1, base);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, base);
-    set_disp32(disp);
-  }
-}
-
 void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
-  buf_[0] = mod << 6 | (rm.code() & 0x7);
+  buf_[0] = (mod << 6) | (rm.code() & 0x7);
   // Set REX.B to the high bit of rm.code().
   rex_ |= (rm.code() >> 3);
 }
@@ -278,7 +255,8 @@ void Operand::set_modrm(int mod, Register rm) {
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   ASSERT(len_ == 1);
   ASSERT(is_uint2(scale));
-  // Use SIB with no index register only for base rsp or r12.
+  // Use SIB with no index register only for base rsp or r12. Otherwise we
+  // would skip the SIB byte entirely.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
   buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);
   rex_ |= (index.code() >> 3) << 1 | base.code() >> 3;

@@ -302,12 +302,12 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
     }
 
     // Function compilation complete.
-    LOG(CodeCreateEvent("Function", *code, *node->name()));
+    LOG(CodeCreateEvent(Logger::FUNCTION_TAG, *code, *node->name()));
 
 #ifdef ENABLE_OPROFILE_AGENT
     OProfileAgent::CreateNativeCodeRegion(*node->name(),
-                                          code->address(),
-                                          code->ExecutableSize());
+                                          code->instruction_start(),
+                                          code->instruction_size());
 #endif
   }
 
@@ -422,7 +422,10 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateSetValueOf, "_SetValueOf"},
   {&CodeGenerator::GenerateFastCharCodeAt, "_FastCharCodeAt"},
   {&CodeGenerator::GenerateObjectEquals, "_ObjectEquals"},
-  {&CodeGenerator::GenerateLog, "_Log"}
+  {&CodeGenerator::GenerateLog, "_Log"},
+  {&CodeGenerator::GenerateRandomPositiveSmi, "_RandomPositiveSmi"},
+  {&CodeGenerator::GenerateMathSin, "_Math_sin"},
+  {&CodeGenerator::GenerateMathCos, "_Math_cos"}
 };
 
 

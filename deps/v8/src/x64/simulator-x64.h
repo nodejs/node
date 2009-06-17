@@ -31,6 +31,7 @@
 
 // Since there is no simulator for the ia32 architecture the only thing we can
 // do is to call the entry directly.
+// TODO(X64): Don't pass p0, since it isn't used?
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   entry(p0, p1, p2, p3, p4);
 

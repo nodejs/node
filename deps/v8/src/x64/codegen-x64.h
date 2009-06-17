@@ -286,6 +286,15 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+  // During implementation of CodeGenerator, this call creates a
+  // CodeGenerator instance, and calls GenCode on it with a null
+  // function literal.  CodeGenerator will then construct and return
+  // a simple dummy function.  Call this during bootstrapping before
+  // trying to compile any real functions, to get CodeGenerator up
+  // and running.
+  // TODO(X64): Remove once we can get through the bootstrapping process.
+  static void TestCodeGenerator();
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
@@ -515,6 +524,14 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateLog(ZoneList<Expression*>* args);
 
+  // Fast support for Math.random().
+  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+
+  // Fast support for Math.sin and Math.cos.
+  enum MathOp { SIN, COS };
+  void GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args);
+  inline void GenerateMathSin(ZoneList<Expression*>* args);
+  inline void GenerateMathCos(ZoneList<Expression*>* args);
 
   // Methods and constants for fast case switch statement support.
   //

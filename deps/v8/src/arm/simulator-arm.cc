@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "disasm.h"
+#include "assembler.h"
 #include "arm/constants-arm.h"
 #include "arm/simulator-arm.h"
 
@@ -380,7 +381,23 @@ void Debugger::Debug() {
 }
 
 
+// Create one simulator per thread and keep it in thread local storage.
+static v8::internal::Thread::LocalStorageKey simulator_key;
+
+
+bool Simulator::initialized_ = false;
+
+
+void Simulator::Initialize() {
+  if (initialized_) return;
+  simulator_key = v8::internal::Thread::CreateThreadLocalKey();
+  initialized_ = true;
+  ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
+}
+
+
 Simulator::Simulator() {
+  ASSERT(initialized_);
   // Setup simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
@@ -412,9 +429,63 @@ Simulator::Simulator() {
 }
 
 
-// Create one simulator per thread and keep it in thread local storage.
-static v8::internal::Thread::LocalStorageKey simulator_key =
-    v8::internal::Thread::CreateThreadLocalKey();
+// When the generated code calls an external reference we need to catch that in
+// the simulator.  The external reference will be a function compiled for the
+// host architecture.  We need to call that function instead of trying to
+// execute it with the simulator.  We do that by redirecting the external
+// reference to a swi (software-interrupt) instruction that is handled by
+// the simulator.  We write the original destination of the jump just at a known
+// offset from the swi instruction so the simulator knows what to call.
+class Redirection {
+ public:
+  Redirection(void* external_function, bool fp_return)
+      : external_function_(external_function),
+        swi_instruction_((AL << 28) | (0xf << 24) | call_rt_redirected),
+        fp_return_(fp_return),
+        next_(list_) {
+    list_ = this;
+  }
+
+  void* address_of_swi_instruction() {
+    return reinterpret_cast<void*>(&swi_instruction_);
+  }
+
+  void* external_function() { return external_function_; }
+  bool fp_return() { return fp_return_; }
+
+  static Redirection* Get(void* external_function, bool fp_return) {
+    Redirection* current;
+    for (current = list_; current != NULL; current = current->next_) {
+      if (current->external_function_ == external_function) return current;
+    }
+    return new Redirection(external_function, fp_return);
+  }
+
+  static Redirection* FromSwiInstruction(Instr* swi_instruction) {
+    char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
+    char* addr_of_redirection =
+        addr_of_swi - OFFSET_OF(Redirection, swi_instruction_);
+    return reinterpret_cast<Redirection*>(addr_of_redirection);
+  }
+
+ private:
+  void* external_function_;
+  uint32_t swi_instruction_;
+  bool fp_return_;
+  Redirection* next_;
+  static Redirection* list_;
+};
+
+
+Redirection* Redirection::list_ = NULL;
+
+
+void* Simulator::RedirectExternalReference(void* external_function,
+                                           bool fp_return) {
+  Redirection* redirection = Redirection::Get(external_function, fp_return);
+  return redirection->address_of_swi_instruction();
+}
+
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current() {
@@ -921,7 +992,14 @@ void Simulator::HandleRList(Instr* instr, bool load) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the r1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-typedef int64_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1);
+typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
+                                        int32_t arg1,
+                                        int32_t arg2,
+                                        int32_t arg3);
+typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
+                                         int32_t arg1,
+                                         int32_t arg2,
+                                         int32_t arg3);
 
 
 // Software interrupt instructions are used by the simulator to call into the
@@ -929,59 +1007,56 @@ typedef int64_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1);
 void Simulator::SoftwareInterrupt(Instr* instr) {
   int swi = instr->SwiField();
   switch (swi) {
-    case call_rt_r5: {
-      SimulatorRuntimeCall target =
-          reinterpret_cast<SimulatorRuntimeCall>(get_register(r5));
-      intptr_t arg0 = get_register(r0);
-      intptr_t arg1 = get_register(r1);
-      int64_t result = target(arg0, arg1);
-      int32_t lo_res = static_cast<int32_t>(result);
-      int32_t hi_res = static_cast<int32_t>(result >> 32);
-      set_register(r0, lo_res);
-      set_register(r1, hi_res);
-      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
-      break;
-    }
-    case call_rt_r2: {
-      SimulatorRuntimeCall target =
-          reinterpret_cast<SimulatorRuntimeCall>(get_register(r2));
-      intptr_t arg0 = get_register(r0);
-      intptr_t arg1 = get_register(r1);
-      int64_t result = target(arg0, arg1);
-      int32_t lo_res = static_cast<int32_t>(result);
-      int32_t hi_res = static_cast<int32_t>(result >> 32);
-      set_register(r0, lo_res);
-      set_register(r1, hi_res);
-      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
+    case call_rt_redirected: {
+      Redirection* redirection = Redirection::FromSwiInstruction(instr);
+      int32_t arg0 = get_register(r0);
+      int32_t arg1 = get_register(r1);
+      int32_t arg2 = get_register(r2);
+      int32_t arg3 = get_register(r3);
+      // This is dodgy but it works because the C entry stubs are never moved.
+      // See comment in codegen-arm.cc and bug 1242173.
+      int32_t saved_lr = get_register(lr);
+      if (redirection->fp_return()) {
+        intptr_t external =
+            reinterpret_cast<intptr_t>(redirection->external_function());
+        SimulatorRuntimeFPCall target =
+            reinterpret_cast<SimulatorRuntimeFPCall>(external);
+        if (::v8::internal::FLAG_trace_sim) {
+          double x, y;
+          GetFpArgs(&x, &y);
+          PrintF("Call to host function at %p with args %f, %f\n",
+                 FUNCTION_ADDR(target), x, y);
+        }
+        double result = target(arg0, arg1, arg2, arg3);
+        SetFpResult(result);
+      } else {
+        intptr_t external =
+            reinterpret_cast<int32_t>(redirection->external_function());
+        SimulatorRuntimeCall target =
+            reinterpret_cast<SimulatorRuntimeCall>(external);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF(
+              "Call to host function at %p with args %08x, %08x, %08x, %08x\n",
+              FUNCTION_ADDR(target),
+              arg0,
+              arg1,
+              arg2,
+              arg3);
+        }
+        int64_t result = target(arg0, arg1, arg2, arg3);
+        int32_t lo_res = static_cast<int32_t>(result);
+        int32_t hi_res = static_cast<int32_t>(result >> 32);
+        set_register(r0, lo_res);
+        set_register(r1, hi_res);
+        set_register(r0, result);
+      }
+      set_register(lr, saved_lr);
+      set_pc(get_register(lr));
       break;
     }
     case break_point: {
       Debugger dbg(this);
       dbg.Debug();
-      break;
-    }
-    {
-      double x, y, z;
-    case simulator_fp_add:
-      GetFpArgs(&x, &y);
-      z = x + y;
-      SetFpResult(z);
-      TrashCallerSaveRegisters();
-      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
-      break;
-    case simulator_fp_sub:
-      GetFpArgs(&x, &y);
-      z = x - y;
-      SetFpResult(z);
-      TrashCallerSaveRegisters();
-      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
-      break;
-    case simulator_fp_mul:
-      GetFpArgs(&x, &y);
-      z = x * y;
-      SetFpResult(z);
-      TrashCallerSaveRegisters();
-      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
       break;
     }
     default: {

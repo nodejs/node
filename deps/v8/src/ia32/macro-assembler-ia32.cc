@@ -358,7 +358,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
 
   // Setup the frame structure on the stack.
-  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
   push(ebp);
@@ -448,7 +448,8 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   // The pc (return address) is already on TOS.
   if (try_location == IN_JAVASCRIPT) {
     if (type == TRY_CATCH_HANDLER) {
@@ -456,23 +457,18 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     } else {
       push(Immediate(StackHandler::TRY_FINALLY));
     }
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
     push(ebp);
-    push(edi);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
-    // The parameter pointer is meaningless here and ebp does not
-    // point to a JS frame. So we save NULL for both pp and ebp. We
-    // expect the code throwing an exception to check ebp before
-    // dereferencing it to restore the context.
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for ebp. We expect the code throwing an exception to check ebp
+    // before dereferencing it to restore the context.
     push(Immediate(StackHandler::ENTRY));
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
-    push(Immediate(0));  // NULL frame pointer
-    push(Immediate(0));  // NULL parameter pointer
+    push(Immediate(0));  // NULL frame pointer.
   }
-  // Cached TOS.
-  mov(eax, Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
-  // Link this handler.
+  // Save the current handler as the next handler.
+  push(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  // Link this handler as the new current one.
   mov(Operand::StaticVariable(ExternalReference(Top::k_handler_address)), esp);
 }
 

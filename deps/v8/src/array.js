@@ -769,6 +769,63 @@ function ArraySort(comparefn) {
     }
   }
 
+  function SafeRemoveArrayHoles(obj) {
+    // Copy defined elements from the end to fill in all holes and undefineds
+    // in the beginning of the array.  Write undefineds and holes at the end
+    // after loop is finished.
+    var first_undefined = 0;
+    var last_defined = length - 1;
+    var num_holes = 0;
+    while (first_undefined < last_defined) {
+      // Find first undefined element.
+      while (first_undefined < last_defined &&
+             !IS_UNDEFINED(obj[first_undefined])) {
+        first_undefined++;
+      }
+      // Maintain the invariant num_holes = the number of holes in the original
+      // array with indices <= first_undefined or > last_defined.
+      if (!obj.hasOwnProperty(first_undefined)) {
+        num_holes++;
+      }
+
+      // Find last defined element.
+      while (first_undefined < last_defined &&
+             IS_UNDEFINED(obj[last_defined])) {
+        if (!obj.hasOwnProperty(last_defined)) {
+          num_holes++;
+        }
+        last_defined--;
+      }
+      if (first_undefined < last_defined) {
+        // Fill in hole or undefined.
+        obj[first_undefined] = obj[last_defined];
+        obj[last_defined] = void 0;
+      }
+    }
+    // If there were any undefineds in the entire array, first_undefined
+    // points to one past the last defined element.  Make this true if
+    // there were no undefineds, as well, so that first_undefined == number
+    // of defined elements.
+    if (!IS_UNDEFINED(obj[first_undefined])) first_undefined++;
+    // Fill in the undefineds and the holes.  There may be a hole where
+    // an undefined should be and vice versa.
+    var i;
+    for (i = first_undefined; i < length - num_holes; i++) {
+      obj[i] = void 0;
+    }
+    for (i = length - num_holes; i < length; i++) {
+      // For compatability with Webkit, do not expose elements in the prototype.
+      if (i in obj.__proto__) {
+        obj[i] = void 0;
+      } else {
+        delete obj[i];
+      }
+    }
+
+    // Return the number of defined elements.
+    return first_undefined;
+  }
+
   var length = ToUint32(this.length);
   if (length < 2) return this;
 
@@ -787,6 +844,12 @@ function ArraySort(comparefn) {
   }
 
   var num_non_undefined = %RemoveArrayHoles(this, length);
+  if (num_non_undefined == -1) {
+    // There were indexed accessors in the array.  Move array holes and
+    // undefineds to the end using a Javascript function that is safe
+    // in the presence of accessors.
+    num_non_undefined = SafeRemoveArrayHoles(this);
+  }
 
   QuickSort(this, 0, num_non_undefined);
 

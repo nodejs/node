@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -106,6 +106,9 @@ class Simulator {
   // Executes ARM instructions until the PC reaches end_sim_pc.
   void Execute();
 
+  // Call on program start.
+  static void Initialize();
+
   // V8 generally calls into generated code with 5 parameters. This is a
   // convenience function, which sets up the simulator state and grabs the
   // result on return.
@@ -175,6 +178,10 @@ class Simulator {
   // Executes one instruction.
   void InstructionDecode(Instr* instr);
 
+  // Runtime call support.
+  static void* RedirectExternalReference(void* external_function,
+                                         bool fp_return);
+
   // For use in calls that take two double values, constructed from r0, r1, r2
   // and r3.
   void GetFpArgs(double* x, double* y);
@@ -192,6 +199,7 @@ class Simulator {
   char* stack_;
   bool pc_modified_;
   int icount_;
+  static bool initialized_;
 
   // registered breakpoints
   Instr* break_pc_;

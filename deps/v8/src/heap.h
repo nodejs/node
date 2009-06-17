@@ -827,8 +827,9 @@ class Heap : public AllStatic {
   static int young_generation_size_;
   static int old_generation_size_;
 
-  static int new_space_growth_limit_;
-  static int scavenge_count_;
+  // For keeping track of how much data has survived
+  // scavenge since last new space expansion.
+  static int survived_since_last_expansion_;
 
   static int always_allocate_scope_depth_;
   static bool context_disposed_pending_;

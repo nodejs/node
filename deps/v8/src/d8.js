@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// How crappy is it that I have to implement completely basic stuff
-// like this myself?  Answer: very.
 String.prototype.startsWith = function (str) {
   if (str.length > this.length)
     return false;
@@ -100,6 +98,13 @@ Debug.ScriptCompilationType = { Host: 0,
                                 JSON: 2 };
 
 
+// The different types of scopes matching constants runtime.cc.
+Debug.ScopeType = { Global: 0,
+                    Local: 1,
+                    With: 2,
+                    Closure: 3 };
+
+
 // Current debug state.
 const kNoFrame = -1;
 Debug.State = {
@@ -124,7 +129,7 @@ function DebugMessageDetails(message) {
 }
 
 function DebugEventDetails(response) {
-  details = {text:'', running:false}
+  details = {text:'', running:false};
 
   // Get the running state.
   details.running = response.running();
@@ -297,6 +302,14 @@ function DebugRequest(cmd_line) {
       this.request_ = this.frameCommandToJSONRequest_(args);
       break;
       
+    case 'scopes':
+      this.request_ = this.scopesCommandToJSONRequest_(args);
+      break;
+      
+    case 'scope':
+      this.request_ = this.scopeCommandToJSONRequest_(args);
+      break;
+      
     case 'print':
     case 'p':
       this.request_ = this.printCommandToJSONRequest_(args);
@@ -396,13 +409,17 @@ DebugRequest.prototype.createRequest = function(command) {
 
 // Create a JSON request for the evaluation command.
 DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
+  // Global varaible used to store whether a handle was requested.
+  lookup_handle = null;
   // Check if the expression is a handle id in the form #<handle>#.
   var handle_match = expression.match(/^#([0-9]*)#$/);
   if (handle_match) {
+    // Remember the handle requested in a global variable.
+    lookup_handle = parseInt(handle_match[1]);
     // Build a lookup request.
     var request = this.createRequest('lookup');
     request.arguments = {};
-    request.arguments.handle = parseInt(handle_match[1]);
+    request.arguments.handles = [ lookup_handle ];
     return request.toJSONProtocol();
   } else {
     // Build an evaluate request.
@@ -552,6 +569,27 @@ DebugRequest.prototype.backtraceCommandToJSONRequest_ = function(args) {
 DebugRequest.prototype.frameCommandToJSONRequest_ = function(args) {
   // Build a frame request from the text command.
   var request = this.createRequest('frame');
+  args = args.split(/\s*[ ]+\s*/g);
+  if (args.length > 0 && args[0].length > 0) {
+    request.arguments = {};
+    request.arguments.number = args[0];
+  }
+  return request.toJSONProtocol();
+};
+
+
+// Create a JSON request for the scopes command.
+DebugRequest.prototype.scopesCommandToJSONRequest_ = function(args) {
+  // Build a scopes request from the text command.
+  var request = this.createRequest('scopes');
+  return request.toJSONProtocol();
+};
+
+
+// Create a JSON request for the scope command.
+DebugRequest.prototype.scopeCommandToJSONRequest_ = function(args) {
+  // Build a scope request from the text command.
+  var request = this.createRequest('scope');
   args = args.split(/\s*[ ]+\s*/g);
   if (args.length > 0 && args[0].length > 0) {
     request.arguments = {};
@@ -785,8 +823,11 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('clear <breakpoint #>');
   print('backtrace [n] | [-n] | [from to]');
   print('frame <frame #>');
+  print('scopes');
+  print('scope <scope #>');
   print('step [in | next | out| min [step count]]');
   print('print <expression>');
+  print('dir <expression>');
   print('source [from line [num lines]]');
   print('scripts');
   print('continue');
@@ -796,7 +837,11 @@ DebugRequest.prototype.helpCommand_ = function(args) {
 
 
 function formatHandleReference_(value) {
-  return '#' + value.handle() + '#';
+  if (value.handle() >= 0) {
+    return '#' + value.handle() + '#';
+  } else {
+    return '#Transient#';
+  }
 }
 
 
@@ -820,15 +865,46 @@ function formatObject_(value, include_properties) {
       result += value.propertyName(i);
       result += ': ';
       var property_value = value.propertyValue(i);
-      if (property_value && property_value.type()) {
-        result += property_value.type();
-      } else {
+      if (property_value instanceof ProtocolReference) {
         result += '<no type>';
+      } else {
+        if (property_value && property_value.type()) {
+          result += property_value.type();
+        } else {
+          result += '<no type>';
+        }
       }
       result += ' ';
       result += formatHandleReference_(property_value);
       result += '\n';
     }
+  }
+  return result;
+}
+
+
+function formatScope_(scope) {
+  var result = '';
+  var index = scope.index;
+  result += '#' + (index <= 9 ? '0' : '') + index;
+  result += ' ';
+  switch (scope.type) {
+    case Debug.ScopeType.Global:
+      result += 'Global, ';
+      result += '#' + scope.object.ref + '#';
+      break;
+    case Debug.ScopeType.Local:
+      result += 'Local';
+      break;
+    case Debug.ScopeType.With:
+      result += 'With, ';
+      result += '#' + scope.object.ref + '#';
+      break;
+    case Debug.ScopeType.Closure:
+      result += 'Closure';
+      break;
+    default:
+      result += 'UNKNOWN';
   }
   return result;
 }
@@ -883,12 +959,41 @@ function DebugResponseDetails(response) {
         Debug.State.currentFrame = body.index;
         break;
         
+      case 'scopes':
+        if (body.totalScopes == 0) {
+          result = '(no scopes)';
+        } else {
+          result = 'Scopes #' + body.fromScope + ' to #' +
+                   (body.toScope - 1) + ' of ' + body.totalScopes + '\n';
+          for (i = 0; i < body.scopes.length; i++) {
+            if (i != 0) {
+              result += '\n';
+            }
+            result += formatScope_(body.scopes[i]);
+          }
+        }
+        details.text = result;
+        break;
+
+      case 'scope':
+        result += formatScope_(body);
+        result += '\n';
+        var scope_object_value = response.lookup(body.object.ref);
+        result += formatObject_(scope_object_value, true);
+        details.text = result;
+        break;
+      
       case 'evaluate':
       case 'lookup':
         if (last_cmd == 'p' || last_cmd == 'print') {
           result = body.text;
         } else {
-          var value = response.bodyValue();
+          var value;
+          if (lookup_handle) {
+            value = response.bodyValue(lookup_handle);
+          } else {
+            value = response.bodyValue();
+          }
           if (value.isObject()) {
             result += formatObject_(value, true);
           } else {
@@ -1105,7 +1210,7 @@ ProtocolPackage.prototype.body = function() {
 
 
 ProtocolPackage.prototype.bodyValue = function(index) {
-  if (index) {
+  if (index != null) {
     return new ProtocolValue(this.packet_.body[index], this);
   } else {
     return new ProtocolValue(this.packet_.body, this);

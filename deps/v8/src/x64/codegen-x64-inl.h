@@ -37,6 +37,17 @@ namespace internal {
 void DeferredCode::Jump() { UNIMPLEMENTED(); }
 void DeferredCode::Branch(Condition cc) { UNIMPLEMENTED(); }
 
+
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  GenerateFastMathOp(SIN, args);
+}
+
+
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  GenerateFastMathOp(COS, args);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_X64_CODEGEN_X64_INL_H_

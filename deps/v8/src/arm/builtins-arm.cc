@@ -64,9 +64,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &non_function_call);
   // Check that the function is a JSFunction.
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &non_function_call);
 
   // Enter a construct frame.
@@ -159,9 +157,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ ldr(r3, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ cmp(r3, Operand(FIRST_JS_OBJECT_TYPE));
+  __ CompareObjectType(r0, r3, r3, FIRST_JS_OBJECT_TYPE);
   __ b(ge, &exit);
 
   // Throw away the result of the constructor invocation and use the
@@ -290,9 +286,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
     __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &non_function);
-    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+    __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
     __ b(eq, &function);
 
     // Non-function called: Clear the function to force exception.
@@ -328,9 +322,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
-    __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
-    __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-    __ cmp(r3, Operand(FIRST_JS_OBJECT_TYPE));
+    __ CompareObjectType(r2, r3, r3, FIRST_JS_OBJECT_TYPE);
     __ b(lt, &call_to_object);
     __ cmp(r3, Operand(LAST_JS_OBJECT_TYPE));
     __ b(le, &done);
@@ -501,9 +493,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Check if the receiver is already a JavaScript object.
   // r0: receiver
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
   __ b(lt, &call_to_object);
   __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
   __ b(le, &push_receiver);

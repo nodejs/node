@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,11 +34,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Give alias names to registers
-Register cp = {  8 };  // JavaScript context pointer
-Register pp = { 10 };  // parameter pointer
-
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
@@ -128,26 +123,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
 
 void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-#if !defined(__arm__)
-  if (rmode == RelocInfo::RUNTIME_ENTRY) {
-    mov(r2, Operand(target, rmode), LeaveCC, cond);
-    // Set lr for return at current pc + 8.
-    mov(lr, Operand(pc), LeaveCC, cond);
-    // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-    // Notify the simulator of the transition to C code.
-    swi(assembler::arm::call_rt_r2);
-  } else {
-    // set lr for return at current pc + 8
-    mov(lr, Operand(pc), LeaveCC, cond);
-    // emit a ldr<cond> pc, [pc + offset of target in constant pool]
-    mov(pc, Operand(target, rmode), LeaveCC, cond);
-  }
-#else
   // Set lr for return at current pc + 8.
   mov(lr, Operand(pc), LeaveCC, cond);
   // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
   mov(pc, Operand(target, rmode), LeaveCC, cond);
-#endif  // !defined(__arm__)
   // If USE_BLX is defined, we could emit a 'mov ip, target', followed by a
   // 'blx ip'; however, the code would not be shorter than the above sequence
   // and the target address of the call would be referenced by the first
@@ -301,8 +280,8 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
   sub(r6, r6, Operand(kPointerSize));
 
-  // Compute parameter pointer before making changes and save it as ip
-  // register so that it is restored as sp register on exit, thereby
+  // Compute callee's stack pointer before making changes and save it as
+  // ip register so that it is restored as sp register on exit, thereby
   // popping the args.
 
   // ip = sp + kPointerSize * #args;
@@ -573,41 +552,48 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
 }
 #endif
 
+
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   // The pc (return address) is passed in register lr.
   if (try_location == IN_JAVASCRIPT) {
-    stm(db_w, sp, pp.bit() | fp.bit() | lr.bit());
     if (type == TRY_CATCH_HANDLER) {
       mov(r3, Operand(StackHandler::TRY_CATCH));
     } else {
       mov(r3, Operand(StackHandler::TRY_FINALLY));
     }
-    push(r3);  // state
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    stm(db_w, sp, r3.bit() | fp.bit() | lr.bit());
+    // Save the current handler as the next handler.
     mov(r3, Operand(ExternalReference(Top::k_handler_address)));
     ldr(r1, MemOperand(r3));
-    push(r1);  // next sp
-    str(sp, MemOperand(r3));  // chain handler
-    mov(r0, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
-    push(r0);
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r1);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r3));
   } else {
     // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
-    // The parameter pointer is meaningless here and fp does not point to a JS
-    // frame. So we save NULL for both pp and fp. We expect the code throwing an
-    // exception to check fp before dereferencing it to restore the context.
-    mov(pp, Operand(0));  // set pp to NULL
-    mov(ip, Operand(0));  // to save a NULL fp
-    stm(db_w, sp, pp.bit() | ip.bit() | lr.bit());
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for fp. We expect the code throwing an exception to check fp
+    // before dereferencing it to restore the context.
+    mov(ip, Operand(0));  // To save a NULL frame pointer.
     mov(r6, Operand(StackHandler::ENTRY));
-    push(r6);  // state
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    stm(db_w, sp, r6.bit() | ip.bit() | lr.bit());
+    // Save the current handler as the next handler.
     mov(r7, Operand(ExternalReference(Top::k_handler_address)));
     ldr(r6, MemOperand(r7));
-    push(r6);  // next sp
-    str(sp, MemOperand(r7));  // chain handler
-    mov(r5, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
-    push(r5);  // flush TOS
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r6);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r7));
   }
 }
 
@@ -756,6 +742,62 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   b(ne, miss);
 
   bind(&same_contexts);
+}
+
+
+void MacroAssembler::CompareObjectType(Register function,
+                                       Register map,
+                                       Register type_reg,
+                                       InstanceType type) {
+  ldr(map, FieldMemOperand(function, HeapObject::kMapOffset));
+  ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  cmp(type_reg, Operand(type));
+}
+
+
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Register scratch,
+                                             Label* miss) {
+  // Check that the receiver isn't a smi.
+  BranchOnSmi(function, miss);
+
+  // Check that the function really is a function.  Load map into result reg.
+  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
+  b(ne, miss);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
+  tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
+  b(ne, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  ldr(result,
+      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  cmp(result, Operand(Factory::the_hole_value()));
+  b(eq, miss);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CompareObjectType(result, scratch, scratch, MAP_TYPE);
+  b(ne, &done);
+
+  // Get the prototype from the initial map.
+  ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
 }
 
 

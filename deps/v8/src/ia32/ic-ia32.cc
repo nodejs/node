@@ -747,6 +747,21 @@ void KeyedLoadIC::ClearInlinedVersion(Address address) {
 }
 
 
+void KeyedStoreIC::ClearInlinedVersion(Address address) {
+  // Insert null as the elements map to check for.  This will make
+  // sure that the elements fast-case map check fails so that control
+  // flows to the IC instead of the inlined version.
+  PatchInlinedStore(address, Heap::null_value());
+}
+
+
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {
+  // Restore the fast-case elements map check so that the inlined
+  // version can be used again.
+  PatchInlinedStore(address, Heap::fixed_array_map());
+}
+
+
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // The address of the instruction following the call.
   Address test_instruction_address = address + 4;
@@ -774,7 +789,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
-bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+static bool PatchInlinedMapCheck(Address address, Object* map) {
   Address test_instruction_address = address + 4;  // 4 = stub address
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
@@ -792,6 +807,16 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   // Patch the map check.
   *(reinterpret_cast<Object**>(map_address)) = map;
   return true;
+}
+
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
 }
 
 

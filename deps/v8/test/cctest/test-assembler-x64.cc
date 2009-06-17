@@ -132,7 +132,7 @@ TEST(AssemblerX64ArithmeticOperations) {
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ movq(rax, rsi);
-  __ add(rax, rdi);
+  __ addq(rax, rdi);
   __ ret(0);
 
   CodeDesc desc;
@@ -215,12 +215,12 @@ TEST(AssemblerX64LoopImmediates) {
   Label Loop1_body;
   __ jmp(&Loop1_test);
   __ bind(&Loop1_body);
-  __ add(rax, Immediate(7));
+  __ addq(rax, Immediate(7));
   __ bind(&Loop1_test);
-  __ cmp(rax, Immediate(20));
+  __ cmpq(rax, Immediate(20));
   __ j(less_equal, &Loop1_body);
   // Did the loop terminate with the expected value?
-  __ cmp(rax, Immediate(25));
+  __ cmpq(rax, Immediate(25));
   __ j(not_equal, &Fail);
 
   Label Loop2_test;
@@ -228,12 +228,12 @@ TEST(AssemblerX64LoopImmediates) {
   __ movq(rax, Immediate(0x11FEED00));
   __ jmp(&Loop2_test);
   __ bind(&Loop2_body);
-  __ add(rax, Immediate(-0x1100));
+  __ addq(rax, Immediate(-0x1100));
   __ bind(&Loop2_test);
-  __ cmp(rax, Immediate(0x11FE8000));
+  __ cmpq(rax, Immediate(0x11FE8000));
   __ j(greater, &Loop2_body);
   // Did the loop terminate with the expected value?
-  __ cmp(rax, Immediate(0x11FE7600));
+  __ cmpq(rax, Immediate(0x11FE7600));
   __ j(not_equal, &Fail);
 
   __ movq(rax, Immediate(1));
@@ -248,4 +248,5 @@ TEST(AssemblerX64LoopImmediates) {
   int result =  FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(1, result);
 }
+
 #undef __

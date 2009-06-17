@@ -170,6 +170,50 @@ class Log : public AllStatic {
   static char* message_buffer_;
 
   friend class LogMessageBuilder;
+  friend class LogRecordCompressor;
+};
+
+
+// An utility class for performing backward reference compression
+// of string ends. It operates using a window of previous strings.
+class LogRecordCompressor {
+ public:
+  // 'window_size' is the size of backward lookup window.
+  explicit LogRecordCompressor(int window_size)
+      : buffer_(window_size + kNoCompressionWindowSize),
+        kMaxBackwardReferenceSize(
+            GetBackwardReferenceSize(window_size, Log::kMessageBufferSize)),
+        curr_(-1), prev_(-1) {
+  }
+
+  ~LogRecordCompressor();
+
+  // Fills vector with a compressed version of the previous record.
+  // Returns false if there is no previous record.
+  bool RetrievePreviousCompressed(Vector<char>* prev_record);
+
+  // Stores a record if it differs from a previous one (or there's no previous).
+  // Returns true, if the record has been stored.
+  bool Store(const Vector<const char>& record);
+
+ private:
+  // The minimum size of a buffer: a place needed for the current and
+  // the previous record. Since there is no place for precedessors of a previous
+  // record, it can't be compressed at all.
+  static const int kNoCompressionWindowSize = 2;
+
+  // Formatting strings for back references.
+  static const char* kLineBackwardReferenceFormat;
+  static const char* kBackwardReferenceFormat;
+
+  static int GetBackwardReferenceSize(int distance, int pos);
+
+  static void PrintBackwardReference(Vector<char> dest, int distance, int pos);
+
+  ScopedVector< Vector<const char> > buffer_;
+  const int kMaxBackwardReferenceSize;
+  int curr_;
+  int prev_;
 };
 
 
@@ -186,7 +230,7 @@ class LogMessageBuilder BASE_EMBEDDED {
   void Append(const char* format, ...);
 
   // Append string data to the log message.
-  void Append(const char* format, va_list args);
+  void AppendVA(const char* format, va_list args);
 
   // Append a character to the log message.
   void Append(const char c);
@@ -194,7 +238,28 @@ class LogMessageBuilder BASE_EMBEDDED {
   // Append a heap string.
   void Append(String* str);
 
+  // Appends an address, compressing it if needed by offsetting
+  // from Logger::last_address_.
+  void AppendAddress(Address addr);
+
+  // Appends an address, compressing it if needed.
+  void AppendAddress(Address addr, Address bias);
+
   void AppendDetailed(String* str, bool show_impl_info);
+
+  // Stores log message into compressor, returns true if the message
+  // was stored (i.e. doesn't repeat the previous one).
+  bool StoreInCompressor(LogRecordCompressor* compressor);
+
+  // Sets log message to a previous version of compressed message.
+  // Returns false, if there is no previous message.
+  bool RetrieveCompressedPrevious(LogRecordCompressor* compressor) {
+    return RetrieveCompressedPrevious(compressor, "");
+  }
+
+  // Does the same at the version without arguments, and sets a prefix.
+  bool RetrieveCompressedPrevious(LogRecordCompressor* compressor,
+                                  const char* prefix);
 
   // Write the log message to the log file currently opened.
   void WriteToLogFile();

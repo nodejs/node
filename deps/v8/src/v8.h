@@ -80,10 +80,10 @@ class V8 : public AllStatic {
  public:
   // Global actions.
 
-  // If Initialize is called with des == NULL, the
-  // initial state is created from scratch. If a non-null Deserializer
-  // is given, the initial state is created by reading the
-  // deserialized data into an empty heap.
+  // If Initialize is called with des == NULL, the initial state is
+  // created from scratch. If a non-null Deserializer is given, the
+  // initial state is created by reading the deserialized data into an
+  // empty heap.
   static bool Initialize(Deserializer* des);
   static void TearDown();
   static bool IsRunning() { return is_running_; }
@@ -93,6 +93,11 @@ class V8 : public AllStatic {
 
   // Report process out of memory. Implementation found in api.cc.
   static void FatalProcessOutOfMemory(const char* location);
+
+  // Random number generation support. Not cryptographically safe.
+  static uint32_t Random();
+  static Smi* RandomPositiveSmi();
+
  private:
   // True if engine is currently running
   static bool is_running_;

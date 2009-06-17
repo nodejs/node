@@ -2647,6 +2647,21 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         }
       }
 
+      // Convert constant divisions to multiplications for speed.
+      if (op == Token::DIV &&
+          y && y->AsLiteral() && y->AsLiteral()->handle()->IsNumber()) {
+        double y_val = y->AsLiteral()->handle()->Number();
+        int64_t y_int = static_cast<int64_t>(y_val);
+        // There are rounding issues with this optimization, but they don't
+        // apply if the number to be divided with has a reciprocal that can
+        // be precisely represented as a floating point number.  This is
+        // the case if the number is an integer power of 2.
+        if (static_cast<double>(y_int) == y_val && IsPowerOf2(y_int)) {
+          y = NewNumberLiteral(1 / y_val);
+          op = Token::MUL;
+        }
+      }
+
       // For now we distinguish between comparisons and other binary
       // operations.  (We could combine the two and get rid of this
       // code an AST node eventually.)

@@ -179,13 +179,17 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     if (script->name()->IsString()) {
       SmartPointer<char> data =
           String::cast(script->name())->ToCString(DISALLOW_NULLS);
-      LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, *data));
-      OProfileAgent::CreateNativeCodeRegion(*data, code->address(),
-                                            code->ExecutableSize());
+      LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
+                          *code, *data));
+      OProfileAgent::CreateNativeCodeRegion(*data,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     } else {
-      LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, ""));
+      LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
+                          *code, ""));
       OProfileAgent::CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
-          code->address(), code->ExecutableSize());
+                                            code->instruction_start(),
+                                            code->instruction_size());
     }
   }
 #endif
@@ -380,16 +384,18 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
       if (line_num > 0) {
         line_num += script->line_offset()->value() + 1;
       }
-      LOG(CodeCreateEvent("LazyCompile", *code, *func_name,
+      LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name,
                           String::cast(script->name()), line_num));
       OProfileAgent::CreateNativeCodeRegion(*func_name,
                                             String::cast(script->name()),
-                                            line_num, code->address(),
-                                            code->ExecutableSize());
+                                            line_num,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     } else {
-      LOG(CodeCreateEvent("LazyCompile", *code, *func_name));
-      OProfileAgent::CreateNativeCodeRegion(*func_name, code->address(),
-                                            code->ExecutableSize());
+      LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name));
+      OProfileAgent::CreateNativeCodeRegion(*func_name,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     }
   }
 #endif

@@ -72,7 +72,49 @@ XMMRegister xmm13 = { 13 };
 XMMRegister xmm14 = { 14 };
 XMMRegister xmm15 = { 15 };
 
+
+Operand::Operand(Register base, int32_t disp): rex_(0) {
+  len_ = 1;
+  if (base.is(rsp) || base.is(r12)) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(kTimes1, rsp, base);
+  }
+
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    set_modrm(0, base);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
+    set_disp32(disp);
+  }
+}
+
+
+Operand::Operand(Register base,
+                 Register index,
+                 ScaleFactor scale,
+                 int32_t disp): rex_(0) {
+  ASSERT(!index.is(rsp));
+  len_ = 1;
+  set_sib(scale, index, base);
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+    // possibly set by set_sib.
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, rsp);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, rsp);
+    set_disp32(disp);
+  }
+}
+
+
 // Safe default is no features.
+// TODO(X64): Safe defaults include SSE2 for X64.
 uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::enabled_ = 0;
 
@@ -140,7 +182,8 @@ void CpuFeatures::Probe()  {
   Object* code =
       Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
   if (!code->IsCode()) return;
-  LOG(CodeCreateEvent("Builtin", Code::cast(code), "CpuFeatures::Probe"));
+  LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
+                      Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   supported_ = probe();
@@ -398,13 +441,44 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   emit_rex_64(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emit(src.value_);
   } else {
     emit(0x81);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emitl(src.value_);
   }
+}
+
+
+void Assembler::immediate_arithmetic_op_32(byte subcode,
+                                           const Operand& dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit_operand(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0x81);
+    emit_operand(subcode, dst);
+    emitl(src.value_);
+  }
+}
+
+
+void Assembler::immediate_arithmetic_op_8(byte subcode,
+                                           const Operand& dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  ASSERT(is_int8(src.value_));
+  emit(0x80);
+  emit_operand(subcode, dst);
+  emit(src.value_);
 }
 
 
@@ -486,14 +560,6 @@ void Assembler::call(Register adr) {
   emit_modrm(0x2, adr);
 }
 
-void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit(0x0F);
-  emit(0xA2);
-}
-
 
 void Assembler::call(const Operand& op) {
   EnsureSpace ensure_space(this);
@@ -505,6 +571,15 @@ void Assembler::call(const Operand& op) {
 }
 
 
+void Assembler::cpuid() {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x0F);
+  emit(0xA2);
+}
+
+
 void Assembler::cqo() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -513,7 +588,7 @@ void Assembler::cqo() {
 }
 
 
-void Assembler::dec(Register dst) {
+void Assembler::decq(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -522,10 +597,19 @@ void Assembler::dec(Register dst) {
 }
 
 
-void Assembler::dec(const Operand& dst) {
+void Assembler::decq(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(1, dst);
+}
+
+
+void Assembler::decl(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
   emit(0xFF);
   emit_operand(1, dst);
 }
@@ -582,7 +666,7 @@ void Assembler::imul(Register dst, Register src, Immediate imm) {
 }
 
 
-void Assembler::inc(Register dst) {
+void Assembler::incq(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -591,10 +675,19 @@ void Assembler::inc(Register dst) {
 }
 
 
-void Assembler::inc(const Operand& dst) {
+void Assembler::incq(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(0, dst);
+}
+
+
+void Assembler::incl(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
   emit(0xFF);
   emit_operand(0, dst);
 }
@@ -768,6 +861,16 @@ void Assembler::movl(const Operand& dst, Register src) {
 }
 
 
+void Assembler::movl(const Operand& dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0x0, dst);
+  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+}
+
+
 void Assembler::movl(Register dst, Immediate value) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -840,6 +943,31 @@ void Assembler::movq(Register dst, ExternalReference ref) {
   emit(0xB8 | (dst.code() & 0x7));
   emitq(reinterpret_cast<uintptr_t>(ref.address()),
         RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
+void Assembler::movq(const Operand& dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xC7);
+  emit_operand(0, dst);
+  emit(value);
+}
+
+
+void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(!Heap::InNewSpace(*value));
+  emit_rex_64(dst);
+  emit(0xB8 | dst.code() & 0x7);
+  if (value->IsHeapObject()) {
+    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
+  } else {
+    ASSERT_EQ(RelocInfo::NONE, mode);
+    emitq(reinterpret_cast<uintptr_t>(*value), RelocInfo::NONE);
+  }
 }
 
 
@@ -1063,6 +1191,13 @@ void Assembler::rcl(Register dst, uint8_t imm8) {
   }
 }
 
+void Assembler::rdtsc() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x0F);
+  emit(0x31);
+}
+
 
 void Assembler::ret(int imm16) {
   EnsureSpace ensure_space(this);
@@ -1075,6 +1210,19 @@ void Assembler::ret(int imm16) {
     emit(imm16 & 0xFF);
     emit((imm16 >> 8) & 0xFF);
   }
+}
+
+
+void Assembler::setcc(Condition cc, Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (reg.code() > 3) {  // Use x64 byte registers, where different.
+    emit_rex_32(reg);
+  }
+  emit(0x0F);
+  emit(0x90 | cc);
+  emit_modrm(0x0, reg);
 }
 
 
@@ -1128,6 +1276,7 @@ void Assembler::store_rax(ExternalReference ref) {
 
 
 void Assembler::testb(Register reg, Immediate mask) {
+  ASSERT(is_int8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1146,6 +1295,7 @@ void Assembler::testb(Register reg, Immediate mask) {
 
 
 void Assembler::testb(const Operand& op, Immediate mask) {
+  ASSERT(is_int8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);
@@ -1195,6 +1345,22 @@ void Assembler::testq(Register dst, Register src) {
   emit_rex_64(dst, src);
   emit(0x85);
   emit_modrm(dst, src);
+}
+
+
+void Assembler::testq(Register dst, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.is(rax)) {
+    emit_rex_64();
+    emit(0xA9);
+    emit(mask);
+  } else {
+    emit_rex_64(dst);
+    emit(0xF7);
+    emit_modrm(0, dst);
+    emit(mask);
+  }
 }
 
 
@@ -1360,19 +1526,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
   return NULL;
 }
 
-
-StackFrame::Type ExitFrame::GetStateForFramePointer(unsigned char* a,
-                                                    StackFrame::State* b) {
-  // TODO(X64): UNIMPLEMENTED
-  return NONE;
-}
-
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  UNIMPLEMENTED();
-  return 0;
-}
-
-void JumpTarget::DoBind(int a) {
+void JumpTarget::DoBind() {
   UNIMPLEMENTED();
 }
 
@@ -1383,7 +1537,6 @@ void JumpTarget::DoBranch(Condition a, Hint b) {
 void JumpTarget::DoJump() {
   UNIMPLEMENTED();
 }
-
 
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
                                               JSObject* b,
@@ -1416,11 +1569,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   return NULL;
 }
 
-StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
-  UNIMPLEMENTED();
-  return NONE;
-}
-
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
@@ -1442,104 +1590,6 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
 }
 
 Object* StubCompiler::CompileLazyCompile(Code::Flags a) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void VirtualFrame::Drop(int a) {
-  UNIMPLEMENTED();
-}
-
-int VirtualFrame::InvalidateFrameSlotAt(int a) {
-  UNIMPLEMENTED();
-  return -1;
-}
-
-void VirtualFrame::MergeTo(VirtualFrame* a) {
-  UNIMPLEMENTED();
-}
-
-Result VirtualFrame::Pop() {
-  UNIMPLEMENTED();
-  return Result(NULL);
-}
-
-Result VirtualFrame::RawCallStub(CodeStub* a) {
-  UNIMPLEMENTED();
-  return Result(NULL);
-}
-
-void VirtualFrame::SyncElementBelowStackPointer(int a) {
-  UNIMPLEMENTED();
-}
-
-void VirtualFrame::SyncElementByPushing(int a) {
-  UNIMPLEMENTED();
-}
-
-void VirtualFrame::SyncRange(int a, int b) {
-  UNIMPLEMENTED();
-}
-
-VirtualFrame::VirtualFrame() : elements_(0) {
-  UNIMPLEMENTED();
-}
-
-byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void ExitFrame::Iterate(ObjectVisitor* a) const {
-  UNIMPLEMENTED();
-}
-
-byte* InternalFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-byte* JavaScriptFrame::GetCallerStackPointer() const {
   UNIMPLEMENTED();
   return NULL;
 }

@@ -47,6 +47,7 @@ RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {
   if (backtrack_.is_linked()) backtrack_.Unuse();
+  if (own_buffer_) buffer_.Dispose();
 }
 
 

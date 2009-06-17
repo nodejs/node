@@ -156,9 +156,7 @@ void VirtualFrame::Enter() {
     __ b(ne, &map_check);
     __ stop("VirtualFrame::Enter - r1 is not a function (smi check).");
     __ bind(&map_check);
-    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+    __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
     __ b(eq, &done);
     __ stop("VirtualFrame::Enter - r1 is not a function (map check).");
     __ bind(&done);
@@ -230,8 +228,8 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
 
 void VirtualFrame::PushTryHandler(HandlerType type) {
-  // Grow the expression stack by handler size less one (the return address
-  // is already pushed by a call instruction).
+  // Grow the expression stack by handler size less one (the return
+  // address in lr is already counted by a call instruction).
   Adjust(kHandlerSize - 1);
   __ PushTryHandler(IN_JAVASCRIPT, type);
 }

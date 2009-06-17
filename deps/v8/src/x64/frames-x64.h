@@ -32,70 +32,74 @@ namespace v8 {
 namespace internal {
 
 // TODO(x64): This is a stub, mostly just a copy of the ia32 bit version.
-// This will all need to change to be correct for x64.
+// This might all need to change to be correct for x64.
 
 static const int kNumRegs = 8;
-static const RegList kJSCallerSaved = 0;
+static const RegList kJSCallerSaved =
+    1 << 0 |  // rax
+    1 << 1 |  // rcx
+    1 << 2 |  // rdx
+    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
+    1 << 7;   // rdi - callee function
+
 static const int kNumJSCallerSaved = 5;
+
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset  = 0 * kPointerSize;
-  static const int kPPOffset    = 1 * kPointerSize;
-  static const int kFPOffset    = 2 * kPointerSize;
+  static const int kFPOffset    = 1 * kPointerSize;
+  static const int kStateOffset = 2 * kPointerSize;
+  static const int kPCOffset    = 3 * kPointerSize;
 
-  static const int kCodeOffset  = 3 * kPointerSize;
-
-  static const int kStateOffset = 4 * kPointerSize;
-  static const int kPCOffset    = 5 * kPointerSize;
-
-  static const int kAddressDisplacement = -1 * kPointerSize;
-  static const int kSize = 6 * kPointerSize;
+  static const int kSize = 4 * kPointerSize;
 };
 
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = -1 * kPointerSize;
+  static const int kCallerFPOffset      = 0 * kPointerSize;
 
-  static const int kFunctionArgOffset   = -1 * kPointerSize;
-  static const int kReceiverArgOffset   = -1 * kPointerSize;
-  static const int kArgcOffset          = -1 * kPointerSize;
-  static const int kArgvOffset          = -1 * kPointerSize;
+  static const int kFunctionArgOffset   = 1 * kPointerSize;
+  static const int kReceiverArgOffset   = 2 * kPointerSize;
+  static const int kArgcOffset          = 3 * kPointerSize;
+  static const int kArgvOffset          = 4 * kPointerSize;
 };
 
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kDebugMarkOffset = -1 * kPointerSize;
+  static const int kDebugMarkOffset = -2 * kPointerSize;
   static const int kSPOffset        = -1 * kPointerSize;
 
-  static const int kPPDisplacement = -1 * kPointerSize;
+  static const int kCallerFPOffset  = +0 * kPointerSize;
+  static const int kCallerPCOffset  = +1 * kPointerSize;
 
-  static const int kCallerFPOffset = -1 * kPointerSize;
-  static const int kCallerPCOffset = -1 * kPointerSize;
+  // FP-relative displacement of the caller's SP.  It points just
+  // below the saved PC.
+  static const int kCallerSPDisplacement = +2 * kPointerSize;
 };
 
 
 class StandardFrameConstants : public AllStatic {
  public:
-  static const int kExpressionsOffset = -1 * kPointerSize;
-  static const int kMarkerOffset      = -1 * kPointerSize;
+  static const int kExpressionsOffset = -3 * kPointerSize;
+  static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
-  static const int kCallerFPOffset    = -1 * kPointerSize;
-  static const int kCallerPCOffset    = -1 * kPointerSize;
-  static const int kCallerSPOffset    = -1 * kPointerSize;
+  static const int kCallerFPOffset    =  0 * kPointerSize;
+  static const int kCallerPCOffset    = +1 * kPointerSize;
+  static const int kCallerSPOffset    = +2 * kPointerSize;
 };
 
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kSavedRegistersOffset = -1 * kPointerSize;
+  static const int kSavedRegistersOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
-  static const int kParam0Offset   = -1 * kPointerSize;
+  static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
 

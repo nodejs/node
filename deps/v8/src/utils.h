@@ -362,6 +362,11 @@ class Vector {
     Sort(PointerValueCompare<T>);
   }
 
+  void Truncate(int length) {
+    ASSERT(length <= length_);
+    length_ = length;
+  }
+
   // Releases the array underlying this vector. Once disposed the
   // vector is empty.
   void Dispose() {

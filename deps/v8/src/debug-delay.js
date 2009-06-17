@@ -1208,6 +1208,10 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.backtraceRequest_(request, response);
       } else if (request.command == 'frame') {
         this.frameRequest_(request, response);
+      } else if (request.command == 'scopes') {
+        this.scopesRequest_(request, response);
+      } else if (request.command == 'scope') {
+        this.scopeRequest_(request, response);
       } else if (request.command == 'evaluate') {
         this.evaluateRequest_(request, response);
       } else if (request.command == 'lookup') {
@@ -1540,7 +1544,7 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
 
   // With no arguments just keep the selected frame.
   if (request.arguments) {
-    index = request.arguments.number;
+    var index = request.arguments.number;
     if (index < 0 || this.exec_state_.frameCount() <= index) {
       return response.failed('Invalid frame number');
     }
@@ -1548,6 +1552,67 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
     this.exec_state_.setSelectedFrame(request.arguments.number);
   }
   response.body = this.exec_state_.frame();
+};
+
+
+DebugCommandProcessor.prototype.frameForScopeRequest_ = function(request) {
+  // Get the frame for which the scope or scopes are requested. With no frameNumber
+  // argument use the currently selected frame.
+  if (request.arguments && !IS_UNDEFINED(request.arguments.frameNumber)) {
+    frame_index = request.arguments.frameNumber;
+    if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
+      return response.failed('Invalid frame number');
+    }
+    return this.exec_state_.frame(frame_index);
+  } else {
+    return this.exec_state_.frame();
+  }
+}
+
+
+DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
+  // No frames no scopes.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No scopes');
+  }
+
+  // Get the frame for which the scopes are requested.
+  var frame = this.frameForScopeRequest_(request);
+  
+  // Fill all scopes for this frame.
+  var total_scopes = frame.scopeCount();
+  var scopes = [];
+  for (var i = 0; i < total_scopes; i++) {
+    scopes.push(frame.scope(i));
+  }
+  response.body = {
+    fromScope: 0,
+    toScope: total_scopes,
+    totalScopes: total_scopes,
+    scopes: scopes
+  }
+};
+
+
+DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
+  // No frames no scopes.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No scopes');
+  }
+
+  // Get the frame for which the scope is requested.
+  var frame = this.frameForScopeRequest_(request);
+
+  // With no scope argument just return top scope.
+  var scope_index = 0;
+  if (request.arguments && !IS_UNDEFINED(request.arguments.number)) {
+    scope_index = %ToNumber(request.arguments.number);
+    if (scope_index < 0 || frame.scopeCount() <= scope_index) {
+      return response.failed('Invalid scope number');
+    }
+  }
+
+  response.body = frame.scope(scope_index);
 };
 
 

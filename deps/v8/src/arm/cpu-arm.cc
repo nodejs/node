@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -46,6 +46,8 @@ void CPU::FlushICache(void* start, size_t size) {
 #if !defined (__arm__)
   // Not generating ARM instructions for C-code. This means that we are
   // building an ARM emulator based target. No I$ flushes are necessary.
+  // None of this code ends up in the snapshot so there are no issues
+  // around whether or not to generate the code when building snapshots.
 #else
   // Ideally, we would call
   //   syscall(__ARM_NR_cacheflush, start,

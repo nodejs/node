@@ -77,7 +77,8 @@ SOURCES = {
     'x64/debug-x64.cc', 'x64/frames-x64.cc', 'x64/ic-x64.cc',
     'x64/jump-target-x64.cc', 'x64/macro-assembler-x64.cc',
     # 'x64/regexp-macro-assembler-x64.cc',
-    'x64/stub-cache-x64.cc'
+    'x64/register-allocator-x64.cc',
+    'x64/stub-cache-x64.cc', 'x64/virtual-frame-x64.cc'
   ],
   'simulator:arm': ['arm/simulator-arm.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],

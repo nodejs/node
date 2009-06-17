@@ -450,20 +450,26 @@ void ExternalReferenceTable::AddFromId(TypeCode type,
                                        const char* name) {
   Address address;
   switch (type) {
-    case C_BUILTIN:
-      address = Builtins::c_function_address(
-          static_cast<Builtins::CFunctionId>(id));
+    case C_BUILTIN: {
+      ExternalReference ref(static_cast<Builtins::CFunctionId>(id));
+      address = ref.address();
       break;
-    case BUILTIN:
-      address = Builtins::builtin_address(static_cast<Builtins::Name>(id));
+    }
+    case BUILTIN: {
+      ExternalReference ref(static_cast<Builtins::Name>(id));
+      address = ref.address();
       break;
-    case RUNTIME_FUNCTION:
-      address = Runtime::FunctionForId(
-          static_cast<Runtime::FunctionId>(id))->entry;
+    }
+    case RUNTIME_FUNCTION: {
+      ExternalReference ref(static_cast<Runtime::FunctionId>(id));
+      address = ref.address();
       break;
-    case IC_UTILITY:
-      address = IC::AddressFromUtilityId(static_cast<IC::UtilityId>(id));
+    }
+    case IC_UTILITY: {
+      ExternalReference ref(IC_Utility(static_cast<IC::UtilityId>(id)));
+      address = ref.address();
       break;
+    }
     default:
       UNREACHABLE();
       return;
@@ -642,10 +648,14 @@ void ExternalReferenceTable::PopulateTable() {
       "StubCache::secondary_->value");
 
   // Runtime entries
-  Add(FUNCTION_ADDR(Runtime::PerformGC),
+  Add(ExternalReference::perform_gc_function().address(),
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
+  Add(ExternalReference::random_positive_smi_function().address(),
+      RUNTIME_ENTRY,
+      2,
+      "V8::RandomPositiveSmi");
 
   // Miscellaneous
   Add(ExternalReference::builtin_passed_function().address(),

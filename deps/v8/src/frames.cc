@@ -49,7 +49,9 @@ class StackHandlerIterator BASE_EMBEDDED {
 
   StackHandler* handler() const { return handler_; }
 
-  bool done() { return handler_->address() > limit_; }
+  bool done() {
+    return handler_ == NULL || handler_->address() > limit_;
+  }
   void Advance() {
     ASSERT(!done());
     handler_ = handler_->next();
@@ -398,7 +400,7 @@ Code* ExitFrame::code() const {
 
 void ExitFrame::ComputeCallerState(State* state) const {
   // Setup the caller state.
-  state->sp = pp();
+  state->sp = caller_sp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address
       = reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset);
@@ -406,7 +408,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
 
 
 Address ExitFrame::GetCallerStackPointer() const {
-  return fp() + ExitFrameConstants::kPPDisplacement;
+  return fp() + ExitFrameConstants::kCallerSPDisplacement;
 }
 
 
@@ -451,12 +453,12 @@ bool StandardFrame::IsExpressionInsideHandler(int n) const {
 Object* JavaScriptFrame::GetParameter(int index) const {
   ASSERT(index >= 0 && index < ComputeParametersCount());
   const int offset = JavaScriptFrameConstants::kParam0Offset;
-  return Memory::Object_at(pp() + offset - (index * kPointerSize));
+  return Memory::Object_at(caller_sp() + offset - (index * kPointerSize));
 }
 
 
 int JavaScriptFrame::ComputeParametersCount() const {
-  Address base  = pp() + JavaScriptFrameConstants::kReceiverOffset;
+  Address base  = caller_sp() + JavaScriptFrameConstants::kReceiverOffset;
   Address limit = fp() + JavaScriptFrameConstants::kSavedRegistersOffset;
   return (base - limit) / kPointerSize;
 }
@@ -681,7 +683,7 @@ void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   const int kBaseOffset = JavaScriptFrameConstants::kSavedRegistersOffset;
   const int kLimitOffset = JavaScriptFrameConstants::kReceiverOffset;
   Object** base = &Memory::Object_at(fp() + kBaseOffset);
-  Object** limit = &Memory::Object_at(pp() + kLimitOffset) + 1;
+  Object** limit = &Memory::Object_at(caller_sp() + kLimitOffset) + 1;
   v->VisitPointers(base, limit);
 }
 

@@ -35,7 +35,7 @@ class RegisterAllocatorConstants : public AllStatic {
  public:
   // Register allocation is not yet implemented on x64, but C++
   // forbids 0-length arrays so we use 1 as the number of registers.
-  static const int kNumRegisters = 1;
+  static const int kNumRegisters = 12;
   static const int kInvalidRegister = -1;
 };
 

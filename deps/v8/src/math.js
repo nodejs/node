@@ -44,39 +44,73 @@ $Math.__proto__ = global.Object.prototype;
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
-  if (%_IsSmi(x)) {
-    return x >= 0 ? x : -x;
-  } else {
-    return %Math_abs(ToNumber(x));
-  }
+  if (%_IsSmi(x)) return x >= 0 ? x : -x;
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_abs(x);
 }
 
 // ECMA 262 - 15.8.2.2
-function MathAcos(x) { return %Math_acos(ToNumber(x)); }
+function MathAcos(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_acos(x);
+}
 
 // ECMA 262 - 15.8.2.3
-function MathAsin(x) { return %Math_asin(ToNumber(x)); }
+function MathAsin(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_asin(x);
+}
 
 // ECMA 262 - 15.8.2.4
-function MathAtan(x) { return %Math_atan(ToNumber(x)); }
+function MathAtan(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_atan(x);
+}
 
 // ECMA 262 - 15.8.2.5
-function MathAtan2(x, y) { return %Math_atan2(ToNumber(x), ToNumber(y)); }
+function MathAtan2(x, y) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(y)) y = ToNumber(y);
+  return %Math_atan2(x, y);
+}
 
 // ECMA 262 - 15.8.2.6
-function MathCeil(x) { return %Math_ceil(ToNumber(x)); }
+function MathCeil(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_ceil(x);
+}
 
 // ECMA 262 - 15.8.2.7
-function MathCos(x) { return %Math_cos(ToNumber(x)); }
+function MathCos(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %_Math_cos(x);
+}
 
 // ECMA 262 - 15.8.2.8
-function MathExp(x) { return %Math_exp(ToNumber(x)); }
+function MathExp(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_exp(x);
+}
 
 // ECMA 262 - 15.8.2.9
-function MathFloor(x) { return %Math_floor(ToNumber(x)); }
+function MathFloor(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (0 < x && x <= 0x7FFFFFFF) {
+    // Numbers in the range [0, 2^31) can be floored by converting
+    // them to an unsigned 32-bit value using the shift operator.
+    // We avoid doing so for -0, because the result of Math.floor(-0)
+    // has to be -0, which wouldn't be the case with the shift.
+    return x << 0;
+  } else {
+    return %Math_floor(x);
+  }
+}
 
 // ECMA 262 - 15.8.2.10
-function MathLog(x) { return %Math_log(ToNumber(x)); }
+function MathLog(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_log(x);
+}
 
 // ECMA 262 - 15.8.2.11
 function MathMax(arg1, arg2) {  // length == 2
@@ -103,22 +137,40 @@ function MathMin(arg1, arg2) {  // length == 2
 }
 
 // ECMA 262 - 15.8.2.13
-function MathPow(x, y) { return %Math_pow(ToNumber(x), ToNumber(y)); }
+function MathPow(x, y) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(y)) y = ToNumber(y);
+  return %Math_pow(x, y);
+}
 
 // ECMA 262 - 15.8.2.14
-function MathRandom() { return %Math_random(); }
+function MathRandom() {
+  return %_RandomPositiveSmi() / 0x40000000;
+}
 
 // ECMA 262 - 15.8.2.15
-function MathRound(x) { return %Math_round(ToNumber(x)); }
+function MathRound(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_round(x);
+}
 
 // ECMA 262 - 15.8.2.16
-function MathSin(x) { return %Math_sin(ToNumber(x)); }
+function MathSin(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %_Math_sin(x);
+}
 
 // ECMA 262 - 15.8.2.17
-function MathSqrt(x) { return %Math_sqrt(ToNumber(x)); }
+function MathSqrt(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_sqrt(x);
+}
 
 // ECMA 262 - 15.8.2.18
-function MathTan(x) { return %Math_tan(ToNumber(x)); }
+function MathTan(x) {
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_tan(x);
+}
 
 
 // -------------------------------------------------------------------
