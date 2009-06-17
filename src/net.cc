@@ -196,7 +196,7 @@ Connection::Connect (const Arguments& args)
     connection->Init(); // in case we're reusing the socket... ?
   }
 
-  if (args.Length() == 0 || args[0]->IsInt32() == false)
+  if (args.Length() == 0)
     return ThrowException(String::New("Must specify a port."));
 
   String::AsciiValue port_sv(args[0]->ToString());
@@ -692,7 +692,7 @@ Acceptor::Listen (const Arguments& args)
   Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
   if (!acceptor) return Handle<Value>();
 
-  if (args.Length() < 1)
+  if (args.Length() == 0)
     return ThrowException(String::New("Must give at least a port as argument."));
 
   HandleScope scope;
