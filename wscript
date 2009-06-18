@@ -8,7 +8,7 @@ from logging import fatal
 
 import js2c
 
-VERSION='0.0.4'
+VERSION='0.0.5'
 APPNAME='node'
 
 srcdir = '.'
