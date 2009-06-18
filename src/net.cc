@@ -42,14 +42,14 @@ using namespace node;
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
 static const struct addrinfo server_tcp_hints = 
-/* ai_flags      */ { AI_PASSIVE | AI_ADDRCONFIG
+/* ai_flags      */ { AI_PASSIVE 
 /* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
                     };
 
 static const struct addrinfo client_tcp_hints = 
-/* ai_flags      */ { AI_ADDRCONFIG
+/* ai_flags      */ { 0
 /* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
@@ -591,21 +591,21 @@ static void
 SetRemoteAddress (Local<Object> connection_handle, struct sockaddr *addr)
 {
   HandleScope scope;
-  char ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
+  char ip[INET6_ADDRSTRLEN];
   Local<String> remote_address;
+
   if (addr->sa_family == AF_INET) {
     struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(addr);
-    inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
-    remote_address = String::New(ip4);
+    inet_ntop(AF_INET, &(sa->sin_addr), ip, INET6_ADDRSTRLEN);
+    remote_address = String::New(ip);
 
   } else if (addr->sa_family == AF_INET6) {
     struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(addr);
-    inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
-    remote_address = String::New(ip6);
+    inet_ntop(AF_INET6, &(sa6->sin6_addr), ip, INET6_ADDRSTRLEN);
+    remote_address = String::New(ip);
 
-  } else {
-    assert(0 && "received a bad sa_family");
-  }
+  } else assert(0 && "received a bad sa_family");
+
   connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
 }
 
