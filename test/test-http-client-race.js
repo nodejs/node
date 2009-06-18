@@ -1,14 +1,18 @@
 include("mjsunit.js");
 PORT = 8888;
 
+var body1_s = "1111111111111111";
+var body2_s = "22222";
+
 var server = new node.http.Server(function (req, res) {
-  res.sendHeader(200, [["content-type", "text/plain"]]);
-  if (req.uri.path == "/1")
-    res.sendBody("hello world 1\n");
-  else
-    res.sendBody("hello world 2\n");
+  var body = req.uri.path === "/1" ? body1_s : body2_s;
+  res.sendHeader(200, [
+    ["Content-Type", "text/plain"],
+    ["Content-Length", body.length]
+  ]);
+  res.sendBody(body);
   res.finish();
-})
+});
 server.listen(PORT);
 
 var client = new node.http.Client(PORT);
@@ -33,6 +37,6 @@ client.get("/1").finish(function (res1) {
 });
 
 function onExit () {
-  assertEquals("hello world 1\n", body1);
-  assertEquals("hello world 2\n", body2);
+  assertEquals(body1_s, body1);
+  assertEquals(body2_s, body2);
 }
