@@ -1,3 +1,17 @@
+2009-06-16: Version 1.2.8
+
+        Optimized math on ARM platforms.
+
+        Fixed two crash bugs in the handling of getters and setters.
+
+        Improved the debugger support by adding scope chain information.
+
+        Improved the profiler support by compressing log data transmitted
+        to clients.
+
+        Improved overall performance.
+
+
 2009-06-08: Version 1.2.7
 
         Improved debugger and profiler support.

@@ -40,6 +40,14 @@ void KeyedLoadIC::ClearInlinedVersion(Address address) {
   UNIMPLEMENTED();
 }
 
+void KeyedStoreIC::ClearInlinedVersion(Address address) {
+  UNIMPLEMENTED();
+}
+
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {
+  UNIMPLEMENTED();
+}
+
 void KeyedLoadIC::Generate(MacroAssembler* masm,
                            ExternalReference const& f) {
   masm->int3();  // UNIMPLEMENTED.
@@ -54,6 +62,11 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
   UNIMPLEMENTED();
   return false;
 }

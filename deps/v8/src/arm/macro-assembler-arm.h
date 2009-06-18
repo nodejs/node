@@ -35,8 +35,7 @@ namespace internal {
 
 
 // Give alias names to registers
-extern Register cp;  // JavaScript context pointer
-extern Register pp;  // parameter pointer
+const Register cp = { 8 };  // JavaScript context pointer
 
 
 // Helper types to make boolean flag easier to read at call-site.
@@ -186,6 +185,38 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
+
+  // Try to get function prototype of a function and puts the value in
+  // the result register. Checks that the function really is a
+  // function and jumps to the miss label if the fast checks fail. The
+  // function register will be untouched; the other registers may be
+  // clobbered.
+  void TryGetFunctionPrototype(Register function,
+                               Register result,
+                               Register scratch,
+                               Label* miss);
+
+  // Compare object type for heap object.  heap_object contains a non-Smi
+  // whose object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.
+  // It leaves the map in the map register (unless the type_reg and map register
+  // are the same register).  It leaves the heap object in the heap_object
+  // register unless the heap_object register is the same register as one of the
+  // other // registers.
+  void CompareObjectType(Register heap_object,
+                         Register map,
+                         Register type_reg,
+                         InstanceType type);
+
+  inline void BranchOnSmi(Register value, Label* smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(eq, smi_label);
+  }
+
+  inline void BranchOnNotSmi(Register value, Label* not_smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(ne, not_smi_label);
+  }
 
   // Generates code for reporting that an illegal operation has
   // occurred.

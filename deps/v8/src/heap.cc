@@ -79,9 +79,15 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-int Heap::semispace_size_  = 2*MB;
+#if V8_HOST_ARCH_ARM
+int Heap::semispace_size_  = 512*KB;
+int Heap::old_generation_size_ = 128*MB;
+int Heap::initial_semispace_size_ = 128*KB;
+#else
+int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;
-int Heap::initial_semispace_size_ = 256*KB;
+int Heap::initial_semispace_size_ = 512*KB;
+#endif
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
@@ -90,9 +96,8 @@ GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
 
-// Double the new space after this many scavenge collections.
-int Heap::new_space_growth_limit_ = 8;
-int Heap::scavenge_count_ = 0;
+int Heap::survived_since_last_expansion_ = 0;
+
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
 int Heap::mc_count_ = 0;
@@ -421,7 +426,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
     old_gen_allocation_limit_ =
-        old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 3);
+        old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
 
     // If we have used the mark-compact collector to collect the new
@@ -624,16 +629,17 @@ void Heap::Scavenge() {
   // Implements Cheney's copying algorithm
   LOG(ResourceEvent("scavenge", "begin"));
 
-  scavenge_count_++;
+  // Used for updating survived_since_last_expansion_ at function end.
+  int survived_watermark = PromotedSpaceSize();
+
   if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      scavenge_count_ > new_space_growth_limit_) {
-    // Double the size of the new space, and double the limit.  The next
-    // doubling attempt will occur after the current new_space_growth_limit_
-    // more collections.
+      survived_since_last_expansion_ > new_space_.Capacity()) {
+    // Double the size of new space if there is room to grow and enough
+    // data has survived scavenge since the last expansion.
     // TODO(1240712): NewSpace::Double has a return value which is
     // ignored here.
     new_space_.Double();
-    new_space_growth_limit_ *= 2;
+    survived_since_last_expansion_ = 0;
   }
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
@@ -736,6 +742,10 @@ void Heap::Scavenge() {
 
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
+
+  // Update how much has survived scavenge.
+  survived_since_last_expansion_ +=
+      (PromotedSpaceSize() - survived_watermark) + new_space_.Size();
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -1766,7 +1776,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // through the self_reference parameter.
   code->CopyFrom(desc);
   if (sinfo != NULL) sinfo->Serialize(code);  // write scope info
-  LOG(CodeAllocateEvent(code, desc.origin));
 
 #ifdef DEBUG
   code->Verify();

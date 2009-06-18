@@ -1695,7 +1695,7 @@ Object* JSObject::SetProperty(LookupResult* result,
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
-    && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
+      && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
 
@@ -5203,27 +5203,6 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 }
 
 
-Object* JSObject::SetElementPostInterceptor(uint32_t index, Object* value) {
-  if (HasFastElements()) return SetFastElement(index, value);
-
-  // Dictionary case.
-  ASSERT(!HasFastElements());
-
-  FixedArray* elms = FixedArray::cast(elements());
-  Object* result = Dictionary::cast(elms)->AtNumberPut(index, value);
-  if (result->IsFailure()) return result;
-  if (elms != FixedArray::cast(result)) {
-    set_elements(FixedArray::cast(result));
-  }
-
-  if (IsJSArray()) {
-    return JSArray::cast(this)->JSArrayUpdateLengthFromIndex(index, value);
-  }
-
-  return value;
-}
-
-
 Object* JSObject::SetElementWithInterceptor(uint32_t index, Object* value) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
@@ -5250,7 +5229,7 @@ Object* JSObject::SetElementWithInterceptor(uint32_t index, Object* value) {
     if (!result.IsEmpty()) return *value_handle;
   }
   Object* raw_result =
-      this_handle->SetElementPostInterceptor(index, *value_handle);
+      this_handle->SetElementWithoutInterceptor(index, *value_handle);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -5332,6 +5311,11 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
     return SetElementWithInterceptor(index, value);
   }
 
+  return SetElementWithoutInterceptor(index, value);
+}
+
+
+Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
   // Fast case.
   if (HasFastElements()) return SetFastElement(index, value);
 
@@ -5438,7 +5422,21 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
     if (entry != -1) {
-      return dictionary->ValueAt(entry);
+      Object* element = dictionary->ValueAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.type() == CALLBACKS) {
+        // Only accessors allowed as elements.
+        FixedArray* structure = FixedArray::cast(element);
+        Object* getter = structure->get(kGetterIndex);
+        if (getter->IsJSFunction()) {
+          return GetPropertyWithDefinedGetter(receiver,
+                                              JSFunction::cast(getter));
+        } else {
+          // Getter is not a function.
+          return Heap::undefined_value();
+        }
+      }
+      return element;
     }
   }
 
@@ -6436,10 +6434,6 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   AssertNoAllocation no_alloc;
 
-  // Loose all details on properties when moving them around.
-  // Elements do not have special details like properties.
-  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
-
   uint32_t pos = 0;
   uint32_t undefs = 0;
   for (int i = 0; i < capacity; i++) {
@@ -6450,21 +6444,27 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
       Object* value = dict->ValueAt(i);
+      PropertyDetails details = dict->DetailsAt(i);
+      if (details.type() == CALLBACKS) {
+        // Bail out and do the sorting of undefineds and array holes in JS.
+        return Smi::FromInt(-1);
+      }
       uint32_t key = NumberToUint32(k);
       if (key < limit) {
         if (value->IsUndefined()) {
           undefs++;
         } else {
-          new_dict->AddNumberEntry(pos, value, no_details);
+          new_dict->AddNumberEntry(pos, value, details);
           pos++;
         }
       } else {
-        new_dict->AddNumberEntry(key, value, no_details);
+        new_dict->AddNumberEntry(key, value, details);
       }
     }
   }
 
   uint32_t result = pos;
+  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
   while (undefs > 0) {
     new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details);
     pos++;

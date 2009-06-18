@@ -283,9 +283,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ b(eq, miss_label);
 
   // Check that the object is a JS array.
-  __ ldr(scratch, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(JS_ARRAY_TYPE));
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
   __ b(ne, miss_label);
 
   // Load length directly from the JS array.
@@ -523,9 +521,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
   // Get the map.
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &miss);
 
   // Patch the receiver on the stack with the global proxy if
@@ -588,9 +584,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
     case STRING_CHECK:
       // Check that the object is a two-byte string or a symbol.
-      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-      __ cmp(r2, Operand(FIRST_NONSTRING_TYPE));
+      __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
       __ b(hs, &miss);
       // Check that the maps starting from the prototype haven't changed.
       GenerateLoadGlobalFunctionPrototype(masm(),
@@ -605,9 +599,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       // Check that the object is a smi or a heap number.
       __ tst(r1, Operand(kSmiTagMask));
       __ b(eq, &fast);
-      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-      __ cmp(r2, Operand(HEAP_NUMBER_TYPE));
+      __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
       __ b(ne, &miss);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.

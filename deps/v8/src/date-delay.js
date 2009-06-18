@@ -115,7 +115,7 @@ function EquivalentYear(year) {
   // - leap year.
   // - week day of first day.
   var time = TimeFromYear(year);
-  var recent_year = (InLeapYear(time) == 0 ? 1967 : 1956) + 
+  var recent_year = (InLeapYear(time) == 0 ? 1967 : 1956) +
       (WeekDay(time) * 12) % 28;
   // Find the year in the range 2008..2037 that is equivalent mod 28.
   // Add 3*28 to give a positive argument to the modulus operator.
@@ -129,23 +129,82 @@ function EquivalentTime(t) {
   // (measured in whole seconds based on the 1970 epoch).
   // We solve this by mapping the time to a year with same leap-year-ness
   // and same starting day for the year.  The ECMAscript specification says
-  // we must do this, but for compatability with other browsers, we use
+  // we must do this, but for compatibility with other browsers, we use
   // the actual year if it is in the range 1970..2037
   if (t >= 0 && t <= 2.1e12) return t;
   var day = MakeDay(EquivalentYear(YearFromTime(t)), MonthFromTime(t), DateFromTime(t));
   return TimeClip(MakeDate(day, TimeWithinDay(t)));
 }
 
-var daylight_cache_time = $NaN;
-var daylight_cache_offset;
+
+// Because computing the DST offset is a pretty expensive operation
+// we keep a cache of last computed offset along with a time interval
+// where we know the cache is valid.
+var DST_offset_cache = {
+  // Cached DST offset.
+  offset: 0,
+  // Time interval where the cached offset is valid.
+  start: 0, end: -1,
+  // Size of next interval expansion.
+  increment: 0
+};
+
 
 function DaylightSavingsOffset(t) {
-  if (t == daylight_cache_time) {
-    return daylight_cache_offset;
+  // Load the cache object from the builtins object.
+  var cache = DST_offset_cache;
+
+  // Cache the start and the end in local variables for fast access.
+  var start = cache.start;
+  var end = cache.end;
+
+  if (start <= t) {
+    // If the time fits in the cached interval, return the cached offset.
+    if (t <= end) return cache.offset;
+
+    // Compute a possible new interval end.
+    var new_end = end + cache.increment;
+
+    if (t <= new_end) {
+      var end_offset = %DateDaylightSavingsOffset(EquivalentTime(new_end));
+      if (cache.offset == end_offset) {
+        // If the offset at the end of the new interval still matches
+        // the offset in the cache, we grow the cached time interval
+        // and return the offset.
+        cache.end = new_end;
+        cache.increment = msPerMonth;
+        return end_offset;
+      } else {
+        var offset = %DateDaylightSavingsOffset(EquivalentTime(t));
+        if (offset == end_offset) {
+          // The offset at the given time is equal to the offset at the
+          // new end of the interval, so that means that we've just skipped
+          // the point in time where the DST offset change occurred. Updated
+          // the interval to reflect this and reset the increment.
+          cache.start = t;
+          cache.end = new_end;
+          cache.increment = msPerMonth;
+        } else {
+          // The interval contains a DST offset change and the given time is
+          // before it. Adjust the increment to avoid a linear search for
+          // the offset change point and change the end of the interval.
+          cache.increment /= 3;
+          cache.end = t;
+        }
+        // Update the offset in the cache and return it.
+        cache.offset = offset;
+        return offset;
+      }
+    }
   }
+
+  // Compute the DST offset for the time and shrink the cache interval
+  // to only contain the time. This allows fast repeated DST offset
+  // computations for the same time.
   var offset = %DateDaylightSavingsOffset(EquivalentTime(t));
-  daylight_cache_time = t;
-  daylight_cache_offset = offset;
+  cache.offset = offset;
+  cache.start = cache.end = t;
+  cache.increment = msPerMonth;
   return offset;
 }
 
@@ -154,7 +213,7 @@ var timezone_cache_time = $NaN;
 var timezone_cache_timezone;
 
 function LocalTimezone(t) {
-  if(t == timezone_cache_time) {
+  if (t == timezone_cache_time) {
     return timezone_cache_timezone;
   }
   var timezone = %DateLocalTimezone(EquivalentTime(t));

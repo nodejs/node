@@ -164,7 +164,7 @@ void JumpTarget::Call() {
 }
 
 
-void JumpTarget::DoBind(int mergable_elements) {
+void JumpTarget::DoBind() {
   ASSERT(cgen() != NULL);
   ASSERT(!is_bound());
 
@@ -210,7 +210,7 @@ void JumpTarget::DoBind(int mergable_elements) {
       // Fast case: no forward jumps, possible backward ones.  Remove
       // constants and copies above the watermark on the fall-through
       // frame and use it as the entry frame.
-      cgen()->frame()->MakeMergable(mergable_elements);
+      cgen()->frame()->MakeMergable();
       entry_frame_ = new VirtualFrame(cgen()->frame());
     }
     __ bind(&entry_label_);
@@ -252,7 +252,7 @@ void JumpTarget::DoBind(int mergable_elements) {
   }
 
   // Compute the frame to use for entry to the block.
-  ComputeEntryFrame(mergable_elements);
+  ComputeEntryFrame();
 
   // Some moves required to merge to an expected frame require purely
   // frame state changes, and do not require any code generation.

@@ -230,6 +230,40 @@ function MakeError(type, args) {
   return MakeGenericError($Error, type, args);
 }
 
+/**
+ * Find a line number given a specific source position.
+ * @param {number} position The source position.
+ * @return {number} 0 if input too small, -1 if input too large,
+       else the line number.
+ */
+Script.prototype.lineFromPosition = function(position) {
+  var lower = 0;
+  var upper = this.lineCount() - 1;
+
+  // We'll never find invalid positions so bail right away.
+  if (position > this.line_ends[upper]) {
+    return -1;
+  }
+
+  // This means we don't have to safe-guard indexing line_ends[i - 1].
+  if (position <= this.line_ends[0]) {
+    return 0;
+  }
+
+  // Binary search to find line # from position range.
+  while (upper >= 1) {
+    var i = (lower + upper) >> 1;
+
+    if (position > this.line_ends[i]) {
+      lower = i + 1;
+    } else if (position <= this.line_ends[i - 1]) {
+      upper = i - 1;
+    } else {
+      return i;
+    }
+  }
+  return -1;
+}
 
 /**
  * Get information on a specific source position.
@@ -241,19 +275,7 @@ function MakeError(type, args) {
  */
 Script.prototype.locationFromPosition = function (position,
                                                   include_resource_offset) {
-  var lineCount = this.lineCount();
-  var line = -1;
-  if (position <= this.line_ends[0]) {
-    line = 0;
-  } else {
-    for (var i = 1; i < lineCount; i++) {
-      if (this.line_ends[i - 1] < position && position <= this.line_ends[i]) {
-        line = i;
-        break;
-      }
-    }
-  }
-
+  var line = this.lineFromPosition(position);
   if (line == -1) return null;
 
   // Determine start, end and column.
@@ -308,16 +330,13 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
   if (line == 0) {
     return this.locationFromPosition(offset_position + column, false);
   } else {
-    // Find the line where the offset position is located
-    var lineCount = this.lineCount();
-    var offset_line;
-    for (var i = 0; i < lineCount; i++) {
-      if (offset_position <= this.line_ends[i]) {
-        offset_line = i;
-        break;
-      }
+    // Find the line where the offset position is located.
+    var offset_line = this.lineFromPosition(offset_position);
+
+    if (offset_line == -1 || offset_line + line >= this.lineCount()) {
+      return null;
     }
-    if (offset_line + line >= lineCount) return null;
+
     return this.locationFromPosition(this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
   }
 }

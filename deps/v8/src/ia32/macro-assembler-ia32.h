@@ -154,9 +154,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Exception handling
 
-  // Push a new try handler and link into try handler chain.
-  // The return address must be pushed before calling this helper.
-  // On exit, eax contains TOS (next_sp).
+  // Push a new try handler and link into try handler chain.  The return
+  // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
 
@@ -286,7 +285,7 @@ class MacroAssembler: public Assembler {
   List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
-  Handle<Object> code_object_;  // This handle will be patched with the code
+  Handle<Object> code_object_;  // This handle will be patched with the
                                 // code object on installation.
 
   // Helper functions for generating invokes.

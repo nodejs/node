@@ -34,8 +34,13 @@ RegExp;
 Date;
 
 
+// Handle id counters.
 var next_handle_ = 0;
+var next_transient_handle_ = -1;
+
+// Mirror cache.
 var mirror_cache_ = [];
+
 
 /**
  * Clear the mirror handle cache.
@@ -50,19 +55,25 @@ function ClearMirrorCache() {
  * Returns the mirror for a specified value or object.
  *
  * @param {value or Object} value the value or object to retreive the mirror for
+ * @param {boolean} transient indicate whether this object is transient and
+ *    should not be added to the mirror cache. The default is not transient.
  * @returns {Mirror} the mirror reflects the passed value or object
  */
-function MakeMirror(value) {
+function MakeMirror(value, opt_transient) {
   var mirror;
-  for (id in mirror_cache_) {
-    mirror = mirror_cache_[id];
-    if (mirror.value() === value) {
-      return mirror;
-    }
-    // Special check for NaN as NaN == NaN is false.
-    if (mirror.isNumber() && isNaN(mirror.value()) &&
-        typeof value == 'number' && isNaN(value)) {
-      return mirror;
+
+  // Look for non transient mirrors in the mirror cache.
+  if (!opt_transient) {
+    for (id in mirror_cache_) {
+      mirror = mirror_cache_[id];
+      if (mirror.value() === value) {
+        return mirror;
+      }
+      // Special check for NaN as NaN == NaN is false.
+      if (mirror.isNumber() && isNaN(mirror.value()) &&
+          typeof value == 'number' && isNaN(value)) {
+        return mirror;
+      }
     }
   }
   
@@ -89,7 +100,7 @@ function MakeMirror(value) {
   } else if (IS_SCRIPT(value)) {
     mirror = new ScriptMirror(value);
   } else {
-    mirror = new ObjectMirror(value);
+    mirror = new ObjectMirror(value, OBJECT_TYPE, opt_transient);
   }
 
   mirror_cache_[mirror.handle()] = mirror;
@@ -155,6 +166,7 @@ const PROPERTY_TYPE = 'property';
 const FRAME_TYPE = 'frame';
 const SCRIPT_TYPE = 'script';
 const CONTEXT_TYPE = 'context';
+const SCOPE_TYPE = 'scope';
 
 // Maximum length when sending strings through the JSON protocol.
 const kMaxProtocolStringLength = 80;
@@ -183,6 +195,13 @@ PropertyAttribute.None       = NONE;
 PropertyAttribute.ReadOnly   = READ_ONLY;
 PropertyAttribute.DontEnum   = DONT_ENUM;
 PropertyAttribute.DontDelete = DONT_DELETE;
+
+
+// A copy of the scope types from runtime.cc.
+ScopeType = { Global: 0,
+              Local: 1,
+              With: 2,
+              Closure: 3 };
 
 
 // Mirror hierarchy:
@@ -373,10 +392,28 @@ Mirror.prototype.isContext = function() {
 
 
 /**
+ * Check whether the mirror reflects a scope.
+ * @returns {boolean} True if the mirror reflects a scope
+ */
+Mirror.prototype.isScope = function() {
+  return this instanceof ScopeMirror;
+}
+
+
+/**
  * Allocate a handle id for this object.
  */
 Mirror.prototype.allocateHandle_ = function() {
   this.handle_ = next_handle_++;
+}
+
+
+/**
+ * Allocate a transient handle id for this object. Transient handles are
+ * negative.
+ */
+Mirror.prototype.allocateTransientHandle_ = function() {
+  this.handle_ = next_transient_handle_--;
 }
 
 
@@ -390,13 +427,19 @@ Mirror.prototype.toText = function() {
  * Base class for all value mirror objects.
  * @param {string} type The type of the mirror
  * @param {value} value The value reflected by this mirror
+ * @param {boolean} transient indicate whether this object is transient with a
+ *    transient handle
  * @constructor
  * @extends Mirror
  */
-function ValueMirror(type, value) {
+function ValueMirror(type, value, transient) {
   Mirror.call(this, type);
   this.value_ = value;
-  this.allocateHandle_();
+  if (!transient) {
+    this.allocateHandle_();
+  } else {
+    this.allocateTransientHandle_();
+  }
 }
 inherits(ValueMirror, Mirror);
 
@@ -525,11 +568,13 @@ StringMirror.prototype.toText = function() {
 /**
  * Mirror object for objects.
  * @param {object} value The object reflected by this mirror
+ * @param {boolean} transient indicate whether this object is transient with a
+ *    transient handle
  * @constructor
  * @extends ValueMirror
  */
-function ObjectMirror(value, type) {
-  ValueMirror.call(this, type || OBJECT_TYPE, value);
+function ObjectMirror(value, type, transient) {
+  ValueMirror.call(this, type || OBJECT_TYPE, value, transient);
 }
 inherits(ObjectMirror, ValueMirror);
 
@@ -1080,7 +1125,7 @@ PropertyMirror.prototype.isIndexed = function() {
 
 
 PropertyMirror.prototype.value = function() {
-  return MakeMirror(this.value_);
+  return MakeMirror(this.value_, false);
 }
 
 
@@ -1135,7 +1180,7 @@ PropertyMirror.prototype.getter = function() {
   if (this.hasGetter()) {
     return MakeMirror(this.getter_);
   } else {
-    return new UndefinedMirror();
+    return GetUndefinedMirror();
   }
 }
 
@@ -1149,7 +1194,7 @@ PropertyMirror.prototype.setter = function() {
   if (this.hasSetter()) {
     return MakeMirror(this.setter_);
   } else {
-    return new UndefinedMirror();
+    return GetUndefinedMirror();
   }
 }
 
@@ -1294,6 +1339,11 @@ FrameDetails.prototype.localValue = function(index) {
 }
 
 
+FrameDetails.prototype.scopeCount = function() {
+  return %GetScopeCount(this.break_id_, this.frameId());
+}
+
+
 /**
  * Mirror object for stack frames.
  * @param {number} break_id The break id in the VM for which this frame is
@@ -1416,6 +1466,16 @@ FrameMirror.prototype.sourceLineText = function() {
       return location.sourceText();
     }
   }
+};
+
+
+FrameMirror.prototype.scopeCount = function() {
+  return this.details_.scopeCount();
+};
+
+
+FrameMirror.prototype.scope = function(index) {
+  return new ScopeMirror(this, index);
 };
 
 
@@ -1560,6 +1620,70 @@ FrameMirror.prototype.toText = function(opt_locals) {
   }
   return result;
 }
+
+
+const kScopeDetailsTypeIndex = 0;
+const kScopeDetailsObjectIndex = 1;
+
+function ScopeDetails(frame, index) {
+  this.break_id_ = frame.break_id_;
+  this.details_ = %GetScopeDetails(frame.break_id_,
+                                   frame.details_.frameId(),
+                                   index);
+}
+
+
+ScopeDetails.prototype.type = function() {
+  %CheckExecutionState(this.break_id_);
+  return this.details_[kScopeDetailsTypeIndex];
+}
+
+
+ScopeDetails.prototype.object = function() {
+  %CheckExecutionState(this.break_id_);
+  return this.details_[kScopeDetailsObjectIndex];
+}
+
+
+/**
+ * Mirror object for scope.
+ * @param {FrameMirror} frame The frame this scope is a part of
+ * @param {number} index The scope index in the frame
+ * @constructor
+ * @extends Mirror
+ */
+function ScopeMirror(frame, index) {
+  Mirror.call(this, SCOPE_TYPE);
+  this.frame_index_ = frame.index_;
+  this.scope_index_ = index;
+  this.details_ = new ScopeDetails(frame, index);
+}
+inherits(ScopeMirror, Mirror);
+
+
+ScopeMirror.prototype.frameIndex = function() {
+  return this.frame_index_;
+};
+
+
+ScopeMirror.prototype.scopeIndex = function() {
+  return this.scope_index_;
+};
+
+
+ScopeMirror.prototype.scopeType = function() {
+  return this.details_.type();
+};
+
+
+ScopeMirror.prototype.scopeObject = function() {
+  // For local and closure scopes create a transient mirror as these objects are
+  // created on the fly materializing the local or closure scopes and
+  // therefore will not preserve identity.
+  var transient = this.scopeType() == ScopeType.Local ||
+                  this.scopeType() == ScopeType.Closure;
+  return MakeMirror(this.details_.object(), transient);
+};
 
 
 /**
@@ -1829,6 +1953,7 @@ JSONProtocolSerializer.prototype.serializeReferenceWithDisplayData_ =
   return o;
 };
 
+
 JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
                                                        details) {
   // If serializing a reference to a mirror just return the reference and add
@@ -1898,6 +2023,11 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
     case FRAME_TYPE:
       // Add object representation.
       this.serializeFrame_(mirror, content);
+      break;
+
+    case SCOPE_TYPE:
+      // Add object representation.
+      this.serializeScope_(mirror, content);
       break;
 
     case SCRIPT_TYPE:
@@ -2099,6 +2229,14 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
   if (!IS_UNDEFINED(source_line_text)) {
     content.sourceLineText = source_line_text;
   }
+}
+
+
+JSONProtocolSerializer.prototype.serializeScope_ = function(mirror, content) {
+  content.index = mirror.scopeIndex();
+  content.frameIndex = mirror.frameIndex();
+  content.type = mirror.scopeType();
+  content.object = this.serializeReference(mirror.scopeObject());
 }
 
 

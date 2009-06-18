@@ -372,12 +372,12 @@ class VirtualFrame : public ZoneObject {
   // Pop and save an element from the top of the expression stack and
   // emit a corresponding pop instruction.
   void EmitPop(Register reg);
-  void EmitPop(Operand operand);
+  void EmitPop(const Operand& operand);
 
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg);
-  void EmitPush(Operand operand);
+  void EmitPush(const Operand& operand);
   void EmitPush(Immediate immediate);
 
   // Push an element on the virtual frame.

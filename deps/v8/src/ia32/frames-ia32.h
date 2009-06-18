@@ -55,16 +55,10 @@ typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset  = 0 * kPointerSize;
-  static const int kPPOffset    = 1 * kPointerSize;
-  static const int kFPOffset    = 2 * kPointerSize;
+  static const int kFPOffset    = 1 * kPointerSize;
+  static const int kStateOffset = 2 * kPointerSize;
+  static const int kPCOffset    = 3 * kPointerSize;
 
-  // TODO(1233780): Get rid of the code slot in stack handlers.
-  static const int kCodeOffset  = 3 * kPointerSize;
-
-  static const int kStateOffset = 4 * kPointerSize;
-  static const int kPCOffset    = 5 * kPointerSize;
-
-  static const int kAddressDisplacement = -1 * kPointerSize;
   static const int kSize = kPCOffset + kPointerSize;
 };
 
@@ -85,12 +79,12 @@ class ExitFrameConstants : public AllStatic {
   static const int kDebugMarkOffset = -2 * kPointerSize;
   static const int kSPOffset        = -1 * kPointerSize;
 
-  // Let the parameters pointer for exit frames point just below the
-  // frame structure on the stack (frame pointer and return address).
-  static const int kPPDisplacement = +2 * kPointerSize;
-
   static const int kCallerFPOffset =  0 * kPointerSize;
   static const int kCallerPCOffset = +1 * kPointerSize;
+
+  // FP-relative displacement of the caller's SP.  It points just
+  // below the saved PC.
+  static const int kCallerSPDisplacement = +2 * kPointerSize;
 };
 
 
@@ -112,7 +106,7 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kSavedRegistersOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
-  // CallerSP-relative (aka PP-relative)
+  // Caller SP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
@@ -134,157 +128,6 @@ inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);
 }
-
-
-// ----------------------------------------------------
-
-
-
-
-  // C Entry frames:
-
-  //    lower    |    Stack    |
-  //  addresses  |      ^      |
-  //             |      |      |
-  //             |             |
-  //             +-------------+
-  //             |  entry_pc   |
-  //             +-------------+ <--+ entry_sp
-  //                    .           |
-  //                    .           |
-  //                    .           |
-  //             +-------------+    |
-  //          -3 |  entry_sp --+----+
-  //      e      +-------------+
-  //      n   -2 | C function  |
-  //      t      +-------------+
-  //      r   -1 |  caller_pp  |
-  //      y      +-------------+ <--- fp (frame pointer, ebp)
-  //           0 |  caller_fp  |
-  //      f      +-------------+
-  //      r    1 |  caller_pc  |
-  //      a      +-------------+ <--- caller_sp (stack pointer, esp)
-  //      m    2 |             |
-  //      e      |  arguments  |
-  //             |             |
-  //             +- - - - - - -+
-  //             |  argument0  |
-  //             +=============+
-  //             |             |
-  //             |   caller    |
-  //   higher    | expressions |
-  //  addresses  |             |
-
-
-  // Proper JS frames:
-
-  //    lower    |    Stack    |
-  //  addresses  |      ^      |
-  //             |      |      |
-  //             |             |
-  // ----------- +=============+ <--- sp (stack pointer, esp)
-  //             |  function   |
-  //             +-------------+
-  //             |             |
-  //             | expressions |
-  //             |             |
-  //             +-------------+
-  //      a      |             |
-  //      c      |   locals    |
-  //      t      |             |
-  //      i      +- - - - - - -+ <---
-  //      v   -4 |   local0    |   ^
-  //      a      +-------------+   |
-  //      t   -3 |    code     |   |
-  //      i      +-------------+   |
-  //      o   -2 |   context   |   | kLocal0Offset
-  //      n      +-------------+   |
-  //          -1 |  caller_pp  |   v
-  //      f      +-------------+ <--- fp (frame pointer, ebp)
-  //      r    0 |  caller_fp  |
-  //      a      +-------------+
-  //      m    1 |  caller_pc  |
-  //      e      +-------------+ <--- caller_sp (incl. parameters)
-  //           2 |             |
-  //             | parameters  |
-  //             |             |
-  //             +- - - - - - -+ <---
-  //          -2 | parameter0  |   ^
-  //             +-------------+   | kParam0Offset
-  //          -1 |  receiver   |   v
-  // ----------- +=============+ <--- pp (parameter pointer, edi)
-  //           0 |  function   |
-  //             +-------------+
-  //             |             |
-  //             |   caller    |
-  //   higher    | expressions |
-  //  addresses  |             |
-
-
-  // JS entry frames: When calling from C to JS, we construct two extra
-  // frames: An entry frame (C) and a trampoline frame (JS). The
-  // following pictures shows the two frames:
-
-  //    lower    |    Stack    |
-  //  addresses  |      ^      |
-  //             |      |      |
-  //             |             |
-  // ----------- +=============+ <--- sp (stack pointer, esp)
-  //             |             |
-  //             | parameters  |
-  //      t      |             |
-  //      r      +- - - - - - -+
-  //      a      | parameter0  |
-  //      m      +-------------+
-  //      p      |  receiver   |
-  //      o      +-------------+ <---
-  //      l      |  function   |   ^
-  //      i      +-------------+   |
-  //      n   -3 |    code     |   | kLocal0Offset
-  //      e      +-------------+
-  //          -2 |    NULL     | context is always NULL
-  //             +-------------+
-  //      f   -1 |    NULL     | caller pp is always NULL for entry frames
-  //      r      +-------------+ <--- fp (frame pointer, ebp)
-  //      a    0 |  caller fp  |
-  //      m      +-------------+
-  //      e    1 |  caller pc  |
-  //             +-------------+ <--- caller_sp (incl. parameters)
-  //             |      0      |
-  // ----------- +=============+ <--- pp (parameter pointer, edi)
-  //             |      0      |
-  //             +-------------+ <---
-  //                    .          ^
-  //                    .          |  try-handler (HandlerOffsets::kSize)
-  //                    .          v
-  //             +-------------+ <---
-  //          -5 | next top pp |
-  //             +-------------+
-  //      e   -4 | next top fp |
-  //      n      +-------------+ <---
-  //      t   -3 |     ebx     |   ^
-  //      r      +-------------+   |
-  //      y   -2 |     esi     |   |  callee-saved registers
-  //             +-------------+   |
-  //          -1 |     edi     |   v
-  //      f      +-------------+ <--- fp
-  //      r    0 |  caller fp  |
-  //      a      +-------------+      pp == NULL (parameter pointer)
-  //      m    1 |  caller pc  |
-  //      e      +-------------+ <--- caller sp
-  //           2 | code  entry |   ^
-  //             +-------------+   |
-  //           3 |  function   |   |
-  //             +-------------+   |  arguments passed from C code
-  //           4 |  receiver   |   |
-  //             +-------------+   |
-  //           5 |    argc     |   |
-  //             +-------------+   |
-  //           6 |    argv     |   v
-  //             +-------------+ <---
-  //             |             |
-  //   higher    |             |
-  //  addresses  |             |
 
 
 } }  // namespace v8::internal

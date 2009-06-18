@@ -149,7 +149,7 @@ void JumpTarget::Call() {
 }
 
 
-void JumpTarget::DoBind(int mergable_elements) {
+void JumpTarget::DoBind() {
   ASSERT(!is_bound());
 
   // Live non-frame registers are not allowed at the start of a basic
@@ -207,7 +207,7 @@ void JumpTarget::DoBind(int mergable_elements) {
 
   // Compute the frame to use for entry to the block.
   if (entry_frame_ == NULL) {
-    ComputeEntryFrame(mergable_elements);
+    ComputeEntryFrame();
   }
 
   // Some moves required to merge to an expected frame require purely

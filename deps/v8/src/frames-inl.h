@@ -43,13 +43,7 @@ namespace internal {
 
 
 inline Address StackHandler::address() const {
-  // NOTE: There's an obvious problem with the address of the NULL
-  // stack handler. Right now, it benefits us that the subtraction
-  // leads to a very high address (above everything else on the
-  // stack), but maybe we should stop relying on it?
-  const int displacement = StackHandlerConstants::kAddressDisplacement;
-  Address address = reinterpret_cast<Address>(const_cast<StackHandler*>(this));
-  return address + displacement;
+  return reinterpret_cast<Address>(const_cast<StackHandler*>(this));
 }
 
 
@@ -68,13 +62,7 @@ inline bool StackHandler::includes(Address address) const {
 
 inline void StackHandler::Iterate(ObjectVisitor* v) const {
   // Stack handlers do not contain any pointers that need to be
-  // traversed. The only field that have to worry about is the code
-  // field which is unused and should always be uninitialized.
-#ifdef DEBUG
-  const int offset = StackHandlerConstants::kCodeOffset;
-  Object* code = Memory::Object_at(address() + offset);
-  ASSERT(Smi::cast(code)->value() == StackHandler::kCodeNotPresent);
-#endif
+  // traversed.
 }
 
 
@@ -122,11 +110,6 @@ inline Object* StandardFrame::context() const {
 }
 
 
-inline Address StandardFrame::caller_sp() const {
-  return pp();
-}
-
-
 inline Address StandardFrame::caller_fp() const {
   return Memory::Address_at(fp() + StandardFrameConstants::kCallerFPOffset);
 }
@@ -157,13 +140,13 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 
 inline Object* JavaScriptFrame::receiver() const {
   const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  return Memory::Object_at(pp() + offset);
+  return Memory::Object_at(caller_sp() + offset);
 }
 
 
 inline void JavaScriptFrame::set_receiver(Object* value) {
   const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  Memory::Object_at(pp() + offset) = value;
+  Memory::Object_at(caller_sp() + offset) = value;
 }
 
 

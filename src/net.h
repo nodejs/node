@@ -33,7 +33,9 @@ protected:
   Connection (v8::Handle<v8::Object> handle); 
   virtual ~Connection ();
 
-  int Connect (struct addrinfo *address) { return oi_socket_connect (&socket_, address); }
+  int Connect (struct addrinfo *address) {
+    return oi_socket_connect (&socket_, address);
+  }
   void Send (oi_buf *buf) { oi_socket_write(&socket_, buf); }
   void Close (void) { oi_socket_close(&socket_); }
   void FullClose (void) { oi_socket_full_close(&socket_); }
@@ -66,12 +68,10 @@ private:
 
   static void on_read (oi_socket *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
-    v8::V8::ResumeProfiler();
     if (len == 0)
       connection->OnEOF();
     else
       connection->OnReceive(buf, len);
-    v8::V8::PauseProfiler();
   }
 
   static void on_drain (oi_socket *s) {

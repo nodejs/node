@@ -107,60 +107,24 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // jump and there will be no current frame after the jump.
   virtual void Jump();
   virtual void Jump(Result* arg);
-  void Jump(Result* arg0, Result* arg1);
-  void Jump(Result* arg0, Result* arg1, Result* arg2);
 
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
   // code after the branch.
   virtual void Branch(Condition cc, Hint hint = no_hint);
   virtual void Branch(Condition cc, Result* arg, Hint hint = no_hint);
-  void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
-  void Branch(Condition cc,
-              Result* arg0,
-              Result* arg1,
-              Result* arg2,
-              Hint hint = no_hint);
-  void Branch(Condition cc,
-              Result* arg0,
-              Result* arg1,
-              Result* arg2,
-              Result* arg3,
-              Hint hint = no_hint);
 
   // Bind a jump target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
   // jump.
-  //
-  // The number of mergable elements is a number of frame elements
-  // counting from the top down which must be "mergable" (not
-  // constants or copies) in the entry frame at the jump target.
-  // Backward jumps to the target must contain the same constants and
-  // sharing as the entry frame, except for the mergable elements.
-  //
-  // A mergable elements argument of kAllElements indicates that all
-  // frame elements must be mergable.  Mergable elements are ignored
-  // completely for forward-only jump targets.
-  virtual void Bind(int mergable_elements = kAllElements);
-  virtual void Bind(Result* arg, int mergable_elements = kAllElements);
-  void Bind(Result* arg0, Result* arg1, int mergable_elements = kAllElements);
-  void Bind(Result* arg0,
-            Result* arg1,
-            Result* arg2,
-            int mergable_elements = kAllElements);
-  void Bind(Result* arg0,
-            Result* arg1,
-            Result* arg2,
-            Result* arg3,
-            int mergable_elements = kAllElements);
+  virtual void Bind();
+  virtual void Bind(Result* arg);
 
   // Emit a call to a jump target.  There must be a current frame at
   // the call.  The frame at the target is the same as the current
   // frame except for an extra return address on top of it.  The frame
   // after the call is the same as the frame before the call.
   void Call();
-
-  static const int kAllElements = -1;  // Not a valid number of elements.
 
   static void set_compiling_deferred_code(bool flag) {
     compiling_deferred_code_ = flag;
@@ -188,7 +152,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // return values using the virtual frame.
   void DoJump();
   void DoBranch(Condition cc, Hint hint);
-  void DoBind(int mergable_elements);
+  void DoBind();
 
  private:
   static bool compiling_deferred_code_;
@@ -202,9 +166,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // target.
   inline void InitializeEntryElement(int index, FrameElement* target);
 
-  // Compute a frame to use for entry to this block.  Mergable
-  // elements is as described for the Bind function.
-  void ComputeEntryFrame(int mergable_elements);
+  // Compute a frame to use for entry to this block.
+  void ComputeEntryFrame();
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);
 };
@@ -251,8 +214,8 @@ class BreakTarget : public JumpTarget {
   // Bind a break target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
   // jump.
-  virtual void Bind(int mergable_elements = kAllElements);
-  virtual void Bind(Result* arg, int mergable_elements = kAllElements);
+  virtual void Bind();
+  virtual void Bind(Result* arg);
 
   // Setter for expected height.
   void set_expected_height(int expected) { expected_height_ = expected; }

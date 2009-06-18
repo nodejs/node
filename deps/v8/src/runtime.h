@@ -135,7 +135,6 @@ namespace internal {
   F(Math_floor, 1) \
   F(Math_log, 1) \
   F(Math_pow, 2) \
-  F(Math_random, 0) \
   F(Math_round, 1) \
   F(Math_sin, 1) \
   F(Math_sqrt, 1) \
@@ -288,6 +287,9 @@ namespace internal {
   F(CheckExecutionState, 1) \
   F(GetFrameCount, 1) \
   F(GetFrameDetails, 2) \
+  F(GetScopeCount, 2) \
+  F(GetScopeDetails, 3) \
+  F(DebugPrintScopes, 0) \
   F(GetCFrames, 1) \
   F(GetThreadCount, 1) \
   F(GetThreadDetails, 2) \

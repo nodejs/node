@@ -460,6 +460,16 @@ void Shell::Initialize() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Set the security token of the debug context to allow access.
   i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
+
+  // Start the debugger agent if requested.
+  if (i::FLAG_debugger_agent) {
+    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port);
+  }
+
+  // Start the in-process debugger if requested.
+  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
+    v8::Debug::SetDebugEventListener(HandleDebugEvent);
+  }
 #endif
 }
 
@@ -720,16 +730,6 @@ int Shell::Main(int argc, char* argv[]) {
     if (i::FLAG_remote_debugger) {
       RunRemoteDebugger(i::FLAG_debugger_port);
       return 0;
-    }
-
-    // Start the debugger agent if requested.
-    if (i::FLAG_debugger_agent) {
-      v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port);
-    }
-
-    // Start the in-process debugger if requested.
-    if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-      v8::Debug::SetDebugEventListener(HandleDebugEvent);
     }
 #endif
   }

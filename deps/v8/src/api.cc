@@ -2124,7 +2124,9 @@ int v8::Object::GetIdentityHash() {
   } else {
     int attempts = 0;
     do {
-      hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+      // Generate a random 32-bit hash value but limit range to fit
+      // within a smi.
+      hash_value = i::V8::Random() & i::Smi::kMaxValue;
       attempts++;
     } while (hash_value == 0 && attempts < 30);
     hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
@@ -3382,6 +3384,7 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
 void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
+  HandleScope scope;
   i::Debugger::SetMessageHandler(handler);
 }
 

@@ -382,6 +382,7 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
     // the code copy and will therefore have no effect on the running code
     // keeping it from using the inlined code.
     if (code->is_keyed_load_stub()) KeyedLoadIC::ClearInlinedVersion(pc());
+    if (code->is_keyed_store_stub()) KeyedStoreIC::ClearInlinedVersion(pc());
   }
 }
 
@@ -389,6 +390,19 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
 void BreakLocationIterator::ClearDebugBreakAtIC() {
   // Patch the code to the original invoke.
   rinfo()->set_target_address(original_rinfo()->target_address());
+
+  RelocInfo::Mode mode = rmode();
+  if (RelocInfo::IsCodeTarget(mode)) {
+    Address target = original_rinfo()->target_address();
+    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+
+    // Restore the inlined version of keyed stores to get back to the
+    // fast case.  We need to patch back the keyed store because no
+    // patching happens when running normally.  For keyed loads, the
+    // map check will get patched back when running normally after ICs
+    // have been cleared at GC.
+    if (code->is_keyed_store_stub()) KeyedStoreIC::RestoreInlinedVersion(pc());
+  }
 }
 
 

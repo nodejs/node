@@ -67,6 +67,16 @@ class MacroAssembler: public Assembler {
   MacroAssembler(void* buffer, int size);
 
   // ---------------------------------------------------------------------------
+  // x64 Implementation Support
+
+  // Test the MacroAssembler by constructing and calling a simple JSFunction.
+  // Cannot be done using API because this must be done in the middle of the
+  // bootstrapping process.
+  // TODO(X64): Remove once we can get through the bootstrapping process.
+
+  static void ConstructAndTestJSFunction();
+
+  // ---------------------------------------------------------------------------
   // GC Support
 
   // Set the remembered set bit for [object+offset].
@@ -117,7 +127,7 @@ class MacroAssembler: public Assembler {
   // JavaScript invokes
 
   // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeCode(const Operand& code,
+  void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag);
@@ -141,9 +151,18 @@ class MacroAssembler: public Assembler {
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
+  // ---------------------------------------------------------------------------
+  // Macro instructions
+
   // Expression support
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
+
+  // Control Flow
+  void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(ExternalReference ext);
+  void Call(Address destination, RelocInfo::Mode rmode);
+  void Call(ExternalReference ext);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -159,9 +178,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Exception handling
 
-  // Push a new try handler and link into try handler chain.
-  // The return address must be pushed before calling this helper.
-  // On exit, rax contains TOS (next_sp).
+  // Push a new try handler and link into try handler chain.  The return
+  // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
 
@@ -292,13 +310,13 @@ class MacroAssembler: public Assembler {
   bool generating_stub_;
   bool allow_stub_calls_;
   Handle<Object> code_object_;  // This handle will be patched with the code
-                                // code object on installation.
+                                // object on installation.
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
-                      const Operand& code_operand,
+                      Register code_register,
                       Label* done,
                       InvokeFlag flag);
 

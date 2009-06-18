@@ -280,6 +280,67 @@ ExecuteNativeJS (const char *filename, const char *data)
   }
 }
 
+static Local<Object>
+Load (int argc, char *argv[])
+{
+  HandleScope scope;
+
+  Local<Object> global_obj = Context::GetCurrent()->Global();
+  Local<Object> node_obj = Object::New();
+
+  global_obj->Set(String::NewSymbol("node"), node_obj);
+
+  Local<Array> arguments = Array::New(argc);
+  for (int i = 0; i < argc; i++) {
+    Local<String> arg = String::New(argv[i]);
+    arguments->Set(Integer::New(i), arg);
+  }
+  global_obj->Set(String::NewSymbol("ARGV"), arguments);
+
+  NODE_SET_METHOD(node_obj, "compile", compile);
+  NODE_SET_METHOD(node_obj, "debug", debug);
+  NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
+
+  Timer::Initialize(node_obj);
+
+  Local<Object> constants = Object::New();
+  node_obj->Set(String::NewSymbol("constants"), constants);
+  DefineConstants(constants);
+
+  Local<Object> fs = Object::New();
+  node_obj->Set(String::NewSymbol("fs"), fs);
+  File::Initialize(fs);
+
+  Local<Object> tcp = Object::New();
+  node_obj->Set(String::New("tcp"), tcp);
+  Acceptor::Initialize(tcp);
+  Connection::Initialize(tcp);
+
+  Local<Object> http = Object::New();
+  node_obj->Set(String::New("http"), http);
+  HTTPServer::Initialize(http);
+  HTTPConnection::Initialize(http);
+
+  ExecuteNativeJS("http.js", native_http);
+  ExecuteNativeJS("file.js", native_file);
+  ExecuteNativeJS("node.js", native_node);
+
+  return scope.Close(node_obj);
+}
+
+static void
+CallExitHandler (Handle<Object> node_obj)
+{
+  HandleScope scope;
+  Local<Value> exit_v = node_obj->Get(String::New("exit"));
+  assert(exit_v->IsFunction());
+  Handle<Function> exit_f = Handle<Function>::Cast(exit_v);
+  TryCatch try_catch;
+  exit_f->Call(Context::GetCurrent()->Global(), 0, NULL);
+  if (try_catch.HasCaught())
+    node::FatalException(try_catch);
+}
+
 int
 main (int argc, char *argv[]) 
 {
@@ -291,82 +352,25 @@ main (int argc, char *argv[])
 
   V8::SetFlagsFromCommandLine(&argc, argv, true);
   V8::Initialize();
+  V8::SetFatalErrorHandler(OnFatalError);
 
   if(argc < 2)  {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
 
-  string filename(argv[1]);
-
   HandleScope handle_scope;
-
   Persistent<Context> context = Context::New(NULL, ObjectTemplate::New());
   Context::Scope context_scope(context);
-  V8::SetFatalErrorHandler(OnFatalError);
 
-  Local<Object> g = Context::GetCurrent()->Global();
+  Local<Object> node_obj = Load(argc, argv);
 
-  V8::PauseProfiler(); // to be resumed in Connection::on_read
+  ev_loop(EV_DEFAULT_UC_ 0); // main event loop
 
-  Local<Object> node = Object::New();
-  g->Set(String::New("node"), node);
-
-  NODE_SET_METHOD(node, "compile", compile); // internal 
-  NODE_SET_METHOD(node, "debug", debug);
-  NODE_SET_METHOD(node, "reallyExit", node_exit);
-
-  Local<Array> arguments = Array::New(argc);
-  for (int i = 0; i < argc; i++) {
-    Local<String> arg = String::New(argv[i]);
-    arguments->Set(Integer::New(i), arg);
-  }
-  g->Set(String::New("ARGV"), arguments);
-
-  // BUILT-IN MODULES
-  Timer::Initialize(node);
-
-  Local<Object> constants = Object::New();
-  node->Set(String::New("constants"), constants);
-  DefineConstants(constants);
-
-  Local<Object> fs = Object::New();
-  node->Set(String::New("fs"), fs);
-  File::Initialize(fs);
-
-  Local<Object> tcp = Object::New();
-  node->Set(String::New("tcp"), tcp);
-  Acceptor::Initialize(tcp);
-  Connection::Initialize(tcp);
-
-  Local<Object> http = Object::New();
-  node->Set(String::New("http"), http);
-  HTTPServer::Initialize(http);
-  HTTPConnection::Initialize(http);
-
-  ExecuteNativeJS("http.js", native_http);
-  ExecuteNativeJS("file.js", native_file);
-  ExecuteNativeJS("node.js", native_node);
-
-  ev_loop(EV_DEFAULT_UC_ 0);
-
-  // call node.exit() 
-  Local<Value> exit_v = node->Get(String::New("exit"));
-  assert(exit_v->IsFunction());
-  Handle<Function> exit_f = Handle<Function>::Cast(exit_v);
-  TryCatch try_catch;
-  exit_f->Call(g, 0, NULL);
-  if (try_catch.HasCaught())
-    node::FatalException(try_catch);
+  CallExitHandler(node_obj);
 
   context.Dispose();
-  // The following line when uncommented causes an error.
-  // To reproduce do this:
-  // > node --prof test-http_simple.js 
-  // 
-  // > curl http://localhost:8000/quit/
-  //
-  //V8::Dispose();
+  V8::Dispose();
 
   return 0;
 }

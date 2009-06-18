@@ -228,13 +228,27 @@ class StackCheckStub : public CodeStub {
 };
 
 
-class UnarySubStub : public CodeStub {
+class InstanceofStub: public CodeStub {
  public:
-  UnarySubStub() { }
+  InstanceofStub() { }
+
+  void Generate(MacroAssembler* masm);
 
  private:
-  Major MajorKey() { return UnarySub; }
+  Major MajorKey() { return Instanceof; }
   int MinorKey() { return 0; }
+};
+
+
+class UnarySubStub : public CodeStub {
+ public:
+  explicit UnarySubStub(bool overwrite)
+      : overwrite_(overwrite) { }
+
+ private:
+  bool overwrite_;
+  Major MajorKey() { return UnarySub; }
+  int MinorKey() { return overwrite_ ? 1 : 0; }
   void Generate(MacroAssembler* masm);
 
   const char* GetName() { return "UnarySubStub"; }

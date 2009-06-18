@@ -86,6 +86,7 @@ function TickProcessor(
   // Count each tick as a time unit.
   this.viewBuilder_ = new devtools.profiler.ViewBuilder(1);
   this.lastLogFileName_ = null;
+  this.aliases_ = {};
 };
 
 
@@ -116,13 +117,13 @@ TickProcessor.RecordsDispatch = {
   'code-delete': { parsers: [parseInt], processor: 'processCodeDelete' },
   'tick': { parsers: [parseInt, parseInt, parseInt, 'var-args'],
             processor: 'processTick' },
+  'alias': { parsers: [null, null], processor: 'processAlias' },
   'profiler': null,
   // Obsolete row types.
   'code-allocate': null,
   'begin-code-region': null,
   'end-code-region': null
 };
-
 
 TickProcessor.CALL_PROFILE_CUTOFF_PCT = 2.0;
 
@@ -218,8 +219,21 @@ TickProcessor.prototype.processSharedLibrary = function(
 };
 
 
+TickProcessor.prototype.processAlias = function(symbol, expansion) {
+  if (expansion in TickProcessor.RecordsDispatch) {
+    TickProcessor.RecordsDispatch[symbol] =
+      TickProcessor.RecordsDispatch[expansion];
+  } else {
+    this.aliases_[symbol] = expansion;
+  }
+};
+
+
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
+  if (type in this.aliases_) {
+    type = this.aliases_[type];
+  }
   var entry = this.profile_.addCode(type, name, start, size);
 };
 
@@ -248,11 +262,17 @@ TickProcessor.prototype.processTick = function(pc, sp, vmState, stack) {
   }
 
   var fullStack = [pc];
+  var prevFrame = pc;
   for (var i = 0, n = stack.length; i < n; ++i) {
     var frame = stack[i];
+    var firstChar = frame.charAt(0);
     // Leave only numbers starting with 0x. Filter possible 'overflow' string.
-    if (frame.charAt(0) == '0') {
+    if (firstChar == '0') {
       fullStack.push(parseInt(frame, 16));
+    } else if (firstChar == '+' || firstChar == '-') {
+      // An offset from the previous frame.
+      prevFrame += parseInt(frame, 16);
+      fullStack.push(prevFrame);
     }
   }
   this.profile_.recordTick(fullStack);

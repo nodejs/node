@@ -174,14 +174,8 @@ void VirtualFrame::SyncRange(int begin, int end) {
 }
 
 
-void VirtualFrame::MakeMergable(int mergable_elements) {
-  if (mergable_elements == JumpTarget::kAllElements) {
-    mergable_elements = element_count();
-  }
-  ASSERT(mergable_elements <= element_count());
-
-  int start_index = element_count() - mergable_elements;
-  for (int i = start_index; i < element_count(); i++) {
+void VirtualFrame::MakeMergable() {
+  for (int i = 0; i < element_count(); i++) {
     FrameElement element = elements_[i];
 
     if (element.is_constant() || element.is_copy()) {
@@ -775,14 +769,10 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
 void VirtualFrame::PushTryHandler(HandlerType type) {
   ASSERT(cgen()->HasValidEntryRegisters());
-  // Grow the expression stack by handler size less two (the return address
-  // is already pushed by a call instruction, and PushTryHandler from the
-  // macro assembler will leave the top of stack in the eax register to be
-  // pushed separately).
-  Adjust(kHandlerSize - 2);
+  // Grow the expression stack by handler size less one (the return
+  // address is already pushed by a call instruction).
+  Adjust(kHandlerSize - 1);
   __ PushTryHandler(IN_JAVASCRIPT, type);
-  // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
-  EmitPush(eax);
 }
 
 

@@ -2416,6 +2416,19 @@ static Object* Runtime_NumberToRadixString(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
+  // Fast case where the result is a one character string.
+  if (args[0]->IsSmi() && args[1]->IsSmi()) {
+    int value = Smi::cast(args[0])->value();
+    int radix = Smi::cast(args[1])->value();
+    if (value >= 0 && value < radix) {
+      RUNTIME_ASSERT(radix <= 36);
+      // Character array used for conversion.
+      static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+      return Heap::LookupSingleCharacterStringFromCode(kCharTable[value]);
+    }
+  }
+
+  // Slow case.
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
     return Heap::AllocateStringFromAscii(CStrVector("NaN"));
@@ -4168,24 +4181,6 @@ static Object* Runtime_Math_pow(Arguments args) {
   }
 }
 
-// Returns a number value with positive sign, greater than or equal to
-// 0 but less than 1, chosen randomly.
-static Object* Runtime_Math_random(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  // To get much better precision, we combine the results of two
-  // invocations of random(). The result is computed by normalizing a
-  // double in the range [0, RAND_MAX + 1) obtained by adding the
-  // high-order bits in the range [0, RAND_MAX] with the low-order
-  // bits in the range [0, 1).
-  double lo = static_cast<double>(random()) * (1.0 / (RAND_MAX + 1.0));
-  double hi = static_cast<double>(random());
-  double result = (hi + lo) * (1.0 / (RAND_MAX + 1.0));
-  ASSERT(result >= 0 && result < 1);
-  return Heap::AllocateHeapNumber(result);
-}
-
 
 static Object* Runtime_Math_round(Arguments args) {
   NoHandleAllocation ha;
@@ -4821,8 +4816,8 @@ static Object* Runtime_DebugPrint(Arguments args) {
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it;
     JavaScriptFrame* frame = it.frame();
-    PrintF("fp = %p, sp = %p, pp = %p: ",
-           frame->fp(), frame->sp(), frame->pp());
+    PrintF("fp = %p, sp = %p, caller_sp = %p: ",
+           frame->fp(), frame->sp(), frame->caller_sp());
   } else {
     PrintF("DebugPrint: ");
   }
@@ -6106,6 +6101,405 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
 }
 
 
+// Copy all the context locals into an object used to materialize a scope.
+static void CopyContextLocalsToScopeObject(Handle<Code> code,
+                                           ScopeInfo<>& scope_info,
+                                           Handle<Context> context,
+                                           Handle<JSObject> scope_object) {
+  // Fill all context locals to the context extension.
+  for (int i = Context::MIN_CONTEXT_SLOTS;
+       i < scope_info.number_of_context_slots();
+       i++) {
+    int context_index =
+        ScopeInfo<>::ContextSlotIndex(*code,
+                                      *scope_info.context_slot_name(i),
+                                      NULL);
+
+    // Don't include the arguments shadow (.arguments) context variable.
+    if (*scope_info.context_slot_name(i) != Heap::arguments_shadow_symbol()) {
+      SetProperty(scope_object,
+                  scope_info.context_slot_name(i),
+                  Handle<Object>(context->get(context_index)), NONE);
+    }
+  }
+}
+
+
+// Create a plain JSObject which materializes the local scope for the specified
+// frame.
+static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
+  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<Code> code(function->code());
+  ScopeInfo<> scope_info(*code);
+
+  // Allocate and initialize a JSObject with all the arguments, stack locals
+  // heap locals and extension properties of the debugged function.
+  Handle<JSObject> local_scope = Factory::NewJSObject(Top::object_function());
+
+  // First fill all parameters.
+  for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
+    SetProperty(local_scope,
+                scope_info.parameter_name(i),
+                Handle<Object>(frame->GetParameter(i)), NONE);
+  }
+
+  // Second fill all stack locals.
+  for (int i = 0; i < scope_info.number_of_stack_slots(); i++) {
+    SetProperty(local_scope,
+                scope_info.stack_slot_name(i),
+                Handle<Object>(frame->GetExpression(i)), NONE);
+  }
+
+  // Third fill all context locals.
+  Handle<Context> frame_context(Context::cast(frame->context()));
+  Handle<Context> function_context(frame_context->fcontext());
+  CopyContextLocalsToScopeObject(code, scope_info,
+                                 function_context, local_scope);
+
+  // Finally copy any properties from the function context extension. This will
+  // be variables introduced by eval.
+  if (function_context->closure() == *function) {
+    if (function_context->has_extension() &&
+        !function_context->IsGlobalContext()) {
+      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+      Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);
+      for (int i = 0; i < keys->length(); i++) {
+        // Names of variables introduced by eval are strings.
+        ASSERT(keys->get(i)->IsString());
+        Handle<String> key(String::cast(keys->get(i)));
+        SetProperty(local_scope, key, GetProperty(ext, key), NONE);
+      }
+    }
+  }
+  return local_scope;
+}
+
+
+// Create a plain JSObject which materializes the closure content for the
+// context.
+static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
+  ASSERT(context->is_function_context());
+
+  Handle<Code> code(context->closure()->code());
+  ScopeInfo<> scope_info(*code);
+
+  // Allocate and initialize a JSObject with all the content of theis function
+  // closure.
+  Handle<JSObject> closure_scope = Factory::NewJSObject(Top::object_function());
+
+  // Check whether the arguments shadow object exists.
+  int arguments_shadow_index =
+      ScopeInfo<>::ContextSlotIndex(*code,
+                                    Heap::arguments_shadow_symbol(),
+                                    NULL);
+  if (arguments_shadow_index >= 0) {
+    // In this case all the arguments are available in the arguments shadow
+    // object.
+    Handle<JSObject> arguments_shadow(
+        JSObject::cast(context->get(arguments_shadow_index)));
+    for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
+      SetProperty(closure_scope,
+                  scope_info.parameter_name(i),
+                  Handle<Object>(arguments_shadow->GetElement(i)), NONE);
+    }
+  }
+
+  // Fill all context locals to the context extension.
+  CopyContextLocalsToScopeObject(code, scope_info, context, closure_scope);
+
+  // Finally copy any properties from the function context extension. This will
+  // be variables introduced by eval.
+  if (context->has_extension()) {
+    Handle<JSObject> ext(JSObject::cast(context->extension()));
+    Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);
+    for (int i = 0; i < keys->length(); i++) {
+      // Names of variables introduced by eval are strings.
+      ASSERT(keys->get(i)->IsString());
+      Handle<String> key(String::cast(keys->get(i)));
+      SetProperty(closure_scope, key, GetProperty(ext, key), NONE);
+    }
+  }
+
+  return closure_scope;
+}
+
+
+// Iterate over the actual scopes visible from a stack frame. All scopes are
+// backed by an actual context except the local scope, which is inserted
+// "artifically" in the context chain.
+class ScopeIterator {
+ public:
+  enum ScopeType {
+    ScopeTypeGlobal = 0,
+    ScopeTypeLocal,
+    ScopeTypeWith,
+    ScopeTypeClosure
+  };
+
+  explicit ScopeIterator(JavaScriptFrame* frame)
+    : frame_(frame),
+      function_(JSFunction::cast(frame->function())),
+      context_(Context::cast(frame->context())),
+      local_done_(false),
+      at_local_(false) {
+
+    // Check whether the first scope is actually a local scope.
+    if (context_->IsGlobalContext()) {
+      // If there is a stack slot for .result then this local scope has been
+      // created for evaluating top level code and it is not a real local scope.
+      // Checking for the existence of .result seems fragile, but the scope info
+      // saved with the code object does not otherwise have that information.
+      Handle<Code> code(function_->code());
+      int index = ScopeInfo<>::StackSlotIndex(*code, Heap::result_symbol());
+      at_local_ = index < 0;
+    } else if (context_->is_function_context()) {
+      at_local_ = true;
+    }
+  }
+
+  // More scopes?
+  bool Done() { return context_.is_null(); }
+
+  // Move to the next scope.
+  void Next() {
+    // If at a local scope mark the local scope as passed.
+    if (at_local_) {
+      at_local_ = false;
+      local_done_ = true;
+
+      // If the current context is not associated with the local scope the
+      // current context is the next real scope, so don't move to the next
+      // context in this case.
+      if (context_->closure() != *function_) {
+        return;
+      }
+    }
+
+    // The global scope is always the last in the chain.
+    if (context_->IsGlobalContext()) {
+      context_ = Handle<Context>();
+      return;
+    }
+
+    // Move to the next context.
+    if (context_->is_function_context()) {
+      context_ = Handle<Context>(Context::cast(context_->closure()->context()));
+    } else {
+      context_ = Handle<Context>(context_->previous());
+    }
+
+    // If passing the local scope indicate that the current scope is now the
+    // local scope.
+    if (!local_done_ &&
+        (context_->IsGlobalContext() || (context_->is_function_context()))) {
+      at_local_ = true;
+    }
+  }
+
+  // Return the type of the current scope.
+  int Type() {
+    if (at_local_) {
+      return ScopeTypeLocal;
+    }
+    if (context_->IsGlobalContext()) {
+      ASSERT(context_->global()->IsGlobalObject());
+      return ScopeTypeGlobal;
+    }
+    if (context_->is_function_context()) {
+      return ScopeTypeClosure;
+    }
+    ASSERT(context_->has_extension());
+    ASSERT(!context_->extension()->IsJSContextExtensionObject());
+    return ScopeTypeWith;
+  }
+
+  // Return the JavaScript object with the content of the current scope.
+  Handle<JSObject> ScopeObject() {
+    switch (Type()) {
+      case ScopeIterator::ScopeTypeGlobal:
+        return Handle<JSObject>(CurrentContext()->global());
+        break;
+      case ScopeIterator::ScopeTypeLocal:
+        // Materialize the content of the local scope into a JSObject.
+        return MaterializeLocalScope(frame_);
+        break;
+      case ScopeIterator::ScopeTypeWith:
+        // Return the with object.
+        return Handle<JSObject>(CurrentContext()->extension());
+        break;
+      case ScopeIterator::ScopeTypeClosure:
+        // Materialize the content of the closure scope into a JSObject.
+        return MaterializeClosure(CurrentContext());
+        break;
+    }
+    UNREACHABLE();
+    return Handle<JSObject>();
+  }
+
+  // Return the context for this scope. For the local context there might not
+  // be an actual context.
+  Handle<Context> CurrentContext() {
+    if (at_local_ && context_->closure() != *function_) {
+      return Handle<Context>();
+    }
+    return context_;
+  }
+
+#ifdef DEBUG
+  // Debug print of the content of the current scope.
+  void DebugPrint() {
+    switch (Type()) {
+      case ScopeIterator::ScopeTypeGlobal:
+        PrintF("Global:\n");
+        CurrentContext()->Print();
+        break;
+
+      case ScopeIterator::ScopeTypeLocal: {
+        PrintF("Local:\n");
+        Handle<Code> code(function_->code());
+        ScopeInfo<> scope_info(*code);
+        scope_info.Print();
+        if (!CurrentContext().is_null()) {
+          CurrentContext()->Print();
+          if (CurrentContext()->has_extension()) {
+            Handle<JSObject> extension =
+                Handle<JSObject>(CurrentContext()->extension());
+            if (extension->IsJSContextExtensionObject()) {
+              extension->Print();
+            }
+          }
+        }
+        break;
+      }
+
+      case ScopeIterator::ScopeTypeWith: {
+        PrintF("With:\n");
+        Handle<JSObject> extension =
+            Handle<JSObject>(CurrentContext()->extension());
+        extension->Print();
+        break;
+      }
+
+      case ScopeIterator::ScopeTypeClosure: {
+        PrintF("Closure:\n");
+        CurrentContext()->Print();
+        if (CurrentContext()->has_extension()) {
+          Handle<JSObject> extension =
+              Handle<JSObject>(CurrentContext()->extension());
+          if (extension->IsJSContextExtensionObject()) {
+            extension->Print();
+          }
+        }
+        break;
+      }
+
+      default:
+        UNREACHABLE();
+    }
+    PrintF("\n");
+  }
+#endif
+
+ private:
+  JavaScriptFrame* frame_;
+  Handle<JSFunction> function_;
+  Handle<Context> context_;
+  bool local_done_;
+  bool at_local_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
+};
+
+
+static Object* Runtime_GetScopeCount(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+
+  // Check arguments.
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
+  CONVERT_CHECKED(Smi, wrapped_id, args[1]);
+
+  // Get the frame where the debugging is performed.
+  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  JavaScriptFrameIterator it(id);
+  JavaScriptFrame* frame = it.frame();
+
+  // Count the visible scopes.
+  int n = 0;
+  for (ScopeIterator it(frame); !it.Done(); it.Next()) {
+    n++;
+  }
+
+  return Smi::FromInt(n);
+}
+
+
+static const int kScopeDetailsTypeIndex = 0;
+static const int kScopeDetailsObjectIndex = 1;
+static const int kScopeDetailsSize = 2;
+
+// Return an array with scope details
+// args[0]: number: break id
+// args[1]: number: frame index
+// args[2]: number: scope index
+//
+// The array returned contains the following information:
+// 0: Scope type
+// 1: Scope object
+static Object* Runtime_GetScopeDetails(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+
+  // Check arguments.
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
+  CONVERT_CHECKED(Smi, wrapped_id, args[1]);
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[2]);
+
+  // Get the frame where the debugging is performed.
+  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  JavaScriptFrameIterator frame_it(id);
+  JavaScriptFrame* frame = frame_it.frame();
+
+  // Find the requested scope.
+  int n = 0;
+  ScopeIterator it(frame);
+  for (; !it.Done() && n < index; it.Next()) {
+    n++;
+  }
+  if (it.Done()) {
+    return Heap::undefined_value();
+  }
+
+  // Calculate the size of the result.
+  int details_size = kScopeDetailsSize;
+  Handle<FixedArray> details = Factory::NewFixedArray(details_size);
+
+  // Fill in scope details.
+  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
+  details->set(kScopeDetailsObjectIndex, *it.ScopeObject());
+
+  return *Factory::NewJSArrayWithElements(details);
+}
+
+
+static Object* Runtime_DebugPrintScopes(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 0);
+
+#ifdef DEBUG
+  // Print the scopes for the top frame.
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  for (ScopeIterator it(frame); !it.Done(); it.Next()) {
+    it.DebugPrint();
+  }
+#endif
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_GetCFrames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
@@ -6568,54 +6962,17 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   ASSERT(go_between_sinfo.number_of_context_slots() == 0);
 #endif
 
-  // Allocate and initialize a context extension object with all the
-  // arguments, stack locals heap locals and extension properties of the
-  // debugged function.
-  Handle<JSObject> context_ext = Factory::NewJSObject(Top::object_function());
-  // First fill all parameters to the context extension.
-  for (int i = 0; i < sinfo.number_of_parameters(); ++i) {
-    SetProperty(context_ext,
-                sinfo.parameter_name(i),
-                Handle<Object>(frame->GetParameter(i)), NONE);
-  }
-  // Second fill all stack locals to the context extension.
-  for (int i = 0; i < sinfo.number_of_stack_slots(); i++) {
-    SetProperty(context_ext,
-                sinfo.stack_slot_name(i),
-                Handle<Object>(frame->GetExpression(i)), NONE);
-  }
-  // Third fill all context locals to the context extension.
-  Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->fcontext());
-  for (int i = Context::MIN_CONTEXT_SLOTS;
-       i < sinfo.number_of_context_slots();
-       ++i) {
-    int context_index =
-        ScopeInfo<>::ContextSlotIndex(*code, *sinfo.context_slot_name(i), NULL);
-    SetProperty(context_ext,
-                sinfo.context_slot_name(i),
-                Handle<Object>(function_context->get(context_index)), NONE);
-  }
-  // Finally copy any properties from the function context extension. This will
-  // be variables introduced by eval.
-  if (function_context->has_extension() &&
-      !function_context->IsGlobalContext()) {
-    Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-    Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);
-    for (int i = 0; i < keys->length(); i++) {
-      // Names of variables introduced by eval are strings.
-      ASSERT(keys->get(i)->IsString());
-      Handle<String> key(String::cast(keys->get(i)));
-      SetProperty(context_ext, key, GetProperty(ext, key), NONE);
-    }
-  }
+  // Materialize the content of the local scope into a JSObject.
+  Handle<JSObject> local_scope = MaterializeLocalScope(frame);
 
   // Allocate a new context for the debug evaluation and set the extension
   // object build.
   Handle<Context> context =
       Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, go_between);
-  context->set_extension(*context_ext);
+  context->set_extension(*local_scope);
   // Copy any with contexts present and chain them in front of this context.
+  Handle<Context> frame_context(Context::cast(frame->context()));
+  Handle<Context> function_context(frame_context->fcontext());
   context = CopyWithContextChain(frame_context, context);
 
   // Wrap the evaluation statement in a new function compiled in the newly
@@ -6657,6 +7014,13 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Execution::Call(Handle<JSFunction>::cast(evaluation_function), receiver,
                       argc, argv, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
+
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (result->IsJSGlobalProxy()) {
+    result = Handle<JSObject>(JSObject::cast(result->GetPrototype()));
+  }
+
   return *result;
 }
 

@@ -585,3 +585,10 @@ function testShiftNonSmis() {
 }
 
 testShiftNonSmis();
+
+
+// Verify that we handle the (optimized) corner case of shifting by
+// zero even for non-smis.
+function shiftByZero(n) { return n << 0; }
+
+assertEquals(3, shiftByZero(3.1415));

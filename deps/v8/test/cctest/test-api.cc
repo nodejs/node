@@ -551,6 +551,7 @@ THREADED_TEST(UsingExternalString) {
     CHECK(isymbol->IsSymbol());
   }
   i::Heap::CollectAllGarbage();
+  i::Heap::CollectAllGarbage();
 }
 
 
@@ -567,6 +568,7 @@ THREADED_TEST(UsingExternalAsciiString) {
     i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
+  i::Heap::CollectAllGarbage();
   i::Heap::CollectAllGarbage();
 }
 
@@ -2281,7 +2283,7 @@ static v8::Handle<Value> XPropertyGetter(Local<String> property,
 }
 
 
-THREADED_TEST(NamedInterceporPropertyRead) {
+THREADED_TEST(NamedInterceptorPropertyRead) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetNamedPropertyHandler(XPropertyGetter);
@@ -2293,6 +2295,58 @@ THREADED_TEST(NamedInterceporPropertyRead) {
     CHECK_EQ(result, v8_str("x"));
   }
 }
+
+
+static v8::Handle<Value> IndexedPropertyGetter(uint32_t index,
+                                               const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index == 37) {
+    return v8::Handle<Value>(v8_num(625));
+  }
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> IndexedPropertySetter(uint32_t index,
+                                               Local<Value> value,
+                                               const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index == 39) {
+    return value;
+  }
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IndexedPropertyGetter,
+                                   IndexedPropertySetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  Local<Script> getter_script = Script::Compile(v8_str(
+      "obj.__defineGetter__(\"3\", function(){return 5;});obj[3];"));
+  Local<Script> setter_script = Script::Compile(v8_str(
+      "obj.__defineSetter__(\"17\", function(val){this.foo = val;});"
+      "obj[17] = 23;"
+      "obj.foo;"));
+  Local<Script> interceptor_setter_script = Script::Compile(v8_str(
+      "obj.__defineSetter__(\"39\", function(val){this.foo = \"hit\";});"
+      "obj[39] = 47;"
+      "obj.foo;"));  // This setter should not run, due to the interceptor.
+  Local<Script> interceptor_getter_script = Script::Compile(v8_str(
+      "obj[37];"));
+  Local<Value> result = getter_script->Run();
+  CHECK_EQ(v8_num(5), result);
+  result = setter_script->Run();
+  CHECK_EQ(v8_num(23), result);
+  result = interceptor_setter_script->Run();
+  CHECK_EQ(v8_num(23), result);
+  result = interceptor_getter_script->Run();
+  CHECK_EQ(v8_num(625), result);
+}
+
 
 THREADED_TEST(MultiContexts) {
   v8::HandleScope scope;
@@ -2742,14 +2796,17 @@ static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
   CHECK_EQ(v8::Undefined(), message->GetScriptResourceName());
   message->GetLineNumber();
   message->GetSourceLine();
+  message_received = true;
 }
 
 
 THREADED_TEST(ErrorWithMissingScriptInfo) {
+  message_received = false;
   v8::HandleScope scope;
   LocalContext context;
   v8::V8::AddMessageListener(MissingScriptInfoMessageListener);
   Script::Compile(v8_str("throw Error()"))->Run();
+  CHECK(message_received);
   v8::V8::RemoveMessageListeners(MissingScriptInfoMessageListener);
 }
 
@@ -5006,6 +5063,22 @@ THREADED_TEST(InterceptorStoreIC) {
     "  o.x = 42;"
     "}");
 }
+
+
+THREADED_TEST(InterceptorStoreICWithNoSetter) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.y = 239;"
+    "}"
+    "42 + o.y");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
 
 
 

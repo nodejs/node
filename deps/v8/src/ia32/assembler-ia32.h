@@ -658,6 +658,8 @@ class Assembler : public Malloced {
 
   void fabs();
   void fchs();
+  void fcos();
+  void fsin();
 
   void fadd(int i);
   void fsub(int i);

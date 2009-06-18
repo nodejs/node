@@ -131,6 +131,8 @@ namespace internal {
   SC(named_load_inline, V8.NamedLoadInline)                         \
   SC(named_load_inline_miss, V8.NamedLoadInlineMiss)                \
   SC(keyed_store_field, V8.KeyedStoreField)                         \
+  SC(keyed_store_inline, V8.KeyedStoreInline)                       \
+  SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)              \
   SC(for_in, V8.ForIn)                                              \
   SC(enum_cache_hits, V8.EnumCacheHits)                             \
   SC(enum_cache_misses, V8.EnumCacheMisses)                         \

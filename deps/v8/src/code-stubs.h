@@ -41,6 +41,8 @@ class CodeStub BASE_EMBEDDED {
     SmiOp,
     Compare,
     RecordWrite,  // Last stub that allows stub calls inside.
+    ConvertToDouble,
+    WriteInt32ToHeapNumber,
     StackCheck,
     UnarySub,
     RevertToNumber,

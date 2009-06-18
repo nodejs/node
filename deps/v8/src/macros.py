@@ -60,6 +60,7 @@ const msPerSecond      = 1000;
 const msPerMinute      = 60000;
 const msPerHour        = 3600000;
 const msPerDay         = 86400000;
+const msPerMonth       = 2592000000;
 
 # For apinatives.js
 const kUninitialized = -1;

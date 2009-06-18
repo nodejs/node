@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
@@ -352,10 +352,15 @@ class SCTableReference;
 class Debug_Address;
 #endif
 
-// An ExternalReference represents a C++ address called from the generated
-// code. All references to C++ functions and must be encapsulated in an
-// ExternalReference instance. This is done in order to track the origin of
-// all external references in the code.
+
+typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
+
+
+// An ExternalReference represents a C++ address used in the generated
+// code. All references to C++ functions and variables must be encapsulated in
+// an ExternalReference instance. This is done in order to track the origin of
+// all external references in the code so that they can be bound to the correct
+// addresses when deserializing a heap.
 class ExternalReference BASE_EMBEDDED {
  public:
   explicit ExternalReference(Builtins::CFunctionId id);
@@ -382,7 +387,9 @@ class ExternalReference BASE_EMBEDDED {
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.
 
+  static ExternalReference perform_gc_function();
   static ExternalReference builtin_passed_function();
+  static ExternalReference random_positive_smi_function();
 
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
@@ -403,7 +410,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference double_fp_operation(Token::Value operation);
 
-  Address address() const {return address_;}
+  Address address() const {return reinterpret_cast<Address>(address_);}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Function Debug::Break()
@@ -413,11 +420,30 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference debug_step_in_fp_address();
 #endif
 
+  // This lets you register a function that rewrites all external references.
+  // Used by the ARM simulator to catch calls to external references.
+  static void set_redirector(ExternalReferenceRedirector* redirector) {
+    ASSERT(redirector_ == NULL);  // We can't stack them.
+    redirector_ = redirector;
+  }
+
  private:
   explicit ExternalReference(void* address)
-    : address_(reinterpret_cast<Address>(address)) {}
+      : address_(address) {}
 
-  Address address_;
+  static ExternalReferenceRedirector* redirector_;
+
+  static void* Redirect(void* address, bool fp_return = false) {
+    if (redirector_ == NULL) return address;
+    return (*redirector_)(address, fp_return);
+  }
+
+  static void* Redirect(Address address_arg, bool fp_return = false) {
+    void* address = reinterpret_cast<void*>(address_arg);
+    return redirector_ == NULL ? address : (*redirector_)(address, fp_return);
+  }
+
+  void* address_;
 };
 
 

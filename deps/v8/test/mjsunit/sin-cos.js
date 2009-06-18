@@ -25,32 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test Math.sin and Math.cos.
 
-#ifndef V8_IA32_CODEGEN_IA32_INL_H_
-#define V8_IA32_CODEGEN_IA32_INL_H_
+var input_sin = [0, Math.PI / 2];
+var input_cos = [0, Math.PI];
 
-namespace v8 {
-namespace internal {
+var output_sin = input_sin.map(Math.sin);
+var output_cos = input_cos.map(Math.cos);
 
-#define __ ACCESS_MASM(masm_)
+var expected_sin = [0, 1];
+var expected_cos = [1, -1];
 
-// Platform-specific inline functions.
+assertArrayEquals(expected_sin, output_sin, "sine");
+assertArrayEquals(expected_cos, output_cos, "cosine");
 
-void DeferredCode::Jump() { __ jmp(&entry_label_); }
-void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
-
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(SIN, args);
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(COS, args);
-}
-
-
-#undef __
-
-} }  // namespace v8::internal
-
-#endif  // V8_IA32_CODEGEN_IA32_INL_H_
+// By accident, the slow case for sine and cosine were both sine at
+// some point.  This is a regression test for that issue.
+var x = Math.pow(2, 70);
+assertTrue(Math.sin(x) != Math.cos(x));

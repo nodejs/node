@@ -1162,7 +1162,27 @@ class HeapNumber: public HeapObject {
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
+  // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
+  // is a mixture of sign, exponent and mantissa.  Our current platforms are all
+  // little endian apart from non-EABI arm which is little endian with big
+  // endian floating point word ordering!
+#if !defined(V8_HOST_ARCH_ARM) || __ARM_EABI__
+  static const int kMantissaOffset = kValueOffset;
+  static const int kExponentOffset = kValueOffset + 4;
+#else
+  static const int kMantissaOffset = kValueOffset + 4;
+  static const int kExponentOffset = kValueOffset;
+# define BIG_ENDIAN_FLOATING_POINT 1
+#endif
   static const int kSize = kValueOffset + kDoubleSize;
+
+  static const uint32_t kSignMask = 0x80000000u;
+  static const uint32_t kExponentMask = 0x7ff00000u;
+  static const uint32_t kMantissaMask = 0xfffffu;
+  static const int kExponentBias = 1023;
+  static const int kExponentShift = 20;
+  static const int kMantissaBitsInTopWord = 20;
+  static const int kNonMantissaBitsInTopWord = 12;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
@@ -1518,7 +1538,7 @@ class JSObject: public HeapObject {
 
  private:
   Object* SetElementWithInterceptor(uint32_t index, Object* value);
-  Object* SetElementPostInterceptor(uint32_t index, Object* value);
+  Object* SetElementWithoutInterceptor(uint32_t index, Object* value);
 
   Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
@@ -2470,7 +2490,7 @@ class Map: public HeapObject {
     return ((1 << kIsHiddenPrototype) & bit_field()) != 0;
   }
 
-  // Tells whether the instance has a named interceptor.
+  // Records and queries whether the instance has a named interceptor.
   inline void set_has_named_interceptor() {
     set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
   }
@@ -2479,7 +2499,7 @@ class Map: public HeapObject {
     return ((1 << kHasNamedInterceptor) & bit_field()) != 0;
   }
 
-  // Tells whether the instance has a named interceptor.
+  // Records and queries whether the instance has an indexed interceptor.
   inline void set_has_indexed_interceptor() {
     set_bit_field(bit_field() | (1 << kHasIndexedInterceptor));
   }
@@ -4008,10 +4028,9 @@ class JSArray: public JSObject {
 // If an accessor was found and it does not have a setter,
 // the request is ignored.
 //
-// To allow shadow an accessor property, the accessor can
-// have READ_ONLY property attribute so that a new value
-// is added to the local object to shadow the accessor
-// in prototypes.
+// If the accessor in the prototype has the READ_ONLY property attribute, then
+// a new value is added to the local object when the property is set.
+// This shadows the accessor in the prototype.
 class AccessorInfo: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)

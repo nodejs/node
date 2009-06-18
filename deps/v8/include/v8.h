@@ -212,9 +212,9 @@ template <class T> class V8EXPORT_INLINE Handle {
    */
   bool IsEmpty() const { return val_ == 0; }
 
-  T* operator->() const;
+  T* operator->() const { return val_; }
 
-  T* operator*() const;
+  T* operator*() const { return val_; }
 
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
@@ -2508,18 +2508,6 @@ template <class T>
 void Persistent<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<void**>(**this));
 }
-
-template <class T>
-T* Handle<T>::operator->() const {
-  return val_;
-}
-
-
-template <class T>
-T* Handle<T>::operator*() const {
-  return val_;
-}
-
 
 Local<Value> Arguments::operator[](int i) const {
   if (i < 0 || length_ <= i) return Local<Value>(*Undefined());
