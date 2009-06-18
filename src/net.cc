@@ -243,7 +243,8 @@ Connection::Resolve (eio_req *req)
 {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
-  req->result = getaddrinfo(connection->host_, connection->port_, &client_tcp_hints, &address);
+  req->result = getaddrinfo(connection->host_, connection->port_, 
+                            &client_tcp_hints, &address);
   req->ptr2 = address;
 
   free(connection->host_);
@@ -264,29 +265,11 @@ AddressDefaultToIPv4 (struct addrinfo *address_list)
 {
   struct addrinfo *address = NULL;
 
-/*
-  char ip4[INET_ADDRSTRLEN], ip6[INET6_ADDRSTRLEN];
-  for (address = address_list; address != NULL; address = address->ai_next) {
-    if (address->ai_family == AF_INET) {
-      struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in*>(address->ai_addr);
-      inet_ntop(AF_INET, &(sa->sin_addr), ip4, INET_ADDRSTRLEN);
-      printf("%s\n", ip4);
-
-    } else if (address->ai_family == AF_INET6) {
-      struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6*>(address->ai_addr);
-      inet_ntop(AF_INET6, &(sa6->sin6_addr), ip6, INET6_ADDRSTRLEN);
-      printf("%s\n", ip6);
-    }
-  }
-*/
-
   for (address = address_list; address != NULL; address = address->ai_next) {
     if (address->ai_addr->sa_family == AF_INET) break;
   }
 
-  if (address == NULL) address = address_list;
-
-  return address;
+  return address == NULL ? address_list : address;
 }
 
 int
