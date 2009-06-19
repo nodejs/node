@@ -303,9 +303,7 @@ Load (int argc, char *argv[])
 
   Timer::Initialize(node_obj);
 
-  Local<Object> constants = Object::New();
-  node_obj->Set(String::NewSymbol("constants"), constants);
-  DefineConstants(constants);
+  DefineConstants(node_obj);
 
   Local<Object> fs = Object::New();
   node_obj->Set(String::NewSymbol("fs"), fs);
