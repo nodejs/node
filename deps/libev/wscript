@@ -56,4 +56,5 @@ def build(bld):
   libev.install_path = None
   if bld.env["USE_DEBUG"]:
     libev.clone("debug");
+  bld.install_files('${PREFIX}/include/node/', 'ev.h');
 

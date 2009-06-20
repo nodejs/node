@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <assert.h>
+#include <dlfcn.h> /* dlopen(), dlsym() */
 
 #include <string>
 #include <list>
@@ -97,6 +98,36 @@ node_exit (const v8::Arguments& args)
   if (args.Length() > 0)
     r = args[0]->IntegerValue();
   exit(r);
+  return Undefined();
+}
+
+typedef void (*extInit)(Handle<Object> exports);
+
+Handle<Value>
+node_dlopen (const v8::Arguments& args)
+{
+  if (args.Length() < 2) return Undefined();
+
+  HandleScope scope;
+
+  String::Utf8Value filename(args[0]->ToString());
+  Local<Object> target = args[1]->ToObject();
+
+  void *handle = dlopen(*filename, RTLD_LAZY);
+  if (handle == NULL) {
+    ThrowException(String::New("dlopen() failed."));
+    return Undefined();
+  }
+
+  void *init_handle = dlsym(handle, "init");
+  if (init_handle == NULL) {
+    ThrowException(String::New("No 'init' symbol found in module."));
+    return Undefined();
+  }
+  extInit init = reinterpret_cast<extInit>(init_handle);
+
+  init(target);
+
   return Undefined();
 }
 
@@ -206,6 +237,7 @@ Load (int argc, char *argv[])
 
   NODE_SET_METHOD(node_obj, "compile", compile);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
+  NODE_SET_METHOD(node_obj, "dlopen", node_dlopen);
 
   node_obj->Set(String::NewSymbol("EventEmitter"),
               EventEmitter::constructor_template->GetFunction());
@@ -283,7 +315,7 @@ ParseArgs (int *argc, char **argv)
 }
 
 int
-main (int argc, char *argv[])
+node::start (int argc, char *argv[])
 {
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.

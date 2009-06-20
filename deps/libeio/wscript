@@ -113,4 +113,5 @@ def build(bld):
   libeio.install_path = None
   if bld.env["USE_DEBUG"]:
     libeio.clone("debug");
+  bld.install_files('${PREFIX}/include/node/', 'eio.h');
 

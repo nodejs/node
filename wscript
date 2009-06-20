@@ -56,6 +56,7 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
+  conf.check(lib='dl', uselib_store='DL')
   if Options.options.debug:
     conf.check(lib='profiler', uselib_store='PROFILER')
 
@@ -127,6 +128,7 @@ def build_udns(bld):
     #debug.target = join(debug_dir, static_lib)
     bld.env_of_name('debug')["STATICLIB_UDNS"] = "udns"
     bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
+  bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h');
 
 
 def build_v8(bld):
@@ -162,6 +164,8 @@ def build_v8(bld):
     v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
+  bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/v8*');
+
 def build(bld):
   bld.add_subdirs('deps/libeio deps/libev')
 
@@ -178,6 +182,7 @@ def build(bld):
   evcom.install_path = None
   if bld.env["USE_DEBUG"]:
     evcom.clone("debug")
+  bld.install_files('${PREFIX}/include/node/', 'deps/evcom/evcom.h');
 
   ### http_parser
   http_parser = bld.new_task_gen("cc", "staticlib")
@@ -222,10 +227,11 @@ def build(bld):
   if bld.env["USE_DEBUG"]:
     native_cc.clone("debug")
 
-  ### node
-  node = bld.new_task_gen("cxx", "program")
-  node.target = 'node'
-  node.source = """
+  ### node lib
+  libnode = bld.new_task_gen("cxx", "shlib")
+  libnode.name         = "node"
+  libnode.target       = "node"
+  libnode.source = """
     src/node.cc
     src/events.cc
     src/http.cc
@@ -237,7 +243,7 @@ def build(bld):
     src/child_process.cc
     src/constants.cc
   """
-  node.includes = """
+  libnode.includes = """
     src/ 
     deps/v8/include
     deps/libev
@@ -247,11 +253,24 @@ def build(bld):
     deps/http_parser
     deps/coupling
   """
-  node.uselib_local = "evcom ev eio http_parser coupling"
-  node.uselib = "UDNS V8 EXECINFO PROFILER EFENCE"
+  libnode.uselib_local = "evcom ev eio http_parser coupling"
+  libnode.uselib = "UDNS V8 EXECINFO PROFILER EFENCE DL"
+  libnode.install_path = '${PREFIX}/lib'
+  bld.install_files('${PREFIX}/include/node/', 'config.h src/node.h src/object_wrap.h');
+
+  ### node
+  node = bld.new_task_gen("cxx", "program")
+  node.target = 'node'
+  node.source = "src/main.cc"
+  node.includes = libnode.includes
+  node.uselib_local = "node"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 
   if bld.env["USE_DEBUG"]:
-    node.clone("debug")
+    node_g = node.clone("debug")
+    node_g.target = "node_g"
+
+    libnode_g = libnode.clone("debug")
+    libnode_g.target = "node_g"
 
