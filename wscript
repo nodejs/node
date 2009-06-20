@@ -158,6 +158,7 @@ def build(bld):
     src/net.cc
     src/file.cc
     src/timer.cc
+    src/process.cc
     src/constants.cc
   """
   node.includes = """
