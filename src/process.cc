@@ -29,6 +29,7 @@ Process::Initialize (Handle<Object> target)
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Process::Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Process::Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "kill", Process::Kill);
 
   constructor_template->PrototypeTemplate()->SetAccessor(PID_SYMBOL,
                                                          PIDGetter);
@@ -101,13 +102,6 @@ Process::Write (const Arguments& args)
   Process *process = NODE_UNWRAP(Process, args.Holder());
   assert(process);
 
-#if 0
-  if ( connection->ReadyState() != OPEN 
-    && connection->ReadyState() != WRITE_ONLY
-     ) 
-    return ThrowException(String::New("Socket is not open for writing"));
-#endif
-
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
   // oi_bufs for every send which is clearly inefficent - it should use a
@@ -151,6 +145,23 @@ Process::Write (const Arguments& args)
 
   if (process->Write(buf) != 0) {
     return ThrowException(String::New("Pipe already closed"));
+  }
+
+  return Undefined();  
+}
+
+Handle<Value>
+Process::Kill (const Arguments& args)
+{
+  HandleScope scope;
+  Process *process = NODE_UNWRAP(Process, args.Holder());
+  assert(process);
+
+  int sig = SIGTERM;
+  if (args[0]->IsInt32()) sig = args[0]->Int32Value();
+
+  if (process->Kill(sig) != 0) {
+    return ThrowException(String::New("Process already dead"));
   }
 
   return Undefined();  
@@ -451,8 +462,7 @@ Process::OnExit (EV_P_ ev_child *watcher, int revents)
 int
 Process::Write (oi_buf *buf)
 {
-  if (stdin_pipe_[1] < 0 || got_close_)
-    return -1;
+  if (stdin_pipe_[1] < 0 || got_close_) return -1;
   oi_queue_insert_head(&out_stream_, &buf->queue);
   buf->written = 0;
   ev_io_start(EV_DEFAULT_UC_ &stdin_watcher_);
@@ -462,10 +472,15 @@ Process::Write (oi_buf *buf)
 int
 Process::Close ()
 {
-  if (stdin_pipe_[1] < 0 || got_close_)
-    return -1;
+  if (stdin_pipe_[1] < 0 || got_close_) return -1;
   got_close_ = true;
   ev_io_start(EV_DEFAULT_UC_ &stdin_watcher_);
   return 0;
 }
 
+int
+Process::Kill (int sig)
+{
+  if (pid_ == 0) return -1;
+  return kill(pid_, sig);
+}

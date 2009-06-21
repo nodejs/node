@@ -18,6 +18,7 @@ class Process : ObjectWrap {
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
   static v8::Handle<v8::Value> Write (const v8::Arguments& args);
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Kill (const v8::Arguments& args);
   static v8::Handle<v8::Value> PIDGetter (v8::Local<v8::String> _, const v8::AccessorInfo& info);
 
   Process(v8::Handle<v8::Object> handle);
@@ -27,6 +28,7 @@ class Process : ObjectWrap {
   int Spawn (const char *command);
   int Write (oi_buf *buf);
   int Close ();
+  int Kill (int sig);
 
  private:
   static void OnOutput (EV_P_ ev_io *watcher, int revents);
