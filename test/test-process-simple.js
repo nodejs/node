@@ -6,8 +6,10 @@ var response = "";
 var exit_status = -1;
 
 cat.onOutput = function (chunk) {
-  if (chunk) response += chunk;
-  if (response === "hello world") cat.close();
+  if (chunk) {
+    response += chunk;
+    if (response === "hello world") cat.close();
+  }
 };
 cat.onError = function (chunk) {
   assertEquals(null, chunk);
