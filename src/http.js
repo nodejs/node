@@ -66,7 +66,11 @@ node.http.parseUri = function (str) {
     }
   });
   uri.toString = function () { return str; };
-
+  
+  for (var i = o.key.length - 1; i >= 0; i--){
+    if (uri[o.key[i]] == "") delete uri[o.key[i]];
+  };
+  
   return uri;
 };
 
