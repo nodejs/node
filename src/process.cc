@@ -14,6 +14,7 @@ using namespace node;
 #define ON_ERROR_SYMBOL   String::NewSymbol("onError")
 #define ON_OUTPUT_SYMBOL  String::NewSymbol("onOutput")
 #define ON_EXIT_SYMBOL    String::NewSymbol("onExit")
+#define PID_SYMBOL        String::NewSymbol("pid")
 
 Persistent<FunctionTemplate> Process::constructor_template;
 
@@ -28,6 +29,9 @@ Process::Initialize (Handle<Object> target)
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Process::Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Process::Close);
+
+  constructor_template->PrototypeTemplate()->SetAccessor(PID_SYMBOL,
+                                                         PIDGetter);
 
   target->Set(String::NewSymbol("Process"), constructor_template->GetFunction());
 }
@@ -50,6 +54,20 @@ Process::New (const Arguments& args)
   }
 
   return args.This();
+}
+
+Handle<Value>
+Process::PIDGetter (Local<String> _, const AccessorInfo& info)
+{
+  Process *process = NODE_UNWRAP(Process, info.This());
+  assert(process);
+
+  HandleScope scope;
+
+  if (process->pid_ == 0) return Null();
+
+  Local<Integer> pid = Integer::New(process->pid_);
+  return scope.Close(pid);
 }
 
 static void
@@ -189,6 +207,14 @@ Process::~Process ()
 void
 Process::Shutdown () 
 {
+  // Clear the out_stream
+  while (!oi_queue_empty(&out_stream_)) {
+    oi_queue *q = oi_queue_last(&out_stream_);
+    oi_buf *buf = (oi_buf*) oi_queue_data(q, oi_buf, queue);
+    oi_queue_remove(q);
+    if (buf->release) buf->release(buf);
+  }
+
   if (stdout_pipe_[0] >= 0) close(stdout_pipe_[0]);
   if (stdout_pipe_[1] >= 0) close(stdout_pipe_[1]);
 
@@ -260,8 +286,6 @@ Process::Spawn (const char *command)
       return -4;
 
     case 0: // Child.
-      //printf("child process!\n");
-
       close(stdout_pipe_[0]); // close read end 
       dup2(stdout_pipe_[1], STDOUT_FILENO);
 
@@ -270,8 +294,6 @@ Process::Spawn (const char *command)
 
       close(stdin_pipe_[1]); // close write end 
       dup2(stdin_pipe_[0],  STDIN_FILENO);
-
-      //printf("child process!\n");
 
       execl("/bin/sh", "sh", "-c", command, (char *)NULL);
       //execl(_PATH_BSHELL, "sh", "-c", program, (char *)NULL);
