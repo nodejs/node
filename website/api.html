@@ -47,7 +47,11 @@
         </li>
       </ol>
     </li>
-    <li><a href="#modules">Modules</a></li>
+    <li><a href="#modules">Modules</a>
+    <ol>
+      <li><a href="#onload">onLoad</a></li>
+      <li><a href="#onexit">onExit</a></li>
+    </ol>
   </ol>
 </div>
     
@@ -104,6 +108,15 @@
 
     <dt><code>node.exit(code)</code></dt>
     <dd>Immediately ends the process with the specified code.</dd>
+
+    <dt><code>ARGV</code></dt>
+    <dd>An array containing the command line arguments.</dd>
+
+    <dt><code>stdout</code>,
+        <code>stderr</code>, and
+        <code>stdin</code>
+    </dt>
+    <dd>Objects of type <code>node.fs.File</code>. (See below)</dd>
   </dl>
 
   <h2 id="timers">Timers</h2>
@@ -976,24 +989,34 @@ exports.assertEquals = function (expected, found, name_opt) {
     to the file calling <code>include()</code>. 
   </p>
 
+  <p>Alternatively one can use HTTP URLs to load modules. For example,
+
+  <pre>include("http://tinyclouds.org/node/mjsunit.js");</pre>
+
   <p>
     <code>include()</code> inserts the exported objects from the
     specified module into the global namespace.
   </p>
 
+  <h3 id="onload"><code>onLoad</code></h3>
+
   <p>
-    Because file loading does not happen instantaneously, and
-    because Node has a policy of never blocking, the callback
-    <code>onLoad</code> can be set and will notify the user when the
+    Because module loading does not happen instantaneously, and
+    because Node has a policy of never blocking, a callback
+    <code>onLoad</code> can be set that will notify the user when the
     included modules are loaded.  Each file/module can have an
     <code>onLoad</code> callback.
   </p>
 
   <p>
     To export an object, add to the special <code>exports</code>
-    object. The functions <code>fail</code> and
+    object. 
+    The functions <code>fail</code> and
     <code>deepEquals</code> are not exported and remain private to
     the module.
+
+    Alternatively, one can use <code>this</code> instead of
+    <code>exports</code>.
   </p>
 
   <p>
@@ -1010,19 +1033,36 @@ function onLoad () {
 
   <p>
     <code>include()</code> and <code>require()</code> cannot be
-    used after <code>onLoad()</code> is called. So put them at the
-    beginning of your file.
+    used after <code>onLoad()</code> is called. 
+  </p>
+
+  <h3 id="onexit"><code>onExit</code></h3>
+
+  <p>
+    When the program exits a callback <code>onExit()</code> will be
+    called for each module (children first).
   </p>
 
   <p>
-    Additionally when <code>node.exit()</code> is called or when
-    a program exits naturally, the function <code>onExit()</code> will be
-    called for each module (children first).
     The <code>onExit()</code> callback cannot perform I/O as the process is
     going to forcably exit in several microseconds, however it is a good
     hook to perform some constant time checks of the module's state. 
     It's useful for unit tests.
   </p>
+
+<pre>
+include("mjsunit.js");
+
+var timer_executed = false;
+
+setTimeout(function () {
+  timer_executed = true
+}, 1000);
+
+function onExit () {
+  assertTrue(timer_executed);
+}
+</pre>
 
   <p>
     Just to reiterate: <code>onExit()</code>, is not the place to close
