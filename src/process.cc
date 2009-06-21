@@ -164,7 +164,7 @@ Process::Process (Handle<Object> handle)
   ev_init(&stdin_watcher_, Process::OnWritable);
   stdin_watcher_.data = this;
 
-  ev_init(&child_watcher_, Process::OnCHLD);
+  ev_init(&child_watcher_, Process::OnExit);
   child_watcher_.data = this;
 
   stdout_pipe_[0] = -1;
@@ -402,7 +402,7 @@ Process::OnWritable (EV_P_ ev_io *watcher, int revents)
 }
 
 void 
-Process::OnCHLD (EV_P_ ev_child *watcher, int revents)
+Process::OnExit (EV_P_ ev_child *watcher, int revents)
 {
   ev_child_stop(EV_A_ watcher);
   Process *process = static_cast<Process*>(watcher->data);
@@ -412,7 +412,18 @@ Process::OnCHLD (EV_P_ ev_child *watcher, int revents)
   assert(&process->child_watcher_ == watcher);
 
   // Call onExit ( watcher->rstatus )
-  printf("OnCHLD with status %d\n", watcher->rstatus);
+  HandleScope scope;
+  Handle<Value> callback_v = process->handle_->Get(ON_EXIT_SYMBOL);
+
+  if (callback_v->IsFunction()) {
+    Handle<Function> callback = Handle<Function>::Cast(callback_v);
+    TryCatch try_catch;
+    Handle<Value> argv[1] = { Integer::New(watcher->rstatus) };
+    callback->Call(process->handle_, 1, argv);
+    if (try_catch.HasCaught()) FatalException(try_catch);
+  }
+  process->Shutdown();
+  process->Detach();
 }
 
 int

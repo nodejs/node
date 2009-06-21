@@ -31,7 +31,7 @@ class Process : ObjectWrap {
   static void OnOutput (EV_P_ ev_io *watcher, int revents);
   static void OnError (EV_P_ ev_io *watcher, int revents);
   static void OnWritable (EV_P_ ev_io *watcher, int revents);
-  static void OnCHLD (EV_P_ ev_child *watcher, int revents);
+  static void OnExit (EV_P_ ev_child *watcher, int revents);
 
   ev_io stdout_watcher_;
   ev_io stderr_watcher_;
