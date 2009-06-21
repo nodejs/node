@@ -80,8 +80,12 @@ node.Module = function (o) {
   if (o.path.charAt(0) == "/")
     throw "Absolute module paths are not yet supported in Node";
 
-  var dir = o.base_directory || ".";
-  this.filename = node.path.join(dir, o.path);
+  if (o.path.match(/:\/\//)) {
+    this.filename = o.path;
+  } else {
+    var dir = o.base_directory || ".";
+    this.filename = node.path.join(dir, o.path);
+  }
 
   this.loaded = false;
   this.exited = false;
@@ -93,7 +97,7 @@ node.Module.prototype.load = function (callback) {
   if (self.loaded) 
     throw "Module '" + self.filename + "' is already loaded.";
 
-  node.fs.cat(self.filename, "utf8", function (status, content) {
+  node.cat(self.filename, "utf8", function (status, content) {
     if (status != 0) {
       stderr.puts("Error reading " + self.filename);
       node.exit(1);

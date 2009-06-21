@@ -524,7 +524,7 @@ node.http.cat = function(url, encoding, callback) {
   var uri = node.http.parseUri(url)
   var req = new node.http.Client(uri.port || 80, uri.host).get(uri.path || "/")
   req.finish(function(res) {
-    var status = res.statusCode;
+    var status = res.statusCode == 200 ? 0 : -1;
     res.setBodyEncoding(encoding)
     var content = ""
     res.onBody = function(chunk) {

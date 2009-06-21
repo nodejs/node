@@ -15,7 +15,12 @@ server.listen(PORT);
 function onLoad() {
   node.http.cat("http://localhost:"+PORT, "utf8", function(status, content) {
     assertEquals(body, content);
-    assertEquals(200, status)
+    assertEquals(0, status)
     server.close()
+  })
+
+  node.http.cat("http://localhost:"+PORT+1, "utf8", function(status, content) {
+    assertEquals(-1, status)
+    assertEquals(nil, content)
   })
 }

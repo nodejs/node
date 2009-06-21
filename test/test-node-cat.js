@@ -15,7 +15,7 @@ server.listen(PORT);
 function onLoad() {
   node.cat("http://localhost:"+PORT, "utf8", function(status, content) {
     assertEquals(body, content);
-    assertEquals(200, status)
+    assertEquals(0, status)
     server.close()
   })
   
@@ -23,6 +23,7 @@ function onLoad() {
   var fixtures = node.path.join(dirname, "fixtures");
   var x = node.path.join(fixtures, "x.txt");
   node.cat(x, "utf8", function(status, content) {
+    assertEquals(0, status)
     assertEquals("xyz", content.replace(/[\r\n]/, ''))
   })
 }
