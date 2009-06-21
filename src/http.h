@@ -13,6 +13,8 @@ public:
 
   static v8::Persistent<v8::FunctionTemplate> client_constructor_template;
   static v8::Persistent<v8::FunctionTemplate> server_constructor_template;
+
+  virtual size_t size (void) { return sizeof(HTTPConnection); };
   
 protected:
   static v8::Handle<v8::Value> NewClient (const v8::Arguments& args);
@@ -40,6 +42,8 @@ class HTTPServer : public Acceptor {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
+
+  virtual size_t size (void) { return sizeof(HTTPServer); };
 
 protected:
   static v8::Handle<v8::Value> New (const v8::Arguments& args);

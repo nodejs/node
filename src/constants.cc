@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 
 using namespace v8;
 using namespace node;
@@ -427,6 +428,142 @@ node::DefineConstants (Handle<Object> target)
 
 #ifdef EXDEV
   NODE_DEFINE_CONSTANT(target, EXDEV);
+#endif
+
+#ifdef SIGHUP
+  NODE_DEFINE_CONSTANT(target, SIGHUP);
+#endif
+
+#ifdef SIGINT
+  NODE_DEFINE_CONSTANT(target, SIGINT);
+#endif
+
+#ifdef SIGQUIT
+  NODE_DEFINE_CONSTANT(target, SIGQUIT);
+#endif
+
+#ifdef SIGILL
+  NODE_DEFINE_CONSTANT(target, SIGILL);
+#endif
+
+#ifdef SIGTRAP
+  NODE_DEFINE_CONSTANT(target, SIGTRAP);
+#endif
+
+#ifdef SIGABRT
+  NODE_DEFINE_CONSTANT(target, SIGABRT);
+#endif
+
+#ifdef SIGIOT
+  NODE_DEFINE_CONSTANT(target, SIGIOT);
+#endif
+
+#ifdef SIGBUS
+  NODE_DEFINE_CONSTANT(target, SIGBUS);
+#endif
+
+#ifdef SIGFPE
+  NODE_DEFINE_CONSTANT(target, SIGFPE);
+#endif
+
+#ifdef SIGKILL
+  NODE_DEFINE_CONSTANT(target, SIGKILL);
+#endif
+
+#ifdef SIGUSR1
+  NODE_DEFINE_CONSTANT(target, SIGUSR1);
+#endif
+
+#ifdef SIGSEGV
+  NODE_DEFINE_CONSTANT(target, SIGSEGV);
+#endif
+
+#ifdef SIGUSR2
+  NODE_DEFINE_CONSTANT(target, SIGUSR2);
+#endif
+
+#ifdef SIGPIPE
+  NODE_DEFINE_CONSTANT(target, SIGPIPE);
+#endif
+
+#ifdef SIGALRM
+  NODE_DEFINE_CONSTANT(target, SIGALRM);
+#endif
+
+  NODE_DEFINE_CONSTANT(target, SIGTERM);
+  NODE_DEFINE_CONSTANT(target, SIGCHLD);
+
+#ifdef SIGSTKFLT
+  NODE_DEFINE_CONSTANT(target, SIGSTKFLT);
+#endif
+
+
+#ifdef SIGCONT
+  NODE_DEFINE_CONSTANT(target, SIGCONT);
+#endif
+
+#ifdef SIGSTOP
+  NODE_DEFINE_CONSTANT(target, SIGSTOP);
+#endif
+
+#ifdef SIGTSTP
+  NODE_DEFINE_CONSTANT(target, SIGTSTP);
+#endif
+
+#ifdef SIGTTIN
+  NODE_DEFINE_CONSTANT(target, SIGTTIN);
+#endif
+
+#ifdef SIGTTOU
+  NODE_DEFINE_CONSTANT(target, SIGTTOU);
+#endif
+
+#ifdef SIGURG
+  NODE_DEFINE_CONSTANT(target, SIGURG);
+#endif
+
+#ifdef SIGXCPU
+  NODE_DEFINE_CONSTANT(target, SIGXCPU);
+#endif
+
+#ifdef SIGXFSZ
+  NODE_DEFINE_CONSTANT(target, SIGXFSZ);
+#endif
+
+#ifdef SIGVTALRM
+  NODE_DEFINE_CONSTANT(target, SIGVTALRM);
+#endif
+
+#ifdef SIGPROF
+  NODE_DEFINE_CONSTANT(target, SIGPROF);
+#endif
+
+#ifdef SIGWINCH
+  NODE_DEFINE_CONSTANT(target, SIGWINCH);
+#endif
+
+#ifdef SIGIO
+  NODE_DEFINE_CONSTANT(target, SIGIO);
+#endif
+
+#ifdef SIGPOLL
+  NODE_DEFINE_CONSTANT(target, SIGPOLL);
+#endif
+
+#ifdef SIGLOST
+  NODE_DEFINE_CONSTANT(target, SIGLOST);
+#endif
+
+#ifdef SIGPWR
+  NODE_DEFINE_CONSTANT(target, SIGPWR);
+#endif
+
+#ifdef SIGSYS
+  NODE_DEFINE_CONSTANT(target, SIGSYS);
+#endif
+
+#ifdef SIGUNUSED
+  NODE_DEFINE_CONSTANT(target, SIGUNUSED);
 #endif
 
 }

@@ -4,6 +4,7 @@
 #include "file.h"
 #include "http.h"
 #include "timer.h"
+#include "process.h"
 #include "constants.h"
 
 #include "natives.h" 
@@ -302,6 +303,7 @@ Load (int argc, char *argv[])
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
 
   Timer::Initialize(node_obj);
+  Process::Initialize(node_obj);
 
   DefineConstants(node_obj);
 
