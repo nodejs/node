@@ -522,9 +522,7 @@ node.http.Client = function (port, host) {
 
 node.http.cat = function(url, encoding, callback) {
   var uri = node.http.parseUri(url)
-  uri.port = uri.port == "" ? 80 : Number(uri.port)
-  uri.path = uri.path == "" ? "/" : uri.path
-  var req = new node.http.Client(uri.port, uri.host).get(uri.path)
+  var req = new node.http.Client(uri.port || 80, uri.host).get(uri.path || "/")
   req.finish(function(res) {
     var status = res.statusCode;
     res.setBodyEncoding(encoding)
