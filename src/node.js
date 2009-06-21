@@ -61,6 +61,15 @@ node.path = new function () {
   };
 };
 
+node.cat = function(url_or_path, encoding, callback) {
+  var uri = node.http.parseUri(url_or_path)
+  if (uri.protocol) {
+    node.http.cat(url_or_path, encoding, callback)
+  } else {
+    node.fs.cat(url_or_path, encoding, callback)
+  }
+}
+
 // Module
 
 node.Module = function (o) {
