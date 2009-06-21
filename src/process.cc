@@ -307,7 +307,6 @@ Process::Spawn (const char *command)
       dup2(stdin_pipe_[0],  STDIN_FILENO);
 
       execl("/bin/sh", "sh", "-c", command, (char *)NULL);
-      //execl(_PATH_BSHELL, "sh", "-c", program, (char *)NULL);
       _exit(127);
   }
 
@@ -456,7 +455,6 @@ Process::OnExit (EV_P_ ev_child *watcher, int revents)
     if (try_catch.HasCaught()) FatalException(try_catch);
   }
   process->Shutdown();
-  process->Detach();
 }
 
 int
