@@ -1,7 +1,5 @@
 Major features planned: (somewhat ordered)
 
-- require/include HTTP URLs
-
 - C++ API for external modules/plugins
   (Some sort of module build system?)
 
@@ -11,8 +9,6 @@ Major features planned: (somewhat ordered)
 - Support AF_UNIX named pipes
 
 - Signal handlers
-
-- popen() (perhaps with bidirectional stream?)
 
 - Internally replace getaddrinfo() with udns
   http://www.corpit.ru/mjt/udns.html

@@ -5,7 +5,6 @@ import os
 from os.path import join, dirname, abspath
 from logging import fatal
 
-
 import js2c
 
 VERSION='0.0.5'
@@ -13,6 +12,7 @@ APPNAME='node'
 
 srcdir = '.'
 blddir = 'build'
+cwd = os.getcwd()
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
@@ -83,14 +83,15 @@ def build(bld):
   deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("default")),"deps")
   v8dir_src = join(deps_src,"v8")
   v8dir_tgt = join(deps_tgt, "v8")
+  scons = os.path.join(cwd, 'tools/scons/scons.py')
 
   v8rule = 'cp -rf %s %s && ' \
            'cd %s && ' \
-           'python scons.py -Q mode=%s library=static snapshot=on'
+           'python %s -Q mode=%s library=static snapshot=on'
 
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
-    rule=v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "release"),
+    rule=v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "release"),
     before="cxx",
     install_path = None
   )
@@ -108,7 +109,7 @@ def build(bld):
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
     bld.env_of_name('debug')["LINKFLAGS_V8"] = "-pthread"
-    v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, "debug")
+    v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
   ### oi

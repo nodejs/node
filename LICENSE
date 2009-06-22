@@ -16,7 +16,11 @@ are:
     snippit. It is copyrighted 2007 by Steven Levithan and released under an
     MIT license.
 
-  - WAF build system. Copyrighted Thomas Nagy. Released under an MIT license.
+  - WAF build system, located at tools/waf. Copyrighted Thomas Nagy.
+    Released under an MIT license.
+
+  - The SCONS build system, located at tools/scons. Copyrighted by the SCONS
+    Foundation.  Released under an MIT license.
 
 Additionally deps/http_parser is based on Zed Shaw's Mongrel.  Mongrel is
 copyrighted by Zed Shaw and distributed under GPL2 or a permissive open
