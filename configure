@@ -93,19 +93,12 @@ uninstall:
 	else \\
 	    $WAF uninstall ; \\
 	fi;
-
-FAIL=python -c 'print("\033[1;31mFAIL\033[m")'
-PASS=python -c 'print("\033[1;32mPASS\033[m")'
  
 test: all
-	@for i in test/test*.js; do                         \\
-		echo "default \$\$i: ";                           \\
-		build/default/node \$\$i && \$(PASS) || \$(FAIL); \\
-    if [ -e build/debug/node ]; then                  \\
-      echo "debug \$\$i: ";                           \\
-      build/debug/node \$\$i && \$(PASS) || \$(FAIL); \\
-    fi;                                               \\
-	done 
+	python tools/test.py --mode=release
+
+test-debug: all
+	python tools/test.py --mode=debug
 
 clean:
 	@$WAF clean
