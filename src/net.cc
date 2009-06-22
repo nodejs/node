@@ -222,12 +222,10 @@ Connection::Connect (const Arguments& args)
   Connection::Resolve(req);
 #else
   /* For the moment I will do DNS lookups in the eio thread pool. This is
-   * sub-optimal and cannot handle massive numbers of requests but it is 
-   * quite portable. 
+   * sub-optimal and cannot handle massive numbers of requests. 
    * In the future I will move to a system using adns or udns: 
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
-  eio_warmup();
   connection->Attach();
   eio_custom( Connection::Resolve
             , EIO_PRI_DEFAULT

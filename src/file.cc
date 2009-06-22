@@ -34,8 +34,7 @@ using namespace node;
     Local<Function> l = Local<Function>::Cast(last_arg);              \
     callback = new Persistent<Function>();                            \
     *callback = Persistent<Function>::New(l);                         \
-  }                                                                   \
-  node::eio_warmup();                                                 \
+  }
 
 #define CALL_CALLBACK_PTR(req, argc, argv)                            \
 do {                                                                  \

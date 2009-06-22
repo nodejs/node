@@ -29,7 +29,6 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, RAW};
 enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void FatalException (v8::TryCatch &try_catch); 
-void eio_warmup (void); // call this before creating a new eio event.
 
 class ObjectWrap {
 public:

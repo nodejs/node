@@ -227,25 +227,12 @@ static void
 node_eio_cb (EV_P_ ev_async *w, int revents)
 {
   int r = eio_poll();
-  /* returns 0 if all requests were handled, -1 if not, or the value of EIO_FINISH if != 0 */
-
-  // XXX is this check too heavy? 
-  //  it require three locks in eio
-  //  what's the better way?
-  if (eio_nreqs () == 0 && eio_nready() == 0 && eio_npending() == 0) 
-    ev_async_stop(EV_DEFAULT_UC_ w);
 }
 
 static void
 eio_want_poll (void)
 {
   ev_async_send(EV_DEFAULT_UC_ &eio_watcher); 
-}
-
-void
-node::eio_warmup (void)
-{
-  ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
 }
 
 enum encoding
@@ -349,6 +336,8 @@ main (int argc, char *argv[])
   // start eio thread pool
   ev_async_init(&eio_watcher, node_eio_cb);
   eio_init(eio_want_poll, NULL);
+  ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
+  ev_unref(EV_DEFAULT_UC);
 
   V8::SetFlagsFromCommandLine(&argc, argv, true);
   V8::Initialize();
