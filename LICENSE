@@ -9,7 +9,7 @@ are:
     This code is copyrighted by Marc Alexander Lehmann. Both are dually
     licensed under MIT and GPL2.
 
-  - JSMin JavaScript minifier, located at jsmin.py.  This code is
+  - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
     copyrighted by Douglas Crockford and Baruch Even and has an MIT license.
 
   - parseUri, a URI parser, is located in src/http.js. This is just a small
