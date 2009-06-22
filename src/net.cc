@@ -374,29 +374,6 @@ Connection::ForceClose (const Arguments& args)
   return Undefined();
 }
 
-static void
-free_buf (oi_buf *b)
-{
-  V8::AdjustAmountOfExternalAllocatedMemory(-b->len);
-  free(b);
-}
-
-static oi_buf *
-new_buf (size_t size)
-{
-  size_t total = sizeof(oi_buf) + size;
-  void *p = malloc(total);
-  if (p == NULL) return NULL;
-
-  oi_buf *b = static_cast<oi_buf*>(p);
-  b->base = static_cast<char*>(p) + sizeof(oi_buf);
-
-  b->len = size;
-  b->release = free_buf;
-  V8::AdjustAmountOfExternalAllocatedMemory(total);
-
-  return b;
-}
 
 Handle<Value>
 Connection::Send (const Arguments& args)
@@ -422,7 +399,7 @@ Connection::Send (const Arguments& args)
     enum encoding enc = ParseEncoding(args[1]);
     Local<String> s = args[0]->ToString();
     size_t len = s->Utf8Length();
-    oi_buf *buf = new_buf(len);
+    oi_buf *buf = node::buf_new(len);
     switch (enc) {
       case RAW:
       case ASCII:
@@ -441,7 +418,7 @@ Connection::Send (const Arguments& args)
   } else if (args[0]->IsArray()) {
     Handle<Array> array = Handle<Array>::Cast(args[0]);
     size_t len = array->Length();
-    oi_buf *buf = new_buf(len);
+    oi_buf *buf = node::buf_new(len);
     for (size_t i = 0; i < len; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf->base[i] = int_value->IntegerValue();

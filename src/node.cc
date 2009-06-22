@@ -97,6 +97,30 @@ ObjectWrap::InformV8ofAllocation (ObjectWrap *obj)
   v8::V8::AdjustAmountOfExternalAllocatedMemory(obj->size());
 }
 
+static void
+buf_free (oi_buf *b)
+{
+  V8::AdjustAmountOfExternalAllocatedMemory(-b->len);
+  free(b);
+}
+
+oi_buf *
+node::buf_new (size_t size)
+{
+  size_t total = sizeof(oi_buf) + size;
+  void *p = malloc(total);
+  if (p == NULL) return NULL;
+
+  oi_buf *b = static_cast<oi_buf*>(p);
+  b->base = static_cast<char*>(p) + sizeof(oi_buf);
+
+  b->len = size;
+  b->release = buf_free;
+  V8::AdjustAmountOfExternalAllocatedMemory(total);
+
+  return b;
+}
+
 // Extracts a C string from a V8 Utf8Value.
 const char*
 ToCString(const v8::String::Utf8Value& value)

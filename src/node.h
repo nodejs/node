@@ -4,6 +4,7 @@
 #include <ev.h>
 #include <eio.h>
 #include <v8.h>
+#include <oi_socket.h>
 
 namespace node {
 
@@ -29,6 +30,7 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, RAW};
 enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void FatalException (v8::TryCatch &try_catch); 
+oi_buf * buf_new (size_t size);
 
 class ObjectWrap {
 public:
