@@ -51,9 +51,9 @@ function decode (s) {
 
 node.http.parseUri = function (str) {
   var o   = node.http.parseUri.options,
-    m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
-    uri = {},
-    i   = 14;
+      m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
+      uri = {},
+      i   = 14;
 
   while (i--) uri[o.key[i]] = m[i] || "";
 
@@ -152,12 +152,10 @@ node.http.ServerResponse = function (connection, responses) {
       
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
-        if (close_expression.exec(value))
-          this.closeOnFinish = true;
+        if (close_expression.exec(value)) this.closeOnFinish = true;
       } else if (transfer_encoding_expression.exec(field)) {
         sent_transfer_encoding_header = true;
-        if (chunk_expression.exec(value))
-          chunked_encoding = true;
+        if (chunk_expression.exec(value)) chunked_encoding = true;
       } else if (content_length_expression.exec(field)) {
         sent_content_length_header = true;
       }
@@ -214,8 +212,7 @@ node.http.ServerResponse = function (connection, responses) {
 
   this.finished = false;
   this.finish = function () {
-    if (chunked_encoding)
-      send(output, "0\r\n\r\n"); // last chunk
+    if (chunked_encoding) send(output, "0\r\n\r\n"); // last chunk
 
     this.finished = true;
 
@@ -310,10 +307,11 @@ node.http.Server = function (RequestHandler, options) {
 
     // is this really needed?
     connection.onEOF = function () {
-      if (responses.length == 0)
+      if (responses.length == 0) {
         connection.close();
-      else
+      } else {
         responses[responses.length-1].closeOnFinish = true;
+      }
     };
   }
 
@@ -346,12 +344,10 @@ node.http.Client = function (port, host) {
       
       if (connection_expression.exec(field)) {
         sent_connection_header = true;
-        if (close_expression.exec(value))
-          this.closeOnFinish = true;
+        if (close_expression.exec(value)) this.closeOnFinish = true;
       } else if (transfer_encoding_expression.exec(field)) {
         sent_transfer_encoding_header = true;
-        if (chunk_expression.exec(value))
-          chunked_encoding = true;
+        if (chunk_expression.exec(value)) chunked_encoding = true;
       } else if (content_length_expression.exec(field)) {
         sent_content_length_header = true;
       }
@@ -459,10 +455,11 @@ node.http.Client = function (port, host) {
 
     this.onHeaderValue = function (data) {
       var last_pair = headers[headers.length-1];
-      if (last_pair.length == 1)
+      if (last_pair.length == 1) {
         last_pair[1] = data;
-      else 
+      } else {
         last_pair[1] += data;
+      }
       last_was_value = true;
       return true;
     };
@@ -477,19 +474,20 @@ node.http.Client = function (port, host) {
     };
 
     this.onBody = function (chunk) {
-      if (res.onBody)
+      if (res.onBody) {
         return res.onBody(chunk);
-      else
+      } else {
         return true;
+      }
     };
 
     this.onMessageComplete = function () {
       connection.close();
-
-      if (res.onBodyComplete)
+      if (res.onBodyComplete) {
         return res.onBodyComplete();
-      else
+      } else {
         return true;
+      }
     };
   };
 
@@ -520,21 +518,21 @@ node.http.Client = function (port, host) {
   };
 };
 
-node.http.cat = function(url, encoding, callback) {
-  var uri = node.http.parseUri(url)
-  var req = new node.http.Client(uri.port || 80, uri.host).get(uri.path || "/")
-  req.finish(function(res) {
+node.http.cat = function (url, encoding, callback) {
+  var uri = node.http.parseUri(url);
+  var req = new node.http.Client(uri.port || 80, uri.host).get(uri.path || "/");
+  req.finish(function (res) {
     var status = res.statusCode == 200 ? 0 : -1;
-    res.setBodyEncoding(encoding)
-    var content = ""
-    res.onBody = function(chunk) {
+    res.setBodyEncoding(encoding);
+    var content = "";
+    res.onBody = function (chunk) {
       content += chunk;
-    }
-    res.onBodyComplete = function() {
+    };
+    res.onBodyComplete = function () {
       callback(status, content);
-    }
-  })
-}
+    };
+  });
+};
 
 })(); // anonymous namespace
 

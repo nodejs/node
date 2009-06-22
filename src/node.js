@@ -30,6 +30,7 @@ node.path = new function () {
     for (var i = 0; i < arguments.length; i++) {
       var part = arguments[i].toString();
 
+      /* Some logic to shorten paths */
       if (part === ".") continue;
       while (/^\.\//.exec(part)) part = part.replace(/^\.\//, "");
 
@@ -47,28 +48,23 @@ node.path = new function () {
   };
 
   this.dirname = function (path) {
-    if (path.charAt(0) !== "/") 
-      path = "./" + path;
+    if (path.charAt(0) !== "/") path = "./" + path;
     var parts = path.split("/");
     return parts.slice(0, parts.length-1).join("/");
   };
 
   this.filename = function (path) {
-    if (path.charAt(0) !== "/") 
-      path = "./" + path;
+    if (path.charAt(0) !== "/") path = "./" + path;
     var parts = path.split("/");
     return parts[parts.length-1];
   };
 };
 
-node.cat = function(url_or_path, encoding, callback) {
-  var uri = node.http.parseUri(url_or_path)
-  if (uri.protocol) {
-    node.http.cat(url_or_path, encoding, callback)
-  } else {
-    node.fs.cat(url_or_path, encoding, callback)
-  }
-}
+node.cat = function(location, encoding, callback) {
+  var url_re = new RegExp("^http:\/\/");
+  var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
+  f(location, encoding, callback);
+};
 
 // Module
 
@@ -76,9 +72,11 @@ node.Module = function (o) {
   this.parent = o.parent;
   this.target = o.target || {};
 
-  if (!o.path)   throw "path argument required";
-  if (o.path.charAt(0) == "/")
-    throw "Absolute module paths are not yet supported in Node";
+  if (!o.path) throw "path argument required";
+
+  if (o.path.charAt(0) == "/") {
+    throw "Absolute module paths are not yet supported by Node";
+  }
 
   if (o.path.match(/:\/\//)) {
     this.filename = o.path;
@@ -94,8 +92,9 @@ node.Module = function (o) {
 
 node.Module.prototype.load = function (callback) {
   var self = this;
-  if (self.loaded) 
+  if (self.loaded) {
     throw "Module '" + self.filename + "' is already loaded.";
+  }
 
   node.cat(self.filename, "utf8", function (status, content) {
     if (status != 0) {
@@ -171,20 +170,19 @@ node.Module.prototype.exitChildren = function (callback) {
 node.Module.prototype.exit = function (callback) {
   var self = this;
 
-  if (self.exited) 
+  if (self.exited) {
     throw "Module '" + self.filename + "' is already exited.";
+  }
 
   this.exitChildren(function () {
-    if (self.onExit) {
-      self.onExit();
-    } 
+    if (self.onExit) self.onExit();
     self.exited = true;
     if (callback) callback()
   });
 };
 
 (function () {
-  // Load the root module. I.E. the command line argument.
+  // Load the root module--the command line argument.
   root_module = new node.Module({ 
     path: node.path.filename(ARGV[1]), 
     base_directory: node.path.dirname(ARGV[1]),
