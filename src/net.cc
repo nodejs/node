@@ -211,6 +211,8 @@ Connection::Connect (const Arguments& args)
   }
 
   connection->opening = true;
+
+  ev_ref(EV_DEFAULT_UC);
   
 #ifdef __APPLE__
   /* HACK: Bypass the thread pool and do it sync on Macintosh.
@@ -273,6 +275,8 @@ AddressDefaultToIPv4 (struct addrinfo *address_list)
 int
 Connection::AfterResolve (eio_req *req)
 {
+  ev_unref(EV_DEFAULT_UC);
+
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL,
                   *address_list = static_cast<struct addrinfo *>(req->ptr2);

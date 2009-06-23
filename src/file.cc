@@ -34,7 +34,8 @@ using namespace node;
     Local<Function> l = Local<Function>::Cast(last_arg);              \
     callback = new Persistent<Function>();                            \
     *callback = Persistent<Function>::New(l);                         \
-  }
+  }                                                                   \
+  ev_ref(EV_DEFAULT_UC);
 
 #define CALL_CALLBACK_PTR(req, argc, argv)                            \
 do {                                                                  \
@@ -47,6 +48,7 @@ do {                                                                  \
       node::FatalException(try_catch);                                \
     delete callback;                                                  \
   }                                                                   \
+  ev_unref(EV_DEFAULT_UC);                                            \
 } while(0)
 
 #define DEFINE_SIMPLE_CB(name)                                        \
