@@ -167,7 +167,7 @@
     At the moment the received data is always a string and utf8 encoded.
     (More encodings will be supported in the future.)
 
-    <p>If the process closes it's <code>stdout</code>, this callback will
+    <p>If the process closes its <code>stdout</code>, this callback will
     be issued with <code>null</code> as an argument. Be prepared for this
     possibility.
     </dd>
@@ -177,14 +177,14 @@
     At the moment the received data is always a string and utf8 encoded.
     (More encodings will be supported in the future.)
 
-    <p>If the process closes it's <code>stderr</code>, this callback will
+    <p>If the process closes its <code>stderr</code>, this callback will
     be issued with <code>null</code> as an argument. Be prepared for this
     possibility.
     </dd>
 
     <dt><code>process.onExit = function (exit_code) { };</code></dt>
-    <dd>A callback which is called when the sub-process exits. The argument
-    is the exit status of the child.
+    <dd>A callback which is called when the child process terminates. 
+    The argument is the exit status of the child.
     </dd>
 
     <dt><code>process.write(data, encoding="ascii");</code></dt>
@@ -194,7 +194,7 @@
     </dd>
 
     <dt><code>process.close();</code></dt>
-    <dd>Closes the processes <code>stdin</code> stream.</dd>
+    <dd>Closes the process's <code>stdin</code> stream.</dd>
 
     <dt><code>process.kill(signal=node.SIGTERM);</code></dt>
     <dd>Kills the child process with the given signal. If no argument is
