@@ -24,17 +24,19 @@ class Process : ObjectWrap {
   Process(v8::Handle<v8::Object> handle);
   ~Process();
 
-  void Shutdown ();
   int Spawn (const char *command);
   int Write (oi_buf *buf);
-  int Close ();
+  int Close (void);
   int Kill (int sig);
 
  private:
   static void OnOutput (EV_P_ ev_io *watcher, int revents);
   static void OnError (EV_P_ ev_io *watcher, int revents);
   static void OnWritable (EV_P_ ev_io *watcher, int revents);
-  static void OnExit (EV_P_ ev_child *watcher, int revents);
+  static void OnCHLD (EV_P_ ev_child *watcher, int revents);
+
+  int MaybeShutdown (void);
+  void Shutdown (void);
 
   ev_io stdout_watcher_;
   ev_io stderr_watcher_;
@@ -48,6 +50,8 @@ class Process : ObjectWrap {
   pid_t pid_;
 
   bool got_close_;
+  bool got_chld_;
+  int exit_code_;
 
   oi_queue out_stream_;
 };
