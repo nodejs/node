@@ -1,3 +1,9 @@
+node.tcp.Server = function (on_connection, options) {
+  this.__proto__ = node.tcp.LowLevelServer ();
+  node.debug("hello world");
+  if (on_connection) this.addListener("Connection", on_connection);
+};
+
 // Timers
 
 function setTimeout (callback, delay) {

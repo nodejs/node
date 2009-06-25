@@ -141,7 +141,12 @@ def build(bld):
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
-    source="src/http.js src/file.js src/node.js",
+    source = """
+      src/events.js
+      src/http.js
+      src/file.js
+      src/node.js
+    """,
     target="src/natives.h",
     rule=javascript_in_c,
     before="cxx"
@@ -155,6 +160,7 @@ def build(bld):
   node.target = 'node'
   node.source = """
     src/node.cc
+    src/events.cc
     src/http.cc
     src/net.cc
     src/file.cc

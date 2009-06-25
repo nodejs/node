@@ -2,6 +2,7 @@
 #define node_net_h
 
 #include "node.h"
+#include "events.h"
 #include <v8.h>
 #include <oi_socket.h>
 
@@ -9,7 +10,7 @@ namespace node {
 
 class Acceptor;
 
-class Connection : public ObjectWrap {
+class Connection : public EventEmitter {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
@@ -107,7 +108,7 @@ private:
   friend class Acceptor;
 };
 
-class Acceptor : public ObjectWrap {
+class Acceptor : public EventEmitter {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 

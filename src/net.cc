@@ -1,4 +1,5 @@
 #include "net.h"
+#include "events.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -18,21 +19,12 @@ using namespace node;
 #define RAW_SYMBOL            String::NewSymbol("raw")
 #define ASCII_SYMBOL          String::NewSymbol("ascii")
 
-#define ON_RECEIVE_SYMBOL     String::NewSymbol("onReceive")
-#define ON_DISCONNECT_SYMBOL  String::NewSymbol("onDisconnect")
-#define ON_CONNECT_SYMBOL     String::NewSymbol("onConnect")
-#define ON_DRAIN_SYMBOL       String::NewSymbol("onDrain")
-#define ON_TIMEOUT_SYMBOL     String::NewSymbol("onTimeout")
-#define ON_ERROR_SYMBOL       String::NewSymbol("onError")
-#define ON_EOF_SYMBOL         String::NewSymbol("onEOF")
-
 #define ENCODING_SYMBOL       String::NewSymbol("encoding")
 #define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
 #define SERVER_SYMBOL         String::NewSymbol("server")
 #define REMOTE_ADDRESS_SYMBOL String::NewSymbol("remoteAddress")
 
 #define PROTOCOL_SYMBOL           String::NewSymbol("protocol")
-#define CONNECTION_HANDLER_SYMBOL String::NewSymbol("connectionHandler")
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
@@ -65,6 +57,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
   constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
@@ -102,7 +95,7 @@ Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
 }
 
 Connection::Connection (Handle<Object> handle)
-  : ObjectWrap(handle) 
+  : EventEmitter(handle) 
 {
   encoding_ = RAW;
 
@@ -439,11 +432,6 @@ Connection::OnReceive (const void *buf, size_t len)
 {
   HandleScope scope;
 
-  Handle<Value> callback_v = handle_->Get(ON_RECEIVE_SYMBOL);
-  if (!callback_v->IsFunction()) return; 
-
-  Handle<Function> callback = Handle<Function>::Cast(callback_v);
-
   const int argc = 1;
   Handle<Value> argv[argc];
 
@@ -466,47 +454,31 @@ Connection::OnReceive (const void *buf, size_t len)
     argv[0] = Local<Value>::New(Null());  
   }
 
-  TryCatch try_catch;
-  callback->Call(handle_, argc, argv);
-
-  if (try_catch.HasCaught())
-    FatalException(try_catch);
+  Emit("Receive", argc, argv);
 }
 
 void 
 Connection::OnDisconnect ()
 {
   HandleScope scope;
-  Local<Value> callback_v = handle_->Get(ON_DISCONNECT_SYMBOL);
-  if (!callback_v->IsFunction()) return;
-  Handle<Function> callback = Handle<Function>::Cast(callback_v);
 
   Handle<Value> argv[1];
   argv[0] = socket_.errorno == 0 ? False() : True();
 
-  TryCatch try_catch;
-  callback->Call(handle_, 1, argv);
-  if (try_catch.HasCaught())
-    node::FatalException(try_catch);
+  Emit("Disconnect", 1, argv);
 }
 
-#define DEFINE_SIMPLE_CALLBACK(name, symbol)                        \
+#define DEFINE_SIMPLE_CALLBACK(name, type)                          \
 void name ()                                                        \
 {                                                                   \
   HandleScope scope;                                                \
-  Local<Value> callback_v = handle_->Get(symbol);                   \
-  if (!callback_v->IsFunction()) return;                            \
-  Handle<Function> callback = Handle<Function>::Cast(callback_v);   \
-  TryCatch try_catch;                                               \
-  callback->Call(handle_, 0, NULL);                                 \
-  if (try_catch.HasCaught())                                        \
-    node::FatalException(try_catch);                               \
+  Emit (type, 0, NULL);                                             \
 }
 
-DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, ON_CONNECT_SYMBOL)
-DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, ON_DRAIN_SYMBOL)
-DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, ON_TIMEOUT_SYMBOL)
-DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, ON_EOF_SYMBOL)
+DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "Connect")
+DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, "Drain")
+DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "Timeout")
+DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "EOF")
 
 Persistent<FunctionTemplate> Acceptor::constructor_template;
 
@@ -517,7 +489,7 @@ Acceptor::Initialize (Handle<Object> target)
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-
+  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", Listen);
@@ -527,10 +499,11 @@ Acceptor::Initialize (Handle<Object> target)
 }
 
 Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler,  Handle<Object> options) 
-  : ObjectWrap(handle) 
+  : EventEmitter(handle) 
 {
   HandleScope scope;
 
+#if 0
   handle_->SetHiddenValue(CONNECTION_HANDLER_SYMBOL, connection_handler);
 
   int backlog = 1024; // default value
@@ -538,13 +511,9 @@ Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler, 
   if (backlog_v->IsInt32()) {
     backlog = backlog_v->IntegerValue();
   }
+#endif
 
-  Local<Value> on_error_v = options->Get(ON_ERROR_SYMBOL);
-  if (on_error_v->IsFunction()) {
-    handle_->Set(ON_ERROR_SYMBOL, on_error_v);
-  }
-
-  oi_server_init(&server_, backlog);
+  oi_server_init(&server_, 1024);
   server_.on_connection = Acceptor::on_connection;
   server_.data = this;
 }
@@ -588,16 +557,6 @@ Connection*
 Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
-  
-  Local<Value> connection_handler_v =
-    handle_->GetHiddenValue(CONNECTION_HANDLER_SYMBOL);
-  if (!connection_handler_v->IsFunction()) {
-    printf("Connection handler was empty!");
-    Close();
-    return NULL;
-  }
-  Local<Function> connection_handler =
-    Local<Function>::Cast(connection_handler_v);
 
   TryCatch try_catch;
 
@@ -617,10 +576,8 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   connection->SetAcceptor(handle_);
 
   Handle<Value> argv[1] = { js_connection };
-  Local<Value> ret = connection_handler->Call(handle_, 1, argv);
 
-  if (ret.IsEmpty())
-    FatalException(try_catch);
+  Emit("Connection", 1, argv);
 
   return connection;
 }

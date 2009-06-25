@@ -1,5 +1,6 @@
 #include "node.h"
 
+#include "events.h"
 #include "net.h"
 #include "file.h"
 #include "http.h"
@@ -312,6 +313,7 @@ Load (int argc, char *argv[])
   NODE_SET_METHOD(node_obj, "debug", debug);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
 
+  EventEmitter::Initialize(node_obj);
   Timer::Initialize(node_obj);
   Process::Initialize(node_obj);
 
@@ -331,6 +333,7 @@ Load (int argc, char *argv[])
   HTTPServer::Initialize(http);
   HTTPConnection::Initialize(http);
 
+  ExecuteNativeJS("events.js", native_events);
   ExecuteNativeJS("http.js", native_http);
   ExecuteNativeJS("file.js", native_file);
   ExecuteNativeJS("node.js", native_node);
