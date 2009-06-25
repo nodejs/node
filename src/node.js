@@ -1,20 +1,23 @@
-node.tcp.Server = function (on_connection, options) {
-  this.__proto__ = node.tcp.LowLevelServer ();
-  node.debug("hello world");
-  if (on_connection) this.addListener("Connection", on_connection);
+node.tcp.createServer = function (on_connection, options) {
+  var server = new node.tcp.Server();
+  server.addListener("Connection", on_connection);
+  //server.setOptions(options);
+  return server;
 };
 
 // Timers
 
-function setTimeout (callback, delay) {
-  var timer = new node.Timer(callback, delay, 0); 
-  timer.start();
+function setTimeout (callback, after) {
+  var timer = new node.Timer(); 
+  timer.addListener("Timeout", callback);
+  timer.start(after, 0);
   return timer;
 }
 
-function setInterval (callback, delay) {
-  var timer = new node.Timer(callback, delay, delay); 
-  timer.start();
+function setInterval (callback, repeat) {
+  var timer = new node.Timer(); 
+  timer.addListener("Timeout", callback);
+  timer.start(repeat, repeat);
   return timer;
 }
 

@@ -2,12 +2,13 @@
 #define node_timer_h
 
 #include "node.h"
+#include "events.h"
 #include <v8.h>
 #include <ev.h>
 
 namespace node {
 
-class Timer : ObjectWrap {
+class Timer : EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
@@ -16,15 +17,14 @@ class Timer : ObjectWrap {
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Timer(v8::Handle<v8::Object> handle,
-        v8::Handle<v8::Function> callback,
-        ev_tstamp after,
-        ev_tstamp repeat);
+  Timer (v8::Handle<v8::Object> handle) : EventEmitter (handle) { }
   ~Timer();
 
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
   static v8::Handle<v8::Value> Start (const v8::Arguments& args);
   static v8::Handle<v8::Value> Stop (const v8::Arguments& args);
+  static v8::Handle<v8::Value> RepeatGetter (v8::Local<v8::String> property, const v8::AccessorInfo& info);
+  static void RepeatSetter (v8::Local<v8::String> property, v8::Local<v8::Value> value, const v8::AccessorInfo& info);
 
  private:
   static void OnTimeout (EV_P_ ev_timer *watcher, int revents);
