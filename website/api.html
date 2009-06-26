@@ -664,7 +664,24 @@ server.listen(7000, "localhost");</pre>
     </dd>
 
     <dt><code>req.uri</code></dt>
-    <dd> Request URI. (Object.)</dd>
+    <dd> Request URI Object. This contains only the parameters that are
+    present in the actual http request. That is, if the request is
+<pre class="sh_none">GET /status?name=ryan HTTP/1.1\r\n
+Accept: */*\r\n
+\r\n
+</pre>
+    Then <code>req.uri</code> will be 
+<pre>
+{ path: "/status", 
+  file: "status", 
+  directory: "/", 
+  params: { "name" : "ryan" } 
+}</pre>
+    In particular, note that <code>req.uri.protocol</code> is
+    <code>undefined</code>. This is because there was no URI protocol given
+    in the actual HTTP Request. 
+    </dd>
+
     <dt><code>req.uri.anchor</code></dt>
     <dt><code>req.uri.query</code></dt>
     <dt><code>req.uri.file</code></dt>
@@ -678,11 +695,7 @@ server.listen(7000, "localhost");</pre>
     <dt><code>req.uri.authority</code></dt>
     <dt><code>req.uri.protocol</code></dt>
     <dt><code>req.uri.params</code></dt>
-    <dt>
-      <code>req.uri.toString()</code>,
-      <code>req.uri.source</code>
-    </dt>
-    <dd>The original URI found in the status line.</dd>
+    <dt><code>req.uri.toString()</code>, <code>req.uri.source</code> </dt>
 
     <dt><code>req.headers</code></dt>
     <dd>
