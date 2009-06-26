@@ -99,6 +99,9 @@ test: all
 
 test-debug: all
 	python tools/test.py --mode=debug
+  
+test-all: all
+	python tools/test.py --mode=debug,release
 
 clean:
 	@$WAF clean
