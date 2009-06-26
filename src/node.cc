@@ -237,7 +237,6 @@ OnFatalError (const char* location, const char* message)
   exit(1);
 }
 
-
 void
 node::FatalException (TryCatch &try_catch)
 {

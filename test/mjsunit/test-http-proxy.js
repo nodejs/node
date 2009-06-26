@@ -12,7 +12,7 @@ var backend = node.http.createServer(function (req, res) {
 // node.debug("listen backend")
 backend.listen(BACKEND_PORT);
 
-var proxy_client = new node.http.Client(BACKEND_PORT);
+var proxy_client = node.http.createClient(BACKEND_PORT);
 var proxy = node.http.createServer(function (req, res) {
   // node.debug("proxy req");
   var proxy_req = proxy_client.get(req.uri.path);
@@ -33,7 +33,7 @@ proxy.listen(PROXY_PORT);
 var body = "";
 
 function onLoad () {
-  var client = new node.http.Client(PROXY_PORT);
+  var client = node.http.createClient(PROXY_PORT);
   var req = client.get("/test");
   // node.debug("client req")
   req.finish(function (res) {

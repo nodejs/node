@@ -3,7 +3,7 @@ for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
 stored = {};
-new node.http.Server(function (req, res) {
+node.http.createServer(function (req, res) {
   var commands = req.uri.path.split("/");
   var command = commands[1];
   var body = "";

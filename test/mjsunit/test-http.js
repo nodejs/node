@@ -29,7 +29,7 @@ function onLoad () {
     //assertEquals("127.0.0.1", res.connection.remoteAddress);
   }).listen(PORT);
 
-  var client = new node.http.Client(PORT);
+  var client = node.http.createClient(PORT);
   var req = client.get("/hello");
   req.finish(function (res) {
     assertEquals(200, res.statusCode);

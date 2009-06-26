@@ -4,9 +4,11 @@
 var emitter = node.EventEmitter.prototype;
 
 emitter.addListener = function (type, listener) {
-  if (!this._events) this._events = {};
-  if (!this._events.hasOwnProperty(type)) this._events[type] = [];
-  this._events[type].push(listener);
+  if (listener instanceof Function) {
+    if (!this._events) this._events = {};
+    if (!this._events.hasOwnProperty(type)) this._events[type] = [];
+    this._events[type].push(listener);
+  }
 };
 
 emitter.listeners = function (type, listener) {

@@ -15,7 +15,7 @@ var server = node.http.createServer(function (req, res) {
 });
 server.listen(PORT);
 
-var client = new node.http.Client(PORT);
+var client = node.http.createClient(PORT);
 
 var body1 = "";
 var body2 = "";

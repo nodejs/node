@@ -341,16 +341,34 @@ node.http.ServerResponse = function (connection) {
 
 node.http.Client = node.http.LowLevelClient; // FIXME
 
+node.http.Client.prototype.flush = function (request) {
+  //p(request);
+  if (this.readyState == "closed") {
+    this.reconnect();
+    return;
+  }
+  //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
+  while ( request === this.requests[0]
+       && request.output.length > 0
+       && this.readyState == "open"
+        )
+  {
+    var out = request.output.shift();
+    this.send(out[0], out[1]);
+  }
+};
+
 node.http.createClient = function (port, host) {
   var client = new node.http.Client();
-  var requests = client.requests = [];
+
+  client.requests = [];
 
   client.reconnect = function () { return client.connect(port, host) };
 
   client.addListener("Connect", function () {
     //node.debug("HTTP CLIENT onConnect. readyState = " + client.readyState);
-    //node.debug("requests[0].uri = '" + requests[0].uri + "'");
-    requests[0].flush();
+    //node.debug("client.requests[0].uri = '" + client.requests[0].uri + "'");
+    client.flush(client.requests[0]);
   });
 
   client.addListener("EOF", function () {
@@ -365,7 +383,7 @@ node.http.createClient = function (port, host) {
      
     //node.debug("HTTP CLIENT onDisconnect. readyState = " + client.readyState);
     // If there are more requests to handle, reconnect.
-    if (requests.length > 0) {
+    if (client.requests.length > 0) {
       //node.debug("HTTP CLIENT: reconnecting");
       client.connect(port, host);
     }
@@ -374,7 +392,7 @@ node.http.createClient = function (port, host) {
   var req, res;
 
   client.addListener("MessageBegin", function () {
-    req = requests.shift();
+    req = client.requests.shift();
     res = createClientResponse(client);
   });
 
@@ -416,30 +434,37 @@ node.http.createClient = function (port, host) {
 };
 
 node.http.Client.prototype.get = function (uri, headers) {
-  return createClientRequest(this, "GET", uri, headers);
+  var req = createClientRequest(this, "GET", uri, headers);
+  this.requests.push(req);
+  return req;
 };
 
 node.http.Client.prototype.head = function (uri, headers) {
-  return createClientRequest(this, "HEAD", uri, headers);
+  var req = createClientRequest(this, "HEAD", uri, headers);
+  this.requests.push(req);
+  return req;
 };
 
 node.http.Client.prototype.post = function (uri, headers) {
-  return createClientRequest(this, "POST", uri, headers);
+  var req = createClientRequest(this, "POST", uri, headers);
+  this.requests.push(req);
+  return req;
 };
 
 node.http.Client.prototype.del = function (uri, headers) {
-  return createClientRequest(this, "DELETE", uri, headers);
+  var req = createClientRequest(this, "DELETE", uri, headers);
+  this.requests.push(req);
+  return req;
 };
 
 node.http.Client.prototype.put = function (uri, headers) {
-  return createClientRequest(this, "PUT", uri, headers);
+  var req = createClientRequest(this, "PUT", uri, headers);
+  this.requests.push(req);
+  return req;
 };
 
 function createClientRequest (connection, method, uri, header_lines) {
   var req = new node.EventEmitter;
-  var requests = connection.requests;
-
-  requests.push(this);
 
   req.uri = uri;
 
@@ -476,8 +501,9 @@ function createClientRequest (connection, method, uri, header_lines) {
 
   header += CRLF;
    
-  var output = [];
-  send(output, header);
+  req.output = [];
+
+  send(req.output, header);
 
   req.sendBody = function (chunk, encoding) {
     if (sent_content_length_header == false && chunked_encoding == false) {
@@ -486,31 +512,15 @@ function createClientRequest (connection, method, uri, header_lines) {
     }
 
     if (chunked_encoding) {
-      send(output, chunk.length.toString(16));
-      send(output, CRLF);
-      send(output, chunk, encoding);
-      send(output, CRLF);
+      send(req.output, chunk.length.toString(16));
+      send(req.output, CRLF);
+      send(req.output, chunk, encoding);
+      send(req.output, CRLF);
     } else {
-      send(output, chunk, encoding);
+      send(req.output, chunk, encoding);
     }
 
-    req.flush();
-  };
-
-  req.flush = function ( ) {
-    if (connection.readyState == "closed") {
-      connection.reconnect();
-      return;
-    }
-    //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
-    while ( req === requests[0]
-         && output.length > 0
-         && connection.readyState == "open"
-          )
-    {
-      var out = output.shift();
-      connection.send(out[0], out[1]);
-    }
+    connection.flush(req);
   };
 
   req.finished = false;
@@ -519,9 +529,9 @@ function createClientRequest (connection, method, uri, header_lines) {
     req.addListener("Response", responseListener);
 
     if (chunked_encoding)
-      send(output, "0\r\n\r\n"); // last chunk
+      send(req.output, "0\r\n\r\n"); // last chunk
 
-    req.flush();
+    connection.flush(req);
   };
 
   return req;
