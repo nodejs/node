@@ -123,7 +123,119 @@ function send (output, data, encoding) {
   output.push([data, encoding]);
 };
 
-node.http.ServerResponse = function (connection, responses) {
+/* This is a wrapper around the LowLevelServer interface. It provides
+ * connection handling, overflow checking, and some data buffering.
+ */
+node.http.createServer = function (requestListener, options) {
+  var server = new node.http.LowLevelServer();
+  server.addListener("Connection", connectionListener);
+  server.addListener("Request", requestListener);
+  //server.setOptions(options);
+  return server;
+};
+
+node.http.createServerRequest = function (connection) {
+  var req = new node.EventEmitter;
+
+  req.connection = connection;
+  req.method = null;
+  req.uri = "";
+  req.httpVersion = null;
+  req.headers = [];
+  req.last_was_value = false;   // used internally XXX remove me
+
+  req.setBodyEncoding = function (enc) {
+    connection.setEncoding(enc);
+  };
+
+  return req;
+};
+
+// ^
+// | 
+// |  combine these two functions
+// | 
+// v
+
+createClientResponse = function (connection) {
+  var res = new node.EventEmitter;
+
+  res.connection = connection;
+  res.statusCode = null;
+  res.httpVersion = null;
+  res.headers = [];
+  res.last_was_value = false;   // used internally XXX remove me
+
+  res.setBodyEncoding = function (enc) {
+    connection.setEncoding(enc);
+  };
+
+  return res;
+};
+
+function connectionListener (connection) {
+  // An array of responses for each connection. In pipelined connections
+  // we need to keep track of the order they were sent.
+  connection.responses = [];
+
+  // is this really needed?
+  connection.addListener("EOF", function () {
+    if (connection.responses.length == 0) {
+      connection.close();
+    } else {
+      connection.responses[connection.responses.length-1].closeOnFinish = true;
+    }
+  });
+
+  var req, res;
+
+  connection.addListener("MessageBegin", function () {
+    req = new node.http.createServerRequest(connection);
+    res = new node.http.ServerResponse(connection);
+  });
+
+  connection.addListener("URI", function (data) {
+    req.uri += data;
+  });
+
+  connection.addListener("HeaderField", function (data) {
+    if (req.headers.length > 0 && req.last_was_value == false)
+      req.headers[req.headers.length-1][0] += data; 
+    else
+      req.headers.push([data]);
+    req.last_was_value = false;
+  });
+
+  connection.addListener("HeaderValue", function (data) {
+    var last_pair = req.headers[req.headers.length-1];
+    if (last_pair.length == 1)
+      last_pair[1] = data;
+    else 
+      last_pair[1] += data;
+    req.last_was_value = true;
+  });
+
+  connection.addListener("HeadersComplete", function (info) {
+    req.httpVersion = info.httpVersion;
+    req.method = info.method;
+    req.uri = node.http.parseUri(req.uri); // TODO parse the URI lazily?
+
+    res.should_keep_alive = info.should_keep_alive;
+
+    connection.server.emit("Request", [req, res]);
+  });
+
+  connection.addListener("Body", function (chunk) {
+    req.emit("Body", [chunk]);
+  });
+
+  connection.addListener("MessageComplete", function () {
+    req.emit("BodyComplete");
+  });
+};
+
+node.http.ServerResponse = function (connection) {
+  var responses = connection.responses;
   responses.push(this);
   this.connection = connection;
   this.closeOnFinish = false;
@@ -226,301 +338,198 @@ node.http.ServerResponse = function (connection, responses) {
   };
 };
 
-/* This is a wrapper around the LowLevelServer interface. It provides
- * connection handling, overflow checking, and some data buffering.
- */
-node.http.createServer = function (requestHandler, options) {
-  var server = new node.http.LowLevelServer();
-  server.addListener("Connection", node.http.connectionListener);
-  //server.setOptions(options);
-  server.requestHandler = requestHandler;
-  return server;
-};
 
-node.http.connectionListener = function (connection) {
-  // An array of responses for each connection. In pipelined connections
-  // we need to keep track of the order they were sent.
-  var responses = [];
+node.http.Client = node.http.LowLevelClient; // FIXME
 
-  // is this really needed?
-  connection.addListener("EOF", function () {
-    if (responses.length == 0) {
-      connection.close();
-    } else {
-      responses[responses.length-1].closeOnFinish = true;
-    }
-  });
+node.http.createClient = function (port, host) {
+  var client = new node.http.Client();
+  var requests = client.requests = [];
 
-  connection.onMessage = function () {
-    var interrupted = false;
-                                          // filled in ...
-    var req = { method          : null    // at onHeadersComplete
-              , uri             : ""      // at onURI
-              , httpVersion     : null    // at onHeadersComplete
-              , headers         : []      // at onHeaderField, onHeaderValue
-              , onBody          : null    // by user
-              , onBodyComplete  : null    // by user
-              , interrupt       : function ( ) { interrupted = true; }
-              , setBodyEncoding : function (enc) {
-                  connection.setEncoding(enc);
-                }
-              };
-    var res = new node.http.ServerResponse(connection, responses);
+  client.reconnect = function () { return client.connect(port, host) };
 
-    this.onURI = function (data) {
-      req.uri += data;
-      return !interrupted;
-    };
-
-    var last_was_value = false;
-    var headers = req.headers;
-
-    this.onHeaderField = function (data) {
-      if (headers.length > 0 && last_was_value == false)
-        headers[headers.length-1][0] += data; 
-      else
-        headers.push([data]);
-      last_was_value = false;
-      return !interrupted;
-    };
-
-    this.onHeaderValue = function (data) {
-      var last_pair = headers[headers.length-1];
-      if (last_pair.length == 1)
-        last_pair[1] = data;
-      else 
-        last_pair[1] += data;
-      last_was_value = true;
-      return !interrupted;
-    };
-
-    this.onHeadersComplete = function () {
-      req.httpVersion = this.httpVersion;
-      req.method = this.method;
-      // TODO parse the URI lazily?
-      req.uri = node.http.parseUri(req.uri);
-      res.should_keep_alive = this.should_keep_alive;
-
-      connection.server.requestHandler.apply(connection.server, [req, res]);
-
-      return !interrupted;
-    };
-
-    this.onBody = function (chunk) {
-      if (req.onBody) req.onBody(chunk);
-      return !interrupted;
-    };
-
-    this.onMessageComplete = function () {
-      if (req.onBodyComplete) req.onBodyComplete();
-      return !interrupted;
-    };
-  };
-};
-
-node.http.Client = function (port, host) {
-  var connection = new node.http.LowLevelClient();
-  var requests  = [];
-  var self = this;
-
-  function ClientRequest (method, uri, header_lines) {
-    this.uri = uri;
-
-    var chunked_encoding = false;
-    this.closeOnFinish = false;
-
-    var sent_connection_header = false;
-    var sent_transfer_encoding_header = false;
-    var sent_content_length_header = false;
-
-    var header = method + " " + uri + " HTTP/1.1\r\n";
-
-    header_lines = header_lines || [];
-    for (var i = 0; i < header_lines.length; i++) {
-      var field = header_lines[i][0];
-      var value = header_lines[i][1];
-
-      header += field + ": " + value + CRLF;
-      
-      if (connection_expression.exec(field)) {
-        sent_connection_header = true;
-        if (close_expression.exec(value)) this.closeOnFinish = true;
-      } else if (transfer_encoding_expression.exec(field)) {
-        sent_transfer_encoding_header = true;
-        if (chunk_expression.exec(value)) chunked_encoding = true;
-      } else if (content_length_expression.exec(field)) {
-        sent_content_length_header = true;
-      }
-    }
-
-    if (sent_connection_header == false) {
-      header += "Connection: keep-alive\r\n";
-    }
-
-    header += CRLF;
-     
-    var output = [];
-    send(output, header);
-
-    this.sendBody = function (chunk, encoding) {
-      if (sent_content_length_header == false && chunked_encoding == false) {
-        throw "Content-Length header (or Transfer-Encoding:chunked) not set";
-        return;
-      }
-
-      if (chunked_encoding) {
-        send(output, chunk.length.toString(16));
-        send(output, CRLF);
-        send(output, chunk, encoding);
-        send(output, CRLF);
-      } else {
-        send(output, chunk, encoding);
-      }
-
-      this.flush();
-    };
-
-    this.flush = function ( ) {
-      if (connection.readyState == "closed") {
-        connection.connect(port, host);
-        return;
-      }
-      //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
-      while ( this === requests[0]
-           && output.length > 0
-           && connection.readyState == "open"
-            )
-      {
-        var out = output.shift();
-        connection.send(out[0], out[1]);
-      }
-    };
-
-    this.finished = false;
-    this.finish = function (responseHandler) {
-      this.responseHandler = responseHandler;
-      if (chunked_encoding)
-        send(output, "0\r\n\r\n"); // last chunk
-
-      this.flush();
-    };
-  }
-  
-  connection.onConnect = function () {
-    //node.debug("HTTP CLIENT onConnect. readyState = " + connection.readyState);
+  client.addListener("Connect", function () {
+    //node.debug("HTTP CLIENT onConnect. readyState = " + client.readyState);
     //node.debug("requests[0].uri = '" + requests[0].uri + "'");
     requests[0].flush();
-  };
+  });
 
-  connection.onEOF = function () {
-    connection.close();
-  };
+  client.addListener("EOF", function () {
+    client.close();
+  });
 
-  connection.onDisconnect = function (had_error) {
+  client.addListener("Disconnect", function (had_error) {
     if (had_error) {
-      if (self.onError) self.onError();
+      client.emit("Error");
       return;
     }
      
-    //node.debug("HTTP CLIENT onDisconnect. readyState = " + connection.readyState);
+    //node.debug("HTTP CLIENT onDisconnect. readyState = " + client.readyState);
     // If there are more requests to handle, reconnect.
     if (requests.length > 0) {
       //node.debug("HTTP CLIENT: reconnecting");
-      this.connect(port, host);
+      client.connect(port, host);
+    }
+  });
+
+  var req, res;
+
+  client.addListener("MessageBegin", function () {
+    req = requests.shift();
+    res = createClientResponse(client);
+  });
+
+  client.addListener("HeaderField", function (data) {
+    if (res.headers.length > 0 && res.last_was_value == false)
+      res.headers[res.headers.length-1][0] += data; 
+    else
+      res.headers.push([data]);
+    res.last_was_value = false;
+  });
+
+  client.addListener("HeaderValue", function (data) {
+    var last_pair = res.headers[res.headers.length-1];
+    if (last_pair.length == 1) {
+      last_pair[1] = data;
+    } else {
+      last_pair[1] += data;
+    }
+    res.last_was_value = true;
+  });
+
+  client.addListener("HeadersComplete", function (info) {
+    res.statusCode = info.statusCode;
+    res.httpVersion = info.httpVersion;
+
+    req.emit("Response", [res]);
+  });
+
+  client.addListener("Body", function (chunk) {
+    res.emit("Body", [chunk]);
+  });
+
+  client.addListener("MessageComplete", function () {
+    client.close();
+    res.emit("BodyComplete");
+  });
+
+  return client;
+};
+
+node.http.Client.prototype.get = function (uri, headers) {
+  return createClientRequest(this, "GET", uri, headers);
+};
+
+node.http.Client.prototype.head = function (uri, headers) {
+  return createClientRequest(this, "HEAD", uri, headers);
+};
+
+node.http.Client.prototype.post = function (uri, headers) {
+  return createClientRequest(this, "POST", uri, headers);
+};
+
+node.http.Client.prototype.del = function (uri, headers) {
+  return createClientRequest(this, "DELETE", uri, headers);
+};
+
+node.http.Client.prototype.put = function (uri, headers) {
+  return createClientRequest(this, "PUT", uri, headers);
+};
+
+function createClientRequest (connection, method, uri, header_lines) {
+  var req = new node.EventEmitter;
+  var requests = connection.requests;
+
+  requests.push(this);
+
+  req.uri = uri;
+
+  var chunked_encoding = false;
+  req.closeOnFinish = false;
+
+  var sent_connection_header = false;
+  var sent_transfer_encoding_header = false;
+  var sent_content_length_header = false;
+
+  var header = method + " " + uri + " HTTP/1.1\r\n";
+
+  header_lines = header_lines || [];
+  for (var i = 0; i < header_lines.length; i++) {
+    var field = header_lines[i][0];
+    var value = header_lines[i][1];
+
+    header += field + ": " + value + CRLF;
+    
+    if (connection_expression.exec(field)) {
+      sent_connection_header = true;
+      if (close_expression.exec(value)) req.closeOnFinish = true;
+    } else if (transfer_encoding_expression.exec(field)) {
+      sent_transfer_encoding_header = true;
+      if (chunk_expression.exec(value)) chunked_encoding = true;
+    } else if (content_length_expression.exec(field)) {
+      sent_content_length_header = true;
+    }
+  }
+
+  if (sent_connection_header == false) {
+    header += "Connection: keep-alive\r\n";
+  }
+
+  header += CRLF;
+   
+  var output = [];
+  send(output, header);
+
+  req.sendBody = function (chunk, encoding) {
+    if (sent_content_length_header == false && chunked_encoding == false) {
+      throw "Content-Length header (or Transfer-Encoding:chunked) not set";
+      return;
+    }
+
+    if (chunked_encoding) {
+      send(output, chunk.length.toString(16));
+      send(output, CRLF);
+      send(output, chunk, encoding);
+      send(output, CRLF);
+    } else {
+      send(output, chunk, encoding);
+    }
+
+    req.flush();
+  };
+
+  req.flush = function ( ) {
+    if (connection.readyState == "closed") {
+      connection.reconnect();
+      return;
+    }
+    //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
+    while ( req === requests[0]
+         && output.length > 0
+         && connection.readyState == "open"
+          )
+    {
+      var out = output.shift();
+      connection.send(out[0], out[1]);
     }
   };
 
-  // On response
-  connection.onMessage = function () {
-    var req = requests.shift();
-    var res = { statusCode      : null  // set in onHeadersComplete
-              , httpVersion     : null  // set in onHeadersComplete
-              , headers         : []    // set in onHeaderField/Value
-              , setBodyEncoding : function (enc) {
-                  connection.setEncoding(enc);
-                }
-              };
+  req.finished = false;
 
-    var headers = res.headers;
-    var last_was_value = false;
+  req.finish = function (responseListener) {
+    req.addListener("Response", responseListener);
 
-    this.onHeaderField = function (data) {
-      if (headers.length > 0 && last_was_value == false)
-        headers[headers.length-1][0] += data; 
-      else
-        headers.push([data]);
-      last_was_value = false;
-      return true;
-    };
+    if (chunked_encoding)
+      send(output, "0\r\n\r\n"); // last chunk
 
-    this.onHeaderValue = function (data) {
-      var last_pair = headers[headers.length-1];
-      if (last_pair.length == 1) {
-        last_pair[1] = data;
-      } else {
-        last_pair[1] += data;
-      }
-      last_was_value = true;
-      return true;
-    };
-
-    this.onHeadersComplete = function () {
-      res.statusCode = this.statusCode;
-      res.httpVersion = this.httpVersion;
-      res.headers = headers;
-
-      req.responseHandler(res);
-      return true;
-    };
-
-    this.onBody = function (chunk) {
-      if (res.onBody) {
-        return res.onBody(chunk);
-      } else {
-        return true;
-      }
-    };
-
-    this.onMessageComplete = function () {
-      connection.close();
-      if (res.onBodyComplete) {
-        return res.onBodyComplete();
-      } else {
-        return true;
-      }
-    };
+    req.flush();
   };
 
-  function newRequest (method, uri, headers) {
-    var req = new ClientRequest(method, uri, headers);
-    requests.push(req);
-    return req;
-  }
-  
-  this.get = function (uri, headers) {
-    return newRequest("GET", uri, headers);
-  };
-
-  this.head = function (uri, headers) {
-    return newRequest("HEAD", uri, headers);
-  };
-
-  this.post = function (uri, headers) {
-    return newRequest("POST", uri, headers);
-  };
-
-  this.del = function (uri, headers) {
-    return newRequest("DELETE", uri, headers);
-  };
-
-  this.put = function (uri, headers) {
-    return newRequest("PUT", uri, headers);
-  };
-};
+  return req;
+}
 
 node.http.cat = function (url, encoding, callback) {
   var uri = node.http.parseUri(url);
-  var req = new node.http.Client(uri.port || 80, uri.host).get(uri.path || "/");
+  var req = node.http.createClient(uri.port || 80, uri.host).get(uri.path || "/");
   req.finish(function (res) {
     var status = res.statusCode == 200 ? 0 : -1;
     res.setBodyEncoding(encoding);
@@ -535,4 +544,3 @@ node.http.cat = function (url, encoding, callback) {
 };
 
 })(); // anonymous namespace
-
