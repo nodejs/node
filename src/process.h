@@ -2,13 +2,14 @@
 #define node_process_h
 
 #include "node.h"
+#include "events.h"
 #include <v8.h>
 #include <ev.h>
 #include <oi_socket.h>
 
 namespace node {
 
-class Process : ObjectWrap {
+class Process : EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
   virtual size_t size (void) { return sizeof(Process); }

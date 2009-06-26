@@ -31,6 +31,7 @@ Process::Initialize (Handle<Object> target)
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Process::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Process::Write);
@@ -155,7 +156,7 @@ Process::Close (const Arguments& args)
 }
 
 Process::Process (Handle<Object> handle)
-  : ObjectWrap(handle)
+  : EventEmitter(handle)
 {
   ev_init(&stdout_watcher_, Process::OnOutput);
   stdout_watcher_.data = this;
@@ -327,12 +328,6 @@ Process::OnOutput (EV_P_ ev_io *watcher, int revents)
   assert(fd >= 0);
 
   HandleScope scope;
-  Handle<Value> callback_v =
-    process->handle_->Get(is_stdout ? ON_OUTPUT_SYMBOL : ON_ERROR_SYMBOL);
-  Handle<Function> callback;
-  if (callback_v->IsFunction()) {
-    callback = Handle<Function>::Cast(callback_v);
-  }
   Handle<Value> argv[1];
 
   for (;;) {
@@ -354,21 +349,14 @@ Process::OnOutput (EV_P_ ev_io *watcher, int revents)
       break;
     }
 
-    if (!callback.IsEmpty()) {
-      if (r == 0) {
-        argv[0] = Null();    
-      } else {
-        // TODO multiple encodings
-        argv[0] = String::New((const char*)buf, r);
-      }
-
-      TryCatch try_catch;
-      callback->Call(process->handle_, 1, argv);
-      if (try_catch.HasCaught()) {
-        FatalException(try_catch);
-        return;
-      }
+    if (r == 0) {
+      argv[0] = Null();    
+    } else {
+      // TODO multiple encodings
+      argv[0] = String::New((const char*)buf, r);
     }
+
+    process->Emit(is_stdout ? "Output" : "Error", 1, argv);
 
     if (r == 0) {
       ev_io_stop(EV_DEFAULT_UC_ watcher);
@@ -489,18 +477,9 @@ int
 Process::MaybeShutdown (void)
 {
   if (STDOUT_CLOSED && STDERR_CLOSED && got_chld_) {
-    // Call onExit
     HandleScope scope;
-    Handle<Value> callback_v = handle_->Get(ON_EXIT_SYMBOL);
-
-    if (callback_v->IsFunction()) {
-      Handle<Function> callback = Handle<Function>::Cast(callback_v);
-      TryCatch try_catch;
-      Handle<Value> argv[1] = { Integer::New(exit_code_) };
-      callback->Call(handle_, 1, argv);
-      if (try_catch.HasCaught()) FatalException(try_catch);
-    }
-
+    Handle<Value> argv[1] = { Integer::New(exit_code_) };
+    Emit("Exit", 1, argv);
     Shutdown();
     Detach();
   } 
