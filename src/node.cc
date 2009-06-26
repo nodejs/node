@@ -52,10 +52,9 @@ ObjectWrap::Attach ()
 void
 ObjectWrap::Detach ()
 {
-  if (attach_count_ > 0)
-    attach_count_ -= 1;
+  if (attach_count_ > 0) attach_count_ -= 1;
 
-  if(weak_ && attach_count_ == 0) {
+  if (weak_ && attach_count_ == 0) {
     V8::AdjustAmountOfExternalAllocatedMemory(-size());
     delete this;
   }

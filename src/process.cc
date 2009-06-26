@@ -224,8 +224,6 @@ Process::Shutdown ()
   ev_child_stop(EV_DEFAULT_UC_ &child_watcher_);
   /* XXX Kill the PID? */
   pid_ = 0;
-
-  Detach();
 }
 
 static inline int
@@ -504,5 +502,6 @@ Process::MaybeShutdown (void)
     }
 
     Shutdown();
+    Detach();
   } 
 }
