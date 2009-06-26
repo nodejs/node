@@ -7,7 +7,7 @@ var client_recv_count = 0;
 
 function onLoad () {
 
-  var server = new node.tcp.Server(function (socket) {
+  var server = node.tcp.createServer(function (socket) {
     socket.onConnect = function () {
       socket.send("hello\r\n");
     };

@@ -301,7 +301,7 @@ HTTPServer::Initialize (Handle<Object> target)
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->Inherit(Acceptor::constructor_template);
+  constructor_template->Inherit(Server::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   target->Set(String::NewSymbol("LowLevelServer"), constructor_template->GetFunction());
 }
@@ -311,19 +311,7 @@ HTTPServer::New (const Arguments& args)
 {
   HandleScope scope;
 
-  if (args.Length() < 1 || args[0]->IsFunction() == false)
-    return ThrowException(String::New("Must at give connection handler as the first argument"));
-
-  Local<Function> protocol_class = Local<Function>::Cast(args[0]);
-  Local<Object> options;
-
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    options = args[1]->ToObject();
-  } else {
-    options = Object::New();
-  }
-
-  HTTPServer *s = new HTTPServer(args.This(), protocol_class, options);
+  HTTPServer *s = new HTTPServer(args.This());
   ObjectWrap::InformV8ofAllocation(s);
 
   return args.This();

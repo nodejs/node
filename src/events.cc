@@ -26,7 +26,8 @@ EventEmitter::Initialize (v8::Handle<v8::Object> target)
 
   // All prototype methods are defined in events.js
 
-  target->Set(String::NewSymbol("EventEmitter"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("EventEmitter"),
+              constructor_template->GetFunction());
 }
 
 bool

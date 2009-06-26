@@ -3,7 +3,7 @@ include("mjsunit.js");
 var PROXY_PORT = 8869;
 var BACKEND_PORT = 8870;
 
-var backend = new node.http.Server(function (req, res) {
+var backend = node.http.createServer(function (req, res) {
   // node.debug("backend");
   res.sendHeader(200, [["content-type", "text/plain"]]);
   res.sendBody("hello world\n");
@@ -13,7 +13,7 @@ var backend = new node.http.Server(function (req, res) {
 backend.listen(BACKEND_PORT);
 
 var proxy_client = new node.http.Client(BACKEND_PORT);
-var proxy = new node.http.Server(function (req, res) {
+var proxy = node.http.createServer(function (req, res) {
   // node.debug("proxy req");
   var proxy_req = proxy_client.get(req.uri.path);
   proxy_req.finish(function(proxy_res) {

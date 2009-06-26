@@ -4,7 +4,7 @@ PORT = 8888;
 var body1_s = "1111111111111111";
 var body2_s = "22222";
 
-var server = new node.http.Server(function (req, res) {
+var server = node.http.createServer(function (req, res) {
   var body = req.uri.path === "/1" ? body1_s : body2_s;
   res.sendHeader(200, [
     ["Content-Type", "text/plain"],

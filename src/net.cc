@@ -132,11 +132,9 @@ Connection::~Connection ()
 }
 
 void
-Connection::SetAcceptor (Handle<Object> acceptor_handle)
+Connection::SetServer (Handle<Object> server_handle)
 {
   HandleScope scope;
-  handle_->Set(SERVER_SYMBOL, acceptor_handle);
-  Attach();
 }
 
 Handle<Value>
@@ -480,10 +478,10 @@ DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, "Drain")
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "Timeout")
 DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "EOF")
 
-Persistent<FunctionTemplate> Acceptor::constructor_template;
+Persistent<FunctionTemplate> Server::constructor_template;
 
 void
-Acceptor::Initialize (Handle<Object> target)
+Server::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
@@ -498,12 +496,13 @@ Acceptor::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
-Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler,  Handle<Object> options) 
+Server::Server (Handle<Object> handle) 
   : EventEmitter(handle) 
 {
   HandleScope scope;
 
 #if 0
+  // TODO SetOptions
   handle_->SetHiddenValue(CONNECTION_HANDLER_SYMBOL, connection_handler);
 
   int backlog = 1024; // default value
@@ -514,12 +513,12 @@ Acceptor::Acceptor (Handle<Object> handle, Handle<Function> connection_handler, 
 #endif
 
   oi_server_init(&server_, 1024);
-  server_.on_connection = Acceptor::on_connection;
+  server_.on_connection = Server::on_connection;
   server_.data = this;
 }
 
-static void
-SetRemoteAddress (Local<Object> connection_handle, struct sockaddr *addr)
+static Local<String>
+GetAddressString (struct sockaddr *addr)
 {
   HandleScope scope;
   char ip[INET6_ADDRSTRLEN];
@@ -537,24 +536,24 @@ SetRemoteAddress (Local<Object> connection_handle, struct sockaddr *addr)
 
   } else assert(0 && "received a bad sa_family");
 
-  connection_handle->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
+  return scope.Close(remote_address);
 }
 
 Handle<FunctionTemplate>
-Acceptor::GetConnectionTemplate (void)
+Server::GetConnectionTemplate (void)
 {
   return Connection::constructor_template;
 }
 
 Connection*
-Acceptor::UnwrapConnection (Local<Object> connection)
+Server::UnwrapConnection (Local<Object> connection)
 {
   HandleScope scope;
   return NODE_UNWRAP(Connection, connection);
 }
 
 Connection*
-Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
+Server::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
 
@@ -568,12 +567,14 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
     return NULL;
   }
 
-  SetRemoteAddress(js_connection, addr);
+  Local<String> remote_address = GetAddressString(addr);
+  js_connection->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
+  js_connection->Set(SERVER_SYMBOL, handle_);
 
   Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
 
-  connection->SetAcceptor(handle_);
+  connection->Attach();
 
   Handle<Value> argv[1] = { js_connection };
 
@@ -582,34 +583,25 @@ Acceptor::OnConnection (struct sockaddr *addr, socklen_t len)
   return connection;
 }
 
+// TODO Server->SetOptions
+// TODO Server -> Server rename
+
 Handle<Value>
-Acceptor::New (const Arguments& args)
+Server::New (const Arguments& args)
 {
   HandleScope scope;
 
-  if (args.Length() < 1 || args[0]->IsFunction() == false)
-    return ThrowException(String::New("Must at give connection handler as the first argument"));
-
-  Local<Function> connection_handler = Local<Function>::Cast(args[0]);
-  Local<Object> options;
-
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    options = args[1]->ToObject();
-  } else {
-    options = Object::New();
-  }
-
-  Acceptor *a = new Acceptor(args.This(), connection_handler, options);
+  Server *a = new Server(args.This());
   ObjectWrap::InformV8ofAllocation(a);
 
   return args.This();
 }
 
 Handle<Value>
-Acceptor::Listen (const Arguments& args)
+Server::Listen (const Arguments& args)
 {
-  Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
-  if (!acceptor) return Handle<Value>();
+  Server *server = NODE_UNWRAP(Server, args.Holder());
+  if (!server) return Handle<Value>();
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must give at least a port as argument."));
@@ -635,7 +627,7 @@ Acceptor::Listen (const Arguments& args)
 
   address = AddressDefaultToIPv4(address_list);
 
-  acceptor->Listen(address);
+  server->Listen(address);
 
   if (address_list) freeaddrinfo(address_list); 
 
@@ -643,11 +635,11 @@ Acceptor::Listen (const Arguments& args)
 }
 
 Handle<Value>
-Acceptor::Close (const Arguments& args)
+Server::Close (const Arguments& args)
 {
-  Acceptor *acceptor = NODE_UNWRAP(Acceptor, args.Holder());
-  if (!acceptor) return Handle<Value>();
+  Server *server = NODE_UNWRAP(Server, args.Holder());
+  if (!server) return Handle<Value>();
 
-  acceptor->Close();
+  server->Close();
   return Undefined();
 }

@@ -38,7 +38,7 @@ protected:
   friend class HTTPServer;
 };
 
-class HTTPServer : public Acceptor {
+class HTTPServer : public Server {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -48,10 +48,7 @@ public:
 protected:
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
 
-  HTTPServer (v8::Handle<v8::Object> handle, 
-              v8::Handle<v8::Function> protocol_class, 
-              v8::Handle<v8::Object> options)
-    : Acceptor(handle, protocol_class, options) {}
+  HTTPServer (v8::Handle<v8::Object> handle) : Server(handle) {}
 
   v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);
   Connection* UnwrapConnection (v8::Local<v8::Object> connection);

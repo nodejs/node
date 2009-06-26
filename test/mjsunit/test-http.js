@@ -7,7 +7,7 @@ var body0 = "";
 var body1 = "";
 
 function onLoad () {
-  new node.http.Server(function (req, res) {
+  node.http.createServer(function (req, res) {
     if (responses_sent == 0) {
       assertEquals("GET", req.method);
       assertEquals("/hello", req.uri.path);

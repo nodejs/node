@@ -229,93 +229,93 @@ node.http.ServerResponse = function (connection, responses) {
 /* This is a wrapper around the LowLevelServer interface. It provides
  * connection handling, overflow checking, and some data buffering.
  */
-node.http.Server = function (RequestHandler, options) {
-  if (!(this instanceof node.http.Server))
-    throw Error("Constructor called as a function");
-  var server = this;
+node.http.createServer = function (requestHandler, options) {
+  var server = new node.http.LowLevelServer();
+  server.addListener("Connection", node.http.connectionListener);
+  //server.setOptions(options);
+  server.requestHandler = requestHandler;
+  return server;
+};
 
-  function ConnectionHandler (connection) {
-    // An array of responses for each connection. In pipelined connections
-    // we need to keep track of the order they were sent.
-    var responses = [];
+node.http.connectionListener = function (connection) {
+  // An array of responses for each connection. In pipelined connections
+  // we need to keep track of the order they were sent.
+  var responses = [];
 
-    connection.onMessage = function ( ) {
-      var interrupted = false;
-                                            // filled in ...
-      var req = { method          : null    // at onHeadersComplete
-                , uri             : ""      // at onURI
-                , httpVersion     : null    // at onHeadersComplete
-                , headers         : []      // at onHeaderField, onHeaderValue
-                , onBody          : null    // by user
-                , onBodyComplete  : null    // by user
-                , interrupt       : function ( ) { interrupted = true; }
-                , setBodyEncoding : function (enc) {
-                    connection.setEncoding(enc);
-                  }
-                };
-      var res = new node.http.ServerResponse(connection, responses);
+  // is this really needed?
+  connection.addListener("EOF", function () {
+    if (responses.length == 0) {
+      connection.close();
+    } else {
+      responses[responses.length-1].closeOnFinish = true;
+    }
+  });
 
-      this.onURI = function (data) {
-        req.uri += data;
-        return !interrupted;
-      };
+  connection.onMessage = function () {
+    var interrupted = false;
+                                          // filled in ...
+    var req = { method          : null    // at onHeadersComplete
+              , uri             : ""      // at onURI
+              , httpVersion     : null    // at onHeadersComplete
+              , headers         : []      // at onHeaderField, onHeaderValue
+              , onBody          : null    // by user
+              , onBodyComplete  : null    // by user
+              , interrupt       : function ( ) { interrupted = true; }
+              , setBodyEncoding : function (enc) {
+                  connection.setEncoding(enc);
+                }
+              };
+    var res = new node.http.ServerResponse(connection, responses);
 
-      var last_was_value = false;
-      var headers = req.headers;
-
-      this.onHeaderField = function (data) {
-        if (headers.length > 0 && last_was_value == false)
-          headers[headers.length-1][0] += data; 
-        else
-          headers.push([data]);
-        last_was_value = false;
-        return !interrupted;
-      };
-
-      this.onHeaderValue = function (data) {
-        var last_pair = headers[headers.length-1];
-        if (last_pair.length == 1)
-          last_pair[1] = data;
-        else 
-          last_pair[1] += data;
-        last_was_value = true;
-        return !interrupted;
-      };
-
-      this.onHeadersComplete = function () {
-        req.httpVersion = this.httpVersion;
-        req.method = this.method;
-        // TODO parse the URI lazily?
-        req.uri = node.http.parseUri(req.uri);
-        res.should_keep_alive = this.should_keep_alive;
-
-        RequestHandler.apply(server, [req, res]);
-
-        return !interrupted;
-      };
-
-      this.onBody = function (chunk) {
-        if (req.onBody) req.onBody(chunk);
-        return !interrupted;
-      };
-
-      this.onMessageComplete = function () {
-        if (req.onBodyComplete) req.onBodyComplete();
-        return !interrupted;
-      };
+    this.onURI = function (data) {
+      req.uri += data;
+      return !interrupted;
     };
 
-    // is this really needed?
-    connection.onEOF = function () {
-      if (responses.length == 0) {
-        connection.close();
-      } else {
-        responses[responses.length-1].closeOnFinish = true;
-      }
-    };
-  }
+    var last_was_value = false;
+    var headers = req.headers;
 
-  this.__proto__ = new node.http.LowLevelServer(ConnectionHandler, options);
+    this.onHeaderField = function (data) {
+      if (headers.length > 0 && last_was_value == false)
+        headers[headers.length-1][0] += data; 
+      else
+        headers.push([data]);
+      last_was_value = false;
+      return !interrupted;
+    };
+
+    this.onHeaderValue = function (data) {
+      var last_pair = headers[headers.length-1];
+      if (last_pair.length == 1)
+        last_pair[1] = data;
+      else 
+        last_pair[1] += data;
+      last_was_value = true;
+      return !interrupted;
+    };
+
+    this.onHeadersComplete = function () {
+      req.httpVersion = this.httpVersion;
+      req.method = this.method;
+      // TODO parse the URI lazily?
+      req.uri = node.http.parseUri(req.uri);
+      res.should_keep_alive = this.should_keep_alive;
+
+      connection.server.requestHandler.apply(connection.server, [req, res]);
+
+      return !interrupted;
+    };
+
+    this.onBody = function (chunk) {
+      if (req.onBody) req.onBody(chunk);
+      return !interrupted;
+    };
+
+    this.onMessageComplete = function () {
+      if (req.onBodyComplete) req.onBodyComplete();
+      return !interrupted;
+    };
+  };
 };
 
 node.http.Client = function (port, host) {

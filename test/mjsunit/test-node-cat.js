@@ -2,7 +2,7 @@ include("mjsunit.js");
 PORT = 8888;
 
 var body = "exports.A = function() { return 'A';}";
-var server = new node.http.Server(function (req, res) {
+var server = node.http.createServer(function (req, res) {
   res.sendHeader(200, [
     ["Content-Length", body.length],
     ["Content-Type", "text/plain"]

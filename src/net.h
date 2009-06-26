@@ -8,7 +8,7 @@
 
 namespace node {
 
-class Acceptor;
+class Server;
 
 class Connection : public EventEmitter {
 public:
@@ -42,7 +42,7 @@ protected:
   void FullClose (void) { oi_socket_full_close(&socket_); }
   void ForceClose (void) { oi_socket_force_close(&socket_); }
 
-  void SetAcceptor (v8::Handle<v8::Object> acceptor_handle);
+  void SetServer (v8::Handle<v8::Object> server_handle);
 
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
@@ -105,14 +105,14 @@ private:
   char *port_;
   oi_socket socket_;
 
-  friend class Acceptor;
+  friend class Server;
 };
 
-class Acceptor : public EventEmitter {
+class Server : public EventEmitter {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  virtual size_t size (void) { return sizeof(Acceptor); };
+  virtual size_t size (void) { return sizeof(Server); };
 
 protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -120,10 +120,8 @@ protected:
   static v8::Handle<v8::Value> Listen (const v8::Arguments& args);
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
 
-  Acceptor (v8::Handle<v8::Object> handle, 
-            v8::Handle<v8::Function> connection_handler, 
-            v8::Handle<v8::Object> options);
-  virtual ~Acceptor () { Close(); }
+  Server (v8::Handle<v8::Object> handle);
+  virtual ~Server () { Close(); }
 
   int Listen (struct addrinfo *address) { 
     int r = oi_server_listen (&server_, address); 
@@ -144,8 +142,8 @@ protected:
 private:
   Connection* OnConnection (struct sockaddr *addr, socklen_t len);
   static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
-    Acceptor *acceptor = static_cast<Acceptor*> (s->data);
-    Connection *connection = acceptor->OnConnection (addr, len);
+    Server *server = static_cast<Server*> (s->data);
+    Connection *connection = server->OnConnection (addr, len);
     return &connection->socket_;
   }
 

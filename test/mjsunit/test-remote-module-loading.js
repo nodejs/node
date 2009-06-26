@@ -1,4 +1,4 @@
-var s = new node.http.Server(function (req, res) {
+var s = node.http.createServer(function (req, res) {
   var body = "exports.A = function() { return 'A';}";
   res.sendHeader(200, [
     ["Content-Length", body.length],

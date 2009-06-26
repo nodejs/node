@@ -9,7 +9,7 @@ var client_got_eof = false;
 
 function onLoad() {
 
-  new node.http.Server(function (req, res) {
+  node.http.createServer(function (req, res) {
     res.id = request_number;
     req.id = request_number++;
 

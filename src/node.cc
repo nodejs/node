@@ -325,7 +325,7 @@ Load (int argc, char *argv[])
 
   Local<Object> tcp = Object::New();
   node_obj->Set(String::New("tcp"), tcp);
-  Acceptor::Initialize(tcp);
+  Server::Initialize(tcp);
   Connection::Initialize(tcp);
 
   Local<Object> http = Object::New();

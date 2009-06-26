@@ -8,7 +8,7 @@ function pingPongTest (port, host, on_complete) {
   var count = 0;
   var sent_final_ping = false;
 
-  var server = new node.tcp.Server(function (socket) {
+  var server = node.tcp.createServer(function (socket) {
     assertTrue(socket.remoteAddress !== null);
     assertTrue(socket.remoteAddress !== undefined);
     if (host === "127.0.0.1")
