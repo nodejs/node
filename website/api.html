@@ -614,6 +614,14 @@ server.listen(7000, "localhost");</pre>
     only be done with multiple <code>Cookie</code> lines.
   </i></p>
 
+  <p>
+    Node's HTTP abstraction deals with connection handling and message
+    parsing only. It parses the message into headers and body - but it does
+    not parse any of the headers or the body. This is left to the user. That
+    means, for example, that Node does not (and will never) provide API
+    to access or manipulate Cookies or multi-part bodies. 
+  </p>
+
   <h3 id="http_server"><code>node.http.Server</code></h3>
 
   <dl>
@@ -787,6 +795,11 @@ res.sendHeader(200, [ ["Content-Length", body.length]
         If <code>chunk</code> is a string, the second parameter
         specifies how to encode it into a byte stream. By default the
         <code>encoding</code> is <code>"ascii"</code>.
+      </p>
+
+      <p>
+        Note: This is the raw HTTP body and has nothing to do with 
+        higher-level multi-part body encodings that may be used. 
       </p>
     </dd>
 
