@@ -19,12 +19,12 @@ function onLoad () {
       this.close();
     }
 
-    req.onBodyComplete = function () {
+    req.addListener("BodyComplete", function () {
       res.sendHeader(200, [["Content-Type", "text/plain"]]);
       res.sendBody("The path was " + req.uri.path);
       res.finish();
       responses_sent += 1;
-    };
+    });
 
     //assertEquals("127.0.0.1", res.connection.remoteAddress);
   }).listen(PORT);
@@ -35,7 +35,7 @@ function onLoad () {
     assertEquals(200, res.statusCode);
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
-    res.onBody = function (chunk) { body0 += chunk; };
+    res.addListener("Body", function (chunk) { body0 += chunk; });
   });
 
   setTimeout(function () {
@@ -44,7 +44,7 @@ function onLoad () {
       assertEquals(200, res.statusCode);
       responses_recvd += 1;
       res.setBodyEncoding("utf8");
-      res.onBody = function (chunk) { body1 += chunk; };
+      res.addListener("Body", function (chunk) { body1 += chunk; });
     });
   }, 1);
 }

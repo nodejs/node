@@ -21,14 +21,12 @@ emitter.listeners = function (type, listener) {
  * See events.cc 
  */ 
 emitter.emit = function (type, args) {
-  if (this["on" + type] instanceof Function) {
-    this["on" + type].apply(this, args);
-  }
   if (!this._events) return;
   if (!this._events.hasOwnProperty(type)) return;
-  for (var i = 0; i < this._events[type].length; i++) {
-    var listener = this._events[type][i];
-    listener.apply(this, args);
+  var listeners = this._events[type];
+  var length = listeners.length;
+  for (var i = 0; i < length; i++) {
+    listeners[i].apply(this, args);
   }
 };
 

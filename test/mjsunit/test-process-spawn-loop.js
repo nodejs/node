@@ -7,17 +7,17 @@ function spawn (i) {
   var p = new node.Process('python -c "print 500 * 1024 * \'C\'"'); 
   var output = "";
 
-  p.onOutput = function(chunk) { 
+  p.addListener("Output", function(chunk) { 
     if (chunk) output += chunk;
-  }; 
+  }); 
 
-  p.onExit = function () {
+  p.addListener("Exit", function () {
     //puts(output);
     if (i < N)
       spawn(i+1);
     else
       finished = true;
-  };
+  });
 }
 
 function onLoad () {

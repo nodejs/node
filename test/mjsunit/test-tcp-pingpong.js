@@ -19,24 +19,24 @@ function pingPongTest (port, host, on_complete) {
     socket.setEncoding("utf8");
     socket.timeout = 0;
 
-    socket.onReceive = function (data) {
+    socket.addListener("Receive", function (data) {
       assertEquals("open", socket.readyState);
       assertTrue(count <= N);
       if (/PING/.exec(data)) {
         socket.send("PONG");
       }
-    };
+    });
 
-    socket.onEOF = function () {
+    socket.addListener("EOF", function () {
       assertEquals("writeOnly", socket.readyState);
       socket.close();
-    };
+    });
 
-    socket.onDisconnect = function (had_error) {
+    socket.addListener("Disconnect", function (had_error) {
       assertFalse(had_error);
       assertEquals("closed", socket.readyState);
       socket.server.close();
-    };
+    });
   });
   server.listen(port, host);
 
@@ -45,12 +45,12 @@ function pingPongTest (port, host, on_complete) {
 
   client.setEncoding("utf8");
 
-  client.onConnect = function () {
+  client.addListener("Connect", function () {
     assertEquals("open", client.readyState);
     client.send("PING");
-  };
+  });
 
-  client.onReceive = function (data) {
+  client.addListener("Receive", function (data) {
     assertEquals("PONG", data);
     count += 1; 
 
@@ -68,14 +68,14 @@ function pingPongTest (port, host, on_complete) {
       client.send("PING");
       client.close();
     }
-  };
+  });
 
-  client.onDisconnect = function () {
+  client.addListener("Disconnect", function () {
     assertEquals(N+1, count);
     assertTrue(sent_final_ping);
     if (on_complete) on_complete();
     tests_run += 1;
-  };
+  });
 
   assertEquals("closed", client.readyState);
   client.connect(port, host);

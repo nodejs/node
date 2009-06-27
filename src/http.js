@@ -544,12 +544,12 @@ node.http.cat = function (url, encoding, callback) {
     var status = res.statusCode == 200 ? 0 : -1;
     res.setBodyEncoding(encoding);
     var content = "";
-    res.onBody = function (chunk) {
+    res.addListener("Body", function (chunk) {
       content += chunk;
-    };
-    res.onBodyComplete = function () {
+    });
+    res.addListener("BodyComplete", function () {
       callback(status, content);
-    };
+    });
   });
 };
 

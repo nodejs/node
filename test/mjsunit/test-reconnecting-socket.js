@@ -8,39 +8,39 @@ var client_recv_count = 0;
 function onLoad () {
 
   var server = node.tcp.createServer(function (socket) {
-    socket.onConnect = function () {
+    socket.addListener("Connect", function () {
       socket.send("hello\r\n");
-    };
+    });
 
-    socket.onEOF = function () {
+    socket.addListener("EOF", function () {
       socket.close();
-    };
+    });
 
-    socket.onDisconnect = function (had_error) {
+    socket.addListener("Disconnect", function (had_error) {
       //puts("server had_error: " + JSON.stringify(had_error));
       assertFalse(had_error);
-    };
+    });
   });
   server.listen(port);
   var client = new node.tcp.Connection();
   
   client.setEncoding("UTF8");
-  client.onConnect = function () {
-  };
+  client.addListener("Connect", function () {
+  });
 
-  client.onReceive = function (chunk) {
+  client.addListener("Receive", function (chunk) {
     client_recv_count += 1;
     assertEquals("hello\r\n", chunk);
     client.fullClose();
-  };
+  });
 
-  client.onDisconnect = function (had_error) {
+  client.addListener("Disconnect", function (had_error) {
     assertFalse(had_error);
     if (disconnect_count++ < N) 
       client.connect(port); // reconnect
     else
       server.close();
-  };
+  });
 
   client.connect(port);
 }

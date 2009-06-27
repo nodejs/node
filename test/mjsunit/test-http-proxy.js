@@ -18,13 +18,13 @@ var proxy = node.http.createServer(function (req, res) {
   var proxy_req = proxy_client.get(req.uri.path);
   proxy_req.finish(function(proxy_res) {
     res.sendHeader(proxy_res.statusCode, proxy_res.headers);
-    proxy_res.onBody = function(chunk) { 
+    proxy_res.addListener("Body", function(chunk) { 
       res.sendBody(chunk);
-    };
-    proxy_res.onBodyComplete = function() {
+    });
+    proxy_res.addListener("BodyComplete", function() {
       res.finish();
       // node.debug("proxy res");
-    };
+    });
   });
 });
 // node.debug("listen proxy")
@@ -40,12 +40,12 @@ function onLoad () {
     // node.debug("got res");
     assertEquals(200, res.statusCode);
     res.setBodyEncoding("utf8");
-    res.onBody = function (chunk) { body += chunk; };
-    res.onBodyComplete = function () {
+    res.addListener("Body", function (chunk) { body += chunk; });
+    res.addListener("BodyComplete", function () {
       proxy.close();
       backend.close();
       // node.debug("closed both");
-    };
+    });
   });
 }
 

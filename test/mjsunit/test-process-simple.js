@@ -5,16 +5,16 @@ var cat = new node.Process("cat");
 var response = "";
 var exit_status = -1;
 
-cat.onOutput = function (chunk) {
+cat.addListener("Output", function (chunk) {
   if (chunk) {
     response += chunk;
     if (response === "hello world") cat.close();
   }
-};
-cat.onError = function (chunk) {
+});
+cat.addListener("Error", function (chunk) {
   assertEquals(null, chunk);
-};
-cat.onExit = function (status) { exit_status = status; };
+});
+cat.addListener("Exit", function (status) { exit_status = status; });
 
 function onLoad () {
   cat.write("hello");
