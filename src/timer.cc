@@ -49,9 +49,9 @@ Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorI
   Timer *timer = NODE_UNWRAP(Timer, info.This());
 
   assert(timer);
-  assert (property == REPEAT_SYMBOL);
+  assert(property == REPEAT_SYMBOL);
 
-  timer->watcher_.repeat = (double)(property->IntegerValue()) / 1000;
+  timer->watcher_.repeat = (double)(value->IntegerValue()) / 1000;
 }
 
 void
