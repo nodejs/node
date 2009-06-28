@@ -313,6 +313,7 @@ Load (int argc, char *argv[])
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
 
   EventEmitter::Initialize(node_obj);
+  Promise::Initialize(node_obj);
   Timer::Initialize(node_obj);
   Process::Initialize(node_obj);
 

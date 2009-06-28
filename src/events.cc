@@ -55,3 +55,34 @@ EventEmitter::Emit (const char *type, int argc, Handle<Value> argv[])
 
   return true;
 }
+
+Persistent<FunctionTemplate> Promise::constructor_template;
+
+void 
+Promise::Initialize (v8::Handle<v8::Object> target)
+{
+  HandleScope scope;
+
+  Local<FunctionTemplate> t = FunctionTemplate::New();
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->Inherit(EventEmitter::constructor_template);
+
+  // All prototype methods are defined in events.js
+
+  target->Set(String::NewSymbol("Promise"),
+              constructor_template->GetFunction());
+}
+
+Promise*
+Promise::Create (void)
+{
+  HandleScope scope;
+
+  Local<Object> handle =
+    Promise::constructor_template->GetFunction()->NewInstance();
+  Promise *promise = new Promise(handle);
+  ObjectWrap::InformV8ofAllocation(promise);
+
+  return promise;
+}
+

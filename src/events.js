@@ -30,4 +30,15 @@ emitter.emit = function (type, args) {
   }
 };
 
-})(); // end annonymous namespace
+// node.Promise is defined in src/events.cc
+var promise = node.Promise.prototype;
+
+promise.addCallback = function (listener) {
+  this.addListener("Success", listener);
+};
+
+promise.addErrback = function (listener) {
+  this.addListener("Error", listener);
+};
+
+})(); // end anonymous namespace
