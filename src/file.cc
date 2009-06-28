@@ -138,7 +138,7 @@ AfterOpen (eio_req *req)
 
   HandleScope scope;
   Local<Value> argv[1] = { Integer::New(req->result) };
-  promise->EmitSuccess(2, argv);
+  promise->EmitSuccess(1, argv);
   return 0;
 }
 
