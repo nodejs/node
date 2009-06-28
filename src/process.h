@@ -36,7 +36,7 @@ class Process : EventEmitter {
   static void OnWritable (EV_P_ ev_io *watcher, int revents);
   static void OnCHLD (EV_P_ ev_child *watcher, int revents);
 
-  int MaybeShutdown (void);
+  void MaybeShutdown (void);
   void Shutdown (void);
 
   ev_io stdout_watcher_;

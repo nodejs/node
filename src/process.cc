@@ -473,7 +473,7 @@ Process::Kill (int sig)
   return kill(pid_, sig);
 }
 
-int
+void
 Process::MaybeShutdown (void)
 {
   if (STDOUT_CLOSED && STDERR_CLOSED && got_chld_) {
