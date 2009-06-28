@@ -15,7 +15,7 @@ server.listen(PORT);
 var got_good_server_content = false;
 var bad_server_got_error = false;
 
-function onLoad() {
+function onLoad () {
   node.http.cat("http://localhost:"+PORT+"/", "utf8")
     .addCallback(function (content) {
       node.debug("got response");

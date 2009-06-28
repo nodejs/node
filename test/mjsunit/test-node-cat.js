@@ -15,7 +15,7 @@ server.listen(PORT);
 var errors = 0;
 var successes = 0;
 
-function onLoad() {
+function onLoad () {
   var promise = node.cat("http://localhost:"+PORT, "utf8");
   
   promise.addCallback(function (content) {

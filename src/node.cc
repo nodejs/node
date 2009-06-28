@@ -83,9 +83,12 @@ ObjectWrap::Unwrap (Handle<Object> handle)
 }
 
 void
-ObjectWrap::MakeWeak (Persistent<Value> _, void *data)
+ObjectWrap::MakeWeak (Persistent<Value> value, void *data)
 {
   ObjectWrap *obj = static_cast<ObjectWrap*> (data);
+
+  assert(value == obj->handle_);
+
   obj->weak_ = true;
   if (obj->attach_count_ == 0)
     delete obj;
@@ -247,9 +250,11 @@ node::FatalException (TryCatch &try_catch)
 static ev_async eio_watcher;
 
 static void 
-node_eio_cb (EV_P_ ev_async *w, int revents)
+node_eio_cb (EV_P_ ev_async *watcher, int revents)
 {
-  int r = eio_poll();
+  assert(watcher == &eio_watcher);
+  assert(revents == EV_ASYNC);
+  eio_poll();
 }
 
 static void

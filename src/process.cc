@@ -65,12 +65,13 @@ Process::New (const Arguments& args)
 }
 
 Handle<Value>
-Process::PIDGetter (Local<String> _, const AccessorInfo& info)
+Process::PIDGetter (Local<String> property, const AccessorInfo& info)
 {
-  Process *process = NODE_UNWRAP(Process, info.This());
-  assert(process);
-
   HandleScope scope;
+  Process *process = NODE_UNWRAP(Process, info.This());
+
+  assert(process);
+  assert(property == PID_SYMBOL);
 
   if (process->pid_ == 0) return Null();
 

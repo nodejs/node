@@ -59,6 +59,8 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 {
   Timer *timer = static_cast<Timer*>(watcher->data);
 
+  assert(revents == EV_TIMEOUT);
+
   timer->Emit("Timeout", 0, NULL);
 
   /* XXX i'm a bit worried if this is the correct test? 

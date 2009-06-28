@@ -75,12 +75,14 @@ Connection::Initialize (v8::Handle<v8::Object> target)
 }
 
 Handle<Value>
-Connection::ReadyStateGetter (Local<String> _, const AccessorInfo& info)
+Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
 {
   Connection *connection = NODE_UNWRAP(Connection, info.This());
   if (!connection) return Handle<Value>();
 
   HandleScope scope;
+
+  assert(property == READY_STATE_SYMBOL);
 
   switch(connection->ReadyState()) {
     case OPEN: return scope.Close(OPEN_SYMBOL);
@@ -129,12 +131,6 @@ Connection::~Connection ()
     printf("  socket->write_action: %p\n", socket_.write_action);
   }
   ForceClose();
-}
-
-void
-Connection::SetServer (Handle<Object> server_handle)
-{
-  HandleScope scope;
 }
 
 Handle<Value>
@@ -556,6 +552,8 @@ Connection*
 Server::OnConnection (struct sockaddr *addr, socklen_t len)
 {
   HandleScope scope;
+
+  assert(len > 0); // just to get rid of the warning.
 
   TryCatch try_catch;
 

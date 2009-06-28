@@ -42,8 +42,6 @@ protected:
   void FullClose (void) { oi_socket_full_close(&socket_); }
   void ForceClose (void) { oi_socket_force_close(&socket_); }
 
-  void SetServer (v8::Handle<v8::Object> server_handle);
-
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
   virtual void OnDrain (void);
