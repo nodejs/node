@@ -72,7 +72,7 @@ node.path = new function () {
 node.cat = function(location, encoding, callback) {
   var url_re = new RegExp("^http:\/\/");
   var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
-  f(location, encoding, callback);
+  return f(location, encoding, callback);
 };
 
 // Module
@@ -105,12 +105,14 @@ node.Module.prototype.load = function (callback) {
     throw "Module '" + self.filename + "' is already loaded.";
   }
 
-  node.cat(self.filename, "utf8", function (status, content) {
-    if (status != 0) {
-      stderr.puts("Error reading " + self.filename);
-      node.exit(1);
-    }
+  var promise = node.cat(self.filename, "utf8");
+  
+  promise.addErrback(function () {
+    stderr.puts("Error reading " + self.filename);
+    node.exit(1);
+  });
 
+  promise.addCallback(function (content) {
     self.target.__require = function (path) { return self.newChild(path, {}); };
     self.target.__include = function (path) { self.newChild(path, self.target); };
 

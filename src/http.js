@@ -537,20 +537,32 @@ function createClientRequest (connection, method, uri, header_lines) {
   return req;
 }
 
-node.http.cat = function (url, encoding, callback) {
+node.http.cat = function (url, encoding) {
+  var promise = new node.Promise();
+
   var uri = node.http.parseUri(url);
-  var req = node.http.createClient(uri.port || 80, uri.host).get(uri.path || "/");
+  var client = node.http.createClient(uri.port || 80, uri.host);
+  var req = client.get(uri.path || "/");
+
+  client.addListener("Error", function () {
+    promise.emitError();
+  });
+
+  var content = "";
+
   req.finish(function (res) {
-    var status = res.statusCode == 200 ? 0 : -1;
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      promise.emitError([res.statusCode]);
+      return;
+    }
     res.setBodyEncoding(encoding);
-    var content = "";
-    res.addListener("Body", function (chunk) {
-      content += chunk;
-    });
+    res.addListener("Body", function (chunk) { content += chunk; });
     res.addListener("BodyComplete", function () {
-      callback(status, content);
+      promise.emitSuccess([content]);
     });
   });
+
+  return promise;
 };
 
 })(); // anonymous namespace

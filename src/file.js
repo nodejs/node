@@ -1,43 +1,49 @@
 node.fs.exists = function (path, callback) {
-  node.fs.stat(path, function (status) {
-    callback(status == 0);
-  });
+  var p = node.fs.stat(path);
+  p.addCallback(function () { callback(true); });
+  p.addErrback(function () { callback(false); });
 }
 
 node.fs.cat = function (path, encoding, callback) {
-  var file = new node.fs.File({encoding: encoding});
+  var open_promise = node.fs.open(path, node.O_RDONLY, 0666);
+  var cat_promise = new node.Promise();
 
-  file.onError = function (method, errno, msg) {
-    //node.debug("cat error");
-    callback(-1);
-  };
+  encoding = (encoding === "raw" ? node.RAW : node.UTF8);
 
-  var content = (encoding == node.UTF8 ? "" : []);
-  var pos = 0;
-  var chunkSize = 16*1024;
+  open_promise.addErrback(function () { cat_promise.emitError(); });
+  open_promise.addCallback(function (fd) {
+    var content = (encoding == node.UTF8 ? "" : []);
+    var pos = 0;
 
-  function readChunk () {
-    file.read(chunkSize, pos, function (chunk) {
-      if (chunk) {
-        if (chunk.constructor == String)
-          content += chunk;
-        else
-          content = content.concat(chunk);
+    function readChunk () {
+      var read_promise = node.fs.read(fd, 16*1024, pos, encoding);
 
-        pos += chunk.length;
-        readChunk();
-      } else {
-        callback(0, content);
-        file.close();
-      }
-    });
-  }
+      read_promise.addErrback(function () { cat_promise.emitError(); });
 
-  file.open(path, "r", function () { readChunk(); });
+      read_promise.addCallback(function (chunk) {
+        if (chunk) {
+          if (chunk.constructor == String)
+            content += chunk;
+          else
+            content = content.concat(chunk);
+
+          pos += chunk.length;
+          readChunk();
+        } else {
+          cat_promise.emitSuccess([content]);
+          node.fs.close(fd);
+        }
+      });
+    }
+    readChunk();
+  });
+  return cat_promise;
 };
 
 node.fs.File = function (options) {
   var self = this;
+  self.__proto__ = new node.EventEmitter();
+
   options = options || {};
 
   if (options.encoding === "utf8") {
@@ -45,58 +51,65 @@ node.fs.File = function (options) {
   } else {
     self.encoding = node.RAW;
   }
-
   //node.debug("encoding: opts=" + options.encoding + " self=" + self.encoding);
   self.fd = options.fd || null;
 
   var actionQueue = [];
   
   // Adds a method to the queue. 
-  function addAction (method, args, callback) {
-    var action = { method: method 
-                 , callback: callback
-                 , args: args
-                 };
+  function createAction (method, args) {
+    var promise = new node.Promise();
+   
+    promise.method = method;
+    promise.args = args;
+
     //node.debug("add action: " + JSON.stringify(action));
-    actionQueue.push(action);
+    actionQueue.push(promise);
 
     // If the queue was empty, immediately call the method.
     if (actionQueue.length == 1) act();
+
+    return promise;
+  }
+
+  function act () {
+    var promise = actionQueue[0]; // peek at the head of the queue
+    if (promise) {
+      node.debug("internal apply " + JSON.stringify(promise.args));
+      internal_methods[promise.method].apply(self, promise.args);
+    }
   }
 
   // called after each action finishes (when it returns from the thread pool)
-  function poll () {
-    var action = actionQueue[0];
+  function success () {
+    var promise = actionQueue[0];
 
-    var errno = arguments[0]; 
+    if (!promise) throw "actionQueue empty when it shouldn't be.";
 
-    //node.debug("poll errno: " + JSON.stringify(errno));
-    //node.debug("poll action: " + JSON.stringify(action));
-    //node.debug("poll rest: " + JSON.stringify(rest));
-
-    if (errno !== 0) {
-      if (self.onError)
-        self.onError(action.method, errno, node.fs.strerror(errno));
-      actionQueue = []; // empty the queue.
-      return;
+    var args = [];
+    for (var i = 0; i < arguments.length; i++) {
+      node.debug(JSON.stringify(arguments[i]));
+      args.push(arguments[i]);
     }
 
-    var rest = [];
-    for (var i = 1; i < arguments.length; i++)
-      rest.push(arguments[i]);
-
-    if (action.callback)
-      action.callback.apply(this, rest);
+    promise.emitSuccess(args);
 
     actionQueue.shift();
     act();
   }
 
-  function act () {
-    var action = actionQueue[0]; // peek at the head of the queue
-    if (action) {
-      internal_methods[action.method].apply(this, action.args);
+  function error () {
+    var promise = actionQueue[0];
+
+    if (!promise) throw "actionQueue empty when it shouldn't be.";
+
+    var args = [];
+    for (var i = 0; i < arguments.length; i++) {
+      args.push(arguments[i]);
     }
+
+    promise.emitError(args);
+    self.emitError(args);
   }
 
   var internal_methods = {
@@ -125,51 +138,63 @@ node.fs.File = function (options) {
           throw "Unknown mode";
       }
       // fix the mode here
-      node.fs.open(path, flags, 0666, function (status, fd) {
+      var promise = node.fs.open(path, flags, 0666);
+      
+      promise.addCallback(function (fd) {
         self.fd = fd;
-        poll(status, fd);
+        success(fd);
       });
+
+      promise.addErrback(error);
     },
 
     close: function ( ) {
-      node.fs.close(self.fd, function (status) {
+      var promise = node.fs.close(self.fd);
+
+      promise.addCallback(function () {
         self.fd = null;
-        poll(status);
+        success();
       });
+
+      promise.addErrback(error);
     }, 
 
     read: function (length, position) {
       //node.debug("encoding: " + self.encoding);
-      node.fs.read(self.fd, length, position, self.encoding, poll);
+      var promise = node.fs.read(self.fd, length, position, self.encoding);
+      promise.addCallback(success);  
+      promise.addErrback(error);  
     },
 
     write: function (data, position) {
-      node.fs.write(self.fd, data, position, poll);
+      var promise = node.fs.write(self.fd, data, position);
+      promise.addCallback(success);  
+      promise.addErrback(error);  
     }
   };
 
-  self.open = function (path, mode, callback) {
-    addAction("open", [path, mode], callback);
+  self.open = function (path, mode) {
+    return createAction("open", [path, mode]);
   };
    
-  self.close = function (callback) {
-    addAction("close", [], callback);
+  self.close = function () {
+    return createAction("close", []);
   };
 
-  self.read = function (length, pos, callback) {
-    addAction("read", [length, pos], callback);
+  self.read = function (length, pos) {
+    return createAction("read", [length, pos]);
   };
 
-  self.write = function (buf, pos, callback) {
-    addAction("write", [buf, pos], callback);
+  self.write = function (buf, pos) {
+    return createAction("write", [buf, pos]);
   };
 
-  self.print = function (data, callback) {
-    return self.write(data, null, callback);
+  self.print = function (data) {
+    return self.write(data, null);
   };
 
-  self.puts = function (data, callback) {
-    return self.write(data + "\n", null, callback);
+  self.puts = function (data) {
+    return self.write(data + "\n", null);
   };
 };
 
@@ -179,6 +204,4 @@ stdin  = new node.fs.File({ fd: node.STDIN_FILENO  });
 
 puts  = stdout.puts;
 print = stdout.print;
-p = function (data, callback) {
-  puts(JSON.stringify(data), callback);
-}
+p = function (data) { return puts(JSON.stringify(data)); }

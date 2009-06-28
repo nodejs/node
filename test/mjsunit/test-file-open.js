@@ -10,14 +10,16 @@ function onLoad () {
   var x = node.path.join(fixtures, "x.txt");
 
   file = new node.fs.File;
-  file.onError = function () { got_error = true };
+  file.addListener("Error", function () { got_error = true });
 
-  file.open(x, "r", function () {
+  file.open(x, "r").addCallback(function () {
     opened = true
-    file.close(function () {
+    file.close().addCallback(function () {
       closed = true;
     });
   });
+
+  puts("hey!");
 }
 
 function onExit () {

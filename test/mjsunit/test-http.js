@@ -36,6 +36,7 @@ function onLoad () {
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
     res.addListener("Body", function (chunk) { body0 += chunk; });
+    node.debug("Got /hello response");
   });
 
   setTimeout(function () {
@@ -45,13 +46,18 @@ function onLoad () {
       responses_recvd += 1;
       res.setBodyEncoding("utf8");
       res.addListener("Body", function (chunk) { body1 += chunk; });
+      node.debug("Got /world response");
     });
   }, 1);
 }
 
 function onExit () {
+  node.debug("responses_recvd: " + responses_recvd);
   assertEquals(2, responses_recvd);
+
+  node.debug("responses_sent: " + responses_sent);
   assertEquals(2, responses_sent);
+
   assertEquals("The path was /hello", body0);
   assertEquals("The path was /world", body1);
 }

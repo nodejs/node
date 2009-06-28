@@ -1,5 +1,6 @@
 #include "node.h"
 #include "file.h"
+#include "events.h"
 #include <string.h>
 
 #include <sys/types.h>
@@ -27,52 +28,44 @@ using namespace node;
 #define CTIME_SYMBOL       String::NewSymbol("ctime")
 #define BAD_ARGUMENTS      String::New("Bad argument")
 
-#define MAKE_CALLBACK_PTR                                             \
-  Persistent<Function> *callback = NULL;                              \
-  Local<Value> last_arg = args[args.Length()-1];                      \
-  if (last_arg->IsFunction()) {                                       \
-    Local<Function> l = Local<Function>::Cast(last_arg);              \
-    callback = new Persistent<Function>();                            \
-    *callback = Persistent<Function>::New(l);                         \
-  }                                                                   \
-  ev_ref(EV_DEFAULT_UC);
+static int
+AfterClose (eio_req *req)
+{
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+  if (req->result == 0) {
+    promise->EmitSuccess(0, NULL);
+  } else {
+    promise->EmitError(0, NULL);
+  }
+  return 0;
+}
 
-#define CALL_CALLBACK_PTR(req, argc, argv)                            \
-do {                                                                  \
-  if (req->data) {                                                    \
-    Persistent<Function> *callback =                                  \
-      reinterpret_cast<Persistent<Function>*>(req->data);             \
-    TryCatch try_catch;                                               \
-    (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);   \
-    if(try_catch.HasCaught())                                         \
-      node::FatalException(try_catch);                                \
-    delete callback;                                                  \
-  }                                                                   \
-  ev_unref(EV_DEFAULT_UC);                                            \
-} while(0)
-
-#define DEFINE_SIMPLE_CB(name)                                        \
-static int After##name (eio_req *req)                                 \
-{                                                                     \
-  HandleScope scope;                                                  \
-  Local<Value> argv[] = { Integer::New(req->errorno) };               \
-  CALL_CALLBACK_PTR(req, 1, argv);                                    \
-  return 0;                                                           \
-}                                                                     \
-
-DEFINE_SIMPLE_CB(Close)
-static Handle<Value> Close (const Arguments& args)
+static Handle<Value>
+Close (const Arguments& args)
 {
   if (args.Length() < 1 || !args[0]->IsInt32())
     return ThrowException(BAD_ARGUMENTS);
   HandleScope scope;
   int fd = args[0]->Int32Value();
-  MAKE_CALLBACK_PTR
-  eio_close(fd, EIO_PRI_DEFAULT, AfterClose, callback);
-  return Undefined();
+
+  Promise *promise = Promise::Create();
+
+  eio_close(fd, EIO_PRI_DEFAULT, AfterClose, promise);
+  return scope.Close(promise->Handle());
 }
 
-DEFINE_SIMPLE_CB(Rename)
+static int
+AfterRename (eio_req *req)
+{
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+  if (req->result == 0) {
+    promise->EmitSuccess(0, NULL);
+  } else {
+    promise->EmitError(0, NULL);
+  }
+  return 0;
+}
+
 static Handle<Value> Rename (const Arguments& args)
 {
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString())
@@ -80,44 +73,72 @@ static Handle<Value> Rename (const Arguments& args)
   HandleScope scope;
   String::Utf8Value path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
-  MAKE_CALLBACK_PTR
-  eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, callback);
-  return Undefined();
+
+  Promise *promise = Promise::Create();
+
+  eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, promise);
+  return scope.Close(promise->Handle());
 }
 
-DEFINE_SIMPLE_CB(Unlink)
+static int
+AfterUnlink (eio_req *req)
+{
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+  if (req->result == 0) {
+    promise->EmitSuccess(0, NULL);
+  } else {
+    promise->EmitError(0, NULL);
+  }
+  return 0;
+}
+
 static Handle<Value> Unlink (const Arguments& args)
 {
   if (args.Length() < 1 || !args[0]->IsString())
     return ThrowException(BAD_ARGUMENTS);
   HandleScope scope;
   String::Utf8Value path(args[0]->ToString());
-  MAKE_CALLBACK_PTR
-  eio_unlink(*path, EIO_PRI_DEFAULT, AfterUnlink, callback);
-  return Undefined();
+  Promise *promise = Promise::Create();
+  eio_unlink(*path, EIO_PRI_DEFAULT, AfterUnlink, promise);
+  return scope.Close(promise->Handle());
 }
 
-DEFINE_SIMPLE_CB(RMDir)
+static int
+AfterRMDir (eio_req *req)
+{
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+  if (req->result == 0) {
+    promise->EmitSuccess(0, NULL);
+  } else {
+    promise->EmitError(0, NULL);
+  }
+  return 0;
+}
+
 static Handle<Value> RMDir (const Arguments& args)
 {
   if (args.Length() < 1 || !args[0]->IsString())
     return ThrowException(BAD_ARGUMENTS);
   HandleScope scope;
   String::Utf8Value path(args[0]->ToString());
-  MAKE_CALLBACK_PTR
-  eio_rmdir(*path, EIO_PRI_DEFAULT, AfterRMDir, callback);
-  return Undefined();
+  Promise *promise = Promise::Create();
+  eio_rmdir(*path, EIO_PRI_DEFAULT, AfterRMDir, promise);
+  return scope.Close(promise->Handle());
 }
 
 static int
 AfterOpen (eio_req *req)
 {
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+
+  if (req->result < 0) {
+    promise->EmitError(0, NULL);
+    return 0;
+  }
+
   HandleScope scope;
-  const int argc = 2;
-  Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-  argv[1] = Integer::New(req->result);
-  CALL_CALLBACK_PTR(req, argc, argv);
+  Local<Value> argv[1] = { Integer::New(req->result) };
+  promise->EmitSuccess(2, argv);
   return 0;
 }
 
@@ -135,27 +156,31 @@ Open (const Arguments& args)
   int flags = args[1]->Int32Value();
   mode_t mode = static_cast<mode_t>(args[2]->Int32Value());
 
-  MAKE_CALLBACK_PTR
+  Promise *promise = Promise::Create();
 
-  eio_open(*path, flags, mode, EIO_PRI_DEFAULT, AfterOpen, callback);
-  return Undefined();
+  eio_open(*path, flags, mode, EIO_PRI_DEFAULT, AfterOpen, promise);
+  return scope.Close(promise->Handle());
 }
 
 static int
 AfterWrite (eio_req *req)
 {
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+
+  if (req->result < 0) {
+    promise->EmitError(0, NULL);
+    return 0;
+  }
+
   HandleScope scope;
 
   free(req->ptr2);
 
   ssize_t written = req->result;
+  Local<Value> argv[1];
+  argv[0] = written >= 0 ? Integer::New(written) : Integer::New(0);
 
-  const int argc = 2;
-  Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-  argv[1] = written >= 0 ? Integer::New(written) : Integer::New(0);
-
-  CALL_CALLBACK_PTR(req, argc, argv);
+  promise->EmitSuccess(1, argv);
   return 0;
 }
 
@@ -206,57 +231,63 @@ Write (const Arguments& args)
     return ThrowException(BAD_ARGUMENTS);
   }
 
-  MAKE_CALLBACK_PTR
-  eio_write(fd, buf, len, pos, EIO_PRI_DEFAULT, AfterWrite, callback);
-  return Undefined();
+  Promise *promise = Promise::Create();
+  eio_write(fd, buf, len, pos, EIO_PRI_DEFAULT, AfterWrite, promise);
+  return scope.Close(promise->Handle());
 }
 
 static int
 AfterUtf8Read (eio_req *req)
 {
-  HandleScope scope;
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
-  const int argc = 2;
-  Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-
-  char *buf = reinterpret_cast<char*>(req->ptr2);
-  if (req->result == 0) { 
-    // eof 
-    argv[1] = Local<Value>::New(Null());
-  } else {
-    argv[1] = String::New(buf, req->result);
+  if (req->result < 0) {
+    promise->EmitError(0, NULL);
+    return 0;
   }
 
-  CALL_CALLBACK_PTR(req, argc, argv);
+  HandleScope scope;
+
+  Local<Value> argv[1];
+
+  if (req->result == 0) { 
+    // eof 
+    argv[0] = Local<Value>::New(Null());
+  } else {
+    char *buf = reinterpret_cast<char*>(req->ptr2);
+    argv[0] = String::New(buf, req->result);
+  }
+
+  promise->EmitSuccess(1, argv);
   return 0;
 }
 
 static int
 AfterRawRead(eio_req *req)
 {
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+
+  if (req->result < 0) {
+    promise->EmitError(0, NULL);
+    return 0;
+  }
+
   HandleScope scope;
+  Local<Value> argv[1];
 
-  const int argc = 2;
-  Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-
-  char *buf = reinterpret_cast<char*>(req->ptr2);
-
-  if (req->result == 0) { 
-    // eof 
-    argv[1] = Local<Value>::New(Null());
+  if (req->result == 0) {
+    argv[0] = Local<Value>::New(Null());
   } else {
-    // raw encoding
+    char *buf = reinterpret_cast<char*>(req->ptr2);
     size_t len = req->result;
     Local<Array> array = Array::New(len);
     for (unsigned int i = 0; i < len; i++) {
       array->Set(Integer::New(i), Integer::New(buf[i]));
     }
-    argv[1] = array;
+    argv[0] = array;
   }
 
-  CALL_CALLBACK_PTR(req, argc, argv);
+  promise->EmitSuccess(1, argv);
   return 0;
 }
 
@@ -274,7 +305,7 @@ AfterRawRead(eio_req *req)
 static Handle<Value>
 Read (const Arguments& args)
 {
-  if ( args.Length() < 3 
+  if ( args.Length() < 2 
     || !args[0]->IsInt32()   // fd
     || !args[1]->IsNumber()  // len
      ) return ThrowException(BAD_ARGUMENTS);
@@ -290,56 +321,62 @@ Read (const Arguments& args)
     encoding = static_cast<enum encoding>(args[3]->Int32Value());
   }
 
-  MAKE_CALLBACK_PTR
+  Promise *promise = Promise::Create();
+
   // NOTE: 2nd param: NULL pointer tells eio to allocate it itself
   eio_read(fd, NULL, len, pos, EIO_PRI_DEFAULT, 
-      encoding == UTF8 ? AfterUtf8Read : AfterRawRead, callback);
-  return Undefined();
+      encoding == UTF8 ? AfterUtf8Read : AfterRawRead, promise);
+
+  return scope.Close(promise->Handle());
 }
 
 static int
 AfterStat (eio_req *req)
 {
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
+
+  if (req->result < 0) {
+    promise->EmitError(0, NULL);
+    return 0;
+  }
+
   HandleScope scope;
 
-  const int argc = 2;
-  Local<Value> argv[argc];
-  argv[0] = Integer::New(req->errorno);
-
+  Local<Value> argv[1];
   Local<Object> stats = Object::New();
   argv[1] = stats;
 
-  if (req->result == 0) {
-    struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
+  struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
 
-    /* ID of device containing file */
-    stats->Set(DEV_SYMBOL, Integer::New(s->st_dev));
-    /* inode number */
-    stats->Set(INO_SYMBOL, Integer::New(s->st_ino));
-    /* protection */
-    stats->Set(MODE_SYMBOL, Integer::New(s->st_mode));
-    /* number of hard links */
-    stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink));
-    /* user ID of owner */
-    stats->Set(UID_SYMBOL, Integer::New(s->st_uid));
-    /* group ID of owner */
-    stats->Set(GID_SYMBOL, Integer::New(s->st_gid));
-    /* device ID (if special file) */
-    stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev));
-    /* total size, in bytes */
-    stats->Set(SIZE_SYMBOL, Integer::New(s->st_size));
-    /* blocksize for filesystem I/O */
-    stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize));
-    /* number of blocks allocated */
-    stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks));
-    /* time of last access */
-    stats->Set(ATIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_atime)));
-    /* time of last modification */
-    stats->Set(MTIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_mtime)));
-    /* time of last status change */
-    stats->Set(CTIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_ctime)));
-  }
-  CALL_CALLBACK_PTR(req, argc, argv);                                    \
+  /* ID of device containing file */
+  stats->Set(DEV_SYMBOL, Integer::New(s->st_dev));
+  /* inode number */
+  stats->Set(INO_SYMBOL, Integer::New(s->st_ino));
+  /* protection */
+  stats->Set(MODE_SYMBOL, Integer::New(s->st_mode));
+  /* number of hard links */
+  stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink));
+  /* user ID of owner */
+  stats->Set(UID_SYMBOL, Integer::New(s->st_uid));
+  /* group ID of owner */
+  stats->Set(GID_SYMBOL, Integer::New(s->st_gid));
+  /* device ID (if special file) */
+  stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev));
+  /* total size, in bytes */
+  stats->Set(SIZE_SYMBOL, Integer::New(s->st_size));
+  /* blocksize for filesystem I/O */
+  stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize));
+  /* number of blocks allocated */
+  stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks));
+  /* time of last access */
+  stats->Set(ATIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_atime)));
+  /* time of last modification */
+  stats->Set(MTIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_mtime)));
+  /* time of last status change */
+  stats->Set(CTIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_ctime)));
+
+  promise->EmitSuccess(1, argv);
+
   return 0;
 }
 
@@ -353,11 +390,11 @@ Stat (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
 
-  MAKE_CALLBACK_PTR
+  Promise *promise = Promise::Create();
 
-  eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, callback);
+  eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, promise);
 
-  return Undefined();
+  return scope.Close(promise->Handle());
 }
 
 static Handle<Value>

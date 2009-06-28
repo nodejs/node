@@ -66,6 +66,7 @@ Promise::Initialize (v8::Handle<v8::Object> target)
   Local<FunctionTemplate> t = FunctionTemplate::New();
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   // All prototype methods are defined in events.js
 
@@ -80,9 +81,34 @@ Promise::Create (void)
 
   Local<Object> handle =
     Promise::constructor_template->GetFunction()->NewInstance();
+
   Promise *promise = new Promise(handle);
   ObjectWrap::InformV8ofAllocation(promise);
+
+  promise->Attach();
+  ev_unref(EV_DEFAULT_UC);
 
   return promise;
 }
 
+bool
+Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
+{
+  bool r = Emit("Success", argc, argv);
+
+  Detach();
+  ev_ref(EV_DEFAULT_UC);
+
+  return r;
+}
+
+bool
+Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
+{
+  bool r = Emit("Error", argc, argv);
+
+  Detach();
+  ev_ref(EV_DEFAULT_UC);
+
+  return r;
+}

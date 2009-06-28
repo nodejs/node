@@ -1,13 +1,23 @@
 include("mjsunit.js");
-var status = null;
+var got_error = false;
 
 function onLoad () {
   var dirname = node.path.dirname(__filename);
   var fixtures = node.path.join(dirname, "fixtures");
   var filename = node.path.join(fixtures, "does_not_exist.txt");
-  node.fs.cat(filename, "raw", function (s) { status = s });
+  var promise = node.fs.cat(filename, "raw");
+  
+  promise.addCallback(function (content) {
+    node.debug("cat returned some content: " + content);
+    node.debug("this shouldn't happen as the file doesn't exist...");
+    assertTrue(false);
+  });
+
+  promise.addErrback(function () {
+    got_error = true;
+  });
 }
 
 function onExit () {
-  assertTrue(status != 0);
+  assertTrue(got_error);
 }

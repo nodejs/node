@@ -12,18 +12,39 @@ var server = node.http.createServer(function (req, res) {
 });
 server.listen(PORT);
 
+var errors = 0;
+var successes = 0;
+
 function onLoad() {
-  node.cat("http://localhost:"+PORT, "utf8", function(status, content) {
+  var promise = node.cat("http://localhost:"+PORT, "utf8");
+  
+  promise.addCallback(function (content) {
     assertEquals(body, content);
-    assertEquals(0, status)
     server.close()
-  })
+    successes += 1;
+  });
+
+  promise.addErrback(function () {
+    errors += 1;
+  });
   
   var dirname = node.path.dirname(__filename);
   var fixtures = node.path.join(dirname, "fixtures");
   var x = node.path.join(fixtures, "x.txt");
-  node.cat(x, "utf8", function(status, content) {
-    assertEquals(0, status)
+
+  promise = node.cat(x, "utf8");
+  
+  promise.addCallback(function (content) {
     assertEquals("xyz", content.replace(/[\r\n]/, ''))
-  })
+    successes += 1;
+  });
+
+  promise.addErrback(function () {
+    errors += 1;
+  });
+}
+
+function onExit () {
+  assertEquals(2, successes);
+  assertEquals(0, errors);
 }

@@ -44,7 +44,6 @@ public:
 
 protected:
   static void* Unwrap (v8::Handle<v8::Object> handle);
-  v8::Persistent<v8::Object> handle_;
 
   /* Attach() marks the object as being attached to an event loop.
    * Attached objects will not be garbage collected, even if
@@ -60,6 +59,7 @@ protected:
    * persistant handle.)
    */
   void Detach();
+  v8::Persistent<v8::Object> handle_;
 
 private:
   static void MakeWeak (v8::Persistent<v8::Value> _, void *data);

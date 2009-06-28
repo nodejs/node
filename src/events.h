@@ -14,6 +14,7 @@ class EventEmitter : public ObjectWrap {
 
   bool Emit (const char *type, int argc, v8::Handle<v8::Value> argv[]);
 
+ protected:
   EventEmitter (v8::Handle<v8::Object> handle)
     : ObjectWrap(handle) { }
 };
@@ -24,17 +25,12 @@ class Promise : public EventEmitter {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   virtual size_t size (void) { return sizeof(Promise); };
  
-  bool EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
-  {
-    return Emit("Success", argc, argv);
-  }
-
-  bool EmitError (int argc, v8::Handle<v8::Value> argv[])
-  {
-    return Emit("Error", argc, argv);
-  }
+  bool EmitSuccess (int argc, v8::Handle<v8::Value> argv[]);
+  bool EmitError (int argc, v8::Handle<v8::Value> argv[]);
 
   static Promise* Create (void);
+
+  v8::Handle<v8::Object> Handle(void) { return handle_; }
 
  protected:
 
