@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Source common stuff.
+. `cd $(dirname "$0");pwd`/common
+
+sudo_opcontrol --reset "$@"
+

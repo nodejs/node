@@ -1176,6 +1176,12 @@ class V8EXPORT Array : public Object {
  public:
   uint32_t Length() const;
 
+  /**
+   * Clones an element at index |index|.  Returns an empty
+   * handle if cloning fails (for any reason).
+   */
+  Local<Object> CloneElementAt(uint32_t index);
+
   static Local<Array> New(int length = 0);
   static Array* Cast(Value* obj);
  private:

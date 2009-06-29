@@ -273,6 +273,14 @@ class CodeGenState BASE_EMBEDDED {
 };
 
 
+// -------------------------------------------------------------------------
+// Arguments allocation mode
+
+enum ArgumentsAllocationMode {
+  NO_ARGUMENTS_ALLOCATION,
+  EAGER_ARGUMENTS_ALLOCATION,
+  LAZY_ARGUMENTS_ALLOCATION
+};
 
 
 // -------------------------------------------------------------------------
@@ -382,6 +390,12 @@ class CodeGenerator: public AstVisitor {
   // once per compiled function, immediately after binding the return
   // target (which can not be done more than once).
   void GenerateReturnSequence(Result* return_value);
+
+  // Returns the arguments allocation mode.
+  ArgumentsAllocationMode ArgumentsMode() const;
+
+  // Store the arguments object and allocate it if necessary.
+  Result StoreArgumentsObject(bool initial);
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);

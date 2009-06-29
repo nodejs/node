@@ -81,17 +81,12 @@ void JumpTarget::ComputeEntryFrame() {
   // frame.
   for (int i = 0; i < length; i++) {
     FrameElement element = initial_frame->elements_[i];
-    // We do not allow copies or constants in bidirectional frames.  All
-    // elements above the water mark on bidirectional frames have
-    // unknown static types.
+    // We do not allow copies or constants in bidirectional frames.
     if (direction_ == BIDIRECTIONAL) {
       if (element.is_constant() || element.is_copy()) {
         elements.Add(NULL);
         continue;
       }
-      // It's safe to change the static type on the initial frame
-      // element, see comment in JumpTarget::Combine.
-      initial_frame->elements_[i].set_static_type(StaticType::unknown());
     }
     elements.Add(&initial_frame->elements_[i]);
   }
@@ -142,17 +137,11 @@ void JumpTarget::ComputeEntryFrame() {
   for (int i = length - 1; i >= 0; i--) {
     if (elements[i] == NULL) {
       // Loop over all the reaching frames to check whether the element
-      // is synced on all frames, to count the registers it occupies,
-      // and to compute a merged static type.
+      // is synced on all frames and to count the registers it occupies.
       bool is_synced = true;
       RegisterFile candidate_registers;
       int best_count = kMinInt;
       int best_reg_num = RegisterAllocator::kInvalidRegister;
-
-      StaticType type;  // Initially invalid.
-      if (direction_ != BIDIRECTIONAL) {
-        type = reaching_frames_[0]->elements_[i].static_type();
-      }
 
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
@@ -167,7 +156,6 @@ void JumpTarget::ComputeEntryFrame() {
             best_reg_num = num;
           }
         }
-        type = type.merge(element.static_type());
       }
 
       // If the value is synced on all frames, put it in memory.  This
@@ -175,7 +163,6 @@ void JumpTarget::ComputeEntryFrame() {
       // memory-to-register move when the value is needed later.
       if (is_synced) {
         // Already recorded as a memory element.
-        entry_frame_->elements_[i].set_static_type(type);
         continue;
       }
 
@@ -190,20 +177,15 @@ void JumpTarget::ComputeEntryFrame() {
         }
       }
 
-      if (best_reg_num == RegisterAllocator::kInvalidRegister) {
-        // If there was no register found, the element is already
-        // recorded as in memory.
-        entry_frame_->elements_[i].set_static_type(type);
-      } else {
+      if (best_reg_num != RegisterAllocator::kInvalidRegister) {
         // If there was a register choice, use it.  Preserve the copied
-        // flag on the element.  Set the static type as computed.
+        // flag on the element.
         bool is_copied = entry_frame_->elements_[i].is_copied();
         Register reg = RegisterAllocator::ToRegister(best_reg_num);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
                                           FrameElement::NOT_SYNCED);
         if (is_copied) entry_frame_->elements_[i].set_copied();
-        entry_frame_->elements_[i].set_static_type(type);
         entry_frame_->set_register_location(reg, i);
       }
     }

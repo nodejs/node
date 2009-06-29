@@ -37,13 +37,13 @@ function GetInstanceName(cons) {
   if (cons.length == 0) {
     return "";
   }
-  var first = cons.charAt(0).toLowerCase();
+  var first = %StringToLowerCase(StringCharAt.call(cons, 0));
   var mapping = kVowelSounds;
-  if (cons.length > 1 && (cons.charAt(0) != first)) {
+  if (cons.length > 1 && (StringCharAt.call(cons, 0) != first)) {
     // First char is upper case
-    var second = cons.charAt(1).toLowerCase();
+    var second = %StringToLowerCase(StringCharAt.call(cons, 1));
     // Second char is upper case
-    if (cons.charAt(1) != second)
+    if (StringCharAt.call(cons, 1) != second)
       mapping = kCapitalVowelSounds;
   }
   var s = mapping[first] ? "an " : "a ";
@@ -126,7 +126,7 @@ function FormatString(format, args) {
     var str;
     try { str = ToDetailString(args[i]); }
     catch (e) { str = "#<error>"; }
-    result = result.split("%" + i).join(str);
+    result = ArrayJoin.call(StringSplit.call(result, "%" + i), str);
   }
   return result;
 }
@@ -146,17 +146,9 @@ function ToDetailString(obj) {
 
 
 function MakeGenericError(constructor, type, args) {
-  if (args instanceof $Array) {
-    for (var i = 0; i < args.length; i++) {
-      var elem = args[i];
-      if (elem instanceof $Array && elem.length > 100) { // arbitrary limit, grab a reasonable slice to report
-        args[i] = elem.slice(0,20).concat("...");
-      }
-    }
-  } else if (IS_UNDEFINED(args)) {
+  if (IS_UNDEFINED(args)) {
     args = [];
   }
-
   var e = new constructor(kAddMessageAccessorsMarker);
   e.type = type;
   e.arguments = args;
@@ -281,7 +273,7 @@ Script.prototype.locationFromPosition = function (position,
   // Determine start, end and column.
   var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
   var end = this.line_ends[line];
-  if (end > 0 && this.source.charAt(end - 1) == '\r') end--;
+  if (end > 0 && StringCharAt.call(this.source, end - 1) == '\r') end--;
   var column = position - start;
 
   // Adjust according to the offset within the resource.
@@ -394,7 +386,7 @@ Script.prototype.sourceLine = function (opt_line) {
   // Return the source line.
   var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
   var end = this.line_ends[line];
-  return this.source.substring(start, end);
+  return StringSubstring.call(this.source, start, end);
 }
 
 
@@ -498,7 +490,7 @@ SourceLocation.prototype.restrict = function (opt_limit, opt_before) {
  *     Source text for this location.
  */
 SourceLocation.prototype.sourceText = function () {
-  return this.script.source.substring(this.start, this.end);
+  return StringSubstring.call(this.script.source, this.start, this.end);
 };
 
 
@@ -535,7 +527,7 @@ function SourceSlice(script, from_line, to_line, from_position, to_position) {
  *     the line terminating characters (if any)
  */
 SourceSlice.prototype.sourceText = function () {
-  return this.script.source.substring(this.from_position, this.to_position);
+  return StringSubstring.call(this.script.source, this.from_position, this.to_position);
 };
 
 

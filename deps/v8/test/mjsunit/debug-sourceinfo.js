@@ -64,12 +64,12 @@ var comment_lines = 29;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 14072;
+var last_position = 14312;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 345;
+var last_line = 351;
 // This is the last column of last line (note: starting at 0 and +2, due
 // to trailing <CR><LF>).
-var last_column = 48;
+var last_column = 2;
 
 // This magic number is the length or the first line comment (actually number
 // of characters before 'function a(...'.
@@ -344,3 +344,9 @@ assertEquals('  c(tru', location.sourceText());
 location = script.locationFromLine(1, 0, start_b);
 location.restrict(7, 6);
 assertEquals('  c(tru', location.sourceText());
+
+// Test that script.sourceLine(line) works.
+for (line = 0; line < num_lines_d; line++) {
+  var line_content_regexp = new RegExp("  x = " + (line + 1));
+  assertTrue(line_content_regexp.test(script.sourceLine(start_line_d + line)));
+}

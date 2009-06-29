@@ -224,8 +224,8 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+static uintptr_t StringToULong(char* buffer) {
+  return strtoul(buffer, NULL, 16);  // NOLINT
 }
 #endif
 
@@ -242,13 +242,13 @@ void OS::LogSharedLibraryAddresses() {
     addr_buffer[10] = 0;
     int result = read(fd, addr_buffer + 2, 8);
     if (result < 8) break;
-    unsigned start = StringToLong(addr_buffer);
+    uintptr_t start = StringToULong(addr_buffer);
     result = read(fd, addr_buffer + 2, 1);
     if (result < 1) break;
     if (addr_buffer[2] != '-') break;
     result = read(fd, addr_buffer + 2, 8);
     if (result < 8) break;
-    unsigned end = StringToLong(addr_buffer);
+    uintptr_t end = StringToULong(addr_buffer);
     char buffer[MAP_LENGTH];
     int bytes_read = -1;
     do {
@@ -262,10 +262,21 @@ void OS::LogSharedLibraryAddresses() {
     // Ignore mappings that are not executable.
     if (buffer[3] != 'x') continue;
     char* start_of_path = index(buffer, '/');
-    // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
-    buffer[bytes_read] = 0;
-    LOG(SharedLibraryEvent(start_of_path, start, end));
+    // If there is no filename for this line then log it as an anonymous
+    // mapping and use the address as its name.
+    if (start_of_path == NULL) {
+      // 40 is enough to print a 64 bit address range.
+      ASSERT(sizeof(buffer) > 40);
+      snprintf(buffer,
+               sizeof(buffer),
+               "%08" V8PRIxPTR "-%08" V8PRIxPTR,
+               start,
+               end);
+      LOG(SharedLibraryEvent(buffer, start, end));
+    } else {
+      buffer[bytes_read] = 0;
+      LOG(SharedLibraryEvent(start_of_path, start, end));
+    }
   }
   close(fd);
 #endif

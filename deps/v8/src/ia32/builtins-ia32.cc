@@ -63,6 +63,25 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &non_function_call);
 
+  // Jump to the function-specific construct stub.
+  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kConstructStubOffset));
+  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
+  __ jmp(Operand(ebx));
+
+  // edi: called object
+  // eax: number of arguments
+  __ bind(&non_function_call);
+
+  // Set expected number of arguments to zero (not changing eax).
+  __ Set(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+         RelocInfo::CODE_TARGET);
+}
+
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -113,7 +132,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // Make sure that the maximum heap object size will never cause us
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxHeapObjectSize() >= (1 << kBitsPerByte));
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
     ExternalReference new_space_allocation_top =
         ExternalReference::new_space_allocation_top_address();
     __ mov(ebx, Operand::StaticVariable(new_space_allocation_top));
@@ -175,7 +194,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object (will be start of FixedArray)
     // edx: number of elements in properties array
-    ASSERT(Heap::MaxHeapObjectSize() >
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
     __ lea(ecx, Operand(edi, edx, times_4, FixedArray::kHeaderSize));
     __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
@@ -305,16 +324,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
-
-  // edi: called object
-  // eax: number of arguments
-  __ bind(&non_function_call);
-
-  // Set expected number of arguments to zero (not changing eax).
-  __ Set(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-         RelocInfo::CODE_TARGET);
 }
 
 

@@ -28,6 +28,9 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
+#include "platform.h"
+#include "log-utils.h"
+
 namespace v8 {
 namespace internal {
 
@@ -77,7 +80,7 @@ class CompressionHelper;
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(Call)                           \
   do {                                      \
-    if (v8::internal::Logger::IsEnabled()) \
+    if (v8::internal::Logger::is_logging()) \
       v8::internal::Logger::Call;           \
   } while (false)
 #else
@@ -88,12 +91,13 @@ class CompressionHelper;
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
-  explicit VMState(StateTag state);
-  ~VMState();
+  inline explicit VMState(StateTag state);
+  inline ~VMState();
 
   StateTag state() { return state_; }
 
  private:
+  bool disabled_;
   StateTag state_;
   VMState* previous_;
 #else
@@ -217,11 +221,11 @@ class Logger {
   static void HeapSampleItemEvent(const char* type, int number, int bytes);
 
   static void SharedLibraryEvent(const char* library_path,
-                                 unsigned start,
-                                 unsigned end);
+                                 uintptr_t start,
+                                 uintptr_t end);
   static void SharedLibraryEvent(const wchar_t* library_path,
-                                 unsigned start,
-                                 unsigned end);
+                                 uintptr_t start,
+                                 uintptr_t end);
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
@@ -236,7 +240,9 @@ class Logger {
     return current_state_ ? current_state_->state() : OTHER;
   }
 
-  static bool IsEnabled();
+  static bool is_logging() {
+    return is_logging_;
+  }
 
   // Pause/Resume collection of profiling data.
   // When data collection is paused, Tick events are discarded until
@@ -317,8 +323,10 @@ class Logger {
   friend class VMState;
 
   friend class LoggerTestHelper;
+
+  static bool is_logging_;
 #else
-  static bool is_enabled() { return false; }
+  static bool is_logging() { return false; }
 #endif
 };
 

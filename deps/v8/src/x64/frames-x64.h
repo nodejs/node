@@ -59,12 +59,12 @@ class StackHandlerConstants : public AllStatic {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = 0 * kPointerSize;
+  static const int kCallerFPOffset      = -6 * kPointerSize;
 
-  static const int kFunctionArgOffset   = 1 * kPointerSize;
-  static const int kReceiverArgOffset   = 2 * kPointerSize;
-  static const int kArgcOffset          = 3 * kPointerSize;
-  static const int kArgvOffset          = 4 * kPointerSize;
+  static const int kFunctionArgOffset   = +3 * kPointerSize;
+  static const int kReceiverArgOffset   = +4 * kPointerSize;
+  static const int kArgcOffset          = +5 * kPointerSize;
+  static const int kArgvOffset          = +6 * kPointerSize;
 };
 
 

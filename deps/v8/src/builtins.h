@@ -51,6 +51,7 @@ namespace internal {
 #define BUILTIN_LIST_A(V)                                      \
   V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED)        \
   V(JSConstructCall,            BUILTIN, UNINITIALIZED)        \
+  V(JSConstructStubGeneric,     BUILTIN, UNINITIALIZED)        \
   V(JSEntryTrampoline,          BUILTIN, UNINITIALIZED)        \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED)        \
                                                                \
@@ -210,6 +211,7 @@ class Builtins : public AllStatic {
 
   static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id);
   static void Generate_JSConstructCall(MacroAssembler* masm);
+  static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);

@@ -13,9 +13,18 @@
 #define backend_fudge ((loop)->backend_fudge)
 #define backend_modify ((loop)->backend_modify)
 #define backend_poll ((loop)->backend_poll)
+#define anfds ((loop)->anfds)
+#define anfdmax ((loop)->anfdmax)
+#define pendings ((loop)->pendings)
+#define pendingmax ((loop)->pendingmax)
+#define pendingcnt ((loop)->pendingcnt)
+#define pending_w ((loop)->pending_w)
+#define rfeeds ((loop)->rfeeds)
+#define rfeedmax ((loop)->rfeedmax)
+#define rfeedcnt ((loop)->rfeedcnt)
 #define evfd ((loop)->evfd)
 #define evpipe ((loop)->evpipe)
-#define pipeev ((loop)->pipeev)
+#define pipe_w ((loop)->pipe_w)
 #define curpid ((loop)->curpid)
 #define postfork ((loop)->postfork)
 #define vec_ri ((loop)->vec_ri)
@@ -38,11 +47,6 @@
 #define kqueue_eventmax ((loop)->kqueue_eventmax)
 #define port_events ((loop)->port_events)
 #define port_eventmax ((loop)->port_eventmax)
-#define anfds ((loop)->anfds)
-#define anfdmax ((loop)->anfdmax)
-#define pendings ((loop)->pendings)
-#define pendingmax ((loop)->pendingmax)
-#define pendingcnt ((loop)->pendingcnt)
 #define fdchanges ((loop)->fdchanges)
 #define fdchangemax ((loop)->fdchangemax)
 #define fdchangecnt ((loop)->fdchangecnt)
@@ -87,9 +91,18 @@
 #undef backend_fudge
 #undef backend_modify
 #undef backend_poll
+#undef anfds
+#undef anfdmax
+#undef pendings
+#undef pendingmax
+#undef pendingcnt
+#undef pending_w
+#undef rfeeds
+#undef rfeedmax
+#undef rfeedcnt
 #undef evfd
 #undef evpipe
-#undef pipeev
+#undef pipe_w
 #undef curpid
 #undef postfork
 #undef vec_ri
@@ -112,11 +125,6 @@
 #undef kqueue_eventmax
 #undef port_events
 #undef port_eventmax
-#undef anfds
-#undef anfdmax
-#undef pendings
-#undef pendingmax
-#undef pendingcnt
 #undef fdchanges
 #undef fdchangemax
 #undef fdchangecnt

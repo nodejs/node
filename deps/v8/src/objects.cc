@@ -1302,16 +1302,19 @@ Object* JSObject::ReplaceSlowProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
   Dictionary* dictionary = property_dictionary();
-  PropertyDetails old_details =
-      dictionary->DetailsAt(dictionary->FindStringEntry(name));
-  int new_index = old_details.index();
-  if (old_details.IsTransition()) new_index = 0;
+  int old_index = dictionary->FindStringEntry(name);
+  int new_enumeration_index = 0;  // 0 means "Use the next available index."
+  if (old_index != -1) {
+    // All calls to ReplaceSlowProperty have had all transitions removed.
+    ASSERT(!dictionary->DetailsAt(old_index).IsTransition());
+    new_enumeration_index = dictionary->DetailsAt(old_index).index();
+  }
 
-  PropertyDetails new_details(attributes, NORMAL, old_details.index());
+  PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
   Object* result =
-      property_dictionary()->SetOrAddStringEntry(name, value, new_details);
+      dictionary->SetOrAddStringEntry(name, value, new_details);
   if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
+  if (dictionary != result) {
     set_properties(Dictionary::cast(result));
   }
   return value;
@@ -1562,7 +1565,11 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
 
 void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
   DescriptorArray* descriptors = map()->instance_descriptors();
-  int number = descriptors->Search(name);
+  int number = DescriptorLookupCache::Lookup(descriptors, name);
+  if (number == DescriptorLookupCache::kAbsent) {
+    number = descriptors->Search(name);
+    DescriptorLookupCache::Update(descriptors, name, number);
+  }
   if (number != DescriptorArray::kNotFound) {
     result->DescriptorResult(this, descriptors->GetDetails(number), number);
   } else {
@@ -4632,7 +4639,7 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
 
 
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
-  IteratePointers(v, kNameOffset, kCodeOffset + kPointerSize);
+  IteratePointers(v, kNameOffset, kConstructStubOffset + kPointerSize);
   IteratePointers(v, kInstanceClassNameOffset, kScriptOffset + kPointerSize);
   IteratePointers(v, kDebugInfoOffset, kInferredNameOffset + kPointerSize);
 }
@@ -4977,10 +4984,8 @@ Object* JSArray::Initialize(int capacity) {
 }
 
 
-void JSArray::EnsureSize(int required_size) {
+void JSArray::Expand(int required_size) {
   Handle<JSArray> self(this);
-  ASSERT(HasFastElements());
-  if (elements()->length() >= required_size) return;
   Handle<FixedArray> old_backing(elements());
   int old_size = old_backing->length();
   // Doubling in size would be overkill, but leave some slack to avoid
@@ -6352,8 +6357,8 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
     int n, HashTableKey* key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
-  // Make sure 25% is free
-  if (nof + (nof >> 2) <= capacity) return this;
+  // Make sure 50% is free
+  if (nof + (nof >> 1) <= capacity) return this;
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
@@ -6756,60 +6761,6 @@ class SymbolsKey : public HashTableKey {
 };
 
 
-// MapNameKeys are used as keys in lookup caches.
-class MapNameKey : public HashTableKey {
- public:
-  MapNameKey(Map* map, String* name)
-      : map_(map), name_(name) { }
-
-  bool IsMatch(Object* other) {
-    if (!other->IsFixedArray()) return false;
-    FixedArray* pair = FixedArray::cast(other);
-    Map* map = Map::cast(pair->get(0));
-    if (map != map_) return false;
-    String* name = String::cast(pair->get(1));
-    return name->Equals(name_);
-  }
-
-  typedef uint32_t (*HashFunction)(Object* obj);
-
-  virtual HashFunction GetHashFunction() { return MapNameHash; }
-
-  static uint32_t MapNameHashHelper(Map* map, String* name) {
-    // Uses only lower 32 bits if pointers are larger.
-    uintptr_t addr_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    return addr_hash ^ name->Hash();
-  }
-
-  static uint32_t MapNameHash(Object* obj) {
-    FixedArray* pair = FixedArray::cast(obj);
-    Map* map = Map::cast(pair->get(0));
-    String* name = String::cast(pair->get(1));
-    return MapNameHashHelper(map, name);
-  }
-
-  virtual uint32_t Hash() {
-    return MapNameHashHelper(map_, name_);
-  }
-
-  virtual Object* GetObject() {
-    Object* obj = Heap::AllocateFixedArray(2);
-    if (obj->IsFailure()) return obj;
-    FixedArray* pair = FixedArray::cast(obj);
-    pair->set(0, map_);
-    pair->set(1, name_);
-    return pair;
-  }
-
-  virtual bool IsStringKey() { return false; }
-
- private:
-  Map* map_;
-  String* name_;
-};
-
-
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
@@ -6827,31 +6778,6 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
   int entry = cache->FindInsertionEntry(array, key.Hash());
   cache->set(EntryToIndex(entry), array);
   cache->set(EntryToIndex(entry) + 1, value);
-  cache->ElementAdded();
-  return cache;
-}
-
-
-int LookupCache::Lookup(Map* map, String* name) {
-  MapNameKey key(map, name);
-  int entry = FindEntry(&key);
-  if (entry == -1) return kNotFound;
-  return Smi::cast(get(EntryToIndex(entry) + 1))->value();
-}
-
-
-Object* LookupCache::Put(Map* map, String* name, int value) {
-  MapNameKey key(map, name);
-  Object* obj = EnsureCapacity(1, &key);
-  if (obj->IsFailure()) return obj;
-  Object* k = key.GetObject();
-  if (k->IsFailure()) return k;
-
-  LookupCache* cache = reinterpret_cast<LookupCache*>(obj);
-  int entry = cache->FindInsertionEntry(k, key.Hash());
-  int index = EntryToIndex(entry);
-  cache->set(index, k);
-  cache->set(index + 1, Smi::FromInt(value), SKIP_WRITE_BARRIER);
   cache->ElementAdded();
   return cache;
 }

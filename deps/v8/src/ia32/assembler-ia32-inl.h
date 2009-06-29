@@ -48,7 +48,7 @@ Condition NegateCondition(Condition cc) {
 
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(int delta) {
+void RelocInfo::apply(intptr_t delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // relocate entry

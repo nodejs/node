@@ -5257,3 +5257,40 @@ TEST(ExceptionMessageWhenMessageHandlerIsReset) {
 
   CHECK_EQ(1, exception_event_count);
 }
+
+
+// Tests after compile event is sent when there are some provisional
+// breakpoints out of the scripts lines range.
+TEST(ProvisionalBreakpointOnLineOutOfRange) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+  const char* script = "function f() {};";
+  const char* resource_name = "test_resource";
+
+  // Set a couple of provisional breakpoint on lines out of the script lines
+  // range.
+  int sbp1 = SetScriptBreakPointByNameFromJS(resource_name, 3,
+                                             -1 /* no column */);
+  int sbp2 = SetScriptBreakPointByNameFromJS(resource_name, 5, 5);
+
+  after_compile_message_count = 0;
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+
+  v8::ScriptOrigin origin(
+      v8::String::New(resource_name),
+      v8::Integer::New(10),
+      v8::Integer::New(1));
+  // Compile a script whose first line number is greater than the breakpoints'
+  // lines.
+  v8::Script::Compile(v8::String::New(script), &origin)->Run();
+
+  // If the script is compiled successfully there is exactly one after compile
+  // event. In case of an exception in debugger code after compile event is not
+  // sent.
+  CHECK_EQ(1, after_compile_message_count);
+
+  ClearBreakPointFromJS(sbp1);
+  ClearBreakPointFromJS(sbp2);
+  v8::Debug::SetMessageHandler2(NULL);
+}

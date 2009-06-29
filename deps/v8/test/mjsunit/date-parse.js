@@ -254,7 +254,7 @@ testCasesMisc.forEach(testDateParseMisc);
 for (var i = 0; i < 24 * 365 * 100; i += 95) {
   var ms = i * (3600 * 1000);
   var s = (new Date(ms)).toString();
-  assertEquals(ms, Date.parse(s), s);
+  assertEquals(ms, Date.parse(s), "parse own: " + s);
 }
 
 // Negative tests.

@@ -43,7 +43,7 @@ namespace internal {
 // as random access to the expression stack elements, locals, and
 // parameters.
 
-class VirtualFrame : public ZoneObject {
+class VirtualFrame: public ZoneObject {
  public:
   // A utility class to introduce a scope where the virtual frame is
   // expected to remain spilled.  The constructor spills the code
@@ -65,7 +65,7 @@ class VirtualFrame : public ZoneObject {
    private:
     bool previous_state_;
 
-    CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
+    CodeGenerator* cgen() {return CodeGeneratorScope::Current();}
   };
 
   // An illegal index into the virtual frame.
@@ -78,6 +78,7 @@ class VirtualFrame : public ZoneObject {
   explicit VirtualFrame(VirtualFrame* original);
 
   CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
+
   MacroAssembler* masm() { return cgen()->masm(); }
 
   // Create a duplicate of an existing valid frame element.
@@ -87,9 +88,7 @@ class VirtualFrame : public ZoneObject {
   int element_count() { return elements_.length(); }
 
   // The height of the virtual expression stack.
-  int height() {
-    return element_count() - expression_base_index();
-  }
+  int height() { return element_count() - expression_base_index(); }
 
   int register_location(int num) {
     ASSERT(num >= 0 && num < RegisterAllocator::kNumRegisters);
@@ -255,7 +254,9 @@ class VirtualFrame : public ZoneObject {
   void PushReceiverSlotAddress();
 
   // Push the function on top of the frame.
-  void PushFunction() { PushFrameSlotAt(function_index()); }
+  void PushFunction() {
+    PushFrameSlotAt(function_index());
+  }
 
   // Save the value of the esi register to the context frame slot.
   void SaveContextRegister();
@@ -290,7 +291,9 @@ class VirtualFrame : public ZoneObject {
   }
 
   // The receiver frame slot.
-  Operand Receiver() { return ParameterAt(-1); }
+  Operand Receiver() {
+    return ParameterAt(-1);
+  }
 
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
@@ -320,9 +323,7 @@ class VirtualFrame : public ZoneObject {
 
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
-  Result InvokeBuiltin(Builtins::JavaScript id,
-                       InvokeFlag flag,
-                       int arg_count);
+  Result InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag, int arg_count);
 
   // Call load IC.  Name and receiver are found on top of the frame.
   // Receiver is not dropped.
@@ -357,10 +358,14 @@ class VirtualFrame : public ZoneObject {
   void Drop(int count);
 
   // Drop one element.
-  void Drop() { Drop(1); }
+  void Drop() {
+    Drop(1);
+  }
 
   // Duplicate the top element of the frame.
-  void Dup() { PushFrameSlotAt(element_count() - 1); }
+  void Dup() {
+    PushFrameSlotAt(element_count() - 1);
+  }
 
   // Pop an element from the top of the expression stack.  Returns a
   // Result, which may be a constant or a register.
@@ -378,15 +383,17 @@ class VirtualFrame : public ZoneObject {
   void EmitPush(Immediate immediate);
 
   // Push an element on the virtual frame.
-  void Push(Register reg, StaticType static_type = StaticType());
+  void Push(Register reg);
   void Push(Handle<Object> value);
-  void Push(Smi* value) { Push(Handle<Object>(value)); }
+  void Push(Smi* value) {
+    Push(Handle<Object> (value));
+  }
 
   // Pushing a result invalidates it (its contents become owned by the
   // frame).
   void Push(Result* result) {
     if (result->is_register()) {
-      Push(result->reg(), result->static_type());
+      Push(result->reg());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());
@@ -418,32 +425,48 @@ class VirtualFrame : public ZoneObject {
   int register_locations_[RegisterAllocator::kNumRegisters];
 
   // The number of frame-allocated locals and parameters respectively.
-  int parameter_count() { return cgen()->scope()->num_parameters(); }
-  int local_count() { return cgen()->scope()->num_stack_slots(); }
+  int parameter_count() {
+    return cgen()->scope()->num_parameters();
+  }
+  int local_count() {
+    return cgen()->scope()->num_stack_slots();
+  }
 
   // The index of the element that is at the processor's frame pointer
   // (the ebp register).  The parameters, receiver, and return address
   // are below the frame pointer.
-  int frame_pointer() { return parameter_count() + 2; }
+  int frame_pointer() {
+    return parameter_count() + 2;
+  }
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
-  int param0_index() { return 1; }
+  int param0_index() {
+    return 1;
+  }
 
   // The index of the context slot in the frame.  It is immediately
   // above the frame pointer.
-  int context_index() { return frame_pointer() + 1; }
+  int context_index() {
+    return frame_pointer() + 1;
+  }
 
   // The index of the function slot in the frame.  It is above the frame
   // pointer and the context slot.
-  int function_index() { return frame_pointer() + 2; }
+  int function_index() {
+    return frame_pointer() + 2;
+  }
 
   // The index of the first local.  Between the frame pointer and the
   // locals lie the context and the function.
-  int local0_index() { return frame_pointer() + 3; }
+  int local0_index() {
+    return frame_pointer() + 3;
+  }
 
   // The index of the base of the expression stack.
-  int expression_base_index() { return local0_index() + local_count(); }
+  int expression_base_index() {
+    return local0_index() + local_count();
+  }
 
   // Convert a frame index into a frame pointer relative offset into the
   // actual stack.
@@ -546,7 +569,6 @@ class VirtualFrame : public ZoneObject {
   friend class DeferredCode;
   friend class JumpTarget;
 };
-
 
 } }  // namespace v8::internal
 

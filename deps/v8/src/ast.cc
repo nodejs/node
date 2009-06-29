@@ -68,7 +68,7 @@ VariableProxy::VariableProxy(Handle<String> name,
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
   // at least one access, otherwise no need for a VariableProxy
-  var_uses_.RecordAccess(1);
+  var_uses_.RecordRead(1);
 }
 
 

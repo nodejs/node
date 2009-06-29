@@ -47,7 +47,7 @@ class LocalsMap: public HashMap {
   virtual ~LocalsMap();
 
   Variable* Declare(Scope* scope, Handle<String> name, Variable::Mode mode,
-                    bool is_valid_LHS, bool is_this);
+                    bool is_valid_LHS, Variable::Kind kind);
 
   Variable* Lookup(Handle<String> name);
 };

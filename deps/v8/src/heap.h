@@ -126,7 +126,6 @@ namespace internal {
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
   V(FixedArray, natives_source_cache)                   \
-  V(Object, keyed_lookup_cache)                         \
   V(Object, last_script_id)
 
 
@@ -243,9 +242,8 @@ class Heap : public AllStatic {
   // all available bytes. Check MaxHeapObjectSize() instead.
   static int Available();
 
-  // Returns the maximum object size that heap supports. Objects larger than
-  // the maximum heap object size are allocated in a large object space.
-  static inline int MaxHeapObjectSize();
+  // Returns the maximum object size in paged space.
+  static inline int MaxObjectSizeInPagedSpace();
 
   // Returns of size of all objects residing in the heap.
   static int SizeOfObjects();
@@ -446,17 +444,6 @@ class Heap : public AllStatic {
   // Allocates a new utility object in the old generation.
   static Object* AllocateStruct(InstanceType type);
 
-
-  // Initializes a function with a shared part and prototype.
-  // Returns the function.
-  // Note: this code was factored out of AllocateFunction such that
-  // other parts of the VM could use it. Specifically, a function that creates
-  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
-  // Please note this does not perform a garbage collection.
-  static Object* InitializeFunction(JSFunction* function,
-                                    SharedFunctionInfo* shared,
-                                    Object* prototype);
-
   // Allocates a function initialized with a shared part.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -520,8 +507,7 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateConsString(String* first,
-                                    String* second);
+  static Object* AllocateConsString(String* first, String* second);
 
   // Allocates a new sliced string object which is a slice of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -700,11 +686,6 @@ class Heap : public AllStatic {
     non_monomorphic_cache_ = value;
   }
 
-  // Gets, sets and clears the lookup cache used for keyed access.
-  static inline Object* GetKeyedLookupCache();
-  static inline void SetKeyedLookupCache(LookupCache* cache);
-  static inline void ClearKeyedLookupCache();
-
   // Update the next script id.
   static inline void SetLastScriptId(Object* last_script_id);
 
@@ -835,6 +816,8 @@ class Heap : public AllStatic {
   static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
+
+  static const int kMaxObjectSizeInNewSpace = 256*KB;
 
   static NewSpace new_space_;
   static OldSpace* old_pointer_space_;
@@ -989,7 +972,17 @@ class Heap : public AllStatic {
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Copy memory from src to dst.
-  inline static void CopyBlock(Object** dst, Object** src, int byte_size);
+  static inline void CopyBlock(Object** dst, Object** src, int byte_size);
+
+  // Initializes a function with a shared part and prototype.
+  // Returns the function.
+  // Note: this code was factored out of AllocateFunction such that
+  // other parts of the VM could use it. Specifically, a function that creates
+  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
+  // Please note this does not perform a garbage collection.
+  static inline Object* InitializeFunction(JSFunction* function,
+                                           SharedFunctionInfo* shared,
+                                           Object* prototype);
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
@@ -1137,6 +1130,84 @@ class HeapIterator BASE_EMBEDDED {
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
   ObjectIterator* object_iterator_;
+};
+
+
+// Cache for mapping (map, property name) into field offset.
+// Cleared at startup and prior to mark sweep collection.
+class KeyedLookupCache {
+ public:
+  // Lookup field offset for (map, name). If absent, -1 is returned.
+  static int Lookup(Map* map, String* name);
+
+  // Update an element in the cache.
+  static void Update(Map* map, String* name, int field_offset);
+
+  // Clear the cache.
+  static void Clear();
+ private:
+  inline static int Hash(Map* map, String* name);
+  static const int kLength = 64;
+  struct Key {
+    Map* map;
+    String* name;
+  };
+  static Key keys_[kLength];
+  static int field_offsets_[kLength];
+};
+
+
+
+// Cache for mapping (array, property name) into descriptor index.
+// The cache contains both positive and negative results.
+// Descriptor index equals kNotFound means the property is absent.
+// Cleared at startup and prior to any gc.
+class DescriptorLookupCache {
+ public:
+  // Lookup descriptor index for (map, name).
+  // If absent, kAbsent is returned.
+  static int Lookup(DescriptorArray* array, String* name) {
+    if (!StringShape(name).IsSymbol()) return kAbsent;
+    int index = Hash(array, name);
+    Key& key = keys_[index];
+    if ((key.array == array) && (key.name == name)) return results_[index];
+    return kAbsent;
+  }
+
+  // Update an element in the cache.
+  static void Update(DescriptorArray* array, String* name, int result) {
+    ASSERT(result != kAbsent);
+    if (StringShape(name).IsSymbol()) {
+      int index = Hash(array, name);
+      Key& key = keys_[index];
+      key.array = array;
+      key.name = name;
+      results_[index] = result;
+    }
+  }
+
+  // Clear the cache.
+  static void Clear();
+
+  static const int kAbsent = -2;
+ private:
+  static int Hash(DescriptorArray* array, String* name) {
+    // Uses only lower 32 bits if pointers are larger.
+    uintptr_t array_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array)) >> 2;
+    uintptr_t name_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >> 2;
+    return (array_hash ^ name_hash) % kLength;
+  }
+
+  static const int kLength = 64;
+  struct Key {
+    DescriptorArray* array;
+    String* name;
+  };
+
+  static Key keys_[kLength];
+  static int results_[kLength];
 };
 
 

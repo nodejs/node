@@ -432,10 +432,13 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
                                            String* name,
                                            Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
+  int result = ContextSlotCache::Lookup(code, name, mode);
+  if (result != ContextSlotCache::kNotFound) return result;
   if (code->sinfo_size() > 0) {
     // Loop below depends on the NULL sentinel after the context slot names.
     ASSERT(NumberOfContextSlots(code) >= Context::MIN_CONTEXT_SLOTS ||
            *(ContextEntriesAddr(code) + 1) == NULL);
+
     // slots start after length entry
     Object** p0 = ContextEntriesAddr(code) + 1;
     Object** p = p0;
@@ -443,14 +446,18 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
     while (*p != NULL) {
       if (*p == name) {
         ASSERT(((p - p0) & 1) == 0);
-        if (mode != NULL) {
-          ReadInt(p + 1, reinterpret_cast<int*>(mode));
-        }
-        return ((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
+        int v;
+        ReadInt(p + 1, &v);
+        Variable::Mode mode_value = static_cast<Variable::Mode>(v);
+        if (mode != NULL) *mode = mode_value;
+        result = ((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
+        ContextSlotCache::Update(code, name, mode_value, result);
+        return result;
       }
       p += 2;
     }
   }
+  ContextSlotCache::Update(code, name, Variable::INTERNAL, -1);
   return -1;
 }
 
@@ -526,7 +533,78 @@ int ScopeInfo<Allocator>::NumberOfLocals() const {
 }
 
 
+int ContextSlotCache::Hash(Code* code, String* name) {
+  // Uses only lower 32 bits if pointers are larger.
+  uintptr_t addr_hash =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)) >> 2;
+  return (addr_hash ^ name->Hash()) % kLength;
+}
+
+
+int ContextSlotCache::Lookup(Code* code,
+                             String* name,
+                             Variable::Mode* mode) {
+  int index = Hash(code, name);
+  Key& key = keys_[index];
+  if ((key.code == code) && key.name->Equals(name)) {
+    Value result(values_[index]);
+    if (mode != NULL) *mode = result.mode();
+    return result.index() + kNotFound;
+  }
+  return kNotFound;
+}
+
+
+void ContextSlotCache::Update(Code* code,
+                              String* name,
+                              Variable::Mode mode,
+                              int slot_index) {
+  String* symbol;
+  ASSERT(slot_index > kNotFound);
+  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+    int index = Hash(code, symbol);
+    Key& key = keys_[index];
+    key.code = code;
+    key.name = symbol;
+    // Please note value only takes a uint as index.
+    values_[index] = Value(mode, slot_index - kNotFound).raw();
 #ifdef DEBUG
+    ValidateEntry(code, name, mode, slot_index);
+#endif
+  }
+}
+
+
+void ContextSlotCache::Clear() {
+  for (int index = 0; index < kLength; index++) keys_[index].code = NULL;
+}
+
+
+ContextSlotCache::Key ContextSlotCache::keys_[ContextSlotCache::kLength];
+
+
+uint32_t ContextSlotCache::values_[ContextSlotCache::kLength];
+
+
+#ifdef DEBUG
+
+void ContextSlotCache::ValidateEntry(Code* code,
+                                     String* name,
+                                     Variable::Mode mode,
+                                     int slot_index) {
+  String* symbol;
+  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+    int index = Hash(code, name);
+    Key& key = keys_[index];
+    ASSERT(key.code == code);
+    ASSERT(key.name->Equals(name));
+    Value result(values_[index]);
+    ASSERT(result.mode() == mode);
+    ASSERT(result.index() + kNotFound == slot_index);
+  }
+}
+
+
 template <class Allocator>
 static void PrintList(const char* list_name,
                       int nof_internal_slots,

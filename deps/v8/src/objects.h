@@ -59,7 +59,6 @@
 //             - SymbolTable
 //             - CompilationCacheTable
 //             - MapCache
-//             - LookupCache
 //           - Context
 //           - GlobalContext
 //       - String
@@ -678,7 +677,6 @@ class Object BASE_EMBEDDED {
   inline bool IsSymbolTable();
   inline bool IsCompilationCacheTable();
   inline bool IsMapCache();
-  inline bool IsLookupCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -1641,6 +1639,9 @@ class FixedArray: public Array {
   // Garbage collection support.
   static int SizeFor(int length) { return kHeaderSize + length * kPointerSize; }
 
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
+
   // Casting.
   static inline FixedArray* cast(Object* obj);
 
@@ -2012,27 +2013,6 @@ class MapCache: public HashTable<0, 2> {
 };
 
 
-// LookupCache.
-//
-// Maps a key consisting of a map and a name to an index within a
-// fast-case properties array.
-//
-// LookupCaches are used to avoid repeatedly searching instance
-// descriptors.
-class LookupCache: public HashTable<0, 2> {
- public:
-  int Lookup(Map* map, String* name);
-  Object* Put(Map* map, String* name, int offset);
-  static inline LookupCache* cast(Object* obj);
-
-  // Constant returned by Lookup when the key was not found.
-  static const int kNotFound = -1;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(LookupCache);
-};
-
-
 // Dictionary for keeping properties and elements in slow case.
 //
 // One element in the prefix is used for storing non-element
@@ -2056,6 +2036,7 @@ class Dictionary: public DictionaryBase {
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
+    ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(Smi::cast(get(EntryToIndex(entry) + 2)));
   }
 
@@ -2766,6 +2747,9 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [construct stub]: Code stub for constructing instances of this function.
+  DECL_ACCESSORS(construct_stub, Code)
+
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
@@ -2861,7 +2845,8 @@ class SharedFunctionInfo: public HeapObject {
   // (An even number of integers has a size that is a multiple of a pointer.)
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kLengthOffset = kCodeOffset + kPointerSize;
+  static const int kConstructStubOffset = kCodeOffset + kPointerSize;
+  static const int kLengthOffset = kConstructStubOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
@@ -4005,7 +3990,7 @@ class JSArray: public JSObject {
 
   // Uses handles.  Ensures that the fixed array backing the JSArray has at
   // least the stated size.
-  void EnsureSize(int minimum_size_of_backing_fixed_array);
+  inline void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
 #ifdef DEBUG
@@ -4018,6 +4003,10 @@ class JSArray: public JSObject {
   static const int kSize = kLengthOffset + kPointerSize;
 
  private:
+  // Expand the fixed array backing of a fast-case JSArray to at least
+  // the requested size.
+  void Expand(int minimum_size_of_backing_fixed_array);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
 };
 

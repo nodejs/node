@@ -541,6 +541,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\log-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\log.h"
 				>
 			</File>

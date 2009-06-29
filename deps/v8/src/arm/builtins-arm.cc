@@ -67,6 +67,24 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &non_function_call);
 
+  // Jump to the function-specific construct stub.
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kConstructStubOffset));
+  __ add(pc, r2, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // r0: number of arguments
+  // r1: called object
+  __ bind(&non_function_call);
+
+  // Set expected number of arguments to zero (not changing r0).
+  __ mov(r2, Operand(0));
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET);
+}
+
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -177,16 +195,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
   __ Jump(lr);
-
-  // r0: number of arguments
-  // r1: called object
-  __ bind(&non_function_call);
-
-  // Set expected number of arguments to zero (not changing r0).
-  __ mov(r2, Operand(0));
-  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-          RelocInfo::CODE_TARGET);
 }
 
 

@@ -1417,7 +1417,7 @@ void Assembler::call(const Operand& adr) {
 }
 
 
-void Assembler::call(Handle<Code> code,  RelocInfo::Mode rmode) {
+void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1815,7 +1815,7 @@ void Assembler::fcompp() {
 void Assembler::fnstsw_ax() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xdF);
+  EMIT(0xDF);
   EMIT(0xE0);
 }
 
@@ -2179,17 +2179,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data);
   reloc_info_writer.Write(&rinfo);
-}
-
-
-void Assembler::WriteInternalReference(int position, const Label& bound_label) {
-  ASSERT(bound_label.is_bound());
-  ASSERT(0 <= position);
-  ASSERT(position + static_cast<int>(sizeof(uint32_t)) <= pc_offset());
-  ASSERT(long_at(position) == 0);  // only initialize once!
-
-  uint32_t label_loc = reinterpret_cast<uint32_t>(addr_at(bound_label.pos()));
-  long_at_put(position, label_loc);
 }
 
 

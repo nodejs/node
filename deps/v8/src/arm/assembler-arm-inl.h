@@ -50,7 +50,7 @@ Condition NegateCondition(Condition cc) {
 }
 
 
-void RelocInfo::apply(int delta) {
+void RelocInfo::apply(intptr_t delta) {
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);

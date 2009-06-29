@@ -35,6 +35,12 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// Static IC stub generators.
+//
+
+#define __ ACCESS_MASM(masm)
+
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {
   UNIMPLEMENTED();
@@ -48,17 +54,37 @@ void KeyedStoreIC::RestoreInlinedVersion(Address address) {
   UNIMPLEMENTED();
 }
 
+
 void KeyedLoadIC::Generate(MacroAssembler* masm,
                            ExternalReference const& f) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
+
+  // Move the return address below the arguments.
+  __ pop(rbx);
+  __ push(rcx);
+  __ push(rax);
+  __ push(rbx);
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 2);
 }
+
 
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC0AB));  // Debugging aid.
 }
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC1AB));  // Debugging aid.
 }
 
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
@@ -118,15 +144,32 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : key
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  // Move the return address below the arguments.
+  __ pop(rcx);
+  __ push(Operand(rsp, 1 * kPointerSize));
+  __ push(Operand(rsp, 1 * kPointerSize));
+  __ push(rax);
+  __ push(rcx);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(f, 3);
 }
 
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC2AB));  // Debugging aid.
 }
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC3AB));  // Debugging aid.
 }
 
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
@@ -137,36 +180,121 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   return NULL;
 }
 
+
+void CallIC::Generate(MacroAssembler* masm,
+                      int argc,
+                      ExternalReference const& f) {
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  // Get the name of the function to call from the stack.
+  // 2 ~ receiver, return address.
+  __ movq(rbx, Operand(rsp, (argc + 2) * kPointerSize));
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push the receiver and the name of the function.
+  __ push(rdx);
+  __ push(rbx);
+
+  // Call the entry.
+  CEntryStub stub;
+  __ movq(rax, Immediate(2));
+  __ movq(rbx, f);
+  __ CallStub(&stub);
+
+  // Move result to rdi and exit the internal frame.
+  __ movq(rdi, rax);
+  __ LeaveInternalFrame();
+
+  // Check if the receiver is a global object of some sort.
+  Label invoke, global;
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, &invoke);
+  __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ movzxbq(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
+  __ cmpq(rcx, Immediate(static_cast<int8_t>(JS_GLOBAL_OBJECT_TYPE)));
+  __ j(equal, &global);
+  __ cmpq(rcx, Immediate(static_cast<int8_t>(JS_BUILTINS_OBJECT_TYPE)));
+  __ j(not_equal, &invoke);
+
+  // Patch the receiver on the stack.
+  __ bind(&global);
+  __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+  __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ bind(&invoke);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+}
+
+void CallIC::GenerateMegamorphic(MacroAssembler* a, int b) {
+  UNIMPLEMENTED();
+}
+
+void CallIC::GenerateNormal(MacroAssembler* a, int b) {
+  UNIMPLEMENTED();
+}
+
+
+const int LoadIC::kOffsetToLoadInstruction = 20;
+
+
 void LoadIC::ClearInlinedVersion(Address address) {
   UNIMPLEMENTED();
 }
 
+
 void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  // Move the return address below the arguments.
+  __ pop(rbx);
+  __ push(rax);
+  __ push(rcx);
+  __ push(rbx);
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 2);
 }
+
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC4AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC5AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC6AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC7AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC8AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC9AB));  // Debugging aid.
 }
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
@@ -175,15 +303,35 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
 }
 
 void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  // Move the return address below the arguments.
+  __ pop(rbx);
+  __ push(Operand(rsp, 0));
+  __ push(rcx);
+  __ push(rax);
+  __ push(rbx);
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 3);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xCAAB));  // Debugging aid.
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xCBAB));  // Debugging aid.
 }
+
+
+#undef __
+
 
 } }  // namespace v8::internal

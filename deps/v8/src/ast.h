@@ -802,11 +802,18 @@ class VariableProxy: public Expression {
   Variable* AsVariable() {
     return this == NULL || var_ == NULL ? NULL : var_->AsVariable();
   }
+
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
   }
+
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);
+  }
+
+  bool IsArguments() {
+    Variable* variable = AsVariable();
+    return (variable == NULL) ? false : variable->is_arguments();
   }
 
   // If this assertion fails it means that some code has tried to
@@ -890,12 +897,13 @@ class Slot: public Expression {
   virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
-  virtual Slot* AsSlot()  { return this; }
+  virtual Slot* AsSlot() { return this; }
 
   // Accessors
-  Variable* var() const  { return var_; }
-  Type type() const  { return type_; }
-  int index() const  { return index_; }
+  Variable* var() const { return var_; }
+  Type type() const { return type_; }
+  int index() const { return index_; }
+  bool is_arguments() const { return var_->is_arguments(); }
 
  private:
   Variable* var_;

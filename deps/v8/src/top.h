@@ -239,6 +239,7 @@ class Top {
   static Failure* ReThrow(Object* exception, MessageLocation* location = NULL);
   static void ScheduleThrow(Object* exception);
   static void ReportPendingMessages();
+  static Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   static Object* PromoteScheduledException();

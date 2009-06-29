@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Determine the session directory to use for oprofile.
+[ "$OPROFILE_SESSION_DIR" ] || OPROFILE_SESSION_DIR=/tmp/oprofv8
+
+# If no executable passed as the first parameter assume V8 release mode shell.
+if [[ -x $1 ]]
+then
+  shell_exec=`readlink -f "$1"`
+  # Any additional parameters are for the oprofile command.
+  shift
+else
+  oprofile_tools_path=`cd $(dirname "$0");pwd`
+  [ "$V8_SHELL_DIR" ] || V8_SHELL_DIR=$oprofile_tools_path/../..
+  shell_exec=$V8_SHELL_DIR/shell
+fi
+
+alias sudo_opcontrol='sudo opcontrol --session-dir="$OPROFILE_SESSION_DIR"'
+

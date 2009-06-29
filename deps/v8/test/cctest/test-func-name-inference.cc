@@ -251,3 +251,17 @@ TEST(MultipleFuncsInLiteral) {
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method1");
 }
+
+
+// See http://code.google.com/p/v8/issues/detail?id=380
+TEST(Issue380) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function a() {\n"
+      "var result = function(p,a,c,k,e,d)"
+      "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
+      "}");
+  CheckFunctionName(script, "return p", "");
+}

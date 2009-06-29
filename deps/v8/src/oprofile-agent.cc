@@ -52,6 +52,10 @@ bool OProfileAgent::Initialize() {
     return true;
   }
 #else
+  if (FLAG_oprofile) {
+    OS::Print("Warning: --oprofile specified but binary compiled without "
+              "oprofile support.\n");
+  }
   return true;
 #endif
 }

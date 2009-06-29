@@ -39,19 +39,11 @@ namespace internal {
 void Result::ToRegister() {
   ASSERT(is_valid());
   if (is_constant()) {
-    // TODO(X64): Handle constant results.
-    /*
     Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-      CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
-    } else {
-      CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                 Immediate(handle()));
-    }
+    CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
     // This result becomes a copy of the fresh one.
     *this = fresh;
-    */
   }
   ASSERT(is_register());
 }
@@ -66,15 +58,7 @@ void Result::ToRegister(Register target) {
       CodeGeneratorScope::Current()->masm()->movq(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      /*
-      TODO(X64): Handle constant results.
-      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-        CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
-      } else {
-        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                   Immediate(handle()));
-      }
-      */
+      CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
@@ -84,6 +68,16 @@ void Result::ToRegister(Register target) {
   }
   ASSERT(is_register());
   ASSERT(reg().is(target));
+}
+
+
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
+
+Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
+  // This function is not used in 64-bit code.
+  UNREACHABLE();
+  return Result();
 }
 
 

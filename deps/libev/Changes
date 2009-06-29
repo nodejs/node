@@ -1,5 +1,22 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+3.6  Tue Apr 28 02:49:30 CEST 2009
+	- multiple timers becoming ready within an event loop iteration
+          will be invoked in the "correct" order now.
+	- do not leave the event loop early just because we have no active
+          watchers, fixing a problem when embedding a kqueue loop
+          that has active kernel events but no registered watchers
+          (reported by blacksand blacksand).
+	- correctly zero the idx values for arrays, so destroying and
+          reinitialising the default loop actually works (patch by
+          Malek Hadj-Ali).
+        - implement ev_suspend and ev_resume.
+        - new EV_CUSTOM revents flag for use by applications.
+        - add documentation section about priorites.
+        - add a glossary to the dcoumentation.
+        - extend the ev_fork description slightly.
+        - optimize a jump out of call_pending.
+
 3.53 Sun Feb 15 02:38:20 CET 2009
 	- fix a bug in event pipe creation on win32 that would cause a
           failed assertion on event loop creation (patch by Malek Hadj-Ali).

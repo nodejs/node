@@ -137,6 +137,12 @@ class Variable: public ZoneObject {
                      // in a context
   };
 
+  enum Kind {
+    NORMAL,
+    THIS,
+    ARGUMENTS
+  };
+
   // Printing support
   static const char* Mode2String(Mode mode);
 
@@ -172,7 +178,8 @@ class Variable: public ZoneObject {
   }
 
   bool is_global() const;
-  bool is_this() const { return is_this_; }
+  bool is_this() const { return kind_ == THIS; }
+  bool is_arguments() const { return kind_ == ARGUMENTS; }
 
   Variable* local_if_not_shadowed() const {
     ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
@@ -190,13 +197,13 @@ class Variable: public ZoneObject {
 
  private:
   Variable(Scope* scope, Handle<String> name, Mode mode, bool is_valid_LHS,
-      bool is_this);
+           Kind kind);
 
   Scope* scope_;
   Handle<String> name_;
   Mode mode_;
   bool is_valid_LHS_;
-  bool is_this_;
+  Kind kind_;
 
   Variable* local_if_not_shadowed_;
 

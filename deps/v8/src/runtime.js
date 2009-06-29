@@ -391,8 +391,9 @@ function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
 
 function APPLY_PREPARE(args) {
   var length;
-  // First check whether length is a positive Smi and args is an array.  This is the
-  // fast case.  If this fails, we do the slow case that takes care of more eventualities
+  // First check whether length is a positive Smi and args is an
+  // array. This is the fast case. If this fails, we do the slow case
+  // that takes care of more eventualities.
   if (%_IsArray(args)) {
     length = args.length;
     if (%_IsSmi(length) && length >= 0 && length < 0x800000 && IS_FUNCTION(this)) {

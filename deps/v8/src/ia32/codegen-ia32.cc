@@ -175,18 +175,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
 
-    // Allocate the arguments object and copy the parameters into it.
-    if (scope_->arguments() != NULL) {
-      ASSERT(scope_->arguments_shadow() != NULL);
-      Comment cmnt(masm_, "[ Allocate arguments object");
-      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-      frame_->PushFunction();
-      frame_->PushReceiverSlotAddress();
-      frame_->Push(Smi::FromInt(scope_->num_parameters()));
-      Result answer = frame_->CallStub(&stub, 3);
-      frame_->Push(&answer);
-    }
-
+    // Allocate the local context if needed.
     if (scope_->num_heap_slots() > 0) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.
@@ -247,27 +236,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       }
     }
 
-    // This section stores the pointer to the arguments object that
-    // was allocated and copied into above. If the address was not
-    // saved to TOS, we push ecx onto the stack.
-    //
     // Store the arguments object.  This must happen after context
-    // initialization because the arguments object may be stored in the
-    // context.
-    if (scope_->arguments() != NULL) {
-      Comment cmnt(masm_, "[ store arguments object");
-      { Reference shadow_ref(this, scope_->arguments_shadow());
-        ASSERT(shadow_ref.is_slot());
-        { Reference arguments_ref(this, scope_->arguments());
-          ASSERT(arguments_ref.is_slot());
-          // Here we rely on the convenient property that references to slot
-          // take up zero space in the frame (ie, it doesn't matter that the
-          // stored value is actually below the reference on the frame).
-          arguments_ref.SetValue(NOT_CONST_INIT);
-        }
-        shadow_ref.SetValue(NOT_CONST_INIT);
-      }
-      frame_->Drop();  // Value is no longer needed.
+    // initialization because the arguments object may be stored in
+    // the context.
+    if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
+      StoreArgumentsObject(true);
     }
 
     // Generate code to 'execute' declarations and initialize functions
@@ -591,6 +564,71 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
 }
 
 
+ArgumentsAllocationMode CodeGenerator::ArgumentsMode() const {
+  if (scope_->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
+  ASSERT(scope_->arguments_shadow() != NULL);
+  // We don't want to do lazy arguments allocation for functions that
+  // have heap-allocated contexts, because it interfers with the
+  // uninitialized const tracking in the context objects.
+  return (scope_->num_heap_slots() > 0)
+      ? EAGER_ARGUMENTS_ALLOCATION
+      : LAZY_ARGUMENTS_ALLOCATION;
+}
+
+
+Result CodeGenerator::StoreArgumentsObject(bool initial) {
+  ArgumentsAllocationMode mode = ArgumentsMode();
+  ASSERT(mode != NO_ARGUMENTS_ALLOCATION);
+
+  Comment cmnt(masm_, "[ store arguments object");
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
+    // When using lazy arguments allocation, we store the hole value
+    // as a sentinel indicating that the arguments object hasn't been
+    // allocated yet.
+    frame_->Push(Factory::the_hole_value());
+  } else {
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    frame_->PushFunction();
+    frame_->PushReceiverSlotAddress();
+    frame_->Push(Smi::FromInt(scope_->num_parameters()));
+    Result result = frame_->CallStub(&stub, 3);
+    frame_->Push(&result);
+  }
+
+  { Reference shadow_ref(this, scope_->arguments_shadow());
+    Reference arguments_ref(this, scope_->arguments());
+    ASSERT(shadow_ref.is_slot() && arguments_ref.is_slot());
+    // Here we rely on the convenient property that references to slot
+    // take up zero space in the frame (ie, it doesn't matter that the
+    // stored value is actually below the reference on the frame).
+    JumpTarget done;
+    bool skip_arguments = false;
+    if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+      // We have to skip storing into the arguments slot if it has
+      // already been written to. This can happen if the a function
+      // has a local variable named 'arguments'.
+      LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+      Result arguments = frame_->Pop();
+      if (arguments.is_constant()) {
+        // We have to skip updating the arguments object if it has
+        // been assigned a proper value.
+        skip_arguments = !arguments.handle()->IsTheHole();
+      } else {
+        __ cmp(Operand(arguments.reg()), Immediate(Factory::the_hole_value()));
+        arguments.Unuse();
+        done.Branch(not_equal);
+      }
+    }
+    if (!skip_arguments) {
+      arguments_ref.SetValue(NOT_CONST_INIT);
+      if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+    }
+    shadow_ref.SetValue(NOT_CONST_INIT);
+  }
+  return frame_->Pop();
+}
+
+
 Reference::Reference(CodeGenerator* cgen, Expression* expression)
     : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
   cgen->LoadReference(this);
@@ -881,15 +919,15 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.static_type().is_jsstring();
-    bool right_is_string = right.static_type().is_jsstring();
+    bool left_is_string = left.is_constant() && left.handle()->IsString();
+    bool right_is_string = right.is_constant() && right.handle()->IsString();
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
       Result answer;
       if (left_is_string) {
         if (right_is_string) {
-          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
           answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
         } else {
@@ -900,7 +938,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
-      answer.set_static_type(StaticType::jsstring());
       frame_->Push(&answer);
       return;
     }
@@ -1387,7 +1424,11 @@ class DeferredInlineSmiOperation: public DeferredCode {
 void DeferredInlineSmiOperation::Generate() {
   __ push(src_);
   __ push(Immediate(value_));
-  GenericBinaryOpStub stub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
   __ CallStub(&stub);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1772,6 +1813,33 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       break;
     }
 
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
+                                                                operand->reg(),
+                                                                operand->reg(),
+                                                                smi_value,
+                                                                overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ test(operand->reg(), Immediate(kSmiTagMask | 0x80000000));
+        deferred->Branch(not_zero);
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ mov(operand->reg(), Immediate(Smi::FromInt(0)));
+        } else {
+          __ and_(operand->reg(), (int_value << kSmiTagSize) - 1);
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+        break;
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
+
     default: {
       Result constant_operand(value);
       if (reversed) {
@@ -1805,6 +1873,12 @@ class CompareStub: public CodeStub {
     ASSERT(static_cast<int>(cc_) < (1 << 15));
     return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
   }
+
+  // Branch to the label if the given object isn't a symbol.
+  void BranchIfNonSymbol(MacroAssembler* masm,
+                         Label* label,
+                         Register object,
+                         Register scratch);
 
 #ifdef DEBUG
   void Print() {
@@ -2050,6 +2124,176 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   // result of the stub invocation.
   frame_->RestoreContextRegister();
   frame_->SetElementAt(0, &answer);
+}
+
+
+void CodeGenerator::CallApplyLazy(Property* apply,
+                                  Expression* receiver,
+                                  VariableProxy* arguments,
+                                  int position) {
+  ASSERT(ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION);
+  ASSERT(arguments->IsArguments());
+
+  JumpTarget slow, done;
+
+  // Load the apply function onto the stack. This will usually
+  // give us a megamorphic load site. Not super, but it works.
+  Reference ref(this, apply);
+  ref.GetValue(NOT_INSIDE_TYPEOF);
+  ASSERT(ref.type() == Reference::NAMED);
+
+  // Load the receiver and the existing arguments object onto the
+  // expression stack. Avoid allocating the arguments object here.
+  Load(receiver);
+  LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+
+  // Emit the source position information after having loaded the
+  // receiver and the arguments.
+  CodeForSourcePosition(position);
+
+  // Check if the arguments object has been lazily allocated
+  // already. If so, just use that instead of copying the arguments
+  // from the stack. This also deals with cases where a local variable
+  // named 'arguments' has been introduced.
+  frame_->Dup();
+  Result probe = frame_->Pop();
+  bool try_lazy = true;
+  if (probe.is_constant()) {
+    try_lazy = probe.handle()->IsTheHole();
+  } else {
+    __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+    probe.Unuse();
+    slow.Branch(not_equal);
+  }
+
+  if (try_lazy) {
+    JumpTarget build_args;
+
+    // Get rid of the arguments object probe.
+    frame_->Drop();
+
+    // Before messing with the execution stack, we sync all
+    // elements. This is bound to happen anyway because we're
+    // about to call a function.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    // Check that the receiver really is a JavaScript object.
+    { frame_->PushElementAt(0);
+      Result receiver = frame_->Pop();
+      receiver.ToRegister();
+      __ test(receiver.reg(), Immediate(kSmiTagMask));
+      build_args.Branch(zero);
+      Result tmp = allocator_->Allocate();
+      // We allow all JSObjects including JSFunctions.  As long as
+      // JS_FUNCTION_TYPE is the last instance type and it is right
+      // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
+      // bound.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+      __ CmpObjectType(receiver.reg(), FIRST_JS_OBJECT_TYPE, tmp.reg());
+      build_args.Branch(less);
+    }
+
+    // Verify that we're invoking Function.prototype.apply.
+    { frame_->PushElementAt(1);
+      Result apply = frame_->Pop();
+      apply.ToRegister();
+      __ test(apply.reg(), Immediate(kSmiTagMask));
+      build_args.Branch(zero);
+      Result tmp = allocator_->Allocate();
+      __ CmpObjectType(apply.reg(), JS_FUNCTION_TYPE, tmp.reg());
+      build_args.Branch(not_equal);
+      __ mov(tmp.reg(),
+             FieldOperand(apply.reg(), JSFunction::kSharedFunctionInfoOffset));
+      Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+      __ cmp(FieldOperand(tmp.reg(), SharedFunctionInfo::kCodeOffset),
+             Immediate(apply_code));
+      build_args.Branch(not_equal);
+    }
+
+    // Get the function receiver from the stack. Check that it
+    // really is a function.
+    __ mov(edi, Operand(esp, 2 * kPointerSize));
+    __ test(edi, Immediate(kSmiTagMask));
+    build_args.Branch(zero);
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    build_args.Branch(not_equal);
+
+    // Copy the arguments to this function possibly from the
+    // adaptor frame below it.
+    Label invoke, adapted;
+    __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+    __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+    __ j(equal, &adapted);
+
+    // No arguments adaptor frame. Copy fixed number of arguments.
+    __ mov(eax, Immediate(scope_->num_parameters()));
+    for (int i = 0; i < scope_->num_parameters(); i++) {
+      __ push(frame_->ParameterAt(i));
+    }
+    __ jmp(&invoke);
+
+    // Arguments adaptor frame present. Copy arguments from there, but
+    // avoid copying too many arguments to avoid stack overflows.
+    __ bind(&adapted);
+    static const uint32_t kArgumentsLimit = 1 * KB;
+    __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ shr(eax, kSmiTagSize);
+    __ mov(ecx, Operand(eax));
+    __ cmp(eax, kArgumentsLimit);
+    build_args.Branch(above);
+
+    // Loop through the arguments pushing them onto the execution
+    // stack. We don't inform the virtual frame of the push, so we don't
+    // have to worry about getting rid of the elements from the virtual
+    // frame.
+    Label loop;
+    __ bind(&loop);
+    __ test(ecx, Operand(ecx));
+    __ j(zero, &invoke);
+    __ push(Operand(edx, ecx, times_4, 1 * kPointerSize));
+    __ dec(ecx);
+    __ jmp(&loop);
+
+    // Invoke the function. The virtual frame knows about the receiver
+    // so make sure to forget that explicitly.
+    __ bind(&invoke);
+    ParameterCount actual(eax);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION);
+    frame_->Forget(1);
+    Result result = allocator()->Allocate(eax);
+    frame_->SetElementAt(0, &result);
+    done.Jump();
+
+    // Slow-case: Allocate the arguments object since we know it isn't
+    // there, and fall-through to the slow-case where we call
+    // Function.prototype.apply.
+    build_args.Bind();
+    Result arguments_object = StoreArgumentsObject(false);
+    frame_->Push(&arguments_object);
+    slow.Bind();
+  }
+
+  // Flip the apply function and the function to call on the stack, so
+  // the function looks like the receiver of the apply call. This way,
+  // the generic Function.prototype.apply implementation can deal with
+  // the call like it usually does.
+  Result a2 = frame_->Pop();
+  Result a1 = frame_->Pop();
+  Result ap = frame_->Pop();
+  Result fn = frame_->Pop();
+  frame_->Push(&ap);
+  frame_->Push(&fn);
+  frame_->Push(&a1);
+  frame_->Push(&a2);
+  CallFunctionStub call_function(2, NOT_IN_LOOP);
+  Result res = frame_->CallStub(&call_function, 3);
+  frame_->Push(&res);
+
+  // All done. Restore context register after call.
+  if (try_lazy) done.Bind();
+  frame_->RestoreContextRegister();
 }
 
 
@@ -2420,131 +2664,6 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
-int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
-    return kFastSwitchMaxOverheadFactor;
-}
-
-
-int CodeGenerator::FastCaseSwitchMinCaseCount() {
-    return kFastSwitchMinCaseCount;
-}
-
-
-// Generate a computed jump to a switch case.
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node,
-    int min_index,
-    int range,
-    Label* default_label,
-    Vector<Label*> case_targets,
-    Vector<Label> case_labels) {
-  // Notice: Internal references, used by both the jmp instruction and
-  // the table entries, need to be relocated if the buffer grows. This
-  // prevents the forward use of Labels, since a displacement cannot
-  // survive relocation, and it also cannot safely be distinguished
-  // from a real address.  Instead we put in zero-values as
-  // placeholders, and fill in the addresses after the labels have been
-  // bound.
-
-  JumpTarget setup_default;
-  JumpTarget is_smi;
-
-  // A non-null default label pointer indicates a default case among
-  // the case labels.  Otherwise we use the break target as a
-  // "default".
-  JumpTarget* default_target =
-      (default_label == NULL) ? node->break_target() : &setup_default;
-
-  // Test whether input is a smi.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  Result switch_value = frame_->Pop();
-  switch_value.ToRegister();
-  __ test(switch_value.reg(), Immediate(kSmiTagMask));
-  is_smi.Branch(equal, &switch_value, taken);
-
-  // It's a heap object, not a smi or a failure.  Check if it is a
-  // heap number.
-  Result temp = allocator()->Allocate();
-  ASSERT(temp.is_valid());
-  __ CmpObjectType(switch_value.reg(), HEAP_NUMBER_TYPE, temp.reg());
-  temp.Unuse();
-  default_target->Branch(not_equal);
-
-  // The switch value is a heap number.  Convert it to a smi.
-  frame_->Push(&switch_value);
-  Result smi_value = frame_->CallRuntime(Runtime::kNumberToSmi, 1);
-
-  is_smi.Bind(&smi_value);
-  smi_value.ToRegister();
-  // Convert the switch value to a 0-based table index.
-  if (min_index != 0) {
-    frame_->Spill(smi_value.reg());
-    __ sub(Operand(smi_value.reg()), Immediate(min_index << kSmiTagSize));
-  }
-  // Go to the default case if the table index is negative or not a smi.
-  __ test(smi_value.reg(), Immediate(0x80000000 | kSmiTagMask));
-  default_target->Branch(not_equal, not_taken);
-  __ cmp(smi_value.reg(), range << kSmiTagSize);
-  default_target->Branch(greater_equal, not_taken);
-
-  // The expected frame at all the case labels is a version of the
-  // current one (the bidirectional entry frame, which an arbitrary
-  // frame of the correct height can be merged to).  Keep a copy to
-  // restore at the start of every label.  Create a jump target and
-  // bind it to set its entry frame properly.
-  JumpTarget entry_target(JumpTarget::BIDIRECTIONAL);
-  entry_target.Bind(&smi_value);
-  VirtualFrame* start_frame = new VirtualFrame(frame_);
-
-  // 0 is placeholder.
-  // Jump to the address at table_address + 2 * smi_value.reg().
-  // The target of the jump is read from table_address + 4 * switch_value.
-  // The Smi encoding of smi_value.reg() is 2 * switch_value.
-  smi_value.ToRegister();
-  __ jmp(Operand(smi_value.reg(), smi_value.reg(),
-                 times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
-  smi_value.Unuse();
-  // Calculate address to overwrite later with actual address of table.
-  int32_t jump_table_ref = masm_->pc_offset() - sizeof(int32_t);
-  __ Align(4);
-  Label table_start;
-  __ bind(&table_start);
-  __ WriteInternalReference(jump_table_ref, table_start);
-
-  for (int i = 0; i < range; i++) {
-    // These are the table entries. 0x0 is the placeholder for case address.
-    __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);
-  }
-
-  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
-
-  // If there was a default case, we need to emit the code to match it.
-  if (default_label != NULL) {
-    if (has_valid_frame()) {
-      node->break_target()->Jump();
-    }
-    setup_default.Bind();
-    frame_->MergeTo(start_frame);
-    __ jmp(default_label);
-    DeleteFrame();
-  }
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
-
-  for (int i = 0, entry_pos = table_start.pos();
-       i < range;
-       i++, entry_pos += sizeof(uint32_t)) {
-    if (case_targets[i] == NULL) {
-      __ WriteInternalReference(entry_pos,
-                                *node->break_target()->entry_label());
-    } else {
-      __ WriteInternalReference(entry_pos, *case_targets[i]);
-    }
-  }
-}
-
-
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
@@ -2553,10 +2672,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
   // Compile the switch value.
   Load(node->tag());
-
-  if (TryGenerateFastCaseSwitchStatement(node)) {
-    return;
-  }
 
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
@@ -3707,6 +3822,44 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  // Pop the loaded value from the stack.
+  Result value = frame_->Pop();
+
+  // If the loaded value is a constant, we know if the arguments
+  // object has been lazily loaded yet.
+  if (value.is_constant()) {
+    if (value.handle()->IsTheHole()) {
+      Result arguments = StoreArgumentsObject(false);
+      frame_->Push(&arguments);
+    } else {
+      frame_->Push(&value);
+    }
+    return;
+  }
+
+  // The loaded value is in a register. If it is the sentinel that
+  // indicates that we haven't loaded the arguments object yet, we
+  // need to do it now.
+  JumpTarget exit;
+  __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
+  frame_->Push(&value);
+  exit.Branch(not_equal);
+  Result arguments = StoreArgumentsObject(false);
+  frame_->SetElementAt(0, &arguments);
+  exit.Bind();
+}
+
+
 Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     Slot* slot,
     TypeofState typeof_state,
@@ -3879,7 +4032,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, typeof_state());
 }
 
 
@@ -4441,23 +4594,40 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
-      // Push the name of the function and the receiver onto the stack.
-      frame_->Push(literal->handle());
-      Load(property->obj());
+      Handle<String> name = Handle<String>::cast(literal->handle());
 
-      // Load the arguments.
-      int arg_count = args->length();
-      for (int i = 0; i < arg_count; i++) {
-        Load(args->at(i));
+      if (ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION &&
+          name->IsEqualTo(CStrVector("apply")) &&
+          args->length() == 2 &&
+          args->at(1)->AsVariableProxy() != NULL &&
+          args->at(1)->AsVariableProxy()->IsArguments()) {
+        // Use the optimized Function.prototype.apply that avoids
+        // allocating lazily allocated arguments objects.
+        CallApplyLazy(property,
+                      args->at(0),
+                      args->at(1)->AsVariableProxy(),
+                      node->position());
+
+      } else {
+        // Push the name of the function and the receiver onto the stack.
+        frame_->Push(name);
+        Load(property->obj());
+
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+        }
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result =
+            frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count,
+                               loop_nesting());
+        frame_->RestoreContextRegister();
+        // Replace the function on the stack with the result.
+        frame_->SetElementAt(0, &result);
       }
-
-      // Call the IC initialization code.
-      CodeForSourcePosition(node->position());
-      Result result =
-          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
-      frame_->RestoreContextRegister();
-      // Replace the function on the stack with the result.
-      frame_->SetElementAt(0, &result);
 
     } else {
       // -------------------------------------------
@@ -5925,12 +6095,19 @@ void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
+
+  // Record the source position for the property load.
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    cgen_->CodeForSourcePosition(property->position());
+  }
+
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
       break;
     }
 
@@ -6016,6 +6193,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
+
       // Inline array load code if inside of a loop.  We do not know
       // the receiver map yet, so we initially generate the code with
       // a check against an invalid map.  In the inline cache code, we
@@ -6143,13 +6321,16 @@ void Reference::TakeValue(TypeofState typeof_state) {
   ASSERT(slot != NULL);
   if (slot->type() == Slot::LOOKUP ||
       slot->type() == Slot::CONTEXT ||
-      slot->var()->mode() == Variable::CONST) {
+      slot->var()->mode() == Variable::CONST ||
+      slot->is_arguments()) {
     GetValue(typeof_state);
     return;
   }
 
-  // Only non-constant, frame-allocated parameters and locals can reach
-  // here.
+  // Only non-constant, frame-allocated parameters and locals can
+  // reach here. Be careful not to use the optimizations for arguments
+  // object access since it may not have been initialized yet.
+  ASSERT(!slot->is_arguments());
   if (slot->type() == Slot::PARAMETER) {
     cgen_->frame()->TakeParameterAt(slot->index());
   } else {
@@ -6687,9 +6868,45 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // result.
   __ bind(&call_runtime);
   switch (op_) {
-    case Token::ADD:
+    case Token::ADD: {
+      // Test for string arguments before calling runtime.
+      Label not_strings, both_strings, not_string1, string1;
+      Result answer;
+      __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
+      __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(zero, &not_string1);
+      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, eax);
+      __ j(above_equal, &not_string1);
+
+      // First argument is a a string, test second.
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(zero, &string1);
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ j(above_equal, &string1);
+
+      // First and second argument are strings.
+      __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2);
+
+      // Only first argument is a string.
+      __ bind(&string1);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
+
+      // First argument was not a string, test second.
+      __ bind(&not_string1);
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(zero, &not_strings);
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ j(above_equal, &not_strings);
+
+      // Only second argument is a string.
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
+
+      __ bind(&not_strings);
+      // Neither argument is a string.
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
+    }
     case Token::SUB:
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
       break;
@@ -7121,17 +7338,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Save the return address (and get it off the stack).
+  // Push arguments below the return address.
   __ pop(ecx);
-
-  // Push arguments.
   __ push(eax);
   __ push(edx);
   __ push(ecx);
 
   // Inlined floating point compare.
   // Call builtin if operands are not floating point or smi.
-  FloatingPointHelper::CheckFloatOperands(masm, &call_builtin, ebx);
+  Label check_for_symbols;
+  FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
   FloatingPointHelper::LoadFloatOperands(masm, ecx);
   __ FCmp();
 
@@ -7154,6 +7370,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ bind(&above_lbl);
   __ mov(eax, 1);
   __ ret(2 * kPointerSize);  // eax, edx were pushed
+
+  // Fast negative check for symbol-to-symbol equality.
+  __ bind(&check_for_symbols);
+  if (cc_ == equal) {
+    BranchIfNonSymbol(masm, &call_builtin, eax, ecx);
+    BranchIfNonSymbol(masm, &call_builtin, edx, ecx);
+
+    // We've already checked for object identity, so if both operands
+    // are symbols they aren't equal. Register eax already holds a
+    // non-zero value, which indicates not equal, so just return.
+    __ ret(2 * kPointerSize);
+  }
 
   __ bind(&call_builtin);
   // must swap argument order
@@ -7185,6 +7413,20 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+}
+
+
+void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
+                                    Label* label,
+                                    Register object,
+                                    Register scratch) {
+  __ test(object, Immediate(kSmiTagMask));
+  __ j(zero, label);
+  __ mov(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, kIsSymbolMask | kIsNotStringMask);
+  __ cmp(scratch, kSymbolTag | kStringTag);
+  __ j(not_equal, label);
 }
 
 
@@ -7228,7 +7470,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
-
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {

@@ -81,12 +81,12 @@ Variable* LocalsMap::Declare(Scope* scope,
                              Handle<String> name,
                              Variable::Mode mode,
                              bool is_valid_LHS,
-                             bool is_this) {
+                             Variable::Kind kind) {
   HashMap::Entry* p = HashMap::Lookup(name.location(), name->Hash(), true);
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     ASSERT(p->key == name.location());
-    p->value = new Variable(scope, name, mode, is_valid_LHS, is_this);
+    p->value = new Variable(scope, name, mode, is_valid_LHS, kind);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -169,7 +169,8 @@ void Scope::Initialize(bool inside_with) {
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
   { Variable* var =
-      locals_.Declare(this, Factory::this_symbol(), Variable::VAR, false, true);
+        locals_.Declare(this, Factory::this_symbol(), Variable::VAR,
+                        false, Variable::THIS);
     var->rewrite_ = new Slot(var, Slot::PARAMETER, -1);
     receiver_ = new VariableProxy(Factory::this_symbol(), true, false);
     receiver_->BindTo(var);
@@ -179,7 +180,8 @@ void Scope::Initialize(bool inside_with) {
     // Declare 'arguments' variable which exists in all functions.
     // Note that it may never be accessed, in which case it won't
     // be allocated during variable allocation.
-    Declare(Factory::arguments_symbol(), Variable::VAR);
+    locals_.Declare(this, Factory::arguments_symbol(), Variable::VAR,
+                    true, Variable::ARGUMENTS);
   }
 }
 
@@ -203,7 +205,7 @@ Variable* Scope::Lookup(Handle<String> name) {
 
 Variable* Scope::DeclareFunctionVar(Handle<String> name) {
   ASSERT(is_function_scope() && function_ == NULL);
-  function_ = new Variable(this, name, Variable::CONST, true, false);
+  function_ = new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
   return function_;
 }
 
@@ -213,7 +215,7 @@ Variable* Scope::Declare(Handle<String> name, Variable::Mode mode) {
   // INTERNAL variables are allocated explicitly, and TEMPORARY
   // variables are allocated via NewTemporary().
   ASSERT(mode == Variable::VAR || mode == Variable::CONST);
-  return locals_.Declare(this, name, mode, true, false);
+  return locals_.Declare(this, name, mode, true, Variable::NORMAL);
 }
 
 
@@ -247,7 +249,8 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 
 
 VariableProxy* Scope::NewTemporary(Handle<String> name) {
-  Variable* var = new Variable(this, name, Variable::TEMPORARY, true, false);
+  Variable* var = new Variable(this, name, Variable::TEMPORARY, true,
+                               Variable::NORMAL);
   VariableProxy* tmp = new VariableProxy(name, false, false);
   tmp->BindTo(var);
   temps_.Add(var);
@@ -503,7 +506,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.
-    var = map->Declare(NULL, name, mode, true, false);
+    var = map->Declare(NULL, name, mode, true, Variable::NORMAL);
     // Allocate it by giving it a dynamic lookup.
     var->rewrite_ = new Slot(var, Slot::LOOKUP, -1);
   }
@@ -619,7 +622,7 @@ void Scope::ResolveVariable(Scope* global_scope,
         // We must have a global variable.
         ASSERT(global_scope != NULL);
         var = new Variable(global_scope, proxy->name(),
-                           Variable::DYNAMIC, true, false);
+                           Variable::DYNAMIC, true, Variable::NORMAL);
 
       } else if (scope_inside_with_) {
         // If we are inside a with statement we give up and look up
@@ -797,7 +800,7 @@ void Scope::AllocateParameterLocals() {
     // are never allocated in the context).
     Variable* arguments_shadow =
         new Variable(this, Factory::arguments_shadow_symbol(),
-                     Variable::INTERNAL, true, false);
+                     Variable::INTERNAL, true, Variable::ARGUMENTS);
     arguments_shadow_ =
         new VariableProxy(Factory::arguments_shadow_symbol(), false, false);
     arguments_shadow_->BindTo(arguments_shadow);

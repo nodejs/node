@@ -863,6 +863,25 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
+static bool LookupForStoreIC(JSObject* object,
+                             String* name,
+                             LookupResult* lookup) {
+  object->LocalLookup(name, lookup);
+  if (!StoreICableLookup(lookup)) {
+    return false;
+  }
+
+  if (lookup->type() == INTERCEPTOR) {
+    if (object->GetNamedInterceptor()->setter()->IsUndefined()) {
+      object->LocalLookupRealNamedProperty(name, lookup);
+      return StoreICableLookup(lookup);
+    }
+  }
+
+  return true;
+}
+
+
 Object* StoreIC::Store(State state,
                        Handle<Object> object,
                        Handle<String> name,
@@ -889,8 +908,7 @@ Object* StoreIC::Store(State state,
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
-    receiver->LocalLookup(*name, &lookup);
-    if (StoreICableLookup(&lookup)) {
+    if (LookupForStoreIC(*receiver, *name, &lookup)) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }

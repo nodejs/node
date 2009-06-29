@@ -3012,6 +3012,26 @@ uint32_t v8::Array::Length() const {
 }
 
 
+Local<Object> Array::CloneElementAt(uint32_t index) {
+  ON_BAILOUT("v8::Array::CloneElementAt()", return Local<Object>());
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (!self->HasFastElements()) {
+    return Local<Object>();
+  }
+  i::FixedArray* elms = self->elements();
+  i::Object* paragon = elms->get(index);
+  if (!paragon->IsJSObject()) {
+    return Local<Object>();
+  }
+  i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::JSObject> result = i::Copy(paragon_handle);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(Local<Object>());
+  return Utils::ToLocal(result);
+}
+
+
 Local<String> v8::String::NewSymbol(const char* data, int length) {
   EnsureInitialized("v8::String::NewSymbol()");
   LOG_API("String::NewSymbol(char)");

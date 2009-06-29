@@ -45,80 +45,6 @@ namespace internal {
 
 
 // -------------------------------------------------------------------------
-// StaticType
-//
-// StaticType represent the type of an expression or a word at runtime.
-// The types are ordered by knowledge, so that if a value can come about
-// in more than one way, and there are different static types inferred
-// for the different ways, the types can be combined to a type that we
-// are still certain of (possibly just "unknown").
-
-class StaticType BASE_EMBEDDED {
- public:
-  StaticType() : static_type_(UNKNOWN_TYPE) {}
-
-  static StaticType unknown() { return StaticType(); }
-  static StaticType smi() { return StaticType(SMI_TYPE); }
-  static StaticType jsstring() { return StaticType(STRING_TYPE); }
-  static StaticType heap_object() { return StaticType(HEAP_OBJECT_TYPE); }
-
-  // Accessors
-  bool is_unknown() { return static_type_ == UNKNOWN_TYPE; }
-  bool is_smi() { return static_type_ == SMI_TYPE; }
-  bool is_heap_object() { return (static_type_ & HEAP_OBJECT_TYPE) != 0; }
-  bool is_jsstring() { return static_type_ == STRING_TYPE; }
-
-  bool operator==(StaticType other) const {
-    return static_type_ == other.static_type_;
-  }
-
-  // Find the best approximating type for a value.
-  // The argument must not be NULL.
-  static StaticType TypeOf(Object* object) {
-    // Remember to make the most specific tests first. A string is also a heap
-    // object, so test for string-ness first.
-    if (object->IsSmi()) return smi();
-    if (object->IsString()) return jsstring();
-    if (object->IsHeapObject()) return heap_object();
-    return unknown();
-  }
-
-  // Merges two static types to a type that combines the knowledge
-  // of both. If there is no way to combine (e.g., being a string *and*
-  // being a smi), the resulting type is unknown.
-  StaticType merge(StaticType other) {
-    StaticType x(
-        static_cast<StaticTypeEnum>(static_type_ & other.static_type_));
-    return x;
-  }
-
- private:
-  enum StaticTypeEnum {
-    // Numbers are chosen so that least upper bound of the following
-    // partial order is implemented by bitwise "and":
-    //
-    //    string
-    //       |
-    //    heap-object    smi
-    //           \       /
-    //            unknown
-    //
-    UNKNOWN_TYPE     = 0x00,
-    SMI_TYPE         = 0x01,
-    HEAP_OBJECT_TYPE = 0x02,
-    STRING_TYPE      = 0x04 | HEAP_OBJECT_TYPE
-  };
-  explicit StaticType(StaticTypeEnum static_type) : static_type_(static_type) {}
-
-  // StaticTypeEnum static_type_;
-  StaticTypeEnum static_type_;
-
-  friend class FrameElement;
-  friend class Result;
-};
-
-
-// -------------------------------------------------------------------------
 // Results
 //
 // Results encapsulate the compile-time values manipulated by the code
@@ -138,13 +64,9 @@ class Result BASE_EMBEDDED {
   // Construct a register Result.
   explicit Result(Register reg);
 
-  // Construct a register Result with a known static type.
-  Result(Register reg, StaticType static_type);
-
   // Construct a Result whose value is a compile-time constant.
   explicit Result(Handle<Object> value) {
-    value_ = StaticTypeField::encode(StaticType::TypeOf(*value).static_type_)
-        | TypeField::encode(CONSTANT)
+    value_ = TypeField::encode(CONSTANT)
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -182,15 +104,6 @@ class Result BASE_EMBEDDED {
 
   inline void Unuse();
 
-  StaticType static_type() const {
-    return StaticType(StaticTypeField::decode(value_));
-  }
-
-  void set_static_type(StaticType type) {
-    value_ = value_ & ~StaticTypeField::mask();
-    value_ = value_ | StaticTypeField::encode(type.static_type_);
-  }
-
   Type type() const { return TypeField::decode(value_); }
 
   void invalidate() { value_ = TypeField::encode(INVALID); }
@@ -225,9 +138,8 @@ class Result BASE_EMBEDDED {
  private:
   uint32_t value_;
 
-  class StaticTypeField: public BitField<StaticType::StaticTypeEnum, 0, 3> {};
-  class TypeField: public BitField<Type, 3, 2> {};
-  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
+  class TypeField: public BitField<Type, 0, 2> {};
+  class DataField: public BitField<uint32_t, 2, 32 - 3> {};
 
   inline void CopyTo(Result* destination) const;
 

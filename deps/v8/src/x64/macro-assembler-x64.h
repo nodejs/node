@@ -158,11 +158,31 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
 
+  // Handle support
+  bool IsUnsafeSmi(Smi* value);
+  bool IsUnsafeSmi(Handle<Object> value) {
+    return IsUnsafeSmi(Smi::cast(*value));
+  }
+
+  void LoadUnsafeSmi(Register dst, Smi* source);
+  void LoadUnsafeSmi(Register dst, Handle<Object> source) {
+    LoadUnsafeSmi(dst, Smi::cast(*source));
+  }
+
+  void Move(Register dst, Handle<Object> source);
+  void Move(const Operand& dst, Handle<Object> source);
+  void Cmp(Register dst, Handle<Object> source);
+  void Cmp(const Operand& dst, Handle<Object> source);
+  void Push(Handle<Object> source);
+
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.

@@ -189,7 +189,7 @@ void VirtualFrame::MakeMergable() {
           backing_element = elements_[element.index()];
         }
         Result fresh = cgen()->allocator()->Allocate();
-        ASSERT(fresh.is_valid());
+        ASSERT(fresh.is_valid());  // A register was spilled if all were in use.
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
                                           FrameElement::NOT_SYNCED);
@@ -218,14 +218,12 @@ void VirtualFrame::MakeMergable() {
           }
         }
       }
-      // No need to set the copied flag---there are no copies of
-      // copies or constants so the original was not copied.
-      elements_[i].set_static_type(element.static_type());
+      // No need to set the copied flag --- there are no copies.
     } else {
-      // Clear the copy flag of non-constant, non-copy elements above
-      // the high water mark.  They cannot be copied because copes are
-      // always higher than their backing store and copies are not
-      // allowed above the water mark.
+      // Clear the copy flag of non-constant, non-copy elements.
+      // They cannot be copied because copies are not allowed.
+      // The copy flag is not relied on before the end of this loop,
+      // including when registers are spilled.
       elements_[i].clear_copied();
     }
   }
@@ -998,7 +996,6 @@ Result VirtualFrame::Pop() {
     if (element.is_memory()) {
       Result temp = cgen()->allocator()->Allocate();
       ASSERT(temp.is_valid());
-      temp.set_static_type(element.static_type());
       __ pop(temp.reg());
       return temp;
     }
@@ -1030,12 +1027,11 @@ Result VirtualFrame::Pop() {
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
-    new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
-    return Result(temp.reg(), element.static_type());
+    return Result(temp.reg());
   } else if (element.is_register()) {
-    return Result(element.reg(), element.static_type());
+    return Result(element.reg());
   } else {
     ASSERT(element.is_constant());
     return Result(element.handle());

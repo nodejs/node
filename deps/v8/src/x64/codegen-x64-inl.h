@@ -32,10 +32,12 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm_)
+
 // Platform-specific inline functions.
 
-void DeferredCode::Jump() { UNIMPLEMENTED(); }
-void DeferredCode::Branch(Condition cc) { UNIMPLEMENTED(); }
+void DeferredCode::Jump() { __ jmp(&entry_label_); }
+void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
 
 
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
@@ -47,6 +49,7 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   GenerateFastMathOp(COS, args);
 }
 
+#undef __
 
 } }  // namespace v8::internal
 

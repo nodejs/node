@@ -29,19 +29,19 @@ function toInt32(x) {
   return x | 0;
 }
 
-assertEquals(0, toInt32(Infinity));
-assertEquals(0, toInt32(-Infinity));
-assertEquals(0, toInt32(NaN));
-assertEquals(0, toInt32(0.0));
-assertEquals(0, toInt32(-0.0));
+assertEquals(0, toInt32(Infinity), "Inf");
+assertEquals(0, toInt32(-Infinity), "-Inf");
+assertEquals(0, toInt32(NaN), "NaN");
+assertEquals(0, toInt32(0.0), "zero");
+assertEquals(0, toInt32(-0.0), "-zero");
 
 assertEquals(0, toInt32(Number.MIN_VALUE));
 assertEquals(0, toInt32(-Number.MIN_VALUE));
 assertEquals(0, toInt32(0.1));
 assertEquals(0, toInt32(-0.1));
-assertEquals(1, toInt32(1));
-assertEquals(1, toInt32(1.1));
-assertEquals(-1, toInt32(-1));
+assertEquals(1, toInt32(1), "one");
+assertEquals(1, toInt32(1.1), "onepointone");
+assertEquals(-1, toInt32(-1), "-one");
 assertEquals(0, toInt32(0.6), "truncate positive (0.6)");
 assertEquals(1, toInt32(1.6), "truncate positive (1.6)");
 assertEquals(0, toInt32(-0.6), "truncate negative (-0.6)");

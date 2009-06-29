@@ -73,7 +73,6 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::MEMORY:  // Fall through.
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
-      result.set_static_type(target.static_type());
       result.set_type(FrameElement::COPY);
       result.clear_copied();
       result.clear_sync();
@@ -153,7 +152,6 @@ void VirtualFrame::SpillElementAt(int index) {
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
-  new_element.set_static_type(elements_[index].static_type());
   elements_[index] = new_element;
 }
 
@@ -211,9 +209,6 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
       ASSERT(source.is_valid());
       elements_[i].clear_sync();
     }
-    // No code needs to be generated to change the static type of an
-    // element.
-    elements_[i].set_static_type(target.static_type());
   }
 }
 
@@ -246,11 +241,8 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.
-  // Set their static type to unknown so that they will match the known
-  // return frame.
   for (int i = 0; i < expression_base_index(); i++) {
     SpillElementAt(i);
-    elements_[i].set_static_type(StaticType::unknown());
   }
 }
 
@@ -283,7 +275,6 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       // register element, or the new element at frame_index, must be made
       // a copy.
       int i = register_location(value->reg());
-      ASSERT(value->static_type() == elements_[i].static_type());
 
       if (i < frame_index) {
         // The register FrameElement is lower in the frame than the new copy.
@@ -310,8 +301,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       Use(value->reg(), frame_index);
       elements_[frame_index] =
           FrameElement::RegisterElement(value->reg(),
-                                        FrameElement::NOT_SYNCED,
-                                        value->static_type());
+                                        FrameElement::NOT_SYNCED);
     }
   } else {
     ASSERT(value->is_constant());
@@ -328,18 +318,16 @@ void VirtualFrame::PushFrameSlotAt(int index) {
 }
 
 
-void VirtualFrame::Push(Register reg, StaticType static_type) {
+void VirtualFrame::Push(Register reg) {
   if (is_used(reg)) {
     int index = register_location(reg);
     FrameElement element = CopyElementAt(index);
-    ASSERT(static_type.merge(element.static_type()) == element.static_type());
     elements_.Add(element);
   } else {
     Use(reg, element_count());
     FrameElement element =
         FrameElement::RegisterElement(reg,
-                                      FrameElement::NOT_SYNCED,
-                                      static_type);
+                                      FrameElement::NOT_SYNCED);
     elements_.Add(element);
   }
 }

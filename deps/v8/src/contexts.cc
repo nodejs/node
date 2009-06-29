@@ -149,7 +149,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // check parameter locals in context
       int param_index = ScopeInfo<>::ParameterIndex(*code, *name);
       if (param_index >= 0) {
-        // slot found
+        // slot found.
         int index =
             ScopeInfo<>::ContextSlotIndex(*code,
                                           Heap::arguments_shadow_symbol(),

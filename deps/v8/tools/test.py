@@ -372,6 +372,8 @@ class TestOutput(object):
   def UnexpectedOutput(self):
     if self.HasCrashed():
       outcome = CRASH
+    elif self.HasTimedOut():
+      outcome = TIMEOUT
     elif self.HasFailed():
       outcome = FAIL
     else:
@@ -390,7 +392,7 @@ class TestOutput(object):
 
   def HasTimedOut(self):
     return self.output.timed_out;
-    
+
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
     if self.test.IsNegative():

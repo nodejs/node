@@ -327,7 +327,7 @@ static double InternalStringToDouble(S* str,
         index++;
       if (!SubStringEquals(str, index, "Infinity"))
         return JUNK_STRING_VALUE;
-      result = is_negative ? -INFINITY : INFINITY;
+      result = is_negative ? -V8_INFINITY : V8_INFINITY;
       index += 8;
     }
   }

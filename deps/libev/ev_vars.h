@@ -55,11 +55,24 @@ VARx(ev_tstamp, backend_fudge) /* assumed typical timer resolution */
 VAR (backend_modify, void (*backend_modify)(EV_P_ int fd, int oev, int nev))
 VAR (backend_poll  , void (*backend_poll)(EV_P_ ev_tstamp timeout))
 
+VARx(ANFD *, anfds)
+VARx(int, anfdmax)
+
+VAR (pendings, ANPENDING *pendings [NUMPRI])
+VAR (pendingmax, int pendingmax [NUMPRI])
+VAR (pendingcnt, int pendingcnt [NUMPRI])
+VARx(ev_prepare, pending_w) /* dummy pending watcher */
+
+/* for reverse feeding of events */
+VARx(W *, rfeeds)
+VARx(int, rfeedmax)
+VARx(int, rfeedcnt)
+
 #if EV_USE_EVENTFD || EV_GENWRAP
 VARx(int, evfd)
 #endif
 VAR (evpipe, int evpipe [2])
-VARx(ev_io, pipeev)
+VARx(ev_io, pipe_w)
 
 #if !defined(_WIN32) || EV_GENWRAP
 VARx(pid_t, curpid)
@@ -103,13 +116,6 @@ VARx(int, kqueue_eventmax)
 VARx(struct port_event *, port_events)
 VARx(int, port_eventmax)
 #endif
-
-VARx(ANFD *, anfds)
-VARx(int, anfdmax)
-
-VAR (pendings, ANPENDING *pendings [NUMPRI])
-VAR (pendingmax, int pendingmax [NUMPRI])
-VAR (pendingcnt, int pendingcnt [NUMPRI])
 
 VARx(int *, fdchanges)
 VARx(int, fdchangemax)

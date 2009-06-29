@@ -40,18 +40,7 @@ namespace internal {
 Result::Result(Register reg) {
   ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
   CodeGeneratorScope::Current()->allocator()->Use(reg);
-  value_ = StaticTypeField::encode(StaticType::UNKNOWN_TYPE)
-      | TypeField::encode(REGISTER)
-      | DataField::encode(reg.code_);
-}
-
-
-Result::Result(Register reg, StaticType type) {
-  ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
-  CodeGeneratorScope::Current()->allocator()->Use(reg);
-  value_ = StaticTypeField::encode(type.static_type_)
-      | TypeField::encode(REGISTER)
-      | DataField::encode(reg.code_);
+  value_ = TypeField::encode(REGISTER) | DataField::encode(reg.code_);
 }
 
 

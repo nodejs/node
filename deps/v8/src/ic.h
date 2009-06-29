@@ -221,7 +221,7 @@ class LoadIC: public IC {
   // The offset from the inlined patch site to the start of the
   // inlined load instruction.  It is 7 bytes (test eax, imm) plus
   // 6 bytes (jne slow_label).
-  static const int kOffsetToLoadInstruction = 13;
+  static const int kOffsetToLoadInstruction;
 
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);

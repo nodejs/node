@@ -947,13 +947,18 @@ void EncodeFreeRegion(Address free_start, int free_size) {
 
 
 // Try to promote all objects in new space.  Heap numbers and sequential
-// strings are promoted to the code space, all others to the old space.
+// strings are promoted to the code space, large objects to large object space,
+// and all others to the old space.
 inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
-  OldSpace* target_space = Heap::TargetSpace(object);
-  ASSERT(target_space == Heap::old_pointer_space() ||
-         target_space == Heap::old_data_space());
-  Object* forwarded = target_space->MCAllocateRaw(object_size);
-
+  Object* forwarded;
+  if (object_size > Heap::MaxObjectSizeInPagedSpace()) {
+    forwarded = Failure::Exception();
+  } else {
+    OldSpace* target_space = Heap::TargetSpace(object);
+    ASSERT(target_space == Heap::old_pointer_space() ||
+           target_space == Heap::old_data_space());
+    forwarded = target_space->MCAllocateRaw(object_size);
+  }
   if (forwarded->IsFailure()) {
     forwarded = Heap::new_space()->MCAllocateRaw(object_size);
   }

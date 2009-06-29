@@ -1113,11 +1113,8 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove these tests when code generation works and is stable.
-  MacroAssembler::ConstructAndTestJSFunction();
+  // TODO(X64): Remove this test when code generation works and is stable.
   CodeGenerator::TestCodeGenerator();
-  // TODO(X64): Reenable remaining initialization when code generation works.
-  return true;
 #endif  // V8_HOST_ARCH_64_BIT
 
 

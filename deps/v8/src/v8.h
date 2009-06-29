@@ -71,6 +71,7 @@
 #include "objects-inl.h"
 #include "spaces-inl.h"
 #include "heap-inl.h"
+#include "log-inl.h"
 #include "messages.h"
 
 namespace v8 {

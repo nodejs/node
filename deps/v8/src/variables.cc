@@ -140,12 +140,12 @@ Variable::Variable(Scope* scope,
                    Handle<String> name,
                    Mode mode,
                    bool is_valid_LHS,
-                   bool is_this)
+                   Kind kind)
   : scope_(scope),
     name_(name),
     mode_(mode),
     is_valid_LHS_(is_valid_LHS),
-    is_this_(is_this),
+    kind_(kind),
     local_if_not_shadowed_(NULL),
     is_accessed_from_inner_scope_(false),
     rewrite_(NULL) {

@@ -261,14 +261,20 @@ void LogMessageBuilder::AppendAddress(Address addr) {
 
 
 void LogMessageBuilder::AppendAddress(Address addr, Address bias) {
-  if (!FLAG_compress_log || bias == NULL) {
+  if (!FLAG_compress_log) {
     Append("0x%" V8PRIxPTR, addr);
+  } else if (bias == NULL) {
+    Append("%" V8PRIxPTR, addr);
   } else {
-    intptr_t delta = addr - bias;
-    // To avoid printing negative offsets in an unsigned form,
-    // we are printing an absolute value with a sign.
-    const char sign = delta >= 0 ? '+' : '-';
-    if (sign == '-') { delta = -delta; }
+    uintptr_t delta;
+    char sign;
+    if (addr >= bias) {
+      delta = addr - bias;
+      sign = '+';
+    } else {
+      delta = bias - addr;
+      sign = '-';
+    }
     Append("%c%" V8PRIxPTR, sign, delta);
   }
 }

@@ -44,6 +44,8 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
+#define V8_INFINITY INFINITY
+
 // Windows specific stuff.
 #ifdef WIN32
 
@@ -58,7 +60,8 @@ enum {
   FP_NORMAL
 };
 
-#define INFINITY HUGE_VAL
+#undef V8_INFINITY
+#define V8_INFINITY HUGE_VAL
 
 namespace v8 {
 namespace internal {
@@ -75,14 +78,6 @@ int strncasecmp(const char* s1, const char* s2, int n);
 
 #endif  // _MSC_VER
 
-// MinGW specific stuff.
-#ifdef __MINGW32__
-
-// Needed for va_list.
-#include <stdarg.h>
-
-#endif  // __MINGW32__
-
 // Random is missing on both Visual Studio and MinGW.
 int random();
 
@@ -90,6 +85,10 @@ int random();
 
 // GCC specific stuff
 #ifdef __GNUC__
+
+// Needed for va_list on at least MinGW and Android.
+#include <stdarg.h>
+
 #define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
@@ -100,14 +99,16 @@ int random();
 // __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
 #if __GNUC_VERSION__ >= 29600 && __GNUC_VERSION__ < 40100
 #include <limits>
-#undef INFINITY
-#define INFINITY std::numeric_limits<double>::infinity()
+#undef V8_INFINITY
+#define V8_INFINITY std::numeric_limits<double>::infinity()
 #endif
 
 #endif  // __GNUC__
 
 namespace v8 {
 namespace internal {
+
+class Semaphore;
 
 double ceiling(double x);
 

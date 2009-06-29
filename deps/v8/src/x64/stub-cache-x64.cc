@@ -25,3 +25,130 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+#include "v8.h"
+
+#include "ic-inl.h"
+#include "codegen-inl.h"
+#include "stub-cache.h"
+#include "macro-assembler-x64.h"
+
+namespace v8 {
+namespace internal {
+
+#define __ ACCESS_MASM((&masm_))
+
+
+Object* CallStubCompiler::CompileCallConstant(Object* a,
+                                              JSObject* b,
+                                              JSFunction* c,
+                                              StubCompiler::CheckType d,
+                                              Code::Flags flags) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* CallStubCompiler::CompileCallField(Object* a,
+                                           JSObject* b,
+                                           int c,
+                                           String* d,
+                                           Code::Flags flags) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* CallStubCompiler::CompileCallInterceptor(Object* a,
+                                                 JSObject* b,
+                                                 String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+
+Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
+                                              JSObject* b,
+                                              AccessorInfo* c,
+                                              String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadConstant(JSObject* a,
+                                              JSObject* b,
+                                              Object* c,
+                                              String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadField(JSObject* a,
+                                           JSObject* b,
+                                           int c,
+                                           String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
+                                                 JSObject* b,
+                                                 String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
+                                                AccessorInfo* b,
+                                                String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreField(JSObject* a,
+                                             int b,
+                                             Map* c,
+                                             String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+// TODO(1241006): Avoid having lazy compile stubs specialized by the
+// number of arguments. It is not needed anymore.
+Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+
+  __ push(rdi);  // function is also the parameter to the runtime call
+  __ CallRuntime(Runtime::kLazyCompile, 1);
+  __ pop(rdi);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rcx);
+
+  return GetCodeWithFlags(flags, "LazyCompileStub");
+}
+
+#undef __
+
+
+} }  // namespace v8::internal

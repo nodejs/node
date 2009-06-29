@@ -1261,15 +1261,19 @@ RelativeAddress Serializer::Allocate(HeapObject* obj) {
     found = Heap::InSpace(obj, s);
   }
   CHECK(found);
-  if (s == NEW_SPACE) {
-    Space* space = Heap::TargetSpace(obj);
-    ASSERT(space == Heap::old_pointer_space() ||
-           space == Heap::old_data_space());
-    s = (space == Heap::old_pointer_space()) ?
-        OLD_POINTER_SPACE :
-        OLD_DATA_SPACE;
-  }
   int size = obj->Size();
+  if (s == NEW_SPACE) {
+    if (size > Heap::MaxObjectSizeInPagedSpace()) {
+      s = LO_SPACE;
+    } else {
+      OldSpace* space = Heap::TargetSpace(obj);
+      ASSERT(space == Heap::old_pointer_space() ||
+             space == Heap::old_data_space());
+      s = (space == Heap::old_pointer_space()) ?
+          OLD_POINTER_SPACE :
+          OLD_DATA_SPACE;
+    }
+  }
   GCTreatment gc_treatment = DataObject;
   if (obj->IsFixedArray()) gc_treatment = PointerObject;
   else if (obj->IsCode()) gc_treatment = CodeObject;

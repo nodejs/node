@@ -208,7 +208,7 @@ TEST(GarbageCollection) {
 
   v8::HandleScope sc;
   // check GC when heap is empty
-  int free_bytes = Heap::MaxHeapObjectSize();
+  int free_bytes = Heap::MaxObjectSizeInPagedSpace();
   CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
 
   // allocate a function and keep it in global object's property
@@ -782,7 +782,7 @@ TEST(Iteration) {
       Factory::NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = Heap::MaxHeapObjectSize() + 1;
+  int large_size = Heap::MaxObjectSizeInPagedSpace() + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';

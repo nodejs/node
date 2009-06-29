@@ -52,8 +52,35 @@ function readFile(fileName) {
 }
 
 
+function inherits(childCtor, parentCtor) {
+  function tempCtor() {};
+  tempCtor.prototype = parentCtor.prototype;
+  childCtor.prototype = new tempCtor();
+};
+
+
 function TickProcessor(
     cppEntriesProvider, separateIc, ignoreUnknown, stateFilter) {
+  devtools.profiler.LogReader.call(this, {
+      'shared-library': { parsers: [null, parseInt, parseInt],
+          processor: this.processSharedLibrary },
+      'code-creation': {
+          parsers: [null, this.createAddressParser('code'), parseInt, null],
+          processor: this.processCodeCreation, backrefs: true },
+      'code-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processCodeMove, backrefs: true },
+      'code-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processCodeDelete, backrefs: true },
+      'tick': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('stack'), parseInt, 'var-args'],
+          processor: this.processTick, backrefs: true },
+      'profiler': null,
+      // Obsolete row types.
+      'code-allocate': null,
+      'begin-code-region': null,
+      'end-code-region': null });
+
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
@@ -86,8 +113,8 @@ function TickProcessor(
   // Count each tick as a time unit.
   this.viewBuilder_ = new devtools.profiler.ViewBuilder(1);
   this.lastLogFileName_ = null;
-  this.aliases_ = {};
 };
+inherits(TickProcessor, devtools.profiler.LogReader);
 
 
 TickProcessor.VmStates = {
@@ -107,25 +134,15 @@ TickProcessor.CodeTypes = {
 // codeTypes_ map because there can be zillions of them.
 
 
-TickProcessor.RecordsDispatch = {
-  'shared-library': { parsers: [null, parseInt, parseInt],
-                      processor: 'processSharedLibrary' },
-  'code-creation': { parsers: [null, parseInt, parseInt, null],
-                   processor: 'processCodeCreation' },
-  'code-move': { parsers: [parseInt, parseInt],
-                 processor: 'processCodeMove' },
-  'code-delete': { parsers: [parseInt], processor: 'processCodeDelete' },
-  'tick': { parsers: [parseInt, parseInt, parseInt, 'var-args'],
-            processor: 'processTick' },
-  'alias': { parsers: [null, null], processor: 'processAlias' },
-  'profiler': null,
-  // Obsolete row types.
-  'code-allocate': null,
-  'begin-code-region': null,
-  'end-code-region': null
-};
-
 TickProcessor.CALL_PROFILE_CUTOFF_PCT = 2.0;
+
+
+/**
+ * @override
+ */
+TickProcessor.prototype.printError = function(str) {
+  print(str);
+};
 
 
 TickProcessor.prototype.setCodeType = function(name, type) {
@@ -151,57 +168,7 @@ TickProcessor.prototype.isJsCode = function(name) {
 TickProcessor.prototype.processLogFile = function(fileName) {
   this.lastLogFileName_ = fileName;
   var contents = readFile(fileName);
-  this.processLog(contents.split('\n'));
-};
-
-
-TickProcessor.prototype.processLog = function(lines) {
-  var csvParser = new devtools.profiler.CsvParser();
-  try {
-    for (var i = 0, n = lines.length; i < n; ++i) {
-      var line = lines[i];
-      if (!line) {
-        continue;
-      }
-      var fields = csvParser.parseLine(line);
-      this.dispatchLogRow(fields);
-    }
-  } catch (e) {
-    print('line ' + (i + 1) + ': ' + (e.message || e));
-    throw e;
-  }
-};
-
-
-TickProcessor.prototype.dispatchLogRow = function(fields) {
-  // Obtain the dispatch.
-  var command = fields[0];
-  if (!(command in TickProcessor.RecordsDispatch)) {
-    throw new Error('unknown command: ' + command);
-  }
-  var dispatch = TickProcessor.RecordsDispatch[command];
-
-  if (dispatch === null) {
-    return;
-  }
-
-  // Parse fields.
-  var parsedFields = [];
-  for (var i = 0; i < dispatch.parsers.length; ++i) {
-    var parser = dispatch.parsers[i];
-    if (parser === null) {
-      parsedFields.push(fields[1 + i]);
-    } else if (typeof parser == 'function') {
-      parsedFields.push(parser(fields[1 + i]));
-    } else {
-      // var-args
-      parsedFields.push(fields.slice(1 + i));
-      break;
-    }
-  }
-
-  // Run the processor.
-  this[dispatch.processor].apply(this, parsedFields);
+  this.processLogChunk(contents);
 };
 
 
@@ -219,22 +186,10 @@ TickProcessor.prototype.processSharedLibrary = function(
 };
 
 
-TickProcessor.prototype.processAlias = function(symbol, expansion) {
-  if (expansion in TickProcessor.RecordsDispatch) {
-    TickProcessor.RecordsDispatch[symbol] =
-      TickProcessor.RecordsDispatch[expansion];
-  } else {
-    this.aliases_[symbol] = expansion;
-  }
-};
-
-
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
-  if (type in this.aliases_) {
-    type = this.aliases_[type];
-  }
-  var entry = this.profile_.addCode(type, name, start, size);
+  var entry = this.profile_.addCode(
+      this.expandAlias(type), name, start, size);
 };
 
 
@@ -261,21 +216,7 @@ TickProcessor.prototype.processTick = function(pc, sp, vmState, stack) {
     return;
   }
 
-  var fullStack = [pc];
-  var prevFrame = pc;
-  for (var i = 0, n = stack.length; i < n; ++i) {
-    var frame = stack[i];
-    var firstChar = frame.charAt(0);
-    // Leave only numbers starting with 0x. Filter possible 'overflow' string.
-    if (firstChar == '0') {
-      fullStack.push(parseInt(frame, 16));
-    } else if (firstChar == '+' || firstChar == '-') {
-      // An offset from the previous frame.
-      prevFrame += parseInt(frame, 16);
-      fullStack.push(prevFrame);
-    }
-  }
-  this.profile_.recordTick(fullStack);
+  this.profile_.recordTick(this.processStack(pc, stack));
 };
 
 
@@ -438,7 +379,9 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
   function addPrevEntry(end) {
     // Several functions can be mapped onto the same address. To avoid
     // creating zero-sized entries, skip such duplicates.
-    if (prevEntry && prevEntry.start != end) {
+    // Also double-check that function belongs to the library address space.
+    if (prevEntry && prevEntry.start < end &&
+        prevEntry.start >= libStart && end <= libEnd) {
       processorFunc(prevEntry.name, prevEntry.start, end);
     }
   }
@@ -469,29 +412,28 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function inherits(childCtor, parentCtor) {
-  function tempCtor() {};
-  tempCtor.prototype = parentCtor.prototype;
-  childCtor.prototype = new tempCtor();
-};
-
-
-function UnixCppEntriesProvider() {
+function UnixCppEntriesProvider(nmExec) {
   this.symbols = [];
   this.parsePos = 0;
+  this.nmExec = nmExec;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 
-UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) . (.*)$/;
+UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tTwW] (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
-  this.symbols = [
-    os.system('nm', ['-C', '-n', libName], -1, -1),
-    os.system('nm', ['-C', '-n', '-D', libName], -1, -1)
-  ];
   this.parsePos = 0;
+  try {
+    this.symbols = [
+      os.system(this.nmExec, ['-C', '-n', libName], -1, -1),
+      os.system(this.nmExec, ['-C', '-n', '-D', libName], -1, -1)
+    ];
+  } catch (e) {
+    // If the library cannot be found on this system let's not panic.
+    this.symbols = ['', ''];
+  }
 };
 
 
@@ -584,7 +526,8 @@ function processArguments(args) {
     platform: 'unix',
     stateFilter: null,
     ignoreUnknown: false,
-    separateIc: false
+    separateIc: false,
+    nm: 'nm'
   };
   var argsDispatch = {
     '-j': ['stateFilter', TickProcessor.VmStates.JS,
@@ -604,7 +547,9 @@ function processArguments(args) {
     '--unix': ['platform', 'unix',
         'Specify that we are running on *nix platform'],
     '--windows': ['platform', 'windows',
-        'Specify that we are running on Windows platform']
+        'Specify that we are running on Windows platform'],
+    '--nm': ['nm', 'nm',
+        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
   };
   argsDispatch['--js'] = argsDispatch['-j'];
   argsDispatch['--gc'] = argsDispatch['-g'];
@@ -636,9 +581,15 @@ function processArguments(args) {
       break;
     }
     args.shift();
+    var userValue = null;
+    var eqPos = arg.indexOf('=');
+    if (eqPos != -1) {
+      userValue = arg.substr(eqPos + 1);
+      arg = arg.substr(0, eqPos);
+    }
     if (arg in argsDispatch) {
       var dispatch = argsDispatch[arg];
-      result[dispatch[0]] = dispatch[1];
+      result[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
     } else {
       printUsageAndExit();
     }
@@ -653,7 +604,7 @@ function processArguments(args) {
 
 var params = processArguments(arguments);
 var tickProcessor = new TickProcessor(
-    params.platform == 'unix' ? new UnixCppEntriesProvider() :
+    params.platform == 'unix' ? new UnixCppEntriesProvider(params.nm) :
         new WindowsCppEntriesProvider(),
     params.separateIc,
     params.ignoreUnknown,

@@ -1041,7 +1041,6 @@ class SemiSpaceIterator : public ObjectIterator {
 
     HeapObject* object = HeapObject::FromAddress(current_);
     int size = (size_func_ == NULL) ? object->Size() : size_func_(object);
-    ASSERT_OBJECT_SIZE(size);
 
     current_ += size;
     return object;

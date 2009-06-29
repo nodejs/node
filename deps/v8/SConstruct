@@ -125,7 +125,7 @@ LIBRARY_FLAGS = {
       }
     },
     'os:macos': {
-      'CCFLAGS':      ['-ansi'],
+      'CCFLAGS':      ['-ansi', '-mmacosx-version-min=10.4'],
     },
     'os:freebsd': {
       'CPPPATH' : ['/usr/local/include'],
@@ -641,7 +641,7 @@ def GetVersionComponents():
 
 def GetVersion():
   version_components = GetVersionComponents()
-  
+
   if version_components[len(version_components) - 1] == '0':
     version_components.pop()
   return '.'.join(version_components)
@@ -649,10 +649,10 @@ def GetVersion():
 
 def GetSpecificSONAME():
   SONAME_PATTERN = re.compile(r"#define\s+SONAME\s+\"(.*)\"")
-  
+
   source = open(join(root_dir, 'src', 'version.cc')).read()
   match = SONAME_PATTERN.search(source)
-  
+
   if match:
     return match.group(1).strip()
   else:

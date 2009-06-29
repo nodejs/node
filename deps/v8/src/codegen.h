@@ -61,12 +61,6 @@
 //   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
 //   PatchInlineRuntimeEntry
-//   GenerateFastCaseSwitchStatement
-//   GenerateFastCaseSwitchCases
-//   TryGenerateFastCaseSwitchStatement
-//   GenerateFastCaseSwitchJumpTable
-//   FastCaseSwitchMinCaseCount
-//   FastCaseSwitchMaxOverheadFactor
 //   CodeForFunctionPosition
 //   CodeForReturnPosition
 //   CodeForStatementPosition

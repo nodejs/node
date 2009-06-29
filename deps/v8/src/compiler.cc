@@ -175,7 +175,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 #if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
   // Log the code generation for the script. Check explicit whether logging is
   // to avoid allocating when not required.
-  if (Logger::IsEnabled() || OProfileAgent::is_enabled()) {
+  if (Logger::is_logging() || OProfileAgent::is_enabled()) {
     if (script->name()->IsString()) {
       SmartPointer<char> data =
           String::cast(script->name())->ToCString(DISALLOW_NULLS);
@@ -295,14 +295,11 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
-  CompilationCache::Entry entry = is_global
-      ? CompilationCache::EVAL_GLOBAL
-      : CompilationCache::EVAL_CONTEXTUAL;
 
   // Do a lookup in the compilation cache; if the entry is not there,
   // invoke the compiler and add the result to the cache.
   Handle<JSFunction> result =
-      CompilationCache::LookupEval(source, context, entry);
+      CompilationCache::LookupEval(source, context, is_global);
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
@@ -314,7 +311,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                           NULL,
                           NULL);
     if (!result.is_null()) {
-      CompilationCache::PutEval(source, context, entry, result);
+      CompilationCache::PutEval(source, context, is_global, result);
     }
   }
 
@@ -376,14 +373,11 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Log the code generation. If source information is available include script
   // name and line number. Check explicit whether logging is enabled as finding
   // the line number is not for free.
-  if (Logger::IsEnabled() || OProfileAgent::is_enabled()) {
+  if (Logger::is_logging() || OProfileAgent::is_enabled()) {
     Handle<String> func_name(name->length() > 0 ?
                              *name : shared->inferred_name());
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, start_position);
-      if (line_num > 0) {
-        line_num += script->line_offset()->value() + 1;
-      }
+      int line_num = GetScriptLineNumber(script, start_position) + 1;
       LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name,
                           String::cast(script->name()), line_num));
       OProfileAgent::CreateNativeCodeRegion(*func_name,

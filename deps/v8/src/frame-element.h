@@ -54,8 +54,7 @@ class FrameElement BASE_EMBEDDED {
 
   // The default constructor creates an invalid frame element.
   FrameElement() {
-    value_ = StaticTypeField::encode(StaticType::UNKNOWN_TYPE)
-        | TypeField::encode(INVALID)
+    value_ = TypeField::encode(INVALID)
         | CopiedField::encode(false)
         | SyncedField::encode(false)
         | DataField::encode(0);
@@ -75,9 +74,8 @@ class FrameElement BASE_EMBEDDED {
 
   // Factory function to construct an in-register frame element.
   static FrameElement RegisterElement(Register reg,
-                                      SyncFlag is_synced,
-                                      StaticType static_type = StaticType()) {
-    return FrameElement(REGISTER, reg, is_synced, static_type);
+                                      SyncFlag is_synced) {
+    return FrameElement(REGISTER, reg, is_synced);
   }
 
   // Factory function to construct a frame element whose value is known at
@@ -143,15 +141,6 @@ class FrameElement BASE_EMBEDDED {
     return DataField::decode(value_);
   }
 
-  StaticType static_type() {
-    return StaticType(StaticTypeField::decode(value_));
-  }
-
-  void set_static_type(StaticType static_type) {
-    value_ = value_ & ~StaticTypeField::mask();
-    value_ = value_ | StaticTypeField::encode(static_type.static_type_);
-  }
-
   bool Equals(FrameElement other) {
     uint32_t masked_difference = (value_ ^ other.value_) & ~CopiedField::mask();
     if (!masked_difference) {
@@ -184,13 +173,8 @@ class FrameElement BASE_EMBEDDED {
     if (!other->is_valid()) return other;
 
     if (!SameLocation(other)) return NULL;
-    // If either is unsynced, the result is.  The result static type is
-    // the merge of the static types.  It's safe to set it on one of the
-    // frame elements, and harmless too (because we are only going to
-    // merge the reaching frames and will ensure that the types are
-    // coherent, and changing the static type does not emit code).
+    // If either is unsynced, the result is.
     FrameElement* result = is_synced() ? other : this;
-    result->set_static_type(static_type().merge(other->static_type()));
     return result;
   }
 
@@ -205,16 +189,7 @@ class FrameElement BASE_EMBEDDED {
 
   // Used to construct memory and register elements.
   FrameElement(Type type, Register reg, SyncFlag is_synced) {
-    value_ = StaticTypeField::encode(StaticType::UNKNOWN_TYPE)
-        | TypeField::encode(type)
-        | CopiedField::encode(false)
-        | SyncedField::encode(is_synced != NOT_SYNCED)
-        | DataField::encode(reg.code_ > 0 ? reg.code_ : 0);
-  }
-
-  FrameElement(Type type, Register reg, SyncFlag is_synced, StaticType stype) {
-    value_ = StaticTypeField::encode(stype.static_type_)
-        | TypeField::encode(type)
+    value_ = TypeField::encode(type)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
         | DataField::encode(reg.code_ > 0 ? reg.code_ : 0);
@@ -222,8 +197,7 @@ class FrameElement BASE_EMBEDDED {
 
   // Used to construct constant elements.
   FrameElement(Handle<Object> value, SyncFlag is_synced) {
-    value_ = StaticTypeField::encode(StaticType::TypeOf(*value).static_type_)
-        | TypeField::encode(CONSTANT)
+    value_ = TypeField::encode(CONSTANT)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
         | DataField::encode(ConstantList()->length());
@@ -248,14 +222,13 @@ class FrameElement BASE_EMBEDDED {
     value_ = value_ | DataField::encode(new_reg.code_);
   }
 
-  // Encode static type, type, copied, synced and data in one 32 bit integer.
+  // Encode type, copied, synced and data in one 32 bit integer.
   uint32_t value_;
 
-  class StaticTypeField: public BitField<StaticType::StaticTypeEnum, 0, 3> {};
-  class TypeField: public BitField<Type, 3, 3> {};
-  class CopiedField: public BitField<uint32_t, 6, 1> {};
-  class SyncedField: public BitField<uint32_t, 7, 1> {};
-  class DataField: public BitField<uint32_t, 8, 32 - 9> {};
+  class TypeField: public BitField<Type, 0, 3> {};
+  class CopiedField: public BitField<uint32_t, 3, 1> {};
+  class SyncedField: public BitField<uint32_t, 4, 1> {};
+  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
 
   friend class VirtualFrame;
 };

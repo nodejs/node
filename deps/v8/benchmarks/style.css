@@ -1,11 +1,7 @@
-body {
-  font-family: sans-serif;
-}
-
-hr{
+hr {
   border: 1px solid;
   border-color: #36C;
-  margin: 1em 0
+  margin: 1em 0;
 }
 
 h1, h2, h3, h4 {
@@ -14,27 +10,17 @@ h1, h2, h3, h4 {
 }
 
 h1 {
-  font-size: 190%;
+  font-size: 154%;
   height: 1.2em;
 }
 
 
-h2{
-  font-size: 140%;
-  height: 1.2em;
-}
-
-h3{
-  font-size: 100%;
-}
-
-li{
+li {
   margin: .3em 0 1em 0;
 }
 
-body{
+body {
   font-family: Helvetica,Arial,sans-serif;
-  font-size: small;
   color: #000;
   background-color: #fff;
 }
@@ -54,7 +40,7 @@ div.subtitle {
 }
 
 td.contents {
-  text-align: start;
+  text-align: left;
 }
 
 div.run {
@@ -67,4 +53,16 @@ div.run {
   background-position: center center;
   background-repeat: no-repeat;
   border: 1px solid rgb(51, 102, 204);
+}
+
+#status {
+  text-align: center;
+  margin-top: 50px;
+  font-size: 120%;
+  font-weight: bold;
+}
+
+#results {
+  text-align: left;
+  margin: 30px 0 0 90px;
 }

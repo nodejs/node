@@ -77,6 +77,11 @@
 #define __NO_ISOCEXT
 #endif  /* __MINGW32__ */
 
+/* On 64-bit systems, we need to make sure that a Long is only 32 bits. */
+#ifdef V8_TARGET_ARCH_X64
+#define Long int
+#endif /* V8_TARGET_ARCH_X64 */
+
 /* Make sure we use the David M. Gay version of strtod(). On Linux, we
  * cannot use the same name (maybe the function does not have weak
  * linkage?). */

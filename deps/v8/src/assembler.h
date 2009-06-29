@@ -183,7 +183,7 @@ class RelocInfo BASE_EMBEDDED {
   intptr_t data() const  { return data_; }
 
   // Apply a relocation by delta bytes
-  INLINE(void apply(int delta));
+  INLINE(void apply(intptr_t delta));
 
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
@@ -265,8 +265,12 @@ class RelocInfoWriter BASE_EMBEDDED {
     last_pc_ = pc;
   }
 
-  // Max size (bytes) of a written RelocInfo.
-  static const int kMaxSize = 12;
+  // Max size (bytes) of a written RelocInfo. Longest encoding is
+  // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, ExtraTag, data_delta.
+  // On ia32 and arm this is 1 + 4 + 1 + 1 + 1 + 4 = 12.
+  // On x64 this is 1 + 4 + 1 + 1 + 1 + 8 == 16;
+  // Here we use the maximum of the two.
+  static const int kMaxSize = 16;
 
  private:
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);

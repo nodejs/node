@@ -388,7 +388,7 @@ ScriptBreakPoint.prototype.clear = function () {
 function UpdateScriptBreakPoints(script) {
   for (var i = 0; i < script_break_points.length; i++) {
     if (script_break_points[i].type() == Debug.ScriptBreakPointType.ScriptName &&
-        script_break_points[i].script_name() == script.name) {
+        script_break_points[i].matchesScript(script)) {
       script_break_points[i].set(script);
     }
   }
@@ -1194,6 +1194,13 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         throw new Error('Command not specified');
       }
 
+      // TODO(yurys): remove request.arguments.compactFormat check once
+      // ChromeDevTools are switched to 'inlineRefs'
+      if (request.arguments && (request.arguments.inlineRefs ||
+                                request.arguments.compactFormat)) {
+        response.setOption('inlineRefs', true);
+      }
+
       if (request.command == 'continue') {
         this.continueRequest_(request, response);
       } else if (request.command == 'break') {
@@ -1504,9 +1511,6 @@ DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) 
     if (from_index < 0 || to_index < 0) {
       return response.failed('Invalid frame number');
     }
-    if (request.arguments.compactFormat) {
-      response.setOption('compactFormat', true);
-    }
   }
 
   // Adjust the index.
@@ -1696,10 +1700,6 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
     response.setOption('includeSource', includeSource);
   }
   
-  if (request.arguments.compactFormat) {
-    response.setOption('compactFormat', true);
-  }
-
   // Lookup handles.
   var mirrors = {};
   for (var i = 0; i < handles.length; i++) {

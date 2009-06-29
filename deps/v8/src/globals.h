@@ -120,8 +120,10 @@ const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
+const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 #else
 const int kPointerSizeLog2 = 2;
+const intptr_t kIntptrSignBit = 0x80000000;
 #endif
 
 const int kObjectAlignmentBits = kPointerSizeLog2;

@@ -511,7 +511,10 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
     // If there is an arguments variable in the stack, we return that.
     int index = ScopeInfo<>::StackSlotIndex(frame->code(),
                                             Heap::arguments_symbol());
-    if (index >= 0) return frame->GetExpression(index);
+    if (index >= 0) {
+      Handle<Object> arguments = Handle<Object>(frame->GetExpression(index));
+      if (!arguments->IsTheHole()) return *arguments;
+    }
 
     // If there isn't an arguments variable in the stack, we need to
     // find the frame that holds the actual arguments passed to the

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Source common stuff.
+. `cd $(dirname "$0");pwd`/common
+
+opreport --symbols --session-dir="$OPROFILE_SESSION_DIR" "$shell_exec" "$@"
+

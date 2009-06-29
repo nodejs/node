@@ -34,7 +34,7 @@
 namespace v8 {
 namespace internal {
 
-int Heap::MaxHeapObjectSize() {
+int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
 }
 
@@ -212,26 +212,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
-}
-
-
-Object* Heap::GetKeyedLookupCache() {
-  if (keyed_lookup_cache()->IsUndefined()) {
-    Object* obj = LookupCache::Allocate(4);
-    if (obj->IsFailure()) return obj;
-    keyed_lookup_cache_ = obj;
-  }
-  return keyed_lookup_cache();
-}
-
-
-void Heap::SetKeyedLookupCache(LookupCache* cache) {
-  keyed_lookup_cache_ = cache;
-}
-
-
-void Heap::ClearKeyedLookupCache() {
-  keyed_lookup_cache_ = undefined_value();
 }
 
 

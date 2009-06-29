@@ -480,25 +480,27 @@ ev_realloc (void *ptr, long size)
 
 /*****************************************************************************/
 
+/* file descriptor info structure */
 typedef struct
 {
   WL head;
-  unsigned char events;
-  unsigned char reify;
-  unsigned char emask; /* the epoll backend stores the actual kernel mask in here */
+  unsigned char events; /* the events watched for */
+  unsigned char reify;  /* flag set when this ANFD needs reification */
+  unsigned char emask;  /* the epoll backend stores the actual kernel mask in here */
   unsigned char unused;
 #if EV_USE_EPOLL
-  unsigned int egen;  /* generation counter to counter epoll bugs */
+  unsigned int egen;    /* generation counter to counter epoll bugs */
 #endif
 #if EV_SELECT_IS_WINSOCKET
   SOCKET handle;
 #endif
 } ANFD;
 
+/* stores the pending event set for a given watcher */
 typedef struct
 {
   W w;
-  int events;
+  int events; /* the pending event set for the given watcher */
 } ANPENDING;
 
 #if EV_USE_INOTIFY
@@ -511,6 +513,7 @@ typedef struct
 
 /* Heap Entry */
 #if EV_HEAP_CACHE_AT
+  /* a heap element */
   typedef struct {
     ev_tstamp at;
     WT w;
@@ -520,6 +523,7 @@ typedef struct
   #define ANHE_at(he)       (he).at    /* access cached at, read-only */
   #define ANHE_at_cache(he) (he).at = (he).w->at /* update at from watcher */
 #else
+  /* a heap element */
   typedef WT ANHE;
 
   #define ANHE_w(he)        (he)
@@ -572,7 +576,7 @@ ev_time (void)
   return tv.tv_sec + tv.tv_usec * 1e-6;
 }
 
-ev_tstamp inline_size
+inline_size ev_tstamp
 get_clock (void)
 {
 #if EV_USE_MONOTONIC
@@ -627,7 +631,9 @@ ev_sleep (ev_tstamp delay)
 
 #define MALLOC_ROUND 4096 /* prefer to allocate in chunks of this size, must be 2**n and >> 4 longs */
 
-int inline_size
+/* find a suitable new size for the given array, */
+/* hopefully by rounding to a ncie-to-malloc size */
+inline_size int
 array_nextsize (int elem, int cur, int cnt)
 {
   int ncur = cur + 1;
@@ -678,9 +684,15 @@ array_realloc (int elem, void *base, int *cur, int cnt)
 #endif
 
 #define array_free(stem, idx) \
-  ev_free (stem ## s idx); stem ## cnt idx = stem ## max idx = 0;
+  ev_free (stem ## s idx); stem ## cnt idx = stem ## max idx = 0; stem ## s idx = 0
 
 /*****************************************************************************/
+
+/* dummy callback for pending events */
+static void noinline
+pendingcb (EV_P_ ev_prepare *w, int revents)
+{
+}
 
 void noinline
 ev_feed_event (EV_P_ void *w, int revents)
@@ -699,7 +711,22 @@ ev_feed_event (EV_P_ void *w, int revents)
     }
 }
 
-void inline_speed
+inline_speed void
+feed_reverse (EV_P_ W w)
+{
+  array_needsize (W, rfeeds, rfeedmax, rfeedcnt + 1, EMPTY2);
+  rfeeds [rfeedcnt++] = w;
+}
+
+inline_size void
+feed_reverse_done (EV_P_ int revents)
+{
+  do
+    ev_feed_event (EV_A_ rfeeds [--rfeedcnt], revents);
+  while (rfeedcnt);
+}
+
+inline_speed void
 queue_events (EV_P_ W *events, int eventcnt, int type)
 {
   int i;
@@ -710,7 +737,7 @@ queue_events (EV_P_ W *events, int eventcnt, int type)
 
 /*****************************************************************************/
 
-void inline_speed
+inline_speed void
 fd_event (EV_P_ int fd, int revents)
 {
   ANFD *anfd = anfds + fd;
@@ -732,7 +759,9 @@ ev_feed_fd_event (EV_P_ int fd, int revents)
     fd_event (EV_A_ fd, revents);
 }
 
-void inline_size
+/* make sure the external fd watch events are in-sync */
+/* with the kernel/libev internal state */
+inline_size void
 fd_reify (EV_P)
 {
   int i;
@@ -768,7 +797,7 @@ fd_reify (EV_P)
         anfd->reify  = 0;
         anfd->events = events;
 
-        if (o_events != events || o_reify & EV_IOFDSET)
+        if (o_events != events || o_reify & EV__IOFDSET)
           backend_modify (EV_A_ fd, o_events, events);
       }
     }
@@ -776,7 +805,8 @@ fd_reify (EV_P)
   fdchangecnt = 0;
 }
 
-void inline_size
+/* something about the given fd changed */
+inline_size void
 fd_change (EV_P_ int fd, int flags)
 {
   unsigned char reify = anfds [fd].reify;
@@ -790,7 +820,8 @@ fd_change (EV_P_ int fd, int flags)
     }
 }
 
-void inline_speed
+/* the given fd is invalid/unusable, so make sure it doesn't hurt us anymore */
+inline_speed void
 fd_kill (EV_P_ int fd)
 {
   ev_io *w;
@@ -802,7 +833,8 @@ fd_kill (EV_P_ int fd)
     }
 }
 
-int inline_size
+/* check whether the given fd is atcually valid, for error recovery */
+inline_size int
 fd_valid (int fd)
 {
 #ifdef _WIN32
@@ -849,7 +881,7 @@ fd_rearm_all (EV_P)
       {
         anfds [fd].events = 0;
         anfds [fd].emask  = 0;
-        fd_change (EV_A_ fd, EV_IOFDSET | 1);
+        fd_change (EV_A_ fd, EV__IOFDSET | 1);
       }
 }
 
@@ -875,7 +907,7 @@ fd_rearm_all (EV_P)
 #define UPHEAP_DONE(p,k) ((p) == (k))
 
 /* away from the root */
-void inline_speed
+inline_speed void
 downheap (ANHE *heap, int N, int k)
 {
   ANHE he = heap [k];
@@ -925,7 +957,7 @@ downheap (ANHE *heap, int N, int k)
 #define UPHEAP_DONE(p,k) (!(p))
 
 /* away from the root */
-void inline_speed
+inline_speed void
 downheap (ANHE *heap, int N, int k)
 {
   ANHE he = heap [k];
@@ -955,7 +987,7 @@ downheap (ANHE *heap, int N, int k)
 #endif
 
 /* towards the root */
-void inline_speed
+inline_speed void
 upheap (ANHE *heap, int k)
 {
   ANHE he = heap [k];
@@ -976,7 +1008,8 @@ upheap (ANHE *heap, int k)
   ev_active (ANHE_w (he)) = k;
 }
 
-void inline_size
+/* move an element suitably so it is in a correct place */
+inline_size void
 adjustheap (ANHE *heap, int N, int k)
 {
   if (k > HEAP0 && ANHE_at (heap [HPARENT (k)]) >= ANHE_at (heap [k]))
@@ -986,7 +1019,7 @@ adjustheap (ANHE *heap, int N, int k)
 }
 
 /* rebuild the heap: this function is used only once and executed rarely */
-void inline_size
+inline_size void
 reheap (ANHE *heap, int N)
 {
   int i;
@@ -999,6 +1032,7 @@ reheap (ANHE *heap, int N)
 
 /*****************************************************************************/
 
+/* associate signal watchers to a signal signal */
 typedef struct
 {
   WL head;
@@ -1012,7 +1046,9 @@ static EV_ATOMIC_T gotsig;
 
 /*****************************************************************************/
 
-void inline_speed
+/* used to prepare libev internal fd's */
+/* this is not fork-safe */
+inline_speed void
 fd_intern (int fd)
 {
 #ifdef _WIN32
@@ -1027,14 +1063,14 @@ fd_intern (int fd)
 static void noinline
 evpipe_init (EV_P)
 {
-  if (!ev_is_active (&pipeev))
+  if (!ev_is_active (&pipe_w))
     {
 #if EV_USE_EVENTFD
       if ((evfd = eventfd (0, 0)) >= 0)
         {
           evpipe [0] = -1;
           fd_intern (evfd);
-          ev_io_set (&pipeev, evfd, EV_READ);
+          ev_io_set (&pipe_w, evfd, EV_READ);
         }
       else
 #endif
@@ -1044,15 +1080,15 @@ evpipe_init (EV_P)
 
           fd_intern (evpipe [0]);
           fd_intern (evpipe [1]);
-          ev_io_set (&pipeev, evpipe [0], EV_READ);
+          ev_io_set (&pipe_w, evpipe [0], EV_READ);
         }
 
-      ev_io_start (EV_A_ &pipeev);
+      ev_io_start (EV_A_ &pipe_w);
       ev_unref (EV_A); /* watcher should not keep loop alive */
     }
 }
 
-void inline_size
+inline_size void
 evpipe_write (EV_P_ EV_ATOMIC_T *flag)
 {
   if (!*flag)
@@ -1075,6 +1111,8 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
     }
 }
 
+/* called whenever the libev signal pipe */
+/* got some events (signal, async) */
 static void
 pipecb (EV_P_ ev_io *iow, int revents)
 {
@@ -1166,7 +1204,8 @@ static ev_signal childev;
 # define WIFCONTINUED(status) 0
 #endif
 
-void inline_speed
+/* handle a single child status event */
+inline_speed void
 child_reap (EV_P_ int chain, int pid, int status)
 {
   ev_child *w;
@@ -1189,6 +1228,7 @@ child_reap (EV_P_ int chain, int pid, int status)
 # define WCONTINUED 0
 #endif
 
+/* called on sigchld etc., calls waitpid */
 static void
 childcb (EV_P_ ev_signal *sw, int revents)
 {
@@ -1323,6 +1363,7 @@ ev_set_timeout_collect_interval (EV_P_ ev_tstamp interval)
   timeout_blocktime = interval;
 }
 
+/* initialise a loop structure, must be zero-initialised */
 static void noinline
 loop_init (EV_P_ unsigned int flags)
 {
@@ -1392,20 +1433,23 @@ loop_init (EV_P_ unsigned int flags)
       if (!backend && (flags & EVBACKEND_SELECT)) backend = select_init (EV_A_ flags);
 #endif
 
-      ev_init (&pipeev, pipecb);
-      ev_set_priority (&pipeev, EV_MAXPRI);
+      ev_prepare_init (&pending_w, pendingcb);
+
+      ev_init (&pipe_w, pipecb);
+      ev_set_priority (&pipe_w, EV_MAXPRI);
     }
 }
 
+/* free up a loop structure */
 static void noinline
 loop_destroy (EV_P)
 {
   int i;
 
-  if (ev_is_active (&pipeev))
+  if (ev_is_active (&pipe_w))
     {
       ev_ref (EV_A); /* signal watcher */
-      ev_io_stop (EV_A_ &pipeev);
+      ev_io_stop (EV_A_ &pipe_w);
 
 #if EV_USE_EVENTFD
       if (evfd >= 0)
@@ -1454,6 +1498,7 @@ loop_destroy (EV_P)
   ev_free (anfds); anfdmax = 0;
 
   /* have to use the microsoft-never-gets-it-right macro */
+  array_free (rfeed, EMPTY);
   array_free (fdchange, EMPTY);
   array_free (timer, EMPTY);
 #if EV_PERIODIC_ENABLE
@@ -1472,10 +1517,10 @@ loop_destroy (EV_P)
 }
 
 #if EV_USE_INOTIFY
-void inline_size infy_fork (EV_P);
+inline_size void infy_fork (EV_P);
 #endif
 
-void inline_size
+inline_size void
 loop_fork (EV_P)
 {
 #if EV_USE_PORT
@@ -1491,7 +1536,7 @@ loop_fork (EV_P)
   infy_fork (EV_A);
 #endif
 
-  if (ev_is_active (&pipeev))
+  if (ev_is_active (&pipe_w))
     {
       /* this "locks" the handlers against writing to the pipe */
       /* while we modify the fd vars */
@@ -1501,7 +1546,7 @@ loop_fork (EV_P)
 #endif
 
       ev_ref (EV_A);
-      ev_io_stop (EV_A_ &pipeev);
+      ev_io_stop (EV_A_ &pipe_w);
 
 #if EV_USE_EVENTFD
       if (evfd >= 0)
@@ -1516,7 +1561,7 @@ loop_fork (EV_P)
 
       evpipe_init (EV_A);
       /* now iterate over everything, in case we missed something */
-      pipecb (EV_A_ &pipeev, EV_READ);
+      pipecb (EV_A_ &pipe_w, EV_READ);
     }
 
   postfork = 0;
@@ -1722,7 +1767,7 @@ ev_invoke (EV_P_ void *w, int revents)
   EV_CB_INVOKE ((W)w, revents);
 }
 
-void inline_speed
+inline_speed void
 call_pending (EV_P)
 {
   int pri;
@@ -1732,19 +1777,19 @@ call_pending (EV_P)
       {
         ANPENDING *p = pendings [pri] + --pendingcnt [pri];
 
-        if (expect_true (p->w))
-          {
-            /*assert (("libev: non-pending watcher on pending list", p->w->pending));*/
+        /*assert (("libev: non-pending watcher on pending list", p->w->pending));*/
+        /* ^ this is no longer true, as pending_w could be here */
 
-            p->w->pending = 0;
-            EV_CB_INVOKE (p->w, p->events);
-            EV_FREQUENT_CHECK;
-          }
+        p->w->pending = 0;
+        EV_CB_INVOKE (p->w, p->events);
+        EV_FREQUENT_CHECK;
       }
 }
 
 #if EV_IDLE_ENABLE
-void inline_size
+/* make idle watchers pending. this handles the "call-idle */
+/* only when higher priorities are idle" logic */
+inline_size void
 idle_reify (EV_P)
 {
   if (expect_false (idleall))
@@ -1766,86 +1811,104 @@ idle_reify (EV_P)
 }
 #endif
 
-void inline_size
+/* make timers pending */
+inline_size void
 timers_reify (EV_P)
 {
   EV_FREQUENT_CHECK;
 
-  while (timercnt && ANHE_at (timers [HEAP0]) < mn_now)
+  if (timercnt && ANHE_at (timers [HEAP0]) < mn_now)
     {
-      ev_timer *w = (ev_timer *)ANHE_w (timers [HEAP0]);
-
-      /*assert (("libev: inactive timer on timer heap detected", ev_is_active (w)));*/
-
-      /* first reschedule or stop timer */
-      if (w->repeat)
+      do
         {
-          ev_at (w) += w->repeat;
-          if (ev_at (w) < mn_now)
-            ev_at (w) = mn_now;
+          ev_timer *w = (ev_timer *)ANHE_w (timers [HEAP0]);
 
-          assert (("libev: negative ev_timer repeat value found while processing timers", w->repeat > 0.));
+          /*assert (("libev: inactive timer on timer heap detected", ev_is_active (w)));*/
 
-          ANHE_at_cache (timers [HEAP0]);
-          downheap (timers, timercnt, HEAP0);
+          /* first reschedule or stop timer */
+          if (w->repeat)
+            {
+              ev_at (w) += w->repeat;
+              if (ev_at (w) < mn_now)
+                ev_at (w) = mn_now;
+
+              assert (("libev: negative ev_timer repeat value found while processing timers", w->repeat > 0.));
+
+              ANHE_at_cache (timers [HEAP0]);
+              downheap (timers, timercnt, HEAP0);
+            }
+          else
+            ev_timer_stop (EV_A_ w); /* nonrepeating: stop timer */
+
+          EV_FREQUENT_CHECK;
+          feed_reverse (EV_A_ (W)w);
         }
-      else
-        ev_timer_stop (EV_A_ w); /* nonrepeating: stop timer */
+      while (timercnt && ANHE_at (timers [HEAP0]) < mn_now);
 
-      EV_FREQUENT_CHECK;
-      ev_feed_event (EV_A_ (W)w, EV_TIMEOUT);
+      feed_reverse_done (EV_A_ EV_TIMEOUT);
     }
 }
 
 #if EV_PERIODIC_ENABLE
-void inline_size
+/* make periodics pending */
+inline_size void
 periodics_reify (EV_P)
 {
   EV_FREQUENT_CHECK;
 
   while (periodiccnt && ANHE_at (periodics [HEAP0]) < ev_rt_now)
     {
-      ev_periodic *w = (ev_periodic *)ANHE_w (periodics [HEAP0]);
+      int feed_count = 0;
 
-      /*assert (("libev: inactive timer on periodic heap detected", ev_is_active (w)));*/
-
-      /* first reschedule or stop timer */
-      if (w->reschedule_cb)
+      do
         {
-          ev_at (w) = w->reschedule_cb (w, ev_rt_now);
+          ev_periodic *w = (ev_periodic *)ANHE_w (periodics [HEAP0]);
 
-          assert (("libev: ev_periodic reschedule callback returned time in the past", ev_at (w) >= ev_rt_now));
+          /*assert (("libev: inactive timer on periodic heap detected", ev_is_active (w)));*/
 
-          ANHE_at_cache (periodics [HEAP0]);
-          downheap (periodics, periodiccnt, HEAP0);
-        }
-      else if (w->interval)
-        {
-          ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
-          /* if next trigger time is not sufficiently in the future, put it there */
-          /* this might happen because of floating point inexactness */
-          if (ev_at (w) - ev_rt_now < TIME_EPSILON)
+          /* first reschedule or stop timer */
+          if (w->reschedule_cb)
             {
-              ev_at (w) += w->interval;
+              ev_at (w) = w->reschedule_cb (w, ev_rt_now);
 
-              /* if interval is unreasonably low we might still have a time in the past */
-              /* so correct this. this will make the periodic very inexact, but the user */
-              /* has effectively asked to get triggered more often than possible */
-              if (ev_at (w) < ev_rt_now)
-                ev_at (w) = ev_rt_now;
+              assert (("libev: ev_periodic reschedule callback returned time in the past", ev_at (w) >= ev_rt_now));
+
+              ANHE_at_cache (periodics [HEAP0]);
+              downheap (periodics, periodiccnt, HEAP0);
             }
+          else if (w->interval)
+            {
+              ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
+              /* if next trigger time is not sufficiently in the future, put it there */
+              /* this might happen because of floating point inexactness */
+              if (ev_at (w) - ev_rt_now < TIME_EPSILON)
+                {
+                  ev_at (w) += w->interval;
 
-          ANHE_at_cache (periodics [HEAP0]);
-          downheap (periodics, periodiccnt, HEAP0);
+                  /* if interval is unreasonably low we might still have a time in the past */
+                  /* so correct this. this will make the periodic very inexact, but the user */
+                  /* has effectively asked to get triggered more often than possible */
+                  if (ev_at (w) < ev_rt_now)
+                    ev_at (w) = ev_rt_now;
+                }
+
+              ANHE_at_cache (periodics [HEAP0]);
+              downheap (periodics, periodiccnt, HEAP0);
+            }
+          else
+            ev_periodic_stop (EV_A_ w); /* nonrepeating: stop timer */
+
+          EV_FREQUENT_CHECK;
+          feed_reverse (EV_A_ (W)w);
         }
-      else
-        ev_periodic_stop (EV_A_ w); /* nonrepeating: stop timer */
+      while (periodiccnt && ANHE_at (periodics [HEAP0]) < ev_rt_now);
 
-      EV_FREQUENT_CHECK;
-      ev_feed_event (EV_A_ (W)w, EV_PERIODIC);
+      feed_reverse_done (EV_A_ EV_PERIODIC);
     }
 }
 
+/* simply recalculate all periodics */
+/* TODO: maybe ensure that at leats one event happens when jumping forward? */
 static void noinline
 periodics_reschedule (EV_P)
 {
@@ -1868,7 +1931,23 @@ periodics_reschedule (EV_P)
 }
 #endif
 
-void inline_speed
+/* adjust all timers by a given offset */
+static void noinline
+timers_reschedule (EV_P_ ev_tstamp adjust)
+{
+  int i;
+
+  for (i = 0; i < timercnt; ++i)
+    {
+      ANHE *he = timers + i + HEAP0;
+      ANHE_w (*he)->at += adjust;
+      ANHE_at_cache (*he);
+    }
+}
+
+/* fetch new monotonic and realtime times from the kernel */
+/* also detetc if there was a timejump, and act accordingly */
+inline_speed void
 time_update (EV_P_ ev_tstamp max_block)
 {
   int i;
@@ -1911,11 +1990,11 @@ time_update (EV_P_ ev_tstamp max_block)
           now_floor = mn_now;
         }
 
+      /* no timer adjustment, as the monotonic clock doesn't jump */
+      /* timers_reschedule (EV_A_ rtmn_diff - odiff) */
 # if EV_PERIODIC_ENABLE
       periodics_reschedule (EV_A);
 # endif
-      /* no timer adjustment, as the monotonic clock doesn't jump */
-      /* timers_reschedule (EV_A_ rtmn_diff - odiff) */
     }
   else
 #endif
@@ -1924,38 +2003,15 @@ time_update (EV_P_ ev_tstamp max_block)
 
       if (expect_false (mn_now > ev_rt_now || ev_rt_now > mn_now + max_block + MIN_TIMEJUMP))
         {
+          /* adjust timers. this is easy, as the offset is the same for all of them */
+          timers_reschedule (EV_A_ ev_rt_now - mn_now);
 #if EV_PERIODIC_ENABLE
           periodics_reschedule (EV_A);
 #endif
-          /* adjust timers. this is easy, as the offset is the same for all of them */
-          for (i = 0; i < timercnt; ++i)
-            {
-              ANHE *he = timers + i + HEAP0;
-              ANHE_w (*he)->at += ev_rt_now - mn_now;
-              ANHE_at_cache (*he);
-            }
         }
 
       mn_now = ev_rt_now;
     }
-}
-
-void
-ev_ref (EV_P)
-{
-  ++activecnt;
-}
-
-void
-ev_unref (EV_P)
-{
-  --activecnt;
-}
-
-void
-ev_now_update (EV_P)
-{
-  time_update (EV_A_ 1e100);
 }
 
 static int loop_done;
@@ -1998,9 +2054,6 @@ ev_loop (EV_P_ int flags)
           queue_events (EV_A_ (W *)prepares, preparecnt, EV_PREPARE);
           call_pending (EV_A);
         }
-
-      if (expect_false (!activecnt))
-        break;
 
       /* we might have forked, so reify kernel state if necessary */
       if (expect_false (postfork))
@@ -2090,16 +2143,54 @@ ev_unloop (EV_P_ int how)
   loop_done = how;
 }
 
-/*****************************************************************************/
+void
+ev_ref (EV_P)
+{
+  ++activecnt;
+}
 
-void inline_size
+void
+ev_unref (EV_P)
+{
+  --activecnt;
+}
+
+void
+ev_now_update (EV_P)
+{
+  time_update (EV_A_ 1e100);
+}
+
+void
+ev_suspend (EV_P)
+{
+  ev_now_update (EV_A);
+}
+
+void
+ev_resume (EV_P)
+{
+  ev_tstamp mn_prev = mn_now;
+
+  ev_now_update (EV_A);
+  timers_reschedule (EV_A_ mn_now - mn_prev);
+#if EV_PERIODIC_ENABLE
+  /* TODO: really do this? */
+  periodics_reschedule (EV_A);
+#endif
+}
+
+/*****************************************************************************/
+/* singly-linked list management, used when the expected list length is short */
+
+inline_size void
 wlist_add (WL *head, WL elem)
 {
   elem->next = *head;
   *head = elem;
 }
 
-void inline_size
+inline_size void
 wlist_del (WL *head, WL elem)
 {
   while (*head)
@@ -2114,12 +2205,13 @@ wlist_del (WL *head, WL elem)
     }
 }
 
-void inline_speed
+/* internal, faster, version of ev_clear_pending */
+inline_speed void
 clear_pending (EV_P_ W w)
 {
   if (w->pending)
     {
-      pendings [ABSPRI (w)][w->pending - 1].w = 0;
+      pendings [ABSPRI (w)][w->pending - 1].w = (W)&pending_w;
       w->pending = 0;
     }
 }
@@ -2133,15 +2225,15 @@ ev_clear_pending (EV_P_ void *w)
   if (expect_true (pending))
     {
       ANPENDING *p = pendings [ABSPRI (w_)] + pending - 1;
+      p->w = (W)&pending_w;
       w_->pending = 0;
-      p->w = 0;
       return p->events;
     }
   else
     return 0;
 }
 
-void inline_size
+inline_size void
 pri_adjust (EV_P_ W w)
 {
   int pri = w->priority;
@@ -2150,7 +2242,7 @@ pri_adjust (EV_P_ W w)
   w->priority = pri;
 }
 
-void inline_speed
+inline_speed void
 ev_start (EV_P_ W w, int active)
 {
   pri_adjust (EV_A_ w);
@@ -2158,7 +2250,7 @@ ev_start (EV_P_ W w, int active)
   ev_ref (EV_A);
 }
 
-void inline_size
+inline_size void
 ev_stop (EV_P_ W w)
 {
   ev_unref (EV_A);
@@ -2176,7 +2268,7 @@ ev_io_start (EV_P_ ev_io *w)
     return;
 
   assert (("libev: ev_io_start called with negative fd", fd >= 0));
-  assert (("libev: ev_io start called with illegal event mask", !(w->events & ~(EV_IOFDSET | EV_READ | EV_WRITE))));
+  assert (("libev: ev_io start called with illegal event mask", !(w->events & ~(EV__IOFDSET | EV_READ | EV_WRITE))));
 
   EV_FREQUENT_CHECK;
 
@@ -2184,8 +2276,8 @@ ev_io_start (EV_P_ ev_io *w)
   array_needsize (ANFD, anfds, anfdmax, fd + 1, array_init_zero);
   wlist_add (&anfds[fd].head, (WL)w);
 
-  fd_change (EV_A_ fd, w->events & EV_IOFDSET | 1);
-  w->events &= ~EV_IOFDSET;
+  fd_change (EV_A_ fd, w->events & EV__IOFDSET | 1);
+  w->events &= ~EV__IOFDSET;
 
   EV_FREQUENT_CHECK;
 }
@@ -2593,7 +2685,7 @@ infy_cb (EV_P_ ev_io *w, int revents)
     infy_wd (EV_A_ ev->wd, ev->wd, ev);
 }
 
-void inline_size
+inline_size void
 check_2625 (EV_P)
 {
   /* kernels < 2.6.25 are borked
@@ -2616,7 +2708,7 @@ check_2625 (EV_P)
   fs_2625 = 1;
 }
 
-void inline_size
+inline_size void
 infy_init (EV_P)
 {
   if (fs_fd != -2)
@@ -2636,7 +2728,7 @@ infy_init (EV_P)
     }
 }
 
-void inline_size
+inline_size void
 infy_fork (EV_P)
 {
   int slot;
@@ -3147,6 +3239,114 @@ ev_once (EV_P_ int fd, int events, ev_tstamp timeout, void (*cb)(int revents, vo
       ev_timer_start (EV_A_ &once->to);
     }
 }
+
+/*****************************************************************************/
+
+#if EV_WALK_ENABLE
+void
+ev_walk (EV_P_ int types, void (*cb)(EV_P_ int type, void *w))
+{
+  int i, j;
+  ev_watcher_list *wl, *wn;
+
+  if (types & (EV_IO | EV_EMBED))
+    for (i = 0; i < anfdmax; ++i)
+      for (wl = anfds [i].head; wl; )
+        {
+          wn = wl->next;
+
+#if EV_EMBED_ENABLE
+          if (ev_cb ((ev_io *)wl) == embed_io_cb)
+            {
+              if (types & EV_EMBED)
+                cb (EV_A_ EV_EMBED, ((char *)wl) - offsetof (struct ev_embed, io));
+            }
+          else
+#endif
+#if EV_USE_INOTIFY
+          if (ev_cb ((ev_io *)wl) == infy_cb)
+            ;
+          else
+#endif
+          if ((ev_io *)wl != &pipe_w)
+            if (types & EV_IO)
+              cb (EV_A_ EV_IO, wl);
+
+          wl = wn;
+        }
+
+  if (types & (EV_TIMER | EV_STAT))
+    for (i = timercnt + HEAP0; i-- > HEAP0; )
+#if EV_STAT_ENABLE
+      /*TODO: timer is not always active*/
+      if (ev_cb ((ev_timer *)ANHE_w (timers [i])) == stat_timer_cb)
+        {
+          if (types & EV_STAT)
+            cb (EV_A_ EV_STAT, ((char *)ANHE_w (timers [i])) - offsetof (struct ev_stat, timer));
+        }
+      else
+#endif
+      if (types & EV_TIMER)
+        cb (EV_A_ EV_TIMER, ANHE_w (timers [i]));
+
+#if EV_PERIODIC_ENABLE
+  if (types & EV_PERIODIC)
+    for (i = periodiccnt + HEAP0; i-- > HEAP0; )
+      cb (EV_A_ EV_PERIODIC, ANHE_w (periodics [i]));
+#endif
+
+#if EV_IDLE_ENABLE
+  if (types & EV_IDLE)
+    for (j = NUMPRI; i--; )
+      for (i = idlecnt [j]; i--; )
+        cb (EV_A_ EV_IDLE, idles [j][i]);
+#endif
+
+#if EV_FORK_ENABLE
+  if (types & EV_FORK)
+    for (i = forkcnt; i--; )
+      if (ev_cb (forks [i]) != embed_fork_cb)
+        cb (EV_A_ EV_FORK, forks [i]);
+#endif
+
+#if EV_ASYNC_ENABLE
+  if (types & EV_ASYNC)
+    for (i = asynccnt; i--; )
+      cb (EV_A_ EV_ASYNC, asyncs [i]);
+#endif
+
+  if (types & EV_PREPARE)
+    for (i = preparecnt; i--; )
+#if EV_EMBED_ENABLE
+      if (ev_cb (prepares [i]) != embed_prepare_cb)
+#endif
+        cb (EV_A_ EV_PREPARE, prepares [i]);
+
+  if (types & EV_CHECK)
+    for (i = checkcnt; i--; )
+      cb (EV_A_ EV_CHECK, checks [i]);
+
+  if (types & EV_SIGNAL)
+    for (i = 0; i < signalmax; ++i)
+      for (wl = signals [i].head; wl; )
+        {
+          wn = wl->next;
+          cb (EV_A_ EV_SIGNAL, wl);
+          wl = wn;
+        }
+
+  if (types & EV_CHILD)
+    for (i = EV_PID_HASHSIZE; i--; )
+      for (wl = childs [i]; wl; )
+        {
+          wn = wl->next;
+          cb (EV_A_ EV_CHILD, wl);
+          wl = wn;
+        }
+/* EV_STAT     0x00001000 /* stat data changed */
+/* EV_EMBED    0x00010000 /* embedded event loop needs sweep */
+}
+#endif
 
 #if EV_MULTIPLICITY
   #include "ev_wrap.h"

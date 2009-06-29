@@ -611,6 +611,11 @@ Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
 }
 
 
+Failure* Top::ThrowIllegalOperation() {
+  return Throw(Heap::illegal_access_symbol());
+}
+
+
 void Top::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.

@@ -1,3 +1,34 @@
+2009-06-29: Version 1.2.10
+
+        Improved debugger support.
+
+        Fixed bug in exception message reporting (issue 390).
+
+        Improved overall performance.
+
+
+2009-06-23: Version 1.2.9
+
+        Improved math performance on ARM.
+
+        Fixed profiler name-inference bug.
+
+        Fixed handling of shared libraries in the profiler tick processor
+        scripts.
+
+        Fixed handling of tests that time out in the test scripts.
+
+        Fixed compilation on MacOS X version 10.4.
+
+        Fixed two bugs in the regular expression engine.
+
+        Fixed a bug in the string type inference.
+
+        Fixed a bug in the handling of 'constant function' properties.
+        
+        Improved overall performance.
+        
+
 2009-06-16: Version 1.2.8
 
         Optimized math on ARM platforms.

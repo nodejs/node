@@ -164,6 +164,7 @@
       '../../src/list-inl.h',
       '../../src/list.h',
       '../../src/log.cc',
+      '../../src/log-inl.h',
       '../../src/log.h',
       '../../src/log-utils.cc',
       '../../src/log-utils.h',

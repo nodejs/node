@@ -283,7 +283,10 @@ void AstOptimizer::VisitAssignment(Assignment* node) {
     case Token::ASSIGN:
       // No type can be infered from the general assignment.
 
-      scoped_fni.Enter();
+      // Don't infer if it is "a = function(){...}();"-like expression.
+      if (node->value()->AsCall() == NULL) {
+        scoped_fni.Enter();
+      }
       break;
     case Token::ASSIGN_BIT_OR:
     case Token::ASSIGN_BIT_XOR:

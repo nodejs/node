@@ -1895,8 +1895,8 @@ JSONProtocolSerializer.prototype.includeSource_ = function() {
 }
 
 
-JSONProtocolSerializer.prototype.compactFormat_ = function() {
-  return this.options_ && this.options_.compactFormat;
+JSONProtocolSerializer.prototype.inlineRefs_ = function() {
+  return this.options_ && this.options_.inlineRefs;
 }
 
 
@@ -1960,7 +1960,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
   // the mirror to the referenced mirrors.
   if (reference &&
       (mirror.isValue() || mirror.isScript() || mirror.isContext())) {
-    if (this.compactFormat_() && mirror.isValue()) {
+    if (this.inlineRefs_() && mirror.isValue()) {
       return this.serializeReferenceWithDisplayData_(mirror);
     } else {
       this.add_(mirror);
@@ -2051,7 +2051,10 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       content.sourceLength = mirror.source().length;
       content.scriptType = mirror.scriptType();
       content.compilationType = mirror.compilationType();
-      if (mirror.compilationType() == 1) {  // Compilation type eval.
+      // For compilation type eval emit information on the script from which
+      // eval was called if a script is present.
+      if (mirror.compilationType() == 1 &&
+          mirror.evalFromFunction().script()) {
         content.evalFromScript =
             this.serializeReference(mirror.evalFromFunction().script());
         var evalFromLocation = mirror.evalFromLocation()
@@ -2172,7 +2175,7 @@ JSONProtocolSerializer.prototype.serializeProperty_ = function(propertyMirror) {
   
   result.name = propertyMirror.name();
   var propertyValue = propertyMirror.value();
-  if (this.compactFormat_() && propertyValue.isValue()) {
+  if (this.inlineRefs_() && propertyValue.isValue()) {
     result.value = this.serializeReferenceWithDisplayData_(propertyValue);
   } else {
     if (propertyMirror.attributes() != PropertyAttribute.None) {
@@ -2229,6 +2232,15 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
   if (!IS_UNDEFINED(source_line_text)) {
     content.sourceLineText = source_line_text;
   }
+  
+  content.scopes = [];
+  for (var i = 0; i < mirror.scopeCount(); i++) {
+    var scope = mirror.scope(i);
+    content.scopes.push({
+      type: scope.scopeType(),
+      index: i
+    });
+  }
 }
 
 
@@ -2236,7 +2248,9 @@ JSONProtocolSerializer.prototype.serializeScope_ = function(mirror, content) {
   content.index = mirror.scopeIndex();
   content.frameIndex = mirror.frameIndex();
   content.type = mirror.scopeType();
-  content.object = this.serializeReference(mirror.scopeObject());
+  content.object = this.inlineRefs_() ?
+                   this.serializeValue(mirror.scopeObject()) :
+                   this.serializeReference(mirror.scopeObject());
 }
 
 

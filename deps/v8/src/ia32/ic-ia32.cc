@@ -141,6 +141,9 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
 }
 
 
+const int LoadIC::kOffsetToLoadInstruction = 13;
+
+
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name

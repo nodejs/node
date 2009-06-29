@@ -126,7 +126,7 @@ devtools.profiler.CodeMap.prototype.addStaticCode = function(
 devtools.profiler.CodeMap.prototype.markPages_ = function(start, end) {
   for (var addr = start; addr <= end;
        addr += devtools.profiler.CodeMap.PAGE_SIZE) {
-    this.pages_[addr >> devtools.profiler.CodeMap.PAGE_ALIGNMENT] = 1;
+    this.pages_[addr >>> devtools.profiler.CodeMap.PAGE_ALIGNMENT] = 1;
   }
 };
 
@@ -155,7 +155,7 @@ devtools.profiler.CodeMap.prototype.findInTree_ = function(tree, addr) {
  * @param {number} addr Address.
  */
 devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
-  var pageAddr = addr >> devtools.profiler.CodeMap.PAGE_ALIGNMENT;
+  var pageAddr = addr >>> devtools.profiler.CodeMap.PAGE_ALIGNMENT;
   if (pageAddr in this.pages_) {
     return this.findInTree_(this.statics_, addr);
   }

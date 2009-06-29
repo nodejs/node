@@ -1582,7 +1582,8 @@ VariableProxy* AstBuildingParser::Declare(Handle<String> name,
   // For global const variables we bind the proxy to a variable.
   if (mode == Variable::CONST && top_scope_->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
-    var = NEW(Variable(top_scope_, name, Variable::CONST, true, false));
+    Variable::Kind kind = Variable::NORMAL;
+    var = NEW(Variable(top_scope_, name, Variable::CONST, true, kind));
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -2653,10 +2654,15 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         double y_val = y->AsLiteral()->handle()->Number();
         int64_t y_int = static_cast<int64_t>(y_val);
         // There are rounding issues with this optimization, but they don't
-        // apply if the number to be divided with has a reciprocal that can
-        // be precisely represented as a floating point number.  This is
-        // the case if the number is an integer power of 2.
-        if (static_cast<double>(y_int) == y_val && IsPowerOf2(y_int)) {
+        // apply if the number to be divided with has a reciprocal that can be
+        // precisely represented as a floating point number.  This is the case
+        // if the number is an integer power of 2.  Negative integer powers of
+        // 2 work too, but for -2, -1, 1 and 2 we don't do the strength
+        // reduction because the inlined optimistic idiv has a reasonable
+        // chance of succeeding by producing a Smi answer with no remainder.
+        if (static_cast<double>(y_int) == y_val &&
+            (IsPowerOf2(y_int) || IsPowerOf2(-y_int)) &&
+            (y_int > 2 || y_int < -2)) {
           y = NewNumberLiteral(1 / y_val);
           op = Token::MUL;
         }

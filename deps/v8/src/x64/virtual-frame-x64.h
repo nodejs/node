@@ -153,11 +153,8 @@ class VirtualFrame : public ZoneObject {
   void SyncRange(int begin, int end);
 
   // Make this frame so that an arbitrary frame of the same height can
-  // be merged to it.  Copies and constants are removed from the
-  // topmost mergable_elements elements of the frame.  A
-  // mergable_elements of JumpTarget::kAllElements indicates constants
-  // and copies are should be removed from the entire frame.
-  void MakeMergable(int mergable_elements);
+  // be merged to it.  Copies and constants are removed from the frame.
+  void MakeMergable();
 
   // Prepare this virtual frame for merging to an expected frame by
   // performing some state changes that do not require generating
@@ -310,8 +307,8 @@ class VirtualFrame : public ZoneObject {
   // even a register.  The argument is consumed by the call.
   Result CallStub(CodeStub* stub, Result* arg);
 
-  // Call stub that takes a pair of arguments passed in edx (arg0) and
-  // eax (arg1).  The arguments are given as results which do not have
+  // Call stub that takes a pair of arguments passed in edx (arg0, rdx) and
+  // eax (arg1, rax).  The arguments are given as results which do not have
   // to be in the proper registers or even in registers.  The
   // arguments are consumed by the call.
   Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);
@@ -379,9 +376,11 @@ class VirtualFrame : public ZoneObject {
   void EmitPush(Register reg);
   void EmitPush(const Operand& operand);
   void EmitPush(Immediate immediate);
+  // Uses kScratchRegister, emits appropriate relocation info.
+  void EmitPush(Handle<Object> value);
 
   // Push an element on the virtual frame.
-  void Push(Register reg, StaticType static_type = StaticType());
+  void Push(Register reg);
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
@@ -389,7 +388,7 @@ class VirtualFrame : public ZoneObject {
   // frame).
   void Push(Result* result) {
     if (result->is_register()) {
-      Push(result->reg(), result->static_type());
+      Push(result->reg());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());

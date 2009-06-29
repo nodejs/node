@@ -225,7 +225,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::IsEnabled()) return false;
+  if (!Logger::is_logging()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     static Vector<const char> kRegexp = CStrVector("regexp");
@@ -468,129 +468,6 @@ bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
   }
   entry->name = new_entry.name;
   entry->method = new_entry.method;
-  return true;
-}
-
-
-void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
-                                                    int min_index,
-                                                    int range,
-                                                    int default_index) {
-  ZoneList<CaseClause*>* cases = node->cases();
-  int length = cases->length();
-
-  // Label pointer per number in range.
-  SmartPointer<Label*> case_targets(NewArray<Label*>(range));
-
-  // Label per switch case.
-  SmartPointer<Label> case_labels(NewArray<Label>(length));
-
-  Label* fail_label =
-      default_index >= 0 ? &(case_labels[default_index]) : NULL;
-
-  // Populate array of label pointers for each number in the range.
-  // Initally put the failure label everywhere.
-  for (int i = 0; i < range; i++) {
-    case_targets[i] = fail_label;
-  }
-
-  // Overwrite with label of a case for the number value of that case.
-  // (In reverse order, so that if the same label occurs twice, the
-  // first one wins).
-  for (int i = length - 1; i >= 0 ; i--) {
-    CaseClause* clause = cases->at(i);
-    if (!clause->is_default()) {
-      Object* label_value = *(clause->label()->AsLiteral()->handle());
-      int case_value = Smi::cast(label_value)->value();
-      case_targets[case_value - min_index] = &(case_labels[i]);
-    }
-  }
-
-  GenerateFastCaseSwitchJumpTable(node,
-                                  min_index,
-                                  range,
-                                  fail_label,
-                                  Vector<Label*>(*case_targets, range),
-                                  Vector<Label>(*case_labels, length));
-}
-
-
-void CodeGenerator::GenerateFastCaseSwitchCases(
-    SwitchStatement* node,
-    Vector<Label> case_labels,
-    VirtualFrame* start_frame) {
-  ZoneList<CaseClause*>* cases = node->cases();
-  int length = cases->length();
-
-  for (int i = 0; i < length; i++) {
-    Comment cmnt(masm(), "[ Case clause");
-
-    // We may not have a virtual frame if control flow did not fall
-    // off the end of the previous case.  In that case, use the start
-    // frame.  Otherwise, we have to merge the existing one to the
-    // start frame as part of the previous case.
-    if (!has_valid_frame()) {
-      RegisterFile empty;
-      SetFrame(new VirtualFrame(start_frame), &empty);
-    } else {
-      frame_->MergeTo(start_frame);
-    }
-    masm()->bind(&case_labels[i]);
-    VisitStatements(cases->at(i)->statements());
-  }
-}
-
-
-bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
-  // TODO(238): Due to issue 238, fast case switches can crash on ARM
-  // and possibly IA32.  They are disabled for now.
-  // See http://code.google.com/p/v8/issues/detail?id=238
-  return false;
-
-  ZoneList<CaseClause*>* cases = node->cases();
-  int length = cases->length();
-
-  if (length < FastCaseSwitchMinCaseCount()) {
-    return false;
-  }
-
-  // Test whether fast-case should be used.
-  int default_index = -1;
-  int min_index = Smi::kMaxValue;
-  int max_index = Smi::kMinValue;
-  for (int i = 0; i < length; i++) {
-    CaseClause* clause = cases->at(i);
-    if (clause->is_default()) {
-      if (default_index >= 0) {
-        // There is more than one default label. Defer to the normal case
-        // for error.
-        return false;
-      }
-      default_index = i;
-    } else {
-      Expression* label = clause->label();
-      Literal* literal = label->AsLiteral();
-      if (literal == NULL) {
-        return false;  // fail fast case
-      }
-      Object* value = *(literal->handle());
-      if (!value->IsSmi()) {
-        return false;
-      }
-      int int_value = Smi::cast(value)->value();
-      min_index = Min(int_value, min_index);
-      max_index = Max(int_value, max_index);
-    }
-  }
-
-  // All labels are known to be Smis.
-  int range = max_index - min_index + 1;  // |min..max| inclusive
-  if (range / FastCaseSwitchMaxOverheadFactor() > length) {
-    return false;  // range of labels is too sparse
-  }
-
-  // Optimization accepted, generate code.
-  GenerateFastCaseSwitchStatement(node, min_index, range, default_index);
   return true;
 }
 

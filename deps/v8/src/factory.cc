@@ -92,8 +92,6 @@ Handle<String> Factory::NewRawTwoByteString(int length,
 
 Handle<String> Factory::NewConsString(Handle<String> first,
                                       Handle<String> second) {
-  if (first->length() == 0) return second;
-  if (second->length() == 0) return first;
   CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
 }
 

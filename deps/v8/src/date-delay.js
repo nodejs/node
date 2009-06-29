@@ -150,6 +150,8 @@ var DST_offset_cache = {
 };
 
 
+// NOTE: The implementation relies on the fact that no time zones have
+// more than one daylight savings offset change per month.
 function DaylightSavingsOffset(t) {
   // Load the cache object from the builtins object.
   var cache = DST_offset_cache;
@@ -530,7 +532,8 @@ function GetUTCHoursFrom(aDate) {
 function GetFullYearFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return YearFromTime(LocalTimeNoCheck(t));
+  // Ignore the DST offset for year computations.
+  return YearFromTime(t + local_time_offset);
 }
 
 
