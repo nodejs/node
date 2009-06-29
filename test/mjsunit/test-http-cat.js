@@ -18,15 +18,15 @@ var bad_server_got_error = false;
 function onLoad () {
   node.http.cat("http://localhost:"+PORT+"/", "utf8")
     .addCallback(function (content) {
-      node.debug("got response");
+      puts("got response");
       got_good_server_content = true;
       assertEquals(body, content);
       server.close();
     });
-
+  
   node.http.cat("http://localhost:12312/", "utf8")
     .addErrback(function () {
-      node.debug("got error (this should happen)");
+      puts("got error (this should happen)");
       bad_server_got_error = true;
     });
 }

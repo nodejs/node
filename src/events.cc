@@ -86,7 +86,7 @@ Promise::Create (void)
   ObjectWrap::InformV8ofAllocation(promise);
 
   promise->Attach();
-  ev_unref(EV_DEFAULT_UC);
+  ev_ref(EV_DEFAULT_UC);
 
   return promise;
 }
@@ -97,7 +97,7 @@ Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
   bool r = Emit("success", argc, argv);
 
   Detach();
-  ev_ref(EV_DEFAULT_UC);
+  ev_unref(EV_DEFAULT_UC);
 
   return r;
 }
@@ -108,7 +108,7 @@ Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
   bool r = Emit("error", argc, argv);
 
   Detach();
-  ev_ref(EV_DEFAULT_UC);
+  ev_unref(EV_DEFAULT_UC);
 
   return r;
 }
