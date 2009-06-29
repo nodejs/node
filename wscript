@@ -65,14 +65,14 @@ def configure(conf):
   # Configure debug variant
   conf.setenv('debug')
   debug_env.set_variant('debug')
-  debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
-  debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
+  debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra', '-m32'])
+  debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra', '-m32'])
   conf.write_config_header("config.h")
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3'])
-  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3', '-m32'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3', '-m32'])
   conf.write_config_header("config.h")
 
 def build(bld):
@@ -96,7 +96,7 @@ def build(bld):
     install_path = None
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
-  bld.env["LINKFLAGS_V8"] = "-pthread"
+  bld.env["LINKFLAGS_V8"] = ["-pthread", "-m32"]
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
   bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
 
@@ -108,7 +108,7 @@ def build(bld):
     v8_debug = v8.clone("debug")
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
-    bld.env_of_name('debug')["LINKFLAGS_V8"] = "-pthread"
+    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
     v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
