@@ -342,9 +342,7 @@ AfterStat (eio_req *req)
 
   HandleScope scope;
 
-  Local<Value> argv[1];
   Local<Object> stats = Object::New();
-  argv[1] = stats;
 
   struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
 
@@ -375,6 +373,7 @@ AfterStat (eio_req *req)
   /* time of last status change */
   stats->Set(CTIME_SYMBOL, Date::New(1000*static_cast<double>(s->st_ctime)));
 
+  Local<Value> argv[1] = { stats };
   promise->EmitSuccess(1, argv);
 
   return 0;
