@@ -27,11 +27,7 @@ emitter.emit = function (type, args) {
   var length = listeners.length;
 
   for (var i = 0; i < length; i++) {
-    if (args) {
-      listeners[i].apply(this, args);
-    } else  {
-      listeners[i].call(this);
-    }
+    listeners[i].apply(this, args);
   }
 };
 

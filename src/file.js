@@ -63,7 +63,8 @@ node.fs.File = function (options) {
     promise.method = method;
     promise.args = args;
 
-    //node.debug("add action: " + JSON.stringify(action));
+    //node.debug("add action " + method + " " + JSON.stringify(args));
+
     actionQueue.push(promise);
 
     // If the queue was empty, immediately call the method.
@@ -75,24 +76,20 @@ node.fs.File = function (options) {
   function act () {
     var promise = actionQueue[0]; // peek at the head of the queue
     if (promise) {
-      node.debug("internal apply " + JSON.stringify(promise.args));
+      //node.debug("internal apply " + JSON.stringify(promise.args));
       internal_methods[promise.method].apply(self, promise.args);
     }
   }
 
   // called after each action finishes (when it returns from the thread pool)
   function success () {
+    //node.debug("success called");
+
     var promise = actionQueue[0];
 
     if (!promise) throw "actionQueue empty when it shouldn't be.";
 
-    var args = [];
-    for (var i = 0; i < arguments.length; i++) {
-      node.debug(JSON.stringify(arguments[i]));
-      args.push(arguments[i]);
-    }
-
-    promise.emitSuccess(args);
+    promise.emitSuccess(arguments);
 
     actionQueue.shift();
     act();
@@ -103,13 +100,8 @@ node.fs.File = function (options) {
 
     if (!promise) throw "actionQueue empty when it shouldn't be.";
 
-    var args = [];
-    for (var i = 0; i < arguments.length; i++) {
-      args.push(arguments[i]);
-    }
-
-    promise.emitError(args);
-    self.emitError(args);
+    promise.emitError(arguments);
+    self.emitError(arguments);
   }
 
   var internal_methods = {
@@ -167,6 +159,7 @@ node.fs.File = function (options) {
     },
 
     write: function (data, position) {
+      //node.debug("internal write");
       var promise = node.fs.write(self.fd, data, position);
       promise.addCallback(success);  
       promise.addErrback(error);  
@@ -186,6 +179,7 @@ node.fs.File = function (options) {
   };
 
   self.write = function (buf, pos) {
+    //node.debug("external write");
     return createAction("write", [buf, pos]);
   };
 
@@ -204,4 +198,7 @@ stdin  = new node.fs.File({ fd: node.STDIN_FILENO  });
 
 puts  = stdout.puts;
 print = stdout.print;
-p = function (data) { return puts(JSON.stringify(data)); }
+p = function (data) {
+  return puts(JSON.stringify(data));
+}
+
