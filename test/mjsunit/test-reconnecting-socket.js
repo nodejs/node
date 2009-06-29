@@ -8,15 +8,15 @@ var client_recv_count = 0;
 function onLoad () {
 
   var server = node.tcp.createServer(function (socket) {
-    socket.addListener("Connect", function () {
+    socket.addListener("connect", function () {
       socket.send("hello\r\n");
     });
 
-    socket.addListener("EOF", function () {
+    socket.addListener("eof", function () {
       socket.close();
     });
 
-    socket.addListener("Disconnect", function (had_error) {
+    socket.addListener("disconnect", function (had_error) {
       //puts("server had_error: " + JSON.stringify(had_error));
       assertFalse(had_error);
     });
@@ -25,16 +25,16 @@ function onLoad () {
   var client = new node.tcp.Connection();
   
   client.setEncoding("UTF8");
-  client.addListener("Connect", function () {
+  client.addListener("connect", function () {
   });
 
-  client.addListener("Receive", function (chunk) {
+  client.addListener("receive", function (chunk) {
     client_recv_count += 1;
     assertEquals("hello\r\n", chunk);
     client.fullClose();
   });
 
-  client.addListener("Disconnect", function (had_error) {
+  client.addListener("disconnect", function (had_error) {
     assertFalse(had_error);
     if (disconnect_count++ < N) 
       client.connect(port); // reconnect

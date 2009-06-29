@@ -448,7 +448,7 @@ Connection::OnReceive (const void *buf, size_t len)
     argv[0] = Local<Value>::New(Null());  
   }
 
-  Emit("Receive", argc, argv);
+  Emit("receive", argc, argv);
 }
 
 void 
@@ -459,7 +459,7 @@ Connection::OnDisconnect ()
   Handle<Value> argv[1];
   argv[0] = socket_.errorno == 0 ? False() : True();
 
-  Emit("Disconnect", 1, argv);
+  Emit("disconnect", 1, argv);
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, type)                          \
@@ -469,10 +469,10 @@ void name ()                                                        \
   Emit (type, 0, NULL);                                             \
 }
 
-DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "Connect")
-DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, "Drain")
-DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "Timeout")
-DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "EOF")
+DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "connect")
+DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, "drain")
+DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "timeout")
+DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "eof")
 
 Persistent<FunctionTemplate> Server::constructor_template;
 
@@ -576,7 +576,7 @@ Server::OnConnection (struct sockaddr *addr, socklen_t len)
 
   Handle<Value> argv[1] = { js_connection };
 
-  Emit("Connection", 1, argv);
+  Emit("connection", 1, argv);
 
   return connection;
 }

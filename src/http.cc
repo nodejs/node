@@ -87,7 +87,7 @@ int
 HTTPConnection::on_message_begin (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
-  connection->Emit("MessageBegin", 0, NULL);
+  connection->Emit("message_begin", 0, NULL);
   return 0;
 }
 
@@ -95,7 +95,7 @@ int
 HTTPConnection::on_message_complete (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
-  connection->Emit("MessageComplete", 0, NULL);
+  connection->Emit("message_complete", 0, NULL);
   return 0;
 }
 
@@ -105,7 +105,7 @@ HTTPConnection::on_uri (http_parser *parser, const char *buf, size_t len)
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("URI", 1, argv);
+  connection->Emit("uri", 1, argv);
   return 0;
 }
 
@@ -115,7 +115,7 @@ HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t le
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("HeaderField", 1, argv);
+  connection->Emit("header_field", 1, argv);
   return 0;
 }
 
@@ -125,7 +125,7 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("HeaderValue", 1, argv);
+  connection->Emit("header_value", 1, argv);
   return 0;
 }
 
@@ -183,7 +183,7 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   Local<Value> argv[1] = { message_info };
 
-  connection->Emit("HeadersComplete", 1, argv);
+  connection->Emit("headers_complete", 1, argv);
 
   return 0;
 }
@@ -216,7 +216,7 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
     argv[0] = array;
   }
 
-  connection->Emit("Body", 1, argv);
+  connection->Emit("body", 1, argv);
 
   return 0;
 }

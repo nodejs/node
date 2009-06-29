@@ -61,7 +61,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   assert(revents == EV_TIMEOUT);
 
-  timer->Emit("Timeout", 0, NULL);
+  timer->Emit("timeout", 0, NULL);
 
   /* XXX i'm a bit worried if this is the correct test? 
    * it's rather crutial for memory leaks the conditional here test to see

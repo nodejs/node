@@ -5,10 +5,10 @@ var pwd_called = false;
 function pwd (callback) {
   var output = "";
   var process = new node.Process("pwd");
-  process.addListener("Output", function (s) {
+  process.addListener("output", function (s) {
     if (s) output += s;
   });
-  process.addListener("Exit", function(c) {
+  process.addListener("exit", function(c) {
     assertEquals(0, c);
     callback(output);
     pwd_called = true;

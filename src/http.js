@@ -128,8 +128,8 @@ function send (output, data, encoding) {
  */
 node.http.createServer = function (requestListener, options) {
   var server = new node.http.LowLevelServer();
-  server.addListener("Connection", connectionListener);
-  server.addListener("Request", requestListener);
+  server.addListener("connection", connectionListener);
+  server.addListener("request", requestListener);
   //server.setOptions(options);
   return server;
 };
@@ -179,7 +179,7 @@ function connectionListener (connection) {
   connection.responses = [];
 
   // is this really needed?
-  connection.addListener("EOF", function () {
+  connection.addListener("eof", function () {
     if (connection.responses.length == 0) {
       connection.close();
     } else {
@@ -189,16 +189,16 @@ function connectionListener (connection) {
 
   var req, res;
 
-  connection.addListener("MessageBegin", function () {
+  connection.addListener("message_begin", function () {
     req = new node.http.createServerRequest(connection);
     res = new node.http.ServerResponse(connection);
   });
 
-  connection.addListener("URI", function (data) {
+  connection.addListener("uri", function (data) {
     req.uri += data;
   });
 
-  connection.addListener("HeaderField", function (data) {
+  connection.addListener("header_field", function (data) {
     if (req.headers.length > 0 && req.last_was_value == false)
       req.headers[req.headers.length-1][0] += data; 
     else
@@ -206,7 +206,7 @@ function connectionListener (connection) {
     req.last_was_value = false;
   });
 
-  connection.addListener("HeaderValue", function (data) {
+  connection.addListener("header_value", function (data) {
     var last_pair = req.headers[req.headers.length-1];
     if (last_pair.length == 1)
       last_pair[1] = data;
@@ -215,22 +215,22 @@ function connectionListener (connection) {
     req.last_was_value = true;
   });
 
-  connection.addListener("HeadersComplete", function (info) {
+  connection.addListener("headers_complete", function (info) {
     req.httpVersion = info.httpVersion;
     req.method = info.method;
     req.uri = node.http.parseUri(req.uri); // TODO parse the URI lazily?
 
     res.should_keep_alive = info.should_keep_alive;
 
-    connection.server.emit("Request", [req, res]);
+    connection.server.emit("request", [req, res]);
   });
 
-  connection.addListener("Body", function (chunk) {
-    req.emit("Body", [chunk]);
+  connection.addListener("body", function (chunk) {
+    req.emit("body", [chunk]);
   });
 
-  connection.addListener("MessageComplete", function () {
-    req.emit("BodyComplete");
+  connection.addListener("message_complete", function () {
+    req.emit("complete");
   });
 };
 
@@ -365,19 +365,19 @@ node.http.createClient = function (port, host) {
 
   client.reconnect = function () { return client.connect(port, host) };
 
-  client.addListener("Connect", function () {
+  client.addListener("connect", function () {
     //node.debug("HTTP CLIENT onConnect. readyState = " + client.readyState);
     //node.debug("client.requests[0].uri = '" + client.requests[0].uri + "'");
     client.flush(client.requests[0]);
   });
 
-  client.addListener("EOF", function () {
+  client.addListener("eof", function () {
     client.close();
   });
 
-  client.addListener("Disconnect", function (had_error) {
+  client.addListener("disconnect", function (had_error) {
     if (had_error) {
-      client.emit("Error");
+      client.emit("error");
       return;
     }
      
@@ -391,12 +391,12 @@ node.http.createClient = function (port, host) {
 
   var req, res;
 
-  client.addListener("MessageBegin", function () {
+  client.addListener("message_begin", function () {
     req = client.requests.shift();
     res = createClientResponse(client);
   });
 
-  client.addListener("HeaderField", function (data) {
+  client.addListener("header_field", function (data) {
     if (res.headers.length > 0 && res.last_was_value == false)
       res.headers[res.headers.length-1][0] += data; 
     else
@@ -404,7 +404,7 @@ node.http.createClient = function (port, host) {
     res.last_was_value = false;
   });
 
-  client.addListener("HeaderValue", function (data) {
+  client.addListener("header_value", function (data) {
     var last_pair = res.headers[res.headers.length-1];
     if (last_pair.length == 1) {
       last_pair[1] = data;
@@ -414,20 +414,20 @@ node.http.createClient = function (port, host) {
     res.last_was_value = true;
   });
 
-  client.addListener("HeadersComplete", function (info) {
+  client.addListener("headers_complete", function (info) {
     res.statusCode = info.statusCode;
     res.httpVersion = info.httpVersion;
 
-    req.emit("Response", [res]);
+    req.emit("response", [res]);
   });
 
-  client.addListener("Body", function (chunk) {
-    res.emit("Body", [chunk]);
+  client.addListener("body", function (chunk) {
+    res.emit("body", [chunk]);
   });
 
-  client.addListener("MessageComplete", function () {
+  client.addListener("message_complete", function () {
     client.close();
-    res.emit("BodyComplete");
+    res.emit("complete");
   });
 
   return client;
@@ -526,7 +526,7 @@ function createClientRequest (connection, method, uri, header_lines) {
   req.finished = false;
 
   req.finish = function (responseListener) {
-    req.addListener("Response", responseListener);
+    req.addListener("response", responseListener);
 
     if (chunked_encoding)
       send(req.output, "0\r\n\r\n"); // last chunk
@@ -544,7 +544,7 @@ node.http.cat = function (url, encoding) {
   var client = node.http.createClient(uri.port || 80, uri.host);
   var req = client.get(uri.path || "/");
 
-  client.addListener("Error", function () {
+  client.addListener("error", function () {
     promise.emitError();
   });
 
@@ -556,8 +556,8 @@ node.http.cat = function (url, encoding) {
       return;
     }
     res.setBodyEncoding(encoding);
-    res.addListener("Body", function (chunk) { content += chunk; });
-    res.addListener("BodyComplete", function () {
+    res.addListener("body", function (chunk) { content += chunk; });
+    res.addListener("complete", function () {
       promise.emitSuccess([content]);
     });
   });

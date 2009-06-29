@@ -18,10 +18,10 @@ var proxy = node.http.createServer(function (req, res) {
   var proxy_req = proxy_client.get(req.uri.path);
   proxy_req.finish(function(proxy_res) {
     res.sendHeader(proxy_res.statusCode, proxy_res.headers);
-    proxy_res.addListener("Body", function(chunk) { 
+    proxy_res.addListener("body", function(chunk) { 
       res.sendBody(chunk);
     });
-    proxy_res.addListener("BodyComplete", function() {
+    proxy_res.addListener("complete", function() {
       res.finish();
       // node.debug("proxy res");
     });
@@ -40,8 +40,8 @@ function onLoad () {
     // node.debug("got res");
     assertEquals(200, res.statusCode);
     res.setBodyEncoding("utf8");
-    res.addListener("Body", function (chunk) { body += chunk; });
-    res.addListener("BodyComplete", function () {
+    res.addListener("body", function (chunk) { body += chunk; });
+    res.addListener("complete", function () {
       proxy.close();
       backend.close();
       // node.debug("closed both");

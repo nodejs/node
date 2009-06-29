@@ -19,7 +19,7 @@ function onLoad () {
       this.close();
     }
 
-    req.addListener("BodyComplete", function () {
+    req.addListener("complete", function () {
       res.sendHeader(200, [["Content-Type", "text/plain"]]);
       res.sendBody("The path was " + req.uri.path);
       res.finish();
@@ -35,7 +35,7 @@ function onLoad () {
     assertEquals(200, res.statusCode);
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
-    res.addListener("Body", function (chunk) { body0 += chunk; });
+    res.addListener("body", function (chunk) { body0 += chunk; });
     node.debug("Got /hello response");
   });
 
@@ -45,7 +45,7 @@ function onLoad () {
       assertEquals(200, res.statusCode);
       responses_recvd += 1;
       res.setBodyEncoding("utf8");
-      res.addListener("Body", function (chunk) { body1 += chunk; });
+      res.addListener("body", function (chunk) { body1 += chunk; });
       node.debug("Got /world response");
     });
   }, 1);

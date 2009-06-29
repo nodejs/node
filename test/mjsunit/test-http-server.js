@@ -35,12 +35,12 @@ function onLoad() {
 
   var c = new node.tcp.Connection();
   c.setEncoding("utf8");
-  c.addListener("Connect", function () {
+  c.addListener("connect", function () {
     c.send( "GET /hello HTTP/1.1\r\n\r\n" );
     requests_sent += 1;
   });
 
-  c.addListener("Receive", function (chunk) {
+  c.addListener("receive", function (chunk) {
     server_response += chunk;
 
     if (requests_sent == 1) {
@@ -51,11 +51,11 @@ function onLoad() {
     }
   });
 
-  c.addListener("EOF", function () {
+  c.addListener("eof", function () {
     client_got_eof = true;
   });
 
-  c.addListener("Disconnect", function () {
+  c.addListener("disconnect", function () {
     assertEquals(c.readyState, "closed");
   });
 

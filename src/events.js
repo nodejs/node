@@ -17,12 +17,12 @@ emitter.listeners = function (type, listener) {
   return this._events[type];
 };
 
-/* This function is called often from C++. 
- * See events.cc 
- */ 
+// This function is called often from C++. 
+// See events.cc 
 emitter.emit = function (type, args) {
   if (!this._events) return;
   if (!this._events.hasOwnProperty(type)) return;
+
   var listeners = this._events[type];
   var length = listeners.length;
 
@@ -39,21 +39,21 @@ emitter.emit = function (type, args) {
 var promise = node.Promise.prototype;
 
 promise.addCallback = function (listener) {
-  this.addListener("Success", listener);
+  this.addListener("success", listener);
   return this;
 };
 
 promise.addErrback = function (listener) {
-  this.addListener("Error", listener);
+  this.addListener("error", listener);
   return this;
 };
 
 promise.emitSuccess = function (args) {
-  this.emit("Success", args);
+  this.emit("success", args);
 };
 
 promise.emitError = function (args) {
-  this.emit("Error", args);
+  this.emit("error", args);
 };
 
 })(); // end anonymous namespace

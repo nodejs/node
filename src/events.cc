@@ -94,7 +94,7 @@ Promise::Create (void)
 bool
 Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
 {
-  bool r = Emit("Success", argc, argv);
+  bool r = Emit("success", argc, argv);
 
   Detach();
   ev_ref(EV_DEFAULT_UC);
@@ -105,7 +105,7 @@ Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
 bool
 Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
 {
-  bool r = Emit("Error", argc, argv);
+  bool r = Emit("error", argc, argv);
 
   Detach();
   ev_ref(EV_DEFAULT_UC);

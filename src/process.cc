@@ -357,7 +357,7 @@ Process::OnOutput (EV_P_ ev_io *watcher, int revents)
       argv[0] = String::New((const char*)buf, r);
     }
 
-    process->Emit(is_stdout ? "Output" : "Error", 1, argv);
+    process->Emit(is_stdout ? "output" : "error", 1, argv);
 
     if (r == 0) {
       ev_io_stop(EV_DEFAULT_UC_ watcher);
@@ -480,7 +480,7 @@ Process::MaybeShutdown (void)
   if (STDOUT_CLOSED && STDERR_CLOSED && got_chld_) {
     HandleScope scope;
     Handle<Value> argv[1] = { Integer::New(exit_code_) };
-    Emit("Exit", 1, argv);
+    Emit("exit", 1, argv);
     Shutdown();
     Detach();
   } 

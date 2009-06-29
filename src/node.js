@@ -1,6 +1,6 @@
 node.tcp.createServer = function (on_connection, options) {
   var server = new node.tcp.Server();
-  server.addListener("Connection", on_connection);
+  server.addListener("connection", on_connection);
   //server.setOptions(options);
   return server;
 };
@@ -9,14 +9,14 @@ node.tcp.createServer = function (on_connection, options) {
 
 function setTimeout (callback, after) {
   var timer = new node.Timer(); 
-  timer.addListener("Timeout", callback);
+  timer.addListener("timeout", callback);
   timer.start(after, 0);
   return timer;
 }
 
 function setInterval (callback, repeat) {
   var timer = new node.Timer(); 
-  timer.addListener("Timeout", callback);
+  timer.addListener("timeout", callback);
   timer.start(repeat, repeat);
   return timer;
 }
