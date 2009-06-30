@@ -952,12 +952,9 @@ socket for +node.tcp.Server+.
                                   (TODO: access error codes.)
 |=========================================================
 
-+new node.tcp.Connection()+::
-  Creates a new connection object.
-
-
-+connection.connect(port, host="127.0.0.1")+::
-  Opens a connection to the specified +port+ and
++node.tcp.createConnection(port, host="127.0.0.1")+::
+  Creates a new connection object and 
+  opens a connection to the specified +port+ and
   +host+. If the second parameter is omitted, localhost is
   assumed. 
 

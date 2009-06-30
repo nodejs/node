@@ -40,8 +40,7 @@ function pingPongTest (port, host, on_complete) {
   });
   server.listen(port, host);
 
-  var client = new node.tcp.Connection();
-  assertEquals("closed", client.readyState);
+  var client = node.tcp.createConnection(port, host);
 
   client.setEncoding("utf8");
 
@@ -76,9 +75,6 @@ function pingPongTest (port, host, on_complete) {
     if (on_complete) on_complete();
     tests_run += 1;
   });
-
-  assertEquals("closed", client.readyState);
-  client.connect(port, host);
 }
 
 function onLoad () {

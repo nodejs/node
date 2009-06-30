@@ -33,8 +33,10 @@ function onLoad() {
 
   }).listen(port);
 
-  var c = new node.tcp.Connection();
+  var c = node.tcp.createConnection(port);
+
   c.setEncoding("utf8");
+
   c.addListener("connect", function () {
     c.send( "GET /hello HTTP/1.1\r\n\r\n" );
     requests_sent += 1;
@@ -58,8 +60,6 @@ function onLoad() {
   c.addListener("disconnect", function () {
     assertEquals(c.readyState, "closed");
   });
-
-  c.connect(port);
 }
 
 function onExit () {

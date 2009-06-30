@@ -11,6 +11,12 @@ node.createProcess = function (command) {
   return process;
 };
 
+node.tcp.createConnection = function (port, host) {
+  var connection = new node.tcp.Connection();
+  connection.connect(port, host);
+  return connection;
+};
+
 // Timers
 
 function setTimeout (callback, after) {

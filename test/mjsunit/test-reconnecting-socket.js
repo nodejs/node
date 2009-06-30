@@ -22,10 +22,13 @@ function onLoad () {
     });
   });
   server.listen(port);
-  var client = new node.tcp.Connection();
+  
+  var client = node.tcp.createConnection(port);
   
   client.setEncoding("UTF8");
+
   client.addListener("connect", function () {
+    puts("client connected.");
   });
 
   client.addListener("receive", function (chunk) {
@@ -41,8 +44,6 @@ function onLoad () {
     else
       server.close();
   });
-
-  client.connect(port);
 }
 
 function onExit () {
