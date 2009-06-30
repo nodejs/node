@@ -20,7 +20,7 @@ function onLoad () {
   
   promise.addCallback(function (content) {
     assertEquals(body, content);
-    server.close()
+    server.close();
     successes += 1;
   });
 
@@ -35,7 +35,7 @@ function onLoad () {
   promise = node.cat(x, "utf8");
   
   promise.addCallback(function (content) {
-    assertEquals("xyz", content.replace(/[\r\n]/, ''))
+    assertEquals("xyz", content.replace(/[\r\n]/, ''));
     successes += 1;
   });
 

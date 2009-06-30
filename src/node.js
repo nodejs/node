@@ -60,8 +60,7 @@ node.path = new function () {
       } else if (i === arguments.length - 1) {
         part = part.replace(/^\/*/, "");
       } else {
-        part = part.replace(/^\/*/, "")
-               .replace(/\/*$/, "/");
+        part = part.replace(/^\/*/, "").replace(/\/*$/, "/");
       }
       joined += part;
     }
@@ -129,18 +128,17 @@ node.Module.prototype.load = function (callback) {
     self.target.__include = function (path) { self.newChild(path, self.target); };
 
     // create wrapper function
-    var wrapper = "function (__filename) {\n" 
-                + "  var onLoad;\n"
-                + "  var onExit;\n"
-                + "  var exports = this;\n"
-                + "  var require = this.__require;\n"
-                + "  var include = this.__include;\n"
-                +    content 
-                + "\n"
-                + "  this.__onLoad = onLoad;\n"
-                + "  this.__onExit = onExit;\n"
-                + "};\n"
-                ;
+    var wrapper = "function (__filename) {\n"+
+                  "  var onLoad;\n"+
+                  "  var onExit;\n"+
+                  "  var exports = this;\n"+
+                  "  var require = this.__require;\n"+
+                  "  var include = this.__include;\n"+
+                  content+
+                  "\n"+
+                  "  this.__onLoad = onLoad;\n"+
+                  "  this.__onExit = onExit;\n"+
+                  "};\n";
     var compiled_wrapper = node.compile(wrapper, self.filename);
     compiled_wrapper.apply(self.target, [self.filename]);
     self.onLoad = self.target.__onLoad;
@@ -200,7 +198,7 @@ node.Module.prototype.exit = function (callback) {
   this.exitChildren(function () {
     if (self.onExit) self.onExit();
     self.exited = true;
-    if (callback) callback()
+    if (callback) callback();
   });
 };
 
@@ -218,4 +216,4 @@ node.Module.prototype.exit = function (callback) {
       node.reallyExit(code);
     });
   };
-}())
+}());

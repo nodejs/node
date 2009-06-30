@@ -1,43 +1,44 @@
 (function () {
 CRLF = "\r\n";
-node.http.STATUS_CODES = { 100 : 'Continue'
-                         , 101 : 'Switching Protocols' 
-                         , 200 : 'OK' 
-                         , 201 : 'Created' 
-                         , 202 : 'Accepted' 
-                         , 203 : 'Non-Authoritative Information' 
-                         , 204 : 'No Content' 
-                         , 205 : 'Reset Content' 
-                         , 206 : 'Partial Content' 
-                         , 300 : 'Multiple Choices' 
-                         , 301 : 'Moved Permanently' 
-                         , 302 : 'Moved Temporarily' 
-                         , 303 : 'See Other' 
-                         , 304 : 'Not Modified' 
-                         , 305 : 'Use Proxy' 
-                         , 400 : 'Bad Request' 
-                         , 401 : 'Unauthorized' 
-                         , 402 : 'Payment Required' 
-                         , 403 : 'Forbidden' 
-                         , 404 : 'Not Found' 
-                         , 405 : 'Method Not Allowed' 
-                         , 406 : 'Not Acceptable' 
-                         , 407 : 'Proxy Authentication Required' 
-                         , 408 : 'Request Time-out' 
-                         , 409 : 'Conflict' 
-                         , 410 : 'Gone' 
-                         , 411 : 'Length Required' 
-                         , 412 : 'Precondition Failed' 
-                         , 413 : 'Request Entity Too Large' 
-                         , 414 : 'Request-URI Too Large' 
-                         , 415 : 'Unsupported Media Type' 
-                         , 500 : 'Internal Server Error' 
-                         , 501 : 'Not Implemented' 
-                         , 502 : 'Bad Gateway' 
-                         , 503 : 'Service Unavailable' 
-                         , 504 : 'Gateway Time-out' 
-                         , 505 : 'HTTP Version not supported'
-                         };
+node.http.STATUS_CODES = { 
+  100 : 'Continue',
+  101 : 'Switching Protocols',
+  200 : 'OK',
+  201 : 'Created',
+  202 : 'Accepted',
+  203 : 'Non-Authoritative Information',
+  204 : 'No Content',
+  205 : 'Reset Content',
+  206 : 'Partial Content',
+  300 : 'Multiple Choices',
+  301 : 'Moved Permanently',
+  302 : 'Moved Temporarily',
+  303 : 'See Other',
+  304 : 'Not Modified',
+  305 : 'Use Proxy',
+  400 : 'Bad Request',
+  401 : 'Unauthorized',
+  402 : 'Payment Required',
+  403 : 'Forbidden',
+  404 : 'Not Found',
+  405 : 'Method Not Allowed',
+  406 : 'Not Acceptable',
+  407 : 'Proxy Authentication Required',
+  408 : 'Request Time-out',
+  409 : 'Conflict',
+  410 : 'Gone',
+  411 : 'Length Required',
+  412 : 'Precondition Failed',
+  413 : 'Request Entity Too Large',
+  414 : 'Request-URI Too Large',
+  415 : 'Unsupported Media Type',
+  500 : 'Internal Server Error',
+  501 : 'Not Implemented',
+  502 : 'Bad Gateway',
+  503 : 'Service Unavailable',
+  504 : 'Gateway Time-out',
+  505 : 'HTTP Version not supported'
+};
 
 /*
   parseUri 1.2.1
@@ -67,30 +68,31 @@ node.http.parseUri = function (str) {
   });
   uri.toString = function () { return str; };
   
-  for (var i = o.key.length - 1; i >= 0; i--){
+  for (i = o.key.length - 1; i >= 0; i--){
     if (uri[o.key[i]] == "") delete uri[o.key[i]];
-  };
+  }
   
   return uri;
 };
 
 node.http.parseUri.options = {
   strictMode: false,
-  key: [ "source"
-       , "protocol"
-       , "authority"
-       , "userInfo"
-       , "user"
-       , "password"
-       , "host"
-       , "port"
-       , "relative"
-       , "path"
-       , "directory"
-       , "file"
-       , "query"
-       , "anchor"
-       ],
+  key: [ 
+    "source",
+    "protocol",
+    "authority",
+    "userInfo",
+    "user",
+    "password",
+    "host",
+    "port",
+    "relative",
+    "path",
+    "directory",
+    "file",
+    "query",
+    "anchor"
+  ],
   q: {
     name:   "params",
     parser: /(?:^|&)([^&=]*)=?([^&]*)/g
@@ -121,7 +123,7 @@ function send (output, data, encoding) {
     encoding = "raw";
 
   output.push([data, encoding]);
-};
+}
 
 /* This is a wrapper around the LowLevelServer interface. It provides
  * connection handling, overflow checking, and some data buffering.
@@ -232,7 +234,7 @@ function connectionListener (connection) {
   connection.addListener("message_complete", function () {
     req.emit("complete");
   });
-};
+}
 
 node.http.ServerResponse = function (connection) {
   var responses = connection.responses;
@@ -249,12 +251,7 @@ node.http.ServerResponse = function (connection) {
     var sent_content_length_header = false;
 
     var reason = node.http.STATUS_CODES[statusCode] || "unknown";
-    var header = "HTTP/1.1 "
-               + statusCode.toString() 
-               + " " 
-               + reason 
-               + CRLF
-               ;
+    var header = "HTTP/1.1 " + statusCode.toString() + " " + reason + CRLF;
 
     for (var i = 0; i < headers.length; i++) {
       var field = headers[i][0];
@@ -283,10 +280,7 @@ node.http.ServerResponse = function (connection) {
       }
     }
 
-    if ( sent_content_length_header == false 
-      && sent_transfer_encoding_header == false
-       ) 
-    {
+    if ( sent_content_length_header == false && sent_transfer_encoding_header == false ) {
       header += "Transfer-Encoding: chunked\r\n";
       chunked_encoding = true;
     }
@@ -315,11 +309,12 @@ node.http.ServerResponse = function (connection) {
       responses = [];
       return;
     }
-    if (responses.length > 0 && responses[0] === this)
+    if (responses.length > 0 && responses[0] === this) {
       while (output.length > 0) {
         var out = output.shift();
         connection.send(out[0], out[1]);
       }
+    }
   };
 
   this.finished = false;
@@ -348,11 +343,7 @@ node.http.Client.prototype.flush = function (request) {
     return;
   }
   //node.debug("HTTP CLIENT flush. readyState = " + connection.readyState);
-  while ( request === this.requests[0]
-       && request.output.length > 0
-       && this.readyState == "open"
-        )
-  {
+  while ( request === this.requests[0] && request.output.length > 0 && this.readyState == "open" ) {
     var out = request.output.shift();
     this.send(out[0], out[1]);
   }
@@ -363,7 +354,7 @@ node.http.createClient = function (port, host) {
 
   client.requests = [];
 
-  client.reconnect = function () { return client.connect(port, host) };
+  client.reconnect = function () { return client.connect(port, host); };
 
   client.addListener("connect", function () {
     //node.debug("HTTP CLIENT onConnect. readyState = " + client.readyState);
@@ -508,7 +499,6 @@ function createClientRequest (connection, method, uri, header_lines) {
   req.sendBody = function (chunk, encoding) {
     if (sent_content_length_header == false && chunked_encoding == false) {
       throw "Content-Length header (or Transfer-Encoding:chunked) not set";
-      return;
     }
 
     if (chunked_encoding) {
