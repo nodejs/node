@@ -96,12 +96,17 @@ uninstall:
  
 test: all
 	python tools/test.py --mode=release
-
-test-debug: all
-	python tools/test.py --mode=debug
   
 test-all: all
 	python tools/test.py --mode=debug,release
+
+website: website/api.html website/index.html
+
+website/api.html: website/api.txt
+	asciidoc -a toc -o website/api.html website/api.txt
+
+website-upload: website
+	scp website/* linode:~/tinyclouds/node/
 
 clean:
 	@$WAF clean
@@ -118,7 +123,7 @@ check:
 dist:
 	@$WAF dist
 
-.PHONY: clean dist distclean check uninstall install all test
+.PHONY: clean dist distclean check uninstall install all test test-all website website-upload
 
 EOF
 }
