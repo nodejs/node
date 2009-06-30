@@ -41,7 +41,7 @@
       </p>
       
       <pre>
-new node.http.Server(function (req, res) {
+node.http.createServer(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, [["Content-Type", "text/plain"]]);
     res.sendBody("Hello World");
