@@ -1,7 +1,7 @@
 NODE(1)
 =======
 Ryan Dahl <ry@tinyclouds.org>
-Version, 0.1.0, 2009.06.28
+Version, 0.1.0, 2009.06.30
 
 
 == NAME

@@ -1,3 +1,22 @@
+2009.06.30, Version 0.1.0
+
+  * Update documentation, use asciidoc.
+
+  * EventEmitter and Promise interfaces. (Breaks previous API.)
+  
+  * Remove node.Process constructor in favor of node.createProcess
+
+  * Add -m32 flags for compiling on x64 platforms.
+    (Thanks to András Bártházi)
+
+  * Upgrade v8 to 1.2.10 and libev to 3.6
+  
+  * Bugfix: Timer::RepeatSetter wasn't working.
+
+  * Bugfix: Spawning many processes in a loop 
+    (reported by Felix Geisendoerfer)
+
+
 2009.06.24, Version 0.0.6
 
   * Load modules via HTTP URLs (Urban Hafner)
