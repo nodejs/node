@@ -4,3 +4,4 @@ tags
 .lock-wscript
 Makefile
 *.pyc
+website/api.html

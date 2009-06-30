@@ -1,6 +1,6 @@
 include("mjsunit.js");
 
-var cat = new node.Process("cat");
+var cat = node.createProcess("cat");
 
 var response = "";
 var exit_status = -1;

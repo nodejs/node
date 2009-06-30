@@ -5,6 +5,12 @@ node.tcp.createServer = function (on_connection, options) {
   return server;
 };
 
+node.createProcess = function (command) {
+  var process = new node.Process();
+  process.spawn(command);
+  return process;
+};
+
 // Timers
 
 function setTimeout (callback, after) {

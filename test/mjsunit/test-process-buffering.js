@@ -4,7 +4,7 @@ var pwd_called = false;
 
 function pwd (callback) {
   var output = "";
-  var process = new node.Process("pwd");
+  var process = node.createProcess("pwd");
   process.addListener("output", function (s) {
     if (s) output += s;
   });

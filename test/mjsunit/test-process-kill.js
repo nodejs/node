@@ -3,7 +3,7 @@ include("mjsunit.js");
 var exit_status = -1;
 
 function onLoad () {
-  var cat = new node.Process("cat");
+  var cat = node.createProcess("cat");
 
   cat.addListener("output", function (chunk) { assertEquals(null, chunk); });
   cat.addListener("error", function (chunk) { assertEquals(null, chunk); });

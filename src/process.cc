@@ -34,6 +34,7 @@ Process::Initialize (Handle<Object> target)
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "spawn", Process::Spawn);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Process::Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Process::Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "kill", Process::Kill);
@@ -47,21 +48,32 @@ Process::Initialize (Handle<Object> target)
 Handle<Value>
 Process::New (const Arguments& args)
 {
-  if (args.Length() == 0) return Undefined();
-
   HandleScope scope;
-
-  String::Utf8Value command(args[0]->ToString());
 
   Process *p = new Process(args.Holder());
   ObjectWrap::InformV8ofAllocation(p);
 
-  int r = p->Spawn(*command);
+  return args.This();
+}
+
+Handle<Value>
+Process::Spawn (const Arguments& args)
+{
+  if (args.Length() == 0 || !args[0]->IsString()) {
+    return ThrowException(String::New("Bad argument."));
+  }
+
+  HandleScope scope;
+  Process *process = NODE_UNWRAP(Process, args.Holder());
+
+  String::Utf8Value command(args[0]->ToString());
+
+  int r = process->Spawn(*command);
   if (r != 0) {
     return ThrowException(String::New("Error spawning"));
   }
 
-  return args.This();
+  return Undefined();
 }
 
 Handle<Value>

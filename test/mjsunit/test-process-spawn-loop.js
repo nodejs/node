@@ -4,7 +4,7 @@ var N = 40;
 var finished = false;
 
 function spawn (i) {
-  var p = new node.Process('python -c "print 500 * 1024 * \'C\'"'); 
+  var p = node.createProcess('python -c "print 500 * 1024 * \'C\'"'); 
   var output = "";
 
   p.addListener("output", function(chunk) { 

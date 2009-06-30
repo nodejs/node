@@ -324,7 +324,6 @@ Node provides a tridirectional +popen(3)+ facility through the class
 
 ==== +node.Process+
 
-.Events
 [cols="1,2,10",options="header"]
 |=========================================================
 |Event      |Parameters |Notes
@@ -348,11 +347,11 @@ that the +"output"+ and +"error"+ callbacks will no longer be made.
 
 |=========================================================
 
-+new node.Process(command)+::
++node.createProcess(command)+::
 Launches a new process with the given +command+. For example:
 +
 ----------------------------------------
-var ls = new node.Process("ls -lh /usr");
+var ls = node.createProcess("ls -lh /usr");
 ls.addListener("output", function (data) {
   puts(data);
 });
