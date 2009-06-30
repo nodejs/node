@@ -1,0 +1,55 @@
+2009.06.24, Version 0.0.6
+
+  * Load modules via HTTP URLs (Urban Hafner)
+
+  * Bugfix: Add HTTPConnection->size() and HTTPServer->size()
+
+  * New node.Process API
+
+  * Clean up build tools, use v8's test runner.
+
+  * Use ev_unref() instead of starting/stopping the eio thread pool watcher.
+
+
+2009.06.18, Version 0.0.5
+
+  * Support for IPv6
+
+  * Remove namespace node.constants
+
+  * Upgrade v8 to 1.2.8.1
+
+  * Accept ports as strings in the TCP client and server.
+
+  * Bugfix: HTTP Client race
+
+  * Bugfix: freeaddrinfo() wasn't getting called after getaddrinfo()
+    for TCP servers
+
+  * Add "opening" to TCP client readyState
+
+  * Add remoteAddress to TCP client
+
+  * Add global print() function.
+
+
+2009.06.13, Version 0.0.4
+
+ * Add interrupt() method to server-side HTTP requests.
+
+ * Bugfix: onBodyComplete was not getting called on server-side HTTP
+
+
+2009.06.11, Version 0.0.3
+
+ * Many bug fixes including the problem with http.Client on macintosh
+
+ * Upgrades v8 to 1.2.7
+
+ * Adds onExit hook
+
+ * Guard against buffer overflow in http parser
+
+ * require() and include() now need the ".js" extension
+
+ * http.Client uses identity transfer encoding by default.
