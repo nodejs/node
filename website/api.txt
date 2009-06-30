@@ -88,10 +88,6 @@ but this is something that fits well into the current design.
 
 == API
 
-Callbacks are object members which are prefixed with
-+on+. All methods and members are camel cased. Constructors
-always have a capital first letter.
-
 Node supports 3 byte-string encodings: ASCII (+"ascii"+), UTF-8 (+"utf8"+),
 and raw binary (+"raw"+).  It uses strings to represent ASCII and UTF-8
 encoded data. For the moment, arrays of integers are used to represent raw
