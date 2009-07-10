@@ -50,8 +50,8 @@ Process::New (const Arguments& args)
 {
   HandleScope scope;
 
-  Process *p = new Process(args.Holder());
-  ObjectWrap::InformV8ofAllocation(p);
+  Process *p = new Process();
+  p->Wrap(args.Holder());
 
   return args.This();
 }
@@ -168,8 +168,8 @@ Process::Close (const Arguments& args)
   return process->Close() == 0 ? True() : False();
 }
 
-Process::Process (Handle<Object> handle)
-  : EventEmitter(handle)
+Process::Process ()
+  : EventEmitter()
 {
   ev_init(&stdout_watcher_, Process::OnOutput);
   stdout_watcher_.data = this;

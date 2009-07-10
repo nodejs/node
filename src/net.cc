@@ -96,17 +96,6 @@ Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
   return ThrowException(String::New("This shouldn't happen."));
 }
 
-Connection::Connection (Handle<Object> handle)
-  : EventEmitter(handle) 
-{
-  encoding_ = RAW;
-
-  host_ = NULL;
-  port_ = NULL;
-
-  Init();
-}
-
 void
 Connection::Init (void)
 {
@@ -120,7 +109,6 @@ Connection::Init (void)
   socket_.on_timeout = Connection::on_timeout;
   socket_.data = this;
 }
-
 
 Connection::~Connection ()
 {
@@ -138,8 +126,8 @@ Connection::New (const Arguments& args)
 {
   HandleScope scope;
 
-  Connection *c = new Connection(args.This());
-  ObjectWrap::InformV8ofAllocation(c);
+  Connection *connection = new Connection();
+  connection->Wrap(args.This());
 
   return args.This();
 }
@@ -492,26 +480,6 @@ Server::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
-Server::Server (Handle<Object> handle) 
-  : EventEmitter(handle) 
-{
-  HandleScope scope;
-
-#if 0
-  // TODO SetOptions
-  handle_->SetHiddenValue(CONNECTION_HANDLER_SYMBOL, connection_handler);
-
-  int backlog = 1024; // default value
-  Local<Value> backlog_v = options->Get(String::NewSymbol("backlog"));
-  if (backlog_v->IsInt32()) {
-    backlog = backlog_v->IntegerValue();
-  }
-#endif
-
-  oi_server_init(&server_, 1024);
-  server_.on_connection = Server::on_connection;
-  server_.data = this;
-}
 
 static Local<String>
 GetAddressString (struct sockaddr *addr)
@@ -589,8 +557,8 @@ Server::New (const Arguments& args)
 {
   HandleScope scope;
 
-  Server *a = new Server(args.This());
-  ObjectWrap::InformV8ofAllocation(a);
+  Server *server = new Server();
+  server->Wrap(args.This());
 
   return args.This();
 }

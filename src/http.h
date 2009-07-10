@@ -14,14 +14,23 @@ public:
   static v8::Persistent<v8::FunctionTemplate> client_constructor_template;
   static v8::Persistent<v8::FunctionTemplate> server_constructor_template;
 
-  virtual size_t size (void) { return sizeof(HTTPConnection); };
-  
 protected:
   static v8::Handle<v8::Value> NewClient (const v8::Arguments& args);
   static v8::Handle<v8::Value> NewServer (const v8::Arguments& args);
 
-  HTTPConnection (v8::Handle<v8::Object> handle, 
-                  enum http_parser_type type);
+  HTTPConnection (enum http_parser_type type)
+    : Connection() 
+  {
+    http_parser_init (&parser_, type);
+    parser_.on_message_begin    = on_message_begin;
+    parser_.on_uri              = on_uri;
+    parser_.on_header_field     = on_header_field;
+    parser_.on_header_value     = on_header_value;
+    parser_.on_headers_complete = on_headers_complete;
+    parser_.on_body             = on_body;
+    parser_.on_message_complete = on_message_complete;
+    parser_.data = this;
+  }
 
   void OnReceive (const void *buf, size_t len);
 
@@ -43,12 +52,10 @@ public:
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  virtual size_t size (void) { return sizeof(HTTPServer); };
-
 protected:
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
 
-  HTTPServer (v8::Handle<v8::Object> handle) : Server(handle) {}
+  HTTPServer (void) : Server() {}
 
   v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);
   Connection* UnwrapConnection (v8::Local<v8::Object> connection);

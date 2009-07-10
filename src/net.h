@@ -14,8 +14,6 @@ class Connection : public EventEmitter {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  virtual size_t size (void) { return sizeof(Connection); };
-
 protected:
   /* v8 interface */
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -31,8 +29,16 @@ protected:
   static v8::Handle<v8::Value> ReadyStateGetter (v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
 
-  Connection (v8::Handle<v8::Object> handle); 
-  virtual ~Connection ();
+  Connection (void) : EventEmitter() 
+  {
+    encoding_ = RAW;
+
+    host_ = NULL;
+    port_ = NULL;
+
+    Init();
+  }
+  virtual ~Connection (void);
 
   int Connect (struct addrinfo *address) {
     return oi_socket_connect (&socket_, address);
@@ -110,15 +116,18 @@ class Server : public EventEmitter {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  virtual size_t size (void) { return sizeof(Server); };
-
 protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
   static v8::Handle<v8::Value> Listen (const v8::Arguments& args);
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
 
-  Server (v8::Handle<v8::Object> handle);
+  Server (void) : EventEmitter() 
+  {
+    oi_server_init(&server_, 1024);
+    server_.on_connection = Server::on_connection;
+    server_.data = this;
+  }
   virtual ~Server () { Close(); }
 
   int Listen (struct addrinfo *address) { 

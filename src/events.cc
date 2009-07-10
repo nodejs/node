@@ -82,8 +82,8 @@ Promise::Create (void)
   Local<Object> handle =
     Promise::constructor_template->GetFunction()->NewInstance();
 
-  Promise *promise = new Promise(handle);
-  ObjectWrap::InformV8ofAllocation(promise);
+  Promise *promise = new Promise();
+  promise->Wrap(handle);
 
   promise->Attach();
   ev_ref(EV_DEFAULT_UC);

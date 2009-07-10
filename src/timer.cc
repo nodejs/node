@@ -81,8 +81,8 @@ Timer::New (const Arguments& args)
 {
   HandleScope scope;
 
-  Timer *t = new Timer(args.Holder());
-  ObjectWrap::InformV8ofAllocation(t);
+  Timer *t = new Timer();
+  t->Wrap(args.Holder());
 
   return args.This();
 }

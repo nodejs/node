@@ -12,12 +12,10 @@ class Timer : EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
-  virtual size_t size (void) { return sizeof(Timer); }
-
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Timer (v8::Handle<v8::Object> handle) : EventEmitter (handle) { }
+  Timer () : EventEmitter () { }
   ~Timer();
 
   static v8::Handle<v8::Value> New (const v8::Arguments& args);

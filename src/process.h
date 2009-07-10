@@ -12,7 +12,6 @@ namespace node {
 class Process : EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
-  virtual size_t size (void) { return sizeof(Process); }
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -23,7 +22,7 @@ class Process : EventEmitter {
   static v8::Handle<v8::Value> Kill (const v8::Arguments& args);
   static v8::Handle<v8::Value> PIDGetter (v8::Local<v8::String> _, const v8::AccessorInfo& info);
 
-  Process(v8::Handle<v8::Object> handle);
+  Process();
   ~Process();
 
   int Spawn (const char *command);
