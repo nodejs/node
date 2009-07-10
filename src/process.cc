@@ -64,7 +64,7 @@ Process::Spawn (const Arguments& args)
   }
 
   HandleScope scope;
-  Process *process = NODE_UNWRAP(Process, args.Holder());
+  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
 
   String::Utf8Value command(args[0]->ToString());
 
@@ -80,7 +80,7 @@ Handle<Value>
 Process::PIDGetter (Local<String> property, const AccessorInfo& info)
 {
   HandleScope scope;
-  Process *process = NODE_UNWRAP(Process, info.This());
+  Process *process = ObjectWrap::Unwrap<Process>(info.This());
 
   assert(process);
   assert(property == PID_SYMBOL);
@@ -95,7 +95,7 @@ Handle<Value>
 Process::Write (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = NODE_UNWRAP(Process, args.Holder());
+  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
   assert(process);
 
   // XXX
@@ -146,7 +146,7 @@ Handle<Value>
 Process::Kill (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = NODE_UNWRAP(Process, args.Holder());
+  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
   assert(process);
 
   int sig = SIGTERM;
@@ -163,7 +163,7 @@ Handle<Value>
 Process::Close (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = NODE_UNWRAP(Process, args.Holder());
+  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
   assert(process);
   return process->Close() == 0 ? True() : False();
 }

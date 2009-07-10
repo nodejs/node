@@ -256,6 +256,6 @@ Connection*
 HTTPServer::UnwrapConnection (Local<Object> connection)
 {
   HandleScope scope;
-  return NODE_UNWRAP(HTTPConnection, connection);
+  return ObjectWrap::Unwrap<HTTPConnection>(connection);
 }
 

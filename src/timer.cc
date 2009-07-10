@@ -32,7 +32,7 @@ Handle<Value>
 Timer::RepeatGetter (Local<String> property, const AccessorInfo& info)
 {
   HandleScope scope;
-  Timer *timer = NODE_UNWRAP(Timer, info.This());
+  Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
   assert(timer);
   assert (property == REPEAT_SYMBOL);
@@ -46,7 +46,7 @@ void
 Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorInfo& info)
 {
   HandleScope scope;
-  Timer *timer = NODE_UNWRAP(Timer, info.This());
+  Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
   assert(timer);
   assert(property == REPEAT_SYMBOL);
@@ -90,7 +90,7 @@ Timer::New (const Arguments& args)
 Handle<Value>
 Timer::Start (const Arguments& args)
 {
-  Timer *timer = NODE_UNWRAP(Timer, args.Holder());
+  Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
   HandleScope scope;
 
   if (args.Length() != 2)
@@ -111,7 +111,7 @@ Timer::Start (const Arguments& args)
 Handle<Value>
 Timer::Stop (const Arguments& args)
 {
-  Timer *timer = NODE_UNWRAP(Timer, args.Holder());
+  Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
   ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
   timer->Detach();
   return Undefined();

@@ -6,10 +6,8 @@
 
 namespace node {
 
-#define NODE_UNWRAP(type, value) static_cast<type*>(node::ObjectWrap::Unwrap(value))
-
 class ObjectWrap {
-public:
+ public:
   ObjectWrap ( ) {
     weak_ = false;
     attached_ = false;
@@ -24,12 +22,13 @@ public:
   }
 
  protected:
-  static inline void* Unwrap (v8::Handle<v8::Object> handle)
+  template <class T>
+  static inline T* Unwrap (v8::Handle<v8::Object> handle)
   {
     assert(!handle.IsEmpty());
-    assert(handle->InternalFieldCount() == 1);
-    return v8::Handle<v8::External>::Cast(
-        handle->GetInternalField(0))->Value();
+    assert(handle->InternalFieldCount() > 0);
+    return static_cast<T*>(v8::Handle<v8::External>::Cast(
+        handle->GetInternalField(0))->Value());
   }
 
   inline void Wrap(v8::Handle<v8::Object> handle)

@@ -77,7 +77,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
 Handle<Value>
 Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
 {
-  Connection *connection = NODE_UNWRAP(Connection, info.This());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(info.This());
   if (!connection) return Handle<Value>();
 
   HandleScope scope;
@@ -159,7 +159,7 @@ Connection::ReadyState (void)
 Handle<Value>
 Connection::Connect (const Arguments& args)
 {
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (!connection) return Handle<Value>();
 
   HandleScope scope;
@@ -295,7 +295,7 @@ Connection::SetEncoding (const Arguments& args)
 {
   HandleScope scope;
 
-  Connection *connection = NODE_UNWRAP(Connection, args.This());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
   if (!connection) return Handle<Value>();
 
   if (!args[0]->IsString()) {
@@ -323,7 +323,7 @@ Handle<Value>
 Connection::Close (const Arguments& args)
 {
   HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (!connection) return Handle<Value>();
 
   connection->Close();
@@ -334,7 +334,7 @@ Handle<Value>
 Connection::FullClose (const Arguments& args)
 {
   HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (!connection) return Handle<Value>();
 
   connection->FullClose();
@@ -345,7 +345,7 @@ Handle<Value>
 Connection::ForceClose (const Arguments& args)
 {
   HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (!connection) return Handle<Value>();
 
   connection->ForceClose();
@@ -358,7 +358,7 @@ Handle<Value>
 Connection::Send (const Arguments& args)
 {
   HandleScope scope;
-  Connection *connection = NODE_UNWRAP(Connection, args.Holder());
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (!connection) return Handle<Value>();
 
   if ( connection->ReadyState() != OPEN 
@@ -513,7 +513,7 @@ Connection*
 Server::UnwrapConnection (Local<Object> connection)
 {
   HandleScope scope;
-  return NODE_UNWRAP(Connection, connection);
+  return ObjectWrap::Unwrap<Connection>(connection);
 }
 
 Connection*
@@ -566,7 +566,7 @@ Server::New (const Arguments& args)
 Handle<Value>
 Server::Listen (const Arguments& args)
 {
-  Server *server = NODE_UNWRAP(Server, args.Holder());
+  Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   if (!server) return Handle<Value>();
 
   if (args.Length() == 0)
@@ -603,7 +603,7 @@ Server::Listen (const Arguments& args)
 Handle<Value>
 Server::Close (const Arguments& args)
 {
-  Server *server = NODE_UNWRAP(Server, args.Holder());
+  Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   if (!server) return Handle<Value>();
 
   server->Close();
