@@ -55,6 +55,8 @@ class ObjectWrap {
    * the object after making this call as it might be gone!
    * (A "weak reference" is v8 terminology for an object that only has a
    * persistant handle.)
+   *
+   * DO NOT CALL THIS FROM DESTRUCTOR
    */
   void Detach() {
     assert(!handle_.IsEmpty());

@@ -128,7 +128,10 @@ protected:
     server_.on_connection = Server::on_connection;
     server_.data = this;
   }
-  virtual ~Server () { Close(); }
+
+  virtual ~Server () {
+    oi_server_close (&server_); 
+  }
 
   int Listen (struct addrinfo *address) { 
     int r = oi_server_listen (&server_, address); 
@@ -138,7 +141,7 @@ protected:
     return 0;
   }
 
-  void Close ( ) { 
+  void Close ( ) {
     oi_server_close (&server_); 
     Detach();
   }
