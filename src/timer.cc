@@ -63,12 +63,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   timer->Emit("timeout", 0, NULL);
 
-  /* XXX i'm a bit worried if this is the correct test? 
-   * it's rather crutial for memory leaks the conditional here test to see
-   * if the watcher will make another callback.
-   */ 
-  if (!ev_is_active(&timer->watcher_))
-    timer->Detach();
+  if (timer->watcher_.repeat == 0) timer->Detach();
 }
 
 Timer::~Timer ()

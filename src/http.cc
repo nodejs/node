@@ -79,6 +79,7 @@ HTTPConnection::NewServer (const Arguments& args)
 void
 HTTPConnection::OnReceive (const void *buf, size_t len)
 {
+  assert(attached_);
   http_parser_execute(&parser_, static_cast<const char*>(buf), len);
   if (http_parser_has_error(&parser_)) ForceClose();
 }
@@ -87,6 +88,7 @@ int
 HTTPConnection::on_message_begin (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  assert(connection->attached_);
   connection->Emit("message_begin", 0, NULL);
   return 0;
 }
@@ -95,6 +97,7 @@ int
 HTTPConnection::on_message_complete (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  assert(connection->attached_);
   connection->Emit("message_complete", 0, NULL);
   return 0;
 }
@@ -104,6 +107,7 @@ HTTPConnection::on_uri (http_parser *parser, const char *buf, size_t len)
 {
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
   connection->Emit("uri", 1, argv);
   return 0;
@@ -114,6 +118,7 @@ HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t le
 {
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
   connection->Emit("header_field", 1, argv);
   return 0;
@@ -124,6 +129,7 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
 {
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
   connection->Emit("header_value", 1, argv);
   return 0;
@@ -155,6 +161,7 @@ int
 HTTPConnection::on_headers_complete (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  assert(connection->attached_);
   HandleScope scope;
 
   Local<Object> message_info = Object::New();
@@ -194,6 +201,7 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
   assert(len != 0);
 
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
+  assert(connection->attached_);
   HandleScope scope;
 
   Handle<Value> argv[1];

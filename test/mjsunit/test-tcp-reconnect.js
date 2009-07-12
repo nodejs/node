@@ -33,11 +33,13 @@ function onLoad () {
 
   client.addListener("receive", function (chunk) {
     client_recv_count += 1;
+    puts("client_recv_count " + client_recv_count);
     assertEquals("hello\r\n", chunk);
     client.fullClose();
   });
 
   client.addListener("disconnect", function (had_error) {
+    puts("disconnect");
     assertFalse(had_error);
     if (disconnect_count++ < N) 
       client.connect(port); // reconnect

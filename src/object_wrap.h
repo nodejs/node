@@ -10,7 +10,7 @@ class ObjectWrap {
  public:
   ObjectWrap ( ) {
     weak_ = false;
-    attached_ = false;
+    attached_ = 0;
   }
 
   virtual ~ObjectWrap ( ) {
@@ -46,7 +46,7 @@ class ObjectWrap {
    */
   void Attach() {
     assert(!handle_.IsEmpty());
-    attached_ = true;
+    attached_++;
   }
   
   /* Detach() marks an object as detached from the event loop.  This is its
@@ -60,12 +60,13 @@ class ObjectWrap {
    */
   void Detach() {
     assert(!handle_.IsEmpty());
-    attached_ = false;
-    if (weak_) delete this;
+    assert(attached_ > 0);
+    attached_--;
+    if (attached_ == 0 && weak_) delete this;
   }
 
-  v8::Persistent<v8::Object> handle_;
-
+  v8::Persistent<v8::Object> handle_; // ro
+  int attached_; // ro
  private:
   static void MakeWeak (v8::Persistent<v8::Value> value, void *data) {
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
@@ -73,7 +74,6 @@ class ObjectWrap {
     obj->weak_ = true;
     if (!obj->attached_) delete obj;
   }
-  bool attached_;
   bool weak_;
 };
 

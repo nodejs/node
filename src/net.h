@@ -68,11 +68,13 @@ private:
   /* liboi callbacks */
   static void on_connect (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
+    connection->Attach();
     connection->OnConnect();
   }
 
   static void on_read (evnet_socket *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
+    assert(connection->attached_);
     if (len == 0)
       connection->OnEOF();
     else
@@ -88,11 +90,10 @@ private:
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDisconnect();
 
-    /*
     if (s->errorno)
       printf("socket died with error %d\n", s->errorno);
-    */
 
+    assert(connection->attached_);
     connection->Detach();
   }
 

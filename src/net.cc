@@ -113,8 +113,8 @@ Connection::Init (void)
 Connection::~Connection ()
 {
   static int i = 0;
-  if(socket_.fd > 0) {
-    printf("garbage collecting open Connection : %d\n", i++);
+  if (socket_.fd > 0) {
+    printf("%d garbage collecting open Connection : %d\n", i++, socket_.fd);
     printf("  socket->read_action: %p\n", socket_.read_action);
     printf("  socket->write_action: %p\n", socket_.write_action);
   }
@@ -160,7 +160,8 @@ Handle<Value>
 Connection::Connect (const Arguments& args)
 {
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  if (!connection) return Handle<Value>();
+
+  assert(connection);
 
   HandleScope scope;
 
@@ -170,6 +171,10 @@ Connection::Connect (const Arguments& args)
     // XXX ugly.
     connection->Init(); // in case we're reusing the socket... ?
   }
+
+  assert(connection->socket_.fd < 0);
+  assert(connection->socket_.read_action == NULL);
+  assert(connection->socket_.write_action == NULL);
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must specify a port."));
@@ -218,6 +223,10 @@ Connection::Resolve (eio_req *req)
 {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
+
+  assert(connection->attached_);
+  assert(connection->opening);
+
   req->result = getaddrinfo(connection->host_, connection->port_, 
                             &client_tcp_hints, &address);
   req->ptr2 = address;
@@ -253,6 +262,10 @@ Connection::AfterResolve (eio_req *req)
   ev_unref(EV_DEFAULT_UC);
 
   Connection *connection = static_cast<Connection*> (req->data);
+
+  assert(connection->opening);
+  assert(connection->attached_);
+
   struct addrinfo *address = NULL,
                   *address_list = static_cast<struct addrinfo *>(req->ptr2);
 
@@ -537,8 +550,6 @@ Server::OnConnection (struct sockaddr *addr)
 
   Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
-
-  connection->Attach();
 
   Handle<Value> argv[1] = { js_connection };
 
