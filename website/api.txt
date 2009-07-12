@@ -861,6 +861,9 @@ After emitted no other events will be emitted on the response.
   Set the encoding for the response body. Either +"utf8"+ or +"raw"+.
   Defaults to raw.
 
++response.client+ ::
+  A reference to the +node.http.Client+ that this response belongs to.
+
 
 
 === TCP

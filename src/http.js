@@ -159,17 +159,19 @@ node.http.createServerRequest = function (connection) {
 // | 
 // v
 
-createClientResponse = function (connection) {
+createClientResponse = function (client) {
   var res = new node.EventEmitter;
 
-  res.connection = connection;
+  res.client = client;
+  res.connection = client;
+
   res.statusCode = null;
   res.httpVersion = null;
   res.headers = [];
   res.last_was_value = false;   // used internally XXX remove me
 
   res.setBodyEncoding = function (enc) {
-    connection.setEncoding(enc);
+    client.setEncoding(enc);
   };
 
   return res;
