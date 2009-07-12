@@ -1,3 +1,8 @@
+Bugs:
+
+- http server: if res.sendBody() not called, request does not finish
+
+
 Major features planned: (somewhat ordered)
 
 - C++ API for external modules/plugins
