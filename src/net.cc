@@ -78,7 +78,7 @@ Handle<Value>
 Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
 {
   Connection *connection = ObjectWrap::Unwrap<Connection>(info.This());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   HandleScope scope;
 
@@ -309,7 +309,7 @@ Connection::SetEncoding (const Arguments& args)
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   if (!args[0]->IsString()) {
     connection->encoding_ = RAW;
@@ -337,7 +337,7 @@ Connection::Close (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   connection->Close();
   return Undefined();
@@ -348,7 +348,7 @@ Connection::FullClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   connection->FullClose();
   return Undefined();
@@ -359,7 +359,7 @@ Connection::ForceClose (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   connection->ForceClose();
   connection->Detach();
@@ -372,7 +372,7 @@ Connection::Send (const Arguments& args)
 {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  if (!connection) return Handle<Value>();
+  assert(connection);
 
   if ( connection->ReadyState() != OPEN 
     && connection->ReadyState() != WRITE_ONLY
@@ -576,7 +576,7 @@ Handle<Value>
 Server::Listen (const Arguments& args)
 {
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
-  if (!server) return Handle<Value>();
+  assert(server);
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must give at least a port as argument."));
@@ -613,7 +613,7 @@ Handle<Value>
 Server::Close (const Arguments& args)
 {
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
-  if (!server) return Handle<Value>();
+  assert(server);
 
   server->Close();
   return Undefined();
