@@ -558,6 +558,16 @@ Server::OnConnection (struct sockaddr *addr)
   return connection;
 }
 
+void
+Server::OnClose (int errorno)
+{
+  HandleScope scope;
+
+  Handle<Value> argv[1] = { Integer::New(errorno) };
+
+  Emit("close", 1, argv);
+}
+
 // TODO Server->SetOptions
 // TODO Server -> Server rename
 

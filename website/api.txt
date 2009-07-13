@@ -586,6 +586,11 @@ When a new TCP connection is established.
 want to access this event. The +connection+ can also be accessed at
 +request.connection+.
 
+|+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
+                                  is an integer which indicates what, if any,
+                                  error caused the server to close. If no 
+                                  error occured +errorno+ will be 0.
+
 |=========================================================
 
 +node.http.createServer(request_listener, options);+ ::
@@ -897,6 +902,10 @@ server.listen(7000, "localhost");
 |Event           | Parameters   | Notes
 |+"connection"+  | +connection+ | Emitted when a new connection is made.
                                   +connection+ is an instance of +node.tcp.Connection+.
+|+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
+                                  is an integer which indicates what, if any,
+                                  error caused the server to close. If no 
+                                  error occured +errorno+ will be 0.
 |=========================================================
 
 +node.tcp.createServer(connection_listener, options={});+ ::

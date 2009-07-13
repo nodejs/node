@@ -127,6 +127,7 @@ protected:
   {
     evnet_server_init(&server_);
     server_.on_connection = Server::on_connection;
+    server_.on_close = Server::on_close;
     server_.data = this;
   }
 
@@ -144,7 +145,6 @@ protected:
 
   void Close ( ) {
     evnet_server_close (&server_); 
-    Detach();
   }
 
   virtual v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);
@@ -156,6 +156,13 @@ private:
     Server *server = static_cast<Server*> (s->data);
     Connection *connection = server->OnConnection (addr);
     return &connection->socket_;
+  }
+
+  void OnClose (int errorno);
+  static void on_close (evnet_server *s, int errorno) {
+    Server *server = static_cast<Server*> (s->data);
+    server->OnClose(errorno);
+    server->Detach();
   }
 
   evnet_server server_;
