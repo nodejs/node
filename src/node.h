@@ -4,7 +4,7 @@
 #include <ev.h>
 #include <eio.h>
 #include <v8.h>
-#include <oi_socket.h>
+#include <evnet.h>
 
 #include "object_wrap.h"
 
@@ -30,7 +30,7 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, RAW};
 enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void FatalException (v8::TryCatch &try_catch); 
-oi_buf * buf_new (size_t size);
+evnet_buf * buf_new (size_t size);
 
 } // namespace node
 #endif // node_h

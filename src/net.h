@@ -4,7 +4,7 @@
 #include "node.h"
 #include "events.h"
 #include <v8.h>
-#include <oi_socket.h>
+#include <evnet.h>
 
 namespace node {
 
@@ -41,12 +41,12 @@ protected:
   virtual ~Connection (void);
 
   int Connect (struct addrinfo *address) {
-    return oi_socket_connect (&socket_, address);
+    return evnet_socket_connect (&socket_, address);
   }
-  void Send (oi_buf *buf) { oi_socket_write(&socket_, buf); }
-  void Close (void) { oi_socket_close(&socket_); }
-  void FullClose (void) { oi_socket_full_close(&socket_); }
-  void ForceClose (void) { oi_socket_force_close(&socket_); }
+  void Send (evnet_buf *buf) { evnet_socket_write(&socket_, buf); }
+  void Close (void) { evnet_socket_close(&socket_); }
+  void FullClose (void) { evnet_socket_full_close(&socket_); }
+  void ForceClose (void) { evnet_socket_force_close(&socket_); }
 
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
@@ -66,12 +66,12 @@ protected:
 private:
 
   /* liboi callbacks */
-  static void on_connect (oi_socket *s) {
+  static void on_connect (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnConnect();
   }
 
-  static void on_read (oi_socket *s, const void *buf, size_t len) {
+  static void on_read (evnet_socket *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
     if (len == 0)
       connection->OnEOF();
@@ -79,12 +79,12 @@ private:
       connection->OnReceive(buf, len);
   }
 
-  static void on_drain (oi_socket *s) {
+  static void on_drain (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDrain();
   }
 
-  static void on_close (oi_socket *s) {
+  static void on_close (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDisconnect();
 
@@ -96,7 +96,7 @@ private:
     connection->Detach();
   }
 
-  static void on_timeout (oi_socket *s) {
+  static void on_timeout (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnTimeout();
   }
@@ -107,7 +107,7 @@ private:
   static int AfterResolve (eio_req *req);
   char *host_;
   char *port_;
-  oi_socket socket_;
+  evnet_socket socket_;
 
   friend class Server;
 };
@@ -124,25 +124,25 @@ protected:
 
   Server (void) : EventEmitter() 
   {
-    oi_server_init(&server_, 1024);
+    evnet_server_init(&server_);
     server_.on_connection = Server::on_connection;
     server_.data = this;
   }
 
   virtual ~Server () {
-    oi_server_close (&server_); 
+    evnet_server_close (&server_); 
   }
 
   int Listen (struct addrinfo *address) { 
-    int r = oi_server_listen (&server_, address); 
+    int r = evnet_server_listen (&server_, address, 1024); 
     if(r != 0) return r;
-    oi_server_attach (EV_DEFAULT_ &server_); 
+    evnet_server_attach (EV_DEFAULT_ &server_); 
     Attach();
     return 0;
   }
 
   void Close ( ) {
-    oi_server_close (&server_); 
+    evnet_server_close (&server_); 
     Detach();
   }
 
@@ -150,14 +150,14 @@ protected:
   virtual Connection* UnwrapConnection (v8::Local<v8::Object> connection);
 
 private:
-  Connection* OnConnection (struct sockaddr *addr, socklen_t len);
-  static oi_socket* on_connection (oi_server *s, struct sockaddr *addr, socklen_t len) {
+  Connection* OnConnection (struct sockaddr *addr);
+  static evnet_socket* on_connection (evnet_server *s, struct sockaddr *addr) {
     Server *server = static_cast<Server*> (s->data);
-    Connection *connection = server->OnConnection (addr, len);
+    Connection *connection = server->OnConnection (addr);
     return &connection->socket_;
   }
 
-  oi_server server_;
+  evnet_server server_;
 };
 
 } // namespace node

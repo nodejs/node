@@ -112,16 +112,16 @@ def build(bld):
     v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
-  ### oi
-  oi = bld.new_task_gen("cc", "staticlib")
-  oi.source = "deps/liboi/oi_socket.c"
-  oi.includes = "deps/liboi/ deps/libev/"
-  oi.name = "oi"
-  oi.target = "oi"
-  # oi.uselib = "GNUTLS"
-  oi.install_path = None
+  ### evnet
+  evnet = bld.new_task_gen("cc", "staticlib")
+  evnet.source = "deps/evnet/evnet.c"
+  evnet.includes = "deps/evnet/ deps/libev/"
+  evnet.name = "evnet"
+  evnet.target = "evnet"
+  # evnet.uselib = "GNUTLS"
+  evnet.install_path = None
   if bld.env["USE_DEBUG"]:
-    oi.clone("debug")
+    evnet.clone("debug")
 
   ### http_parser
   http_parser = bld.new_task_gen("cc", "staticlib")
@@ -173,10 +173,10 @@ def build(bld):
     deps/v8/include
     deps/libev
     deps/libeio
-    deps/liboi 
+    deps/evnet 
     deps/http_parser
   """
-  node.uselib_local = "oi ev eio http_parser"
+  node.uselib_local = "evnet ev eio http_parser"
   node.uselib = "V8 EXECINFO PROFILER EFENCE"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755

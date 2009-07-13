@@ -24,21 +24,21 @@ using namespace node;
 using namespace std;
 
 static void
-buf_free (oi_buf *b)
+buf_free (evnet_buf *b)
 {
   V8::AdjustAmountOfExternalAllocatedMemory(-b->len);
   free(b);
 }
 
-oi_buf *
+evnet_buf *
 node::buf_new (size_t size)
 {
-  size_t total = sizeof(oi_buf) + size;
+  size_t total = sizeof(evnet_buf) + size;
   void *p = malloc(total);
   if (p == NULL) return NULL;
 
-  oi_buf *b = static_cast<oi_buf*>(p);
-  b->base = static_cast<char*>(p) + sizeof(oi_buf);
+  evnet_buf *b = static_cast<evnet_buf*>(p);
+  b->base = static_cast<char*>(p) + sizeof(evnet_buf);
 
   b->len = size;
   b->release = buf_free;

@@ -1,20 +1,22 @@
 #!/usr/bin/env ruby
+require 'socket'
 
 def test(description)
   pid = fork do
     exec(File.dirname(__FILE__) + "/echo")
   end
 
+  puts "#{description}: "
   begin
     sleep 0.5 # give time for the server to start
     yield(pid)
   rescue
-    puts "\033[1;31mFAIL\033[m: #{description}"
+    puts "\033[1;31mFAIL\033[m"
     raise $!
   ensure
     `kill -9 #{pid}`
   end
-  puts "\033[1;32mPASS\033[m: #{description}"
+  puts "\033[1;32mPASS\033[m"
 end
 
 test("make sure echo server works") do 
