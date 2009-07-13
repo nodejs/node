@@ -358,36 +358,41 @@ const struct message responses[] =
 };
 
 int
-request_path_cb (http_parser *_, const char *p, size_t len)
+request_path_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   strncat(messages[num_messages].request_path, p, len);
   return 0;
 }
 
 int
-request_uri_cb (http_parser *_, const char *p, size_t len)
+request_uri_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   strncat(messages[num_messages].request_uri, p, len);
   return 0;
 }
 
 int
-query_string_cb (http_parser *_, const char *p, size_t len)
+query_string_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   strncat(messages[num_messages].query_string, p, len);
   return 0;
 }
 
 int
-fragment_cb (http_parser *_, const char *p, size_t len)
+fragment_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   strncat(messages[num_messages].fragment, p, len);
   return 0;
 }
 
 int
-header_field_cb (http_parser *_, const char *p, size_t len)
+header_field_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   struct message *m = &messages[num_messages];
 
   if (m->last_header_element != FIELD)
@@ -401,8 +406,9 @@ header_field_cb (http_parser *_, const char *p, size_t len)
 }
 
 int
-header_value_cb (http_parser *_, const char *p, size_t len)
+header_value_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   struct message *m = &messages[num_messages];
 
   strncat(m->headers[m->num_headers-1][1], p, len);
@@ -413,8 +419,9 @@ header_value_cb (http_parser *_, const char *p, size_t len)
 }
 
 int
-body_cb (http_parser *_, const char *p, size_t len)
+body_cb (http_parser *parser, const char *p, size_t len)
 {
+  assert(parser);
   strncat(messages[num_messages].body, p, len);
  // printf("body_cb: '%s'\n", requests[num_messages].body);
   return 0;
@@ -433,15 +440,17 @@ message_complete_cb (http_parser *parser)
 }
 
 int
-message_begin_cb (http_parser *_)
+message_begin_cb (http_parser *parser)
 {
+  assert(parser);
   messages[num_messages].message_begin_cb_called = TRUE;
   return 0;
 }
 
 int
-headers_complete_cb (http_parser *_)
+headers_complete_cb (http_parser *parser)
 {
+  assert(parser);
   messages[num_messages].headers_complete_cb_called = TRUE;
   return 0;
 }
@@ -643,7 +652,7 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
       message_eq(2, r3);
     }
   }
-  printf("\b\b\b\b100%\n");
+  puts("\b\b\b\b100%");
 }
 
 int

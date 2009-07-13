@@ -42,7 +42,7 @@ static int unhex[] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
 
 #define MAX_FIELD_SIZE 80*1024
 
-#define REMAINING (pe - p)
+#define REMAINING (unsigned long)(pe - p)
 #define CALLBACK(FOR)                                                \
 do {                                                                 \
   if (parser->FOR##_mark) {                                          \
