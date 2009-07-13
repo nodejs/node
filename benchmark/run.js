@@ -1,0 +1,29 @@
+var benchmarks = [ "static_http_server.js" 
+                 , "timers.js"
+                 , "process_loop.js"
+                 ];
+
+var benchmark_dir = node.path.dirname(__filename);
+
+function exec (script, callback) {
+  var command = ARGV[0] + " " + node.path.join(benchmark_dir, script);
+  var start = new Date();
+  var process = node.createProcess(command);
+  process.addListener("exit", function (code) {
+    var elapsed = new Date() - start;
+    callback(elapsed, code);
+  });
+}
+
+function runNext (i) {
+  if (i >= benchmarks.length) return;
+  print(benchmarks[i] + ": ");
+  exec(benchmarks[i], function (elapsed, code) {
+    if (code != 0) {
+      puts("ERROR  ");
+    }
+    puts(elapsed);
+    runNext(i+1);
+  });
+};
+runNext(0);

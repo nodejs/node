@@ -100,6 +100,12 @@ test: all
 test-all: all
 	python tools/test.py --mode=debug,release
 
+test-debug: all
+	python tools/test.py --mode=release,debug
+
+benchmark: all
+	build/default/node benchmark/run.js
+
 website: website/api.html website/index.html
 
 website/api.html: website/api.txt
@@ -123,7 +129,7 @@ check:
 dist:
 	@$WAF dist
 
-.PHONY: clean dist distclean check uninstall install all test test-all website website-upload
+.PHONY: benchmark clean dist distclean check uninstall install all test test-all website website-upload
 
 EOF
 }
