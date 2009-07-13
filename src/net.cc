@@ -113,11 +113,7 @@ Connection::Init (void)
 Connection::~Connection ()
 {
   static int i = 0;
-  if (socket_.fd > 0) {
-    printf("%d garbage collecting open Connection : %d\n", i++, socket_.fd);
-    printf("  socket->read_action: %p\n", socket_.read_action);
-    printf("  socket->write_action: %p\n", socket_.write_action);
-  }
+  assert(socket_.fd < 0 && "garbage collecting open Connection"); 
   ForceClose();
 }
 
@@ -180,7 +176,6 @@ Connection::Connect (const Arguments& args)
     return ThrowException(String::New("Must specify a port."));
 
   String::AsciiValue port_sv(args[0]->ToString());
-  if (connection->port_) printf("connection->port_ = '%s'\n", connection->port_);
   assert(connection->port_ == NULL);
   connection->port_ = strdup(*port_sv);
 
