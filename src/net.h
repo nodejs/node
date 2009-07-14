@@ -88,6 +88,11 @@ private:
 
   static void on_close (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
+
+    assert(connection->socket_.fd < 0);
+    assert(connection->socket_.read_action == NULL);
+    assert(connection->socket_.write_action == NULL);
+
     connection->OnDisconnect();
 
     if (s->errorno) {
@@ -95,6 +100,7 @@ private:
     }
 
     assert(connection->attached_);
+
     connection->Detach();
   }
 
