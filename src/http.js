@@ -1,6 +1,29 @@
 (function () {
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be revritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype
+ * @param {function} superCtor Constructor function to inherit prototype from
+ */
+function inherits(ctor, superCtor) {
+  var tempCtor = function(){};
+  tempCtor.prototype = superCtor.prototype;
+  ctor.super_ = superCtor.prototype;
+  ctor.prototype = new tempCtor();
+  ctor.prototype.constructor = ctor;
+}
+
+
 CRLF = "\r\n";
-node.http.STATUS_CODES = { 
+node.http.STATUS_CODES = {
   100 : 'Continue',
   101 : 'Switching Protocols',
   200 : 'OK',
@@ -136,46 +159,53 @@ node.http.createServer = function (requestListener, options) {
   return server;
 };
 
-node.http.createServerRequest = function (connection) {
-  var req = new node.EventEmitter;
 
-  req.connection = connection;
-  req.method = null;
-  req.uri = "";
-  req.httpVersion = null;
-  req.headers = [];
-  req.last_was_value = false;   // used internally XXX remove me
 
-  req.setBodyEncoding = function (enc) {
-    connection.setEncoding(enc);
-  };
+/* Abstract base class for ServerRequest and ClientResponse. */
+var IncomingMessage = function (connection) {
+  node.EventEmitter.call(this);
 
-  return req;
+  this.connection = connection;
+  this.httpVersion = null;
+  this.headers = [];
+  this.last_was_value = false; // TODO: remove me.
+};
+inherits(IncomingMessage, node.EventEmitter);
+
+IncomingMessage.prototype.setBodyEncoding = function (enc) {
+  // TODO: Find a cleaner way of doing this. 
+  this.connection.setEncoding(enc);
 };
 
-// ^
-// | 
-// |  combine these two functions
-// | 
-// v
-
-createClientResponse = function (client) {
-  var res = new node.EventEmitter;
-
-  res.client = client;
-  res.connection = client;
-
-  res.statusCode = null;
-  res.httpVersion = null;
-  res.headers = [];
-  res.last_was_value = false;   // used internally XXX remove me
-
-  res.setBodyEncoding = function (enc) {
-    client.setEncoding(enc);
-  };
-
-  return res;
+IncomingMessage.prototype._emitBody = function (chunk) {
+  this.emit("body", [chunk]);
 };
+
+IncomingMessage.prototype._emitComplete = function () {
+  this.emit("complete");
+};
+
+
+var ServerRequest = function (connection) {
+  IncomingMessage.call(this, connection);
+
+  this.uri = "";
+  this.method = null;
+};
+inherits(ServerRequest, IncomingMessage);
+
+
+var ClientResponse = function (connection) {
+  IncomingMessage.call(this, connection);
+
+  this.statusCode = null;
+  this.client = this.connection;
+};
+inherits(ClientResponse, IncomingMessage);
+
+
+
+
 
 function connectionListener (connection) {
   // An array of responses for each connection. In pipelined connections
@@ -194,7 +224,7 @@ function connectionListener (connection) {
   var req, res;
 
   connection.addListener("message_begin", function () {
-    req = new node.http.createServerRequest(connection);
+    req = new ServerRequest(connection);
     res = new node.http.ServerResponse(connection);
   });
 
@@ -230,11 +260,11 @@ function connectionListener (connection) {
   });
 
   connection.addListener("body", function (chunk) {
-    req.emit("body", [chunk]);
+    req._emitBody(chunk);
   });
 
   connection.addListener("message_complete", function () {
-    req.emit("complete");
+    req._emitComplete()
   });
 }
 
@@ -386,7 +416,7 @@ node.http.createClient = function (port, host) {
 
   client.addListener("message_begin", function () {
     req = client.requests.shift();
-    res = createClientResponse(client);
+    res = new ClientResponse(client);
   });
 
   client.addListener("header_field", function (data) {
@@ -415,12 +445,12 @@ node.http.createClient = function (port, host) {
   });
 
   client.addListener("body", function (chunk) {
-    res.emit("body", [chunk]);
+    res._emitBody(chunk);
   });
 
   client.addListener("message_complete", function () {
     client.close();
-    res.emit("complete");
+    res._emitComplete();
   });
 
   return client;
