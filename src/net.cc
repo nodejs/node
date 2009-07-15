@@ -112,7 +112,6 @@ Connection::Init (void)
 
 Connection::~Connection ()
 {
-  static int i = 0;
   assert(socket_.fd < 0 && "garbage collecting open Connection"); 
   ForceClose();
 }
