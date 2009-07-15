@@ -198,6 +198,7 @@ change_state_for_empty_out_stream (evnet_socket *socket)
 #else 
       socket->write_action = half_close;
 #endif
+      ev_io_start(SOCKET_LOOP_ &socket->write_watcher);
     }
   }
 }
