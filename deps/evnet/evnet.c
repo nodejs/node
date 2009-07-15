@@ -617,8 +617,8 @@ accept_connection (evnet_server *server)
   if (set_nonblock(fd) != 0) goto error;
   
 #ifdef SO_NOSIGPIPE
-  flags = 1;
-  r = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
+  int flags = 1;
+  int r = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
   if (r < 0) goto error;
 #endif
 
@@ -1039,7 +1039,7 @@ evnet_socket_connect (evnet_socket *s, struct addrinfo *addrinfo)
   }
       
 #ifdef SO_NOSIGPIPE
-  flags = 1;
+  int flags = 1;
   setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
 #endif
 
