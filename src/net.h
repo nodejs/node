@@ -68,7 +68,6 @@ private:
   /* liboi callbacks */
   static void on_connect (evnet_socket *s) {
     Connection *connection = static_cast<Connection*> (s->data);
-    connection->Attach();
     connection->OnConnect();
   }
 

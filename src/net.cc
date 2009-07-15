@@ -549,6 +549,8 @@ Server::OnConnection (struct sockaddr *addr)
 
   Emit("connection", 1, argv);
 
+  connection->Attach();
+
   return connection;
 }
 
