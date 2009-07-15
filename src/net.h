@@ -6,6 +6,8 @@
 #include <v8.h>
 #include <evnet.h>
 
+#include <string.h>
+
 namespace node {
 
 class Server;
@@ -95,7 +97,7 @@ private:
     connection->OnDisconnect();
 
     if (s->errorno) {
-      printf("socket died with error %d\n", s->errorno);
+      printf("socket died: %s\n", strerror(s->errorno));
     }
 
     assert(connection->attached_);
