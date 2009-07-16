@@ -101,7 +101,7 @@ test-all: all
 	python tools/test.py --mode=debug,release
 
 test-debug: all
-	python tools/test.py --mode=release,debug
+	python tools/test.py --mode=debug
 
 benchmark: all
 	build/default/node benchmark/run.js
