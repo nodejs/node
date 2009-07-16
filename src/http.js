@@ -126,22 +126,16 @@ node.http.parseUri.options = {
   }
 };
 
+
 var connection_expression = /Connection/i;
 var transfer_encoding_expression = /Transfer-Encoding/i;
 var close_expression = /close/i;
 var chunk_expression = /chunk/i;
 var content_length_expression = /Content-Length/i;
 
-function toRaw(string) {
-  var a = [];
-  for (var i = 0; i < string.length; i++)
-    a.push(string.charCodeAt(i));
-  return a;
-}
-
 
 /* Abstract base class for ServerRequest and ClientResponse. */
-var IncomingMessage = function (connection) {
+function IncomingMessage (connection) {
   node.EventEmitter.call(this);
 
   this.connection = connection;
@@ -155,7 +149,7 @@ var IncomingMessage = function (connection) {
   // response (client) only
   this.statusCode = null;
   this.client = this.connection;
-};
+}
 inherits(IncomingMessage, node.EventEmitter);
 
 IncomingMessage.prototype.setBodyEncoding = function (enc) {
@@ -163,16 +157,8 @@ IncomingMessage.prototype.setBodyEncoding = function (enc) {
   this.connection.setEncoding(enc);
 };
 
-IncomingMessage.prototype._emitBody = function (chunk) {
-  this.emit("body", [chunk]);
-};
 
-IncomingMessage.prototype._emitComplete = function () {
-  this.emit("complete");
-};
-
-
-var OutgoingMessage = function () {
+function OutgoingMessage () {
   node.EventEmitter.call(this);
 
   this.output = [];
@@ -187,16 +173,12 @@ var OutgoingMessage = function () {
   this.use_chunked_encoding_by_default = true;
 
   this.finished = false;
-};
+}
 inherits(OutgoingMessage, node.EventEmitter);
 
 OutgoingMessage.prototype.send = function (data, encoding) {
-  if (data.constructor === String) {
-    encoding = encoding || "ascii";
-  } else {
-    encoding = "raw";
-  }
-  this.output.push([data, encoding]);
+  data.encoding = data.constructor === String ? encoding || "ascii" : "raw";
+  this.output.push(data);
 };
 
 OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) {
@@ -246,15 +228,10 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) 
   header += CRLF;
 
   this.send(header);
+  // wait until the first body chunk, or finish(), is sent to flush.
 };
 
 OutgoingMessage.prototype.sendBody = function (chunk, encoding) {
-  /*
-  if (this.sent_content_length_header == false && this.chunked_encoding == false) {
-    throw "Content-Length header (or Transfer-Encoding:chunked) not set";
-  }
-  */
-
   if (this.chunked_encoding) {
     this.send(chunk.length.toString(16));
     this.send(CRLF);
@@ -278,12 +255,12 @@ OutgoingMessage.prototype.finish = function () {
 };
 
 
-var ServerResponse = function () {
+function ServerResponse () {
   OutgoingMessage.call(this);
 
   this.should_keep_alive = true;
   this.use_chunked_encoding_by_default = true;
-};
+}
 inherits(ServerResponse, OutgoingMessage);
 
 ServerResponse.prototype.sendHeader = function (statusCode, headers) {
@@ -293,7 +270,7 @@ ServerResponse.prototype.sendHeader = function (statusCode, headers) {
 };
 
 
-var ClientRequest = function (method, uri, header_lines) {
+function ClientRequest (method, uri, header_lines) {
   OutgoingMessage.call(this);
 
   this.should_keep_alive = false;
@@ -301,7 +278,7 @@ var ClientRequest = function (method, uri, header_lines) {
   this.closeOnFinish = true;
 
   this.sendHeaderLines(method + " " + uri + " HTTP/1.1\r\n", header_lines);
-};
+}
 inherits(ClientRequest, OutgoingMessage);
 
 ClientRequest.prototype.finish = function (responseListener) {
@@ -384,7 +361,7 @@ function flushMessageQueue (connection, queue) {
 
     while (message.output.length > 0) {
       var out = message.output.shift();
-      connection.send(out[0], out[1]);
+      connection.send(out, out.encoding);
     }
   
     if (!message.finished) break;
@@ -397,11 +374,9 @@ function flushMessageQueue (connection, queue) {
   return false;
 }
 
-/* This is a wrapper around the LowLevelServer interface. It provides
- * connection handling, overflow checking, and some data buffering.
- */
+
 node.http.createServer = function (requestListener, options) {
-  var server = new node.http.LowLevelServer();
+  var server = new node.http.Server();
   //server.setOptions(options);
   server.addListener("request", requestListener);
   server.addListener("connection", connectionListener);
@@ -440,7 +415,6 @@ function connectionListener (connection) {
   });
 }
 
-node.http.Client = node.http.LowLevelClient; // FIXME
 
 node.http.createClient = function (port, host) {
   var client = new node.http.Client();
@@ -529,8 +503,6 @@ node.http.Client.prototype.put = function (uri, headers) {
   this._pushRequest(req);
   return req;
 };
-
-
 
 
 node.http.cat = function (url, encoding) {
