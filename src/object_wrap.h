@@ -15,6 +15,7 @@ class ObjectWrap {
 
   virtual ~ObjectWrap ( ) {
     if (!handle_.IsEmpty()) {
+      assert(handle_.IsNearDeath());
       handle_->SetInternalField(0, v8::Undefined());
       handle_.Dispose();
       handle_.Clear(); 
