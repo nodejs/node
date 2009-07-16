@@ -261,6 +261,7 @@ Load (int argc, char *argv[])
   HTTPServer::Initialize(http);
   HTTPConnection::Initialize(http);
 
+  ExecuteNativeJS("util.js", native_util);
   ExecuteNativeJS("events.js", native_events);
   ExecuteNativeJS("http.js", native_http);
   ExecuteNativeJS("file.js", native_file);

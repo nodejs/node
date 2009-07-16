@@ -142,6 +142,7 @@ def build(bld):
 
   native_cc = bld.new_task_gen(
     source = """
+      src/util.js
       src/events.js
       src/http.js
       src/file.js

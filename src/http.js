@@ -1,27 +1,4 @@
 (function () {
-
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be revritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype
- * @param {function} superCtor Constructor function to inherit prototype from
- */
-function inherits(ctor, superCtor) {
-  var tempCtor = function(){};
-  tempCtor.prototype = superCtor.prototype;
-  ctor.super_ = superCtor.prototype;
-  ctor.prototype = new tempCtor();
-  ctor.prototype.constructor = ctor;
-}
-
-
 CRLF = "\r\n";
 node.http.STATUS_CODES = {
   100 : 'Continue',
@@ -150,7 +127,7 @@ function IncomingMessage (connection) {
   this.statusCode = null;
   this.client = this.connection;
 }
-inherits(IncomingMessage, node.EventEmitter);
+node.inherits(IncomingMessage, node.EventEmitter);
 
 IncomingMessage.prototype.setBodyEncoding = function (enc) {
   // TODO: Find a cleaner way of doing this. 
@@ -174,7 +151,7 @@ function OutgoingMessage () {
 
   this.finished = false;
 }
-inherits(OutgoingMessage, node.EventEmitter);
+node.inherits(OutgoingMessage, node.EventEmitter);
 
 OutgoingMessage.prototype.send = function (data, encoding) {
   data.encoding = data.constructor === String ? encoding || "ascii" : "raw";
@@ -261,7 +238,7 @@ function ServerResponse () {
   this.should_keep_alive = true;
   this.use_chunked_encoding_by_default = true;
 }
-inherits(ServerResponse, OutgoingMessage);
+node.inherits(ServerResponse, OutgoingMessage);
 
 ServerResponse.prototype.sendHeader = function (statusCode, headers) {
   var reason = node.http.STATUS_CODES[statusCode] || "unknown";
@@ -279,7 +256,7 @@ function ClientRequest (method, uri, header_lines) {
 
   this.sendHeaderLines(method + " " + uri + " HTTP/1.1\r\n", header_lines);
 }
-inherits(ClientRequest, OutgoingMessage);
+node.inherits(ClientRequest, OutgoingMessage);
 
 ClientRequest.prototype.finish = function (responseListener) {
   this.addListener("response", responseListener);

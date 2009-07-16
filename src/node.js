@@ -40,52 +40,6 @@ function clearTimeout (timer) {
 
 clearInterval = clearTimeout;
 
-// This is useful for dealing with raw encodings.
-Array.prototype.encodeUtf8 = function () {
-  return String.fromCharCode.apply(String, this);
-};
-
-node.path = new function () {
-  this.join = function () {
-    var joined = "";
-    for (var i = 0; i < arguments.length; i++) {
-      var part = arguments[i].toString();
-
-      /* Some logic to shorten paths */
-      if (part === ".") continue;
-      while (/^\.\//.exec(part)) part = part.replace(/^\.\//, "");
-
-      if (i === 0) {
-        part = part.replace(/\/*$/, "/");
-      } else if (i === arguments.length - 1) {
-        part = part.replace(/^\/*/, "");
-      } else {
-        part = part.replace(/^\/*/, "").replace(/\/*$/, "/");
-      }
-      joined += part;
-    }
-    return joined;
-  };
-
-  this.dirname = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts.slice(0, parts.length-1).join("/");
-  };
-
-  this.filename = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts[parts.length-1];
-  };
-};
-
-node.cat = function(location, encoding, callback) {
-  var url_re = new RegExp("^http:\/\/");
-  var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
-  return f(location, encoding, callback);
-};
-
 // Module
 
 node.Module = function (o) {
