@@ -1575,16 +1575,10 @@ class RegExpQuantifier: public RegExpTree {
 };
 
 
-enum CaptureAvailability {
-  CAPTURE_AVAILABLE,
-  CAPTURE_UNREACHABLE,
-  CAPTURE_PERMANENTLY_UNREACHABLE
-};
-
 class RegExpCapture: public RegExpTree {
  public:
   explicit RegExpCapture(RegExpTree* body, int index)
-      : body_(body), index_(index), available_(CAPTURE_AVAILABLE) { }
+      : body_(body), index_(index) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
@@ -1600,16 +1594,11 @@ class RegExpCapture: public RegExpTree {
   virtual int max_match() { return body_->max_match(); }
   RegExpTree* body() { return body_; }
   int index() { return index_; }
-  inline CaptureAvailability available() { return available_; }
-  inline void set_available(CaptureAvailability availability) {
-    available_ = availability;
-  }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
  private:
   RegExpTree* body_;
   int index_;
-  CaptureAvailability available_;
 };
 
 

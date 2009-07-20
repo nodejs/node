@@ -343,10 +343,11 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
     Add("<Invalid map>\n");
     return;
   }
-  for (DescriptorReader r(map->instance_descriptors()); !r.eos(); r.advance()) {
-    switch (r.type()) {
+  DescriptorArray* descs = map->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    switch (descs->GetType(i)) {
       case FIELD: {
-        Object* key = r.GetKey();
+        Object* key = descs->GetKey(i);
         if (key->IsString() || key->IsNumber()) {
           int len = 3;
           if (key->IsString()) {
@@ -360,7 +361,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
             key->ShortPrint();
           }
           Add(": ");
-          Object* value = js_object->FastPropertyAt(r.GetFieldIndex());
+          Object* value = js_object->FastPropertyAt(descs->GetFieldIndex(i));
           Add("%o\n", value);
         }
       }

@@ -73,45 +73,8 @@ XMMRegister xmm14 = { 14 };
 XMMRegister xmm15 = { 15 };
 
 
-Operand::Operand(Register base, int32_t disp): rex_(0) {
-  len_ = 1;
-  if (base.is(rsp) || base.is(r12)) {
-    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(times_1, rsp, base);
-  }
-
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    set_modrm(0, base);
-  } else if (is_int8(disp)) {
-    set_modrm(1, base);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, base);
-    set_disp32(disp);
-  }
-}
-
-
-Operand::Operand(Register base,
-                 Register index,
-                 ScaleFactor scale,
-                 int32_t disp): rex_(0) {
-  ASSERT(!index.is(rsp));
-  len_ = 1;
-  set_sib(scale, index, base);
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
-    // possibly set by set_sib.
-    set_modrm(0, rsp);
-  } else if (is_int8(disp)) {
-    set_modrm(1, rsp);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, rsp);
-    set_disp32(disp);
-  }
-}
-
+// -----------------------------------------------------------------------------
+// Implementation of CpuFeatures
 
 // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
 //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
@@ -193,6 +156,71 @@ void CpuFeatures::Probe()  {
   ASSERT(IsSupported(CMOV));
 }
 
+
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
+
+// Patch the code at the current PC with a call to the target address.
+// Additional guard int3 instructions can be added if required.
+void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
+  // Call instruction takes up 13 bytes and int3 takes up one byte.
+  Address patch_site = pc_;
+  Memory::uint16_at(patch_site) = 0xBA49u;  // movq r10, imm64
+  // Write "0x00, call r10" starting at last byte of address.  We overwrite
+  // the 0x00 later, and this lets us write a uint32.
+  Memory::uint32_at(patch_site + 9) = 0xD2FF4900u;  // 0x00, call r10
+  Memory::Address_at(patch_site + 2) = target;
+
+  // Add the requested number of int3 instructions after the call.
+  for (int i = 0; i < guard_bytes; i++) {
+    *(patch_site + 13 + i) = 0xCC;  // int3
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Implementation of Operand
+
+Operand::Operand(Register base, int32_t disp): rex_(0) {
+  len_ = 1;
+  if (base.is(rsp) || base.is(r12)) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(times_1, rsp, base);
+  }
+
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    set_modrm(0, base);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
+    set_disp32(disp);
+  }
+}
+
+
+Operand::Operand(Register base,
+                 Register index,
+                 ScaleFactor scale,
+                 int32_t disp): rex_(0) {
+  ASSERT(!index.is(rsp));
+  len_ = 1;
+  set_sib(scale, index, base);
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+    // possibly set by set_sib.
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, rsp);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, rsp);
+    set_disp32(disp);
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
@@ -273,6 +301,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
+  ASSERT(desc->instr_size > 0);  // Zero-size code objects upset the system.
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
 
@@ -426,6 +455,17 @@ void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
 }
 
 
+void Assembler::arithmetic_op_32(byte opcode,
+                                 const Operand& dst,
+                                 Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(src, dst);
+  emit(opcode);
+  emit_operand(src, dst);
+}
+
+
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         Register dst,
                                         Immediate src) {
@@ -470,8 +510,8 @@ void Assembler::immediate_arithmetic_op_32(byte subcode,
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(dst);
-    emit(0x83);
   if (is_int8(src.value_)) {
+    emit(0x83);
     emit_modrm(subcode, dst);
     emit(src.value_);
   } else if (dst.is(rax)) {
@@ -564,6 +604,23 @@ void Assembler::shift_32(Register dst, int subcode) {
   emit_optional_rex_32(dst);
   emit(0xD3);
   emit_modrm(subcode, dst);
+}
+
+
+void Assembler::shift_32(Register dst, Immediate shift_amount, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  if (shift_amount.value_ == 1) {
+    emit_optional_rex_32(dst);
+    emit(0xD1);
+    emit_modrm(subcode, dst);
+  } else {
+    emit_optional_rex_32(dst);
+    emit(0xC1);
+    emit_modrm(subcode, dst);
+    emit(shift_amount.value_);
+  }
 }
 
 
@@ -747,6 +804,15 @@ void Assembler::idiv(Register src) {
   emit_rex_64(src);
   emit(0xF7);
   emit_modrm(0x7, src);
+}
+
+
+void Assembler::imul(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x5, src);
 }
 
 
@@ -1058,6 +1124,19 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
+  // Non-relocatable values might not need a 64-bit representation.
+  if (rmode == RelocInfo::NONE) {
+    // Sadly, there is no zero or sign extending move for 8-bit immediates.
+    if (is_int32(value)) {
+      movq(dst, Immediate(static_cast<int32_t>(value)));
+      return;
+    } else if (is_uint32(value)) {
+      movl(dst, Immediate(static_cast<int32_t>(value)));
+      return;
+    }
+    // Value cannot be represented by 32 bits, so do a full 64 bit immediate
+    // value.
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -1087,16 +1166,24 @@ void Assembler::movq(const Operand& dst, Immediate value) {
 
 
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  ASSERT(!Heap::InNewSpace(*value));
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  if (value->IsHeapObject()) {
-    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
+  // If there is no relocation info, emit the value of the handle efficiently
+  // (possibly using less that 8 bytes for the value).
+  if (mode == RelocInfo::NONE) {
+    // There is no possible reason to store a heap pointer without relocation
+    // info, so it must be a smi.
+    ASSERT(value->IsSmi());
+    // Smis never have more than 32 significant bits, but they might
+    // have garbage in the high bits.
+    movq(dst,
+         Immediate(static_cast<int32_t>(reinterpret_cast<intptr_t>(*value))));
   } else {
-    ASSERT_EQ(RelocInfo::NONE, mode);
-    emitq(reinterpret_cast<uintptr_t>(*value), RelocInfo::NONE);
+    EnsureSpace ensure_space(this);
+    last_pc_ = pc_;
+    ASSERT(value->IsHeapObject());
+    ASSERT(!Heap::InNewSpace(*value));
+    emit_rex_64(dst);
+    emit(0xB8 | dst.low_bits());
+    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
   }
 }
 
@@ -1439,7 +1526,7 @@ void Assembler::testb(Register reg, Immediate mask) {
   last_pc_ = pc_;
   if (reg.is(rax)) {
     emit(0xA8);
-    emit(mask);
+    emit(mask.value_);  // Low byte emitted.
   } else {
     if (reg.code() > 3) {
       // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
@@ -1460,6 +1547,15 @@ void Assembler::testb(const Operand& op, Immediate mask) {
   emit(0xF6);
   emit_operand(rax, op);  // Operation code 0
   emit(mask.value_);  // Low byte emitted.
+}
+
+
+void Assembler::testl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x85);
+  emit_modrm(dst, src);
 }
 
 
@@ -1551,6 +1647,7 @@ void Assembler::fldz() {
 void Assembler::fld_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xD9);
   emit_operand(0, adr);
 }
@@ -1559,6 +1656,7 @@ void Assembler::fld_s(const Operand& adr) {
 void Assembler::fld_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDD);
   emit_operand(0, adr);
 }
@@ -1567,6 +1665,7 @@ void Assembler::fld_d(const Operand& adr) {
 void Assembler::fstp_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xD9);
   emit_operand(3, adr);
 }
@@ -1575,6 +1674,7 @@ void Assembler::fstp_s(const Operand& adr) {
 void Assembler::fstp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDD);
   emit_operand(3, adr);
 }
@@ -1583,6 +1683,7 @@ void Assembler::fstp_d(const Operand& adr) {
 void Assembler::fild_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(0, adr);
 }
@@ -1591,6 +1692,7 @@ void Assembler::fild_s(const Operand& adr) {
 void Assembler::fild_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDF);
   emit_operand(5, adr);
 }
@@ -1599,6 +1701,7 @@ void Assembler::fild_d(const Operand& adr) {
 void Assembler::fistp_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(3, adr);
 }
@@ -1608,6 +1711,7 @@ void Assembler::fisttp_s(const Operand& adr) {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(1, adr);
 }
@@ -1616,6 +1720,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 void Assembler::fist_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(2, adr);
 }
@@ -1624,6 +1729,7 @@ void Assembler::fist_s(const Operand& adr) {
 void Assembler::fistp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDF);
   emit_operand(8, adr);
 }
@@ -1678,6 +1784,7 @@ void Assembler::fsub(int i) {
 void Assembler::fisub_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDA);
   emit_operand(4, adr);
 }
@@ -2001,11 +2108,11 @@ void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
 
 
 void Assembler::emit_sse_operand(XMMRegister dst, XMMRegister src) {
-  emit(0xC0 | (dst.code() << 3) | src.code());
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
 }
 
 void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
-  emit(0xC0 | (dst.code() << 3) | src.code());
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
 }
 
 

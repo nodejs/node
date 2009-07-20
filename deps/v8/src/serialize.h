@@ -320,10 +320,11 @@ class Deserializer: public ObjectVisitor {
   bool has_log_;  // The file has log information.
 
   // Resolve caches the following:
-  List<Page*> map_pages_;          // All pages in the map space.
+  List<Page*> map_pages_;  // All pages in the map space.
+  List<Page*> cell_pages_;  // All pages in the cell space.
   List<Page*> old_pointer_pages_;  // All pages in the old pointer space.
-  List<Page*> old_data_pages_;     // All pages in the old data space.
-  List<Page*> code_pages_;
+  List<Page*> old_data_pages_;  // All pages in the old data space.
+  List<Page*> code_pages_;  // All pages in the code space.
   List<Object*> large_objects_;    // All known large objects.
   // A list of global handles at deserialization time.
   List<Object**> global_handles_;

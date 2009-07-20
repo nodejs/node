@@ -34,7 +34,7 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     1
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      10
+#define BUILD_NUMBER      14
 #define PATCH_LEVEL       0
 #define CANDIDATE_VERSION false
 

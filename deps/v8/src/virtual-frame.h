@@ -37,6 +37,8 @@
 #include "x64/virtual-frame-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/virtual-frame-arm.h"
+#else
+#error Unsupported target architecture.
 #endif
 
 #endif  // V8_VIRTUAL_FRAME_H_

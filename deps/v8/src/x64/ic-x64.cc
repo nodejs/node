@@ -212,11 +212,9 @@ void CallIC::Generate(MacroAssembler* masm,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
   __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &invoke);
-  __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ movzxbq(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
-  __ cmpq(rcx, Immediate(static_cast<int8_t>(JS_GLOBAL_OBJECT_TYPE)));
+  __ CmpObjectType(rdx, JS_GLOBAL_OBJECT_TYPE, rcx);
   __ j(equal, &global);
-  __ cmpq(rcx, Immediate(static_cast<int8_t>(JS_BUILTINS_OBJECT_TYPE)));
+  __ CmpInstanceType(rcx, JS_BUILTINS_OBJECT_TYPE);
   __ j(not_equal, &invoke);
 
   // Patch the receiver on the stack.

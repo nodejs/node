@@ -38,12 +38,12 @@ assertTrue(this === f0.apply(), "1-0");
 assertTrue(this === f0.apply(this), "2a");
 assertTrue(this === f0.apply(this, new Array(1)), "2b");
 assertTrue(this === f0.apply(this, new Array(2)), "2c");
-assertTrue(this === f0.apply(this, new Array(4242)), "2c");
+assertTrue(this === f0.apply(this, new Array(4242)), "2d");
 
 assertTrue(this === f0.apply(null), "3a");
 assertTrue(this === f0.apply(null, new Array(1)), "3b");
 assertTrue(this === f0.apply(null, new Array(2)), "3c");
-assertTrue(this === f0.apply(this, new Array(4242)), "2c");
+assertTrue(this === f0.apply(this, new Array(4242)), "3d");
 
 assertTrue(this === f0.apply(void 0), "4a");
 assertTrue(this === f0.apply(void 0, new Array(1)), "4b");
@@ -51,26 +51,26 @@ assertTrue(this === f0.apply(void 0, new Array(2)), "4c");
 
 assertTrue(void 0 === f1.apply(), "1-1");
 
-assertTrue(void 0 === f1.apply(this), "2a");
-assertTrue(void 0 === f1.apply(this, new Array(1)), "2b");
-assertTrue(void 0 === f1.apply(this, new Array(2)), "2c");
-assertTrue(void 0 === f1.apply(this, new Array(4242)), "2c");
-assertTrue(42 === f1.apply(this, new Array(42, 43)), "2c");
-assertEquals("foo", f1.apply(this, new Array("foo", "bar", "baz", "boo")), "2c");
+assertTrue(void 0 === f1.apply(this), "5a");
+assertTrue(void 0 === f1.apply(this, new Array(1)), "5b");
+assertTrue(void 0 === f1.apply(this, new Array(2)), "5c");
+assertTrue(void 0 === f1.apply(this, new Array(4242)), "5d");
+assertTrue(42 === f1.apply(this, new Array(42, 43)), "5e");
+assertEquals("foo", f1.apply(this, new Array("foo", "bar", "baz", "bo")), "5f");
 
-assertTrue(void 0 === f1.apply(null), "3a");
-assertTrue(void 0 === f1.apply(null, new Array(1)), "3b");
-assertTrue(void 0 === f1.apply(null, new Array(2)), "3c");
-assertTrue(void 0 === f1.apply(null, new Array(4242)), "2c");
-assertTrue(42 === f1.apply(null, new Array(42, 43)), "2c");
-assertEquals("foo", f1.apply(null, new Array("foo", "bar", "baz", "boo")), "2c");
+assertTrue(void 0 === f1.apply(null), "6a");
+assertTrue(void 0 === f1.apply(null, new Array(1)), "6b");
+assertTrue(void 0 === f1.apply(null, new Array(2)), "6c");
+assertTrue(void 0 === f1.apply(null, new Array(4242)), "6d");
+assertTrue(42 === f1.apply(null, new Array(42, 43)), "6e");
+assertEquals("foo", f1.apply(null, new Array("foo", "bar", "baz", "bo")), "6f");
 
-assertTrue(void 0 === f1.apply(void 0), "4a");
-assertTrue(void 0 === f1.apply(void 0, new Array(1)), "4b");
-assertTrue(void 0 === f1.apply(void 0, new Array(2)), "4c");
-assertTrue(void 0 === f1.apply(void 0, new Array(4242)), "4c");
-assertTrue(42 === f1.apply(void 0, new Array(42, 43)), "2c");
-assertEquals("foo", f1.apply(void 0, new Array("foo", "bar", "baz", "boo")), "2c");
+assertTrue(void 0 === f1.apply(void 0), "7a");
+assertTrue(void 0 === f1.apply(void 0, new Array(1)), "7b");
+assertTrue(void 0 === f1.apply(void 0, new Array(2)), "7c");
+assertTrue(void 0 === f1.apply(void 0, new Array(4242)), "7d");
+assertTrue(42 === f1.apply(void 0, new Array(42, 43)), "7e");
+assertEquals("foo", f1.apply(void 0, new Array("foo", "bar", "ba", "b")), "7f");
 
 var arr = new Array(42, "foo", "fish", "horse");
 function j(a, b, c, d, e, f, g, h, i, j, k, l) {
@@ -81,7 +81,7 @@ function j(a, b, c, d, e, f, g, h, i, j, k, l) {
 var expect = "42foofishhorse";
 for (var i = 0; i < 8; i++)
   expect += "undefined";
-assertEquals(expect, j.apply(undefined, arr));
+assertEquals(expect, j.apply(undefined, arr), "apply to undefined");
 
 assertThrows("f0.apply(this, 1);");
 assertThrows("f0.apply(this, 1, 2);");
@@ -95,7 +95,7 @@ function f() {
   return doo;
 }
   
-assertEquals("42foofishhorse", f.apply(this, arr));
+assertEquals("42foofishhorse", f.apply(this, arr), "apply to this");
 
 function s() {
   var doo = this;
@@ -105,7 +105,7 @@ function s() {
   return doo;
 }
 
-assertEquals("bar42foofishhorse", s.apply("bar", arr));
+assertEquals("bar42foofishhorse", s.apply("bar", arr), "apply to string");
 
 function al() {
   assertEquals(345, this);
@@ -118,19 +118,24 @@ for (var j = 1; j < 0x40000000; j <<= 1) {
     a[j - 1] = 42;
     assertEquals(42 + j, al.apply(345, a));
   } catch (e) {
-    assertTrue(e.toString().indexOf("Function.prototype.apply") != -1);
+    assertTrue(e.toString().indexOf("Function.prototype.apply") != -1,
+              "exception does not contain Function.prototype.apply: " +
+                  e.toString());
     for (; j < 0x40000000; j <<= 1) {
       var caught = false;
       try {
         a = new Array(j);
         a[j - 1] = 42;
         al.apply(345, a);
-        assertEquals("Shouldn't get", "here");
+        assertUnreachable("Apply of arrray with length " + a.length +
+                          " should have thrown");
       } catch (e) {
-        assertTrue(e.toString().indexOf("Function.prototype.apply") != -1);
+        assertTrue(e.toString().indexOf("Function.prototype.apply") != -1,
+                   "exception does not contain Function.prototype.apply [" +
+                   "length = " + j + "]: " + e.toString());
         caught = true;
       }
-      assertTrue(caught);
+      assertTrue(caught, "exception not caught");
     }
     break;
   }
@@ -160,8 +165,8 @@ assertEquals(1229, primes.length);
 var same_primes = Array.prototype.constructor.apply(Array, primes);
 
 for (var i = 0; i < primes.length; i++)
-  assertEquals(primes[i], same_primes[i]);
-assertEquals(primes.length, same_primes.length);
+  assertEquals(primes[i], same_primes[i], "prime" + primes[i]);
+assertEquals(primes.length, same_primes.length, "prime-length");
 
 
 Array.prototype["1"] = "sep";
@@ -170,15 +175,22 @@ var holey = new Array(3);
 holey[0] = "mor";
 holey[2] = "er";
 
-assertEquals("morseper", String.prototype.concat.apply("", holey));
-assertEquals("morseper", String.prototype.concat.apply("", holey, 1));
-assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2));
-assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2, 3));
-assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2, 3, 4));
+assertEquals("morseper", String.prototype.concat.apply("", holey),
+             "moreseper0");
+assertEquals("morseper", String.prototype.concat.apply("", holey, 1),
+             "moreseper1");
+assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2),
+             "moreseper2");
+assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2, 3),
+             "morseper3");
+assertEquals("morseper", String.prototype.concat.apply("", holey, 1, 2, 3, 4),
+             "morseper4");
 
 primes[0] = "";
 primes[1] = holey;
 assertThrows("String.prototype.concat.apply.apply('foo', primes)");
-assertEquals("morseper", String.prototype.concat.apply.apply(String.prototype.concat, primes));
+assertEquals("morseper",
+    String.prototype.concat.apply.apply(String.prototype.concat, primes), 
+    "moreseper-prime");
 
 delete(Array.prototype["1"]);

@@ -152,7 +152,9 @@ void HeapObject::HeapObjectPrint() {
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint();
       break;
-
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint();
+      break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print();       \
@@ -214,6 +216,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_BUILTINS_OBJECT_TYPE:
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
       break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellVerify();
+      break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
@@ -266,29 +271,38 @@ void ByteArray::ByteArrayVerify() {
 
 void JSObject::PrintProperties() {
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PrintF("   ");
-      r.GetKey()->StringPrint();
+      descs->GetKey(i)->StringPrint();
       PrintF(": ");
-      if (r.type() == FIELD) {
-        FastPropertyAt(r.GetFieldIndex())->ShortPrint();
-        PrintF(" (field at offset %d)\n", r.GetFieldIndex());
-      } else if (r.type() ==  CONSTANT_FUNCTION) {
-        r.GetConstantFunction()->ShortPrint();
-        PrintF(" (constant function)\n");
-      } else if (r.type() == CALLBACKS) {
-        r.GetCallbacksObject()->ShortPrint();
-        PrintF(" (callback)\n");
-      } else if (r.type() == MAP_TRANSITION) {
-        PrintF(" (map transition)\n");
-      } else if (r.type() == CONSTANT_TRANSITION) {
-        PrintF(" (constant transition)\n");
-      } else if (r.type() == NULL_DESCRIPTOR) {
-        PrintF(" (null descriptor)\n");
-      } else {
-        UNREACHABLE();
+      switch (descs->GetType(i)) {
+        case FIELD: {
+          int index = descs->GetFieldIndex(i);
+          FastPropertyAt(index)->ShortPrint();
+          PrintF(" (field at offset %d)\n", index);
+          break;
+        }
+        case CONSTANT_FUNCTION:
+          descs->GetConstantFunction(i)->ShortPrint();
+          PrintF(" (constant function)\n");
+          break;
+        case CALLBACKS:
+          descs->GetCallbacksObject(i)->ShortPrint();
+          PrintF(" (callback)\n");
+          break;
+        case MAP_TRANSITION:
+          PrintF(" (map transition)\n");
+          break;
+        case CONSTANT_TRANSITION:
+          PrintF(" (constant transition)\n");
+          break;
+        case NULL_DESCRIPTOR:
+          PrintF(" (null descriptor)\n");
+          break;
+        default:
+          UNREACHABLE();
+          break;
       }
     }
   } else {
@@ -392,6 +406,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
     case ODDBALL_TYPE: return "ODDBALL";
+    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
@@ -427,6 +442,9 @@ void Map::MapPrint() {
   }
   if (is_undetectable()) {
     PrintF(" - undetectable\n");
+  }
+  if (needs_loading()) {
+    PrintF(" - needs_loading\n");
   }
   if (has_instance_call_handler()) {
     PrintF(" - instance_call_handler\n");
@@ -653,6 +671,17 @@ void Oddball::OddballVerify() {
 }
 
 
+void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
+  CHECK(IsJSGlobalPropertyCell());
+  VerifyObjectField(kValueOffset);
+}
+
+
+void JSGlobalPropertyCell::JSGlobalPropertyCellPrint() {
+  HeapObject::PrintHeader("JSGlobalPropertyCell");
+}
+
+
 void Code::CodePrint() {
   HeapObject::PrintHeader("Code");
 #ifdef ENABLE_DISASSEMBLER
@@ -694,7 +723,7 @@ void JSRegExp::JSRegExpVerify() {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool is_native = RegExpImpl::UseNativeRegexp();
+      bool is_native = RegExpImpl::UsesNativeRegExp();
 
       FixedArray* arr = FixedArray::cast(data());
       Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
@@ -722,25 +751,6 @@ void Proxy::ProxyPrint() {
 
 void Proxy::ProxyVerify() {
   ASSERT(IsProxy());
-}
-
-
-void Dictionary::Print() {
-  int capacity = Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      PrintF(" ");
-      if (k->IsString()) {
-        String::cast(k)->StringPrint();
-      } else {
-        k->ShortPrint();
-      }
-      PrintF(": ");
-      ValueAt(i)->ShortPrint();
-      PrintF("\n");
-    }
-  }
 }
 
 
@@ -997,7 +1007,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else {
-    Dictionary* dict = property_dictionary();
+    StringDictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1014,7 +1024,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_elements_   += len - holes;
     info->number_of_fast_unused_elements_ += holes;
   } else {
-    Dictionary* dict = element_dictionary();
+    NumberDictionary* dict = element_dictionary();
     info->number_of_slow_used_elements_ += dict->NumberOfElements();
     info->number_of_slow_unused_elements_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1061,11 +1071,10 @@ void JSObject::SpillInformation::Print() {
 
 void DescriptorArray::PrintDescriptors() {
   PrintF("Descriptor array  %d\n", number_of_descriptors());
-  int number = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    PrintF(" %d: ", i);
     Descriptor desc;
-    r.Get(&desc);
-    PrintF(" %d: ", number++);
+    Get(i, &desc);
     desc.Print();
   }
   PrintF("\n");
@@ -1075,14 +1084,14 @@ void DescriptorArray::PrintDescriptors() {
 bool DescriptorArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    String* key = r.GetKey();
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    String* key = GetKey(i);
     if (key == current_key) {
       PrintDescriptors();
       return false;
     }
     current_key = key;
-    uint32_t hash = r.GetKey()->Hash();
+    uint32_t hash = GetKey(i)->Hash();
     if (hash < current) {
       PrintDescriptors();
       return false;

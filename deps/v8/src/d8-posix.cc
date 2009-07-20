@@ -370,7 +370,11 @@ static Handle<Value> GetStdout(int child_fd,
 // whether it exited normally.  In the common case this doesn't matter because
 // we don't get here before the child has closed stdout and most programs don't
 // do that before they exit.
-#if defined(WNOWAIT) && !defined(ANDROID)
+//
+// We're disabling usage of waitid in Mac OS X because it doens't work for us:
+// a parent process hangs on waiting while a child process is already a zombie.
+// See http://code.google.com/p/v8/issues/detail?id=401.
+#if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__)
 #define HAS_WAITID 1
 #endif
 

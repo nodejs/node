@@ -57,7 +57,7 @@ function run() {
     var threw = false;
     try {
       decodeURI(value);
-      fail(value);
+      assertUnreachable(value);
     } catch (e) {
       assertInstanceof(e, URIError);
     }

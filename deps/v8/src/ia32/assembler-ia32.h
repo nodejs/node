@@ -544,15 +544,18 @@ class Assembler : public Malloced {
 
   void idiv(Register src);
 
-  void imul(Register dst, const Operand& src);
-  void imul(Register dst, Register src, int32_t imm32);
+  // Signed multiply instructions.
+  void imul(Register src);                               // edx:eax = eax * src.
+  void imul(Register dst, const Operand& src);           // dst = dst * src.
+  void imul(Register dst, Register src, int32_t imm32);  // dst = src * imm32.
 
   void inc(Register dst);
   void inc(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
 
-  void mul(Register src);
+  // Unsigned multiply instruction.
+  void mul(Register src);                                // edx:eax = eax * reg.
 
   void neg(Register dst);
 

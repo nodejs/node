@@ -41,6 +41,7 @@
 #include "disassembler.h"
 #endif
 
+
 namespace v8 {
 namespace internal {
 
@@ -138,7 +139,7 @@ void Object::Lookup(String* name, LookupResult* result) {
   } else if (IsBoolean()) {
     holder = global_context->boolean_function()->instance_prototype();
   }
-  ASSERT(holder != NULL);  // cannot handle null or undefined.
+  ASSERT(holder != NULL);  // Cannot handle null or undefined.
   JSObject::cast(holder)->Lookup(name, result);
 }
 
@@ -399,6 +400,94 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result,
 }
 
 
+Object* JSObject::GetNormalizedProperty(LookupResult* result) {
+  ASSERT(!HasFastProperties());
+  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
+  if (IsGlobalObject()) {
+    value = JSGlobalPropertyCell::cast(value)->value();
+  }
+  ASSERT(!value->IsJSGlobalPropertyCell());
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
+  ASSERT(!HasFastProperties());
+  if (IsGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(
+            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    cell->set_value(value);
+  } else {
+    property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
+  }
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(String* name,
+                                        Object* value,
+                                        PropertyDetails details) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindEntry(name);
+  if (entry == StringDictionary::kNotFound) {
+    Object* store_value = value;
+    if (IsGlobalObject()) {
+      store_value = Heap::AllocateJSGlobalPropertyCell(value);
+      if (store_value->IsFailure()) return store_value;
+    }
+    Object* dict = property_dictionary()->Add(name, store_value, details);
+    if (dict->IsFailure()) return dict;
+    set_properties(StringDictionary::cast(dict));
+    return value;
+  }
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            property_dictionary()->DetailsAt(entry).index());
+  if (IsGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    cell->set_value(value);
+    // Please note we have to update the property details.
+    property_dictionary()->DetailsAtPut(entry, details);
+  } else {
+    property_dictionary()->SetEntry(entry, name, value, details);
+  }
+  return value;
+}
+
+
+Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
+  ASSERT(!HasFastProperties());
+  StringDictionary* dictionary = property_dictionary();
+  int entry = dictionary->FindEntry(name);
+  if (entry != StringDictionary::kNotFound) {
+    // If we have a global object set the cell to the hole.
+    if (IsGlobalObject()) {
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.IsDontDelete()) {
+        if (mode != FORCE_DELETION) return Heap::false_value();
+        // When forced to delete global properties, we have to make a
+        // map change to invalidate any ICs that think they can load
+        // from the DontDelete cell without checking if it contains
+        // the hole value.
+        Object* new_map = map()->CopyDropDescriptors();
+        if (new_map->IsFailure()) return new_map;
+        set_map(Map::cast(new_map));
+      }
+      JSGlobalPropertyCell* cell =
+          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      cell->set_value(Heap::the_hole_value());
+      dictionary->DetailsAtPut(entry, details.AsDeleted());
+    } else {
+      return dictionary->DeleteProperty(entry, mode);
+    }
+  }
+  return Heap::true_value();
+}
+
+
 Object* Object::GetProperty(Object* receiver,
                             LookupResult* result,
                             String* name,
@@ -449,8 +538,7 @@ Object* Object::GetProperty(Object* receiver,
   JSObject* holder = result->holder();
   switch (result->type()) {
     case NORMAL:
-      value =
-          holder->property_dictionary()->ValueAt(result->GetDictionaryEntry());
+      value = holder->GetNormalizedProperty(result);
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case FIELD:
@@ -949,6 +1037,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case PROXY_TYPE:
       accumulator->Add("<Proxy>");
       break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      accumulator->Add("Cell for ");
+      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
       break;
@@ -1041,6 +1133,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
+      break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      reinterpret_cast<JSGlobalPropertyCell*>(this)
+          ->JSGlobalPropertyCellIterateBody(v);
       break;
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
@@ -1250,12 +1346,31 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
-  PropertyDetails details = PropertyDetails(attributes, NORMAL);
-  Object* result = property_dictionary()->AddStringEntry(name, value, details);
-  if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
-     set_properties(Dictionary::cast(result));
+  ASSERT(!HasFastProperties());
+  StringDictionary* dict = property_dictionary();
+  Object* store_value = value;
+  if (IsGlobalObject()) {
+    // In case name is an orphaned property reuse the cell.
+    int entry = dict->FindEntry(name);
+    if (entry != StringDictionary::kNotFound) {
+      store_value = dict->ValueAt(entry);
+      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      // Assign an enumeration index to the property and update
+      // SetNextEnumerationIndex.
+      int index = dict->NextEnumerationIndex();
+      PropertyDetails details = PropertyDetails(attributes, NORMAL, index);
+      dict->SetNextEnumerationIndex(index + 1);
+      dict->SetEntry(entry, name, store_value, details);
+      return value;
+    }
+    store_value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (store_value->IsFailure()) return store_value;
+    JSGlobalPropertyCell::cast(store_value)->set_value(value);
   }
+  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  Object* result = dict->Add(name, store_value, details);
+  if (result->IsFailure()) return result;
+  if (dict != result) set_properties(StringDictionary::cast(result));
   return value;
 }
 
@@ -1301,8 +1416,8 @@ Object* JSObject::SetPropertyPostInterceptor(String* name,
 Object* JSObject::ReplaceSlowProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
-  Dictionary* dictionary = property_dictionary();
-  int old_index = dictionary->FindStringEntry(name);
+  StringDictionary* dictionary = property_dictionary();
+  int old_index = dictionary->FindEntry(name);
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
   if (old_index != -1) {
     // All calls to ReplaceSlowProperty have had all transitions removed.
@@ -1311,13 +1426,7 @@ Object* JSObject::ReplaceSlowProperty(String* name,
   }
 
   PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
-  Object* result =
-      dictionary->SetOrAddStringEntry(name, value, new_details);
-  if (result->IsFailure()) return result;
-  if (dictionary != result) {
-    set_properties(Dictionary::cast(result));
-  }
-  return value;
+  return SetNormalizedProperty(name, value, new_details);
 }
 
 Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
@@ -1523,6 +1632,7 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
   return *value_handle;
 }
 
+
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
   for (Object* pt = GetPrototype();
@@ -1548,9 +1658,9 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
        pt != Heap::null_value();
        pt = pt->GetPrototype()) {
     if (JSObject::cast(pt)->HasFastElements()) continue;
-    Dictionary* dictionary = JSObject::cast(pt)->element_dictionary();
-    int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -1600,18 +1710,26 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       return;
     }
   } else {
-    int entry = property_dictionary()->FindStringEntry(name);
-    if (entry != DescriptorArray::kNotFound) {
+    int entry = property_dictionary()->FindEntry(name);
+    if (entry != StringDictionary::kNotFound) {
+      Object* value = property_dictionary()->ValueAt(entry);
+      if (IsGlobalObject()) {
+        PropertyDetails d = property_dictionary()->DetailsAt(entry);
+        if (d.IsDeleted()) {
+          result->NotFound();
+          return;
+        }
+        value = JSGlobalPropertyCell::cast(value)->value();
+        ASSERT(result->IsLoaded());
+      }
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
-      if (property_dictionary()->ValueAt(entry)->IsTheHole()) {
-        result->DisallowCaching();
-      }
+      if (value->IsTheHole()) result->DisallowCaching();
       result->DictionaryResult(this, entry);
       return;
     }
     // Slow case object skipped during lookup. Do not use inline caching.
-    result->DisallowCaching();
+    if (!IsGlobalObject()) result->DisallowCaching();
   }
   result->NotFound();
 }
@@ -1736,8 +1854,7 @@ Object* JSObject::SetProperty(LookupResult* result,
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -1753,7 +1870,7 @@ Object* JSObject::SetProperty(LookupResult* result,
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1816,11 +1933,10 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
-  //  Check of IsReadOnly removed from here in clone.
+  // Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -1836,7 +1952,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
       // Override callback in clone
@@ -1995,40 +2111,51 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
 
   // Allocate new content
   Object* obj =
-      Dictionary::Allocate(map()->NumberOfDescribedProperties() * 2 + 4);
+      StringDictionary::Allocate(map()->NumberOfDescribedProperties() * 2 + 4);
   if (obj->IsFailure()) return obj;
-  Dictionary* dictionary = Dictionary::cast(obj);
+  StringDictionary* dictionary = StringDictionary::cast(obj);
 
-  for (DescriptorReader r(map()->instance_descriptors());
-       !r.eos();
-       r.advance()) {
-    PropertyDetails details = r.GetDetails();
+  DescriptorArray* descs = map()->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = r.GetConstantFunction();
-        Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
+        Object* value = descs->GetConstantFunction(i);
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
-        dictionary = Dictionary::cast(result);
+        dictionary = StringDictionary::cast(result);
         break;
       }
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = FastPropertyAt(r.GetFieldIndex());
-        Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
+        Object* value = FastPropertyAt(descs->GetFieldIndex(i));
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
-        dictionary = Dictionary::cast(result);
+        dictionary = StringDictionary::cast(result);
         break;
       }
       case CALLBACKS: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
-        Object* value = r.GetCallbacksObject();
-        Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
+        Object* value = descs->GetCallbacksObject(i);
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
-        dictionary = Dictionary::cast(result);
+        dictionary = StringDictionary::cast(result);
         break;
       }
       case MAP_TRANSITION:
@@ -2085,8 +2212,9 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
 
 Object* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
+  ASSERT(!IsGlobalObject());
   return property_dictionary()->
-    TransformPropertiesToFastFor(this, unused_property_fields);
+      TransformPropertiesToFastFor(this, unused_property_fields);
 }
 
 
@@ -2100,9 +2228,9 @@ Object* JSObject::NormalizeElements() {
   int length = IsJSArray() ?
                Smi::cast(JSArray::cast(this)->length())->value() :
                array->length();
-  Object* obj = Dictionary::Allocate(length);
+  Object* obj = NumberDictionary::Allocate(length);
   if (obj->IsFailure()) return obj;
-  Dictionary* dictionary = Dictionary::cast(obj);
+  NumberDictionary* dictionary = NumberDictionary::cast(obj);
   // Copy entries.
   for (int i = 0; i < length; i++) {
     Object* value = array->get(i);
@@ -2110,7 +2238,7 @@ Object* JSObject::NormalizeElements() {
       PropertyDetails details = PropertyDetails(NONE, NORMAL);
       Object* result = dictionary->AddNumberEntry(i, array->get(i), details);
       if (result->IsFailure()) return result;
-      dictionary = Dictionary::cast(result);
+      dictionary = NumberDictionary::cast(result);
     }
   }
   // Switch to using the dictionary as the backing storage for elements.
@@ -2139,12 +2267,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (obj->IsFailure()) return obj;
 
-  ASSERT(!HasFastProperties());
-  // Attempt to remove the property from the property dictionary.
-  Dictionary* dictionary = property_dictionary();
-  int entry = dictionary->FindStringEntry(name);
-  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
-  return Heap::true_value();
+  return DeleteNormalizedProperty(name, mode);
 }
 
 
@@ -2192,9 +2315,11 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
     return Heap::true_value();
   }
   ASSERT(!HasFastElements());
-  Dictionary* dictionary = element_dictionary();
-  int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
+  NumberDictionary* dictionary = element_dictionary();
+  int entry = dictionary->FindEntry(index);
+  if (entry != NumberDictionary::kNotFound) {
+    return dictionary->DeleteProperty(entry, mode);
+  }
   return Heap::true_value();
 }
 
@@ -2264,9 +2389,11 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     }
     return Heap::true_value();
   } else {
-    Dictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
+    NumberDictionary* dictionary = element_dictionary();
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
+      return dictionary->DeleteProperty(entry, mode);
+    }
   }
   return Heap::true_value();
 }
@@ -2318,10 +2445,7 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     // Make sure the properties are normalized before removing the entry.
-    Dictionary* dictionary = property_dictionary();
-    int entry = dictionary->FindStringEntry(name);
-    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
-    return Heap::true_value();
+    return DeleteNormalizedProperty(name, mode);
   }
 }
 
@@ -2443,35 +2567,44 @@ bool JSObject::IsSimpleEnum() {
 
 int Map::NumberOfDescribedProperties() {
   int result = 0;
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.IsProperty()) result++;
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->IsProperty(i)) result++;
   }
   return result;
 }
 
 
 int Map::PropertyIndexFor(String* name) {
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name) && !r.IsNullDescriptor()) return r.GetFieldIndex();
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (name->Equals(descs->GetKey(i)) && !descs->IsNullDescriptor(i)) {
+      return descs->GetFieldIndex(i);
+    }
   }
   return -1;
 }
 
 
 int Map::NextFreePropertyIndex() {
-  int index = -1;
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.type() == FIELD) {
-      if (r.GetFieldIndex() > index) index = r.GetFieldIndex();
+  int max_index = -1;
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->GetType(i) == FIELD) {
+      int current_index = descs->GetFieldIndex(i);
+      if (current_index > max_index) max_index = current_index;
     }
   }
-  return index+1;
+  return max_index + 1;
 }
 
 
 AccessorDescriptor* Map::FindAccessor(String* name) {
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name) && r.type() == CALLBACKS) return r.GetCallbacks();
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (name->Equals(descs->GetKey(i)) && descs->GetType(i) == CALLBACKS) {
+      return descs->GetCallbacks(i);
+    }
   }
   return NULL;
 }
@@ -2572,9 +2705,9 @@ Object* JSObject::DefineGetterSetter(String* name,
   if (is_element) {
     // Lookup the index.
     if (!HasFastElements()) {
-      Dictionary* dictionary = element_dictionary();
-      int entry = dictionary->FindNumberEntry(index);
-      if (entry != -1) {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
         Object* result = dictionary->ValueAt(entry);
         PropertyDetails details = dictionary->DetailsAt(entry);
         if (details.IsReadOnly()) return Heap::undefined_value();
@@ -2610,26 +2743,29 @@ Object* JSObject::DefineGetterSetter(String* name,
 
     // Update the dictionary with the new CALLBACKS property.
     Object* dict =
-        element_dictionary()->SetOrAddNumberEntry(index, structure, details);
+        element_dictionary()->Set(index, structure, details);
     if (dict->IsFailure()) return dict;
 
     // If name is an index we need to stay in slow case.
-    Dictionary* elements = Dictionary::cast(dict);
+    NumberDictionary* elements = NumberDictionary::cast(dict);
     elements->set_requires_slow_elements();
     // Set the potential new dictionary on the object.
-    set_elements(Dictionary::cast(dict));
+    set_elements(NumberDictionary::cast(dict));
   } else {
     // Normalize object to make this operation simple.
     Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (ok->IsFailure()) return ok;
 
-    // Update the dictionary with the new CALLBACKS property.
-    Object* dict =
-        property_dictionary()->SetOrAddStringEntry(name, structure, details);
-    if (dict->IsFailure()) return dict;
+    // For the global object allocate a new map to invalidate the global inline
+    // caches which have a global property cell reference directly in the code.
+    if (IsGlobalObject()) {
+      Object* new_map = map()->CopyDropDescriptors();
+      if (new_map->IsFailure()) return new_map;
+      set_map(Map::cast(new_map));
+    }
 
-    // Set the potential new dictionary on the object.
-    set_properties(Dictionary::cast(dict));
+    // Update the dictionary with the new CALLBACKS property.
+    return SetNormalizedProperty(name, structure, details);
   }
 
   return structure;
@@ -2681,9 +2817,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
          obj = JSObject::cast(obj)->GetPrototype()) {
       JSObject* jsObject = JSObject::cast(obj);
       if (!jsObject->HasFastElements()) {
-        Dictionary* dictionary = jsObject->element_dictionary();
-        int entry = dictionary->FindNumberEntry(index);
-        if (entry != -1) {
+        NumberDictionary* dictionary = jsObject->element_dictionary();
+        int entry = dictionary->FindEntry(index);
+        if (entry != NumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           PropertyDetails details = dictionary->DetailsAt(entry);
           if (details.type() == CALLBACKS) {
@@ -2716,16 +2852,15 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
 Object* JSObject::SlowReverseLookup(Object* value) {
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      if (r.type() == FIELD) {
-        if (FastPropertyAt(r.GetFieldIndex()) == value) {
-          return r.GetKey();
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->GetType(i) == FIELD) {
+        if (FastPropertyAt(descs->GetFieldIndex(i)) == value) {
+          return descs->GetKey(i);
         }
-      } else if (r.type() == CONSTANT_FUNCTION) {
-        if (r.GetConstantFunction() == value) {
-          return r.GetKey();
+      } else if (descs->GetType(i) == CONSTANT_FUNCTION) {
+        if (descs->GetConstantFunction(i) == value) {
+          return descs->GetKey(i);
         }
       }
     }
@@ -2886,7 +3021,7 @@ Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
     return UnionOfKeys(array->elements());
   }
   ASSERT(!array->HasFastElements());
-  Dictionary* dict = array->element_dictionary();
+  NumberDictionary* dict = array->element_dictionary();
   int size = dict->NumberOfElements();
 
   // Allocate a temporary fixed array.
@@ -3039,13 +3174,13 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int transitions = 0;
   int null_descriptors = 0;
   if (remove_transitions) {
-    for (DescriptorReader r(this); !r.eos(); r.advance()) {
-      if (r.IsTransition()) transitions++;
-      if (r.IsNullDescriptor()) null_descriptors++;
+    for (int i = 0; i < number_of_descriptors(); i++) {
+      if (IsTransition(i)) transitions++;
+      if (IsNullDescriptor(i)) null_descriptors++;
     }
   } else {
-    for (DescriptorReader r(this); !r.eos(); r.advance()) {
-      if (r.IsNullDescriptor()) null_descriptors++;
+    for (int i = 0; i < number_of_descriptors(); i++) {
+      if (IsNullDescriptor(i)) null_descriptors++;
     }
   }
   int new_size = number_of_descriptors() - transitions - null_descriptors;
@@ -3093,32 +3228,31 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   // Copy the descriptors, filtering out transitions and null descriptors,
   // and inserting or replacing a descriptor.
-  DescriptorWriter w(new_descriptors);
-  DescriptorReader r(this);
   uint32_t descriptor_hash = descriptor->GetKey()->Hash();
+  int from_index = 0;
+  int to_index = 0;
 
-  for (; !r.eos(); r.advance()) {
-    if (r.GetKey()->Hash() > descriptor_hash ||
-        r.GetKey() == descriptor->GetKey()) break;
-    if (r.IsNullDescriptor()) continue;
-    if (remove_transitions && r.IsTransition()) continue;
-    w.WriteFrom(&r);
+  for (; from_index < number_of_descriptors(); from_index++) {
+    String* key = GetKey(from_index);
+    if (key->Hash() > descriptor_hash || key == descriptor->GetKey()) {
+      break;
+    }
+    if (IsNullDescriptor(from_index)) continue;
+    if (remove_transitions && IsTransition(from_index)) continue;
+    new_descriptors->CopyFrom(to_index++, this, from_index);
   }
-  w.Write(descriptor);
-  if (replacing) {
-    ASSERT(r.GetKey() == descriptor->GetKey());
-    r.advance();
-  } else {
-    ASSERT(r.eos() ||
-           r.GetKey()->Hash() > descriptor_hash ||
-           r.IsNullDescriptor());
+
+  new_descriptors->Set(to_index++, descriptor);
+  if (replacing) from_index++;
+
+  for (; from_index < number_of_descriptors(); from_index++) {
+    if (IsNullDescriptor(from_index)) continue;
+    if (remove_transitions && IsTransition(from_index)) continue;
+    new_descriptors->CopyFrom(to_index++, this, from_index);
   }
-  for (; !r.eos(); r.advance()) {
-    if (r.IsNullDescriptor()) continue;
-    if (remove_transitions && r.IsTransition()) continue;
-    w.WriteFrom(&r);
-  }
-  ASSERT(w.eos());
+
+  ASSERT(to_index == new_descriptors->number_of_descriptors());
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
   return new_descriptors;
 }
@@ -3131,8 +3265,8 @@ Object* DescriptorArray::RemoveTransitions() {
 
   // Compute the size of the map transition entries to be removed.
   int num_removed = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (!r.IsProperty()) num_removed++;
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    if (!IsProperty(i)) num_removed++;
   }
 
   // Allocate the new descriptor array.
@@ -3141,11 +3275,11 @@ Object* DescriptorArray::RemoveTransitions() {
   DescriptorArray* new_descriptors = DescriptorArray::cast(result);
 
   // Copy the content.
-  DescriptorWriter w(new_descriptors);
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.IsProperty()) w.WriteFrom(&r);
+  int next_descriptor = 0;
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    if (IsProperty(i)) new_descriptors->CopyFrom(next_descriptor++, this, i);
   }
-  ASSERT(w.eos());
+  ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
 
   return new_descriptors;
 }
@@ -3974,6 +4108,11 @@ void ConsString::ConsStringIterateBody(ObjectVisitor* v) {
 }
 
 
+void JSGlobalPropertyCell::JSGlobalPropertyCellIterateBody(ObjectVisitor* v) {
+  IteratePointers(v, kValueOffset, kValueOffset + kPointerSize);
+}
+
+
 uint16_t ConsString::ConsStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
 
@@ -4447,10 +4586,10 @@ void String::PrintOn(FILE* file) {
 
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
-  for (DescriptorReader r(descriptors); !r.eos(); r.advance()) {
-    if (r.type() == MAP_TRANSITION) {
+  for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
+    if (descriptors->GetType(i) == MAP_TRANSITION) {
       // Get target.
-      Map* target = Map::cast(r.GetValue());
+      Map* target = Map::cast(descriptors->GetValue(i));
 #ifdef DEBUG
       // Verify target.
       Object* source_prototype = prototype();
@@ -4461,7 +4600,7 @@ void Map::CreateBackPointers() {
       ASSERT(target_prototype->IsJSObject() ||
              target_prototype->IsNull());
       ASSERT(source_prototype->IsMap() ||
-          source_prototype == target_prototype);
+             source_prototype == target_prototype);
 #endif
       // Point target back to source.  set_prototype() will not let us set
       // the prototype to a map, as we do here.
@@ -4476,7 +4615,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
       *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == Heap::empty_descriptor_array()) return;
+  if (d == Heap::raw_unchecked_empty_descriptor_array()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -4897,8 +5036,30 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
+const char* Code::PropertyType2String(PropertyType type) {
+  switch (type) {
+    case NORMAL: return "NORMAL";
+    case FIELD: return "FIELD";
+    case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
+    case CALLBACKS: return "CALLBACKS";
+    case INTERCEPTOR: return "INTERCEPTOR";
+    case MAP_TRANSITION: return "MAP_TRANSITION";
+    case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
+    case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
 void Code::Disassemble(const char* name) {
   PrintF("kind = %s\n", Kind2String(kind()));
+  if (is_inline_cache_stub()) {
+    PrintF("ic_state = %s\n", ICState2String(ic_state()));
+    PrintF("ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
+    if (ic_state() == MONOMORPHIC) {
+      PrintF("type = %s\n", PropertyType2String(type()));
+    }
+  }
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF("name = %s\n", name);
   }
@@ -4930,7 +5091,7 @@ void JSObject::SetFastElements(FixedArray* elems) {
       elems->set(i, old_elements->get(i), mode);
     }
   } else {
-    Dictionary* dictionary = Dictionary::cast(elements());
+    NumberDictionary* dictionary = NumberDictionary::cast(elements());
     for (int i = 0; i < dictionary->Capacity(); i++) {
       Object* key = dictionary->KeyAt(i);
       if (key->IsNumber()) {
@@ -5095,7 +5256,10 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       return true;
     }
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindEntry(index)
+        != NumberDictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5170,7 +5334,8 @@ bool JSObject::HasLocalElement(uint32_t index) {
     return (index < length) &&
            !FixedArray::cast(elements())->get(index)->IsTheHole();
   } else {
-    return element_dictionary()->FindNumberEntry(index) != -1;
+    return element_dictionary()->FindEntry(index)
+        != NumberDictionary::kNotFound;
   }
 }
 
@@ -5196,7 +5361,10 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     if ((index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindEntry(index)
+        != NumberDictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5329,10 +5497,10 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
 
   // Insert element in the dictionary.
   FixedArray* elms = FixedArray::cast(elements());
-  Dictionary* dictionary = Dictionary::cast(elms);
+  NumberDictionary* dictionary = NumberDictionary::cast(elms);
 
-  int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) {
+  int entry = dictionary->FindEntry(index);
+  if (entry != NumberDictionary::kNotFound) {
     Object* element = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS) {
@@ -5381,7 +5549,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
       CHECK(Array::IndexFromObject(JSArray::cast(this)->length(), &new_length));
       JSArray::cast(this)->set_length(Smi::FromInt(new_length));
     } else {
-      new_length = Dictionary::cast(elements())->max_number_key() + 1;
+      new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
     }
     Object* obj = Heap::AllocateFixedArrayWithHoles(new_length);
     if (obj->IsFailure()) return obj;
@@ -5424,9 +5592,9 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
       if (!value->IsTheHole()) return value;
     }
   } else {
-    Dictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    NumberDictionary* dictionary = element_dictionary();
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -5508,9 +5676,9 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
       if (!value->IsTheHole()) return value;
     }
   } else {
-    Dictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    NumberDictionary* dictionary = element_dictionary();
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -5546,7 +5714,7 @@ bool JSObject::HasDenseElements() {
       if (!elms->get(i)->IsTheHole()) number_of_elements++;
     }
   } else {
-    Dictionary* dictionary = Dictionary::cast(elements());
+    NumberDictionary* dictionary = NumberDictionary::cast(elements());
     capacity = dictionary->Capacity();
     number_of_elements = dictionary->NumberOfElements();
   }
@@ -5568,7 +5736,7 @@ bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
 
 bool JSObject::ShouldConvertToFastElements() {
   ASSERT(!HasFastElements());
-  Dictionary* dictionary = Dictionary::cast(elements());
+  NumberDictionary* dictionary = NumberDictionary::cast(elements());
   // If the elements are sparse, we should not go back to fast case.
   if (!HasDenseElements()) return false;
   // If an element has been added at a very high index in the elements
@@ -5587,17 +5755,47 @@ bool JSObject::ShouldConvertToFastElements() {
     length = dictionary->max_number_key();
   }
   return static_cast<uint32_t>(dictionary->Capacity()) >=
-      (length / (2 * Dictionary::kElementSize));
+      (length / (2 * NumberDictionary::kEntrySize));
 }
 
 
-void Dictionary::CopyValuesTo(FixedArray* elements) {
+// Certain compilers request function template instantiation when they
+// see the definition of the other template functions in the
+// class. This requires us to have the template functions put
+// together, so even though this function belongs in objects-debug.cc,
+// we keep it here instead to satisfy certain compilers.
+#ifdef DEBUG
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::Print() {
+  int capacity = HashTable<Shape, Key>::Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k)) {
+      PrintF(" ");
+      if (k->IsString()) {
+        String::cast(k)->StringPrint();
+      } else {
+        k->ShortPrint();
+      }
+      PrintF(": ");
+      ValueAt(i)->ShortPrint();
+      PrintF("\n");
+    }
+  }
+}
+#endif
+
+
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
-  int capacity = Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   WriteBarrierMode mode = elements->GetWriteBarrierMode();
   for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) elements->set(pos++, ValueAt(i), mode);
+    Object* k =  Dictionary<Shape, Key>::KeyAt(i);
+    if (Dictionary<Shape, Key>::IsKey(k)) {
+      elements->set(pos++, ValueAt(i), mode);
+    }
   }
   ASSERT(pos == elements->length());
 }
@@ -5638,11 +5836,10 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-bool JSObject::GetPropertyWithInterceptorProper(
+Object* JSObject::GetPropertyWithInterceptorProper(
     JSObject* receiver,
     String* name,
-    PropertyAttributes* attributes,
-    Object** result_object) {
+    PropertyAttributes* attributes) {
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -5663,17 +5860,14 @@ bool JSObject::GetPropertyWithInterceptorProper(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    if (Top::has_scheduled_exception()) {
-      return false;
-    }
-    if (!result.IsEmpty()) {
+    if (!Top::has_scheduled_exception() && !result.IsEmpty()) {
       *attributes = NONE;
-      *result_object = *v8::Utils::OpenHandle(*result);
-      return true;
+      return *v8::Utils::OpenHandle(*result);
     }
   }
 
-  return false;
+  *attributes = ABSENT;
+  return Heap::undefined_value();
 }
 
 
@@ -5687,12 +5881,13 @@ Object* JSObject::GetInterceptorPropertyWithLookupHint(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver,
+                                                    name,
+                                                    attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   int property_index = lookup_hint->value();
   if (property_index >= 0) {
@@ -5737,12 +5932,11 @@ Object* JSObject::GetPropertyWithInterceptor(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,
@@ -5803,7 +5997,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
     return (index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole();
   }
-  return element_dictionary()->FindNumberEntry(index) != -1;
+  return element_dictionary()->FindEntry(index)
+      != NumberDictionary::kNotFound;
 }
 
 
@@ -5823,13 +6018,11 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
   if (HasFastProperties()) {
+    DescriptorArray* descs = map()->instance_descriptors();
     int result = 0;
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      PropertyDetails details = r.GetDetails();
-      if (details.IsProperty() &&
-          (details.attributes() & filter) == 0) {
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      PropertyDetails details = descs->GetDetails(i);
+      if (details.IsProperty() && (details.attributes() & filter) == 0) {
         result++;
       }
     }
@@ -5962,16 +6155,11 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
-  ASSERT(storage->length() >=
-         NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE)) -
-             index);
+  ASSERT(storage->length() >= (NumberOfLocalProperties(NONE) - index));
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      if (r.IsProperty()) {
-        storage->set(index++, r.GetKey());
-      }
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->IsProperty(i)) storage->set(index++, descs->GetKey(i));
     }
     ASSERT(storage->length() >= index);
   } else {
@@ -6036,38 +6224,49 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 }
 
 
-// The NumberKey uses carries the uint32_t as key.
-// This avoids allocation in HasProperty.
-class NumberKey : public HashTableKey {
- public:
-  explicit NumberKey(uint32_t number) : number_(number) { }
+bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return key == static_cast<uint32_t>(other->Number());
+}
 
-  bool IsMatch(Object* number) {
-    return number_ == ToUint32(number);
-  }
 
-  uint32_t Hash() { return ComputeIntegerHash(number_); }
+uint32_t NumberDictionaryShape::Hash(uint32_t key) {
+  return ComputeIntegerHash(key);
+}
 
-  HashFunction GetHashFunction() { return NumberHash; }
 
-  Object* GetObject() {
-    return Heap::NumberFromDouble(number_);
-  }
+uint32_t NumberDictionaryShape::HashForObject(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
+}
 
-  bool IsStringKey() { return false; }
 
- private:
-  static uint32_t NumberHash(Object* obj) {
-    return ComputeIntegerHash(ToUint32(obj));
-  }
+Object* NumberDictionaryShape::AsObject(uint32_t key) {
+  return Heap::NumberFromUint32(key);
+}
 
-  static uint32_t ToUint32(Object* obj) {
-    ASSERT(obj->IsNumber());
-    return static_cast<uint32_t>(obj->Number());
-  }
 
-  uint32_t number_;
-};
+bool StringDictionaryShape::IsMatch(String* key, Object* other) {
+  // We know that all entries in a hash table had their hash keys created.
+  // Use that knowledge to have fast failure.
+  if (key->Hash() != String::cast(other)->Hash()) return false;
+  return key->Equals(String::cast(other));
+}
+
+
+uint32_t StringDictionaryShape::Hash(String* key) {
+  return key->Hash();
+}
+
+
+uint32_t StringDictionaryShape::HashForObject(String* key, Object* other) {
+  return String::cast(other)->Hash();
+}
+
+
+Object* StringDictionaryShape::AsObject(String* key) {
+  return key;
+}
 
 
 // StringKey simply carries a string object as key.
@@ -6075,12 +6274,12 @@ class StringKey : public HashTableKey {
  public:
   explicit StringKey(String* string) :
       string_(string),
-      hash_(StringHash(string)) { }
+      hash_(HashForObject(string)) { }
 
   bool IsMatch(Object* string) {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
-    if (hash_ != StringHash(string)) {
+    if (hash_ != HashForObject(string)) {
       return false;
     }
     return string_->Equals(String::cast(string));
@@ -6088,15 +6287,9 @@ class StringKey : public HashTableKey {
 
   uint32_t Hash() { return hash_; }
 
-  HashFunction GetHashFunction() { return StringHash; }
+  uint32_t HashForObject(Object* other) { return String::cast(other)->Hash(); }
 
-  Object* GetObject() { return string_; }
-
-  static uint32_t StringHash(Object* obj) {
-    return String::cast(obj)->Hash();
-  }
-
-  bool IsStringKey() { return true; }
+  Object* AsObject() { return string_; }
 
   String* string_;
   uint32_t hash_;
@@ -6118,10 +6311,6 @@ class StringSharedKey : public HashTableKey {
     return source->Equals(source_);
   }
 
-  typedef uint32_t (*HashFunction)(Object* obj);
-
-  virtual HashFunction GetHashFunction() { return StringSharedHash; }
-
   static uint32_t StringSharedHashHelper(String* source,
                                          SharedFunctionInfo* shared) {
     uint32_t hash = source->Hash();
@@ -6138,18 +6327,18 @@ class StringSharedKey : public HashTableKey {
     return hash;
   }
 
-  static uint32_t StringSharedHash(Object* obj) {
+  uint32_t Hash() {
+    return StringSharedHashHelper(source_, shared_);
+  }
+
+  uint32_t HashForObject(Object* obj) {
     FixedArray* pair = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
     String* source = String::cast(pair->get(1));
     return StringSharedHashHelper(source, shared);
   }
 
-  virtual uint32_t Hash() {
-    return StringSharedHashHelper(source_, shared_);
-  }
-
-  virtual Object* GetObject() {
+  Object* AsObject() {
     Object* obj = Heap::AllocateFixedArray(2);
     if (obj->IsFailure()) return obj;
     FixedArray* pair = FixedArray::cast(obj);
@@ -6157,8 +6346,6 @@ class StringSharedKey : public HashTableKey {
     pair->set(1, source_);
     return pair;
   }
-
-  virtual bool IsStringKey() { return false; }
 
  private:
   String* source_;
@@ -6181,16 +6368,14 @@ class RegExpKey : public HashTableKey {
 
   uint32_t Hash() { return RegExpHash(string_, flags_); }
 
-  HashFunction GetHashFunction() { return RegExpObjectHash; }
-
-  Object* GetObject() {
+  Object* AsObject() {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
     return NULL;
   }
 
-  static uint32_t RegExpObjectHash(Object* obj) {
+  uint32_t HashForObject(Object* obj) {
     FixedArray* val = FixedArray::cast(obj);
     return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
                       Smi::cast(val->get(JSRegExp::kFlagsIndex)));
@@ -6199,8 +6384,6 @@ class RegExpKey : public HashTableKey {
   static uint32_t RegExpHash(String* string, Smi* flags) {
     return string->Hash() + flags->value();
   }
-
-  bool IsStringKey() { return false; }
 
   String* string_;
   Smi* flags_;
@@ -6216,10 +6399,6 @@ class Utf8SymbolKey : public HashTableKey {
     return String::cast(string)->IsEqualTo(string_);
   }
 
-  HashFunction GetHashFunction() {
-    return StringHash;
-  }
-
   uint32_t Hash() {
     if (length_field_ != 0) return length_field_ >> String::kHashShift;
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
@@ -6231,16 +6410,14 @@ class Utf8SymbolKey : public HashTableKey {
     return result;
   }
 
-  Object* GetObject() {
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Object* AsObject() {
     if (length_field_ == 0) Hash();
     return Heap::AllocateSymbol(string_, chars_, length_field_);
   }
-
-  static uint32_t StringHash(Object* obj) {
-    return String::cast(obj)->Hash();
-  }
-
-  bool IsStringKey() { return true; }
 
   Vector<const char> string_;
   uint32_t length_field_;
@@ -6253,17 +6430,17 @@ class SymbolKey : public HashTableKey {
  public:
   explicit SymbolKey(String* string) : string_(string) { }
 
-  HashFunction GetHashFunction() {
-    return StringHash;
-  }
-
   bool IsMatch(Object* string) {
     return String::cast(string)->Equals(string_);
   }
 
   uint32_t Hash() { return string_->Hash(); }
 
-  Object* GetObject() {
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Object* AsObject() {
     // If the string is a cons string, attempt to flatten it so that
     // symbols will most often be flat strings.
     if (StringShape(string_).IsCons()) {
@@ -6291,28 +6468,27 @@ class SymbolKey : public HashTableKey {
     return String::cast(obj)->Hash();
   }
 
-  bool IsStringKey() { return true; }
-
   String* string_;
 };
 
 
-template<int prefix_size, int element_size>
-void HashTable<prefix_size, element_size>::IteratePrefix(ObjectVisitor* v) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::IteratePrefix(ObjectVisitor* v) {
   IteratePointers(v, 0, kElementsStartOffset);
 }
 
 
-template<int prefix_size, int element_size>
-void HashTable<prefix_size, element_size>::IterateElements(ObjectVisitor* v) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
   IteratePointers(v,
                   kElementsStartOffset,
                   kHeaderSize + length() * kPointerSize);
 }
 
 
-template<int prefix_size, int element_size>
-Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
+template<typename Shape, typename Key>
+Object* HashTable<Shape, Key>::Allocate(
+    int at_least_space_for) {
   int capacity = RoundUpToPowerOf2(at_least_space_for);
   if (capacity < 4) capacity = 4;  // Guarantee min capacity.
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
@@ -6324,37 +6500,37 @@ Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
 }
 
 
+
 // Find entry for key otherwise return -1.
-template <int prefix_size, int element_size>
-int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::FindEntry(Key key) {
   uint32_t nof = NumberOfElements();
-  if (nof == 0) return -1;  // Bail out if empty.
+  if (nof == 0) return kNotFound;  // Bail out if empty.
 
   uint32_t capacity = Capacity();
-  uint32_t hash = key->Hash();
+  uint32_t hash = Shape::Hash(key);
   uint32_t entry = GetProbe(hash, 0, capacity);
 
   Object* element = KeyAt(entry);
   uint32_t passed_elements = 0;
   if (!element->IsNull()) {
-    if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-    if (++passed_elements == nof) return -1;
+    if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
+    if (++passed_elements == nof) return kNotFound;
   }
   for (uint32_t i = 1; !element->IsUndefined(); i++) {
     entry = GetProbe(hash, i, capacity);
     element = KeyAt(entry);
     if (!element->IsNull()) {
-      if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-      if (++passed_elements == nof) return -1;
+      if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
+      if (++passed_elements == nof) return kNotFound;
     }
   }
-  return -1;
+  return kNotFound;
 }
 
 
-template<int prefix_size, int element_size>
-Object* HashTable<prefix_size, element_size>::EnsureCapacity(
-    int n, HashTableKey* key) {
+template<typename Shape, typename Key>
+Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   // Make sure 50% is free
@@ -6366,18 +6542,20 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
   WriteBarrierMode mode = table->GetWriteBarrierMode();
 
   // Copy prefix to new array.
-  for (int i = kPrefixStartIndex; i < kPrefixStartIndex + prefix_size; i++) {
+  for (int i = kPrefixStartIndex;
+       i < kPrefixStartIndex + Shape::kPrefixSize;
+       i++) {
     table->set(i, get(i), mode);
   }
   // Rehash the elements.
-  uint32_t (*Hash)(Object* key) = key->GetHashFunction();
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
-    Object* key = get(from_index);
-    if (IsKey(key)) {
+    Object* k = get(from_index);
+    if (IsKey(k)) {
+      uint32_t hash = Shape::HashForObject(key, k);
       uint32_t insertion_index =
-          EntryToIndex(table->FindInsertionEntry(key, Hash(key)));
-      for (int j = 0; j < element_size; j++) {
+          EntryToIndex(table->FindInsertionEntry(hash));
+      for (int j = 0; j < Shape::kEntrySize; j++) {
         table->set(insertion_index + j, get(from_index + j), mode);
       }
     }
@@ -6387,10 +6565,8 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
 }
 
 
-template<int prefix_size, int element_size>
-uint32_t HashTable<prefix_size, element_size>::FindInsertionEntry(
-      Object* key,
-      uint32_t hash) {
+template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t entry = GetProbe(hash, 0, capacity);
   Object* element = KeyAt(entry);
@@ -6403,18 +6579,80 @@ uint32_t HashTable<prefix_size, element_size>::FindInsertionEntry(
   return entry;
 }
 
+// Force instantiation of template instances class.
+// Please note this list is compiler dependent.
 
-// Force instantiation of SymbolTable's base class
-template class HashTable<0, 1>;
+template class HashTable<SymbolTableShape, HashTableKey*>;
 
+template class HashTable<CompilationCacheShape, HashTableKey*>;
 
-// Force instantiation of Dictionary's base class
-template class HashTable<2, 3>;
+template class HashTable<MapCacheShape, HashTableKey*>;
 
+template class Dictionary<StringDictionaryShape, String*>;
 
-// Force instantiation of EvalCache's base class
-template class HashTable<0, 2>;
+template class Dictionary<NumberDictionaryShape, uint32_t>;
 
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::Allocate(
+    int);
+
+template Object* Dictionary<StringDictionaryShape, String*>::Allocate(
+    int);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::AtPut(
+    uint32_t, Object*);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::SlowReverseLookup(
+    Object*);
+
+template Object* Dictionary<StringDictionaryShape, String*>::SlowReverseLookup(
+    Object*);
+
+template void Dictionary<NumberDictionaryShape, uint32_t>::CopyKeysTo(
+    FixedArray*, PropertyAttributes);
+
+template Object* Dictionary<StringDictionaryShape, String*>::DeleteProperty(
+    int, JSObject::DeleteMode);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::DeleteProperty(
+    int, JSObject::DeleteMode);
+
+template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
+    FixedArray*);
+
+template int
+Dictionary<StringDictionaryShape, String*>::NumberOfElementsFilterAttributes(
+    PropertyAttributes);
+
+template Object* Dictionary<StringDictionaryShape, String*>::Add(
+    String*, Object*, PropertyDetails);
+
+template Object*
+Dictionary<StringDictionaryShape, String*>::GenerateNewEnumerationIndices();
+
+template int
+Dictionary<NumberDictionaryShape, uint32_t>::NumberOfElementsFilterAttributes(
+    PropertyAttributes);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::Add(
+    uint32_t, Object*, PropertyDetails);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::EnsureCapacity(
+    int, uint32_t);
+
+template Object* Dictionary<StringDictionaryShape, String*>::EnsureCapacity(
+    int, String*);
+
+template Object* Dictionary<NumberDictionaryShape, uint32_t>::AddEntry(
+    uint32_t, Object*, PropertyDetails, uint32_t);
+
+template Object* Dictionary<StringDictionaryShape, String*>::AddEntry(
+    String*, Object*, PropertyDetails, uint32_t);
+
+template
+int Dictionary<NumberDictionaryShape, uint32_t>::NumberOfEnumElements();
+
+template
+int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
 
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
@@ -6423,7 +6661,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
-  Dictionary* dict = element_dictionary();
+  NumberDictionary* dict = element_dictionary();
   HeapNumber* result_double = NULL;
   if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
     // Allocate space for result before we start mutating the object.
@@ -6433,9 +6671,9 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   }
 
   int capacity = dict->Capacity();
-  Object* obj = Dictionary::Allocate(dict->Capacity());
+  Object* obj = NumberDictionary::Allocate(dict->Capacity());
   if (obj->IsFailure()) return obj;
-  Dictionary* new_dict = Dictionary::cast(obj);
+  NumberDictionary* new_dict = NumberDictionary::cast(obj);
 
   AssertNoAllocation no_alloc;
 
@@ -6496,7 +6734,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
   if (!HasFastElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    Dictionary* dict = element_dictionary();
+    NumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
       return PrepareSlowElementsForSort(limit);
@@ -6588,6 +6826,34 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
+Object* GlobalObject::GetPropertyCell(LookupResult* result) {
+  ASSERT(!HasFastProperties());
+  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
+  ASSERT(value->IsJSGlobalPropertyCell());
+  return value;
+}
+
+
+Object* GlobalObject::EnsurePropertyCell(String* name) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindEntry(name);
+  if (entry == StringDictionary::kNotFound) {
+    Object* cell = Heap::AllocateJSGlobalPropertyCell(Heap::the_hole_value());
+    if (cell->IsFailure()) return cell;
+    PropertyDetails details(NONE, NORMAL);
+    details = details.AsDeleted();
+    Object* dictionary = property_dictionary()->Add(name, cell, details);
+    if (dictionary->IsFailure()) return dictionary;
+    set_properties(StringDictionary::cast(dictionary));
+    return cell;
+  } else {
+    Object* value = property_dictionary()->ValueAt(entry);
+    ASSERT(value->IsJSGlobalPropertyCell());
+    return value;
+  }
+}
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
@@ -6597,7 +6863,7 @@ Object* SymbolTable::LookupString(String* string, Object** s) {
 bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
   SymbolKey key(string);
   int entry = FindEntry(&key);
-  if (entry == -1) {
+  if (entry == kNotFound) {
     return false;
   } else {
     String* result = String::cast(KeyAt(entry));
@@ -6618,7 +6884,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
   // Symbol already in table.
-  if (entry != -1) {
+  if (entry != kNotFound) {
     *s = KeyAt(entry);
     return this;
   }
@@ -6628,7 +6894,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   if (obj->IsFailure()) return obj;
 
   // Create symbol object.
-  Object* symbol = key->GetObject();
+  Object* symbol = key->AsObject();
   if (symbol->IsFailure()) return symbol;
 
   // If the symbol table grew as part of EnsureCapacity, obj is not
@@ -6637,7 +6903,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   SymbolTable* table = reinterpret_cast<SymbolTable*>(obj);
 
   // Add the new symbol and return it along with the symbol table.
-  entry = table->FindInsertionEntry(symbol, key->Hash());
+  entry = table->FindInsertionEntry(key->Hash());
   table->set(EntryToIndex(entry), symbol);
   table->ElementAdded();
   *s = symbol;
@@ -6648,7 +6914,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6656,7 +6922,7 @@ Object* CompilationCacheTable::Lookup(String* src) {
 Object* CompilationCacheTable::LookupEval(String* src, Context* context) {
   StringSharedKey key(src, context->closure()->shared());
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6665,7 +6931,7 @@ Object* CompilationCacheTable::LookupRegExp(String* src,
                                             JSRegExp::Flags flags) {
   RegExpKey key(src, flags);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6677,7 +6943,7 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
 
   CompilationCacheTable* cache =
       reinterpret_cast<CompilationCacheTable*>(obj);
-  int entry = cache->FindInsertionEntry(src, key.Hash());
+  int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), src);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
@@ -6694,9 +6960,9 @@ Object* CompilationCacheTable::PutEval(String* src,
 
   CompilationCacheTable* cache =
       reinterpret_cast<CompilationCacheTable*>(obj);
-  int entry = cache->FindInsertionEntry(src, key.Hash());
+  int entry = cache->FindInsertionEntry(key.Hash());
 
-  Object* k = key.GetObject();
+  Object* k = key.AsObject();
   if (k->IsFailure()) return k;
 
   cache->set(EntryToIndex(entry), k);
@@ -6715,7 +6981,7 @@ Object* CompilationCacheTable::PutRegExp(String* src,
 
   CompilationCacheTable* cache =
       reinterpret_cast<CompilationCacheTable*>(obj);
-  int entry = cache->FindInsertionEntry(value, key.Hash());
+  int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), value);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
@@ -6738,13 +7004,9 @@ class SymbolsKey : public HashTableKey {
     return true;
   }
 
-  uint32_t Hash() { return SymbolsHash(symbols_); }
+  uint32_t Hash() { return HashForObject(symbols_); }
 
-  HashFunction GetHashFunction() { return SymbolsHash; }
-
-  Object* GetObject() { return symbols_; }
-
-  static uint32_t SymbolsHash(Object* obj) {
+  uint32_t HashForObject(Object* obj) {
     FixedArray* symbols = FixedArray::cast(obj);
     int len = symbols->length();
     uint32_t hash = 0;
@@ -6754,7 +7016,7 @@ class SymbolsKey : public HashTableKey {
     return hash;
   }
 
-  bool IsStringKey() { return false; }
+  Object* AsObject() { return symbols_; }
 
  private:
   FixedArray* symbols_;
@@ -6764,7 +7026,7 @@ class SymbolsKey : public HashTableKey {
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6775,7 +7037,7 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
   if (obj->IsFailure()) return obj;
 
   MapCache* cache = reinterpret_cast<MapCache*>(obj);
-  int entry = cache->FindInsertionEntry(array, key.Hash());
+  int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), array);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
@@ -6783,19 +7045,21 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
 }
 
 
-Object* Dictionary::Allocate(int at_least_space_for) {
-  Object* obj = DictionaryBase::Allocate(at_least_space_for);
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::Allocate(int at_least_space_for) {
+  Object* obj = HashTable<Shape, Key>::Allocate(at_least_space_for);
   // Initialize the next enumeration index.
   if (!obj->IsFailure()) {
-    Dictionary::cast(obj)->
+    Dictionary<Shape, Key>::cast(obj)->
         SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   }
   return obj;
 }
 
 
-Object* Dictionary::GenerateNewEnumerationIndices() {
-  int length = NumberOfElements();
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
+  int length = HashTable<Shape, Key>::NumberOfElements();
 
   // Allocate and initialize iteration order array.
   Object* obj = Heap::AllocateFixedArray(length);
@@ -6811,10 +7075,10 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
   FixedArray* enumeration_order = FixedArray::cast(obj);
 
   // Fill the enumeration order array with property details.
-  int capacity = Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (IsKey(KeyAt(i))) {
+    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
       enumeration_order->set(pos++,
                              Smi::FromInt(DetailsAt(i).index()),
                              SKIP_WRITE_BARRIER);
@@ -6834,10 +7098,10 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
   }
 
   // Update the dictionary with new indices.
-  capacity = Capacity();
+  capacity = HashTable<Shape, Key>::Capacity();
   pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (IsKey(KeyAt(i))) {
+    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
       PropertyDetails details = DetailsAt(i);
       PropertyDetails new_details =
@@ -6851,20 +7115,20 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
   return this;
 }
 
-
-Object* Dictionary::EnsureCapacity(int n, HashTableKey* key) {
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::EnsureCapacity(int n, Key key) {
   // Check whether there are enough enumeration indices to add n elements.
-  if (key->IsStringKey() &&
+  if (Shape::kIsEnumerable &&
       !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
     // If not, we generate new indices for the properties.
     Object* result = GenerateNewEnumerationIndices();
     if (result->IsFailure()) return result;
   }
-  return DictionaryBase::EnsureCapacity(n, key);
+  return HashTable<Shape, Key>::EnsureCapacity(n, key);
 }
 
 
-void Dictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
+void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
   // Do nothing if the interval [from, to) is empty.
   if (from >= to) return;
 
@@ -6887,35 +7151,26 @@ void Dictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 }
 
 
-Object* Dictionary::DeleteProperty(int entry, JSObject::DeleteMode mode) {
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
+                                               JSObject::DeleteMode mode) {
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
   if (details.IsDontDelete() && mode == JSObject::NORMAL_DELETION) {
     return Heap::false_value();
   }
   SetEntry(entry, Heap::null_value(), Heap::null_value(), Smi::FromInt(0));
-  ElementRemoved();
+  HashTable<Shape, Key>::ElementRemoved();
   return Heap::true_value();
 }
 
 
-int Dictionary::FindStringEntry(String* key) {
-  StringKey k(key);
-  return FindEntry(&k);
-}
-
-
-int Dictionary::FindNumberEntry(uint32_t index) {
-  NumberKey k(index);
-  return FindEntry(&k);
-}
-
-
-Object* Dictionary::AtPut(HashTableKey* key, Object* value) {
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   int entry = FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != -1) {
+  if (entry != Dictionary<Shape, Key>::kNotFound) {
     ValueAtPut(entry, value);
     return this;
   }
@@ -6923,48 +7178,57 @@ Object* Dictionary::AtPut(HashTableKey* key, Object* value) {
   // Check whether the dictionary should be extended.
   Object* obj = EnsureCapacity(1, key);
   if (obj->IsFailure()) return obj;
-  Object* k = key->GetObject();
+
+  Object* k = Shape::AsObject(key);
   if (k->IsFailure()) return k;
   PropertyDetails details = PropertyDetails(NONE, NORMAL);
-  Dictionary::cast(obj)->AddEntry(k, value, details, key->Hash());
-  return obj;
+  return Dictionary<Shape, Key>::cast(obj)->
+      AddEntry(key, value, details, Shape::Hash(key));
 }
 
 
-Object* Dictionary::Add(HashTableKey* key, Object* value,
-                        PropertyDetails details) {
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::Add(Key key,
+                                    Object* value,
+                                    PropertyDetails details) {
+  // Valdate key is absent.
+  SLOW_ASSERT((FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
   // Check whether the dictionary should be extended.
   Object* obj = EnsureCapacity(1, key);
   if (obj->IsFailure()) return obj;
-  // Compute the key object.
-  Object* k = key->GetObject();
-  if (k->IsFailure()) return k;
-  Dictionary::cast(obj)->AddEntry(k, value, details, key->Hash());
-  return obj;
+  return Dictionary<Shape, Key>::cast(obj)->
+      AddEntry(key, value, details, Shape::Hash(key));
 }
 
 
 // Add a key, value pair to the dictionary.
-void Dictionary::AddEntry(Object* key,
-                          Object* value,
-                          PropertyDetails details,
-                          uint32_t hash) {
-  uint32_t entry = FindInsertionEntry(key, hash);
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::AddEntry(Key key,
+                                         Object* value,
+                                         PropertyDetails details,
+                                         uint32_t hash) {
+  // Compute the key object.
+  Object* k = Shape::AsObject(key);
+  if (k->IsFailure()) return k;
+
+  uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
-  if (details.index() == 0 && key->IsString()) {
+  if (!details.IsDeleted() && details.index() == 0 && Shape::kIsEnumerable) {
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
     int index = NextEnumerationIndex();
     details = PropertyDetails(details.attributes(), details.type(), index);
     SetNextEnumerationIndex(index + 1);
   }
-  SetEntry(entry, key, value, details);
-  ASSERT(KeyAt(entry)->IsNumber() || KeyAt(entry)->IsString());
-  ElementAdded();
+  SetEntry(entry, k, value, details);
+  ASSERT((Dictionary<Shape, Key>::KeyAt(entry)->IsNumber()
+          || Dictionary<Shape, Key>::KeyAt(entry)->IsString()));
+  HashTable<Shape, Key>::ElementAdded();
+  return this;
 }
 
 
-void Dictionary::UpdateMaxNumberKey(uint32_t key) {
+void NumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
   if (requires_slow_elements()) return;
@@ -6977,82 +7241,54 @@ void Dictionary::UpdateMaxNumberKey(uint32_t key) {
   // Update max key value.
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi() || max_number_key() < key) {
-    set(kMaxNumberKeyIndex,
-        Smi::FromInt(key << kRequiresSlowElementsTagSize),
-        SKIP_WRITE_BARRIER);
+    FixedArray::set(kMaxNumberKeyIndex,
+                    Smi::FromInt(key << kRequiresSlowElementsTagSize),
+                    SKIP_WRITE_BARRIER);
   }
 }
 
 
-Object* Dictionary::AddStringEntry(String* key,
-                                   Object* value,
-                                   PropertyDetails details) {
-  StringKey k(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
-  return Add(&k, value, details);
-}
-
-
-Object* Dictionary::AddNumberEntry(uint32_t key,
-                                   Object* value,
-                                   PropertyDetails details) {
-  NumberKey k(key);
+Object* NumberDictionary::AddNumberEntry(uint32_t key,
+                                         Object* value,
+                                         PropertyDetails details) {
   UpdateMaxNumberKey(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
-  return Add(&k, value, details);
+  SLOW_ASSERT(FindEntry(key) == kNotFound);
+  return Add(key, value, details);
 }
 
 
-Object* Dictionary::AtStringPut(String* key, Object* value) {
-  StringKey k(key);
-  return AtPut(&k, value);
-}
-
-
-Object* Dictionary::AtNumberPut(uint32_t key, Object* value) {
-  NumberKey k(key);
+Object* NumberDictionary::AtNumberPut(uint32_t key, Object* value) {
   UpdateMaxNumberKey(key);
-  return AtPut(&k, value);
+  return AtPut(key, value);
 }
 
 
-Object* Dictionary::SetOrAddStringEntry(String* key,
-                                        Object* value,
-                                        PropertyDetails details) {
-  StringKey k(key);
-  int entry = FindEntry(&k);
-  if (entry == -1) return AddStringEntry(key, value, details);
+Object* NumberDictionary::Set(uint32_t key,
+                              Object* value,
+                              PropertyDetails details) {
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return AddNumberEntry(key, value, details);
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             DetailsAt(entry).index());
-  SetEntry(entry, key, value, details);
+  SetEntry(entry, NumberDictionaryShape::AsObject(key), value, details);
   return this;
 }
 
 
-Object* Dictionary::SetOrAddNumberEntry(uint32_t key,
-                                        Object* value,
-                                        PropertyDetails details) {
-  NumberKey k(key);
-  int entry = FindEntry(&k);
-  if (entry == -1) return AddNumberEntry(key, value, details);
-  // Preserve enumeration index.
-  details = PropertyDetails(details.attributes(),
-                            details.type(),
-                            DetailsAt(entry).index());
-  SetEntry(entry, k.GetObject(), value, details);
-  return this;
-}
 
-
-int Dictionary::NumberOfElementsFilterAttributes(PropertyAttributes filter) {
-  int capacity = Capacity();
+template<typename Shape, typename Key>
+int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
+    PropertyAttributes filter) {
+  int capacity = HashTable<Shape, Key>::Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      PropertyAttributes attr = DetailsAt(i).attributes();
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
+      PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) result++;
     }
   }
@@ -7060,20 +7296,25 @@ int Dictionary::NumberOfElementsFilterAttributes(PropertyAttributes filter) {
 }
 
 
-int Dictionary::NumberOfEnumElements() {
+template<typename Shape, typename Key>
+int Dictionary<Shape, Key>::NumberOfEnumElements() {
   return NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(DONT_ENUM));
 }
 
 
-void Dictionary::CopyKeysTo(FixedArray* storage, PropertyAttributes filter) {
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage,
+                                        PropertyAttributes filter) {
   ASSERT(storage->length() >= NumberOfEnumElements());
-  int capacity = Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
-     Object* k = KeyAt(i);
-     if (IsKey(k)) {
-       PropertyAttributes attr = DetailsAt(i).attributes();
+     Object* k = HashTable<Shape, Key>::KeyAt(i);
+     if (HashTable<Shape, Key>::IsKey(k)) {
+       PropertyDetails details = DetailsAt(i);
+       if (details.IsDeleted()) continue;
+       PropertyAttributes attr = details.attributes();
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
@@ -7082,7 +7323,8 @@ void Dictionary::CopyKeysTo(FixedArray* storage, PropertyAttributes filter) {
 }
 
 
-void Dictionary::CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array) {
+void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
+                                      FixedArray* sort_array) {
   ASSERT(storage->length() >= NumberOfEnumElements());
   int capacity = Capacity();
   int index = 0;
@@ -7090,13 +7332,12 @@ void Dictionary::CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array) {
      Object* k = KeyAt(i);
      if (IsKey(k)) {
        PropertyDetails details = DetailsAt(i);
-       if (!details.IsDontEnum()) {
-         storage->set(index, k);
-         sort_array->set(index,
-                         Smi::FromInt(details.index()),
-                         SKIP_WRITE_BARRIER);
-         index++;
-       }
+       if (details.IsDeleted() || details.IsDontEnum()) continue;
+       storage->set(index, k);
+       sort_array->set(index,
+                       Smi::FromInt(details.index()),
+                       SKIP_WRITE_BARRIER);
+       index++;
      }
   }
   storage->SortPairs(sort_array, sort_array->length());
@@ -7104,14 +7345,17 @@ void Dictionary::CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array) {
 }
 
 
-void Dictionary::CopyKeysTo(FixedArray* storage) {
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(NONE)));
-  int capacity = Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
       storage->set(index++, k);
     }
   }
@@ -7120,20 +7364,25 @@ void Dictionary::CopyKeysTo(FixedArray* storage) {
 
 
 // Backwards lookup (slow).
-Object* Dictionary::SlowReverseLookup(Object* value) {
-  int capacity = Capacity();
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
+  int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k) && ValueAt(i) == value) {
-      return k;
+    Object* k =  HashTable<Shape, Key>::KeyAt(i);
+    if (Dictionary<Shape, Key>::IsKey(k)) {
+      Object* e = ValueAt(i);
+      if (e->IsJSGlobalPropertyCell()) {
+        e = JSGlobalPropertyCell::cast(e)->value();
+      }
+      if (e == value) return k;
     }
   }
   return Heap::undefined_value();
 }
 
 
-Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
-                                                 int unused_property_fields) {
+Object* StringDictionary::TransformPropertiesToFastFor(
+    JSObject* obj, int unused_property_fields) {
   // Make sure we preserve dictionary representation if there are too many
   // descriptors.
   if (NumberOfElements() > DescriptorArray::kMaxNumberOfDescriptors) return obj;
@@ -7141,7 +7390,8 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   // Figure out if it is necessary to generate new enumeration indices.
   int max_enumeration_index =
       NextEnumerationIndex() +
-          (DescriptorArray::kMaxNumberOfDescriptors - NumberOfElements());
+          (DescriptorArray::kMaxNumberOfDescriptors -
+           NumberOfElements());
   if (!PropertyDetails::IsValidIndex(max_enumeration_index)) {
     Object* result = GenerateNewEnumerationIndices();
     if (result->IsFailure()) return result;
@@ -7178,7 +7428,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   if (fields->IsFailure()) return fields;
 
   // Fill in the instance descriptor and the fields.
-  DescriptorWriter w(descriptors);
+  int next_descriptor = 0;
   int current_offset = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
@@ -7195,7 +7445,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
                                      JSFunction::cast(value),
                                      details.attributes(),
                                      details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
           obj->InObjectPropertyAtPut(current_offset,
@@ -7209,13 +7459,13 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
                           current_offset++,
                           details.attributes(),
                           details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else if (type == CALLBACKS) {
         CallbacksDescriptor d(String::cast(key),
                               value,
                               details.attributes(),
                               details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else {
         UNREACHABLE();
       }
@@ -7489,5 +7739,6 @@ int BreakPointInfo::GetBreakPointCount() {
   return FixedArray::cast(break_point_objects())->length();
 }
 #endif
+
 
 } }  // namespace v8::internal

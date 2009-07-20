@@ -68,10 +68,12 @@ function MathAtan(x) {
 }
 
 // ECMA 262 - 15.8.2.5
-function MathAtan2(x, y) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+// The naming of y and x matches the spec, as does the order in which
+// ToNumber (valueOf) is called.
+function MathAtan2(y, x) {
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %Math_atan2(x, y);
+  if (!IS_NUMBER(x)) x = ToNumber(x);
+  return %Math_atan2(y, x);
 }
 
 // ECMA 262 - 15.8.2.6
@@ -95,7 +97,9 @@ function MathExp(x) {
 // ECMA 262 - 15.8.2.9
 function MathFloor(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  if (0 < x && x <= 0x7FFFFFFF) {
+  // It's more common to call this with a positive number that's out
+  // of range than negative numbers; check the upper bound first.
+  if (x <= 0x7FFFFFFF && x > 0) {
     // Numbers in the range [0, 2^31) can be floored by converting
     // them to an unsigned 32-bit value using the shift operator.
     // We avoid doing so for -0, because the result of Math.floor(-0)
@@ -115,11 +119,12 @@ function MathLog(x) {
 // ECMA 262 - 15.8.2.11
 function MathMax(arg1, arg2) {  // length == 2
   var r = -$Infinity;
-  for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
+  var length = %_ArgumentsLength();
+  for (var i = 0; i < length; i++) {
     var n = ToNumber(%_Arguments(i));
     if (NUMBER_IS_NAN(n)) return n;
-    // Make sure +0 is consider greater than -0.
-    if (n > r || (n === 0 && r === 0 && (1 / n) > (1 / r))) r = n;
+    // Make sure +0 is considered greater than -0.
+    if (n > r || (r === 0 && n === 0 && !%_IsSmi(r))) r = n;
   }
   return r;
 }
@@ -127,11 +132,12 @@ function MathMax(arg1, arg2) {  // length == 2
 // ECMA 262 - 15.8.2.12
 function MathMin(arg1, arg2) {  // length == 2
   var r = $Infinity;
-  for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
+  var length = %_ArgumentsLength();
+  for (var i = 0; i < length; i++) {
     var n = ToNumber(%_Arguments(i));
     if (NUMBER_IS_NAN(n)) return n;
-    // Make sure -0 is consider less than +0.
-    if (n < r || (n === 0 && r === 0 && (1 / n) < (1 / r))) r = n;
+    // Make sure -0 is considered less than +0.
+    if (n < r || (r === 0 && n === 0 && !%_IsSmi(n))) r = n;
   }
   return r;
 }

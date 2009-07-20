@@ -46,14 +46,14 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 // We always generate arm code, never thumb code, even if V8 is compiled to
 // thumb, so we require inter-working support
-#if defined(__thumb__) && !defined(__THUMB_INTERWORK__)
+#if defined(__thumb__) && !defined(USE_THUMB_INTERWORK)
 #error "flag -mthumb-interwork missing"
 #endif
 
 
 // We do not support thumb inter-working with an arm architecture not supporting
 // the blx instruction (below v5t)
-#if defined(__THUMB_INTERWORK__)
+#if defined(USE_THUMB_INTERWORK)
 #if !defined(__ARM_ARCH_5T__) && \
   !defined(__ARM_ARCH_5TE__) &&  \
   !defined(__ARM_ARCH_7A__) &&   \
@@ -65,12 +65,12 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 
 // Using blx may yield better code, so use it when required or when available
-#if defined(__THUMB_INTERWORK__) || defined(__ARM_ARCH_5__)
+#if defined(USE_THUMB_INTERWORK) || defined(__ARM_ARCH_5__)
 #define USE_BLX 1
 #endif
 
 // Using bx does not yield better code, so use it only when required
-#if defined(__THUMB_INTERWORK__)
+#if defined(USE_THUMB_INTERWORK)
 #define USE_BX 1
 #endif
 
@@ -290,11 +290,24 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Align the stack at this point.  After this point we have 5 pushes,
   // so in fact we have to unalign here!  See also the assert on the
   // alignment immediately below.
-  if (OS::ActivationFrameAlignment() != kPointerSize) {
+#if defined(V8_HOST_ARCH_ARM)
+  // Running on the real platform. Use the alignment as mandated by the local
+  // environment.
+  // Note: This will break if we ever start generating snapshots on one ARM
+  // platform for another ARM platform with a different alignment.
+  int activation_frame_alignment = OS::ActivationFrameAlignment();
+#else  // defined(V8_HOST_ARCH_ARM)
+  // If we are using the simulator then we should always align to the expected
+  // alignment. As the simulator is used to generate snapshots we do not know
+  // if the target platform will need alignment, so we will always align at
+  // this point here.
+  int activation_frame_alignment = 2 * kPointerSize;
+#endif  // defined(V8_HOST_ARCH_ARM)
+  if (activation_frame_alignment != kPointerSize) {
     // This code needs to be made more general if this assert doesn't hold.
-    ASSERT(OS::ActivationFrameAlignment() == 2 * kPointerSize);
+    ASSERT(activation_frame_alignment == 2 * kPointerSize);
     mov(r7, Operand(Smi::FromInt(0)));
-    tst(sp, Operand(OS::ActivationFrameAlignment() - 1));
+    tst(sp, Operand(activation_frame_alignment - 1));
     push(r7, eq);  // Conditional push instruction.
   }
 

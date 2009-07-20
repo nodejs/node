@@ -28,6 +28,7 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
+#include "globals.h"
 #include "heap.h"
 #include "zone-inl.h"
 
@@ -47,7 +48,9 @@ class Factory : public AllStatic {
   // Allocate a new fixed array with non-existing entries (the hole).
   static Handle<FixedArray> NewFixedArrayWithHoles(int size);
 
-  static Handle<Dictionary> NewDictionary(int at_least_space_for);
+  static Handle<NumberDictionary> NewNumberDictionary(int at_least_space_for);
+
+  static Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
 
   static Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
 
@@ -183,6 +186,9 @@ class Factory : public AllStatic {
   static Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure = NOT_TENURED);
 
+  // Global objects are pretenured.
+  static Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
+
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
   static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
@@ -294,13 +300,19 @@ class Factory : public AllStatic {
                                 Handle<JSObject> instance,
                                 bool* pending_exception);
 
-#define ROOT_ACCESSOR(type, name) \
-  static Handle<type> name() { return Handle<type>(&Heap::name##_); }
+#define ROOT_ACCESSOR(type, name, camel_name)                                  \
+  static inline Handle<type> name() {                                          \
+    return Handle<type>(bit_cast<type**, Object**>(                            \
+        &Heap::roots_[Heap::k##camel_name##RootIndex]));                       \
+  }
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR_ACCESSOR
 
 #define SYMBOL_ACCESSOR(name, str) \
-  static Handle<String> name() { return Handle<String>(&Heap::name##_); }
+  static inline Handle<String> name() {                                        \
+    return Handle<String>(bit_cast<String**, Object**>(                        \
+        &Heap::roots_[Heap::k##name##RootIndex]));                             \
+  }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
@@ -310,9 +322,10 @@ class Factory : public AllStatic {
 
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
-  static Handle<Dictionary> DictionaryAtNumberPut(Handle<Dictionary>,
-                                                  uint32_t key,
-                                                  Handle<Object> value);
+  static Handle<NumberDictionary> DictionaryAtNumberPut(
+      Handle<NumberDictionary>,
+      uint32_t key,
+      Handle<Object> value);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);

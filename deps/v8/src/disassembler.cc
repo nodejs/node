@@ -239,6 +239,13 @@ static int DecodeIt(FILE* f,
           InlineCacheState ic_state = code->ic_state();
           out.AddFormatted(" %s, %s", Code::Kind2String(kind),
               Code::ICState2String(ic_state));
+          if (ic_state == MONOMORPHIC) {
+            PropertyType type = code->type();
+            out.AddFormatted(", %s", Code::PropertyType2String(type));
+          }
+          if (code->ic_in_loop() == IN_LOOP) {
+            out.AddFormatted(", in_loop");
+          }
           if (kind == Code::CALL_IC) {
             out.AddFormatted(", argc = %d", code->arguments_count());
           }

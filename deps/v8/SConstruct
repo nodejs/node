@@ -95,7 +95,12 @@ ANDROID_LINKFLAGS = ['-nostdlib',
 LIBRARY_FLAGS = {
   'all': {
     'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
-    'CPPPATH': [join(root_dir, 'src')]
+    'CPPPATH': [join(root_dir, 'src')],
+    'regexp:native': {
+      'arch:ia32' : {
+        'CPPDEFINES': ['V8_NATIVE_REGEXP']
+      }
+    }
   },
   'gcc': {
     'all': {
@@ -167,6 +172,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM']
     },
     'arch:x64': {
+      'CCFLAGS':      ['-fno-strict-aliasing'],
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64']
     },
     'prof:oprofile': {
@@ -546,6 +552,11 @@ SIMPLE_OPTIONS = {
     'default': ARCH_GUESS,
     'help': 'the architecture to build for (' + ARCH_GUESS + ')'
   },
+  'regexp': {
+    'values': ['native', 'interpreted'],
+    'default': 'native',
+    'help': 'Whether to use native or interpreted regexp implementation'
+  },
   'snapshot': {
     'values': ['on', 'off', 'nobuild'],
     'default': 'off',
@@ -676,6 +687,8 @@ def VerifyOptions(env):
   if not IsLegal(env, 'mode', ['debug', 'release']):
     return False
   if not IsLegal(env, 'sample', ["shell", "process"]):
+    return False
+  if not IsLegal(env, 'regexp', ["native", "interpreted"]):
     return False
   if env['os'] == 'win32' and env['library'] == 'shared' and env['prof'] == 'on':
     Abort("Profiling on windows only supported for static library.")

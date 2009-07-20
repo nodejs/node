@@ -1046,6 +1046,9 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
         int64_t result = target(arg0, arg1, arg2, arg3);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF("Returned %08x\n", lo_res);
+        }
         set_register(r0, lo_res);
         set_register(r1, hi_res);
         set_register(r0, result);
@@ -1077,41 +1080,63 @@ void Simulator::DecodeType01(Instr* instr) {
     // multiply instruction or extra loads and stores
     if (instr->Bits(7, 4) == 9) {
       if (instr->Bit(24) == 0) {
-        // multiply instructions
-        int rd = instr->RdField();
+        // Raw field decoding here. Multiply instructions have their Rd in
+        // funny places.
+        int rn = instr->RnField();
         int rm = instr->RmField();
         int rs = instr->RsField();
         int32_t rs_val = get_register(rs);
         int32_t rm_val = get_register(rm);
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
-            // Format(instr, "mul'cond's 'rd, 'rm, 'rs");
+            // The MUL instruction description (A 4.1.33) refers to Rd as being
+            // the destination for the operation, but it confusingly uses the
+            // Rn field to encode it.
+            // Format(instr, "mul'cond's 'rn, 'rm, 'rs");
+            int rd = rn;  // Remap the rn field to the Rd register.
             int32_t alu_out = rm_val * rs_val;
             set_register(rd, alu_out);
             if (instr->HasS()) {
               SetNZFlags(alu_out);
             }
           } else {
-            Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
+            // The MLA instruction description (A 4.1.28) refers to the order
+            // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
+            // Rn field to encode the Rd register and the Rd field to encode
+            // the Rn register.
+            Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
           }
         } else {
-          // Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
-          int rn = instr->RnField();
+          // The signed/long multiply instructions use the terms RdHi and RdLo
+          // when referring to the target registers. They are mapped to the Rn
+          // and Rd fields as follows:
+          // RdLo == Rd
+          // RdHi == Rn (This is confusingly stored in variable rd here
+          //             because the mul instruction from above uses the
+          //             Rn field to encode the Rd register. Good luck figuring
+          //             this out without reading the ARM instruction manual
+          //             at a very detailed level.)
+          // Format(instr, "'um'al'cond's 'rd, 'rn, 'rs, 'rm");
+          int rd_hi = rn;  // Remap the rn field to the RdHi register.
+          int rd_lo = instr->RdField();
           int32_t hi_res = 0;
           int32_t lo_res = 0;
-          if (instr->Bit(22) == 0) {
-            // signed multiply
-            UNIMPLEMENTED();
+          if (instr->Bit(22) == 1) {
+            int64_t left_op  = static_cast<int32_t>(rm_val);
+            int64_t right_op = static_cast<int32_t>(rs_val);
+            uint64_t result = left_op * right_op;
+            hi_res = static_cast<int32_t>(result >> 32);
+            lo_res = static_cast<int32_t>(result & 0xffffffff);
           } else {
             // unsigned multiply
-            uint64_t left_op  = rm_val;
-            uint64_t right_op = rs_val;
+            uint64_t left_op  = static_cast<uint32_t>(rm_val);
+            uint64_t right_op = static_cast<uint32_t>(rs_val);
             uint64_t result = left_op * right_op;
             hi_res = static_cast<int32_t>(result >> 32);
             lo_res = static_cast<int32_t>(result & 0xffffffff);
           }
-          set_register(rn, hi_res);
-          set_register(rd, lo_res);
+          set_register(rd_lo, lo_res);
+          set_register(rd_hi, hi_res);
           if (instr->HasS()) {
             UNIMPLEMENTED();
           }
@@ -1357,7 +1382,21 @@ void Simulator::DecodeType01(Instr* instr) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              set_pc(get_register(rm));
+              break;
+            case BLX: {
+              uint32_t old_pc = get_pc();
+              set_pc(get_register(rm));
+              set_register(lr, old_pc + Instr::kInstrSize);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }
@@ -1381,7 +1420,27 @@ void Simulator::DecodeType01(Instr* instr) {
           Format(instr, "cmn'cond 'rn, 'shift_rm");
           Format(instr, "cmn'cond 'rn, 'imm");
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          int rd = instr->RdField();
+          switch (instr->Bits(7, 4)) {
+            case CLZ: {
+              uint32_t bits = get_register(rm);
+              int leading_zeros = 0;
+              if (bits == 0) {
+                leading_zeros = 32;
+              } else {
+                while ((bits & 0x80000000u) == 0) {
+                  bits <<= 1;
+                  leading_zeros++;
+                }
+              }
+              set_register(rd, leading_zeros);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }

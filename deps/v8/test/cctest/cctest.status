@@ -60,3 +60,65 @@ test-log/ProfLazyMode: SKIP
 # the JavaScript stacks are separate.
 test-api/ExceptionOrder: FAIL
 test-api/TryCatchInTryFinally: FAIL
+
+
+[ $arch == x64 ]
+test-regexp/Graph: CRASH || FAIL
+test-decls/Present: CRASH || FAIL
+test-decls/Unknown: CRASH || FAIL
+test-decls/Appearing: CRASH || FAIL
+test-decls/Absent: CRASH || FAIL
+test-debug/DebugStub: CRASH || FAIL
+test-decls/AbsentInPrototype: CRASH || FAIL
+test-decls/Reappearing: CRASH || FAIL
+test-debug/DebugInfo: CRASH || FAIL
+test-decls/ExistsInPrototype: CRASH || FAIL
+test-debug/BreakPointICStore: CRASH || FAIL
+test-debug/BreakPointICLoad: CRASH || FAIL
+test-debug/BreakPointICCall: CRASH || FAIL
+test-debug/BreakPointReturn: CRASH || FAIL
+test-debug/GCDuringBreakPointProcessing: CRASH || FAIL
+test-debug/BreakPointSurviveGC: CRASH || FAIL
+test-debug/BreakPointThroughJavaScript: CRASH || FAIL
+test-debug/ScriptBreakPointByNameThroughJavaScript: CRASH || FAIL
+test-debug/ScriptBreakPointByIdThroughJavaScript: CRASH || FAIL
+test-debug/EnableDisableScriptBreakPoint: CRASH || FAIL
+test-debug/ConditionalScriptBreakPoint: CRASH || FAIL
+test-debug/ScriptBreakPointIgnoreCount: CRASH || FAIL
+test-debug/ScriptBreakPointReload: CRASH || FAIL
+test-debug/ScriptBreakPointMultiple: CRASH || FAIL
+test-debug/RemoveBreakPointInBreak: CRASH || FAIL
+test-debug/DebugEvaluate: CRASH || FAIL
+test-debug/ScriptBreakPointLine: CRASH || FAIL
+test-debug/ScriptBreakPointLineOffset: CRASH || FAIL
+test-debug/DebugStepLinear: CRASH || FAIL
+test-debug/DebugStepKeyedLoadLoop: CRASH || FAIL
+test-debug/DebugStepKeyedStoreLoop: CRASH || FAIL
+test-debug/DebugStepLinearMixedICs: CRASH || FAIL
+test-debug/DebugStepFor: CRASH || FAIL
+test-debug/DebugStepIf: CRASH || FAIL
+test-debug/DebugStepSwitch: CRASH || FAIL
+test-debug/StepInOutSimple: CRASH || FAIL
+test-debug/StepInOutBranch: CRASH || FAIL
+test-debug/StepInOutTree: CRASH || FAIL
+test-debug/DebugStepNatives: CRASH || FAIL
+test-debug/DebugStepFunctionApply: CRASH || FAIL
+test-debug/DebugStepFunctionCall: CRASH || FAIL
+test-debug/StepWithException: CRASH || FAIL
+test-debug/DebugBreak: CRASH || FAIL
+test-debug/DisableBreak: CRASH || FAIL
+test-debug/MessageQueues: CRASH || FAIL
+test-debug/CallFunctionInDebugger: CRASH || FAIL
+test-debug/RecursiveBreakpoints: CRASH || FAIL
+test-debug/DebuggerUnload: CRASH || FAIL
+test-debug/DebuggerClearMessageHandler: CRASH || FAIL
+test-debug/DebuggerClearMessageHandlerWhileActive: CRASH || FAIL
+test-debug/DebuggerHostDispatch: CRASH || FAIL
+test-debug/DebugBreakInMessageHandler: CRASH || FAIL
+test-api/HugeConsStringOutOfMemory: CRASH || FAIL
+test-api/OutOfMemory: CRASH || FAIL
+test-api/OutOfMemoryNested: CRASH || FAIL
+test-api/Threading: CRASH || FAIL
+test-api/TryCatchSourceInfo: CRASH || FAIL
+test-api/RegExpInterruption: CRASH || FAIL
+test-api/RegExpStringModification: CRASH || FAIL

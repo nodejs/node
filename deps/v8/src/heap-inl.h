@@ -82,6 +82,8 @@ Object* Heap::AllocateRaw(int size_in_bytes,
     result = code_space_->AllocateRaw(size_in_bytes);
   } else if (LO_SPACE == space) {
     result = lo_space_->AllocateRaw(size_in_bytes);
+  } else if (CELL_SPACE == space) {
+    result = cell_space_->AllocateRaw(size_in_bytes);
   } else {
     ASSERT(MAP_SPACE == space);
     result = map_space_->AllocateRaw(size_in_bytes);
@@ -107,12 +109,23 @@ Object* Heap::NumberFromUint32(uint32_t value) {
 }
 
 
-Object* Heap::AllocateRawMap(int size_in_bytes) {
+Object* Heap::AllocateRawMap() {
 #ifdef DEBUG
   Counters::objs_since_last_full.Increment();
   Counters::objs_since_last_young.Increment();
 #endif
-  Object* result = map_space_->AllocateRaw(size_in_bytes);
+  Object* result = map_space_->AllocateRaw(Map::kSize);
+  if (result->IsFailure()) old_gen_exhausted_ = true;
+  return result;
+}
+
+
+Object* Heap::AllocateRawCell() {
+#ifdef DEBUG
+  Counters::objs_since_last_full.Increment();
+  Counters::objs_since_last_young.Increment();
+#endif
+  Object* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
 }
@@ -216,7 +229,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 void Heap::SetLastScriptId(Object* last_script_id) {
-  last_script_id_ = last_script_id;
+  roots_[kLastScriptIdRootIndex] = last_script_id;
 }
 
 

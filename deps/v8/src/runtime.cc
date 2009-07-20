@@ -168,7 +168,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       }
     }
   } else {
-    Dictionary* element_dictionary = copy->element_dictionary();
+    NumberDictionary* element_dictionary = copy->element_dictionary();
     int capacity = element_dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = element_dictionary->KeyAt(i);
@@ -413,48 +413,6 @@ static Object* Runtime_ClassOf(Arguments args) {
 }
 
 
-static Object* Runtime_HasStringClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::String_symbol()));
-}
-
-
-static Object* Runtime_HasDateClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Date_symbol()));
-}
-
-
-static Object* Runtime_HasArrayClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Array_symbol()));
-}
-
-
-static Object* Runtime_HasFunctionClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::function_class_symbol()));
-}
-
-
-static Object* Runtime_HasNumberClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Number_symbol()));
-}
-
-
-static Object* Runtime_HasBooleanClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Boolean_symbol()));
-}
-
-
-static Object* Runtime_HasArgumentsClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::Arguments_symbol()));
-}
-
-
-static Object* Runtime_HasRegExpClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::RegExp_symbol()));
-}
-
-
 static Object* Runtime_IsInPrototypeChain(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -617,9 +575,6 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
   // non-deletable. However, neither SpiderMonkey nor KJS creates the
   // property as read-only, so we don't either.
   PropertyAttributes base = is_eval ? NONE : DONT_DELETE;
-
-  // Only optimize the object if we intend to add more than 5 properties.
-  OptimizedObjectForAddingMultipleProperties ba(global, pairs->length()/2 > 5);
 
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
@@ -814,17 +769,23 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   PropertyAttributes attributes = DONT_DELETE;
 
   // Lookup the property locally in the global object. If it isn't
-  // there, we add the property and take special precautions to always
-  // add it as a local property even in case of callbacks in the
-  // prototype chain (this rules out using SetProperty).
-  // We have IgnoreAttributesAndSetLocalProperty for this.
+  // there, there is a property with this name in the prototype chain.
+  // We follow Safari and Firefox behavior and only set the property
+  // locally if there is an explicit initialization value that we have
+  // to assign to the property. When adding the property we take
+  // special precautions to always add it as a local property even in
+  // case of callbacks in the prototype chain (this rules out using
+  // SetProperty).  We have IgnoreAttributesAndSetLocalProperty for
+  // this.
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                       value,
-                                                       attributes);
+    if (assign) {
+      return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                         args[1],
+                                                         attributes);
+    }
+    return Heap::undefined_value();
   }
 
   // Determine if this is a redeclaration of something read-only.
@@ -932,10 +893,8 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
       properties->set(index, *value);
     }
   } else if (type == NORMAL) {
-    Dictionary* dictionary = global->property_dictionary();
-    int entry = lookup.GetDictionaryEntry();
-    if (dictionary->ValueAt(entry)->IsTheHole()) {
-      dictionary->ValueAtPut(entry, *value);
+    if (global->GetNormalizedProperty(&lookup)->IsTheHole()) {
+      global->SetNormalizedProperty(&lookup, *value);
     }
   } else {
     // Ignore re-initialization of constants that have already been
@@ -1025,10 +984,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
         properties->set(index, *value);
       }
     } else if (type == NORMAL) {
-      Dictionary* dictionary = context_ext->property_dictionary();
-      int entry = lookup.GetDictionaryEntry();
-      if (dictionary->ValueAt(entry)->IsTheHole()) {
-        dictionary->ValueAtPut(entry, *value);
+      if (context_ext->GetNormalizedProperty(&lookup)->IsTheHole()) {
+        context_ext->SetNormalizedProperty(&lookup, *value);
       }
     } else {
       // We should not reach here. Any real, named property should be
@@ -1059,16 +1016,16 @@ static Object* Runtime_RegExpExec(Arguments args) {
   ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(String, subject, 1);
-  // Due to the way the JS files are constructed this must be less than the
+  // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_CHECKED(Smi, index, args[2]);
+  CONVERT_SMI_CHECKED(index, args[2]);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(last_match_info->HasFastElements());
-  RUNTIME_ASSERT(index->value() >= 0);
-  RUNTIME_ASSERT(index->value() <= subject->length());
+  RUNTIME_ASSERT(index >= 0);
+  RUNTIME_ASSERT(index <= subject->length());
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
-                                           index->value(),
+                                           index,
                                            last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
@@ -1154,6 +1111,21 @@ static Object* Runtime_FunctionGetScriptSourcePosition(Arguments args) {
   int pos = fun->shared()->start_position();
   return Smi::FromInt(pos);
 }
+
+
+static Object* Runtime_FunctionGetPositionForOffset(Arguments args) {
+  ASSERT(args.length() == 2);
+
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
+
+  Code* code = fun->code();
+  RUNTIME_ASSERT(0 <= offset && offset < code->Size());
+
+  Address pc = code->address() + offset;
+  return Smi::FromInt(fun->code()->SourcePosition(pc));
+}
+
 
 
 static Object* Runtime_FunctionSetInstanceClassName(Arguments args) {
@@ -2626,23 +2598,25 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
         Object* value = receiver->FastPropertyAt(offset);
         return value->IsTheHole() ? Heap::undefined_value() : value;
       }
-      // Lookup cache miss.  Perform lookup and update the cache if
-      // appropriate.
+      // Lookup cache miss.  Perform lookup and update the cache if appropriate.
       LookupResult result;
       receiver->LocalLookup(key, &result);
       if (result.IsProperty() && result.IsLoaded() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
         KeyedLookupCache::Update(receiver_map, key, offset);
-        Object* value = receiver->FastPropertyAt(offset);
-        return value->IsTheHole() ? Heap::undefined_value() : value;
+        return receiver->FastPropertyAt(offset);
       }
     } else {
       // Attempt dictionary lookup.
-      Dictionary* dictionary = receiver->property_dictionary();
-      int entry = dictionary->FindStringEntry(key);
-      if ((entry != DescriptorArray::kNotFound) &&
+      StringDictionary* dictionary = receiver->property_dictionary();
+      int entry = dictionary->FindEntry(key);
+      if ((entry != StringDictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
-        return dictionary->ValueAt(entry);
+        Object* value = dictionary->ValueAt(entry);
+        if (!receiver->IsGlobalObject()) return value;
+        value = JSGlobalPropertyCell::cast(value)->value();
+        if (!value->IsTheHole()) return value;
+        // If value is the hole do the general lookup.
       }
     }
   }
@@ -4179,16 +4153,21 @@ static Object* Runtime_Math_pow(Arguments args) {
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  if (y == 0.5) {
-    // It's not uncommon to use Math.pow(x, 0.5) to compute the square
-    // root of a number. To speed up such computations, we explictly
-    // check for this case and use the sqrt() function which is faster
-    // than pow().
-    return Heap::AllocateHeapNumber(sqrt(x));
-  } else if (y == -0.5) {
-    // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
-    return Heap::AllocateHeapNumber(1.0 / sqrt(x));
-  } else if (y == 0) {
+
+  if (!isinf(x)) {
+    if (y == 0.5) {
+      // It's not uncommon to use Math.pow(x, 0.5) to compute the
+      // square root of a number. To speed up such computations, we
+      // explictly check for this case and use the sqrt() function
+      // which is faster than pow().
+      return Heap::AllocateHeapNumber(sqrt(x));
+    } else if (y == -0.5) {
+      // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
+      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
+    }
+  }
+
+  if (y == 0) {
     return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
     return Heap::nan_value();
@@ -4337,7 +4316,7 @@ static Object* Runtime_NewObject(Arguments args) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Handle stepping into constructors if step into is active.
   if (Debug::StepInActive()) {
-    Debug::HandleStepIn(function, 0, true);
+    Debug::HandleStepIn(function, Handle<Object>::null(), 0, true);
   }
 #endif
 
@@ -4522,17 +4501,25 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
-// TODO(x64): Definitely!
+#ifdef V8_HOST_ARCH_64_BIT
+// Tested with GCC, not with MSVC.
+struct ObjectPair {
+  Object* x;
+  Object* y;
+};
+static inline ObjectPair MakePair(Object* x, Object* y) {
+  ObjectPair result = {x, y};
+  return result;  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+}
+#else
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {
-#if V8_HOST_ARCH_64_BIT
-  UNIMPLEMENTED();
-  return 0;
-#else
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
-#endif
 }
+#endif
+
+
 
 
 static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
@@ -5152,8 +5139,8 @@ class ArrayConcatVisitor {
       storage_->set(index, *elm);
 
     } else {
-      Handle<Dictionary> dict = Handle<Dictionary>::cast(storage_);
-      Handle<Dictionary> result =
+      Handle<NumberDictionary> dict = Handle<NumberDictionary>::cast(storage_);
+      Handle<NumberDictionary> result =
           Factory::DictionaryAtNumberPut(dict, index, elm);
       if (!result.is_identical_to(dict))
         storage_ = result;
@@ -5201,7 +5188,7 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
     }
 
   } else {
-    Handle<Dictionary> dict(receiver->element_dictionary());
+    Handle<NumberDictionary> dict(receiver->element_dictionary());
     uint32_t capacity = dict->Capacity();
     for (uint32_t j = 0; j < capacity; j++) {
       Handle<Object> k(dict->KeyAt(j));
@@ -5355,7 +5342,7 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewDictionary(at_least_space_for));
+                  Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -5418,7 +5405,7 @@ static Object* Runtime_EstimateNumberOfElements(Arguments args) {
   CONVERT_CHECKED(JSArray, array, args[0]);
   HeapObject* elements = array->elements();
   if (elements->IsDictionary()) {
-    return Smi::FromInt(Dictionary::cast(elements)->NumberOfElements());
+    return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
   } else {
     return array->length();
   }
@@ -5560,15 +5547,12 @@ static Object* DebugLookupResultValue(Object* receiver, String* name,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
-    case NORMAL: {
-      Dictionary* dict =
-          JSObject::cast(result->holder())->property_dictionary();
-      value = dict->ValueAt(result->GetDictionaryEntry());
+    case NORMAL:
+      value = result->holder()->GetNormalizedProperty(result);
       if (value->IsTheHole()) {
         return Heap::undefined_value();
       }
       return value;
-    }
     case FIELD:
       value =
           JSObject::cast(
@@ -7404,6 +7388,81 @@ static Object* Runtime_GetScript(Arguments args) {
   // Find the requested script.
   Handle<Object> result =
       Runtime_GetScriptFromScriptName(Handle<String>(script_name));
+  return *result;
+}
+
+
+// Determines whether the given stack frame should be displayed in
+// a stack trace.  The caller is the error constructor that asked
+// for the stack trace to be collected.  The first time a construct
+// call to this function is encountered it is skipped.  The seen_caller
+// in/out parameter is used to remember if the caller has been seen
+// yet.
+static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
+    bool* seen_caller) {
+  // Only display JS frames.
+  if (!raw_frame->is_java_script())
+    return false;
+  JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+  Object* raw_fun = frame->function();
+  // Not sure when this can happen but skip it just in case.
+  if (!raw_fun->IsJSFunction())
+    return false;
+  if ((raw_fun == caller) && !(*seen_caller) && frame->IsConstructor()) {
+    *seen_caller = true;
+    return false;
+  }
+  // Skip the most obvious builtin calls.  Some builtin calls (such as
+  // Number.ADD which is invoked using 'call') are very difficult to
+  // recognize so we're leaving them in for now.
+  return !frame->receiver()->IsJSBuiltinsObject();
+}
+
+
+// Collect the raw data for a stack trace.  Returns an array of three
+// element segments each containing a receiver, function and native
+// code offset.
+static Object* Runtime_CollectStackTrace(Arguments args) {
+  ASSERT_EQ(args.length(), 2);
+  Object* caller = args[0];
+  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
+
+  HandleScope scope;
+
+  int initial_size = limit < 10 ? limit : 10;
+  Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
+
+  StackFrameIterator iter;
+  bool seen_caller = false;
+  int cursor = 0;
+  int frames_seen = 0;
+  while (!iter.done() && frames_seen < limit) {
+    StackFrame* raw_frame = iter.frame();
+    if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+      frames_seen++;
+      JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+      Object* recv = frame->receiver();
+      Object* fun = frame->function();
+      Address pc = frame->pc();
+      Address start = frame->code()->address();
+      Smi* offset = Smi::FromInt(pc - start);
+      FixedArray* elements = result->elements();
+      if (cursor + 2 < elements->length()) {
+        elements->set(cursor++, recv);
+        elements->set(cursor++, fun);
+        elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
+      } else {
+        HandleScope scope;
+        SetElement(result, cursor++, Handle<Object>(recv));
+        SetElement(result, cursor++, Handle<Object>(fun));
+        SetElement(result, cursor++, Handle<Smi>(offset));
+      }
+    }
+    iter.Advance();
+  }
+
+  result->set_length(Smi::FromInt(cursor), SKIP_WRITE_BARRIER);
+
   return *result;
 }
 

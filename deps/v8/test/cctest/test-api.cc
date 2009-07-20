@@ -2796,17 +2796,14 @@ static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
   CHECK_EQ(v8::Undefined(), message->GetScriptResourceName());
   message->GetLineNumber();
   message->GetSourceLine();
-  message_received = true;
 }
 
 
 THREADED_TEST(ErrorWithMissingScriptInfo) {
-  message_received = false;
   v8::HandleScope scope;
   LocalContext context;
   v8::V8::AddMessageListener(MissingScriptInfoMessageListener);
   Script::Compile(v8_str("throw Error()"))->Run();
-  CHECK(message_received);
   v8::V8::RemoveMessageListeners(MissingScriptInfoMessageListener);
 }
 
@@ -6043,6 +6040,7 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   CHECK(value->BooleanValue());
 }
 
+
 static bool NamedGetAccessBlocker(Local<v8::Object> obj,
                                   Local<Value> name,
                                   v8::AccessType type,
@@ -6096,6 +6094,7 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   CHECK(value_2->IsUndefined());
 }
 
+
 // This tests that access check information remains on the global
 // object template when creating contexts.
 THREADED_TEST(AccessControlRepeatedContextCreation) {
@@ -6111,6 +6110,71 @@ THREADED_TEST(AccessControlRepeatedContextCreation) {
   CHECK(!constructor->access_check_info()->IsUndefined());
   v8::Persistent<Context> context0 = Context::New(NULL, global_template);
   CHECK(!constructor->access_check_info()->IsUndefined());
+}
+
+
+THREADED_TEST(TurnOnAccessCheck) {
+  v8::HandleScope handle_scope;
+
+  // Create an environment with access check to the global object disabled by
+  // default.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                           IndexedGetAccessBlocker,
+                                           v8::Handle<v8::Value>(),
+                                           false);
+  v8::Persistent<Context> context = Context::New(NULL, global_template);
+  Context::Scope context_scope(context);
+
+  // Set up a property and a number of functions.
+  context->Global()->Set(v8_str("a"), v8_num(1));
+  CompileRun("function f1() {return a;}"
+             "function f2() {return a;}"
+             "function g1() {return h();}"
+             "function g2() {return h();}"
+             "function h() {return 1;}");
+  Local<Function> f1 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("f1")));
+  Local<Function> f2 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("f2")));
+  Local<Function> g1 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("g1")));
+  Local<Function> g2 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("g2")));
+  Local<Function> h =
+      Local<Function>::Cast(context->Global()->Get(v8_str("h")));
+
+  // Get the global object.
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Call f1 one time and f2 a number of times. This will ensure that f1 still
+  // uses the runtime system to retreive property a whereas f2 uses global load
+  // inline cache.
+  CHECK(f1->Call(global, 0, NULL)->Equals(v8_num(1)));
+  for (int i = 0; i < 4; i++) {
+    CHECK(f2->Call(global, 0, NULL)->Equals(v8_num(1)));
+  }
+
+  // Same for g1 and g2.
+  CHECK(g1->Call(global, 0, NULL)->Equals(v8_num(1)));
+  for (int i = 0; i < 4; i++) {
+    CHECK(g2->Call(global, 0, NULL)->Equals(v8_num(1)));
+  }
+
+  // Detach the global and turn on access check.
+  context->DetachGlobal();
+  context->Global()->TurnOnAccessCheck();
+
+  // Failing access check to property get results in undefined.
+  CHECK(f1->Call(global, 0, NULL)->IsUndefined());
+  CHECK(f2->Call(global, 0, NULL)->IsUndefined());
+
+  // Failing access check to function call results in exception.
+  CHECK(g1->Call(global, 0, NULL).IsEmpty());
+  CHECK(g2->Call(global, 0, NULL).IsEmpty());
+
+  // No failing access check when just returning a constant.
+  CHECK(h->Call(global, 0, NULL)->Equals(v8_num(1)));
 }
 
 
@@ -6898,6 +6962,28 @@ THREADED_TEST(ForceDeleteWithInterceptor) {
 }
 
 
+// Make sure that forcing a delete invalidates any IC stubs, so we
+// don't read the hole value.
+THREADED_TEST(ForceDeleteIC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Create a DontDelete variable on the global object.
+  CompileRun("this.__proto__ = { foo: 'horse' };"
+             "var foo = 'fish';"
+             "function f() { return foo.length; }");
+  // Initialize the IC for foo in f.
+  CompileRun("for (var i = 0; i < 4; i++) f();");
+  // Make sure the value of foo is correct before the deletion.
+  CHECK_EQ(4, CompileRun("f()")->Int32Value());
+  // Force the deletion of foo.
+  CHECK(context->Global()->ForceDelete(v8_str("foo")));
+  // Make sure the value for foo is read from the prototype, and that
+  // we don't get in trouble with reading the deleted cell value
+  // sentinel.
+  CHECK_EQ(5, CompileRun("f()")->Int32Value());
+}
+
+
 v8::Persistent<Context> calling_context0;
 v8::Persistent<Context> calling_context1;
 v8::Persistent<Context> calling_context2;
@@ -6959,4 +7045,39 @@ THREADED_TEST(GetCallingContext) {
   calling_context0.Clear();
   calling_context1.Clear();
   calling_context2.Clear();
+}
+
+
+// Check that a variable declaration with no explicit initialization
+// value does not shadow an existing property in the prototype chain.
+//
+// This is consistent with Firefox and Safari.
+//
+// See http://crbug.com/12548.
+THREADED_TEST(InitGlobalVarInProtoChain) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Introduce a variable in the prototype chain.
+  CompileRun("__proto__.x = 42");
+  v8::Handle<v8::Value> result = CompileRun("var x; x");
+  CHECK(!result->IsUndefined());
+  CHECK_EQ(42, result->Int32Value());
+}
+
+
+// Regression test for issue 398.
+// If a function is added to an object, creating a constant function
+// field, and the result is cloned, replacing the constant function on the
+// original should not affect the clone.
+// See http://code.google.com/p/v8/issues/detail?id=398
+THREADED_TEST(ReplaceConstantFunction) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  v8::Handle<v8::FunctionTemplate> func_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::String> foo_string = v8::String::New("foo");
+  obj->Set(foo_string, func_templ->GetFunction());
+  v8::Handle<v8::Object> obj_clone = obj->Clone();
+  obj_clone->Set(foo_string, v8::String::New("Hello"));
+  CHECK(!obj->Get(foo_string)->IsUndefined());
 }

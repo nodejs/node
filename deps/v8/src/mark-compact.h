@@ -293,6 +293,7 @@ class MarkCompactCollector: public AllStatic {
   static void DeallocateOldDataBlock(Address start, int size_in_bytes);
   static void DeallocateCodeBlock(Address start, int size_in_bytes);
   static void DeallocateMapBlock(Address start, int size_in_bytes);
+  static void DeallocateCellBlock(Address start, int size_in_bytes);
 
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
@@ -352,8 +353,12 @@ class MarkCompactCollector: public AllStatic {
   static int RelocateOldPointerObject(HeapObject* obj);
   static int RelocateOldDataObject(HeapObject* obj);
 
+  // Relocate a property cell object.
+  static int RelocateCellObject(HeapObject* obj);
+
   // Helper function.
-  static inline int RelocateOldNonCodeObject(HeapObject* obj, OldSpace* space);
+  static inline int RelocateOldNonCodeObject(HeapObject* obj,
+                                             PagedSpace* space);
 
   // Relocates an object in the code space.
   static int RelocateCodeObject(HeapObject* obj);
@@ -392,6 +397,9 @@ class MarkCompactCollector: public AllStatic {
 
   // Number of live objects in Heap::map_space_.
   static int live_map_objects_;
+
+  // Number of live objects in Heap::cell_space_.
+  static int live_cell_objects_;
 
   // Number of live objects in Heap::lo_space_.
   static int live_lo_objects_;

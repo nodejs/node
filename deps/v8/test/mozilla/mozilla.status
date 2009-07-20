@@ -476,12 +476,11 @@ js1_2/Array/array_split_1: FAIL_OK
 js1_5/Array/regress-313153: FAIL_OK
 
 
-# Properties stack, fileName, and lineNumber of Error instances are
+# Properties fileName, and lineNumber of Error instances are
 # not supported. Mozilla specific extension.
 js1_5/Exceptions/errstack-001: FAIL_OK
 js1_5/Exceptions/regress-257751: FAIL_OK
 js1_5/Regress/regress-119719: FAIL_OK
-js1_5/Regress/regress-139316: FAIL_OK
 js1_5/Regress/regress-167328: FAIL_OK
 js1_5/Regress/regress-243869: FAIL_OK
 

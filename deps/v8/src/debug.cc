@@ -1260,6 +1260,7 @@ void Debug::SetBreak(StackFrame::Id break_frame_id, int break_id) {
 
 // Handle stepping into a function.
 void Debug::HandleStepIn(Handle<JSFunction> function,
+                         Handle<Object> holder,
                          Address fp,
                          bool is_constructor) {
   // If the frame pointer is not supplied by the caller find it.
@@ -1285,21 +1286,12 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
           Builtins::builtin(Builtins::FunctionCall)) {
         // Handle function.apply and function.call separately to flood the
         // function to be called and not the code for Builtins::FunctionApply or
-        // Builtins::FunctionCall. At the point of the call IC to call either
-        // Builtins::FunctionApply or Builtins::FunctionCall the expression
-        // stack has the following content:
-        //   symbol "apply" or "call"
-        //   function apply or call was called on
-        //   receiver for apply or call (first parameter to apply or call)
-        //   ... further arguments to apply or call.
-        JavaScriptFrameIterator it;
-        ASSERT(it.frame()->fp() == fp);
-        ASSERT(it.frame()->GetExpression(1)->IsJSFunction());
-        if (it.frame()->GetExpression(1)->IsJSFunction()) {
-          Handle<JSFunction>
-              actual_function(JSFunction::cast(it.frame()->GetExpression(1)));
-          Handle<SharedFunctionInfo> actual_shared(actual_function->shared());
-          Debug::FloodWithOneShot(actual_shared);
+        // Builtins::FunctionCall. The receiver of call/apply is the target
+        // function.
+        if (!holder.is_null() && holder->IsJSFunction()) {
+          Handle<SharedFunctionInfo> shared_info(
+              JSFunction::cast(*holder)->shared());
+          Debug::FloodWithOneShot(shared_info);
         }
       } else {
         Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));

@@ -29,3 +29,16 @@ prefix message
 
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
+
+[ $arch == x64 ]
+
+simple-throw.js: FAIL
+try-catch-finally-throw-in-catch-and-finally.js: FAIL
+try-catch-finally-throw-in-catch.js: FAIL
+try-catch-finally-throw-in-finally.js: FAIL
+try-finally-throw-in-finally.js: FAIL
+try-finally-throw-in-try-and-finally.js: FAIL
+try-finally-throw-in-try.js: FAIL
+overwritten-builtins.js: FAIL
+regress-73.js: FAIL
+regress-75.js: FAIL

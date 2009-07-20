@@ -4892,6 +4892,7 @@ TEST(DebugBreakInMessageHandler) {
 }
 
 
+#ifdef V8_NATIVE_REGEXP
 // Debug event handler which gets the function on the top frame and schedules a
 // break a number of times.
 static void DebugEventDebugBreak(
@@ -4928,10 +4929,9 @@ static void DebugEventDebugBreak(
 
 
 TEST(RegExpDebugBreak) {
+  // This test only applies to native regexps.
   v8::HandleScope scope;
   DebugLocalContext env;
-
-  i::FLAG_regexp_native = true;
 
   // Create a function for checking the function when hitting a break point.
   frame_function_name = CompileFunction(&env,
@@ -4957,6 +4957,7 @@ TEST(RegExpDebugBreak) {
   CHECK_EQ(20, break_point_hit_count);
   CHECK_EQ("exec", last_function_hit);
 }
+#endif  // V8_NATIVE_REGEXP
 
 
 // Common part of EvalContextData and NestedBreakEventContextData tests.

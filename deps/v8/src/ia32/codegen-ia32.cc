@@ -1856,40 +1856,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 }
 
 
-class CompareStub: public CodeStub {
- public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Condition cc_;
-  bool strict_;
-
-  Major MajorKey() { return Compare; }
-
-  int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    ASSERT(static_cast<int>(cc_) < (1 << 15));
-    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
-  }
-
-  // Branch to the label if the given object isn't a symbol.
-  void BranchIfNonSymbol(MacroAssembler* masm,
-                         Label* label,
-                         Register object,
-                         Register scratch);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false");
-  }
-#endif
-};
-
-
 void CodeGenerator::Comparison(Condition cc,
                                bool strict,
                                ControlDestination* dest) {
@@ -4987,6 +4953,29 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+
+  // Get the frame pointer for the calling frame.
+  Result fp = allocator()->Allocate();
+  __ mov(fp.reg(), Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ cmp(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+         Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(not_equal, &check_frame_marker);
+  __ mov(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ cmp(Operand(fp.reg(), StandardFrameConstants::kMarkerOffset),
+         Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+  fp.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument
@@ -4996,6 +4985,70 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   Result result = frame_->CallStub(&stub, &count);
   frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
+  Load(args->at(0));  // Load the object.
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  frame_->Spill(obj.reg());
+
+  // If the object is a smi, we return null.
+  __ test(obj.reg(), Immediate(kSmiTagMask));
+  null.Branch(zero);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  { Result tmp = allocator()->Allocate();
+    __ mov(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+    __ movzx_b(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
+    __ cmp(tmp.reg(), FIRST_JS_OBJECT_TYPE);
+    null.Branch(less);
+
+    // As long as JS_FUNCTION_TYPE is the last instance type and it is
+    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+    // LAST_JS_OBJECT_TYPE.
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+    __ cmp(tmp.reg(), JS_FUNCTION_TYPE);
+    function.Branch(equal);
+  }
+
+  // Check if the constructor in the map is a function.
+  { Result tmp = allocator()->Allocate();
+    __ mov(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+    __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, tmp.reg());
+    non_function_constructor.Branch(not_equal);
+  }
+
+  // The map register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ mov(obj.reg(),
+         FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
+  __ mov(obj.reg(),
+         FieldOperand(obj.reg(), SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->Push(&obj);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  frame_->Push(Factory::function_class_symbol());
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  frame_->Push(Factory::Object_symbol());
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  frame_->Push(Factory::null_value());
+
+  // All done.
+  leave.Bind();
 }
 
 
@@ -7538,6 +7591,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ dec(Operand::StaticVariable(scope_depth));
   }
 
+  // Make sure we're not trying to return 'the hole' from the runtime
+  // call as this may lead to crashes in the IC code later.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ cmp(eax, Factory::the_hole_value());
+    __ j(not_equal, &okay);
+    __ int3();
+    __ bind(&okay);
+  }
+
   // Check for failure result.
   Label failure_returned;
   ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
@@ -7855,6 +7918,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
+
+int CompareStub::MinorKey() {
+  // Encode the two parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
+  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
+}
 
 #undef __
 

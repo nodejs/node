@@ -51,6 +51,7 @@ function Instantiate(data, name) {
       var Constructor = %GetTemplateField(data, kApiConstructorOffset);
       var result = Constructor ? new (Instantiate(Constructor))() : {};
       ConfigureTemplateInstance(result, data);
+      result = %ToFastProperties(result);
       return result;
     default:
       throw 'Unknown API tag <' + tag + '>';

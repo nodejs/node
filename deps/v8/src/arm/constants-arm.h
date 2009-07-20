@@ -36,6 +36,19 @@
 # define USE_ARM_EABI 1
 #endif
 
+// This means that interwork-compatible jump instructions are generated.  We
+// want to generate them on the simulator too so it makes snapshots that can
+// be used on real hardware.
+#if defined(__THUMB_INTERWORK__) || !defined(__arm__)
+# define USE_THUMB_INTERWORK 1
+#endif
+
+// Simulator should support ARM5 instructions.
+#if !defined(__arm__)
+# define __ARM_ARCH_5__ 1
+# define __ARM_ARCH_5T__ 1
+#endif
+
 namespace assembler {
 namespace arm {
 
@@ -95,6 +108,24 @@ enum Opcode {
   MVN = 15,  // Move Not
   max_operand = 16
 };
+
+
+// Some special instructions encoded as a TEQ with S=0 (bit 20).
+enum Opcode9Bits {
+  BX   =  1,
+  BXJ  =  2,
+  BLX  =  3,
+  BKPT =  7
+};
+
+
+// Some special instructions encoded as a CMN with S=0 (bit 20).
+enum Opcode11Bits {
+  CLZ  =  1
+};
+
+
+// S
 
 
 // Shifter types for Data-processing operands as defined in section A5.1.2.

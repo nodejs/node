@@ -639,6 +639,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     sample.fp = mcontext.arm_fp;
 #endif
 #endif
+    active_sampler_->SampleStack(&sample);
   }
 
   // We always sample the VM state.

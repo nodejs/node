@@ -534,10 +534,10 @@ TEST(ExistsInPrototype) {
 
   { ExistsInPrototypeContext context;
     context.Check("var x; x",
-                  0,
+                  1,  // get
                   0,
                   1,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_EXCEPTION);
   }
 
   { ExistsInPrototypeContext context;

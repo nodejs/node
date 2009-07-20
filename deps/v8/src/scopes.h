@@ -35,19 +35,22 @@ namespace v8 {
 namespace internal {
 
 
-// A hash map to support fast local variable declaration and lookup.
-class LocalsMap: public HashMap {
+// A hash map to support fast variable declaration and lookup.
+class VariableMap: public HashMap {
  public:
-  LocalsMap();
+  VariableMap();
 
   // Dummy constructor.  This constructor doesn't set up the map
   // properly so don't use it unless you have a good reason.
-  explicit LocalsMap(bool gotta_love_static_overloading);
+  explicit VariableMap(bool gotta_love_static_overloading);
 
-  virtual ~LocalsMap();
+  virtual ~VariableMap();
 
-  Variable* Declare(Scope* scope, Handle<String> name, Variable::Mode mode,
-                    bool is_valid_LHS, Variable::Kind kind);
+  Variable* Declare(Scope* scope,
+                    Handle<String> name,
+                    Variable::Mode mode,
+                    bool is_valid_lhs,
+                    Variable::Kind kind);
 
   Variable* Lookup(Handle<String> name);
 };
@@ -59,14 +62,14 @@ class LocalsMap: public HashMap {
 // and setup time for scopes that don't need them.
 class DynamicScopePart : public ZoneObject {
  public:
-  LocalsMap* GetMap(Variable::Mode mode) {
+  VariableMap* GetMap(Variable::Mode mode) {
     int index = mode - Variable::DYNAMIC;
     ASSERT(index >= 0 && index < 3);
     return &maps_[index];
   }
 
  private:
-  LocalsMap maps_[3];
+  VariableMap maps_[3];
 };
 
 
@@ -105,7 +108,7 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  virtual Variable* LookupLocal(Handle<String> name);
+  virtual Variable* LocalLookup(Handle<String> name);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
@@ -116,9 +119,15 @@ class Scope: public ZoneObject {
   // outer scope. Only possible for function scopes; at most one variable.
   Variable* DeclareFunctionVar(Handle<String> name);
 
-  // Declare a variable in this scope. If the variable has been
+  // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  virtual Variable* Declare(Handle<String> name, Variable::Mode mode);
+  virtual Variable* DeclareLocal(Handle<String> name, Variable::Mode mode);
+
+  // Declare an implicit global variable in this scope which must be a
+  // global scope.  The variable was introduced (possibly from an inner
+  // scope) by a reference to an unresolved variable with no intervening
+  // with statements or eval calls.
+  Variable* DeclareGlobal(Handle<String> name);
 
   // Add a parameter to the parameter list. The parameter must have been
   // declared via Declare. The same parameter may occur more then once in
@@ -288,25 +297,28 @@ class Scope: public ZoneObject {
   Handle<String> scope_name_;
 
   // The variables declared in this scope:
-  // all user-declared variables (incl. parameters)
-  LocalsMap locals_;
-  // compiler-allocated (user-invisible) temporaries
+  //
+  // All user-declared variables (incl. parameters).  For global scopes
+  // variables may be implicitly 'declared' by being used (possibly in
+  // an inner scope) with no intervening with statements or eval calls.
+  VariableMap variables_;
+  // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
-  // parameter list in source order
+  // Parameter list in source order.
   ZoneList<Variable*> params_;
-  // variables that must be looked up dynamically
+  // Variables that must be looked up dynamically.
   DynamicScopePart* dynamics_;
-  // unresolved variables referred to from this scope
+  // Unresolved variables referred to from this scope.
   ZoneList<VariableProxy*> unresolved_;
-  // declarations
+  // Declarations.
   ZoneList<Declaration*> decls_;
-  // convenience variable
+  // Convenience variable.
   VariableProxy* receiver_;
-  // function variable, if any; function scopes only
+  // Function variable, if any; function scopes only.
   Variable* function_;
-  // convenience variable; function scopes only
+  // Convenience variable; function scopes only.
   VariableProxy* arguments_;
-  // convenience variable; function scopes only
+  // Convenience variable; function scopes only.
   VariableProxy* arguments_shadow_;
 
   // Illegal redeclaration.

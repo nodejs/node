@@ -42,8 +42,8 @@ namespace internal {
 Object* CallStubCompiler::CompileCallConstant(Object* a,
                                               JSObject* b,
                                               JSFunction* c,
-                                              StubCompiler::CheckType d,
-                                              Code::Flags flags) {
+                                              String* d,
+                                              StubCompiler::CheckType e) {
   UNIMPLEMENTED();
   return NULL;
 }
@@ -51,8 +51,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* a,
 Object* CallStubCompiler::CompileCallField(Object* a,
                                            JSObject* b,
                                            int c,
-                                           String* d,
-                                           Code::Flags flags) {
+                                           String* d) {
   UNIMPLEMENTED();
   return NULL;
 }
@@ -65,6 +64,16 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
   return NULL;
 }
 
+
+
+Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                            GlobalObject* holder,
+                                            JSGlobalPropertyCell* cell,
+                                            JSFunction* function,
+                                            String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
 
 
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
@@ -102,6 +111,16 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
 }
 
 
+Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
+                                            GlobalObject* holder,
+                                            JSGlobalPropertyCell* cell,
+                                            String* name,
+                                            bool is_dont_delete) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
@@ -120,6 +139,14 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* a,
 
 
 Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
+                                              JSGlobalPropertyCell* cell,
+                                              String* name) {
   UNIMPLEMENTED();
   return NULL;
 }

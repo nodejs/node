@@ -46,7 +46,7 @@ var DeltaBlue = new BenchmarkSuite('DeltaBlue', 71104, [
 
 /* --- O b j e c t   M o d e l --- */
 
-Object.prototype.inherits = function (shuper) {
+Object.prototype.inheritsFrom = function (shuper) {
   function Inheriter() { }
   Inheriter.prototype = shuper.prototype;
   this.prototype = new Inheriter();
@@ -216,7 +216,7 @@ function UnaryConstraint(v, strength) {
   this.addConstraint();
 }
 
-UnaryConstraint.inherits(Constraint);
+UnaryConstraint.inheritsFrom(Constraint);
 
 /**
  * Adds this constraint to the constraint graph
@@ -294,7 +294,7 @@ function StayConstraint(v, str) {
   StayConstraint.superConstructor.call(this, v, str);
 }
 
-StayConstraint.inherits(UnaryConstraint);
+StayConstraint.inheritsFrom(UnaryConstraint);
 
 StayConstraint.prototype.execute = function () {
   // Stay constraints do nothing
@@ -312,7 +312,7 @@ function EditConstraint(v, str) {
   EditConstraint.superConstructor.call(this, v, str);
 }
 
-EditConstraint.inherits(UnaryConstraint);
+EditConstraint.inheritsFrom(UnaryConstraint);
 
 /**
  * Edits indicate that a variable is to be changed by imperative code.
@@ -346,7 +346,7 @@ function BinaryConstraint(var1, var2, strength) {
   this.addConstraint();
 }
 
-BinaryConstraint.inherits(Constraint);
+BinaryConstraint.inheritsFrom(Constraint);
 
 /**
  * Decides if this constratint can be satisfied and which way it
@@ -459,7 +459,7 @@ function ScaleConstraint(src, scale, offset, dest, strength) {
   ScaleConstraint.superConstructor.call(this, src, dest, strength);
 }
 
-ScaleConstraint.inherits(BinaryConstraint);
+ScaleConstraint.inheritsFrom(BinaryConstraint);
 
 /**
  * Adds this constraint to the constraint graph.
@@ -515,7 +515,7 @@ function EqualityConstraint(var1, var2, strength) {
   EqualityConstraint.superConstructor.call(this, var1, var2, strength);
 }
 
-EqualityConstraint.inherits(BinaryConstraint);
+EqualityConstraint.inheritsFrom(BinaryConstraint);
 
 /**
  * Enforce this constraint. Assume that it is satisfied.

@@ -413,7 +413,7 @@ testReduce("reduceRight", "ArrayWithNonElementPropertiesReduceRight", 6,
 
 try {
   [1].reduce("not a function");
-  fail("Reduce callback not a function not throwing");
+  assertUnreachable("Reduce callback not a function not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduce callback not a function not throwing TypeError");
@@ -423,7 +423,7 @@ try {
 
 try {
   [1].reduceRight("not a function");
-  fail("ReduceRight callback not a function not throwing");
+  assertUnreachable("ReduceRight callback not a function not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduceRight callback not a function not throwing TypeError");
@@ -434,7 +434,7 @@ try {
 
 try {
   [].reduce(sum);
-  fail("Reduce no initial value not throwing");
+  assertUnreachable("Reduce no initial value not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduce no initial value not throwing TypeError");
@@ -444,7 +444,7 @@ try {
 
 try {
   [].reduceRight(sum);
-  fail("ReduceRight no initial value not throwing");
+  assertUnreachable("ReduceRight no initial value not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduceRight no initial value not throwing TypeError");
@@ -455,7 +455,7 @@ try {
 
 try {
   [,,,].reduce(sum);
-  fail("Reduce sparse no initial value not throwing");
+  assertUnreachable("Reduce sparse no initial value not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduce sparse no initial value not throwing TypeError");
@@ -465,7 +465,7 @@ try {
 
 try {
   [,,,].reduceRight(sum);
-  fail("ReduceRight sparse no initial value not throwing");
+  assertUnreachable("ReduceRight sparse no initial value not throwing");
 } catch (e) {
   assertTrue(e instanceof TypeError,
              "reduceRight sparse no initial value not throwing TypeError");

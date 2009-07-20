@@ -82,13 +82,16 @@ macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
-macro IS_REGEXP(arg)            = %HasRegExpClass(arg);
-macro IS_ARRAY(arg)             = %HasArrayClass(arg);
-macro IS_DATE(arg)              = %HasDateClass(arg);
-macro IS_NUMBER_WRAPPER(arg)    = %HasNumberClass(arg);
-macro IS_STRING_WRAPPER(arg)    = %HasStringClass(arg);
-macro IS_ERROR(arg)             = (%ClassOf(arg) === 'Error');
-macro IS_SCRIPT(arg)            = (%ClassOf(arg) === 'Script');
+macro IS_ARRAY(arg)             = (%_IsArray(arg));
+macro IS_REGEXP(arg)            = (%_ClassOf(arg) === 'RegExp');
+macro IS_DATE(arg)              = (%_ClassOf(arg) === 'Date');
+macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
+macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
+macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
+macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
+macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
+macro IS_ARGUMENTS(arg)         = (%_ClassOf(arg) === 'Arguments');
+macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro FLOOR(arg)                = %Math_floor(arg);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
@@ -110,6 +113,10 @@ const REGEXP_FIRST_CAPTURE = 3;
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
+
+# Gets the value of a Date object. If arg is not a Date object
+# a type error is thrown.
+macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
 
 # Last input and last subject are after the captures so we can omit them on
 # results returned from global searches.  Beware - these evaluate their

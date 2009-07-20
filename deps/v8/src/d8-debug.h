@@ -41,7 +41,7 @@ void HandleDebugEvent(DebugEvent event,
                       Handle<Object> event_data,
                       Handle<Value> data);
 
-// Start the remote debugger connecting to a V8 debugger agent on the specified
+// Start the remove debugger connecting to a V8 debugger agent on the specified
 // port.
 void RunRemoteDebugger(int port);
 

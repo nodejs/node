@@ -1,3 +1,53 @@
+2009-07-13: Version 1.2.14
+
+        Added separate paged heap space for global property cells and
+        avoid updating the write barrier when storing into them.
+
+        Improved peep-hole optimization on ARM platforms by not emitting
+        unnecessary debug information.
+
+        Re-enabled ICs for loads and calls that skip a global object
+        during lookup through the prototype chain.
+
+        Allowed access through global proxies to use ICs.
+
+        Fixed issue 401.
+
+
+2009-07-09: Version 1.2.13
+
+        Fixed issue 397, issue 398, and issue 399.
+
+        Added support for breakpoint groups.
+
+        Fixed bugs introduced with the new global object representation.
+
+        Fixed a few bugs in the ARM code generator.
+
+
+2009-07-06: Version 1.2.12
+
+        Added stack traces collection to Error objects accessible through
+        the e.stack property.
+
+        Changed RegExp parser to use a recursive data structure instead of
+        stack-based recursion.
+
+        Optimized Date object construction and string concatenation.
+
+        Improved performance of div, mod, and mul on ARM platforms.
+
+
+2009-07-02: Version 1.2.11
+
+        Improved performance on IA-32 and ARM.
+
+        Fixed profiler sampler implementation on Mac OS X.
+
+        Changed the representation of global objects to improve
+        performance of adding a lot of new properties.
+
+
 2009-06-29: Version 1.2.10
 
         Improved debugger support.

@@ -161,14 +161,31 @@ function ADD(x) {
 
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
-  if (!IS_STRING(y)) y = %ToString(%ToPrimitive(y, NO_HINT));
+  if (!IS_STRING(y)) {
+    if (IS_STRING_WRAPPER(y)) {
+      y = %_ValueOf(y);
+    } else {
+      y = IS_NUMBER(y)
+          ? %NumberToString(y)
+          : %ToString(%ToPrimitive(y, NO_HINT));
+    }
+  }
   return %StringAdd(this, y);
 }
 
 
 // Right operand (y) is already a string.
 function STRING_ADD_RIGHT(y) {
-  var x = IS_STRING(this) ? this : %ToString(%ToPrimitive(this, NO_HINT));
+  var x = this;
+  if (!IS_STRING(x)) {
+    if (IS_STRING_WRAPPER(x)) {
+      x = %_ValueOf(x);
+    } else {
+      x = IS_NUMBER(x)
+          ? %NumberToString(x)
+          : %ToString(%ToPrimitive(x, NO_HINT));
+    }
+  }
   return %StringAdd(x, y);
 }
 
@@ -394,7 +411,7 @@ function APPLY_PREPARE(args) {
   // First check whether length is a positive Smi and args is an
   // array. This is the fast case. If this fails, we do the slow case
   // that takes care of more eventualities.
-  if (%_IsArray(args)) {
+  if (IS_ARRAY(args)) {
     length = args.length;
     if (%_IsSmi(length) && length >= 0 && length < 0x800000 && IS_FUNCTION(this)) {
       return length;
@@ -415,9 +432,7 @@ function APPLY_PREPARE(args) {
   }
 
   // Make sure the arguments list has the right type.
-  if (args != null &&
-      !%HasArrayClass(args) &&
-      !%HasArgumentsClass(args)) {
+  if (args != null && !IS_ARRAY(args) && !IS_ARGUMENTS(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

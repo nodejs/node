@@ -35,7 +35,7 @@
 // Set the String function and constructor.
 %SetCode($String, function(x) {
   var value = %_ArgumentsLength() == 0 ? '' : ToString(x);
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -46,7 +46,7 @@
 
 // ECMA-262 section 15.5.4.2
 function StringToString() {
-  if (!IS_STRING(this) && !%HasStringClass(this))
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this))
     throw new $TypeError('String.prototype.toString is not generic');
   return %_ValueOf(this);
 }
@@ -54,7 +54,7 @@ function StringToString() {
 
 // ECMA-262 section 15.5.4.3
 function StringValueOf() {
-  if (!IS_STRING(this) && !%HasStringClass(this))
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this))
     throw new $TypeError('String.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }
@@ -433,7 +433,7 @@ function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
   if (m == 1) {
     var s = CaptureString(subject, lastMatchInfo, 0);
     // Don't call directly to avoid exposing the built-in global object.
-    return ToString(replace.call(null, s, index, subject));
+    return replace.call(null, s, index, subject);
   }
   var parameters = $Array(m + 2);
   for (var j = 0; j < m; j++) {
@@ -441,7 +441,7 @@ function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
   }
   parameters[j] = index;
   parameters[j + 1] = subject;
-  return ToString(replace.apply(null, parameters));
+  return replace.apply(null, parameters);
 }
 
 

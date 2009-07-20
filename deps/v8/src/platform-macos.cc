@@ -38,6 +38,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <mach/mach.h>
 #include <mach/semaphore.h>
 #include <mach/task.h>
 #include <sys/time.h>
@@ -475,63 +476,94 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-static Sampler* active_sampler_ = NULL;
+class Sampler::PlatformData : public Malloced {
+ public:
+  explicit PlatformData(Sampler* sampler)
+      : sampler_(sampler),
+        task_self_(mach_task_self()),
+        profiled_thread_(0),
+        sampler_thread_(0) {
+  }
 
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
-  USE(info);
-  if (signal != SIGPROF) return;
-  if (active_sampler_ == NULL) return;
+  Sampler* sampler_;
+  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
+  // because the latter doesn't provide thread manipulation primitives required.
+  // For details, consult "Mac OS X Internals" book, Section 7.3.
+  mach_port_t task_self_;
+  thread_act_t profiled_thread_;
+  pthread_t sampler_thread_;
 
-  TickSample sample;
+  // Sampler thread handler.
+  void Runner() {
+    // Loop until the sampler is disengaged.
+    while (sampler_->IsActive()) {
+      TickSample sample;
 
-  // If profiling, we extract the current pc and sp.
-  if (active_sampler_->IsProfiling()) {
-    // Extracting the sample from the context is extremely machine dependent.
-    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-    mcontext_t& mcontext = ucontext->uc_mcontext;
+      // If profiling, we record the pc and sp of the profiled thread.
+      if (sampler_->IsProfiling()
+          && KERN_SUCCESS == thread_suspend(profiled_thread_)) {
 #if V8_HOST_ARCH_X64
-    UNIMPLEMENTED();
-    USE(mcontext);
-    sample.pc = 0;
-    sample.sp = 0;
-    sample.fp = 0;
+        thread_state_flavor_t flavor = x86_THREAD_STATE64;
+        x86_thread_state64_t state;
+        mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
 #elif V8_HOST_ARCH_IA32
-#if __DARWIN_UNIX03
-    sample.pc = mcontext->__ss.__eip;
-    sample.sp = mcontext->__ss.__esp;
-    sample.fp = mcontext->__ss.__ebp;
-#else  // !__DARWIN_UNIX03
-    sample.pc = mcontext->ss.eip;
-    sample.sp = mcontext->ss.esp;
-    sample.fp = mcontext->ss.ebp;
-#endif  // __DARWIN_UNIX03
+        thread_state_flavor_t flavor = i386_THREAD_STATE;
+        i386_thread_state_t state;
+        mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
 #else
 #error Unsupported Mac OS X host architecture.
 #endif  // V8_TARGET_ARCH_IA32
+        if (thread_get_state(profiled_thread_,
+                             flavor,
+                             reinterpret_cast<natural_t*>(&state),
+                             &count) == KERN_SUCCESS) {
+#if V8_HOST_ARCH_X64
+          UNIMPLEMENTED();
+          sample.pc = 0;
+          sample.sp = 0;
+          sample.fp = 0;
+#elif V8_HOST_ARCH_IA32
+#if __DARWIN_UNIX03
+          sample.pc = state.__eip;
+          sample.sp = state.__esp;
+          sample.fp = state.__ebp;
+#else  // !__DARWIN_UNIX03
+          sample.pc = state.eip;
+          sample.sp = state.esp;
+          sample.fp = state.ebp;
+#endif  // __DARWIN_UNIX03
+#else
+#error Unsupported Mac OS X host architecture.
+#endif  // V8_HOST_ARCH_IA32
+          sampler_->SampleStack(&sample);
+        }
+        thread_resume(profiled_thread_);
+      }
+
+      // We always sample the VM state.
+      sample.state = Logger::state();
+      // Invoke tick handler with program counter and stack pointer.
+      sampler_->Tick(&sample);
+
+      // Wait until next sampling.
+      usleep(sampler_->interval_ * 1000);
+    }
   }
-
-  // We always sample the VM state.
-  sample.state = Logger::state();
-
-  active_sampler_->Tick(&sample);
-}
-
-
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData() {
-    signal_handler_installed_ = false;
-  }
-
-  bool signal_handler_installed_;
-  struct sigaction old_signal_handler_;
-  struct itimerval old_timer_value_;
 };
+
+
+// Entry point for sampler thread.
+static void* SamplerEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->Runner();
+  return 0;
+}
 
 
 Sampler::Sampler(int interval, bool profiling)
     : interval_(interval), profiling_(profiling), active_(false) {
-  data_ = new PlatformData();
+  data_ = new PlatformData(this);
 }
 
 
@@ -541,43 +573,40 @@ Sampler::~Sampler() {
 
 
 void Sampler::Start() {
-  // There can only be one active sampler at the time on POSIX
-  // platforms.
-  if (active_sampler_ != NULL) return;
+  // If we are profiling, we need to be able to access the calling
+  // thread.
+  if (IsProfiling()) {
+    data_->profiled_thread_ = mach_thread_self();
+  }
 
-  // Request profiling signals.
-  struct sigaction sa;
-  sa.sa_sigaction = ProfilerSignalHandler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO;
-  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
-  data_->signal_handler_installed_ = true;
+  // Create sampler thread with high priority.
+  // According to POSIX spec, when SCHED_FIFO policy is used, a thread
+  // runs until it exits or blocks.
+  pthread_attr_t sched_attr;
+  sched_param fifo_param;
+  pthread_attr_init(&sched_attr);
+  pthread_attr_setinheritsched(&sched_attr, PTHREAD_EXPLICIT_SCHED);
+  pthread_attr_setschedpolicy(&sched_attr, SCHED_FIFO);
+  fifo_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+  pthread_attr_setschedparam(&sched_attr, &fifo_param);
 
-  // Set the itimer to generate a tick for each interval.
-  itimerval itimer;
-  itimer.it_interval.tv_sec = interval_ / 1000;
-  itimer.it_interval.tv_usec = (interval_ % 1000) * 1000;
-  itimer.it_value.tv_sec = itimer.it_interval.tv_sec;
-  itimer.it_value.tv_usec = itimer.it_interval.tv_usec;
-  setitimer(ITIMER_PROF, &itimer, &data_->old_timer_value_);
-
-  // Set this sampler as the active sampler.
-  active_sampler_ = this;
   active_ = true;
+  pthread_create(&data_->sampler_thread_, &sched_attr, SamplerEntry, data_);
 }
 
 
 void Sampler::Stop() {
-  // Restore old signal handler
-  if (data_->signal_handler_installed_) {
-    setitimer(ITIMER_PROF, &data_->old_timer_value_, NULL);
-    sigaction(SIGPROF, &data_->old_signal_handler_, 0);
-    data_->signal_handler_installed_ = false;
-  }
-
-  // This sampler is no longer the active sampler.
-  active_sampler_ = NULL;
+  // Seting active to false triggers termination of the sampler
+  // thread.
   active_ = false;
+
+  // Wait for sampler thread to terminate.
+  pthread_join(data_->sampler_thread_, NULL);
+
+  // Deallocate Mach port for thread.
+  if (IsProfiling()) {
+    mach_port_deallocate(data_->task_self_, data_->profiled_thread_);
+  }
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

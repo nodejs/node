@@ -79,51 +79,6 @@ void MacroAssembler::NegativeZeroTest(Register result,
 }
 
 
-void MacroAssembler::ConstructAndTestJSFunction() {
-  const int initial_buffer_size = 4 * KB;
-  char* buffer = new char[initial_buffer_size];
-  MacroAssembler masm(buffer, initial_buffer_size);
-
-  const uint64_t secret = V8_INT64_C(0xdeadbeefcafebabe);
-  Handle<String> constant =
-      Factory::NewStringFromAscii(Vector<const char>("451", 3), TENURED);
-#define __ ACCESS_MASM((&masm))
-  // Construct a simple JSfunction here, using Assembler and MacroAssembler
-  // commands.
-  __ movq(rax, constant, RelocInfo::EMBEDDED_OBJECT);
-  __ push(rax);
-  __ CallRuntime(Runtime::kStringParseFloat, 1);
-  __ movq(kScratchRegister, secret, RelocInfo::NONE);
-  __ addq(rax, kScratchRegister);
-  __ ret(0);
-#undef __
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Object* code = Heap::CreateCode(desc, NULL, flags, Handle<Object>::null());
-  if (!code->IsFailure()) {
-    Handle<Code> code_handle(Code::cast(code));
-    Handle<String> name =
-        Factory::NewStringFromAscii(Vector<const char>("foo", 3), NOT_TENURED);
-    Handle<JSFunction> function =
-        Factory::NewFunction(name,
-                             JS_FUNCTION_TYPE,
-                             JSObject::kHeaderSize,
-                             code_handle,
-                             true);
-    bool pending_exceptions;
-    Handle<Object> result =
-        Execution::Call(function,
-                        Handle<Object>::cast(function),
-                        0,
-                        NULL,
-                        &pending_exceptions);
-    CHECK(result->IsSmi());
-    CHECK(secret + (451 << kSmiTagSize) == reinterpret_cast<uint64_t>(*result));
-  }
-}
-
-
 void MacroAssembler::Abort(const char* msg) {
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
@@ -221,7 +176,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   const char* name = Builtins::GetName(id);
   int argc = Builtins::GetArgumentsCount(id);
 
-  movq(target, code, RelocInfo::EXTERNAL_REFERENCE);  // Is external reference?
+  movq(target, code, RelocInfo::EMBEDDED_OBJECT);
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
@@ -253,7 +208,9 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
 
 
 void MacroAssembler::Set(Register dst, int64_t x) {
-  if (is_int32(x)) {
+  if (x == 0) {
+    xor_(dst, dst);
+  } else if (is_int32(x)) {
     movq(dst, Immediate(x));
   } else if (is_uint32(x)) {
     movl(dst, Immediate(x));
@@ -264,14 +221,17 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 
 
 void MacroAssembler::Set(const Operand& dst, int64_t x) {
-  if (is_int32(x)) {
-    movq(kScratchRegister, Immediate(x));
+  if (x == 0) {
+    xor_(kScratchRegister, kScratchRegister);
+    movq(dst, kScratchRegister);
+  } else if (is_int32(x)) {
+    movq(dst, Immediate(x));
   } else if (is_uint32(x)) {
-    movl(kScratchRegister, Immediate(x));
+    movl(dst, Immediate(x));
   } else {
     movq(kScratchRegister, x, RelocInfo::NONE);
+    movq(dst, kScratchRegister);
   }
-  movq(dst, kScratchRegister);
 }
 
 
@@ -285,11 +245,13 @@ void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
+  ASSERT(!source->IsFailure());
   if (source->IsSmi()) {
     if (IsUnsafeSmi(source)) {
       LoadUnsafeSmi(dst, source);
     } else {
-      movq(dst, source, RelocInfo::NONE);
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      movq(dst, Immediate(smi));
     }
   } else {
     movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
@@ -298,8 +260,13 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
-  Move(kScratchRegister, source);
-  movq(dst, kScratchRegister);
+  if (source->IsSmi()) {
+    int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+    movq(dst, Immediate(smi));
+  } else {
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    movq(dst, kScratchRegister);
+  }
 }
 
 
@@ -310,14 +277,37 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
-  Move(kScratchRegister, source);
-  cmpq(dst, kScratchRegister);
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(kScratchRegister, source);
+      cmpl(dst, kScratchRegister);
+    } else {
+      // For smi-comparison, it suffices to compare the low 32 bits.
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      cmpl(dst, Immediate(smi));
+    }
+  } else {
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    cmpq(dst, kScratchRegister);
+  }
 }
 
 
 void MacroAssembler::Push(Handle<Object> source) {
-  Move(kScratchRegister, source);
-  push(kScratchRegister);
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(kScratchRegister, source);
+      push(kScratchRegister);
+    } else {
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      push(Immediate(smi));
+    }
+  } else {
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    push(kScratchRegister);
+  }
 }
 
 
@@ -443,6 +433,51 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
        Immediate(static_cast<int8_t>(type)));
 }
 
+
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Label* miss) {
+  // Check that the receiver isn't a smi.
+  testl(function, Immediate(kSmiTagMask));
+  j(zero, miss);
+
+  // Check that the function really is a function.
+  CmpObjectType(function, JS_FUNCTION_TYPE, result);
+  j(not_equal, miss);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  testb(FieldOperand(result, Map::kBitFieldOffset),
+        Immediate(1 << Map::kHasNonInstancePrototype));
+  j(not_zero, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  movq(result,
+       FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  Cmp(result, Factory::the_hole_value());
+  j(equal, miss);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CmpObjectType(result, MAP_TYPE, kScratchRegister);
+  j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  movq(result, FieldOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  movq(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
+}
 
 
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
@@ -589,7 +624,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
         { pc_offset() - kTargetAddrToReturnAddrDist, flags, name };
@@ -749,6 +784,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
 
   // Setup the frame structure on the stack.
+  // All constants are relative to the frame pointer of the exit frame.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
@@ -763,7 +799,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   ExternalReference context_address(Top::k_context_address);
-  movq(rdi, rax);  // Backup rax before we use it.
+  movq(r14, rax);  // Backup rax before we use it.
 
   movq(rax, rbp);
   store_rax(c_entry_fp_address);
@@ -773,7 +809,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r15, Operand(rbp, rdi, times_pointer_size, offset));
+  lea(r15, Operand(rbp, r14, times_pointer_size, offset));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory

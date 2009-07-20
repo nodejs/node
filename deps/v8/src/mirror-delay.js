@@ -580,7 +580,7 @@ inherits(ObjectMirror, ValueMirror);
 
 
 ObjectMirror.prototype.className = function() {
-  return %ClassOf(this.value_);
+  return %_ClassOf(this.value_);
 };
 
 

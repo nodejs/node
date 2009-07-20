@@ -47,6 +47,8 @@
 #include "arm/assembler-arm-inl.h"
 #include "code.h"  // must be after assembler_*.h
 #include "arm/macro-assembler-arm.h"
+#else
+#error Unsupported target architecture.
 #endif
 
 #endif  // V8_MACRO_ASSEMBLER_H_

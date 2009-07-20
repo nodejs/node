@@ -95,8 +95,6 @@ class Descriptor BASE_EMBEDDED {
         value_(value),
         details_(attributes, type, index) { }
 
-  friend class DescriptorWriter;
-  friend class DescriptorReader;
   friend class DescriptorArray;
 };
 
@@ -230,6 +228,7 @@ class LookupResult BASE_EMBEDDED {
   bool IsReadOnly() { return details_.IsReadOnly(); }
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
+  bool IsDeleted() { return details_.IsDeleted(); }
 
   bool IsValid() { return  lookup_type_ != NOT_FOUND; }
   bool IsNotFound() { return lookup_type_ == NOT_FOUND; }
@@ -256,8 +255,14 @@ class LookupResult BASE_EMBEDDED {
     switch (type()) {
       case FIELD:
         return holder()->FastPropertyAt(GetFieldIndex());
-      case NORMAL:
-        return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+      case NORMAL: {
+        Object* value;
+        value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+        if (holder()->IsGlobalObject()) {
+          value = JSGlobalPropertyCell::cast(value)->value();
+        }
+        return value;
+      }
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
       default:
@@ -306,7 +311,7 @@ class LookupResult BASE_EMBEDDED {
     }
     // In the dictionary case, the data is held in the value field.
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
-    return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+    return holder()->GetNormalizedProperty(this);
   }
 
  private:
@@ -316,92 +321,6 @@ class LookupResult BASE_EMBEDDED {
   PropertyDetails details_;
 };
 
-
-// The DescriptorStream is an abstraction for iterating over a map's
-// instance descriptors.
-class DescriptorStream BASE_EMBEDDED {
- public:
-  explicit DescriptorStream(DescriptorArray* descriptors, int pos) {
-    descriptors_ = descriptors;
-    pos_ = pos;
-    limit_ = descriptors_->number_of_descriptors();
-  }
-
-  // Tells whether we have reached the end of the steam.
-  bool eos() { return pos_ >= limit_; }
-
-  int next_position() { return pos_ + 1; }
-  void advance() { pos_ = next_position(); }
-
- protected:
-  DescriptorArray* descriptors_;
-  int pos_;   // Current position.
-  int limit_;  // Limit for position.
-};
-
-
-class DescriptorReader: public DescriptorStream {
- public:
-  explicit DescriptorReader(DescriptorArray* descriptors, int pos = 0)
-      : DescriptorStream(descriptors, pos) {}
-
-  String* GetKey() { return descriptors_->GetKey(pos_); }
-  Object* GetValue() { return descriptors_->GetValue(pos_); }
-  PropertyDetails GetDetails() {
-    return PropertyDetails(descriptors_->GetDetails(pos_));
-  }
-
-  int GetFieldIndex() { return Descriptor::IndexFromValue(GetValue()); }
-
-  bool IsDontEnum() { return GetDetails().IsDontEnum(); }
-
-  PropertyType type() { return GetDetails().type(); }
-
-  // Tells whether the type is a transition.
-  bool IsTransition() {
-    PropertyType t = type();
-    ASSERT(t != INTERCEPTOR);
-    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
-  }
-
-  bool IsNullDescriptor() {
-    return type() == NULL_DESCRIPTOR;
-  }
-
-  bool IsProperty() {
-    return type() < FIRST_PHANTOM_PROPERTY_TYPE;
-  }
-
-  JSFunction* GetConstantFunction() { return JSFunction::cast(GetValue()); }
-
-  AccessorDescriptor* GetCallbacks() {
-    ASSERT(type() == CALLBACKS);
-    Proxy* p = Proxy::cast(GetCallbacksObject());
-    return reinterpret_cast<AccessorDescriptor*>(p->proxy());
-  }
-
-  Object* GetCallbacksObject() {
-    ASSERT(type() == CALLBACKS);
-    return GetValue();
-  }
-
-  bool Equals(String* name) { return name->Equals(GetKey()); }
-
-  void Get(Descriptor* desc) {
-    descriptors_->Get(pos_, desc);
-  }
-};
-
-class DescriptorWriter: public DescriptorStream {
- public:
-  explicit DescriptorWriter(DescriptorArray* descriptors)
-      : DescriptorStream(descriptors, 0) {}
-
-  // Append a descriptor to this stream.
-  void Write(Descriptor* desc);
-  // Read a descriptor from the reader and append it to this stream.
-  void WriteFrom(DescriptorReader* reader);
-};
 
 } }  // namespace v8::internal
 

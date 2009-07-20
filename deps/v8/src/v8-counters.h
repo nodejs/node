@@ -130,9 +130,15 @@ namespace internal {
   SC(keyed_load_inline_miss, V8.KeyedLoadInlineMiss)                \
   SC(named_load_inline, V8.NamedLoadInline)                         \
   SC(named_load_inline_miss, V8.NamedLoadInlineMiss)                \
+  SC(named_load_global_inline, V8.NamedLoadGlobalInline)            \
+  SC(named_load_global_inline_miss, V8.NamedLoadGlobalInlineMiss)   \
   SC(keyed_store_field, V8.KeyedStoreField)                         \
   SC(keyed_store_inline, V8.KeyedStoreInline)                       \
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)              \
+  SC(named_store_global_inline, V8.NamedStoreGlobalInline)          \
+  SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss) \
+  SC(call_global_inline, V8.CallGlobalInline)                       \
+  SC(call_global_inline_miss, V8.CallGlobalInlineMiss)              \
   SC(for_in, V8.ForIn)                                              \
   SC(enum_cache_hits, V8.EnumCacheHits)                             \
   SC(enum_cache_misses, V8.EnumCacheMisses)                         \

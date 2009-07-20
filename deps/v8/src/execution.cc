@@ -38,6 +38,8 @@
 #include "x64/simulator-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/simulator-arm.h"
+#else
+#error Unsupported target architecture.
 #endif
 
 #include "debug.h"

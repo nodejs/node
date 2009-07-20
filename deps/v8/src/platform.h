@@ -510,6 +510,9 @@ class Sampler {
   explicit Sampler(int interval, bool profiling);
   virtual ~Sampler();
 
+  // Performs stack sampling.
+  virtual void SampleStack(TickSample* sample) = 0;
+
   // This method is called for each sampling period with the current
   // program counter.
   virtual void Tick(TickSample* sample) = 0;
@@ -527,8 +530,8 @@ class Sampler {
   class PlatformData;
 
  private:
-  int interval_;
-  bool profiling_;
+  const int interval_;
+  const bool profiling_;
   bool active_;
   PlatformData* data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);

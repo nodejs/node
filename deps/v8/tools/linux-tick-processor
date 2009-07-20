@@ -20,4 +20,5 @@ fi
 $d8_exec $tools_path/splaytree.js $tools_path/codemap.js \
   $tools_path/csvparser.js $tools_path/consarray.js \
   $tools_path/profile.js $tools_path/profile_view.js \
-  $tools_path/logreader.js $tools_path/tickprocessor.js -- $@ 2>/dev/null
+  $tools_path/logreader.js $tools_path/tickprocessor.js \
+  $tools_path/tickprocessor-driver.js -- $@ 2>/dev/null

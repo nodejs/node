@@ -126,7 +126,9 @@ var knownProblems = {
   "CreateArrayLiteralBoilerplate": true,
   "IS_VAR": true,
   "ResolvePossiblyDirectEval": true,
-  "Log": true
+  "Log": true,
+
+  "CollectStackTrace": true
 };
 
 var currentlyUncallable = {

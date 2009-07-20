@@ -114,8 +114,10 @@ void CpuFeatures::Probe() {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code =
-      Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Code>::null());
   if (!code->IsCode()) return;
   LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
                       Code::cast(code), "CpuFeatures::Probe"));
@@ -916,6 +918,14 @@ void Assembler::idiv(Register src) {
   last_pc_ = pc_;
   EMIT(0xF7);
   EMIT(0xF8 | src.code());
+}
+
+
+void Assembler::imul(Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF7);
+  EMIT(0xE8 | reg.code());
 }
 
 

@@ -438,6 +438,18 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return 6;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
+      // The manual gets the meaning of bit 22 backwards in the multiply
+      // instruction overview on page A3.16.2.  The instructions that
+      // exist in u and s variants are the following:
+      // smull A4.1.87
+      // umull A4.1.129
+      // umlal A4.1.128
+      // smlal A4.1.76
+      // For these 0 means u and 1 means s.  As can be seen on their individual
+      // pages.  The other 18 mul instructions have the bit set or unset in
+      // arbitrary ways that are unrelated to the signedness of the instruction.
+      // None of these 18 instructions exist in both a 'u' and an 's' variant.
+
       if (instr->Bit(22) == 0) {
         Print("u");
       } else {
@@ -494,12 +506,25 @@ void Decoder::DecodeType01(Instr* instr) {
         // multiply instructions
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
-            Format(instr, "mul'cond's 'rd, 'rm, 'rs");
+            // The MUL instruction description (A 4.1.33) refers to Rd as being
+            // the destination for the operation, but it confusingly uses the
+            // Rn field to encode it.
+            Format(instr, "mul'cond's 'rn, 'rm, 'rs");
           } else {
-            Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
+            // The MLA instruction description (A 4.1.28) refers to the order
+            // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
+            // Rn field to encode the Rd register and the Rd field to encode
+            // the Rn register.
+            Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
           }
         } else {
-          Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
+          // The signed/long multiply instructions use the terms RdHi and RdLo
+          // when referring to the target registers. They are mapped to the Rn
+          // and Rd fields as follows:
+          // RdLo == Rd field
+          // RdHi == Rn field
+          // The order of registers is: <RdLo>, <RdHi>, <Rm>, <Rs>
+          Format(instr, "'um'al'cond's 'rd, 'rn, 'rm, 'rs");
         }
       } else {
         Unknown(instr);  // not used by V8
@@ -593,7 +618,17 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "teq'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              Format(instr, "bx'cond 'rm");
+              break;
+            case BLX:
+              Format(instr, "blx'cond 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }
@@ -609,7 +644,14 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "cmn'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case CLZ:
+              Format(instr, "clz'cond 'rd, 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }

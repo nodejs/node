@@ -84,7 +84,7 @@ function testLiteral(size, array_in_middle) {
 }
 
 // The sizes to test.
-var sizes = [1, 2, 100, 200, 350];
+var sizes = [1, 2, 100, 200];
 
 // Run the test.
 for (var i = 0; i < sizes.length; i++) {

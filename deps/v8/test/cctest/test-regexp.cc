@@ -204,8 +204,8 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
   CHECK_PARSE_EQ("(?!a)?a", "'a'");
   CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: (^ 'a') (<- 1)))");
+  CHECK_PARSE_EQ("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
+  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
   CHECK_PARSE_EQ("[\\0]", "[\\x00]");
   CHECK_PARSE_EQ("[\\11]", "[\\x09]");
   CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
@@ -597,6 +597,8 @@ TEST(DispatchTableConstruction) {
 }
 
 
+// Tests of interpreter.
+
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
@@ -660,8 +662,8 @@ TEST(MacroAssembler) {
   CHECK_EQ(42, captures[0]);
 }
 
-
-#ifdef V8_TARGET_ARCH_IA32  // IA32 only tests.
+#ifdef V8_TARGET_ARCH_IA32  // IA32 Native Regexp only tests.
+#ifdef V8_NATIVE_REGEXP
 
 class ContextInitializer {
  public:
@@ -1284,9 +1286,9 @@ TEST(MacroAssemblerIA32LotsOfRegisters) {
   Top::clear_pending_exception();
 }
 
+#endif  // V8_REGEXP_NATIVE
+#endif  // V8_TARGET_ARCH_IA32
 
-
-#endif  // !defined ARM
 
 TEST(AddInverseToTable) {
   static const int kLimit = 1000;

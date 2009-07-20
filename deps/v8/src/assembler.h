@@ -413,6 +413,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_space_allocation_limit_address();
 
   static ExternalReference double_fp_operation(Token::Value operation);
+  static ExternalReference compare_doubles();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

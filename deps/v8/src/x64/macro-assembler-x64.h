@@ -67,16 +67,6 @@ class MacroAssembler: public Assembler {
   MacroAssembler(void* buffer, int size);
 
   // ---------------------------------------------------------------------------
-  // x64 Implementation Support
-
-  // Test the MacroAssembler by constructing and calling a simple JSFunction.
-  // Cannot be done using API because this must be done in the middle of the
-  // bootstrapping process.
-  // TODO(X64): Remove once we can get through the bootstrapping process.
-
-  static void ConstructAndTestJSFunction();
-
-  // ---------------------------------------------------------------------------
   // GC Support
 
   // Set the remembered set bit for [object+offset].
@@ -186,6 +176,7 @@ class MacroAssembler: public Assembler {
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
+  // They may be the same register, and may be kScratchRegister.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
 
   // Compare instance type for map.
@@ -247,11 +238,10 @@ class MacroAssembler: public Assembler {
   // Try to get function prototype of a function and puts the value in
   // the result register. Checks that the function really is a
   // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
+  // function register will be untouched; the other register may be
   // clobbered.
   void TryGetFunctionPrototype(Register function,
                                Register result,
-                               Register scratch,
                                Label* miss);
 
   // Generates code for reporting that an illegal operation has
@@ -394,12 +384,12 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
 #define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
 #define ACCESS_MASM(masm) {                                               \
-    byte* x64_coverage_function =                                        \
+    byte* x64_coverage_function =                                         \
         reinterpret_cast<byte*>(FUNCTION_ADDR(LogGeneratedCodeCoverage)); \
     masm->pushfd();                                                       \
     masm->pushad();                                                       \
     masm->push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));         \
-    masm->call(x64_coverage_function, RelocInfo::RUNTIME_ENTRY);         \
+    masm->call(x64_coverage_function, RelocInfo::RUNTIME_ENTRY);          \
     masm->pop(rax);                                                       \
     masm->popad();                                                        \
     masm->popfd();                                                        \

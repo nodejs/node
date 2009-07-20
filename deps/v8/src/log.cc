@@ -176,8 +176,11 @@ class Ticker: public Sampler {
 
   ~Ticker() { if (IsActive()) Stop(); }
 
+  void SampleStack(TickSample* sample) {
+    StackTracer::Trace(sample);
+  }
+
   void Tick(TickSample* sample) {
-    if (IsProfiling()) StackTracer::Trace(sample);
     if (profiler_) profiler_->Insert(sample);
     if (window_) window_->AddState(sample->state);
   }

@@ -66,8 +66,20 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // Test the has_named_interceptor bit in the map.
   __ test(FieldOperand(r0, Map::kInstanceAttributesOffset),
           Immediate(1 << (Map::kHasNamedInterceptor + (3 * 8))));
+
   // Jump to miss if the interceptor bit is set.
   __ j(not_zero, miss_label, not_taken);
+
+  // Bail out if we have a JS global proxy object.
+  __ movzx_b(r0, FieldOperand(r0, Map::kInstanceTypeOffset));
+  __ cmp(r0, JS_GLOBAL_PROXY_TYPE);
+  __ j(equal, miss_label, not_taken);
+
+  // Possible work-around for http://crbug.com/16276.
+  __ cmp(r0, JS_GLOBAL_OBJECT_TYPE);
+  __ j(equal, miss_label, not_taken);
+  __ cmp(r0, JS_BUILTINS_OBJECT_TYPE);
+  __ j(equal, miss_label, not_taken);
 
   // Check that the properties array is a dictionary.
   __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
@@ -77,7 +89,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + Dictionary::kCapacityIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
   __ mov(r2, FieldOperand(r0, kCapacityOffset));
   __ shr(r2, kSmiTagSize);  // convert smi to int
   __ dec(r2);
@@ -87,18 +99,18 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // cover ~93% of loads from dictionaries.
   static const int kProbes = 4;
   const int kElementsStartOffset =
-      Array::kHeaderSize + Dictionary::kElementsStartIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
     __ shr(r1, String::kHashShift);
     if (i > 0) {
-      __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
+      __ add(Operand(r1), Immediate(StringDictionary::GetProbeOffset(i)));
     }
     __ and_(r1, Operand(r2));
 
-    // Scale the index by multiplying by the element size.
-    ASSERT(Dictionary::kElementSize == 3);
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
     __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
 
     // Check if the key is identical to the name.
@@ -431,7 +443,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Probe the stub cache.
   Code::Flags flags =
       Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
-  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx);
+  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, eax);
 
   // If the stub cache probing failed, the receiver might be a value.
   // For value objects, we use the map of the prototype objects for
@@ -468,7 +480,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Probe the stub cache for the value object.
   __ bind(&probe);
-  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx);
+  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -642,7 +654,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, eax, ecx, ebx);
+  StubCache::GenerateProbe(masm, flags, eax, ecx, ebx, edx);
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
@@ -872,7 +884,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx);
+  StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));

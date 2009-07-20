@@ -53,6 +53,13 @@ Smi* PropertyDetails::AsSmi() {
 }
 
 
+PropertyDetails PropertyDetails::AsDeleted() {
+  PropertyDetails d(DONT_ENUM, NORMAL);
+  Smi* smi = Smi::FromInt(AsSmi()->value() | DeletedField::encode(1));
+  return PropertyDetails(smi);
+}
+
+
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
     ASSERT(object->Is##type());                 \
@@ -409,6 +416,13 @@ bool Object::IsOddball() {
 }
 
 
+bool Object::IsJSGlobalPropertyCell() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type()
+      == JS_GLOBAL_PROPERTY_CELL_TYPE;
+}
+
+
 bool Object::IsSharedFunctionInfo() {
   return Object::IsHeapObject() &&
       (HeapObject::cast(this)->map()->instance_type() ==
@@ -467,7 +481,7 @@ bool Object::IsDictionary() {
 
 
 bool Object::IsSymbolTable() {
-  return IsHashTable() && this == Heap::symbol_table();
+  return IsHashTable() && this == Heap::raw_unchecked_symbol_table();
 }
 
 
@@ -685,7 +699,7 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 
 
 int Smi::value() {
-  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kSmiTagSize);
+  return static_cast<int>(reinterpret_cast<intptr_t>(this)) >> kSmiTagSize;
 }
 
 
@@ -754,6 +768,8 @@ int Failure::value() const {
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
+  // Assert that the space encoding fits in the three bytes allotted for it.
+  ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | NEW_SPACE;
   ASSERT(value >> kSpaceTagSize == requested);
@@ -1046,6 +1062,18 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
+Object* JSGlobalPropertyCell::value() {
+  return READ_FIELD(this, kValueOffset);
+}
+
+
+void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
+  // The write barrier is not used for global property cells.
+  ASSERT(!val->IsJSGlobalPropertyCell());
+  WRITE_FIELD(this, kValueOffset, val);
+}
+
+
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
     case JS_GLOBAL_PROXY_TYPE:
@@ -1323,6 +1351,56 @@ Smi* DescriptorArray::GetDetails(int descriptor_number) {
 }
 
 
+PropertyType DescriptorArray::GetType(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  return PropertyDetails(GetDetails(descriptor_number)).type();
+}
+
+
+int DescriptorArray::GetFieldIndex(int descriptor_number) {
+  return Descriptor::IndexFromValue(GetValue(descriptor_number));
+}
+
+
+JSFunction* DescriptorArray::GetConstantFunction(int descriptor_number) {
+  return JSFunction::cast(GetValue(descriptor_number));
+}
+
+
+Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
+  ASSERT(GetType(descriptor_number) == CALLBACKS);
+  return GetValue(descriptor_number);
+}
+
+
+AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
+  ASSERT(GetType(descriptor_number) == CALLBACKS);
+  Proxy* p = Proxy::cast(GetCallbacksObject(descriptor_number));
+  return reinterpret_cast<AccessorDescriptor*>(p->proxy());
+}
+
+
+bool DescriptorArray::IsProperty(int descriptor_number) {
+  return GetType(descriptor_number) < FIRST_PHANTOM_PROPERTY_TYPE;
+}
+
+
+bool DescriptorArray::IsTransition(int descriptor_number) {
+  PropertyType t = GetType(descriptor_number);
+  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+}
+
+
+bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
+  return GetType(descriptor_number) == NULL_DESCRIPTOR;
+}
+
+
+bool DescriptorArray::IsDontEnum(int descriptor_number) {
+  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
+}
+
+
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
@@ -1346,6 +1424,13 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 }
 
 
+void DescriptorArray::CopyFrom(int index, DescriptorArray* src, int src_index) {
+  Descriptor desc;
+  src->Get(src_index, &desc);
+  Set(index, &desc);
+}
+
+
 void DescriptorArray::Swap(int first, int second) {
   fast_swap(this, ToKeyIndex(first), ToKeyIndex(second));
   FixedArray* content_array = GetContentArray();
@@ -1354,15 +1439,14 @@ void DescriptorArray::Swap(int first, int second) {
 }
 
 
-bool Dictionary::requires_slow_elements() {
+bool NumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
   return 0 !=
       (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
 }
 
-
-uint32_t Dictionary::max_number_key() {
+uint32_t NumberDictionary::max_number_key() {
   ASSERT(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
@@ -1370,8 +1454,7 @@ uint32_t Dictionary::max_number_key() {
   return value >> kRequiresSlowElementsTagSize;
 }
 
-
-void Dictionary::set_requires_slow_elements() {
+void NumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex,
       Smi::FromInt(kRequiresSlowElementsMask),
       SKIP_WRITE_BARRIER);
@@ -1384,7 +1467,6 @@ void Dictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(MapCache)
@@ -1403,6 +1485,7 @@ CAST_ACCESSOR(Failure)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)
@@ -1422,9 +1505,9 @@ CAST_ACCESSOR(Struct)
   STRUCT_LIST(MAKE_STRUCT_CAST)
 #undef MAKE_STRUCT_CAST
 
-template <int prefix_size, int elem_size>
-HashTable<prefix_size, elem_size>* HashTable<prefix_size, elem_size>::cast(
-    Object* obj) {
+
+template <typename Shape, typename Key>
+HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
   ASSERT(obj->IsHashTable());
   return reinterpret_cast<HashTable*>(obj);
 }
@@ -2451,15 +2534,15 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-Dictionary* JSObject::property_dictionary() {
+StringDictionary* JSObject::property_dictionary() {
   ASSERT(!HasFastProperties());
-  return Dictionary::cast(properties());
+  return StringDictionary::cast(properties());
 }
 
 
-Dictionary* JSObject::element_dictionary() {
+NumberDictionary* JSObject::element_dictionary() {
   ASSERT(!HasFastElements());
-  return Dictionary::cast(elements());
+  return NumberDictionary::cast(elements());
 }
 
 
@@ -2623,16 +2706,17 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
 
-void Dictionary::SetEntry(int entry,
-                          Object* key,
-                          Object* value,
-                          PropertyDetails details) {
-  ASSERT(!key->IsString() || details.index() > 0);
-  int index = EntryToIndex(entry);
-  WriteBarrierMode mode = GetWriteBarrierMode();
-  set(index, key, mode);
-  set(index+1, value, mode);
-  fast_set(this, index+2, details.AsSmi());
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value,
+                                      PropertyDetails details) {
+  ASSERT(!key->IsString() || details.IsDeleted() || details.index() > 0);
+  int index = HashTable<Shape, Key>::EntryToIndex(entry);
+  WriteBarrierMode mode = FixedArray::GetWriteBarrierMode();
+  FixedArray::set(index, key, mode);
+  FixedArray::set(index+1, value, mode);
+  FixedArray::fast_set(this, index+2, details.AsSmi());
 }
 
 
@@ -2640,8 +2724,8 @@ void Map::ClearCodeCache() {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
-  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
-  WRITE_FIELD(this, kCodeCacheOffset, Heap::empty_fixed_array());
+  ASSERT(!Heap::InNewSpace(Heap::raw_unchecked_empty_fixed_array()));
+  WRITE_FIELD(this, kCodeCacheOffset, Heap::raw_unchecked_empty_fixed_array());
 }
 
 

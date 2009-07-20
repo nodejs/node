@@ -244,9 +244,10 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name, From, To) \
+#define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
-    return Local<To>(reinterpret_cast<To*>(obj.location())); \
+    ASSERT(!obj->IsTheHole());                                              \
+    return Local<To>(reinterpret_cast<To*>(obj.location()));                \
   }
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)

@@ -6,6 +6,6 @@
 	>
 	<Tool
 		Name="VCCLCompilerTool"
-		PreprocessorDefinitions="V8_TARGET_ARCH_IA32"
+		PreprocessorDefinitions="V8_TARGET_ARCH_IA32;V8_NATIVE_REGEXP"
 	/>
 </VisualStudioPropertySheet>

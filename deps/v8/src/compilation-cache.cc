@@ -281,6 +281,7 @@ void CompilationCacheScript::Put(Handle<String> source,
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(0);
+  // TODO(X64): -fstrict-aliasing causes a problem with table.  Fix it.
   CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
 }
 

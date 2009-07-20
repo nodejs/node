@@ -32,26 +32,26 @@ var x = 1;
    --> so must this...
 	--> and this.
 x-->0;
-assertEquals(0, x);
+assertEquals(0, x, 'a');
 
 
 var x = 0; x <!-- x
-assertEquals(0, x);
+assertEquals(0, x, 'b');
 
 var x = 1; x <!--x
-assertEquals(1, x);
+assertEquals(1, x, 'c');
 
 var x = 2; x <!-- x; x = 42;
-assertEquals(2, x);
+assertEquals(2, x, 'd');
 
 var x = 1; x <! x--;
-assertEquals(0, x);
+assertEquals(0, x, 'e');
 
 var x = 1; x <!- x--;
-assertEquals(0, x);
+assertEquals(0, x, 'f');
 
 var b = true <! true;
-assertFalse(b);
+assertFalse(b, 'g');
 
 var b = true <!- true;
-assertFalse(b);
+assertFalse(b, 'h');

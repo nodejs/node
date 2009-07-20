@@ -37,8 +37,8 @@ namespace internal {
 
 Handle<Code> CodeStub::GetCode() {
   uint32_t key = GetKey();
-  int index = Heap::code_stubs()->FindNumberEntry(key);
-  if (index == -1) {
+  int index = Heap::code_stubs()->FindEntry(key);
+  if (index == NumberDictionary::kNotFound) {
     HandleScope scope;
 
     // Update the static counter each time a new code stub is generated.
@@ -80,14 +80,15 @@ Handle<Code> CodeStub::GetCode() {
 #endif
 
     // Update the dictionary and the root in Heap.
-    Handle<Dictionary> dict =
-        Factory::DictionaryAtNumberPut(Handle<Dictionary>(Heap::code_stubs()),
-                                       key,
-                                       code);
-    Heap::set_code_stubs(*dict);
-    index = Heap::code_stubs()->FindNumberEntry(key);
+    Handle<NumberDictionary> dict =
+        Factory::DictionaryAtNumberPut(
+            Handle<NumberDictionary>(Heap::code_stubs()),
+            key,
+            code);
+    Heap::public_set_code_stubs(*dict);
+    index = Heap::code_stubs()->FindEntry(key);
   }
-  ASSERT(index != -1);
+  ASSERT(index != NumberDictionary::kNotFound);
 
   return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
 }
@@ -133,6 +134,10 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "InvokeBuiltin";
     case JSExit:
       return "JSExit";
+    case ConvertToDouble:
+      return "ConvertToDouble";
+    case WriteInt32ToHeapNumber:
+      return "WriteInt32ToHeapNumber";
     default:
       UNREACHABLE();
       return NULL;

@@ -154,7 +154,7 @@ function SetupGlobal() {
 
   // ECMA-262 - 15.1.1.3.
   %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
-  
+
   // Setup non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
     "isNaN", GlobalIsNaN,
@@ -174,7 +174,7 @@ SetupGlobal();
 
 
 %SetCode($Boolean, function(x) {
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, ToBoolean(x));
   } else {
     return ToBoolean(x);
@@ -192,7 +192,7 @@ $Object.prototype.constructor = $Object;
 
 // ECMA-262 - 15.2.4.2
 function ObjectToString() {
-  var c = %ClassOf(this);
+  var c = %_ClassOf(this);
   // Hide Arguments from the outside.
   if (c === 'Arguments') c  = 'Object';
   return "[object " + c + "]";
@@ -273,7 +273,7 @@ function ObjectLookupSetter(name) {
 
 
 %SetCode($Object, function(x) {
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     if (x == null) return this;
     return ToObject(x);
   } else {
@@ -311,7 +311,7 @@ SetupObject();
 function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && !%HasBooleanClass(this))
+  if (!IS_BOOLEAN(this) && !IS_BOOLEAN_WRAPPER(this))
     throw new $TypeError('Boolean.prototype.toString is not generic');
   return ToString(%_ValueOf(this));
 }
@@ -320,7 +320,7 @@ function BooleanToString() {
 function BooleanValueOf() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && !%HasBooleanClass(this))
+  if (!IS_BOOLEAN(this) && !IS_BOOLEAN_WRAPPER(this))
     throw new $TypeError('Boolean.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }
@@ -350,7 +350,7 @@ SetupBoolean();
 // Set the Number function and constructor.
 %SetCode($Number, function(x) {
   var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -365,7 +365,7 @@ function NumberToString(radix) {
   // 'this'. This is not as dictated by ECMA-262.
   var number = this;
   if (!IS_NUMBER(this)) {
-    if (!%HasNumberClass(this))
+    if (!IS_NUMBER_WRAPPER(this))
       throw new $TypeError('Number.prototype.toString is not generic');
     // Get the value of this number in case it's an object.
     number = %_ValueOf(this);
@@ -395,7 +395,7 @@ function NumberToLocaleString() {
 function NumberValueOf() {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_NUMBER(this) && !%HasNumberClass(this))
+  if (!IS_NUMBER(this) && !IS_NUMBER_WRAPPER(this))
     throw new $TypeError('Number.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }
@@ -502,10 +502,9 @@ SetupNumber();
 $Function.prototype.constructor = $Function;
 
 function FunctionSourceString(func) {
-  // NOTE: Both Function objects and values can enter here as
-  // 'func'. This is not as dictated by ECMA-262.
-  if (!IS_FUNCTION(func) && !%HasFunctionClass(func))
+  if (!IS_FUNCTION(func)) {
     throw new $TypeError('Function.prototype.toString is not generic');
+  }
 
   var source = %FunctionGetSourceCode(func);
   if (!IS_STRING(source)) {
@@ -570,4 +569,3 @@ function SetupFunction() {
 }
 
 SetupFunction();
-

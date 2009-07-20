@@ -223,7 +223,8 @@ function IsBreakPointTriggered(break_id, break_point) {
 // Object representing a script break point. The script is referenced by its
 // script name or script id and the break point is represented as line and
 // column.
-function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column) {
+function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
+                          opt_groupId) {
   this.type_ = type;
   if (type == Debug.ScriptBreakPointType.ScriptId) {
     this.script_id_ = script_id_or_name;
@@ -232,6 +233,7 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column) {
   }
   this.line_ = opt_line || 0;
   this.column_ = opt_column;
+  this.groupId_ = opt_groupId;
   this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
@@ -241,6 +243,11 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column) {
 
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
+};
+
+
+ScriptBreakPoint.prototype.groupId = function() {
+  return this.groupId_;
 };
 
 
@@ -611,10 +618,12 @@ Debug.findScriptBreakPoint = function(break_point_number, remove) {
 // Sets a breakpoint in a script identified through id or name at the
 // specified source line and column within that line.
 Debug.setScriptBreakPoint = function(type, script_id_or_name,
-                                     opt_line, opt_column, opt_condition) {
+                                     opt_line, opt_column, opt_condition,
+                                     opt_groupId) {
   // Create script break point object.
   var script_break_point =
-      new ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column);
+      new ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
+                           opt_groupId);
 
   // Assign number to the new script break point and add it.
   script_break_point.number_ = next_break_point_number++;
@@ -636,19 +645,19 @@ Debug.setScriptBreakPoint = function(type, script_id_or_name,
 
 Debug.setScriptBreakPointById = function(script_id,
                                          opt_line, opt_column,
-                                         opt_condition) {
+                                         opt_condition, opt_groupId) {
   return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
                                   script_id, opt_line, opt_column,
-                                  opt_condition)
+                                  opt_condition, opt_groupId);
 }
 
 
 Debug.setScriptBreakPointByName = function(script_name,
                                            opt_line, opt_column,
-                                           opt_condition) {
+                                           opt_condition, opt_groupId) {
   return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptName,
                                   script_name, opt_line, opt_column,
-                                  opt_condition)
+                                  opt_condition, opt_groupId);
 }
 
 
@@ -991,7 +1000,6 @@ CompileEvent.prototype.toJSONProtocol = function() {
   }
   o.body = {};
   o.body.script = this.script_;
-  o.setOption('includeSource', true);
 
   return o.toJSONProtocol();
 }
@@ -1211,6 +1219,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.changeBreakPointRequest_(request, response);
       } else if (request.command == 'clearbreakpoint') {
         this.clearBreakPointRequest_(request, response);
+      } else if (request.command == 'clearbreakpointgroup') {
+        this.clearBreakPointGroupRequest_(request, response);
       } else if (request.command == 'backtrace') {
         this.backtraceRequest_(request, response);
       } else if (request.command == 'frame') {
@@ -1326,6 +1336,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
       true : request.arguments.enabled;
   var condition = request.arguments.condition;
   var ignoreCount = request.arguments.ignoreCount;
+  var groupId = request.arguments.groupId;
 
   // Check for legal arguments.
   if (!type || IS_UNDEFINED(target)) {
@@ -1379,10 +1390,11 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   } else if (type == 'script') {
     // set script break point.
     break_point_number =
-        Debug.setScriptBreakPointByName(target, line, column, condition);
+        Debug.setScriptBreakPointByName(target, line, column, condition,
+                                        groupId);
   } else {  // type == 'scriptId.
     break_point_number =
-        Debug.setScriptBreakPointById(target, line, column, condition);
+        Debug.setScriptBreakPointById(target, line, column, condition, groupId);
   }
 
   // Set additional break point properties.
@@ -1452,6 +1464,40 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(request, res
   if (!IS_UNDEFINED(ignoreCount)) {
     Debug.changeBreakPointIgnoreCount(break_point, ignoreCount);
   }
+}
+
+
+DebugCommandProcessor.prototype.clearBreakPointGroupRequest_ = function(request, response) {
+  // Check for legal request.
+  if (!request.arguments) {
+    response.failed('Missing arguments');
+    return;
+  }
+
+  // Pull out arguments.
+  var group_id = request.arguments.groupId;
+
+  // Check for legal arguments.
+  if (!group_id) {
+    response.failed('Missing argument "groupId"');
+    return;
+  }
+  
+  var cleared_break_points = [];
+  var new_script_break_points = [];
+  for (var i = 0; i < script_break_points.length; i++) {
+    var next_break_point = script_break_points[i];
+    if (next_break_point.groupId() == group_id) {
+      cleared_break_points.push(next_break_point.number());
+      next_break_point.clear();
+    } else {
+      new_script_break_points.push(next_break_point);
+    }
+  }
+  script_break_points = new_script_break_points;
+
+  // Add the cleared break point numbers to the response.
+  response.body = { breakpoints: cleared_break_points };
 }
 
 

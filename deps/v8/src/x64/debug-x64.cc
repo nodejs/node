@@ -38,8 +38,10 @@ namespace internal {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
-  UNIMPLEMENTED();
-  return false;
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  // 11th byte of patch is 0x49, 11th byte of JS return is 0xCC (int3).
+  ASSERT(*(rinfo->pc() + 10) == 0x49 || *(rinfo->pc() + 10) == 0xCC);
+  return (*(rinfo->pc() + 10) == 0x49);
 }
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {

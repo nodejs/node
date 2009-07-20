@@ -56,15 +56,15 @@ function Add100Reversed(x) {
 
 assertEquals(1, Add1(0));  // fast case
 assertEquals(1, Add1Reversed(0));  // fast case
-assertEquals(SMI_MAX + ONE, Add1(SMI_MAX));  // overflow
-assertEquals(SMI_MAX + ONE, Add1Reversed(SMI_MAX));  // overflow
+assertEquals(SMI_MAX + ONE, Add1(SMI_MAX), "smimax + 1");
+assertEquals(SMI_MAX + ONE, Add1Reversed(SMI_MAX), "1 + smimax");
 assertEquals(42 + ONE, Add1(OBJ_42));  // non-smi
 assertEquals(42 + ONE, Add1Reversed(OBJ_42));  // non-smi
 
 assertEquals(100, Add100(0));  // fast case
 assertEquals(100, Add100Reversed(0));  // fast case
-assertEquals(SMI_MAX + ONE_HUNDRED, Add100(SMI_MAX));  // overflow
-assertEquals(SMI_MAX + ONE_HUNDRED, Add100Reversed(SMI_MAX));  // overflow
+assertEquals(SMI_MAX + ONE_HUNDRED, Add100(SMI_MAX), "smimax + 100");
+assertEquals(SMI_MAX + ONE_HUNDRED, Add100Reversed(SMI_MAX), " 100 + smimax");
 assertEquals(42 + ONE_HUNDRED, Add100(OBJ_42));  // non-smi
 assertEquals(42 + ONE_HUNDRED, Add100Reversed(OBJ_42));  // non-smi
 
@@ -148,8 +148,8 @@ assertEquals(21, Sar1(OBJ_42));
 assertEquals(0, Shr1Reversed(OBJ_42));
 assertEquals(0, Sar1Reversed(OBJ_42));
 
-assertEquals(6, Shr100(100));
-assertEquals(6, Sar100(100));
+assertEquals(6, Shr100(100), "100 >>> 100");
+assertEquals(6, Sar100(100), "100 >> 100");
 assertEquals(12, Shr100Reversed(99));
 assertEquals(12, Sar100Reversed(99));
 assertEquals(201326592, Shr100(SMI_MIN));
@@ -196,6 +196,54 @@ assertEquals(78, Xor100Reversed(OBJ_42));
 var x = 0x23; var y = 0x35;
 assertEquals(0x16, x ^ y);
 
+
+// Bitwise not.
+var v = 0;
+assertEquals(-1, ~v);
+v = SMI_MIN;
+assertEquals(0x3fffffff, ~v, "~smimin");
+v = SMI_MAX;
+assertEquals(-0x40000000, ~v, "~smimax");
+
+// Overflowing ++ and --.
+v = SMI_MAX;
+v++;
+assertEquals(0x40000000, v, "smimax++");
+v = SMI_MIN;
+v--;
+assertEquals(-0x40000001, v, "smimin--");
+
+// Not actually Smi operations.
+// Check that relations on unary ops work.
+var v = -1.2;
+assertTrue(v == v);
+assertTrue(v === v);
+assertTrue(v <= v);
+assertTrue(v >= v);
+assertFalse(v < v);
+assertFalse(v > v);
+assertFalse(v != v);
+assertFalse(v !== v);
+
+// Right hand side of unary minus is overwritable.
+v = 1.5
+assertEquals(-2.25, -(v * v));
+
+// Smi input to bitop gives non-smi result where the rhs is a float that
+// can be overwritten.
+var x1 = 0x10000000;
+var x2 = 0x40000002;
+var x3 = 0x40000000;
+assertEquals(0x40000000, x1 << (x2 - x3), "0x10000000<<1(1)");
+
+// Smi input to bitop gives non-smi result where the rhs could be overwritten
+// if it were a float, but it isn't.
+x1 = 0x10000000
+x2 = 4
+x3 = 2
+assertEquals(0x40000000, x1 << (x2 - x3), "0x10000000<<2(2)");
+
+
 // Test shift operators on non-smi inputs, giving smi and non-smi results.
 function testShiftNonSmis() {
   var pos_non_smi = 2000000000;
@@ -210,12 +258,12 @@ function testShiftNonSmis() {
   assertEquals(neg_non_smi, (neg_non_smi) >> 0);
   assertEquals(neg_non_smi + 0x100000000, (neg_non_smi) >>> 0);
   assertEquals(neg_non_smi, (neg_non_smi) << 0);
-  assertEquals(pos_smi, (pos_smi) >> 0);
-  assertEquals(pos_smi, (pos_smi) >>> 0);
-  assertEquals(pos_smi, (pos_smi) << 0);
-  assertEquals(neg_smi, (neg_smi) >> 0);
-  assertEquals(neg_smi + 0x100000000, (neg_smi) >>> 0);
-  assertEquals(neg_smi, (neg_smi) << 0);
+  assertEquals(pos_smi, (pos_smi) >> 0, "possmi >> 0");
+  assertEquals(pos_smi, (pos_smi) >>> 0, "possmi >>>0");
+  assertEquals(pos_smi, (pos_smi) << 0, "possmi << 0");
+  assertEquals(neg_smi, (neg_smi) >> 0, "negsmi >> 0");
+  assertEquals(neg_smi + 0x100000000, (neg_smi) >>> 0, "negsmi >>> 0");
+  assertEquals(neg_smi, (neg_smi) << 0), "negsmi << 0";
 
   assertEquals(pos_non_smi / 2, (pos_non_smi) >> 1);
   assertEquals(pos_non_smi / 2, (pos_non_smi) >>> 1);
@@ -235,18 +283,22 @@ function testShiftNonSmis() {
   assertEquals(-0x46536000, (pos_non_smi + 0.5) << 3);
   assertEquals(0x73594000, (pos_non_smi + 0.5) << 4);
 
-  assertEquals(neg_non_smi / 2, (neg_non_smi) >> 1);
-  assertEquals(neg_non_smi / 2 + 0x100000000 / 2, (neg_non_smi) >>> 1);
+  assertEquals(neg_non_smi / 2, (neg_non_smi) >> 1, "negnonsmi >> 1");
+
+  assertEquals(neg_non_smi / 2 + 0x100000000 / 2, (neg_non_smi) >>> 1,
+               "negnonsmi >>> 1");
   assertEquals(0x1194D800, (neg_non_smi) << 1);
   assertEquals(neg_non_smi / 8, (neg_non_smi) >> 3);
   assertEquals(neg_non_smi / 8 + 0x100000000 / 8, (neg_non_smi) >>> 3);
   assertEquals(0x46536000, (neg_non_smi) << 3);
   assertEquals(-0x73594000, (neg_non_smi) << 4);
   assertEquals(neg_non_smi, (neg_non_smi - 0.5) >> 0);
-  assertEquals(neg_non_smi + 0x100000000, (neg_non_smi - 0.5) >>> 0);
+  assertEquals(neg_non_smi + 0x100000000, (neg_non_smi - 0.5) >>> 0,
+               "negnonsmi.5 >>> 0");
   assertEquals(neg_non_smi, (neg_non_smi - 0.5) << 0);
   assertEquals(neg_non_smi / 2, (neg_non_smi - 0.5) >> 1);
-  assertEquals(neg_non_smi / 2 + 0x100000000 / 2, (neg_non_smi - 0.5) >>> 1);
+  assertEquals(neg_non_smi / 2 + 0x100000000 / 2, (neg_non_smi - 0.5) >>> 1,
+               "negnonsmi.5 >>> 1");
   assertEquals(0x1194D800, (neg_non_smi - 0.5) << 1);
   assertEquals(neg_non_smi / 8, (neg_non_smi - 0.5) >> 3);
   assertEquals(neg_non_smi / 8 + 0x100000000 / 8, (neg_non_smi - 0.5) >>> 3);
@@ -260,9 +312,9 @@ function testShiftNonSmis() {
   assertEquals(pos_smi / 8, (pos_smi) >>> 3);
   assertEquals(-0x2329b000, (pos_smi) << 3);
   assertEquals(0x73594000, (pos_smi) << 5);
-  assertEquals(pos_smi, (pos_smi + 0.5) >> 0);
-  assertEquals(pos_smi, (pos_smi + 0.5) >>> 0);
-  assertEquals(pos_smi, (pos_smi + 0.5) << 0);
+  assertEquals(pos_smi, (pos_smi + 0.5) >> 0, "possmi.5 >> 0");
+  assertEquals(pos_smi, (pos_smi + 0.5) >>> 0, "possmi.5 >>> 0");
+  assertEquals(pos_smi, (pos_smi + 0.5) << 0, "possmi.5 << 0");
   assertEquals(pos_smi / 2, (pos_smi + 0.5) >> 1);
   assertEquals(pos_smi / 2, (pos_smi + 0.5) >>> 1);
   assertEquals(pos_non_smi, (pos_smi + 0.5) << 1);
@@ -278,9 +330,9 @@ function testShiftNonSmis() {
   assertEquals(neg_smi / 8 + 0x100000000 / 8, (neg_smi) >>> 3);
   assertEquals(0x46536000, (neg_smi) << 4);
   assertEquals(-0x73594000, (neg_smi) << 5);
-  assertEquals(neg_smi, (neg_smi - 0.5) >> 0);
-  assertEquals(neg_smi + 0x100000000, (neg_smi - 0.5) >>> 0);
-  assertEquals(neg_smi, (neg_smi - 0.5) << 0);
+  assertEquals(neg_smi, (neg_smi - 0.5) >> 0, "negsmi.5 >> 0");
+  assertEquals(neg_smi + 0x100000000, (neg_smi - 0.5) >>> 0, "negsmi.5 >>> 0");
+  assertEquals(neg_smi, (neg_smi - 0.5) << 0, "negsmi.5 << 0");
   assertEquals(neg_smi / 2, (neg_smi - 0.5) >> 1);
   assertEquals(neg_smi / 2 + 0x100000000 / 2, (neg_smi - 0.5) >>> 1);
   assertEquals(neg_non_smi, (neg_smi - 0.5) << 1);
@@ -301,12 +353,12 @@ function testShiftNonSmis() {
   assertEquals(neg_non_smi, (neg_32 + neg_non_smi) >> 0);
   assertEquals(neg_non_smi + 0x100000000, (neg_32 + neg_non_smi) >>> 0);
   assertEquals(neg_non_smi, (neg_32 + neg_non_smi) << 0);
-  assertEquals(pos_smi, (two_32 + pos_smi) >> 0);
-  assertEquals(pos_smi, (two_32 + pos_smi) >>> 0);
-  assertEquals(pos_smi, (two_32 + pos_smi) << 0);
-  assertEquals(neg_smi, (neg_32 + neg_smi) >> 0);
+  assertEquals(pos_smi, (two_32 + pos_smi) >> 0, "2^32+possmi >> 0");
+  assertEquals(pos_smi, (two_32 + pos_smi) >>> 0, "2^32+possmi >>> 0");
+  assertEquals(pos_smi, (two_32 + pos_smi) << 0, "2^32+possmi << 0");
+  assertEquals(neg_smi, (neg_32 + neg_smi) >> 0, "2^32+negsmi >> 0");
   assertEquals(neg_smi + 0x100000000, (neg_32 + neg_smi) >>> 0);
-  assertEquals(neg_smi, (neg_32 + neg_smi) << 0);
+  assertEquals(neg_smi, (neg_32 + neg_smi) << 0, "2^32+negsmi << 0");
 
   assertEquals(pos_non_smi / 2, (two_32 + pos_non_smi) >> 1);
   assertEquals(pos_non_smi / 2, (two_32 + pos_non_smi) >>> 1);
@@ -371,9 +423,9 @@ function testShiftNonSmis() {
   assertEquals((neg_smi + 0x100000000) / 8, (neg_32 + neg_smi) >>> 3);
   assertEquals(0x46536000, (neg_32 + neg_smi) << 4);
   assertEquals(-0x73594000, (neg_32 + neg_smi) << 5);
-  assertEquals(neg_smi, (neg_32 + neg_smi - 0.5) >> 0);
+  assertEquals(neg_smi, (neg_32 + neg_smi - 0.5) >> 0, "-2^32+negsmi.5 >> 0");
   assertEquals(neg_smi + 0x100000000, (neg_32 + neg_smi - 0.5) >>> 0);
-  assertEquals(neg_smi, (neg_32 + neg_smi - 0.5) << 0);
+  assertEquals(neg_smi, (neg_32 + neg_smi - 0.5) << 0, "-2^32+negsmi.5 << 0");
   assertEquals(neg_smi / 2, (neg_32 + neg_smi - 0.5) >> 1);
   assertEquals(neg_smi / 2 + 0x100000000 / 2, (neg_32 + neg_smi - 0.5) >>> 1);
   assertEquals(neg_non_smi, (neg_32 + neg_smi - 0.5) << 1);
@@ -399,9 +451,9 @@ function testShiftNonSmis() {
   assertEquals(pos_smi, (pos_smi) >> zero);
   assertEquals(pos_smi, (pos_smi) >>> zero);
   assertEquals(pos_smi, (pos_smi) << zero);
-  assertEquals(neg_smi, (neg_smi) >> zero);
+  assertEquals(neg_smi, (neg_smi) >> zero, "negsmi >> zero");
   assertEquals(neg_smi + 0x100000000, (neg_smi) >>> zero);
-  assertEquals(neg_smi, (neg_smi) << zero);
+  assertEquals(neg_smi, (neg_smi) << zero, "negsmi << zero");
 
   assertEquals(pos_non_smi / 2, (pos_non_smi) >> one);
   assertEquals(pos_non_smi / 2, (pos_non_smi) >>> one);
@@ -495,9 +547,9 @@ function testShiftNonSmis() {
   assertEquals(pos_smi, (pos_smi) >> zero);
   assertEquals(pos_smi, (pos_smi) >>> zero);
   assertEquals(pos_smi, (pos_smi) << zero);
-  assertEquals(neg_smi, (neg_smi) >> zero);
+  assertEquals(neg_smi, (neg_smi) >> zero, "negsmi >> zero(2)");
   assertEquals(neg_smi + 0x100000000, (neg_smi) >>> zero);
-  assertEquals(neg_smi, (neg_smi) << zero);
+  assertEquals(neg_smi, (neg_smi) << zero, "negsmi << zero(2)");
 
   assertEquals(pos_non_smi / 2, (pos_non_smi) >> one);
   assertEquals(pos_non_smi / 2, (pos_non_smi) >>> one);
@@ -561,9 +613,9 @@ function testShiftNonSmis() {
   assertEquals(neg_smi / 8 + 0x100000000 / 8, (neg_smi) >>> three);
   assertEquals(0x46536000, (neg_smi) << four);
   assertEquals(-0x73594000, (neg_smi) << five);
-  assertEquals(neg_smi, (neg_smi - 0.5) >> zero);
+  assertEquals(neg_smi, (neg_smi - 0.5) >> zero, "negsmi.5 >> zero");
   assertEquals(neg_smi + 0x100000000, (neg_smi - 0.5) >>> zero);
-  assertEquals(neg_smi, (neg_smi - 0.5) << zero);
+  assertEquals(neg_smi, (neg_smi - 0.5) << zero, "negsmi.5 << zero");
   assertEquals(neg_smi / 2, (neg_smi - 0.5) >> one);
   assertEquals(neg_smi / 2 + 0x100000000 / 2, (neg_smi - 0.5) >>> one);
   assertEquals(neg_non_smi, (neg_smi - 0.5) << one);

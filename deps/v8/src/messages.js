@@ -60,10 +60,8 @@ const kMessages = {
   unexpected_token_string:      "Unexpected string",
   unexpected_token_identifier:  "Unexpected identifier",
   unexpected_eos:               "Unexpected end of input",
-  expected_label:               "Expected label",
   malformed_regexp:             "Invalid regular expression: /%0/: %1",
   unterminated_regexp:          "Invalid regular expression: missing /",
-  pcre_error:                   "PCRE function %0, error code %1",
   regexp_flags:                 "Cannot supply flags when constructing one RegExp from another",
   invalid_lhs_in_assignment:    "Invalid left-hand side in assignment",
   invalid_lhs_in_for_in:        "Invalid left-hand side in for-in",
@@ -74,21 +72,17 @@ const kMessages = {
   redeclaration:                "%0 '%1' has already been declared",
   no_catch_or_finally:          "Missing catch or finally after try",
   unknown_label:                "Undefined label '%0'",
-  invalid_break:                "Invalid break statement",
-  invalid_continue:             "Invalid continue statement",
   uncaught_exception:           "Uncaught %0",
   stack_trace:                  "Stack Trace:\n%0",
   called_non_callable:          "%0 is not a function",
   undefined_method:             "Object %1 has no method '%0'",
   property_not_function:        "Property '%0' of object %1 is not a function",
-  null_or_undefined:            "Cannot access property of null or undefined",
   cannot_convert_to_primitive:  "Cannot convert object to primitive value",
   not_constructor:              "%0 is not a constructor",
   not_defined:                  "%0 is not defined",
   non_object_property_load:     "Cannot read property '%0' of %1",
   non_object_property_store:    "Cannot set property '%0' of %1",
   non_object_property_call:     "Cannot call method '%0' of %1",
-  illegal_eval:                 "Unsupported indirect eval() call",
   with_expression:              "%0 has no properties",
   illegal_invocation:           "Illegal invocation",
   no_setter_in_callback:        "Cannot set property %0 of %1 which has only a getter",
@@ -101,13 +95,11 @@ const kMessages = {
   reduce_no_initial:            "Reduce of empty array with no initial value",
   // RangeError
   invalid_array_length:         "Invalid array length",
-  invalid_array_apply_length:   "Function.prototype.apply supports only up to 1024 arguments",
   stack_overflow:               "Maximum call stack size exceeded",
   apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
   // SyntaxError
   unable_to_parse:              "Parse error",
   duplicate_regexp_flag:        "Duplicate RegExp flag %0",
-  unrecognized_regexp_flag:     "Unrecognized RegExp flag %0",
   invalid_regexp:               "Invalid RegExp pattern /%0/",
   illegal_break:                "Illegal break statement",
   illegal_continue:             "Illegal continue statement",
@@ -557,54 +549,8 @@ function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
-  try {
-    return UnsafeGetStackTraceLine(recv, fun, pos, isGlobal);
-  } catch (e) {
-    return "<error: " + e + ">";
-  }
+  return FormatSourcePosition(new CallSite(recv, fun, pos));
 }
-
-
-function GetFunctionName(fun, recv) {
-  var name = %FunctionGetName(fun);
-  if (name) return name;
-  for (var prop in recv) {
-    if (recv[prop] === fun)
-      return prop;
-  }
-  return "[anonymous]";
-}
-
-
-function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
-  var result = "";
-  // The global frame has no meaningful function or receiver
-  if (!isTopLevel) {
-    // If the receiver is not the global object then prefix the
-    // message send
-    if (recv !== global)
-      result += ToDetailString(recv) + ".";
-    result += GetFunctionName(fun, recv);
-  }
-  if (pos != -1) {
-    var script = %FunctionGetScript(fun);
-    var file;
-    if (script) {
-      file = %FunctionGetScript(fun).data;
-    }
-    if (file) {
-      var location = %FunctionGetScript(fun).locationFromPosition(pos, true);
-      if (!isTopLevel) result += "(";
-      result += file;
-      if (location != null) {
-        result += ":" + (location.line + 1) + ":" + (location.column + 1);
-      }
-      if (!isTopLevel) result += ")";
-    }
-  }
-  return (result) ? "    at " + result : result;
-}
-
 
 // ----------------------------------------------------------------------------
 // Error implementation
@@ -630,6 +576,226 @@ function DefineOneShotAccessor(obj, name, fun) {
     delete obj[name];
     obj[name] = v;
   });
+}
+
+function CallSite(receiver, fun, pos) {
+  this.receiver = receiver;
+  this.fun = fun;
+  this.pos = pos;
+}
+
+CallSite.prototype.getThis = function () {
+  return this.receiver;
+};
+
+CallSite.prototype.getTypeName = function () {
+  var constructor = this.receiver.constructor;
+  if (!constructor)
+    return $Object.prototype.toString.call(this.receiver);
+  var constructorName = constructor.name;
+  if (!constructorName)
+    return $Object.prototype.toString.call(this.receiver);
+  return constructorName;
+};
+
+CallSite.prototype.isToplevel = function () {
+  if (this.receiver == null)
+    return true;
+  return IS_GLOBAL(this.receiver);
+};
+
+CallSite.prototype.isEval = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script && script.compilation_type == 1;
+};
+
+CallSite.prototype.getEvalOrigin = function () {
+  var script = %FunctionGetScript(this.fun);
+  if (!script || script.compilation_type != 1)
+    return null;
+  return new CallSite(null, script.eval_from_function,
+      script.eval_from_position);
+};
+
+CallSite.prototype.getFunction = function () {
+  return this.fun;
+};
+
+CallSite.prototype.getFunctionName = function () {
+  // See if the function knows its own name
+  var name = this.fun.name;
+  if (name) {
+    return name;
+  } else {
+    return %FunctionGetInferredName(this.fun);
+  }
+  // Maybe this is an evaluation?
+  var script = %FunctionGetScript(this.fun);
+  if (script && script.compilation_type == 1)
+    return "eval";
+  return null;
+};
+
+CallSite.prototype.getMethodName = function () {
+  // See if we can find a unique property on the receiver that holds
+  // this function.
+  var ownName = this.fun.name;
+  if (ownName && this.receiver && this.receiver[ownName] === this.fun)
+    // To handle DontEnum properties we guess that the method has
+    // the same name as the function.
+    return ownName;
+  var name = null;
+  for (var prop in this.receiver) {
+    if (this.receiver[prop] === this.fun) {
+      // If we find more than one match bail out to avoid confusion
+      if (name)
+        return null;
+      name = prop;
+    }
+  }
+  if (name)
+    return name;
+  return null;
+};
+
+CallSite.prototype.getFileName = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script ? script.name : null;
+};
+
+CallSite.prototype.getLineNumber = function () {
+  if (this.pos == -1)
+    return null;
+  var script = %FunctionGetScript(this.fun);
+  var location = null;
+  if (script) {
+    location = script.locationFromPosition(this.pos, true);
+  }
+  return location ? location.line + 1 : null;
+};
+
+CallSite.prototype.getColumnNumber = function () {
+  if (this.pos == -1)
+    return null;
+  var script = %FunctionGetScript(this.fun);
+  var location = null;
+  if (script) {
+    location = script.locationFromPosition(this.pos, true);
+  }
+  return location ? location.column : null;
+};
+
+CallSite.prototype.isNative = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script ? (script.type == 0) : false;
+};
+
+CallSite.prototype.getPosition = function () {
+  return this.pos;
+};
+
+CallSite.prototype.isConstructor = function () {
+  var constructor = this.receiver ? this.receiver.constructor : null;
+  if (!constructor)
+    return false;
+  return this.fun === constructor;
+};
+
+function FormatSourcePosition(frame) {
+  var fileLocation = "";
+  if (frame.isNative()) {
+    fileLocation = "native";
+  } else if (frame.isEval()) {
+    fileLocation = "eval at " + FormatSourcePosition(frame.getEvalOrigin());
+  } else {
+    var fileName = frame.getFileName();
+    if (fileName) {
+      fileLocation += fileName;
+      var lineNumber = frame.getLineNumber();
+      if (lineNumber != null) {
+        fileLocation += ":" + lineNumber;
+        var columnNumber = frame.getColumnNumber();
+        if (columnNumber) {
+          fileLocation += ":" + columnNumber;
+        }
+      }
+    }
+  }
+  if (!fileLocation) {
+    fileLocation = "unknown source";
+  }
+  var line = "";
+  var functionName = frame.getFunction().name;
+  var methodName = frame.getMethodName();
+  var addPrefix = true;
+  var isConstructor = frame.isConstructor();
+  var isMethodCall = !(frame.isToplevel() || isConstructor);
+  if (isMethodCall) {
+    line += frame.getTypeName() + ".";
+    if (functionName) {
+      line += functionName;
+      if (methodName && (methodName != functionName)) {
+        line += " [as " + methodName + "]";
+      }
+    } else {
+      line += methodName || "<anonymous>";
+    }
+  } else if (isConstructor) {
+    line += "new " + (functionName || "<anonymous>");
+  } else if (functionName) {
+    line += functionName;
+  } else {
+    line += fileLocation;
+    addPrefix = false;
+  }
+  if (addPrefix) {
+    line += " (" + fileLocation + ")";
+  }
+  return line;
+}
+
+function FormatStackTrace(error, frames) {
+  var lines = [];
+  try {
+    lines.push(error.toString());
+  } catch (e) {
+    try {
+      lines.push("<error: " + e + ">");
+    } catch (ee) {
+      lines.push("<error>");
+    }
+  }
+  for (var i = 0; i < frames.length; i++) {
+    var frame = frames[i];
+    try {
+      var line = FormatSourcePosition(frame);
+    } catch (e) {
+      try {
+        var line = "<error: " + e + ">";
+      } catch (ee) {
+        // Any code that reaches this point is seriously nasty!
+        var line = "<error>";
+      }
+    }
+    lines.push("    at " + line);
+  }
+  return lines.join("\n");
+}
+
+function FormatRawStackTrace(error, raw_stack) {
+  var frames = [ ];
+  for (var i = 0; i < raw_stack.length; i += 3) {
+    var recv = raw_stack[i];
+    var fun = raw_stack[i+1];
+    var pc = raw_stack[i+2];
+    var pos = %FunctionGetPositionForOffset(fun, pc);
+    frames.push(new CallSite(recv, fun, pos));
+  }
+  if (IS_FUNCTION($Error.prepareStackTrace)) {
+    return $Error.prepareStackTrace(error, frames);
+  } else {
+    return FormatStackTrace(error, frames);
+  }
 }
 
 function DefineError(f) {
@@ -659,13 +825,23 @@ function DefineError(f) {
   %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
   f.prototype.name = name;
   %SetCode(f, function(m) {
-    if (%IsConstructCall()) {
+    if (%_IsConstructCall()) {
       if (m === kAddMessageAccessorsMarker) {
         DefineOneShotAccessor(this, 'message', function (obj) {
           return FormatMessage({type: obj.type, args: obj.arguments});
         });
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
+      }
+      var stackTraceLimit = $Error.stackTraceLimit;
+      if (stackTraceLimit) {
+        // Cap the limit to avoid extremely big traces
+        if (stackTraceLimit < 0 || stackTraceLimit > 10000)
+          stackTraceLimit = 10000;
+        var raw_stack = %CollectStackTrace(f, stackTraceLimit);
+        DefineOneShotAccessor(this, 'stack', function (obj) {
+          return FormatRawStackTrace(obj, raw_stack);
+        });
       }
     } else {
       return new f(m);

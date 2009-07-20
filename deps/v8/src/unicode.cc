@@ -194,18 +194,13 @@ static int LookupMapping(const int32_t* table,
 uchar Utf8::CalculateValue(const byte* str,
                            unsigned length,
                            unsigned* cursor) {
-  static const uchar kMaxOneByteChar = 0x7F;
-  static const uchar kMaxTwoByteChar = 0x7FF;
-  static const uchar kMaxThreeByteChar = 0xFFFF;
-  static const uchar kMaxFourByteChar = 0x1FFFFF;
-
   // We only get called for non-ascii characters.
   if (length == 1) {
     *cursor += 1;
     return kBadChar;
   }
-  int first = str[0];
-  int second = str[1] ^ 0x80;
+  byte first = str[0];
+  byte second = str[1] ^ 0x80;
   if (second & 0xC0) {
     *cursor += 1;
     return kBadChar;
@@ -227,7 +222,7 @@ uchar Utf8::CalculateValue(const byte* str,
     *cursor += 1;
     return kBadChar;
   }
-  int third = str[2] ^ 0x80;
+  byte third = str[2] ^ 0x80;
   if (third & 0xC0) {
     *cursor += 1;
     return kBadChar;
@@ -245,7 +240,7 @@ uchar Utf8::CalculateValue(const byte* str,
     *cursor += 1;
     return kBadChar;
   }
-  int fourth = str[3] ^ 0x80;
+  byte fourth = str[3] ^ 0x80;
   if (fourth & 0xC0) {
     *cursor += 1;
     return kBadChar;

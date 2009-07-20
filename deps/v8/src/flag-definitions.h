@@ -110,6 +110,7 @@ DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_string(natives_file, NULL, "alternative natives file")
 DEFINE_bool(expose_gc, false, "expose gc extension")
+DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
 
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
@@ -207,8 +208,6 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
-DEFINE_bool(regexp_native, true,
-            "use native code regexp implementation (IA32 only)")
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc

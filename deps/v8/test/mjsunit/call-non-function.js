@@ -51,4 +51,13 @@ TryCall(1234);
 TryCall("hest");
 
 
-
+// Make sure that calling a non-function global doesn't crash the
+// system while building the IC for it.
+var NonFunction = 42;
+function WillThrow() {
+  NonFunction();
+}
+assertThrows(WillThrow);
+assertThrows(WillThrow);
+assertThrows(WillThrow);
+assertThrows(WillThrow);

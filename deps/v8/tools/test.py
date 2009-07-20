@@ -356,10 +356,14 @@ class TestCase(object):
   def RunCommand(self, command):
     full_command = self.context.processor(command)
     output = Execute(full_command, self.context, self.context.timeout)
+    self.Cleanup()
     return TestOutput(self, full_command, output)
 
   def Run(self):
     return self.RunCommand(self.GetCommand())
+
+  def Cleanup(self):
+    return
 
 
 class TestOutput(object):
@@ -473,6 +477,13 @@ def PrintError(str):
   sys.stderr.write('\n')
 
 
+def CheckedUnlink(name):
+  try:
+    os.unlink(name)
+  except OSError, e:
+    PrintError("os.unlink() " + str(e))
+
+
 def Execute(args, context, timeout=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
@@ -487,11 +498,6 @@ def Execute(args, context, timeout=None):
   os.close(fd_err)
   output = file(outname).read()
   errors = file(errname).read()
-  def CheckedUnlink(name):
-    try:
-      os.unlink(name)
-    except OSError, e:
-      PrintError("os.unlink() " + str(e))
   CheckedUnlink(outname)
   CheckedUnlink(errname)
   return CommandOutput(exit_code, timed_out, output, errors)

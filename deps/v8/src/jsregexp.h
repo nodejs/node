@@ -37,13 +37,15 @@ class RegExpMacroAssembler;
 
 class RegExpImpl {
  public:
-  static inline bool UseNativeRegexp() {
-#ifdef V8_TARGET_ARCH_IA32
-    return FLAG_regexp_native;
+  // Whether V8 is compiled with native regexp support or not.
+  static bool UsesNativeRegExp() {
+#ifdef V8_NATIVE_REGEXP
+    return true;
 #else
-  return false;
+    return false;
 #endif
   }
+
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
   static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
@@ -148,7 +150,8 @@ class RegExpImpl {
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
 
-  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
+  static bool CompileIrregexp(Handle<JSRegExp> re, bool is_ascii);
+  static inline bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
 
 
   // Set the subject cache.  The previous string buffer is not deleted, so the

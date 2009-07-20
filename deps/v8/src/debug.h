@@ -270,6 +270,7 @@ class Debug {
 
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
   static void HandleStepIn(Handle<JSFunction> function,
+                           Handle<Object> holder,
                            Address fp,
                            bool is_constructor);
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
@@ -362,6 +363,10 @@ class Debug {
   // Code generation assumptions.
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
+
+  // The x64 JS return sequence is padded with int3 to make it large
+  // enough to hold a call instruction when the debugger patches it.
+  static const int kX64JSReturnSequenceLength = 13;
 
   // Code generator routines.
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);

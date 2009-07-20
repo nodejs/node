@@ -134,7 +134,7 @@ void Bootstrapper::TearDown() {
 }
 
 
-// Pending fixups are code positions that have refer to builtin code
+// Pending fixups are code positions that refer to builtin code
 // objects that were not available at the time the code was generated.
 // The pending list is processed whenever an environment has been
 // created.
@@ -216,7 +216,6 @@ bool PendingFixups::Process(Handle<JSBuiltinsObject> builtins) {
         *reinterpret_cast<Object**>(pc) = f->code();
       }
     } else {
-      ASSERT(is_pc_relative);
       Assembler::set_target_address_at(pc, f->code()->instruction_start());
     }
 
@@ -539,7 +538,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   {  // --- G l o b a l ---
     // Step 1: create a fresh inner JSGlobalObject
-    Handle<JSGlobalObject> object;
+    Handle<GlobalObject> object;
     {
       Handle<JSFunction> js_global_function;
       Handle<ObjectTemplateInfo> js_global_template;
@@ -579,9 +578,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       }
 
       js_global_function->initial_map()->set_is_hidden_prototype();
-      SetExpectedNofProperties(js_global_function, 100);
-      object = Handle<JSGlobalObject>::cast(
-          Factory::NewJSObject(js_global_function, TENURED));
+      object = Factory::NewGlobalObject(js_global_function);
     }
 
     // Set the global context for the global object.
@@ -963,12 +960,10 @@ bool Genesis::InstallNatives() {
 
   Handle<String> name = Factory::LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
-  SetExpectedNofProperties(builtins_fun, 100);
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
-      Handle<JSBuiltinsObject>::cast(Factory::NewJSObject(builtins_fun,
-                                                          TENURED));
+      Handle<JSBuiltinsObject>::cast(Factory::NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_global_context(*global_context());
   builtins->set_global_receiver(*builtins);
@@ -1113,8 +1108,8 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove this test when code generation works and is stable.
-  CodeGenerator::TestCodeGenerator();
+  // TODO(X64): Remove this when inline caches work.
+  FLAG_use_ic = false;
 #endif  // V8_HOST_ARCH_64_BIT
 
 
@@ -1191,10 +1186,6 @@ bool Genesis::InstallNatives() {
     apply->shared()->set_length(2);
   }
 
-  // Make sure that the builtins object has fast properties.
-  // If the ASSERT below fails, please increase the expected number of
-  // properties for the builtins object.
-  ASSERT(builtins->HasFastProperties());
 #ifdef DEBUG
   builtins->Verify();
 #endif
@@ -1212,6 +1203,15 @@ bool Genesis::InstallSpecialObjects() {
         Factory::LookupAsciiSymbol(FLAG_expose_natives_as);
     SetProperty(js_global, natives_string,
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
+  }
+
+  Handle<Object> Error = GetProperty(js_global, "Error");
+  if (Error->IsJSObject()) {
+    Handle<String> name = Factory::LookupAsciiSymbol("stackTraceLimit");
+    SetProperty(Handle<JSObject>::cast(Error),
+                name,
+                Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
+                NONE);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1373,43 +1373,35 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
-    int offset = 0;
-    while (true) {
-      // Iterating through the descriptors is not gc safe so we have to
-      // store the value in a handle and create a new stream for each entry.
-      DescriptorReader stream(*descs, offset);
-      if (stream.eos()) break;
-      // We have to read out the next offset before we do anything that may
-      // cause a gc, since the DescriptorReader is not gc safe.
-      offset = stream.next_position();
-      PropertyDetails details = stream.GetDetails();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      PropertyDetails details = PropertyDetails(descs->GetDetails(i));
       switch (details.type()) {
         case FIELD: {
           HandleScope inner;
-          Handle<String> key = Handle<String>(stream.GetKey());
-          int index = stream.GetFieldIndex();
+          Handle<String> key = Handle<String>(descs->GetKey(i));
+          int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
           SetProperty(to, key, value, details.attributes());
           break;
         }
         case CONSTANT_FUNCTION: {
           HandleScope inner;
-          Handle<String> key = Handle<String>(stream.GetKey());
+          Handle<String> key = Handle<String>(descs->GetKey(i));
           Handle<JSFunction> fun =
-              Handle<JSFunction>(stream.GetConstantFunction());
+              Handle<JSFunction>(descs->GetConstantFunction(i));
           SetProperty(to, key, fun, details.attributes());
           break;
         }
         case CALLBACKS: {
           LookupResult result;
-          to->LocalLookup(stream.GetKey(), &result);
+          to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
           if (result.IsValid()) continue;
           HandleScope inner;
           Handle<DescriptorArray> inst_descs =
               Handle<DescriptorArray>(to->map()->instance_descriptors());
-          Handle<String> key = Handle<String>(stream.GetKey());
-          Handle<Object> entry = Handle<Object>(stream.GetCallbacksObject());
+          Handle<String> key = Handle<String>(descs->GetKey(i));
+          Handle<Object> entry = Handle<Object>(descs->GetCallbacksObject(i));
           inst_descs = Factory::CopyAppendProxyDescriptor(inst_descs,
                                                           key,
                                                           entry,
@@ -1431,8 +1423,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       }
     }
   } else {
-    Handle<Dictionary> properties =
-        Handle<Dictionary>(from->property_dictionary());
+    Handle<StringDictionary> properties =
+        Handle<StringDictionary>(from->property_dictionary());
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));
@@ -1445,6 +1437,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));
+        if (value->IsJSGlobalPropertyCell()) {
+          value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value());
+        }
         PropertyDetails details = properties->DetailsAt(i);
         SetProperty(to, key, value, details.attributes());
       }
@@ -1552,7 +1547,7 @@ Genesis::Genesis(Handle<Object> global_object,
   // will always do unlinking.
   previous_ = current_;
   current_  = this;
-  result_ = NULL;
+  result_ = Handle<Context>::null();
 
   // If V8 isn't running and cannot be initialized, just return.
   if (!V8::IsRunning() && !V8::Initialize(NULL)) return;

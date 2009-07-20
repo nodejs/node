@@ -198,7 +198,8 @@ class FixedArray;
 class FunctionEntry;
 class FunctionLiteral;
 class FunctionTemplateInfo;
-class Dictionary;
+class NumberDictionary;
+class StringDictionary;
 class FreeStoreAllocationPolicy;
 template <typename T> class Handle;
 class Heap;
@@ -256,14 +257,16 @@ typedef bool (*WeakSlotCallback)(Object** pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  NEW_SPACE,          // Semispaces collected with copying collector.
-  OLD_POINTER_SPACE,  // Must be first of the paged spaces - see PagedSpaces.
-  OLD_DATA_SPACE,     // May not have pointers to new space.
-  CODE_SPACE,         // Also one of the old spaces.  Marked executable.
-  MAP_SPACE,          // Only map objects.
-  LO_SPACE,           // Large objects.
+  NEW_SPACE,            // Semispaces collected with copying collector.
+  OLD_POINTER_SPACE,    // May contain pointers to new space.
+  OLD_DATA_SPACE,       // Must not have pointers to new space.
+  CODE_SPACE,           // No pointers to new space, marked executable.
+  MAP_SPACE,            // Only and all map objects.
+  CELL_SPACE,           // Only and all cell objects.
+  LO_SPACE,             // Promoted large objects.
+
   FIRST_SPACE = NEW_SPACE,
-  LAST_SPACE = LO_SPACE  // <= 5 (see kSpaceBits and kLOSpacePointer)
+  LAST_SPACE = LO_SPACE
 };
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;

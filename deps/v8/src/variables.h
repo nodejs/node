@@ -143,6 +143,12 @@ class Variable: public ZoneObject {
     ARGUMENTS
   };
 
+  Variable(Scope* scope,
+           Handle<String> name,
+           Mode mode,
+           bool is_valid_lhs,
+           Kind kind);
+
   // Printing support
   static const char* Mode2String(Mode mode);
 
@@ -196,9 +202,6 @@ class Variable: public ZoneObject {
   SmiAnalysis* type() { return &type_; }
 
  private:
-  Variable(Scope* scope, Handle<String> name, Mode mode, bool is_valid_LHS,
-           Kind kind);
-
   Scope* scope_;
   Handle<String> name_;
   Mode mode_;
@@ -216,13 +219,10 @@ class Variable: public ZoneObject {
   SmiAnalysis type_;
 
   // Code generation.
-  // rewrite_ is usually a Slot or a Property, but maybe any expression.
+  // rewrite_ is usually a Slot or a Property, but may be any expression.
   Expression* rewrite_;
 
-  friend class VariableProxy;
-  friend class Scope;
-  friend class LocalsMap;
-  friend class AstBuildingParser;
+  friend class Scope;  // Has explicit access to rewrite_.
 };
 
 

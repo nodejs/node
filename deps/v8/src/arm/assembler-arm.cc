@@ -491,6 +491,20 @@ static bool fits_shifter(uint32_t imm32,
 }
 
 
+// We have to use the temporary register for things that can be relocated even
+// if they can be encoded in the ARM's 12 bits of immediate-offset instruction
+// space.  There is no guarantee that the relocated location can be similarly
+// encoded.
+static bool MustUseIp(RelocInfo::Mode rmode) {
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+    return Serializer::enabled();
+  } else if (rmode == RelocInfo::NONE) {
+    return false;
+  }
+  return true;
+}
+
+
 void Assembler::addrmod1(Instr instr,
                          Register rn,
                          Register rd,
@@ -501,8 +515,7 @@ void Assembler::addrmod1(Instr instr,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((x.rmode_ != RelocInfo::NONE &&
-         x.rmode_ != RelocInfo::EXTERNAL_REFERENCE) ||
+    if (MustUseIp(x.rmode_) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -684,6 +697,7 @@ void Assembler::bl(int branch_offset, Condition cond) {
 
 
 void Assembler::blx(int branch_offset) {  // v5 and above
+  WriteRecordedPositions();
   ASSERT((branch_offset & 1) == 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
@@ -693,12 +707,14 @@ void Assembler::blx(int branch_offset) {  // v5 and above
 
 
 void Assembler::blx(Register target, Condition cond) {  // v5 and above
+  WriteRecordedPositions();
   ASSERT(!target.is(pc));
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | 3*B4 | target.code());
 }
 
 
 void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
+  WriteRecordedPositions();
   ASSERT(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | B4 | target.code());
 }
@@ -797,6 +813,9 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
 
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
+  if (dst.is(pc)) {
+    WriteRecordedPositions();
+  }
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
 
@@ -816,7 +835,6 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
-  ASSERT(!dst.is(src1));
   emit(cond | A | s | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -825,7 +843,7 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dst.is(src1));
+  // dst goes in bits 16-19 for this instruction!
   emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
 }
 
@@ -837,7 +855,7 @@ void Assembler::smlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -850,7 +868,7 @@ void Assembler::smull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -863,7 +881,7 @@ void Assembler::umlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -876,7 +894,7 @@ void Assembler::umull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -906,8 +924,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((src.rmode_ != RelocInfo::NONE &&
-         src.rmode_ != RelocInfo::EXTERNAL_REFERENCE)||
+    if (MustUseIp(src.rmode_) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // immediate operand cannot be encoded, load it first to register ip
       RecordRelocInfo(src.rmode_, src.imm32_);
@@ -926,6 +943,9 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 
 // Load/Store instructions
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
+  if (dst.is(pc)) {
+    WriteRecordedPositions();
+  }
   addrmod2(cond | B26 | L, dst, src);
 
   // Eliminate pattern: push(r), pop(r)
@@ -1263,7 +1283,6 @@ void Assembler::RecordPosition(int pos) {
   if (pos == RelocInfo::kNoPosition) return;
   ASSERT(pos >= 0);
   current_position_ = pos;
-  WriteRecordedPositions();
 }
 
 
@@ -1271,7 +1290,6 @@ void Assembler::RecordStatementPosition(int pos) {
   if (pos == RelocInfo::kNoPosition) return;
   ASSERT(pos >= 0);
   current_statement_position_ = pos;
-  WriteRecordedPositions();
 }
 
 

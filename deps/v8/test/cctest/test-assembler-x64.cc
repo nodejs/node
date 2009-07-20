@@ -44,6 +44,7 @@ using v8::internal::Label;
 using v8::internal::rax;
 using v8::internal::rsi;
 using v8::internal::rdi;
+using v8::internal::rdx;
 using v8::internal::rbp;
 using v8::internal::rsp;
 using v8::internal::FUNCTION_CAST;
@@ -63,8 +64,8 @@ using v8::internal::greater;
 // with GCC.  A different convention is used on 64-bit windows.
 
 typedef int (*F0)();
-typedef int (*F1)(int x);
-typedef int (*F2)(int x, int y);
+typedef int (*F1)(int64_t x);
+typedef int (*F2)(int64_t x, int64_t y);
 
 #define __ assm.
 
@@ -130,7 +131,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   CHECK(buffer);
   Assembler assm(buffer, actual_size);
 
-  // Assemble a simple function that copies argument 2 and returns it.
+  // Assemble a simple function that adds arguments returning the sum.
   __ movq(rax, rsi);
   __ addq(rax, rdi);
   __ ret(0);
@@ -140,6 +141,33 @@ TEST(AssemblerX64ArithmeticOperations) {
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(5, result);
+}
+
+TEST(AssemblerX64ImulOperation) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+
+  // Assemble a simple function that multiplies arguments returning the high
+  // word.
+  __ movq(rax, rsi);
+  __ imul(rdi);
+  __ movq(rax, rdx);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  CHECK_EQ(0, result);
+  result =  FUNCTION_CAST<F2>(buffer)(0x100000000l, 0x100000000l);
+  CHECK_EQ(1, result);
+  result =  FUNCTION_CAST<F2>(buffer)(-0x100000000l, 0x100000000l);
+  CHECK_EQ(-1, result);
 }
 
 TEST(AssemblerX64MemoryOperands) {

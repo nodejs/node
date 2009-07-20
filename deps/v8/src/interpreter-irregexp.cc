@@ -115,17 +115,17 @@ static void TraceInterpreter(const byte* code_base,
 }
 
 
-#define BYTECODE(name)                                  \
-  case BC_##name:                                       \
-    TraceInterpreter(code_base,                         \
-                     pc,                                \
-                     backtrack_sp - backtrack_stack,    \
-                     current,                           \
-                     current_char,                      \
-                     BC_##name##_LENGTH,                \
+#define BYTECODE(name)                                    \
+  case BC_##name:                                         \
+    TraceInterpreter(code_base,                           \
+                     pc,                                  \
+                     backtrack_sp - backtrack_stack_base, \
+                     current,                             \
+                     current_char,                        \
+                     BC_##name##_LENGTH,                  \
                      #name);
 #else
-#define BYTECODE(name)                                  \
+#define BYTECODE(name)                                    \
   case BC_##name:
 #endif
 
@@ -142,6 +142,49 @@ static int32_t Load16Aligned(const byte* pc) {
 }
 
 
+// A simple abstraction over the backtracking stack used by the interpreter.
+// This backtracking stack does not grow automatically, but it ensures that the
+// the memory held by the stack is released or remembered in a cache if the
+// matching terminates.
+class BacktrackStack {
+ public:
+  explicit BacktrackStack() {
+    if (cache_ != NULL) {
+      // If the cache is not empty reuse the previously allocated stack.
+      data_ = cache_;
+      cache_ = NULL;
+    } else {
+      // Cache was empty. Allocate a new backtrack stack.
+      data_ = NewArray<int>(kBacktrackStackSize);
+    }
+  }
+
+  ~BacktrackStack() {
+    if (cache_ == NULL) {
+      // The cache is empty. Keep this backtrack stack around.
+      cache_ = data_;
+    } else {
+      // A backtrack stack was already cached, just release this one.
+      DeleteArray(data_);
+    }
+  }
+
+  int* data() const { return data_; }
+
+  int max_size() const { return kBacktrackStackSize; }
+
+ private:
+  static const int kBacktrackStackSize = 10000;
+
+  int* data_;
+  static int* cache_;
+
+  DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
+};
+
+int* BacktrackStack::cache_ = NULL;
+
+
 template <typename Char>
 static bool RawMatch(const byte* code_base,
                      Vector<const Char> subject,
@@ -149,10 +192,13 @@ static bool RawMatch(const byte* code_base,
                      int current,
                      uint32_t current_char) {
   const byte* pc = code_base;
-  static const int kBacktrackStackSize = 10000;
-  int backtrack_stack[kBacktrackStackSize];
-  int backtrack_stack_space = kBacktrackStackSize;
-  int* backtrack_sp = backtrack_stack;
+  // BacktrackStack ensures that the memory allocated for the backtracking stack
+  // is returned to the system or cached if there is no stack being cached at
+  // the moment.
+  BacktrackStack backtrack_stack;
+  int* backtrack_stack_base = backtrack_stack.data();
+  int* backtrack_sp = backtrack_stack_base;
+  int backtrack_stack_space = backtrack_stack.max_size();
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
@@ -202,13 +248,13 @@ static bool RawMatch(const byte* code_base,
         pc += BC_SET_CP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER_TO_SP)
-        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack;
+        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack_base;
         pc += BC_SET_REGISTER_TO_SP_LENGTH;
         break;
       BYTECODE(SET_SP_TO_REGISTER)
-        backtrack_sp = backtrack_stack + registers[insn >> BYTECODE_SHIFT];
-        backtrack_stack_space = kBacktrackStackSize -
-                                (backtrack_sp - backtrack_stack);
+        backtrack_sp = backtrack_stack_base + registers[insn >> BYTECODE_SHIFT];
+        backtrack_stack_space = backtrack_stack.max_size() -
+                                (backtrack_sp - backtrack_stack_base);
         pc += BC_SET_SP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(POP_CP)

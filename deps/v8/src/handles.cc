@@ -289,10 +289,11 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // hidden symbols hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = obj->map()->instance_descriptors();
-    DescriptorReader r(descriptors, 0);  // Explicitly position reader at zero.
-    if (!r.eos() && (r.GetKey() == *key) && r.IsProperty()) {
-      ASSERT(r.type() == FIELD);
-      return Handle<Object>(obj->FastPropertyAt(r.GetFieldIndex()));
+    if ((descriptors->number_of_descriptors() > 0) &&
+        (descriptors->GetKey(0) == *key) &&
+        descriptors->IsProperty(0)) {
+      ASSERT(descriptors->GetType(0) == FIELD);
+      return Handle<Object>(obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
     }
   }
 
@@ -372,10 +373,10 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
-  Handle<Object> cache(reinterpret_cast<Object**>(script->wrapper()->proxy()));
-  if (!cache.is_null()) {
+  if (script->wrapper()->proxy() != NULL) {
     // Return the script wrapper directly from the cache.
-    return Handle<JSValue>(JSValue::cast(*cache));
+    return Handle<JSValue>(
+        reinterpret_cast<JSValue**>(script->wrapper()->proxy()));
   }
 
   // Construct a new script wrapper.
@@ -588,12 +589,13 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
     int num_enum = object->NumberOfEnumProperties();
     Handle<FixedArray> storage = Factory::NewFixedArray(num_enum);
     Handle<FixedArray> sort_array = Factory::NewFixedArray(num_enum);
-    for (DescriptorReader r(object->map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      if (r.IsProperty() && !r.IsDontEnum()) {
-        (*storage)->set(index, r.GetKey());
-        (*sort_array)->set(index, Smi::FromInt(r.GetDetails().index()));
+    Handle<DescriptorArray> descs =
+        Handle<DescriptorArray>(object->map()->instance_descriptors());
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->IsProperty(i) && !descs->IsDontEnum(i)) {
+        (*storage)->set(index, descs->GetKey(i));
+        PropertyDetails details(descs->GetDetails(i));
+        (*sort_array)->set(index, Smi::FromInt(details.index()));
         index++;
       }
     }

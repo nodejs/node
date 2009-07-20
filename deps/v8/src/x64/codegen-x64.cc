@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(X64): Remove stdio.h when compiler test is removed.
-#include <stdio.h>
-
 #include "v8.h"
 
 #include "bootstrapper.h"
@@ -37,9 +34,6 @@
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
-
-// TODO(X64): Remove compiler.h when compiler test is removed.
-#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -138,81 +132,6 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void CodeGenerator::TestCodeGenerator() {
-  // Compile a function from a string, and run it.
-
-  // Set flags appropriately for this stage of implementation.
-  // TODO(X64): Make ic work, and stop disabling them.
-  // These settings stick - remove them when we don't want them anymore.
-#ifdef DEBUG
-  FLAG_print_builtin_source = true;
-  FLAG_print_builtin_ast = true;
-#endif
-  FLAG_use_ic = false;
-
-  // Read the file "test.js" from the current directory, compile, and run it.
-  // If the file is not there, use a simple script embedded here instead.
-  Handle<String> test_script;
-  FILE* file = fopen("test.js", "rb");
-  if (file == NULL) {
-    test_script = Factory::NewStringFromAscii(CStrVector(
-          "// Put all code in anonymous function to avoid global scope.\n"
-          "(function(){"
-          "  var x = true ? 47 : 32;"
-          "  return x;"
-          "})()"));
-  } else {
-    fseek(file, 0, SEEK_END);
-    int size = ftell(file);
-    rewind(file);
-
-    char* chars = new char[size + 1];
-    chars[size] = '\0';
-    for (int i = 0; i < size;) {
-      int read = fread(&chars[i], 1, size - i, file);
-      i += read;
-    }
-    fclose(file);
-    test_script = Factory::NewStringFromAscii(CStrVector(chars));
-    delete[] chars;
-  }
-
-  Handle<JSFunction> test_function = Compiler::Compile(
-      test_script,
-      Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
-      0,
-      0,
-      NULL,
-      NULL);
-
-  Code* code_object = test_function->code();  // Local for debugging ease.
-  USE(code_object);
-
-  // Create a dummy function and context.
-  Handle<JSFunction> bridge =
-      Factory::NewFunction(Factory::empty_symbol(), Factory::undefined_value());
-  Handle<Context> context =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
-
-  test_function = Factory::NewFunctionFromBoilerplate(
-      test_function,
-      context);
-
-  bool pending_exceptions;
-  Handle<Object> result =
-      Execution::Call(test_function,
-                      Handle<Object>::cast(test_function),
-                      0,
-                      NULL,
-                      &pending_exceptions);
-  // Function compiles and runs, but returns a JSFunction object.
-#ifdef DEBUG
-  PrintF("Result of test function: ");
-  result->Print();
-#endif
-}
-
-
 void CodeGenerator::GenCode(FunctionLiteral* function) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(function);
@@ -235,8 +154,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      false) {
+      function->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
     frame_->SpillAll();
     __ int3();
   }
@@ -437,25 +355,21 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // receiver.
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
+  // Add padding that will be overwritten by a debugger breakpoint.
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp" length 5.
+  // "ret k" has length 2.
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  for (int i = 0; i < kPadding; ++i) {
+    masm_->int3();
+  }
   DeleteFrame();
-
-  // TODO(x64): introduce kX64JSReturnSequenceLength and enable assert.
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
-  // ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-  //          masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
-
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
-                                                    int b,
-                                                    int c,
-                                                    Label* d,
-                                                    Vector<Label*> e,
-                                                    Vector<Label> f) {
-  UNIMPLEMENTED();
-}
 
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
@@ -1358,7 +1272,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   frame_->EmitPush(rax);  // <- slot 3
   frame_->EmitPush(rdx);  // <- slot 2
-  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1370,7 +1284,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(rax);  // <- slot 2
 
   // Push the length of the array and the initial index onto the stack.
-  __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1383,15 +1297,14 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ movq(rax, frame_->ElementAt(0));  // load the current count
-  __ cmpq(rax, frame_->ElementAt(1));  // compare to the array length
+  __ cmpl(rax, frame_->ElementAt(1));  // compare to the array length
   node->break_target()->Branch(above_equal);
 
   // Get the i'th entry of the array.
   __ movq(rdx, frame_->ElementAt(2));
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   // Multiplier is times_4 since rax is already a Smi.
-  __ movq(rbx, Operand(rdx, rax, times_4,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
+  __ movq(rbx, FieldOperand(rdx, rax, times_4, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case rax: current iteration count rbx: i'th entry
@@ -1895,7 +1808,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, typeof_state());
 }
 
 
@@ -2227,12 +2140,12 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     Result elements = frame_->Pop();
     elements.ToRegister();
     frame_->Spill(elements.reg());
-    // Get the elements array.
+    // Get the elements FixedArray.
     __ movq(elements.reg(),
             FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ movq(FieldOperand(elements.reg(), offset), prop_value.reg());
 
     // Update the write barrier for the array address.
@@ -2300,7 +2213,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // or the right hand side is a different variable.  TakeValue invalidates
       // the target, with an implicit promise that it will be written to again
       // before it is read.
-      // TODO(X64): Implement TakeValue optimization.
+      // TODO(X64): Implement TakeValue optimization.  Check issue 150016.
       if (false) {
         // if (literal != NULL || (right_var != NULL && right_var != var)) {
         // target.TakeValue(NOT_INSIDE_TYPEOF);
@@ -2410,9 +2323,6 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->SetElementAt(0, &result);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
-    // TODO(X64): Enable calls of non-global functions.
-    UNIMPLEMENTED();
-    /*
     // ----------------------------------
     // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
     // ----------------------------------
@@ -2420,8 +2330,8 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function from the context.  Sync the frame so we can
     // push the arguments directly into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(var->name()));
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(var->name());
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // The runtime call returns a pair of values in rax and rdx.  The
     // looked-up function is in rax and the receiver is in rdx.  These
@@ -2437,7 +2347,6 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Call the function.
     CallWithArguments(args, node->position());
-    */
   } else if (property != NULL) {
     // Check if the key is a literal string.
     Literal* literal = property->key()->AsLiteral();
@@ -2545,13 +2454,13 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // receiver.  Use a scratch register to avoid destroying the result.
   Result scratch = allocator_->Allocate();
   ASSERT(scratch.is_valid());
-  __ movl(scratch.reg(),
+  __ movq(scratch.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
   frame_->SetElementAt(arg_count + 1, &scratch);
 
   // We can reuse the result register now.
   frame_->Spill(result.reg());
-  __ movl(result.reg(),
+  __ movq(result.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
   frame_->SetElementAt(arg_count, &result);
 
@@ -2820,12 +2729,6 @@ class DeferredPrefixCountOperation: public DeferredCode {
 
 
 void DeferredPrefixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
   __ push(rax);
@@ -2861,12 +2764,6 @@ class DeferredPostfixCountOperation: public DeferredCode {
 
 
 void DeferredPostfixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
 
@@ -2923,19 +2820,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
 
-    // In order to combine the overflow and the smi tag check, we need
-    // to be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate overflow
-    // and smi tag checks.
-    //
-    // We allocate and clear the temporary register before
-    // performing the count operation since clearing the register using
-    // xor will clear the overflow flag.
-    Result tmp = allocator_->AllocateWithoutSpilling();
-
-    // Clear scratch register to prepare it for setcc after the operation below.
-    __ xor_(kScratchRegister, kScratchRegister);
-
     DeferredCode* deferred = NULL;
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
@@ -2946,24 +2830,25 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
+    Result tmp = allocator_->AllocateWithoutSpilling();
+    ASSERT(kSmiTagMask == 1 && kSmiTag == 0);
+    __ movl(tmp.reg(), Immediate(kSmiTagMask));
+    // Smi test.
+    __ movq(kScratchRegister, new_value.reg());
     if (is_increment) {
-      __ addq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ addl(kScratchRegister, Immediate(Smi::FromInt(1)));
     } else {
-      __ subq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ subl(kScratchRegister, Immediate(Smi::FromInt(1)));
     }
-
-    // If the count operation didn't overflow and the result is a valid
-    // smi, we're done. Otherwise, we jump to the deferred slow-case
-    // code.
-
-    // We combine the overflow and the smi tag check.
-    __ setcc(overflow, kScratchRegister);
-    __ or_(kScratchRegister, new_value.reg());
-    __ testl(kScratchRegister, Immediate(kSmiTagMask));
+    // deferred->Branch(overflow);
+    __ cmovl(overflow, kScratchRegister, tmp.reg());
+    __ testl(kScratchRegister, tmp.reg());
     tmp.Unuse();
     deferred->Branch(not_zero);
+    __ movq(new_value.reg(), kScratchRegister);
 
     deferred->BindExit();
+
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -3227,13 +3112,12 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // It can be an undetectable object.
       __ movq(kScratchRegister,
               FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movb(kScratchRegister,
-              FieldOperand(kScratchRegister, Map::kBitFieldOffset));
-      __ testb(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+      __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
-      __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
       destination()->false_target()->Branch(below);
-      __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
       answer.Unuse();
       destination()->Split(below_equal);
     } else {
@@ -3330,6 +3214,29 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+
+  // Get the frame pointer for the calling frame.
+  Result fp = allocator()->Allocate();
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ cmpq(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+          Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ cmpq(Operand(fp.reg(), StandardFrameConstants::kMarkerOffset),
+          Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+  fp.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument
@@ -3412,13 +3319,107 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  frame_->SpillAll();
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
+  // Make sure the frame is aligned like the OS expects.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    __ movq(rbx, rsp);  // Save in AMD-64 abi callee-saved register.
+    __ and_(rsp, Immediate(-kFrameAlignment));
+  }
+
+  // Call V8::RandomPositiveSmi().
+  __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
+
+  // Restore stack pointer from callee-saved register edi.
+  if (kFrameAlignment > 0) {
+    __ movq(rsp, rbx);
+  }
+
+  Result result = allocator_->Allocate(rax);
+  frame_->Push(&result);
 }
 
+
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  // TODO(X64): Use inline floating point in the fast case.
+  ASSERT(args->length() == 1);
+
+  // Load number.
+  Load(args->at(0));
+  Result answer;
+  switch (op) {
+    case SIN:
+      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
+      break;
+    case COS:
+      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
+      break;
+  }
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
+  Load(args->at(0));  // Load the object.
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  frame_->Spill(obj.reg());
+
+  // If the object is a smi, we return null.
+  __ testl(obj.reg(), Immediate(kSmiTagMask));
+  null.Branch(zero);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(less);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
+
+  // Check if the constructor in the map is a function.
+  __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  non_function_constructor.Branch(not_equal);
+
+  // The obj register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(),
+                       SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->Push(&obj);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  frame_->Push(Factory::function_class_symbol());
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  frame_->Push(Factory::Object_symbol());
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  frame_->Push(Factory::null_value());
+
+  // All done.
+  leave.Bind();
 }
 
 
@@ -3795,8 +3796,28 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
                                                          Result tmp,
                                                          JumpTarget* slow) {
-  UNIMPLEMENTED();
-  return Operand(rsp, 0);
+  ASSERT(slot->type() == Slot::CONTEXT);
+  ASSERT(tmp.is_register());
+  Register context = rsi;
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+                Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
+  slow->Branch(not_equal, not_taken);
+  __ movq(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp.reg(), slot->index());
 }
 
 
@@ -3906,6 +3927,44 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  // Pop the loaded value from the stack.
+  Result value = frame_->Pop();
+
+  // If the loaded value is a constant, we know if the arguments
+  // object has been lazily loaded yet.
+  if (value.is_constant()) {
+    if (value.handle()->IsTheHole()) {
+      Result arguments = StoreArgumentsObject(false);
+      frame_->Push(&arguments);
+    } else {
+      frame_->Push(&value);
+    }
+    return;
+  }
+
+  // The loaded value is in a register. If it is the sentinel that
+  // indicates that we haven't loaded the arguments object yet, we
+  // need to do it now.
+  JumpTarget exit;
+  __ Cmp(value.reg(), Factory::the_hole_value());
+  frame_->Push(&value);
+  exit.Branch(not_equal);
+  Result arguments = StoreArgumentsObject(false);
+  frame_->SetElementAt(0, &arguments);
+  exit.Bind();
+}
+
+
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   // TODO(X64): Enable more types of slot.
 
@@ -4009,8 +4068,72 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     Slot* slot,
     TypeofState typeof_state,
     JumpTarget* slow) {
-  UNIMPLEMENTED();
-  return Result(rax);
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Register context = rsi;
+  Result tmp = allocator_->Allocate();
+  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      // Load next context in chain.
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(tmp.reg())) {
+      __ movq(tmp.reg(), context);
+    }
+    // Load map for comparison into register, outside loop.
+    __ Move(kScratchRegister, Factory::global_context_map());
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmpq(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
+    slow->Branch(not_equal);
+    // Load next context in chain.
+    __ movq(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
+    __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+  tmp.Unuse();
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  LoadGlobal();
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test eax
+  // instruction here.
+  __ nop();
+  // Discard the global object. The result is in answer.
+  frame_->Drop();
+  return answer;
 }
 
 
@@ -4120,39 +4243,6 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
 }
 
 
-class CompareStub: public CodeStub {
- public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Condition cc_;
-  bool strict_;
-
-  Major MajorKey() { return Compare; }
-
-  int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    ASSERT(static_cast<int>(cc_) < (1 << 15));
-    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
-  }
-
-  // Branch to the label if the given object isn't a symbol.
-  void BranchIfNonSymbol(MacroAssembler* masm,
-                         Label* label,
-                         Register object);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false");
-  }
-#endif
-};
-
-
 void CodeGenerator::Comparison(Condition cc,
                                bool strict,
                                ControlDestination* dest) {
@@ -4239,12 +4329,8 @@ void CodeGenerator::Comparison(Condition cc,
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
-      if (IsUnsafeSmi(right_side.handle())) {
-        right_side.ToRegister();
-        __ cmpq(left_side.reg(), right_side.reg());
-      } else {
-        __ Cmp(left_side.reg(), right_side.handle());
-      }
+      // Both sides are smis, so we can use an Immediate.
+      __ cmpl(left_side.reg(), Immediate(Smi::cast(*right_side.handle())));
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -4296,7 +4382,8 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Both zero and sign flag right.
+      // The result is a Smi, which is negative, zero, or positive.
+      __ testl(answer.reg(), answer.reg());  // Both zero and sign flag right.
       answer.Unuse();
       dest->Split(cc);
     } else {
@@ -4309,18 +4396,14 @@ void CodeGenerator::Comparison(Condition cc,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
-      __ movq(kScratchRegister, left_side.reg());
-      __ or_(kScratchRegister, right_side.reg());
+      __ movq(kScratchRegister, left_reg);
+      __ or_(kScratchRegister, right_reg);
       __ testl(kScratchRegister, Immediate(kSmiTagMask));
       is_smi.Branch(zero, taken);
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ testq(answer.reg(), answer.reg());
-      } else {
-        __ cmpq(answer.reg(), Immediate(0));
-      }
+      __ testl(answer.reg(), answer.reg());  // Sets both zero and sign flags.
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -4328,7 +4411,7 @@ void CodeGenerator::Comparison(Condition cc,
       is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_reg);
-      __ cmpq(left_side.reg(), right_side.reg());
+      __ cmpl(left_side.reg(), right_side.reg());
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
@@ -4649,8 +4732,6 @@ class DeferredInlineSmiAdd: public DeferredCode {
 
 
 void DeferredInlineSmiAdd::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4681,8 +4762,6 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(Immediate(value_));
   __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4714,8 +4793,6 @@ class DeferredInlineSmiSub: public DeferredCode {
 
 
 void DeferredInlineSmiSub::Generate() {
-  // Undo the optimistic sub operation and call the shared stub.
-  __ addq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
@@ -4757,9 +4834,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::ADD: {
       operand->ToRegister();
       frame_->Spill(operand->reg());
-
-      // Optimistically add.  Call the specialized add stub if the
-      // result is not a smi or overflows.
       DeferredCode* deferred = NULL;
       if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(operand->reg(),
@@ -4770,11 +4844,17 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                             smi_value,
                                             overwrite_mode);
       }
-      __ movq(kScratchRegister, value, RelocInfo::NONE);
-      __ addl(operand->reg(), kScratchRegister);
-      deferred->Branch(overflow);
       __ testl(operand->reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+      // A smi currently fits in a 32-bit Immediate.
+      __ addl(operand->reg(), Immediate(smi_value));
+      Label add_success;
+      __ j(no_overflow, &add_success);
+      __ subl(operand->reg(), Immediate(smi_value));
+      __ movsxlq(operand->reg(), operand->reg());
+      deferred->Jump();
+      __ bind(&add_success);
+      __ movsxlq(operand->reg(), operand->reg());
       deferred->BindExit();
       frame_->Push(operand);
       break;
@@ -4982,12 +5062,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ sar(answer.reg());
+        __ sarl(answer.reg());
         // No checks of result necessary
         break;
       case Token::SHR: {
         Label result_ok;
-        __ shr(answer.reg());
+        __ shrl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
         //  * 0x80000000: high bit would be lost when smi tagging.
@@ -5010,7 +5090,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         Label result_ok;
         __ shl(answer.reg());
         // Check that the *signed* result fits in a smi.
-        __ cmpq(answer.reg(), Immediate(0xc0000000));
+        __ cmpl(answer.reg(), Immediate(0xc0000000));
         __ j(positive, &result_ok);
         ASSERT(kSmiTag == 0);
         __ shl(rcx, Immediate(kSmiTagSize));
@@ -5060,12 +5140,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   __ movq(answer.reg(), left->reg());
   switch (op) {
     case Token::ADD:
-      __ addl(answer.reg(), right->reg());  // Add optimistically.
+      __ addl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
     case Token::SUB:
-      __ subl(answer.reg(), right->reg());  // Subtract optimistically.
+      __ subl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
@@ -5148,7 +5228,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
       break;
     }
 
@@ -5347,6 +5427,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(equal, &false_result);
 
   // Get the map and type of the heap object.
+  // We don't use CmpObjectType because we manipulate the type field.
   __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
 
@@ -5372,6 +5453,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_string);
   // HeapNumber => false iff +0, -0, or NaN.
+  // These three cases set C3 when compared to zero in the FPU.
   __ Cmp(rdx, Factory::heap_number_map());
   __ j(not_equal, &true_result);
   // TODO(x64): Don't use fp stack, use MMX registers?
@@ -5381,9 +5463,9 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ fucompp();  // Compare and pop both values.
   __ movq(kScratchRegister, rax);
   __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
-  __ testb(rax, Immediate(0x08));  // Test FP condition flag C3.
+  __ testl(rax, Immediate(0x4000));  // Test FP condition flag C3, bit 16.
   __ movq(rax, kScratchRegister);
-  __ j(zero, &false_result);
+  __ j(not_zero, &false_result);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -5481,12 +5563,32 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
-
-
 // End of CodeGenerator implementation.
 
 void UnarySubStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label slow;
+  Label done;
+
+  // Check whether the value is a smi.
+  __ testl(rax, Immediate(kSmiTagMask));
+  // TODO(X64): Add inline code that handles floats, as on ia32 platform.
+  __ j(not_zero, &slow);
+  // Enter runtime system if the value of the smi is zero
+  // to make sure that we switch between 0 and -0.
+  // Also enter it if the value of the smi is Smi::kMinValue
+  __ testl(rax, Immediate(0x7FFFFFFE));
+  __ j(zero, &slow);
+  __ neg(rax);
+  __ jmp(&done);
+  // Enter runtime system.
+  __ bind(&slow);
+  __ pop(rcx);  // pop return address
+  __ push(rax);
+  __ push(rcx);  // push return address
+  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+
+  __ bind(&done);
+  __ StubReturn(1);
 }
 
 
@@ -5523,7 +5625,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
       // Read double representation into rax.
-      __ movq(rbx, 0x7ff0000000000000, RelocInfo::NONE);
+      __ movq(rbx, V8_UINT64_C(0x7ff0000000000000), RelocInfo::NONE);
       __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
       // Test that exponent bits are all set.
       __ or_(rbx, rax);
@@ -5533,7 +5635,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ shl(rax, Immediate(12));
       // If all bits in the mantissa are zero the number is Infinity, and
       // we return zero.  Otherwise it is a NaN, and we return non-zero.
-      // So just return rax.
+      // We cannot just return rax because only eax is tested on return.
+      __ setcc(not_zero, rax);
       __ ret(0);
 
       __ bind(&not_identical);
@@ -5571,7 +5674,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
                Factory::heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
-        // Return non-equal (ebx is not zero)
+        // Return non-equal.  ebx (the lower half of rbx) is not zero.
         __ movq(rax, rbx);
         __ ret(0);
 
@@ -5587,7 +5690,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object);
-      // Return non-zero (rax is not zero)
+      // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
       ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
@@ -5647,11 +5750,11 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
   if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &call_builtin, rax);
-    BranchIfNonSymbol(masm, &call_builtin, rdx);
+    BranchIfNonSymbol(masm, &call_builtin, rax, kScratchRegister);
+    BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register rax already holds a
+    // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }
@@ -5691,14 +5794,15 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
 void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
                                     Label* label,
-                                    Register object) {
+                                    Register object,
+                                    Register scratch) {
   __ testl(object, Immediate(kSmiTagMask));
   __ j(zero, label);
-  __ movq(kScratchRegister, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbq(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-  __ and_(kScratchRegister, Immediate(kIsSymbolMask | kIsNotStringMask));
-  __ cmpb(kScratchRegister, Immediate(kSymbolTag | kStringTag));
+  __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(scratch,
+             FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(kIsSymbolMask | kIsNotStringMask));
+  __ cmpb(scratch, Immediate(kSymbolTag | kStringTag));
   __ j(not_equal, label);
 }
 
@@ -5728,6 +5832,62 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Implements "value instanceof function" operator.
+  // Expected input state:
+  //   rsp[0] : return address
+  //   rsp[1] : function pointer
+  //   rsp[2] : value
+
+  // Get the object - go slow case if it's a smi.
+  Label slow;
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+
+  // Check that the left hand is a JS object. Leave its map in rax.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ j(below, &slow);
+  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Get the prototype of the function.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  __ TryGetFunctionPrototype(rdx, rbx, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ testl(rbx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  __ j(below, &slow);
+  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Register mapping: rax is object map and rbx is function prototype.
+  __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  Label loop, is_instance, is_not_instance;
+  __ Move(kScratchRegister, Factory::null_value());
+  __ bind(&loop);
+  __ cmpq(rcx, rbx);
+  __ j(equal, &is_instance);
+  __ cmpq(rcx, kScratchRegister);
+  __ j(equal, &is_not_instance);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ xor_(rax, rax);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&is_not_instance);
+  __ movq(rax, Immediate(Smi::FromInt(1)));
+  __ ret(2 * kPointerSize);
+
+  // Slow-case: Go through the JavaScript implementation.
+  __ bind(&slow);
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
 
@@ -5878,13 +6038,18 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // rbx: pointer to C function  (C callee-saved).
   // rbp: frame pointer  (restored after C call).
   // rsp: stack pointer  (restored after C call).
-  // rdi: number of arguments including receiver.
+  // r14: number of arguments including receiver (C callee-saved).
   // r15: pointer to the first argument (C callee-saved).
   //      This pointer is reused in LeaveExitFrame(), so it is stored in a
   //      callee-saved register.
 
   if (do_gc) {
-    __ movq(Operand(rsp, 0), rax);  // Result.
+    // Pass failure code returned from last attempt as first argument to GC.
+#ifdef __MSVC__
+    __ movq(rcx, rax);  // argc.
+#else  // ! defined(__MSVC__)
+    __ movq(rdi, rax);  // argv.
+#endif
     __ movq(kScratchRegister,
             FUNCTION_ADDR(Runtime::PerformGC),
             RelocInfo::RUNTIME_ENTRY);
@@ -5901,11 +6066,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Call C function.
 #ifdef __MSVC__
   // MSVC passes arguments in rcx, rdx, r8, r9
-  __ movq(rcx, rdi);  // argc.
+  __ movq(rcx, r14);  // argc.
   __ movq(rdx, r15);  // argv.
 #else  // ! defined(__MSVC__)
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
-  // First argument is already in rdi.
+  __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.
 #endif
   __ call(rbx);
@@ -6047,10 +6212,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // rax: number of arguments including receiver
   // rbx: pointer to C function  (C callee-saved)
-  // rbp: frame pointer  (restored after C call)
+  // rbp: frame pointer of calling JS frame (restored after C call)
   // rsp: stack pointer  (restored after C call)
-  // rsi: current context (C callee-saved)
-  // rdi: caller's parameter pointer pp  (C callee-saved)
+  // rsi: current context (restored)
 
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
@@ -6064,16 +6228,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(frame_type);
 
-  // rax: result parameter for PerformGC, if any (setup below).
-  //      Holds the result of a previous call to GenerateCore that
-  //      returned a failure. On next call, it's used as parameter
-  //      to Runtime::PerformGC.
+  // rax: Holds the context at this point, but should not be used.
+  //      On entry to code generated by GenerateCore, it must hold
+  //      a failure result if the collect_garbage argument to GenerateCore
+  //      is true.  This failure result can be the result of code
+  //      generated by a previous call to GenerateCore.  The value
+  //      of rax is then passed to Runtime::PerformGC.
   // rbx: pointer to builtin function  (C callee-saved).
-  // rbp: frame pointer  (restored after C call).
-  // rsp: stack pointer  (restored after C call).
-  // rdi: number of arguments including receiver (destroyed by C call).
-  //      The rdi register is not callee-save in Unix 64-bit ABI, so
-  //      we must treat it as volatile.
+  // rbp: frame pointer of exit frame  (restored after C call).
+  // rsp: stack pointer (restored after C call).
+  // r14: number of arguments including receiver (C callee-saved).
   // r15: argv pointer (C callee-saved).
 
   Label throw_out_of_memory_exception;
@@ -6338,17 +6502,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ bind(&load_smi_lhs);
   ASSERT(kSmiTagSize == 1);
   ASSERT(kSmiTag == 0);
-  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0));
+  __ movsxlq(kScratchRegister, lhs);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
   __ jmp(&done_load_lhs);
 
   __ bind(&load_smi_rhs);
-  __ movq(kScratchRegister, rhs);
+  __ movsxlq(kScratchRegister, rhs);
   __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
 
   __ bind(&done);
@@ -6357,24 +6522,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
   Label test_other, done;
-  // Test if both operands are floats or smi -> scratch=k_is_float;
-  // Otherwise scratch = k_not_float.
+  // Test if both operands are numbers (heap_numbers or smis).
+  // If not, jump to label non_float.
   __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &test_other);  // argument in rdx is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rdx is not a number -> NaN
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rdx is not a number.
 
   __ bind(&test_other);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &done);  // argument in rax is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rax, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rax is not a number -> NaN
+  __ Cmp(FieldOperand(rax, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rax is not a number.
 
   // Fall-through: Both operands are numbers.
   __ bind(&done);
@@ -6401,49 +6560,26 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
   // leave result in register rax.
 
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
+  // Smi check both operands.
   __ movq(rcx, rbx);
   __ or_(rcx, rax);
-
-  switch (op_) {
-    case Token::ADD:
-      __ addl(rax, rbx);  // add optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::SUB:
-      __ subl(rax, rbx);  // subtract optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::DIV:
-    case Token::MOD:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
-      // Check for 0 divisor.
-      __ testq(rbx, rbx);
-      __ j(zero, slow);
-      break;
-
-    default:
-      // Fall-through to smi check.
-      break;
-  }
-
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
   __ testl(rcx, Immediate(kSmiTagMask));
   __ j(not_zero, slow);
 
   switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-      // Do nothing here.
+    case Token::ADD: {
+      __ addl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
       break;
+    }
+
+    case Token::SUB: {
+      __ subl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+    }
 
     case Token::MUL:
       // If the smi tag is 0 we can just leave the tag on one operand.
@@ -6460,6 +6596,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::DIV:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
       __ idiv(rbx);
       // Check that the remainder is zero.
@@ -6481,6 +6623,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx.
       __ idiv(rbx);
       // Check for negative zero result.
@@ -6508,12 +6656,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Move the second operand into register ecx.
       __ movq(rcx, rbx);
       // Remove tags from operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
-      __ sar(rcx, Immediate(kSmiTagSize));
+      __ sarl(rax, Immediate(kSmiTagSize));
+      __ sarl(rcx, Immediate(kSmiTagSize));
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(rax);
+          __ sarl(rax);
           // No checks of result necessary
           break;
         case Token::SHR:
@@ -6524,19 +6672,17 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           // - 0x40000000: this number would convert to negative when
           // Smi tagging these two cases can only happen with shifts
           // by 0 or 1 when handed a valid smi.
-          __ testq(rax, Immediate(0xc0000000));
+          __ testl(rax, Immediate(0xc0000000));
           __ j(not_zero, slow);
           break;
         case Token::SHL:
           __ shll(rax);
-          // TODO(Smi): Significant change if Smi changes.
           // Check that the *signed* result fits in a smi.
           // It does, if the 30th and 31st bits are equal, since then
           // shifting the SmiTag in at the bottom doesn't change the sign.
           ASSERT(kSmiTagSize == 1);
           __ cmpl(rax, Immediate(0xc0000000));
           __ j(sign, slow);
-          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
           break;
         default:
           UNREACHABLE();
@@ -6674,9 +6820,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ or_(rax, rcx); break;
         case Token::BIT_AND: __ and_(rax, rcx); break;
         case Token::BIT_XOR: __ xor_(rax, rcx); break;
-        case Token::SAR: __ sar(rax); break;
-        case Token::SHL: __ shl(rax); break;
-        case Token::SHR: __ shr(rax); break;
+        case Token::SAR: __ sarl(rax); break;
+        case Token::SHL: __ shll(rax); break;
+        case Token::SHR: __ shrl(rax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {
@@ -6752,8 +6898,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // If all else fails, use the runtime system to get the correct
   // result.
   __ bind(&call_runtime);
-  // Disable builtin-calls until JS builtins can compile and run.
-  __ Abort("Disabled until builtins compile and run.");
   switch (op_) {
     case Token::ADD:
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
@@ -6791,6 +6935,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+int CompareStub::MinorKey() {
+  // Encode the two parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
+  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
 
 

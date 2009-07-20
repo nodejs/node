@@ -42,47 +42,44 @@
 namespace v8 {
 namespace internal {
 
-// Encoding: a RelativeAddress must be able to fit in a pointer:
-// it is encoded as an Address with (from MS to LS bits):
-// 27 bits identifying a word in the space, in one of three formats:
-// - MAP and OLD spaces: 16 bits of page number, 11 bits of word offset in page
-// - NEW space:          27 bits of word offset
-// - LO space:           27 bits of page number
-// 3 bits to encode the AllocationSpace (special values for code in LO space)
-// 2 bits identifying this as a HeapObject
+// 32-bit encoding: a RelativeAddress must be able to fit in a
+// pointer: it is encoded as an Address with (from LS to MS bits):
+// - 2 bits identifying this as a HeapObject.
+// - 4 bits to encode the AllocationSpace (including special values for
+//   code and fixed arrays in LO space)
+// - 27 bits identifying a word in the space, in one of three formats:
+// - paged spaces: 16 bits of page number, 11 bits of word offset in page
+// - NEW space:    27 bits of word offset
+// - LO space:     27 bits of page number
 
 const int kSpaceShift = kHeapObjectTagSize;
-const int kSpaceBits = kSpaceTagSize;
-const int kSpaceMask = kSpaceTagMask;
-
-// These value are used instead of space numbers when serializing/
-// deserializing.  They indicate an object that is in large object space, but
-// should be treated specially.
-// Make the pages executable on platforms that support it:
-const int kLOSpaceExecutable = LAST_SPACE + 1;
-// Reserve space for write barrier bits (for objects that can contain
-// references to new space):
-const int kLOSpacePointer = LAST_SPACE + 2;
-
+const int kSpaceBits = 4;
+const int kSpaceMask = (1 << kSpaceBits) - 1;
 
 const int kOffsetShift = kSpaceShift + kSpaceBits;
 const int kOffsetBits = 11;
 const int kOffsetMask = (1 << kOffsetBits) - 1;
 
-const int kPageBits = 32 - (kOffsetBits + kSpaceBits + kHeapObjectTagSize);
 const int kPageShift = kOffsetShift + kOffsetBits;
+const int kPageBits = 32 - (kOffsetBits + kSpaceBits + kHeapObjectTagSize);
 const int kPageMask = (1 << kPageBits) - 1;
 
 const int kPageAndOffsetShift = kOffsetShift;
 const int kPageAndOffsetBits = kPageBits + kOffsetBits;
 const int kPageAndOffsetMask = (1 << kPageAndOffsetBits) - 1;
 
+// These values are special allocation space tags used for
+// serialization.
+// Mar the pages executable on platforms that support it.
+const int kLargeCode = LAST_SPACE + 1;
+// Allocate extra remembered-set bits.
+const int kLargeFixedArray = LAST_SPACE + 2;
+
 
 static inline AllocationSpace GetSpace(Address addr) {
   const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
   int space_number = (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
-  if (space_number == kLOSpaceExecutable) space_number = LO_SPACE;
-  else if (space_number == kLOSpacePointer) space_number = LO_SPACE;
+  if (space_number > LAST_SPACE) space_number = LO_SPACE;
   return static_cast<AllocationSpace>(space_number);
 }
 
@@ -91,7 +88,7 @@ static inline bool IsLargeExecutableObject(Address addr) {
   const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
   const int space_number =
       (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
-  return (space_number == kLOSpaceExecutable);
+  return (space_number == kLargeCode);
 }
 
 
@@ -99,7 +96,7 @@ static inline bool IsLargeFixedArray(Address addr) {
   const intptr_t encoded = reinterpret_cast<intptr_t>(addr);
   const int space_number =
       (static_cast<int>(encoded >> kSpaceShift) & kSpaceMask);
-  return (space_number == kLOSpacePointer);
+  return (space_number == kLargeFixedArray);
 }
 
 
@@ -147,6 +144,9 @@ class RelativeAddress {
                   int page_index,
                   int page_offset)
   : space_(space), page_index_(page_index), page_offset_(page_offset)  {
+    // Assert that the space encoding (plus the two pseudo-spaces for
+    // special large objects) fits in the available bits.
+    ASSERT(((LAST_SPACE + 2) & ~kSpaceMask) == 0);
     ASSERT(space <= LAST_SPACE && space >= 0);
   }
 
@@ -154,8 +154,7 @@ class RelativeAddress {
   Address Encode() const;
 
   AllocationSpace space() const {
-    if (space_ == kLOSpaceExecutable) return LO_SPACE;
-    if (space_ == kLOSpacePointer) return LO_SPACE;
+    if (space_ > LAST_SPACE) return LO_SPACE;
     return static_cast<AllocationSpace>(space_);
   }
   int page_index() const { return page_index_; }
@@ -165,7 +164,8 @@ class RelativeAddress {
     return space_ == CODE_SPACE ||
            space_ == OLD_POINTER_SPACE ||
            space_ == OLD_DATA_SPACE ||
-           space_ == MAP_SPACE;
+           space_ == MAP_SPACE ||
+           space_ == CELL_SPACE;
   }
 
   void next_address(int offset) { page_offset_ += offset; }
@@ -180,11 +180,11 @@ class RelativeAddress {
 
   void set_to_large_code_object() {
     ASSERT(space_ == LO_SPACE);
-    space_ = kLOSpaceExecutable;
+    space_ = kLargeCode;
   }
   void set_to_large_fixed_array() {
     ASSERT(space_ == LO_SPACE);
-    space_ = kLOSpacePointer;
+    space_ = kLargeFixedArray;
   }
 
 
@@ -201,6 +201,7 @@ Address RelativeAddress::Encode() const {
   int result = 0;
   switch (space_) {
     case MAP_SPACE:
+    case CELL_SPACE:
     case OLD_POINTER_SPACE:
     case OLD_DATA_SPACE:
     case CODE_SPACE:
@@ -216,8 +217,8 @@ Address RelativeAddress::Encode() const {
       result = word_offset << kPageAndOffsetShift;
       break;
     case LO_SPACE:
-    case kLOSpaceExecutable:
-    case kLOSpacePointer:
+    case kLargeCode:
+    case kLargeFixedArray:
       ASSERT_EQ(0, page_offset_);
       ASSERT_EQ(0, page_index_ & ~kPageAndOffsetMask);
       result = page_index_ << kPageAndOffsetShift;
@@ -235,6 +236,7 @@ void RelativeAddress::Verify() {
   ASSERT(page_offset_ >= 0 && page_index_ >= 0);
   switch (space_) {
     case MAP_SPACE:
+    case CELL_SPACE:
     case OLD_POINTER_SPACE:
     case OLD_DATA_SPACE:
     case CODE_SPACE:
@@ -245,8 +247,8 @@ void RelativeAddress::Verify() {
       ASSERT(page_index_ == 0);
       break;
     case LO_SPACE:
-    case kLOSpaceExecutable:
-    case kLOSpacePointer:
+    case kLargeCode:
+    case kLargeFixedArray:
       ASSERT(page_offset_ == 0);
       break;
   }
@@ -291,6 +293,7 @@ class SimulatedHeapSpace {
 void SimulatedHeapSpace::InitEmptyHeap(AllocationSpace space) {
   switch (space) {
     case MAP_SPACE:
+    case CELL_SPACE:
     case OLD_POINTER_SPACE:
     case OLD_DATA_SPACE:
     case CODE_SPACE:
@@ -307,12 +310,15 @@ void SimulatedHeapSpace::InitEmptyHeap(AllocationSpace space) {
 void SimulatedHeapSpace::InitCurrentHeap(AllocationSpace space) {
   switch (space) {
     case MAP_SPACE:
+    case CELL_SPACE:
     case OLD_POINTER_SPACE:
     case OLD_DATA_SPACE:
     case CODE_SPACE: {
       PagedSpace* ps;
       if (space == MAP_SPACE) {
         ps = Heap::map_space();
+      } else if (space == CELL_SPACE) {
+        ps = Heap::cell_space();
       } else if (space == OLD_POINTER_SPACE) {
         ps = Heap::old_pointer_space();
       } else if (space == OLD_DATA_SPACE) {
@@ -699,6 +705,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       10,
       "Debug::step_in_fp_addr()");
+#endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
       11,
@@ -711,7 +718,18 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       13,
       "mul_two_doubles");
-#endif
+  Add(ExternalReference::double_fp_operation(Token::DIV).address(),
+      UNCLASSIFIED,
+      14,
+      "div_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::MOD).address(),
+      UNCLASSIFIED,
+      15,
+      "mod_two_doubles");
+  Add(ExternalReference::compare_doubles().address(),
+      UNCLASSIFIED,
+      16,
+      "compare_doubles");
 }
 
 
@@ -1109,6 +1127,8 @@ void Serializer::PutHeader() {
   writer_->PutInt(Heap::code_space()->Size() + Heap::new_space()->Size());
   writer_->PutC('|');
   writer_->PutInt(Heap::map_space()->Size());
+  writer_->PutC('|');
+  writer_->PutInt(Heap::cell_space()->Size());
   writer_->PutC(']');
   // Write global handles.
   writer_->PutC('G');
@@ -1291,6 +1311,7 @@ static const int kInitArraySize = 32;
 Deserializer::Deserializer(const byte* str, int len)
   : reader_(str, len),
     map_pages_(kInitArraySize),
+    cell_pages_(kInitArraySize),
     old_pointer_pages_(kInitArraySize),
     old_data_pages_(kInitArraySize),
     code_pages_(kInitArraySize),
@@ -1463,6 +1484,8 @@ void Deserializer::GetHeader() {
   InitPagedSpace(Heap::code_space(), reader_.GetInt(), &code_pages_);
   reader_.ExpectC('|');
   InitPagedSpace(Heap::map_space(), reader_.GetInt(), &map_pages_);
+  reader_.ExpectC('|');
+  InitPagedSpace(Heap::cell_space(), reader_.GetInt(), &cell_pages_);
   reader_.ExpectC(']');
   // Create placeholders for global handles later to be fill during
   // IterateRoots.
@@ -1595,6 +1618,9 @@ Object* Deserializer::Resolve(Address encoded) {
     case MAP_SPACE:
       return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
                           Heap::map_space(), &map_pages_);
+    case CELL_SPACE:
+      return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
+                          Heap::cell_space(), &cell_pages_);
     case OLD_POINTER_SPACE:
       return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
                           Heap::old_pointer_space(), &old_pointer_pages_);

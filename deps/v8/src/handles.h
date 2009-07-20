@@ -42,7 +42,7 @@ namespace internal {
 template<class T>
 class Handle {
  public:
-  INLINE(Handle(T** location))  { location_ = location; }
+  INLINE(Handle(T** location)) { location_ = location; }
   INLINE(explicit Handle(T* obj));
 
   INLINE(Handle()) : location_(NULL) {}
@@ -59,7 +59,7 @@ class Handle {
     location_ = reinterpret_cast<T**>(handle.location());
   }
 
-  INLINE(T* operator ->() const)  { return operator*(); }
+  INLINE(T* operator ->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   bool is_identical_to(const Handle<T> other) const {

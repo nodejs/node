@@ -1776,31 +1776,29 @@ class Sampler::PlatformData : public Malloced {
       TickSample sample;
 
       // If profiling, we record the pc and sp of the profiled thread.
-      if (sampler_->IsProfiling()) {
-        // Pause the profiled thread and get its context.
-        SuspendThread(profiled_thread_);
+      if (sampler_->IsProfiling()
+          && SuspendThread(profiled_thread_) != (DWORD)-1) {
         context.ContextFlags = CONTEXT_FULL;
-        GetThreadContext(profiled_thread_, &context);
-        // Invoke tick handler with program counter and stack pointer.
+        if (GetThreadContext(profiled_thread_, &context) != 0) {
 #if V8_HOST_ARCH_X64
-        UNIMPLEMENTED();
-        sample.pc = context.Rip;
-        sample.sp = context.Rsp;
-        sample.fp = context.Rbp;
+          UNIMPLEMENTED();
+          sample.pc = context.Rip;
+          sample.sp = context.Rsp;
+          sample.fp = context.Rbp;
 #else
-        sample.pc = context.Eip;
-        sample.sp = context.Esp;
-        sample.fp = context.Ebp;
+          sample.pc = context.Eip;
+          sample.sp = context.Esp;
+          sample.fp = context.Ebp;
 #endif
+          sampler_->SampleStack(&sample);
+        }
+        ResumeThread(profiled_thread_);
       }
 
       // We always sample the VM state.
       sample.state = Logger::state();
+      // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(&sample);
-
-      if (sampler_->IsProfiling()) {
-        ResumeThread(profiled_thread_);
-      }
 
       // Wait until next sampling.
       Sleep(sampler_->interval_);
