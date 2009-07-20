@@ -20,8 +20,8 @@ node.inherits = function (ctor, superCtor) {
 };
 
 // This is useful for dealing with raw encodings.
-Array.prototype.encodeUtf8 = function () {
-  return String.fromCharCode.apply(String, this);
+node.encodeUtf8 = function (array) {
+  return String.fromCharCode.apply(String, array);
 };
 
 node.cat = function(location, encoding, callback) {
