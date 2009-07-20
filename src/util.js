@@ -24,10 +24,10 @@ node.encodeUtf8 = function (array) {
   return String.fromCharCode.apply(String, array);
 };
 
-node.cat = function(location, encoding, callback) {
+node.cat = function(location, encoding) {
   var url_re = new RegExp("^http:\/\/");
   var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
-  return f(location, encoding, callback);
+  return f(location, encoding);
 };
 
 node.path = new function () {
