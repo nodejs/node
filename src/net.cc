@@ -187,6 +187,8 @@ Connection::Connect (const Arguments& args)
   connection->opening = true;
 
   ev_ref(EV_DEFAULT_UC);
+
+  connection->Attach();
   
 #ifdef __APPLE__
   /* HACK: Bypass the thread pool and do it sync on Macintosh.
@@ -202,7 +204,6 @@ Connection::Connect (const Arguments& args)
    * In the future I will move to a system using adns or udns: 
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
-  connection->Attach();
   eio_custom( Connection::Resolve
             , EIO_PRI_DEFAULT
             , Connection::AfterResolve
