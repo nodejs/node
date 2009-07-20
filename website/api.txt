@@ -479,7 +479,7 @@ reading from in the file.
 +encoding+ is either +node.UTF8+
 or +node.RAW+.
 +
-- on success: returns +data+, what was read from the file.
+- on success: returns +data, bytes_read+, what was read from the file.
 - on error: no parameters.
 
 

@@ -20,14 +20,14 @@ node.fs.cat = function (path, encoding) {
 
       read_promise.addErrback(function () { cat_promise.emitError(); });
 
-      read_promise.addCallback(function (chunk) {
+      read_promise.addCallback(function (chunk, bytes_read) {
         if (chunk) {
           if (chunk.constructor == String)
             content += chunk;
           else
             content = content.concat(chunk);
 
-          pos += chunk.length;
+          pos += bytes_read;
           readChunk();
         } else {
           cat_promise.emitSuccess([content]);

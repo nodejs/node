@@ -248,17 +248,19 @@ AfterUtf8Read (eio_req *req)
 
   HandleScope scope;
 
-  Local<Value> argv[1];
+  Local<Value> argv[2];
 
   if (req->result == 0) { 
     // eof 
     argv[0] = Local<Value>::New(Null());
+    argv[1] = Integer::New(0);
   } else {
     char *buf = reinterpret_cast<char*>(req->ptr2);
     argv[0] = String::New(buf, req->result);
+    argv[1] = Integer::New(req->result);
   }
 
-  promise->EmitSuccess(1, argv);
+  promise->EmitSuccess(2, argv);
   return 0;
 }
 
@@ -273,10 +275,11 @@ AfterRawRead(eio_req *req)
   }
 
   HandleScope scope;
-  Local<Value> argv[1];
+  Local<Value> argv[2];
 
   if (req->result == 0) {
     argv[0] = Local<Value>::New(Null());
+    argv[1] = Integer::New(0);
   } else {
     char *buf = reinterpret_cast<char*>(req->ptr2);
     size_t len = req->result;
@@ -285,9 +288,10 @@ AfterRawRead(eio_req *req)
       array->Set(Integer::New(i), Integer::New(buf[i]));
     }
     argv[0] = array;
+    argv[1] = Integer::New(req->result);
   }
 
-  promise->EmitSuccess(1, argv);
+  promise->EmitSuccess(2, argv);
   return 0;
 }
 
