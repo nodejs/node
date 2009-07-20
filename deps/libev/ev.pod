@@ -623,6 +623,18 @@ This value can sometimes be useful as a generation counter of sorts (it
 "ticks" the number of loop iterations), as it roughly corresponds with
 C<ev_prepare> and C<ev_check> calls.
 
+=item unsigned int ev_loop_depth (loop)
+
+Returns the number of times C<ev_loop> was entered minus the number of
+times C<ev_loop> was exited, in other words, the recursion depth.
+
+Outside C<ev_loop>, this number is zero. In a callback, this number is
+C<1>, unless C<ev_loop> was invoked recursively (or from another thread),
+in which case it is higher.
+
+Leaving C<ev_loop> abnormally (setjmp/longjmp, cancelling the thread
+etc.), doesn't count as exit.
+
 =item unsigned int ev_backend (loop)
 
 Returns one of the C<EVBACKEND_*> flags indicating the event backend in
@@ -813,7 +825,9 @@ By setting a higher I<io collect interval> you allow libev to spend more
 time collecting I/O events, so you can handle more events per iteration,
 at the cost of increasing latency. Timeouts (both C<ev_periodic> and
 C<ev_timer>) will be not affected. Setting this to a non-null value will
-introduce an additional C<ev_sleep ()> call into most loop iterations.
+introduce an additional C<ev_sleep ()> call into most loop iterations. The
+sleep time ensures that libev will not poll for I/O events more often then
+once per this interval, on average.
 
 Likewise, by setting a higher I<timeout collect interval> you allow libev
 to spend more time collecting timeouts, at the expense of increased
@@ -825,7 +839,11 @@ Many (busy) programs can usually benefit by setting the I/O collect
 interval to a value near C<0.1> or so, which is often enough for
 interactive servers (of course not for games), likewise for timeouts. It
 usually doesn't make much sense to set it to a lower value than C<0.01>,
-as this approaches the timing granularity of most systems.
+as this approaches the timing granularity of most systems. Note that if
+you do transactions with the outside world and you can't increase the
+parallelity, then this setting will limit your transaction rate (if you
+need to poll once per transaction and the I/O collect interval is 0.01,
+then you can't do more than 100 transations per second).
 
 Setting the I<timeout collect interval> can improve the opportunity for
 saving power, as the program will "bundle" timer callback invocations that
@@ -833,6 +851,77 @@ are "near" in time together, by delaying some, thus reducing the number of
 times the process sleeps and wakes up again. Another useful technique to
 reduce iterations/wake-ups is to use C<ev_periodic> watchers and make sure
 they fire on, say, one-second boundaries only.
+
+Example: we only need 0.1s timeout granularity, and we wish not to poll
+more often than 100 times per second:
+
+   ev_set_timeout_collect_interval (EV_DEFAULT_UC_ 0.1);
+   ev_set_io_collect_interval (EV_DEFAULT_UC_ 0.01);
+
+=item ev_invoke_pending (loop)
+
+This call will simply invoke all pending watchers while resetting their
+pending state. Normally, C<ev_loop> does this automatically when required,
+but when overriding the invoke callback this call comes handy.
+
+=item int ev_pending_count (loop)
+
+Returns the number of pending watchers - zero indicates that no watchers
+are pending.
+
+=item ev_set_invoke_pending_cb (loop, void (*invoke_pending_cb)(EV_P))
+
+This overrides the invoke pending functionality of the loop: Instead of
+invoking all pending watchers when there are any, C<ev_loop> will call
+this callback instead. This is useful, for example, when you want to
+invoke the actual watchers inside another context (another thread etc.).
+
+If you want to reset the callback, use C<ev_invoke_pending> as new
+callback.
+
+=item ev_set_loop_release_cb (loop, void (*release)(EV_P), void (*acquire)(EV_P))
+
+Sometimes you want to share the same loop between multiple threads. This
+can be done relatively simply by putting mutex_lock/unlock calls around
+each call to a libev function.
+
+However, C<ev_loop> can run an indefinite time, so it is not feasible to
+wait for it to return. One way around this is to wake up the loop via
+C<ev_unloop> and C<av_async_send>, another way is to set these I<release>
+and I<acquire> callbacks on the loop.
+
+When set, then C<release> will be called just before the thread is
+suspended waiting for new events, and C<acquire> is called just
+afterwards.
+
+Ideally, C<release> will just call your mutex_unlock function, and
+C<acquire> will just call the mutex_lock function again.
+
+While event loop modifications are allowed between invocations of
+C<release> and C<acquire> (that's their only purpose after all), no
+modifications done will affect the event loop, i.e. adding watchers will
+have no effect on the set of file descriptors being watched, or the time
+waited. USe an C<ev_async> watcher to wake up C<ev_loop> when you want it
+to take note of any changes you made.
+
+In theory, threads executing C<ev_loop> will be async-cancel safe between
+invocations of C<release> and C<acquire>.
+
+See also the locking example in the C<THREADS> section later in this
+document.
+
+=item ev_set_userdata (loop, void *data)
+
+=item ev_userdata (loop)
+
+Set and retrieve a single C<void *> associated with a loop. When
+C<ev_set_userdata> has never been called, then C<ev_userdata> returns
+C<0.>
+
+These two functions can be used to associate arbitrary data with a loop,
+and are intended solely for the C<invoke_pending_cb>, C<release> and
+C<acquire> callbacks described above, but of course can be (ab-)used for
+any other purpose as well.
 
 =item ev_loop_verify (loop)
 
@@ -1186,14 +1275,14 @@ programmers):
    static void
    t1_cb (EV_P_ ev_timer *w, int revents)
    {
-     struct my_biggy big = (struct my_biggy *
+     struct my_biggy big = (struct my_biggy *)
        (((char *)w) - offsetof (struct my_biggy, t1));
    }
 
    static void
    t2_cb (EV_P_ ev_timer *w, int revents)
    {
-     struct my_biggy big = (struct my_biggy *
+     struct my_biggy big = (struct my_biggy *)
        (((char *)w) - offsetof (struct my_biggy, t2));
    }
 
@@ -1279,7 +1368,7 @@ other events are pending:
    }
 
    static void
-   idle-cb (EV_P_ ev_idle *w, int revents)
+   idle_cb (EV_P_ ev_idle *w, int revents)
    {
      // actual processing
      read (STDIN_FILENO, ...);
@@ -1470,8 +1559,8 @@ The callback is guaranteed to be invoked only I<after> its timeout has
 passed (not I<at>, so on systems with very low-resolution clocks this
 might introduce a small delay). If multiple timers become ready during the
 same loop iteration then the ones with earlier time-out values are invoked
-before ones with later time-out values (but this is no longer true when a
-callback calls C<ev_loop> recursively).
+before ones of the same priority with later time-out values (but this is
+no longer true when a callback calls C<ev_loop> recursively).
 
 =head3 Be smart about timeouts
 
@@ -1525,7 +1614,7 @@ member and C<ev_timer_again>.
 
 At start:
 
-   ev_timer_init (timer, callback);
+   ev_init (timer, callback);
    timer->repeat = 60.;
    ev_timer_again (loop, timer);
 
@@ -1597,7 +1686,7 @@ To start the timer, simply initialise the watcher and set C<last_activity>
 to the current time (meaning we just have some activity :), then call the
 callback, which will "do the right thing" and start the timer:
 
-   ev_timer_init (timer, callback);
+   ev_init (timer, callback);
    last_activity = ev_now (loop);
    callback (loop, timer, EV_TIMEOUT);
 
@@ -1668,6 +1757,36 @@ If the event loop is suspended for a long time, you can also force an
 update of the time returned by C<ev_now ()> by calling C<ev_now_update
 ()>.
 
+=head3 The special problems of suspended animation
+
+When you leave the server world it is quite customary to hit machines that
+can suspend/hibernate - what happens to the clocks during such a suspend?
+
+Some quick tests made with a Linux 2.6.28 indicate that a suspend freezes
+all processes, while the clocks (C<times>, C<CLOCK_MONOTONIC>) continue
+to run until the system is suspended, but they will not advance while the
+system is suspended. That means, on resume, it will be as if the program
+was frozen for a few seconds, but the suspend time will not be counted
+towards C<ev_timer> when a monotonic clock source is used. The real time
+clock advanced as expected, but if it is used as sole clocksource, then a
+long suspend would be detected as a time jump by libev, and timers would
+be adjusted accordingly.
+
+I would not be surprised to see different behaviour in different between
+operating systems, OS versions or even different hardware.
+
+The other form of suspend (job control, or sending a SIGSTOP) will see a
+time jump in the monotonic clocks and the realtime clock. If the program
+is suspended for a very long time, and monotonic clock sources are in use,
+then you can expect C<ev_timer>s to expire as the full suspension time
+will be counted towards the timers. When no monotonic clock source is in
+use, then libev will again assume a timejump and adjust accordingly.
+
+It might be beneficial for this latter case to call C<ev_suspend>
+and C<ev_resume> in code that handles C<SIGTSTP>, to at least get
+deterministic behaviour in this case (you can do nothing against
+C<SIGSTOP>).
+
 =head3 Watcher-Specific Functions and Data Members
 
 =over 4
@@ -1702,6 +1821,18 @@ C<repeat> value), or reset the running timer to the C<repeat> value.
 
 This sounds a bit complicated, see L<Be smart about timeouts>, above, for a
 usage example.
+
+=item ev_timer_remaining (loop, ev_timer *)
+
+Returns the remaining time until a timer fires. If the timer is active,
+then this time is relative to the current event loop time, otherwise it's
+the timeout value currently configured.
+
+That is, after an C<ev_timer_set (w, 5, 7)>, C<ev_timer_remaining> returns
+C<5>. When the timer is started and one second passes, C<ev_timer_remain>
+will return C<4>. When the timer expires and is restarted, it will return
+roughly C<7> (likely slightly less as callback invocation takes some time,
+too), and so on.
 
 =item ev_tstamp repeat [read-write]
 
@@ -2004,11 +2135,15 @@ exits). It is permissible to install a child watcher I<after> the child
 has been forked (which implies it might have already exited), as long
 as the event loop isn't entered (or is continued from a watcher), i.e.,
 forking and then immediately registering a watcher for the child is fine,
-but forking and registering a watcher a few event loop iterations later is
-not.
+but forking and registering a watcher a few event loop iterations later or
+in the next callback invocation is not.
 
 Only the default event loop is capable of handling signals, and therefore
 you can only register child watchers in the default event loop.
+
+Due to some design glitches inside libev, child watchers will always be
+handled at maximum priority (their priority is set to C<EV_MAXPRI> by
+libev)
 
 =head3 Process Interaction
 
@@ -2370,7 +2505,7 @@ callback, free it. Also, use no error checking, as usual.
 
    ev_idle *idle_watcher = malloc (sizeof (ev_idle));
    ev_idle_init (idle_watcher, idle_cb);
-   ev_idle_start (loop, idle_cb);
+   ev_idle_start (loop, idle_watcher);
 
 
 =head2 C<ev_prepare> and C<ev_check> - customise your event loop!
@@ -2473,7 +2608,7 @@ the callbacks for the IO/timeout watchers might not have been called yet.
      adns_beforepoll (ads, fds, &nfd, &timeout, timeval_from (ev_time ()));
 
      /* the callback is illegal, but won't be called as we stop during check */
-     ev_timer_init (&tw, 0, timeout * 1e-3);
+     ev_timer_init (&tw, 0, timeout * 1e-3, 0.);
      ev_timer_start (loop, &tw);
 
      // create one ev_io per pollfd
@@ -3645,9 +3780,19 @@ defined to be C<0>, then they are not.
 =item EV_MINIMAL
 
 If you need to shave off some kilobytes of code at the expense of some
-speed, define this symbol to C<1>. Currently this is used to override some
-inlining decisions, saves roughly 30% code size on amd64. It also selects a
-much smaller 2-heap for timer management over the default 4-heap.
+speed (but with the full API), define this symbol to C<1>. Currently this
+is used to override some inlining decisions, saves roughly 30% code size
+on amd64. It also selects a much smaller 2-heap for timer management over
+the default 4-heap.
+
+You can save even more by disabling watcher types you do not need
+and setting C<EV_MAXPRI> == C<EV_MINPRI>. Also, disabling C<assert>
+(C<-DNDEBUG>) will usually reduce code size a lot.
+
+Defining C<EV_MINIMAL> to C<2> will additionally reduce the core API to
+provide a bare-bones event library. See C<ev.h> for details on what parts
+of the API are still available, and do not complain if this subset changes
+over time.
 
 =item EV_PID_HASHSIZE
 
@@ -3843,14 +3988,152 @@ watcher callback into the event loop interested in the signal.
 
 =back
 
+=head4 THREAD LOCKING EXAMPLE
+
+Here is a fictitious example of how to run an event loop in a different
+thread than where callbacks are being invoked and watchers are
+created/added/removed.
+
+For a real-world example, see the C<EV::Loop::Async> perl module,
+which uses exactly this technique (which is suited for many high-level
+languages).
+
+The example uses a pthread mutex to protect the loop data, a condition
+variable to wait for callback invocations, an async watcher to notify the
+event loop thread and an unspecified mechanism to wake up the main thread.
+
+First, you need to associate some data with the event loop:
+
+   typedef struct {
+     mutex_t lock; /* global loop lock */
+     ev_async async_w;
+     thread_t tid;
+     cond_t invoke_cv;
+   } userdata;
+
+   void prepare_loop (EV_P)
+   {
+      // for simplicity, we use a static userdata struct.
+      static userdata u;
+
+      ev_async_init (&u->async_w, async_cb);
+      ev_async_start (EV_A_ &u->async_w);
+
+      pthread_mutex_init (&u->lock, 0);
+      pthread_cond_init (&u->invoke_cv, 0);
+
+      // now associate this with the loop
+      ev_set_userdata (EV_A_ u);
+      ev_set_invoke_pending_cb (EV_A_ l_invoke);
+      ev_set_loop_release_cb (EV_A_ l_release, l_acquire);
+
+      // then create the thread running ev_loop
+      pthread_create (&u->tid, 0, l_run, EV_A);
+   }
+
+The callback for the C<ev_async> watcher does nothing: the watcher is used
+solely to wake up the event loop so it takes notice of any new watchers
+that might have been added:
+
+   static void
+   async_cb (EV_P_ ev_async *w, int revents)
+   {
+      // just used for the side effects
+   }
+
+The C<l_release> and C<l_acquire> callbacks simply unlock/lock the mutex
+protecting the loop data, respectively.
+
+   static void
+   l_release (EV_P)
+   {
+     userdata *u = ev_userdata (EV_A);
+     pthread_mutex_unlock (&u->lock);
+   }
+
+   static void
+   l_acquire (EV_P)
+   {
+     userdata *u = ev_userdata (EV_A);
+     pthread_mutex_lock (&u->lock);
+   }
+
+The event loop thread first acquires the mutex, and then jumps straight
+into C<ev_loop>:
+
+   void *
+   l_run (void *thr_arg)
+   {
+     struct ev_loop *loop = (struct ev_loop *)thr_arg;
+
+     l_acquire (EV_A);
+     pthread_setcanceltype (PTHREAD_CANCEL_ASYNCHRONOUS, 0);
+     ev_loop (EV_A_ 0);
+     l_release (EV_A);
+
+     return 0;
+   }
+
+Instead of invoking all pending watchers, the C<l_invoke> callback will
+signal the main thread via some unspecified mechanism (signals? pipe
+writes? C<Async::Interrupt>?) and then waits until all pending watchers
+have been called (in a while loop because a) spurious wakeups are possible
+and b) skipping inter-thread-communication when there are no pending
+watchers is very beneficial):
+
+   static void
+   l_invoke (EV_P)
+   {
+     userdata *u = ev_userdata (EV_A);
+
+     while (ev_pending_count (EV_A))
+       {
+         wake_up_other_thread_in_some_magic_or_not_so_magic_way ();
+         pthread_cond_wait (&u->invoke_cv, &u->lock);
+       }
+   }
+
+Now, whenever the main thread gets told to invoke pending watchers, it
+will grab the lock, call C<ev_invoke_pending> and then signal the loop
+thread to continue:
+
+   static void
+   real_invoke_pending (EV_P)
+   {
+     userdata *u = ev_userdata (EV_A);
+
+     pthread_mutex_lock (&u->lock);
+     ev_invoke_pending (EV_A);
+     pthread_cond_signal (&u->invoke_cv);
+     pthread_mutex_unlock (&u->lock);
+   }
+
+Whenever you want to start/stop a watcher or do other modifications to an
+event loop, you will now have to lock:
+
+   ev_timer timeout_watcher;
+   userdata *u = ev_userdata (EV_A);
+
+   ev_timer_init (&timeout_watcher, timeout_cb, 5.5, 0.);
+
+   pthread_mutex_lock (&u->lock);
+   ev_timer_start (EV_A_ &timeout_watcher);
+   ev_async_send (EV_A_ &u->async_w);
+   pthread_mutex_unlock (&u->lock);
+
+Note that sending the C<ev_async> watcher is required because otherwise
+an event loop currently blocking in the kernel will have no knowledge
+about the newly added timer. By waking up the loop it will pick up any new
+watchers in the next event loop iteration.
+
 =head3 COROUTINES
 
 Libev is very accommodating to coroutines ("cooperative threads"):
 libev fully supports nesting calls to its functions from different
 coroutines (e.g. you can call C<ev_loop> on the same loop from two
-different coroutines, and switch freely between both coroutines running the
-loop, as long as you don't confuse yourself). The only exception is that
-you must not do this from C<ev_periodic> reschedule callbacks.
+different coroutines, and switch freely between both coroutines running
+the loop, as long as you don't confuse yourself). The only exception is
+that you must not do this from C<ev_periodic> reschedule callbacks.
 
 Care has been taken to ensure that libev does not keep local state inside
 C<ev_loop>, and other calls do not usually allow for coroutine switches as
@@ -4067,7 +4350,9 @@ watchers.
 The type C<double> is used to represent timestamps. It is required to
 have at least 51 bits of mantissa (and 9 bits of exponent), which is good
 enough for at least into the year 4000. This requirement is fulfilled by
-implementations implementing IEEE 754 (basically all existing ones).
+implementations implementing IEEE 754, which is basically all existing
+ones. With IEEE 754 doubles, you get microsecond accuracy until at least
+2200.
 
 =back
 

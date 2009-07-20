@@ -163,7 +163,7 @@ struct ev_loop;
 #endif
 
 #define EV_VERSION_MAJOR 3
-#define EV_VERSION_MINOR 0
+#define EV_VERSION_MINOR 7
 
 #ifndef EV_CB_DECLARE
 # define EV_CB_DECLARE(type) void (*cb)(EV_P_ struct type *w, int revents);
@@ -189,11 +189,17 @@ struct ev_loop;
  *           or the array index + 1 in the pendings array.
  */
 
+#if EV_MINPRI == EV_MAXPRI
+# define EV_DECL_PRIORITY
+#else
+# define EV_DECL_PRIORITY int priority;
+#endif
+
 /* shared by all watchers */
 #define EV_WATCHER(type)			\
   int active; /* private */			\
   int pending; /* private */			\
-  int priority; /* private */			\
+  EV_DECL_PRIORITY /* private */		\
   EV_COMMON /* rw */				\
   EV_CB_DECLARE (type) /* private */
 
@@ -461,10 +467,8 @@ ev_default_loop (unsigned int flags)
 struct ev_loop *ev_loop_new (unsigned int flags);
 void ev_loop_destroy (EV_P);
 void ev_loop_fork (EV_P);
-void ev_loop_verify (EV_P);
 
 ev_tstamp ev_now (EV_P); /* time w.r.t. timers and the eventloop, updated after each poll */
-void ev_now_update (EV_P);
 
 #else
 
@@ -498,6 +502,10 @@ void ev_default_destroy (void); /* destroy the default loop */
 /* you can actually call it at any time, anywhere :) */
 void ev_default_fork (void);
 
+unsigned int ev_backend (EV_P); /* backend in use by loop */
+
+void ev_now_update (EV_P); /* update event loop time */
+
 #if EV_WALK_ENABLE
 /* walk (almost) all watchers in the loop of a given type, invoking the */
 /* callback on every such watcher. The callback might stop the watcher, */
@@ -505,8 +513,6 @@ void ev_default_fork (void);
 void ev_walk (EV_P_ int types, void (*cb)(EV_P_ int type, void *w));
 #endif
 
-unsigned int ev_backend (EV_P);    /* backend in use by loop */
-unsigned int ev_loop_count (EV_P); /* number of loop iterations */
 #endif /* prototypes */
 
 #define EVLOOP_NONBLOCK	1 /* do not block/wait */
@@ -519,36 +525,52 @@ unsigned int ev_loop_count (EV_P); /* number of loop iterations */
 void ev_loop (EV_P_ int flags);
 void ev_unloop (EV_P_ int how); /* set to 1 to break out of event loop, set to 2 to break out of all event loops */
 
-void ev_set_io_collect_interval (EV_P_ ev_tstamp interval); /* sleep at least this time, default 0 */
-void ev_set_timeout_collect_interval (EV_P_ ev_tstamp interval); /* sleep at least this time, default 0 */
-
 /*
  * ref/unref can be used to add or remove a refcount on the mainloop. every watcher
- * keeps one reference. if you have a long-runing watcher you never unregister that
+ * keeps one reference. if you have a long-running watcher you never unregister that
  * should not keep ev_loop from running, unref() after starting, and ref() before stopping.
  */
 void ev_ref   (EV_P);
 void ev_unref (EV_P);
 
 /*
- * stop/start the timer handling.
- */
-void ev_suspend (EV_P);
-void ev_resume  (EV_P);
-
-/*
  * convenience function, wait for a single event, without registering an event watcher
  * if timeout is < 0, do wait indefinitely
  */
 void ev_once (EV_P_ int fd, int events, ev_tstamp timeout, void (*cb)(int revents, void *arg), void *arg);
+
+# if EV_MINIMAL < 2
+unsigned int ev_loop_count  (EV_P); /* number of loop iterations */
+unsigned int ev_loop_depth  (EV_P); /* #ev_loop enters - #ev_loop leaves */
+void         ev_loop_verify (EV_P); /* abort if loop data corrupted */
+
+void ev_set_io_collect_interval (EV_P_ ev_tstamp interval); /* sleep at least this time, default 0 */
+void ev_set_timeout_collect_interval (EV_P_ ev_tstamp interval); /* sleep at least this time, default 0 */
+
+/* advanced stuff for threading etc. support, see docs */
+void ev_set_userdata (EV_P_ void *data);
+void *ev_userdata (EV_P);
+void ev_set_invoke_pending_cb (EV_P_ void (*invoke_pending_cb)(EV_P));
+void ev_set_loop_release_cb (EV_P_ void (*release)(EV_P), void (*acquire)(EV_P));
+
+unsigned int ev_pending_count (EV_P); /* number of pending events, if any */
+void ev_invoke_pending (EV_P); /* invoke all pending watchers */
+
+/*
+ * stop/start the timer handling.
+ */
+void ev_suspend (EV_P);
+void ev_resume  (EV_P);
+#endif
+
 #endif
 
 /* these may evaluate ev multiple times, and the other arguments at most once */
 /* either use ev_init + ev_TYPE_set, or the ev_TYPE_init macro, below, to first initialise a watcher */
 #define ev_init(ev,cb_) do {			\
-  ((ev_watcher *)(void *)(ev))->active   =	\
-  ((ev_watcher *)(void *)(ev))->pending  =	\
-  ((ev_watcher *)(void *)(ev))->priority = 0;	\
+  ((ev_watcher *)(void *)(ev))->active  =	\
+  ((ev_watcher *)(void *)(ev))->pending = 0;	\
+  ev_set_priority ((ev), 0);			\
   ev_set_cb ((ev), cb_);			\
 } while (0)
 
@@ -581,9 +603,15 @@ void ev_once (EV_P_ int fd, int events, ev_tstamp timeout, void (*cb)(int revent
 #define ev_is_pending(ev)                    (0 + ((ev_watcher *)(void *)(ev))->pending) /* ro, true when watcher is waiting for callback invocation */
 #define ev_is_active(ev)                     (0 + ((ev_watcher *)(void *)(ev))->active) /* ro, true when the watcher has been started */
 
-#define ev_priority(ev)                      ((((ev_watcher *)(void *)(ev))->priority) + 0)
 #define ev_cb(ev)                            (ev)->cb /* rw */
-#define ev_set_priority(ev,pri)              ((ev_watcher *)(void *)(ev))->priority = (pri)
+
+#if EV_MINPRI == EV_MAXPRI
+# define ev_priority(ev)                     ((ev), EV_MINPRI)
+# define ev_set_priority(ev,pri)             ((ev), (pri))
+#else
+# define ev_priority(ev)                     ((((ev_watcher *)(void *)(ev))->priority) + 0)
+# define ev_set_priority(ev,pri)             (  (ev_watcher *)(void *)(ev))->priority = (pri)
+#endif
 
 #define ev_periodic_at(ev)                   (((ev_watcher_time *)(ev))->at + 0.)
 
@@ -610,6 +638,8 @@ void ev_timer_start    (EV_P_ ev_timer *w);
 void ev_timer_stop     (EV_P_ ev_timer *w);
 /* stops if active and no repeat, restarts if active and repeating, starts if inactive and repeating */
 void ev_timer_again    (EV_P_ ev_timer *w);
+/* return remaining time */
+ev_tstamp ev_timer_remaining (EV_P_ ev_timer *w);
 
 #if EV_PERIODIC_ENABLE
 void ev_periodic_start (EV_P_ ev_periodic *w);

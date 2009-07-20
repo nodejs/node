@@ -1,5 +1,30 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+3.7  Fri Jul 17 16:36:32 CEST 2009
+	- ev_unloop and ev_loop wrongly used a global variable to exit loops,
+          instead of using a per-loop variable (bug caught by accident...).
+	- the ev_set_io_collect_interval interpretation has changed.
+        - add new functionality: ev_set_userdata, ev_userdata,
+          ev_set_invoke_pending_cb, ev_set_loop_release_cb,
+          ev_invoke_pending, together with a long example about thread
+          locking.
+        - add ev_timer_remaining (as requested by Denis F. Latypoff).
+        - add ev_loop_depth.
+        - calling ev_unloop in fork/prepare watchers will no longer poll
+          for new events.
+	- Denis F. Latypoff corrected many typos in example code snippets.
+        - honor autoconf detection of EV_USE_CLOCK_SYSCALL, also double-
+          check that the syscall number is available before trying to
+          use it (reported by ry@tinyclouds).
+        - use GetSystemTimeAsFileTime instead of _timeb on windows, for
+          slightly higher accuracy.
+        - properly declare ev_loop_verify and ev_now_update even when
+          !EV_MULTIPLICITY.
+        - do not compile in any priority code when EV_MAXPRI == EV_MINPRI.
+        - support EV_MINIMAL==2 for a reduced API.
+        - actually 0-initialise struct sigaction when installing signals.
+        - add section on hibernate and stopped processes to ev_timer docs.
+
 3.6  Tue Apr 28 02:49:30 CEST 2009
 	- multiple timers becoming ready within an event loop iteration
           will be invoked in the "correct" order now.

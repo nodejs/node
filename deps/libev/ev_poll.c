@@ -89,7 +89,11 @@ static void
 poll_poll (EV_P_ ev_tstamp timeout)
 {
   struct pollfd *p;
-  int res = poll (polls, pollcnt, (int)ceil (timeout * 1000.));
+  int res;
+  
+  EV_RELEASE_CB;
+  res = poll (polls, pollcnt, (int)ceil (timeout * 1000.));
+  EV_ACQUIRE_CB;
 
   if (expect_false (res < 0))
     {

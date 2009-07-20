@@ -207,11 +207,6 @@ namespace ev {
 #endif
     }
 
-    unsigned int count () const throw ()
-    {
-      return ev_loop_count (EV_AX);
-    }
-
     unsigned int backend () const throw ()
     {
       return ev_backend (EV_AX);
@@ -232,6 +227,17 @@ namespace ev {
       ev_unref (EV_AX);
     }
 
+#if EV_MINIMAL < 2
+    unsigned int count () const throw ()
+    {
+      return ev_loop_count (EV_AX);
+    }
+
+    unsigned int depth () const throw ()
+    {
+      return ev_loop_depth (EV_AX);
+    }
+
     void set_io_collect_interval (tstamp interval) throw ()
     {
       ev_set_io_collect_interval (EV_AX_ interval);
@@ -241,6 +247,7 @@ namespace ev {
     {
       ev_set_timeout_collect_interval (EV_AX_ interval);
     }
+#endif
 
     // function callback
     void once (int fd, int events, tstamp timeout, void (*cb)(int, void *), void *arg = 0) throw ()

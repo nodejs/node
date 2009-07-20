@@ -93,9 +93,11 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
       kqueue_events = (struct kevent *)ev_malloc (sizeof (struct kevent) * kqueue_eventmax);
     }
 
+  EV_RELEASE_CB;
   ts.tv_sec  = (time_t)timeout;
   ts.tv_nsec = (long)((timeout - (ev_tstamp)ts.tv_sec) * 1e9);
   res = kevent (backend_fd, kqueue_changes, kqueue_changecnt, kqueue_events, kqueue_eventmax, &ts);
+  EV_ACQUIRE_CB;
   kqueue_changecnt = 0;
 
   if (expect_false (res < 0))

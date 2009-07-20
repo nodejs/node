@@ -119,7 +119,11 @@ static void
 epoll_poll (EV_P_ ev_tstamp timeout)
 {
   int i;
-  int eventcnt = epoll_wait (backend_fd, epoll_events, epoll_eventmax, (int)ceil (timeout * 1000.));
+  int eventcnt;
+  
+  EV_RELEASE_CB;
+  eventcnt = epoll_wait (backend_fd, epoll_events, epoll_eventmax, (int)ceil (timeout * 1000.));
+  EV_ACQUIRE_CB;
 
   if (expect_false (eventcnt < 0))
     {
