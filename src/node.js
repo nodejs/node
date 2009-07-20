@@ -158,7 +158,7 @@ node.Module.prototype.exit = function (callback) {
 
 (function () {
   // Load the root module--the command line argument.
-  root_module = new node.Module({ 
+  var root_module = new node.Module({
     path: node.path.filename(ARGV[1]), 
     base_directory: node.path.dirname(ARGV[1]),
     target: this 
