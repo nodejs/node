@@ -9,7 +9,6 @@ namespace node {
 class ObjectWrap {
  public:
   ObjectWrap ( ) {
-    weak_ = false;
     attached_ = 0;
   }
 
@@ -32,13 +31,19 @@ class ObjectWrap {
         handle->GetInternalField(0))->Value());
   }
 
-  inline void Wrap(v8::Handle<v8::Object> handle)
+  inline void Wrap (v8::Handle<v8::Object> handle)
   {
     assert(handle_.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
     handle_ = v8::Persistent<v8::Object>::New(handle);
     handle_->SetInternalField(0, v8::External::New(this));
-    handle_.MakeWeak(this, MakeWeak);
+    handle_->Set(v8::String::NewSymbol("nodeId"), v8::Integer::New((int32_t)this));
+    MakeWeak();
+  }
+
+  inline void MakeWeak (void)
+  {
+    handle_.MakeWeak(this, WeakCallback);
   }
 
   /* Attach() marks the object as being attached to an event loop.
@@ -47,6 +52,7 @@ class ObjectWrap {
    */
   void Attach() {
     assert(!handle_.IsEmpty());
+    assert(handle_.IsWeak());
     attached_++;
   }
   
@@ -61,21 +67,26 @@ class ObjectWrap {
    */
   void Detach() {
     assert(!handle_.IsEmpty());
+    assert(handle_.IsWeak());
     assert(attached_ > 0);
     attached_--;
-    if (attached_ == 0 && weak_) delete this;
+    if (attached_ == 0 && handle_.IsNearDeath()) delete this;
   }
 
   v8::Persistent<v8::Object> handle_; // ro
   int attached_; // ro
+
  private:
-  static void MakeWeak (v8::Persistent<v8::Value> value, void *data) {
+  static void WeakCallback (v8::Persistent<v8::Value> value, void *data)
+  {
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
-    obj->weak_ = true;
-    if (!obj->attached_) delete obj;
+    if (obj->attached_ == 0) {
+      delete obj;
+    } else {
+      obj->MakeWeak();
+    }
   }
-  bool weak_;
 };
 
 } // namespace node
