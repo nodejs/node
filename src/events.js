@@ -11,7 +11,7 @@ emitter.addListener = function (type, listener) {
   }
 };
 
-emitter.listeners = function (type, listener) {
+emitter.listeners = function (type) {
   if (!this._events) this._events = {};
   if (!this._events.hasOwnProperty(type)) this._events[type] = [];
   return this._events[type];
@@ -26,7 +26,7 @@ emitter.emit = function (type, args) {
   var listeners = this._events[type];
   var length = listeners.length;
 
-  for (var i = 0; i < length; i++) {
+  for (var i = 0; i < listeners.length; i++) {
     listeners[i].apply(this, args);
   }
 };
