@@ -33,8 +33,6 @@ using namespace std;
 Persistent<FunctionTemplate> HTTPConnection::client_constructor_template;
 Persistent<FunctionTemplate> HTTPConnection::server_constructor_template;
 
-static Persistent<Object> http_module;
-
 void
 HTTPConnection::Initialize (Handle<Object> target)
 {
