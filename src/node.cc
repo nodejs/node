@@ -26,7 +26,8 @@ using namespace std;
 static void
 buf_free (evnet_buf *b)
 {
-  V8::AdjustAmountOfExternalAllocatedMemory(-b->len);
+  size_t total = sizeof(evnet_buf) + b->len;
+  V8::AdjustAmountOfExternalAllocatedMemory(-total);
   free(b);
 }
 
