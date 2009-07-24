@@ -6,21 +6,6 @@
 #include <stdio.h>
 #include <strings.h>
 
-#define ENCODING_SYMBOL             String::NewSymbol("encoding")
-
-#define MESSAGE_HANDLER_SYMBOL      String::NewSymbol("messageHandler")
-
-#define ON_MESSAGE_SYMBOL           String::NewSymbol("onMessage")
-#define ON_PATH_SYMBOL              String::NewSymbol("onPath")
-#define ON_QUERY_STRING_SYMBOL      String::NewSymbol("onQueryString")
-#define ON_URI_SYMBOL               String::NewSymbol("onURI")
-#define ON_FRAGMENT_SYMBOL          String::NewSymbol("onFragment")
-#define ON_HEADER_FIELD_SYMBOL      String::NewSymbol("onHeaderField")
-#define ON_HEADER_VALUE_SYMBOL      String::NewSymbol("onHeaderValue")
-#define ON_HEADERS_COMPLETE_SYMBOL  String::NewSymbol("onHeadersComplete")
-#define ON_BODY_SYMBOL              String::NewSymbol("onBody")
-#define ON_MESSAGE_COMPLETE_SYMBOL  String::NewSymbol("onMessageComplete")
-
 #define METHOD_SYMBOL               String::NewSymbol("method")
 #define STATUS_CODE_SYMBOL          String::NewSymbol("statusCode")
 #define HTTP_VERSION_SYMBOL         String::NewSymbol("httpVersion")
