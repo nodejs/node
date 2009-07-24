@@ -13,7 +13,6 @@
 
 using namespace v8;
 using namespace node;
-using namespace std;
 
 Persistent<FunctionTemplate> HTTPConnection::client_constructor_template;
 Persistent<FunctionTemplate> HTTPConnection::server_constructor_template;

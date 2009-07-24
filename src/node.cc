@@ -21,7 +21,6 @@
 
 using namespace v8;
 using namespace node;
-using namespace std;
 
 static void
 buf_free (evnet_buf *b)
