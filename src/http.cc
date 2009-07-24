@@ -134,23 +134,26 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
 static inline Local<String>
 GetMethod (int method)
 {
+  const char *s;
   switch (method) {
-    case HTTP_COPY:       return String::NewSymbol("COPY");
-    case HTTP_DELETE:     return String::NewSymbol("DELETE");
-    case HTTP_GET:        return String::NewSymbol("GET");
-    case HTTP_HEAD:       return String::NewSymbol("HEAD");
-    case HTTP_LOCK:       return String::NewSymbol("LOCK");
-    case HTTP_MKCOL:      return String::NewSymbol("MKCOL");
-    case HTTP_MOVE:       return String::NewSymbol("MOVE");
-    case HTTP_OPTIONS:    return String::NewSymbol("OPTIONS");
-    case HTTP_POST:       return String::NewSymbol("POST");
-    case HTTP_PROPFIND:   return String::NewSymbol("PROPFIND");
-    case HTTP_PROPPATCH:  return String::NewSymbol("PROPPATCH");
-    case HTTP_PUT:        return String::NewSymbol("PUT");
-    case HTTP_TRACE:      return String::NewSymbol("TRACE");
-    case HTTP_UNLOCK:     return String::NewSymbol("UNLOCK");
+    case HTTP_COPY:       s = "COPY"; break;
+    case HTTP_DELETE:     s = "DELETE"; break;
+    case HTTP_GET:        s = "GET"; break;
+    case HTTP_HEAD:       s = "HEAD"; break;
+    case HTTP_LOCK:       s = "LOCK"; break;
+    case HTTP_MKCOL:      s = "MKCOL"; break;
+    case HTTP_MOVE:       s = "MOVE"; break;
+    case HTTP_OPTIONS:    s = "OPTIONS"; break;
+    case HTTP_POST:       s = "POST"; break;
+    case HTTP_PROPFIND:   s = "PROPFIND"; break;
+    case HTTP_PROPPATCH:  s = "PROPPATCH"; break;
+    case HTTP_PUT:        s = "PUT"; break;
+    case HTTP_TRACE:      s = "TRACE"; break;
+    case HTTP_UNLOCK:     s = "UNLOCK"; break;
   }
-  return Local<String>();
+  HandleScope scope;
+  Local<String> method = String::NewSymbol(s);
+  return scope.Close(method);
 }
 
 int
