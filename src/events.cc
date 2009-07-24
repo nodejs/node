@@ -33,24 +33,33 @@ EventEmitter::Initialize (v8::Handle<v8::Object> target)
 bool
 EventEmitter::Emit (const char *type, int argc, Handle<Value> argv[])
 {
+  HandleScope scope; 
+
   Local<Value> emit_v = handle_->Get(String::NewSymbol("emit"));
   assert(emit_v->IsFunction());
   Local<Function> emit = Local<Function>::Cast(emit_v);
 
-  Local<Array> event_args = Array::New(argc);
-  for (int i = 0; i < argc; i++) {
-    event_args->Set(Integer::New(i), argv[i]);
-  }
+  Local<Value> events_v = handle_->Get(String::NewSymbol("_events"));
+  if (!events_v->IsObject()) return false;
+  Local<Object> events = events_v->ToObject();
 
-  Handle<Value> emit_argv[2] = { String::NewSymbol(type), event_args };
+  Local<Value> listeners_v = events->Get(String::NewSymbol(type));
+  if (!listeners_v->IsArray()) return false;
+  Local<Array> listeners = Local<Array>::Cast(listeners_v);
 
   TryCatch try_catch;
 
-  emit->Call(handle_, 2, emit_argv);
+  for (int i = 0; i < listeners->Length(); i++) {
+    Local<Value> listener_v = listeners->Get(Integer::New(i));
+    if (!listener_v->IsFunction()) continue;
+    Local<Function> listener = Local<Function>::Cast(listener_v);
 
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return false;
+    listener->Call(handle_, argc, argv);
+
+    if (try_catch.HasCaught()) {
+      FatalException(try_catch);
+      return false;
+    }
   }
 
   return true;

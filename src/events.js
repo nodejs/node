@@ -18,13 +18,14 @@ emitter.listeners = function (type) {
 };
 
 // This function is called often from C++. 
+// FIXME there is a counterpart for this function in C++
+// both must have the same behavior.
 // See events.cc 
 emitter.emit = function (type, args) {
   if (!this._events) return;
   if (!this._events.hasOwnProperty(type)) return;
 
   var listeners = this._events[type];
-  var length = listeners.length;
 
   for (var i = 0; i < listeners.length; i++) {
     listeners[i].apply(this, args);
