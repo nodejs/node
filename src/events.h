@@ -11,10 +11,12 @@ class EventEmitter : public ObjectWrap {
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  bool Emit (const char *type, int argc, v8::Handle<v8::Value> argv[]);
+  bool Emit (const char *event, int argc, v8::Handle<v8::Value> argv[]);
 
  protected:
-  EventEmitter () : ObjectWrap() { }
+  static v8::Handle<v8::Value> Emit (const v8::Arguments& args);
+
+  EventEmitter () : ObjectWrap () { }
 };
 
 class Promise : public EventEmitter {
