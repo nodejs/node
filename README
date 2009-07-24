@@ -6,6 +6,9 @@ For help and discussion subscribe to the mailing list at
 http://groups.google.com/group/nodejs or send an email to 
 nodejs+subscribe@googlegroups.com.
 
+A list of projects using Node can be found at
+http://wiki.github.com/ry/node
+
 To build
 ./configure
 make 
