@@ -11,7 +11,7 @@
 
 
 #include <ev.h>
-#include <evnet.h>
+#include <evcom.h>
 #include <gnutls/gnutls.h>
 
 #define HOST "127.0.0.1"
@@ -21,7 +21,7 @@
 static int nconnections; 
 
 static void 
-on_peer_close (evnet_socket *socket)
+on_peer_close (evcom_socket *socket)
 {
   assert(socket->errorno == 0);
   //printf("server connection closed\n");
@@ -29,7 +29,7 @@ on_peer_close (evnet_socket *socket)
 }
 
 static void 
-on_peer_timeout (evnet_socket *socket)
+on_peer_timeout (evcom_socket *socket)
 {
   assert(socket);
   fprintf(stderr, "peer connection timeout\n");
@@ -42,21 +42,21 @@ on_peer_timeout (evnet_socket *socket)
 #define TIMEOUT 5.0
 
 static void 
-on_peer_read (evnet_socket *socket, const void *base, size_t len)
+on_peer_read (evcom_socket *socket, const void *base, size_t len)
 {
   if(len == 0) return;
 
-  evnet_socket_write_simple(socket, base, len);
+  evcom_socket_write_simple(socket, base, len);
 }
 
-static evnet_socket* 
-on_server_connection (evnet_server *server, struct sockaddr *addr)
+static evcom_socket* 
+on_server_connection (evcom_server *server, struct sockaddr *addr)
 {
   assert(server);
   assert(addr);
 
-  evnet_socket *socket = malloc(sizeof(evnet_socket));
-  evnet_socket_init(socket, TIMEOUT);
+  evcom_socket *socket = malloc(sizeof(evcom_socket));
+  evcom_socket_init(socket, TIMEOUT);
   socket->on_read = on_peer_read;
   socket->on_close = on_peer_close;
   socket->on_timeout = on_peer_timeout;
@@ -73,12 +73,12 @@ int
 main (void)
 {
   int r;
-  evnet_server server;
+  evcom_server server;
 
-  //printf("sizeof(evnet_server): %d\n", sizeof(evnet_server));
-  //printf("sizeof(evnet_socket): %d\n", sizeof(evnet_socket));
+  //printf("sizeof(evcom_server): %d\n", sizeof(evcom_server));
+  //printf("sizeof(evcom_socket): %d\n", sizeof(evcom_socket));
 
-  evnet_server_init(&server);
+  evcom_server_init(&server);
   server.on_connection = on_server_connection;
 
   struct addrinfo *servinfo;
@@ -90,9 +90,9 @@ main (void)
   r = getaddrinfo(NULL, PORT, &hints, &servinfo);
   assert(r == 0);
 
-  r = evnet_server_listen(&server, servinfo, 10);
+  r = evcom_server_listen(&server, servinfo, 10);
   assert(r == 0);
-  evnet_server_attach(EV_DEFAULT_ &server);
+  evcom_server_attach(EV_DEFAULT_ &server);
 
   ev_loop(EV_DEFAULT_ 0);
 

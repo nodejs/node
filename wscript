@@ -112,16 +112,16 @@ def build(bld):
     v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
-  ### evnet
-  evnet = bld.new_task_gen("cc", "staticlib")
-  evnet.source = "deps/evnet/evnet.c"
-  evnet.includes = "deps/evnet/ deps/libev/"
-  evnet.name = "evnet"
-  evnet.target = "evnet"
-  # evnet.uselib = "GNUTLS"
-  evnet.install_path = None
+  ### evcom
+  evcom = bld.new_task_gen("cc", "staticlib")
+  evcom.source = "deps/evcom/evcom.c"
+  evcom.includes = "deps/evcom/ deps/libev/"
+  evcom.name = "evcom"
+  evcom.target = "evcom"
+  # evcom.uselib = "GNUTLS"
+  evcom.install_path = None
   if bld.env["USE_DEBUG"]:
-    evnet.clone("debug")
+    evcom.clone("debug")
 
   ### http_parser
   http_parser = bld.new_task_gen("cc", "staticlib")
@@ -174,10 +174,10 @@ def build(bld):
     deps/v8/include
     deps/libev
     deps/libeio
-    deps/evnet 
+    deps/evcom 
     deps/http_parser
   """
-  node.uselib_local = "evnet ev eio http_parser"
+  node.uselib_local = "evcom ev eio http_parser"
   node.uselib = "V8 EXECINFO PROFILER EFENCE"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755

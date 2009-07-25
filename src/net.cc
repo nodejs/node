@@ -101,7 +101,7 @@ Connection::Init (void)
 {
   opening = false;
   double timeout = 60.0; // default
-  evnet_socket_init(&socket_, timeout);
+  evcom_socket_init(&socket_, timeout);
   socket_.on_connect = Connection::on_connect;
   socket_.on_read    = Connection::on_read;
   socket_.on_drain   = Connection::on_drain;
@@ -275,13 +275,13 @@ Connection::AfterResolve (eio_req *req)
 
   // no error. return.
   if (r == 0 && req->result == 0) {
-    evnet_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
+    evcom_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
     goto out;
   }
 
   /* RESOLVE ERROR */
 
-  /* TODO: the whole resolve process should be moved into evnet_socket.
+  /* TODO: the whole resolve process should be moved into evcom_socket.
    * The fact that I'm modifying a read-only variable here should be 
    * good evidence of this.
    */
@@ -376,7 +376,7 @@ Connection::Send (const Arguments& args)
 
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
-  // evnet_bufs for every send which is clearly inefficent - it should use a
+  // evcom_bufs for every send which is clearly inefficent - it should use a
   // memory pool or ring buffer. Of course, expressing binary data as an
   // array of integers is extremely inefficent. This can improved when v8
   // bug 270 (http://code.google.com/p/v8/issues/detail?id=270) has been
@@ -386,7 +386,7 @@ Connection::Send (const Arguments& args)
     enum encoding enc = ParseEncoding(args[1]);
     Local<String> s = args[0]->ToString();
     size_t len = s->Utf8Length();
-    evnet_buf *buf = node::buf_new(len);
+    evcom_buf *buf = node::buf_new(len);
     switch (enc) {
       case RAW:
       case ASCII:
@@ -405,7 +405,7 @@ Connection::Send (const Arguments& args)
   } else if (args[0]->IsArray()) {
     Handle<Array> array = Handle<Array>::Cast(args[0]);
     size_t len = array->Length();
-    evnet_buf *buf = node::buf_new(len);
+    evcom_buf *buf = node::buf_new(len);
     for (size_t i = 0; i < len; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
       buf->base[i] = int_value->IntegerValue();

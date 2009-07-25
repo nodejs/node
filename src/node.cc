@@ -23,22 +23,22 @@ using namespace v8;
 using namespace node;
 
 static void
-buf_free (evnet_buf *b)
+buf_free (evcom_buf *b)
 {
-  size_t total = sizeof(evnet_buf) + b->len;
+  size_t total = sizeof(evcom_buf) + b->len;
   V8::AdjustAmountOfExternalAllocatedMemory(-total);
   free(b);
 }
 
-evnet_buf *
+evcom_buf *
 node::buf_new (size_t size)
 {
-  size_t total = sizeof(evnet_buf) + size;
+  size_t total = sizeof(evcom_buf) + size;
   void *p = malloc(total);
   if (p == NULL) return NULL;
 
-  evnet_buf *b = static_cast<evnet_buf*>(p);
-  b->base = static_cast<char*>(p) + sizeof(evnet_buf);
+  evcom_buf *b = static_cast<evcom_buf*>(p);
+  b->base = static_cast<char*>(p) + sizeof(evcom_buf);
 
   b->len = size;
   b->release = buf_free;

@@ -100,13 +100,13 @@ Process::Write (const Arguments& args)
 
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
-  // evnet_bufs for every send which is clearly inefficent - it should use a
+  // evcom_bufs for every send which is clearly inefficent - it should use a
   // memory pool or ring buffer. Of course, expressing binary data as an
   // array of integers is extremely inefficent. This can improved when v8
   // bug 270 (http://code.google.com/p/v8/issues/detail?id=270) has been
   // addressed. 
 
-  evnet_buf *buf;
+  evcom_buf *buf;
   size_t len;
 
   if (args[0]->IsString()) {
@@ -196,7 +196,7 @@ Process::Process ()
 
   pid_ = 0; 
 
-  evnet_queue_init(&out_stream_);
+  evcom_queue_init(&out_stream_);
 }
 
 Process::~Process ()
@@ -208,10 +208,10 @@ void
 Process::Shutdown () 
 {
   // Clear the out_stream
-  while (!evnet_queue_empty(&out_stream_)) {
-    evnet_queue *q = evnet_queue_last(&out_stream_);
-    evnet_buf *buf = (evnet_buf*) evnet_queue_data(q, evnet_buf, queue);
-    evnet_queue_remove(q);
+  while (!evcom_queue_empty(&out_stream_)) {
+    evcom_queue *q = evcom_queue_last(&out_stream_);
+    evcom_buf *buf = (evcom_buf*) evcom_queue_data(q, evcom_buf, queue);
+    evcom_queue_remove(q);
     if (buf->release) buf->release(buf);
   }
 
@@ -394,9 +394,9 @@ Process::OnWritable (EV_P_ ev_io *watcher, int revents)
   assert(revents == EV_WRITE);
   assert(process->stdin_pipe_[1] >= 0);
 
-  while (!evnet_queue_empty(&process->out_stream_)) {
-    evnet_queue *q = evnet_queue_last(&process->out_stream_);
-    evnet_buf *to_write = (evnet_buf*) evnet_queue_data(q, evnet_buf, queue);
+  while (!evcom_queue_empty(&process->out_stream_)) {
+    evcom_queue *q = evcom_queue_last(&process->out_stream_);
+    evcom_buf *to_write = (evcom_buf*) evcom_queue_data(q, evcom_buf, queue);
 
     sent = write( process->stdin_pipe_[1]
                 , to_write->base + to_write->written
@@ -417,12 +417,12 @@ Process::OnWritable (EV_P_ ev_io *watcher, int revents)
     to_write->written += sent;
 
     if (to_write->written == to_write->len) {
-      evnet_queue_remove(q);
+      evcom_queue_remove(q);
       if (to_write->release) to_write->release(to_write);
     }
   }
 
-  if (evnet_queue_empty(&process->out_stream_)) {
+  if (evcom_queue_empty(&process->out_stream_)) {
     ev_io_stop(EV_DEFAULT_UC_ &process->stdin_watcher_);
     if (process->got_close_) {
       close(process->stdin_pipe_[1]);
@@ -461,10 +461,10 @@ Process::OnCHLD (EV_P_ ev_child *watcher, int revents)
 }
 
 int
-Process::Write (evnet_buf *buf)
+Process::Write (evcom_buf *buf)
 {
   if (STDIN_CLOSED || got_close_ || got_chld_) return -1;
-  evnet_queue_insert_head(&out_stream_, &buf->queue);
+  evcom_queue_insert_head(&out_stream_, &buf->queue);
   buf->written = 0;
   ev_io_start(EV_DEFAULT_UC_ &stdin_watcher_);
   return 0;

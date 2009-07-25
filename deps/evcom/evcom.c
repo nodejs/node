@@ -1,6 +1,6 @@
 /* Copyright (c) 2008,2009 Ryan Dahl
  *
- * evnet_queue comes from ngx_queue.h 
+ * evcom_queue comes from ngx_queue.h 
  * Copyright (C) 2002-2009 Igor Sysoev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 #include <sys/socket.h> /* shutdown */
 
 #include <ev.h>
-#include <evnet.h>
+#include <evcom.h>
 
 #if EV_MULTIPLICITY
 # define SOCKET_LOOP_ socket->loop, 
@@ -47,9 +47,9 @@
 # define SERVER_LOOP_
 #endif // EV_MULTIPLICITY
 
-#if EVNET_HAVE_GNUTLS
-static int secure_full_goodbye (evnet_socket *socket);
-static int secure_half_goodbye (evnet_socket *socket);
+#if EVCOM_HAVE_GNUTLS
+static int secure_full_goodbye (evcom_socket *socket);
+static int secure_half_goodbye (evcom_socket *socket);
 #endif
 
 #undef TRUE
@@ -76,16 +76,16 @@ set_nonblock (int fd)
 }
 
 void
-evnet_buf_destroy (evnet_buf *buf)
+evcom_buf_destroy (evcom_buf *buf)
 {
   free(buf->base);
   free(buf);
 }
 
-evnet_buf *
-evnet_buf_new2 (size_t len)
+evcom_buf *
+evcom_buf_new2 (size_t len)
 {
-  evnet_buf *buf = malloc(sizeof(evnet_buf));
+  evcom_buf *buf = malloc(sizeof(evcom_buf));
   if (!buf) return NULL;
   buf->base = malloc(len);
   if (!buf->base) {
@@ -93,14 +93,14 @@ evnet_buf_new2 (size_t len)
     return NULL; 
   }
   buf->len = len;
-  buf->release = evnet_buf_destroy;
+  buf->release = evcom_buf_destroy;
   return buf;
 }
 
-evnet_buf *
-evnet_buf_new (const char *base, size_t len)
+evcom_buf *
+evcom_buf_new (const char *base, size_t len)
 {
-  evnet_buf *buf = evnet_buf_new2(len);
+  evcom_buf *buf = evcom_buf_new2(len);
   if (!buf) return NULL;
   memcpy(buf->base, base, len);
 
@@ -113,7 +113,7 @@ evnet_buf_new (const char *base, size_t len)
 } while (0)
 
 static int 
-full_close (evnet_socket *socket)
+full_close (evcom_socket *socket)
 {
   //printf("close(%d)\n", socket->fd);
   if (close(socket->fd) == -1) {
@@ -133,7 +133,7 @@ full_close (evnet_socket *socket)
 }
 
 static int 
-half_close (evnet_socket *socket)
+half_close (evcom_socket *socket)
 {
   int r = shutdown(socket->fd, SHUT_WR);
   if (r == -1) {
@@ -158,7 +158,7 @@ half_close (evnet_socket *socket)
 // This is to be called when ever the out_stream is empty
 // and we need to change state.
 static void
-change_state_for_empty_out_stream (evnet_socket *socket)
+change_state_for_empty_out_stream (evcom_socket *socket)
 {
   /*
    * a very complicated bunch of close logic!
@@ -175,7 +175,7 @@ change_state_for_empty_out_stream (evnet_socket *socket)
     } else {
       /* Got Full Close. */
       if (socket->read_action) {
-#if EVNET_HAVE_GNUTLS
+#if EVCOM_HAVE_GNUTLS
         socket->read_action = socket->secure ? secure_full_goodbye : full_close;
 #else 
         socket->read_action = full_close;
@@ -183,7 +183,7 @@ change_state_for_empty_out_stream (evnet_socket *socket)
       }
 
       if (socket->write_action) {
-#if EVNET_HAVE_GNUTLS
+#if EVCOM_HAVE_GNUTLS
         socket->write_action = socket->secure ? secure_full_goodbye : full_close;
 #else 
         socket->write_action = full_close;
@@ -193,7 +193,7 @@ change_state_for_empty_out_stream (evnet_socket *socket)
   } else {
     /* Got Half Close. */
     if (socket->write_action) {
-#if EVNET_HAVE_GNUTLS
+#if EVCOM_HAVE_GNUTLS
       socket->write_action = socket->secure ? secure_half_goodbye : half_close;
 #else 
       socket->write_action = half_close;
@@ -204,22 +204,22 @@ change_state_for_empty_out_stream (evnet_socket *socket)
 }
 
 static void
-update_write_buffer_after_send (evnet_socket *socket, ssize_t sent)
+update_write_buffer_after_send (evcom_socket *socket, ssize_t sent)
 {
-  evnet_queue *q = evnet_queue_last(&socket->out_stream);
-  evnet_buf *to_write = evnet_queue_data(q, evnet_buf, queue);
+  evcom_queue *q = evcom_queue_last(&socket->out_stream);
+  evcom_buf *to_write = evcom_queue_data(q, evcom_buf, queue);
   to_write->written += sent;
   socket->written += sent;
 
   if (to_write->written == to_write->len) {
 
-    evnet_queue_remove(q);
+    evcom_queue_remove(q);
 
     if (to_write->release) {
       to_write->release(to_write);
     }  
 
-    if (evnet_queue_empty(&socket->out_stream)) {
+    if (evcom_queue_empty(&socket->out_stream)) {
       change_state_for_empty_out_stream(socket);
       if (socket->on_drain)
         socket->on_drain(socket);
@@ -227,15 +227,15 @@ update_write_buffer_after_send (evnet_socket *socket, ssize_t sent)
   }
 }
 
-#if EVNET_HAVE_GNUTLS
-static int secure_socket_send (evnet_socket *socket);
-static int secure_socket_recv (evnet_socket *socket);
+#if EVCOM_HAVE_GNUTLS
+static int secure_socket_send (evcom_socket *socket);
+static int secure_socket_recv (evcom_socket *socket);
 
 /* TODO can this be done without ignoring SIGPIPE?  */
 static ssize_t 
 nosigpipe_push (gnutls_transport_ptr_t data, const void *buf, size_t len)
 {
-  evnet_socket *socket = (evnet_socket*)data;
+  evcom_socket *socket = (evcom_socket*)data;
   assert(socket->secure);
   int flags = 0;
 #ifdef MSG_NOSIGNAL
@@ -254,7 +254,7 @@ nosigpipe_push (gnutls_transport_ptr_t data, const void *buf, size_t len)
 }
 
 static int
-secure_handshake (evnet_socket *socket)
+secure_handshake (evcom_socket *socket)
 {
   assert(socket->secure);
 
@@ -268,7 +268,7 @@ secure_handshake (evnet_socket *socket)
   if (r == GNUTLS_E_INTERRUPTED || r == GNUTLS_E_AGAIN)
     return AGAIN;
 
-  evnet_socket_reset_timeout(socket);
+  evcom_socket_reset_timeout(socket);
 
   if (!socket->connected) {
     socket->connected = TRUE;
@@ -287,17 +287,17 @@ secure_handshake (evnet_socket *socket)
 }
 
 static int
-secure_socket_send (evnet_socket *socket)
+secure_socket_send (evcom_socket *socket)
 {
   ssize_t sent;
 
-  if (evnet_queue_empty(&socket->out_stream)) {
+  if (evcom_queue_empty(&socket->out_stream)) {
     ev_io_stop(SOCKET_LOOP_ &socket->write_watcher);
     return AGAIN;
   }
 
-  evnet_queue *q = evnet_queue_last(&socket->out_stream);
-  evnet_buf *to_write = evnet_queue_data(q, evnet_buf, queue);
+  evcom_queue *q = evcom_queue_last(&socket->out_stream);
+  evcom_buf *to_write = evcom_queue_data(q, evcom_buf, queue);
 
   assert(socket->secure);
 
@@ -312,7 +312,7 @@ secure_socket_send (evnet_socket *socket)
 
   if (sent == 0) return AGAIN;
 
-  evnet_socket_reset_timeout(socket);
+  evcom_socket_reset_timeout(socket);
 
   if (sent == GNUTLS_E_INTERRUPTED || sent == GNUTLS_E_AGAIN) {
     return AGAIN;
@@ -331,7 +331,7 @@ secure_socket_send (evnet_socket *socket)
 }
 
 static int
-secure_socket_recv (evnet_socket *socket)
+secure_socket_recv (evcom_socket *socket)
 {
   char recv_buffer[socket->chunksize];
   size_t recv_buffer_size = socket->chunksize;
@@ -352,7 +352,7 @@ secure_socket_recv (evnet_socket *socket)
     return AGAIN;
   }
 
-  evnet_socket_reset_timeout(socket);
+  evcom_socket_reset_timeout(socket);
 
   /* A server may also receive GNUTLS_E_REHANDSHAKE when a client has
    * initiated a handshake. In that case the server can only initiate a
@@ -392,7 +392,7 @@ secure_socket_recv (evnet_socket *socket)
 }
 
 static int
-secure_full_goodbye (evnet_socket *socket)
+secure_full_goodbye (evcom_socket *socket)
 {
   assert(socket->secure);
 
@@ -411,7 +411,7 @@ secure_full_goodbye (evnet_socket *socket)
 }
 
 static int
-secure_half_goodbye (evnet_socket *socket)
+secure_half_goodbye (evcom_socket *socket)
 {
   assert(socket->secure);
 
@@ -430,7 +430,7 @@ secure_half_goodbye (evnet_socket *socket)
 }
 
 void
-evnet_socket_set_secure_session (evnet_socket *socket, gnutls_session_t session)
+evcom_socket_set_secure_session (evcom_socket *socket, gnutls_session_t session)
 {
   socket->session = session;
   socket->secure = TRUE;
@@ -438,19 +438,19 @@ evnet_socket_set_secure_session (evnet_socket *socket, gnutls_session_t session)
 #endif /* HAVE GNUTLS */
 
 static int
-socket_send (evnet_socket *socket)
+socket_send (evcom_socket *socket)
 {
   ssize_t sent;
 
   assert(socket->secure == FALSE);
 
-  if (evnet_queue_empty(&socket->out_stream)) {
+  if (evcom_queue_empty(&socket->out_stream)) {
     ev_io_stop(SOCKET_LOOP_ &socket->write_watcher);
     return AGAIN;
   }
 
-  evnet_queue *q = evnet_queue_last(&socket->out_stream);
-  evnet_buf *to_write = evnet_queue_data(q, evnet_buf, queue);
+  evcom_queue *q = evcom_queue_last(&socket->out_stream);
+  evcom_buf *to_write = evcom_queue_data(q, evcom_buf, queue);
   
   int flags = 0;
 #ifdef MSG_NOSIGNAL
@@ -482,7 +482,7 @@ socket_send (evnet_socket *socket)
     }
   }
 
-  evnet_socket_reset_timeout(socket);
+  evcom_socket_reset_timeout(socket);
 
   if (!socket->connected) {
     socket->connected = TRUE;
@@ -495,7 +495,7 @@ socket_send (evnet_socket *socket)
 }
 
 static int
-socket_recv (evnet_socket *socket)
+socket_recv (evcom_socket *socket)
 {
   char buf[TCP_MAXWIN];
   size_t buf_size = TCP_MAXWIN;
@@ -529,10 +529,10 @@ socket_recv (evnet_socket *socket)
     }
   }
 
-  evnet_socket_reset_timeout(socket);
+  evcom_socket_reset_timeout(socket);
 
   if (recved == 0) {
-    evnet_socket_read_stop(socket);
+    evcom_socket_read_stop(socket);
     socket->read_action = NULL;
     if (socket->write_action == NULL) CLOSE_ASAP(socket);
   }
@@ -544,7 +544,7 @@ socket_recv (evnet_socket *socket)
 }
 
 static void
-assign_file_descriptor (evnet_socket *socket, int fd)
+assign_file_descriptor (evcom_socket *socket, int fd)
 {
   socket->fd = fd;
 
@@ -554,7 +554,7 @@ assign_file_descriptor (evnet_socket *socket, int fd)
   socket->read_action = socket_recv;
   socket->write_action = socket_send;
 
-#if EVNET_HAVE_GNUTLS
+#if EVCOM_HAVE_GNUTLS
   if (socket->secure) {
     gnutls_transport_set_lowat(socket->session, 0); 
     gnutls_transport_set_push_function(socket->session, nosigpipe_push);
@@ -568,10 +568,10 @@ assign_file_descriptor (evnet_socket *socket, int fd)
 }
 
 static void
-server_close_with_error (evnet_server *server, int errorno)
+server_close_with_error (evcom_server *server, int errorno)
 {
   if (server->listening) {
-    evnet_server_detach(server);
+    evcom_server_detach(server);
     close(server->fd); /* TODO do this on the loop? check return value? */
     server->fd = -1;
     server->listening = FALSE;
@@ -583,12 +583,12 @@ server_close_with_error (evnet_server *server, int errorno)
 }
 
 
-/* Retruns evnet_socket if a connection could be accepted. 
+/* Retruns evcom_socket if a connection could be accepted. 
  * The returned socket is not yet attached to the event loop.
  * Otherwise NULL
  */
-static evnet_socket*
-accept_connection (evnet_server *server)
+static evcom_socket*
+accept_connection (evcom_server *server)
 {
   struct sockaddr address; /* connector's address information */
   socklen_t addr_len = sizeof(address);
@@ -603,7 +603,7 @@ accept_connection (evnet_server *server)
     goto error;
   }
 
-  evnet_socket *socket = NULL;
+  evcom_socket *socket = NULL;
 
   if (server->on_connection) {
     socket = server->on_connection(server, (struct sockaddr*)&address);
@@ -639,7 +639,7 @@ error:
 static void 
 on_connection (EV_P_ ev_io *watcher, int revents)
 {
-  evnet_server *server = watcher->data;
+  evcom_server *server = watcher->data;
 
   assert(server->listening);
 #if EV_MULTIPLICITY
@@ -653,14 +653,14 @@ on_connection (EV_P_ ev_io *watcher, int revents)
   }
 
   /* accept as many connections as possible */
-  evnet_socket *socket;
+  evcom_socket *socket;
   while ((socket = accept_connection(server))) {
-    evnet_socket_attach(EV_A_ socket);
+    evcom_socket_attach(EV_A_ socket);
   }
 }
 
 int
-evnet_server_listen (evnet_server *server, struct addrinfo *addrinfo, int backlog)
+evcom_server_listen (evcom_server *server, struct addrinfo *addrinfo, int backlog)
 {
   int fd = -1;
   assert(server->listening == FALSE);
@@ -710,13 +710,13 @@ evnet_server_listen (evnet_server *server, struct addrinfo *addrinfo, int backlo
  * existing connections.
  */
 void 
-evnet_server_close (evnet_server *server)
+evcom_server_close (evcom_server *server)
 {
   server_close_with_error(server, 0);
 }
 
 void
-evnet_server_attach (EV_P_ evnet_server *server)
+evcom_server_attach (EV_P_ evcom_server *server)
 {
   ev_io_start (EV_A_ &server->connection_watcher);
 #if EV_MULTIPLICITY
@@ -726,7 +726,7 @@ evnet_server_attach (EV_P_ evnet_server *server)
 }
 
 void
-evnet_server_detach (evnet_server *server)
+evcom_server_detach (evcom_server *server)
 {
   ev_io_stop (SERVER_LOOP_ &server->connection_watcher);
 #if EV_MULTIPLICITY
@@ -736,7 +736,7 @@ evnet_server_detach (evnet_server *server)
 }
 
 void 
-evnet_server_init (evnet_server *server)
+evcom_server_init (evcom_server *server)
 {
   server->attached = FALSE;
   server->listening = FALSE;
@@ -751,7 +751,7 @@ evnet_server_init (evnet_server *server)
 static void 
 on_timeout (EV_P_ ev_timer *watcher, int revents)
 {
-  evnet_socket *socket = watcher->data;
+  evcom_socket *socket = watcher->data;
 
 #if EV_MULTIPLICITY
   assert(socket->loop == loop);
@@ -766,12 +766,12 @@ on_timeout (EV_P_ ev_timer *watcher, int revents)
 }
 
 static void
-release_write_buffer(evnet_socket *socket)
+release_write_buffer(evcom_socket *socket)
 {
-  while (!evnet_queue_empty(&socket->out_stream)) {
-    evnet_queue *q = evnet_queue_last(&socket->out_stream);
-    evnet_buf *buf = evnet_queue_data(q, evnet_buf, queue);
-    evnet_queue_remove(q);
+  while (!evcom_queue_empty(&socket->out_stream)) {
+    evcom_queue *q = evcom_queue_last(&socket->out_stream);
+    evcom_buf *buf = evcom_queue_data(q, evcom_buf, queue);
+    evcom_queue_remove(q);
     if (buf->release) buf->release(buf);
   }
 }
@@ -780,7 +780,7 @@ release_write_buffer(evnet_socket *socket)
 static void 
 on_io_event(EV_P_ ev_io *watcher, int revents)
 {
-  evnet_socket *socket = watcher->data;
+  evcom_socket *socket = watcher->data;
 
   if (revents & EV_ERROR) {
     socket->errorno = 1;
@@ -827,7 +827,7 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
     ev_clear_pending (EV_A_ &socket->read_watcher);
     ev_clear_pending (EV_A_ &socket->timeout_watcher);
 
-    evnet_socket_detach(socket);
+    evcom_socket_detach(socket);
     assert(socket->fd == -1);
 
     if (socket->on_close) socket->on_close(socket);
@@ -844,7 +844,7 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
  *   gnutls_db_set_ptr (socket->session, _);
  */
 void 
-evnet_socket_init (evnet_socket *socket, float timeout)
+evcom_socket_init (evcom_socket *socket, float timeout)
 {
   socket->fd = -1;
   socket->server = NULL;
@@ -854,7 +854,7 @@ evnet_socket_init (evnet_socket *socket, float timeout)
   socket->attached = FALSE;
   socket->connected = FALSE;
 
-  evnet_queue_init(&socket->out_stream);
+  evcom_queue_init(&socket->out_stream);
 
   ev_init(&socket->write_watcher, on_io_event);
   socket->write_watcher.data = socket;
@@ -868,7 +868,7 @@ evnet_socket_init (evnet_socket *socket, float timeout)
   socket->errorno = 0;
 
   socket->secure = FALSE;
-#if EVNET_HAVE_GNUTLS
+#if EVCOM_HAVE_GNUTLS
   socket->gnutls_errorno = 0;
   socket->session = NULL;
 #endif 
@@ -888,24 +888,24 @@ evnet_socket_init (evnet_socket *socket, float timeout)
 }
 
 void 
-evnet_socket_close (evnet_socket *socket)
+evcom_socket_close (evcom_socket *socket)
 {
   socket->got_half_close = TRUE;
-  if (evnet_queue_empty(&socket->out_stream)) {
+  if (evcom_queue_empty(&socket->out_stream)) {
     change_state_for_empty_out_stream(socket);
   }
 }
 
 void 
-evnet_socket_full_close (evnet_socket *socket)
+evcom_socket_full_close (evcom_socket *socket)
 {
   socket->got_full_close = TRUE;
-  if (evnet_queue_empty(&socket->out_stream)) {
+  if (evcom_queue_empty(&socket->out_stream)) {
     change_state_for_empty_out_stream(socket);
   }
 }
 
-void evnet_socket_force_close (evnet_socket *socket)
+void evcom_socket_force_close (evcom_socket *socket)
 {
   release_write_buffer(socket);
 
@@ -914,16 +914,16 @@ void evnet_socket_force_close (evnet_socket *socket)
   ev_clear_pending (SOCKET_LOOP_ &socket->timeout_watcher);
 
   socket->write_action = socket->read_action = NULL;
-  // socket->errorno = EVNET_SOCKET_ERROR_FORCE_CLOSE
+  // socket->errorno = EVCOM_SOCKET_ERROR_FORCE_CLOSE
   
   if (socket->fd > 0) close(socket->fd);
   socket->fd = -1;
 
-  evnet_socket_detach(socket);
+  evcom_socket_detach(socket);
 }
 
 void 
-evnet_socket_write (evnet_socket *socket, evnet_buf *buf)
+evcom_socket_write (evcom_socket *socket, evcom_buf *buf)
 {
   if (socket->write_action == NULL) {
     assert(0 && "Do not write to a closed socket"); 
@@ -934,7 +934,7 @@ evnet_socket_write (evnet_socket *socket, evnet_buf *buf)
     goto error;
   }
 
-  evnet_queue_insert_head(&socket->out_stream, &buf->queue);
+  evcom_queue_insert_head(&socket->out_stream, &buf->queue);
   buf->written = 0;
 
   if (socket->attached) {
@@ -947,13 +947,13 @@ error:
 }
 
 void 
-evnet_socket_reset_timeout (evnet_socket *socket)
+evcom_socket_reset_timeout (evcom_socket *socket)
 {
   ev_timer_again(SOCKET_LOOP_ &socket->timeout_watcher);
 }
 
 static void
-free_simple_buf (evnet_buf *buf)
+free_simple_buf (evcom_buf *buf)
 {
   free(buf->base);
   free(buf);
@@ -963,18 +963,18 @@ free_simple_buf (evnet_buf *buf)
  * NOTE: Allocates memory. Avoid for performance applications.
  */ 
 void
-evnet_socket_write_simple (evnet_socket *socket, const char *str, size_t len)
+evcom_socket_write_simple (evcom_socket *socket, const char *str, size_t len)
 {
-  evnet_buf *buf = malloc(sizeof(evnet_buf));
+  evcom_buf *buf = malloc(sizeof(evcom_buf));
   buf->release = free_simple_buf;
   buf->base = strdup(str);
   buf->len = len;
 
-  evnet_socket_write(socket, buf);
+  evcom_socket_write(socket, buf);
 }
 
 void
-evnet_socket_attach (EV_P_ evnet_socket *socket)
+evcom_socket_attach (EV_P_ evcom_socket *socket)
 {
 #if EV_MULTIPLICITY
   socket->loop = loop;
@@ -993,7 +993,7 @@ evnet_socket_attach (EV_P_ evnet_socket *socket)
 }
 
 void
-evnet_socket_detach (evnet_socket *socket)
+evcom_socket_detach (evcom_socket *socket)
 {
   if (socket->attached) {
     ev_io_stop(SOCKET_LOOP_ &socket->write_watcher);
@@ -1007,14 +1007,14 @@ evnet_socket_detach (evnet_socket *socket)
 }
 
 void
-evnet_socket_read_stop (evnet_socket *socket)
+evcom_socket_read_stop (evcom_socket *socket)
 {
   ev_io_stop(SOCKET_LOOP_ &socket->read_watcher);
   ev_clear_pending(SOCKET_LOOP_ &socket->read_watcher);
 }
 
 void
-evnet_socket_read_start (evnet_socket *socket)
+evcom_socket_read_start (evcom_socket *socket)
 {
   if (socket->read_action) {
     ev_io_start(SOCKET_LOOP_ &socket->read_watcher);
@@ -1023,7 +1023,7 @@ evnet_socket_read_start (evnet_socket *socket)
 }
 
 int
-evnet_socket_connect (evnet_socket *s, struct addrinfo *addrinfo)
+evcom_socket_connect (evcom_socket *s, struct addrinfo *addrinfo)
 {
   int fd = socket(addrinfo->ai_family, addrinfo->ai_socktype,
       addrinfo->ai_protocol);

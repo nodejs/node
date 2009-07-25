@@ -5,7 +5,7 @@
 #include "events.h"
 #include <v8.h>
 #include <ev.h>
-#include <evnet.h>
+#include <evcom.h>
 
 namespace node {
 
@@ -26,7 +26,7 @@ class Process : EventEmitter {
   ~Process();
 
   int Spawn (const char *command);
-  int Write (evnet_buf *buf);
+  int Write (evcom_buf *buf);
   int Close (void);
   int Kill (int sig);
 
@@ -54,7 +54,7 @@ class Process : EventEmitter {
   bool got_chld_;
   int exit_code_;
 
-  evnet_queue out_stream_;
+  evcom_queue out_stream_;
 };
 
 } // namespace node 
