@@ -1,3 +1,35 @@
+2009.07.27, Version 0.1.1
+
+  * Simplify and clean up ObjectWrap.
+
+  * Upgrade liboi (which is now called evcom)
+    Upgrade libev to 3.7
+    Upgrade V8 to 1.2.14
+
+  * Array.prototype.encodeUtf8 renamed to node.encodeUtf8(array)
+
+  * Move EventEmitter.prototype.emit() completely into C++.
+
+  * Bugfix: Fix memory leak in event emitters. 
+    http://groups.google.com/group/nodejs/browse_thread/thread/a8d1dfc2fd57a6d1
+
+  * Bugfix: Had problems reading scripts with non-ascii characters.
+
+  * Bugfix: Fix Detach() in node::Server
+
+  * Bugfix: Sockets not properly reattached if reconnected during disconnect
+    event.
+  
+  * Bugfix: Server-side clients not attached between creation and
+    on_connect.
+
+  * Add 'close' event to node.tcp.Server
+
+  * Simplify and clean up http.js. (Takes more advantage of event
+    infrastructure).
+
+  * Add benchmark scripts. Run with "make benchmark".
+
 2009.06.30, Version 0.1.0
 
   * Update documentation, use asciidoc.
