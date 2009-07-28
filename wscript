@@ -1,7 +1,6 @@
 # /usr/bin/env python
 import Options
-import sys
-import os
+import sys, os, shutil
 from os.path import join, dirname, abspath
 from logging import fatal
 
@@ -31,6 +30,29 @@ def set_options(opt):
                 , dest='efence'
                 )
 
+def mkdir_p(dir):
+  if not os.path.exists (dir):
+    os.makedirs (dir)
+
+def conf_subproject (conf, subdir, command=None):
+  print("---- %s ----" % subdir)
+  src = join(conf.srcdir, subdir)
+  if not os.path.exists (src): fatal("no such subproject " + subdir)
+
+  default_tgt = join(conf.blddir, "default", subdir)
+
+  if not os.path.exists(default_tgt):
+    shutil.copytree(src, default_tgt)
+
+  if command:
+    if os.system("cd %s && %s" % (default_tgt, command)) != 0:
+      fatal("Configuring %s failed." % (subdir))
+
+  debug_tgt = join(conf.blddir, "debug", subdir)
+
+  if not os.path.exists(debug_tgt):
+    shutil.copytree(default_tgt, debug_tgt)
+
 def configure(conf):
   conf.check_tool('compiler_cxx')
   conf.check_tool('compiler_cc')
@@ -49,6 +71,9 @@ def configure(conf):
 
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
+
+  conf_subproject(conf, 'deps/udns', './configure')
+  conf_subproject(conf, 'deps/v8')
 
   # Not using TLS yet
   # if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
@@ -75,30 +100,58 @@ def configure(conf):
   conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3', '-m32'])
   conf.write_config_header("config.h")
 
-def build(bld):
-  bld.add_subdirs('deps/libeio deps/libev')
+def build_udns(bld):
+  default_build_dir = bld.srcnode.abspath(bld.env_of_name("default"))
 
-  ### v8
+  default_dir = join(default_build_dir, "deps/udns")
+
+  static_lib = bld.env["staticlib_PATTERN"] % "udns"
+
+  rule = 'cd %s && make'
+
+  default = bld.new_task_gen(
+    target= join("deps/udns", static_lib),
+    rule= rule % default_dir,
+    before= "cxx",
+    install_path= None
+  )
+
+  bld.env["CPPPATH_UDNS"] = "deps/udns"
+  bld.env["STATICLIB_UDNS"] = "udns"
+
+  bld.env_of_name('default')["STATICLIB_UDNS"] = "udns"
+  bld.env_of_name('default')["LIBPATH_UDNS"] = default_dir
+
+  if bld.env["USE_DEBUG"]:
+    debug_build_dir = bld.srcnode.abspath(bld.env_of_name("debug"))
+    debug_dir = join(debug_build_dir, "deps/udns")
+    debug = default.clone("debug")
+    debug.rule = rule % debug_dir
+    #debug.target = join(debug_dir, static_lib)
+    bld.env_of_name('debug')["STATICLIB_UDNS"] = "udns"
+    bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
+
+
+def build_v8(bld):
   deps_src = join(bld.path.abspath(),"deps")
   deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("default")),"deps")
   v8dir_src = join(deps_src,"v8")
   v8dir_tgt = join(deps_tgt, "v8")
   scons = os.path.join(cwd, 'tools/scons/scons.py')
 
-  v8rule = 'cp -rf %s %s && ' \
-           'cd %s && ' \
+  v8rule = 'cd %s && ' \
            'python %s -Q mode=%s library=static snapshot=on'
 
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
-    rule=v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "release"),
+    rule=v8rule % (v8dir_tgt, scons, "release"),
     before="cxx",
     install_path = None
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
-  bld.env["LINKFLAGS_V8"] = ["-pthread", "-m32"]
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
   bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
+  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -109,8 +162,14 @@ def build(bld):
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
     bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
-    v8_debug.rule = v8rule % ( v8dir_src , deps_tgt , v8dir_tgt, scons, "debug")
+    v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug")
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
+
+def build(bld):
+  bld.add_subdirs('deps/libeio deps/libev')
+
+  build_udns(bld)
+  build_v8(bld)
 
   ### evcom
   evcom = bld.new_task_gen("cc", "staticlib")
@@ -164,6 +223,7 @@ def build(bld):
     src/events.cc
     src/http.cc
     src/net.cc
+    src/dns.cc
     src/file.cc
     src/timer.cc
     src/process.cc
@@ -173,12 +233,13 @@ def build(bld):
     src/ 
     deps/v8/include
     deps/libev
+    deps/udns
     deps/libeio
     deps/evcom 
     deps/http_parser
   """
   node.uselib_local = "evcom ev eio http_parser"
-  node.uselib = "V8 EXECINFO PROFILER EFENCE"
+  node.uselib = "UDNS V8 EXECINFO PROFILER EFENCE"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 

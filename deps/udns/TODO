@@ -1,0 +1,69 @@
+$Id: TODO,v 1.13 2007/01/15 21:19:08 mjt Exp $
+
+The following is mostly an internal, not user-visible stuff.
+
+* rearrange an API to make dns_query object owned by application,
+  so that it'll look like this:
+   struct dns_query *q;
+   q = udns_query_alloc(ctx);
+   udns_query_set(q, options, domain_name, flags, ...);
+   udns_query_submit(ctx, q);
+ or
+   udns_query_resolve(ctx, q);
+
+* allow NULL callbacks?  Or provide separate resolver
+  context list of queries which are done but wich did not
+  have callback, and dns_pick() routine to retrieve results
+  from this query, i.e. allow non-callback usage?  The
+  non-callback usage may be handy sometimes (any *good*
+  example?), but it will be difficult to provide type-safe
+  non-callback interface due to various RR-specific types
+  in use.
+
+* DNS_OPT_FLAGS should be DNS_OPT_ADDFLAGS and DNS_OPT_SETFLAGS.
+  Currently one can't add a single flag bit but preserve
+  existing bits... at least not without retrieving all current
+  flags before, which isn't that bad anyway.
+
+* dns_set_opts() may process flags too (such as aaonly etc)
+
+* a way to disable $NSCACHEIP et al processing?
+  (with now separate dns_init() and dns_reset(), it has finer
+  control, but still no way to init from system files but ignore
+  environment variables and the like)
+
+* initialize/open the context automatically, and be more
+  liberal about initialization in general?
+
+* dns_init(ctx, do_open) - make the parameter opposite, aka
+  dns_init(ctx, skip_open) ?
+
+* allow TCP queue?
+
+* And oh, qID should really be random.  Or... not.
+  See notes in udns_resolver.c, dns_newid().
+
+* more accurate error reporting.  Currently, udns always returns TEMPFAIL,
+  but don't specify why it happened (ENOMEM, timeout, etc).
+
+* check the error value returned by recvfrom() and
+  sendto() and determine which errors to ignore.
+
+* maybe merge dns_timeouts() and dns_ioevent(), to have
+  only one entry point for everything?  For traditional
+  select-loop-based eventloop it may be easier, but for
+  callback-driven event loops the two should be separate.
+  Provide an option, or a single dns_events() entry point
+  for select-loop approach, or just call dns_ioevent()
+  from within dns_timeouts() (probably after renaming
+  it to be dns_events()) ?
+
+* implement /etc/hosts lookup too, ala [c-]ares??
+
+* sortlist support?
+
+* windows port?  Oh no please!..  At least, I can't do it myself
+  because of the lack of platform.
+  Ok ok, the Windows port is in progress.  Christian Prahauser
+  from cosy.sbg.ac.at is helping with that.
+  Other folks done some more work in this area.

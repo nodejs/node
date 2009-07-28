@@ -131,7 +131,6 @@ Promise::Create (void)
   promise->Wrap(handle);
 
   promise->Attach();
-  ev_ref(EV_DEFAULT_UC);
 
   return promise;
 }
@@ -142,7 +141,6 @@ Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
   bool r = Emit("success", argc, argv);
 
   Detach();
-  ev_unref(EV_DEFAULT_UC);
 
   return r;
 }
@@ -153,7 +151,36 @@ Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
   bool r = Emit("error", argc, argv);
 
   Detach();
-  ev_unref(EV_DEFAULT_UC);
 
   return r;
+}
+
+void
+EIOPromise::Attach (void)
+{
+  ObjectWrap::Attach();
+  ev_ref(EV_DEFAULT_UC);
+}
+
+void
+EIOPromise::Detach (void)
+{
+  ObjectWrap::Detach();
+  ev_unref(EV_DEFAULT_UC);
+}
+
+EIOPromise*
+EIOPromise::Create (void)
+{
+  HandleScope scope;
+
+  Local<Object> handle =
+    Promise::constructor_template->GetFunction()->NewInstance();
+
+  EIOPromise *promise = new EIOPromise();
+  promise->Wrap(handle);
+
+  promise->Attach();
+
+  return promise;
 }

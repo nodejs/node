@@ -1,0 +1,33 @@
+Source: udns
+Priority: optional
+Maintainer: Michael Tokarev <mjt@corpit.ru>
+Build-Depends: debhelper (>= 4.0.0)
+Standards-Version: 3.7.2
+
+Package: libudns0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: async-capable DNS stub resolver library
+ libudns0 package provides libudns shared library needed
+ to run programs using it
+
+Package: libudns-dev
+Section: libdevel
+Architecture: any
+Depends: libudns0 (= ${Source-Version})
+Description: async-capable DNS stub resolver library, development files
+ This package provides development files needed
+ to build programs using udns library
+
+Package: udns-utils
+Section: net
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: rblcheck
+Description: Several DNS-related utilities built on top of udns library
+ This package includes the following utilities:
+  dnsget - a simple DNS query tool, like `host' or `dig' for usage from
+   a command line, and dnsip, dnsname etc for usage in scripts
+  rblcheck - DNSBL (rbl) checker
+ All the utilities are built using udns library

@@ -1,0 +1,222 @@
+Assorted notes about udns (library).
+
+UDP-only mode
+~~~~~~~~~~~~~
+
+First of all, since udns is (currently) UDP-only, there are some
+shortcomings.
+
+It assumes that a reply will fit into a UDP buffer.  With adoption of EDNS0,
+and general robustness of IP stacks, in most cases it's not an issue.  But
+in some cases there may be problems:
+
+ - if an RRset is "very large" so it does not fit even in buffer of size
+   requested by the library (current default is 4096; some servers limits
+   it further), we will not see the reply, or will only see "damaged"
+   reply (depending on the server).
+
+ - many DNS servers ignores EDNS0 option requests.  In this case, no matter
+   which buffer size udns library will request, such servers reply is limited
+   to 512 bytes (standard pre-EDNS0 DNS packet size).  (Udns falls back to
+   non-EDNO0 query if EDNS0-enabled one received FORMERR or NOTIMPL error).
+
+The problem is that with this, udns currently will not consider replies with
+TC (truncation) bit set, and will treat such replies the same way as it
+treats SERVFAIL replies, thus trying next server, or temp-failing the query
+if no more servers to try.  In other words, if the reply is really large, or
+if the servers you're using don't support EDNS0, your application will be
+unable to resolve a given name.
+
+Yet it's not common situation - in practice, it's very rare.
+
+Implementing TCP mode isn't difficult, but it complicates API significantly.
+Currently udns uses only single UDP socket (or - maybe in the future - two,
+see below), but in case of TCP, it will need to open and close sockets for
+TCP connections left and right, and that have to be integrated into an
+application's event loop in an easy and efficient way.  Plus all the
+timeouts - different for connect(), write, and several stages of read.
+
+IPv6 vs IPv4 usage
+~~~~~~~~~~~~~~~~~~
+
+This is only relevant for nameservers reachable over IPv6, NOT for IPv6
+queries.  I.e., if you've IPv6 addresses in 'nameservers' line in your
+/etc/resolv.conf file.  Even more: if you have BOTH IPv6 AND IPv4 addresses
+there.  Or pass them to udns initialization routines.
+
+Since udns uses a single UDP socket to communicate with all nameservers,
+it should support both v4 and v6 communications.  Most current platforms
+supports this mode - using PF_INET6 socket and V4MAPPED addresses, i.e,
+"tunnelling" IPv4 inside IPv6.  But not all systems supports this.  And
+more, it has been said that such mode is deprecated.
+
+So, list only IPv4 or only IPv6 addresses, but don't mix them, in your
+/etc/resolv.conf.
+
+An alternative is to use two sockets instead of 1 - one for IPv6 and one
+for IPv4.  For now I'm not sure if it's worth the complexity - again, of
+the API, not the library itself (but this will not simplify library either).
+
+Single socket for all queries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Using single UDP socket for sending queries to all nameservers has obvious
+advantages.  First it's, again, trivial, simple to use API.  And simple
+library too.  Also, after sending queries to all nameservers (in case first
+didn't reply in time), we will be able to receive late reply from first
+nameserver and accept it.
+
+But this mode has disadvantages too.  Most important is that it's much easier
+to send fake reply to us, as the UDP port where we expects the reply to come
+to is constant during the whole lifetime of an application.  More secure
+implementations uses random port for every single query.  While port number
+(16 bits integer) can not hold much randomness, it's still of some help.
+Ok, udns is a stub resolver, so it expects sorta friendly environment, but
+on LAN it's usually much easier to fire an attack, due to the speed of local
+network, where a bad guy can generate alot of packets in a short time.
+
+Choosing of DNS QueryID
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Currently, udns uses sequential number for query IDs.  Which simplifies
+attacks even more (c.f. the previous item about single UDP port), making
+them nearly trivial.  The library should use random number for query ID.
+But there's no portable way to get random numbers, even on various flavors
+of Unix.  It's possible to use low bits from tv_nsec field returned by
+gettimeofday() (current time, nanoseconds), but I wrote the library in
+a way to avoid making system calls where possible, because many syscalls
+means many context switches and slow processes as a result.  Maybe use some
+application-supplied callback to get random values will be a better way,
+defaulting to gettimeofday() method.
+
+Note that a single query - even if (re)sent to different nameservers, several
+times (due to no reply received in time), uses the same qID assigned when it
+was first dispatched.  So we have: single UDP socket (fixed port number),
+sequential (= trivially predictable) qIDs, and long lifetime of those qIDs.
+This all makes (local) attacks against the library really trivial.
+
+See also comments in udns_resolver.c, udns_newid().
+
+And note that at least some other stub resolvers out there (like c-ares
+for example) also uses sequential qID.
+
+Assumptions about RRs returned
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Currently udns processes records in the reply it received sequentially.
+This means that order of the records is significant.  For example, if
+we asked for foo.bar A, but the server returned that foo.bar is a CNAME
+(alias) for bar.baz, and bar.baz, in turn, has address 1.2.3.4, when
+the CNAME should come first in reply, followed by A.  While DNS specs
+does not say anything about order of records - it's an rrSET - unordered, -
+I think an implementation which returns the records in "wrong" order is
+somewhat insane...
+
+CNAME recursion
+~~~~~~~~~~~~~~~
+
+Another interesting point is the handling of CNAMEs returned as replies
+to non-CNAME queries.  If we asked for foo.bar A, but it's a CNAME, udns
+expects BOTH the CNAME itself and the target DN to be present in the reply.
+In other words, udns DOES NOT RECURSE CNAMES.  If we asked for foo.bar A,
+but only record in reply was that foo.bar is a CNAME for bar.baz, udns will
+return no records to an application (NXDOMAIN).  Strictly speaking, udns
+should repeat the query asking for bar.baz A, and recurse.  But since it's
+stub resolver, recursive resolver should recurse for us instead.
+
+It's not very difficult to implement, however.  Probably with some (global?)
+flag to en/dis-able the feature.  Provided there's some demand for it.
+
+To clarify: udns handles CNAME recursion in a single reply packet just fine.
+
+Note also that standard gethostbyname() routine does not recurse in this
+situation, too.
+
+Error reporting
+~~~~~~~~~~~~~~~
+
+Too many places in the code (various failure paths) sets generic "TEMPFAIL"
+error condition.  For example, if no nameserver replied to our query, an
+application will get generic TEMPFAIL, instead of something like TIMEDOUT.
+This probably should be fixed, but most applications don't care about the
+exact reasons of failure - 4 common cases are already too much:
+  - query returned some valid data
+  - NXDOMAIN
+  - valid domain but no data of requested type - =NXDOMAIN in most cases
+  - temporary error - this one sometimes (incorrectly!) treated as NXDOMAIN
+    by (naive) applications.
+DNS isn't yes/no, it's at least 3 variants, temp err being the 3rd important
+case!  And adding more variations for the temp error case is complicating things
+even more - again, from an application writer standpoint.  For diagnostics,
+such more specific error cases are of good help.
+
+Planned API changes
+~~~~~~~~~~~~~~~~~~~
+
+At least one thing I want to change for 0.1 version is a way how queries are
+submitted and how replies are handled.
+
+I want to made dns_query object to be owned by an application.  So that instead
+of udns library allocating it for the lifetime of query, it will be pre-
+allocated by an application.  This simplifies and enhances query submitting
+interface, and complicates it a bit too, in simplest cases.
+
+Currently, we have:
+
+dns_submit_dn(dn, cls, typ, flags, parse, cbck, data)
+dns_submit_p(name, cls, typ, flags, parse, cbck, data)
+dns_submit_a4(ctx, name, flags, cbck, data)
+
+and so on -- with many parameters missed for type-specific cases, but generic
+cases being too complex for most common usage.
+
+Instead, with dns_query being owned by an app, we will be able to separately
+set up various parts of the query - domain name (various forms), type&class,
+parser, flags, callback...  and even change them at runtime.  And we will also
+be able to reuse query structures, instead of allocating/freeing them every
+time.  So the whole thing will look something like:
+
+ q = dns_alloc_query();
+ dns_submit(dns_q_flags(dns_q_a4(q, name, cbck), DNS_F_NOSRCH), data);
+
+The idea is to have a set of functions accepting struct dns_query* and
+returning it (so the calls can be "nested" like the above), to set up
+relevant parts of the query - specific type of callback, conversion from
+(type-specific) query parameters into a domain name (this is for type-
+specific query initializers), and setting various flags and options and
+type&class things.
+
+One example where this is almost essential - if we want to support
+per-query set of nameservers (which isn't at all useless: imagine a
+high-volume mail server, were we want to direct DNSBL queries to a separate
+set of nameservers, and rDNS queries to their own set and so on).  Adding
+another argument (set of nameservers to use) to EVERY query submitting
+routine is.. insane.  Especially since in 99% cases it will be set to
+default NULL.  But with such "nesting" of query initializers, it becomes
+trivial.
+
+Another way to do the same is to manipulate query object right after a
+query has been submitted, but before any events processing (during this
+time, query object is allocated and initialized, but no actual network
+packets were sent - it will happen on the next event processing).  But
+this way it become impossible to perform syncronous resolver calls, since
+those calls hide query objects they use internally.
+
+Speaking of replies handling - the planned change is to stop using dynamic
+memory (malloc) inside the library.  That is, instead of allocating a buffer
+for a reply dynamically in a parsing routine (or memdup'ing the raw reply
+packet if no parsing routine is specified), I want udns to return the packet
+buffer it uses internally, and change parsing routines to expect a buffer
+for result.  When parsing, a routine will return true amount of memory it
+will need to place the result, regardless of whenever it has enough room
+or not, so that an application can (re)allocate properly sized buffer and
+call a parsing routine again.
+
+Another modification I plan to include is to have an ability to work in
+terms of domain names (DNs) as used with on-wire DNS packets, not only
+with asciiz representations of them.  For this to work, the above two
+changes (query submission and result passing) have to be completed first
+(esp. the query submission part), so that it will be possible to specify
+some additional query flags (for example) to request domain names instead
+of the text strings, and to allow easy query submissions with either DNs
+or text strings.

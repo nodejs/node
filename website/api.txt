@@ -1008,6 +1008,75 @@ necessary in case of errors (parse error or so).
 
 
 
+=== DNS
+
+Here is an example of which reads domains from the command line, resolves
+them, then reverse resolves the IP addresses returned.
+
+-------------------------------------------------------------------------
+for (var i = 2; i < ARGV.length; i++) {
+  var name = ARGV[i]
+  puts("looking up " + name);
+  var resolution = node.dns.resolve4(name);
+
+  resolution.addCallback(function (addresses, ttl, cname) {
+    puts("addresses: " + JSON.stringify(addresses));
+    puts("ttl: " + JSON.stringify(ttl));
+    puts("cname: " + JSON.stringify(cname));
+
+    for (var i = 0; i < addresses.length; i++) {
+      var a = addresses[i];
+      var reversing = node.dns.reverse(a);
+      reversing.addCallback( function (domains, ttl, cname) {
+        puts("reverse for " + a + ": " + JSON.stringify(domains));
+      });
+      reversing.addErrback( function (code, msg) {
+        puts("reverse for " + a + " failed: " + msg);
+      });
+    }
+  });
+
+  resolution.addErrback(function (code, msg) {
+    puts("error: " + msg);
+  });
+}
+-------------------------------------------------------------------------
+
+
++node.dns.resolve4(domain)+::
+
+Resolves a domain (e.g. +"google.com"+) into an array of IPv4 addresses (e.g.
++["74.125.79.104","74.125.79.105","74.125.79.106","74.125.79.147","74.125.79.99","74.125.79.103"]+).
+This function returns a promise. 
+- on success: returns +addresses, ttl, cname+. +ttl+ (time-to-live) is an integer
+  specifying the number of seconds this result is valid for. +cname+ is the
+  canonical name for the query.
+- on error: returns +code, msg+. +code+ is one of the error codes listed
+  below and +msg+ is a string describing the error in English. 
+
++node.dns.resolve6(domain)+::
+
+The same as +node.dns.resolve4()+ except for IPv6 queries (an +AAAA+ query).
+
++node.dns.reverse(ip)+::
+
+Reverse resolves an ip address to an array of domain names. 
+
+- on success: returns +domains, ttl, cname+. +ttl+ (time-to-live) is an integer
+  specifying the number of seconds this result is valid for. +cname+ is the
+  canonical name for the query. +domains+ is an array of domains.
+- on error: returns +code, msg+. +code+ is one of the error codes listed
+  below and +msg+ is a string describing the error in English. 
+
+
+Each DNS query can return an error code.
+
+- +node.dns.TEMPFAIL+: timeout, SERVFAIL or similar.
+- +node.dns.PROTOCOL+: got garbled reply.
+- +node.dns.NXDOMAIN+: domain does not exists.
+- +node.dns.NODATA+: domain exists but no data of reqd type.
+- +node.dns.NOMEM+: out of memory while processing.
+- +node.dns.BADQUERY+: the query is malformed.
 
 
 // vim: set syntax=asciidoc:

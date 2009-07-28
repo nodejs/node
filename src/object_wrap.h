@@ -50,7 +50,7 @@ class ObjectWrap {
    * Attached objects will not be garbage collected, even if
    * all references are lost.
    */
-  void Attach() {
+  virtual void Attach() {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
     attached_++;
@@ -65,7 +65,7 @@ class ObjectWrap {
    *
    * DO NOT CALL THIS FROM DESTRUCTOR
    */
-  void Detach() {
+  virtual void Detach() {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
     assert(attached_ > 0);

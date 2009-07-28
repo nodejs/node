@@ -1,0 +1,93 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+export DH_COMPAT=4
+
+CFLAGS = -Wall -W -Wmissing-prototypes -g
+CDEFS = -DHAVE_POOL
+
+INSTALL = install
+INSTALL_PROGRAM = $(INSTALL) -p
+INSTALL_DATA = $(INSTALL) -p -m0644
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O0
+else
+	CFLAGS += -O2
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+ifeq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+#	CDEFS += -DNDEBUG
+endif
+
+SOVER = 0
+
+config.h:	./configure Makefile.in
+	dh_testdir
+	./configure --enable-ipv6
+
+build:	build-stamp
+build-stamp:	config.h
+	dh_testdir
+	$(MAKE) CFLAGS="$(CFLAGS)" SOVER=$(SOVER) \
+		staticlib sharedlib rblcheck_s dnsget_s
+	mv -f dnsget_s dnsget
+	mv -f rblcheck_s rblcheck
+	mv -f libudns_s.so libudns.so
+	echo 
+	touch $@
+
+clean:
+	dh_testdir
+	rm -f build-stamp
+	if [ -f Makefile ]; then $(MAKE) distclean; fi
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean
+	dh_installdirs
+	dh_installdocs -A NEWS
+
+# libudns
+	dh_install -plibudns$(SOVER) libudns.so.$(SOVER) usr/lib
+
+# libudns-dev
+	dh_install -plibudns-dev libudns.a libudns.so usr/lib
+	dh_install -plibudns-dev udns.h usr/include
+	dh_installman -plibudns-dev udns.3
+	dh_installdocs -plibudns-dev TODO NOTES
+	dh_installexamples -plibudns-dev ex-rdns.c
+
+# udns-utils
+	dh_install -pudns-utils dnsget rblcheck usr/bin
+	dh_installman -pudns-utils dnsget.1 rblcheck.1
+
+binary-indep: build install
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs
+	dh_installdocs
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_makeshlibs -V
+	dh_installdeb
+	dh_shlibdeps -L libudns$(SOVER) -l .
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install

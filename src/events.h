@@ -36,5 +36,16 @@ class Promise : public EventEmitter {
   Promise () : EventEmitter() { }
 };
 
+class EIOPromise : public Promise {
+ public:    
+  static EIOPromise* Create (void);
+
+ protected:
+  void Attach (void);
+  void Detach (void);
+
+  EIOPromise () : Promise() { }
+};
+
 } // namespace node
 #endif

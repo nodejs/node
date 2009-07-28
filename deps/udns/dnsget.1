@@ -1,0 +1,182 @@
+.\" $Id: dnsget.1,v 1.3 2005/04/20 00:55:34 mjt Exp $
+.\" dnsget manpage
+.\"
+.\" Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
+.\" This file is part of UDNS library, an async DNS stub resolver.
+.\"
+.\" This library is free software; you can redistribute it and/or
+.\" modify it under the terms of the GNU Lesser General Public
+.\" License as published by the Free Software Foundation; either
+.\" version 2.1 of the License, or (at your option) any later version.
+.\"
+.\" This library is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this library, in file named COPYING.LGPL; if not,
+.\" write to the Free Software Foundation, Inc., 59 Temple Place,
+.\" Suite 330, Boston, MA  02111-1307  USA
+
+.TH dnsget 1 "Apr 2005" "User Utilities"
+
+.SH NAME
+dnsget \- DNS lookup utility
+
+.SH SYNOPSYS
+.B dnsget
+.RB [\| \-v \||\| \-q \|]
+.RB [\| \-c
+.IR class \|]
+.RB [\| \-t
+.IR type \|]
+.RB [\| \-o
+.IR option : value \]
+.IR name \|.\|.\|.
+
+.SH DESCRIPTION
+.B dnsget
+is a simple command-line to perform DNS lookups, similar to
+.BR host (1)
+and
+.BR dig (1).
+It is useable for both interactive/debugging scenarious and
+in scripts.
+The program is implemented using
+.BR udns (3)
+library.
+
+.PP
+By default,
+.B dnsget
+produces a human-readable output, similar to
+.RS
+.nf
+alias.example.com. CNAME www.example.com.
+www.example.com. A 192.168.1.1
+www.example.com. MX 10 mx.example.com.
+.fi
+.RE
+which is just sufficient to see how a given name resolves.
+Output format is controllable with
+.B \-v
+and
+.B \-q
+options -- the former increases verbosity level up to printing
+the whole DNS contents of all packets sent and received, which
+is suitable for debugging DNS problems, while the latter reduces
+the level, making output more quiet, up to bare result with no
+error messages, which is good for scripts.
+
+.SH OPTIONS
+
+The following options are recognized by
+.BR dnsget :
+
+.TP
+.B \-v
+produce more detailed output.  More
+.BR \-v 's
+means more details will be produced.  With single
+.BR \-v , dnsget
+will print contents of all received DNS packets (in a readable format),
+while with
+.BR \-vv ,
+it will output all outgoing DNS packets too.
+
+.TP
+.B \-q
+the opposite for \fB\-v\fR -- produce less detailed output.
+With single
+.BR \-q , dnsget
+will only show (decoded) data from final DNS resource records (RR),
+while
+.B \-qq
+also suppresses error messages.
+
+.TP
+\fB\-t \fItype\fR
+request record(s) of the given type \fItype\fR.  By default,
+.B dnsget
+will ask for IPv4 address (A) record, or for PTR record if the
+argument in question is an IPv4 or IPv6 address.  Recognized
+types include A, AAAA, MX, TXT, CNAME, PTR, NS, SOA, ANY and
+others.
+
+.TP
+\fB\-c \fIclass\fR
+request DNS record(s) of the given class \fIclass\fR.  By
+default
+.B dnsget
+uses IN class.  Valid classes include IN, CH, HS, ANY.
+
+.TP
+.B \-a
+(compatibility option).  Equivalent to setting query type to
+.B ANY
+and increasing verbosity level
+.RB ( \-v ).
+
+.TP
+.B \-C
+(planned)
+
+.TP
+.B \-x
+(planned)
+
+.TP
+\fB\-o \fIoption\fR:\fIvalue\fR
+Set resolver option \fIoption\fR to the value \fIvalue\fR
+(may be specified several times).  The same as setting
+.RB $ RES_OPTIONS
+environment variable.  The following options are recognized:
+.RS
+.TP
+\fBtimeout\fR:\fIsec\fR
+Set initial query timeout to \fIsec\fR.
+.TP
+\fBattempts\fR:\fInum\fR
+(re)try every query \fInum\fR times before failing.
+.TP
+\fBudpbuf\fR:\fIbytes\fR
+set DNS UDP buffer size to \fIbytes\fR bytes.  Valid values
+are from 512 to 65535.  If \fIbytes\fR is greather than 512,
+EDNS0 (RFC 2671) extensions will be used.
+.TP
+\fBport\fR:\fInum\fR
+Use given UDP port number \fInum\fR instead of the default port 53 (domain).
+.RE
+
+.TP
+\fB\-n \fInameserver\fR
+Use the given nameserver(s) (may be specified more than once)
+instead of the default.  Using this option has the same same effect as 
+.RB $ NSCACHEIP
+or
+.RB $ NAMESERVERS
+environment variables, with the only difference that only IPv4 addresses
+are recognized for now, and it is possible to specify names (which will
+be resolved using default settings) instead of IP addresses.
+
+.TP
+.B \-h
+print short help and exit.
+
+.SH "RETURN VALUE"
+When all names where resovled successefully,
+.B dnsget
+exits with zero exit status.  If at least one name was not found,
+.B dnsget
+will exit with return code 100.  If some other error occured during
+name resolution, it will exit with code 99.  In case of usage or
+initialization error,
+.B dnsget
+will return 1.
+
+.SH "SEE ALSO"
+.BR host (1)
+.BR dig (1)
+.BR resolv.conf (5)
+.BR udns (3).

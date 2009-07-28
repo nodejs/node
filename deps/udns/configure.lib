@@ -1,0 +1,268 @@
+# configure.lib
+# a library of shell routines for simple autoconf system
+#
+
+set -e
+ac_substitutes=
+rm -f conftest* config.log
+exec 5>config.log
+cat <<EOF >&5
+This file contains any messages produced by compilers etc while
+running configure, to aid debugging if configure script makes a mistake.
+
+EOF
+
+case `echo "a\c"` in
+  *c*) ac_en=-n ac_ec= ;;
+  *)   ac_en= ac_ec='\c' ;;
+esac
+
+##### Messages
+ac_msg() {
+  echo $ac_en "$*... $ac_ec"
+  echo ">>> $*" >&5
+}
+ac_checking() {
+  echo $ac_en "checking $*... $ac_ec"
+  echo ">>> checking $*" >&5
+}
+ac_result() {
+  echo "$1"
+  echo "=== $1" >&5
+}
+ac_fatal() {
+  echo "configure: fatal: $*" >&2
+  echo "=== FATAL: $*" >&5
+  exit 1
+}
+ac_warning() {
+  echo "configure: warning: $*" >&2
+  echo "=== WARNING: $*" >&5
+}
+ac_ign() {
+  "$@" || :
+}
+
+# ac_run command...
+# captures output in conftest.out
+ac_run() {
+  # apparently UnixWare (for one) /bin/sh optimizes the following "if"
+  # "away", by checking if there's such a command BEFORE redirecting
+  # output.  So error message (like "gcc: command not found") goes
+  # to stderr instead of to conftest.out, and `cat conftest.out' below
+  # fails.
+  if "$@" >conftest.out 2>&1; then
+    return 0
+  else
+    echo "==== Command invocation failed. Command line was:" >&5
+    echo "$*" >&5
+    echo "==== compiler input was:" >&5
+    cat conftest.c >&5
+    echo "==== output was:" >&5
+    cat conftest.out >&5
+    echo "====" >&5
+    return 1
+  fi
+}
+
+# common case for ac_verbose: yes/no result
+ac_yesno() {
+  ac_checking "$1"
+  shift
+  if "$@"; then
+    ac_result yes
+    return 0
+  else
+    ac_result no
+    return 1
+  fi
+}
+
+ac_subst() {
+  ac_substitutes="$ac_substitutes $*"
+}
+
+ac_define() {
+  CDEFS="$CDEFS -D$1=${2:-1}"
+}
+
+ac_have() {
+  ac_what=$1; shift
+  if "$@"; then
+    ac_define HAVE_$ac_what
+    eval ac_have_$ac_what=yes
+    return 0
+  else
+    eval ac_have_$ac_what=no
+    return 1
+  fi
+}
+
+##### Compiling, linking
+
+# run a compiler
+ac_run_compiler() {
+  rm -f conftest*; cat >conftest.c
+  ac_run $CC $CFLAGS $CDEFS "$@" conftest.c
+}
+
+ac_compile() {
+  ac_run_compiler -c
+}
+
+ac_link() {
+  ac_run_compiler -o conftest $LIBS "$@"
+}
+
+ac_cpp() {
+  ac_run_compiler -E "$@"
+}
+
+### check for C compiler.  Set $CC, $CFLAGS etc
+ac_prog_c_compiler_v() {
+  ac_checking "for C compiler"
+  rm -f conftest*
+  echo 'int main(int argc, char **argv) { return 0; }' >conftest.c
+
+  if [ -n "$CC" ]; then
+    if ac_run $CC -o conftest conftest.c && ac_run ./conftest; then
+      ac_result "\$CC ($CC)"
+    else
+      ac_result no
+      ac_fatal "\$CC ($CC) is not a working compiler"
+    fi
+  else
+    for cc in gcc cc ; do
+      if ac_run $cc -o conftest conftest.c && ac_run ./conftest; then
+        ac_result "$cc"
+        CC=$cc
+        break
+      fi
+    done
+    if [ -z "$CC" ]; then
+      ac_result no
+      ac_fatal "no working C compiler found in \$PATH. please set \$CC variable"
+    fi
+  fi
+  if [ -z "$CFLAGS" ]; then
+    if ac_yesno "whenever C compiler ($CC) is GNU CC" \
+        ac_grep_cpp yEs_mAsTeR <<EOF
+#ifdef __GNUC__
+  yEs_mAsTeR;
+#endif
+EOF
+    then
+      CFLAGS="-Wall -W -O2 -pipe"
+    else
+      CFLAGS=-O
+    fi
+  fi
+  cc="$CC $CFLAGS"
+  ccld="$cc"
+  if [ -n "$LDFLAGS" ]; then ccld="$ccld $LDFLAGS"; fi
+  if [ -n "$LIBS" ]; then ccld="$ccld $LIBS"; fi
+  if ac_yesno "whenever the C compiler ($ccld)
+           can produce executables" \
+     ac_compile_run <<EOF
+int main() { return 0; }
+EOF
+  then :
+  else
+    ac_fatal "no working C compiler found"
+  fi
+  LD='$(CC)'
+  [ -n "$AR" ] || AR=ar
+  [ -n "$ARFLAGS" ] || ARFLAGS=rv
+  [ -n "$AWK" ] || AWK=awk
+  ac_substitutes="$ac_substitutes CC CFLAGS CDEFS LD LDFLAGS LIBS AR ARFLAGS AWK"
+}
+
+
+ac_prog_ranlib_v() {
+  ac_checking "for ranlib"
+  if [ -n "$RANLIB" ]; then
+    ac_result "\$RANLIB ($RANLIB)"
+  else
+    ifs="$IFS"
+    IFS=:
+    for dir in $PATH; do
+      [ -n "$dir" ] || dir=.
+      if [ -f $dir/ranlib ]; then
+        RANLIB=ranlib
+        break
+      fi
+    done
+    IFS="$ifs"
+    if [ -z "$RANLIB" ]; then ac_result no; RANLIB=:
+    else ac_result "$RANLIB"
+    fi
+  fi
+  ac_substitutes="$ac_substitutes RANLIB"
+}
+
+ac_library_find_v() {
+  ac_checking "for libraries needed for $1"
+  shift
+  fond=
+  rm -f conftest*; cat >conftest.c
+  for lib in "$@"; do
+    if ac_run $CC $CFLAGS $LDFLAGS conftest.c -o conftest $LIBS $lib; then
+      found=y
+      break
+    fi
+  done
+  if [ ! "$found" ]; then
+    ac_result "not found"
+    return 1
+  fi
+  if [ -z "$lib" ]; then
+    ac_result "ok (none needed)"
+  else
+    ac_result "ok ($lib)"
+    LIBS="$LIBS $lib"
+  fi
+}
+
+ac_compile_run() {
+  ac_link "$@" && ac_run ./conftest
+}
+
+ac_grep_cpp() {
+  pattern="$1"; shift
+  ac_cpp "$@" && grep "$pattern" conftest.out >/dev/null
+}
+
+ac_output() {
+  for var in $ac_substitutes; do
+    eval echo "\"s|@$var@|\$$var|\""
+  done >conftest.sed
+  for file in "$@"; do
+    ac_msg "creating $file"
+    if [ -f $file.in ]; then
+      sed -f conftest.sed $file.in > $file.tmp
+      mv -f $file.tmp $file
+      ac_result ok
+    else
+      ac_result failed
+      ac_fatal "$file.in not found"
+    fi
+  done
+  rm -f conftest*
+}
+
+ac_config_h() {
+  h=${1:-config.h}
+  ac_msg "creating $h"
+  rm -f $1.tmp
+  echo "/* automatically generated by configure. */" > $h.tmp
+  echo "$CDEFS" | tr ' ' '
+' | sed -e 's/^-D/#define /' -e 's/=/ /' >> $h.tmp
+  if [ -f $h ] && cmp -s $h.tmp $h ; then
+    rm -f $h.tmp
+    ac_result unchanged
+  else
+    mv -f $h.tmp $h
+    ac_result ok
+  fi
+  CDEFS=-DHAVE_CONFIG_H
+}

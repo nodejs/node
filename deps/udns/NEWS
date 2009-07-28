@@ -1,0 +1,85 @@
+$Id: NEWS,v 1.11 2007/01/15 21:19:08 mjt Exp $
+
+User-visible changes in udns library.  Recent changes on top.
+
+0.0.9 (16 Jan 2007)
+
+ - incompat: minor API changes in dns_init() &friends.  dns_init()
+   now requires extra `struct dns_ctx *' argument.  Not bumped
+   soversion yet - I only expect one "release" with this change,
+   0.1 will have more changes and will increment so version
+
+ - many small bugfixes, here and there
+
+ - more robust FORMERR replies handling - not only such replies are now
+   recognized, but udns retries queries without EDNS0 extensions if tried
+   with, but server reported FORMERR
+
+ - portability changes, udns now includes getopt() implementation fo
+   the systems lacking it (mostly windows), and dns_ntop()&dns_pton(),
+   which are either just wrappers for system functions or reimplementations.
+
+ - build is now based on autoconf-like configuration
+
+ - NAPTR (RFC3403) RR decoding support
+
+ - new file NOTES which complements TODO somewhat, and includes some
+   important shortcomings
+
+ - many internal cleanups, including some preparations for better error
+   recovery, security and robustness (and thus API changes)
+
+ - removed some #defines which are now unused (like DNS_MAXSRCH)
+
+ - changed WIN32 to WINDOWS everywhere in preprocessor tests,
+   to be able to build it on win64 as well
+
+0.0.8 (12 Sep 2005)
+
+ - added SRV records (rfc2782) parsing,
+   thanks to Thadeu Lima de Souza Cascardo for implementation.
+
+ - bugfixes:
+   o use uninitialized value when no reply, library died with assertion:
+     assert((status < 0 && result == 0) || (status >= 0 && result != 0)).
+   o on some OSes, struct sockaddr_in has additional fields, so
+     memcmp'ing two sockaddresses does not work.
+
+ - rblcheck(.1)
+
+0.0.7 (20 Apr 2005)
+
+ - dnsget.1 manpage and several enhancements to dnsget.
+
+ - allow nameserver names for -n option of dnsget.
+
+ - API change: all dns_submit*() routines now does not expect
+   last `now' argument, since requests aren't sent immediately
+   anymore.
+
+ - API change: different application timer callback mechanism.
+   Udns now uses single per-context timer instead of per-query.
+
+ - don't assume DNS replies only contain backward DN pointers,
+   allow forward pointers too.  Change parsing API.
+
+ - debianize
+
+0.0.6 (08 Apr 2005)
+
+ - use double sorted list for requests (sorted by deadline).
+   This should significantly speed up timeout processing for
+   large number of requests.
+
+ - changed debugging interface, so it is finally useable
+   (still not documented).
+
+ - dnsget routine is now Officially Useable, and sometimes
+   even more useable than `host' from BIND distribution
+   (and sometimes not - dnsget does not have -C option
+   and TCP mode)
+
+ - Debian packaging in debian/ -- udns is now maintained as a
+   native Debian package.
+
+ - alot (and I really mean alot) of code cleanups all over.

@@ -1,6 +1,7 @@
 #include "node.h"
 
 #include "events.h"
+#include "dns.h"
 #include "net.h"
 #include "file.h"
 #include "http.h"
@@ -246,6 +247,10 @@ Load (int argc, char *argv[])
   Process::Initialize(node_obj);
 
   DefineConstants(node_obj);
+
+  Local<Object> dns = Object::New();
+  node_obj->Set(String::NewSymbol("dns"), dns);
+  DNS::Initialize(dns);
 
   Local<Object> fs = Object::New();
   node_obj->Set(String::NewSymbol("fs"), fs);

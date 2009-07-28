@@ -1,0 +1,136 @@
+udns (0.0.9) unstable; urgency=low
+
+  * s/EOVERFLOW/ENFILE, partly to make win32 happy
+
+  * several win32 fixes
+
+  * don't use `class' in udns.h, to make C++ happy
+    (thanks Markus Koetter for pointing this out)
+
+  * fixed CNAME handling in dnsget tool.  Another Thank You! goes
+    to Markus Koetter.
+
+  * NAPTR (RFC3403) support, thanks to Mikael Magnusson
+    <mikma at users.sourceforge.net> for this.
+
+  * more Win32 fixes from Mikael Magnusson.  I have to admit
+    I never tried to compile it on Win32.
+
+  * added NOTES file
+
+  * reworked initialisation stuff.  Minor API changes -- new dns_reset(),
+    dns_init() now has one more argument, corrections to dns_close(),
+    dns_open(), dns_free().  Cleaned up *_internal() routines.
+
+  * moved dns_init() routine into separate file.
+
+  * reworked dn suffix searching.  As a result, query only has
+    dnsq_dn[] field -- no header and EDNS0 "suffix", and query
+    packet is now formatted in dns_send()
+
+  * added inet_XtoX.c - public domain implementations of inet_pton()
+    and inet_ntop(), inet_aton() and inet_ntoa() routines.
+
+  * added getopt.c - public domain implementation of getopt() routine.
+
+  * switched to autoconf-style configuration
+
+  * introduce dns_random16() to generate query IDs
+    (currently based on gettimeofday.tv_usec)
+
+  * dnsget: fix printing of -t ANY and -c any records,
+    thanks to Jaroslaw Rafa
+
+  * implement dns_ntop() and dns_pton() as either wrappers or
+    reimplementations (using inet_XtoX.c) of inet_ntop() and inet_pton().
+    Too much troubles with portability - it was a complete mess, each
+    OS has its own problems with them.
+    And use those routines everywhere.
+
+  * s/WIN32/WINDOWS/g to allow building on WIN64.  Oh well.
+
+  * try to find query by ID first, don't drop header-only replies early.
+    This is in order to support FORMERR replies from nameservers which
+    don't understand EDNS0.
+
+  * retry queries w/o EDNS0 if sent with it and if
+    server reported FORMERR or NOTIMPL
+
+  * fixed debian/copyright and debian/control
+
+  * rblcheck revamp
+
+ -- Michael Tokarev <mjt@corpit.ru>  Tue, 16 Jan 2007 00:00:28 +0300
+
+udns (0.0.8) unstable; urgency=low
+
+  * don't compare sockaddr_in's, but individual parts only
+    (on some OSes, there are additional fields in this structure
+    so memcmp() does not quite work)
+
+  * use dnsc_t instead of unsigned char for DNs everywhere
+
+  * SRV records (rfc2782) parsing, thanks to
+    Thadeu Lima de Souza Cascardo.
+
+  * manpage fixes
+
+ -- Michael Tokarev <mjt@corpit.ru>  Mon, 12 Sep 2005 16:06:45 +0400
+
+udns (0.0.7) unstable; urgency=low
+
+  * added dnsget.1 and rblcheck.1 manpages.
+
+  * internal: use generic list implementation in udns_resolver.c
+
+  * don't assume only backward DN pointers in replies, allow forward
+    pointers too.  This is quite large change, involves changing
+    parsing API all over the places.
+
+  * internal: typedef dnsc_t and dnscc_t for [const] unsigned char, to
+    make function prototypes shorter to better fit on a single line.
+
+  * in parsing routines, verify (assert) that the query type
+    is the one we can handle.
+
+  * recognize names (and resolve them) as nameservers in dnsget.
+
+  * when new request is submitted, don't send it immediately, but
+    add it into the head of the active queue with deadline=0.
+    This will allow us to tweak some query settings before it will
+    be processed.
+    Note API change: removed `now' argument from all dns_submit_*()
+    routines.
+
+  * use single per-context user timer, not per-query.
+    Note API change: different user timer callback
+
+  * add dnsc_salen field -- length of the socket address used
+
+  * fix dns_set_opt(DNS_OPT_FLAGS) which didn't work before
+
+  * allow to set some options for a context wich is open but with no
+    active queries
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  5 May 2005 23:14:29 +0400
+
+udns (0.0.6) unstable; urgency=low
+
+  * 0.0.6 release.
+    ALOT of changes all over.  Keep 'em in CVS logs!
+
+ -- Michael Tokarev <mjt@corpit.ru>  Fri,  8 Apr 2005 19:51:38 +0400
+
+udns (0.0.5) unstable; urgency=low
+
+  * Initial Release.
+  * Provides 3 packages:
+     libudns0 - shared library
+     libudns-dev - development files and static library
+     udns-utils - dnsget, rblcheck
+
+ -- Michael Tokarev <mjt@corpit.ru>  Thu,  7 Apr 2005 00:05:24 +0400
+
+Local variables:
+mode: debian-changelog
+End:
