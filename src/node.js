@@ -82,12 +82,12 @@ node.Module.prototype.load = function (callback) {
     self.target.__include = function (path) { self.newChild(path, self.target); };
 
     // create wrapper function
-    var wrapper = "function (__filename) {\n"+
-                  "  var onLoad;\n"+
-                  "  var onExit;\n"+
-                  "  var exports = this;\n"+
-                  "  var require = this.__require;\n"+
-                  "  var include = this.__include;\n"+
+    var wrapper = "function (__filename) { "+
+                  "  var onLoad; "+
+                  "  var onExit; "+
+                  "  var exports = this; "+
+                  "  var require = this.__require; "+
+                  "  var include = this.__include; "+
                   content+
                   "\n"+
                   "  this.__onLoad = onLoad;\n"+
