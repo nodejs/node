@@ -254,8 +254,8 @@ SmartPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
 
     // Check that key is Content-Length.
     if (strcmp(key, kContentLength) == 0) {
-      // Get the content length value if within a sensible range.
-      if (strlen(value) > 7) {
+      // Get the content length value if present and within a sensible range.
+      if (value == NULL || strlen(value) > 7) {
         return SmartPointer<char>();
       }
       for (int i = 0; value[i] != '\0'; i++) {

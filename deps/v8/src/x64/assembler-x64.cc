@@ -456,13 +456,13 @@ void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
 
 
 void Assembler::arithmetic_op_32(byte opcode,
-                                 const Operand& dst,
-                                 Register src) {
+                                 Register reg,
+                                 const Operand& rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(src, dst);
+  emit_optional_rex_32(reg, rm_reg);
   emit(opcode);
-  emit_operand(src, dst);
+  emit_operand(reg, rm_reg);
 }
 
 
@@ -687,6 +687,13 @@ void Assembler::call(const Operand& op) {
 }
 
 
+void Assembler::cdq() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x99);
+}
+
+
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
   // No need to check CpuInfo for CMOV support, it's a required part of the
   // 64-bit architecture.
@@ -773,6 +780,15 @@ void Assembler::decq(const Operand& dst) {
 }
 
 
+void Assembler::decl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFF);
+  emit_modrm(0x1, dst);
+}
+
+
 void Assembler::decl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -798,10 +814,19 @@ void Assembler::hlt() {
 }
 
 
-void Assembler::idiv(Register src) {
+void Assembler::idivq(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x7, src);
+}
+
+
+void Assembler::idivl(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(src);
   emit(0xF7);
   emit_modrm(0x7, src);
 }
@@ -1115,6 +1140,9 @@ void Assembler::movq(const Operand& dst, Register src) {
 
 
 void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
+  // This method must not be used with heap object references. The stored
+  // address is not GC safe. Use the handle version instead.
+  ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -1521,7 +1549,7 @@ void Assembler::store_rax(ExternalReference ref) {
 
 
 void Assembler::testb(Register reg, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1540,7 +1568,7 @@ void Assembler::testb(Register reg, Immediate mask) {
 
 
 void Assembler::testb(const Operand& op, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);
@@ -2181,50 +2209,5 @@ void Assembler::WriteRecordedPositions() {
 
 const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
-
-} }  // namespace v8::internal
-
-
-// TODO(x64): Implement and move these to their correct cc-files:
-#include "ast.h"
-#include "bootstrapper.h"
-#include "codegen-inl.h"
-#include "cpu.h"
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "frames-inl.h"
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
-#include "ic-inl.h"
-#include "log.h"
-#include "macro-assembler.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
-#include "register-allocator-inl.h"
-#include "register-allocator.h"
-#include "runtime.h"
-#include "scopes.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "unicode.h"
-
-namespace v8 {
-namespace internal {
-
-
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  UNIMPLEMENTED();
-}
-
-bool BreakLocationIterator::IsDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
-  return false;
-}
-
-void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
-}
 
 } }  // namespace v8::internal

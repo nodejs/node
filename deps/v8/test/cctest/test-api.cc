@@ -1266,6 +1266,38 @@ THREADED_TEST(InternalFields) {
 }
 
 
+THREADED_TEST(InternalFieldsNativePointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
+  CHECK_EQ(1, obj->InternalFieldCount());
+  CHECK(obj->GetPointerFromInternalField(0) == NULL);
+
+  char* data = new char[100];
+
+  void* aligned = data;
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(aligned) & 0x1);
+  void* unaligned = data + 1;
+  CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
+
+  // Check reading and writing aligned pointers.
+  obj->SetPointerInInternalField(0, aligned);
+  i::Heap::CollectAllGarbage();
+  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
+
+  // Check reading and writing unaligned pointers.
+  obj->SetPointerInInternalField(0, unaligned);
+  i::Heap::CollectAllGarbage();
+  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
+
+  delete[] data;
+}
+
+
 THREADED_TEST(IdentityHash) {
   v8::HandleScope scope;
   LocalContext env;
@@ -5024,6 +5056,236 @@ THREADED_TEST(InterceptorLoadICWithOverride) {
 }
 
 
+// Test the case when we stored field into
+// a stub, but interceptor produced value on its own.
+THREADED_TEST(InterceptorLoadICFieldNotNeeded) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "proto = new Object();"
+    "o.__proto__ = proto;"
+    "proto.x = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.x;"
+    // Now it should be ICed and keep a reference to x defined on proto
+    "}"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result += o.x;"
+    "}"
+    "result;",
+    42 * 1000);
+}
+
+
+// Test the case when we stored field into
+// a stub, but it got invalidated later on.
+THREADED_TEST(InterceptorLoadICInvalidatedField) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.y;"
+    // Now it should be ICed and keep a reference to y defined on proto2
+    "}"
+    "proto1.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result += o.y;"
+    "}"
+    "result;",
+    42 * 1000);
+}
+
+
+// Test the case when we stored field into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and fields' holders.
+THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "o.__proto__ = this;"  // set a global to be a proto of o.
+    "this.__proto__.y = 239;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (o.y != 239) throw 'oops: ' + o.y;"
+    // Now it should be ICed and keep a reference to y defined on field_holder.
+    "}"
+    "this.y = 42;"  // Assign on a global.
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result;",
+    42 * 10);
+}
+
+
+static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  return v8_num(239);
+}
+
+
+static void SetOnThis(Local<String> name,
+                      Local<Value> value,
+                      const AccessorInfo& info) {
+  info.This()->ForceSet(name, value);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  templ->SetAccessor(v8_str("y"), Return239);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = o.y;"
+      "}");
+  CHECK_EQ(239, value->Int32Value());
+}
+
+
+THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+      "o.__proto__ = p;"
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = o.x + o.y;"
+      "}");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
+
+THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  templ->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "fst = new Object();  fst.__proto__ = o;"
+    "snd = new Object();  snd.__proto__ = fst;"
+    "var result1 = 0;"
+    "for (var i = 0; i < 7;  i++) {"
+    "  result1 = snd.x;"
+    "}"
+    "fst.x = 239;"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result = snd.x;"
+    "}"
+    "result + result1");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but interceptor produced value on its own.
+THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__ = p;"
+    "for (var i = 0; i < 7; i++) {"
+    "  o.x;"
+    // Now it should be ICed and keep a reference to x defined on p
+    "}"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.x;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 7, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but it got invalidated later on.
+THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239, SetOnThis);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "inbetween = new Object();"
+    "o.__proto__ = inbetween;"
+    "inbetween.__proto__ = p;"
+    "for (var i = 0; i < 10; i++) {"
+    "  o.y;"
+    // Now it should be ICed and keep a reference to y defined on p
+    "}"
+    "inbetween.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 10, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and callbacks' holders.
+THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239, SetOnThis);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__ = this;"
+    "this.__proto__ = p;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (o.y != 239) throw 'oops: ' + o.y;"
+    // Now it should be ICed and keep a reference to y defined on p
+    "}"
+    "this.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 10, value->Int32Value());
+}
+
+
 static v8::Handle<Value> InterceptorLoadICGetter0(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
@@ -5107,6 +5369,192 @@ THREADED_TEST(InterceptorCallIC) {
     "}");
   CHECK_EQ(42, value->Int32Value());
 }
+
+
+// This test checks that if interceptor doesn't provide
+// a value, we can fetch regular value.
+THREADED_TEST(InterceptorCallICSeesOthers) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "o.x = function f(x) { return x + 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result = o.x(41);"
+    "}");
+  CHECK_EQ(42, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function4;
+static v8::Handle<Value> InterceptorCallICGetter4(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(v8_str("x")->Equals(name));
+  return call_ic_function4;
+}
+
+
+// This test checks that if interceptor provides a function,
+// even if we cached shadowed variant, interceptor's function
+// is invoked
+THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorCallICGetter4);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  call_ic_function4 =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__.x = function(x) { return x + 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(41, value->Int32Value());
+}
+
+
+// Test the case when we stored cacheable lookup into
+// a stub, but it got invalidated later on
+THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = function(x) { return x + 1; };"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  o.y(42);"
+    "}"
+    "proto1.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function5;
+static v8::Handle<Value> InterceptorCallICGetter5(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (v8_str("x")->Equals(name))
+    return call_ic_function5;
+  else
+    return Local<Value>();
+}
+
+
+// This test checks that if interceptor doesn't provide a function,
+// cached constant function is used
+THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.x = inc;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(43, value->Int32Value());
+}
+
+
+// This test checks that if interceptor provides a function,
+// even if we cached constant function, interceptor's function
+// is invoked
+THREADED_TEST(InterceptorCallICConstantFunctionNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorCallICGetter5);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  call_ic_function5 =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.x = inc;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(41, value->Int32Value());
+}
+
+
+// Test the case when we stored constant function into
+// a stub, but it got invalidated later on
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunction) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = inc;"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  o.y(42);"
+    "}"
+    "proto1.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
+
+// Test the case when we stored constant function into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and constant function' holders.
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.__proto__ = this;"
+    "this.__proto__.y = inc;"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  if (o.y(42) != 43) throw 'oops: ' + o.y(42);"
+    "}"
+    "this.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
 
 static int interceptor_call_count = 0;
 
@@ -5768,6 +6216,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 
 THREADED_TEST(ExternalAllocatedMemory) {
   v8::HandleScope outer;
+  v8::Persistent<Context> env = Context::New();
   const int kSize = 1024*1024;
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize), kSize);
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0);
@@ -7080,4 +7529,165 @@ THREADED_TEST(ReplaceConstantFunction) {
   v8::Handle<v8::Object> obj_clone = obj->Clone();
   obj_clone->Set(foo_string, v8::String::New("Hello"));
   CHECK(!obj->Get(foo_string)->IsUndefined());
+}
+
+
+// Regression test for http://crbug.com/16276.
+THREADED_TEST(Regress16276) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Force the IC in f to be a dictionary load IC.
+  CompileRun("function f(obj) { return obj.x; }\n"
+             "var obj = { x: { foo: 42 }, y: 87 };\n"
+             "var x = obj.x;\n"
+             "delete obj.y;\n"
+             "for (var i = 0; i < 5; i++) f(obj);");
+  // Detach the global object to make 'this' refer directly to the
+  // global object (not the proxy), and make sure that the dictionary
+  // load IC doesn't mess up loading directly from the global object.
+  context->DetachGlobal();
+  CHECK_EQ(42, CompileRun("f(this).foo")->Int32Value());
+}
+
+
+THREADED_TEST(PixelArray) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 40;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+                                                              pixel_data);
+  i::Heap::CollectAllGarbage();  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    pixels->set(i, i);
+  }
+  i::Heap::CollectAllGarbage();  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(i, pixels->get(i));
+    CHECK_EQ(i, pixel_data[i]);
+  }
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // Set the elements to be the pixels.
+  // jsobj->set_elements(*pixels);
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
+  obj->Set(v8_str("field"), v8::Int32::New(1503));
+  context->Global()->Set(v8_str("pixels"), obj);
+  v8::Handle<v8::Value> result = CompileRun("pixels.field");
+  CHECK_EQ(1503, result->Int32Value());
+  result = CompileRun("pixels[1]");
+  CHECK_EQ(1, result->Int32Value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  i::Handle<i::Smi> value(i::Smi::FromInt(2));
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1))->value());
+  *value.location() = i::Smi::FromInt(256);
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(1))->value());
+  *value.location() = i::Smi::FromInt(-1);
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[i] = (i * 65) - 109;"
+                      "}"
+                      "pixels[1] + pixels[6];");
+  CHECK_EQ(255, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(21, i::Smi::cast(jsobj->GetElement(2))->value());
+  CHECK_EQ(86, i::Smi::cast(jsobj->GetElement(3))->value());
+  CHECK_EQ(151, i::Smi::cast(jsobj->GetElement(4))->value());
+  CHECK_EQ(216, i::Smi::cast(jsobj->GetElement(5))->value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(6))->value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(7))->value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(984, result->Int32Value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[i] = (i * 1.1);"
+                      "}"
+                      "pixels[1] + pixels[6];");
+  CHECK_EQ(8, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(2))->value());
+  CHECK_EQ(3, i::Smi::cast(jsobj->GetElement(3))->value());
+  CHECK_EQ(4, i::Smi::cast(jsobj->GetElement(4))->value());
+  CHECK_EQ(6, i::Smi::cast(jsobj->GetElement(5))->value());
+  CHECK_EQ(7, i::Smi::cast(jsobj->GetElement(6))->value());
+  CHECK_EQ(8, i::Smi::cast(jsobj->GetElement(7))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[7] = undefined;"
+                      "}"
+                      "pixels[7];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(7))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[6] = '2.3';"
+                      "}"
+                      "pixels[6];");
+  CHECK_EQ(2, result->Int32Value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[5] = NaN;"
+                      "}"
+                      "pixels[5];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[8] = Infinity;"
+                      "}"
+                      "pixels[8];");
+  CHECK_EQ(255, result->Int32Value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(8))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[9] = -Infinity;"
+                      "}"
+                      "pixels[9];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(9))->value());
+
+  result = CompileRun("pixels[3] = 33;"
+                      "delete pixels[3];"
+                      "pixels[3];");
+  CHECK_EQ(33, result->Int32Value());
+
+  result = CompileRun("pixels[0] = 10; pixels[1] = 11;"
+                      "pixels[2] = 12; pixels[3] = 13;"
+                      "pixels.__defineGetter__('2',"
+                      "function() { return 120; });"
+                      "pixels[2];");
+  CHECK_EQ(12, result->Int32Value());
+
+  result = CompileRun("var js_array = new Array(40);"
+                      "js_array[0] = 77;"
+                      "js_array;");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+
+  result = CompileRun("pixels[1] = 23;"
+                      "pixels.__proto__ = [];"
+                      "js_array.__proto__ = pixels;"
+                      "js_array.concat(pixels);");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+  CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
+
+  free(pixel_data);
 }

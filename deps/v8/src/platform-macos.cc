@@ -28,10 +28,11 @@
 // Platform specific code for MacOS goes here. For the POSIX comaptible parts
 // the implementation is in platform-posix.cc.
 
-#include <ucontext.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/mach_init.h>
+#include <mach-o/dyld.h>
+#include <mach-o/getsect.h>
 
 #include <AvailabilityMacros.h>
 
@@ -205,7 +206,19 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
-  // TODO(1233579): Implement.
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  unsigned int images_count = _dyld_image_count();
+  for (unsigned int i = 0; i < images_count; ++i) {
+    const mach_header* header = _dyld_get_image_header(i);
+    if (header == NULL) continue;
+    unsigned int size;
+    char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
+    if (code_ptr == NULL) continue;
+    const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
+    const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
+    LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
+  }
+#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
@@ -411,14 +424,10 @@ class MacOSMutex : public Mutex {
  public:
 
   MacOSMutex() {
-    // For some reason the compiler doesn't allow you to write
-    // "this->mutex_ = PTHREAD_..." directly on mac.
-    pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&m, &attr);
-    mutex_ = m;
+    pthread_mutex_init(&mutex_, &attr);
   }
 
   ~MacOSMutex() { pthread_mutex_destroy(&mutex_); }

@@ -40,7 +40,7 @@ SOURCES = {
     'codegen.cc', 'compilation-cache.cc', 'compiler.cc', 'contexts.cc',
     'conversions.cc', 'counters.cc', 'dateparser.cc', 'debug.cc',
     'debug-agent.cc', 'disassembler.cc', 'execution.cc', 'factory.cc',
-    'flags.cc', 'frames.cc', 'func-name-inferrer.cc',
+    'flags.cc', 'frame-element.cc', 'frames.cc', 'func-name-inferrer.cc',
     'global-handles.cc', 'handles.cc', 'hashmap.cc',
     'heap.cc', 'ic.cc', 'interpreter-irregexp.cc', 'jsregexp.cc',
     'jump-target.cc', 'log.cc', 'log-utils.cc', 'mark-compact.cc', 'messages.cc',

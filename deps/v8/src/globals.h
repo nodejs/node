@@ -207,6 +207,7 @@ class HeapObject;
 class IC;
 class InterceptorInfo;
 class IterationStatement;
+class Array;
 class JSArray;
 class JSFunction;
 class JSObject;

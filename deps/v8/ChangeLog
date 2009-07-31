@@ -1,3 +1,50 @@
+2009-07-30: Version 1.3.1
+
+        Speed improvements to accessors and interceptors.
+
+        Added support for capturing stack information on custom errors.
+
+        Added support for morphing an object into a pixel array where its
+        indexed properties are stored in an external byte array. Values written
+        are always clamped to the 0..255 interval.
+
+        Profiler on x64 now handles C/C++ functions from shared libraries.
+
+        Changed the debugger to avoid stepping into function.call/apply if the
+        function is a built-in.
+
+        Initial implementation of constructor heap profile for JS objects.
+                  
+        More fine grained control of profiling aspects through the API.
+                    
+        Optimized the called as constructor check for API calls.
+
+
+2009-07-27: Version 1.3.0
+
+        Allowed RegExp objects to be called as functions (issue 132).
+
+        Fixed issue where global property cells would escape after
+        detaching the global object; see http://crbug.com/16276.
+
+        Added support for stepping into setters and getters in the
+        debugger.
+
+        Changed the debugger to avoid stopping in its own JavaScript code
+        and in the code of built-in functions.
+
+        Fixed issue 345 by avoiding duplicate escaping labels.
+
+        Fixed ARM code generator crash in short-circuited boolean
+        expressions and added regression tests.
+
+        Added an external allocation limit to avoid issues where small V8
+        objects would hold on to large amounts of external memory without
+        causing garbage collections.
+ 
+        Finished more of the inline caching stubs for x64 targets. 
+
+
 2009-07-13: Version 1.2.14
 
         Added separate paged heap space for global property cells and

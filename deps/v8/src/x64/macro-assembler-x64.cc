@@ -71,9 +71,9 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
   Label ok;
-  testq(result, result);
+  testl(result, result);
   j(not_zero, &ok);
-  testq(op, op);
+  testl(op, op);
   j(sign, then_label);
   bind(&ok);
 }
@@ -151,6 +151,13 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
                                      int num_arguments) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : argument num_arguments - 1
+  //  ...
+  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  // -----------------------------------
+
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -311,6 +318,17 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
+void MacroAssembler::Push(Smi* source) {
+  if (IsUnsafeSmi(source)) {
+    LoadUnsafeSmi(kScratchRegister, source);
+    push(kScratchRegister);
+  } else {
+    int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(source));
+    push(Immediate(smi));
+  }
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   movq(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -356,6 +374,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
 #ifdef DEBUG
+  // Patch target is kPointer size bytes *before* target label.
   Label target;
   bind(&target);
 #endif
@@ -879,6 +898,156 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   movq(kScratchRegister, c_entry_fp_address);
   movq(Operand(kScratchRegister, 0), Immediate(0));
+}
+
+
+Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
+                                   JSObject* holder, Register holder_reg,
+                                   Register scratch,
+                                   Label* miss) {
+  // Make sure there's no overlap between scratch and the other
+  // registers.
+  ASSERT(!scratch.is(object_reg) && !scratch.is(holder_reg));
+
+  // Keep track of the current object in register reg.  On the first
+  // iteration, reg is an alias for object_reg, on later iterations,
+  // it is an alias for holder_reg.
+  Register reg = object_reg;
+  int depth = 1;
+
+  // Check the maps in the prototype chain.
+  // Traverse the prototype chain from the object and do map checks.
+  while (object != holder) {
+    depth++;
+
+    // Only global objects and objects that do not require access
+    // checks are allowed in stubs.
+    ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+    JSObject* prototype = JSObject::cast(object->GetPrototype());
+    if (Heap::InNewSpace(prototype)) {
+      // Get the map of the current object.
+      movq(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+      Cmp(scratch, Handle<Map>(object->map()));
+      // Branch on the result of the map check.
+      j(not_equal, miss);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (object->IsJSGlobalProxy()) {
+        CheckAccessGlobalProxy(reg, scratch, miss);
+
+        // Restore scratch register to be the map of the object.
+        // We load the prototype from the map in the scratch register.
+        movq(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+      }
+      // The prototype is in new space; we cannot store a reference
+      // to it in the code. Load it from the map.
+      reg = holder_reg;  // from now the object is in holder_reg
+      movq(reg, FieldOperand(scratch, Map::kPrototypeOffset));
+
+    } else {
+      // Check the map of the current object.
+      Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+          Handle<Map>(object->map()));
+      // Branch on the result of the map check.
+      j(not_equal, miss);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (object->IsJSGlobalProxy()) {
+        CheckAccessGlobalProxy(reg, scratch, miss);
+      }
+      // The prototype is in old space; load it directly.
+      reg = holder_reg;  // from now the object is in holder_reg
+      Move(reg, Handle<JSObject>(prototype));
+    }
+
+    // Go to the next object in the prototype chain.
+    object = prototype;
+  }
+
+  // Check the holder map.
+  Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+      Handle<Map>(holder->map()));
+  j(not_equal, miss);
+
+  // Log the check depth.
+  LOG(IntEvent("check-maps-depth", depth));
+
+  // Perform security check for access to the global object and return
+  // the holder register.
+  ASSERT(object == holder);
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+  if (object->IsJSGlobalProxy()) {
+    CheckAccessGlobalProxy(reg, scratch, miss);
+  }
+  return reg;
+}
+
+
+
+
+void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
+                                            Register scratch,
+                                            Label* miss) {
+  Label same_contexts;
+
+  ASSERT(!holder_reg.is(scratch));
+  ASSERT(!scratch.is(kScratchRegister));
+  // Load current lexical context from the stack frame.
+  movq(scratch, Operand(rbp, StandardFrameConstants::kContextOffset));
+
+  // When generating debug code, make sure the lexical context is set.
+  if (FLAG_debug_code) {
+    cmpq(scratch, Immediate(0));
+    Check(not_equal, "we should not have an empty lexical context");
+  }
+  // Load the global context of the current context.
+  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  movq(scratch, FieldOperand(scratch, offset));
+  movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+  // Check the context is a global context.
+  if (FLAG_debug_code) {
+    Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
+        Factory::global_context_map());
+    Check(equal, "JSGlobalObject::global_context should be a global context.");
+  }
+
+  // Check if both contexts are the same.
+  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  j(equal, &same_contexts);
+
+  // Compare security tokens.
+  // Check that the security token in the calling global object is
+  // compatible with the security token in the receiving global
+  // object.
+
+  // Check the context is a global context.
+  if (FLAG_debug_code) {
+    // Preserve original value of holder_reg.
+    push(holder_reg);
+    movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    Cmp(holder_reg, Factory::null_value());
+    Check(not_equal, "JSGlobalProxy::context() should not be null.");
+
+    // Read the first word and compare to global_context_map(),
+    movq(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
+    Cmp(holder_reg, Factory::global_context_map());
+    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    pop(holder_reg);
+  }
+
+  movq(kScratchRegister,
+       FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  int token_offset = Context::kHeaderSize +
+                     Context::SECURITY_TOKEN_INDEX * kPointerSize;
+  movq(scratch, FieldOperand(scratch, token_offset));
+  cmpq(scratch, FieldOperand(kScratchRegister, token_offset));
+  j(not_equal, miss);
+
+  bind(&same_contexts);
 }
 
 

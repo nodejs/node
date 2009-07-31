@@ -55,9 +55,35 @@ function Run() {
                              NotifyScore: AddScore }); 
 }
 
+function ShowWarningIfObsolete() {
+  // If anything goes wrong we will just catch the exception and no 
+  // warning is shown, i.e., no harm is done.
+  try {
+    var xmlhttp;
+    var next_version = parseInt(BenchmarkSuite.version) + 1; 
+    var next_version_url = "../v" + next_version + "/run.html";  
+    if (window.XMLHttpRequest) {
+      xmlhttp = new window.XMLHttpRequest();
+    } else if (window.ActiveXObject) {
+      xmlhttp = new window.ActiveXObject("Microsoft.XMLHTTP");
+    }
+    xmlhttp.open('GET', next_version_url, true);
+    xmlhttp.onreadystatechange = function() {
+      if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+        document.getElementById('obsolete').style.display="block";
+      }
+    };
+    xmlhttp.send(null);
+  } catch(e) {
+    // Ignore exception if check for next version fails. 
+    // Hence no warning is displayed.
+  }
+}
+
 function Load() {
   var version = BenchmarkSuite.version;
   document.getElementById("version").innerHTML = version;
+  ShowWarningIfObsolete();  
   setTimeout(Run, 200);
 }
 </script>
@@ -65,6 +91,12 @@ function Load() {
 <body onload="Load()">
 <div>
   <div class="title"><h1>V8 Benchmark Suite - version <span id="version">?</span></h1></div>
+  <div class="warning" id="obsolete"> 
+Warning! This is not the latest version of the V8 benchmark
+suite. Consider running the   
+<a href="http://v8.googlecode.com/svn/data/benchmarks/current/run.html">
+latest version</a>.  
+  </div>
   <table>
     <tr>
       <td class="contents">

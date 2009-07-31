@@ -35,7 +35,7 @@
 #include "zone-inl.h"
 #include "parser.h"
 #include "ast.h"
-#include "jsregexp-inl.h"
+#include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
 #ifdef V8_TARGET_ARCH_ARM

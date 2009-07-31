@@ -397,6 +397,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\frame-element.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\frame-element.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ia32\frames-ia32.cc"
 				>
 			</File>
@@ -406,10 +414,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\frames-inl.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\frame-element.h"
 				>
 			</File>
 			<File
@@ -514,10 +518,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\ia32\jump-target-ia32.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\jsregexp-inl.h"
 				>
 			</File>
 			<File

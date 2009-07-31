@@ -42,10 +42,14 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+#if defined(ANDROID)
+#define LOG_TAG "v8"
+#include <utils/Log.h>  // LOG_PRI_VA
+#endif
+
 #include "v8.h"
 
 #include "platform.h"
-
 
 namespace v8 {
 namespace internal {
@@ -126,7 +130,11 @@ void OS::Print(const char* format, ...) {
 
 
 void OS::VPrint(const char* format, va_list args) {
+#if defined(ANDROID)
+  LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
+#else
   vprintf(format, args);
+#endif
 }
 
 
@@ -139,7 +147,11 @@ void OS::PrintError(const char* format, ...) {
 
 
 void OS::VPrintError(const char* format, va_list args) {
+#if defined(ANDROID)
+  LOG_PRI_VA(ANDROID_LOG_ERROR, LOG_TAG, format, args);
+#else
   vfprintf(stderr, format, args);
+#endif
 }
 
 

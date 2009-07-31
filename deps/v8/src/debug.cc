@@ -334,8 +334,11 @@ void BreakLocationIterator::PrepareStepIn() {
       rinfo()->set_target_address(stub->entry());
     }
   } else {
-    // Step in through constructs call requires no changes to the running code.
-    ASSERT(RelocInfo::IsConstructCall(rmode()));
+    // Step in through construct call requires no changes to the running code.
+    // Step in through getters/setters should already be prepared as well
+    // because caller of this function (Debug::PrepareStep) is expected to
+    // flood the top frame's function with one shot breakpoints.
+    ASSERT(RelocInfo::IsConstructCall(rmode()) || code->is_inline_cache_stub());
   }
 }
 
@@ -1087,10 +1090,18 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 
   // Compute whether or not the target is a call target.
   bool is_call_target = false;
+  bool is_load_or_store = false;
+  bool is_inline_cache_stub = false;
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
     Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_call_stub()) is_call_target = true;
+    if (code->is_call_stub()) {
+      is_call_target = true;
+    }
+    if (code->is_inline_cache_stub()) {
+      is_inline_cache_stub = true;
+      is_load_or_store = !is_call_target;
+    }
   }
 
   // If this is the last break code target step out is the only possibility.
@@ -1103,8 +1114,8 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       JSFunction* function = JSFunction::cast(frames_it.frame()->function());
       FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
     }
-  } else if (!(is_call_target || RelocInfo::IsConstructCall(it.rmode())) ||
-             step_action == StepNext || step_action == StepMin) {
+  } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()))
+             || step_action == StepNext || step_action == StepMin) {
     // Step next or step min.
 
     // Fill the current function with one-shot break points.
@@ -1117,8 +1128,19 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   } else {
     // Fill the current function with one-shot break points even for step in on
     // a call target as the function called might be a native function for
-    // which step in will not stop.
+    // which step in will not stop. It also prepares for stepping in
+    // getters/setters.
     FloodWithOneShot(shared);
+
+    if (is_load_or_store) {
+      // Remember source position and frame to handle step in getter/setter. If
+      // there is a custom getter/setter it will be handled in
+      // Object::Get/SetPropertyWithCallback, otherwise the step action will be
+      // propagated on the next Debug::Break.
+      thread_local_.last_statement_position_ =
+          debug_info->code()->SourceStatementPosition(frame->pc());
+      thread_local_.last_fp_ = frame->fp();
+    }
 
     // Step in or Step in min
     it.PrepareStepIn();
@@ -1279,7 +1301,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
   // step into was requested.
   if (fp == Debug::step_in_fp()) {
     // Don't allow step into functions in the native context.
-    if (function->context()->global() != Top::context()->builtins()) {
+    if (!function->IsBuiltin()) {
       if (function->shared()->code() ==
           Builtins::builtin(Builtins::FunctionApply) ||
           function->shared()->code() ==
@@ -1288,7 +1310,8 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         // function to be called and not the code for Builtins::FunctionApply or
         // Builtins::FunctionCall. The receiver of call/apply is the target
         // function.
-        if (!holder.is_null() && holder->IsJSFunction()) {
+        if (!holder.is_null() && holder->IsJSFunction() &&
+            !JSFunction::cast(*holder)->IsBuiltin()) {
           Handle<SharedFunctionInfo> shared_info(
               JSFunction::cast(*holder)->shared());
           Debug::FloodWithOneShot(shared_info);

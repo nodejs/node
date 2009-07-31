@@ -53,9 +53,8 @@ namespace internal {
 // Nodes of the abstract syntax tree. Only concrete classes are
 // enumerated here.
 
-#define NODE_LIST(V)                            \
+#define STATEMENT_NODE_LIST(V)                  \
   V(Block)                                      \
-  V(Declaration)                                \
   V(ExpressionStatement)                        \
   V(EmptyStatement)                             \
   V(IfStatement)                                \
@@ -69,7 +68,9 @@ namespace internal {
   V(ForInStatement)                             \
   V(TryCatch)                                   \
   V(TryFinally)                                 \
-  V(DebuggerStatement)                          \
+  V(DebuggerStatement)
+
+#define EXPRESSION_NODE_LIST(V)                 \
   V(FunctionLiteral)                            \
   V(FunctionBoilerplateLiteral)                 \
   V(Conditional)                                \
@@ -93,13 +94,17 @@ namespace internal {
   V(CompareOperation)                           \
   V(ThisFunction)
 
+#define AST_NODE_LIST(V)                        \
+  V(Declaration)                                \
+  STATEMENT_NODE_LIST(V)                        \
+  EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
 class TargetCollector;
 class MaterializedLiteral;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
-NODE_LIST(DEF_FORWARD_DECLARATION)
+AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 
@@ -108,10 +113,10 @@ NODE_LIST(DEF_FORWARD_DECLARATION)
 typedef ZoneList<Handle<String> > ZoneStringList;
 
 
-class Node: public ZoneObject {
+class AstNode: public ZoneObject {
  public:
-  Node(): statement_pos_(RelocInfo::kNoPosition) { }
-  virtual ~Node() { }
+  AstNode(): statement_pos_(RelocInfo::kNoPosition) { }
+  virtual ~AstNode() { }
   virtual void Accept(AstVisitor* v) = 0;
 
   // Type testing & conversion.
@@ -143,7 +148,7 @@ class Node: public ZoneObject {
 };
 
 
-class Statement: public Node {
+class Statement: public AstNode {
  public:
   virtual Statement* AsStatement()  { return this; }
   virtual ReturnStatement* AsReturnStatement() { return NULL; }
@@ -152,7 +157,7 @@ class Statement: public Node {
 };
 
 
-class Expression: public Node {
+class Expression: public AstNode {
  public:
   virtual Expression* AsExpression()  { return this; }
 
@@ -240,7 +245,7 @@ class Block: public BreakableStatement {
 };
 
 
-class Declaration: public Node {
+class Declaration: public AstNode {
  public:
   Declaration(VariableProxy* proxy, Variable::Mode mode, FunctionLiteral* fun)
       : proxy_(proxy),
@@ -523,7 +528,7 @@ class IfStatement: public Statement {
 
 // NOTE: TargetCollectors are represented as nodes to fit in the target
 // stack in the compiler; this should probably be reworked.
-class TargetCollector: public Node {
+class TargetCollector: public AstNode {
  public:
   explicit TargetCollector(ZoneList<BreakTarget*>* targets)
       : targets_(targets) {
@@ -1678,7 +1683,7 @@ class AstVisitor BASE_EMBEDDED {
   virtual ~AstVisitor() { }
 
   // Dispatch
-  void Visit(Node* node) { node->Accept(this); }
+  void Visit(AstNode* node) { node->Accept(this); }
 
   // Iteration
   virtual void VisitStatements(ZoneList<Statement*>* statements);
@@ -1702,7 +1707,7 @@ class AstVisitor BASE_EMBEDDED {
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node) = 0;
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
  private:

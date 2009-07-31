@@ -4875,7 +4875,7 @@ TEST(DebugBreakInMessageHandler) {
   v8::Debug::SetMessageHandler2(DebugBreakMessageHandler);
 
   // Test functions.
-  const char* script = "function f() { debugger; } function g() { }";
+  const char* script = "function f() { debugger; g(); } function g() { }";
   CompileRun(script);
   v8::Local<v8::Function> f =
       v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
@@ -4954,8 +4954,10 @@ TEST(RegExpDebugBreak) {
   v8::Debug::DebugBreak();
   result = f->Call(env->Global(), argc, argv);
 
-  CHECK_EQ(20, break_point_hit_count);
-  CHECK_EQ("exec", last_function_hit);
+  // Check that there was only one break event. Matching RegExp should not
+  // cause Break events.
+  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ("f", last_function_hit);
 }
 #endif  // V8_NATIVE_REGEXP
 
@@ -5294,4 +5296,64 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
   ClearBreakPointFromJS(sbp1);
   ClearBreakPointFromJS(sbp2);
   v8::Debug::SetMessageHandler2(NULL);
+}
+
+
+static void BreakMessageHandler(const v8::Debug::Message& message) {
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    // Count the number of breaks.
+    break_point_hit_count++;
+
+    v8::HandleScope scope;
+    v8::Handle<v8::String> json = message.GetJSON();
+
+    SendContinueCommand();
+  } else if (message.IsEvent() && message.GetEvent() == v8::AfterCompile) {
+    v8::HandleScope scope;
+
+    bool is_debug_break = i::StackGuard::IsDebugBreak();
+    // Force DebugBreak flag while serializer is working.
+    i::StackGuard::DebugBreak();
+
+    // Force serialization to trigger some internal JS execution.
+    v8::Handle<v8::String> json = message.GetJSON();
+
+    // Restore previous state.
+    if (is_debug_break) {
+      i::StackGuard::DebugBreak();
+    } else {
+      i::StackGuard::Continue(i::DEBUGBREAK);
+    }
+  }
+}
+
+
+// Test that if DebugBreak is forced it is ignored when code from
+// debug-delay.js is executed.
+TEST(NoDebugBreakInAfterCompileMessageHandler) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Register a debug event listener which sets the break flag and counts.
+  v8::Debug::SetMessageHandler2(BreakMessageHandler);
+
+  // Set the debug break flag.
+  v8::Debug::DebugBreak();
+
+  // Create a function for testing stepping.
+  const char* src = "function f() { eval('var x = 10;'); } ";
+  v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
+
+  // There should be only one break event.
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Set the debug break flag again.
+  v8::Debug::DebugBreak();
+  f->Call(env->Global(), 0, NULL);
+  // There should be one more break event when the script is evaluated in 'f'.
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Get rid of the debug message handler.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
 }

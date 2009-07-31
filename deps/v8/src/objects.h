@@ -52,6 +52,7 @@
 //         - JSValue
 //       - Array
 //         - ByteArray
+//         - PixelArray
 //         - FixedArray
 //           - DescriptorArray
 //           - HashTable
@@ -94,7 +95,6 @@
 //  Smi:        [31 bit signed int] 0
 //  HeapObject: [32 bit direct pointer] (4 byte aligned) | 01
 //  Failure:    [30 bit signed int] 11
-
 
 // Ecma-262 3rd 8.6.1
 enum PropertyAttributes {
@@ -270,6 +270,7 @@ enum PropertyNormalizationMode {
   V(ODDBALL_TYPE)                               \
   V(PROXY_TYPE)                                 \
   V(BYTE_ARRAY_TYPE)                            \
+  V(PIXEL_ARRAY_TYPE)                           \
   V(FILLER_TYPE)                                \
                                                 \
   V(ACCESSOR_INFO_TYPE)                         \
@@ -659,6 +660,7 @@ enum InstanceType {
   JS_GLOBAL_PROPERTY_CELL_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
+  PIXEL_ARRAY_TYPE,
   FILLER_TYPE,
   SMI_TYPE,
 
@@ -760,6 +762,7 @@ class Object BASE_EMBEDDED {
 
   inline bool IsNumber();
   inline bool IsByteArray();
+  inline bool IsPixelArray();
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
   inline bool IsOutOfMemoryFailure();
@@ -1302,6 +1305,11 @@ class HeapNumber: public HeapObject {
 class JSObject: public HeapObject {
  public:
   enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  enum ElementsKind {
+    FAST_ELEMENTS,
+    DICTIONARY_ELEMENTS,
+    PIXEL_ELEMENTS
+  };
 
   // [properties]: Backing storage for properties.
   // properties is a FixedArray in the fast case, and a Dictionary in the
@@ -1313,10 +1321,13 @@ class JSObject: public HeapObject {
 
   // [elements]: The elements (properties with names that are integers).
   // elements is a FixedArray in the fast case, and a Dictionary in the slow
-  // case.
-  DECL_ACCESSORS(elements, FixedArray)  // Get and set fast elements.
+  // case or a PixelArray in a special case.
+  DECL_ACCESSORS(elements, Array)  // Get and set fast elements.
   inline void initialize_elements();
+  inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
+  inline bool HasDictionaryElements();
+  inline bool HasPixelElements();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Collects elements starting at index 0.
@@ -1496,14 +1507,6 @@ class JSObject: public HeapObject {
   Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
 
-  inline Smi* InterceptorPropertyLookupHint(String* name);
-  Object* GetInterceptorPropertyWithLookupHint(JSObject* receiver,
-                                               Smi* lookup_hint,
-                                               String* name,
-                                               PropertyAttributes* attributes);
-  static const int kLookupInHolder = -1;
-  static const int kLookupInPrototype = -2;
-
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
   int NumberOfLocalProperties(PropertyAttributes filter);
@@ -1581,8 +1584,11 @@ class JSObject: public HeapObject {
                       PropertyAttributes attributes);
 
   // Convert the object to use the canonical dictionary
-  // representation.
-  Object* NormalizeProperties(PropertyNormalizationMode mode);
+  // representation. If the object is expected to have additional properties
+  // added this number can be indicated to have the backing store allocated to
+  // an initial capacity for holding these properties.
+  Object* NormalizeProperties(PropertyNormalizationMode mode,
+                              int expected_additional_properties);
   Object* NormalizeElements();
 
   // Transform slow named properties to fast variants.
@@ -1695,12 +1701,6 @@ class JSObject: public HeapObject {
 
   void LookupInDescriptor(String* name, LookupResult* result);
 
-  // Attempts to get property with a named interceptor getter.
-  // Sets |attributes| to ABSENT if interceptor didn't return anything
-  Object* GetPropertyWithInterceptorProper(JSObject* receiver,
-                                           String* name,
-                                           PropertyAttributes* attributes);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
 
@@ -1718,6 +1718,10 @@ class Array: public HeapObject {
 
   // Layout descriptor.
   static const int kLengthOffset = HeapObject::kHeaderSize;
+
+ protected:
+  // No code should use the Array class directly, only its subclasses.
+  // Use the kHeaderSize of the appropriate subclass, which may be aligned.
   static const int kHeaderSize = kLengthOffset + kIntSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
@@ -2427,8 +2431,51 @@ class ByteArray: public Array {
   void ByteArrayVerify();
 #endif
 
+  // ByteArray headers are not quadword aligned.
+  static const int kHeaderSize = Array::kHeaderSize;
+  static const int kAlignedSize = Array::kAlignedSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
+};
+
+
+// A PixelArray represents a fixed-size byte array with special semantics
+// used for implementing the CanvasPixelArray object. Please see the
+// specification at:
+// http://www.whatwg.org/specs/web-apps/current-work/
+//                      multipage/the-canvas-element.html#canvaspixelarray
+// In particular, write access clamps the value written to 0 or 255 if the
+// value written is outside this range.
+class PixelArray: public Array {
+ public:
+  // [external_pointer]: The pointer to the external memory area backing this
+  // pixel array.
+  DECL_ACCESSORS(external_pointer, uint8_t)  // Pointer to the data store.
+
+  // Setter and getter.
+  inline uint8_t get(int index);
+  inline void set(int index, uint8_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber and
+  // undefined and clamps the converted value between 0 and 255.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline PixelArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void PixelArrayPrint();
+  void PixelArrayVerify();
+#endif  // DEBUG
+
+  // PixelArray headers are not quadword aligned.
+  static const int kExternalPointerOffset = Array::kAlignedSize;
+  static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
+  static const int kAlignedSize = OBJECT_SIZE_ALIGN(kHeaderSize);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PixelArray);
 };
 
 
@@ -3128,6 +3175,9 @@ class JSFunction: public JSObject {
   // Tells whether this function is a context-independent boilerplate
   // function.
   inline bool IsBoilerplate();
+
+  // Tells whether this function is builtin.
+  inline bool IsBuiltin();
 
   // [literals]: Fixed array holding the materialized literals.
   //

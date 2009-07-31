@@ -36,7 +36,7 @@ TEST(HeapMaps) {
   InitializeVM();
   CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, Array::kAlignedSize);
+  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
   CheckMap(Heap::long_string_map(), LONG_STRING_TYPE,
            SeqTwoByteString::kAlignedSize);
 }
@@ -653,7 +653,7 @@ TEST(JSArray) {
   uint32_t int_length = 0;
   CHECK(Array::IndexFromObject(length, &int_length));
   CHECK_EQ(length, array->length());
-  CHECK(!array->HasFastElements());  // Must be in slow mode.
+  CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
   array->SetElement(int_length, name);

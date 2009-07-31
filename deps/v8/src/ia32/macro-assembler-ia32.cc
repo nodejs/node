@@ -79,7 +79,7 @@ static void RecordWriteHelper(MacroAssembler* masm,
   // Add the page header, array header, and array body size to the page
   // address.
   masm->add(Operand(object), Immediate(Page::kObjectStartOffset
-                                       + Array::kHeaderSize));
+                                       + FixedArray::kHeaderSize));
   masm->add(object, Operand(scratch));
 
 
@@ -199,9 +199,10 @@ void MacroAssembler::RecordWrite(Register object, int offset,
       lea(dst, Operand(object, offset));
     } else {
       // array access: calculate the destination address in the same manner as
-      // KeyedStoreIC::GenerateGeneric
-      lea(dst,
-          Operand(object, dst, times_2, Array::kHeaderSize - kHeapObjectTag));
+      // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
+      // into an array of words.
+      lea(dst, Operand(object, dst, times_2,
+                       FixedArray::kHeaderSize - kHeapObjectTag));
     }
     // If we are already generating a shared stub, not inlining the
     // record write code isn't going to save us any memory.

@@ -223,62 +223,36 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-static uintptr_t StringToULong(char* buffer) {
-  return strtoul(buffer, NULL, 16);  // NOLINT
-}
-#endif
-
-
 void OS::LogSharedLibraryAddresses() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static const int MAP_LENGTH = 1024;
-  int fd = open("/proc/self/maps", O_RDONLY);
-  if (fd < 0) return;
+  FILE *fp;
+  fp = fopen("/proc/self/maps", "r");
+  if (fp == NULL) return;
   while (true) {
-    char addr_buffer[11];
-    addr_buffer[0] = '0';
-    addr_buffer[1] = 'x';
-    addr_buffer[10] = 0;
-    int result = read(fd, addr_buffer + 2, 8);
-    if (result < 8) break;
-    uintptr_t start = StringToULong(addr_buffer);
-    result = read(fd, addr_buffer + 2, 1);
-    if (result < 1) break;
-    if (addr_buffer[2] != '-') break;
-    result = read(fd, addr_buffer + 2, 8);
-    if (result < 8) break;
-    uintptr_t end = StringToULong(addr_buffer);
-    char buffer[MAP_LENGTH];
-    int bytes_read = -1;
-    do {
-      bytes_read++;
-      if (bytes_read >= MAP_LENGTH - 1)
-        break;
-      result = read(fd, buffer + bytes_read, 1);
-      if (result < 1) break;
-    } while (buffer[bytes_read] != '\n');
-    buffer[bytes_read] = 0;
-    // Ignore mappings that are not executable.
-    if (buffer[3] != 'x') continue;
-    char* start_of_path = index(buffer, '/');
-    // If there is no filename for this line then log it as an anonymous
-    // mapping and use the address as its name.
-    if (start_of_path == NULL) {
-      // 40 is enough to print a 64 bit address range.
-      ASSERT(sizeof(buffer) > 40);
-      snprintf(buffer,
-               sizeof(buffer),
-               "%08" V8PRIxPTR "-%08" V8PRIxPTR,
-               start,
-               end);
-      LOG(SharedLibraryEvent(buffer, start, end));
-    } else {
-      buffer[bytes_read] = 0;
-      LOG(SharedLibraryEvent(start_of_path, start, end));
+    uintptr_t start, end;
+    char attr_r, attr_w, attr_x, attr_p;
+    if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
+    if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+    int c;
+    if (attr_r == 'r' && attr_x == 'x') {
+      while (c = getc(fp), (c != EOF) && (c != '\n') && (c != '/'));
+      char lib_name[1024];
+      bool lib_has_name = false;
+      if (c == '/') {
+        ungetc(c, fp);
+        lib_has_name = fgets(lib_name, sizeof(lib_name), fp) != NULL;
+      }
+      if (lib_has_name && strlen(lib_name) > 0) {
+        lib_name[strlen(lib_name) - 1] = '\0';
+      } else {
+        snprintf(lib_name, sizeof(lib_name),
+                 "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
+      }
+      LOG(SharedLibraryEvent(lib_name, start, end));
     }
+    while (c = getc(fp), (c != EOF) && (c != '\n'));
   }
-  close(fd);
+  fclose(fp);
 #endif
 }
 

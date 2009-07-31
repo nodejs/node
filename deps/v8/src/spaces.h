@@ -393,6 +393,9 @@ class MemoryAllocator : public AllStatic {
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
 
+  // Returns allocated spaces in bytes.
+  static int Size() { return size_; }
+
   // Returns maximum available bytes that the old space can have.
   static int MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
@@ -434,7 +437,11 @@ class MemoryAllocator : public AllStatic {
   static const int kMaxNofChunks = 1 << Page::kPageSizeBits;
   // If a chunk has at least 32 pages, the maximum heap size is about
   // 8 * 1024 * 32 * 8K = 2G bytes.
+#if defined(ANDROID)
+  static const int kPagesPerChunk = 16;
+#else
   static const int kPagesPerChunk = 64;
+#endif
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:
@@ -924,33 +931,40 @@ class PagedSpace : public Space {
 
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-// HistogramInfo class for recording a single "bar" of a histogram.  This
-// class is used for collecting statistics to print to stdout (when compiled
-// with DEBUG) or to the log file (when compiled with
-// ENABLE_LOGGING_AND_PROFILING).
-class HistogramInfo BASE_EMBEDDED {
+class NumberAndSizeInfo BASE_EMBEDDED {
  public:
-  HistogramInfo() : number_(0), bytes_(0) {}
+  NumberAndSizeInfo() : number_(0), bytes_(0) {}
 
-  const char* name() { return name_; }
-  void set_name(const char* name) { name_ = name; }
-
-  int number() { return number_; }
+  int number() const { return number_; }
   void increment_number(int num) { number_ += num; }
 
-  int bytes() { return bytes_; }
+  int bytes() const { return bytes_; }
   void increment_bytes(int size) { bytes_ += size; }
 
-  // Clear the number of objects and size fields, but not the name.
   void clear() {
     number_ = 0;
     bytes_ = 0;
   }
 
  private:
-  const char* name_;
   int number_;
   int bytes_;
+};
+
+
+// HistogramInfo class for recording a single "bar" of a histogram.  This
+// class is used for collecting statistics to print to stdout (when compiled
+// with DEBUG) or to the log file (when compiled with
+// ENABLE_LOGGING_AND_PROFILING).
+class HistogramInfo: public NumberAndSizeInfo {
+ public:
+  HistogramInfo() : NumberAndSizeInfo() {}
+
+  const char* name() { return name_; }
+  void set_name(const char* name) { name_ = name; }
+
+ private:
+  const char* name_;
 };
 #endif
 

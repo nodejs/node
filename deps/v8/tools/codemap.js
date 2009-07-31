@@ -48,9 +48,14 @@ devtools.profiler.CodeMap = function() {
   this.dynamicsNameGen_ = new devtools.profiler.CodeMap.NameGenerator();
 
   /**
-   * Static code entries. Used for libraries code.
+   * Static code entries. Used for statically compiled code.
    */
   this.statics_ = new goog.structs.SplayTree();
+
+  /**
+   * Libraries entries. Used for the whole static code libraries.
+   */
+  this.libraries_ = new goog.structs.SplayTree();
 
   /**
    * Map of memory pages occupied with static code.
@@ -108,6 +113,19 @@ devtools.profiler.CodeMap.prototype.deleteCode = function(start) {
 
 
 /**
+ * Adds a library entry.
+ *
+ * @param {number} start The starting address.
+ * @param {devtools.profiler.CodeMap.CodeEntry} codeEntry Code entry object.
+ */
+devtools.profiler.CodeMap.prototype.addLibrary = function(
+    start, codeEntry) {
+  this.markPages_(start, start + codeEntry.size);
+  this.libraries_.insert(start, codeEntry);
+};
+
+
+/**
  * Adds a static code entry.
  *
  * @param {number} start The starting address.
@@ -115,7 +133,6 @@ devtools.profiler.CodeMap.prototype.deleteCode = function(start) {
  */
 devtools.profiler.CodeMap.prototype.addStaticCode = function(
     start, codeEntry) {
-  this.markPages_(start, start + codeEntry.size);
   this.statics_.insert(start, codeEntry);
 };
 
@@ -157,7 +174,10 @@ devtools.profiler.CodeMap.prototype.findInTree_ = function(tree, addr) {
 devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
   var pageAddr = addr >>> devtools.profiler.CodeMap.PAGE_ALIGNMENT;
   if (pageAddr in this.pages_) {
-    return this.findInTree_(this.statics_, addr);
+    // Static code entries can contain "holes" of unnamed code.
+    // In this case, the whole library is assigned to this address.
+    return this.findInTree_(this.statics_, addr) ||
+        this.findInTree_(this.libraries_, addr);
   }
   var min = this.dynamics_.findMin();
   var max = this.dynamics_.findMax();
@@ -176,7 +196,7 @@ devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
 
 
 /**
- * Returns an array of all dynamic code entries, including deleted ones.
+ * Returns an array of all dynamic code entries.
  */
 devtools.profiler.CodeMap.prototype.getAllDynamicEntries = function() {
   return this.dynamics_.exportValues();
@@ -188,6 +208,14 @@ devtools.profiler.CodeMap.prototype.getAllDynamicEntries = function() {
  */
 devtools.profiler.CodeMap.prototype.getAllStaticEntries = function() {
   return this.statics_.exportValues();
+};
+
+
+/**
+ * Returns an array of all libraries entries.
+ */
+devtools.profiler.CodeMap.prototype.getAllLibrariesEntries = function() {
+  return this.libraries_.exportValues();
 };
 
 

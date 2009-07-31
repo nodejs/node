@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# This script is a wrapper for OS X nm(1) tool. nm(1) perform C++ function
+# names demangling, so we're piping its output to c++filt(1) tool which does it.
+# But c++filt(1) comes with XCode (as a part of GNU binutils), so it doesn't
+# guaranteed to exist on a system.
+#
+# An alternative approach is to perform demangling in tick processor, but
+# for GNU C++ ABI this is a complex process (see cp-demangle.c sources), and
+# can't be done partially, because term boundaries are plain text symbols, such
+# as 'N', 'E', so one can't just do a search through a function name, it really
+# needs to be parsed, which requires a lot of knowledge to be coded in.
+
+if [ "`which c++filt`" == "" ]; then
+  nm $@
+else
+  nm $@ | c++filt -p -i
+fi

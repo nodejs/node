@@ -174,7 +174,7 @@ TickProcessor.prototype.processLogFile = function(fileName) {
 
 TickProcessor.prototype.processSharedLibrary = function(
     name, startAddr, endAddr) {
-  var entry = this.profile_.addStaticCode(name, startAddr, endAddr);
+  var entry = this.profile_.addLibrary(name, startAddr, endAddr);
   this.setCodeType(entry.getName(), 'SHARED_LIB');
 
   var self = this;
@@ -380,14 +380,21 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
 
   var prevEntry;
 
-  function addPrevEntry(end) {
+  function addEntry(funcInfo) {
     // Several functions can be mapped onto the same address. To avoid
     // creating zero-sized entries, skip such duplicates.
     // Also double-check that function belongs to the library address space.
-    if (prevEntry && prevEntry.start < end &&
-        prevEntry.start >= libStart && end <= libEnd) {
-      processorFunc(prevEntry.name, prevEntry.start, end);
+    if (prevEntry && !prevEntry.end &&
+        prevEntry.start < funcInfo.start &&
+        prevEntry.start >= libStart && funcInfo.start <= libEnd) {
+      processorFunc(prevEntry.name, prevEntry.start, funcInfo.start);
     }
+    if (funcInfo.end &&
+        (!prevEntry || prevEntry.start != funcInfo.start) &&
+        funcInfo.start >= libStart && funcInfo.end <= libEnd) {
+      processorFunc(funcInfo.name, funcInfo.start, funcInfo.end);
+    }
+    prevEntry = funcInfo;
   }
 
   while (true) {
@@ -400,10 +407,12 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     if (funcInfo.start < libStart && funcInfo.start < libEnd - libStart) {
       funcInfo.start += libStart;
     }
-    addPrevEntry(funcInfo.start);
-    prevEntry = funcInfo;
+    if (funcInfo.size) {
+      funcInfo.end = funcInfo.start + funcInfo.size;
+    }
+    addEntry(funcInfo);
   }
-  addPrevEntry(libEnd);
+  addEntry({name: '', start: libEnd});
 };
 
 
@@ -420,19 +429,17 @@ function UnixCppEntriesProvider(nmExec) {
   this.symbols = [];
   this.parsePos = 0;
   this.nmExec = nmExec;
+  this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
-
-
-UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tTwW] (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
   try {
     this.symbols = [
-      os.system(this.nmExec, ['-C', '-n', libName], -1, -1),
-      os.system(this.nmExec, ['-C', '-n', '-D', libName], -1, -1)
+      os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
+      os.system(this.nmExec, ['-C', '-n', '-S', '-D', libName], -1, -1)
     ];
   } catch (e) {
     // If the library cannot be found on this system let's not panic.
@@ -454,8 +461,34 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 
   var line = this.symbols[0].substring(this.parsePos, lineEndPos);
   this.parsePos = lineEndPos + 1;
-  var fields = line.match(UnixCppEntriesProvider.FUNC_RE);
-  return fields ? { name: fields[2], start: parseInt(fields[1], 16) } : null;
+  var fields = line.match(this.FUNC_RE);
+  var funcInfo = null;
+  if (fields) {
+    funcInfo = { name: fields[3], start: parseInt(fields[1], 16) };
+    if (fields[2]) {
+      funcInfo.size = parseInt(fields[2], 16);
+    }
+  }
+  return funcInfo;
+};
+
+
+function MacCppEntriesProvider(nmExec) {
+  UnixCppEntriesProvider.call(this, nmExec);
+  // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
+  this.FUNC_RE = /^([0-9a-fA-F]{8}) ()[iItT] (.*)$/;
+};
+inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
+
+
+MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
+  this.parsePos = 0;
+  try {
+    this.symbols = [os.system(this.nmExec, ['-n', '-f', libName], -1, -1), ''];
+  } catch (e) {
+    // If the library cannot be found on this system let's not panic.
+    this.symbols = '';
+  }
 };
 
 
@@ -538,6 +571,8 @@ function ArgumentsProcessor(args) {
         'Specify that we are running on *nix platform'],
     '--windows': ['platform', 'windows',
         'Specify that we are running on Windows platform'],
+    '--mac': ['platform', 'mac',
+        'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
   };

@@ -31,6 +31,7 @@
 // Files: tools/logreader.js tools/tickprocessor.js
 // Env: TEST_FILE_NAME
 
+
 (function testArgumentsProcessor() {
   var p_default = new ArgumentsProcessor([]);
   assertTrue(p_default.parse());
@@ -69,12 +70,12 @@
       '         U operator delete[](void*)@@GLIBCXX_3.4',
       '08049790 T _init',
       '08049f50 T _start',
-      '08139150 t v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)',
-      '08139ca0 T v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)',
-      '0813a0b0 t v8::internal::Runtime_DebugGetPropertyDetails(v8::internal::Arguments)',
-      '08181d30 W v8::internal::RegExpMacroAssemblerIrregexp::stack_limit_slack()',
+      '08139150 00000b4b t v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)',
+      '08139ca0 000003f1 T v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)',
+      '0813a0b0 00000855 t v8::internal::Runtime_DebugGetPropertyDetails(v8::internal::Arguments)',
+      '0818b220 00000036 W v8::internal::RegExpMacroAssembler::CheckPosition(int, v8::internal::Label*)',
       '         w __gmon_start__',
-      '081f08a0 B stdout'
+      '081f08a0 00000004 B stdout\n'
     ].join('\n'), ''];
   };
 
@@ -87,22 +88,22 @@
   assertEquals(
       [['_init', 0x08049790, 0x08049f50],
        ['_start', 0x08049f50, 0x08139150],
-       ['v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)', 0x08139150, 0x08139ca0],
-       ['v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)', 0x08139ca0, 0x0813a0b0],
-       ['v8::internal::Runtime_DebugGetPropertyDetails(v8::internal::Arguments)', 0x0813a0b0, 0x08181d30],
-       ['v8::internal::RegExpMacroAssemblerIrregexp::stack_limit_slack()', 0x08181d30, 0x081ee000]],
+       ['v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)', 0x08139150, 0x08139150 + 0xb4b],
+       ['v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)', 0x08139ca0, 0x08139ca0 + 0x3f1],
+       ['v8::internal::Runtime_DebugGetPropertyDetails(v8::internal::Arguments)', 0x0813a0b0, 0x0813a0b0 + 0x855],
+       ['v8::internal::RegExpMacroAssembler::CheckPosition(int, v8::internal::Label*)', 0x0818b220, 0x0818b220 + 0x36]],
       shell_syms);
 
   // libc library
   UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
     this.symbols = [[
-        '000162a0 T __libc_init_first',
-        '0002a5f0 T __isnan',
-        '0002a5f0 W isnan',
-        '0002aaa0 W scalblnf',
-        '0002aaa0 W scalbnf',
-        '0011a340 T __libc_thread_freeres',
-        '00128860 R _itoa_lower_digits'].join('\n'), ''];
+        '000162a0 00000005 T __libc_init_first',
+        '0002a5f0 0000002d T __isnan',
+        '0002a5f0 0000002d W isnan',
+        '0002aaa0 0000000d W scalblnf',
+        '0002aaa0 0000000d W scalbnf',
+        '0011a340 00000048 T __libc_thread_freeres',
+        '00128860 00000024 R _itoa_lower_digits\n'].join('\n'), ''];
   };
   var libc_prov = new UnixCppEntriesProvider();
   var libc_syms = [];
@@ -110,14 +111,78 @@
       function (name, start, end) {
         libc_syms.push(Array.prototype.slice.apply(arguments, [0]));
       });
-  assertEquals(
-      [['__libc_init_first', 0xf7c5c000 + 0x000162a0, 0xf7c5c000 + 0x0002a5f0],
-       ['isnan', 0xf7c5c000 + 0x0002a5f0, 0xf7c5c000 + 0x0002aaa0],
-       ['scalbnf', 0xf7c5c000 + 0x0002aaa0, 0xf7c5c000 + 0x0011a340],
-       ['__libc_thread_freeres', 0xf7c5c000 + 0x0011a340, 0xf7da5000]],
-      libc_syms);
+  var libc_ref_syms = [['__libc_init_first', 0x000162a0, 0x000162a0 + 0x5],
+       ['__isnan', 0x0002a5f0, 0x0002a5f0 + 0x2d],
+       ['scalblnf', 0x0002aaa0, 0x0002aaa0 + 0xd],
+       ['__libc_thread_freeres', 0x0011a340, 0x0011a340 + 0x48]];
+  for (var i = 0; i < libc_ref_syms.length; ++i) {
+    libc_ref_syms[i][1] += 0xf7c5c000;
+    libc_ref_syms[i][2] += 0xf7c5c000;
+  }
+  assertEquals(libc_ref_syms, libc_syms);
 
   UnixCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;
+})();
+
+
+(function testMacCppEntriesProvider() {
+  var oldLoadSymbols = MacCppEntriesProvider.prototype.loadSymbols;
+
+  // shell executable
+  MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
+    this.symbols = [[
+      '         U operator delete[]',
+      '00001000 A __mh_execute_header',
+      '00001b00 T start',
+      '00001b40 t dyld_stub_binding_helper',
+      '0011b710 T v8::internal::RegExpMacroAssembler::CheckPosition',
+      '00134250 t v8::internal::Runtime_StringReplaceRegExpWithString',
+      '00137220 T v8::internal::Runtime::GetElementOrCharAt',
+      '00137400 t v8::internal::Runtime_DebugGetPropertyDetails',
+      '001c1a80 b _private_mem\n'
+    ].join('\n'), ''];
+  };
+
+  var shell_prov = new MacCppEntriesProvider();
+  var shell_syms = [];
+  shell_prov.parseVmSymbols('shell', 0x00001b00, 0x00163156,
+      function (name, start, end) {
+        shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  assertEquals(
+      [['start', 0x00001b00, 0x00001b40],
+       ['dyld_stub_binding_helper', 0x00001b40, 0x0011b710],
+       ['v8::internal::RegExpMacroAssembler::CheckPosition', 0x0011b710, 0x00134250],
+       ['v8::internal::Runtime_StringReplaceRegExpWithString', 0x00134250, 0x00137220],
+       ['v8::internal::Runtime::GetElementOrCharAt', 0x00137220, 0x00137400],
+       ['v8::internal::Runtime_DebugGetPropertyDetails', 0x00137400, 0x00163156]],
+      shell_syms);
+
+  // stdc++ library
+  MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
+    this.symbols = [[
+        '0000107a T __gnu_cxx::balloc::__mini_vector<std::pair<__gnu_cxx::bitmap_allocator<char>::_Alloc_block*, __gnu_cxx::bitmap_allocator<char>::_Alloc_block*> >::__mini_vector',
+        '0002c410 T std::basic_streambuf<char, std::char_traits<char> >::pubseekoff',
+        '0002c488 T std::basic_streambuf<char, std::char_traits<char> >::pubseekpos',
+        '000466aa T ___cxa_pure_virtual\n'].join('\n'), ''];
+  };
+  var stdc_prov = new MacCppEntriesProvider();
+  var stdc_syms = [];
+  stdc_prov.parseVmSymbols('stdc++', 0x95728fb4, 0x95770005,
+      function (name, start, end) {
+        stdc_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  var stdc_ref_syms = [['__gnu_cxx::balloc::__mini_vector<std::pair<__gnu_cxx::bitmap_allocator<char>::_Alloc_block*, __gnu_cxx::bitmap_allocator<char>::_Alloc_block*> >::__mini_vector', 0x0000107a, 0x0002c410],
+       ['std::basic_streambuf<char, std::char_traits<char> >::pubseekoff', 0x0002c410, 0x0002c488],
+       ['std::basic_streambuf<char, std::char_traits<char> >::pubseekpos', 0x0002c488, 0x000466aa],
+       ['___cxa_pure_virtual', 0x000466aa, 0x95770005 - 0x95728fb4]];
+  for (var i = 0; i < stdc_ref_syms.length; ++i) {
+    stdc_ref_syms[i][1] += 0x95728fb4;
+    stdc_ref_syms[i][2] += 0x95728fb4;
+  }
+  assertEquals(stdc_ref_syms, stdc_syms);
+
+  MacCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;
 })();
 
 
@@ -174,8 +239,8 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
          ['v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)', 0x080f8210, 0x080f8800],
          ['v8::internal::Runtime_Math_exp(v8::internal::Arguments)', 0x08123b20, 0x08123b80]],
     '/lib32/libm-2.7.so':
-        [['exp', startAddr + 0x00009e80, startAddr + 0x00009f30],
-         ['fegetexcept', startAddr + 0x000061e0, startAddr + 0x00008b10]],
+        [['exp', startAddr + 0x00009e80, startAddr + 0x00009e80 + 0xa3],
+         ['fegetexcept', startAddr + 0x000061e0, startAddr + 0x000061e0 + 0x15]],
     'ffffe000-fffff000': []};
   assertTrue(name in symbols);
   var syms = symbols[name];
@@ -191,6 +256,7 @@ function PrintMonitor(outputOrFileName) {
   var outputPos = 0;
   var diffs = this.diffs = [];
   var realOut = this.realOut = [];
+  var unexpectedOut = this.unexpectedOut = null;
 
   this.oldPrint = print;
   print = function(str) {
@@ -198,13 +264,15 @@ function PrintMonitor(outputOrFileName) {
     for (var i = 0; i < strSplit.length; ++i) {
       s = strSplit[i];
       realOut.push(s);
-      assertTrue(outputPos < expectedOut.length,
-          'unexpected output: "' + s + '"');
-      if (expectedOut[outputPos] != s) {
-        diffs.push('line ' + outputPos + ': expected <' +
-                   expectedOut[outputPos] + '> found <' + s + '>\n');
+      if (outputPos < expectedOut.length) {
+        if (expectedOut[outputPos] != s) {
+          diffs.push('line ' + outputPos + ': expected <' +
+                     expectedOut[outputPos] + '> found <' + s + '>\n');
+        }
+        outputPos++;
+      } else {
+        unexpectedOut = true;
       }
-      outputPos++;
     }
   };
 };
@@ -218,9 +286,10 @@ PrintMonitor.prototype.loadExpectedOutput = function(fileName) {
 
 PrintMonitor.prototype.finish = function() {
   print = this.oldPrint;
-  if (this.diffs.length > 0) {
+  if (this.diffs.length > 0 || this.unexpectedOut != null) {
     print(this.realOut.join('\n'));
     assertEquals([], this.diffs);
+    assertNull(this.unexpectedOut);
   }
 };
 

@@ -401,6 +401,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\frame-element.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\frame-element.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\arm\frames-arm.cc"
 				>
 			</File>
@@ -510,10 +518,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\arm\jump-target-arm.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\jsregexp-inl.h"
 				>
 			</File>
 			<File

@@ -86,7 +86,8 @@ TEST(Promotion) {
   v8::HandleScope sc;
 
   // Allocate a fixed array in the new space.
-  int array_size = (Heap::MaxObjectSizeInPagedSpace() - Array::kHeaderSize) /
+  int array_size =
+      (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
   Object* obj = Heap::AllocateFixedArray(array_size);
   CHECK(!obj->IsFailure());
@@ -118,7 +119,7 @@ TEST(NoPromotion) {
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // Allocate a big Fixed array in the new space.
-  int size = (Heap::MaxObjectSizeInPagedSpace() - Array::kHeaderSize) /
+  int size = (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       kPointerSize;
   Object* obj = Heap::AllocateFixedArray(size);
 

@@ -77,6 +77,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ cmp(r3, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, miss);
 
+  // Possible work-around for http://crbug.com/16276.
+  // See also: http://codereview.chromium.org/155418.
+  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, miss);
+  __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(eq, miss);
+
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));
   __ ldr(r3, FieldMemOperand(t0, HeapObject::kMapOffset));
@@ -84,14 +91,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ b(ne, miss);
 
   // Compute the capacity mask.
-  const int kCapacityOffset =
-      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
+  const int kCapacityOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
   __ ldr(r3, FieldMemOperand(t0, kCapacityOffset));
   __ mov(r3, Operand(r3, ASR, kSmiTagSize));  // convert smi to int
   __ sub(r3, r3, Operand(1));
 
-  const int kElementsStartOffset =
-      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
@@ -575,8 +582,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r3, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
   __ cmp(r0, Operand(r3));
@@ -592,7 +599,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Fast case: Do the load.
   __ bind(&fast);
-  __ add(r3, r1, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
   __ cmp(r0, Operand(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -654,14 +661,14 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r2, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r2, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
   __ mov(r1, Operand(r1, ASR, kSmiTagSize));
   // Compute address to store into and check array bounds.
-  __ add(r2, r3, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
-  __ ldr(ip, FieldMemOperand(r3, Array::kLengthOffset));
+  __ ldr(ip, FieldMemOperand(r3, FixedArray::kLengthOffset));
   __ cmp(r1, Operand(ip));
   __ b(lo, &fast);
 
@@ -689,7 +696,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r3, Operand(r2));
   // NOTE: Computing the address to store into must take the fact
   // that the key has been incremented into account.
-  int displacement = Array::kHeaderSize - kHeapObjectTag -
+  int displacement = FixedArray::kHeaderSize - kHeapObjectTag -
       ((1 << kSmiTagSize) * 2);
   __ add(r2, r2, Operand(displacement));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
@@ -703,8 +710,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&array);
   __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r1, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -714,7 +721,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r1, Operand(ip));
   __ b(hs, &extra);
   __ mov(r3, Operand(r2));
-  __ add(r2, r2, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
 
 

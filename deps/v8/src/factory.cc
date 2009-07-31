@@ -210,6 +210,16 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 }
 
 
+Handle<PixelArray> Factory::NewPixelArray(int length,
+                                          uint8_t* external_pointer,
+                                          PretenureFlag pretenure) {
+  ASSERT(0 <= length);
+  CALL_HEAP_FUNCTION(Heap::AllocatePixelArray(length,
+                                              external_pointer,
+                                              pretenure), PixelArray);
+}
+
+
 Handle<Map> Factory::NewMap(InstanceType type, int instance_size) {
   CALL_HEAP_FUNCTION(Heap::AllocateMap(type, instance_size), Map);
 }

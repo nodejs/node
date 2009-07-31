@@ -2897,7 +2897,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ str(r0, FieldMemOperand(r1, offset));
 
     // Update the write barrier for the array address.
@@ -3737,7 +3737,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
     frame_->EmitPush(r0);  // r0 has result
   }
-  ASSERT((has_cc() && frame_->height() == original_height) ||
+  ASSERT(!has_valid_frame() ||
+         (has_cc() && frame_->height() == original_height) ||
          (!has_cc() && frame_->height() == original_height + 1));
 }
 
@@ -3871,22 +3872,12 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                           &is_true,
                           false_target(),
                           false);
-    if (has_cc()) {
-      Branch(false, false_target());
-
-      // Evaluate right side expression.
-      is_true.Bind();
-      LoadConditionAndSpill(node->right(),
-                            NOT_INSIDE_TYPEOF,
-                            true_target(),
-                            false_target(),
-                            false);
-
-    } else {
+    if (has_valid_frame() && !has_cc()) {
+      // The left-hand side result is on top of the virtual frame.
       JumpTarget pop_and_continue;
       JumpTarget exit;
 
-      __ ldr(r0, frame_->Top());  // dup the stack top
+      __ ldr(r0, frame_->Top());  // Duplicate the stack top.
       frame_->EmitPush(r0);
       // Avoid popping the result if it converts to 'false' using the
       // standard ToBoolean() conversion as described in ECMA-262,
@@ -3904,6 +3895,22 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Exit (always with a materialized value).
       exit.Bind();
+    } else if (has_cc() || is_true.is_linked()) {
+      // The left-hand side is either (a) partially compiled to
+      // control flow with a final branch left to emit or (b) fully
+      // compiled to control flow and possibly true.
+      if (has_cc()) {
+        Branch(false, false_target());
+      }
+      is_true.Bind();
+      LoadConditionAndSpill(node->right(),
+                            NOT_INSIDE_TYPEOF,
+                            true_target(),
+                            false_target(),
+                            false);
+    } else {
+      // Nothing to do.
+      ASSERT(!has_valid_frame() && !has_cc() && !is_true.is_linked());
     }
 
   } else if (op == Token::OR) {
@@ -3913,18 +3920,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                           true_target(),
                           &is_false,
                           false);
-    if (has_cc()) {
-      Branch(true, true_target());
-
-      // Evaluate right side expression.
-      is_false.Bind();
-      LoadConditionAndSpill(node->right(),
-                            NOT_INSIDE_TYPEOF,
-                            true_target(),
-                            false_target(),
-                            false);
-
-    } else {
+    if (has_valid_frame() && !has_cc()) {
+      // The left-hand side result is on top of the virtual frame.
       JumpTarget pop_and_continue;
       JumpTarget exit;
 
@@ -3946,6 +3943,22 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Exit (always with a materialized value).
       exit.Bind();
+    } else if (has_cc() || is_false.is_linked()) {
+      // The left-hand side is either (a) partially compiled to
+      // control flow with a final branch left to emit or (b) fully
+      // compiled to control flow and possibly false.
+      if (has_cc()) {
+        Branch(true, true_target());
+      }
+      is_false.Bind();
+      LoadConditionAndSpill(node->right(),
+                            NOT_INSIDE_TYPEOF,
+                            true_target(),
+                            false_target(),
+                            false);
+    } else {
+      // Nothing to do.
+      ASSERT(!has_valid_frame() && !has_cc() && !is_false.is_linked());
     }
 
   } else {
@@ -3989,7 +4002,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
     frame_->EmitPush(r0);
   }
-  ASSERT((has_cc() && frame_->height() == original_height) ||
+  ASSERT(!has_valid_frame() ||
+         (has_cc() && frame_->height() == original_height) ||
          (!has_cc() && frame_->height() == original_height + 1));
 }
 

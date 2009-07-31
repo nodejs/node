@@ -164,8 +164,11 @@ void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
 
 
 void NormalizeProperties(Handle<JSObject> object,
-                         PropertyNormalizationMode mode) {
-  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties(mode));
+                         PropertyNormalizationMode mode,
+                         int expected_additional_properties) {
+  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties(
+      mode,
+      expected_additional_properties));
 }
 
 
@@ -341,6 +344,14 @@ Handle<String> SubString(Handle<String> str, int start, int end) {
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
                           Handle<Object> value) {
+  if (object->HasPixelElements()) {
+    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+      bool has_exception;
+      Handle<Object> number = Execution::ToNumber(value, &has_exception);
+      if (has_exception) return Handle<Object>();
+      value = number;
+    }
+  }
   CALL_HEAP_FUNCTION(object->SetElement(index, *value), Object);
 }
 
@@ -643,13 +654,17 @@ bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag) {
 
 OptimizedObjectForAddingMultipleProperties::
 OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
+                                           int expected_additional_properties,
                                            bool condition) {
   object_ = object;
   if (condition && object_->HasFastProperties()) {
     // Normalize the properties of object to avoid n^2 behavior
-    // when extending the object multiple properties.
+    // when extending the object multiple properties. Indicate the number of
+    // properties to be added.
     unused_property_fields_ = object->map()->unused_property_fields();
-    NormalizeProperties(object_, KEEP_INOBJECT_PROPERTIES);
+    NormalizeProperties(object_,
+                        KEEP_INOBJECT_PROPERTIES,
+                        expected_additional_properties);
     has_been_transformed_ = true;
 
   } else {

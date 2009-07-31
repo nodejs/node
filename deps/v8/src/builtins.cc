@@ -87,17 +87,33 @@ static inline Object* __builtin_arg__(int n, int argc, Object** argv) {
 }
 
 
-// TODO(1238487): Get rid of this function that determines if the
-// builtin is called as a constructor. This may be a somewhat slow
-// operation due to the stack frame iteration.
 static inline bool CalledAsConstructor() {
+#ifdef DEBUG
+  // Calculate the result using a full stack frame iterator and check
+  // that the state of the stack is as we assume it to be in the
+  // code below.
   StackFrameIterator it;
   ASSERT(it.frame()->is_exit());
   it.Advance();
   StackFrame* frame = it.frame();
-  return frame->is_construct();
+  bool reference_result = frame->is_construct();
+#endif
+  Address fp = Top::c_entry_fp(Top::GetCurrentThread());
+  // Because we know fp points to an exit frame we can use the relevant
+  // part of ExitFrame::ComputeCallerState directly.
+  const int kCallerOffset = ExitFrameConstants::kCallerFPOffset;
+  Address caller_fp = Memory::Address_at(fp + kCallerOffset);
+  // This inlines the part of StackFrame::ComputeType that grabs the
+  // type of the current frame.  Note that StackFrame::ComputeType
+  // has been specialized for each architecture so if any one of them
+  // changes this code has to be changed as well.
+  const int kMarkerOffset = StandardFrameConstants::kMarkerOffset;
+  const Smi* kConstructMarker = Smi::FromInt(StackFrame::CONSTRUCT);
+  Object* marker = Memory::Object_at(caller_fp + kMarkerOffset);
+  bool result = (marker == kConstructMarker);
+  ASSERT_EQ(result, reference_result);
+  return result;
 }
-
 
 // ----------------------------------------------------------------------------
 

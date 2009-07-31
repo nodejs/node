@@ -42,7 +42,7 @@ static const int InitialWeight = 100;
 
 class UsageComputer: public AstVisitor {
  public:
-  static bool Traverse(Node* node);
+  static bool Traverse(AstNode* node);
 
   void VisitBlock(Block* node);
   void VisitDeclaration(Declaration* node);
@@ -116,7 +116,7 @@ class WeightScaler BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // Implementation of UsageComputer
 
-bool UsageComputer::Traverse(Node* node) {
+bool UsageComputer::Traverse(AstNode* node) {
   UsageComputer uc(InitialWeight, false);
   uc.Visit(node);
   return !uc.HasStackOverflow();

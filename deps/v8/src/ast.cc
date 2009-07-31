@@ -51,7 +51,7 @@ CallEval CallEval::sentinel_(NULL, NULL, 0);
     if (v->CheckStackOverflow()) return; \
     v->Visit##type(this);                \
   }
-NODE_LIST(DECL_ACCEPT)
+AST_NODE_LIST(DECL_ACCEPT)
 #undef DECL_ACCEPT
 
 

@@ -51,9 +51,11 @@ static bool BackRefMatchesNoCase(int from,
     unibrow::uchar old_char = subject[from++];
     unibrow::uchar new_char = subject[current++];
     if (old_char == new_char) continue;
-    interp_canonicalize.get(old_char, '\0', &old_char);
-    interp_canonicalize.get(new_char, '\0', &new_char);
-    if (old_char != new_char) {
+    unibrow::uchar old_string[1] = { old_char };
+    unibrow::uchar new_string[1] = { new_char };
+    interp_canonicalize.get(old_char, '\0', old_string);
+    interp_canonicalize.get(new_char, '\0', new_string);
+    if (old_string[0] != new_string[0]) {
       return false;
     }
   }

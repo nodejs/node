@@ -94,6 +94,7 @@ namespace internal {
     UndetectableMediumAsciiStringMap)                                          \
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
   V(Map, byte_array_map, ByteArrayMap)                                         \
+  V(Map, pixel_array_map, PixelArrayMap)                                       \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, context_map, ContextMap)                                              \
@@ -109,6 +110,7 @@ namespace internal {
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
@@ -417,6 +419,14 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
+
+  // Allocate a pixel array of the specified length
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocatePixelArray(int length,
+                                    uint8_t* external_pointer,
+                                    PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -733,6 +743,11 @@ class Heap : public AllStatic {
   static void ZapFromSpace();
 #endif
 
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+  // Print short heap statistics.
+  static void PrintShortHeapStatistics();
+#endif
+
   // Makes a new symbol object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -741,7 +756,7 @@ class Heap : public AllStatic {
   static Object* CreateSymbol(String* str);
 
   // Write barrier support for address[offset] = o.
-  inline static void RecordWrite(Address address, int offset);
+  static inline void RecordWrite(Address address, int offset);
 
   // Given an address occupied by a live code object, return that object.
   static Object* FindCodeObject(Address a);
@@ -797,22 +812,7 @@ class Heap : public AllStatic {
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
-  static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
-    int amount = amount_of_external_allocated_memory_ + change_in_bytes;
-    if (change_in_bytes >= 0) {
-      // Avoid overflow.
-      if (amount > amount_of_external_allocated_memory_) {
-        amount_of_external_allocated_memory_ = amount;
-      }
-    } else {
-      // Avoid underflow.
-      if (amount >= 0) {
-        amount_of_external_allocated_memory_ = amount;
-      }
-    }
-    ASSERT(amount_of_external_allocated_memory_ >= 0);
-    return amount_of_external_allocated_memory_;
-  }
+  static inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
   // Allocate unitialized fixed array (pretenure == NON_TENURE).
   static Object* AllocateRawFixedArray(int length);
@@ -895,6 +895,10 @@ class Heap : public AllStatic {
   // checked before expanding a paged space in the old generation and on
   // every allocation in large object space.
   static int old_gen_allocation_limit_;
+
+  // Limit on the amount of externally allocated memory allowed
+  // between global GCs. If reached a global GC is forced.
+  static int external_allocation_limit_;
 
   // The amount of external memory registered through the API kept alive
   // by global handles
@@ -1225,7 +1229,7 @@ class KeyedLookupCache {
   // Clear the cache.
   static void Clear();
  private:
-  inline static int Hash(Map* map, String* name);
+  static inline int Hash(Map* map, String* name);
   static const int kLength = 64;
   struct Key {
     Map* map;

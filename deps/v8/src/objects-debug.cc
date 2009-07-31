@@ -115,6 +115,9 @@ void HeapObject::HeapObjectPrint() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint();
       break;
+    case PIXEL_ARRAY_TYPE:
+      PixelArray::cast(this)->PixelArrayPrint();
+      break;
     case FILLER_TYPE:
       PrintF("filler");
       break;
@@ -191,6 +194,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
+    case PIXEL_ARRAY_TYPE:
+      PixelArray::cast(this)->PixelArrayVerify();
+      break;
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -264,8 +270,18 @@ void ByteArray::ByteArrayPrint() {
 }
 
 
+void PixelArray::PixelArrayPrint() {
+  PrintF("pixel array");
+}
+
+
 void ByteArray::ByteArrayVerify() {
   ASSERT(IsByteArray());
+}
+
+
+void PixelArray::PixelArrayVerify() {
+  ASSERT(IsPixelArray());
 }
 
 
@@ -312,15 +328,30 @@ void JSObject::PrintProperties() {
 
 
 void JSObject::PrintElements() {
-  if (HasFastElements()) {
-    FixedArray* p = FixedArray::cast(elements());
-    for (int i = 0; i < p->length(); i++) {
-      PrintF("   %d: ", i);
-      p->get(i)->ShortPrint();
-      PrintF("\n");
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      // Print in array notation for non-sparse arrays.
+      FixedArray* p = FixedArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: ", i);
+        p->get(i)->ShortPrint();
+        PrintF("\n");
+      }
+      break;
     }
-  } else {
-    elements()->Print();
+    case PIXEL_ELEMENTS: {
+      PixelArray* p = PixelArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, p->get(i));
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS:
+      elements()->Print();
+      break;
+    default:
+      UNREACHABLE();
+      break;
   }
 }
 
@@ -402,6 +433,7 @@ static const char* TypeToString(InstanceType type) {
     case LONG_EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
+    case PIXEL_ARRAY_TYPE: return "PIXEL_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
@@ -666,7 +698,7 @@ void Oddball::OddballVerify() {
   } else {
     ASSERT(number->IsSmi());
     int value = Smi::cast(number)->value();
-    ASSERT(value == 0 || value == 1 || value == -1);
+    ASSERT(value == 0 || value == 1 || value == -1 || value == -2);
   }
 }
 
@@ -958,6 +990,7 @@ void Script::ScriptPrint() {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 void DebugInfo::DebugInfoVerify() {
   CHECK(IsDebugInfo());
   VerifyPointer(shared());
@@ -997,6 +1030,7 @@ void BreakPointInfo::BreakPointInfoPrint() {
   PrintF("\n - break_point_objects: ");
   break_point_objects()->ShortPrint();
 }
+#endif
 
 
 void JSObject::IncrementSpillStatistics(SpillInformation* info) {
@@ -1013,21 +1047,35 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
         dict->Capacity() - dict->NumberOfElements();
   }
   // Indexed properties
-  if (HasFastElements()) {
-    info->number_of_objects_with_fast_elements_++;
-    int holes = 0;
-    FixedArray* e = FixedArray::cast(elements());
-    int len = e->length();
-    for (int i = 0; i < len; i++) {
-      if (e->get(i) == Heap::the_hole_value()) holes++;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      info->number_of_objects_with_fast_elements_++;
+      int holes = 0;
+      FixedArray* e = FixedArray::cast(elements());
+      int len = e->length();
+      for (int i = 0; i < len; i++) {
+        if (e->get(i) == Heap::the_hole_value()) holes++;
+      }
+      info->number_of_fast_used_elements_   += len - holes;
+      info->number_of_fast_unused_elements_ += holes;
+      break;
     }
-    info->number_of_fast_used_elements_   += len - holes;
-    info->number_of_fast_unused_elements_ += holes;
-  } else {
-    NumberDictionary* dict = element_dictionary();
-    info->number_of_slow_used_elements_ += dict->NumberOfElements();
-    info->number_of_slow_unused_elements_ +=
-        dict->Capacity() - dict->NumberOfElements();
+    case PIXEL_ELEMENTS: {
+      info->number_of_objects_with_fast_elements_++;
+      PixelArray* e = PixelArray::cast(elements());
+      info->number_of_fast_used_elements_ += e->length();
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dict = element_dictionary();
+      info->number_of_slow_used_elements_ += dict->NumberOfElements();
+      info->number_of_slow_unused_elements_ +=
+          dict->Capacity() - dict->NumberOfElements();
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 }
 

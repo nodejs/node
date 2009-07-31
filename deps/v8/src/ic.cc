@@ -273,28 +273,39 @@ static bool HasInterceptorGetter(JSObject* object) {
 static void LookupForRead(Object* object,
                           String* name,
                           LookupResult* lookup) {
-  object->Lookup(name, lookup);
-  if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR) {
-    return;
-  }
+  AssertNoAllocation no_gc;  // pointers must stay valid
 
-  JSObject* holder = lookup->holder();
-  if (HasInterceptorGetter(holder)) {
-    return;
-  }
+  // Skip all the objects with named interceptors, but
+  // without actual getter.
+  while (true) {
+    object->Lookup(name, lookup);
+    // Besides normal conditions (property not found or it's not
+    // an interceptor), bail out of lookup is not cacheable: we won't
+    // be able to IC it anyway and regular lookup should work fine.
+    if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR ||
+        !lookup->IsCacheable()) {
+      return;
+    }
 
-  // There is no getter, just skip it and lookup down the proto chain
-  holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsValid()) {
-    return;
-  }
+    JSObject* holder = lookup->holder();
+    if (HasInterceptorGetter(holder)) {
+      return;
+    }
 
-  Object* proto = holder->GetPrototype();
-  if (proto == Heap::null_value()) {
-    return;
-  }
+    holder->LocalLookupRealNamedProperty(name, lookup);
+    if (lookup->IsValid()) {
+      ASSERT(lookup->type() != INTERCEPTOR);
+      return;
+    }
 
-  LookupForRead(proto, name, lookup);
+    Object* proto = holder->GetPrototype();
+    if (proto->IsNull()) {
+      lookup->NotFound();
+      return;
+    }
+
+    object = proto;
+  }
 }
 
 
@@ -736,7 +747,7 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return Smi::FromInt(string->length());
       }
 
@@ -748,7 +759,7 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return JSArray::cast(*object)->length();
       }
 
@@ -761,7 +772,7 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return Accessors::FunctionGetPrototype(*object, 0);
       }
     }
@@ -787,7 +798,6 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
 
-    // Update the inline cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, object, name);
     }
@@ -1217,11 +1227,6 @@ Object* CallIC_Miss(Arguments args) {
 
 
 void CallIC::GenerateInitialize(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
-void CallIC::GeneratePreMonomorphic(MacroAssembler* masm, int argc) {
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 

@@ -219,6 +219,10 @@ class Logger {
   static void HeapSampleBeginEvent(const char* space, const char* kind);
   static void HeapSampleEndEvent(const char* space, const char* kind);
   static void HeapSampleItemEvent(const char* type, int number, int bytes);
+  static void HeapSampleJSConstructorEvent(const char* constructor,
+                                           int number, int bytes);
+  static void HeapSampleStats(const char* space, const char* kind,
+                              int capacity, int used);
 
   static void SharedLibraryEvent(const char* library_path,
                                  uintptr_t start,

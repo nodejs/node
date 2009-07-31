@@ -86,7 +86,23 @@ devtools.profiler.Profile.prototype.handleUnknownCode = function(
 
 
 /**
- * Registers static (library) code entry.
+ * Registers a library.
+ *
+ * @param {string} name Code entry name.
+ * @param {number} startAddr Starting address.
+ * @param {number} endAddr Ending address.
+ */
+devtools.profiler.Profile.prototype.addLibrary = function(
+    name, startAddr, endAddr) {
+  var entry = new devtools.profiler.CodeMap.CodeEntry(
+      endAddr - startAddr, name);
+  this.codeMap_.addLibrary(startAddr, entry);
+  return entry;
+};
+
+
+/**
+ * Registers statically compiled code entry.
  *
  * @param {string} name Code entry name.
  * @param {number} startAddr Starting address.

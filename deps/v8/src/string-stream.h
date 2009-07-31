@@ -57,11 +57,10 @@ class HeapStringAllocator: public StringAllocator {
 
 
 // Allocator for use when no new c++ heap allocation is allowed.
-// Allocates all space up front and does no allocation while building
-// message.
+// Given a preallocated buffer up front and does no allocation while
+// building message.
 class NoAllocationStringAllocator: public StringAllocator {
  public:
-  explicit NoAllocationStringAllocator(unsigned bytes);
   NoAllocationStringAllocator(char* memory, unsigned size);
   char* allocate(unsigned bytes) { return space_; }
   char* grow(unsigned* bytes);

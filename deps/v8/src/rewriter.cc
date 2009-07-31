@@ -38,8 +38,9 @@ namespace internal {
 
 class AstOptimizer: public AstVisitor {
  public:
-  explicit AstOptimizer() {}
-  explicit AstOptimizer(Handle<String> enclosing_name) {
+  explicit AstOptimizer() : has_function_literal_(false) {}
+  explicit AstOptimizer(Handle<String> enclosing_name)
+      : has_function_literal_(false) {
     func_name_inferrer_.PushEnclosingName(enclosing_name);
   }
 
@@ -58,7 +59,7 @@ class AstOptimizer: public AstVisitor {
   // Node visitors.
 #define DEF_VISIT(type) \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
   DISALLOW_COPY_AND_ASSIGN(AstOptimizer);
@@ -556,7 +557,7 @@ class Processor: public AstVisitor {
   // Node visitors.
 #define DEF_VISIT(type) \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 };
 

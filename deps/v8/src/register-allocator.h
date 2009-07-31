@@ -92,10 +92,7 @@ class Result BASE_EMBEDDED {
   // of handles to the actual constants.
   typedef ZoneList<Handle<Object> > ZoneObjectList;
 
-  static ZoneObjectList* ConstantList() {
-    static ZoneObjectList list(10);
-    return &list;
-  }
+  static ZoneObjectList* ConstantList();
 
   // Clear the constants indirection table.
   static void ClearConstantList() {

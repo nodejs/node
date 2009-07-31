@@ -180,7 +180,7 @@ template <class T> class V8EXPORT_INLINE Handle {
   /**
    * Creates an empty handle.
    */
-  Handle();
+  inline Handle();
 
   /**
    * Creates a new handle for the specified value.
@@ -264,7 +264,7 @@ template <class T> class V8EXPORT_INLINE Handle {
  */
 template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
  public:
-  Local();
+  inline Local();
   template <class S> inline Local(Local<S> that)
       : Handle<T>(reinterpret_cast<T*>(*that)) {
     /**
@@ -284,7 +284,7 @@ template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
    *  The referee is kept alive by the local handle even when
    *  the original handle is destroyed/disposed.
    */
-  static Local<T> New(Handle<T> that);
+  inline static Local<T> New(Handle<T> that);
 };
 
 
@@ -312,7 +312,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * Creates an empty persistent handle that doesn't point to any
    * storage cell.
    */
-  Persistent();
+  inline Persistent();
 
   /**
    * Creates a persistent handle for the same storage cell as the
@@ -353,7 +353,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * Creates a new persistent handle for an existing local or
    * persistent handle.
    */
-  static Persistent<T> New(Handle<T> that);
+  inline static Persistent<T> New(Handle<T> that);
 
   /**
    * Releases the storage cell referenced by this persistent handle.
@@ -361,7 +361,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * This handle's reference, and any any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  void Dispose();
+  inline void Dispose();
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -369,20 +369,20 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * callback to the given V8::WeakReferenceCallback function, passing
    * it the object reference and the given parameters.
    */
-  void MakeWeak(void* parameters, WeakReferenceCallback callback);
+  inline void MakeWeak(void* parameters, WeakReferenceCallback callback);
 
   /** Clears the weak reference to this object.*/
-  void ClearWeak();
+  inline void ClearWeak();
 
   /**
    *Checks if the handle holds the only reference to an object.
    */
-  bool IsNearDeath() const;
+  inline bool IsNearDeath() const;
 
   /**
    * Returns true if the handle's reference is weak.
    */
-  bool IsWeak() const;
+  inline bool IsWeak() const;
 
  private:
   friend class ImplementationUtilities;
@@ -1113,6 +1113,13 @@ class V8EXPORT Object : public Value {
   /** Sets the value in an internal field. */
   void SetInternalField(int index, Handle<Value> value);
 
+  // The two functions below do not perform index bounds checks and
+  // they do not check that the VM is still running. Use with caution.
+  /** Gets a native pointer from an internal field. */
+  void* GetPointerFromInternalField(int index);
+  /** Sets a native pointer in an internal field. */
+  void SetPointerInInternalField(int index, void* value);
+
   // Testers for local properties.
   bool HasRealNamedProperty(Handle<String> key);
   bool HasRealIndexedProperty(uint32_t index);
@@ -1161,6 +1168,15 @@ class V8EXPORT Object : public Value {
    * to the same values as the original object.
    */
   Local<Object> Clone();
+
+  /**
+   * Set the backing store of the indexed properties to be managed by the
+   * embedding layer. Access to the indexed properties will follow the rules
+   * spelled out in CanvasPixelArray.
+   * Note: The embedding program still owns the data and needs to ensure that
+   *       the backing store is preserved while V8 has a reference.
+   */
+  void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
 
   static Local<Object> New();
   static Object* Cast(Value* obj);
@@ -1951,6 +1967,20 @@ typedef Persistent<Context> (*ContextGenerator)();
 
 
 /**
+ * Profiler modules.
+ *
+ * In V8, profiler consists of several modules: CPU profiler, and different
+ * kinds of heap profiling. Each can be turned on / off independently.
+ */
+enum ProfilerModules {
+  PROFILER_MODULE_NONE            = 0,
+  PROFILER_MODULE_CPU             = 1,
+  PROFILER_MODULE_HEAP_STATS      = 1 << 1,
+  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -2102,6 +2132,32 @@ class V8EXPORT V8 {
    * Return whether profiler is currently paused.
    */
   static bool IsProfilerPaused();
+
+  /**
+   * Resumes specified profiler modules.
+   * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
+   * See ProfilerModules enum.
+   *
+   * \param flags Flags specifying profiler modules.
+   */
+  static void ResumeProfilerEx(int flags);
+
+  /**
+   * Pauses specified profiler modules.
+   * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
+   * See ProfilerModules enum.
+   *
+   * \param flags Flags specifying profiler modules.
+   */
+  static void PauseProfilerEx(int flags);
+
+  /**
+   * Returns active (resumed) profiler modules.
+   * See ProfilerModules enum.
+   *
+   * \returns active profiler modules.
+   */
+  static int GetActiveProfilerModules();
 
   /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to

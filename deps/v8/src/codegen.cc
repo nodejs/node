@@ -496,7 +496,7 @@ void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
 }
 
 
-void CodeGenerator::CodeForStatementPosition(Node* node) {
+void CodeGenerator::CodeForStatementPosition(AstNode* node) {
   if (FLAG_debug_info) {
     int pos = node->statement_pos();
     if (pos != RelocInfo::kNoPosition) {

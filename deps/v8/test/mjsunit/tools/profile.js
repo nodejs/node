@@ -72,10 +72,10 @@ ProfileTestDriver.prototype.funcAddrs_ = {
 
 
 ProfileTestDriver.prototype.addFunctions_ = function() {
-  this.profile.addStaticCode('lib1', 0x11000, 0x12000);
+  this.profile.addLibrary('lib1', 0x11000, 0x12000);
   this.profile.addStaticCode('lib1-f1', 0x11100, 0x11900);
   this.profile.addStaticCode('lib1-f2', 0x11200, 0x11500);
-  this.profile.addStaticCode('lib2', 0x21000, 0x22000);
+  this.profile.addLibrary('lib2', 0x21000, 0x22000);
   this.profile.addStaticCode('lib2-f1', 0x21100, 0x21900);
   this.profile.addStaticCode('lib2-f2', 0x21200, 0x21500);
   this.profile.addCode('T', 'F1', 0x50100, 0x100);

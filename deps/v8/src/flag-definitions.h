@@ -144,9 +144,6 @@ DEFINE_bool(debugger_auto_break, false,
             "automatically set the debug break flag when debugger commands are "
             "in the queue (experimental)")
 
-// execution.cc
-DEFINE_bool(call_regexp, false, "allow calls to RegExp objects")
-
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
@@ -158,6 +155,8 @@ DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,
             "print one trace line following each garbage collection")
+DEFINE_bool(trace_gc_verbose, false,
+            "print more details following each garbage collection")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 

@@ -80,6 +80,21 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED
 }
 
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
+  // TODO(X64): Implement this when we start setting Debug breaks.
+  UNIMPLEMENTED();
+}
+
+bool BreakLocationIterator::IsDebugBreakAtReturn()  {
+  // TODO(X64): Implement this when we start setting Debug breaks.
+  UNIMPLEMENTED();
+  return false;
+}
+
+void BreakLocationIterator::SetDebugBreakAtReturn()  {
+  UNIMPLEMENTED();
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

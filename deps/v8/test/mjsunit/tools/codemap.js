@@ -46,11 +46,11 @@ function assertNoEntry(codeMap, addr) {
 };
 
 
-(function testStaticCode() {
+(function testLibrariesAndStaticCode() {
   var codeMap = new devtools.profiler.CodeMap();
-  codeMap.addStaticCode(0x1500, newCodeEntry(0x3000, 'lib1'));
-  codeMap.addStaticCode(0x15500, newCodeEntry(0x5000, 'lib2'));
-  codeMap.addStaticCode(0x155500, newCodeEntry(0x10000, 'lib3'));
+  codeMap.addLibrary(0x1500, newCodeEntry(0x3000, 'lib1'));
+  codeMap.addLibrary(0x15500, newCodeEntry(0x5000, 'lib2'));
+  codeMap.addLibrary(0x155500, newCodeEntry(0x10000, 'lib3'));
   assertNoEntry(codeMap, 0);
   assertNoEntry(codeMap, 0x1500 - 1);
   assertEntry(codeMap, 'lib1', 0x1500);
@@ -71,6 +71,28 @@ function assertNoEntry(codeMap, addr) {
   assertEntry(codeMap, 'lib3', 0x155500 + 0x10000 - 1);
   assertNoEntry(codeMap, 0x155500 + 0x10000);
   assertNoEntry(codeMap, 0xFFFFFFFF);
+
+  codeMap.addStaticCode(0x1510, newCodeEntry(0x30, 'lib1-f1'));
+  codeMap.addStaticCode(0x1600, newCodeEntry(0x50, 'lib1-f2'));
+  codeMap.addStaticCode(0x15520, newCodeEntry(0x100, 'lib2-f1'));
+  assertEntry(codeMap, 'lib1', 0x1500);
+  assertEntry(codeMap, 'lib1', 0x1510 - 1);
+  assertEntry(codeMap, 'lib1-f1', 0x1510);
+  assertEntry(codeMap, 'lib1-f1', 0x1510 + 0x15);
+  assertEntry(codeMap, 'lib1-f1', 0x1510 + 0x30 - 1);
+  assertEntry(codeMap, 'lib1', 0x1510 + 0x30);
+  assertEntry(codeMap, 'lib1', 0x1600 - 1);
+  assertEntry(codeMap, 'lib1-f2', 0x1600);
+  assertEntry(codeMap, 'lib1-f2', 0x1600 + 0x30);
+  assertEntry(codeMap, 'lib1-f2', 0x1600 + 0x50 - 1);
+  assertEntry(codeMap, 'lib1', 0x1600 + 0x50);
+  assertEntry(codeMap, 'lib2', 0x15500);
+  assertEntry(codeMap, 'lib2', 0x15520 - 1);
+  assertEntry(codeMap, 'lib2-f1', 0x15520);
+  assertEntry(codeMap, 'lib2-f1', 0x15520 + 0x80);
+  assertEntry(codeMap, 'lib2-f1', 0x15520 + 0x100 - 1);
+  assertEntry(codeMap, 'lib2', 0x15520 + 0x100);
+
 })();
 
 

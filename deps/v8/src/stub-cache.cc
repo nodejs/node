@@ -736,22 +736,22 @@ Handle<Code> ComputeCallMiss(int argc) {
 
 Object* LoadCallbackProperty(Arguments args) {
   Handle<JSObject> recv = args.at<JSObject>(0);
-  AccessorInfo* callback = AccessorInfo::cast(args[1]);
+  Handle<JSObject> holder = args.at<JSObject>(1);
+  AccessorInfo* callback = AccessorInfo::cast(args[2]);
+  Handle<Object> data = args.at<Object>(3);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  Handle<String> name = args.at<String>(2);
-  Handle<JSObject> holder = args.at<JSObject>(3);
-  HandleScope scope;
-  Handle<Object> data(callback->data());
-  LOG(ApiNamedPropertyAccess("load", *recv, *name));
+  Handle<String> name = args.at<String>(4);
   // NOTE: If we can align the structure of an AccessorInfo with the
   // locations of the arguments to this function maybe we don't have
   // to explicitly create the structure but can just pass a pointer
   // into the stack.
+  LOG(ApiNamedPropertyAccess("load", *recv, *name));
   v8::AccessorInfo info(v8::Utils::ToLocal(recv),
                         v8::Utils::ToLocal(data),
                         v8::Utils::ToLocal(holder));
+  HandleScope scope;
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
@@ -787,49 +787,129 @@ Object* StoreCallbackProperty(Arguments args) {
   return *value;
 }
 
+/**
+ * Attempts to load a property with an interceptor (which must be present),
+ * but doesn't search the prototype chain.
+ *
+ * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
+ * provide any value for the given name.
+ */
+Object* LoadPropertyWithInterceptorOnly(Arguments args) {
+  Handle<JSObject> receiver_handle = args.at<JSObject>(0);
+  Handle<JSObject> holder_handle = args.at<JSObject>(1);
+  Handle<String> name_handle = args.at<String>(2);
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(3);
+  Handle<Object> data_handle = args.at<Object>(4);
 
-Object* LoadInterceptorProperty(Arguments args) {
-  JSObject* recv = JSObject::cast(args[0]);
-  JSObject* holder = JSObject::cast(args[1]);
-  String* name = String::cast(args[2]);
-  Smi* lookup_hint = Smi::cast(args[3]);
-  ASSERT(holder->HasNamedInterceptor());
-  PropertyAttributes attr = NONE;
+  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
+  v8::NamedPropertyGetter getter =
+      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  ASSERT(getter != NULL);
 
-  Object* result = holder->GetInterceptorPropertyWithLookupHint(
-      recv, lookup_hint, name, &attr);
-  if (result->IsFailure()) return result;
+  {
+    // Use the interceptor getter.
+    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
+                          v8::Utils::ToLocal(data_handle),
+                          v8::Utils::ToLocal(holder_handle));
+    HandleScope scope;
+    v8::Handle<v8::Value> r;
+    {
+      // Leaving JavaScript.
+      VMState state(EXTERNAL);
+      r = getter(v8::Utils::ToLocal(name_handle), info);
+    }
+    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (!r.IsEmpty()) {
+      return *v8::Utils::OpenHandle(*r);
+    }
+  }
 
-  // If the property is present, return it.
-  if (attr != ABSENT) return result;
+  return Heap::no_interceptor_result_sentinel();
+}
 
-  // If the top frame is an internal frame, this is really a call
-  // IC. In this case, we simply return the undefined result which
-  // will lead to an exception when trying to invoke the result as a
-  // function.
-  StackFrameIterator it;
-  it.Advance();  // skip exit frame
-  if (it.frame()->is_internal()) return result;
 
+static Object* ThrowReferenceError(String* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.is_contextual()) return result;
+  if (!ic.is_contextual()) return Heap::undefined_value();
 
   // Throw a reference error.
+  HandleScope scope;
+  Handle<String> name_handle(name);
+  Handle<Object> error =
+      Factory::NewReferenceError("not_defined",
+                                  HandleVector(&name_handle, 1));
+  return Top::Throw(*error);
+}
+
+
+static Object* LoadWithInterceptor(Arguments* args,
+                                   PropertyAttributes* attrs) {
+  Handle<JSObject> receiver_handle = args->at<JSObject>(0);
+  Handle<JSObject> holder_handle = args->at<JSObject>(1);
+  Handle<String> name_handle = args->at<String>(2);
+  Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(3);
+  Handle<Object> data_handle = args->at<Object>(4);
+
+  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
+  v8::NamedPropertyGetter getter =
+      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  ASSERT(getter != NULL);
+
   {
+    // Use the interceptor getter.
+    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
+                          v8::Utils::ToLocal(data_handle),
+                          v8::Utils::ToLocal(holder_handle));
     HandleScope scope;
-    // We cannot use the raw name pointer here since getting the
-    // property might cause a GC.  However, we can get the name from
-    // the stack using the arguments object.
-    Handle<String> name_handle = args.at<String>(2);
-    Handle<Object> error =
-        Factory::NewReferenceError("not_defined",
-                                   HandleVector(&name_handle, 1));
-    return Top::Throw(*error);
+    v8::Handle<v8::Value> r;
+    {
+      // Leaving JavaScript.
+      VMState state(EXTERNAL);
+      r = getter(v8::Utils::ToLocal(name_handle), info);
+    }
+    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (!r.IsEmpty()) {
+      *attrs = NONE;
+      return *v8::Utils::OpenHandle(*r);
+    }
   }
+
+  Object* result = holder_handle->GetPropertyPostInterceptor(
+      *receiver_handle,
+      *name_handle,
+      attrs);
+  RETURN_IF_SCHEDULED_EXCEPTION();
+  return result;
+}
+
+
+/**
+ * Loads a property with an interceptor performing post interceptor
+ * lookup if interceptor failed.
+ */
+Object* LoadPropertyWithInterceptorForLoad(Arguments args) {
+  PropertyAttributes attr = NONE;
+  Object* result = LoadWithInterceptor(&args, &attr);
+  if (result->IsFailure()) return result;
+
+  // If the property is present, return it.
+  if (attr != ABSENT) return result;
+  return ThrowReferenceError(String::cast(args[2]));
+}
+
+
+Object* LoadPropertyWithInterceptorForCall(Arguments args) {
+  PropertyAttributes attr;
+  Object* result = LoadWithInterceptor(&args, &attr);
+  RETURN_IF_SCHEDULED_EXCEPTION();
+  // This is call IC. In this case, we simply return the undefined result which
+  // will lead to an exception when trying to invoke the result as a
+  // function.
+  return result;
 }
 
 
@@ -863,6 +943,8 @@ Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
 Object* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
+  // The code of the PreMonomorphic stub is the same as the code
+  // of the Initialized stub.  They just differ on the code object flags.
   CallIC::GenerateInitialize(masm(), argc);
   Object* result = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
   if (!result->IsFailure()) {

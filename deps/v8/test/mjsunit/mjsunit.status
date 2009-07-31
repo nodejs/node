@@ -58,6 +58,8 @@ debug-ignore-breakpoints: CRASH || FAIL
 debug-multiple-breakpoints: CRASH || FAIL
 debug-setbreakpoint: CRASH || FAIL || PASS
 debug-step-stub-callfunction: SKIP
+debug-stepin-accessor: CRASH || FAIL
+debug-stepin-builtin: CRASH || FAIL
 debug-stepin-constructor: CRASH, FAIL
 debug-stepin-function-call: CRASH || FAIL
 debug-step: SKIP
@@ -69,40 +71,37 @@ regress/regress-269: SKIP
 # Fails on real ARM hardware but not on the simulator.
 string-compare-alignment: PASS || FAIL
 
+# Times out often in release mode on ARM.
+array-splice: PASS || TIMEOUT
 
 [ $arch == x64 ]
 
-debug-backtrace.js: CRASH || FAIL
-date-parse.js: CRASH || FAIL
-debug-backtrace-text.js: CRASH || FAIL
-debug-multiple-breakpoints.js: CRASH || FAIL
-debug-breakpoints.js: CRASH || FAIL
-debug-changebreakpoint.js: CRASH || FAIL
-debug-clearbreakpoint.js: CRASH || FAIL
-debug-conditional-breakpoints.js: CRASH || FAIL
-debug-constructor.js: CRASH || FAIL
-debug-continue.js: CRASH || FAIL
-debug-enable-disable-breakpoints.js: CRASH || FAIL
-debug-evaluate-recursive.js: CRASH || FAIL
-debug-event-listener.js: CRASH || FAIL
-debug-evaluate.js: CRASH || FAIL
-debug-ignore-breakpoints.js: CRASH || FAIL
-debug-setbreakpoint.js: CRASH || FAIL
-debug-step-stub-callfunction.js: CRASH || FAIL
-debug-step.js: CRASH || FAIL
-mirror-date.js: CRASH || FAIL
-invalid-lhs.js: CRASH || FAIL
-debug-stepin-constructor.js: CRASH || FAIL
-new.js: CRASH || FAIL
-fuzz-natives.js: CRASH || FAIL
-greedy.js: CRASH || FAIL
-debug-handle.js: CRASH || FAIL
-string-indexof.js: CRASH || FAIL
-debug-clearbreakpointgroup.js: CRASH || FAIL
-regress/regress-269.js: CRASH || FAIL
-div-mod.js: CRASH || FAIL
-unicode-test.js: CRASH || FAIL
-regress/regress-392.js: CRASH || FAIL
-regress/regress-1200351.js: CRASH || FAIL
-regress/regress-998565.js: CRASH || FAIL
-tools/tickprocessor.js: CRASH || FAIL
+debug-backtrace: CRASH || FAIL
+debug-backtrace-text: CRASH || FAIL
+debug-multiple-breakpoints: CRASH || FAIL
+debug-breakpoints: CRASH || FAIL
+debug-changebreakpoint: CRASH || FAIL
+debug-clearbreakpoint: CRASH || FAIL
+debug-conditional-breakpoints: CRASH || FAIL
+debug-constructor: CRASH || FAIL
+debug-continue: CRASH || FAIL
+debug-enable-disable-breakpoints: CRASH || FAIL
+debug-evaluate-recursive: CRASH || FAIL
+debug-event-listener: CRASH || FAIL
+debug-evaluate: CRASH || FAIL
+debug-ignore-breakpoints: CRASH || FAIL
+debug-setbreakpoint: CRASH || FAIL
+debug-step-stub-callfunction: CRASH || FAIL
+debug-step: CRASH || FAIL
+debug-stepin-builtin: CRASH || FAIL
+debug-stepin-constructor: CRASH || FAIL
+debug-stepin-function-call: CRASH || FAIL
+debug-stepin-accessor: CRASH || FAIL
+fuzz-natives: PASS || TIMEOUT
+debug-handle: CRASH || FAIL
+debug-clearbreakpointgroup: CRASH || FAIL
+regress/regress-269: CRASH || FAIL
+regress/regress-392: CRASH || FAIL
+regress/regress-1200351: CRASH || FAIL
+regress/regress-998565: CRASH || FAIL
+tools/tickprocessor: PASS || CRASH || FAIL

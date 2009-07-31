@@ -37,10 +37,17 @@ namespace internal {
 static const int kSubCacheCount = 4;
 
 // The number of generations for each sub cache.
+#if defined(ANDROID)
+static const int kScriptGenerations = 1;
+static const int kEvalGlobalGenerations = 1;
+static const int kEvalContextualGenerations = 1;
+static const int kRegExpGenerations = 1;
+#else
 static const int kScriptGenerations = 5;
 static const int kEvalGlobalGenerations = 2;
 static const int kEvalContextualGenerations = 2;
 static const int kRegExpGenerations = 2;
+#endif
 
 // Initial of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
@@ -55,6 +62,8 @@ class CompilationSubCache {
   explicit CompilationSubCache(int generations): generations_(generations) {
     tables_ = NewArray<Object*>(generations);
   }
+
+  ~CompilationSubCache() { DeleteArray(tables_); }
 
   // Get the compilation cache tables for a specific generation.
   Handle<CompilationCacheTable> GetTable(int generation);

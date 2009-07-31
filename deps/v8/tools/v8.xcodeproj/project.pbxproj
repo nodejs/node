@@ -59,6 +59,8 @@
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
+		8981F6001010501900D1520E /* frame-element.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8981F5FE1010500F00D1520E /* frame-element.cc */; };
+		8981F6011010502800D1520E /* frame-element.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8981F5FE1010500F00D1520E /* frame-element.cc */; };
 		898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20D0EF6CC850068B00A /* debug-ia32.cc */; };
 		898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20C0EF6CC850068B00A /* debug-arm.cc */; };
 		89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */; };
@@ -503,12 +505,13 @@
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
 		897FF32F0FAA0ED200136CF6 /* version.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = version.cc; sourceTree = "<group>"; };
 		897FF3300FAA0ED200136CF6 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		8981F5FE1010500F00D1520E /* frame-element.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "frame-element.cc"; sourceTree = "<group>"; };
+		8981F5FF1010500F00D1520E /* frame-element.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "frame-element.h"; sourceTree = "<group>"; };
 		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-arm.cc"; path = "arm/debug-arm.cc"; sourceTree = "<group>"; };
 		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-ia32.cc"; path = "ia32/debug-ia32.cc"; sourceTree = "<group>"; };
 		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
 		89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "interpreter-irregexp.cc"; sourceTree = "<group>"; };
 		89A15C670EE4665300B48DEB /* interpreter-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "interpreter-irregexp.h"; sourceTree = "<group>"; };
-		89A15C680EE4665300B48DEB /* jsregexp-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jsregexp-inl.h"; sourceTree = "<group>"; };
 		89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "platform-freebsd.cc"; sourceTree = "<group>"; };
 		89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "regexp-macro-assembler-arm.cc"; path = "arm/regexp-macro-assembler-arm.cc"; sourceTree = "<group>"; };
 		89A15C710EE466D000B48DEB /* regexp-macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "regexp-macro-assembler-arm.h"; path = "arm/regexp-macro-assembler-arm.h"; sourceTree = "<group>"; };
@@ -700,6 +703,8 @@
 				89471C7F0EB23EE400B6874B /* flag-definitions.h */,
 				897FF1350E719B8F00D62E90 /* flags.cc */,
 				897FF1360E719B8F00D62E90 /* flags.h */,
+				8981F5FE1010500F00D1520E /* frame-element.cc */,
+				8981F5FF1010500F00D1520E /* frame-element.h */,
 				897FF1370E719B8F00D62E90 /* frames-arm.cc */,
 				897FF1380E719B8F00D62E90 /* frames-arm.h */,
 				897FF1390E719B8F00D62E90 /* frames-ia32.cc */,
@@ -727,7 +732,6 @@
 				897FF14D0E719B8F00D62E90 /* ic.h */,
 				89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */,
 				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
-				89A15C680EE4665300B48DEB /* jsregexp-inl.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
 				58950D4E0F55514900F3E8BA /* jump-target-arm.cc */,
@@ -1196,6 +1200,7 @@
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
 				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
+				8981F6001010501900D1520E /* frame-element.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1300,6 +1305,7 @@
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
 				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,
+				8981F6011010502800D1520E /* frame-element.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

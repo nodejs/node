@@ -63,7 +63,7 @@ test-api/TryCatchInTryFinally: FAIL
 
 
 [ $arch == x64 ]
-test-regexp/Graph: CRASH || FAIL
+test-regexp/Graph: PASS || CRASH || FAIL
 test-decls/Present: CRASH || FAIL
 test-decls/Unknown: CRASH || FAIL
 test-decls/Appearing: CRASH || FAIL
@@ -108,17 +108,17 @@ test-debug/StepWithException: CRASH || FAIL
 test-debug/DebugBreak: CRASH || FAIL
 test-debug/DisableBreak: CRASH || FAIL
 test-debug/MessageQueues: CRASH || FAIL
-test-debug/CallFunctionInDebugger: CRASH || FAIL
+test-debug/CallFunctionInDebugger: SKIP
 test-debug/RecursiveBreakpoints: CRASH || FAIL
 test-debug/DebuggerUnload: CRASH || FAIL
-test-debug/DebuggerClearMessageHandler: CRASH || FAIL
-test-debug/DebuggerClearMessageHandlerWhileActive: CRASH || FAIL
 test-debug/DebuggerHostDispatch: CRASH || FAIL
 test-debug/DebugBreakInMessageHandler: CRASH || FAIL
+test-debug/NoDebugBreakInAfterCompileMessageHandler: CRASH || FAIL
 test-api/HugeConsStringOutOfMemory: CRASH || FAIL
 test-api/OutOfMemory: CRASH || FAIL
 test-api/OutOfMemoryNested: CRASH || FAIL
 test-api/Threading: CRASH || FAIL
+test-api/Threading2: PASS || TIMEOUT
 test-api/TryCatchSourceInfo: CRASH || FAIL
-test-api/RegExpInterruption: CRASH || FAIL
-test-api/RegExpStringModification: CRASH || FAIL
+test-api/RegExpInterruption: PASS || TIMEOUT
+test-api/RegExpStringModification: PASS || TIMEOUT

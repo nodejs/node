@@ -321,6 +321,12 @@ bool Object::IsByteArray() {
 }
 
 
+bool Object::IsPixelArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() == PIXEL_ARRAY_TYPE;
+}
+
+
 bool Object::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
@@ -1043,7 +1049,22 @@ void HeapNumber::set_value(double value) {
 
 
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
-ACCESSORS(JSObject, elements, FixedArray, kElementsOffset)
+
+
+Array* JSObject::elements() {
+  Object* array = READ_FIELD(this, kElementsOffset);
+  // In the assert below Dictionary is covered under FixedArray.
+  ASSERT(array->IsFixedArray() || array->IsPixelArray());
+  return reinterpret_cast<Array*>(array);
+}
+
+
+void JSObject::set_elements(Array* value, WriteBarrierMode mode) {
+  // In the assert below Dictionary is covered under FixedArray.
+  ASSERT(value->IsFixedArray() || value->IsPixelArray());
+  WRITE_FIELD(this, kElementsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, mode);
+}
 
 
 void JSObject::initialize_properties() {
@@ -1075,7 +1096,12 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
 
 
 int JSObject::GetHeaderSize() {
-  switch (map()->instance_type()) {
+  InstanceType type = map()->instance_type();
+  // Check for the most common kind of JavaScript object before
+  // falling into the generic switch. This speeds up the internal
+  // field operations considerably on average.
+  if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
+  switch (type) {
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1090,7 +1116,6 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
-    case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
@@ -1498,6 +1523,7 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(PixelArray)
 CAST_ACCESSOR(Struct)
 
 
@@ -1853,6 +1879,32 @@ ByteArray* ByteArray::FromDataStartAddress(Address address) {
 
 Address ByteArray::GetDataStartAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+}
+
+
+uint8_t* PixelArray::external_pointer() {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
+  return reinterpret_cast<uint8_t*>(ptr);
+}
+
+
+void PixelArray::set_external_pointer(uint8_t* value, WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
+}
+
+
+uint8_t PixelArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint8_t* ptr = external_pointer();
+  return ptr[index];
+}
+
+
+void PixelArray::set(int index, uint8_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint8_t* ptr = external_pointer();
+  ptr[index] = value;
 }
 
 
@@ -2289,6 +2341,11 @@ bool JSFunction::IsBoilerplate() {
 }
 
 
+bool JSFunction::IsBuiltin() {
+  return context()->global()->IsJSBuiltinsObject();
+}
+
+
 bool JSObject::IsLoaded() {
   return !map()->needs_loading();
 }
@@ -2519,8 +2576,33 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 }
 
 
+JSObject::ElementsKind JSObject::GetElementsKind() {
+  Array* array = elements();
+  if (array->IsFixedArray()) {
+    // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a FixedArray.
+    if (array->map() == Heap::fixed_array_map()) {
+      return FAST_ELEMENTS;
+    }
+    ASSERT(array->IsDictionary());
+    return DICTIONARY_ELEMENTS;
+  }
+  ASSERT(array->IsPixelArray());
+  return PIXEL_ELEMENTS;
+}
+
+
 bool JSObject::HasFastElements() {
-  return !elements()->IsDictionary();
+  return GetElementsKind() == FAST_ELEMENTS;
+}
+
+
+bool JSObject::HasDictionaryElements() {
+  return GetElementsKind() == DICTIONARY_ELEMENTS;
+}
+
+
+bool JSObject::HasPixelElements() {
+  return GetElementsKind() == PIXEL_ELEMENTS;
 }
 
 
@@ -2541,7 +2623,7 @@ StringDictionary* JSObject::property_dictionary() {
 
 
 NumberDictionary* JSObject::element_dictionary() {
-  ASSERT(!HasFastElements());
+  ASSERT(HasDictionaryElements());
   return NumberDictionary::cast(elements());
 }
 
@@ -2644,24 +2726,6 @@ PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
 
 bool JSObject::HasElement(uint32_t index) {
   return HasElementWithReceiver(this, index);
-}
-
-
-Smi* JSObject::InterceptorPropertyLookupHint(String* name) {
-  // TODO(antonm): Do we want to do any shortcuts for global object?
-  if (HasFastProperties()) {
-    LookupResult lookup;
-    LocalLookupRealNamedProperty(name, &lookup);
-    if (lookup.IsValid()) {
-      if (lookup.type() == FIELD && lookup.IsCacheable()) {
-        return Smi::FromInt(lookup.GetFieldIndex());
-      }
-    } else {
-      return Smi::FromInt(kLookupInPrototype);
-    }
-  }
-
-  return Smi::FromInt(kLookupInHolder);
 }
 
 

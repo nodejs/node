@@ -37,11 +37,15 @@ function processArguments(args) {
   }
 }
 
+var entriesProviders = {
+  'unix': UnixCppEntriesProvider,
+  'windows': WindowsCppEntriesProvider,
+  'mac': MacCppEntriesProvider
+};
 
 var params = processArguments(arguments);
 var tickProcessor = new TickProcessor(
-  params.platform == 'unix' ? new UnixCppEntriesProvider(params.nm) :
-    new WindowsCppEntriesProvider(),
+  new (entriesProviders[params.platform])(params.nm),
   params.separateIc,
   params.ignoreUnknown,
   params.stateFilter);

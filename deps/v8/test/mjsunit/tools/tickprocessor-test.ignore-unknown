@@ -2,20 +2,19 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
 
  [Shared libraries]:
    ticks  total  nonlib   name
-      2   18.2%    0.0%  /lib32/libm-2.7.so
+      3   27.3%    0.0%  /lib32/libm-2.7.so
       1    9.1%    0.0%  ffffe000-fffff000
 
  [JavaScript]:
    ticks  total  nonlib   name
-      1    9.1%   12.5%  LazyCompile: exp native math.js:41
+      1    9.1%   14.3%  LazyCompile: exp native math.js:41
 
  [C++]:
    ticks  total  nonlib   name
-      2   18.2%   25.0%  v8::internal::Runtime_Math_exp(v8::internal::Arguments)
-      1    9.1%   12.5%  v8::internal::JSObject::LocalLookupRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)
-      1    9.1%   12.5%  v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)
-      1    9.1%   12.5%  fegetexcept
-      1    9.1%   12.5%  exp
+      2   18.2%   28.6%  v8::internal::Runtime_Math_exp(v8::internal::Arguments)
+      1    9.1%   14.3%  v8::internal::JSObject::LocalLookupRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)
+      1    9.1%   14.3%  v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)
+      1    9.1%   14.3%  exp
 
  [GC]:
    ticks  total  nonlib   name
@@ -27,11 +26,11 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
   Callers occupying less than 2.0% are not shown.
 
    ticks parent  name
-      2   18.2%  v8::internal::Runtime_Math_exp(v8::internal::Arguments)
-      2  100.0%    LazyCompile: exp native math.js:41
-      2  100.0%      Script: exp.js
+      3   27.3%  /lib32/libm-2.7.so
+      3  100.0%    LazyCompile: exp native math.js:41
+      3  100.0%      Script: exp.js
 
-      2   18.2%  /lib32/libm-2.7.so
+      2   18.2%  v8::internal::Runtime_Math_exp(v8::internal::Arguments)
       2  100.0%    LazyCompile: exp native math.js:41
       2  100.0%      Script: exp.js
 
@@ -42,10 +41,6 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
       1  100.0%    Script: exp.js
 
       1    9.1%  ffffe000-fffff000
-
-      1    9.1%  fegetexcept
-      1  100.0%    LazyCompile: exp native math.js:41
-      1  100.0%      Script: exp.js
 
       1    9.1%  exp
       1  100.0%    LazyCompile: exp native math.js:41

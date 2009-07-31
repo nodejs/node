@@ -31,7 +31,7 @@
 #include "compiler.h"
 #include "execution.h"
 #include "factory.h"
-#include "jsregexp-inl.h"
+#include "jsregexp.h"
 #include "platform.h"
 #include "runtime.h"
 #include "top.h"
@@ -254,7 +254,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 
   {
     NoHandleAllocation no_handles;
-    FixedArray* array = last_match_info->elements();
+    FixedArray* array = FixedArray::cast(last_match_info->elements());
     SetAtomLastCapture(array, *subject, value, value + needle->length());
   }
   return last_match_info;
@@ -442,7 +442,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   if (res != RegExpMacroAssemblerIA32::SUCCESS) return Factory::null_value();
 
-  array = Handle<FixedArray>(last_match_info->elements());
+  array = Handle<FixedArray>(FixedArray::cast(last_match_info->elements()));
   ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < number_of_capture_registers; i += 2) {
@@ -475,7 +475,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return Factory::null_value();
   }
 
-  array = Handle<FixedArray>(last_match_info->elements());
+  array = Handle<FixedArray>(FixedArray::cast(last_match_info->elements()));
   ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < number_of_capture_registers; i += 2) {

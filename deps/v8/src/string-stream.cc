@@ -44,12 +44,6 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
 }
 
 
-NoAllocationStringAllocator::NoAllocationStringAllocator(unsigned bytes) {
-  size_ = bytes;
-  space_ = NewArray<char>(bytes);
-}
-
-
 NoAllocationStringAllocator::NoAllocationStringAllocator(char* memory,
                                                          unsigned size) {
   size_ = size;

@@ -34,8 +34,15 @@
 
 namespace disasm {
 
-enum OperandOrder {
-  UNSET_OP_ORDER = 0, REG_OPER_OP_ORDER, OPER_REG_OP_ORDER
+enum OperandType {
+  UNSET_OP_ORDER = 0,
+  // Operand size decides between 16, 32 and 64 bit operands.
+  REG_OPER_OP_ORDER = 1,  // Register destination, operand source.
+  OPER_REG_OP_ORDER = 2,  // Operand destination, register source.
+  // Fixed 8-bit operands.
+  BYTE_SIZE_OPERAND_FLAG = 4,
+  BYTE_REG_OPER_OP_ORDER = REG_OPER_OP_ORDER | BYTE_SIZE_OPERAND_FLAG,
+  BYTE_OPER_REG_OP_ORDER = OPER_REG_OP_ORDER | BYTE_SIZE_OPERAND_FLAG
 };
 
 //------------------------------------------------------------------
@@ -43,28 +50,53 @@ enum OperandOrder {
 //------------------------------------------------------------------
 struct ByteMnemonic {
   int b;  // -1 terminates, otherwise must be in range (0..255)
-  OperandOrder op_order_;
+  OperandType op_order_;
   const char* mnem;
 };
 
 
 static ByteMnemonic two_operands_instr[] = {
-  { 0x03, REG_OPER_OP_ORDER, "add" },
-  { 0x21, OPER_REG_OP_ORDER, "and" },
-  { 0x23, REG_OPER_OP_ORDER, "and" },
-  { 0x3B, REG_OPER_OP_ORDER, "cmp" },
-  { 0x8D, REG_OPER_OP_ORDER, "lea" },
-  { 0x09, OPER_REG_OP_ORDER, "or" },
-  { 0x0B, REG_OPER_OP_ORDER, "or" },
-  { 0x1B, REG_OPER_OP_ORDER, "sbb" },
-  { 0x29, OPER_REG_OP_ORDER, "sub" },
-  { 0x2B, REG_OPER_OP_ORDER, "sub" },
-  { 0x85, REG_OPER_OP_ORDER, "test" },
-  { 0x31, OPER_REG_OP_ORDER, "xor" },
-  { 0x33, REG_OPER_OP_ORDER, "xor" },
-  { 0x87, REG_OPER_OP_ORDER, "xchg" },
-  { 0x8A, REG_OPER_OP_ORDER, "movb" },
-  { 0x8B, REG_OPER_OP_ORDER, "mov" },
+  { 0x00, BYTE_OPER_REG_OP_ORDER, "add" },
+  { 0x01, OPER_REG_OP_ORDER,      "add" },
+  { 0x02, BYTE_REG_OPER_OP_ORDER, "add" },
+  { 0x03, REG_OPER_OP_ORDER,      "add" },
+  { 0x08, BYTE_OPER_REG_OP_ORDER, "or" },
+  { 0x09, OPER_REG_OP_ORDER,      "or" },
+  { 0x0A, BYTE_REG_OPER_OP_ORDER, "or" },
+  { 0x0B, REG_OPER_OP_ORDER,      "or" },
+  { 0x10, BYTE_OPER_REG_OP_ORDER, "adc" },
+  { 0x11, OPER_REG_OP_ORDER,      "adc" },
+  { 0x12, BYTE_REG_OPER_OP_ORDER, "adc" },
+  { 0x13, REG_OPER_OP_ORDER,      "adc" },
+  { 0x18, BYTE_OPER_REG_OP_ORDER, "sbb" },
+  { 0x19, OPER_REG_OP_ORDER,      "sbb" },
+  { 0x1A, BYTE_REG_OPER_OP_ORDER, "sbb" },
+  { 0x1B, REG_OPER_OP_ORDER,      "sbb" },
+  { 0x20, BYTE_OPER_REG_OP_ORDER, "and" },
+  { 0x21, OPER_REG_OP_ORDER,      "and" },
+  { 0x22, BYTE_REG_OPER_OP_ORDER, "and" },
+  { 0x23, REG_OPER_OP_ORDER,      "and" },
+  { 0x28, BYTE_OPER_REG_OP_ORDER, "sub" },
+  { 0x29, OPER_REG_OP_ORDER,      "sub" },
+  { 0x2A, BYTE_REG_OPER_OP_ORDER, "sub" },
+  { 0x2B, REG_OPER_OP_ORDER,      "sub" },
+  { 0x30, BYTE_OPER_REG_OP_ORDER, "xor" },
+  { 0x31, OPER_REG_OP_ORDER,      "xor" },
+  { 0x32, BYTE_REG_OPER_OP_ORDER, "xor" },
+  { 0x33, REG_OPER_OP_ORDER,      "xor" },
+  { 0x38, BYTE_OPER_REG_OP_ORDER, "cmp" },
+  { 0x39, OPER_REG_OP_ORDER,      "cmp" },
+  { 0x3A, BYTE_REG_OPER_OP_ORDER, "cmp" },
+  { 0x3B, REG_OPER_OP_ORDER,      "cmp" },
+  { 0x8D, REG_OPER_OP_ORDER,      "lea" },
+  { 0x84, BYTE_REG_OPER_OP_ORDER, "test" },
+  { 0x85, REG_OPER_OP_ORDER,      "test" },
+  { 0x86, BYTE_REG_OPER_OP_ORDER, "xchg" },
+  { 0x87, REG_OPER_OP_ORDER,      "xchg" },
+  { 0x88, BYTE_OPER_REG_OP_ORDER, "mov" },
+  { 0x89, OPER_REG_OP_ORDER,      "mov" },
+  { 0x8A, BYTE_REG_OPER_OP_ORDER, "mov" },
+  { 0x8B, REG_OPER_OP_ORDER,      "mov" },
   { -1, UNSET_OP_ORDER, "" }
 };
 
@@ -97,6 +129,7 @@ static ByteMnemonic short_immediate_instr[] = {
   { 0x05, UNSET_OP_ORDER, "add" },
   { 0x0D, UNSET_OP_ORDER, "or" },
   { 0x15, UNSET_OP_ORDER, "adc" },
+  { 0x1D, UNSET_OP_ORDER, "sbb" },
   { 0x25, UNSET_OP_ORDER, "and" },
   { 0x2D, UNSET_OP_ORDER, "sub" },
   { 0x35, UNSET_OP_ORDER, "xor" },
@@ -127,7 +160,8 @@ enum InstructionType {
 struct InstructionDesc {
   const char* mnem;
   InstructionType type;
-  OperandOrder op_order_;
+  OperandType op_order_;
+  bool byte_size_operation;  // Fixed 8-bit operation.
 };
 
 
@@ -143,7 +177,7 @@ class InstructionTable {
   void Clear();
   void Init();
   void CopyTable(ByteMnemonic bm[], InstructionType type);
-  void SetTableRange(InstructionType type, byte start, byte end,
+  void SetTableRange(InstructionType type, byte start, byte end, bool byte_size,
                      const char* mnem);
   void AddJumpConditionalShort();
 };
@@ -157,9 +191,10 @@ InstructionTable::InstructionTable() {
 
 void InstructionTable::Clear() {
   for (int i = 0; i < 256; i++) {
-    instructions_[i].mnem = "";
+    instructions_[i].mnem = "(bad)";
     instructions_[i].type = NO_INSTR;
     instructions_[i].op_order_ = UNSET_OP_ORDER;
+    instructions_[i].byte_size_operation = false;
   }
 }
 
@@ -170,9 +205,9 @@ void InstructionTable::Init() {
   CopyTable(call_jump_instr, CALL_JUMP_INSTR);
   CopyTable(short_immediate_instr, SHORT_IMMEDIATE_INSTR);
   AddJumpConditionalShort();
-  SetTableRange(PUSHPOP_INSTR, 0x50, 0x57, "push");
-  SetTableRange(PUSHPOP_INSTR, 0x58, 0x5F, "pop");
-  SetTableRange(MOVE_REG_INSTR, 0xB8, 0xBF, "mov");
+  SetTableRange(PUSHPOP_INSTR, 0x50, 0x57, false, "push");
+  SetTableRange(PUSHPOP_INSTR, 0x58, 0x5F, false, "pop");
+  SetTableRange(MOVE_REG_INSTR, 0xB8, 0xBF, false, "mov");
 }
 
 
@@ -180,20 +215,27 @@ void InstructionTable::CopyTable(ByteMnemonic bm[], InstructionType type) {
   for (int i = 0; bm[i].b >= 0; i++) {
     InstructionDesc* id = &instructions_[bm[i].b];
     id->mnem = bm[i].mnem;
-    id->op_order_ = bm[i].op_order_;
-    assert(id->type == NO_INSTR);  // Information already entered
+    OperandType op_order = bm[i].op_order_;
+    id->op_order_ =
+        static_cast<OperandType>(op_order & ~BYTE_SIZE_OPERAND_FLAG);
+    assert(id->type == NO_INSTR);  // Information not already entered
     id->type = type;
+    id->byte_size_operation = ((op_order & BYTE_SIZE_OPERAND_FLAG) != 0);
   }
 }
 
 
-void InstructionTable::SetTableRange(InstructionType type, byte start,
-                                     byte end, const char* mnem) {
+void InstructionTable::SetTableRange(InstructionType type,
+                                     byte start,
+                                     byte end,
+                                     bool byte_size,
+                                     const char* mnem) {
   for (byte b = start; b <= end; b++) {
     InstructionDesc* id = &instructions_[b];
     assert(id->type == NO_INSTR);  // Information already entered
     id->mnem = mnem;
     id->type = type;
+    id->byte_size_operation = byte_size;
   }
 }
 
@@ -211,13 +253,16 @@ void InstructionTable::AddJumpConditionalShort() {
 static InstructionTable instruction_table;
 
 
-// The X64 disassembler implementation.
+//------------------------------------------------------------------------------
+// DisassemblerX64 implementation.
+
 enum UnimplementedOpcodeAction {
   CONTINUE_ON_UNIMPLEMENTED_OPCODE,
   ABORT_ON_UNIMPLEMENTED_OPCODE
 };
 
-
+// A new DisassemblerX64 object is created to disassemble each instruction.
+// The object can only disassemble a single instruction.
 class DisassemblerX64 {
  public:
   DisassemblerX64(const NameConverter& converter,
@@ -228,7 +273,9 @@ class DisassemblerX64 {
         abort_on_unimplemented_(
             unimplemented_action == ABORT_ON_UNIMPLEMENTED_OPCODE),
         rex_(0),
-        operand_size_(0) {
+        operand_size_(0),
+        group_1_prefix_(0),
+        byte_size_operand_(false) {
     tmp_buffer_[0] = '\0';
   }
 
@@ -240,6 +287,12 @@ class DisassemblerX64 {
   int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
 
  private:
+  enum OperandSize {
+    BYTE_SIZE = 0,
+    WORD_SIZE = 1,
+    DOUBLEWORD_SIZE = 2,
+    QUADWORD_SIZE = 3
+  };
 
   const NameConverter& converter_;
   v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
@@ -247,12 +300,10 @@ class DisassemblerX64 {
   bool abort_on_unimplemented_;
   // Prefixes parsed
   byte rex_;
-  byte operand_size_;
-
-  void setOperandSizePrefix(byte prefix) {
-    ASSERT_EQ(0x66, prefix);
-    operand_size_ = prefix;
-  }
+  byte operand_size_;  // 0x66 or (if no group 3 prefix is present) 0x0.
+  byte group_1_prefix_;  // 0xF2, 0xF3, or (if no group 1 prefix is present) 0.
+  // Byte size operand override.
+  bool byte_size_operand_;
 
   void setRex(byte rex) {
     ASSERT_EQ(0x40, rex & 0xF0);
@@ -272,12 +323,15 @@ class DisassemblerX64 {
 
   bool rex_w() { return (rex_ & 0x08) != 0; }
 
-  int operand_size() {
-    return rex_w() ? 64 : (operand_size_ != 0) ? 16 : 32;
+  OperandSize operand_size() {
+    if (byte_size_operand_) return BYTE_SIZE;
+    if (rex_w()) return QUADWORD_SIZE;
+    if (operand_size_ != 0) return WORD_SIZE;
+    return DOUBLEWORD_SIZE;
   }
 
   char operand_size_code() {
-    return rex_w() ? 'q' : (operand_size_ != 0) ? 'w' : 'l';
+    return "bwlq"[operand_size()];
   }
 
   const char* NameOfCPURegister(int reg) const {
@@ -312,7 +366,7 @@ class DisassemblerX64 {
                int* base) {
     *scale = (data >> 6) & 3;
     *index = ((data >> 3) & 7) | (rex_x() ? 8 : 0);
-    *base = data & 7 | (rex_b() ? 8 : 0);
+    *base = (data & 7) | (rex_b() ? 8 : 0);
   }
 
   typedef const char* (DisassemblerX64::*RegisterNameMapping)(int reg) const;
@@ -322,11 +376,14 @@ class DisassemblerX64 {
   int PrintRightOperand(byte* modrmp);
   int PrintRightByteOperand(byte* modrmp);
   int PrintOperands(const char* mnem,
-                    OperandOrder op_order,
+                    OperandType op_order,
                     byte* data);
+  int PrintImmediate(byte* data, OperandSize size);
   int PrintImmediateOp(byte* data);
+  const char* TwoByteMnemonic(byte opcode);
+  int TwoByteOpcodeInstruction(byte* data);
   int F7Instruction(byte* data);
-  int D1D3C1Instruction(byte* data);
+  int ShiftInstruction(byte* data);
   int JumpShort(byte* data);
   int JumpConditional(byte* data);
   int JumpConditionalShort(byte* data);
@@ -336,7 +393,7 @@ class DisassemblerX64 {
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
-      UNIMPLEMENTED();
+      CHECK(false);
     } else {
       AppendToBuffer("'Unimplemented Instruction'");
     }
@@ -451,6 +508,36 @@ int DisassemblerX64::PrintRightOperandHelper(
 }
 
 
+int DisassemblerX64::PrintImmediate(byte* data, OperandSize size) {
+  int64_t value;
+  int count;
+  switch (size) {
+    case BYTE_SIZE:
+      value = *data;
+      count = 1;
+      break;
+    case WORD_SIZE:
+      value = *reinterpret_cast<int16_t*>(data);
+      count = 2;
+      break;
+    case DOUBLEWORD_SIZE:
+      value = *reinterpret_cast<uint32_t*>(data);
+      count = 4;
+      break;
+    case QUADWORD_SIZE:
+      value = *reinterpret_cast<int32_t*>(data);
+      count = 4;
+      break;
+    default:
+      UNREACHABLE();
+      value = 0;  // Initialize variables on all paths to satisfy the compiler.
+      count = 0;
+  }
+  AppendToBuffer(V8_PTR_PREFIX"x", value);
+  return count;
+}
+
+
 int DisassemblerX64::PrintRightOperand(byte* modrmp) {
   return PrintRightOperandHelper(modrmp,
                                  &DisassemblerX64::NameOfCPURegister);
@@ -466,25 +553,30 @@ int DisassemblerX64::PrintRightByteOperand(byte* modrmp) {
 // Returns number of bytes used including the current *data.
 // Writes instruction's mnemonic, left and right operands to 'tmp_buffer_'.
 int DisassemblerX64::PrintOperands(const char* mnem,
-                                   OperandOrder op_order,
+                                   OperandType op_order,
                                    byte* data) {
   byte modrm = *data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
   int advance = 0;
+  const char* register_name =
+      byte_size_operand_ ? NameOfByteCPURegister(regop)
+                         : NameOfCPURegister(regop);
   switch (op_order) {
     case REG_OPER_OP_ORDER: {
       AppendToBuffer("%s%c %s,",
                      mnem,
                      operand_size_code(),
-                     NameOfCPURegister(regop));
-      advance = PrintRightOperand(data);
+                     register_name);
+      advance = byte_size_operand_ ? PrintRightByteOperand(data)
+                                   : PrintRightOperand(data);
       break;
     }
     case OPER_REG_OP_ORDER: {
       AppendToBuffer("%s%c ", mnem, operand_size_code());
-      advance = PrintRightOperand(data);
-      AppendToBuffer(",%s", NameOfCPURegister(regop));
+      advance = byte_size_operand_ ? PrintRightByteOperand(data)
+                                   : PrintRightOperand(data);
+      AppendToBuffer(",%s", register_name);
       break;
     }
     default:
@@ -498,7 +590,7 @@ int DisassemblerX64::PrintOperands(const char* mnem,
 // Returns number of bytes used by machine instruction, including *data byte.
 // Writes immediate instructions to 'tmp_buffer_'.
 int DisassemblerX64::PrintImmediateOp(byte* data) {
-  bool sign_extension_bit = (*data & 0x02) != 0;
+  bool byte_size_immediate = (*data & 0x02) != 0;
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -528,15 +620,12 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
     default:
       UnimplementedInstruction();
   }
-  AppendToBuffer("%s ", mnem);
+  AppendToBuffer("%s%c ", mnem, operand_size_code());
   int count = PrintRightOperand(data + 1);
-  if (sign_extension_bit) {
-    AppendToBuffer(",0x%x", *(data + 1 + count));
-    return 1 + count + 1 /*int8*/;
-  } else {
-    AppendToBuffer(",0x%x", *reinterpret_cast<int32_t*>(data + 1 + count));
-    return 1 + count + 4 /*int32_t*/;
-  }
+  AppendToBuffer(",0x");
+  OperandSize immediate_size = byte_size_immediate ? BYTE_SIZE : operand_size();
+  count += PrintImmediate(data + 1 + count, immediate_size);
+  return 1 + count;
 }
 
 
@@ -589,78 +678,65 @@ int DisassemblerX64::F7Instruction(byte* data) {
 }
 
 
-int DisassemblerX64::D1D3C1Instruction(byte* data) {
-  byte op = *data;
-  assert(op == 0xD1 || op == 0xD3 || op == 0xC1);
+int DisassemblerX64::ShiftInstruction(byte* data) {
+  byte op = *data & (~1);
+  if (op != 0xD0 && op != 0xD2 && op != 0xC0) {
+    UnimplementedInstruction();
+    return 1;
+  }
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  ASSERT(regop < 8);
+  regop &= 0x7;  // The REX.R bit does not affect the operation.
   int imm8 = -1;
   int num_bytes = 2;
-  if (mod == 3) {
-    const char* mnem = NULL;
-    if (op == 0xD1) {
-      imm8 = 1;
-      switch (regop) {
-        case 2:
-          mnem = "rcl";
-          break;
-        case 7:
-          mnem = "sar";
-          break;
-        case 4:
-          mnem = "shl";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-    } else if (op == 0xC1) {
-      imm8 = *(data + 2);
-      num_bytes = 3;
-      switch (regop) {
-        case 2:
-          mnem = "rcl";
-          break;
-        case 4:
-          mnem = "shl";
-          break;
-        case 5:
-          mnem = "shr";
-          break;
-        case 7:
-          mnem = "sar";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-    } else if (op == 0xD3) {
-      switch (regop) {
-        case 4:
-          mnem = "shl";
-          break;
-        case 5:
-          mnem = "shr";
-          break;
-        case 7:
-          mnem = "sar";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-    }
-    assert(mnem != NULL);
-    AppendToBuffer("%s%c %s,",
-                   mnem,
-                   operand_size_code(),
-                   NameOfCPURegister(rm));
-    if (imm8 > 0) {
-      AppendToBuffer("%d", imm8);
-    } else {
-      AppendToBuffer("cl");
-    }
-  } else {
+  if (mod != 3) {
     UnimplementedInstruction();
+    return num_bytes;
+  }
+  const char* mnem = NULL;
+  switch (regop) {
+    case 0:
+      mnem = "rol";
+      break;
+    case 1:
+      mnem = "ror";
+      break;
+    case 2:
+      mnem = "rcl";
+      break;
+    case 3:
+      mnem = "rcr";
+      break;
+    case 4:
+      mnem = "shl";
+      break;
+    case 5:
+      mnem = "shr";
+      break;
+    case 7:
+      mnem = "sar";
+      break;
+    default:
+      UnimplementedInstruction();
+      return num_bytes;
+  }
+  assert(mnem != NULL);
+  if (op == 0xD0) {
+    imm8 = 1;
+  } else if (op == 0xC0) {
+    imm8 = *(data + 2);
+    num_bytes = 3;
+  }
+  AppendToBuffer("%s%c %s,",
+                 mnem,
+                 operand_size_code(),
+                 byte_size_operand_ ? NameOfByteCPURegister(rm)
+                                    : NameOfCPURegister(rm));
+  if (op == 0xD2) {
+    AppendToBuffer("cl");
+  } else {
+    AppendToBuffer("%d", imm8);
   }
   return num_bytes;
 }
@@ -716,20 +792,14 @@ int DisassemblerX64::FPUInstruction(byte* data) {
   if (b1 == 0xD9) {
     const char* mnem = NULL;
     switch (b2) {
-      case 0xE8:
-        mnem = "fld1";
-        break;
-      case 0xEE:
-        mnem = "fldz";
+      case 0xE0:
+        mnem = "fchs";
         break;
       case 0xE1:
         mnem = "fabs";
         break;
-      case 0xE0:
-        mnem = "fchs";
-        break;
-      case 0xF8:
-        mnem = "fprem";
+      case 0xE4:
+        mnem = "ftst";
         break;
       case 0xF5:
         mnem = "fprem1";
@@ -737,8 +807,14 @@ int DisassemblerX64::FPUInstruction(byte* data) {
       case 0xF7:
         mnem = "fincstp";
         break;
-      case 0xE4:
-        mnem = "ftst";
+      case 0xE8:
+        mnem = "fld1";
+        break;
+      case 0xEE:
+        mnem = "fldz";
+        break;
+      case 0xF8:
+        mnem = "fprem";
         break;
     }
     if (mnem != NULL) {
@@ -862,38 +938,146 @@ int DisassemblerX64::FPUInstruction(byte* data) {
   return 2;
 }
 
-// Mnemonics for instructions 0xF0 byte.
+
+// Handle all two-byte opcodes, which start with 0x0F.
+// These instructions may be affected by an 0x66, 0xF2, or 0xF3 prefix.
+// We do not use any three-byte opcodes, which start with 0x0F38 or 0x0F3A.
+int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
+  byte opcode = *(data + 1);
+  byte* current = data + 2;
+  // At return, "current" points to the start of the next instruction.
+  const char* mnemonic = TwoByteMnemonic(opcode);
+  if (opcode == 0x1F) {
+    // NOP
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current++;
+    if (regop == 4) {  // SIB byte present.
+      current++;
+    }
+    if (mod == 1) {  // Byte displacement.
+      current += 1;
+    } else if (mod == 2) {  // 32-bit displacement.
+      current += 4;
+    }  // else no immediate displacement.
+    AppendToBuffer("nop");
+
+  } else  if (opcode == 0xA2 || opcode == 0x31) {
+    // RDTSC or CPUID
+    AppendToBuffer("%s", mnemonic);
+
+  } else if ((opcode & 0xF0) == 0x80) {
+    // Jcc: Conditional jump (branch).
+    current = data + JumpConditional(data);
+
+  } else if (opcode == 0xBE || opcode == 0xBF || opcode == 0xB6 ||
+             opcode == 0xB7 || opcode == 0xAF) {
+    // Size-extending moves, IMUL.
+    current += PrintOperands(mnemonic, REG_OPER_OP_ORDER, current);
+
+  } else if ((opcode & 0xF0) == 0x90) {
+    // SETcc: Set byte on condition. Needs pointer to beginning of instruction.
+    current = data + SetCC(data);
+
+  } else if (opcode == 0xAB || opcode == 0xA5 || opcode == 0xAD) {
+    // SHLD, SHRD (double-precision shift), BTS (bit set).
+    AppendToBuffer("%s ", mnemonic);
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current += PrintRightOperand(current);
+    if (opcode == 0xAB) {
+      AppendToBuffer(",%s", NameOfCPURegister(regop));
+    } else {
+      AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
+    }
+  } else if (group_1_prefix_ == 0xF2) {
+    // Beginning of instructions with prefix 0xF2.
+
+    if (opcode == 0x11 || opcode == 0x10) {
+      // MOVSD: Move scalar double-precision fp to/from/between XMM registers.
+      AppendToBuffer("movsd ");
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      if (opcode == 0x11) {
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+      } else {
+        AppendToBuffer("%s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+      }
+    } else if (opcode == 0x2A) {
+      // CVTSI2SD: integer to XMM double conversion.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      data += PrintRightOperand(data);
+    } else if ((opcode & 0xF8) == 0x58) {
+      // XMM arithmetic. Mnemonic was retrieved at the start of this function.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,%s", mnemonic, NameOfXMMRegister(regop),
+                     NameOfXMMRegister(rm));
+    } else {
+      UnimplementedInstruction();
+    }
+  } else if (opcode == 0x2C && group_1_prefix_ == 0xF3) {
+    // Instruction with prefix 0xF3.
+
+    // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
+    // Assert that mod is not 3, so source is memory, not an XMM register.
+    ASSERT((*current & 0xC0) != 0xC0);
+    current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+  } else {
+    UnimplementedInstruction();
+  }
+  return current - data;
+}
+
+
+// Mnemonics for two-byte opcode instructions starting with 0x0F.
+// The argument is the second byte of the two-byte opcode.
 // Returns NULL if the instruction is not handled here.
-static const char* F0Mnem(byte f0byte) {
-  switch (f0byte) {
+const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
+  switch (opcode) {
     case 0x1F:
       return "nop";
+    case 0x2A:  // F2 prefix.
+      return "cvtsi2sd";
     case 0x31:
       return "rdtsc";
+    case 0x58:  // F2 prefix.
+      return "addsd";
+    case 0x59:  // F2 prefix.
+      return "mulsd";
+    case 0x5C:  // F2 prefix.
+      return "subsd";
+    case 0x5E:  // F2 prefix.
+      return "divsd";
     case 0xA2:
       return "cpuid";
-    case 0xBE:
-      return "movsxb";
-    case 0xBF:
-      return "movsxw";
+    case 0xA5:
+      return "shld";
+    case 0xAB:
+      return "bts";
+    case 0xAD:
+      return "shrd";
+    case 0xAF:
+      return "imul";
     case 0xB6:
       return "movzxb";
     case 0xB7:
       return "movzxw";
-    case 0xAF:
-      return "imul";
-    case 0xA5:
-      return "shld";
-    case 0xAD:
-      return "shrd";
-    case 0xAB:
-      return "bts";
+    case 0xBE:
+      return "movsxb";
+    case 0xBF:
+      return "movsxw";
     default:
       return NULL;
   }
 }
 
-// Disassembled instruction '*instr' and writes it into 'out_buffer'.
+
+// Disassembles the instruction at instr, and writes it into out_buffer.
 int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                        byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
@@ -905,19 +1089,21 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   // Scan for prefixes.
   while (true) {
     current = *data;
-    if (current == 0x66) {
-      setOperandSizePrefix(current);
-      data++;
-    } else if ((current & 0xF0) == 0x40) {
+    if (current == 0x66) {  // Group 3 prefix.
+      operand_size_ = current;
+    } else if ((current & 0xF0) == 0x40) {  // REX prefix.
       setRex(current);
       if (rex_w()) AppendToBuffer("REX.W ");
-      data++;
-    } else {
+    } else if ((current & 0xFE) == 0xF2) {  // Group 1 prefix.
+      group_1_prefix_ = current;
+    } else {  // Not a prefix - an opcode.
       break;
     }
+    data++;
   }
 
   const InstructionDesc& idesc = instruction_table.Get(current);
+  byte_size_operand_ = idesc.byte_size_operation;
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:
       AppendToBuffer(idesc.mnem);
@@ -949,15 +1135,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
     case MOVE_REG_INSTR: {
       byte* addr = NULL;
       switch (operand_size()) {
-        case 16:
+        case WORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int16_t*>(data + 1));
           data += 3;
           break;
-        case 32:
+        case DOUBLEWORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
           data += 5;
           break;
-        case 64:
+        case QUADWORD_SIZE:
           addr = reinterpret_cast<byte*>(*reinterpret_cast<int64_t*>(data + 1));
           data += 9;
           break;
@@ -1012,8 +1198,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         AppendToBuffer("imul %s,%s,0x%x", NameOfCPURegister(regop),
                        NameOfCPURegister(rm), imm);
         data += 2 + (*data == 0x6B ? 1 : 4);
-      }
         break;
+      }
 
       case 0xF6: {
         int mod, regop, rm;
@@ -1024,63 +1210,16 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           UnimplementedInstruction();
         }
         data += 3;
-      }
         break;
+      }
 
       case 0x81:  // fall through
       case 0x83:  // 0x81 with sign extension bit set
         data += PrintImmediateOp(data);
         break;
 
-      case 0x0F: {
-        byte f0byte = *(data + 1);
-        const char* f0mnem = F0Mnem(f0byte);
-        if (f0byte == 0x1F) {
-          data += 1;
-          byte modrm = *data;
-          data += 1;
-          if (((modrm >> 3) & 7) == 4) {
-            // SIB byte present.
-            data += 1;
-          }
-          int mod = modrm >> 6;
-          if (mod == 1) {
-            // Byte displacement.
-            data += 1;
-          } else if (mod == 2) {
-            // 32-bit displacement.
-            data += 4;
-          }
-          AppendToBuffer("nop");
-        } else  if (f0byte == 0xA2 || f0byte == 0x31) {
-          AppendToBuffer("%s", f0mnem);
-          data += 2;
-        } else if ((f0byte & 0xF0) == 0x80) {
-          data += JumpConditional(data);
-        } else if (f0byte == 0xBE || f0byte == 0xBF || f0byte == 0xB6 || f0byte
-            == 0xB7 || f0byte == 0xAF) {
-          data += 2;
-          data += PrintOperands(f0mnem, REG_OPER_OP_ORDER, data);
-        } else if ((f0byte & 0xF0) == 0x90) {
-          data += SetCC(data);
-        } else {
-          data += 2;
-          if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-            // shrd, shld, bts
-            AppendToBuffer("%s ", f0mnem);
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            data += PrintRightOperand(data);
-            if (f0byte == 0xAB) {
-              AppendToBuffer(",%s", NameOfCPURegister(regop));
-            } else {
-              AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
-            }
-          } else {
-            UnimplementedInstruction();
-          }
-        }
-      }
+      case 0x0F:
+        data += TwoByteOpcodeInstruction(data);
         break;
 
       case 0x8F: {
@@ -1170,13 +1309,13 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0x95:
       case 0x96:
       case 0x97: {
-        int reg = current & 0x7 | (rex_b() ? 8 : 0);
+        int reg = (current & 0x7) | (rex_b() ? 8 : 0);
         if (reg == 0) {
           AppendToBuffer("nop");  // Common name for xchg rax,rax.
         } else {
           AppendToBuffer("xchg%c rax, %s",
                          operand_size_code(),
-                         NameOfByteCPURegister(reg));
+                         NameOfCPURegister(reg));
         }
       }
 
@@ -1204,22 +1343,77 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += 2;
         break;
 
+      case 0xA1:  // Fall through.
+      case 0xA3:
+        switch (operand_size()) {
+          case DOUBLEWORD_SIZE: {
+            const char* memory_location = NameOfAddress(
+                reinterpret_cast<byte*>(
+                    *reinterpret_cast<int32_t*>(data + 1)));
+            if (*data == 0xA3) {  // Opcode 0xA3
+              AppendToBuffer("movzxlq rax,(%s)", memory_location);
+            } else {  // Opcode 0xA1
+              AppendToBuffer("movzxlq (%s),rax", memory_location);
+            }
+            data += 5;
+            break;
+          }
+          case QUADWORD_SIZE: {
+            // New x64 instruction mov rax,(imm_64).
+            const char* memory_location = NameOfAddress(
+                *reinterpret_cast<byte**>(data + 1));
+            if (*data == 0xA3) {  // Opcode 0xA3
+              AppendToBuffer("movq rax,(%s)", memory_location);
+            } else {  // Opcode 0xA1
+              AppendToBuffer("movq (%s),rax", memory_location);
+            }
+            data += 9;
+            break;
+          }
+          default:
+            UnimplementedInstruction();
+            data += 2;
+        }
+        break;
+
       case 0xA8:
         AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data + 1));
         data += 2;
         break;
 
-      case 0xA9:
-        AppendToBuffer("test%c rax,0x%x",  // CHECKME!
+      case 0xA9: {
+        int64_t value = 0;
+        switch (operand_size()) {
+          case WORD_SIZE:
+            value = *reinterpret_cast<uint16_t*>(data + 1);
+            data += 3;
+            break;
+          case DOUBLEWORD_SIZE:
+            value = *reinterpret_cast<uint32_t*>(data + 1);
+            data += 5;
+            break;
+          case QUADWORD_SIZE:
+            value = *reinterpret_cast<int32_t*>(data + 1);
+            data += 5;
+            break;
+          default:
+            UNREACHABLE();
+        }
+        AppendToBuffer("test%c rax,0x%"V8_PTR_PREFIX"ux",
                        operand_size_code(),
-                       *reinterpret_cast<int32_t*>(data + 1));
-        data += 5;
+                       value);
         break;
-
+      }
       case 0xD1:  // fall through
       case 0xD3:  // fall through
       case 0xC1:
-        data += D1D3C1Instruction(data);
+        data += ShiftInstruction(data);
+        break;
+      case 0xD0:  // fall through
+      case 0xD2:  // fall through
+      case 0xC0:
+        byte_size_operand_ = true;
+        data += ShiftInstruction(data);
         break;
 
       case 0xD9:  // fall through
@@ -1236,73 +1430,13 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += JumpShort(data);
         break;
 
-      case 0xF2:
-        if (*(data + 1) == 0x0F) {
-          byte b2 = *(data + 2);
-          if (b2 == 0x11) {
-            AppendToBuffer("movsd ");
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            data += PrintRightOperand(data);
-            AppendToBuffer(",%s", NameOfXMMRegister(regop));
-          } else if (b2 == 0x10) {
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("movsd %s,", NameOfXMMRegister(regop));
-            data += PrintRightOperand(data);
-          } else {
-            const char* mnem = "?";
-            switch (b2) {
-              case 0x2A:
-                mnem = "cvtsi2sd";
-                break;
-              case 0x58:
-                mnem = "addsd";
-                break;
-              case 0x59:
-                mnem = "mulsd";
-                break;
-              case 0x5C:
-                mnem = "subsd";
-                break;
-              case 0x5E:
-                mnem = "divsd";
-                break;
-            }
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            if (b2 == 0x2A) {
-              AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
-              data += PrintRightOperand(data);
-            } else {
-              AppendToBuffer("%s %s,%s", mnem, NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm));
-              data++;
-            }
-          }
-        } else {
-          UnimplementedInstruction();
-        }
-        break;
-
-      case 0xF3:
-        if (*(data + 1) == 0x0F && *(data + 2) == 0x2C) {
-          data += 3;
-          data += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, data);
-        } else {
-          UnimplementedInstruction();
-        }
-        break;
-
       case 0xF7:
         data += F7Instruction(data);
         break;
 
       default:
         UnimplementedInstruction();
+        data += 1;
     }
   }  // !processed
 

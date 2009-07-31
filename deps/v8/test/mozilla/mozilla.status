@@ -321,10 +321,6 @@ js1_5/Regress/regress-179524: FAIL_OK
 js1_5/Regress/regress-172699: FAIL_OK
 
 
-# Calls regexp objects with function call syntax; non-ECMA behavior.
-js1_2/Objects/toString-001: FAIL_OK
-
-
 # Assumes that the prototype of a function is enumerable. Non-ECMA,
 # see section 15.3.3.1, page 86.
 ecma/GlobalObject/15.1.2.2-1: FAIL_OK
@@ -338,6 +334,7 @@ ecma/GlobalObject/15.1.2.7: FAIL_OK
 # Tests that rely on specific details of function decompilation or
 # print strings for errors. Non-ECMA behavior.
 js1_2/function/tostring-2: FAIL_OK
+js1_2/Objects/toString-001: FAIL_OK
 js1_5/Exceptions/regress-332472: FAIL_OK
 js1_5/Regress/regress-173067: FAIL_OK
 js1_5/Regress/regress-355556: FAIL_OK
@@ -561,22 +558,10 @@ js1_5/Array/regress-350256-02: FAIL
 ecma_3/Function/regress-137181: FAIL
 
 
-# Calls regexp objects with function call syntax; non-ECMA behavior.
-ecma_2/RegExp/regress-001: FAIL
-js1_2/regexp/regress-6359: FAIL
-js1_2/regexp/regress-9141: FAIL
-js1_5/Regress/regress-224956: FAIL
-js1_5/Regress/regress-325925: FAIL
-js1_2/regexp/simple_form: FAIL
-
-
 # Tests that rely on specific details of function decompilation or
 # print strings for errors. Non-ECMA behavior.
 js1_4/Regress/function-003: FAIL
 
-
-# Relies on JavaScript 1.2 / 1.3 deprecated features.
-js1_2/function/regexparg-1: FAIL
 
 # 'export' and 'import' are not keywords in V8.
 ecma_2/Exceptions/lexical-010: FAIL

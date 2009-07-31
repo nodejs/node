@@ -69,7 +69,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if V8_TARGET_ARCH_ARM
+#if defined(ANDROID)
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
@@ -85,8 +85,8 @@ GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
-
 int Heap::survived_since_last_expansion_ = 0;
+int Heap::external_allocation_limit_ = 0;
 
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
@@ -205,6 +205,27 @@ void Heap::ReportStatisticsBeforeGC() {
   }
 #endif
 }
+
+
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+void Heap::PrintShortHeapStatistics() {
+  if (!FLAG_trace_gc_verbose) return;
+  PrintF("Memory allocator,   used: %8d, available: %8d\n",
+         MemoryAllocator::Size(), MemoryAllocator::Available());
+  PrintF("New space,          used: %8d, available: %8d\n",
+         Heap::new_space_.Size(), new_space_.Available());
+  PrintF("Old pointers,       used: %8d, available: %8d\n",
+         old_pointer_space_->Size(), old_pointer_space_->Available());
+  PrintF("Old data space,     used: %8d, available: %8d\n",
+         old_data_space_->Size(), old_data_space_->Available());
+  PrintF("Code space,         used: %8d, available: %8d\n",
+         code_space_->Size(), code_space_->Available());
+  PrintF("Map space,          used: %8d, available: %8d\n",
+         map_space_->Size(), map_space_->Available());
+  PrintF("Large object space, used: %8d, avaialble: %8d\n",
+         lo_space_->Size(), lo_space_->Available());
+}
+#endif
 
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
@@ -1166,9 +1187,13 @@ bool Heap::CreateInitialMaps() {
   set_undetectable_long_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, ByteArray::kAlignedSize);
   if (obj->IsFailure()) return false;
   set_byte_array_map(Map::cast(obj));
+
+  obj = AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_pixel_array_map(Map::cast(obj));
 
   obj = AllocateMap(CODE_TYPE, Code::kHeaderSize);
   if (obj->IsFailure()) return false;
@@ -1386,6 +1411,12 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   set_the_hole_value(obj);
 
+  obj = CreateOddball(
+      oddball_map(), "no_interceptor_result_sentinel", Smi::FromInt(-2));
+  if (obj->IsFailure()) return false;
+  set_no_interceptor_result_sentinel(obj);
+
+
   // Allocate the empty string.
   obj = AllocateRawAsciiString(0, TENURED);
   if (obj->IsFailure()) return false;
@@ -1412,13 +1443,15 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   set_prototype_accessors(Proxy::cast(obj));
 
-  // Allocate the code_stubs dictionary.
-  obj = NumberDictionary::Allocate(4);
+  // Allocate the code_stubs dictionary. The initial size is set to avoid
+  // expanding the dictionary during bootstrapping.
+  obj = NumberDictionary::Allocate(128);
   if (obj->IsFailure()) return false;
   set_code_stubs(NumberDictionary::cast(obj));
 
-  // Allocate the non_monomorphic_cache used in stub-cache.cc
-  obj = NumberDictionary::Allocate(4);
+  // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
+  // is set to avoid expanding the dictionary during bootstrapping.
+  obj = NumberDictionary::Allocate(64);
   if (obj->IsFailure()) return false;
   set_non_monomorphic_cache(NumberDictionary::cast(obj));
 
@@ -1555,8 +1588,7 @@ Object* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result = Allocate(proxy_map(), space);
   if (result->IsFailure()) return result;
 
@@ -1838,6 +1870,23 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
+Object* Heap::AllocatePixelArray(int length,
+                                 uint8_t* external_pointer,
+                                 PretenureFlag pretenure) {
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
+
+  if (result->IsFailure()) return result;
+
+  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
+  reinterpret_cast<PixelArray*>(result)->set_length(length);
+  reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
+
+  return result;
+}
+
+
 Object* Heap::CreateCode(const CodeDesc& desc,
                          ZoneScopeInfo* sinfo,
                          Code::Flags flags,
@@ -2056,6 +2105,11 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
+  // Both types of globla objects should be allocated using
+  // AllocateGloblaObject to be properly initialized.
+  ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
+  ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
+
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
   Object* properties = AllocateFixedArray(prop_size, pretenure);
@@ -2096,24 +2150,62 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
 
 Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
+  Map* map = constructor->initial_map();
+
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
   // require us to change property values to JSGlobalPropertyCells.
-  ASSERT(constructor->initial_map()->NextFreePropertyIndex() == 0);
+  ASSERT(map->NextFreePropertyIndex() == 0);
 
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
-  ASSERT(constructor->initial_map()->unused_property_fields() == 0);
-  ASSERT(constructor->initial_map()->inobject_properties() == 0);
+  ASSERT(map->unused_property_fields() == 0);
+  ASSERT(map->inobject_properties() == 0);
 
-  // Allocate the object based on the constructors initial map.
-  Object* result = AllocateJSObjectFromMap(constructor->initial_map(), TENURED);
-  if (result->IsFailure()) return result;
+  // Initial size of the backing store to avoid resize of the storage during
+  // bootstrapping. The size differs between the JS global object ad the
+  // builtins object.
+  int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
 
-  // Normalize the result.
-  JSObject* global = JSObject::cast(result);
-  result = global->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
-  if (result->IsFailure()) return result;
+  // Allocate a dictionary object for backing storage.
+  Object* obj =
+      StringDictionary::Allocate(
+          map->NumberOfDescribedProperties() * 2 + initial_size);
+  if (obj->IsFailure()) return obj;
+  StringDictionary* dictionary = StringDictionary::cast(obj);
+
+  // The global object might be created from an object template with accessors.
+  // Fill these accessors into the dictionary.
+  DescriptorArray* descs = map->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    PropertyDetails details = descs->GetDetails(i);
+    ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
+    PropertyDetails d =
+        PropertyDetails(details.attributes(), CALLBACKS, details.index());
+    Object* value = descs->GetCallbacksObject(i);
+    value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (value->IsFailure()) return value;
+
+    Object* result = dictionary->Add(descs->GetKey(i), value, d);
+    if (result->IsFailure()) return result;
+    dictionary = StringDictionary::cast(result);
+  }
+
+  // Allocate the global object and initialize it with the backing store.
+  obj = Allocate(map, OLD_POINTER_SPACE);
+  if (obj->IsFailure()) return obj;
+  JSObject* global = JSObject::cast(obj);
+  InitializeJSObjectFromMap(global, dictionary, map);
+
+  // Create a new map for the global object.
+  obj = map->CopyDropDescriptors();
+  if (obj->IsFailure()) return obj;
+  Map* new_map = Map::cast(obj);
+
+  // Setup the global object as a normalized object.
+  global->set_map(new_map);
+  global->map()->set_instance_descriptors(Heap::empty_descriptor_array());
+  global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
   ASSERT(global->IsGlobalObject());
@@ -2967,6 +3059,7 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
   semispace_size_ = RoundUpToPowerOf2(semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, semispace_size_);
   young_generation_size_ = 2 * semispace_size_;
+  external_allocation_limit_ = 10 * semispace_size_;
 
   // The old generation is paged.
   old_generation_size_ = RoundUp(old_generation_size_, Page::kPageSize);
@@ -3369,6 +3462,100 @@ void HeapIterator::reset() {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+namespace {
+
+// JSConstructorProfile is responsible for gathering and logging
+// "constructor profile" of JS object allocated on heap.
+// It is run during garbage collection cycle, thus it doesn't need
+// to use handles.
+class JSConstructorProfile BASE_EMBEDDED {
+ public:
+  JSConstructorProfile() : zscope_(DELETE_ON_EXIT) {}
+  void CollectStats(JSObject* obj);
+  void PrintStats();
+  // Used by ZoneSplayTree::ForEach.
+  void Call(String* name, const NumberAndSizeInfo& number_and_size);
+ private:
+  struct TreeConfig {
+    typedef String* Key;
+    typedef NumberAndSizeInfo Value;
+    static const Key kNoKey;
+    static const Value kNoValue;
+    // Strings are unique, so it is sufficient to compare their pointers.
+    static int Compare(const Key& a, const Key& b) {
+      return a == b ? 0 : (a < b ? -1 : 1);
+    }
+  };
+
+  typedef ZoneSplayTree<TreeConfig> JSObjectsInfoTree;
+  static int CalculateJSObjectNetworkSize(JSObject* obj);
+
+  ZoneScope zscope_;
+  JSObjectsInfoTree js_objects_info_tree_;
+};
+
+const JSConstructorProfile::TreeConfig::Key
+    JSConstructorProfile::TreeConfig::kNoKey = NULL;
+const JSConstructorProfile::TreeConfig::Value
+    JSConstructorProfile::TreeConfig::kNoValue;
+
+
+int JSConstructorProfile::CalculateJSObjectNetworkSize(JSObject* obj) {
+  int size = obj->Size();
+  // If 'properties' and 'elements' are non-empty (thus, non-shared),
+  // take their size into account.
+  if (FixedArray::cast(obj->properties())->length() != 0) {
+    size += obj->properties()->Size();
+  }
+  if (FixedArray::cast(obj->elements())->length() != 0) {
+    size += obj->elements()->Size();
+  }
+  return size;
+}
+
+
+void JSConstructorProfile::Call(String* name,
+                                const NumberAndSizeInfo& number_and_size) {
+  SmartPointer<char> s_name;
+  if (name != NULL) {
+    s_name = name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  }
+  LOG(HeapSampleJSConstructorEvent(*s_name,
+                                   number_and_size.number(),
+                                   number_and_size.bytes()));
+}
+
+
+void JSConstructorProfile::CollectStats(JSObject* obj) {
+  String* constructor_func = NULL;
+  if (obj->map()->constructor()->IsJSFunction()) {
+    JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
+    SharedFunctionInfo* sfi = constructor->shared();
+    String* name = String::cast(sfi->name());
+    constructor_func = name->length() > 0 ? name : sfi->inferred_name();
+  } else if (obj->IsJSFunction()) {
+    constructor_func = Heap::function_class_symbol();
+  }
+  JSObjectsInfoTree::Locator loc;
+  if (!js_objects_info_tree_.Find(constructor_func, &loc)) {
+    js_objects_info_tree_.Insert(constructor_func, &loc);
+  }
+  NumberAndSizeInfo number_and_size = loc.value();
+  number_and_size.increment_number(1);
+  number_and_size.increment_bytes(CalculateJSObjectNetworkSize(obj));
+  loc.set_value(number_and_size);
+}
+
+
+void JSConstructorProfile::PrintStats() {
+  js_objects_info_tree_.ForEach(this);
+}
+
+}  // namespace
+#endif
+
+
 //
 // HeapProfiler class implementation.
 //
@@ -3385,15 +3572,22 @@ void HeapProfiler::CollectStats(HeapObject* obj, HistogramInfo* info) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
+  LOG(HeapSampleStats(
+      "Heap", "allocated", Heap::Capacity(), Heap::SizeOfObjects()));
 
   HistogramInfo info[LAST_TYPE+1];
 #define DEF_TYPE_NAME(name) info[name].set_name(#name);
   INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
 #undef DEF_TYPE_NAME
 
+  JSConstructorProfile js_cons_profile;
   HeapIterator iterator;
   while (iterator.has_next()) {
-    CollectStats(iterator.next(), info);
+    HeapObject* obj = iterator.next();
+    CollectStats(obj, info);
+    if (obj->IsJSObject()) {
+      js_cons_profile.CollectStats(JSObject::cast(obj));
+    }
   }
 
   // Lump all the string types together.
@@ -3414,6 +3608,8 @@ void HeapProfiler::WriteSample() {
                               info[i].bytes()));
     }
   }
+
+  js_cons_profile.PrintStats();
 
   LOG(HeapSampleEndEvent("Heap", "allocated"));
 }
@@ -3620,6 +3816,10 @@ GCTracer::~GCTracer() {
          CollectorString(),
          start_size_, SizeOfHeapObjects(),
          static_cast<int>(OS::TimeCurrentMillis() - start_time_));
+
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+  Heap::PrintShortHeapStatistics();
+#endif
 }
 
 

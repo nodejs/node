@@ -181,7 +181,8 @@ class HandleScope {
 // of space or encountering an internal error.
 
 void NormalizeProperties(Handle<JSObject> object,
-                         PropertyNormalizationMode mode);
+                         PropertyNormalizationMode mode,
+                         int expected_additional_properties);
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
@@ -336,6 +337,7 @@ class NoHandleAllocation BASE_EMBEDDED {
 class OptimizedObjectForAddingMultipleProperties BASE_EMBEDDED {
  public:
   OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
+                                             int expected_property_count,
                                              bool condition = true);
   ~OptimizedObjectForAddingMultipleProperties();
  private:

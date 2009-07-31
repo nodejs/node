@@ -154,6 +154,10 @@ class Factory : public AllStatic {
   static Handle<ByteArray> NewByteArray(int length,
                                         PretenureFlag pretenure = NOT_TENURED);
 
+  static Handle<PixelArray> NewPixelArray(int length,
+      uint8_t* external_pointer,
+      PretenureFlag pretenure = NOT_TENURED);
+
   static Handle<Map> NewMap(InstanceType type, int instance_size);
 
   static Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);

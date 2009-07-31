@@ -44,6 +44,12 @@ Result::Result(Register reg) {
 }
 
 
+Result::ZoneObjectList* Result::ConstantList() {
+  static ZoneObjectList list(10);
+  return &list;
+}
+
+
 // -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 

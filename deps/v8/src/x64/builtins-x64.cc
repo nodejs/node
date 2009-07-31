@@ -394,9 +394,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // If given receiver is already a JavaScript object then there's no
   // reason for converting it.
   __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
-  __ j(less, &call_to_object);
+  __ j(below, &call_to_object);
   __ CmpInstanceType(rcx, LAST_JS_OBJECT_TYPE);
-  __ j(less_equal, &push_receiver);
+  __ j(below_equal, &push_receiver);
 
   // Convert the receiver to an object.
   __ bind(&call_to_object);
@@ -562,7 +562,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
   __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
-  __ j(greater_equal, &exit);
+  __ j(above_equal, &exit);
 
   // Throw away the result of the constructor invocation and use the
   // on-stack receiver as the result.

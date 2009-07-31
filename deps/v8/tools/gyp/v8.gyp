@@ -52,6 +52,11 @@
           'V8_NATIVE_REGEXP',
         ],
       }],
+      ['target_arch=="x64"', {
+        'defines': [
+          'V8_TARGET_ARCH_X64',
+        ],
+      }],
     ],
     'configurations': {
       'Debug': {
@@ -254,6 +259,7 @@
         '../../src/frames-inl.h',
         '../../src/frames.cc',
         '../../src/frames.h',
+        '../../src/frame-element.cc',
         '../../src/frame-element.h',
         '../../src/func-name-inferrer.cc',
         '../../src/func-name-inferrer.h',
@@ -276,7 +282,6 @@
         '../../src/jump-target.cc',
         '../../src/jump-target.h',
         '../../src/jump-target-inl.h',
-        '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/list-inl.h',
@@ -425,6 +430,34 @@
             '../../src/ia32/stub-cache-ia32.cc',
             '../../src/ia32/virtual-frame-ia32.cc',
             '../../src/ia32/virtual-frame-ia32.h',
+          ],
+        }],
+        ['target_arch=="x64"', {
+          'include_dirs+': [
+            '../../src/x64',
+          ],
+          'sources': [
+            '../../src/x64/assembler-x64-inl.h',
+            '../../src/x64/assembler-x64.cc',
+            '../../src/x64/assembler-x64.h',
+            '../../src/x64/builtins-x64.cc',
+            '../../src/x64/codegen-x64.cc',
+            '../../src/x64/codegen-x64.h',
+            '../../src/x64/cpu-x64.cc',
+            '../../src/x64/debug-x64.cc',
+            '../../src/x64/disasm-x64.cc',
+            '../../src/x64/frames-x64.cc',
+            '../../src/x64/frames-x64.h',
+            '../../src/x64/ic-x64.cc',
+            '../../src/x64/jump-target-x64.cc',
+            '../../src/x64/macro-assembler-x64.cc',
+            '../../src/x64/macro-assembler-x64.h',
+            #'../../src/x64/regexp-macro-assembler-x64.cc',
+            #'../../src/x64/regexp-macro-assembler-x64.h',
+            '../../src/x64/register-allocator-x64.cc',
+            '../../src/x64/stub-cache-x64.cc',
+            '../../src/x64/virtual-frame-x64.cc',
+            '../../src/x64/virtual-frame-x64.h',
           ],
         }],
         ['OS=="linux"', {

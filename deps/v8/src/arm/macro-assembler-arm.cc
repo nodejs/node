@@ -226,7 +226,7 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   // Add the page header (including remembered set), array header, and array
   // body size to the page address.
   add(object, object, Operand(Page::kObjectStartOffset
-                              + Array::kHeaderSize));
+                              + FixedArray::kHeaderSize));
   add(object, object, Operand(scratch));
 
   bind(&fast);

@@ -46,7 +46,7 @@ bool RegisterAllocator::IsReserved(Register reg) {
 // non-reserved assembler registers.
 int RegisterAllocator::ToNumber(Register reg) {
   ASSERT(reg.is_valid() && !IsReserved(reg));
-  static const int numbers[] = {
+  const int kNumbers[] = {
     0,   // rax
     2,   // rcx
     3,   // rdx
@@ -64,15 +64,15 @@ int RegisterAllocator::ToNumber(Register reg) {
     8,   // r14
     9   // r15
   };
-  return numbers[reg.code()];
+  return kNumbers[reg.code()];
 }
 
 
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
-  static Register registers[] =
+  const Register kRegisters[] =
       { rax, rbx, rcx, rdx, rdi, r8, r9, r11, r14, r15, r13, r12 };
-  return registers[num];
+  return kRegisters[num];
 }
 
 

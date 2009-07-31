@@ -561,20 +561,24 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 var kAddMessageAccessorsMarker = { };
 
 // Defines accessors for a property that is calculated the first time
-// the property is read and then replaces the accessor with the value.
-// Also, setting the property causes the accessors to be deleted.
+// the property is read.
 function DefineOneShotAccessor(obj, name, fun) {
   // Note that the accessors consistently operate on 'obj', not 'this'.
   // Since the object may occur in someone else's prototype chain we
   // can't rely on 'this' being the same as 'obj'.
+  var hasBeenSet = false;
+  var value;
   obj.__defineGetter__(name, function () {
-    var value = fun(obj);
-    obj[name] = value;
+    if (hasBeenSet) {
+      return value;
+    }
+    hasBeenSet = true;
+    value = fun(obj);
     return value;
   });
   obj.__defineSetter__(name, function (v) {
-    delete obj[name];
-    obj[name] = v;
+    hasBeenSet = true;
+    value = v;
   });
 }
 
@@ -833,21 +837,24 @@ function DefineError(f) {
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
       }
-      var stackTraceLimit = $Error.stackTraceLimit;
-      if (stackTraceLimit) {
-        // Cap the limit to avoid extremely big traces
-        if (stackTraceLimit < 0 || stackTraceLimit > 10000)
-          stackTraceLimit = 10000;
-        var raw_stack = %CollectStackTrace(f, stackTraceLimit);
-        DefineOneShotAccessor(this, 'stack', function (obj) {
-          return FormatRawStackTrace(obj, raw_stack);
-        });
-      }
+      captureStackTrace(this, f);
     } else {
       return new f(m);
     }
   });
 }
+
+function captureStackTrace(obj, cons_opt) {
+  var stackTraceLimit = $Error.stackTraceLimit;
+  if (!stackTraceLimit) return;
+  if (stackTraceLimit < 0 || stackTraceLimit > 10000)
+    stackTraceLimit = 10000;
+  var raw_stack = %CollectStackTrace(cons_opt ? cons_opt : captureStackTrace,
+      stackTraceLimit);
+  DefineOneShotAccessor(obj, 'stack', function (obj) {
+    return FormatRawStackTrace(obj, raw_stack);
+  });
+};
 
 $Math.__proto__ = global.Object.prototype;
 
@@ -858,6 +865,8 @@ DefineError(function SyntaxError() { });
 DefineError(function ReferenceError() { });
 DefineError(function EvalError() { });
 DefineError(function URIError() { });
+
+$Error.captureStackTrace = captureStackTrace;
 
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';

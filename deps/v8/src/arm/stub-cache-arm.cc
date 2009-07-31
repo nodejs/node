@@ -164,7 +164,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
     __ ldr(dst, FieldMemOperand(src, offset));
   } else {
     // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     __ ldr(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
     __ ldr(dst, FieldMemOperand(dst, offset));
   }
@@ -330,7 +330,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ RecordWrite(receiver_reg, name_reg, scratch);
   } else {
     // Write to the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array
     __ ldr(scratch, FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ str(r0, FieldMemOperand(scratch, offset));
@@ -467,21 +467,23 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // Push the arguments on the JS stack of the caller.
   __ push(receiver);  // receiver
+  __ push(reg);  // holder
   __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
   __ push(ip);
+  __ ldr(reg, FieldMemOperand(ip, AccessorInfo::kDataOffset));
+  __ push(reg);
   __ push(name_reg);  // name
-  __ push(reg);  // holder
 
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 4);
+  __ TailCallRuntime(load_callback_property, 5);
 }
 
 
 void StubCompiler::GenerateLoadInterceptor(JSObject* object,
                                            JSObject* holder,
-                                           Smi* lookup_hint,
+                                           LookupResult* lookup,
                                            Register receiver,
                                            Register name_reg,
                                            Register scratch1,
@@ -500,13 +502,18 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ push(name_reg);  // name
-  __ mov(scratch1, Operand(lookup_hint));
+
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  ASSERT(!Heap::InNewSpace(interceptor));
+  __ mov(scratch1, Operand(Handle<Object>(interceptor)));
   __ push(scratch1);
+  __ ldr(scratch2, FieldMemOperand(scratch1, InterceptorInfo::kDataOffset));
+  __ push(scratch2);
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
-      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 4);
+      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
+  __ TailCallRuntime(load_ic_property, 5);
 }
 
 
@@ -676,13 +683,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
     case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
       CheckPrototypes(JSObject::cast(object), r1, holder, r3, r2, name, &miss);
-      // Make sure object->elements()->map() != Heap::hash_table_map()
+      // Make sure object->HasFastElements().
       // Get the elements array of the object.
       __ ldr(r3, FieldMemOperand(r1, JSObject::kElementsOffset));
       // Check that the object is in fast mode (not dictionary).
       __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-      __ cmp(r2, Operand(Factory::hash_table_map()));
-      __ b(eq, &miss);
+      __ cmp(r2, Operand(Factory::fixed_array_map()));
+      __ b(ne, &miss);
       break;
 
     default:
@@ -744,8 +751,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
-
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
@@ -782,6 +787,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
+  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -790,7 +796,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  __ DecrementCounter(&Counters::call_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1, r1, r3);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -951,8 +956,6 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
-
   // Check that the map of the global has not changed.
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -963,11 +966,11 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
   __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
 
+  __ IncrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
   __ Ret();
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ DecrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::named_store_global_inline_miss, 1, r1, r3);
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -1054,9 +1057,11 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 
   __ ldr(r0, MemOperand(sp, 0));
 
+  LookupResult lookup;
+  holder->LocalLookupRealNamedProperty(name, &lookup);
   GenerateLoadInterceptor(object,
                           holder,
-                          holder->InterceptorPropertyLookupHint(name),
+                          &lookup,
                           r0,
                           r2,
                           r3,
@@ -1083,8 +1088,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
-
   // Get the receiver from the stack.
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
 
@@ -1109,10 +1112,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
     __ b(eq, &miss);
   }
 
+  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
   __ Ret();
 
   __ bind(&miss);
-  __ DecrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::named_load_global_inline_miss, 1, r1, r3);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1121,8 +1124,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-// TODO(1224671): IC stubs for keyed loads have not been implemented
-// for ARM.
 Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* receiver,
                                                 JSObject* holder,
@@ -1217,9 +1218,11 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
+  LookupResult lookup;
+  holder->LocalLookupRealNamedProperty(name, &lookup);
   GenerateLoadInterceptor(receiver,
                           holder,
-                          Smi::FromInt(JSObject::kLookupInHolder),
+                          &lookup,
                           r0,
                           r2,
                           r3,

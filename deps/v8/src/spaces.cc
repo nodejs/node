@@ -133,8 +133,6 @@ PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
 #endif
       stop_page_ = space->last_page_;
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -725,11 +723,15 @@ void PagedSpace::Shrink() {
   Page* current_page = top_page->next_page();
   // Loop over the pages to the end of the space.
   while (current_page->is_valid()) {
+#if defined(ANDROID)
+    // Free all chunks if possible
+#else
     // Advance last_page_to_keep every other step to end up at the midpoint.
     if ((free_pages & 0x1) == 1) {
       pages_to_keep++;
       last_page_to_keep = last_page_to_keep->next_page();
     }
+#endif
     free_pages++;
     current_page = current_page->next_page();
   }

@@ -164,19 +164,16 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a function.
 
-  // The regular expression code here is really meant more as an
-  // example than anything else. KJS does not support calling regular
-  // expressions as functions, but SpiderMonkey does.
-  if (FLAG_call_regexp) {
-    bool is_regexp =
-        object->IsHeapObject() &&
-        (HeapObject::cast(*object)->map()->constructor() ==
-         *Top::regexp_function());
+  // Regular expressions can be called as functions in both Firefox
+  // and Safari so we allow it too.
+  bool is_regexp =
+      object->IsHeapObject() &&
+      (HeapObject::cast(*object)->map()->constructor() ==
+       *Top::regexp_function());
 
-    if (is_regexp) {
-      Handle<String> exec = Factory::exec_symbol();
-      return Handle<Object>(object->GetProperty(*exec));
-    }
+  if (is_regexp) {
+    Handle<String> exec = Factory::exec_symbol();
+    return Handle<Object>(object->GetProperty(*exec));
   }
 
   // Objects created through the API can have an instance-call handler
@@ -588,6 +585,23 @@ Object* Execution::DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
     return Heap::undefined_value();
+  }
+
+  {
+    JavaScriptFrameIterator it;
+    ASSERT(!it.done());
+    Object* fun = it.frame()->function();
+    if (fun && fun->IsJSFunction()) {
+      // Don't stop in builtin functions.
+      if (JSFunction::cast(fun)->IsBuiltin()) {
+        return Heap::undefined_value();
+      }
+      GlobalObject* global = JSFunction::cast(fun)->context()->global();
+      // Don't stop in debugger functions.
+      if (Debug::IsDebugGlobal(global)) {
+        return Heap::undefined_value();
+      }
+    }
   }
 
   // Collect the break state before clearing the flags.

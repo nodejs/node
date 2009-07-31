@@ -3857,7 +3857,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     s = s->outer_scope();
   }
 
-  if (s->is_eval_scope()) {
+  if (s != NULL && s->is_eval_scope()) {
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
@@ -4351,7 +4351,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
            FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ mov(FieldOperand(elements.reg(), offset), prop_value.reg());
 
     // Update the write barrier for the array address.
@@ -5388,12 +5388,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   } else {
     Load(node->expression());
     switch (op) {
-      case Token::NOT:
-      case Token::DELETE:
-      case Token::TYPEOF:
-        UNREACHABLE();  // handled above
-        break;
-
       case Token::SUB: {
         bool overwrite =
             (node->AsBinaryOperation() != NULL &&
@@ -5448,6 +5442,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       }
 
       default:
+        // NOT, DELETE, TYPEOF, and VOID are handled outside the
+        // switch.
         UNREACHABLE();
     }
   }
@@ -6301,15 +6297,15 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ mov(elements.reg(),
                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
         __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::hash_table_map()));
-        deferred->Branch(equal);
+               Immediate(Factory::fixed_array_map()));
+        deferred->Branch(not_equal);
 
         // Shift the key to get the actual index value and check that
         // it is within bounds.
         __ mov(index.reg(), key.reg());
         __ sar(index.reg(), kSmiTagSize);
         __ cmp(index.reg(),
-               FieldOperand(elements.reg(), Array::kLengthOffset));
+               FieldOperand(elements.reg(), FixedArray::kLengthOffset));
         deferred->Branch(above_equal);
 
         // Load and check that the result is not the hole.  We could
@@ -6323,7 +6319,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ mov(value.reg(), Operand(elements.reg(),
                                     index.reg(),
                                     times_4,
-                                    Array::kHeaderSize - kHeapObjectTag));
+                                    FixedArray::kHeaderSize - kHeapObjectTag));
         elements.Unuse();
         index.Unuse();
         __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
@@ -6495,7 +6491,7 @@ void Reference::SetValue(InitState init_state) {
         __ mov(Operand(tmp.reg(),
                        key.reg(),
                        times_2,
-                       Array::kHeaderSize - kHeapObjectTag),
+                       FixedArray::kHeaderSize - kHeapObjectTag),
                value.reg());
         __ IncrementCounter(&Counters::keyed_store_inline, 1);
 

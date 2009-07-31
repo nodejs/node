@@ -84,15 +84,37 @@ function testAnonymousMethod() {
   (function () { FAIL }).call([1, 2, 3]);
 }
 
+function CustomError(message, stripPoint) {
+  this.message = message;
+  Error.captureStackTrace(this, stripPoint);
+}
+
+CustomError.prototype.toString = function () {
+  return "CustomError: " + this.message;
+};
+
+function testDefaultCustomError() {
+  throw new CustomError("hep-hey", undefined);
+}
+
+function testStrippedCustomError() {
+  throw new CustomError("hep-hey", CustomError);
+}
+
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
-function testTrace(fun, expected) {
+function testTrace(fun, expected, unexpected) {
   var threw = false;
   try {
     fun();
   } catch (e) {
     for (var i = 0; i < expected.length; i++) {
       assertTrue(e.stack.indexOf(expected[i]) != -1);
+    }
+    if (unexpected) {
+      for (var i = 0; i < unexpected.length; i++) {
+        assertEquals(e.stack.indexOf(unexpected[i]), -1);
+      }
     }
     threw = true;
   }
@@ -165,6 +187,10 @@ testTrace(testValue, ["at Number.causeError"]);
 testTrace(testConstructor, ["new Plonk"]);
 testTrace(testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
 testTrace(testAnonymousMethod, ["Array.<anonymous>"]);
+testTrace(testDefaultCustomError, ["hep-hey", "new CustomError"],
+    ["collectStackTrace"]);
+testTrace(testStrippedCustomError, ["hep-hey"], ["new CustomError",
+    "collectStackTrace"]);
 
 testCallerCensorship();
 testUnintendedCallerCensorship();

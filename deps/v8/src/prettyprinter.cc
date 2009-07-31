@@ -417,7 +417,7 @@ void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
 }
 
 
-const char* PrettyPrinter::Print(Node* node) {
+const char* PrettyPrinter::Print(AstNode* node) {
   Init();
   Visit(node);
   return output_;
@@ -441,7 +441,7 @@ const char* PrettyPrinter::PrintProgram(FunctionLiteral* program) {
 }
 
 
-void PrettyPrinter::PrintOut(Node* node) {
+void PrettyPrinter::PrintOut(AstNode* node) {
   PrettyPrinter printer;
   PrintF("%s", printer.Print(node));
 }
@@ -700,7 +700,7 @@ void AstPrinter::PrintLabelsIndented(const char* info, ZoneStringList* labels) {
 }
 
 
-void AstPrinter::PrintIndentedVisit(const char* s, Node* node) {
+void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
   IndentedScope indent(s);
   Visit(node);
 }
@@ -934,6 +934,9 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::COMPUTED:
         prop_kind = "PROPERTY - COMPUTED";
         break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        prop_kind = "PROPERTY - MATERIALIZED_LITERAL";
+        break;
       case ObjectLiteral::Property::PROTOTYPE:
         prop_kind = "PROPERTY - PROTOTYPE";
         break;
@@ -945,7 +948,6 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
     IndentedScope prop(prop_kind);
     PrintIndentedVisit("KEY", node->properties()->at(i)->key());

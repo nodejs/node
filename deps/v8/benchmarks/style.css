@@ -55,6 +55,15 @@ div.run {
   border: 1px solid rgb(51, 102, 204);
 }
 
+div.warning { 
+  background: #ffffd9;
+  border: 1px solid #d2d26a;
+  display: none;
+  margin: 1em 0 2em;
+  padding: 8px;
+  text-align: center; 
+}
+
 #status {
   text-align: center;
   margin-top: 50px;

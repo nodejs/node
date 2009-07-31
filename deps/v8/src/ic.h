@@ -35,21 +35,24 @@ namespace internal {
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.
-#define IC_UTIL_LIST(ICU)          \
-  ICU(LoadIC_Miss)                 \
-  ICU(KeyedLoadIC_Miss)            \
-  ICU(CallIC_Miss)                 \
-  ICU(StoreIC_Miss)                \
-  ICU(SharedStoreIC_ExtendStorage) \
-  ICU(KeyedStoreIC_Miss)           \
-  /* Utilities for IC stubs. */    \
-  ICU(LoadCallbackProperty)        \
-  ICU(StoreCallbackProperty)       \
-  ICU(LoadInterceptorProperty)     \
+#define IC_UTIL_LIST(ICU)                             \
+  ICU(LoadIC_Miss)                                    \
+  ICU(KeyedLoadIC_Miss)                               \
+  ICU(CallIC_Miss)                                    \
+  ICU(StoreIC_Miss)                                   \
+  ICU(SharedStoreIC_ExtendStorage)                    \
+  ICU(KeyedStoreIC_Miss)                              \
+  /* Utilities for IC stubs. */                       \
+  ICU(LoadCallbackProperty)                           \
+  ICU(StoreCallbackProperty)                          \
+  ICU(LoadPropertyWithInterceptorOnly)                \
+  ICU(LoadPropertyWithInterceptorForLoad)             \
+  ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(StoreInterceptorProperty)
 
 //
-// IC is the base class for LoadIC, StoreIC and CallIC.
+// IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
+// and KeyedStoreIC.
 //
 class IC {
  public:
@@ -173,7 +176,6 @@ class CallIC: public IC {
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm, int argc);
-  static void GeneratePreMonomorphic(MacroAssembler* masm, int argc);
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
@@ -219,8 +221,8 @@ class LoadIC: public IC {
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
   // The offset from the inlined patch site to the start of the
-  // inlined load instruction.  It is 7 bytes (test eax, imm) plus
-  // 6 bytes (jne slow_label).
+  // inlined load instruction.  It is architecture-dependent, and not
+  // used on ARM.
   static const int kOffsetToLoadInstruction;
 
  private:
@@ -387,6 +389,10 @@ class KeyedStoreIC: public IC {
 
   // Support for patching the map that is checked in an inlined
   // version of keyed store.
+  // The address is the patch point for the IC call
+  // (Assembler::kTargetAddrToReturnAddrDist before the end of
+  // the call/return address).
+  // The map is the new map that the inlined code should check against.
   static bool PatchInlinedStore(Address address, Object* map);
 
   friend class IC;

@@ -634,11 +634,9 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
 
   // Check if we have space on the stack for registers.
-  Label retry_stack_check;
   Label stack_limit_hit;
   Label stack_ok;
 
-  __ bind(&retry_stack_check);
   ExternalReference stack_guard_limit =
       ExternalReference::address_of_stack_guard_limit();
   __ mov(ecx, esp);
@@ -658,10 +656,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   CallCheckStackGuardState(ebx);
   __ or_(eax, Operand(eax));
   // If returned value is non-zero, we exit with the returned value as result.
-  // Otherwise it was a preemption and we just check the limit again.
-  __ j(equal, &retry_stack_check);
-  // Return value was non-zero. Exit with exception or retry.
-  __ jmp(&exit_label_);
+  __ j(not_zero, &exit_label_);
 
   __ bind(&stack_ok);
 
@@ -762,19 +757,11 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(backtrack_stackpointer());
     __ push(edi);
 
-    Label retry;
-
-    __ bind(&retry);
     CallCheckStackGuardState(ebx);
     __ or_(eax, Operand(eax));
     // If returning non-zero, we should end execution with the given
     // result as return value.
     __ j(not_zero, &exit_label_);
-    // Check if we are still preempted.
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    __ j(below_equal, &retry);
 
     __ pop(edi);
     __ pop(backtrack_stackpointer());
@@ -1073,10 +1060,12 @@ int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(Address byte_offset1,
     unibrow::uchar c1 = substring1[i];
     unibrow::uchar c2 = substring2[i];
     if (c1 != c2) {
-      canonicalize.get(c1, '\0', &c1);
-      if (c1 != c2) {
-        canonicalize.get(c2, '\0', &c2);
-        if (c1 != c2) {
+      unibrow::uchar s1[1] = { c1 };
+      canonicalize.get(c1, '\0', s1);
+      if (s1[0] != c2) {
+        unibrow::uchar s2[1] = { c2 };
+        canonicalize.get(c2, '\0', s2);
+        if (s1[0] != s2[0]) {
           return 0;
         }
       }

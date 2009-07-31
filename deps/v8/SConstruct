@@ -149,31 +149,22 @@ LIBRARY_FLAGS = {
                        '-Wstrict-aliasing=2'],
       'CPPPATH':      ANDROID_INCLUDES,
     },
-    'wordsize:32': {
-      'arch:x64': {
-        'CCFLAGS':      ['-m64'],
-        'LINKFLAGS':    ['-m64']
-      }
-    },
-    'wordsize:64': {
-      'arch:ia32': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      },
-      'arch:arm': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      }
-    },
     'arch:ia32': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32'],
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM']
     },
+    'simulator:arm': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
     'arch:x64': {
-      'CCFLAGS':      ['-fno-strict-aliasing'],
-      'CPPDEFINES':   ['V8_TARGET_ARCH_X64']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
+      'CCFLAGS':      ['-fno-strict-aliasing', '-m64'],
+      'LINKFLAGS':    ['-m64'],
     },
     'prof:oprofile': {
       'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
@@ -341,22 +332,6 @@ CCTEST_EXTRA_FLAGS = {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
-    'wordsize:32': {
-      'arch:x64': {
-        'CCFLAGS':      ['-m64'],
-        'LINKFLAGS':    ['-m64']
-      }
-    },
-    'wordsize:64': {
-      'arch:ia32': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      },
-      'arch:arm': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      }
-    }
   },
   'msvc': {
     'all': {
@@ -408,21 +383,17 @@ SAMPLE_FLAGS = {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
-    'wordsize:32': {
-      'arch:x64': {
-        'CCFLAGS':      ['-m64'],
-        'LINKFLAGS':    ['-m64']
-      }
+    'arch:ia32': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
-    'wordsize:64': {
-      'arch:ia32': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      },
-      'arch:arm': {
-        'CCFLAGS':      ['-m32'],
-        'LINKFLAGS':    ['-m32']
-      }
+    'arch:x64': {
+      'CCFLAGS':      ['-m64'],
+      'LINKFLAGS':    ['-m64']
+    },
+    'simulator:arm': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -533,7 +504,6 @@ def GuessToolchain(os):
 OS_GUESS = utils.GuessOS()
 TOOLCHAIN_GUESS = GuessToolchain(OS_GUESS)
 ARCH_GUESS = utils.GuessArchitecture()
-WORDSIZE_GUESS = utils.GuessWordsize()
 
 
 SIMPLE_OPTIONS = {
@@ -586,11 +556,6 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'on',
     'help': 'use Microsoft Visual C++ link-time code generation'
-  },
-  'wordsize': {
-    'values': ['64', '32'],
-    'default': WORDSIZE_GUESS,
-    'help': 'the word size'
   },
   'simulator': {
     'values': ['arm', 'none'],

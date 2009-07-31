@@ -1136,6 +1136,7 @@ def ProcessOptions(options):
     # was found, set the arch to the guess.
     if options.arch == 'none':
       options.arch = ARCH_GUESS
+    options.scons_flags.append("arch=" + options.arch)
   return True
 
 

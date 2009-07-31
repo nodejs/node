@@ -228,6 +228,31 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
+int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+  ASSERT(HasBeenSetup());
+  int amount = amount_of_external_allocated_memory_ + change_in_bytes;
+  if (change_in_bytes >= 0) {
+    // Avoid overflow.
+    if (amount > amount_of_external_allocated_memory_) {
+      amount_of_external_allocated_memory_ = amount;
+    }
+    int amount_since_last_global_gc =
+        amount_of_external_allocated_memory_ -
+        amount_of_external_allocated_memory_at_last_global_gc_;
+    if (amount_since_last_global_gc > external_allocation_limit_) {
+      CollectAllGarbage();
+    }
+  } else {
+    // Avoid underflow.
+    if (amount >= 0) {
+      amount_of_external_allocated_memory_ = amount;
+    }
+  }
+  ASSERT(amount_of_external_allocated_memory_ >= 0);
+  return amount_of_external_allocated_memory_;
+}
+
+
 void Heap::SetLastScriptId(Object* last_script_id) {
   roots_[kLastScriptIdRootIndex] = last_script_id;
 }

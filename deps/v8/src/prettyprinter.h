@@ -42,17 +42,17 @@ class PrettyPrinter: public AstVisitor {
 
   // The following routines print a node into a string.
   // The result string is alive as long as the PrettyPrinter is alive.
-  const char* Print(Node* node);
+  const char* Print(AstNode* node);
   const char* PrintExpression(FunctionLiteral* program);
   const char* PrintProgram(FunctionLiteral* program);
 
   // Print a node to stdout.
-  static void PrintOut(Node* node);
+  static void PrintOut(AstNode* node);
 
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
  private:
@@ -87,12 +87,12 @@ class AstPrinter: public PrettyPrinter {
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
  private:
   friend class IndentedScope;
   void PrintIndented(const char* txt);
-  void PrintIndentedVisit(const char* s, Node* node);
+  void PrintIndentedVisit(const char* s, AstNode* node);
 
   void PrintStatements(ZoneList<Statement*>* statements);
   void PrintDeclarations(ZoneList<Declaration*>* declarations);

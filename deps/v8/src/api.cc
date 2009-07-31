@@ -1085,8 +1085,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   // handle it if it turns out not to be in release mode.
   ASSERT(pre_data == NULL || pre_data->SanityCheck());
   // If the pre-data isn't sane we simply ignore it
-  if (pre_data != NULL && !pre_data->SanityCheck())
+  if (pre_data != NULL && !pre_data->SanityCheck()) {
     pre_data = NULL;
+  }
   i::Handle<i::JSFunction> boilerplate = i::Compiler::Compile(str,
                                                               name_obj,
                                                               line_offset,
@@ -2193,6 +2194,25 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 }
 
 
+void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
+  ON_BAILOUT("v8::SetElementsToPixelData()", return);
+  ENTER_V8;
+  if (!ApiCheck(i::Smi::IsValid(length),
+                "v8::Object::SetIndexedPropertiesToPixelData()",
+                "length exceeds max acceptable value")) {
+    return;
+  }
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (!ApiCheck(!self->IsJSArray(),
+                "v8::Object::SetIndexedPropertiesToPixelData()",
+                "JSArray is not supported")) {
+    return;
+  }
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
+  self->set_elements(*pixels);
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -2461,6 +2481,44 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   ENTER_V8;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
+}
+
+
+void* v8::Object::GetPointerFromInternalField(int index) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* pointer = obj->GetInternalField(index);
+  if (pointer->IsSmi()) {
+    // Fast case, aligned native pointer.
+    return pointer;
+  }
+
+  // Read from uninitialized field.
+  if (!pointer->IsProxy()) {
+    // Play safe even if it's something unexpected.
+    ASSERT(pointer->IsUndefined());
+    return NULL;
+  }
+
+  // Unaligned native pointer.
+  return reinterpret_cast<void*>(i::Proxy::cast(pointer)->proxy());
+}
+
+
+void v8::Object::SetPointerInInternalField(int index, void* value) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* as_object = reinterpret_cast<i::Object*>(value);
+  if (as_object->IsSmi()) {
+    // Aligned pointer, store as is.
+    obj->SetInternalField(index, as_object);
+  } else {
+    // Currently internal fields are used by DOM wrappers which only
+    // get garbage collected by the mark-sweep collector, so we
+    // pretenure the proxy.
+    HandleScope scope;
+    i::Handle<i::Proxy> proxy =
+        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!proxy.is_null()) obj->SetInternalField(index, *proxy);
+  }
 }
 
 
@@ -3018,7 +3076,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   if (!self->HasFastElements()) {
     return Local<Object>();
   }
-  i::FixedArray* elms = self->elements();
+  i::FixedArray* elms = i::FixedArray::cast(self->elements());
   i::Object* paragon = elms->get(index);
   if (!paragon->IsJSObject()) {
     return Local<Object>();
@@ -3173,6 +3231,46 @@ bool V8::IsProfilerPaused() {
   return i::Logger::IsProfilerPaused();
 #else
   return true;
+#endif
+}
+
+
+void V8::ResumeProfilerEx(int flags) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (flags & PROFILER_MODULE_CPU) {
+    i::Logger::ResumeProfiler();
+  }
+  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    i::FLAG_log_gc = true;
+  }
+#endif
+}
+
+
+void V8::PauseProfilerEx(int flags) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (flags & PROFILER_MODULE_CPU) {
+    i::Logger::PauseProfiler();
+  }
+  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    i::FLAG_log_gc = false;
+  }
+#endif
+}
+
+
+int V8::GetActiveProfilerModules() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  int result = PROFILER_MODULE_NONE;
+  if (!i::Logger::IsProfilerPaused()) {
+    result |= PROFILER_MODULE_CPU;
+  }
+  if (i::FLAG_log_gc) {
+    result |= PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS;
+  }
+  return result;
+#else
+  return PROFILER_MODULE_NONE;
 #endif
 }
 

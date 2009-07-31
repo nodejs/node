@@ -215,7 +215,7 @@ class CodeGenerator: public AstVisitor {
 
 #define DEF_VISIT(type) \
   void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
   // Visit a statement and then spill the virtual frame if control flow can
@@ -374,7 +374,7 @@ class CodeGenerator: public AstVisitor {
   // information.
   void CodeForFunctionPosition(FunctionLiteral* fun);
   void CodeForReturnPosition(FunctionLiteral* fun);
-  void CodeForStatementPosition(Node* node);
+  void CodeForStatementPosition(AstNode* node);
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG

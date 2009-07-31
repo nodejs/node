@@ -1454,9 +1454,9 @@ void Deserializer::GetLog() {
 static void InitPagedSpace(PagedSpace* space,
                            int capacity,
                            List<Page*>* page_list) {
-  space->EnsureCapacity(capacity);
-  // TODO(1240712): PagedSpace::EnsureCapacity can return false due to
-  // a failure to allocate from the OS to expand the space.
+  if (!space->EnsureCapacity(capacity)) {
+    V8::FatalProcessOutOfMemory("InitPagedSpace");
+  }
   PageIterator it(space, PageIterator::ALL_PAGES);
   while (it.has_next()) page_list->Add(it.next());
 }

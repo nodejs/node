@@ -47,14 +47,10 @@ namespace internal {
 // generate an index for each native JS file.
 class SourceCodeCache BASE_EMBEDDED {
  public:
-  explicit SourceCodeCache(Script::Type type): type_(type) { }
+  explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
   void Initialize(bool create_heap_objects) {
-    if (create_heap_objects) {
-      cache_ = Heap::empty_fixed_array();
-    } else {
-      cache_ = NULL;
-    }
+    cache_ = create_heap_objects ? Heap::empty_fixed_array() : NULL;
   }
 
   void Iterate(ObjectVisitor* v) {
@@ -1106,12 +1102,6 @@ bool Genesis::InstallNatives() {
     script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     global_context()->set_empty_script(*script);
   }
-
-#ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove this when inline caches work.
-  FLAG_use_ic = false;
-#endif  // V8_HOST_ARCH_64_BIT
-
 
   if (FLAG_natives_file == NULL) {
     // Without natives file, install default natives.

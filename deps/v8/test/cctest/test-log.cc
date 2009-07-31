@@ -4,8 +4,12 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-#include "v8.h"
+#ifdef __linux__
+#include <signal.h>
+#include <unistd.h>
+#endif
 
+#include "v8.h"
 #include "log.h"
 #include "cctest.h"
 
@@ -144,6 +148,23 @@ class LoggerTestHelper : public AllStatic {
 using v8::internal::LoggerTestHelper;
 
 
+// Under Linux, we need to check if signals were delivered to avoid false
+// positives.  Under other platforms profiling is done via a high-priority
+// thread, so this case never happen.
+static bool was_sigprof_received = true;
+#ifdef __linux__
+
+struct sigaction old_sigprof_handler;
+
+static void SigProfSignalHandler(int signal, siginfo_t* info, void* context) {
+  if (signal != SIGPROF) return;
+  was_sigprof_received = true;
+  old_sigprof_handler.sa_sigaction(signal, info, context);
+}
+
+#endif  // __linux__
+
+
 static int CheckThatProfilerWorks(int log_pos) {
   Logger::ResumeProfiler();
   CHECK(LoggerTestHelper::IsSamplerActive());
@@ -160,6 +181,18 @@ static int CheckThatProfilerWorks(int log_pos) {
   const char* code_creation = "\ncode-creation,";  // eq. to /^code-creation,/
   CHECK_NE(NULL, strstr(buffer.start(), code_creation));
 
+#ifdef __linux__
+  // Intercept SIGPROF handler to make sure that the test process
+  // had received it. Under load, system can defer it causing test failure.
+  // It is important to execute this after 'ResumeProfiler'.
+  was_sigprof_received = false;
+  struct sigaction sa;
+  sa.sa_sigaction = SigProfSignalHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO;
+  CHECK_EQ(0, sigaction(SIGPROF, &sa, &old_sigprof_handler));
+#endif  // __linux__
+
   // Force compiler to generate new code by parametrizing source.
   EmbeddedVector<char, 100> script_src;
   i::OS::SNPrintF(script_src,
@@ -170,6 +203,8 @@ static int CheckThatProfilerWorks(int log_pos) {
   const double end_time = i::OS::TimeCurrentMillis() + 200;
   while (i::OS::TimeCurrentMillis() < end_time) {
     CompileAndRunScript(script_src.start());
+    // Yield CPU to give Profiler thread a chance to process ticks.
+    i::OS::Sleep(1);
   }
 
   Logger::PauseProfiler();
@@ -189,7 +224,8 @@ static int CheckThatProfilerWorks(int log_pos) {
   buffer[log_size] = '\0';
   const char* tick = "\ntick,";
   CHECK_NE(NULL, strstr(buffer.start(), code_creation));
-  CHECK_NE(NULL, strstr(buffer.start(), tick));
+  const bool ticks_found = strstr(buffer.start(), tick) != NULL;
+  CHECK_EQ(was_sigprof_received, ticks_found);
 
   return log_pos;
 }

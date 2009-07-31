@@ -49,7 +49,7 @@ bool RegisterAllocator::IsReserved(Register reg) {
 
 int RegisterAllocator::ToNumber(Register reg) {
   ASSERT(reg.is_valid() && !IsReserved(reg));
-  static int numbers[] = {
+  const int kNumbers[] = {
     0,   // eax
     2,   // ecx
     3,   // edx
@@ -59,14 +59,14 @@ int RegisterAllocator::ToNumber(Register reg) {
     -1,  // esi
     4    // edi
   };
-  return numbers[reg.code()];
+  return kNumbers[reg.code()];
 }
 
 
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
-  static Register registers[] = { eax, ebx, ecx, edx, edi };
-  return registers[num];
+  const Register kRegisters[] = { eax, ebx, ecx, edx, edi };
+  return kRegisters[num];
 }
 
 
