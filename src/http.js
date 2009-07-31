@@ -140,10 +140,6 @@ function OutgoingMessage () {
 
   this.output = [];
 
-  this.sent_connection_header = false;
-  this.sent_content_length_header = false;
-  this.sent_transfer_encoding_header = false;
-
   this.closeOnFinish = false;
   this.chunked_encoding = false;
   this.should_keep_alive = true;
@@ -159,6 +155,10 @@ OutgoingMessage.prototype.send = function (data, encoding) {
 };
 
 OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) {
+  var sent_connection_header = false;
+  var sent_content_length_header = false;
+  var sent_transfer_encoding_header = false;
+
   header_lines = header_lines || [];
 
   // first_line in the case of request is: "GET /index.html HTTP/1.1\r\n"
@@ -172,21 +172,21 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) 
     header += field + ": " + value + CRLF;
     
     if (connection_expression.exec(field)) {
-      this.sent_connection_header = true;
+      sent_connection_header = true;
       if (close_expression.exec(value)) this.closeOnFinish = true;
 
     } else if (transfer_encoding_expression.exec(field)) {
-      this.sent_transfer_encoding_header = true;
+      sent_transfer_encoding_header = true;
       if (chunk_expression.exec(value)) this.chunked_encoding = true;
 
     } else if (content_length_expression.exec(field)) {
-      this.sent_content_length_header = true;
+      sent_content_length_header = true;
 
     }
   }
 
   // keep-alive logic 
-  if (this.sent_connection_header == false) {
+  if (sent_connection_header == false) {
     if (this.should_keep_alive) {
       header += "Connection: keep-alive\r\n";
     } else {
@@ -195,7 +195,7 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) 
     }
   }
 
-  if (this.sent_content_length_header == false && this.sent_transfer_encoding_header == false) {
+  if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
     if (this.use_chunked_encoding_by_default) {
       header += "Transfer-Encoding: chunked\r\n";
       this.chunked_encoding = true;
@@ -251,7 +251,11 @@ function ClientRequest (method, uri, header_lines) {
   OutgoingMessage.call(this);
 
   this.should_keep_alive = false;
-  this.use_chunked_encoding_by_default = false;
+  if (method === "GET" || method === "HEAD") {
+    this.use_chunked_encoding_by_default = false;
+  } else {
+    this.use_chunked_encoding_by_default = true;
+  }
   this.closeOnFinish = true;
 
   this.sendHeaderLines(method + " " + uri + " HTTP/1.1\r\n", header_lines);
@@ -329,7 +333,7 @@ function createIncomingMessageStream (connection, incoming_listener) {
 /* Returns true if the message queue is finished and the connection
  * should be closed. */
 function flushMessageQueue (connection, queue) {
-  if (connection.readyState === "closed" || connection.readyState === "readOnly") {
+  if (connection.readyState !== "open" && connection.readyState !== "writeOnly") {
     return false;
   }
 
@@ -374,18 +378,17 @@ function connectionListener (connection) {
     }
   });
 
-  var flushResponse = function () {
-    if(flushMessageQueue(connection, responses)) {
-      connection.fullClose();
-    }
-  };
 
   createIncomingMessageStream(connection, function (incoming, should_keep_alive) {
     var req = incoming;
 
     var res = new ServerResponse(connection);
     res.should_keep_alive = should_keep_alive;
-    res.addListener("flush", flushResponse);
+    res.addListener("flush", function () {
+      if(flushMessageQueue(connection, responses)) {
+        connection.fullClose();
+      }
+    });
     responses.push(res);
     
     connection.server.emit("request", [req, res]);
@@ -405,6 +408,7 @@ node.http.createClient = function (port, host) {
         client.connect(port, host); // reconnect
         return;
       }
+      //node.debug("client flush  readyState = " + client.readyState);
       if (req == requests[0]) flushMessageQueue(client, [req]);
     });
     requests.push(req);
@@ -437,7 +441,7 @@ node.http.createClient = function (port, host) {
   });
 
   createIncomingMessageStream(client, function (res) {
-    //node.debug("incoming response!");
+   //node.debug("incoming response!");
 
     res.addListener("complete", function ( ) {
       //node.debug("request complete disconnecting. readyState = " + client.readyState);
