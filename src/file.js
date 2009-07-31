@@ -89,7 +89,12 @@ node.fs.File = function (options) {
 
     if (!promise) throw "actionQueue empty when it shouldn't be.";
 
-    promise.emitSuccess(arguments);
+    var args = [];
+    for (var i = 0; i < arguments.length; i++) {
+      args.push(arguments[i]);
+    }
+
+    promise.emitSuccess(args);
 
     actionQueue.shift();
     act();
@@ -100,8 +105,13 @@ node.fs.File = function (options) {
 
     if (!promise) throw "actionQueue empty when it shouldn't be.";
 
-    promise.emitError(arguments);
-    self.emitError(arguments);
+    var args = [];
+    for (var i = 0; i < arguments.length; i++) {
+      args.push(arguments[i]);
+    }
+
+    promise.emitError(args);
+    self.emitError(args);
   }
 
   var internal_methods = {
@@ -154,7 +164,9 @@ node.fs.File = function (options) {
     read: function (length, position) {
       //node.debug("encoding: " + self.encoding);
       var promise = node.fs.read(self.fd, length, position, self.encoding);
-      promise.addCallback(success);  
+      promise.addCallback(function (chunk) {
+        success(chunk);
+      });  
       promise.addErrback(error);  
     },
 
