@@ -482,6 +482,19 @@ or +node.RAW+.
 - on success: returns +data, bytes_read+, what was read from the file.
 - on error: no parameters.
 
++node.fs.cat(filename, encoding)+::
+
+Outputs the entire contents of a file. Example:
++
+--------------------------------
+node.fs.cat("/etc/passwd", "utf8").addCallback(function (content) {
+  puts(content);
+});
+--------------------------------
++
+- on success: returns +data+, what was read from the file.
+- on error: no parameters.
+
 
 ==== +node.fs.File+
 
@@ -495,6 +508,18 @@ var file = new node.fs.File();
 file.open("/tmp/blah", "w+");
 file.write("hello");
 file.write("world");
+file.close();
+----------------------------------------
+
+Here is an example of reading the first 10 bytes from +/etc/passwd+ and
+outputting it to +stdout+.
+
+----------------------------------------
+var file = new node.fs.File({encoding: "utf8"});
+file.open("/etc/passwd", "r");
+file.read(10).addCallback(function (chunk) {
+  puts(chunk);
+});
 file.close();
 ----------------------------------------
 
