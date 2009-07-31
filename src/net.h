@@ -143,8 +143,8 @@ protected:
     evcom_server_close (&server_); 
   }
 
-  int Listen (struct addrinfo *address) { 
-    int r = evcom_server_listen (&server_, address, 1024); 
+  int Listen (struct addrinfo *address, int backlog) { 
+    int r = evcom_server_listen (&server_, address, backlog); 
     if(r != 0) return r;
     evcom_server_attach (EV_DEFAULT_ &server_); 
     Attach();

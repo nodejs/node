@@ -892,7 +892,7 @@ function echo (socket) {
     socket.close();
   });
 }
-var server = node.tcp.createServer(echo, {backlog: 1024});
+var server = node.tcp.createServer(echo);
 server.listen(7000, "localhost");
 ----------------------------------------
 
@@ -908,24 +908,25 @@ server.listen(7000, "localhost");
                                   error occured +errorno+ will be 0.
 |=========================================================
 
-+node.tcp.createServer(connection_listener, options={});+ ::
++node.tcp.createServer(connection_listener);+ ::
 Creates a new TCP server.
 +
 The +connection_listener+ argument is automatically set as a listener for
 the +"connection"+ event.
-+
-+options+ for now only supports one option:
-+backlog+ which should be an integer and describes
-how large of a connection backlog the operating system should
-maintain for this server. The +backlog+ defaults
-to 1024.
 
 
-+server.listen(port, host=null)+ ::
-Tells the server to listen for TCP connections to +port+
-and +host+. Note, +host+ is optional. If
-+host+ is not specified the server will accept
-connections to any IP address on the specified port. 
++server.listen(port, host=null, backlog=1024)+ ::
+Tells the server to listen for TCP connections to +port+ and +host+. 
+
++host+ is optional. If +host+ is not specified the server will accept client
+connections on any network address.
+
+The third argument, +backlog+, is also optional and defaults to 1024.  The
++backlog+ argument defines the maximum length to which the queue of pending
+connections for the server may grow.  If a connection request arrives when
+the queue is full, the client may receive a "ECONNREFUSED"  error or, if the
+underlying protocol supports retransmission, the request may be ignored so
+that a later reattempt at connection succeeds
 
 
 +server.close()+::

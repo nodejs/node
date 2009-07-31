@@ -1,6 +1,8 @@
 #include "net.h"
 #include "events.h"
 
+#include <udns.h>
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -585,16 +587,33 @@ Server::Listen (const Arguments& args)
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   assert(server);
 
+  HandleScope scope;
+
   if (args.Length() == 0)
     return ThrowException(String::New("Must give at least a port as argument."));
 
-  HandleScope scope;
   String::AsciiValue port(args[0]->ToString());
 
-  char *host = NULL;
-  if (args[1]->IsString()) {
-    String::Utf8Value host_sv(args[1]->ToString());
-    host = strdup(*host_sv);
+  char host[DNS_MAXNAME+1] = "\0";
+  int backlog = 1024;
+
+  if (args.Length() == 2) {
+    if (args[1]->IsInt32()) {
+      backlog = args[1]->Int32Value();
+    } else if (args[1]->IsString()) {
+      args[1]->ToString()->WriteAscii(host, 0, DNS_MAXNAME+1);
+    }
+  } else if (args.Length() > 2) {
+    if (args[1]->IsString()) {
+      args[1]->ToString()->WriteAscii(host, 0, DNS_MAXNAME+1);
+    }
+
+    if (!args[2]->IsInt32()) {
+      return ThrowException(
+          Exception::TypeError(String::New("backlog must be an integer")));
+    }
+
+    backlog = args[2]->Int32Value();
   }
 
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
@@ -602,14 +621,13 @@ Server::Listen (const Arguments& args)
   // with a libeio call.
   struct addrinfo *address = NULL,
                   *address_list = NULL;
-  int r = getaddrinfo(host, *port, &server_tcp_hints, &address_list);
-  free(host);
+  int r = getaddrinfo(strlen(host) ? host : NULL, *port, &server_tcp_hints, &address_list);
   if (r != 0)
     return ThrowException(String::New(strerror(errno)));
 
   address = AddressDefaultToIPv4(address_list);
 
-  server->Listen(address);
+  server->Listen(address, backlog);
 
   if (address_list) freeaddrinfo(address_list); 
 
