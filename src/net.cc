@@ -437,7 +437,7 @@ Connection::OnReceive (const void *buf, size_t len)
       // raw encoding
       Local<Array> array = Array::New(len);
       for (size_t i = 0; i < len; i++) {
-        char val = static_cast<const char*>(buf)[i];
+        unsigned char val = static_cast<const unsigned char*>(buf)[i];
         array->Set(Integer::New(i), Integer::New(val));
       }
       argv[0] = array;
