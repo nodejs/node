@@ -5,6 +5,7 @@
 #include <stdlib.h> /* exit() */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include <v8.h>
@@ -100,7 +101,7 @@ AfterResolveA4 (struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data)
     HandleScope loop_scope;
 
     char ip[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(result->dnsa4_addr[i]), ip, INET_ADDRSTRLEN);
+    dns_ntop(AF_INET, &(result->dnsa4_addr[i]), ip, INET_ADDRSTRLEN);
     Local<String> address = String::New(ip);
 
     addresses->Set(Integer::New(i), address);
@@ -136,7 +137,7 @@ AfterResolveA6 (struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data)
     HandleScope loop_scope;
 
     char ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(result->dnsa6_addr[i]), ip, INET6_ADDRSTRLEN);
+    dns_ntop(AF_INET6, &(result->dnsa6_addr[i]), ip, INET6_ADDRSTRLEN);
     Local<String> address = String::New(ip);
 
     addresses->Set(Integer::New(i), address);
