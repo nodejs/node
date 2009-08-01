@@ -1,3 +1,19 @@
+2009.08.01, Version 0.1.2
+
+  * Add DNS API
+
+  * node.tcp.Server's backlog option is now an argument to listen()
+
+  * Upgrade V8 to 1.3.1
+
+  * Bugfix: Default to chunked for client requests without C-Length.
+
+  * Bugfix: Line numbers in stack traces.
+
+  * Bugfix: negative integers in raw encoding stream
+
+  * Bugfix: node.fs.File was not passing args to promise callbacks. 
+
 2009.07.27, Version 0.1.1
 
   * Simplify and clean up ObjectWrap.
