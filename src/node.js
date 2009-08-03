@@ -81,6 +81,9 @@ node.Module.prototype.load = function (callback) {
     self.target.__require = function (path) { return self.newChild(path, {}); };
     self.target.__include = function (path) { self.newChild(path, self.target); };
 
+    // remove shebang
+    content = content.replace(/^\#\!.*/, '');
+
     // create wrapper function
     var wrapper = "function (__filename) { "+
                   "  var onLoad; "+
