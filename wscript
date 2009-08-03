@@ -6,9 +6,6 @@ from logging import fatal
 
 import js2c
 
-VERSION='0.1.2'
-APPNAME='node'
-
 srcdir = '.'
 blddir = 'build'
 cwd = os.getcwd()

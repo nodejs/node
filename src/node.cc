@@ -230,6 +230,8 @@ Load (int argc, char *argv[])
 
   global_obj->Set(String::NewSymbol("node"), node_obj);
 
+  node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+
   Local<Array> arguments = Array::New(argc);
   for (int i = 0; i < argc; i++) {
     Local<String> arg = String::New(argv[i]);
