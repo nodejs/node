@@ -290,6 +290,31 @@ CallExitHandler (Handle<Object> node_obj)
     node::FatalException(try_catch);
 }
 
+static void
+PrintHelp ( )
+{
+  printf("Usage: node [switches] script.js [arguments] \n"
+         "  -v, --version    print node's version\n"
+         "  --v8-options     print v8 command line options\n");
+}
+
+static void
+ParseArgs (int *argc, char **argv) 
+{
+  for (int i = 1; i < *argc; i++) {
+    const char *arg = argv[i];
+    if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
+      printf("%s\n", NODE_VERSION);
+      exit(0);
+    } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+      PrintHelp();
+      exit(0);
+    } else if (strcmp(arg, "--v8-options") == 0) {
+      argv[i] = (char*)"--help";
+    }
+  }
+}
+
 int
 main (int argc, char *argv[]) 
 {
@@ -301,12 +326,14 @@ main (int argc, char *argv[])
   ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
   ev_unref(EV_DEFAULT_UC);
 
+  ParseArgs(&argc, argv);
   V8::SetFlagsFromCommandLine(&argc, argv, true);
   V8::Initialize();
   V8::SetFatalErrorHandler(OnFatalError);
 
   if(argc < 2)  {
     fprintf(stderr, "No script was specified.\n");
+    PrintHelp();
     return 1;
   }
 
