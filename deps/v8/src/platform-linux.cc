@@ -225,33 +225,60 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 void OS::LogSharedLibraryAddresses() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  FILE *fp;
-  fp = fopen("/proc/self/maps", "r");
+  // This function assumes that the layout of the file is as follows:
+  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
+  // If we encounter an unexpected situation we abort scanning further entries.
+  FILE *fp = fopen("/proc/self/maps", "r");
   if (fp == NULL) return;
+
+  // Allocate enough room to be able to store a full file name.
+  const int kLibNameLen = FILENAME_MAX + 1;
+  char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
+
+  // This loop will terminate once the scanning hits an EOF.
   while (true) {
     uintptr_t start, end;
     char attr_r, attr_w, attr_x, attr_p;
+    // Parse the addresses and permission bits at the beginning of the line.
     if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+
     int c;
     if (attr_r == 'r' && attr_x == 'x') {
-      while (c = getc(fp), (c != EOF) && (c != '\n') && (c != '/'));
-      char lib_name[1024];
-      bool lib_has_name = false;
+      // Found a readable and executable entry. Skip characters until we reach
+      // the beginning of the filename or the end of the line.
+      do {
+        c = getc(fp);
+      } while ((c != EOF) && (c != '\n') && (c != '/'));
+      if (c == EOF) break;  // EOF: Was unexpected, just exit.
+
+      // Process the filename if found.
       if (c == '/') {
-        ungetc(c, fp);
-        lib_has_name = fgets(lib_name, sizeof(lib_name), fp) != NULL;
-      }
-      if (lib_has_name && strlen(lib_name) > 0) {
+        ungetc(c, fp);  // Push the '/' back into the stream to be read below.
+
+        // Read to the end of the line. Exit if the read fails.
+        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+
+        // Drop the newline character read by fgets. We do not need to check
+        // for a zero-length string because we know that we at least read the
+        // '/' character.
         lib_name[strlen(lib_name) - 1] = '\0';
       } else {
-        snprintf(lib_name, sizeof(lib_name),
+        // No library name found, just record the raw address range.
+        snprintf(lib_name, kLibNameLen,
                  "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
       }
       LOG(SharedLibraryEvent(lib_name, start, end));
+    } else {
+      // Entry not describing executable data. Skip to end of line to setup
+      // reading the next entry.
+      do {
+        c = getc(fp);
+      } while ((c != EOF) && (c != '\n'));
+      if (c == EOF) break;
     }
-    while (c = getc(fp), (c != EOF) && (c != '\n'));
   }
+  free(lib_name);
   fclose(fp);
 #endif
 }
