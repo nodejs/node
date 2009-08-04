@@ -103,7 +103,7 @@ void anon_tls_client (evcom_socket *socket)
   gnutls_credentials_set(client_session, GNUTLS_CRD_ANON, client_credentials);
 
   evcom_socket_set_secure_session(socket, client_session);
-  assert(socket->secure);
+  assert(socket->flags & EVCOM_SECURE);
 }
 
 #endif // EVCOM_HAVE_GNUTLS

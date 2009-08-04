@@ -132,10 +132,10 @@ Connection::New (const Arguments& args)
 enum Connection::readyState
 Connection::ReadyState (void)
 {
-  if (socket_.got_full_close)
+  if (socket_.flags & EVCOM_GOT_FULL_CLOSE)
     return CLOSED;
 
-  if (socket_.got_half_close)
+  if (socket_.flags & EVCOM_GOT_HALF_CLOSE)
     return (socket_.read_action == NULL ? CLOSED : READ_ONLY);
 
   if (socket_.read_action && socket_.write_action)
