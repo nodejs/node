@@ -51,6 +51,7 @@ SOUTILS = $(USRCS:.c=_s)
 NAMEPFX = $(NAME)-$(VERS)
 
 CC = @CC@
+RANLIB = @RANLIB@
 CFLAGS = @CFLAGS@
 CDEFS = @CDEFS@
 PICFLAGS = -fPIC
@@ -65,6 +66,7 @@ staticlib: $(LIB)
 $(LIB): $(OBJS)
 	-rm -f $@
 	$(AR) rv $@ $(OBJS)
+	$(RANLIB) $(LIB)
 .c.o:
 	$(CC) $(CFLAGS) $(CDEFS) -c $<
 
