@@ -1,3 +1,21 @@
+2009.08.06, Version 0.1.3
+
+  * Upgrade v8 to 1.3.2
+
+  * Bugfix: node.http.ServerRequest.setBodyEncoding('ascii') not workin
+
+  * Bugfix: node.encodeUtf8 was broken. (Connor Dunn)
+
+  * Add ranlib to udns Makefile.
+
+  * Upgrade evcom - fix accepting too many connections issue.
+
+  * Initial support for shebang
+
+  * Add simple command line switches
+
+  * Add node.version API
+
 2009.08.01, Version 0.1.2
 
   * Add DNS API

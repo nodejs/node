@@ -10,7 +10,7 @@
 
 namespace node {
 
-#define NODE_VERSION "0.1.2"
+#define NODE_VERSION "0.1.3"
 
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
