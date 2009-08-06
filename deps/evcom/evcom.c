@@ -528,8 +528,8 @@ socket_send (evcom_socket *socket)
 static int
 socket_recv (evcom_socket *socket)
 {
-  char buf[TCP_MAXWIN];
-  size_t buf_size = TCP_MAXWIN;
+  char buf[socket->chunksize];
+  size_t buf_size = socket->chunksize;
   ssize_t recved;
 
   assert(!SECURE(socket));
@@ -913,7 +913,7 @@ evcom_socket_init (evcom_socket *socket, float timeout)
   socket->read_action = NULL;
   socket->write_action = NULL;
 
-  socket->chunksize = 8192; 
+  socket->chunksize = 8*1024;
 
   socket->on_connect = NULL;
   socket->on_read = NULL;
