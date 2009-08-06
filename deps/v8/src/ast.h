@@ -821,9 +821,6 @@ class VariableProxy: public Expression {
     return (variable == NULL) ? false : variable->is_arguments();
   }
 
-  // If this assertion fails it means that some code has tried to
-  // treat the special "this" variable as an ordinary variable with
-  // the name "this".
   Handle<String> name() const  { return name_; }
   Variable* var() const  { return var_; }
   UseCount* var_uses()  { return &var_uses_; }

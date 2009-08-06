@@ -210,7 +210,7 @@
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-log-ia32.cc"
+			RelativePath="..\..\test\cctest\test-log-stack-tracer.cc"
 			>
 		</File>
 		<File

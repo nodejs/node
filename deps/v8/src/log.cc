@@ -957,38 +957,63 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 }
 
 
-bool Logger::IsProfilerPaused() {
-  return profiler_->paused();
+int Logger::GetActiveProfilerModules() {
+  int result = PROFILER_MODULE_NONE;
+  if (!profiler_->paused()) {
+    result |= PROFILER_MODULE_CPU;
+  }
+  if (FLAG_log_gc) {
+    result |= PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS;
+  }
+  return result;
 }
 
 
-void Logger::PauseProfiler() {
-  if (profiler_->paused()) {
-    return;
+void Logger::PauseProfiler(int flags) {
+  if (!Log::IsEnabled()) return;
+  const int active_modules = GetActiveProfilerModules();
+  const int modules_to_disable = active_modules & flags;
+  if (modules_to_disable == PROFILER_MODULE_NONE) return;
+
+  if (modules_to_disable & PROFILER_MODULE_CPU) {
+    profiler_->pause();
+    if (FLAG_prof_lazy) {
+      if (!FLAG_sliding_state_window) ticker_->Stop();
+      FLAG_log_code = false;
+      // Must be the same message as Log::kDynamicBufferSeal.
+      LOG(UncheckedStringEvent("profiler", "pause"));
+    }
   }
-  profiler_->pause();
-  if (FLAG_prof_lazy) {
-    if (!FLAG_sliding_state_window) ticker_->Stop();
-    FLAG_log_code = false;
-    // Must be the same message as Log::kDynamicBufferSeal.
-    LOG(UncheckedStringEvent("profiler", "pause"));
+  if (modules_to_disable &
+      (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    FLAG_log_gc = false;
   }
-  is_logging_ = false;
+  // Turn off logging if no active modules remain.
+  if ((active_modules & ~flags) == PROFILER_MODULE_NONE) {
+    is_logging_ = false;
+  }
 }
 
 
-void Logger::ResumeProfiler() {
-  if (!profiler_->paused() || !Log::IsEnabled()) {
-    return;
+void Logger::ResumeProfiler(int flags) {
+  if (!Log::IsEnabled()) return;
+  const int modules_to_enable = ~GetActiveProfilerModules() & flags;
+  if (modules_to_enable != PROFILER_MODULE_NONE) {
+    is_logging_ = true;
   }
-  is_logging_ = true;
-  if (FLAG_prof_lazy) {
-    LOG(UncheckedStringEvent("profiler", "resume"));
-    FLAG_log_code = true;
-    LogCompiledFunctions();
-    if (!FLAG_sliding_state_window) ticker_->Start();
+  if (modules_to_enable & PROFILER_MODULE_CPU) {
+    if (FLAG_prof_lazy) {
+      LOG(UncheckedStringEvent("profiler", "resume"));
+      FLAG_log_code = true;
+      LogCompiledFunctions();
+      if (!FLAG_sliding_state_window) ticker_->Start();
+    }
+    profiler_->resume();
   }
-  profiler_->resume();
+  if (modules_to_enable &
+      (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    FLAG_log_gc = true;
+  }
 }
 
 
@@ -996,7 +1021,7 @@ void Logger::ResumeProfiler() {
 // either from main or Profiler's thread.
 void Logger::StopLoggingAndProfiling() {
   Log::stop();
-  PauseProfiler();
+  PauseProfiler(PROFILER_MODULE_CPU);
 }
 
 

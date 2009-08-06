@@ -31,6 +31,7 @@
 #include "codegen-inl.h"
 #include "assembler-x64.h"
 #include "macro-assembler-x64.h"
+#include "serialize.h"
 #include "debug.h"
 
 namespace v8 {
@@ -45,11 +46,156 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
-// TODO(x64): For now, the write barrier is disabled on x64 and we
-// therefore generate no code.  This should be fixed when the write
-// barrier is enabled.
-void MacroAssembler::RecordWrite(Register object, int offset,
-                                 Register value, Register scratch) {
+
+static void RecordWriteHelper(MacroAssembler* masm,
+                              Register object,
+                              Register addr,
+                              Register scratch) {
+  Label fast;
+
+  // Compute the page address from the heap object pointer, leave it
+  // in 'object'.
+  ASSERT(is_int32(~Page::kPageAlignmentMask));
+  masm->and_(object,
+             Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
+
+  // Compute the bit addr in the remembered set, leave it in "addr".
+  masm->subq(addr, object);
+  masm->shr(addr, Immediate(kPointerSizeLog2));
+
+  // If the bit offset lies beyond the normal remembered set range, it is in
+  // the extra remembered set area of a large object.
+  masm->cmpq(addr, Immediate(Page::kPageSize / kPointerSize));
+  masm->j(less, &fast);
+
+  // Adjust 'addr' to be relative to the start of the extra remembered set
+  // and the page address in 'object' to be the address of the extra
+  // remembered set.
+  masm->subq(addr, Immediate(Page::kPageSize / kPointerSize));
+  // Load the array length into 'scratch'.
+  masm->movl(scratch,
+             Operand(object,
+                     Page::kObjectStartOffset + FixedArray::kLengthOffset));
+  // Extra remembered set starts right after FixedArray.
+  // Add the page header, array header, and array body size
+  // (length * pointer size) to the page address to find the extra remembered
+  // set start.
+  masm->lea(object,
+            Operand(object, scratch, times_pointer_size,
+                    Page::kObjectStartOffset + FixedArray::kHeaderSize));
+
+  // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
+  // to limit code size. We should probably evaluate this decision by
+  // measuring the performance of an equivalent implementation using
+  // "simpler" instructions
+  masm->bind(&fast);
+  masm->bts(Operand(object, Page::kRSetOffset), addr);
+}
+
+
+class RecordWriteStub : public CodeStub {
+ public:
+  RecordWriteStub(Register object, Register addr, Register scratch)
+      : object_(object), addr_(addr), scratch_(scratch) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register object_;
+  Register addr_;
+  Register scratch_;
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
+           object_.code(), addr_.code(), scratch_.code());
+  }
+#endif
+
+  // Minor key encoding in 12 bits of three registers (object, address and
+  // scratch) OOOOAAAASSSS.
+  class ScratchBits: public BitField<uint32_t, 0, 4> {};
+  class AddressBits: public BitField<uint32_t, 4, 4> {};
+  class ObjectBits: public BitField<uint32_t, 8, 4> {};
+
+  Major MajorKey() { return RecordWrite; }
+
+  int MinorKey() {
+    // Encode the registers.
+    return ObjectBits::encode(object_.code()) |
+           AddressBits::encode(addr_.code()) |
+           ScratchBits::encode(scratch_.code());
+  }
+};
+
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  RecordWriteHelper(masm, object_, addr_, scratch_);
+  masm->ret(0);
+}
+
+
+// Set the remembered set bit for [object+offset].
+// object is the object being stored into, value is the object being stored.
+// If offset is zero, then the scratch register contains the array index into
+// the elements array represented as a Smi.
+// All registers are clobbered by the operation.
+void MacroAssembler::RecordWrite(Register object,
+                                 int offset,
+                                 Register value,
+                                 Register scratch) {
+  // First, check if a remembered set write is even needed. The tests below
+  // catch stores of Smis and stores into young gen (which does not have space
+  // for the remembered set bits.
+  Label done;
+
+  // Test that the object address is not in the new space.  We cannot
+  // set remembered set bits in the new space.
+  movq(value, object);
+  ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+  and_(value, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+  movq(kScratchRegister, ExternalReference::new_space_start());
+  cmpq(value, kScratchRegister);
+  j(equal, &done);
+
+  if ((offset > 0) && (offset < Page::kMaxHeapObjectSize)) {
+    // Compute the bit offset in the remembered set, leave it in 'value'.
+    lea(value, Operand(object, offset));
+    ASSERT(is_int32(Page::kPageAlignmentMask));
+    and_(value, Immediate(static_cast<int32_t>(Page::kPageAlignmentMask)));
+    shr(value, Immediate(kObjectAlignmentBits));
+
+    // Compute the page address from the heap object pointer, leave it in
+    // 'object' (immediate value is sign extended).
+    and_(object, Immediate(~Page::kPageAlignmentMask));
+
+    // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
+    // to limit code size. We should probably evaluate this decision by
+    // measuring the performance of an equivalent implementation using
+    // "simpler" instructions
+    bts(Operand(object, Page::kRSetOffset), value);
+  } else {
+    Register dst = scratch;
+    if (offset != 0) {
+      lea(dst, Operand(object, offset));
+    } else {
+      // array access: calculate the destination address in the same manner as
+      // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 4 to get an offset
+      // into an array of words.
+      lea(dst, Operand(object, dst, times_half_pointer_size,
+                       FixedArray::kHeaderSize - kHeapObjectTag));
+    }
+    // If we are already generating a shared stub, not inlining the
+    // record write code isn't going to save us any memory.
+    if (generating_stub()) {
+      RecordWriteHelper(this, object, dst, value);
+    } else {
+      RecordWriteStub stub(object, dst, value);
+      CallStub(&stub);
+    }
+  }
+
+  bind(&done);
 }
 
 

@@ -249,11 +249,11 @@ class Logger {
   }
 
   // Pause/Resume collection of profiling data.
-  // When data collection is paused, Tick events are discarded until
+  // When data collection is paused, CPU Tick events are discarded until
   // data collection is Resumed.
-  static bool IsProfilerPaused();
-  static void PauseProfiler();
-  static void ResumeProfiler();
+  static void PauseProfiler(int flags);
+  static void ResumeProfiler(int flags);
+  static int GetActiveProfilerModules();
 
   // If logging is performed into a memory buffer, allows to
   // retrieve previously written messages. See v8.h.

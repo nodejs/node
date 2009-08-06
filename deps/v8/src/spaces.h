@@ -99,8 +99,11 @@ class AllocationInfo;
 // its page offset by 32. Therefore, the object area in a page starts at the
 // 256th byte (8K/32). Bytes 0 to 255 do not need the remembered set, so that
 // the first two words (64 bits) in a page can be used for other purposes.
-// TODO(X64): This description only represents the 32-bit layout.
-// On the 64-bit platform, we add an offset to the start of the remembered set.
+//
+// On the 64-bit platform, we add an offset to the start of the remembered set,
+// and pointers are aligned to 8-byte pointer size. This means that we need
+// only 128 bytes for the RSet, and only get two bytes free in the RSet's RSet.
+// For this reason we add an offset to get room for the Page data at the start.
 //
 // The mark-compact collector transforms a map pointer into a page index and a
 // page offset. The map space can have up to 1024 pages, and 8M bytes (1024 *
@@ -118,7 +121,7 @@ class Page {
   // from [page_addr .. page_addr + kPageSize[
   //
   // Note that this function only works for addresses in normal paged
-  // spaces and addresses in the first 8K of large object pages (ie,
+  // spaces and addresses in the first 8K of large object pages (i.e.,
   // the start of large objects but not necessarily derived pointers
   // within them).
   INLINE(static Page* FromAddress(Address a)) {
@@ -218,7 +221,7 @@ class Page {
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
-  // The offset of the remembered set in a page, in addition to the empty words
+  // The offset of the remembered set in a page, in addition to the empty bytes
   // formed as the remembered bits of the remembered set itself.
 #ifdef V8_TARGET_ARCH_X64
   static const int kRSetOffset = 4 * kPointerSize;  // Room for four pointers.
@@ -234,7 +237,7 @@ class Page {
   // to align start of rset to a uint32_t address.
   static const int kObjectStartOffset = 256;
 
-  // The start offset of the remembered set in a page.
+  // The start offset of the used part of the remembered set in a page.
   static const int kRSetStartOffset = kRSetOffset +
       kObjectStartOffset / kBitsPerPointer;
 
@@ -264,15 +267,15 @@ class Page {
   // low-order bit for large object pages will be cleared.
   int is_normal_page;
 
-  // The following fields overlap with remembered set, they can only
+  // The following fields may overlap with remembered set, they can only
   // be used in the mark-compact collector when remembered set is not
   // used.
 
-  // The allocation pointer after relocating objects to this page.
-  Address mc_relocation_top;
-
   // The index of the page in its owner space.
   int mc_page_index;
+
+  // The allocation pointer after relocating objects to this page.
+  Address mc_relocation_top;
 
   // The forwarding address of the first live object in this page.
   Address mc_first_forwarded;
@@ -1165,7 +1168,7 @@ class NewSpace : public Space {
   // The start address of the space and a bit mask. Anding an address in the
   // new space with the mask will result in the start address.
   Address start() { return start_; }
-  uint32_t mask() { return address_mask_; }
+  uintptr_t mask() { return address_mask_; }
 
   // The allocation top and limit addresses.
   Address* allocation_top_address() { return &allocation_info_.top; }

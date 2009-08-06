@@ -534,6 +534,8 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateLog(ZoneList<Expression*>* args);
 
+  void GenerateGetFramePointer(ZoneList<Expression*>* args);
+
   // Fast support for Math.random().
   void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
 
@@ -592,6 +594,8 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
+
+  friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

@@ -681,33 +681,11 @@ void Heap::Scavenge() {
   // Copy objects reachable from weak pointers.
   GlobalHandles::IterateWeakRoots(&scavenge_visitor);
 
-#ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Make this go away again. We currently disable RSets for
-  // 64-bit-mode.
-  HeapObjectIterator old_pointer_iterator(old_pointer_space_);
-  while (old_pointer_iterator.has_next()) {
-    HeapObject* heap_object = old_pointer_iterator.next();
-    heap_object->Iterate(&scavenge_visitor);
-  }
-  HeapObjectIterator map_iterator(map_space_);
-  while (map_iterator.has_next()) {
-    HeapObject* heap_object = map_iterator.next();
-    heap_object->Iterate(&scavenge_visitor);
-  }
-  LargeObjectIterator lo_iterator(lo_space_);
-  while (lo_iterator.has_next()) {
-    HeapObject* heap_object = lo_iterator.next();
-    if (heap_object->IsFixedArray()) {
-      heap_object->Iterate(&scavenge_visitor);
-    }
-  }
-#else  // !defined(V8_HOST_ARCH_64_BIT)
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
-#endif
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
@@ -830,13 +808,11 @@ class UpdateRSetVisitor: public ObjectVisitor {
 
 
 int Heap::UpdateRSet(HeapObject* obj) {
-#ifndef V8_HOST_ARCH_64_BIT
-  // TODO(X64) Reenable RSet when we have a working 64-bit layout of Page.
   ASSERT(!InNewSpace(obj));
   // Special handling of fixed arrays to iterate the body based on the start
   // address and offset.  Just iterating the pointers as in UpdateRSetVisitor
   // will not work because Page::SetRSet needs to have the start of the
-  // object.
+  // object for large object pages.
   if (obj->IsFixedArray()) {
     FixedArray* array = FixedArray::cast(obj);
     int length = array->length();
@@ -853,7 +829,6 @@ int Heap::UpdateRSet(HeapObject* obj) {
     UpdateRSetVisitor v;
     obj->Iterate(&v);
   }
-#endif  // V8_HOST_ARCH_64_BIT
   return obj->Size();
 }
 

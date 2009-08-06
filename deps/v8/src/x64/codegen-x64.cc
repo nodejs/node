@@ -3421,9 +3421,20 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  ASSERT(kSmiTag == 0);  // RBP value is aligned, so it should look like Smi.
+  Result rbp_as_smi = allocator_->Allocate();
+  ASSERT(rbp_as_smi.is_valid());
+  __ movq(rbp_as_smi.reg(), rbp);
+  frame_->Push(&rbp_as_smi);
+}
+
+
 void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
+  __ push(rsi);
 
   // Make sure the frame is aligned like the OS expects.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -3436,11 +3447,12 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   // Call V8::RandomPositiveSmi().
   __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
 
-  // Restore stack pointer from callee-saved register edi.
+  // Restore stack pointer from callee-saved register.
   if (kFrameAlignment > 0) {
     __ movq(rsp, rbx);
   }
 
+  __ pop(rsi);
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }
@@ -5555,13 +5567,16 @@ void Reference::TakeValue(TypeofState typeof_state) {
   ASSERT(slot != NULL);
   if (slot->type() == Slot::LOOKUP ||
       slot->type() == Slot::CONTEXT ||
-      slot->var()->mode() == Variable::CONST) {
+      slot->var()->mode() == Variable::CONST ||
+      slot->is_arguments()) {
     GetValue(typeof_state);
     return;
   }
 
   // Only non-constant, frame-allocated parameters and locals can reach
-  // here.
+  // here.  Be careful not to use the optimizations for arguments
+  // object access since it may not have been initialized yet.
+  ASSERT(!slot->is_arguments());
   if (slot->type() == Slot::PARAMETER) {
     cgen_->frame()->TakeParameterAt(slot->index());
   } else {
@@ -6419,22 +6434,23 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   // Fetch top stack handler.
   ExternalReference handler_address(Top::k_handler_address);
   __ movq(kScratchRegister, handler_address);
-  __ movq(rdx, Operand(kScratchRegister, 0));
+  __ movq(rsp, Operand(kScratchRegister, 0));
 
   // Unwind the handlers until the ENTRY handler is found.
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  __ cmpq(Operand(rdx, StackHandlerConstants::kStateOffset),
+  __ cmpq(Operand(rsp, StackHandlerConstants::kStateOffset),
          Immediate(StackHandler::ENTRY));
   __ j(equal, &done);
   // Fetch the next handler in the list.
-  __ movq(rdx, Operand(rdx, StackHandlerConstants::kNextOffset));
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(rsp);
   __ jmp(&loop);
   __ bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  __ movq(rax, Operand(rdx, StackHandlerConstants::kNextOffset));
+  __ pop(rax);
   __ store_rax(handler_address);
 
   // Set external caught exception to false.
@@ -6447,14 +6463,12 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ store_rax(pending_exception);
 
-  // Restore the stack to the address of the ENTRY handler
-  __ movq(rsp, rdx);
-
   // Clear the context pointer;
   __ xor_(rsi, rsi);
 
   // Restore registers from handler.
-
+  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
+            StackHandlerConstants::kFPOffset);
   __ pop(rbp);  // FP
   ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
             StackHandlerConstants::kStateOffset);
@@ -6570,6 +6584,9 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Label not_outermost_js, not_outermost_js_2;
+#endif
 
   // Setup frame.
   __ push(rbp);
@@ -6594,6 +6611,17 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
   __ load_rax(c_entry_fp);
   __ push(rax);
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  __ load_rax(js_entry_sp);
+  __ testq(rax, rax);
+  __ j(not_zero, &not_outermost_js);
+  __ movq(rax, rbp);
+  __ store_rax(js_entry_sp);
+  __ bind(&not_outermost_js);
+#endif
 
   // Call a faked try-block that does the invoke.
   __ call(&invoke);
@@ -6636,6 +6664,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(Operand(kScratchRegister, 0));
   // Pop next_sp.
   __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current EBP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+  __ movq(kScratchRegister, js_entry_sp);
+  __ cmpq(rbp, Operand(kScratchRegister, 0));
+  __ j(not_equal, &not_outermost_js_2);
+  __ movq(Operand(kScratchRegister, 0), Immediate(0));
+  __ bind(&not_outermost_js_2);
+#endif
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
@@ -6770,6 +6808,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   __ bind(&done);
 }
 
+
 void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
                                             Register lhs,
                                             Register rhs) {
@@ -6803,6 +6842,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 
   __ bind(&done);
 }
+
 
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
@@ -6840,6 +6880,7 @@ const char* GenericBinaryOpStub::GetName() {
     default:         return "GenericBinaryOpStub";
   }
 }
+
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
@@ -6981,7 +7022,6 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-
   if (flags_ == SMI_CODE_IN_STUB) {
     // The fast case smi code wasn't inlined in the stub caller
     // code. Generate it here to speed up common operations.

@@ -5154,11 +5154,10 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
+  ASSERT(kSmiTag == 0);  // EBP value is aligned, so it should look like Smi.
   Result ebp_as_smi = allocator_->Allocate();
   ASSERT(ebp_as_smi.is_valid());
   __ mov(ebp_as_smi.reg(), Operand(ebp));
-  __ shr(ebp_as_smi.reg(), kSmiTagSize);
   frame_->Push(&ebp_as_smi);
 }
 
@@ -7786,7 +7785,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
-  __ j(NegateCondition(equal), &not_outermost_js);
+  __ j(not_equal, &not_outermost_js);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
   __ bind(&not_outermost_js);
 #endif
@@ -7837,7 +7836,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // If current EBP value is the same as js_entry_sp value, it means that
   // the current function is the outermost.
   __ cmp(ebp, Operand::StaticVariable(js_entry_sp));
-  __ j(NegateCondition(equal), &not_outermost_js_2);
+  __ j(not_equal, &not_outermost_js_2);
   __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ bind(&not_outermost_js_2);
 #endif

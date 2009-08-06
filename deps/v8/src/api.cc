@@ -3214,21 +3214,21 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler();
+  i::Logger::PauseProfiler(PROFILER_MODULE_CPU);
 #endif
 }
 
 
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::ResumeProfiler();
+  i::Logger::ResumeProfiler(PROFILER_MODULE_CPU);
 #endif
 }
 
 
 bool V8::IsProfilerPaused() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  return i::Logger::IsProfilerPaused();
+  return i::Logger::GetActiveProfilerModules() & PROFILER_MODULE_CPU;
 #else
   return true;
 #endif
@@ -3237,11 +3237,19 @@ bool V8::IsProfilerPaused() {
 
 void V8::ResumeProfilerEx(int flags) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (flags & PROFILER_MODULE_CPU) {
-    i::Logger::ResumeProfiler();
-  }
-  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    i::FLAG_log_gc = true;
+  if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
+    // Snapshot mode: resume modules, perform GC, then pause only
+    // those modules which haven't been started prior to making a
+    // snapshot.
+
+    // Reset snapshot flag and CPU module flags.
+    flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
+    const int current_flags = i::Logger::GetActiveProfilerModules();
+    i::Logger::ResumeProfiler(flags);
+    i::Heap::CollectAllGarbage();
+    i::Logger::PauseProfiler(~current_flags & flags);
+  } else {
+    i::Logger::ResumeProfiler(flags);
   }
 #endif
 }
@@ -3249,26 +3257,14 @@ void V8::ResumeProfilerEx(int flags) {
 
 void V8::PauseProfilerEx(int flags) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (flags & PROFILER_MODULE_CPU) {
-    i::Logger::PauseProfiler();
-  }
-  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    i::FLAG_log_gc = false;
-  }
+  i::Logger::PauseProfiler(flags);
 #endif
 }
 
 
 int V8::GetActiveProfilerModules() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  int result = PROFILER_MODULE_NONE;
-  if (!i::Logger::IsProfilerPaused()) {
-    result |= PROFILER_MODULE_CPU;
-  }
-  if (i::FLAG_log_gc) {
-    result |= PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS;
-  }
-  return result;
+  return i::Logger::GetActiveProfilerModules();
 #else
   return PROFILER_MODULE_NONE;
 #endif

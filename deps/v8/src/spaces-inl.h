@@ -103,9 +103,9 @@ void Page::ClearRSet() {
 // The address of the rset word containing the bit for this word is computed as:
 //    page_address + words * 4
 // For a 64-bit address, if it is:
-// | page address | quadwords(5) | bit offset(5) | pointer alignment (3) |
+// | page address | words(5) | bit offset(5) | pointer alignment (3) |
 // The address of the rset word containing the bit for this word is computed as:
-//    page_address + quadwords * 4 + kRSetOffset.
+//    page_address + words * 4 + kRSetOffset.
 // The rset is accessed as 32-bit words, and bit offsets in a 32-bit word,
 // even on the X64 architecture.
 
@@ -115,7 +115,7 @@ Address Page::ComputeRSetBitPosition(Address address, int offset,
 
   Page* page = Page::FromAddress(address);
   uint32_t bit_offset = ArithmeticShiftRight(page->Offset(address) + offset,
-                                             kObjectAlignmentBits);
+                                             kPointerSizeLog2);
   *bitmask = 1 << (bit_offset % kBitsPerInt);
 
   Address rset_address =

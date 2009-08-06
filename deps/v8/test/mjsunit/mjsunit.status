@@ -101,7 +101,5 @@ fuzz-natives: PASS || TIMEOUT
 debug-handle: CRASH || FAIL
 debug-clearbreakpointgroup: CRASH || FAIL
 regress/regress-269: CRASH || FAIL
-regress/regress-392: CRASH || FAIL
-regress/regress-1200351: CRASH || FAIL
 regress/regress-998565: CRASH || FAIL
 tools/tickprocessor: PASS || CRASH || FAIL

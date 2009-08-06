@@ -162,9 +162,7 @@ class Variable: public ZoneObject {
   // be the global scope). scope() is NULL in that case. Currently the
   // scope is only used to follow the context chain length.
   Scope* scope() const  { return scope_; }
-  // If this assertion fails it means that some code has tried to
-  // treat the special this variable as an ordinary variable with
-  // the name "this".
+
   Handle<String> name() const  { return name_; }
   Mode mode() const  { return mode_; }
   bool is_accessed_from_inner_scope() const  {

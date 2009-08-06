@@ -205,7 +205,7 @@ class StackGuard BASE_EMBEDDED {
   static void EnableInterrupts();
   static void DisableInterrupts();
 
-  static const uintptr_t kLimitSize = 512 * KB;
+  static const uintptr_t kLimitSize = kPointerSize * 128 * KB;
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xffffffff;
 

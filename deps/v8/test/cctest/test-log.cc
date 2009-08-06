@@ -166,7 +166,7 @@ static void SigProfSignalHandler(int signal, siginfo_t* info, void* context) {
 
 
 static int CheckThatProfilerWorks(int log_pos) {
-  Logger::ResumeProfiler();
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU);
   CHECK(LoggerTestHelper::IsSamplerActive());
 
   // Verify that the current map of compiled functions has been logged.
@@ -207,7 +207,7 @@ static int CheckThatProfilerWorks(int log_pos) {
     i::OS::Sleep(1);
   }
 
-  Logger::PauseProfiler();
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU);
   CHECK(!LoggerTestHelper::IsSamplerActive());
 
   // Wait 50 msecs to allow Profiler thread to process the last

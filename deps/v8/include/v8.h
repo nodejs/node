@@ -85,11 +85,10 @@ typedef unsigned __int64 uint64_t;
 
 #include <stdint.h>
 
-// Setup for Linux shared library export. There is no need to destinguish
-// neither between building or using the V8 shared library nor between using
-// the shared or static V8 library as there is on Windows. Therefore there is
-// no checking of BUILDING_V8_SHARED and USING_V8_SHARED.
-#if defined(__GNUC__) && (__GNUC__ >= 4)
+// Setup for Linux shared library export. There is no need to distinguish
+// between building or using the V8 shared library, but we should not
+// export symbols when we are building a static library.
+#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
 #define V8EXPORT __attribute__ ((visibility("default")))
 #define V8EXPORT_INLINE __attribute__ ((visibility("default")))
 #else  // defined(__GNUC__) && (__GNUC__ >= 4)
@@ -1971,12 +1970,15 @@ typedef Persistent<Context> (*ContextGenerator)();
  *
  * In V8, profiler consists of several modules: CPU profiler, and different
  * kinds of heap profiling. Each can be turned on / off independently.
+ * When PROFILER_MODULE_HEAP_SNAPSHOT flag is passed to ResumeProfilerEx,
+ * modules are enabled only temporarily for making a snapshot of the heap.
  */
 enum ProfilerModules {
   PROFILER_MODULE_NONE            = 0,
   PROFILER_MODULE_CPU             = 1,
   PROFILER_MODULE_HEAP_STATS      = 1 << 1,
-  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2
+  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2,
+  PROFILER_MODULE_HEAP_SNAPSHOT   = 1 << 16
 };
 
 

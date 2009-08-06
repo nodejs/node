@@ -88,7 +88,7 @@ static ByteMnemonic two_operands_instr[] = {
   { 0x39, OPER_REG_OP_ORDER,      "cmp" },
   { 0x3A, BYTE_REG_OPER_OP_ORDER, "cmp" },
   { 0x3B, REG_OPER_OP_ORDER,      "cmp" },
-  { 0x8D, REG_OPER_OP_ORDER,      "lea" },
+  { 0x63, REG_OPER_OP_ORDER,      "movsxlq" },
   { 0x84, BYTE_REG_OPER_OP_ORDER, "test" },
   { 0x85, REG_OPER_OP_ORDER,      "test" },
   { 0x86, BYTE_REG_OPER_OP_ORDER, "xchg" },
@@ -97,6 +97,7 @@ static ByteMnemonic two_operands_instr[] = {
   { 0x89, OPER_REG_OP_ORDER,      "mov" },
   { 0x8A, BYTE_REG_OPER_OP_ORDER, "mov" },
   { 0x8B, REG_OPER_OP_ORDER,      "mov" },
+  { 0x8D, REG_OPER_OP_ORDER,      "lea" },
   { -1, UNSET_OP_ORDER, "" }
 };
 
@@ -139,7 +140,7 @@ static ByteMnemonic short_immediate_instr[] = {
 
 
 static const char* conditional_code_suffix[] = {
-  "o", "no", "c", "nc", "z", "nz", "a", "na",
+  "o", "no", "c", "nc", "z", "nz", "na", "a",
   "s", "ns", "pe", "po", "l", "ge", "le", "g"
 };
 
@@ -252,6 +253,24 @@ void InstructionTable::AddJumpConditionalShort() {
 
 static InstructionTable instruction_table;
 
+static InstructionDesc cmov_instructions[16] = {
+  {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovno", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovc", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovnc", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovz", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovnz", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovna", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmova", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovs", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovns", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovpe", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovpo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovl", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovge", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovle", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
+  {"cmovg", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false}
+};
 
 //------------------------------------------------------------------------------
 // DisassemblerX64 implementation.
@@ -533,7 +552,7 @@ int DisassemblerX64::PrintImmediate(byte* data, OperandSize size) {
       value = 0;  // Initialize variables on all paths to satisfy the compiler.
       count = 0;
   }
-  AppendToBuffer(V8_PTR_PREFIX"x", value);
+  AppendToBuffer("%" V8_PTR_PREFIX "x", value);
   return count;
 }
 
@@ -966,6 +985,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     // RDTSC or CPUID
     AppendToBuffer("%s", mnemonic);
 
+  } else if ((opcode & 0xF0) == 0x40) {
+    // CMOVcc: conditional move.
+    int condition = opcode & 0x0F;
+    const InstructionDesc& idesc = cmov_instructions[condition];
+    byte_size_operand_ = idesc.byte_size_operation;
+    current += PrintOperands(idesc.mnem, idesc.op_order_, current);
+
   } else if ((opcode & 0xF0) == 0x80) {
     // Jcc: Conditional jump (branch).
     current = data + JumpConditional(data);
@@ -1350,9 +1376,9 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
             const char* memory_location = NameOfAddress(
                 reinterpret_cast<byte*>(
                     *reinterpret_cast<int32_t*>(data + 1)));
-            if (*data == 0xA3) {  // Opcode 0xA3
+            if (*data == 0xA1) {  // Opcode 0xA1
               AppendToBuffer("movzxlq rax,(%s)", memory_location);
-            } else {  // Opcode 0xA1
+            } else {  // Opcode 0xA3
               AppendToBuffer("movzxlq (%s),rax", memory_location);
             }
             data += 5;
@@ -1362,9 +1388,9 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
             // New x64 instruction mov rax,(imm_64).
             const char* memory_location = NameOfAddress(
                 *reinterpret_cast<byte**>(data + 1));
-            if (*data == 0xA3) {  // Opcode 0xA3
+            if (*data == 0xA1) {  // Opcode 0xA1
               AppendToBuffer("movq rax,(%s)", memory_location);
-            } else {  // Opcode 0xA1
+            } else {  // Opcode 0xA3
               AppendToBuffer("movq (%s),rax", memory_location);
             }
             data += 9;

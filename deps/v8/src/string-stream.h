@@ -90,21 +90,12 @@ class FmtElm {
   FmtElm(Handle<Object> value) : type_(HANDLE) {  // NOLINT
     data_.u_handle_ = value.location();
   }
-  FmtElm(void* value) : type_(INT) {  // NOLINT
-#if V8_HOST_ARCH_64_BIT
-    // TODO(x64): FmtElm needs to treat pointers as pointers, and not as
-    // ints.  This will require adding a pointer type, etc.  For now just
-    // hack it and truncate the pointer.
-    // http://code.google.com/p/v8/issues/detail?id=335
-    data_.u_int_ = 0;
-    UNIMPLEMENTED();
-#else
-    data_.u_int_ = reinterpret_cast<int>(value);
-#endif
+  FmtElm(void* value) : type_(POINTER) {  // NOLINT
+    data_.u_pointer_ = value;
   }
  private:
   friend class StringStream;
-  enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE };
+  enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };
   Type type_;
   union {
     int u_int_;
@@ -113,6 +104,7 @@ class FmtElm {
     const Vector<const uc16>* u_lc_str_;
     Object* u_obj_;
     Object** u_handle_;
+    void* u_pointer_;
   } data_;
 };
 

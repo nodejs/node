@@ -143,7 +143,7 @@ class OS {
 
   // Returns a string identifying the current time zone. The
   // timestamp is used for determining if DST is in effect.
-  static char* LocalTimezone(double time);
+  static const char* LocalTimezone(double time);
 
   // Returns the local time offset in milliseconds east of UTC without
   // taking daylight savings time into account.

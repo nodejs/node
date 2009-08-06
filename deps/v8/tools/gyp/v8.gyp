@@ -40,7 +40,7 @@
     'defines': [
       'ENABLE_LOGGING_AND_PROFILING',
     ],
-    'conditions': [ 
+    'conditions': [
       ['target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
@@ -216,6 +216,8 @@
         '../../src/builtins.cc',
         '../../src/builtins.h',
         '../../src/bytecodes-irregexp.h',
+        '../../src/cfg.cc',
+        '../../src/cfg.h',
         '../../src/char-predicates-inl.h',
         '../../src/char-predicates.h',
         '../../src/checks.cc',
@@ -383,6 +385,7 @@
             '../../src/arm/assembler-arm.cc',
             '../../src/arm/assembler-arm.h',
             '../../src/arm/builtins-arm.cc',
+	    '../../src/arm/cfg-arm.cc',
             '../../src/arm/codegen-arm.cc',
             '../../src/arm/codegen-arm.h',
             '../../src/arm/constants-arm.h',
@@ -413,6 +416,7 @@
             '../../src/ia32/assembler-ia32.cc',
             '../../src/ia32/assembler-ia32.h',
             '../../src/ia32/builtins-ia32.cc',
+	    '../../src/ia32/cfg-ia32.cc',
             '../../src/ia32/codegen-ia32.cc',
             '../../src/ia32/codegen-ia32.h',
             '../../src/ia32/cpu-ia32.cc',
@@ -441,6 +445,7 @@
             '../../src/x64/assembler-x64.cc',
             '../../src/x64/assembler-x64.h',
             '../../src/x64/builtins-x64.cc',
+	    '../../src/x64/cfg-x64.cc',
             '../../src/x64/codegen-x64.cc',
             '../../src/x64/codegen-x64.h',
             '../../src/x64/cpu-x64.cc',

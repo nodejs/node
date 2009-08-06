@@ -424,6 +424,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the key is a smi.
   __ testl(rbx, Immediate(kSmiTagMask));
   __ j(not_zero, &slow);
+  // If it is a smi, make sure it is zero-extended, so it can be
+  // used as an index in a memory operand.
+  __ movl(rbx, rbx);  // Clear the high bits of rbx.
 
   __ CmpInstanceType(rcx, JS_ARRAY_TYPE);
   __ j(equal, &array);
@@ -434,7 +437,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Object case: Check key against length in the elements array.
   // rax: value
   // rdx: JSObject
-  // rbx: index (as a smi)
+  // rbx: index (as a smi), zero-extended.
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
@@ -502,7 +505,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rax: value
   // rcx: FixedArray
   // rbx: index (as a smi)
-  __ movq(Operand(rcx, rbx, times_4, FixedArray::kHeaderSize - kHeapObjectTag),
+  __ movq(Operand(rcx, rbx, times_half_pointer_size,
+                  FixedArray::kHeaderSize - kHeapObjectTag),
          rax);
   // Update write barrier for the elements array address.
   __ movq(rdx, rax);
@@ -602,8 +606,21 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
+
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
@@ -646,8 +663,21 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
+
 
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {

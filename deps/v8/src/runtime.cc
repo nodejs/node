@@ -4920,7 +4920,7 @@ static Object* Runtime_DateLocalTimezone(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  char* zone = OS::LocalTimezone(x);
+  const char* zone = OS::LocalTimezone(x);
   return Heap::AllocateStringFromUtf8(CStrVector(zone));
 }
 

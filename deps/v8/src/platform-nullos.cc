@@ -80,7 +80,7 @@ int64_t OS::Ticks() {
 
 // Returns a string identifying the current timezone taking into
 // account daylight saving.
-char* OS::LocalTimezone(double time) {
+const char* OS::LocalTimezone(double time) {
   UNIMPLEMENTED();
   return "<none>";
 }

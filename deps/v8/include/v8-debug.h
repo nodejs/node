@@ -55,7 +55,7 @@ typedef long long int64_t;  // NOLINT
 
 // Setup for Linux shared library export. See v8.h in this directory for
 // information on how to build/use V8 as shared library.
-#if defined(__GNUC__) && (__GNUC__ >= 4)
+#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
 #define EXPORT __attribute__ ((visibility("default")))
 #else  // defined(__GNUC__) && (__GNUC__ >= 4)
 #define EXPORT

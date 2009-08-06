@@ -257,7 +257,7 @@ class Heap : public AllStatic {
   // address with the mask will result in the start address of the new space
   // for all addresses in either semispace.
   static Address NewSpaceStart() { return new_space_.start(); }
-  static uint32_t NewSpaceMask() { return new_space_.mask(); }
+  static uintptr_t NewSpaceMask() { return new_space_.mask(); }
   static Address NewSpaceTop() { return new_space_.top(); }
 
   static NewSpace* new_space() { return &new_space_; }
@@ -1123,11 +1123,9 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
         HeapObject* object = HeapObject::cast(*current);
         ASSERT(Heap::Contains(object));
         ASSERT(object->map()->IsMap());
-#ifndef V8_TARGET_ARCH_X64
         if (Heap::InNewSpace(object)) {
           ASSERT(Page::IsRSetSet(reinterpret_cast<Address>(current), 0));
         }
-#endif
       }
     }
   }

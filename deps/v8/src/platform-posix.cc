@@ -86,16 +86,20 @@ int64_t OS::Ticks() {
 }
 
 
-char* OS::LocalTimezone(double time) {
+const char* OS::LocalTimezone(double time) {
+  if (isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
-  return const_cast<char*>(t->tm_zone);
+  if (NULL == t) return "";
+  return t->tm_zone;
 }
 
 
 double OS::DaylightSavingsOffset(double time) {
+  if (isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
+  if (NULL == t) return nan_value();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
 

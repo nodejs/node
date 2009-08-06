@@ -44,13 +44,23 @@ namespace internal {
 
 // Test whether a 64-bit value is in a specific range.
 static inline bool is_uint32(int64_t x) {
-  const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
+  static const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
   return x == (x & kUInt32Mask);
 }
 
 static inline bool is_int32(int64_t x) {
-  const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
+  static const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
   return is_uint32(x - kMinIntValue);
+}
+
+static inline bool uint_is_int32(uint64_t x) {
+  static const uint64_t kMaxIntValue = V8_UINT64_C(0x80000000);
+  return x < kMaxIntValue;
+}
+
+static inline bool is_uint32(uint64_t x) {
+  static const uint64_t kMaxUIntValue = V8_UINT64_C(0x100000000);
+  return x < kMaxUIntValue;
 }
 
 // CPU Registers.

@@ -603,7 +603,7 @@ class CodeGenerator: public AstVisitor {
   friend class Reference;
   friend class Result;
 
-  friend class CodeGeneratorPatcher;  // Used in test-log-ia32.cc
+  friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

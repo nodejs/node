@@ -226,7 +226,9 @@ enum ScaleFactor {
   times_1 = 0,
   times_2 = 1,
   times_4 = 2,
-  times_8 = 3
+  times_8 = 3,
+  times_pointer_size = times_4,
+  times_half_pointer_size = times_2
 };
 
 
