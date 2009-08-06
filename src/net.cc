@@ -428,12 +428,7 @@ Connection::OnReceive (const void *buf, size_t len)
   Handle<Value> argv[argc];
 
   if(len) {
-    if(encoding_ == UTF8) {
-      // utf8 encoding
-      Handle<String> chunk = String::New((const char*)buf, len);
-      argv[0] = chunk;
-
-    } else {
+    if (encoding_ == RAW) {
       // raw encoding
       Local<Array> array = Array::New(len);
       for (size_t i = 0; i < len; i++) {
@@ -441,6 +436,11 @@ Connection::OnReceive (const void *buf, size_t len)
         array->Set(Integer::New(i), Integer::New(val));
       }
       argv[0] = array;
+
+    } else {
+      // utf8 or ascii encoding
+      Handle<String> chunk = String::New((const char*)buf, len);
+      argv[0] = chunk;
     }
   } else {
     argv[0] = Local<Value>::New(Null());  
