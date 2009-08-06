@@ -11,9 +11,6 @@
 using namespace v8;
 using namespace node;
 
-#define ON_ERROR_SYMBOL   String::NewSymbol("onError")
-#define ON_OUTPUT_SYMBOL  String::NewSymbol("onOutput")
-#define ON_EXIT_SYMBOL    String::NewSymbol("onExit")
 #define PID_SYMBOL        String::NewSymbol("pid")
 
 /* defines for the parent side */

@@ -21,12 +21,8 @@ using namespace node;
 #define RAW_SYMBOL            String::NewSymbol("raw")
 #define ASCII_SYMBOL          String::NewSymbol("ascii")
 
-#define ENCODING_SYMBOL       String::NewSymbol("encoding")
-#define TIMEOUT_SYMBOL        String::NewSymbol("timeout")
 #define SERVER_SYMBOL         String::NewSymbol("server")
 #define REMOTE_ADDRESS_SYMBOL String::NewSymbol("remoteAddress")
-
-#define PROTOCOL_SYMBOL           String::NewSymbol("protocol")
 
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
