@@ -52,13 +52,6 @@ When data is received on the socket execute the parser and check for errors.
       // handle error. usually just close the connection
     }
 
-During the `http_parser_execute()` call, the callbacks set in `http_parser`
-will be executed. The parser maintains state and never looks behind, so
-buffering the data is not necessary. If you need to save certain data for
-later usage, you can do that from the callbacks. (You can also `read()` into
-a heap allocated buffer to avoid copying memory around if this fits your
-application.)
-
 Scalar valued message information such as `status_code`, `method`, and the
 HTTP version are stored in the parser structure. This data is only
 temporarlly stored in `http_parser` and gets reset on each new message. If
@@ -74,8 +67,64 @@ need to inspect the body. Decoding gzip is non-neglagable amount of
 processing (and requires making allocations). HTTP proxies using this
 parser, for example, would not want such a feature.
 
+Callbacks
+---------
+
+During the `http_parser_execute()` call, the callbacks set in `http_parser`
+will be executed. The parser maintains state and never looks behind, so
+buffering the data is not necessary. If you need to save certain data for
+later usage, you can do that from the callbacks.
+
+There are two types of callbacks:
+
+* notification `typedef int (*http_cb) (http_parser*);`
+    Callbacks: on_message_begin, on_headers_complete, on_message_complete.
+* data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
+    Callbacks: (requests only) on_path, on_query_string, on_uri, on_fragment,
+               (common) on_header_field, on_header_value, on_body;
+
+In case you parse HTTP message in chunks (i.e. `read()` request line
+from socket, parse, read half headers, parse, etc) your data callbacks
+may be called more than once. Http-parser guarantees that data pointer is only
+valid for the lifetime of callback. You can also `read()` into a heap allocated
+buffer to avoid copying memory around if this fits your application.
+
+Reading headers may be a tricky task if you read/parse headers partially.
+Basically, you need to remember whether last header callback was field or value
+and apply following logic:
+
+    /* on_header_field and on_header_value shortened to on_h_*
+     ------------------------ ------------ --------------------------------------------
+    | State (prev. callback) | Callback   | Description/action                         |
+     ------------------------ ------------ --------------------------------------------
+    | nothing (first call)   | on_h_field | Allocate new buffer and copy callback data |
+    |                        |            | into it                                    |
+     ------------------------ ------------ --------------------------------------------
+    | value                  | on_h_field | New header started.                        |
+    |                        |            | Copy current name,value buffers to headers |
+    |                        |            | list and allocate new buffer for new name  |
+     ------------------------ ------------ --------------------------------------------
+    | field                  | on_h_field | Previous name continues. Reallocate name   |
+    |                        |            | buffer and append callback data to it      |
+     ------------------------ ------------ --------------------------------------------
+    | field                  | on_h_value | Value for current header started. Allocate |
+    |                        |            | new buffer and copy callback data to it    |
+     ------------------------ ------------ --------------------------------------------
+    | value                  | on_h_value | Value continues. Reallocate value buffer   |
+    |                        |            | and append callback data to it             |
+     ------------------------ ------------ --------------------------------------------
+    */
+
+See examples of reading in headers:
+
+* [partial example](http://gist.github.com/155877) in C
+* [from http-parser tests](http://github.com/ry/http-parser/blob/37a0ff8928fb0d83cec0d0d8909c5a4abcd221af/test.c#L403) in C
+* [from Node library](http://github.com/ry/node/blob/842eaf446d2fdcb33b296c67c911c32a0dabc747/src/http.js#L284) in Javascript
+
 Releases
 --------
+
+  * [0.2](http://s3.amazonaws.com/four.livejournal/20090807/http_parser-0.2.tar.gz)
 
   * [0.1](http://s3.amazonaws.com/four.livejournal/20090427/http_parser-0.1.tar.gz)
 

@@ -354,6 +354,16 @@ const struct message responses[] =
   ,.body= ""
   }
 
+, {.name= "301 no response phrase"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 301\r\n\r\n"
+  ,.should_keep_alive = TRUE
+  ,.status_code= 301
+  ,.num_headers= 0
+  ,.headers= {}
+  ,.body= ""
+}
+
 , {.name= NULL } /* sentinel */
 };
 
