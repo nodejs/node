@@ -1,8 +1,9 @@
-2009.08.06, Version 0.1.3
+2009.08.06, Version 0.1.3, 695f0296e35b30cf8322fd1bd934810403cca9f3
 
   * Upgrade v8 to 1.3.2
 
-  * Bugfix: node.http.ServerRequest.setBodyEncoding('ascii') not workin
+  * Bugfix: node.http.ServerRequest.setBodyEncoding('ascii') not
+    working
 
   * Bugfix: node.encodeUtf8 was broken. (Connor Dunn)
 
@@ -16,7 +17,8 @@
 
   * Add node.version API
 
-2009.08.01, Version 0.1.2
+
+2009.08.01, Version 0.1.2, 025a34244d1cea94d6d40ad7bf92671cb909a96c
 
   * Add DNS API
 
@@ -24,15 +26,17 @@
 
   * Upgrade V8 to 1.3.1
 
-  * Bugfix: Default to chunked for client requests without C-Length.
+  * Bugfix: Default to chunked for client requests without
+    Content-Length.
 
   * Bugfix: Line numbers in stack traces.
 
   * Bugfix: negative integers in raw encoding stream
 
-  * Bugfix: node.fs.File was not passing args to promise callbacks. 
+  * Bugfix: node.fs.File was not passing args to promise callbacks.
 
-2009.07.27, Version 0.1.1
+
+2009.07.27, Version 0.1.1, 77d407df2826b20e9177c26c0d2bb4481e497937
 
   * Simplify and clean up ObjectWrap.
 
@@ -51,8 +55,8 @@
 
   * Bugfix: Fix Detach() in node::Server
 
-  * Bugfix: Sockets not properly reattached if reconnected during disconnect
-    event.
+  * Bugfix: Sockets not properly reattached if reconnected during
+    disconnect event.
   
   * Bugfix: Server-side clients not attached between creation and
     on_connect.
@@ -60,11 +64,12 @@
   * Add 'close' event to node.tcp.Server
 
   * Simplify and clean up http.js. (Takes more advantage of event
-    infrastructure).
+    infrastructure.)
 
   * Add benchmark scripts. Run with "make benchmark".
 
-2009.06.30, Version 0.1.0
+
+2009.06.30, Version 0.1.0, 0fe44d52fe75f151bceb59534394658aae6ac328
 
   * Update documentation, use asciidoc.
 
@@ -73,17 +78,17 @@
   * Remove node.Process constructor in favor of node.createProcess
 
   * Add -m32 flags for compiling on x64 platforms.
-    (Thanks to Andr·s B·rth·zi)
+    (Thanks to Andr√°s B√°rth√°zi)
 
   * Upgrade v8 to 1.2.10 and libev to 3.6
   
   * Bugfix: Timer::RepeatSetter wasn't working.
 
   * Bugfix: Spawning many processes in a loop 
-    (reported by Felix Geisendoerfer)
+    (reported by Felix Geisend√∂rfer)
 
 
-2009.06.24, Version 0.0.6
+2009.06.24, Version 0.0.6, fbe0be19ebfb422d8fa20ea5204c1713e9214d5f
 
   * Load modules via HTTP URLs (Urban Hafner)
 
@@ -93,10 +98,11 @@
 
   * Clean up build tools, use v8's test runner.
 
-  * Use ev_unref() instead of starting/stopping the eio thread pool watcher.
+  * Use ev_unref() instead of starting/stopping the eio thread
+    pool watcher.
 
 
-2009.06.18, Version 0.0.5
+2009.06.18, Version 0.0.5, 3a2b41de74b6c343b8464a68eff04c4bfd9aebea
 
   * Support for IPv6
 
@@ -108,8 +114,8 @@
 
   * Bugfix: HTTP Client race
 
-  * Bugfix: freeaddrinfo() wasn't getting called after getaddrinfo()
-    for TCP servers
+  * Bugfix: freeaddrinfo() wasn't getting called after
+    getaddrinfo() for TCP servers
 
   * Add "opening" to TCP client readyState
 
@@ -118,16 +124,18 @@
   * Add global print() function.
 
 
-2009.06.13, Version 0.0.4
+2009.06.13, Version 0.0.4, 916b9ca715b229b0703f0ed6c2fc065410fb189c
 
  * Add interrupt() method to server-side HTTP requests.
 
- * Bugfix: onBodyComplete was not getting called on server-side HTTP
+ * Bugfix: onBodyComplete was not getting called on server-side
+   HTTP
 
 
-2009.06.11, Version 0.0.3
+2009.06.11, Version 0.0.3, 6e0dfe50006ae4f5dac987f055e0c9338662f40a
 
- * Many bug fixes including the problem with http.Client on macintosh
+ * Many bug fixes including the problem with http.Client on
+   macintosh
 
  * Upgrades v8 to 1.2.7
 
