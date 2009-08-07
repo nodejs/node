@@ -26,10 +26,7 @@ set_timeout ()
 
   ev_timer_stop(EV_DEFAULT_UC_ &timer_watcher);
 
-  if (!dns_active(NULL)) {
-    ev_timer_stop(EV_DEFAULT_UC_ &timer_watcher);
-    return;
-  }
+  if (!dns_active(NULL)) return;
 
   if (wait >= 0) {
     ev_timer_set(&timer_watcher, (double)wait, 0.0);
