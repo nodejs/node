@@ -1,8 +1,10 @@
 var concurrency = 30;
-var nrequests = 700;
 var port = 8000;
-var completed_requests = 0;
+var n = 700;
 var bytes = 1024*5;
+
+var requests = 0;
+var responses = 0;
 
 var body = "";
 for (var i = 0; i < bytes; i++) {
@@ -21,10 +23,12 @@ server.listen(port);
 
 function responseListener (res) {
   res.addListener("complete", function () {
-    //puts("response " + completed_requests + " from client " + res.client.id);
-    if (completed_requests++ < nrequests) {
+    if (requests < n) {
       res.client.get("/").finish(responseListener);
-    } else {
+      requests++;
+    }
+
+    if (++responses == n) {
       server.close();
     }
   });
@@ -35,5 +39,6 @@ function onLoad () {
     var client = node.http.createClient(port);
     client.id = i;
     client.get("/").finish(responseListener);
+    requests++;
   }
 }
