@@ -285,7 +285,8 @@ AfterRawRead(eio_req *req)
     size_t len = req->result;
     Local<Array> array = Array::New(len);
     for (unsigned int i = 0; i < len; i++) {
-      array->Set(Integer::New(i), Integer::New(buf[i]));
+      unsigned char val = reinterpret_cast<const unsigned char*>(buf)[i];
+      array->Set(Integer::New(i), Integer::New(val));
     }
     argv[0] = array;
     argv[1] = Integer::New(req->result);
