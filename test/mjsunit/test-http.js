@@ -34,7 +34,7 @@ function onLoad () {
   req.finish(function (res) {
     assertEquals(200, res.statusCode);
     responses_recvd += 1;
-    res.setBodyEncoding("utf8");
+    res.setBodyEncoding("ascii");
     res.addListener("body", function (chunk) { body0 += chunk; });
     node.debug("Got /hello response");
   });
