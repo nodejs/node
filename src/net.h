@@ -27,6 +27,8 @@ protected:
   static v8::Handle<v8::Value> FullClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> ForceClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> SetEncoding (const v8::Arguments& args);
+  static v8::Handle<v8::Value> ReadPause (const v8::Arguments& args);
+  static v8::Handle<v8::Value> ReadResume (const v8::Arguments& args);
 
   static v8::Handle<v8::Value> ReadyStateGetter (v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
@@ -49,6 +51,8 @@ protected:
   void Close (void) { evcom_stream_close(&stream_); }
   void FullClose (void) { evcom_stream_full_close(&stream_); }
   void ForceClose (void) { evcom_stream_force_close(&stream_); }
+  void ReadPause (void) { evcom_stream_read_pause(&stream_); }
+  void ReadResume (void) { evcom_stream_read_resume(&stream_); }
 
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);

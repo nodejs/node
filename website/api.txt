@@ -1007,7 +1007,6 @@ Either +"closed"+, +"open"+, +"opening"+, +"readOnly"+, or +"writeOnly"+.
 +connection.setEncoding(encoding)+::
 Sets the encoding (either +"utf8"+ or +"raw"+) for data that is received. 
 
-
 +connection.send(data, encoding="ascii")+::
 Sends data on the connection. The data should be eithre an array
 of integers (for raw binary) or a string (for utf8 or ascii).
@@ -1031,6 +1030,13 @@ know about this, just use +close()+.
 +connection.forceClose()+::
 Ensures that no more I/O activity happens on this socket. Only
 necessary in case of errors (parse error or so).
+
++connection.readPause()+::
+Pauses the reading of data. That is, +"receive"+ events will not be emitted.
+Useful to throttle back an upload.
+
++connection.readResume()+::
+Resumes reading if reading was paused by +readPause()+.
 
 
 

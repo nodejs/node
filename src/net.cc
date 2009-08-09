@@ -64,6 +64,8 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ReadPause);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ReadResume);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
@@ -323,6 +325,32 @@ Connection::SetEncoding (const Arguments& args)
       connection->encoding_ = RAW;
       return scope.Close(RAW_SYMBOL);
   }
+}
+
+Handle<Value>
+Connection::ReadPause (const Arguments& args)
+{
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+
+  connection->ReadPause();
+
+  return Undefined();
+}
+
+Handle<Value>
+Connection::ReadResume (const Arguments& args)
+{
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+
+  connection->ReadResume();
+
+  return Undefined();
 }
 
 Handle<Value>
