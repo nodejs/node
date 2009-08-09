@@ -706,6 +706,15 @@ The HTTP protocol version as a string. Read only. Examples:
 Set the encoding for the request body. Either +"utf8"+ or +"raw"+. Defaults
 to raw.
 
+
++request.pause()+ ::
+Pauses request from emitting events.  Useful to throttle back an upload.
+
+
++request.resume()+ ::
+Resumes a paused request.
+
+
 +request.connection+ ::
 The +node.http.Connection+ object.
 
@@ -890,6 +899,12 @@ After emitted no other events will be emitted on the response.
 +response.setBodyEncoding(encoding)+ :: 
   Set the encoding for the response body. Either +"utf8"+ or +"raw"+.
   Defaults to raw.
+
++response.pause()+ ::
+  Pauses response from emitting events.  Useful to throttle back a download.
+
++response.resume()+ ::
+  Resumes a paused response.
 
 +response.client+ ::
   A reference to the +node.http.Client+ that this response belongs to.

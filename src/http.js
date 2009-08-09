@@ -134,6 +134,14 @@ IncomingMessage.prototype.setBodyEncoding = function (enc) {
   this.connection.setEncoding(enc);
 };
 
+IncomingMessage.prototype.pause = function () {
+  this.connection.readPause();
+};
+
+IncomingMessage.prototype.resume = function () {
+  this.connection.readResume();
+};
+
 
 function OutgoingMessage () {
   node.EventEmitter.call(this);
