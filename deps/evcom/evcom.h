@@ -45,9 +45,9 @@ extern "C" {
 typedef struct evcom_queue   evcom_queue;
 typedef struct evcom_buf     evcom_buf;
 typedef struct evcom_server  evcom_server;
-typedef struct evcom_socket  evcom_socket;
+typedef struct evcom_stream  evcom_stream;
 
-/* flags for socket and server */
+/* flags for stream and server */
 #define EVCOM_ATTACHED          0x0001
 #define EVCOM_LISTENING         0x0002
 #define EVCOM_CONNECTED         0x0004
@@ -55,58 +55,59 @@ typedef struct evcom_socket  evcom_socket;
 #define EVCOM_GOT_HALF_CLOSE    0x0010
 #define EVCOM_GOT_FULL_CLOSE    0x0020
 #define EVCOM_TOO_MANY_CONN     0x0040
+#define EVCOM_READ_PAUSED       0x0080
 
 void evcom_server_init          (evcom_server *);
- int evcom_server_listen        (evcom_server *, struct addrinfo *addrinfo, int backlog);
+ int evcom_server_listen        (evcom_server *, struct sockaddr *address, int backlog);
 void evcom_server_attach        (EV_P_ evcom_server *);
 void evcom_server_detach        (evcom_server *);
 void evcom_server_close         (evcom_server *);  // synchronous
 
-void evcom_socket_init          (evcom_socket *, float timeout);
- int evcom_socket_connect       (evcom_socket *, struct addrinfo *addrinfo);
-void evcom_socket_attach        (EV_P_ evcom_socket *);
-void evcom_socket_detach        (evcom_socket *);
-void evcom_socket_read_start    (evcom_socket *);
-void evcom_socket_read_stop     (evcom_socket *);
+void evcom_stream_init          (evcom_stream *, float timeout);
+ int evcom_stream_connect       (evcom_stream *, struct sockaddr *address);
+void evcom_stream_attach        (EV_P_ evcom_stream *);
+void evcom_stream_detach        (evcom_stream *);
+void evcom_stream_read_resume   (evcom_stream *);
+void evcom_stream_read_pause    (evcom_stream *);
 
-/* Resets the timeout to stay alive for another socket->timeout seconds
+/* Resets the timeout to stay alive for another stream->timeout seconds
  */
-void evcom_socket_reset_timeout (evcom_socket *);
+void evcom_stream_reset_timeout (evcom_stream *);
 
-/* Writes a buffer to the socket. 
+/* Writes a buffer to the stream. 
  */
-void evcom_socket_write         (evcom_socket *, evcom_buf *);
+void evcom_stream_write         (evcom_stream *, evcom_buf *);
 
-void evcom_socket_write_simple  (evcom_socket *, const char *str, size_t len);
+void evcom_stream_write_simple  (evcom_stream *, const char *str, size_t len);
 
-/* Once the write buffer is drained, evcom_socket_close will shutdown the
- * writing end of the socket and will close the read end once the server
+/* Once the write buffer is drained, evcom_stream_close will shutdown the
+ * writing end of the stream and will close the read end once the server
  * replies with an EOF. 
  */
-void evcom_socket_close         (evcom_socket *);
+void evcom_stream_close         (evcom_stream *);
 
 /* Do not wait for the server to reply with EOF.  This will only be called
  * once the write buffer is drained.  
- * Warning: For TCP socket, the OS kernel may (should) reply with RST
+ * Warning: For TCP stream, the OS kernel may (should) reply with RST
  * packets if this is called when data is still being received from the
  * server.
  */
-void evcom_socket_full_close    (evcom_socket *);
+void evcom_stream_full_close    (evcom_stream *);
 
 /* The most extreme measure. 
  * Will not wait for the write queue to complete. 
  */
-void evcom_socket_force_close (evcom_socket *);
+void evcom_stream_force_close (evcom_stream *);
 
 
 #if EVCOM_HAVE_GNUTLS
-/* Tells the socket to use transport layer security (SSL). evcom_socket does
+/* Tells the stream to use transport layer security (SSL). evcom_stream does
  * not want to make any decisions about security requirements, so the
  * majoirty of GnuTLS configuration is left to the user. Only the transport
- * layer of GnuTLS is controlled by evcom_socket. That is, do not use
+ * layer of GnuTLS is controlled by evcom_stream. That is, do not use
  * gnutls_transport_* functions.  Do use the rest of GnuTLS's API.
  */
-void evcom_socket_set_secure_session (evcom_socket *, gnutls_session_t);
+void evcom_stream_set_secure_session (evcom_stream *, gnutls_session_t);
 #endif
 
 evcom_buf * evcom_buf_new     (const char* base, size_t len);
@@ -144,7 +145,7 @@ struct evcom_server {
 
   /* PUBLIC */
 
-  evcom_socket* (*on_connection) (evcom_server *, struct sockaddr *remote_addr);
+  evcom_stream* (*on_connection) (evcom_server *, struct sockaddr *remote_addr);
 
   /* Executed when a server is closed. 
    * If evcom_server_close() was called errorno will be 0.
@@ -156,7 +157,7 @@ struct evcom_server {
   void *data;
 };
 
-struct evcom_socket {
+struct evcom_stream {
   /* read only */
   int fd;
 #if EV_MULTIPLICITY
@@ -167,9 +168,9 @@ struct evcom_socket {
   size_t written;
   unsigned flags;
 
-  /* NULL = that end of the socket is closed. */
-  int (*read_action)  (evcom_socket *);
-  int (*write_action) (evcom_socket *);
+  /* NULL = that end of the stream is closed. */
+  int (*read_action)  (evcom_stream *);
+  int (*write_action) (evcom_stream *);
 
   /* ERROR CODES. 0 = no error. Check on_close. */
   int errorno; 
@@ -187,11 +188,11 @@ struct evcom_socket {
   
   /* public */
   size_t chunksize; /* the maximum chunk that on_read() will return */
-  void (*on_connect)   (evcom_socket *);
-  void (*on_read)      (evcom_socket *, const void *buf, size_t count);
-  void (*on_drain)     (evcom_socket *);
-  void (*on_close)     (evcom_socket *);
-  void (*on_timeout)   (evcom_socket *);
+  void (*on_connect)   (evcom_stream *);
+  void (*on_read)      (evcom_stream *, const void *buf, size_t count);
+  void (*on_drain)     (evcom_stream *);
+  void (*on_close)     (evcom_stream *);
+  void (*on_timeout)   (evcom_stream *);
   void *data;
 };
 

@@ -42,13 +42,13 @@ protected:
   }
   virtual ~Connection (void);
 
-  int Connect (struct addrinfo *address) {
-    return evcom_socket_connect (&socket_, address);
+  int Connect (struct sockaddr *address) {
+    return evcom_stream_connect (&stream_, address);
   }
-  void Send (evcom_buf *buf) { evcom_socket_write(&socket_, buf); }
-  void Close (void) { evcom_socket_close(&socket_); }
-  void FullClose (void) { evcom_socket_full_close(&socket_); }
-  void ForceClose (void) { evcom_socket_force_close(&socket_); }
+  void Send (evcom_buf *buf) { evcom_stream_write(&stream_, buf); }
+  void Close (void) { evcom_stream_close(&stream_); }
+  void FullClose (void) { evcom_stream_full_close(&stream_); }
+  void ForceClose (void) { evcom_stream_force_close(&stream_); }
 
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
@@ -68,12 +68,12 @@ protected:
 private:
 
   /* liboi callbacks */
-  static void on_connect (evcom_socket *s) {
+  static void on_connect (evcom_stream *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnConnect();
   }
 
-  static void on_read (evcom_socket *s, const void *buf, size_t len) {
+  static void on_read (evcom_stream *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*> (s->data);
     assert(connection->attached_);
     if (len == 0)
@@ -82,17 +82,17 @@ private:
       connection->OnReceive(buf, len);
   }
 
-  static void on_drain (evcom_socket *s) {
+  static void on_drain (evcom_stream *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnDrain();
   }
 
-  static void on_close (evcom_socket *s) {
+  static void on_close (evcom_stream *s) {
     Connection *connection = static_cast<Connection*> (s->data);
 
-    assert(connection->socket_.fd < 0);
-    assert(connection->socket_.read_action == NULL);
-    assert(connection->socket_.write_action == NULL);
+    assert(connection->stream_.fd < 0);
+    assert(connection->stream_.read_action == NULL);
+    assert(connection->stream_.write_action == NULL);
 
     connection->OnDisconnect();
 
@@ -105,7 +105,7 @@ private:
     connection->Detach();
   }
 
-  static void on_timeout (evcom_socket *s) {
+  static void on_timeout (evcom_stream *s) {
     Connection *connection = static_cast<Connection*> (s->data);
     connection->OnTimeout();
   }
@@ -116,7 +116,7 @@ private:
   static int AfterResolve (eio_req *req);
   char *host_;
   char *port_;
-  evcom_socket socket_;
+  evcom_stream stream_;
 
   friend class Server;
 };
@@ -143,7 +143,7 @@ protected:
     evcom_server_close (&server_); 
   }
 
-  int Listen (struct addrinfo *address, int backlog) { 
+  int Listen (struct sockaddr *address, int backlog) { 
     int r = evcom_server_listen (&server_, address, backlog); 
     if(r != 0) return r;
     evcom_server_attach (EV_DEFAULT_ &server_); 
@@ -160,10 +160,10 @@ protected:
 
 private:
   Connection* OnConnection (struct sockaddr *addr);
-  static evcom_socket* on_connection (evcom_server *s, struct sockaddr *addr) {
+  static evcom_stream* on_connection (evcom_server *s, struct sockaddr *addr) {
     Server *server = static_cast<Server*> (s->data);
     Connection *connection = server->OnConnection (addr);
-    return &connection->socket_;
+    return &connection->stream_;
   }
 
   void OnClose (int errorno);

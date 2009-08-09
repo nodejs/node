@@ -99,18 +99,18 @@ Connection::Init (void)
 {
   opening = false;
   double timeout = 60.0; // default
-  evcom_socket_init(&socket_, timeout);
-  socket_.on_connect = Connection::on_connect;
-  socket_.on_read    = Connection::on_read;
-  socket_.on_drain   = Connection::on_drain;
-  socket_.on_close   = Connection::on_close;
-  socket_.on_timeout = Connection::on_timeout;
-  socket_.data = this;
+  evcom_stream_init(&stream_, timeout);
+  stream_.on_connect = Connection::on_connect;
+  stream_.on_read    = Connection::on_read;
+  stream_.on_drain   = Connection::on_drain;
+  stream_.on_close   = Connection::on_close;
+  stream_.on_timeout = Connection::on_timeout;
+  stream_.data = this;
 }
 
 Connection::~Connection ()
 {
-  assert(socket_.fd < 0 && "garbage collecting open Connection"); 
+  assert(stream_.fd < 0 && "garbage collecting open Connection"); 
   ForceClose();
 }
 
@@ -128,19 +128,19 @@ Connection::New (const Arguments& args)
 enum Connection::readyState
 Connection::ReadyState (void)
 {
-  if (socket_.flags & EVCOM_GOT_FULL_CLOSE)
+  if (stream_.flags & EVCOM_GOT_FULL_CLOSE)
     return CLOSED;
 
-  if (socket_.flags & EVCOM_GOT_HALF_CLOSE)
-    return (socket_.read_action == NULL ? CLOSED : READ_ONLY);
+  if (stream_.flags & EVCOM_GOT_HALF_CLOSE)
+    return (stream_.read_action == NULL ? CLOSED : READ_ONLY);
 
-  if (socket_.read_action && socket_.write_action)
+  if (stream_.read_action && stream_.write_action)
     return OPEN;
 
-  else if (socket_.write_action)
+  else if (stream_.write_action)
     return WRITE_ONLY;
 
-  else if (socket_.read_action)
+  else if (stream_.read_action)
     return READ_ONLY;
 
   else if (opening)
@@ -165,9 +165,9 @@ Connection::Connect (const Arguments& args)
     connection->Init(); // in case we're reusing the socket... ?
   }
 
-  assert(connection->socket_.fd < 0);
-  assert(connection->socket_.read_action == NULL);
-  assert(connection->socket_.write_action == NULL);
+  assert(connection->stream_.fd < 0);
+  assert(connection->stream_.read_action == NULL);
+  assert(connection->stream_.write_action == NULL);
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must specify a port."));
@@ -267,23 +267,23 @@ Connection::AfterResolve (eio_req *req)
   connection->opening = false;
 
   int r = 0;
-  if (req->result == 0) r = connection->Connect(address);
+  if (req->result == 0) r = connection->Connect(address->ai_addr);
 
   if (address_list) freeaddrinfo(address_list); 
 
   // no error. return.
   if (r == 0 && req->result == 0) {
-    evcom_socket_attach (EV_DEFAULT_UC_ &connection->socket_);
+    evcom_stream_attach (EV_DEFAULT_UC_ &connection->stream_);
     goto out;
   }
 
   /* RESOLVE ERROR */
 
-  /* TODO: the whole resolve process should be moved into evcom_socket.
+  /* TODO: the whole resolve process should be moved into evcom_stream.
    * The fact that I'm modifying a read-only variable here should be 
    * good evidence of this.
    */
-  connection->socket_.errorno = r | req->result;
+  connection->stream_.errorno = r | req->result;
 
   connection->OnDisconnect();
 
@@ -451,7 +451,7 @@ Connection::OnDisconnect ()
   HandleScope scope;
 
   Handle<Value> argv[1];
-  argv[0] = socket_.errorno == 0 ? False() : True();
+  argv[0] = stream_.errorno == 0 ? False() : True();
 
   Emit("disconnect", 1, argv);
 }
@@ -623,7 +623,7 @@ Server::Listen (const Arguments& args)
 
   address = AddressDefaultToIPv4(address_list);
 
-  server->Listen(address, backlog);
+  server->Listen(address->ai_addr, backlog);
 
   if (address_list) freeaddrinfo(address_list); 
 
