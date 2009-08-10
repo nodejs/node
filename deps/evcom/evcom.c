@@ -866,7 +866,7 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
     }
 
     /* SEND LOOP - TRY TO CLEAR THE BUFFER */
-    if (stream->write_action == NULL || !ev_is_active(&stream->write_watcher)) {
+    if (stream->write_action == NULL) {
       have_write_event = FALSE;
     } else {
       r = stream->write_action(stream);
