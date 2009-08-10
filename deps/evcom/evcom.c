@@ -656,7 +656,7 @@ accept_connection (evcom_server *server)
   
 #ifdef SO_NOSIGPIPE
   int flags = 1;
-  int r = setsockopt(fd, SOL_STREAM, SO_NOSIGPIPE, &flags, sizeof(flags));
+  int r = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
   if (r < 0) goto error;
 #endif
 
