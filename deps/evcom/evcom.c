@@ -853,9 +853,9 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
 
   while (have_read_event || have_write_event) {
     /* RECV LOOP - TRY TO CLEAR THE BUFFER */
-    if (stream->read_action == NULL) {
+    if (stream->read_action == NULL || !ev_is_active(&stream->read_watcher)) {
       have_read_event = FALSE;
-    } else { 
+    } else {
       r = stream->read_action(stream);
 
       if (r == AGAIN) {
@@ -866,7 +866,7 @@ on_io_event(EV_P_ ev_io *watcher, int revents)
     }
 
     /* SEND LOOP - TRY TO CLEAR THE BUFFER */
-    if (stream->write_action == NULL) {
+    if (stream->write_action == NULL || !ev_is_active(&stream->write_watcher)) {
       have_write_event = FALSE;
     } else {
       r = stream->write_action(stream);

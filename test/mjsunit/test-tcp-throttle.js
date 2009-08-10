@@ -31,15 +31,31 @@ function onLoad () {
 
   setTimeout(function () {
     chars_recved = recv.length; 
-    puts("chars_recved: " + chars_recved);
+    puts("pause at: " + chars_recved);
     assertTrue(chars_recved > 1);
     client.readPause();
     setTimeout(function () {
-      puts("chars_recved: " + chars_recved);
+      puts("resume at: " + chars_recved);
       assertEquals(chars_recved, recv.length);
       client.readResume();
+
+      setTimeout(function () {
+        chars_recved = recv.length; 
+        puts("pause at: " + chars_recved);
+        client.readPause();
+
+        setTimeout(function () {
+          puts("resume at: " + chars_recved);
+          assertEquals(chars_recved, recv.length);
+          client.readResume();
+
+        }, 500);
+
+      }, 500);
+
     }, 500);
-  }, 100);
+
+  }, 500);
 
   client.addListener("eof", function () {
     server.close();
