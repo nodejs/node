@@ -752,7 +752,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Preempt-code
   if (check_preempt_label_.is_linked()) {
-    __ bind(&check_preempt_label_);
+    SafeCallTarget(&check_preempt_label_);
 
     __ push(backtrack_stackpointer());
     __ push(edi);
@@ -772,7 +772,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Backtrack stack overflow code.
   if (stack_overflow_label_.is_linked()) {
-    __ bind(&stack_overflow_label_);
+    SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
 
     Label grow_failed;
@@ -1249,17 +1249,19 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
 
 
 void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
-  Label return_to;
-  __ push(Immediate::CodeRelativeOffset(&return_to));
-  __ jmp(to);
-  __ bind(&return_to);
+  __ call(to);
 }
 
 
 void RegExpMacroAssemblerIA32::SafeReturn() {
-  __ pop(ebx);
-  __ add(Operand(ebx), Immediate(masm_->CodeObject()));
-  __ jmp(Operand(ebx));
+  __ add(Operand(esp, 0), Immediate(masm_->CodeObject()));
+  __ ret(0);
+}
+
+
+void RegExpMacroAssemblerIA32::SafeCallTarget(Label* name) {
+  __ bind(name);
+  __ sub(Operand(esp, 0), Immediate(masm_->CodeObject()));
 }
 
 

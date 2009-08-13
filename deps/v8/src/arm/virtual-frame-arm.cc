@@ -76,72 +76,23 @@ void VirtualFrame::SyncRange(int begin, int end) {
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  Comment cmnt(masm(), "[ Merge frame");
-  // We should always be merging the code generator's current frame to an
-  // expected frame.
-  ASSERT(cgen()->frame() == this);
-
-  // Adjust the stack pointer upward (toward the top of the virtual
-  // frame) if necessary.
-  if (stack_pointer_ < expected->stack_pointer_) {
-    int difference = expected->stack_pointer_ - stack_pointer_;
-    stack_pointer_ = expected->stack_pointer_;
-    __ sub(sp, sp, Operand(difference * kPointerSize));
-  }
-
-  MergeMoveRegistersToMemory(expected);
-  MergeMoveRegistersToRegisters(expected);
-  MergeMoveMemoryToRegisters(expected);
-
-  // Fix any sync bit problems from the bottom-up, stopping when we
-  // hit the stack pointer or the top of the frame if the stack
-  // pointer is floating above the frame.
-  int limit = Min(static_cast<int>(stack_pointer_), element_count() - 1);
-  for (int i = 0; i <= limit; i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (source.is_synced() && !target.is_synced()) {
-      elements_[i].clear_sync();
-    } else if (!source.is_synced() && target.is_synced()) {
-      SyncElementAt(i);
-    }
-  }
-
-  // Adjust the stack point downard if necessary.
-  if (stack_pointer_ > expected->stack_pointer_) {
-    int difference = stack_pointer_ - expected->stack_pointer_;
-    stack_pointer_ = expected->stack_pointer_;
-    __ add(sp, sp, Operand(difference * kPointerSize));
-  }
-
-  // At this point, the frames should be identical.
+  // ARM frames are currently always in memory.
   ASSERT(Equals(expected));
 }
 
 
 void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
-  ASSERT(stack_pointer_ >= expected->stack_pointer_);
-
-  // Move registers, constants, and copies to memory.  Perform moves
-  // from the top downward in the frame in order to leave the backing
-  // stores of copies in registers.
-  // On ARM, all elements are in memory.
-
-#ifdef DEBUG
-  int start = Min(static_cast<int>(stack_pointer_), element_count() - 1);
-  for (int i = start; i >= 0; i--) {
-    ASSERT(elements_[i].is_memory());
-    ASSERT(expected->elements_[i].is_memory());
-  }
-#endif
+  UNREACHABLE();
 }
 
 
 void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
+  UNREACHABLE();
 }
 
 
 void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
+  UNREACHABLE();
 }
 
 
@@ -235,76 +186,62 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* stub) {
+void VirtualFrame::RawCallStub(CodeStub* stub) {
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallStub(stub);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+void VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
   PrepareForCall(0, 0);
   arg->Unuse();
-  return RawCallStub(stub);
+  RawCallStub(stub);
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+void VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
   PrepareForCall(0, 0);
   arg0->Unuse();
   arg1->Unuse();
-  return RawCallStub(stub);
+  RawCallStub(stub);
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(id, arg_count);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeJSFlags flags,
-                                   Result* arg_count_register,
-                                   int arg_count) {
+void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                 InvokeJSFlags flags,
+                                 Result* arg_count_register,
+                                 int arg_count) {
   ASSERT(arg_count_register->reg().is(r0));
   PrepareForCall(arg_count, arg_count);
   arg_count_register->Unuse();
   __ InvokeBuiltin(id, flags);
-  Result result = cgen()->allocator()->Allocate(r0);
-  return result;
 }
 
 
-Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+void VirtualFrame::RawCallCodeObject(Handle<Code> code,
                                        RelocInfo::Mode rmode) {
   ASSERT(cgen()->HasValidEntryRegisters());
   __ Call(code, rmode);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  int dropped_args) {
   int spilled_args = 0;
   switch (code->kind()) {
     case Code::CALL_IC:
@@ -325,14 +262,14 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
       break;
   }
   PrepareForCall(spilled_args, dropped_args);
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  Result* arg,
+                                  int dropped_args) {
   int spilled_args = 0;
   switch (code->kind()) {
     case Code::LOAD_IC:
@@ -353,15 +290,15 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
   }
   PrepareForCall(spilled_args, dropped_args);
   arg->Unuse();
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg0,
-                                    Result* arg1,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  Result* arg0,
+                                  Result* arg1,
+                                  int dropped_args) {
   int spilled_args = 1;
   switch (code->kind()) {
     case Code::STORE_IC:
@@ -385,11 +322,12 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
   PrepareForCall(spilled_args, dropped_args);
   arg0->Unuse();
   arg1->Unuse();
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 
 void VirtualFrame::Drop(int count) {
+  ASSERT(count >= 0);
   ASSERT(height() >= count);
   int num_virtual_elements = (element_count() - 1) - stack_pointer_;
 

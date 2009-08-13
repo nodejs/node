@@ -79,7 +79,9 @@ ANDROID_INCLUDES = [ANDROID_TOP + '/bionic/libc/arch-arm/include',
                     ANDROID_TOP + '/bionic/libc/kernel/arch-arm',
                     ANDROID_TOP + '/bionic/libm/include',
                     ANDROID_TOP + '/bionic/libm/include/arch/arm',
-                    ANDROID_TOP + '/bionic/libthread_db/include']
+                    ANDROID_TOP + '/bionic/libthread_db/include',
+                    ANDROID_TOP + '/frameworks/base/include',
+                    ANDROID_TOP + '/system/core/include']
 
 ANDROID_LINKFLAGS = ['-nostdlib',
                      '-Bdynamic',
@@ -331,7 +333,7 @@ CCTEST_EXTRA_FLAGS = {
       'CPPPATH':      ANDROID_INCLUDES,
       'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
       'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['c', 'stdc++', 'm'],
+      'LIBS':         ['log', 'c', 'stdc++', 'm'],
       'mode:release': {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
@@ -382,7 +384,7 @@ SAMPLE_FLAGS = {
       'CPPPATH':      ANDROID_INCLUDES,
       'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
       'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['c', 'stdc++', 'm'],
+      'LIBS':         ['log', 'c', 'stdc++', 'm'],
       'mode:release': {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
@@ -470,7 +472,7 @@ D8_FLAGS = {
     'os:android': {
       'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
       'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['c', 'stdc++', 'm'],
+      'LIBS':         ['log', 'c', 'stdc++', 'm'],
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],

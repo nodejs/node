@@ -83,6 +83,14 @@ static Handle<Object> Invoke(bool construct,
     code = stub.GetCode();
   }
 
+  // Convert calls on global objects to be calls on the global
+  // receiver instead to avoid having a 'this' pointer which refers
+  // directly to a global object.
+  if (receiver->IsGlobalObject()) {
+    Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+    receiver = Handle<JSObject>(global->global_receiver());
+  }
+
   {
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.

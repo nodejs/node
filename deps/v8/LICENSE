@@ -20,6 +20,12 @@ are:
     copyrighted by Douglas Crockford and Baruch Even and released under
     an MIT license.
 
+  - Valgrind client API header, located at third_party/valgrind/valgrind.h
+    This is release under the BSD license.
+
+  - Valgrind client API header, located at third_party/valgrind/valgrind.h
+    This is release under the BSD license.
+
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.
 

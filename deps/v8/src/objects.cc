@@ -50,24 +50,6 @@ namespace internal {
 const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
-bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
-  // There is a constraint on the object; check
-  if (!this->IsJSObject()) return false;
-  // Fetch the constructor function of the object
-  Object* cons_obj = JSObject::cast(this)->map()->constructor();
-  if (!cons_obj->IsJSFunction()) return false;
-  JSFunction* fun = JSFunction::cast(cons_obj);
-  // Iterate through the chain of inheriting function templates to
-  // see if the required one occurs.
-  for (Object* type = fun->shared()->function_data();
-       type->IsFunctionTemplateInfo();
-       type = FunctionTemplateInfo::cast(type)->parent_template()) {
-    if (type == expected) return true;
-  }
-  // Didn't find the required type in the inheritance chain.
-  return false;
-}
-
 
 static Object* CreateJSValue(JSFunction* constructor, Object* value) {
   Object* result = Heap::AllocateJSObject(constructor);

@@ -562,13 +562,175 @@ void CallIC::Generate(MacroAssembler* masm,
   __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
 }
 
+
+// Defined in ic.cc.
+Object* CallIC_Miss(Arguments args);
+
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  // rsp[0] return address
+  // rsp[8] argument argc
+  // rsp[16] argument argc - 1
+  // ...
+  // rsp[argc * 8] argument 1
+  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 2) * 8] function name
+  // -----------------------------------
+  Label number, non_number, non_string, boolean, probe, miss;
+
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  // Get the name of the function from the stack; 2 ~ return address, receiver
+  __ movq(rcx, Operand(rsp, (argc + 2) * kPointerSize));
+
+  // Probe the stub cache.
+  Code::Flags flags =
+      Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
+  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, rax);
+
+  // If the stub cache probing failed, the receiver might be a value.
+  // For value objects, we use the map of the prototype objects for
+  // the corresponding JSValue for the cache and that is what we need
+  // to probe.
+  //
+  // Check for number.
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, &number);
+  __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rbx);
+  __ j(not_equal, &non_number);
+  __ bind(&number);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::NUMBER_FUNCTION_INDEX, rdx);
+  __ jmp(&probe);
+
+  // Check for string.
+  __ bind(&non_number);
+  __ CmpInstanceType(rbx, FIRST_NONSTRING_TYPE);
+  __ j(above_equal, &non_string);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::STRING_FUNCTION_INDEX, rdx);
+  __ jmp(&probe);
+
+  // Check for boolean.
+  __ bind(&non_string);
+  __ Cmp(rdx, Factory::true_value());
+  __ j(equal, &boolean);
+  __ Cmp(rdx, Factory::false_value());
+  __ j(not_equal, &miss);
+  __ bind(&boolean);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::BOOLEAN_FUNCTION_INDEX, rdx);
+
+  // Probe the stub cache for the value object.
+  __ bind(&probe);
+  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
+
   // Cache miss: Jump to runtime.
+  __ bind(&miss);
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
+
+static void GenerateNormalHelper(MacroAssembler* masm,
+                                 int argc,
+                                 bool is_global_object,
+                                 Label* miss) {
+  // Search dictionary - put result in register edx.
+  GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx);
+
+  // Move the result to register rdi and check that it isn't a smi.
+  __ movq(rdi, rdx);
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, miss);
+
+  // Check that the value is a JavaScript function.
+  __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rdx);
+  __ j(not_equal, miss);
+  // Check that the function has been loaded.
+  __ testb(FieldOperand(rdx, Map::kBitField2Offset),
+           Immediate(1 << Map::kNeedsLoading));
+  __ j(not_zero, miss);
+
+  // Patch the receiver with the global proxy if necessary.
+  if (is_global_object) {
+    __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+}
+
+
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  // rsp[0] return address
+  // rsp[8] argument argc
+  // rsp[16] argument argc - 1
+  // ...
+  // rsp[argc * 8] argument 1
+  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 2) * 8] function name
+  // -----------------------------------
+
+  Label miss, global_object, non_global_object;
+
+  // Get the receiver of the function from the stack.
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  // Get the name of the function from the stack.
+  __ movq(rcx, Operand(rsp, (argc + 2) * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that the receiver is a valid JS object.
+  // Because there are so many map checks and type checks, do not
+  // use CmpObjectType, but load map and type into registers.
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ movb(rax, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ cmpb(rax, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ j(below, &miss);
+
+  // If this assert fails, we have to check upper bound too.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+
+  // Check for access to global object.
+  __ cmpb(rax, Immediate(JS_GLOBAL_OBJECT_TYPE));
+  __ j(equal, &global_object);
+  __ cmpb(rax, Immediate(JS_BUILTINS_OBJECT_TYPE));
+  __ j(not_equal, &non_global_object);
+
+  // Accessing global object: Load and invoke.
+  __ bind(&global_object);
+  // Check that the global object does not require access checks.
+  __ movb(rbx, FieldOperand(rbx, Map::kBitFieldOffset));
+  __ testb(rbx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_equal, &miss);
+  GenerateNormalHelper(masm, argc, true, &miss);
+
+  // Accessing non-global object: Check for access to global proxy.
+  Label global_proxy, invoke;
+  __ bind(&non_global_object);
+  __ cmpb(rax, Immediate(JS_GLOBAL_PROXY_TYPE));
+  __ j(equal, &global_proxy);
+  // Check that the non-global, non-global-proxy object does not
+  // require access checks.
+  __ movb(rbx, FieldOperand(rbx, Map::kBitFieldOffset));
+  __ testb(rbx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_equal, &miss);
+  __ bind(&invoke);
+  GenerateNormalHelper(masm, argc, false, &miss);
+
+  // Global object proxy access: Check access rights.
+  __ bind(&global_proxy);
+  __ CheckAccessGlobalProxy(rdx, rax, &miss);
+  __ jmp(&invoke);
+
   // Cache miss: Jump to runtime.
+  __ bind(&miss);
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 

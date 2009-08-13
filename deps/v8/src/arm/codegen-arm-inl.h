@@ -34,6 +34,37 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+void CodeGenerator::LoadConditionAndSpill(Expression* expression,
+                                          TypeofState typeof_state,
+                                          JumpTarget* true_target,
+                                          JumpTarget* false_target,
+                                          bool force_control) {
+  LoadCondition(expression, typeof_state, true_target, false_target,
+                force_control);
+}
+
+
+void CodeGenerator::LoadAndSpill(Expression* expression,
+                                 TypeofState typeof_state) {
+  Load(expression, typeof_state);
+}
+
+
+void CodeGenerator::VisitAndSpill(Statement* statement) {
+  Visit(statement);
+}
+
+
+void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+  VisitStatements(statements);
+}
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  GetValue(typeof_state);
+}
+
+
 // Platform-specific inline functions.
 
 void DeferredCode::Jump() { __ jmp(&entry_label_); }

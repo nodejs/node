@@ -140,7 +140,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     ExternalReference new_space_allocation_limit =
         ExternalReference::new_space_allocation_limit_address();
     __ cmp(edi, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(greater_equal, &rt_call);
+    __ j(above_equal, &rt_call);
     // Allocated the JSObject, now initialize the fields.
     // eax: initial map
     // ebx: JSObject
@@ -175,8 +175,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ or_(Operand(ebx), Immediate(kHeapObjectTag));
     __ mov(Operand::StaticVariable(new_space_allocation_top), edi);
 
-    // Check if a properties array should be setup and allocate one if needed.
-    // Otherwise initialize the properties to the empty_fixed_array as well.
+    // Check if a non-empty properties array is needed.
+    // Allocate and initialize a FixedArray if it is.
     // eax: initial map
     // ebx: JSObject
     // edi: start of next object
@@ -184,21 +184,19 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
     // Calculate unused properties past the end of the in-object properties.
     __ sub(edx, Operand(ecx));
-    __ test(edx, Operand(edx));
     // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
 
     // Scale the number of elements by pointer size and add the header for
     // FixedArrays to the start of the next object calculation from above.
-    // eax: initial map
     // ebx: JSObject
     // edi: start of next object (will be start of FixedArray)
     // edx: number of elements in properties array
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
-    __ lea(ecx, Operand(edi, edx, times_4, FixedArray::kHeaderSize));
+    __ lea(ecx, Operand(edi, edx, times_pointer_size, FixedArray::kHeaderSize));
     __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(greater_equal, &undo_allocation);
+    __ j(above_equal, &undo_allocation);
     __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
 
     // Initialize the FixedArray.
@@ -223,7 +221,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       __ add(Operand(eax), Immediate(kPointerSize));
       __ bind(&entry);
       __ cmp(eax, Operand(ecx));
-      __ j(less, &loop);
+      __ j(below, &loop);
     }
 
     // Store the initialized FixedArray into the properties field of

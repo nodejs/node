@@ -503,13 +503,160 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Try to allocate the object without transitioning into C code. If any of the
   // preconditions is not met, the code bails out to the runtime call.
   Label rt_call, allocated;
+  if (FLAG_inline_new) {
+    Label undo_allocation;
+    // TODO(X64): Enable debugger support, using debug_step_in_fp.
 
-  // TODO(x64): Implement inlined allocation.
+    // Verified that the constructor is a JSFunction.
+    // Load the initial map and verify that it is in fact a map.
+    // rdi: constructor
+    __ movq(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi
+    __ testl(rax, Immediate(kSmiTagMask));
+    __ j(zero, &rt_call);
+    // rdi: constructor
+    // rax: initial map (if proven valid below)
+    __ CmpObjectType(rax, MAP_TYPE, rbx);
+    __ j(not_equal, &rt_call);
+
+    // Check that the constructor is not constructing a JSFunction (see comments
+    // in Runtime_NewObject in runtime.cc). In which case the initial map's
+    // instance type would be JS_FUNCTION_TYPE.
+    // rdi: constructor
+    // rax: initial map
+    __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
+    __ j(equal, &rt_call);
+
+    // Now allocate the JSObject on the heap.
+    __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
+    __ shl(rdi, Immediate(kPointerSizeLog2));
+    // rdi: size of new object
+    // Make sure that the maximum heap object size will never cause us
+    // problem here, because it is always greater than the maximum
+    // instance size that can be represented in a byte.
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
+    ExternalReference new_space_allocation_top =
+        ExternalReference::new_space_allocation_top_address();
+    __ movq(kScratchRegister, new_space_allocation_top);
+    __ movq(rbx, Operand(kScratchRegister, 0));
+    __ addq(rdi, rbx);  // Calculate new top
+    ExternalReference new_space_allocation_limit =
+        ExternalReference::new_space_allocation_limit_address();
+    __ movq(kScratchRegister, new_space_allocation_limit);
+    __ cmpq(rdi, Operand(kScratchRegister, 0));
+    __ j(above_equal, &rt_call);
+    // Allocated the JSObject, now initialize the fields.
+    // rax: initial map
+    // rbx: JSObject (not HeapObject tagged - the actual address).
+    // rdi: start of next object
+    __ movq(Operand(rbx, JSObject::kMapOffset), rax);
+    __ Move(rcx, Factory::empty_fixed_array());
+    __ movq(Operand(rbx, JSObject::kPropertiesOffset), rcx);
+    __ movq(Operand(rbx, JSObject::kElementsOffset), rcx);
+    // Set extra fields in the newly allocated object.
+    // rax: initial map
+    // rbx: JSObject
+    // rdi: start of next object
+    { Label loop, entry;
+      __ Move(rdx, Factory::undefined_value());
+      __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
+      __ jmp(&entry);
+      __ bind(&loop);
+      __ movq(Operand(rcx, 0), rdx);
+      __ addq(rcx, Immediate(kPointerSize));
+      __ bind(&entry);
+      __ cmpq(rcx, rdi);
+      __ j(less, &loop);
+    }
+
+    // Mostly done with the JSObject. Add the heap tag and store the new top, so
+    // that we can continue and jump into the continuation code at any time from
+    // now on. Any failures need to undo the setting of the new top, so that the
+    // heap is in a consistent state and verifiable.
+    // rax: initial map
+    // rbx: JSObject
+    // rdi: start of next object
+    __ or_(rbx, Immediate(kHeapObjectTag));
+    __ movq(kScratchRegister, new_space_allocation_top);
+    __ movq(Operand(kScratchRegister, 0), rdi);
+
+    // Check if a non-empty properties array is needed.
+    // Allocate and initialize a FixedArray if it is.
+    // rax: initial map
+    // rbx: JSObject
+    // rdi: start of next object
+    __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
+    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+    // Calculate unused properties past the end of the in-object properties.
+    __ subq(rdx, rcx);
+    // Done if no extra properties are to be allocated.
+    __ j(zero, &allocated);
+
+    // Scale the number of elements by pointer size and add the header for
+    // FixedArrays to the start of the next object calculation from above.
+    // rbx: JSObject
+    // rdi: start of next object (will be start of FixedArray)
+    // rdx: number of elements in properties array
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >
+           (FixedArray::kHeaderSize + 255*kPointerSize));
+    __ lea(rax, Operand(rdi, rdx, times_pointer_size, FixedArray::kHeaderSize));
+    __ movq(kScratchRegister, new_space_allocation_limit);
+    __ cmpq(rax, Operand(kScratchRegister, 0));
+    __ j(above_equal, &undo_allocation);
+    __ store_rax(new_space_allocation_top);
+
+    // Initialize the FixedArray.
+    // rbx: JSObject
+    // rdi: FixedArray
+    // rdx: number of elements
+    // rax: start of next object
+    __ Move(rcx, Factory::fixed_array_map());
+    __ movq(Operand(rdi, JSObject::kMapOffset), rcx);  // setup the map
+    __ movl(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
+
+    // Initialize the fields to undefined.
+    // rbx: JSObject
+    // rdi: FixedArray
+    // rax: start of next object
+    // rdx: number of elements
+    { Label loop, entry;
+      __ Move(rdx, Factory::undefined_value());
+      __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
+      __ jmp(&entry);
+      __ bind(&loop);
+      __ movq(Operand(rcx, 0), rdx);
+      __ addq(rcx, Immediate(kPointerSize));
+      __ bind(&entry);
+      __ cmpq(rcx, rax);
+      __ j(below, &loop);
+    }
+
+    // Store the initialized FixedArray into the properties field of
+    // the JSObject
+    // rbx: JSObject
+    // rdi: FixedArray
+    __ or_(rdi, Immediate(kHeapObjectTag));  // add the heap tag
+    __ movq(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
+
+
+    // Continue with JSObject being successfully allocated
+    // rbx: JSObject
+    __ jmp(&allocated);
+
+    // Undo the setting of the new top so that the heap is verifiable. For
+    // example, the map's unused properties potentially do not match the
+    // allocated objects unused properties.
+    // rbx: JSObject (previous new top)
+    __ bind(&undo_allocation);
+    __ xor_(rbx, Immediate(kHeapObjectTag));  // clear the heap tag
+    __ movq(kScratchRegister, new_space_allocation_top);
+    __ movq(Operand(kScratchRegister, 0), rbx);
+  }
 
   // Allocate the new receiver object using the runtime call.
   // rdi: function (constructor)
   __ bind(&rt_call);
-  // Must restore edi (constructor) before calling runtime.
+  // Must restore rdi (constructor) before calling runtime.
   __ movq(rdi, Operand(rsp, 0));
   __ push(rdi);
   __ CallRuntime(Runtime::kNewObject, 1);

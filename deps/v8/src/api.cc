@@ -1928,6 +1928,22 @@ Local<Value> v8::Object::GetPrototype() {
 }
 
 
+Local<Object> v8::Object::FindInstanceInPrototypeChain(
+    v8::Handle<FunctionTemplate> tmpl) {
+  ON_BAILOUT("v8::Object::FindInstanceInPrototypeChain()",
+             return Local<v8::Object>());
+  ENTER_V8;
+  i::JSObject* object = *Utils::OpenHandle(this);
+  i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
+  while (!object->IsInstanceOf(tmpl_info)) {
+    i::Object* prototype = object->GetPrototype();
+    if (!prototype->IsJSObject()) return Local<Object>();
+    object = i::JSObject::cast(prototype);
+  }
+  return Utils::ToLocal(i::Handle<i::JSObject>(object));
+}
+
+
 Local<Array> v8::Object::GetPropertyNames() {
   ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
   ENTER_V8;
@@ -2573,9 +2589,12 @@ Persistent<Context> v8::Context::New(
   i::Handle<i::Context> env;
   {
     ENTER_V8;
+#if defined(ANDROID)
+    // On mobile devices, full GC is expensive.
+#else
     // Give the heap a chance to cleanup if we've disposed contexts.
     i::Heap::CollectAllGarbageIfContextDisposed();
-
+#endif
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
@@ -2967,7 +2986,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (IsDeadCheck("v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
-  i::Handle <i::String> obj = Utils::OpenHandle(this);
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     // Operation was successful and the string is not a symbol. In this case
@@ -3003,7 +3022,7 @@ bool v8::String::MakeExternal(
   if (IsDeadCheck("v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
-  i::Handle <i::String> obj = Utils::OpenHandle(this);
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     // Operation was successful and the string is not a symbol. In this case
@@ -3015,6 +3034,17 @@ bool v8::String::MakeExternal(
                                &DisposeExternalAsciiString);
   }
   return result;
+}
+
+
+bool v8::String::CanMakeExternal() {
+  if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  int size = obj->Size();  // Byte size of the original string.
+  if (size < i::ExternalString::kSize)
+    return false;
+  i::StringShape shape(*obj);
+  return !shape.IsExternal();
 }
 
 

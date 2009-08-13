@@ -29,6 +29,7 @@
 
 #include "cfg.h"
 #include "codegen-inl.h"
+#include "codegen-ia32.h"
 #include "macro-assembler-ia32.h"
 
 namespace v8 {
@@ -42,6 +43,14 @@ void InstructionBlock::Compile(MacroAssembler* masm) {
   {
     Comment cmt(masm, "[ InstructionBlock");
     for (int i = 0, len = instructions_.length(); i < len; i++) {
+      // If the location of the current instruction is a temp, then the
+      // instruction cannot be in tail position in the block.  Allocate the
+      // temp based on peeking ahead to the next instruction.
+      Instruction* instr = instructions_[i];
+      Location* loc = instr->location();
+      if (loc->is_temporary()) {
+        instructions_[i+1]->FastAllocate(TempLocation::cast(loc));
+      }
       instructions_[i]->Compile(masm);
     }
   }
@@ -79,6 +88,7 @@ void EntryNode::Compile(MacroAssembler* masm) {
   }
   successor_->Compile(masm);
   if (FLAG_check_stack) {
+    Comment cmnt(masm, "[ Deferred Stack Check");
     __ bind(&deferred_enter);
     StackCheckStub stub;
     __ CallStub(&stub);
@@ -103,30 +113,198 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
-void ReturnInstr::Compile(MacroAssembler* masm) {
-  Comment cmnt(masm, "[ ReturnInstr");
-  value_->ToRegister(masm, eax);
+void PropLoadInstr::Compile(MacroAssembler* masm) {
+  // The key should not be on the stack---if it is a compiler-generated
+  // temporary it is in the accumulator.
+  ASSERT(!key()->is_on_stack());
+
+  Comment cmnt(masm, "[ Load from Property");
+  // If the key is known at compile-time we may be able to use a load IC.
+  bool is_keyed_load = true;
+  if (key()->is_constant()) {
+    // Still use the keyed load IC if the key can be parsed as an integer so
+    // we will get into the case that handles [] on string objects.
+    Handle<Object> key_val = Constant::cast(key())->handle();
+    uint32_t ignored;
+    if (key_val->IsSymbol() &&
+        !String::cast(*key_val)->AsArrayIndex(&ignored)) {
+      is_keyed_load = false;
+    }
+  }
+
+  if (!object()->is_on_stack()) object()->Push(masm);
+  // A test eax instruction after the call indicates to the IC code that it
+  // was inlined.  Ensure there is not one here.
+  if (is_keyed_load) {
+    key()->Push(masm);
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+    __ pop(ebx);  // Discard key.
+  } else {
+    key()->Get(masm, ecx);
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+  }
+  __ pop(ebx);  // Discard receiver.
+  location()->Set(masm, eax);
 }
 
 
-void Constant::ToRegister(MacroAssembler* masm, Register reg) {
+void BinaryOpInstr::Compile(MacroAssembler* masm) {
+  // The right-hand value should not be on the stack---if it is a
+  // compiler-generated temporary it is in the accumulator.
+  ASSERT(!right()->is_on_stack());
+
+  Comment cmnt(masm, "[ BinaryOpInstr");
+  // We can overwrite one of the operands if it is a temporary.
+  OverwriteMode mode = NO_OVERWRITE;
+  if (left()->is_temporary()) {
+    mode = OVERWRITE_LEFT;
+  } else if (right()->is_temporary()) {
+    mode = OVERWRITE_RIGHT;
+  }
+
+  // Push both operands and call the specialized stub.
+  if (!left()->is_on_stack()) left()->Push(masm);
+  right()->Push(masm);
+  GenericBinaryOpStub stub(op(), mode, SMI_CODE_IN_STUB);
+  __ CallStub(&stub);
+  location()->Set(masm, eax);
+}
+
+
+void ReturnInstr::Compile(MacroAssembler* masm) {
+  // The location should be 'Effect'.  As a side effect, move the value to
+  // the accumulator.
+  Comment cmnt(masm, "[ ReturnInstr");
+  value_->Get(masm, eax);
+}
+
+
+void Constant::Get(MacroAssembler* masm, Register reg) {
   __ mov(reg, Immediate(handle_));
 }
 
 
-void SlotLocation::ToRegister(MacroAssembler* masm, Register reg) {
-  switch (type_) {
+void Constant::Push(MacroAssembler* masm) {
+  __ push(Immediate(handle_));
+}
+
+
+static Operand ToOperand(SlotLocation* loc) {
+  switch (loc->type()) {
     case Slot::PARAMETER: {
       int count = CfgGlobals::current()->fun()->scope()->num_parameters();
-      __ mov(reg, Operand(ebp, (1 + count - index_) * kPointerSize));
-      break;
+      return Operand(ebp, (1 + count - loc->index()) * kPointerSize);
     }
     case Slot::LOCAL: {
       const int kOffset = JavaScriptFrameConstants::kLocal0Offset;
-      __ mov(reg, Operand(ebp, kOffset - index_ * kPointerSize));
-      break;
+      return Operand(ebp, kOffset - loc->index() * kPointerSize);
     }
     default:
+      UNREACHABLE();
+      return Operand(eax);
+  }
+}
+
+
+void Constant::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  __ mov(ToOperand(loc), Immediate(handle_));
+}
+
+
+void SlotLocation::Get(MacroAssembler* masm, Register reg) {
+  __ mov(reg, ToOperand(this));
+}
+
+
+void SlotLocation::Set(MacroAssembler* masm, Register reg) {
+  __ mov(ToOperand(this), reg);
+}
+
+
+void SlotLocation::Push(MacroAssembler* masm) {
+  __ push(ToOperand(this));
+}
+
+
+void SlotLocation::Move(MacroAssembler* masm, Value* value) {
+  // We dispatch to the value because in some cases (temp or constant)
+  // we can use a single instruction.
+  value->MoveToSlot(masm, this);
+}
+
+
+void SlotLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  // The accumulator is not live across a MoveInstr.
+  __ mov(eax, ToOperand(this));
+  __ mov(ToOperand(loc), eax);
+}
+
+
+void TempLocation::Get(MacroAssembler* masm, Register reg) {
+  switch (where_) {
+    case ACCUMULATOR:
+      if (!reg.is(eax)) __ mov(reg, eax);
+      break;
+    case STACK:
+      __ pop(reg);
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::Set(MacroAssembler* masm, Register reg) {
+  switch (where_) {
+    case ACCUMULATOR:
+      if (!reg.is(eax)) __ mov(eax, reg);
+      break;
+    case STACK:
+      __ push(reg);
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::Push(MacroAssembler* masm) {
+  switch (where_) {
+    case ACCUMULATOR:
+      __ push(eax);
+      break;
+    case STACK:
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::Move(MacroAssembler* masm, Value* value) {
+  switch (where_) {
+    case ACCUMULATOR:
+      value->Get(masm, eax);
+      break;
+    case STACK:
+      value->Push(masm);
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  switch (where_) {
+    case ACCUMULATOR:
+      __ mov(ToOperand(loc), eax);
+      break;
+    case STACK:
+      __ pop(ToOperand(loc));
+      break;
+    case NOT_ALLOCATED:
       UNREACHABLE();
   }
 }

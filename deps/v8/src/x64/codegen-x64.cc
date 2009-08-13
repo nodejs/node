@@ -97,6 +97,158 @@ CodeGenState::~CodeGenState() {
 }
 
 
+// -------------------------------------------------------------------------
+// Deferred code objects
+//
+// These subclasses of DeferredCode add pieces of code to the end of generated
+// code.  They are branched to from the generated code, and
+// keep some slower code out of the main body of the generated code.
+// Many of them call a code stub or a runtime function.
+
+class DeferredInlineSmiAdd: public DeferredCode {
+ public:
+  DeferredInlineSmiAdd(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAdd");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+// The result of value + src is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
+class DeferredInlineSmiAddReversed: public DeferredCode {
+ public:
+  DeferredInlineSmiAddReversed(Register dst,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAddReversed");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+class DeferredInlineSmiSub: public DeferredCode {
+ public:
+  DeferredInlineSmiSub(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiSub");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+// Call the appropriate binary operation stub to compute src op value
+// and leave the result in dst.
+class DeferredInlineSmiOperation: public DeferredCode {
+ public:
+  DeferredInlineSmiOperation(Token::Value op,
+                             Register dst,
+                             Register src,
+                             Smi* value,
+                             OverwriteMode overwrite_mode)
+      : op_(op),
+        dst_(dst),
+        src_(src),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Token::Value op_;
+  Register dst_;
+  Register src_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+class FloatingPointHelper : public AllStatic {
+ public:
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand on TOS+1. Returns operand as floating point number on FPU
+  // stack.
+  static void LoadFloatOperand(MacroAssembler* masm, Register scratch);
+
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand in src register. Returns operand as floating point number
+  // in XMM register
+  static void LoadFloatOperand(MacroAssembler* masm,
+                               Register src,
+                               XMMRegister dst);
+
+  // Code pattern for loading floating point values. Input values must
+  // be either smi or heap number objects (fp values). Requirements:
+  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
+  // floating point numbers in XMM registers.
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                XMMRegister dst1,
+                                XMMRegister dst2);
+
+  // Code pattern for loading floating point values onto the fp stack.
+  // Input values must be either smi or heap number objects (fp values).
+  // Requirements:
+  // Register version: operands in registers lhs and rhs.
+  // Stack version: operands on TOS+1 and TOS+2.
+  // Returns operands as floating point numbers on fp stack.
+  static void LoadFloatOperands(MacroAssembler* masm);
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                Register lhs,
+                                Register rhs);
+
+  // Code pattern for loading a floating point value and converting it
+  // to a 32 bit integer. Input value must be either a smi or a heap number
+  // object.
+  // Returns operands as 32-bit sign extended integers in a general purpose
+  // registers.
+  static void LoadInt32Operand(MacroAssembler* masm,
+                               const Operand& src,
+                               Register dst);
+
+  // Test if operands are smi or number objects (fp). Requirements:
+  // operand_1 in rax, operand_2 in rdx; falls through on float or smi
+  // operands, jumps to the non_float label otherwise.
+  static void CheckFloatOperands(MacroAssembler* masm,
+                                 Label* non_float);
+
+  // Allocate a heap number in new space with undefined value.
+  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
+  static void AllocateHeapNumber(MacroAssembler* masm,
+                                 Label* need_gc,
+                                 Register scratch,
+                                 Register result);
+};
+
+
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation.
 
@@ -3351,10 +3503,161 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
-  // TODO(X64): Implement this function.
-  // Ignore arguments and return undefined, to signal failure.
-  frame_->Push(Factory::undefined_value());
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateFastCharCodeAt");
+  ASSERT(args->length() == 2);
+
+  Label slow_case;
+  Label end;
+  Label not_a_flat_string;
+  Label a_cons_string;
+  Label try_again_with_new_string;
+  Label ascii_string;
+  Label got_char_code;
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Result index = frame_->Pop();
+  Result object = frame_->Pop();
+
+  // Get register rcx to use as shift amount later.
+  Result shift_amount;
+  if (object.is_register() && object.reg().is(rcx)) {
+    Result fresh = allocator_->Allocate();
+    shift_amount = object;
+    object = fresh;
+    __ movq(object.reg(), rcx);
+  }
+  if (index.is_register() && index.reg().is(rcx)) {
+    Result fresh = allocator_->Allocate();
+    shift_amount = index;
+    index = fresh;
+    __ movq(index.reg(), rcx);
+  }
+  // There could be references to ecx in the frame. Allocating will
+  // spill them, otherwise spill explicitly.
+  if (shift_amount.is_valid()) {
+    frame_->Spill(rcx);
+  } else {
+    shift_amount = allocator()->Allocate(rcx);
+  }
+  ASSERT(shift_amount.is_register());
+  ASSERT(shift_amount.reg().is(rcx));
+  ASSERT(allocator_->count(rcx) == 1);
+
+  // We will mutate the index register and possibly the object register.
+  // The case where they are somehow the same register is handled
+  // because we only mutate them in the case where the receiver is a
+  // heap object and the index is not.
+  object.ToRegister();
+  index.ToRegister();
+  frame_->Spill(object.reg());
+  frame_->Spill(index.reg());
+
+  // We need a single extra temporary register.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+
+  // There is no virtual frame effect from here up to the final result
+  // push.
+
+  // If the receiver is a smi trigger the slow case.
+  ASSERT(kSmiTag == 0);
+  __ testl(object.reg(), Immediate(kSmiTagMask));
+  __ j(zero, &slow_case);
+
+  // If the index is negative or non-smi trigger the slow case.
+  ASSERT(kSmiTag == 0);
+  __ testl(index.reg(),
+           Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000U)));
+  __ j(not_zero, &slow_case);
+  // Untag the index.
+  __ sarl(index.reg(), Immediate(kSmiTagSize));
+
+  __ bind(&try_again_with_new_string);
+  // Fetch the instance type of the receiver into rcx.
+  __ movq(rcx, FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzxbl(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
+  // If the receiver is not a string trigger the slow case.
+  __ testb(rcx, Immediate(kIsNotStringMask));
+  __ j(not_zero, &slow_case);
+
+  // Here we make assumptions about the tag values and the shifts needed.
+  // See the comment in objects.h.
+  ASSERT(kLongStringTag == 0);
+  ASSERT(kMediumStringTag + String::kLongLengthShift ==
+         String::kMediumLengthShift);
+  ASSERT(kShortStringTag + String::kLongLengthShift ==
+         String::kShortLengthShift);
+  __ and_(rcx, Immediate(kStringSizeMask));
+  __ addq(rcx, Immediate(String::kLongLengthShift));
+  // Fetch the length field into the temporary register.
+  __ movl(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
+  __ shrl(temp.reg());  // The shift amount in ecx is implicit operand.
+  // Check for index out of range.
+  __ cmpl(index.reg(), temp.reg());
+  __ j(greater_equal, &slow_case);
+  // Reload the instance type (into the temp register this time)..
+  __ movq(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzxbl(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+
+  // We need special handling for non-flat strings.
+  ASSERT(kSeqStringTag == 0);
+  __ testb(temp.reg(), Immediate(kStringRepresentationMask));
+  __ j(not_zero, &not_a_flat_string);
+  // Check for 1-byte or 2-byte string.
+  __ testb(temp.reg(), Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii_string);
+
+  // 2-byte string.
+  // Load the 2-byte character code into the temp register.
+  __ movzxwl(temp.reg(), FieldOperand(object.reg(),
+                                      index.reg(),
+                                      times_2,
+                                      SeqTwoByteString::kHeaderSize));
+  __ jmp(&got_char_code);
+
+  // ASCII string.
+  __ bind(&ascii_string);
+  // Load the byte into the temp register.
+  __ movzxbl(temp.reg(), FieldOperand(object.reg(),
+                                      index.reg(),
+                                      times_1,
+                                      SeqAsciiString::kHeaderSize));
+  __ bind(&got_char_code);
+  ASSERT(kSmiTag == 0);
+  __ shl(temp.reg(), Immediate(kSmiTagSize));
+  __ jmp(&end);
+
+  // Handle non-flat strings.
+  __ bind(&not_a_flat_string);
+  __ and_(temp.reg(), Immediate(kStringRepresentationMask));
+  __ cmpb(temp.reg(), Immediate(kConsStringTag));
+  __ j(equal, &a_cons_string);
+  __ cmpb(temp.reg(), Immediate(kSlicedStringTag));
+  __ j(not_equal, &slow_case);
+
+  // SlicedString.
+  // Add the offset to the index and trigger the slow case on overflow.
+  __ addl(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
+  __ j(overflow, &slow_case);
+  // Getting the underlying string is done by running the cons string code.
+
+  // ConsString.
+  __ bind(&a_cons_string);
+  // Get the first of the two strings.  Both sliced and cons strings
+  // store their source string at the same offset.
+  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  __ movq(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
+  __ jmp(&try_again_with_new_string);
+
+  __ bind(&slow_case);
+  // Move the undefined value into the result register, which will
+  // trigger the slow case.
+  __ Move(temp.reg(), Factory::undefined_value());
+
+  __ bind(&end);
+  frame_->Push(&temp);
 }
 
 
@@ -3459,11 +3762,58 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  // TODO(X64): Use inline floating point in the fast case.
+  JumpTarget done;
+  JumpTarget call_runtime;
   ASSERT(args->length() == 1);
 
-  // Load number.
+  // Load number and duplicate it.
   Load(args->at(0));
+  frame_->Dup();
+
+  // Get the number into an unaliased register and load it onto the
+  // floating point stack still leaving one copy on the frame.
+  Result number = frame_->Pop();
+  number.ToRegister();
+  frame_->Spill(number.reg());
+  FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
+  number.Unuse();
+
+  // Perform the operation on the number.
+  switch (op) {
+    case SIN:
+      __ fsin();
+      break;
+    case COS:
+      __ fcos();
+      break;
+  }
+
+  // Go slow case if argument to operation is out of range.
+  Result eax_reg = allocator()->Allocate(rax);
+  ASSERT(eax_reg.is_valid());
+  __ fnstsw_ax();
+  __ testl(rax, Immediate(0x0400));  // Bit 10 is condition flag C2.
+  eax_reg.Unuse();
+  call_runtime.Branch(not_zero);
+
+  // Allocate heap number for result if possible.
+  Result scratch = allocator()->Allocate();
+  Result heap_number = allocator()->Allocate();
+  FloatingPointHelper::AllocateHeapNumber(masm_,
+                                          call_runtime.entry_label(),
+                                          scratch.reg(),
+                                          heap_number.reg());
+  scratch.Unuse();
+
+  // Store the result in the allocated heap number.
+  __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
+  // Replace the extra copy of the argument with the result.
+  frame_->SetElementAt(0, &heap_number);
+  done.Jump();
+
+  call_runtime.Bind();
+  // Free ST(0) which was not popped before calling into the runtime.
+  __ ffree(0);
   Result answer;
   switch (op) {
     case SIN:
@@ -3474,6 +3824,7 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
       break;
   }
   frame_->Push(&answer);
+  done.Bind();
 }
 
 
@@ -4080,8 +4431,6 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
 
 
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
-  // TODO(X64): Enable more types of slot.
-
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
@@ -4534,108 +4883,6 @@ void CodeGenerator::Comparison(Condition cc,
 }
 
 
-// Flag that indicates whether or not the code that handles smi arguments
-// should be placed in the stub, inlined, or omitted entirely.
-enum GenericBinaryFlags {
-  SMI_CODE_IN_STUB,
-  SMI_CODE_INLINED
-};
-
-
-class FloatingPointHelper : public AllStatic {
- public:
-  // Code pattern for loading a floating point value. Input value must
-  // be either a smi or a heap number object (fp value). Requirements:
-  // operand in src register. Returns operand as floating point number
-  // in XMM register
-  static void LoadFloatOperand(MacroAssembler* masm,
-                               Register src,
-                               XMMRegister dst);
-  // Code pattern for loading floating point values. Input values must
-  // be either smi or heap number objects (fp values). Requirements:
-  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
-  // floating point numbers in XMM registers.
-  static void LoadFloatOperands(MacroAssembler* masm,
-                                XMMRegister dst1,
-                                XMMRegister dst2);
-
-  // Code pattern for loading floating point values onto the fp stack.
-  // Input values must be either smi or heap number objects (fp values).
-  // Requirements:
-  // Register version: operands in registers lhs and rhs.
-  // Stack version: operands on TOS+1 and TOS+2.
-  // Returns operands as floating point numbers on fp stack.
-  static void LoadFloatOperands(MacroAssembler* masm);
-  static void LoadFloatOperands(MacroAssembler* masm,
-                                Register lhs,
-                                Register rhs);
-
-  // Code pattern for loading a floating point value and converting it
-  // to a 32 bit integer. Input value must be either a smi or a heap number
-  // object.
-  // Returns operands as 32-bit sign extended integers in a general purpose
-  // registers.
-  static void LoadInt32Operand(MacroAssembler* masm,
-                               const Operand& src,
-                               Register dst);
-
-  // Test if operands are smi or number objects (fp). Requirements:
-  // operand_1 in rax, operand_2 in rdx; falls through on float
-  // operands, jumps to the non_float label otherwise.
-  static void CheckFloatOperands(MacroAssembler* masm,
-                                 Label* non_float);
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch,
-                                 Register result);
-};
-
-
-class GenericBinaryOpStub: public CodeStub {
- public:
-  GenericBinaryOpStub(Token::Value op,
-                      OverwriteMode mode,
-                      GenericBinaryFlags flags)
-      : op_(op), mode_(mode), flags_(flags) {
-    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
-  }
-
-  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
-
- private:
-  Token::Value op_;
-  OverwriteMode mode_;
-  GenericBinaryFlags flags_;
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
-           Token::String(op_),
-           static_cast<int>(mode_),
-           static_cast<int>(flags_));
-  }
-#endif
-
-  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
-  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 13> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
-
-  Major MajorKey() { return GenericBinaryOp; }
-  int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
-    return OpBits::encode(op_)
-           | ModeBits::encode(mode_)
-           | FlagBits::encode(flags_);
-  }
-  void Generate(MacroAssembler* masm);
-};
-
-
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
   DeferredInlineBinaryOperation(Token::Value op,
@@ -4822,29 +5069,6 @@ void DeferredReferenceGetNamedValue::Generate() {
 }
 
 
-
-
-// The result of src + value is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative addition and call the appropriate
-// specialized stub for add.  The result is left in dst.
-class DeferredInlineSmiAdd: public DeferredCode {
- public:
-  DeferredInlineSmiAdd(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAdd");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiAdd::Generate() {
   __ push(dst_);
   __ push(Immediate(value_));
@@ -4854,29 +5078,8 @@ void DeferredInlineSmiAdd::Generate() {
 }
 
 
-// The result of value + src is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative addition and call the appropriate
-// specialized stub for add.  The result is left in dst.
-class DeferredInlineSmiAddReversed: public DeferredCode {
- public:
-  DeferredInlineSmiAddReversed(Register dst,
-                               Smi* value,
-                               OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAddReversed");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiAddReversed::Generate() {
-  __ push(Immediate(value_));
+  __ push(Immediate(value_));  // Note: sign extended.
   __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
   __ CallStub(&igostub);
@@ -4884,33 +5087,24 @@ void DeferredInlineSmiAddReversed::Generate() {
 }
 
 
-// The result of src - value is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative subtraction and call the
-// appropriate specialized stub for subtract.  The result is left in
-// dst.
-class DeferredInlineSmiSub: public DeferredCode {
- public:
-  DeferredInlineSmiSub(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiSub");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiSub::Generate() {
   __ push(dst_);
-  __ push(Immediate(value_));
+  __ push(Immediate(value_));  // Note: sign extended.
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
   __ CallStub(&igostub);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+void DeferredInlineSmiOperation::Generate() {
+  __ push(src_);
+  __ push(Immediate(value_));  // Note: sign extended.
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
+  __ CallStub(&stub);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -4943,6 +5137,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
   // Get the literal value.
   Smi* smi_value = Smi::cast(*value);
+  int int_value = smi_value->value();
 
   switch (op) {
     case Token::ADD: {
@@ -4971,7 +5166,162 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       frame_->Push(operand);
       break;
     }
-    // TODO(X64): Move other implementations from ia32 to here.
+
+    case Token::SUB: {
+      if (reversed) {
+        Result constant_operand(value);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
+                                                          smi_value,
+                                                          overwrite_mode);
+        __ testl(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+        // A smi currently fits in a 32-bit Immediate.
+        __ subl(operand->reg(), Immediate(smi_value));
+        Label add_success;
+        __ j(no_overflow, &add_success);
+        __ addl(operand->reg(), Immediate(smi_value));
+        deferred->Jump();
+        __ bind(&add_success);
+        deferred->BindExit();
+        frame_->Push(operand);
+      }
+      break;
+    }
+
+    case Token::SAR:
+      if (reversed) {
+        Result constant_operand(value);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        __ testl(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+        if (shift_value > 0) {
+          __ sarl(operand->reg(), Immediate(shift_value));
+          __ and_(operand->reg(), Immediate(~kSmiTagMask));
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+      }
+      break;
+
+    case Token::SHR:
+      if (reversed) {
+        Result constant_operand(value);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        Result answer = allocator()->Allocate();
+        ASSERT(answer.is_valid());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           answer.reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        __ testl(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+        __ movl(answer.reg(), operand->reg());
+        __ sarl(answer.reg(), Immediate(kSmiTagSize));
+        __ shrl(answer.reg(), Immediate(shift_value));
+        // A negative Smi shifted right two is in the positive Smi range.
+        if (shift_value < 2) {
+          __ testl(answer.reg(), Immediate(0xc0000000));
+          deferred->Branch(not_zero);
+        }
+        operand->Unuse();
+        ASSERT(kSmiTag == 0);
+        ASSERT(kSmiTagSize == 1);
+        __ addl(answer.reg(), answer.reg());
+        deferred->BindExit();
+        frame_->Push(&answer);
+      }
+      break;
+
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+      if (reversed) {
+        // Bit operations with a constant smi are commutative.
+        // We can swap left and right operands with no problem.
+        // Swap left and right overwrite modes.  0->0, 1->2, 2->1.
+        overwrite_mode = static_cast<OverwriteMode>((2 * overwrite_mode) % 3);
+      }
+      DeferredCode* deferred =  new DeferredInlineSmiOperation(op,
+                                                               operand->reg(),
+                                                               operand->reg(),
+                                                               smi_value,
+                                                               overwrite_mode);
+      __ testl(operand->reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+      if (op == Token::BIT_AND) {
+        __ and_(operand->reg(), Immediate(smi_value));
+      } else if (op == Token::BIT_XOR) {
+        if (int_value != 0) {
+          __ xor_(operand->reg(), Immediate(smi_value));
+        }
+      } else {
+        ASSERT(op == Token::BIT_OR);
+        if (int_value != 0) {
+          __ or_(operand->reg(), Immediate(smi_value));
+        }
+      }
+      deferred->BindExit();
+      frame_->Push(operand);
+      break;
+    }
+
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
+                                                                operand->reg(),
+                                                                operand->reg(),
+                                                                smi_value,
+                                                                overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ testl(operand->reg(),
+                 Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000)));
+        deferred->Branch(not_zero);
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ movl(operand->reg(), Immediate(Smi::FromInt(0)));
+        } else {
+          __ and_(operand->reg(), Immediate((int_value << kSmiTagSize) - 1));
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+        break;  // This break only applies if we generated code for MOD.
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
+      // The next case must be the default.
+
     default: {
       Result constant_operand(value);
       if (reversed) {
@@ -5380,9 +5730,20 @@ void Reference::GetValue(TypeofState typeof_state) {
         Comment cmnt(masm, "[ Inlined named property load");
         Result receiver = cgen_->frame()->Pop();
         receiver.ToRegister();
-
         Result value = cgen_->allocator()->Allocate();
         ASSERT(value.is_valid());
+        // Cannot use r12 for receiver, because that changes
+        // the distance between a call and a fixup location,
+        // due to a special encoding of r12 as r/m in a ModR/M byte.
+        if (receiver.reg().is(r12)) {
+          // Swap receiver and value.
+          __ movq(value.reg(), receiver.reg());
+          Result temp = receiver;
+          receiver = value;
+          value = temp;
+          cgen_->frame()->Spill(value.reg());  // r12 may have been shared.
+        }
+
         DeferredReferenceGetNamedValue* deferred =
             new DeferredReferenceGetNamedValue(value.reg(),
                                                receiver.reg(),
@@ -5746,7 +6107,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ and_(rcx, Immediate(kStringSizeMask));
   __ cmpq(rcx, Immediate(kShortStringTag));
   __ j(not_equal, &true_result);  // Empty string is always short.
-  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
+  __ movl(rdx, FieldOperand(rax, String::kLengthOffset));
   __ shr(rdx, Immediate(String::kShortLengthShift));
   __ j(zero, &false_result);
   __ jmp(&true_result);
@@ -6739,6 +7100,24 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
   // Tag old top and use as result.
 }
 
+
+void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
+                                           Register number) {
+  Label load_smi, done;
+
+  __ testl(number, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi);
+  __ fld_d(FieldOperand(number, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi);
+  __ sarl(number, Immediate(kSmiTagSize));
+  __ push(number);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(number);
+
+  __ bind(&done);
+}
 
 
 void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,

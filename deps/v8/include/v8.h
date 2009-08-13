@@ -901,6 +901,11 @@ class V8EXPORT String : public Primitive {
    */
   bool MakeExternal(ExternalAsciiStringResource* resource);
 
+  /**
+   * Returns true if this string can be made external.
+   */
+  bool CanMakeExternal();
+
   /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
   static Local<String> NewUndetectable(const char* data, int length = -1);
 
@@ -1097,6 +1102,12 @@ class V8EXPORT Object : public Value {
    * handler.
    */
   Local<Value> GetPrototype();
+
+  /**
+   * Finds an instance of the given function template in the prototype
+   * chain.
+   */
+  Local<Object> FindInstanceInPrototypeChain(Handle<FunctionTemplate> tmpl);
 
   /**
    * Call builtin Object.prototype.toString on this object.

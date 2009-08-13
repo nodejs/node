@@ -810,21 +810,3 @@ ecma_3/RegExp/regress-209067: SKIP
 # when the 64-bit port is fully debugged.
 
 js1_2/regexp/regress-9141: FAIL
-js1_5/Regress/regress-211590: CRASH
-js1_5/Regress/regress-303213: PASS || CRASH
-js1_5/extensions/regress-336410-2: CRASH
-js1_5/extensions/regress-336410-1: CRASH
-js1_5/Function/regress-338001: FAIL || CRASH
-js1_5/extensions/regress-371636: CRASH
-# The following failures were added when remembered sets were enabled.
-js1_5/GC/regress-203278-2: FAIL || PASS || CRASH
-js1_5/GC/regress-203278-3: FAIL || PASS
-js1_5/Regress/regress-280769-3: FAIL || PASS
-js1_5/Regress/regress-280769-4: CRASH || TIMEOUT
-js1_5/Regress/regress-290575: CRASH
-js1_5/extensions/regress-365692: FAIL || PASS
-js1_5/Regress/regress-366601: FAIL
-js1_5/Regress/regress-367561-03: CRASH
-js1_5/Regress/regress-367561-01: CRASH || PASS
-ecma/Expressions/11.7.2: CRASH
-

@@ -1244,6 +1244,26 @@ void Assembler::movzxbq(Register dst, const Operand& src) {
 }
 
 
+void Assembler::movzxbl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xB6);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movzxwl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xB7);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::mul(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

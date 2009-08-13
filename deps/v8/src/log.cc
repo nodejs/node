@@ -1151,8 +1151,8 @@ bool Logger::Setup() {
               break;
             case 't': {
               // %t expands to the current time in milliseconds.
-              uint32_t time = static_cast<uint32_t>(OS::TimeCurrentMillis());
-              stream.Add("%u", time);
+              double time = OS::TimeCurrentMillis();
+              stream.Add("%.0f", FmtElm(time));
               break;
             }
             case '%':

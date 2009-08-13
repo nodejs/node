@@ -633,6 +633,53 @@ THREADED_TEST(FunctionTemplate) {
 }
 
 
+THREADED_TEST(FindInstanceInPrototypeChain) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> base = v8::FunctionTemplate::New();
+  Local<v8::FunctionTemplate> derived = v8::FunctionTemplate::New();
+  Local<v8::FunctionTemplate> other = v8::FunctionTemplate::New();
+  derived->Inherit(base);
+
+  Local<v8::Function> base_function = base->GetFunction();
+  Local<v8::Function> derived_function = derived->GetFunction();
+  Local<v8::Function> other_function = other->GetFunction();
+
+  Local<v8::Object> base_instance = base_function->NewInstance();
+  Local<v8::Object> derived_instance = derived_function->NewInstance();
+  Local<v8::Object> derived_instance2 = derived_function->NewInstance();
+  Local<v8::Object> other_instance = other_function->NewInstance();
+  derived_instance2->Set(v8_str("__proto__"), derived_instance);
+  other_instance->Set(v8_str("__proto__"), derived_instance2);
+
+  // base_instance is only an instance of base.
+  CHECK_EQ(base_instance,
+           base_instance->FindInstanceInPrototypeChain(base));
+  CHECK(base_instance->FindInstanceInPrototypeChain(derived).IsEmpty());
+  CHECK(base_instance->FindInstanceInPrototypeChain(other).IsEmpty());
+
+  // derived_instance is an instance of base and derived.
+  CHECK_EQ(derived_instance,
+           derived_instance->FindInstanceInPrototypeChain(base));
+  CHECK_EQ(derived_instance,
+           derived_instance->FindInstanceInPrototypeChain(derived));
+  CHECK(derived_instance->FindInstanceInPrototypeChain(other).IsEmpty());
+
+  // other_instance is an instance of other and its immediate
+  // prototype derived_instance2 is an instance of base and derived.
+  // Note, derived_instance is an instance of base and derived too,
+  // but it comes after derived_instance2 in the prototype chain of
+  // other_instance.
+  CHECK_EQ(derived_instance2,
+           other_instance->FindInstanceInPrototypeChain(base));
+  CHECK_EQ(derived_instance2,
+           other_instance->FindInstanceInPrototypeChain(derived));
+  CHECK_EQ(other_instance,
+           other_instance->FindInstanceInPrototypeChain(other));
+}
+
+
 static v8::Handle<Value> handle_property(Local<String> name,
                                          const AccessorInfo&) {
   ApiTestFuzzer::Fuzz();

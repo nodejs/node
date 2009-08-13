@@ -183,9 +183,6 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
-  bool in_spilled_code() const { return in_spilled_code_; }
-  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
-
   static const int kUnknownIntValue = -1;
 
  private:
@@ -222,11 +219,11 @@ class CodeGenerator: public AstVisitor {
   // reach the end of the statement (ie, it does not exit via break,
   // continue, return, or throw).  This function is used temporarily while
   // the code generator is being transformed.
-  void VisitAndSpill(Statement* statement);
+  inline void VisitAndSpill(Statement* statement);
 
   // Visit a list of statements and then spill the virtual frame if control
   // flow can reach the end of the list.
-  void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
+  inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -263,17 +260,17 @@ class CodeGenerator: public AstVisitor {
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  void LoadAndSpill(Expression* expression,
-                    TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  inline void LoadAndSpill(Expression* expression,
+                           TypeofState typeof_state = NOT_INSIDE_TYPEOF);
 
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
   // unconditional jumps to the control targets).
-  void LoadConditionAndSpill(Expression* expression,
-                             TypeofState typeof_state,
-                             JumpTarget* true_target,
-                             JumpTarget* false_target,
-                             bool force_control);
+  inline void LoadConditionAndSpill(Expression* expression,
+                                    TypeofState typeof_state,
+                                    JumpTarget* true_target,
+                                    JumpTarget* false_target,
+                                    bool force_control);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -405,12 +402,6 @@ class CodeGenerator: public AstVisitor {
   // to some unlinking code).
   bool function_return_is_shadowed_;
 
-  // True when we are in code that expects the virtual frame to be fully
-  // spilled.  Some virtual frame function are disabled in DEBUG builds when
-  // called from spilled code, because they do not leave the virtual frame
-  // in a spilled state.
-  bool in_spilled_code_;
-
   static InlineRuntimeLUT kInlineRuntimeLUT[];
 
   friend class VirtualFrame;
@@ -418,6 +409,96 @@ class CodeGenerator: public AstVisitor {
   friend class Reference;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
+class GenericBinaryOpStub : public CodeStub {
+ public:
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode,
+                      int constant_rhs = CodeGenerator::kUnknownIntValue)
+      : op_(op),
+        mode_(mode),
+        constant_rhs_(constant_rhs),
+        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)) { }
+
+ private:
+  Token::Value op_;
+  OverwriteMode mode_;
+  int constant_rhs_;
+  bool specialized_on_rhs_;
+
+  static const int kMaxKnownRhs = 0x40000000;
+
+  // Minor key encoding in 16 bits.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 6> {};
+  class KnownIntBits: public BitField<int, 8, 8> {};
+
+  Major MajorKey() { return GenericBinaryOp; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | KnownIntBits::encode(MinorKeyForKnownInt());
+  }
+
+  void Generate(MacroAssembler* masm);
+  void HandleNonSmiBitwiseOp(MacroAssembler* masm);
+
+  static bool RhsIsOneWeWantToOptimizeFor(Token::Value op, int constant_rhs) {
+    if (constant_rhs == CodeGenerator::kUnknownIntValue) return false;
+    if (op == Token::DIV) return constant_rhs >= 2 && constant_rhs <= 3;
+    if (op == Token::MOD) {
+      if (constant_rhs <= 1) return false;
+      if (constant_rhs <= 10) return true;
+      if (constant_rhs <= kMaxKnownRhs && IsPowerOf2(constant_rhs)) return true;
+      return false;
+    }
+    return false;
+  }
+
+  int MinorKeyForKnownInt() {
+    if (!specialized_on_rhs_) return 0;
+    if (constant_rhs_ <= 10) return constant_rhs_ + 1;
+    ASSERT(IsPowerOf2(constant_rhs_));
+    int key = 12;
+    int d = constant_rhs_;
+    while ((d & 1) == 0) {
+      key++;
+      d >>= 1;
+    }
+    return key;
+  }
+
+  const char* GetName() {
+    switch (op_) {
+      case Token::ADD: return "GenericBinaryOpStub_ADD";
+      case Token::SUB: return "GenericBinaryOpStub_SUB";
+      case Token::MUL: return "GenericBinaryOpStub_MUL";
+      case Token::DIV: return "GenericBinaryOpStub_DIV";
+      case Token::MOD: return "GenericBinaryOpStub_MOD";
+      case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+      case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+      case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+      case Token::SAR: return "GenericBinaryOpStub_SAR";
+      case Token::SHL: return "GenericBinaryOpStub_SHL";
+      case Token::SHR: return "GenericBinaryOpStub_SHR";
+      default:         return "GenericBinaryOpStub";
+    }
+  }
+
+#ifdef DEBUG
+  void Print() {
+    if (!specialized_on_rhs_) {
+      PrintF("GenericBinaryOpStub (%s)\n", Token::String(op_));
+    } else {
+      PrintF("GenericBinaryOpStub (%s by %d)\n",
+             Token::String(op_),
+             constant_rhs_);
+    }
+  }
+#endif
 };
 
 

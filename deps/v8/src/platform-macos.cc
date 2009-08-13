@@ -515,35 +515,31 @@ class Sampler::PlatformData : public Malloced {
         thread_state_flavor_t flavor = x86_THREAD_STATE64;
         x86_thread_state64_t state;
         mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+#if __DARWIN_UNIX03
+#define REGISTER_FIELD(name) __r ## name
+#else
+#define REGISTER_FIELD(name) r ## name
+#endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
         thread_state_flavor_t flavor = i386_THREAD_STATE;
         i386_thread_state_t state;
         mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
+#if __DARWIN_UNIX03
+#define REGISTER_FIELD(name) __e ## name
+#else
+#define REGISTER_FIELD(name) e ## name
+#endif  // __DARWIN_UNIX03
 #else
 #error Unsupported Mac OS X host architecture.
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_HOST_ARCH
+
         if (thread_get_state(profiled_thread_,
                              flavor,
                              reinterpret_cast<natural_t*>(&state),
                              &count) == KERN_SUCCESS) {
-#if V8_HOST_ARCH_X64
-          UNIMPLEMENTED();
-          sample.pc = 0;
-          sample.sp = 0;
-          sample.fp = 0;
-#elif V8_HOST_ARCH_IA32
-#if __DARWIN_UNIX03
-          sample.pc = state.__eip;
-          sample.sp = state.__esp;
-          sample.fp = state.__ebp;
-#else  // !__DARWIN_UNIX03
-          sample.pc = state.eip;
-          sample.sp = state.esp;
-          sample.fp = state.ebp;
-#endif  // __DARWIN_UNIX03
-#else
-#error Unsupported Mac OS X host architecture.
-#endif  // V8_HOST_ARCH_IA32
+          sample.pc = state.REGISTER_FIELD(ip);
+          sample.sp = state.REGISTER_FIELD(sp);
+          sample.fp = state.REGISTER_FIELD(bp);
           sampler_->SampleStack(&sample);
         }
         thread_resume(profiled_thread_);
@@ -559,6 +555,8 @@ class Sampler::PlatformData : public Malloced {
     }
   }
 };
+
+#undef REGISTER_FIELD
 
 
 // Entry point for sampler thread.

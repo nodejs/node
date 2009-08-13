@@ -127,20 +127,19 @@ Address Page::ComputeRSetBitPosition(Address address, int offset,
 
   if (rset_address >= page->RSetEnd()) {
     // We have a large object page, and the remembered set address is actually
-    // past the end of the object.  The address of the remembered set in this
-    // case is the extra remembered set start address at the address of the
-    // end of the object:
+    // past the end of the object.
+
+    // The first part of the remembered set is still located at the start of
+    // the page, but anything after kRSetEndOffset must be relocated to after
+    // the large object, i.e. after
     //   (page->ObjectAreaStart() + object size)
-    // plus the offset of the computed remembered set address from the start
-    // of the object:
-    //   (rset_address - page->ObjectAreaStart()).
-    // Ie, we can just add the object size.
-    // In the X64 architecture, the remembered set ends before the object start,
-    // so we need to add an additional offset, from rset end to object start
+    // We do that by adding the difference between the normal RSet's end and
+    // the object's end.
     ASSERT(HeapObject::FromAddress(address)->IsFixedArray());
-    rset_address += kObjectStartOffset - kRSetEndOffset +
+    int fixedarray_length =
         FixedArray::SizeFor(Memory::int_at(page->ObjectAreaStart()
                                            + Array::kLengthOffset));
+    rset_address += kObjectStartOffset - kRSetEndOffset + fixedarray_length;
   }
   return rset_address;
 }

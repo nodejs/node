@@ -227,6 +227,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
   inline void SafeCall(Label* to);
   inline void SafeReturn();
+  inline void SafeCallTarget(Label* name);
 
   // Pushes the value of a register on the backtrack stack. Decrements the
   // stack pointer (ecx) by a word size and stores the register's value there.

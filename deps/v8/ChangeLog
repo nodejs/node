@@ -1,3 +1,21 @@
+2009-08-12: Version 1.3.3
+
+        Fix issue 417: incorrect %t placeholder expansion.
+
+        Add .gitignore file similar to Chromium's one.
+
+        Fix SConstruct file to build with new logging code for Android.
+
+        API: added function to find instance of template in prototype
+        chain.  Inlined Object::IsInstanceOf.
+
+        Land change to notify valgrind when we modify code on x86.
+
+        Add api call to determine whether a string can be externalized.
+
+        Add a write() command to d8.
+
+
 2009-08-05: Version 1.3.2
 
         Started new compiler infrastructure for two-pass compilation using a

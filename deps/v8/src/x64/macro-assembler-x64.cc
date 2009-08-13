@@ -53,43 +53,50 @@ static void RecordWriteHelper(MacroAssembler* masm,
                               Register scratch) {
   Label fast;
 
-  // Compute the page address from the heap object pointer, leave it
-  // in 'object'.
+  // Compute the page start address from the heap object pointer, and reuse
+  // the 'object' register for it.
   ASSERT(is_int32(~Page::kPageAlignmentMask));
   masm->and_(object,
              Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
+  Register page_start = object;
 
-  // Compute the bit addr in the remembered set, leave it in "addr".
-  masm->subq(addr, object);
+  // Compute the bit addr in the remembered set/index of the pointer in the
+  // page. Reuse 'addr' as pointer_offset.
+  masm->subq(addr, page_start);
   masm->shr(addr, Immediate(kPointerSizeLog2));
+  Register pointer_offset = addr;
 
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
-  masm->cmpq(addr, Immediate(Page::kPageSize / kPointerSize));
+  masm->cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
   masm->j(less, &fast);
 
-  // Adjust 'addr' to be relative to the start of the extra remembered set
-  // and the page address in 'object' to be the address of the extra
-  // remembered set.
-  masm->subq(addr, Immediate(Page::kPageSize / kPointerSize));
+  // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
+  // extra remembered set after the large object.
+
   // Load the array length into 'scratch'.
   masm->movl(scratch,
-             Operand(object,
+             Operand(page_start,
                      Page::kObjectStartOffset + FixedArray::kLengthOffset));
-  // Extra remembered set starts right after FixedArray.
-  // Add the page header, array header, and array body size
-  // (length * pointer size) to the page address to find the extra remembered
-  // set start.
-  masm->lea(object,
-            Operand(object, scratch, times_pointer_size,
-                    Page::kObjectStartOffset + FixedArray::kHeaderSize));
+  Register array_length = scratch;
+
+  // Extra remembered set starts right after the large object (a FixedArray), at
+  //   page_start + kObjectStartOffset + objectSize
+  // where objectSize is FixedArray::kHeaderSize + kPointerSize * array_length.
+  // Add the delta between the end of the normal RSet and the start of the
+  // extra RSet to 'page_start', so that addressing the bit using
+  // 'pointer_offset' hits the extra RSet words.
+  masm->lea(page_start,
+            Operand(page_start, array_length, times_pointer_size,
+                    Page::kObjectStartOffset + FixedArray::kHeaderSize
+                        - Page::kRSetEndOffset));
 
   // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
   // to limit code size. We should probably evaluate this decision by
   // measuring the performance of an equivalent implementation using
   // "simpler" instructions
   masm->bind(&fast);
-  masm->bts(Operand(object, Page::kRSetOffset), addr);
+  masm->bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
 }
 
 
@@ -181,7 +188,7 @@ void MacroAssembler::RecordWrite(Register object,
     } else {
       // array access: calculate the destination address in the same manner as
       // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 4 to get an offset
-      // into an array of words.
+      // into an array of pointers.
       lea(dst, Operand(object, dst, times_half_pointer_size,
                        FixedArray::kHeaderSize - kHeapObjectTag));
     }

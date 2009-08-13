@@ -965,6 +965,7 @@ Result VirtualFrame::CallConstructor(int arg_count) {
 
 
 void VirtualFrame::Drop(int count) {
+  ASSERT(count >= 0);
   ASSERT(height() >= count);
   int num_virtual_elements = (element_count() - 1) - stack_pointer_;
 

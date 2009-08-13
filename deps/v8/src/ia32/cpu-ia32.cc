@@ -27,6 +27,10 @@
 
 // CPU specific code for ia32 independent of OS goes here.
 
+#ifdef __GNUC__
+#include "third_party/valgrind/valgrind.h"
+#endif
+
 #include "v8.h"
 
 #include "cpu.h"
@@ -49,6 +53,15 @@ void CPU::FlushICache(void* start, size_t size) {
 
   // If flushing of the instruction cache becomes necessary Windows has the
   // API function FlushInstructionCache.
+
+  // By default, valgrind only checks the stack for writes that might need to
+  // invalidate already cached translated code.  This leads to random
+  // instability when code patches or moves are sometimes unnoticed.  One
+  // solution is to run valgrind with --smc-check=all, but this comes at a big
+  // performance cost.  We can notify valgrind to invalidate its cache.
+#ifdef VALGRIND_DISCARD_TRANSLATIONS
+  VALGRIND_DISCARD_TRANSLATIONS(start, size);
+#endif
 }
 
 

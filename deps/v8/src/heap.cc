@@ -74,7 +74,7 @@ int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 #else
-int Heap::semispace_size_  = 8*MB;
+int Heap::semispace_size_  = 4*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 #endif
@@ -641,11 +641,11 @@ void Heap::Scavenge() {
 
   if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
       survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Double the size of new space if there is room to grow and enough
+    // Grow the size of new space if there is room to grow and enough
     // data has survived scavenge since the last expansion.
-    // TODO(1240712): NewSpace::Double has a return value which is
+    // TODO(1240712): NewSpace::Grow has a return value which is
     // ignored here.
-    new_space_.Double();
+    new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }
 
@@ -1669,7 +1669,7 @@ Object* Heap::AllocateSlicedString(String* buffer,
   int length = end - start;
 
   // If the resulting string is small make a sub string.
-  if (end - start <= String::kMinNonFlatLength) {
+  if (length <= String::kMinNonFlatLength) {
     return Heap::AllocateSubString(buffer, start, end);
   }
 

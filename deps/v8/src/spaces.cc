@@ -963,13 +963,13 @@ void NewSpace::Flip() {
 }
 
 
-bool NewSpace::Double() {
-  ASSERT(capacity_ <= maximum_capacity_ / 2);
+bool NewSpace::Grow() {
+  ASSERT(capacity_ < maximum_capacity_);
   // TODO(1240712): Failure to double the from space can result in
   // semispaces of different sizes.  In the event of that failure, the
   // to space doubling should be rolled back before returning false.
-  if (!to_space_.Double() || !from_space_.Double()) return false;
-  capacity_ *= 2;
+  if (!to_space_.Grow() || !from_space_.Grow()) return false;
+  capacity_ = to_space_.Capacity() + from_space_.Capacity();
   allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
   return true;
@@ -1074,11 +1074,16 @@ void SemiSpace::TearDown() {
 }
 
 
-bool SemiSpace::Double() {
-  if (!MemoryAllocator::CommitBlock(high(), capacity_, executable())) {
+bool SemiSpace::Grow() {
+  // Commit 50% extra space but only up to maximum capacity.
+  int extra = capacity_/2;
+  if (capacity_ + extra > maximum_capacity_) {
+    extra = maximum_capacity_ - capacity_;
+  }
+  if (!MemoryAllocator::CommitBlock(high(), extra, executable())) {
     return false;
   }
-  capacity_ *= 2;
+  capacity_ += extra;
   return true;
 }
 
