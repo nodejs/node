@@ -423,8 +423,6 @@ node.http.createClient = function (port, host) {
   };
 
   client.addListener("connect", function () {
-    //node.debug("HTTP CLIENT onConnect. readyState = " + client.readyState);
-    //node.debug("client.requests[0].uri = '" + client.requests[0].uri + "'");
     requests[0].flush();
   });
 
@@ -439,11 +437,11 @@ node.http.createClient = function (port, host) {
       return;
     }
      
-    //node.debug("HTTP CLIENT onDisconnect. readyState = " + client.readyState);
+    node.debug("HTTP CLIENT onDisconnect. readyState = " + client.readyState);
 
     // If there are more requests to handle, reconnect.
     if (requests.length > 0 && client.readyState != "opening") {
-      //node.debug("HTTP CLIENT: reconnecting readyState = " + client.readyState);
+      node.debug("HTTP CLIENT: reconnecting readyState = " + client.readyState);
       client.connect(port, host); // reconnect
     }
   });

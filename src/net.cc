@@ -29,6 +29,7 @@ using namespace node;
 #define OPENING_SYMBOL      String::NewSymbol("opening")
 #define READ_ONLY_SYMBOL    String::NewSymbol("readOnly")
 #define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
+#define CLOSING_SYMBOL      String::NewSymbol("closing")
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
 static const struct addrinfo server_tcp_hints = 
@@ -84,12 +85,16 @@ Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
 
   assert(property == READY_STATE_SYMBOL);
 
-  switch(connection->ReadyState()) {
-    case OPEN: return scope.Close(OPEN_SYMBOL);
-    case OPENING: return scope.Close(OPENING_SYMBOL);
-    case CLOSED: return scope.Close(CLOSED_SYMBOL);
-    case READ_ONLY: return scope.Close(READ_ONLY_SYMBOL);
-    case WRITE_ONLY: return scope.Close(WRITE_ONLY_SYMBOL);
+  if (connection->resolving_) return scope.Close(OPENING_SYMBOL);
+
+  switch (evcom_stream_state(&connection->stream_)) {
+    case EVCOM_INITIALIZED:  return scope.Close(CLOSED_SYMBOL);
+    case EVCOM_CONNECTING:   return scope.Close(OPENING_SYMBOL);
+    case EVCOM_CONNECTED_RW: return scope.Close(OPEN_SYMBOL);
+    case EVCOM_CONNECTED_RO: return scope.Close(READ_ONLY_SYMBOL);
+    case EVCOM_CONNECTED_WO: return scope.Close(WRITE_ONLY_SYMBOL);
+    case EVCOM_CLOSING:      return scope.Close(CLOSING_SYMBOL);
+    case EVCOM_CLOSED:       return scope.Close(CLOSED_SYMBOL);
   }
 
   assert(0 && "This shouldnt happen");
@@ -99,12 +104,11 @@ Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
 void
 Connection::Init (void)
 {
-  opening = false;
+  resolving_ = false;
   double timeout = 60.0; // default
   evcom_stream_init(&stream_, timeout);
   stream_.on_connect = Connection::on_connect;
   stream_.on_read    = Connection::on_read;
-  stream_.on_drain   = Connection::on_drain;
   stream_.on_close   = Connection::on_close;
   stream_.on_timeout = Connection::on_timeout;
   stream_.data = this;
@@ -127,30 +131,6 @@ Connection::New (const Arguments& args)
   return args.This();
 }
 
-enum Connection::readyState
-Connection::ReadyState (void)
-{
-  if (stream_.flags & EVCOM_GOT_FULL_CLOSE)
-    return CLOSED;
-
-  if (stream_.flags & EVCOM_GOT_HALF_CLOSE)
-    return (stream_.read_action == NULL ? CLOSED : READ_ONLY);
-
-  if (stream_.read_action && stream_.write_action)
-    return OPEN;
-
-  else if (stream_.write_action)
-    return WRITE_ONLY;
-
-  else if (stream_.read_action)
-    return READ_ONLY;
-
-  else if (opening)
-    return OPENING;
-  
-  return CLOSED;
-}
-
 Handle<Value>
 Connection::Connect (const Arguments& args)
 {
@@ -160,16 +140,16 @@ Connection::Connect (const Arguments& args)
 
   HandleScope scope;
 
-  if (connection->ReadyState() != CLOSED) {
-    return ThrowException(String::New("Socket is not in CLOSED state."));
-  } else {
-    // XXX ugly.
-    connection->Init(); // in case we're reusing the socket... ?
+  if (connection->ReadyState() == EVCOM_CLOSED) {
+    connection->Init(); // in case we're reusing the socket
+    assert(connection->ReadyState() == EVCOM_INITIALIZED);
   }
 
+  if (connection->ReadyState() != EVCOM_INITIALIZED) {
+    return ThrowException(String::New("Socket is not in CLOSED state."));
+  } 
+
   assert(connection->stream_.fd < 0);
-  assert(connection->stream_.read_action == NULL);
-  assert(connection->stream_.write_action == NULL);
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must specify a port."));
@@ -184,7 +164,7 @@ Connection::Connect (const Arguments& args)
     connection->host_ = strdup(*host_sv);
   }
 
-  connection->opening = true;
+  connection->resolving_ = true;
 
   ev_ref(EV_DEFAULT_UC);
 
@@ -220,7 +200,7 @@ Connection::Resolve (eio_req *req)
   struct addrinfo *address = NULL;
 
   assert(connection->attached_);
-  assert(connection->opening);
+  assert(connection->resolving_);
 
   req->result = getaddrinfo(connection->host_, connection->port_, 
                             &client_tcp_hints, &address);
@@ -258,7 +238,7 @@ Connection::AfterResolve (eio_req *req)
 
   Connection *connection = static_cast<Connection*> (req->data);
 
-  assert(connection->opening);
+  assert(connection->resolving_);
   assert(connection->attached_);
 
   struct addrinfo *address = NULL,
@@ -266,7 +246,7 @@ Connection::AfterResolve (eio_req *req)
 
   address = AddressDefaultToIPv4(address_list);
 
-  connection->opening = false;
+  connection->resolving_ = false;
 
   int r = 0;
   if (req->result == 0) r = connection->Connect(address->ai_addr);
@@ -274,7 +254,7 @@ Connection::AfterResolve (eio_req *req)
   if (address_list) freeaddrinfo(address_list); 
 
   // no error. return.
-  if (r == 0 && req->result == 0) {
+  if (req->result == 0) {
     evcom_stream_attach (EV_DEFAULT_UC_ &connection->stream_);
     goto out;
   }
@@ -285,7 +265,7 @@ Connection::AfterResolve (eio_req *req)
    * The fact that I'm modifying a read-only variable here should be 
    * good evidence of this.
    */
-  connection->stream_.errorno = r | req->result;
+  connection->stream_.errorno = req->result;
 
   connection->OnDisconnect();
 
@@ -395,10 +375,12 @@ Connection::Send (const Arguments& args)
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
 
-  if ( connection->ReadyState() != OPEN 
-    && connection->ReadyState() != WRITE_ONLY
-     ) 
+  if ( connection->ReadyState() != EVCOM_CONNECTED_RW 
+    && connection->ReadyState() != EVCOM_CONNECTED_WO
+     )
+  { 
     return ThrowException(String::New("Socket is not open for writing"));
+  }
 
   // XXX
   // A lot of improvement can be made here. First of all we're allocating
@@ -492,7 +474,6 @@ void name ()                                                        \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "connect")
-DEFINE_SIMPLE_CALLBACK(Connection::OnDrain, "drain")
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "timeout")
 DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "eof")
 

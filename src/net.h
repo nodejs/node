@@ -56,18 +56,19 @@ protected:
 
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
-  virtual void OnDrain (void);
   virtual void OnEOF (void);
   virtual void OnDisconnect (void);
   virtual void OnTimeout (void);
 
   v8::Local<v8::Object> GetProtocol (void);
 
+  enum evcom_stream_state ReadyState ( ) {
+    return evcom_stream_state(&stream_);
+  }
+
   enum encoding encoding_;
 
-  enum readyState { OPEN, OPENING, CLOSED, READ_ONLY, WRITE_ONLY };
-  bool opening;
-  enum readyState ReadyState (void);
+  bool resolving_;
 
 private:
 
@@ -86,17 +87,12 @@ private:
       connection->OnReceive(buf, len);
   }
 
-  static void on_drain (evcom_stream *s) {
-    Connection *connection = static_cast<Connection*> (s->data);
-    connection->OnDrain();
-  }
-
   static void on_close (evcom_stream *s) {
     Connection *connection = static_cast<Connection*> (s->data);
 
+    evcom_stream_detach(s);
+
     assert(connection->stream_.fd < 0);
-    assert(connection->stream_.read_action == NULL);
-    assert(connection->stream_.write_action == NULL);
 
     connection->OnDisconnect();
 
@@ -171,9 +167,10 @@ private:
   }
 
   void OnClose (int errorno);
-  static void on_close (evcom_server *s, int errorno) {
+  static void on_close (evcom_server *s) {
     Server *server = static_cast<Server*> (s->data);
-    server->OnClose(errorno);
+    evcom_server_detach(s);
+    server->OnClose(s->errorno);
     server->Detach();
   }
 
