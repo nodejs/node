@@ -282,9 +282,12 @@ select_init (EV_P_ int flags)
 #else
   vec_max = 0;
   vec_ri  = 0; 
-  vec_ri  = 0;   
+  vec_ro  = 0;   
+  vec_wi  = 0; 
   vec_wo  = 0; 
-  vec_wo  = 0; 
+  #ifdef _WIN32
+  vec_eo  = 0;
+  #endif
 #endif
 
   return EVBACKEND_SELECT;
@@ -297,6 +300,9 @@ select_destroy (EV_P)
   ev_free (vec_ro);
   ev_free (vec_wi);
   ev_free (vec_wo);
+  #ifdef _WIN32
+  ev_free (vec_eo);
+  #endif
 }
 
 

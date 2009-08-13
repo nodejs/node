@@ -37,8 +37,8 @@
  * either the BSD or the GPL.
  */
 
-#ifndef EVENT_H__
-#define EVENT_H__
+#ifndef EVENT_H_
+#define EVENT_H_
 
 #ifdef EV_H
 # include EV_H

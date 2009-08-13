@@ -37,8 +37,8 @@
  * either the BSD or the GPL.
  */
 
-#ifndef EV_H__
-#define EV_H__
+#ifndef EV_H_
+#define EV_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -163,7 +163,7 @@ struct ev_loop;
 #endif
 
 #define EV_VERSION_MAJOR 3
-#define EV_VERSION_MINOR 7
+#define EV_VERSION_MINOR 8
 
 #ifndef EV_CB_DECLARE
 # define EV_CB_DECLARE(type) void (*cb)(EV_P_ struct type *w, int revents);
@@ -404,6 +404,9 @@ union ev_any_watcher
 /* flag bits */
 #define EVFLAG_NOENV      0x01000000U /* do NOT consult environment */
 #define EVFLAG_FORKCHECK  0x02000000U /* check for a fork in each iteration */
+/* debugging/feature disable */
+#define EVFLAG_NOINOTIFY  0x00100000U /* do not attempt to use inotify */
+#define EVFLAG_NOSIGFD    0x00200000U /* do not attempt to use signalfd */
 /* method bits to be ored together */
 #define EVBACKEND_SELECT  0x00000001U /* about anywhere */
 #define EVBACKEND_POLL    0x00000002U /* !win */

@@ -100,13 +100,14 @@ watcher.
 Libev supports C<select>, C<poll>, the Linux-specific C<epoll>, the
 BSD-specific C<kqueue> and the Solaris-specific event port mechanisms
 for file descriptor events (C<ev_io>), the Linux C<inotify> interface
-(for C<ev_stat>), relative timers (C<ev_timer>), absolute timers
-with customised rescheduling (C<ev_periodic>), synchronous signals
-(C<ev_signal>), process status change events (C<ev_child>), and event
-watchers dealing with the event loop mechanism itself (C<ev_idle>,
-C<ev_embed>, C<ev_prepare> and C<ev_check> watchers) as well as
-file watchers (C<ev_stat>) and even limited support for fork events
-(C<ev_fork>).
+(for C<ev_stat>), Linux eventfd/signalfd (for faster and cleaner
+inter-thread wakeup (C<ev_async>)/signal handling (C<ev_signal>)) relative
+timers (C<ev_timer>), absolute timers with customised rescheduling
+(C<ev_periodic>), synchronous signals (C<ev_signal>), process status
+change events (C<ev_child>), and event watchers dealing with the event
+loop mechanism itself (C<ev_idle>, C<ev_embed>, C<ev_prepare> and
+C<ev_check> watchers) as well as file watchers (C<ev_stat>) and even
+limited support for fork events (C<ev_fork>).
 
 It also is quite fast (see this
 L<benchmark|http://libev.schmorp.de/bench.html> comparing it to libevent
@@ -364,6 +365,21 @@ flag.
 This flag setting cannot be overridden or specified in the C<LIBEV_FLAGS>
 environment variable.
 
+=item C<EVFLAG_NOINOTIFY>
+
+When this flag is specified, then libev will not attempt to use the
+I<inotify> API for it's C<ev_stat> watchers. Apart from debugging and
+testing, this flag can be useful to conserve inotify file descriptors, as
+otherwise each loop using C<ev_stat> watchers consumes one inotify handle.
+
+=item C<EVFLAG_NOSIGNALFD>
+
+When this flag is specified, then libev will not attempt to use the
+I<signalfd> API for it's C<ev_signal> (and C<ev_child>) watchers. This is
+probably only useful to work around any bugs in libev. Consequently, this
+flag might go away once the signalfd functionality is considered stable,
+so it's useful mostly in environment variables and not in program code.
+
 =item C<EVBACKEND_SELECT>  (value 1, portable select backend)
 
 This is your standard select(2) backend. Not I<completely> standard, as
@@ -520,9 +536,10 @@ It is definitely not recommended to use this flag.
 
 =back
 
-If one or more of these are or'ed into the flags value, then only these
-backends will be tried (in the reverse order as listed here). If none are
-specified, all backends in C<ev_recommended_backends ()> will be tried.
+If one or more of the backend flags are or'ed into the flags value,
+then only these backends will be tried (in the reverse order as listed
+here). If none are specified, all backends in C<ev_recommended_backends
+()> will be tried.
 
 Example: This is the most typical usage.
 
@@ -2078,22 +2095,31 @@ signal one or more times. Even though signals are very asynchronous, libev
 will try it's best to deliver signals synchronously, i.e. as part of the
 normal event processing, like any other event.
 
-If you want signals asynchronously, just use C<sigaction> as you would
-do without libev and forget about sharing the signal. You can even use
-C<ev_async> from a signal handler to synchronously wake up an event loop.
+If you want signals to be delivered truly asynchronously, just use
+C<sigaction> as you would do without libev and forget about sharing
+the signal. You can even use C<ev_async> from a signal handler to
+synchronously wake up an event loop.
 
-You can configure as many watchers as you like per signal. Only when the
-first watcher gets started will libev actually register a signal handler
+You can configure as many watchers as you like for the same signal, but
+only within the same loop, i.e. you can watch for C<SIGINT> in your
+default loop and for C<SIGIO> in another loop, but you cannot watch for
+C<SIGINT> in both the default loop and another loop at the same time. At
+the moment, C<SIGCHLD> is permanently tied to the default loop.
+
+When the first watcher gets started will libev actually register something
 with the kernel (thus it coexists with your own signal handlers as long as
-you don't register any with libev for the same signal). Similarly, when
-the last signal watcher for a signal is stopped, libev will reset the
-signal handler to SIG_DFL (regardless of what it was set to before).
+you don't register any with libev for the same signal).
+
+Both the signal mask state (C<sigprocmask>) and the signal handler state
+(C<sigaction>) are unspecified after starting a signal watcher (and after
+sotpping it again), that is, libev might or might not block the signal,
+and might or might not set or restore the installed signal handler.
 
 If possible and supported, libev will install its handlers with
-C<SA_RESTART> behaviour enabled, so system calls should not be unduly
-interrupted. If you have a problem with system calls getting interrupted by
-signals you can block all signals in an C<ev_check> watcher and unblock
-them in an C<ev_prepare> watcher.
+C<SA_RESTART> (or equivalent) behaviour enabled, so system calls should
+not be unduly interrupted. If you have a problem with system calls getting
+interrupted by signals you can block all signals in an C<ev_check> watcher
+and unblock them in an C<ev_prepare> watcher.
 
 =head3 Watcher-Specific Functions and Data Members
 
@@ -2148,8 +2174,8 @@ libev)
 =head3 Process Interaction
 
 Libev grabs C<SIGCHLD> as soon as the default event loop is
-initialised. This is necessary to guarantee proper behaviour even if
-the first child watcher is started after the child exits. The occurrence
+initialised. This is necessary to guarantee proper behaviour even if the
+first child watcher is started after the child exits. The occurrence
 of C<SIGCHLD> is recorded asynchronously, but child reaping is done
 synchronously as part of the event loop processing. Libev always reaps all
 children, even ones not watched.
@@ -2169,7 +2195,8 @@ that, so other libev users can use C<ev_child> watchers freely.
 Currently, the child watcher never gets stopped, even when the
 child terminates, so normally one needs to stop the watcher in the
 callback. Future versions of libev might stop the watcher automatically
-when a child exit is detected.
+when a child exit is detected (calling C<ev_child_stop> twice is not a
+problem).
 
 =head3 Watcher-Specific Functions and Data Members
 
@@ -3382,6 +3409,12 @@ be found at L<http://proj.llucax.com.ar/wiki/evd>.
 Erkki Seppala has written Ocaml bindings for libev, to be found at
 L<http://modeemi.cs.tut.fi/~flux/software/ocaml-ev/>.
 
+=item Lua
+
+Brian Maher has written a partial interface to libev
+for lua (only C<ev_io> and C<ev_timer>), to be found at
+L<http://github.com/brimworks/lua-ev>.
+
 =back
 
 
@@ -3557,7 +3590,7 @@ implementations for some libevent functions (such as logging, which is not
 supported). It will also not define any of the structs usually found in
 F<event.h> that are not directly supported by the libev core alone.
 
-In stanbdalone mode, libev will still try to automatically deduce the
+In standalone mode, libev will still try to automatically deduce the
 configuration, but has to be more conservative.
 
 =item EV_USE_MONOTONIC
@@ -3793,6 +3826,15 @@ Defining C<EV_MINIMAL> to C<2> will additionally reduce the core API to
 provide a bare-bones event library. See C<ev.h> for details on what parts
 of the API are still available, and do not complain if this subset changes
 over time.
+
+=item EV_NSIG
+
+The highest supported signal number, +1 (or, the number of
+signals): Normally, libev tries to deduce the maximum number of signals
+automatically, but sometimes this fails, in which case it can be
+specified. Also, using a lower number than detected (C<32> should be
+good for about any system in existance) can save some memory, as libev
+statically allocates some 12-24 bytes per signal number.
 
 =item EV_PID_HASHSIZE
 

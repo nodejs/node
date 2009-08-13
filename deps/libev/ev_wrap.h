@@ -69,7 +69,7 @@
 #define forks ((loop)->forks)
 #define forkmax ((loop)->forkmax)
 #define forkcnt ((loop)->forkcnt)
-#define gotasync ((loop)->gotasync)
+#define async_pending ((loop)->async_pending)
 #define asyncs ((loop)->asyncs)
 #define asyncmax ((loop)->asyncmax)
 #define asynccnt ((loop)->asynccnt)
@@ -77,6 +77,10 @@
 #define fs_w ((loop)->fs_w)
 #define fs_2625 ((loop)->fs_2625)
 #define fs_hash ((loop)->fs_hash)
+#define sig_pending ((loop)->sig_pending)
+#define sigfd ((loop)->sigfd)
+#define sigfd_w ((loop)->sigfd_w)
+#define sigfd_set ((loop)->sigfd_set)
 #define loop_count ((loop)->loop_count)
 #define loop_depth ((loop)->loop_depth)
 #define userdata ((loop)->userdata)
@@ -153,7 +157,7 @@
 #undef forks
 #undef forkmax
 #undef forkcnt
-#undef gotasync
+#undef async_pending
 #undef asyncs
 #undef asyncmax
 #undef asynccnt
@@ -161,6 +165,10 @@
 #undef fs_w
 #undef fs_2625
 #undef fs_hash
+#undef sig_pending
+#undef sigfd
+#undef sigfd_w
+#undef sigfd_set
 #undef loop_count
 #undef loop_depth
 #undef userdata

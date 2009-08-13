@@ -152,8 +152,8 @@ VARx(int, forkmax)
 VARx(int, forkcnt)
 #endif
 
-VARx(EV_ATOMIC_T, gotasync)
 #if EV_ASYNC_ENABLE || EV_GENWRAP
+VARx(EV_ATOMIC_T, async_pending)
 VARx(struct ev_async **, asyncs)
 VARx(int, asyncmax)
 VARx(int, asynccnt)
@@ -164,6 +164,13 @@ VARx(int, fs_fd)
 VARx(ev_io, fs_w)
 VARx(char, fs_2625) /* whether we are running in linux 2.6.25 or newer */
 VAR (fs_hash, ANFS fs_hash [EV_INOTIFY_HASHSIZE])
+#endif
+
+VARx(EV_ATOMIC_T, sig_pending)
+#if EV_USE_SIGNALFD || EV_GENWRAP
+VARx(int, sigfd)
+VARx(ev_io, sigfd_w)
+VARx(sigset_t, sigfd_set)
 #endif
 
 #if EV_MINIMAL < 2 || EV_GENWRAP

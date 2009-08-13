@@ -1,13 +1,25 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+3.8  Sun Aug  9 14:30:45 CEST 2009
+	- incompatible change: do not necessarily reset signal handler
+          to SIG_DFL when a sighandler is stopped.
+        - ev_default_destroy did not properly free or zero some members,
+          potentially causing crashes and memory corruption on repated
+          ev_default_destroy/ev_default_loop calls.
+	- take advantage of signalfd on GNU/Linux systems.
+	- document that the signal mask might be in an unspecified
+          state when using libev's signal handling.
+        - take advantage of some GNU/Linux calls to set cloexec/nonblock
+          on fd creation, to avoid race conditions.
+
 3.7  Fri Jul 17 16:36:32 CEST 2009
 	- ev_unloop and ev_loop wrongly used a global variable to exit loops,
           instead of using a per-loop variable (bug caught by accident...).
 	- the ev_set_io_collect_interval interpretation has changed.
         - add new functionality: ev_set_userdata, ev_userdata,
           ev_set_invoke_pending_cb, ev_set_loop_release_cb,
-          ev_invoke_pending, together with a long example about thread
-          locking.
+          ev_invoke_pending, ev_pending_count, together with a long example
+          about thread locking.
         - add ev_timer_remaining (as requested by Denis F. Latypoff).
         - add ev_loop_depth.
         - calling ev_unloop in fork/prepare watchers will no longer poll

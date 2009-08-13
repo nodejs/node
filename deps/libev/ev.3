@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LIBEV 3"
-.TH LIBEV 3 "2009-07-15" "libev-3.7" "libev - high performance full featured event loop"
+.TH LIBEV 3 "2009-07-27" "libev-3.8" "libev - high performance full featured event loop"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -229,13 +229,14 @@ watcher.
 Libev supports \f(CW\*(C`select\*(C'\fR, \f(CW\*(C`poll\*(C'\fR, the Linux-specific \f(CW\*(C`epoll\*(C'\fR, the
 BSD-specific \f(CW\*(C`kqueue\*(C'\fR and the Solaris-specific event port mechanisms
 for file descriptor events (\f(CW\*(C`ev_io\*(C'\fR), the Linux \f(CW\*(C`inotify\*(C'\fR interface
-(for \f(CW\*(C`ev_stat\*(C'\fR), relative timers (\f(CW\*(C`ev_timer\*(C'\fR), absolute timers
-with customised rescheduling (\f(CW\*(C`ev_periodic\*(C'\fR), synchronous signals
-(\f(CW\*(C`ev_signal\*(C'\fR), process status change events (\f(CW\*(C`ev_child\*(C'\fR), and event
-watchers dealing with the event loop mechanism itself (\f(CW\*(C`ev_idle\*(C'\fR,
-\&\f(CW\*(C`ev_embed\*(C'\fR, \f(CW\*(C`ev_prepare\*(C'\fR and \f(CW\*(C`ev_check\*(C'\fR watchers) as well as
-file watchers (\f(CW\*(C`ev_stat\*(C'\fR) and even limited support for fork events
-(\f(CW\*(C`ev_fork\*(C'\fR).
+(for \f(CW\*(C`ev_stat\*(C'\fR), Linux eventfd/signalfd (for faster and cleaner
+inter-thread wakeup (\f(CW\*(C`ev_async\*(C'\fR)/signal handling (\f(CW\*(C`ev_signal\*(C'\fR)) relative
+timers (\f(CW\*(C`ev_timer\*(C'\fR), absolute timers with customised rescheduling
+(\f(CW\*(C`ev_periodic\*(C'\fR), synchronous signals (\f(CW\*(C`ev_signal\*(C'\fR), process status
+change events (\f(CW\*(C`ev_child\*(C'\fR), and event watchers dealing with the event
+loop mechanism itself (\f(CW\*(C`ev_idle\*(C'\fR, \f(CW\*(C`ev_embed\*(C'\fR, \f(CW\*(C`ev_prepare\*(C'\fR and
+\&\f(CW\*(C`ev_check\*(C'\fR watchers) as well as file watchers (\f(CW\*(C`ev_stat\*(C'\fR) and even
+limited support for fork events (\f(CW\*(C`ev_fork\*(C'\fR).
 .PP
 It also is quite fast (see this
 <benchmark> comparing it to libevent
@@ -480,6 +481,21 @@ flag.
 .Sp
 This flag setting cannot be overridden or specified in the \f(CW\*(C`LIBEV_FLAGS\*(C'\fR
 environment variable.
+.ie n .IP """EVFLAG_NOINOTIFY""" 4
+.el .IP "\f(CWEVFLAG_NOINOTIFY\fR" 4
+.IX Item "EVFLAG_NOINOTIFY"
+When this flag is specified, then libev will not attempt to use the
+\&\fIinotify\fR \s-1API\s0 for it's \f(CW\*(C`ev_stat\*(C'\fR watchers. Apart from debugging and
+testing, this flag can be useful to conserve inotify file descriptors, as
+otherwise each loop using \f(CW\*(C`ev_stat\*(C'\fR watchers consumes one inotify handle.
+.ie n .IP """EVFLAG_NOSIGNALFD""" 4
+.el .IP "\f(CWEVFLAG_NOSIGNALFD\fR" 4
+.IX Item "EVFLAG_NOSIGNALFD"
+When this flag is specified, then libev will not attempt to use the
+\&\fIsignalfd\fR \s-1API\s0 for it's \f(CW\*(C`ev_signal\*(C'\fR (and \f(CW\*(C`ev_child\*(C'\fR) watchers. This is
+probably only useful to work around any bugs in libev. Consequently, this
+flag might go away once the signalfd functionality is considered stable,
+so it's useful mostly in environment variables and not in program code.
 .ie n .IP """EVBACKEND_SELECT""  (value 1, portable select backend)" 4
 .el .IP "\f(CWEVBACKEND_SELECT\fR  (value 1, portable select backend)" 4
 .IX Item "EVBACKEND_SELECT  (value 1, portable select backend)"
@@ -637,9 +653,10 @@ It is definitely not recommended to use this flag.
 .RE
 .RS 4
 .Sp
-If one or more of these are or'ed into the flags value, then only these
-backends will be tried (in the reverse order as listed here). If none are
-specified, all backends in \f(CW\*(C`ev_recommended_backends ()\*(C'\fR will be tried.
+If one or more of the backend flags are or'ed into the flags value,
+then only these backends will be tried (in the reverse order as listed
+here). If none are specified, all backends in \f(CW\*(C`ev_recommended_backends
+()\*(C'\fR will be tried.
 .Sp
 Example: This is the most typical usage.
 .Sp
@@ -2219,22 +2236,31 @@ signal one or more times. Even though signals are very asynchronous, libev
 will try it's best to deliver signals synchronously, i.e. as part of the
 normal event processing, like any other event.
 .PP
-If you want signals asynchronously, just use \f(CW\*(C`sigaction\*(C'\fR as you would
-do without libev and forget about sharing the signal. You can even use
-\&\f(CW\*(C`ev_async\*(C'\fR from a signal handler to synchronously wake up an event loop.
+If you want signals to be delivered truly asynchronously, just use
+\&\f(CW\*(C`sigaction\*(C'\fR as you would do without libev and forget about sharing
+the signal. You can even use \f(CW\*(C`ev_async\*(C'\fR from a signal handler to
+synchronously wake up an event loop.
 .PP
-You can configure as many watchers as you like per signal. Only when the
-first watcher gets started will libev actually register a signal handler
+You can configure as many watchers as you like for the same signal, but
+only within the same loop, i.e. you can watch for \f(CW\*(C`SIGINT\*(C'\fR in your
+default loop and for \f(CW\*(C`SIGIO\*(C'\fR in another loop, but you cannot watch for
+\&\f(CW\*(C`SIGINT\*(C'\fR in both the default loop and another loop at the same time. At
+the moment, \f(CW\*(C`SIGCHLD\*(C'\fR is permanently tied to the default loop.
+.PP
+When the first watcher gets started will libev actually register something
 with the kernel (thus it coexists with your own signal handlers as long as
-you don't register any with libev for the same signal). Similarly, when
-the last signal watcher for a signal is stopped, libev will reset the
-signal handler to \s-1SIG_DFL\s0 (regardless of what it was set to before).
+you don't register any with libev for the same signal).
+.PP
+Both the signal mask state (\f(CW\*(C`sigprocmask\*(C'\fR) and the signal handler state
+(\f(CW\*(C`sigaction\*(C'\fR) are unspecified after starting a signal watcher (and after
+sotpping it again), that is, libev might or might not block the signal,
+and might or might not set or restore the installed signal handler.
 .PP
 If possible and supported, libev will install its handlers with
-\&\f(CW\*(C`SA_RESTART\*(C'\fR behaviour enabled, so system calls should not be unduly
-interrupted. If you have a problem with system calls getting interrupted by
-signals you can block all signals in an \f(CW\*(C`ev_check\*(C'\fR watcher and unblock
-them in an \f(CW\*(C`ev_prepare\*(C'\fR watcher.
+\&\f(CW\*(C`SA_RESTART\*(C'\fR (or equivalent) behaviour enabled, so system calls should
+not be unduly interrupted. If you have a problem with system calls getting
+interrupted by signals you can block all signals in an \f(CW\*(C`ev_check\*(C'\fR watcher
+and unblock them in an \f(CW\*(C`ev_prepare\*(C'\fR watcher.
 .PP
 \fIWatcher-Specific Functions and Data Members\fR
 .IX Subsection "Watcher-Specific Functions and Data Members"
@@ -2289,8 +2315,8 @@ libev)
 .IX Subsection "Process Interaction"
 .PP
 Libev grabs \f(CW\*(C`SIGCHLD\*(C'\fR as soon as the default event loop is
-initialised. This is necessary to guarantee proper behaviour even if
-the first child watcher is started after the child exits. The occurrence
+initialised. This is necessary to guarantee proper behaviour even if the
+first child watcher is started after the child exits. The occurrence
 of \f(CW\*(C`SIGCHLD\*(C'\fR is recorded asynchronously, but child reaping is done
 synchronously as part of the event loop processing. Libev always reaps all
 children, even ones not watched.
@@ -2312,7 +2338,8 @@ that, so other libev users can use \f(CW\*(C`ev_child\*(C'\fR watchers freely.
 Currently, the child watcher never gets stopped, even when the
 child terminates, so normally one needs to stop the watcher in the
 callback. Future versions of libev might stop the watcher automatically
-when a child exit is detected.
+when a child exit is detected (calling \f(CW\*(C`ev_child_stop\*(C'\fR twice is not a
+problem).
 .PP
 \fIWatcher-Specific Functions and Data Members\fR
 .IX Subsection "Watcher-Specific Functions and Data Members"
@@ -3488,6 +3515,11 @@ be found at <http://proj.llucax.com.ar/wiki/evd>.
 .IX Item "Ocaml"
 Erkki Seppala has written Ocaml bindings for libev, to be found at
 <http://modeemi.cs.tut.fi/~flux/software/ocaml\-ev/>.
+.IP "Lua" 4
+.IX Item "Lua"
+Brian Maher has written a partial interface to libev
+for lua (only \f(CW\*(C`ev_io\*(C'\fR and \f(CW\*(C`ev_timer\*(C'\fR), to be found at
+<http://github.com/brimworks/lua\-ev>.
 .SH "MACRO MAGIC"
 .IX Header "MACRO MAGIC"
 Libev can be compiled with a variety of options, the most fundamental
@@ -3673,7 +3705,7 @@ implementations for some libevent functions (such as logging, which is not
 supported). It will also not define any of the structs usually found in
 \&\fIevent.h\fR that are not directly supported by the libev core alone.
 .Sp
-In stanbdalone mode, libev will still try to automatically deduce the
+In standalone mode, libev will still try to automatically deduce the
 configuration, but has to be more conservative.
 .IP "\s-1EV_USE_MONOTONIC\s0" 4
 .IX Item "EV_USE_MONOTONIC"
@@ -3882,6 +3914,14 @@ Defining \f(CW\*(C`EV_MINIMAL\*(C'\fR to \f(CW2\fR will additionally reduce the 
 provide a bare-bones event library. See \f(CW\*(C`ev.h\*(C'\fR for details on what parts
 of the \s-1API\s0 are still available, and do not complain if this subset changes
 over time.
+.IP "\s-1EV_NSIG\s0" 4
+.IX Item "EV_NSIG"
+The highest supported signal number, +1 (or, the number of
+signals): Normally, libev tries to deduce the maximum number of signals
+automatically, but sometimes this fails, in which case it can be
+specified. Also, using a lower number than detected (\f(CW32\fR should be
+good for about any system in existance) can save some memory, as libev
+statically allocates some 12\-24 bytes per signal number.
 .IP "\s-1EV_PID_HASHSIZE\s0" 4
 .IX Item "EV_PID_HASHSIZE"
 \&\f(CW\*(C`ev_child\*(C'\fR watchers use a small hash table to distribute workload by
