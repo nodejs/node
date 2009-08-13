@@ -4973,10 +4973,12 @@ static Object* Runtime_CompileString(Arguments args) {
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
+  Compiler::ValidationState validate = (is_json->IsTrue())
+    ? Compiler::VALIDATE_JSON : Compiler::DONT_VALIDATE_JSON;
   Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
                                                          context,
                                                          true,
-                                                         is_json->IsTrue());
+                                                         validate);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5000,8 +5002,11 @@ static Object* CompileDirectEval(Handle<String> source) {
   bool is_global = context->IsGlobalContext();
 
   // Compile source string in the current context.
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, is_global, false);
+  Handle<JSFunction> boilerplate = Compiler::CompileEval(
+      source,
+      context,
+      is_global,
+      Compiler::DONT_VALIDATE_JSON);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -7043,7 +7048,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Compiler::CompileEval(function_source,
                             context,
                             context->IsGlobalContext(),
-                            false);
+                            Compiler::DONT_VALIDATE_JSON);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -7111,7 +7116,7 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
       Handle<JSFunction>(Compiler::CompileEval(source,
                                                context,
                                                true,
-                                               false));
+                                               Compiler::DONT_VALIDATE_JSON));
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,

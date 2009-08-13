@@ -367,6 +367,13 @@ class MemoryAllocator : public AllStatic {
   // and false otherwise.
   static bool CommitBlock(Address start, size_t size, Executability executable);
 
+
+  // Uncommit a contiguous block of memory [start..(start+size)[.
+  // start is not NULL, the size is greater than zero, and the
+  // block is contained in the initial chunk.  Returns true if it succeeded
+  // and false otherwise.
+  static bool UncommitBlock(Address start, size_t size);
+
   // Attempts to allocate the requested (non-zero) number of pages from the
   // OS.  Fewer pages might be allocated than requested. If it fails to
   // allocate memory for the OS or cannot allocate a single page, this
@@ -1035,6 +1042,10 @@ class SemiSpace : public Space {
     return 0;
   }
 
+  bool is_committed() { return committed_; }
+  bool Commit();
+  bool Uncommit();
+
 #ifdef DEBUG
   virtual void Print();
   virtual void Verify();
@@ -1057,6 +1068,8 @@ class SemiSpace : public Space {
   uintptr_t address_mask_;
   uintptr_t object_mask_;
   uintptr_t object_expected_;
+
+  bool committed_;
 
  public:
   TRACK_MEMORY("SemiSpace")
@@ -1249,6 +1262,17 @@ class NewSpace : public Space {
   void RecordAllocation(HeapObject* obj);
   void RecordPromotion(HeapObject* obj);
 #endif
+
+  // Return whether the operation succeded.
+  bool CommitFromSpaceIfNeeded() {
+    if (from_space_.is_committed()) return true;
+    return from_space_.Commit();
+  }
+
+  bool UncommitFromSpace() {
+    if (!from_space_.is_committed()) return true;
+    return from_space_.Uncommit();
+  }
 
  private:
   // The current and maximum capacities of a semispace.

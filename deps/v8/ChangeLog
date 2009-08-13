@@ -1,3 +1,13 @@
+2009-08-13: Version 1.3.4
+
+        Added a readline() command to the d8 shell.
+
+        Fixed bug in json parsing.
+
+        Added idle notification to the API and reduced memory on idle
+        notifications.
+
+
 2009-08-12: Version 1.3.3
 
         Fix issue 417: incorrect %t placeholder expansion.

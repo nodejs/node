@@ -102,7 +102,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 
 
 static bool IsValidJSON(FunctionLiteral* lit) {
-  if (!lit->body()->length() == 1)
+  if (lit->body()->length() != 1)
     return false;
   Statement* stmt = lit->body()->at(0);
   if (stmt->AsExpressionStatement() == NULL)
@@ -114,7 +114,7 @@ static bool IsValidJSON(FunctionLiteral* lit) {
 
 static Handle<JSFunction> MakeFunction(bool is_global,
                                        bool is_eval,
-                                       bool is_json,
+                                       Compiler::ValidationState validate,
                                        Handle<Script> script,
                                        Handle<Context> context,
                                        v8::Extension* extension,
@@ -129,6 +129,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   script->set_context_data((*i::Top::global_context())->data());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  bool is_json = (validate == Compiler::VALIDATE_JSON);
   if (is_eval || is_json) {
     script->set_compilation_type(
         is_json ? Smi::FromInt(Script::COMPILATION_TYPE_JSON) :
@@ -162,7 +163,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // When parsing JSON we do an ordinary parse and then afterwards
   // check the AST to ensure it was well-formed.  If not we give a
   // syntax error.
-  if (is_json && !IsValidJSON(lit)) {
+  if (validate == Compiler::VALIDATE_JSON && !IsValidJSON(lit)) {
     HandleScope scope;
     Handle<JSArray> args = Factory::NewJSArray(1);
     Handle<Object> source(script->source());
@@ -282,7 +283,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     // Compile the function and add it to the cache.
     result = MakeFunction(true,
                           false,
-                          false,
+                          DONT_VALIDATE_JSON,
                           script,
                           Handle<Context>::null(),
                           extension,
@@ -305,7 +306,11 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          Handle<Context> context,
                                          bool is_global,
-                                         bool is_json) {
+                                         ValidationState validate) {
+  // Note that if validation is required then no path through this
+  // function is allowed to return a value without validating that
+  // the input is legal json.
+
   int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -314,20 +319,26 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
   VMState state(COMPILER);
 
   // Do a lookup in the compilation cache; if the entry is not there,
-  // invoke the compiler and add the result to the cache.
-  Handle<JSFunction> result =
-      CompilationCache::LookupEval(source, context, is_global);
+  // invoke the compiler and add the result to the cache.  If we're
+  // evaluating json we bypass the cache since we can't be sure a
+  // potential value in the cache has been validated.
+  Handle<JSFunction> result;
+  if (validate == DONT_VALIDATE_JSON)
+    result = CompilationCache::LookupEval(source, context, is_global);
+
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
     result = MakeFunction(is_global,
                           true,
-                          is_json,
+                          validate,
                           script,
                           context,
                           NULL,
                           NULL);
-    if (!result.is_null()) {
+    if (!result.is_null() && validate != VALIDATE_JSON) {
+      // For json it's unlikely that we'll ever see exactly the same
+      // string again so we don't use the compilation cache.
       CompilationCache::PutEval(source, context, is_global, result);
     }
   }

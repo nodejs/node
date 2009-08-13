@@ -39,6 +39,10 @@ function URIAddEncodedOctetToBuffer(octet, result, index) {
 
 
 function URIEncodeOctets(octets, result, index) {
+  if (hexCharCodeArray === 0) {
+    hexCharCodeArray = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+                        65, 66, 67, 68, 69, 70];
+  }
   index = URIAddEncodedOctetToBuffer(octets[0], result, index);
   if (octets[1]) index = URIAddEncodedOctetToBuffer(octets[1], result, index);
   if (octets[2]) index = URIAddEncodedOctetToBuffer(octets[2], result, index);
@@ -316,11 +320,9 @@ function URIEncodeComponent(component) {
 }
 
 
-const hexCharArray = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-                      "A", "B", "C", "D", "E", "F"];
-
-const hexCharCodeArray = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
-                          65, 66, 67, 68, 69, 70];
+// Lazily initialized.
+var hexCharArray = 0;
+var hexCharCodeArray = 0;
 
 
 function HexValueOf(c) {
@@ -341,6 +343,10 @@ function HexValueOf(c) {
 // 64 -> 0040, 62234 -> F31A.
 function CharCodeToHex4Str(cc) {
   var r = "";
+  if (hexCharArray === 0) {
+    hexCharArray = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                    "A", "B", "C", "D", "E", "F"];
+  }
   for (var i = 0; i < 4; ++i) {
     var c = hexCharArray[cc & 0x0F];
     r = c + r;

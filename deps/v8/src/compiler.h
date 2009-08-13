@@ -48,6 +48,8 @@ namespace internal {
 
 class Compiler : public AllStatic {
  public:
+  enum ValidationState { VALIDATE_JSON, DONT_VALIDATE_JSON };
+
   // All routines return a JSFunction.
   // If an error occurs an exception is raised and
   // the return handle contains NULL.
@@ -63,7 +65,7 @@ class Compiler : public AllStatic {
   static Handle<JSFunction> CompileEval(Handle<String> source,
                                         Handle<Context> context,
                                         bool is_global,
-                                        bool is_json);
+                                        ValidationState validation);
 
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack

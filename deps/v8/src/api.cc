@@ -2558,6 +2558,10 @@ bool v8::V8::Dispose() {
 }
 
 
+void  v8::V8::IdleNotification(bool is_high_priority) {
+  i::V8::IdleNotification(is_high_priority);
+}
+
 const char* v8::V8::GetVersion() {
   static v8::internal::EmbeddedVector<char, 128> buffer;
   v8::internal::Version::GetString(buffer);
@@ -2589,12 +2593,8 @@ Persistent<Context> v8::Context::New(
   i::Handle<i::Context> env;
   {
     ENTER_V8;
-#if defined(ANDROID)
-    // On mobile devices, full GC is expensive.
-#else
     // Give the heap a chance to cleanup if we've disposed contexts.
     i::Heap::CollectAllGarbageIfContextDisposed();
-#endif
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;

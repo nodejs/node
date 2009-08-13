@@ -161,6 +161,9 @@ DEFINE_bool(trace_gc_verbose, false,
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 
+// v8.cc
+DEFINE_bool(use_idle_notification, true,
+            "Use idle notification to reduce memory footprint.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 

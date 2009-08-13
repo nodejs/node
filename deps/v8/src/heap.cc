@@ -425,6 +425,20 @@ static void VerifySymbolTable() {
 }
 
 
+void Heap::EnsureFromSpaceIsCommitted() {
+  if (new_space_.CommitFromSpaceIfNeeded()) return;
+
+  // Committing memory to from space failed.
+  // Try shrinking and try again.
+  Shrink();
+  if (new_space_.CommitFromSpaceIfNeeded()) return;
+
+  // Committing memory to from space failed again.
+  // Memory is exhausted and we will die.
+  V8::FatalProcessOutOfMemory("Committing semi space failed.");
+}
+
+
 void Heap::PerformGarbageCollection(AllocationSpace space,
                                     GarbageCollector collector,
                                     GCTracer* tracer) {
@@ -433,7 +447,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     ASSERT(!allocation_allowed_);
     global_gc_prologue_callback_();
   }
-
+  EnsureFromSpaceIsCommitted();
   if (collector == MARK_COMPACTOR) {
     MarkCompact(tracer);
 

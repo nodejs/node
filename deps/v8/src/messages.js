@@ -28,88 +28,36 @@
 
 // -------------------------------------------------------------------
 
-const kVowelSounds = {a: true, e: true, i: true, o: true, u: true, y: true};
-const kCapitalVowelSounds = {a: true, e: true, i: true, o: true, u: true,
-    h: true, f: true, l: true, m: true, n: true, r: true, s: true, x: true,
-    y: true};
+// Lazily initialized.
+var kVowelSounds = 0;
+var kCapitalVowelSounds = 0;
+
 
 function GetInstanceName(cons) {
   if (cons.length == 0) {
     return "";
   }
   var first = %StringToLowerCase(StringCharAt.call(cons, 0));
-  var mapping = kVowelSounds;
+  if (kVowelSounds === 0) {
+    kVowelSounds = {a: true, e: true, i: true, o: true, u: true, y: true};
+    kCapitalVowelSounds = {a: true, e: true, i: true, o: true, u: true, h: true,
+        f: true, l: true, m: true, n: true, r: true, s: true, x: true, y: true};
+  }
+  var vowel_mapping = kVowelSounds;
   if (cons.length > 1 && (StringCharAt.call(cons, 0) != first)) {
     // First char is upper case
     var second = %StringToLowerCase(StringCharAt.call(cons, 1));
     // Second char is upper case
-    if (StringCharAt.call(cons, 1) != second)
-      mapping = kCapitalVowelSounds;
+    if (StringCharAt.call(cons, 1) != second) {
+      vowel_mapping = kCapitalVowelSounds;
+    }
   }
-  var s = mapping[first] ? "an " : "a ";
+  var s = vowel_mapping[first] ? "an " : "a ";
   return s + cons;
 }
 
 
-const kMessages = {
-  // Error
-  cyclic_proto:                 "Cyclic __proto__ value",
-  // TypeError
-  unexpected_token:             "Unexpected token %0",
-  unexpected_token_number:      "Unexpected number",
-  unexpected_token_string:      "Unexpected string",
-  unexpected_token_identifier:  "Unexpected identifier",
-  unexpected_eos:               "Unexpected end of input",
-  malformed_regexp:             "Invalid regular expression: /%0/: %1",
-  unterminated_regexp:          "Invalid regular expression: missing /",
-  regexp_flags:                 "Cannot supply flags when constructing one RegExp from another",
-  invalid_lhs_in_assignment:    "Invalid left-hand side in assignment",
-  invalid_lhs_in_for_in:        "Invalid left-hand side in for-in",
-  invalid_lhs_in_postfix_op:    "Invalid left-hand side expression in postfix operation",
-  invalid_lhs_in_prefix_op:     "Invalid left-hand side expression in prefix operation",
-  multiple_defaults_in_switch:  "More than one default clause in switch statement",
-  newline_after_throw:          "Illegal newline after throw",
-  redeclaration:                "%0 '%1' has already been declared",
-  no_catch_or_finally:          "Missing catch or finally after try",
-  unknown_label:                "Undefined label '%0'",
-  uncaught_exception:           "Uncaught %0",
-  stack_trace:                  "Stack Trace:\n%0",
-  called_non_callable:          "%0 is not a function",
-  undefined_method:             "Object %1 has no method '%0'",
-  property_not_function:        "Property '%0' of object %1 is not a function",
-  cannot_convert_to_primitive:  "Cannot convert object to primitive value",
-  not_constructor:              "%0 is not a constructor",
-  not_defined:                  "%0 is not defined",
-  non_object_property_load:     "Cannot read property '%0' of %1",
-  non_object_property_store:    "Cannot set property '%0' of %1",
-  non_object_property_call:     "Cannot call method '%0' of %1",
-  with_expression:              "%0 has no properties",
-  illegal_invocation:           "Illegal invocation",
-  no_setter_in_callback:        "Cannot set property %0 of %1 which has only a getter",
-  apply_non_function:           "Function.prototype.apply was called on %0, which is a %1 and not a function",
-  apply_wrong_args:             "Function.prototype.apply: Arguments list has wrong type",
-  invalid_in_operator_use:      "Cannot use 'in' operator to search for '%0' in %1",
-  instanceof_function_expected: "Expecting a function in instanceof check, but got %0",
-  instanceof_nonobject_proto:   "Function has non-object prototype '%0' in instanceof check",
-  null_to_object:               "Cannot convert null to object",
-  reduce_no_initial:            "Reduce of empty array with no initial value",
-  // RangeError
-  invalid_array_length:         "Invalid array length",
-  stack_overflow:               "Maximum call stack size exceeded",
-  apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
-  // SyntaxError
-  unable_to_parse:              "Parse error",
-  duplicate_regexp_flag:        "Duplicate RegExp flag %0",
-  invalid_regexp:               "Invalid RegExp pattern /%0/",
-  illegal_break:                "Illegal break statement",
-  illegal_continue:             "Illegal continue statement",
-  illegal_return:               "Illegal return statement",
-  error_loading_debugger:       "Error loading debugger %0",
-  no_input_to_regexp:           "No input to %0",
-  result_not_primitive:         "Result of %0 must be a primitive, was %1",
-  invalid_json:                 "String '%0' is not valid JSON",
-  circular_structure:           "Converting circular structure to JSON"
-};
+var kMessages = 0;
 
 
 function FormatString(format, args) {
@@ -161,6 +109,67 @@ function MakeGenericError(constructor, type, args) {
 
 // Helper functions; called from the runtime system.
 function FormatMessage(message) {
+  if (kMessages === 0) {
+    kMessages = {
+      // Error
+      cyclic_proto:                 "Cyclic __proto__ value",
+      // TypeError
+      unexpected_token:             "Unexpected token %0",
+      unexpected_token_number:      "Unexpected number",
+      unexpected_token_string:      "Unexpected string",
+      unexpected_token_identifier:  "Unexpected identifier",
+      unexpected_eos:               "Unexpected end of input",
+      malformed_regexp:             "Invalid regular expression: /%0/: %1",
+      unterminated_regexp:          "Invalid regular expression: missing /",
+      regexp_flags:                 "Cannot supply flags when constructing one RegExp from another",
+      invalid_lhs_in_assignment:    "Invalid left-hand side in assignment",
+      invalid_lhs_in_for_in:        "Invalid left-hand side in for-in",
+      invalid_lhs_in_postfix_op:    "Invalid left-hand side expression in postfix operation",
+      invalid_lhs_in_prefix_op:     "Invalid left-hand side expression in prefix operation",
+      multiple_defaults_in_switch:  "More than one default clause in switch statement",
+      newline_after_throw:          "Illegal newline after throw",
+      redeclaration:                "%0 '%1' has already been declared",
+      no_catch_or_finally:          "Missing catch or finally after try",
+      unknown_label:                "Undefined label '%0'",
+      uncaught_exception:           "Uncaught %0",
+      stack_trace:                  "Stack Trace:\n%0",
+      called_non_callable:          "%0 is not a function",
+      undefined_method:             "Object %1 has no method '%0'",
+      property_not_function:        "Property '%0' of object %1 is not a function",
+      cannot_convert_to_primitive:  "Cannot convert object to primitive value",
+      not_constructor:              "%0 is not a constructor",
+      not_defined:                  "%0 is not defined",
+      non_object_property_load:     "Cannot read property '%0' of %1",
+      non_object_property_store:    "Cannot set property '%0' of %1",
+      non_object_property_call:     "Cannot call method '%0' of %1",
+      with_expression:              "%0 has no properties",
+      illegal_invocation:           "Illegal invocation",
+      no_setter_in_callback:        "Cannot set property %0 of %1 which has only a getter",
+      apply_non_function:           "Function.prototype.apply was called on %0, which is a %1 and not a function",
+      apply_wrong_args:             "Function.prototype.apply: Arguments list has wrong type",
+      invalid_in_operator_use:      "Cannot use 'in' operator to search for '%0' in %1",
+      instanceof_function_expected: "Expecting a function in instanceof check, but got %0",
+      instanceof_nonobject_proto:   "Function has non-object prototype '%0' in instanceof check",
+      null_to_object:               "Cannot convert null to object",
+      reduce_no_initial:            "Reduce of empty array with no initial value",
+      // RangeError
+      invalid_array_length:         "Invalid array length",
+      stack_overflow:               "Maximum call stack size exceeded",
+      apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
+      // SyntaxError
+      unable_to_parse:              "Parse error",
+      duplicate_regexp_flag:        "Duplicate RegExp flag %0",
+      invalid_regexp:               "Invalid RegExp pattern /%0/",
+      illegal_break:                "Illegal break statement",
+      illegal_continue:             "Illegal continue statement",
+      illegal_return:               "Illegal return statement",
+      error_loading_debugger:       "Error loading debugger %0",
+      no_input_to_regexp:           "No input to %0",
+      result_not_primitive:         "Result of %0 must be a primitive, was %1",
+      invalid_json:                 "String '%0' is not valid JSON",
+      circular_structure:           "Converting circular structure to JSON"
+    };
+  }
   var format = kMessages[message.type];
   if (!format) return "<unknown message " + message.type + ">";
   return FormatString(format, message.args);

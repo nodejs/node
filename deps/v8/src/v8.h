@@ -99,6 +99,9 @@ class V8 : public AllStatic {
   static uint32_t Random();
   static Smi* RandomPositiveSmi();
 
+  // Idle notification directly from the API.
+  static void IdleNotification(bool is_high_priority);
+
  private:
   // True if engine is currently running
   static bool is_running_;

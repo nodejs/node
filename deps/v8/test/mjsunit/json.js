@@ -195,3 +195,13 @@ assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 
 assertEquals(undefined, JSON.stringify(undefined));
 assertEquals(undefined, JSON.stringify(function () { }));
+
+function checkIllegal(str) {
+  assertThrows(function () { JSON.parse(str); }, SyntaxError);
+}
+
+checkIllegal('1); throw "foo"; (1');
+
+var x = 0;
+eval("(1); x++; (1)");
+checkIllegal('1); x++; (1');

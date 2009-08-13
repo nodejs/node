@@ -280,6 +280,9 @@ class Heap : public AllStatic {
     return new_space_.allocation_limit_address();
   }
 
+  // Uncommit unused semi space.
+  static bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
+
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the heap by marking all spaces read-only/writable.
   static void Protect();
@@ -793,6 +796,9 @@ class Heap : public AllStatic {
 
   // Rebuild remembered set in old and map spaces.
   static void RebuildRSets();
+
+  // Commits from space if it is uncommitted.
+  static void EnsureFromSpaceIsCommitted();
 
   //
   // Support for the API.

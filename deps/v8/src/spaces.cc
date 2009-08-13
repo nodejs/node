@@ -340,6 +340,17 @@ bool MemoryAllocator::CommitBlock(Address start,
   return true;
 }
 
+bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
+  ASSERT(start != NULL);
+  ASSERT(size > 0);
+  ASSERT(initial_chunk_ != NULL);
+  ASSERT(InInitialChunk(start));
+  ASSERT(InInitialChunk(start + size - 1));
+
+  if (!initial_chunk_->Uncommit(start, size)) return false;
+  Counters::memory_allocated.Decrement(size);
+  return true;
+}
 
 Page* MemoryAllocator::InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                               PagedSpace* owner) {
@@ -1039,6 +1050,26 @@ void NewSpace::Verify() {
 #endif
 
 
+bool SemiSpace::Commit() {
+  ASSERT(!is_committed());
+  if (!MemoryAllocator::CommitBlock(start_, capacity_, executable())) {
+    return false;
+  }
+  committed_ = true;
+  return true;
+}
+
+
+bool SemiSpace::Uncommit() {
+  ASSERT(is_committed());
+  if (!MemoryAllocator::UncommitBlock(start_, capacity_)) {
+    return false;
+  }
+  committed_ = false;
+  return true;
+}
+
+
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
@@ -1053,18 +1084,15 @@ bool SemiSpace::Setup(Address start,
   // addresses.
   capacity_ = initial_capacity;
   maximum_capacity_ = maximum_capacity;
-
-  if (!MemoryAllocator::CommitBlock(start, capacity_, executable())) {
-    return false;
-  }
+  committed_ = false;
 
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
   object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
-
   age_mark_ = start_;
-  return true;
+
+  return Commit();
 }
 
 
@@ -1076,7 +1104,7 @@ void SemiSpace::TearDown() {
 
 bool SemiSpace::Grow() {
   // Commit 50% extra space but only up to maximum capacity.
-  int extra = capacity_/2;
+  int extra = RoundUp(capacity_ / 2, OS::AllocateAlignment());
   if (capacity_ + extra > maximum_capacity_) {
     extra = maximum_capacity_ - capacity_;
   }

@@ -5258,6 +5258,58 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       }
       break;
 
+    case Token::SHL:
+      if (reversed) {
+        Result constant_operand(value);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        if (shift_value == 0) {
+          // Spill operand so it can be overwritten in the slow case.
+          frame_->Spill(operand->reg());
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             operand->reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          __ testl(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+          deferred->BindExit();
+          frame_->Push(operand);
+        } else {
+          // Use a fresh temporary for nonzero shift values.
+          Result answer = allocator()->Allocate();
+          ASSERT(answer.is_valid());
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             answer.reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          __ testl(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+          __ movl(answer.reg(), operand->reg());
+          ASSERT(kSmiTag == 0);  // adjust code if not the case
+          // We do no shifts, only the Smi conversion, if shift_value is 1.
+          if (shift_value > 1) {
+            __ shll(answer.reg(), Immediate(shift_value - 1));
+          }
+          // Convert int result to Smi, checking that it is in int range.
+          ASSERT(kSmiTagSize == 1);  // adjust code if not the case
+          __ addl(answer.reg(), answer.reg());
+          deferred->Branch(overflow);
+          deferred->BindExit();
+          operand->Unuse();
+          frame_->Push(&answer);
+        }
+      }
+      break;
+
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
@@ -6013,6 +6065,8 @@ void Reference::SetValue(InitState init_state) {
         __ testl(key.reg(),
                  Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000U)));
         deferred->Branch(not_zero);
+        // Ensure that the smi is zero-extended.  This is not guaranteed.
+        __ movl(key.reg(), key.reg());
 
         // Check that the receiver is not a smi.
         __ testl(receiver.reg(), Immediate(kSmiTagMask));
@@ -7172,14 +7226,14 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   __ jmp(&done);
 
   __ bind(&load_smi_1);
-  __ sar(kScratchRegister, Immediate(kSmiTagSize));
+  __ sarl(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
   __ fild_s(Operand(rsp, 0));
   __ pop(kScratchRegister);
   __ jmp(&done_load_1);
 
   __ bind(&load_smi_2);
-  __ sar(kScratchRegister, Immediate(kSmiTagSize));
+  __ sarl(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
   __ fild_s(Operand(rsp, 0));
   __ pop(kScratchRegister);
@@ -7534,7 +7588,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ j(negative, &non_smi_result);
       }
       // Tag smi result and return.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      ASSERT(kSmiTagSize == 1);  // adjust code if not the case
       __ lea(rax, Operand(rax, rax, times_1, kSmiTag));
       __ ret(2 * kPointerSize);
 

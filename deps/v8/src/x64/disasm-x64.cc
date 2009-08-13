@@ -105,7 +105,6 @@ static ByteMnemonic two_operands_instr[] = {
 static ByteMnemonic zero_operands_instr[] = {
   { 0xC3, UNSET_OP_ORDER, "ret" },
   { 0xC9, UNSET_OP_ORDER, "leave" },
-  { 0x90, UNSET_OP_ORDER, "nop" },
   { 0xF4, UNSET_OP_ORDER, "hlt" },
   { 0xCC, UNSET_OP_ORDER, "int3" },
   { 0x60, UNSET_OP_ORDER, "pushad" },
@@ -1425,7 +1424,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           default:
             UNREACHABLE();
         }
-        AppendToBuffer("test%c rax,0x%"V8_PTR_PREFIX"ux",
+        AppendToBuffer("test%c rax,0x%"V8_PTR_PREFIX"x",
                        operand_size_code(),
                        value);
         break;
