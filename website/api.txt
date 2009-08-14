@@ -631,7 +631,7 @@ added to the +"request"+ event.
 +server.listen(port, hostname)+ ::
 Begin accepting connections on the specified port and hostname.
 If the hostname is omitted, the server will accept connections
-directed to any address.
+directed to any address. This function is synchronous.
 
 +server.close()+ ::
 Stops the server from accepting new connections.
@@ -957,20 +957,21 @@ the +"connection"+ event.
 
 +server.listen(port, host=null, backlog=1024)+ ::
 Tells the server to listen for TCP connections to +port+ and +host+. 
-
++
 +host+ is optional. If +host+ is not specified the server will accept client
 connections on any network address.
-
++
 The third argument, +backlog+, is also optional and defaults to 1024.  The
 +backlog+ argument defines the maximum length to which the queue of pending
-connections for the server may grow.  If a connection request arrives when
-the queue is full, the client may receive a "ECONNREFUSED"  error or, if the
-underlying protocol supports retransmission, the request may be ignored so
-that a later reattempt at connection succeeds
+connections for the server may grow. 
++
+This function is synchronous. 
 
 
 +server.close()+::
-Stops the server from accepting new connections.
+Stops the server from accepting new connections. This function is
+asynchronous, the server is finally closed when the server emits a +"close"+
+event.
 
 
 ==== +node.tcp.Connection+
@@ -981,7 +982,9 @@ socket for +node.tcp.Server+.
 [cols="1,2,10",options="header"]
 |=========================================================
 |Event           | Parameters   | Notes
-|+"connect"+     |              | Call once the connection is established.
+|+"connect"+     |              | Call once the connection is established
+                                  after a call to +createConnection()+ or 
+                                  +connect()+.
 |+"receive"+     | +data+       | Called when data is received on the 
                                   connection.  Encoding of data is set 
                                   by +connection.setEncoding()+.  +data+ 
@@ -1002,11 +1005,21 @@ socket for +node.tcp.Server+.
 |=========================================================
 
 +node.tcp.createConnection(port, host="127.0.0.1")+::
-  Creates a new connection object and 
-  opens a connection to the specified +port+ and
-  +host+. If the second parameter is omitted, localhost is
-  assumed. 
+Creates a new connection object and opens a connection to the specified
++port+ and +host+. If the second parameter is omitted, localhost is assumed. 
++
+When the connection is established the +"connect"+ event will be emitted.
 
++connection.connect(port, host="127.0.0.1")+::
+Opens a connection to the specified +port+ and +host+. +createConnection()+
+also opens a connection; normally this method is not needed. Use this only
+if a connection is closed and you want to reuse the object to connect to
+another server. 
++
+This function is asynchronous. When the +"connect"+ event is emitted the
+connection is established. If there is a problem connecting, the +"connect"+
+event will not be emitted, the +"disconnect"+ event will be emitted with
++had_error == true+.
 
 +connection.remoteAddress+::
 The string representation of the remote IP address.  For example, 
