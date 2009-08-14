@@ -267,7 +267,7 @@ Connection::AfterResolve (eio_req *req)
    */
   connection->stream_.errorno = req->result;
 
-  connection->OnDisconnect();
+  connection->OnClose();
 
   connection->Detach();
 
@@ -456,14 +456,14 @@ Connection::OnReceive (const void *buf, size_t len)
 }
 
 void 
-Connection::OnDisconnect ()
+Connection::OnClose ()
 {
   HandleScope scope;
 
   Handle<Value> argv[1];
   argv[0] = stream_.errorno == 0 ? False() : True();
 
-  Emit("disconnect", 1, argv);
+  Emit("close", 1, argv);
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, type)                          \

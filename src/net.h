@@ -57,7 +57,7 @@ protected:
   virtual void OnConnect (void);
   virtual void OnReceive (const void *buf, size_t len);
   virtual void OnEOF (void);
-  virtual void OnDisconnect (void);
+  virtual void OnClose (void);
   virtual void OnTimeout (void);
 
   v8::Local<v8::Object> GetProtocol (void);
@@ -94,7 +94,7 @@ private:
 
     assert(connection->stream_.fd < 0);
 
-    connection->OnDisconnect();
+    connection->OnClose();
 
     if (s->errorno) {
       printf("socket died: %s\n", strerror(s->errorno));

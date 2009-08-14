@@ -2,8 +2,9 @@ include("mjsunit.js");
 var N = 50;
 var port = 8921;
 
-var disconnect_count = 0;
+var c = 0;
 var client_recv_count = 0;
+var disconnect_count = 0;
 
 function onLoad () {
 
@@ -16,7 +17,7 @@ function onLoad () {
       socket.close();
     });
 
-    socket.addListener("disconnect", function (had_error) {
+    socket.addListener("close", function (had_error) {
       //puts("server had_error: " + JSON.stringify(had_error));
       assertFalse(had_error);
     });
@@ -38,7 +39,7 @@ function onLoad () {
     client.fullClose();
   });
 
-  client.addListener("disconnect", function (had_error) {
+  client.addListener("close", function (had_error) {
     puts("disconnect");
     assertFalse(had_error);
     if (disconnect_count++ < N) 

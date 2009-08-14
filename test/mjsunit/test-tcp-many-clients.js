@@ -41,7 +41,7 @@ function runClient (callback) {
     client.close();
   });
 
-  client.addListener("disconnect", function (had_error) {
+  client.addListener("close", function (had_error) {
     print(".");
     assertFalse(had_error);
     assertEquals(bytes, client.recved.length);

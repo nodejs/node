@@ -997,8 +997,8 @@ socket for +node.tcp.Server+.
                                   will be +"writeOnly"+. One should probably 
                                   just call +connection.close()+ when this
                                   event is emitted.
-|+"disconnect"+  | +had_error+  | Emitted once the connection is fully
-                                  disconnected. The argument +had_error+ 
+|+"close"+       | +had_error+  | Emitted once the connection is fully
+                                  closed. The argument +had_error+ 
                                   is a boolean which says if the connection
                                   was closed due to a transmission error.
                                   (TODO: access error codes.)
@@ -1018,7 +1018,7 @@ another server.
 +
 This function is asynchronous. When the +"connect"+ event is emitted the
 connection is established. If there is a problem connecting, the +"connect"+
-event will not be emitted, the +"disconnect"+ event will be emitted with
+event will not be emitted, the +"close"+ event will be emitted with
 +had_error == true+.
 
 +connection.remoteAddress+::

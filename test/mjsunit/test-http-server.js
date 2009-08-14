@@ -57,7 +57,7 @@ function onLoad() {
     client_got_eof = true;
   });
 
-  c.addListener("disconnect", function () {
+  c.addListener("close", function () {
     assertEquals(c.readyState, "closed");
   });
 }

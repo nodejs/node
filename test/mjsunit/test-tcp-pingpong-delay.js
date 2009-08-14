@@ -34,8 +34,8 @@ function pingPongTest (port, host, on_complete) {
       socket.close();
     });
 
-    socket.addListener("disconnect", function (had_error) {
-      puts("server-side socket disconnect");
+    socket.addListener("close", function (had_error) {
+      puts("server-side socket close");
       assertFalse(had_error);
       assertEquals("closed", socket.readyState);
       socket.server.close();
@@ -74,8 +74,8 @@ function pingPongTest (port, host, on_complete) {
     assertFalse(true);
   });
 
-  client.addListener("disconnect", function () {
-    puts("client disconnect");
+  client.addListener("close", function () {
+    puts("client close");
     assertEquals(N+1, count);
     assertTrue(client_closed);
     if (on_complete) on_complete();

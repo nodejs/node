@@ -431,13 +431,13 @@ node.http.createClient = function (port, host) {
     client.close();
   });
 
-  client.addListener("disconnect", function (had_error) {
+  client.addListener("close", function (had_error) {
     if (had_error) {
       client.emit("error");
       return;
     }
      
-    //node.debug("HTTP CLIENT onDisconnect. readyState = " + client.readyState);
+    //node.debug("HTTP CLIENT onClose. readyState = " + client.readyState);
 
     // If there are more requests to handle, reconnect.
     if (requests.length > 0 && client.readyState != "opening") {

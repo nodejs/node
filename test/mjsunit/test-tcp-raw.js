@@ -32,7 +32,7 @@ function onLoad () {
     c.send([j], "raw");
   });
 
-  c.addListener("disconnect", function () {
+  c.addListener("close", function () {
     p(recv);
     echoServer.close();
   });
