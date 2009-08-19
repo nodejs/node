@@ -8,6 +8,7 @@ node.EventEmitter.prototype.addListener = function (type, listener) {
     if (!this._events.hasOwnProperty(type)) this._events[type] = [];
     this._events[type].push(listener);
   }
+  return this;
 };
 
 node.EventEmitter.prototype.listeners = function (type) {
