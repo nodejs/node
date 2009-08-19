@@ -36,7 +36,7 @@ function onLoad () {
     client_recv_count += 1;
     puts("client_recv_count " + client_recv_count);
     assertEquals("hello\r\n", chunk);
-    client.fullClose();
+    client.close();
   });
 
   client.addListener("close", function (had_error) {

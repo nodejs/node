@@ -18,7 +18,7 @@ var server = node.tcp.createServer(function (c) {
     total_connections++;
     print("#");
     c.send(body);
-    c.fullClose();
+    c.close();
   });
 });
 server.listen(port);
@@ -29,6 +29,7 @@ function runClient (callback) {
   client.setEncoding("utf8");
 
   client.addListener("connect", function () {
+    print("c");
     client.recved = "";
     client.connections += 1;
   });

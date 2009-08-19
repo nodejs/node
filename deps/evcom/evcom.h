@@ -33,7 +33,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
 #ifndef EVCOM_HAVE_GNUTLS
 # define EVCOM_HAVE_GNUTLS 0
@@ -52,12 +52,11 @@ extern "C" {
 #define EVCOM_LISTENING         0x0002
 #define EVCOM_CONNECTED         0x0004
 #define EVCOM_SECURE            0x0008
-#define EVCOM_GOT_HALF_CLOSE    0x0010
-#define EVCOM_GOT_FULL_CLOSE    0x0020
+#define EVCOM_DUPLEX            0x0010
+#define EVCOM_GOT_CLOSE         0x0020
 #define EVCOM_PAUSED            0x0040
 #define EVCOM_READABLE          0x0080
 #define EVCOM_WRITABLE          0x0100
-#define EVCOM_GOT_WRITE_EVENT   0x0200
 
 enum evcom_stream_state { EVCOM_INITIALIZED
                         , EVCOM_CONNECTING
@@ -91,95 +90,112 @@ typedef struct evcom_buf {
 #  define EVCOM_LOOP
 #endif
 
-#define EVCOM_DESCRIPTOR(type)                              \
-  unsigned int flags;                       /* private   */ \
-  int (*action) (struct evcom_descriptor*); /* private   */ \
-  int errorno;                              /* read-only */ \
-  int fd;                                   /* read-only */ \
-  EVCOM_LOOP                                /* read-only */ \
-  void *data;                               /* public    */ \
-  void (*on_close) (struct type*);          /* public    */   
+#define EVCOM_DESCRIPTOR(type)                                \
+  /* private   */  unsigned int flags;                        \
+  /* private   */  int (*action) (struct evcom_descriptor*);  \
+  /* read-only */  int errorno;                               \
+  /* read-only */  int fd;                                    \
+  /* read-only */  EVCOM_LOOP                                 \
+  /* public    */  void *data;                                \
+  /* public    */  void (*on_close) (struct type*);
 
+/* abstract base class */
 typedef struct evcom_descriptor {
   EVCOM_DESCRIPTOR(evcom_descriptor)
 } evcom_descriptor;
 
-typedef struct evcom_server {
-  EVCOM_DESCRIPTOR(evcom_server)
+typedef struct evcom_reader {
+  EVCOM_DESCRIPTOR(evcom_reader)
+  ev_io read_watcher; /* private */
+  void (*on_read) (struct evcom_reader*, const void* buf, size_t len); /* public */
+} evcom_reader;
 
-  /* PRIVATE */
-  ev_io watcher; 
-
-  /* PUBLIC */
-  struct evcom_stream*
-    (*on_connection)(struct evcom_server *, struct sockaddr *remote_addr);
-} evcom_server;
+typedef struct evcom_writer {
+  EVCOM_DESCRIPTOR(evcom_writer)
+  ev_io write_watcher; /* private */
+  evcom_queue out; /* private */
+} evcom_writer;
 
 typedef struct evcom_stream {
-  EVCOM_DESCRIPTOR(evcom_stream)
-
-  /* PRIVATE */  
-  ev_io write_watcher;
+  /* PRIVATE */
+  EVCOM_LOOP
+  int errorno;
+  unsigned int flags;
+  evcom_queue out;
   ev_io read_watcher;
+  ev_io write_watcher;
+  int (*send_action) (struct evcom_stream*);
+  int (*recv_action) (struct evcom_stream*);
   ev_timer timeout_watcher;
 #if EVCOM_HAVE_GNUTLS
   gnutls_session_t session;
 #endif
 
-  /* READ-ONLY */  
+  /* READ-ONLY */
+  int recvfd;
+  int sendfd;
   struct evcom_server *server;
-  evcom_queue out;
 #if EVCOM_HAVE_GNUTLS
   int gnutls_errorno;
 #endif
 
   /* PUBLIC */
   void (*on_connect) (struct evcom_stream *);
-  void (*on_read)    (struct evcom_stream *, const void *buf, size_t count);
-  void (*on_drain)   (struct evcom_stream *);
   void (*on_timeout) (struct evcom_stream *);
+  void (*on_read)    (struct evcom_stream *, const void* buf, size_t len);
+  void (*on_close)   (struct evcom_stream *);
+  void *data;
 } evcom_stream;
+
+typedef struct evcom_server {
+  EVCOM_DESCRIPTOR(evcom_server)
+
+  /* PRIVATE */
+  ev_io watcher;
+
+  /* PUBLIC */
+  struct evcom_stream*
+    (*on_connection)(struct evcom_server *, struct sockaddr *remote_addr);
+} evcom_server;
+
+void evcom_reader_init          (evcom_reader*);
+void evcom_reader_set           (evcom_reader*, int fd);
+void evcom_reader_attach        (EV_P_ evcom_reader*);
+void evcom_reader_detach        (evcom_reader*);
+void evcom_reader_close         (evcom_reader*);
+
+void evcom_writer_init          (evcom_writer*);
+void evcom_writer_set           (evcom_writer*, int fd);
+void evcom_writer_attach        (EV_P_ evcom_writer*);
+void evcom_writer_detach        (evcom_writer*);
+void evcom_writer_write         (evcom_writer*, const char *str, size_t len);
+void evcom_writer_close         (evcom_writer*);
 
 void evcom_server_init          (evcom_server *);
  int evcom_server_listen        (evcom_server *, struct sockaddr *address, int backlog);
 void evcom_server_attach        (EV_P_ evcom_server *);
 void evcom_server_detach        (evcom_server *);
-void evcom_server_close         (evcom_server *);  // synchronous
+void evcom_server_close         (evcom_server *);
 
 void evcom_stream_init          (evcom_stream *, float timeout);
+
+ int evcom_stream_pair          (evcom_stream *a, evcom_stream *b);
  int evcom_stream_connect       (evcom_stream *, struct sockaddr *address);
+
 void evcom_stream_attach        (EV_P_ evcom_stream *);
 void evcom_stream_detach        (evcom_stream *);
 void evcom_stream_read_resume   (evcom_stream *);
 void evcom_stream_read_pause    (evcom_stream *);
-
-/* Resets the timeout to stay alive for another stream->timeout seconds
- */
+/* Resets the timeout to stay alive for another stream->timeout seconds */
 void evcom_stream_reset_timeout (evcom_stream *);
-
-/* Writes a buffer to the stream. 
- */
-void evcom_stream_write         (evcom_stream *, evcom_buf *);
-
-void evcom_stream_write_simple  (evcom_stream *, const char *str, size_t len);
-
+void evcom_stream_write         (evcom_stream *, const char *str, size_t len);
 /* Once the write buffer is drained, evcom_stream_close will shutdown the
  * writing end of the stream and will close the read end once the server
- * replies with an EOF. 
+ * replies with an EOF.
  */
 void evcom_stream_close         (evcom_stream *);
 
-/* Do not wait for the server to reply with EOF.  This will only be called
- * once the write buffer is drained.  
- * Warning: For TCP stream, the OS kernel may (should) reply with RST
- * packets if this is called when data is still being received from the
- * server.
- */
-void evcom_stream_full_close    (evcom_stream *);
-
-/* The most extreme measure. 
- * Will not wait for the write queue to complete. 
- */
+/* Will not wait for the write queue to complete. Closes both directions */
 void evcom_stream_force_close   (evcom_stream *);
 
 
@@ -195,9 +211,8 @@ void evcom_stream_set_secure_session (evcom_stream *, gnutls_session_t);
 
 enum evcom_stream_state evcom_stream_state (evcom_stream *stream);
 
-evcom_buf * evcom_buf_new     (const char* base, size_t len);
-evcom_buf * evcom_buf_new2    (size_t len);
-void        evcom_buf_destroy (evcom_buf *);
+evcom_buf* evcom_buf_new     (const char* base, size_t len);
+evcom_buf* evcom_buf_new2    (size_t len);
 
 EV_INLINE void
 evcom_queue_init (evcom_queue *q)
@@ -235,5 +250,5 @@ evcom_queue_remove (evcom_queue *x)
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
 #endif /* evcom_h */

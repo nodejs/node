@@ -1,6 +1,6 @@
 /* Copyright (c) 2008,2009 Ryan Dahl
  *
- * evcom_queue comes from ngx_queue.h 
+ * evcom_queue comes from ngx_queue.h
  * Copyright (C) 2002-2009 Igor Sysoev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,45 @@
 #include <sys/types.h>
 #include <sys/socket.h> /* shutdown */
 #include <sys/un.h>
+#include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
 #include <ev.h>
 #include <evcom.h>
 
 #if EV_MULTIPLICITY
 # define D_LOOP_(d)  (d)->loop,
+# define D_LOOP_SET(d, _loop)  do { (d)->loop = (_loop); } while (0)
 #else
 # define D_LOOP_(d)
+# define D_LOOP_SET(d, _loop)
 #endif // EV_MULTIPLICITY
 
+
+/* SEND STATES */
+static int stream_send__wait_for_connection (evcom_stream*);
+static int stream_send__data                (evcom_stream*);
+static int stream_send__drain               (evcom_stream*);
+static int stream_send__wait_for_eof        (evcom_stream*);
+static int stream_send__wait_for_buf        (evcom_stream*);
+static int stream_send__shutdown            (evcom_stream*);
 #if EVCOM_HAVE_GNUTLS
-static int secure_hangup (evcom_descriptor *);
+static int stream_send__gnutls_bye          (evcom_stream*);
 #endif
-static int recv_send (evcom_descriptor *);
+static int stream_send__close_one           (evcom_stream*);
+static int stream_send__close               (evcom_stream*);
+
+/* RECV STATES */
+static int stream_recv__data                (evcom_stream*);
+static int stream_recv__wait_for_resume     (evcom_stream*);
+static int stream_recv__wait_for_close      (evcom_stream*);
+static int stream_recv__close_one           (evcom_stream*);
+static int stream_recv__close               (evcom_stream*);
+
+/* COMMON STATES */
+#if EVCOM_HAVE_GNUTLS
+static int stream__handshake                (evcom_stream*);
+#endif
+static int stream__close_both               (evcom_stream*);
 
 #undef TRUE
 #define TRUE 1
@@ -60,18 +85,16 @@ static int recv_send (evcom_descriptor *);
 
 #define OKAY  0
 #define AGAIN 1
-#define ERROR 2 
 
 #define ATTACHED(s)         ((s)->flags & EVCOM_ATTACHED)
 #define LISTENING(s)        ((s)->flags & EVCOM_LISTENING)
 #define CONNECTED(s)        ((s)->flags & EVCOM_CONNECTED)
 #define SECURE(s)           ((s)->flags & EVCOM_SECURE)
-#define GOT_HALF_CLOSE(s)   ((s)->flags & EVCOM_GOT_HALF_CLOSE)
-#define GOT_FULL_CLOSE(s)   ((s)->flags & EVCOM_GOT_FULL_CLOSE)
+#define DUPLEX(s)           ((s)->flags & EVCOM_DUPLEX)
+#define GOT_CLOSE(s)        ((s)->flags & EVCOM_GOT_CLOSE)
 #define PAUSED(s)           ((s)->flags & EVCOM_PAUSED)
 #define READABLE(s)         ((s)->flags & EVCOM_READABLE)
 #define WRITABLE(s)         ((s)->flags & EVCOM_WRITABLE)
-#define GOT_WRITE_EVENT(s)  ((s)->flags & EVCOM_GOT_WRITE_EVENT)
 
 static int too_many_connections = 0;
 
@@ -87,33 +110,26 @@ set_nonblock (int fd)
   return 0;
 }
 
-void
-evcom_buf_destroy (evcom_buf *buf)
-{
-  free(buf->base);
-  free(buf);
-}
-
 evcom_buf *
 evcom_buf_new2 (size_t len)
 {
-  evcom_buf *buf = malloc(sizeof(evcom_buf));
-  if (!buf) return NULL;
-  buf->base = malloc(len);
-  if (!buf->base) {
-    free(buf);
-    return NULL; 
-  }
+  void *data = malloc(sizeof(evcom_buf) + len);
+  if (!data) return NULL;
+
+  evcom_buf *buf = data;
   buf->len = len;
-  buf->release = evcom_buf_destroy;
+  buf->release = (void (*)(evcom_buf*))free;
+  buf->base = data + sizeof(evcom_buf);
+
   return buf;
 }
 
 evcom_buf *
 evcom_buf_new (const char *base, size_t len)
 {
-  evcom_buf *buf = evcom_buf_new2(len);
+  evcom_buf* buf = evcom_buf_new2(len);
   if (!buf) return NULL;
+
   memcpy(buf->base, base, len);
 
   return buf;
@@ -123,12 +139,6 @@ static int
 close_asap (evcom_descriptor *d)
 {
   if (d->fd < 0) return OKAY;
-
-  /* In any case we need to feed an event in order
-   * to get the on_close callback. In the case of EINTR 
-   * we need an event so that we can call close() again.
-   */
-  ev_feed_fd_event(D_LOOP_(d) d->fd, EV_READ);
 
   int r = close(d->fd);
 
@@ -146,36 +156,23 @@ close_asap (evcom_descriptor *d)
 
   return OKAY;
 }
-  
-static inline void
-release_write_buffer(evcom_stream *stream)
-{
-  while (!evcom_queue_empty(&stream->out)) {
-    evcom_queue *q = evcom_queue_last(&stream->out);
-    evcom_buf *buf = evcom_queue_data(q, evcom_buf, queue);
-    evcom_queue_remove(q);
-    if (buf->release) buf->release(buf);
-  }
-}
+
+#define release_write_buffer(writer) \
+do { \
+  while (!evcom_queue_empty(&(writer)->out)) { \
+    evcom_queue *q = evcom_queue_last(&(writer)->out); \
+    evcom_buf *buf = evcom_queue_data(q, evcom_buf, queue); \
+    evcom_queue_remove(q); \
+    if (buf->release) buf->release(buf); \
+  } \
+} while (0)
 
 static int
-close_stream_asap (evcom_stream *stream)
+close_writer_asap (evcom_writer *writer)
 {
-  release_write_buffer(stream); // needed?
-
-  if (too_many_connections && stream->server) {
-#if EV_MULTIPLICITY
-    struct ev_loop *loop = stream->server->loop;
-#endif 
-    evcom_server_attach(EV_A_ stream->server);
-  }
-  too_many_connections = 0;
-
-  int r = close_asap((evcom_descriptor*)stream);
-  if (r == AGAIN) return AGAIN;
-
-  evcom_stream_detach(stream);
-  return OKAY;
+  release_write_buffer(writer);
+  ev_feed_event(D_LOOP_(writer) &writer->write_watcher, EV_WRITE);
+  return close_asap((evcom_descriptor*)writer);
 }
 
 static inline void
@@ -184,64 +181,146 @@ evcom_perror (const char *msg, int errorno)
   fprintf(stderr, "(evcom) %s %s\n", msg, strerror(errorno));
 }
 
-// This is to be called when ever the out is empty
-// and we need to change state.
-static inline void
-change_state_for_empty_out (evcom_stream *stream)
+static int
+stream_send__wait_for_buf (evcom_stream *stream)
 {
-  if (GOT_FULL_CLOSE(stream)) {
-#if EVCOM_HAVE_GNUTLS
-    if (SECURE(stream) && READABLE(stream) && WRITABLE(stream)) {
-      secure_hangup((evcom_descriptor*)stream);
-    } else 
-#endif
-    {
-      close_stream_asap(stream);
+  if (evcom_queue_empty(&stream->out)) {
+    if (GOT_CLOSE(stream)) {
+      stream->send_action = stream_send__drain;
+      return OKAY;
     }
-    return;
-  }
-
-  if (GOT_HALF_CLOSE(stream)) {
-    if (WRITABLE(stream)) {
-      stream->action = recv_send;
-      recv_send((evcom_descriptor*)stream);
-    } else {
-      close_stream_asap(stream);
-    }
-    return;
-  }
-
-  if (ATTACHED(stream)) {
     ev_io_stop(D_LOOP_(stream) &stream->write_watcher);
+    return AGAIN;
   }
+
+  stream->send_action = stream_send__data;
+  return OKAY;
 }
 
 static inline void
-update_write_buffer_after_send (evcom_stream *stream, ssize_t sent)
+stream__set_recv_closed (evcom_stream *stream)
 {
-  evcom_queue *q = evcom_queue_last(&stream->out);
-  evcom_buf *buf = evcom_queue_data(q, evcom_buf, queue);
-  buf->written += sent;
-
-  if (buf->written == buf->len) {
-    evcom_queue_remove(q);
-
-    if (buf->release) buf->release(buf);
-
-    if (evcom_queue_empty(&stream->out)) {
-      change_state_for_empty_out(stream);
-    }
-  }
+  stream->flags &= ~EVCOM_READABLE;
+  stream->recvfd = -1;
+  stream->recv_action = NULL;
+  ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
 }
 
-#if EVCOM_HAVE_GNUTLS
-/* TODO can this be done without ignoring SIGPIPE?  */
-static ssize_t 
-nosigpipe_push (gnutls_transport_ptr_t data, const void *buf, size_t len)
+static inline void
+stream__set_send_closed (evcom_stream *stream)
 {
-  evcom_stream *stream = (evcom_stream*)data;
-  assert(SECURE(stream));
+  release_write_buffer(stream);
+  stream->flags &= ~EVCOM_WRITABLE;
+  stream->sendfd = -1;
+  stream->send_action = NULL;
+  ev_io_stop(D_LOOP_(stream) &stream->write_watcher);
+}
 
+static int
+stream_send__close_one (evcom_stream *stream)
+{
+  assert(stream->sendfd >= 0);
+
+  close(stream->sendfd);
+
+  /* TODO recover from EINTR */
+
+  stream__set_send_closed(stream);
+  if (DUPLEX(stream)) stream__set_recv_closed(stream);
+
+  return OKAY;
+}
+
+static int
+stream__close_both (evcom_stream *stream)
+{
+  assert(stream->sendfd != stream->recvfd);
+
+  assert(stream->sendfd >= 0);
+  assert(stream->recvfd >= 0);
+
+  close(stream->recvfd);
+  close(stream->sendfd);
+
+  /* TODO recover from EINTR */
+
+  stream__set_send_closed(stream);
+  stream__set_recv_closed(stream);
+
+  return OKAY;
+}
+
+static int
+stream_send__close (evcom_stream *stream)
+{
+  stream->send_action = DUPLEX(stream) ?
+      stream_send__close_one : stream__close_both;
+  return OKAY;
+}
+
+static int
+stream_recv__close_one (evcom_stream *stream)
+{
+  assert(stream->recvfd >= 0);
+
+  close(stream->recvfd);
+
+  /* TODO recover from EINTR */
+
+  stream__set_recv_closed(stream);
+  if (DUPLEX(stream)) stream__set_send_closed(stream);
+
+  return OKAY;
+}
+
+static int
+stream_recv__close (evcom_stream *stream)
+{
+  stream->recv_action = DUPLEX(stream) ?
+      stream_recv__close_one : stream__close_both;
+  return OKAY;
+}
+
+static int
+stream_send__drain (evcom_stream *stream)
+{
+  if (!GOT_CLOSE(stream)) {
+    stream->send_action = stream_send__wait_for_buf;
+    return OKAY;
+  }
+
+#if EVCOM_HAVE_GNUTLS
+  if (SECURE(stream)) {
+    stream->send_action = stream_send__gnutls_bye;
+    return OKAY;
+  }
+#endif
+
+  if (DUPLEX(stream)) {
+    stream->send_action = stream_send__shutdown;
+    return OKAY;
+  }
+
+  stream->send_action = stream_send__close_one;
+  return OKAY;
+}
+
+static int
+stream_send__wait_for_eof (evcom_stream *stream)
+{
+  if (READABLE(stream)) {
+    ev_io_stop(D_LOOP_(stream) &stream->write_watcher);
+    assert(stream->send_action == stream_send__wait_for_eof);
+    return AGAIN;
+  }
+
+  stream->send_action = stream_send__close_one;
+  return OKAY;
+}
+
+static inline ssize_t
+nosigpipe_send (int fd, const void *buf, size_t len)
+{
   int flags = 0;
 #ifdef MSG_NOSIGNAL
   flags |= MSG_NOSIGNAL;
@@ -249,73 +328,99 @@ nosigpipe_push (gnutls_transport_ptr_t data, const void *buf, size_t len)
 #ifdef MSG_DONTWAIT
   flags |= MSG_DONTWAIT;
 #endif
-  ssize_t r = send(stream->fd, buf, len, flags);
-
-  return r;
+  return send(fd, buf, len, flags);
 }
 
-#define SET_DIRECTION(stream) \
-do { \
-  if (0 == gnutls_record_get_direction((stream)->session)) { \
-    ev_io_stop(D_LOOP_(stream) &(stream)->write_watcher);  \
-    ev_io_start(D_LOOP_(stream) &(stream)->read_watcher);  \
-  } else { \
-    ev_io_stop(D_LOOP_(stream) &(stream)->read_watcher); \
-    ev_io_start(D_LOOP_(stream) &(stream)->write_watcher); \
-  } \
-} while (0)
+static inline ssize_t
+nosigpipe_stream_send (evcom_stream *stream, const void *buf, size_t len)
+{
+  return write(stream->sendfd, buf, len);
+}
+
+#if EVCOM_HAVE_GNUTLS
+static ssize_t
+nosigpipe_push (gnutls_transport_ptr_t data, const void *buf, size_t len)
+{
+  evcom_stream *stream = (evcom_stream*)data;
+  assert(SECURE(stream));
+
+  return nosigpipe_stream_send(stream, buf, len);
+}
+
+static ssize_t
+pull (gnutls_transport_ptr_t data, void* buf, size_t len)
+{
+  evcom_stream *stream = (evcom_stream*)data;
+  assert(SECURE(stream));
+
+  return read(stream->recvfd, buf, len);
+}
 
 static int
-secure_handshake (evcom_descriptor *d)
+stream__handshake (evcom_stream *stream)
 {
-  evcom_stream *stream = (evcom_stream*) d;
-
   assert(SECURE(stream));
 
   int r = gnutls_handshake(stream->session);
 
   if (gnutls_error_is_fatal(r)) {
     stream->gnutls_errorno = r;
-    return close_stream_asap(stream);
+    stream->send_action = stream_send__close;
+    stream->recv_action = stream_recv__close;
+    return OKAY;
   }
+
+  evcom_stream_reset_timeout(stream);
 
   if (r == GNUTLS_E_INTERRUPTED || r == GNUTLS_E_AGAIN) {
-    SET_DIRECTION(stream);
-    stream->action = secure_handshake;
+    if (0 == gnutls_record_get_direction((stream)->session)) {
+      ev_io_start(D_LOOP_(stream) &(stream)->read_watcher); 
+      ev_io_stop(D_LOOP_(stream) &(stream)->write_watcher); 
+    } else {
+      ev_io_stop(D_LOOP_(stream) &(stream)->read_watcher); 
+      ev_io_start(D_LOOP_(stream) &(stream)->write_watcher);
+    }
+    assert(stream->recv_action == stream__handshake);
+    assert(stream->send_action == stream__handshake);
     return AGAIN;
   }
-
-  stream->action = recv_send;
 
   assert(!CONNECTED(stream));
   stream->flags |= EVCOM_CONNECTED;
   if (stream->on_connect) stream->on_connect(stream);
 
-  evcom_stream_reset_timeout(stream);
+  ev_io_start(D_LOOP_(stream) &stream->read_watcher);
+  ev_io_start(D_LOOP_(stream) &stream->write_watcher);
 
-  return recv_send((evcom_descriptor*)stream);
+  stream->send_action = stream_send__data;
+  stream->recv_action = stream_recv__data;
+
+  return OKAY;
 }
 
 static int
-secure_hangup (evcom_descriptor *d)
+stream_send__gnutls_bye (evcom_stream *stream)
 {
-  evcom_stream *stream = (evcom_stream*)d;
-
   assert(SECURE(stream));
 
-  int r = gnutls_bye(stream->session, GNUTLS_SHUT_RDWR);
+  int r = gnutls_bye(stream->session, GNUTLS_SHUT_WR);
 
   if (r == GNUTLS_E_INTERRUPTED || r == GNUTLS_E_AGAIN) {
-    SET_DIRECTION(stream);
-    stream->action = secure_hangup;
+    assert(1 == gnutls_record_get_direction((stream)->session));
+    assert(stream->send_action == stream_send__gnutls_bye);
     return AGAIN;
   }
 
   if (gnutls_error_is_fatal(r)) {
     stream->gnutls_errorno = r;
+    stream->send_action = stream_send__close;
+    return OKAY;
   }
 
-  return close_stream_asap(stream);
+  stream->flags &= ~EVCOM_WRITABLE;
+
+  stream->send_action = stream_send__wait_for_eof;
+  return OKAY;
 }
 
 void
@@ -326,58 +431,92 @@ evcom_stream_set_secure_session (evcom_stream *stream, gnutls_session_t session)
 }
 #endif /* HAVE GNUTLS */
 
-static inline int
-recv_data (evcom_stream *stream)
+static int
+stream_recv__wait_for_close (evcom_stream *stream)
+{
+  assert(!READABLE(stream));
+
+  if (!WRITABLE(stream)) {
+    stream->recv_action = stream_recv__close;
+    return OKAY;
+  }
+
+  ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
+  return AGAIN;
+}
+
+static int
+stream_recv__wait_for_resume (evcom_stream *stream)
+{
+  stream->flags |= EVCOM_PAUSED;
+  ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
+  assert(stream->recv_action == stream_recv__wait_for_resume);
+  return AGAIN;
+}
+
+static int
+stream_recv__data (evcom_stream *stream)
 {
   char buf[EVCOM_CHUNKSIZE];
   size_t buf_size = EVCOM_CHUNKSIZE;
   ssize_t recved;
 
-  while (stream->fd >= 0) {
-    assert(READABLE(stream));
+  while (READABLE(stream)) {
+    assert(CONNECTED(stream));
 
     if (PAUSED(stream)) {
-      ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
-      return AGAIN;
+      stream->recv_action = stream_recv__wait_for_resume;
+      return OKAY;
     }
 
-    if (!SECURE(stream)) {
-      recved = recv(stream->fd, buf, buf_size, 0);
-    }
 
 #if EVCOM_HAVE_GNUTLS
-    else {
+    if (SECURE(stream)) {
       recved = gnutls_record_recv(stream->session, buf, buf_size);
 
       if (gnutls_error_is_fatal(recved)) {
         stream->gnutls_errorno = recved;
-        return close_stream_asap(stream);
+        stream->recv_action = stream_recv__close;
+        return OKAY;
       }
 
       if (recved == GNUTLS_E_INTERRUPTED || recved == GNUTLS_E_AGAIN) {
-        SET_DIRECTION(stream);
+        if (1 == gnutls_record_get_direction((stream)->session)) {
+          fprintf(stderr, "(evcom) gnutls recv: unexpected switch direction!\n");
+          ev_io_stop(D_LOOP_(stream) &(stream)->read_watcher); 
+          ev_io_start(D_LOOP_(stream) &(stream)->write_watcher);
+        }
         return AGAIN;
       }
 
       /* A server may also receive GNUTLS_E_REHANDSHAKE when a client has
-       * initiated a handshake. In that case the server can only initiate a
+       * initiated a andshake. In that case the server can only initiate a
        * handshake or terminate the connection. */
       if (recved == GNUTLS_E_REHANDSHAKE) {
-        if (READABLE(stream) && WRITABLE(stream)) {
-          stream->action = secure_handshake;
-          return OKAY;
-        } else {
-          stream->gnutls_errorno = GNUTLS_E_REHANDSHAKE;
-          return close_stream_asap(stream);
-        }
+        assert(WRITABLE(stream));
+        stream->recv_action = stream__handshake;
+        stream->send_action = stream__handshake;
+        return OKAY;
       }
-    }
+    } else 
 #endif /* EVCOM_HAVE_GNUTLS */
+    {
+      recved = read(stream->recvfd, buf, buf_size);
+    }
 
     if (recved < 0) {
-      if (errno == EAGAIN || errno == EINTR) return AGAIN;
+      if (errno == EAGAIN || errno == EINTR) {
+        assert(stream->recv_action == stream_recv__data);
+        return AGAIN;
+      } 
+      
+      if (errno != ECONNRESET) {
+        evcom_perror("recv()", stream->errorno);
+      }
+
       stream->errorno = errno;
-      return close_stream_asap(stream);
+      stream->recv_action = stream_recv__close;
+      return OKAY;
     }
 
     evcom_stream_reset_timeout(stream);
@@ -393,7 +532,7 @@ recv_data (evcom_stream *stream)
     if (stream->on_read) stream->on_read(stream, buf, recved);
 
     if (recved == 0) {
-      if (!WRITABLE(stream)) return close_stream_asap(stream);
+      stream->recv_action = stream_recv__wait_for_close;
       return OKAY;
     }
   }
@@ -401,11 +540,11 @@ recv_data (evcom_stream *stream)
 }
 
 static int
-send_data (evcom_stream *stream)
+stream_send__data (evcom_stream *stream)
 {
   ssize_t sent;
 
-  while (stream->fd >= 0 && !evcom_queue_empty(&stream->out)) {
+  while (!evcom_queue_empty(&stream->out)) {
     assert(WRITABLE(stream));
 
     evcom_queue *q = evcom_queue_last(&stream->out);
@@ -414,202 +553,176 @@ send_data (evcom_stream *stream)
 #if EVCOM_HAVE_GNUTLS
     if (SECURE(stream)) {
       sent = gnutls_record_send(stream->session,
-        buf->base + buf->written,
-        buf->len - buf->written); 
+          buf->base + buf->written,
+          buf->len - buf->written);
+
+      if (sent == GNUTLS_E_INTERRUPTED || sent == GNUTLS_E_AGAIN) {
+        if (0 == gnutls_record_get_direction((stream)->session)) {
+          fprintf(stderr, "(evcom) gnutls send: unexpected switch direction!\n");
+          ev_io_start(D_LOOP_(stream) &(stream)->read_watcher); 
+          ev_io_stop(D_LOOP_(stream) &(stream)->write_watcher);
+        }
+        return AGAIN;
+      }
 
       if (gnutls_error_is_fatal(sent)) {
         stream->gnutls_errorno = sent;
-        return close_stream_asap(stream);
+        stream->send_action = stream_send__close;
+        return OKAY;
       }
     } else
 #endif // EVCOM_HAVE_GNUTLS
     {
-
-      int flags = 0;
-#ifdef MSG_NOSIGNAL
-      flags |= MSG_NOSIGNAL;
-#endif
-#ifdef MSG_DONTWAIT
-      flags |= MSG_DONTWAIT;
-#endif
-
       /* TODO use writev() here? */
-      sent = send(stream->fd,
-        buf->base + buf->written,
-        buf->len - buf->written, 
-        flags);
+      sent = nosigpipe_stream_send(stream,
+          buf->base + buf->written,
+          buf->len - buf->written);
     }
 
     if (sent <= 0) {
-      switch (errno) {
-        case EAGAIN:
-        case EINTR:
-          return AGAIN;
-
-        case EPIPE:
-          stream->flags &= ~EVCOM_WRITABLE;
-          if (!READABLE(stream)) return close_stream_asap(stream);
-          return OKAY;
-
-        default:
-          stream->errorno = errno;
-          return close_stream_asap(stream);
+      if (errno == EAGAIN || errno == EINTR) {
+        assert(stream->send_action == stream_send__data);
+        return AGAIN;
       }
+
+      stream->errorno = errno;
+      evcom_perror("send()", errno);
+
+      stream->send_action = stream_send__close;
+      return OKAY;
     }
 
     evcom_stream_reset_timeout(stream);
 
-    update_write_buffer_after_send(stream, sent);
+    assert(sent >= 0);
+
+    buf->written += sent;
+
+    if (buf->written == buf->len) {
+      evcom_queue_remove(q);
+      if (buf->release) buf->release(buf);
+    }
   }
 
   assert(evcom_queue_empty(&stream->out));
-  ev_io_stop(D_LOOP_(stream) &stream->write_watcher);
 
-  return AGAIN;
+  stream->send_action = stream_send__drain;
+  return OKAY;
 }
 
 static int
-shutdown_write (evcom_stream *stream)
+stream_send__shutdown (evcom_stream *stream)
 {
-  int r;
-
-#if EVCOM_HAVE_GNUTLS
-  if (SECURE(stream)) {
-    r = gnutls_bye(stream->session, GNUTLS_SHUT_WR);
-
-    if (gnutls_error_is_fatal(r))  {
-      stream->gnutls_errorno = r;
-      return close_stream_asap(stream);
-    }
-
-    if (r == GNUTLS_E_INTERRUPTED || r == GNUTLS_E_AGAIN) {
-      SET_DIRECTION(stream);
-    }
-  }
-#endif
-
-  r = shutdown(stream->fd, SHUT_WR);
+  int r = shutdown(stream->sendfd, SHUT_WR);
 
   if (r < 0) {
     stream->errorno = errno;
     evcom_perror("shutdown()", errno);
-    return close_stream_asap(stream);
+    stream->send_action = stream_send__close;
+    return OKAY;
   }
 
   stream->flags &= ~EVCOM_WRITABLE;
 
+  stream->send_action = stream_send__wait_for_eof;
   return OKAY;
 }
 
-static int 
-recv_send (evcom_descriptor *d)
+static int
+stream__connection_established (evcom_stream *stream)
 {
-  evcom_stream *stream = (evcom_stream*) d;
-
-  int r = AGAIN;
-
-  if (READABLE(stream) && !PAUSED(stream)) {
-    r = recv_data(stream);
-  }
-
-  if (stream->fd < 0) return AGAIN;
-
-  if (WRITABLE(stream)) {
-    if (GOT_HALF_CLOSE(stream) && evcom_queue_empty(&stream->out)) {
-
-      if (READABLE(stream)) {
-        return shutdown_write(stream);
-      } else {
-        return close_stream_asap(stream);
-      }
-
-    } else {
-      return send_data(stream);
-    }
-  }
-
-  return r;
-}
-
-static inline int
-connection_established (evcom_stream *stream)
-{
-  ev_io_start(D_LOOP_(stream) &stream->read_watcher);
   assert(!CONNECTED(stream));
 
 #if EVCOM_HAVE_GNUTLS
   if (SECURE(stream)) {
-    stream->action = secure_handshake;
-    return secure_handshake((evcom_descriptor*)stream);
-  } else 
-#endif  /* EVCOM_HAVE_GNUTLS */
+    stream->send_action = stream__handshake;
+    stream->recv_action = stream__handshake;
+  } else
+#endif
   {
     stream->flags |= EVCOM_CONNECTED;
     if (stream->on_connect) stream->on_connect(stream);
 
-    stream->action = recv_send;
-    return recv_send((evcom_descriptor*)stream);
+    stream->send_action = stream_send__data;
+    stream->recv_action = stream_recv__data;
   }
+
+  ev_io_start(D_LOOP_(stream) &stream->write_watcher);
+  ev_io_start(D_LOOP_(stream) &stream->read_watcher);
+
+  return OKAY;
 }
 
 static int
-wait_for_connection (evcom_descriptor *d)
+stream_send__wait_for_connection (evcom_stream *stream)
 {
-  evcom_stream *stream = (evcom_stream*)d;
-
-  if (!GOT_WRITE_EVENT(d)) {
-    ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
-    return AGAIN;
-  }
+  assert(DUPLEX(stream));
 
   int connect_error;
   socklen_t len = sizeof(int);
-  int r = getsockopt(d->fd, SOL_SOCKET, SO_ERROR, &connect_error, &len);
+  int r = getsockopt(stream->sendfd, SOL_SOCKET, SO_ERROR, &connect_error, &len);
+
   if (r < 0) {
-    d->errorno = r;
-    return close_asap(d);
+    stream->errorno = r;
+    stream->send_action = stream_send__close;
+    return OKAY;
   }
 
-  switch (connect_error) {
-    case 0:
-      return connection_established((evcom_stream*)d);
+  if (connect_error == 0) {
+    stream->send_action = stream__connection_established;
+    return OKAY;
 
-    case EINTR:
-    case EINPROGRESS:
-      return AGAIN;
-
-    default:
-      d->errorno = connect_error;
-      return close_asap(d);
+  } else if (connect_error == EINPROGRESS || connect_error == EINTR) {
+    assert(stream->send_action == stream_send__wait_for_connection);
+    return AGAIN;
   }
+
+  stream->errorno = connect_error;
+  stream->send_action = stream_send__close;
+  return OKAY;
 }
 
 static void
-assign_file_descriptor (evcom_stream *stream, int fd)
+evcom_stream_assign_fds (evcom_stream *stream, int recvfd, int sendfd)
 {
-  stream->fd = fd;
+  assert(recvfd >= 0);
+  assert(sendfd >= 0);
 
-  ev_io_set (&stream->read_watcher, fd, EV_READ);
-  ev_io_set (&stream->write_watcher, fd, EV_WRITE);
+  if (recvfd == sendfd) stream->flags |= EVCOM_DUPLEX;
+
+#ifdef SO_NOSIGPIPE
+  if (DUPLEX(stream)) {
+    int flags = 1;
+    int r = setsockopt(sendfd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
+    if (r < 0) {
+      evcom_perror("setsockopt(SO_NOSIGPIPE)", errno);
+    }
+  }
+#endif
+
+  ev_io_set(&stream->read_watcher, recvfd, EV_READ);
+  ev_io_set(&stream->write_watcher, sendfd, EV_WRITE);
+
+  stream->recvfd = recvfd;
+  stream->sendfd = sendfd;
+
+  stream->send_action = stream__connection_established;
+  stream->recv_action = stream__connection_established;
 
   stream->flags |= EVCOM_READABLE;
   stream->flags |= EVCOM_WRITABLE;
 
 #if EVCOM_HAVE_GNUTLS
   if (SECURE(stream)) {
-    gnutls_transport_set_lowat(stream->session, 0); 
+    gnutls_transport_set_lowat(stream->session, 0);
     gnutls_transport_set_push_function(stream->session, nosigpipe_push);
-    gnutls_transport_set_ptr2(stream->session,
-        (gnutls_transport_ptr_t)(intptr_t)fd, /* recv */
-        stream); /* send */   
+    gnutls_transport_set_pull_function(stream->session, pull);
+    gnutls_transport_set_ptr2(stream->session, stream, stream);
   }
-#endif 
-
-  stream->action = wait_for_connection;
+#endif
 }
 
-
-/* Retruns evcom_stream if a connection could be accepted. 
+/* Retruns evcom_stream if a connection could be accepted.
  * The returned stream is not yet attached to the event loop.
  * Otherwise NULL
  */
@@ -618,7 +731,7 @@ accept_connection (evcom_server *server)
 {
   struct sockaddr address; /* connector's address information */
   socklen_t addr_len = sizeof(address);
-  
+
   int fd = accept(server->fd, &address, &addr_len);
   if (fd < 0) {
     switch (errno) {
@@ -648,31 +761,22 @@ accept_connection (evcom_server *server)
     close(fd);
     return NULL;
   }
-  
+
   if (set_nonblock(fd) != 0) {
     evcom_perror("set_nonblock()", errno);
     return NULL;
   }
-  
-#ifdef SO_NOSIGPIPE
-  int flags = 1;
-  int r = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
-  if (r < 0) {
-    evcom_perror("setsockopt()", errno);
-    return NULL;
-  }
-#endif
 
   stream->server = server;
-  assign_file_descriptor(stream, fd);
+  evcom_stream_assign_fds(stream, fd, fd);
 
   return stream;
 }
 
-/* Internal callback 
+/* Internal callback
  * Called by server->watcher.
  */
-static int 
+static int
 accept_connections (evcom_descriptor *d)
 {
   evcom_server *server = (evcom_server *)d;
@@ -683,7 +787,6 @@ accept_connections (evcom_descriptor *d)
   evcom_stream *stream;
   while (server->fd >= 0 && (stream = accept_connection(server))) {
     evcom_stream_attach(D_LOOP_(server) stream);
-    connection_established(stream);
   }
 
   return AGAIN;
@@ -747,17 +850,17 @@ evcom_server_listen (evcom_server *server, struct sockaddr *address, int backlog
     close(fd);
     return -1;
   }
-  
+
   if (listen(fd, backlog) < 0) {
     server->errorno = errno;
     evcom_perror("listen()", errno);
     close(fd);
     return -1;
   }
-  
+
   server->flags |= EVCOM_LISTENING;
   server->action = accept_connections;
-  
+
   return 0;
 }
 
@@ -765,9 +868,12 @@ evcom_server_listen (evcom_server *server, struct sockaddr *address, int backlog
  * Stops the server. Will not accept new connections.  Does not drop
  * existing connections.
  */
-void 
+void
 evcom_server_close (evcom_server *server)
 {
+  ev_io_start(D_LOOP_(server) &server->watcher);
+  ev_feed_event(D_LOOP_(server) &server->watcher, EV_READ);
+
   close_asap((evcom_descriptor*)server);
 }
 
@@ -775,9 +881,7 @@ void
 evcom_server_attach (EV_P_ evcom_server *server)
 {
   ev_io_start (EV_A_ &server->watcher);
-#if EV_MULTIPLICITY
-  server->loop = EV_A;
-#endif
+  D_LOOP_SET(server, EV_A);
   server->flags |= EVCOM_ATTACHED;
 }
 
@@ -785,33 +889,26 @@ void
 evcom_server_detach (evcom_server *server)
 {
   ev_io_stop (D_LOOP_(server) &server->watcher);
-#if EV_MULTIPLICITY
-  server->loop = NULL;
-#endif
+  D_LOOP_SET(server, NULL);
   server->flags &= ~EVCOM_ATTACHED;
 }
 
-static void 
+static void
 io_event(EV_P_ ev_io *watcher, int revents)
 {
   evcom_descriptor *d = watcher->data;
 
 #if EV_MULTIPLICITY
   assert(d->loop == loop);
-#endif 
+#endif
 
+  int r = OKAY;
 
   if (revents & EV_ERROR) {
     d->errorno = 1;
-    close_asap(d);
-  } 
-
-  if (revents & EV_WRITE) {
-    d->flags |= EVCOM_GOT_WRITE_EVENT;
+    r = close_asap(d);
   }
 
-  int r = OKAY;
-  
   while (r == OKAY && d->action && d->fd >= 0) {
     r = d->action(d);
   }
@@ -824,20 +921,27 @@ io_event(EV_P_ ev_io *watcher, int revents)
   }
 }
 
-void 
+static void
+evcom_descriptor_init (evcom_descriptor *d)
+{
+  d->fd = -1;
+  D_LOOP_SET(d, NULL);
+  d->flags = 0;
+  d->errorno = 0;
+  d->action = NULL;
+}
+
+void
 evcom_server_init (evcom_server *server)
 {
-  server->flags = 0;
-  server->fd = -1;
-  server->watcher.data = server;
-  server->action = NULL;
+  evcom_descriptor_init((evcom_descriptor*)server);
   ev_init (&server->watcher, io_event);
+  server->watcher.data = server;
   server->on_connection = NULL;
-  server->on_close = NULL;
 }
 
 /* Internal callback. called by stream->timeout_watcher */
-static void 
+static void
 on_timeout (EV_P_ ev_timer *watcher, int revents)
 {
   evcom_stream *stream = watcher->data;
@@ -854,9 +958,51 @@ on_timeout (EV_P_ ev_timer *watcher, int revents)
   }
 
   if (stream->on_timeout) stream->on_timeout(stream);
-  // timeout does not automatically kill your connection. you must!
+
+  evcom_stream_force_close(stream);
 }
 
+static void 
+stream_event (EV_P_ ev_io *w, int revents)
+{
+  evcom_stream *stream = w->data;
+
+  if (revents & EV_READ) {
+    while (stream->recv_action) {
+      int r = stream->recv_action(stream);
+      if (r == AGAIN) break;
+    }
+  }
+
+  if (revents & EV_WRITE) {
+    while (stream->send_action) {
+      int r = stream->send_action(stream);
+      if (r == AGAIN) break;
+    }
+  }
+
+  if (stream->send_action == NULL) {
+    ev_io_stop(EV_A_ &stream->write_watcher);
+  }
+
+  if (stream->recv_action == NULL) {
+    ev_io_stop(EV_A_ &stream->read_watcher);
+  }
+
+  if (stream->sendfd < 0 && stream->recvfd < 0) {
+    ev_timer_stop(EV_A_ &stream->timeout_watcher);
+
+    if (too_many_connections && stream->server) {
+#if EV_MULTIPLICITY
+      struct ev_loop *loop = stream->server->loop;
+#endif
+      evcom_server_attach(EV_A_ stream->server);
+    }
+    too_many_connections = 0;
+
+    if (stream->on_close) stream->on_close(stream);
+  }
+}
 
 /**
  * If using SSL do consider setting
@@ -865,139 +1011,151 @@ on_timeout (EV_P_ ev_timer *watcher, int revents)
  *   gnutls_db_set_store_function (stream->session, _);
  *   gnutls_db_set_ptr (stream->session, _);
  */
-void 
+void
 evcom_stream_init (evcom_stream *stream, float timeout)
 {
-  stream->fd = -1;
-  stream->server = NULL;
-#if EV_MULTIPLICITY
-  stream->loop = NULL;
-#endif
   stream->flags = 0;
-
-  evcom_queue_init(&stream->out);
-
-  ev_init(&stream->write_watcher, io_event);
-  ev_init(&stream->read_watcher, io_event);
-  stream->write_watcher.data = stream;
-  stream->read_watcher.data  = stream;
-
   stream->errorno = 0;
+  stream->recvfd = -1;
+  stream->sendfd = -1;
 
+  // reader things
+  ev_init(&stream->read_watcher, stream_event);
+  stream->read_watcher.data = stream;
+  stream->recv_action = NULL;
+
+  // writer things
+  ev_init(&stream->write_watcher, stream_event);
+  stream->write_watcher.data = stream;
+  evcom_queue_init(&stream->out);
+  stream->send_action = NULL;
+
+  // stream things
+  stream->server = NULL;
 #if EVCOM_HAVE_GNUTLS
   stream->gnutls_errorno = 0;
   stream->session = NULL;
-#endif 
-
+#endif
   ev_timer_init(&stream->timeout_watcher, on_timeout, 0., timeout);
-  stream->timeout_watcher.data = stream;  
-
-  stream->action = NULL;
+  stream->timeout_watcher.data = stream;
 
   stream->on_connect = NULL;
-  stream->on_read = NULL;
-  stream->on_drain = NULL;
   stream->on_timeout = NULL;
+  stream->on_read = NULL;
+  stream->on_close = NULL;
 }
 
-void 
+void
 evcom_stream_close (evcom_stream *stream)
 {
-  stream->flags |= EVCOM_GOT_HALF_CLOSE;
-  if (evcom_queue_empty(&stream->out)) {
-    change_state_for_empty_out(stream);
-  }
-}
-
-void 
-evcom_stream_full_close (evcom_stream *stream)
-{
-  stream->flags |= EVCOM_GOT_FULL_CLOSE;
-  if (evcom_queue_empty(&stream->out)) {
-    change_state_for_empty_out(stream);
+  stream->flags |= EVCOM_GOT_CLOSE;
+  if (WRITABLE(stream)) {
+    ev_io_start(D_LOOP_(stream) &stream->write_watcher);
   }
 }
 
 void evcom_stream_force_close (evcom_stream *stream)
 {
-  close_stream_asap(stream);
- 
-  // Even if close returned EINTR
-  stream->action = NULL;
-  stream->fd = -1;
+  close(stream->recvfd);
+  /* XXX What to do on EINTR? */
+  stream__set_recv_closed(stream);
+
+  if (!DUPLEX(stream)) close(stream->sendfd);
+  stream__set_send_closed(stream);
 
   evcom_stream_detach(stream);
 }
 
-void 
-evcom_stream_write (evcom_stream *stream, evcom_buf *buf)
+void
+evcom_stream_write (evcom_stream *stream, const char *str, size_t len)
 {
-  if (!WRITABLE(stream) || GOT_FULL_CLOSE(stream) || GOT_HALF_CLOSE(stream)) {
-    assert(0 && "Do not write to a closed stream"); 
-    if (buf->release) buf->release(buf);
+  if (!WRITABLE(stream) || GOT_CLOSE(stream)) {
+    assert(0 && "Do not write to a closed stream");
     return;
   }
 
-  evcom_queue_insert_head(&stream->out, &buf->queue);
-  buf->written = 0;
+  ssize_t sent = 0;
+
+  if ( stream->send_action == stream_send__wait_for_buf
+    && evcom_queue_empty(&stream->out)
+     ) 
+  {
+    assert(CONNECTED(stream));
+#if EVCOM_HAVE_GNUTLS
+    if (SECURE(stream)) {
+      sent = gnutls_record_send(stream->session, str, len);
+
+      if (gnutls_error_is_fatal(sent)) {
+        stream->gnutls_errorno = sent;
+        goto close;
+      }
+    } else
+#endif // EVCOM_HAVE_GNUTLS
+    {
+      /* TODO use writev() here? */
+      sent = nosigpipe_stream_send(stream, str, len);
+    }
+
+    if (sent < 0) {
+      switch (errno) {
+        case EINTR:
+        case EAGAIN:
+          sent = 0;
+          break;
+
+        default:
+          stream->errorno = errno;
+          evcom_perror("send()", stream->errorno);
+          goto close;
+      }
+    }
+  } /* TODO else { memcpy to last buffer on head } */
+
+  assert(sent >= 0);
+  if ((size_t)sent == len) return; /* sent the whole buffer */
+
+  len -= sent;
+  str += sent;
+
+  evcom_buf *b = evcom_buf_new(str, len);
+  evcom_queue_insert_head(&stream->out, &b->queue);
+  b->written = 0;
+
+  assert(stream->sendfd >= 0);
 
   if (ATTACHED(stream)) {
     ev_io_start(D_LOOP_(stream) &stream->write_watcher);
-    if (stream->action == recv_send) {
-      send_data(stream);
-    }
+  }
+  return;
+
+close:
+  stream->send_action = stream_send__close;
+  stream->recv_action = stream_recv__close;
+  if (ATTACHED(stream)) {
+    ev_io_start(D_LOOP_(stream) &stream->write_watcher);
   }
 }
 
-void 
+void
 evcom_stream_reset_timeout (evcom_stream *stream)
 {
   ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
 }
 
-static void
-free_simple_buf (evcom_buf *buf)
-{
-  free(buf->base);
-  free(buf);
-}
-
-/* Writes a string to the stream. 
- * NOTE: Allocates memory. Avoid for performance applications.
- */ 
-void
-evcom_stream_write_simple (evcom_stream *stream, const char *str, size_t len)
-{
-  evcom_buf *buf = malloc(sizeof(evcom_buf));
-  buf->release = free_simple_buf;
-  buf->base = strdup(str);
-  buf->len = len;
-
-  evcom_stream_write(stream, buf);
-}
-
 void
 evcom_stream_attach (EV_P_ evcom_stream *stream)
 {
-#if EV_MULTIPLICITY
-  stream->loop = EV_A;
-#endif 
+  D_LOOP_SET(stream, EV_A);
   stream->flags |= EVCOM_ATTACHED;
 
   ev_timer_again(EV_A_ &stream->timeout_watcher);
 
-  if (!CONNECTED(stream)) {
+  if (READABLE(stream)) {
+    ev_io_start(EV_A_ &stream->read_watcher);
+  }
+
+  if (WRITABLE(stream)) {
     ev_io_start(EV_A_ &stream->write_watcher);
-  } else {
-    if (READABLE(stream) && !PAUSED(stream)) {
-      ev_io_start(EV_A_ &stream->read_watcher);
-    }
-
-    if (WRITABLE(stream)) {
-      ev_io_start(EV_A_ &stream->write_watcher);
-    }
-
-    ev_feed_fd_event(D_LOOP_(stream) stream->fd, EV_WRITE);
   }
 }
 
@@ -1007,28 +1165,29 @@ evcom_stream_detach (evcom_stream *stream)
   ev_io_stop(D_LOOP_(stream) &stream->write_watcher);
   ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
   ev_timer_stop(D_LOOP_(stream) &stream->timeout_watcher);
-#if EV_MULTIPLICITY
-  stream->loop = NULL;
-#endif
+  D_LOOP_SET(stream, NULL);
   stream->flags &= ~EVCOM_ATTACHED;
 }
 
 void
 evcom_stream_read_pause (evcom_stream *stream)
 {
-  ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
-  ev_clear_pending(D_LOOP_(stream) &stream->read_watcher);
   stream->flags |= EVCOM_PAUSED;
+  if (stream->recv_action == stream_recv__data) {
+    ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
+    stream->recv_action = stream_recv__wait_for_resume;
+  }
 }
 
 void
 evcom_stream_read_resume (evcom_stream *stream)
 {
-  evcom_stream_reset_timeout(stream);
-
   stream->flags &= ~EVCOM_PAUSED;
-
-  if (READABLE(stream)) {
+  evcom_stream_reset_timeout(stream);
+  if (stream->recv_action == stream_recv__wait_for_resume) {
+    stream->recv_action = stream_recv__data;
+  }
+  if (ATTACHED(stream) && READABLE(stream)) {
     ev_io_start(D_LOOP_(stream) &stream->read_watcher);
   }
 }
@@ -1050,11 +1209,6 @@ evcom_stream_connect (evcom_stream *stream, struct sockaddr *address)
     close(fd);
     return -1;
   }
-      
-#ifdef SO_NOSIGPIPE
-  int flags = 1;
-  setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flags, sizeof(flags));
-#endif
 
   r = connect(fd, address, address_length(address));
 
@@ -1065,23 +1219,53 @@ evcom_stream_connect (evcom_stream *stream, struct sockaddr *address)
     return -1;
   }
 
-  assign_file_descriptor(stream, fd);
+  evcom_stream_assign_fds(stream, fd, fd);
+
+  stream->send_action = stream_send__wait_for_connection;
+  stream->recv_action = NULL;
 
   return 0;
+}
+
+int evcom_stream_pair (evcom_stream *a, evcom_stream *b)
+{
+  int sv[2];
+  int old_errno;
+
+  int r = socketpair(PF_LOCAL, SOCK_STREAM, 0, sv);
+  if (r < 0) return -1;
+
+  r = set_nonblock(sv[0]);
+  if (r < 0) goto set_nonblock_error;
+  r = set_nonblock(sv[1]);
+  if (r < 0) goto set_nonblock_error;
+
+  evcom_stream_assign_fds(a, sv[0], sv[0]);
+  evcom_stream_assign_fds(b, sv[1], sv[1]);
+
+  return 0;
+
+set_nonblock_error:
+  old_errno = errno;
+  evcom_perror("set_nonblock()", errno);
+  close(sv[0]);
+  close(sv[1]);
+  errno = old_errno;
+  return -1;
 }
 
 enum evcom_stream_state
 evcom_stream_state (evcom_stream *stream)
 {
-  if (stream->fd < 0 && stream->flags == 0) return EVCOM_INITIALIZED;
+  if (stream->recvfd < 0 && stream->sendfd && stream->flags == 0) {
+    return EVCOM_INITIALIZED;
+  }
 
-  if (stream->fd < 0) return EVCOM_CLOSED;
+  if (stream->recvfd < 0 && stream->sendfd < 0) return EVCOM_CLOSED;
 
   if (!CONNECTED(stream)) return EVCOM_CONNECTING;
 
-  if (GOT_FULL_CLOSE(stream)) return EVCOM_CLOSING;
-
-  if (GOT_HALF_CLOSE(stream)) {
+  if (GOT_CLOSE(stream)) {
     if (READABLE(stream)) {
       return EVCOM_CONNECTED_RO;
     } else {
@@ -1098,3 +1282,216 @@ evcom_stream_state (evcom_stream *stream)
   return EVCOM_CLOSING;
 }
 
+static int
+reader_recv (evcom_descriptor *d)
+{
+  evcom_reader* reader = (evcom_reader*) d;
+
+  char buf[EVCOM_CHUNKSIZE];
+  size_t buf_size = EVCOM_CHUNKSIZE;
+  ssize_t recved;
+
+  while (reader->fd >= 0) {
+    recved = read(reader->fd, buf, buf_size);
+
+    if (recved < 0) {
+      if (errno == EAGAIN || errno == EINTR) return AGAIN;
+      reader->errorno = errno;
+      evcom_perror("read()", reader->errorno);
+      return close_asap(d);
+    }
+
+    /* NOTE: EOF is signaled with recved == 0 on callback */
+    if (reader->on_read) reader->on_read(reader, buf, recved);
+
+    if (recved == 0) return close_asap(d);
+  }
+  return AGAIN;
+}
+
+void
+evcom_reader_init (evcom_reader *reader)
+{
+  evcom_descriptor_init((evcom_descriptor*)reader);
+
+  reader->on_close = NULL;
+  reader->on_read = NULL;
+
+  ev_init(&reader->read_watcher, io_event);
+  reader->read_watcher.data = reader;
+}
+
+void
+evcom_reader_set (evcom_reader *reader, int fd)
+{
+  assert(fd >= 0);
+  reader->fd = fd;
+
+  ev_io_set(&reader->read_watcher, fd, EV_READ);
+  reader->action = reader_recv;
+}
+
+void
+evcom_reader_attach (EV_P_ evcom_reader *reader)
+{
+  ev_io_start(EV_A_ &reader->read_watcher);
+  D_LOOP_SET(reader, EV_A);
+}
+
+void
+evcom_reader_detach (evcom_reader *reader)
+{
+  ev_io_stop(D_LOOP_(reader) &reader->read_watcher);
+  D_LOOP_SET(reader, NULL);
+}
+
+void
+evcom_reader_close (evcom_reader *reader)
+{
+  ev_io_start(D_LOOP_(reader) &reader->read_watcher);
+  ev_feed_event(D_LOOP_(reader) &reader->read_watcher, EV_READ);
+
+  close_asap((evcom_descriptor*)reader);
+}
+
+static int
+writer_send (evcom_descriptor *d)
+{
+  evcom_writer* writer = (evcom_writer*) d;
+  assert(writer->fd >= 0);
+
+  while (!evcom_queue_empty(&writer->out)) {
+    evcom_queue *q = evcom_queue_last(&writer->out);
+    evcom_buf *buf = evcom_queue_data(q, evcom_buf, queue);
+
+    ssize_t sent = write(writer->fd, buf->base + buf->written,
+        buf->len - buf->written);
+
+    if (sent < 0) {
+      switch (errno) {
+        case ECONNRESET:
+        case EPIPE:
+          return close_writer_asap(writer);
+
+        case EINTR:
+        case EAGAIN:
+          sent = 0;
+          return AGAIN;
+
+        default:
+          writer->errorno = errno;
+          evcom_perror("send()", writer->errorno);
+          return close_writer_asap(writer);
+      }
+    }
+    assert(sent >= 0);
+
+    buf->written += sent;
+
+    if (buf->written == buf->len) {
+      evcom_queue_remove(q);
+      if (buf->release) buf->release(buf);
+    }
+  }
+
+  if (GOT_CLOSE(writer)) {
+    assert(evcom_queue_empty(&writer->out));
+    return close_writer_asap(writer);
+  } else {
+    ev_io_stop(D_LOOP_(writer) &writer->write_watcher);
+    return AGAIN;
+  }
+}
+
+void
+evcom_writer_init (evcom_writer* writer)
+{
+  evcom_descriptor_init((evcom_descriptor*)writer);
+
+  writer->on_close = NULL;
+
+  ev_init(&writer->write_watcher, io_event);
+  writer->write_watcher.data = writer;
+
+  evcom_queue_init(&writer->out);
+}
+
+void
+evcom_writer_set (evcom_writer* writer, int fd)
+{
+  assert(fd >= 0);
+  writer->fd = fd;
+
+  ev_io_set(&writer->write_watcher, fd, EV_WRITE);
+  writer->action = writer_send;
+}
+
+void
+evcom_writer_attach (EV_P_ evcom_writer* writer)
+{
+  if (!evcom_queue_empty(&writer->out)) {
+    ev_io_start (EV_A_ &writer->write_watcher);
+  }
+  D_LOOP_SET(writer, EV_A);
+}
+
+void
+evcom_writer_detach (evcom_writer* writer)
+{
+  ev_io_stop(D_LOOP_(writer) &writer->write_watcher);
+  D_LOOP_SET(writer, NULL);
+}
+
+void
+evcom_writer_write (evcom_writer* writer, const char* buf, size_t len)
+{
+  assert(writer->fd >= 0);
+
+  ssize_t sent = 0;
+
+  if (evcom_queue_empty(&writer->out)) {
+    sent = write(writer->fd, buf, len);
+
+    if (sent < 0) {
+      switch (errno) {
+        case ECONNRESET:
+        case EPIPE:
+          goto close;
+
+        case EINTR:
+        case EAGAIN:
+          sent = 0;
+          break;
+
+        default:
+          writer->errorno = errno;
+          evcom_perror("send()", writer->errorno);
+          goto close;
+      }
+    }
+  } /* TODO else { memcpy to last buffer on head } */
+
+  assert(sent >= 0);
+  if ((size_t)sent == len) return; /* sent the whole buffer */
+
+  len -= sent;
+  buf += sent;
+
+  evcom_buf *b = evcom_buf_new(buf, len);
+  evcom_queue_insert_head(&writer->out, &b->queue);
+  b->written = 0;
+
+  assert(writer->fd >= 0);
+  ev_io_start(D_LOOP_(writer) &writer->write_watcher);
+  return;
+
+close:
+  close_writer_asap(writer);
+}
+
+void
+evcom_writer_close (evcom_writer* writer)
+{
+  writer->flags |= EVCOM_GOT_CLOSE;
+  if (evcom_queue_empty(&writer->out)) close_writer_asap(writer);
+}

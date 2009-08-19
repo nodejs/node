@@ -5,7 +5,7 @@ N = 500;
 server = node.tcp.createServer(function (connection) {
   function send (j) {
     if (j >= N) { 
-      connection.fullClose();
+      connection.close();
       return;
     }
     setTimeout(function () {

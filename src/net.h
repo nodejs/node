@@ -24,7 +24,6 @@ protected:
   static v8::Handle<v8::Value> Send (const v8::Arguments& args);
   static v8::Handle<v8::Value> SendUtf8 (const v8::Arguments& args);
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
-  static v8::Handle<v8::Value> FullClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> ForceClose (const v8::Arguments& args);
   static v8::Handle<v8::Value> SetEncoding (const v8::Arguments& args);
   static v8::Handle<v8::Value> ReadPause (const v8::Arguments& args);
@@ -47,9 +46,8 @@ protected:
   int Connect (struct sockaddr *address) {
     return evcom_stream_connect (&stream_, address);
   }
-  void Send (evcom_buf *buf) { evcom_stream_write(&stream_, buf); }
+  void Send (const char *buf, size_t len) { evcom_stream_write(&stream_, buf, len); }
   void Close (void) { evcom_stream_close(&stream_); }
-  void FullClose (void) { evcom_stream_full_close(&stream_); }
   void ForceClose (void) { evcom_stream_force_close(&stream_); }
   void ReadPause (void) { evcom_stream_read_pause(&stream_); }
   void ReadResume (void) { evcom_stream_read_resume(&stream_); }
@@ -92,7 +90,8 @@ private:
 
     evcom_stream_detach(s);
 
-    assert(connection->stream_.fd < 0);
+    assert(connection->stream_.recvfd < 0);
+    assert(connection->stream_.sendfd < 0);
 
     connection->OnClose();
 

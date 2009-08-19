@@ -12,7 +12,9 @@
 
 #include <ev.h>
 #include <evcom.h>
-#include <gnutls/gnutls.h>
+#if EVCOM_HAVE_GNUTLS
+#  include <gnutls/gnutls.h>
+#endif
 
 #define HOST "127.0.0.1"
 #define SOCKFILE "/tmp/oi.sock"
@@ -46,7 +48,7 @@ on_peer_read (evcom_stream *stream, const void *base, size_t len)
 {
   if(len == 0) return;
 
-  evcom_stream_write_simple(stream, base, len);
+  evcom_stream_write(stream, base, len);
 }
 
 static evcom_stream* 

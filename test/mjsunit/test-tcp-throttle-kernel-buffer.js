@@ -13,7 +13,7 @@ puts("start server on port " + PORT);
 server = node.tcp.createServer(function (connection) {
   connection.addListener("connect", function () {
     connection.send(body);
-    connection.fullClose();
+    connection.close();
   });
 });
 server.listen(PORT);

@@ -1,0 +1,37 @@
+strict digraph recv_states {
+  start [peripheries=2];
+  end [peripheries=2];
+  handshake;
+  recv_data;
+  wait_for_resume;
+  wait_for_close;
+  close_one;
+  close_both;
+
+  node [label="", shape="box", height=0.1, width=0.1];
+  close;
+
+
+
+  start -> handshake [label="tls"];
+  start -> recv_data;
+
+  handshake -> close [label="error"];
+  handshake -> recv_data;
+
+  recv_data -> handshake [label="rehandshake"];
+  recv_data -> wait_for_resume [label="pause"];
+  recv_data -> wait_for_close [label="eof"];
+  recv_data -> close [label="error"];
+
+  wait_for_resume -> recv_data;
+
+  wait_for_close -> close;
+
+  close -> close_one [label="duplex"];
+  close -> close_both;
+
+  close_one -> end;
+  close_both -> end;
+  
+}

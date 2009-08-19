@@ -394,7 +394,7 @@ function connectionListener (connection) {
     res.should_keep_alive = should_keep_alive;
     res.addListener("flush", function () {
       if(flushMessageQueue(connection, responses)) {
-        connection.fullClose();
+        connection.close();
       }
     });
     responses.push(res);

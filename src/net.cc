@@ -62,7 +62,6 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "fullClose", FullClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ReadPause);
@@ -116,7 +115,8 @@ Connection::Init (void)
 
 Connection::~Connection ()
 {
-  assert(stream_.fd < 0 && "garbage collecting open Connection"); 
+  assert(stream_.recvfd < 0 && "garbage collecting open Connection"); 
+  assert(stream_.sendfd < 0 && "garbage collecting open Connection"); 
   ForceClose();
 }
 
@@ -149,7 +149,8 @@ Connection::Connect (const Arguments& args)
     return ThrowException(String::New("Socket is not in CLOSED state."));
   } 
 
-  assert(connection->stream_.fd < 0);
+  assert(connection->stream_.recvfd < 0);
+  assert(connection->stream_.sendfd < 0);
 
   if (args.Length() == 0)
     return ThrowException(String::New("Must specify a port."));
@@ -345,17 +346,6 @@ Connection::Close (const Arguments& args)
 }
 
 Handle<Value>
-Connection::FullClose (const Arguments& args)
-{
-  HandleScope scope;
-  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-  assert(connection);
-
-  connection->FullClose();
-  return Undefined();
-}
-
-Handle<Value>
 Connection::ForceClose (const Arguments& args)
 {
   HandleScope scope;
@@ -394,31 +384,31 @@ Connection::Send (const Arguments& args)
     enum encoding enc = ParseEncoding(args[1]);
     Local<String> s = args[0]->ToString();
     size_t len = s->Utf8Length();
-    evcom_buf *buf = node::buf_new(len);
+    char buf[len];
     switch (enc) {
       case RAW:
       case ASCII:
-        s->WriteAscii(buf->base, 0, len);
+        s->WriteAscii(buf, 0, len);
         break;
 
       case UTF8:
-        s->WriteUtf8(buf->base, len);
+        s->WriteUtf8(buf, len);
         break;
 
       default:
         assert(0 && "unhandled string encoding");
     }
-    connection->Send(buf);
+    connection->Send(buf, len);
 
   } else if (args[0]->IsArray()) {
     Handle<Array> array = Handle<Array>::Cast(args[0]);
     size_t len = array->Length();
-    evcom_buf *buf = node::buf_new(len);
+    char buf[len];
     for (size_t i = 0; i < len; i++) {
       Local<Value> int_value = array->Get(Integer::New(i));
-      buf->base[i] = int_value->IntegerValue();
+      buf[i] = int_value->IntegerValue();
     }
-    connection->Send(buf);
+    connection->Send(buf, len);
 
   } else return ThrowException(String::New("Bad argument"));
 
