@@ -52,7 +52,7 @@ node.fs.File = function (options) {
     self.encoding = node.RAW;
   }
   //node.debug("encoding: opts=" + options.encoding + " self=" + self.encoding);
-  self.fd = options.fd || null;
+  self.fd = typeof options.fd != 'undefined' ? options.fd : null;
 
   var actionQueue = [];
   
