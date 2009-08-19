@@ -1049,12 +1049,6 @@ possible the server will still send some data. After calling
 this +readyState+ will be +"readOnly"+.
 
 
-+connection.fullClose()+::
-Close both ends of the connection. Data that is received
-after this call is responded to with RST packets. If you don't
-know about this, just use +close()+.
-
-
 +connection.forceClose()+::
 Ensures that no more I/O activity happens on this socket. Only
 necessary in case of errors (parse error or so).
