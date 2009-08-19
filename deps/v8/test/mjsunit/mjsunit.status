@@ -73,33 +73,3 @@ string-compare-alignment: PASS || FAIL
 
 # Times out often in release mode on ARM.
 array-splice: PASS || TIMEOUT
-
-[ $arch == x64 ]
-
-debug-backtrace: CRASH || FAIL
-debug-backtrace-text: CRASH || FAIL
-debug-multiple-breakpoints: CRASH || FAIL
-debug-breakpoints: CRASH || FAIL
-debug-changebreakpoint: CRASH || FAIL
-debug-clearbreakpoint: CRASH || FAIL
-debug-conditional-breakpoints: CRASH || FAIL
-debug-constructor: CRASH || FAIL
-debug-continue: CRASH || FAIL
-debug-enable-disable-breakpoints: CRASH || FAIL
-debug-evaluate-recursive: CRASH || FAIL
-debug-event-listener: CRASH || FAIL
-debug-evaluate: CRASH || FAIL
-debug-ignore-breakpoints: CRASH || FAIL
-debug-setbreakpoint: CRASH || FAIL
-debug-step-stub-callfunction: CRASH || FAIL
-debug-step: CRASH || FAIL
-debug-stepin-builtin: CRASH || FAIL
-debug-stepin-constructor: CRASH || FAIL
-debug-stepin-function-call: CRASH || FAIL
-debug-stepin-accessor: CRASH || FAIL
-fuzz-natives: PASS || TIMEOUT
-debug-handle: CRASH || FAIL
-debug-clearbreakpointgroup: CRASH || FAIL
-regress/regress-269: CRASH || FAIL
-regress/regress-998565: CRASH || FAIL
-tools/tickprocessor: PASS || CRASH || FAIL

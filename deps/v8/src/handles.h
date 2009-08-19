@@ -82,7 +82,7 @@ class Handle {
   }
 
   static Handle<T> null() { return Handle<T>(); }
-  bool is_null() {return location_ == NULL; }
+  bool is_null() { return location_ == NULL; }
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
@@ -119,15 +119,18 @@ class HandleScope {
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
-  static inline Object** CreateHandle(Object* value) {
-    void** result = current_.next;
-    if (result == current_.limit) result = Extend();
+  template <typename T>
+  static inline T** CreateHandle(T* value) {
+    void** cur = current_.next;
+    if (cur == current_.limit) cur = Extend();
     // Update the current next field, set the value in the created
     // handle, and return the result.
-    ASSERT(result < current_.limit);
-    current_.next = result + 1;
-    *reinterpret_cast<Object**>(result) = value;
-    return reinterpret_cast<Object**>(result);
+    ASSERT(cur < current_.limit);
+    current_.next = cur + 1;
+
+    T** result = reinterpret_cast<T**>(cur);
+    *result = value;
+    return result;
   }
 
  private:

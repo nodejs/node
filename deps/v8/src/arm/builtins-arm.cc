@@ -39,7 +39,7 @@ namespace internal {
 
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(1238487): Don't pass the function in a static variable.
+  // TODO(428): Don't pass the function in a static variable.
   __ mov(ip, Operand(ExternalReference::builtin_passed_function()));
   __ str(r1, MemOperand(ip, 0));
 

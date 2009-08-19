@@ -184,6 +184,7 @@ function MathTan(x) {
 function SetupMath() {
   // Setup math constants.
   // ECMA-262, section 15.8.1.1.
+  %OptimizeObjectForAddingMultipleProperties($Math, 8);
   %SetProperty($Math,
                "E",
                2.7182818284590452354,
@@ -219,6 +220,7 @@ function SetupMath() {
                "SQRT2",
                1.4142135623730951,
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %TransformToFastProperties($Math);
 
   // Setup non-enumerable functions of the Math object and
   // set their names.

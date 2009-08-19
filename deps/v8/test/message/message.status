@@ -29,16 +29,3 @@ prefix message
 
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
-
-[ $arch == x64 ]
-
-simple-throw: FAIL
-try-catch-finally-throw-in-catch-and-finally: FAIL
-try-catch-finally-throw-in-catch: FAIL
-try-catch-finally-throw-in-finally: FAIL
-try-finally-throw-in-finally: FAIL
-try-finally-throw-in-try-and-finally: FAIL
-try-finally-throw-in-try: FAIL
-overwritten-builtins: FAIL
-regress/regress-73: FAIL
-regress/regress-75: FAIL

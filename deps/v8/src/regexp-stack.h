@@ -48,7 +48,7 @@ class RegExpStack {
   ~RegExpStack();  // Releases the stack if it has grown.
 
   // Gives the top of the memory used as stack.
-  static Address stack_top() {
+  static Address stack_base() {
     ASSERT(thread_local_.memory_size_ != 0);
     return thread_local_.memory_ + thread_local_.memory_size_;
   }
@@ -74,7 +74,7 @@ class RegExpStack {
 
  private:
   // Artificial limit used when no memory has been allocated.
-  static const uint32_t kMemoryTop = 0xffffffff;
+  static const uintptr_t kMemoryTop = static_cast<uintptr_t>(-1);
 
   // Minimal size of allocated stack area.
   static const size_t kMinimumStackSize = 1 * KB;

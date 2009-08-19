@@ -1054,6 +1054,10 @@ class SemiSpace : public Space {
   // Returns the current capacity of the semi space.
   int Capacity() { return capacity_; }
 
+  // Returns the maximum capacity of the semi space.
+  int MaximumCapacity() { return maximum_capacity_; }
+
+
  private:
   // The current and maximum capacity of the space.
   int capacity_;
@@ -1164,12 +1168,18 @@ class NewSpace : public Space {
   // Return the allocated bytes in the active semispace.
   virtual int Size() { return top() - bottom(); }
   // Return the current capacity of a semispace.
-  int Capacity() { return capacity_; }
+  int Capacity() {
+    ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    return to_space_.Capacity();
+  }
   // Return the available bytes without growing in the active semispace.
   int Available() { return Capacity() - Size(); }
 
   // Return the maximum capacity of a semispace.
-  int MaximumCapacity() { return maximum_capacity_; }
+  int MaximumCapacity() {
+    ASSERT(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
+    return to_space_.MaximumCapacity();
+  }
 
   // Return the address of the allocation pointer in the active semispace.
   Address top() { return allocation_info_.top; }
@@ -1275,10 +1285,6 @@ class NewSpace : public Space {
   }
 
  private:
-  // The current and maximum capacities of a semispace.
-  int capacity_;
-  int maximum_capacity_;
-
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
@@ -1574,7 +1580,7 @@ class FixedSpace : public PagedSpace {
   // Give a fixed sized block of memory to the space's free list.
   void Free(Address start) {
     free_list_.Free(start);
-    accounting_stats_.DeallocateBytes(Map::kSize);
+    accounting_stats_.DeallocateBytes(object_size_in_bytes_);
   }
 
   // Prepares for a mark-compact GC.

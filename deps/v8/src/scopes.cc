@@ -108,14 +108,31 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 
 
 // Dummy constructor
-Scope::Scope()
-  : inner_scopes_(0),
+Scope::Scope(Type type)
+  : outer_scope_(NULL),
+    inner_scopes_(0),
+    type_(type),
+    scope_name_(Factory::empty_symbol()),
     variables_(false),
     temps_(0),
     params_(0),
     dynamics_(NULL),
     unresolved_(0),
-    decls_(0) {
+    decls_(0),
+    receiver_(NULL),
+    function_(NULL),
+    arguments_(NULL),
+    arguments_shadow_(NULL),
+    illegal_redecl_(NULL),
+    scope_inside_with_(false),
+    scope_contains_with_(false),
+    scope_calls_eval_(false),
+    outer_scope_calls_eval_(false),
+    inner_scope_calls_eval_(false),
+    outer_scope_is_eval_scope_(false),
+    force_eager_compilation_(false),
+    num_stack_slots_(0),
+    num_heap_slots_(0) {
 }
 
 

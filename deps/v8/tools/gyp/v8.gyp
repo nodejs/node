@@ -32,6 +32,7 @@
     'gcc_version%': 'unknown',
     'target_arch%': 'ia32',
     'v8_use_snapshot%': 'true',
+    'v8_regexp%': 'native',
   },
   'includes': [
     '../../../build/common.gypi',
@@ -55,6 +56,7 @@
       ['target_arch=="x64"', {
         'defines': [
           'V8_TARGET_ARCH_X64',
+          'V8_NATIVE_REGEXP',
         ],
       }],
     ],
@@ -428,12 +430,16 @@
             '../../src/ia32/jump-target-ia32.cc',
             '../../src/ia32/macro-assembler-ia32.cc',
             '../../src/ia32/macro-assembler-ia32.h',
-            '../../src/ia32/regexp-macro-assembler-ia32.cc',
-            '../../src/ia32/regexp-macro-assembler-ia32.h',
             '../../src/ia32/register-allocator-ia32.cc',
             '../../src/ia32/stub-cache-ia32.cc',
             '../../src/ia32/virtual-frame-ia32.cc',
             '../../src/ia32/virtual-frame-ia32.h',
+          ],
+        }],
+        ['target_arch=="ia32" and v8_regexp=="native"', {
+          'sources': [
+            '../../src/ia32/regexp-macro-assembler-ia32.cc',
+            '../../src/ia32/regexp-macro-assembler-ia32.h',
           ],
         }],
         ['target_arch=="x64"', {
@@ -457,12 +463,16 @@
             '../../src/x64/jump-target-x64.cc',
             '../../src/x64/macro-assembler-x64.cc',
             '../../src/x64/macro-assembler-x64.h',
-            #'../../src/x64/regexp-macro-assembler-x64.cc',
-            #'../../src/x64/regexp-macro-assembler-x64.h',
             '../../src/x64/register-allocator-x64.cc',
             '../../src/x64/stub-cache-x64.cc',
             '../../src/x64/virtual-frame-x64.cc',
             '../../src/x64/virtual-frame-x64.h',
+          ],
+        }],
+        ['target_arch=="x64" and v8_regexp=="native"', {
+          'sources': [
+            '../../src/x64/regexp-macro-assembler-x64.cc',
+            '../../src/x64/regexp-macro-assembler-x64.h',
           ],
         }],
         ['OS=="linux"', {

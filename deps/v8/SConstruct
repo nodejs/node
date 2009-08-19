@@ -101,6 +101,9 @@ LIBRARY_FLAGS = {
     'regexp:native': {
       'arch:ia32' : {
         'CPPDEFINES': ['V8_NATIVE_REGEXP']
+      },
+      'arch:x64' : {
+        'CPPDEFINES': ['V8_NATIVE_REGEXP']
       }
     }
   },
@@ -166,7 +169,7 @@ LIBRARY_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
-      'CCFLAGS':      ['-fno-strict-aliasing', '-m64'],
+      'CCFLAGS':      ['-m64'],
       'LINKFLAGS':    ['-m64'],
     },
     'prof:oprofile': {
@@ -716,7 +719,11 @@ class BuildContext(object):
     result = []
     result += source.get('all', [])
     for (name, value) in self.options.iteritems():
-      result += source.get(name + ':' + value, [])
+      source_value = source.get(name + ':' + value, [])
+      if type(source_value) == dict:
+        result += self.GetRelevantSources(source_value)
+      else:
+        result += source_value
     return sorted(result)
 
   def AppendFlags(self, options, added):

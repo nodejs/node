@@ -371,9 +371,9 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
   if (HasFastProperties()) {
-    CHECK(map()->unused_property_fields() ==
-          (map()->inobject_properties() + properties()->length() -
-           map()->NextFreePropertyIndex()));
+    CHECK_EQ(map()->unused_property_fields(),
+             (map()->inobject_properties() + properties()->length() -
+              map()->NextFreePropertyIndex()));
   }
 }
 
@@ -462,6 +462,7 @@ void Map::MapPrint() {
   HeapObject::PrintHeader("Map");
   PrintF(" - type: %s\n", TypeToString(instance_type()));
   PrintF(" - instance size: %d\n", instance_size());
+  PrintF(" - inobject properties: %d\n", inobject_properties());
   PrintF(" - unused property fields: %d\n", unused_property_fields());
   if (is_hidden_prototype()) {
     PrintF(" - hidden_prototype\n");
@@ -619,6 +620,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint() {
   PrintF("\n - debug info = ");
   debug_info()->ShortPrint();
   PrintF("\n - length = %d", length());
+  PrintF("\n - has_only_this_property_assignments = %d",
+         has_only_this_property_assignments());
+  PrintF("\n - has_only_simple_this_property_assignments = %d",
+         has_only_simple_this_property_assignments());
+  PrintF("\n - this_property_assignments = ");
+  this_property_assignments()->ShortPrint();
   PrintF("\n");
 }
 

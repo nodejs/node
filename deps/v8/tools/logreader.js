@@ -294,8 +294,11 @@ devtools.profiler.LogReader.prototype.processLog_ = function(lines) {
       this.dispatchLogRow_(fields);
     }
   } catch (e) {
-    this.printError('line ' + (i + 1) + ': ' + (e.message || e));
-    throw e;
+    // An error on the last line is acceptable since log file can be truncated.
+    if (i < n - 1) {
+      this.printError('line ' + (i + 1) + ': ' + (e.message || e));
+      throw e;
+    }
   }
 };
 

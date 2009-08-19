@@ -206,8 +206,13 @@ class StackGuard BASE_EMBEDDED {
   static void DisableInterrupts();
 
   static const uintptr_t kLimitSize = kPointerSize * 128 * KB;
+#ifdef V8_TARGET_ARCH_X64
+  static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
+  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xffffffffffffffff);
+#else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xffffffff;
+#endif
 
   class ThreadLocal {
    public:

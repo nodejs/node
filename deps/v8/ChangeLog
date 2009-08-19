@@ -1,3 +1,30 @@
+2009-08-19: Version 1.3.5
+
+        Optimize initialization of some arrays in the builtins.
+
+        Fix mac-nm script to support filenames with spaces.
+
+        Support for using the V8 profiler when V8 is embedded in a Windows DLL.
+
+        Changed typeof RegExp from 'object' to 'function' for compatibility.
+        Fixed bug where regexps were not callable across contexts.
+
+        Added context independent script compilation to the API.
+
+        Added API call to get the stack trace for an exception.
+
+        Added API for getting object mirrors.
+
+        Make sure that SSE3 instructions are used whenever possible even when
+        running off a snapshot generated without using SSE3 instructions.
+
+        Tweaked the handling of the initial size and growth policy of the heap.
+
+        Added native code generation for RegExp to 64-bit version.
+
+        Added JavaScript debugger support to 64-bit version.
+
+
 2009-08-13: Version 1.3.4
 
         Added a readline() command to the d8 shell.

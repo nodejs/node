@@ -499,19 +499,32 @@ function WindowsCppEntriesProvider() {
 inherits(WindowsCppEntriesProvider, CppEntriesProvider);
 
 
-WindowsCppEntriesProvider.FILENAME_RE = /^(.*)\.exe$/;
+WindowsCppEntriesProvider.FILENAME_RE = /^(.*)\.([^.]+)$/;
 
 
 WindowsCppEntriesProvider.FUNC_RE =
-    /^ 0001:[0-9a-fA-F]{8}\s+([_\?@$0-9a-zA-Z]+)\s+([0-9a-fA-F]{8}).*$/;
+    /^\s+0001:[0-9a-fA-F]{8}\s+([_\?@$0-9a-zA-Z]+)\s+([0-9a-fA-F]{8}).*$/;
+
+
+WindowsCppEntriesProvider.IMAGE_BASE_RE =
+    /^\s+0000:00000000\s+___ImageBase\s+([0-9a-fA-F]{8}).*$/;
+
+
+// This is almost a constant on Windows.
+WindowsCppEntriesProvider.EXE_IMAGE_BASE = 0x00400000;
 
 
 WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
   var fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
-  // Only try to load symbols for the .exe file.
   if (!fileNameFields) return;
   var mapFileName = fileNameFields[1] + '.map';
-  this.symbols = readFile(mapFileName);
+  this.moduleType_ = fileNameFields[2].toLowerCase();
+  try {
+    this.symbols = read(mapFileName);
+  } catch (e) {
+    // If .map file cannot be found let's not panic.
+    this.symbols = '';
+  }
 };
 
 
@@ -523,6 +536,18 @@ WindowsCppEntriesProvider.prototype.parseNextLine = function() {
 
   var line = this.symbols.substring(this.parsePos, lineEndPos);
   this.parsePos = lineEndPos + 2;
+
+  // Image base entry is above all other symbols, so we can just
+  // terminate parsing.
+  var imageBaseFields = line.match(WindowsCppEntriesProvider.IMAGE_BASE_RE);
+  if (imageBaseFields) {
+    var imageBase = parseInt(imageBaseFields[1], 16);
+    if ((this.moduleType_ == 'exe') !=
+        (imageBase == WindowsCppEntriesProvider.EXE_IMAGE_BASE)) {
+      return false;
+    }
+  }
+
   var fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
   return fields ?
       { name: this.unmangleName(fields[1]), start: parseInt(fields[2], 16) } :

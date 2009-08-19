@@ -97,7 +97,7 @@ class Parser {
 
   // Pre-parse the program from the character stream; returns true on
   // success, false if a stack-overflow happened during parsing.
-  bool PreParseProgram(unibrow::CharacterStream* stream);
+  bool PreParseProgram(Handle<String> source, unibrow::CharacterStream* stream);
 
   void ReportMessage(const char* message, Vector<const char*> args);
   virtual void ReportMessageAt(Scanner::Location loc,
@@ -678,6 +678,25 @@ class TemporaryScope BASE_EMBEDDED {
   void set_contains_array_literal() { contains_array_literal_ = true; }
   bool contains_array_literal() { return contains_array_literal_; }
 
+  void SetThisPropertyAssignmentInfo(
+      bool only_this_property_assignments,
+      bool only_simple_this_property_assignments,
+      Handle<FixedArray> this_property_assignments) {
+    only_this_property_assignments_ = only_this_property_assignments;
+    only_simple_this_property_assignments_ =
+        only_simple_this_property_assignments;
+    this_property_assignments_ = this_property_assignments;
+  }
+  bool only_this_property_assignments() {
+    return only_this_property_assignments_;
+  }
+  bool only_simple_this_property_assignments() {
+    return only_simple_this_property_assignments_;
+  }
+  Handle<FixedArray> this_property_assignments() {
+    return this_property_assignments_;
+  }
+
   void AddProperty() { expected_property_count_++; }
   int expected_property_count() { return expected_property_count_; }
  private:
@@ -695,6 +714,10 @@ class TemporaryScope BASE_EMBEDDED {
   // Properties count estimation.
   int expected_property_count_;
 
+  bool only_this_property_assignments_;
+  bool only_simple_this_property_assignments_;
+  Handle<FixedArray> this_property_assignments_;
+
   // Bookkeeping
   Parser* parser_;
   TemporaryScope* parent_;
@@ -707,6 +730,9 @@ TemporaryScope::TemporaryScope(Parser* parser)
   : materialized_literal_count_(0),
     contains_array_literal_(false),
     expected_property_count_(0),
+    only_this_property_assignments_(false),
+    only_simple_this_property_assignments_(false),
+    this_property_assignments_(Factory::empty_fixed_array()),
     parser_(parser),
     parent_(parser->temp_scope_) {
   parser->temp_scope_ = this;
@@ -1167,13 +1193,14 @@ Parser::Parser(Handle<Script> script,
 }
 
 
-bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
+bool Parser::PreParseProgram(Handle<String> source,
+                             unibrow::CharacterStream* stream) {
   HistogramTimerScope timer(&Counters::pre_parse);
   StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
-  scanner_.Init(Handle<String>(), stream, 0);
+  scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
   DummyScope top_scope;
@@ -1217,12 +1244,20 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     bool ok = true;
     ParseSourceElements(&body, Token::EOS, &ok);
     if (ok) {
-      result = NEW(FunctionLiteral(no_name, top_scope_,
-                                   body.elements(),
-                                   temp_scope.materialized_literal_count(),
-                                   temp_scope.contains_array_literal(),
-                                   temp_scope.expected_property_count(),
-                                   0, 0, source->length(), false));
+      result = NEW(FunctionLiteral(
+          no_name,
+          top_scope_,
+          body.elements(),
+          temp_scope.materialized_literal_count(),
+          temp_scope.contains_array_literal(),
+          temp_scope.expected_property_count(),
+          temp_scope.only_this_property_assignments(),
+          temp_scope.only_simple_this_property_assignments(),
+          temp_scope.this_property_assignments(),
+          0,
+          0,
+          source->length(),
+          false));
     } else if (scanner().stack_overflow()) {
       Top::StackOverflow();
     }
@@ -1313,9 +1348,23 @@ void PreParser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
+// Base class containing common code for the different finder classes used by
+// the parser.
+class ParserFinder {
+ protected:
+  ParserFinder() {}
+  static Assignment* AsAssignment(Statement* stat) {
+    if (stat == NULL) return NULL;
+    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
+    if (exp_stat == NULL) return NULL;
+    return exp_stat->expression()->AsAssignment();
+  }
+};
+
+
 // An InitializationBlockFinder finds and marks sequences of statements of the
 // form x.y.z.a = ...; x.y.z.b = ...; etc.
-class InitializationBlockFinder {
+class InitializationBlockFinder : public ParserFinder {
  public:
   InitializationBlockFinder()
     : first_in_block_(NULL), last_in_block_(NULL), block_size_(0) {}
@@ -1340,13 +1389,6 @@ class InitializationBlockFinder {
   }
 
  private:
-  static Assignment* AsAssignment(Statement* stat) {
-    if (stat == NULL) return NULL;
-    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
-    if (exp_stat == NULL) return NULL;
-    return exp_stat->expression()->AsAssignment();
-  }
-
   // Returns true if the expressions appear to denote the same object.
   // In the context of initialization blocks, we only consider expressions
   // of the form 'x.y.z'.
@@ -1417,6 +1459,161 @@ class InitializationBlockFinder {
 };
 
 
+// A ThisNamedPropertyAssigmentFinder finds and marks statements of the form
+// this.x = ...;, where x is a named property. It also determines whether a
+// function contains only assignments of this type.
+class ThisNamedPropertyAssigmentFinder : public ParserFinder {
+ public:
+  ThisNamedPropertyAssigmentFinder()
+      : only_this_property_assignments_(true),
+        only_simple_this_property_assignments_(true),
+        names_(NULL),
+        assigned_arguments_(NULL),
+        assigned_constants_(NULL) {}
+
+  void Update(Scope* scope, Statement* stat) {
+    // Bail out if function already has non this property assignment
+    // statements.
+    if (!only_this_property_assignments_) {
+      return;
+    }
+
+    // Check whether this statement is of the form this.x = ...;
+    Assignment* assignment = AsAssignment(stat);
+    if (IsThisPropertyAssignment(assignment)) {
+      HandleThisPropertyAssignment(scope, assignment);
+    } else {
+      only_this_property_assignments_ = false;
+      only_simple_this_property_assignments_ = false;
+    }
+  }
+
+  // Returns whether only statements of the form this.x = ...; was encountered.
+  bool only_this_property_assignments() {
+    return only_this_property_assignments_;
+  }
+
+  // Returns whether only statements of the form this.x = y; where y is either a
+  // constant or a function argument was encountered.
+  bool only_simple_this_property_assignments() {
+    return only_simple_this_property_assignments_;
+  }
+
+  // Returns a fixed array containing three elements for each assignment of the
+  // form this.x = y;
+  Handle<FixedArray> GetThisPropertyAssignments() {
+    if (names_ == NULL) {
+      return Factory::empty_fixed_array();
+    }
+    ASSERT(names_ != NULL);
+    ASSERT(assigned_arguments_ != NULL);
+    ASSERT_EQ(names_->length(), assigned_arguments_->length());
+    ASSERT_EQ(names_->length(), assigned_constants_->length());
+    Handle<FixedArray> assignments =
+        Factory::NewFixedArray(names_->length() * 3);
+    for (int i = 0; i < names_->length(); i++) {
+      assignments->set(i * 3, *names_->at(i));
+      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
+      assignments->set(i * 3 + 2, *assigned_constants_->at(i));
+    }
+    return assignments;
+  }
+
+ private:
+  bool IsThisPropertyAssignment(Assignment* assignment) {
+    if (assignment != NULL) {
+      Property* property = assignment->target()->AsProperty();
+      return assignment->op() == Token::ASSIGN
+             && property != NULL
+             && property->obj()->AsVariableProxy() != NULL
+             && property->obj()->AsVariableProxy()->is_this();
+    }
+    return false;
+  }
+
+  void HandleThisPropertyAssignment(Scope* scope, Assignment* assignment) {
+    // Check that the property assigned to is a named property.
+    Property* property = assignment->target()->AsProperty();
+    ASSERT(property != NULL);
+    Literal* literal = property->key()->AsLiteral();
+    uint32_t dummy;
+    if (literal != NULL &&
+        literal->handle()->IsString() &&
+        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+      Handle<String> key = Handle<String>::cast(literal->handle());
+
+      // Check whether the value assigned is either a constant or matches the
+      // name of one of the arguments to the function.
+      if (assignment->value()->AsLiteral() != NULL) {
+        // Constant assigned.
+        Literal* literal = assignment->value()->AsLiteral();
+        AssignmentFromConstant(key, literal->handle());
+      } else if (assignment->value()->AsVariableProxy() != NULL) {
+        // Variable assigned.
+        Handle<String> name =
+            assignment->value()->AsVariableProxy()->name();
+        // Check whether the variable assigned matches an argument name.
+        int index = -1;
+        for (int i = 0; i < scope->num_parameters(); i++) {
+          if (*scope->parameter(i)->name() == *name) {
+            // Assigned from function argument.
+            index = i;
+            break;
+          }
+        }
+        if (index != -1) {
+          AssignmentFromParameter(key, index);
+        } else {
+          AssignmentFromSomethingElse(key);
+        }
+      } else {
+        AssignmentFromSomethingElse(key);
+      }
+    }
+  }
+
+  void AssignmentFromParameter(Handle<String> name, int index) {
+    EnsureAllocation();
+    names_->Add(name);
+    assigned_arguments_->Add(index);
+    assigned_constants_->Add(Factory::undefined_value());
+  }
+
+  void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
+    EnsureAllocation();
+    names_->Add(name);
+    assigned_arguments_->Add(-1);
+    assigned_constants_->Add(value);
+  }
+
+  void AssignmentFromSomethingElse(Handle<String> name) {
+    EnsureAllocation();
+    names_->Add(name);
+    assigned_arguments_->Add(-1);
+    assigned_constants_->Add(Factory::undefined_value());
+
+    // The this assignment is not a simple one.
+    only_simple_this_property_assignments_ = false;
+  }
+
+  void EnsureAllocation() {
+    if (names_ == NULL) {
+      ASSERT(assigned_arguments_ == NULL);
+      ASSERT(assigned_constants_ == NULL);
+      names_ = new ZoneStringList(4);
+      assigned_arguments_ = new ZoneList<int>(4);
+      assigned_constants_ = new ZoneObjectList(4);
+    }
+  }
+
+  bool only_this_property_assignments_;
+  bool only_simple_this_property_assignments_;
+  ZoneStringList* names_;
+  ZoneList<int>* assigned_arguments_;
+  ZoneObjectList* assigned_constants_;
+};
+
+
 void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
                                   int end_token,
                                   bool* ok) {
@@ -1431,14 +1628,32 @@ void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
 
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder;
+  ThisNamedPropertyAssigmentFinder this_property_assignment_finder;
   while (peek() != end_token) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
     if (stat == NULL || stat->IsEmpty()) continue;
     // We find and mark the initialization blocks on top level code only.
     // This is because the optimization prevents reuse of the map transitions,
     // so it should be used only for code that will only be run once.
-    if (top_scope_->is_global_scope()) block_finder.Update(stat);
+    if (top_scope_->is_global_scope()) {
+      block_finder.Update(stat);
+    }
+    // Find and mark all assignments to named properties in this (this.x =)
+    if (top_scope_->is_function_scope()) {
+      this_property_assignment_finder.Update(top_scope_, stat);
+    }
     processor->Add(stat);
+  }
+
+  // Propagate the collected information on this property assignments.
+  if (top_scope_->is_function_scope()) {
+    if (this_property_assignment_finder.only_this_property_assignments()) {
+      temp_scope_->SetThisPropertyAssignmentInfo(
+          this_property_assignment_finder.only_this_property_assignments(),
+          this_property_assignment_finder.
+              only_simple_this_property_assignments(),
+          this_property_assignment_finder.GetThisPropertyAssignments());
+    }
   }
   return 0;
 }
@@ -3506,6 +3721,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     int materialized_literal_count;
     int expected_property_count;
     bool contains_array_literal;
+    bool only_this_property_assignments;
+    bool only_simple_this_property_assignments;
+    Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
       int end_pos = entry.end_pos();
@@ -3513,12 +3731,20 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
+      only_this_property_assignments = false;
+      only_simple_this_property_assignments = false;
+      this_property_assignments = Factory::empty_fixed_array();
       contains_array_literal = entry.contains_array_literal();
     } else {
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
       contains_array_literal = temp_scope.contains_array_literal();
+      only_this_property_assignments =
+          temp_scope.only_this_property_assignments();
+      only_simple_this_property_assignments =
+          temp_scope.only_simple_this_property_assignments();
+      this_property_assignments = temp_scope.this_property_assignments();
     }
 
     Expect(Token::RBRACE, CHECK_OK);
@@ -3533,10 +3759,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     }
 
     FunctionLiteral* function_literal =
-        NEW(FunctionLiteral(name, top_scope_,
-                            body.elements(), materialized_literal_count,
-                            contains_array_literal, expected_property_count,
-                            num_parameters, start_pos, end_pos,
+        NEW(FunctionLiteral(name,
+                            top_scope_,
+                            body.elements(),
+                            materialized_literal_count,
+                            contains_array_literal,
+                            expected_property_count,
+                            only_this_property_assignments,
+                            only_simple_this_property_assignments,
+                            this_property_assignments,
+                            num_parameters,
+                            start_pos,
+                            end_pos,
                             function_name->length() > 0));
     if (!is_pre_parsing_) {
       function_literal->set_function_token_position(function_token_position);
@@ -4593,7 +4827,8 @@ unsigned* ScriptDataImpl::Data() {
 }
 
 
-ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
+ScriptDataImpl* PreParse(Handle<String> source,
+                         unibrow::CharacterStream* stream,
                          v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
@@ -4601,7 +4836,7 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
       FLAG_allow_natives_syntax ||
       Bootstrapper::IsActive();
   PreParser parser(no_script, allow_natives_syntax, extension);
-  if (!parser.PreParseProgram(stream)) return NULL;
+  if (!parser.PreParseProgram(source, stream)) return NULL;
   // The list owns the backing store so we need to clone the vector.
   // That way, the result will be exactly the right size rather than
   // the expected 50% too large.

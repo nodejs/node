@@ -111,6 +111,7 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 // Typedef only introduced to avoid unreadable code.
 // Please do appreciate the required space in "> >".
 typedef ZoneList<Handle<String> > ZoneStringList;
+typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 
 class AstNode: public ZoneObject {
@@ -1226,6 +1227,9 @@ class FunctionLiteral: public Expression {
                   int materialized_literal_count,
                   bool contains_array_literal,
                   int expected_property_count,
+                  bool has_only_this_property_assignments,
+                  bool has_only_simple_this_property_assignments,
+                  Handle<FixedArray> this_property_assignments,
                   int num_parameters,
                   int start_position,
                   int end_position,
@@ -1236,6 +1240,10 @@ class FunctionLiteral: public Expression {
         materialized_literal_count_(materialized_literal_count),
         contains_array_literal_(contains_array_literal),
         expected_property_count_(expected_property_count),
+        has_only_this_property_assignments_(has_only_this_property_assignments),
+        has_only_simple_this_property_assignments_(
+            has_only_simple_this_property_assignments),
+        this_property_assignments_(this_property_assignments),
         num_parameters_(num_parameters),
         start_position_(start_position),
         end_position_(end_position),
@@ -1265,6 +1273,15 @@ class FunctionLiteral: public Expression {
   int materialized_literal_count() { return materialized_literal_count_; }
   bool contains_array_literal() { return contains_array_literal_; }
   int expected_property_count() { return expected_property_count_; }
+  bool has_only_this_property_assignments() {
+      return has_only_this_property_assignments_;
+  }
+  bool has_only_simple_this_property_assignments() {
+      return has_only_simple_this_property_assignments_;
+  }
+  Handle<FixedArray> this_property_assignments() {
+      return this_property_assignments_;
+  }
   int num_parameters() { return num_parameters_; }
 
   bool AllowsLazyCompilation();
@@ -1291,6 +1308,9 @@ class FunctionLiteral: public Expression {
   int materialized_literal_count_;
   bool contains_array_literal_;
   int expected_property_count_;
+  bool has_only_this_property_assignments_;
+  bool has_only_simple_this_property_assignments_;
+  Handle<FixedArray> this_property_assignments_;
   int num_parameters_;
   int start_position_;
   int end_position_;

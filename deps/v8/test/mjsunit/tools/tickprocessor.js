@@ -227,6 +227,78 @@
 })();
 
 
+// http://code.google.com/p/v8/issues/detail?id=427
+(function testWindowsProcessExeAndDllMapFile() {
+  function exeSymbols(exeName) {
+    return [
+      ' 0000:00000000       ___ImageBase               00400000     <linker-defined>',
+      ' 0001:00000780       ?RunMain@@YAHHQAPAD@Z      00401780 f   shell.obj',
+      ' 0001:00000ac0       _main                      00401ac0 f   shell.obj',
+      ''
+    ].join('\r\n');
+  }
+
+  function dllSymbols(dllName) {
+    return [
+      ' 0000:00000000       ___ImageBase               01c30000     <linker-defined>',
+      ' 0001:00000780       _DllMain@12                01c31780 f   libcmt:dllmain.obj',
+      ' 0001:00000ac0       ___DllMainCRTStartup       01c31ac0 f   libcmt:dllcrt0.obj',
+      ''
+    ].join('\r\n');
+  }
+
+  var oldRead = read;
+
+  read = exeSymbols;
+  var exe_exe_syms = [];
+  (new WindowsCppEntriesProvider()).parseVmSymbols(
+      'chrome.exe', 0x00400000, 0x00472000,
+      function (name, start, end) {
+        exe_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  assertEquals(
+      [['RunMain', 0x00401780, 0x00401ac0],
+       ['_main', 0x00401ac0, 0x00472000]],
+      exe_exe_syms, '.exe with .exe symbols');
+
+  read = dllSymbols;
+  var exe_dll_syms = [];
+  (new WindowsCppEntriesProvider()).parseVmSymbols(
+      'chrome.exe', 0x00400000, 0x00472000,
+      function (name, start, end) {
+        exe_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  assertEquals(
+      [],
+      exe_dll_syms, '.exe with .dll symbols');
+
+  read = dllSymbols;
+  var dll_dll_syms = [];
+  (new WindowsCppEntriesProvider()).parseVmSymbols(
+      'chrome.dll', 0x01c30000, 0x02b80000,
+      function (name, start, end) {
+        dll_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  assertEquals(
+      [['_DllMain@12', 0x01c31780, 0x01c31ac0],
+       ['___DllMainCRTStartup', 0x01c31ac0, 0x02b80000]],
+      dll_dll_syms, '.dll with .dll symbols');
+
+  read = exeSymbols;
+  var dll_exe_syms = [];
+  (new WindowsCppEntriesProvider()).parseVmSymbols(
+      'chrome.dll', 0x01c30000, 0x02b80000,
+      function (name, start, end) {
+        dll_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  assertEquals(
+      [],
+      dll_exe_syms, '.dll with .exe symbols');
+
+  read = oldRead;
+})();
+
+
 function CppEntriesProviderMock() {
 };
 

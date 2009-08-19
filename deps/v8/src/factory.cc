@@ -87,8 +87,10 @@ Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 }
 
 
-Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string) {
-  CALL_HEAP_FUNCTION(Heap::AllocateStringFromTwoByte(string), String);
+Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+                                             PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(Heap::AllocateStringFromTwoByte(string, pretenure),
+                     String);
 }
 
 

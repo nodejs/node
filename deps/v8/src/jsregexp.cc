@@ -43,6 +43,7 @@
 #include "regexp-macro-assembler-irregexp.h"
 #include "regexp-stack.h"
 
+#ifdef V8_NATIVE_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
@@ -53,6 +54,7 @@
 #include "arm/regexp-macro-assembler-arm.h"
 #else
 #error Unsupported target architecture.
+#endif
 #endif
 
 #include "interpreter-irregexp.h"
@@ -270,10 +272,11 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 // If compilation fails, an exception is thrown and this function
 // returns false.
 bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
+  Object* compiled_code = re->DataAt(JSRegExp::code_index(is_ascii));
 #ifdef V8_NATIVE_REGEXP
-  if (re->DataAt(JSRegExp::code_index(is_ascii))->IsCode()) return true;
+  if (compiled_code->IsCode()) return true;
 #else  // ! V8_NATIVE_REGEXP (RegExp interpreter code)
-  if (re->DataAt(JSRegExp::code_index(is_ascii))->IsByteArray()) return true;
+  if (compiled_code->IsByteArray()) return true;
 #endif
   return CompileIrregexp(re, is_ascii);
 }
@@ -414,33 +417,36 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   // Dispatch to the correct RegExp implementation.
   Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
+
 #ifdef V8_NATIVE_REGEXP
-#if V8_TARGET_ARCH_IA32
+#ifdef V8_TARGET_ARCH_ARM
+  UNIMPLEMENTED();
+#else  // Native regexp supported.
   OffsetsVector captures(number_of_capture_registers);
   int* captures_vector = captures.vector();
-  RegExpMacroAssemblerIA32::Result res;
+  NativeRegExpMacroAssembler::Result res;
   do {
     bool is_ascii = subject->IsAsciiRepresentation();
     if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
       return Handle<Object>::null();
     }
     Handle<Code> code(RegExpImpl::IrregexpNativeCode(*regexp, is_ascii));
-    res = RegExpMacroAssemblerIA32::Match(code,
-                                          subject,
-                                          captures_vector,
-                                          captures.length(),
-                                          previous_index);
+    res = NativeRegExpMacroAssembler::Match(code,
+                                            subject,
+                                            captures_vector,
+                                            captures.length(),
+                                            previous_index);
     // If result is RETRY, the string have changed representation, and we
     // must restart from scratch.
-  } while (res == RegExpMacroAssemblerIA32::RETRY);
-  if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
+  } while (res == NativeRegExpMacroAssembler::RETRY);
+  if (res == NativeRegExpMacroAssembler::EXCEPTION) {
     ASSERT(Top::has_pending_exception());
     return Handle<Object>::null();
   }
-  ASSERT(res == RegExpMacroAssemblerIA32::SUCCESS
-      || res == RegExpMacroAssemblerIA32::FAILURE);
+  ASSERT(res == NativeRegExpMacroAssembler::SUCCESS
+      || res == NativeRegExpMacroAssembler::FAILURE);
 
-  if (res != RegExpMacroAssemblerIA32::SUCCESS) return Factory::null_value();
+  if (res != NativeRegExpMacroAssembler::SUCCESS) return Factory::null_value();
 
   array = Handle<FixedArray>(FixedArray::cast(last_match_info->elements()));
   ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
@@ -449,10 +455,9 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     SetCapture(*array, i, captures_vector[i]);
     SetCapture(*array, i + 1, captures_vector[i + 1]);
   }
-#else  // !V8_TARGET_ARCH_IA32
-    UNREACHABLE();
-#endif  // V8_TARGET_ARCH_IA32
-#else  // !V8_NATIVE_REGEXP
+#endif  // Native regexp supported.
+
+#else  // ! V8_NATIVE_REGEXP
   bool is_ascii = subject->IsAsciiRepresentation();
   if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
     return Handle<Object>::null();
@@ -4457,38 +4462,36 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
 
   NodeInfo info = *node->info();
 
+  // Create the correct assembler for the architecture.
 #ifdef V8_NATIVE_REGEXP
-#ifdef V8_TARGET_ARCH_ARM
-  // ARM native regexp not implemented yet.
-  UNREACHABLE();
-#endif
-#ifdef V8_TARGET_ARCH_X64
-  // X64 native regexp not implemented yet.
-  UNREACHABLE();
-#endif
+  // Native regexp implementation.
+
+  NativeRegExpMacroAssembler::Mode mode =
+      is_ascii ? NativeRegExpMacroAssembler::ASCII
+               : NativeRegExpMacroAssembler::UC16;
+
 #ifdef V8_TARGET_ARCH_IA32
-  RegExpMacroAssemblerIA32::Mode mode;
-  if (is_ascii) {
-    mode = RegExpMacroAssemblerIA32::ASCII;
-  } else {
-    mode = RegExpMacroAssemblerIA32::UC16;
-  }
   RegExpMacroAssemblerIA32 macro_assembler(mode,
                                            (data->capture_count + 1) * 2);
-  return compiler.Assemble(&macro_assembler,
-                           node,
-                           data->capture_count,
-                           pattern);
 #endif
+#ifdef V8_TARGET_ARCH_X64
+  RegExpMacroAssemblerX64 macro_assembler(mode,
+                                          (data->capture_count + 1) * 2);
+#endif
+#ifdef V8_TARGET_ARCH_ARM
+  UNIMPLEMENTED();
+#endif
+
 #else  // ! V8_NATIVE_REGEXP
-  // Interpreted regexp.
+  // Interpreted regexp implementation.
   EmbeddedVector<byte, 1024> codes;
   RegExpMacroAssemblerIrregexp macro_assembler(codes);
+#endif
+
   return compiler.Assemble(&macro_assembler,
                            node,
                            data->capture_count,
                            pattern);
-#endif  // V8_NATIVE_REGEXP
 }
 
 }}  // namespace v8::internal

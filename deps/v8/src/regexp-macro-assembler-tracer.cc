@@ -53,12 +53,6 @@ void RegExpMacroAssemblerTracer::Bind(Label* label) {
 }
 
 
-void RegExpMacroAssemblerTracer::EmitOrLink(Label* label) {
-  PrintF(" EmitOrLink(label[%08x]);\n", label);
-  assembler_->EmitOrLink(label);
-}
-
-
 void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
   PrintF(" AdvanceCurrentPosition(by=%d);\n", by);
   assembler_->AdvanceCurrentPosition(by);
@@ -311,13 +305,6 @@ void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
 }
 
 
-void RegExpMacroAssemblerTracer::CheckBitmap(uc16 start, Label* bitmap,
-                                             Label* on_zero) {
-  PrintF(" CheckBitmap(start=u%04x, <bitmap>, label[%08x]);\n", start, on_zero);
-  assembler_->CheckBitmap(start, bitmap, on_zero);
-}
-
-
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
     uc16 type,
     int cp_offset,
@@ -335,51 +322,6 @@ bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
          on_no_match,
          supported ? "true" : "false");
   return supported;
-}
-
-
-void RegExpMacroAssemblerTracer::DispatchHalfNibbleMap(
-    uc16 start,
-    Label* half_nibble_map,
-    const Vector<Label*>& destinations) {
-  PrintF(" DispatchHalfNibbleMap(start=u%04x, <half_nibble_map>, [", start);
-  for (int i = 0; i < destinations.length(); i++) {
-    if (i > 0)
-      PrintF(", ");
-    PrintF("label[%08x]", destinations[i]);
-  }
-  PrintF(");\n");
-  assembler_->DispatchHalfNibbleMap(start, half_nibble_map, destinations);
-}
-
-
-void RegExpMacroAssemblerTracer::DispatchByteMap(
-    uc16 start,
-    Label* byte_map,
-    const Vector<Label*>& destinations) {
-  PrintF(" DispatchByteMap(start=u%04x, <byte_map>, [", start);
-  for (int i = 0; i < destinations.length(); i++) {
-    if (i > 0)
-      PrintF(", ");
-    PrintF("label[%08x]", destinations[i]);
-  }
-  PrintF(");\n");
-  assembler_->DispatchByteMap(start, byte_map, destinations);
-}
-
-
-void RegExpMacroAssemblerTracer::DispatchHighByteMap(
-    byte start,
-    Label* byte_map,
-    const Vector<Label*>& destinations) {
-  PrintF(" DispatchHighByteMap(start=u%04x, <byte_map>, [", start);
-  for (int i = 0; i < destinations.length(); i++) {
-    if (i > 0)
-      PrintF(", ");
-    PrintF("label[%08x]", destinations[i]);
-  }
-  PrintF(");\n");
-  assembler_->DispatchHighByteMap(start, byte_map, destinations);
 }
 
 

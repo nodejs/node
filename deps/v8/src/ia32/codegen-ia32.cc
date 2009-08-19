@@ -6752,11 +6752,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Reserve space for converted numbers.
       __ sub(Operand(esp), Immediate(2 * kPointerSize));
 
-      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
-      if (use_sse3) {
+      if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(CpuFeatures::SSE3);
         __ fisttp_s(Operand(esp, 0 * kPointerSize));
         __ fisttp_s(Operand(esp, 1 * kPointerSize));
         __ fnstsw_ax();
@@ -6841,7 +6840,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // the runtime system.
       __ bind(&operand_conversion_failure);
       __ add(Operand(esp), Immediate(2 * kPointerSize));
-      if (use_sse3) {
+      if (use_sse3_) {
         // If we've used the SSE3 instructions for truncating the
         // floating point values to integers and it failed, we have a
         // pending #IA exception. Clear it.
@@ -7671,16 +7670,11 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-  // Call into the runtime system. Collect garbage before the call if
-  // running with --gc-greedy set.
-  if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0);
-    __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
-  }
+  // Call into the runtime system.
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy,
+               false,
                false);
 
   // Do space-specific GC and retry runtime call.

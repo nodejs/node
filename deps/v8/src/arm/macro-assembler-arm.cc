@@ -132,7 +132,7 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
   // and the target address of the call would be referenced by the first
   // instruction rather than the second one, which would make it harder to patch
   // (two instructions before the return address, instead of one).
-  ASSERT(kTargetAddrToReturnAddrDist == sizeof(Instr));
+  ASSERT(kPatchReturnSequenceLength == sizeof(Instr));
 }
 
 

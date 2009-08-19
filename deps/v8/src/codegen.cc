@@ -243,23 +243,22 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
 // in the full script source. When counting characters in the script source the
 // the first character is number 0 (not 1).
 void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
-                                    int length,
-                                    int function_token_position,
-                                    int start_position,
-                                    int end_position,
-                                    bool is_expression,
+                                    FunctionLiteral* lit,
                                     bool is_toplevel,
-                                    Handle<Script> script,
-                                    Handle<String> inferred_name) {
-  fun->shared()->set_length(length);
-  fun->shared()->set_formal_parameter_count(length);
+                                    Handle<Script> script) {
+  fun->shared()->set_length(lit->num_parameters());
+  fun->shared()->set_formal_parameter_count(lit->num_parameters());
   fun->shared()->set_script(*script);
-  fun->shared()->set_function_token_position(function_token_position);
-  fun->shared()->set_start_position(start_position);
-  fun->shared()->set_end_position(end_position);
-  fun->shared()->set_is_expression(is_expression);
+  fun->shared()->set_function_token_position(lit->function_token_position());
+  fun->shared()->set_start_position(lit->start_position());
+  fun->shared()->set_end_position(lit->end_position());
+  fun->shared()->set_is_expression(lit->is_expression());
   fun->shared()->set_is_toplevel(is_toplevel);
-  fun->shared()->set_inferred_name(*inferred_name);
+  fun->shared()->set_inferred_name(*lit->inferred_name());
+  fun->shared()->SetThisPropertyAssignmentsInfo(
+      lit->has_only_this_property_assignments(),
+      lit->has_only_simple_this_property_assignments(),
+      *lit->this_property_assignments());
 }
 
 
@@ -317,11 +316,7 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
                                       node->materialized_literal_count(),
                                       node->contains_array_literal(),
                                       code);
-  CodeGenerator::SetFunctionInfo(function, node->num_parameters(),
-                                 node->function_token_position(),
-                                 node->start_position(), node->end_position(),
-                                 node->is_expression(), false, script_,
-                                 node->inferred_name());
+  CodeGenerator::SetFunctionInfo(function, node, false, script_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger that a new function has been added.

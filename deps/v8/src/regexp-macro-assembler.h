@@ -46,6 +46,7 @@ class RegExpMacroAssembler {
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
+    kX64Implementation,
     kBytecodeImplementation
   };
 
@@ -67,12 +68,6 @@ class RegExpMacroAssembler {
   virtual void Backtrack() = 0;
   virtual void Bind(Label* label) = 0;
   virtual void CheckAtStart(Label* on_at_start) = 0;
-  // Check the current character against a bitmap.  The range of the current
-  // character must be from start to start + length_of_bitmap_in_bits.
-  virtual void CheckBitmap(
-      uc16 start,           // The bitmap is indexed from this character.
-      Label* bitmap,        // Where the bitmap is emitted.
-      Label* on_zero) = 0;  // Where to go if the bit is 0.  Fall through on 1.
   // Dispatch after looking the current character up in a 2-bits-per-entry
   // map.  The destinations vector has up to 4 labels.
   virtual void CheckCharacter(uint32_t c, Label* on_equal) = 0;
@@ -132,23 +127,6 @@ class RegExpMacroAssembler {
                                           Label* on_no_match) {
     return false;
   }
-  // Dispatch after looking the current character up in a byte map.  The
-  // destinations vector has up to 256 labels.
-  virtual void DispatchByteMap(
-      uc16 start,
-      Label* byte_map,
-      const Vector<Label*>& destinations) = 0;
-  virtual void DispatchHalfNibbleMap(
-      uc16 start,
-      Label* half_nibble_map,
-      const Vector<Label*>& destinations) = 0;
-  // Dispatch after looking the high byte of the current character up in a byte
-  // map.  The destinations vector has up to 256 labels.
-  virtual void DispatchHighByteMap(
-      byte start,
-      Label* byte_map,
-      const Vector<Label*>& destinations) = 0;
-  virtual void EmitOrLink(Label* label) = 0;
   virtual void Fail() = 0;
   virtual Handle<Object> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;
@@ -181,51 +159,53 @@ class RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
-
- private:
 };
 
 
-struct ArraySlice {
+#ifdef V8_NATIVE_REGEXP  // Avoid compiling unused code.
+
+class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
-  ArraySlice(Handle<ByteArray> array, size_t offset)
-    : array_(array), offset_(offset) {}
-  Handle<ByteArray> array() { return array_; }
-  // Offset in the byte array data.
-  size_t offset() { return offset_; }
-  // Offset from the ByteArray pointer.
-  size_t base_offset() {
-    return ByteArray::kHeaderSize - kHeapObjectTag + offset_;
-  }
-  void* location() {
-    return reinterpret_cast<void*>(array_->GetDataStartAddress() + offset_);
-  }
-  template <typename T>
-  T& at(int idx) {
-    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset_)[idx];
-  }
- private:
-  Handle<ByteArray> array_;
-  size_t offset_;
+  // Type of input string to generate code for.
+  enum Mode { ASCII = 1, UC16 = 2 };
+
+  // Result of calling generated native RegExp code.
+  // RETRY: Something significant changed during execution, and the matching
+  //        should be retried from scratch.
+  // EXCEPTION: Something failed during execution. If no exception has been
+  //        thrown, it's an internal out-of-memory, and the caller should
+  //        throw the exception.
+  // FAILURE: Matching failed.
+  // SUCCESS: Matching succeeded, and the output array has been filled with
+  //        capture positions.
+  enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
+
+  NativeRegExpMacroAssembler();
+  virtual ~NativeRegExpMacroAssembler();
+
+  static Result Match(Handle<Code> regexp,
+                      Handle<String> subject,
+                      int* offsets_vector,
+                      int offsets_vector_length,
+                      int previous_index);
+
+  // Compares two-byte strings case insensitively.
+  // Called from generated RegExp code.
+  static int CaseInsensitiveCompareUC16(Address byte_offset1,
+                                        Address byte_offset2,
+                                        size_t byte_length);
+
+  static const byte* StringCharacterPosition(String* subject, int start_index);
+
+  static Result Execute(Code* code,
+                        String* input,
+                        int start_offset,
+                        const byte* input_start,
+                        const byte* input_end,
+                        int* output,
+                        bool at_start);
 };
-
-
-class ByteArrayProvider {
- public:
-  explicit ByteArrayProvider(unsigned int initial_size);
-  // Provides a place to put "size" elements of size "element_size".
-  // The information can be stored in the provided ByteArray at the "offset".
-  // The offset is aligned to the element size.
-  ArraySlice GetBuffer(unsigned int size,
-                       unsigned int element_size);
-  template <typename T>
-  ArraySlice GetBuffer(Vector<T> values);
- private:
-  size_t byte_array_size_;
-  Handle<ByteArray> current_byte_array_;
-  int current_byte_array_free_offset_;
-};
-
+#endif  // V8_NATIVE_REGEXP
 } }  // namespace v8::internal
 
 #endif  // V8_REGEXP_MACRO_ASSEMBLER_H_

@@ -216,6 +216,9 @@ class RelocInfo BASE_EMBEDDED {
 
   // Patch the code with a call.
   void PatchCodeWithCall(Address target, int guard_bytes);
+  // Check whether the current instruction is currently a call
+  // sequence (whether naturally or a return sequence overwritten
+  // to enter the debugger).
   INLINE(bool IsCallInstruction());
 
 #ifdef ENABLE_DISASSEMBLER

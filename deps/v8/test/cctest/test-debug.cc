@@ -487,9 +487,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
     CHECK_EQ(debug_break,
         Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
   } else {
-    // TODO(1240753): Make the test architecture independent or split
-    // parts of the debugger into architecture dependent files.
-    CHECK_EQ(0xE8, *(it1.rinfo()->pc()));
+    CHECK(Debug::IsDebugBreakAtReturn(it1.it()->rinfo()));
   }
 
   // Clear the break point and check that the debug break function is no longer
@@ -501,9 +499,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   it2.FindBreakLocationFromPosition(position);
   CHECK_EQ(mode, it2.it()->rinfo()->rmode());
   if (mode == v8::internal::RelocInfo::JS_RETURN) {
-    // TODO(1240753): Make the test architecture independent or split
-    // parts of the debugger into architecture dependent files.
-    CHECK_NE(0xE8, *(it2.rinfo()->pc()));
+    CHECK(!Debug::IsDebugBreakAtReturn(it2.it()->rinfo()));
   }
 }
 
@@ -5356,4 +5352,21 @@ TEST(NoDebugBreakInAfterCompileMessageHandler) {
   // Get rid of the debug message handler.
   v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
+}
+
+
+TEST(GetMirror) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  v8::Handle<v8::Value> obj = v8::Debug::GetMirror(v8::String::New("hodja"));
+  v8::Handle<v8::Function> run_test = v8::Handle<v8::Function>::Cast(
+      v8::Script::New(
+          v8::String::New(
+              "function runTest(mirror) {"
+              "  return mirror.isString() && (mirror.length() == 5);"
+              "}"
+              ""
+              "runTest;"))->Run());
+  v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
+  CHECK(result->IsTrue());
 }

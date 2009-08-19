@@ -111,7 +111,7 @@ void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   HandleScope scope;
   Local<FunctionTemplate> function = FunctionTemplate::New();
-  Local<Value> data = Integer::New(reinterpret_cast<intptr_t>(this));
+  Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
                                                &HandleSet,
                                                &HandleHas,
@@ -179,8 +179,7 @@ v8::Handle<Boolean> DeclarationContext::HandleHas(Local<String> key,
 
 
 DeclarationContext* DeclarationContext::GetInstance(const AccessorInfo& info) {
-  Local<Value> data = info.Data();
-  return reinterpret_cast<DeclarationContext*>(Int32::Cast(*data)->Value());
+  return static_cast<DeclarationContext*>(External::Unwrap(info.Data()));
 }
 
 

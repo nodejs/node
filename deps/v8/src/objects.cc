@@ -4780,6 +4780,48 @@ Object* SharedFunctionInfo::GetSourceCode() {
 }
 
 
+int SharedFunctionInfo::CalculateInstanceSize() {
+  int instance_size =
+      JSObject::kHeaderSize +
+      expected_nof_properties() * kPointerSize;
+  if (instance_size > JSObject::kMaxInstanceSize) {
+    instance_size = JSObject::kMaxInstanceSize;
+  }
+  return instance_size;
+}
+
+
+int SharedFunctionInfo::CalculateInObjectProperties() {
+  return (CalculateInstanceSize() - JSObject::kHeaderSize) / kPointerSize;
+}
+
+
+void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
+    bool only_this_property_assignments,
+    bool only_simple_this_property_assignments,
+    FixedArray* assignments) {
+  ASSERT(this_property_assignments()->IsUndefined());
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlyThisPropertyAssignments,
+                                     only_this_property_assignments));
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlySimpleThisPropertyAssignments,
+                                     only_simple_this_property_assignments));
+  set_this_property_assignments(assignments);
+  set_this_property_assignments_count(assignments->length() / 3);
+}
+
+
+String* SharedFunctionInfo::GetThisPropertyAssignmentName(int index) {
+  Object* obj = this_property_assignments();
+  ASSERT(obj->IsFixedArray());
+  ASSERT(index < this_property_assignments_count());
+  obj = FixedArray::cast(obj)->get(index * 3);
+  ASSERT(obj->IsString());
+  return String::cast(obj);
+}
+
+
 // Support function for printing the source code to a StringStream
 // without any allocation in the heap.
 void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
@@ -4826,6 +4868,8 @@ void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
   IteratePointers(v, kNameOffset, kConstructStubOffset + kPointerSize);
   IteratePointers(v, kInstanceClassNameOffset, kScriptOffset + kPointerSize);
   IteratePointers(v, kDebugInfoOffset, kInferredNameOffset + kPointerSize);
+  IteratePointers(v, kThisPropertyAssignmentsOffset,
+      kThisPropertyAssignmentsOffset + kPointerSize);
 }
 
 

@@ -37,7 +37,7 @@ namespace internal {
 
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(1238487): Don't pass the function in a static variable.
+  // TODO(428): Don't pass the function in a static variable.
   ExternalReference passed = ExternalReference::builtin_passed_function();
   __ mov(Operand::StaticVariable(passed), edi);
 
@@ -180,12 +180,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // eax: initial map
     // ebx: JSObject
     // edi: start of next object
+    // Calculate the total number of properties described by the map.
     __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
-    __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
+    __ movzx_b(ecx, FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
+    __ add(edx, Operand(ecx));
     // Calculate unused properties past the end of the in-object properties.
+    __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
     __ sub(edx, Operand(ecx));
     // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
+    __ Assert(positive, "Property allocation count failed.");
 
     // Scale the number of elements by pointer size and add the header for
     // FixedArrays to the start of the next object calculation from above.
@@ -321,6 +325,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ pop(ecx);
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
+  __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);
 }
 

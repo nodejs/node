@@ -262,8 +262,7 @@ void MacroAssembler::Abort(const char* msg) {
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  movq(kScratchRegister, stub->GetCode(), RelocInfo::CODE_TARGET);
-  call(kScratchRegister);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -495,7 +494,6 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  WriteRecordedPositions();
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
 #ifdef DEBUG
@@ -504,7 +502,7 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #endif
   jmp(kScratchRegister);
 #ifdef DEBUG
-  ASSERT_EQ(kTargetAddrToReturnAddrDist,
+  ASSERT_EQ(kPatchReturnSequenceLength,
             SizeOfCodeGeneratedSince(&target) + kPointerSize);
 #endif
 }
@@ -523,8 +521,8 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  WriteRecordedPositions();
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  WriteRecordedPositions();
   movq(kScratchRegister, code_object, rmode);
 #ifdef DEBUG
   // Patch target is kPointer size bytes *before* target label.
@@ -533,7 +531,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #endif
   call(kScratchRegister);
 #ifdef DEBUG
-  ASSERT_EQ(kTargetAddrToReturnAddrDist,
+  ASSERT_EQ(kPatchReturnSequenceLength,
             SizeOfCodeGeneratedSince(&target) + kPointerSize);
 #endif
 }
@@ -799,7 +797,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
         Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
-        { pc_offset() - kTargetAddrToReturnAddrDist, flags, name };
+        { pc_offset() - kPatchReturnSequenceLength, flags, name };
     unresolved_.Add(entry);
   }
 }
@@ -859,12 +857,11 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       movq(rdx, code_register);
     }
 
-    movq(kScratchRegister, adaptor, RelocInfo::CODE_TARGET);
     if (flag == CALL_FUNCTION) {
-      call(kScratchRegister);
+      Call(adaptor, RelocInfo::CODE_TARGET);
       jmp(done);
     } else {
-      jmp(kScratchRegister);
+      Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
   }

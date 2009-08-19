@@ -152,14 +152,9 @@ class CodeGenerator: public AstVisitor {
 #endif
 
   static void SetFunctionInfo(Handle<JSFunction> fun,
-                              int length,
-                              int function_token_position,
-                              int start_position,
-                              int end_position,
-                              bool is_expression,
+                              FunctionLiteral* lit,
                               bool is_toplevel,
-                              Handle<Script> script,
-                              Handle<String> inferred_name);
+                              Handle<Script> script);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }

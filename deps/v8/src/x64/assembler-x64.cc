@@ -178,6 +178,13 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 }
 
 
+void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
+  // Patch the code at the current address with the supplied instructions.
+  for (int i = 0; i < instruction_count; i++) {
+    *(pc_ + i) = *(instructions + i);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
@@ -437,21 +444,43 @@ void Assembler::arithmetic_op(byte opcode, Register reg, const Operand& op) {
 }
 
 
-void Assembler::arithmetic_op(byte opcode, Register dst, Register src) {
+void Assembler::arithmetic_op(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
+  emit_rex_64(reg, rm_reg);
   emit(opcode);
-  emit_modrm(dst, src);
+  emit_modrm(reg, rm_reg);
 }
 
 
-void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
+void Assembler::arithmetic_op_16(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(dst, src);
+  emit(0x66);
+  emit_optional_rex_32(reg, rm_reg);
   emit(opcode);
-  emit_modrm(dst, src);
+  emit_modrm(reg, rm_reg);
+}
+
+
+void Assembler::arithmetic_op_16(byte opcode,
+                                 Register reg,
+                                 const Operand& rm_reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(reg, rm_reg);
+  emit(opcode);
+  emit_operand(reg, rm_reg);
+}
+
+
+void Assembler::arithmetic_op_32(byte opcode, Register reg, Register rm_reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(reg, rm_reg);
+  emit(opcode);
+  emit_modrm(reg, rm_reg);
 }
 
 
@@ -492,6 +521,47 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit_operand(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0x81);
+    emit_operand(subcode, dst);
+    emitl(src.value_);
+  }
+}
+
+
+void Assembler::immediate_arithmetic_op_16(byte subcode,
+                                           Register dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);  // Operand size override prefix.
+  emit_optional_rex_32(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit_modrm(subcode, dst);
+    emit(src.value_);
+  } else if (dst.is(rax)) {
+    emit(0x05 | (subcode << 3));
+    emitl(src.value_);
+  } else {
+    emit(0x81);
+    emit_modrm(subcode, dst);
+    emitl(src.value_);
+  }
+}
+
+
+void Assembler::immediate_arithmetic_op_16(byte subcode,
+                                           const Operand& dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);  // Operand size override prefix.
+  emit_optional_rex_32(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_operand(subcode, dst);
@@ -743,6 +813,14 @@ void Assembler::cmovl(Condition cc, Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+
+void Assembler::cmpb_al(Immediate imm8) {
+  ASSERT(is_int8(imm8.value_) || is_uint8(imm8.value_));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x3c);
+  emit(imm8.value_);
+}
 
 
 void Assembler::cpuid() {
@@ -1000,6 +1078,16 @@ void Assembler::jmp(Register target) {
 }
 
 
+void Assembler::jmp(const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode FF/4 m64
+  emit_optional_rex_32(src);
+  emit(0xFF);
+  emit_operand(0x4, src);
+}
+
+
 void Assembler::lea(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1190,6 +1278,32 @@ void Assembler::movq(const Operand& dst, Immediate value) {
   emit(0xC7);
   emit_operand(0, dst);
   emit(value);
+}
+
+
+/*
+ * Loads the ip-relative location of the src label into the target
+ * location (as a 32-bit offset sign extended to 64-bit).
+ */
+void Assembler::movl(const Operand& dst, Label* src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0, dst);
+  if (src->is_bound()) {
+    int offset = src->pos() - pc_offset() - sizeof(int32_t);
+    ASSERT(offset <= 0);
+    emitl(offset);
+  } else if (src->is_linked()) {
+    emitl(src->pos());
+    src->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    ASSERT(src->is_unused());
+    int32_t current = pc_offset();
+    emitl(current);
+    src->link_to(current);
+  }
 }
 
 
@@ -1608,6 +1722,11 @@ void Assembler::testl(Register dst, Register src) {
 
 
 void Assembler::testl(Register reg, Immediate mask) {
+  // testl with a mask that fits in the low byte is exactly testb.
+  if (is_uint8(mask.value_)) {
+    testb(reg, mask);
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1623,6 +1742,11 @@ void Assembler::testl(Register reg, Immediate mask) {
 
 
 void Assembler::testl(const Operand& op, Immediate mask) {
+  // testl with a mask that fits in the low byte is exactly testb.
+  if (is_uint8(mask.value_)) {
+    testb(op, mask);
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);

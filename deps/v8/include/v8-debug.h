@@ -228,8 +228,13 @@ class EXPORT Debug {
   *   }
   * \endcode
   */
-  static Handle<Value> Call(v8::Handle<v8::Function> fun,
+  static Local<Value> Call(v8::Handle<v8::Function> fun,
                             Handle<Value> data = Handle<Value>());
+
+  /**
+   * Returns a mirror object for the given object.
+   */
+  static Local<Value> GetMirror(v8::Handle<v8::Value> obj);
 
  /**
   * Enable the V8 builtin debug agent. The debugger agent will listen on the

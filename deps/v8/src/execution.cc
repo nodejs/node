@@ -174,12 +174,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
 
   // Regular expressions can be called as functions in both Firefox
   // and Safari so we allow it too.
-  bool is_regexp =
-      object->IsHeapObject() &&
-      (HeapObject::cast(*object)->map()->constructor() ==
-       *Top::regexp_function());
-
-  if (is_regexp) {
+  if (object->IsJSRegExp()) {
     Handle<String> exec = Factory::exec_symbol();
     return Handle<Object>(object->GetProperty(*exec));
   }

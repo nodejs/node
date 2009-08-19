@@ -38,7 +38,7 @@ namespace internal {
 
 Address IC::address() {
   // Get the address of the call.
-  Address result = pc() - Assembler::kTargetAddrToReturnAddrDist;
+  Address result = pc() - Assembler::kPatchReturnSequenceLength;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // First check if any break points are active if not just return the address

@@ -44,35 +44,26 @@ TEST(HeapMaps) {
 
 static void CheckOddball(Object* obj, const char* string) {
   CHECK(obj->IsOddball());
-#ifndef V8_HOST_ARCH_64_BIT
-// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
-#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
 static void CheckSmi(int value, const char* string) {
-#ifndef V8_HOST_ARCH_64_BIT
-// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string =
       *Execution::ToString(Handle<Object>(Smi::FromInt(value)), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
-#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
 static void CheckNumber(double value, const char* string) {
   Object* obj = Heap::NumberFromDouble(value);
   CHECK(obj->IsNumber());
-#ifndef V8_HOST_ARCH_64_BIT
-// TODO(X64): Reenable when native builtins work.
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
   CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
-#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
@@ -492,8 +483,11 @@ static const char* not_so_random_string_table[] = {
 static void CheckSymbols(const char** strings) {
   for (const char* string = *strings; *strings != 0; string = *strings++) {
     Object* a = Heap::LookupAsciiSymbol(string);
+    // LookupAsciiSymbol may return a failure if a GC is needed.
+    if (a->IsFailure()) continue;
     CHECK(a->IsSymbol());
     Object* b = Heap::LookupAsciiSymbol(string);
+    if (b->IsFailure()) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
   }

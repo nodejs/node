@@ -247,6 +247,8 @@ namespace internal {
   F(InitializeVarGlobal, -1 /* 1 or 2 */) \
   F(InitializeConstGlobal, 2) \
   F(InitializeConstContextSlot, 3) \
+  F(OptimizeObjectForAddingMultipleProperties, 2) \
+  F(TransformToFastProperties, 1) \
   \
   /* Debugging */ \
   F(DebugPrint, 1) \

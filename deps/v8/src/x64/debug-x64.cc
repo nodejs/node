@@ -39,60 +39,176 @@ namespace internal {
 
 bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
-  // 11th byte of patch is 0x49, 11th byte of JS return is 0xCC (int3).
+  // 11th byte of patch is 0x49 (REX.WB byte of computed jump/call to r10),
+  // 11th byte of JS return is 0xCC (int3).
   ASSERT(*(rinfo->pc() + 10) == 0x49 || *(rinfo->pc() + 10) == 0xCC);
-  return (*(rinfo->pc() + 10) == 0x49);
+  return (*(rinfo->pc() + 10) != 0xCC);
 }
+
+#define __ ACCESS_MASM(masm)
+
+static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
+                                          RegList pointer_regs,
+                                          bool convert_call_to_jmp) {
+  // Save the content of all general purpose registers in memory. This copy in
+  // memory is later pushed onto the JS expression stack for the fake JS frame
+  // generated and also to the C frame generated on top of that. In the JS
+  // frame ONLY the registers containing pointers will be pushed on the
+  // expression stack. This causes the GC to update these pointers so that
+  // they will have the correct value when returning from the debugger.
+  __ SaveRegistersToMemory(kJSCallerSaved);
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Store the registers containing object pointers on the expression stack to
+  // make sure that these are correctly updated during GC.
+  __ PushRegistersFromMemory(pointer_regs);
+
+#ifdef DEBUG
+  __ RecordComment("// Calling from debug break to runtime - come in - over");
+#endif
+  __ xor_(rax, rax);  // No arguments (argc == 0).
+  __ movq(rbx, ExternalReference::debug_break());
+
+  CEntryDebugBreakStub ceb;
+  __ CallStub(&ceb);
+
+  // Restore the register values containing object pointers from the expression
+  // stack in the reverse order as they where pushed.
+  __ PopRegistersToMemory(pointer_regs);
+
+  // Get rid of the internal frame.
+  __ LeaveInternalFrame();
+
+  // If this call did not replace a call but patched other code then there will
+  // be an unwanted return address left on the stack. Here we get rid of that.
+  if (convert_call_to_jmp) {
+    __ pop(rax);
+  }
+
+  // Finally restore all registers.
+  __ RestoreRegistersFromMemory(kJSCallerSaved);
+
+  // Now that the break point has been handled, resume normal execution by
+  // jumping to the target address intended by the caller and that was
+  // overwritten by the address of DebugBreakXXX.
+  ExternalReference after_break_target =
+      ExternalReference(Debug_Address::AfterBreakTarget());
+  __ movq(kScratchRegister, after_break_target);
+  __ jmp(Operand(kScratchRegister, 0));
+}
+
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state for keyed IC call call (from ic-x64.cc)
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  // -----------------------------------
+  // The number of arguments in rax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, 0, false);
 }
+
 
 void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state just before return from JS function (from codegen-x64.cc).
+  // rax is the actual number of arguments not encoded as a smi, see comment
+  // above IC call.
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  // -----------------------------------
+  // The number of arguments in rax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, 0, false);
 }
+
 
 void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state for keyed IC load call (from ic-x64.cc).
+  // ----------- S t a t e -------------
+  //  No registers used on entry.
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, 0, false);
 }
+
 
 void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state for keyed IC load call (from ic-x64.cc).
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  // -----------------------------------
+  // Register rax contains an object that needs to be pushed on the
+  // expression stack of the fake JS frame.
+  Generate_DebugBreakCallHelper(masm, rax.bit(), false);
 }
+
 
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state for IC load call (from ic-x64.cc).
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, rcx.bit(), false);
 }
+
 
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state just before return from JS function (from codegen-x64.cc).
+  // ----------- S t a t e -------------
+  //  -- rax: return value
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, rax.bit(), true);
 }
+
 
 void Debug::GenerateReturnDebugBreakEntry(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // OK to clobber rbx as we are returning from a JS function through the code
+  // generated by CodeGenerator::GenerateReturnSequence()
+  ExternalReference debug_break_return =
+      ExternalReference(Debug_Address::DebugBreakReturn());
+  __ movq(rbx, debug_break_return);
+  __ movq(rbx, Operand(rbx, 0));
+  __ addq(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jmp(rbx);
 }
+
 
 void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // REgister state for IC store call (from ic-x64.cc).
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit(), false);
 }
+
 
 void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED
+  // Register state for stub CallFunction (from CallFunctionStub in ic-x64.cc).
+  // ----------- S t a t e -------------
+  //  No registers used on entry.
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, 0, false);
 }
+
+
+#undef __
+
 
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  // TODO(X64): Implement this when we start setting Debug breaks.
-  UNIMPLEMENTED();
+  rinfo()->PatchCode(original_rinfo()->pc(),
+                     Debug::kX64JSReturnSequenceLength);
 }
+
 
 bool BreakLocationIterator::IsDebugBreakAtReturn()  {
-  // TODO(X64): Implement this when we start setting Debug breaks.
-  UNIMPLEMENTED();
-  return false;
+  return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
+
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
+  ASSERT(Debug::kX64JSReturnSequenceLength >= Debug::kX64CallInstructionLength);
+  rinfo()->PatchCodeWithCall(Debug::debug_break_return_entry()->entry(),
+      Debug::kX64JSReturnSequenceLength - Debug::kX64CallInstructionLength);
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

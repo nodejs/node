@@ -82,8 +82,8 @@ static void RecordWriteHelper(MacroAssembler* masm,
   //   page_start + kObjectStartOffset + objectSize
   // where objectSize is FixedArray::kHeaderSize + kPointerSize * array_length.
   // Add the delta between the end of the normal RSet and the start of the
-  // extra RSet to 'object', so that addressing the bit using 'pointer_offset'
-  // hits the extra RSet words.
+  // extra RSet to 'page_start', so that addressing the bit using
+  // 'pointer_offset' hits the extra RSet words.
   masm->lea(page_start,
             Operand(page_start, array_length, times_pointer_size,
                     Page::kObjectStartOffset + FixedArray::kHeaderSize

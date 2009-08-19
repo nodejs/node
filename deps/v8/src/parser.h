@@ -143,7 +143,8 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
                          ScriptDataImpl* pre_data);
 
 
-ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
+ScriptDataImpl* PreParse(Handle<String> source,
+                         unibrow::CharacterStream* stream,
                          v8::Extension* extension);
 
 

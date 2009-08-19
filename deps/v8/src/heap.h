@@ -852,7 +852,11 @@ class Heap : public AllStatic {
 
   static const int kMaxMapSpaceSize = 8*MB;
 
+#if defined(V8_TARGET_ARCH_X64)
+  static const int kMaxObjectSizeInNewSpace = 512*KB;
+#else
   static const int kMaxObjectSizeInNewSpace = 256*KB;
+#endif
 
   static NewSpace new_space_;
   static OldSpace* old_pointer_space_;

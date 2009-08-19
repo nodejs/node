@@ -2704,6 +2704,10 @@ class Map: public HeapObject {
   inline int inobject_properties();
   inline void set_inobject_properties(int value);
 
+  // Count of property fields pre-allocated in the object when first allocated.
+  inline int pre_allocated_property_fields();
+  inline void set_pre_allocated_property_fields(int value);
+
   // Instance type.
   inline InstanceType instance_type();
   inline void set_instance_type(InstanceType value);
@@ -2869,6 +2873,8 @@ class Map: public HeapObject {
   void MapVerify();
 #endif
 
+  static const int kMaxPreAllocatedPropertyFields = 255;
+
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
@@ -2882,7 +2888,8 @@ class Map: public HeapObject {
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
   static const int kInObjectPropertiesOffset = kInstanceSizesOffset + 1;
-  // The bytes at positions 2 and 3 are not in use at the moment.
+  static const int kPreAllocatedPropertyFieldsOffset = kInstanceSizesOffset + 2;
+  // The byte at position 3 is not in use at the moment.
 
   // Byte offsets within kInstanceAttributesOffset attributes.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
@@ -3090,9 +3097,41 @@ class SharedFunctionInfo: public HeapObject {
   inline bool is_toplevel();
   inline void set_is_toplevel(bool value);
 
+  // Bit field containing various information collected by the compiler to
+  // drive optimization.
+  inline int compiler_hints();
+  inline void set_compiler_hints(int value);
+
+  // Add information on assignments of the form this.x = ...;
+  void SetThisPropertyAssignmentsInfo(
+      bool has_only_this_property_assignments,
+      bool has_only_simple_this_property_assignments,
+      FixedArray* this_property_assignments);
+
+  // Indicate that this function only consists of assignments of the form
+  // this.x = ...;.
+  inline bool has_only_this_property_assignments();
+
+  // Indicate that this function only consists of assignments of the form
+  // this.x = y; where y is either a constant or refers to an argument.
+  inline bool has_only_simple_this_property_assignments();
+
+  // For functions which only contains this property assignments this provides
+  // access to the names for the properties assigned.
+  DECL_ACCESSORS(this_property_assignments, Object)
+  inline int this_property_assignments_count();
+  inline void set_this_property_assignments_count(int value);
+  String* GetThisPropertyAssignmentName(int index);
+
   // [source code]: Source code for the function.
   bool HasSourceCode();
   Object* GetSourceCode();
+
+  // Calculate the instance size.
+  int CalculateInstanceSize();
+
+  // Calculate the number of in-object properties.
+  int CalculateInObjectProperties();
 
   // Dispatched behavior.
   void SharedFunctionInfoIterateBody(ObjectVisitor* v);
@@ -3129,7 +3168,12 @@ class SharedFunctionInfo: public HeapObject {
   static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kSize = kInferredNameOffset + kPointerSize;
+  static const int kCompilerHintsOffset = kInferredNameOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsOffset =
+      kCompilerHintsOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsCountOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
+  static const int kSize = kThisPropertyAssignmentsCountOffset + kPointerSize;
 
  private:
   // Bit positions in length_and_flg.
@@ -3145,6 +3189,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kIsTopLevelBit   = 1;
   static const int kStartPositionShift = 2;
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
+
+  // Bit positions in compiler_hints.
+  static const int kHasOnlyThisPropertyAssignments = 0;
+  static const int kHasOnlySimpleThisPropertyAssignments = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

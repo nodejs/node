@@ -299,14 +299,9 @@ class CodeGenerator: public AstVisitor {
 #endif
 
   static void SetFunctionInfo(Handle<JSFunction> fun,
-                              int length,
-                              int function_token_position,
-                              int start_position,
-                              int end_position,
-                              bool is_expression,
+                              FunctionLiteral* lit,
                               bool is_toplevel,
-                              Handle<Script> script,
-                              Handle<String> inferred_name);
+                              Handle<Script> script);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
@@ -623,6 +618,7 @@ class GenericBinaryOpStub: public CodeStub {
                       OverwriteMode mode,
                       GenericBinaryFlags flags)
       : op_(op), mode_(mode), flags_(flags) {
+    use_sse3_ = CpuFeatures::IsSupported(CpuFeatures::SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
@@ -632,6 +628,7 @@ class GenericBinaryOpStub: public CodeStub {
   Token::Value op_;
   OverwriteMode mode_;
   GenericBinaryFlags flags_;
+  bool use_sse3_;
 
   const char* GetName();
 
@@ -644,9 +641,10 @@ class GenericBinaryOpStub: public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
+  // Minor key encoding in 16 bits FSOOOOOOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class OpBits: public BitField<Token::Value, 2, 12> {};
+  class SSE3Bits: public BitField<bool, 14, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
 
   Major MajorKey() { return GenericBinaryOp; }
@@ -654,7 +652,8 @@ class GenericBinaryOpStub: public CodeStub {
     // Encode the parameters in a unique 16 bit value.
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
-           | FlagBits::encode(flags_);
+           | FlagBits::encode(flags_)
+           | SSE3Bits::encode(use_sse3_);
   }
   void Generate(MacroAssembler* masm);
 };

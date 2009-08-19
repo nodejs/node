@@ -38,6 +38,7 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_NATIVE_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - edx : current character. Must be loaded using LoadCurrentCharacter
@@ -54,7 +55,7 @@ namespace internal {
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
- *       - stack_area_top     (High end of the memory area to use as
+ *       - stack_area_base     (High end of the memory area to use as
  *                             backtracking stack)
  *       - at_start           (if 1, start at start of string, if 0, don't)
  *       - int* capture_array (int[num_saved_registers_], for output).
@@ -78,13 +79,13 @@ namespace internal {
  * character of the string). The remaining registers starts out as garbage.
  *
  * The data up to the return address must be placed there by the calling
- * code, e.g., by calling the code entry as cast to:
+ * code, by calling the code entry as cast to a function with the signature:
  * int (*match)(String* input_string,
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
  *              bool at_start,
- *              byte* stack_area_top)
+ *              byte* stack_area_base)
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -93,7 +94,6 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
     Mode mode,
     int registers_to_save)
     : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
-      constants_(kRegExpConstantsSize),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -156,13 +156,6 @@ void RegExpMacroAssemblerIA32::Bind(Label* label) {
 }
 
 
-void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
-                                           Label* bitmap,
-                                           Label* on_zero) {
-  UNIMPLEMENTED();
-}
-
-
 void RegExpMacroAssemblerIA32::CheckCharacter(uint32_t c, Label* on_equal) {
   __ cmp(current_character(), c);
   BranchOrBacktrack(equal, on_equal);
@@ -217,15 +210,9 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
     BranchOrBacktrack(greater, on_failure);
   }
 
-  Label backtrack;
   if (on_failure == NULL) {
-    // Avoid inlining the Backtrack macro for each test.
-    Label skip_backtrack;
-    __ jmp(&skip_backtrack);
-    __ bind(&backtrack);
-    Backtrack();
-    __ bind(&skip_backtrack);
-    on_failure = &backtrack;
+    // Instead of inlining a backtrack, (re)use the global backtrack target.
+    on_failure = &backtrack_label_;
   }
 
   for (int i = 0; i < str.length(); i++) {
@@ -581,34 +568,6 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
   }
 }
 
-void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
-    uc16 start,
-    Label* half_nibble_map,
-    const Vector<Label*>& destinations) {
-  UNIMPLEMENTED();
-}
-
-
-void RegExpMacroAssemblerIA32::DispatchByteMap(
-    uc16 start,
-    Label* byte_map,
-    const Vector<Label*>& destinations) {
-  UNIMPLEMENTED();
-}
-
-
-void RegExpMacroAssemblerIA32::DispatchHighByteMap(
-    byte start,
-    Label* byte_map,
-    const Vector<Label*>& destinations) {
-  UNIMPLEMENTED();
-}
-
-
-void RegExpMacroAssemblerIA32::EmitOrLink(Label* label) {
-  UNIMPLEMENTED();  // Has no use.
-}
-
 
 void RegExpMacroAssemblerIA32::Fail() {
   ASSERT(FAILURE == 0);  // Return value for failure is zero.
@@ -668,17 +627,17 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(edi, Operand(ebp, kInputStart));
   // Set up edi to be negative offset from string end.
   __ sub(edi, Operand(esi));
-  if (num_saved_registers_ > 0) {
+  // Set eax to address of char before start of input
+  // (effectively string position -1).
+  __ lea(eax, Operand(edi, -char_size()));
+  // Store this value in a local variable, for use when clearing
+  // position registers.
+  __ mov(Operand(ebp, kInputStartMinusOne), eax);
+  if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
     // page (a problem on Windows).
     __ mov(ecx, kRegisterZero);
-    // Set eax to address of char before start of input
-    // (effectively string position -1).
-    __ lea(eax, Operand(edi, -char_size()));
-    // Store this value in a local variable, for use when clearing
-    // position registers.
-    __ mov(Operand(ebp, kInputStartMinusOne), eax);
     Label init_loop;
     __ bind(&init_loop);
     __ mov(Operand(ebp, ecx, times_1, +0), eax);
@@ -942,138 +901,7 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 }
 
 
-RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
-    Handle<Code> regexp_code,
-    Handle<String> subject,
-    int* offsets_vector,
-    int offsets_vector_length,
-    int previous_index) {
-
-  ASSERT(subject->IsFlat());
-  ASSERT(previous_index >= 0);
-  ASSERT(previous_index <= subject->length());
-
-  // No allocations before calling the regexp, but we can't use
-  // AssertNoAllocation, since regexps might be preempted, and another thread
-  // might do allocation anyway.
-
-  String* subject_ptr = *subject;
-  // Character offsets into string.
-  int start_offset = previous_index;
-  int end_offset = subject_ptr->length();
-
-  bool is_ascii = subject->IsAsciiRepresentation();
-
-  if (StringShape(subject_ptr).IsCons()) {
-    subject_ptr = ConsString::cast(subject_ptr)->first();
-  } else if (StringShape(subject_ptr).IsSliced()) {
-    SlicedString* slice = SlicedString::cast(subject_ptr);
-    start_offset += slice->start();
-    end_offset += slice->start();
-    subject_ptr = slice->buffer();
-  }
-  // Ensure that an underlying string has the same ascii-ness.
-  ASSERT(subject_ptr->IsAsciiRepresentation() == is_ascii);
-  ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
-  // String is now either Sequential or External
-  int char_size_shift = is_ascii ? 0 : 1;
-  int char_length = end_offset - start_offset;
-
-  const byte* input_start =
-      StringCharacterPosition(subject_ptr, start_offset);
-  int byte_length = char_length << char_size_shift;
-  const byte* input_end = input_start + byte_length;
-  RegExpMacroAssemblerIA32::Result res = Execute(*regexp_code,
-                                                 subject_ptr,
-                                                 start_offset,
-                                                 input_start,
-                                                 input_end,
-                                                 offsets_vector,
-                                                 previous_index == 0);
-
-  if (res == SUCCESS) {
-    // Capture values are relative to start_offset only.
-    // Convert them to be relative to start of string.
-    for (int i = 0; i < offsets_vector_length; i++) {
-      if (offsets_vector[i] >= 0) {
-        offsets_vector[i] += previous_index;
-      }
-    }
-  }
-
-  return res;
-}
-
 // Private methods:
-
-static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
-
-RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
-    Code* code,
-    String* input,
-    int start_offset,
-    const byte* input_start,
-    const byte* input_end,
-    int* output,
-    bool at_start) {
-  typedef int (*matcher)(String*, int, const byte*,
-                         const byte*, int*, int, Address);
-  matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
-
-  int at_start_val = at_start ? 1 : 0;
-
-  // Ensure that the minimum stack has been allocated.
-  RegExpStack stack;
-  Address stack_top = RegExpStack::stack_top();
-
-  int result = matcher_func(input,
-                            start_offset,
-                            input_start,
-                            input_end,
-                            output,
-                            at_start_val,
-                            stack_top);
-  ASSERT(result <= SUCCESS);
-  ASSERT(result >= RETRY);
-
-  if (result == EXCEPTION && !Top::has_pending_exception()) {
-    // We detected a stack overflow (on the backtrack stack) in RegExp code,
-    // but haven't created the exception yet.
-    Top::StackOverflow();
-  }
-  return static_cast<Result>(result);
-}
-
-
-int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(Address byte_offset1,
-                                                         Address byte_offset2,
-                                                         size_t byte_length) {
-  // This function is not allowed to cause a garbage collection.
-  // A GC might move the calling generated code and invalidate the
-  // return address on the stack.
-  ASSERT(byte_length % 2 == 0);
-  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
-  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
-  size_t length = byte_length >> 1;
-
-  for (size_t i = 0; i < length; i++) {
-    unibrow::uchar c1 = substring1[i];
-    unibrow::uchar c2 = substring2[i];
-    if (c1 != c2) {
-      unibrow::uchar s1[1] = { c1 };
-      canonicalize.get(c1, '\0', s1);
-      if (s1[0] != c2) {
-        unibrow::uchar s2[1] = { c2 };
-        canonicalize.get(c2, '\0', s2);
-        if (s1[0] != s2[0]) {
-          return 0;
-        }
-      }
-    }
-  }
-  return 1;
-}
-
 
 void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   int num_arguments = 3;
@@ -1093,35 +921,6 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
   return reinterpret_cast<T&>(Memory::int32_at(re_frame + frame_offset));
-}
-
-
-const byte* RegExpMacroAssemblerIA32::StringCharacterPosition(String* subject,
-                                                              int start_index) {
-  // Not just flat, but ultra flat.
-  ASSERT(subject->IsExternalString() || subject->IsSeqString());
-  ASSERT(start_index >= 0);
-  ASSERT(start_index <= subject->length());
-  if (subject->IsAsciiRepresentation()) {
-    const byte* address;
-    if (StringShape(subject).IsExternal()) {
-      const char* data = ExternalAsciiString::cast(subject)->resource()->data();
-      address = reinterpret_cast<const byte*>(data);
-    } else {
-      ASSERT(subject->IsSeqAsciiString());
-      char* data = SeqAsciiString::cast(subject)->GetChars();
-      address = reinterpret_cast<const byte*>(data);
-    }
-    return address + start_index;
-  }
-  const uc16* data;
-  if (StringShape(subject).IsExternal()) {
-    data = ExternalTwoByteString::cast(subject)->resource()->data();
-  } else {
-    ASSERT(subject->IsSeqTwoByteString());
-    data = SeqTwoByteString::cast(subject)->GetChars();
-  }
-  return reinterpret_cast<const byte*>(data + start_index);
 }
 
 
@@ -1198,18 +997,18 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
 
 
 Address RegExpMacroAssemblerIA32::GrowStack(Address stack_pointer,
-                                            Address* stack_top) {
+                                            Address* stack_base) {
   size_t size = RegExpStack::stack_capacity();
-  Address old_stack_top = RegExpStack::stack_top();
-  ASSERT(old_stack_top == *stack_top);
-  ASSERT(stack_pointer <= old_stack_top);
-  ASSERT(static_cast<size_t>(old_stack_top - stack_pointer) <= size);
-  Address new_stack_top = RegExpStack::EnsureCapacity(size * 2);
-  if (new_stack_top == NULL) {
+  Address old_stack_base = RegExpStack::stack_base();
+  ASSERT(old_stack_base == *stack_base);
+  ASSERT(stack_pointer <= old_stack_base);
+  ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
+  Address new_stack_base = RegExpStack::EnsureCapacity(size * 2);
+  if (new_stack_base == NULL) {
     return NULL;
   }
-  *stack_top = new_stack_top;
-  return new_stack_top - (old_stack_top - stack_pointer);
+  *stack_base = new_stack_base;
+  return new_stack_base - (old_stack_base - stack_pointer);
 }
 
 
@@ -1373,11 +1172,8 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
 }
 
 
-void RegExpMacroAssemblerIA32::LoadConstantBufferAddress(Register reg,
-                                                         ArraySlice* buffer) {
-  __ mov(reg, buffer->array());
-  __ add(Operand(reg), Immediate(buffer->base_offset()));
-}
-
 #undef __
+
+#endif  // V8_NATIVE_REGEXP
+
 }}  // namespace v8::internal

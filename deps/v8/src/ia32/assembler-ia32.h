@@ -437,7 +437,10 @@ class Assembler : public Malloced {
 
   // Distance between the address of the code target in the call instruction
   // and the return address
-  static const int kTargetAddrToReturnAddrDist = kPointerSize;
+  static const int kPatchReturnSequenceLength = kPointerSize;
+  // Distance between start of patched return sequence and the emitted address
+  // to jump to.
+  static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
 
 
   // ---------------------------------------------------------------------------

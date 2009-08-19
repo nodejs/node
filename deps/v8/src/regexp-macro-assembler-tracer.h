@@ -43,7 +43,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void Backtrack();
   virtual void Bind(Label* label);
   virtual void CheckAtStart(Label* on_at_start);
-  virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(uint32_t c,
                                       uint32_t and_with,
@@ -73,19 +72,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                                           int cp_offset,
                                           bool check_offset,
                                           Label* on_no_match);
-  virtual void DispatchByteMap(
-      uc16 start,
-      Label* byte_map,
-      const Vector<Label*>& destinations);
-  virtual void DispatchHalfNibbleMap(
-      uc16 start,
-      Label* half_nibble_map,
-      const Vector<Label*>& destinations);
-  virtual void DispatchHighByteMap(
-      byte start,
-      Label* byte_map,
-      const Vector<Label*>& destinations);
-  virtual void EmitOrLink(Label* label);
   virtual void Fail();
   virtual Handle<Object> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);

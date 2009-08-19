@@ -91,7 +91,13 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-#define BOOL_ACCESSORS(holder, field, name, offset) \
+#define BOOL_GETTER(holder, field, name, offset)           \
+  bool holder::name() {                                    \
+    return BooleanBit::get(field(), offset);               \
+  }                                                        \
+
+
+#define BOOL_ACCESSORS(holder, field, name, offset)        \
   bool holder::name() {                                    \
     return BooleanBit::get(field(), offset);               \
   }                                                        \
@@ -1937,6 +1943,11 @@ int Map::inobject_properties() {
 }
 
 
+int Map::pre_allocated_property_fields() {
+  return READ_BYTE_FIELD(this, kPreAllocatedPropertyFieldsOffset);
+}
+
+
 int HeapObject::SizeFromMap(Map* map) {
   InstanceType instance_type = map->instance_type();
   // Only inline the most frequent cases.
@@ -1966,6 +1977,14 @@ void Map::set_instance_size(int value) {
 void Map::set_inobject_properties(int value) {
   ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInObjectPropertiesOffset, static_cast<byte>(value));
+}
+
+
+void Map::set_pre_allocated_property_fields(int value) {
+  ASSERT(0 <= value && value < 256);
+  WRITE_BYTE_FIELD(this,
+                   kPreAllocatedPropertyFieldsOffset,
+                   static_cast<byte>(value));
 }
 
 
@@ -2298,6 +2317,8 @@ ACCESSORS(SharedFunctionInfo, function_data, Object,
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
+ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
+          kThisPropertyAssignmentsOffset)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
@@ -2308,6 +2329,13 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
+BOOL_GETTER(SharedFunctionInfo, compiler_hints,
+            has_only_this_property_assignments,
+            kHasOnlyThisPropertyAssignments)
+BOOL_GETTER(SharedFunctionInfo, compiler_hints,
+            has_only_simple_this_property_assignments,
+            kHasOnlySimpleThisPropertyAssignments)
+
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
@@ -2319,6 +2347,10 @@ INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
 INT_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
+INT_ACCESSORS(SharedFunctionInfo, compiler_hints,
+              kCompilerHintsOffset)
+INT_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
+              kThisPropertyAssignmentsCountOffset)
 
 
 void SharedFunctionInfo::DontAdaptArguments() {

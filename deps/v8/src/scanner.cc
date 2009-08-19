@@ -92,18 +92,7 @@ void UTF8Buffer::AddCharSlow(uc32 c) {
 
 
 UTF16Buffer::UTF16Buffer()
-  : pos_(0),
-    pushback_buffer_(0),
-    last_(0),
-    stream_(NULL) { }
-
-
-void UTF16Buffer::Initialize(Handle<String> data,
-                             unibrow::CharacterStream* input) {
-  data_ = data;
-  pos_ = 0;
-  stream_ = input;
-}
+    : pos_(0), size_(0) { }
 
 
 Handle<String> UTF16Buffer::SubString(int start, int end) {
@@ -111,14 +100,27 @@ Handle<String> UTF16Buffer::SubString(int start, int end) {
 }
 
 
-void UTF16Buffer::PushBack(uc32 ch) {
+// CharacterStreamUTF16Buffer
+CharacterStreamUTF16Buffer::CharacterStreamUTF16Buffer()
+    : pushback_buffer_(0), last_(0), stream_(NULL) { }
+
+
+void CharacterStreamUTF16Buffer::Initialize(Handle<String> data,
+                                            unibrow::CharacterStream* input) {
+  data_ = data;
+  pos_ = 0;
+  stream_ = input;
+}
+
+
+void CharacterStreamUTF16Buffer::PushBack(uc32 ch) {
   pushback_buffer()->Add(last_);
   last_ = ch;
   pos_--;
 }
 
 
-uc32 UTF16Buffer::Advance() {
+uc32 CharacterStreamUTF16Buffer::Advance() {
   // NOTE: It is of importance to Persian / Farsi resources that we do
   // *not* strip format control characters in the scanner; see
   //
@@ -135,7 +137,7 @@ uc32 UTF16Buffer::Advance() {
     uc32 next = stream_->GetNext();
     return last_ = next;
   } else {
-    // note: currently the following increment is necessary to avoid a
+    // Note: currently the following increment is necessary to avoid a
     // test-parser problem!
     pos_++;
     return last_ = static_cast<uc32>(-1);
@@ -143,10 +145,50 @@ uc32 UTF16Buffer::Advance() {
 }
 
 
-void UTF16Buffer::SeekForward(int pos) {
+void CharacterStreamUTF16Buffer::SeekForward(int pos) {
   pos_ = pos;
   ASSERT(pushback_buffer()->is_empty());
   stream_->Seek(pos);
+}
+
+
+// TwoByteStringUTF16Buffer
+TwoByteStringUTF16Buffer::TwoByteStringUTF16Buffer()
+    : raw_data_(NULL) { }
+
+
+void TwoByteStringUTF16Buffer::Initialize(
+     Handle<ExternalTwoByteString> data) {
+  ASSERT(!data.is_null());
+
+  data_ = data;
+  pos_ = 0;
+
+  raw_data_ = data->resource()->data();
+  size_ = data->length();
+}
+
+
+uc32 TwoByteStringUTF16Buffer::Advance() {
+  if (pos_ < size_) {
+    return raw_data_[pos_++];
+  } else {
+    // note: currently the following increment is necessary to avoid a
+    // test-parser problem!
+    pos_++;
+    return static_cast<uc32>(-1);
+  }
+}
+
+
+void TwoByteStringUTF16Buffer::PushBack(uc32 ch) {
+  pos_--;
+  ASSERT(pos_ >= 0 && raw_data_[pos_] == ch);
+}
+
+
+void TwoByteStringUTF16Buffer::SeekForward(int pos) {
+  pos_ = pos;
 }
 
 
@@ -161,7 +203,15 @@ Scanner::Scanner(bool pre) : stack_overflow_(false), is_pre_parsing_(pre) {
 void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
     int position) {
   // Initialize the source buffer.
-  source_.Initialize(source, stream);
+  if (!source.is_null() && StringShape(*source).IsExternalTwoByte()) {
+    two_byte_string_buffer_.Initialize(
+        Handle<ExternalTwoByteString>::cast(source));
+    source_ = &two_byte_string_buffer_;
+  } else {
+    char_stream_buffer_.Initialize(source, stream);
+    source_ = &char_stream_buffer_;
+  }
+
   position_ = position;
 
   // Reset literals buffer
@@ -180,7 +230,7 @@ void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
 
 
 Handle<String> Scanner::SubString(int start, int end) {
-  return source_.SubString(start - position_, end - position_);
+  return source_->SubString(start - position_, end - position_);
 }
 
 
@@ -220,17 +270,6 @@ void Scanner::TerminateLiteral() {
 void Scanner::AddCharAdvance() {
   AddChar(c0_);
   Advance();
-}
-
-
-void Scanner::Advance() {
-  c0_ = source_.Advance();
-}
-
-
-void Scanner::PushBack(uc32 ch) {
-  source_.PushBack(ch);
-  c0_ = ch;
 }
 
 
@@ -583,7 +622,7 @@ void Scanner::Scan() {
 
 
 void Scanner::SeekForward(int pos) {
-  source_.SeekForward(pos - 1);
+  source_->SeekForward(pos - 1);
   Advance();
   Scan();
 }

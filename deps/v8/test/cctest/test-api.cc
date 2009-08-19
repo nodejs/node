@@ -7738,3 +7738,31 @@ THREADED_TEST(PixelArray) {
 
   free(pixel_data);
 }
+
+THREADED_TEST(ScriptContextDependence) {
+  v8::HandleScope scope;
+  LocalContext c1;
+  const char *source = "foo";
+  v8::Handle<v8::Script> dep = v8::Script::Compile(v8::String::New(source));
+  v8::Handle<v8::Script> indep = v8::Script::New(v8::String::New(source));
+  c1->Global()->Set(v8::String::New("foo"), v8::Integer::New(100));
+  CHECK_EQ(dep->Run()->Int32Value(), 100);
+  CHECK_EQ(indep->Run()->Int32Value(), 100);
+  LocalContext c2;
+  c2->Global()->Set(v8::String::New("foo"), v8::Integer::New(101));
+  CHECK_EQ(dep->Run()->Int32Value(), 100);
+  CHECK_EQ(indep->Run()->Int32Value(), 101);
+}
+
+THREADED_TEST(StackTrace) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  const char *source = "function foo() { FAIL.FAIL; }; foo();";
+  v8::Handle<v8::String> src = v8::String::New(source);
+  v8::Handle<v8::String> origin = v8::String::New("stack-trace-test");
+  v8::Script::New(src, origin)->Run();
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value stack(try_catch.StackTrace());
+  CHECK(strstr(*stack, "at foo (stack-trace-test") != NULL);
+}

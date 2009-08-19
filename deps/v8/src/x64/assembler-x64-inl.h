@@ -228,43 +228,47 @@ void RelocInfo::set_target_object(Object* target) {
 
 
 bool RelocInfo::IsCallInstruction() {
-  UNIMPLEMENTED();  // IA32 code below.
-  return *pc_ == 0xE8;
+  // The recognized call sequence is:
+  //  movq(kScratchRegister, immediate64); call(kScratchRegister);
+  // It only needs to be distinguished from a return sequence
+  //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
+  // The 11th byte is int3 (0xCC) in the return sequence and
+  // REX.WB (0x48+register bit) for the call sequence.
+  return pc_[10] != 0xCC;
 }
 
 
 Address RelocInfo::call_address() {
-  UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
-  return Assembler::target_address_at(pc_ + 1);
+  return Assembler::target_address_at(
+      pc_ + Assembler::kPatchReturnSequenceAddressOffset);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
-  Assembler::set_target_address_at(pc_ + 1, target);
+  Assembler::set_target_address_at(
+      pc_ + Assembler::kPatchReturnSequenceAddressOffset,
+      target);
 }
 
 
 Object* RelocInfo::call_object() {
-  UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
   return *call_object_address();
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
   *call_object_address() = target;
 }
 
 
 Object** RelocInfo::call_object_address() {
-  UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
-  return reinterpret_cast<Object**>(pc_ + 1);
+  return reinterpret_cast<Object**>(
+      pc_ + Assembler::kPatchReturnSequenceAddressOffset);
 }
 
 // -----------------------------------------------------------------------------

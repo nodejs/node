@@ -179,9 +179,13 @@ function assertInstanceof(obj, type) {
 
 function assertDoesNotThrow(code) {
   try {
-    eval(code);
+    if (typeof code == 'function') {
+      code();
+    } else {
+      eval(code);
+    }
   } catch (e) {
-    assertTrue(false, "threw an exception");
+    assertTrue(false, "threw an exception: " + (e.message || e));
   }
 }
 

@@ -35,7 +35,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(1238487): Don't pass the function in a static variable.
+  // TODO(428): Don't pass the function in a static variable.
   ExternalReference passed = ExternalReference::builtin_passed_function();
   __ movq(kScratchRegister, passed.address(), RelocInfo::EXTERNAL_REFERENCE);
   __ movq(Operand(kScratchRegister, 0), rdi);
@@ -505,7 +505,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Label rt_call, allocated;
   if (FLAG_inline_new) {
     Label undo_allocation;
-    // TODO(X64): Enable debugger support, using debug_step_in_fp.
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address();
+    __ movq(kScratchRegister, debug_step_in_fp);
+    __ cmpq(Operand(kScratchRegister, 0), Immediate(0));
+    __ j(not_equal, &rt_call);
+#endif
 
     // Verified that the constructor is a JSFunction.
     // Load the initial map and verify that it is in fact a map.
@@ -585,12 +592,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rax: initial map
     // rbx: JSObject
     // rdi: start of next object
+    // Calculate total properties described map.
     __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+    __ movzxbq(rcx, FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+    __ addq(rdx, rcx);
     // Calculate unused properties past the end of the in-object properties.
+    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
     __ subq(rdx, rcx);
     // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
+    __ Assert(positive, "Property allocation count failed.");
 
     // Scale the number of elements by pointer size and add the header for
     // FixedArrays to the start of the next object calculation from above.
@@ -726,6 +737,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ pop(rcx);
   __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
   __ push(rcx);
+  __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);
 }
 
@@ -823,10 +835,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     // Expects rdi to hold function pointer.
-    __ movq(kScratchRegister,
-            Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
+    __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
             RelocInfo::CODE_TARGET);
-    __ call(kScratchRegister);
   } else {
     ParameterCount actual(rax);
     // Function must be in rdi.

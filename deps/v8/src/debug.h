@@ -238,7 +238,10 @@ class Debug {
   // Returns whether the operation succeeded.
   static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
+  // Returns true if the current stub call is patched to call the debugger.
   static bool IsDebugBreak(Address addr);
+  // Returns true if the current return statement has been patched to be
+  // a debugger breakpoint.
   static bool IsDebugBreakAtReturn(RelocInfo* rinfo);
 
   // Check whether a code stub with the specified major key is a possible break
@@ -366,6 +369,7 @@ class Debug {
 
   // The x64 JS return sequence is padded with int3 to make it large
   // enough to hold a call instruction when the debugger patches it.
+  static const int kX64CallInstructionLength = 13;
   static const int kX64JSReturnSequenceLength = 13;
 
   // Code generator routines.

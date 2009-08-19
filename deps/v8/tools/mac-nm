@@ -12,7 +12,7 @@
 # needs to be parsed, which requires a lot of knowledge to be coded in.
 
 if [ "`which c++filt`" == "" ]; then
-  nm $@
+  nm "$@"
 else
-  nm $@ | c++filt -p -i
+  nm "$@" | c++filt -p -i
 fi

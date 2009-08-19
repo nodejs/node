@@ -442,8 +442,10 @@ class Assembler : public Malloced {
 
   // Distance between the address of the code target in the call instruction
   // and the return address.  Checked in the debug build.
-  static const int kTargetAddrToReturnAddrDist = 3 + kPointerSize;
-
+  static const int kPatchReturnSequenceLength = 3 + kPointerSize;
+  // Distance between start of patched return sequence and the emitted address
+  // to jump to (movq = REX.W 0xB8+r.).
+  static const int kPatchReturnSequenceAddressOffset = 2;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -496,13 +498,17 @@ class Assembler : public Malloced {
   // Load a 32-bit immediate value, zero-extended to 64 bits.
   void movl(Register dst, Immediate imm32);
 
-  void movq(Register dst, const Operand& src);
-  // Sign extends immediate 32-bit value to 64 bits.
-  void movq(Register dst, Immediate x);
-  void movq(Register dst, Register src);
-
   // Move 64 bit register value to 64-bit memory location.
   void movq(const Operand& dst, Register src);
+  // Move 64 bit memory location to 64-bit register value.
+  void movq(Register dst, const Operand& src);
+  void movq(Register dst, Register src);
+  // Sign extends immediate 32-bit value to 64 bits.
+  void movq(Register dst, Immediate x);
+  // Move the offset of the label location relative to the current
+  // position (after the move) to the destination.
+  void movl(const Operand& dst, Label* src);
+
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
   // New x64 instructions to load a 64-bit immediate into a register.
@@ -535,7 +541,11 @@ class Assembler : public Malloced {
 
   // Arithmetics
   void addl(Register dst, Register src) {
-    arithmetic_op_32(0x03, dst, src);
+    if (dst.low_bits() == 4) {  // Forces SIB byte.
+      arithmetic_op_32(0x01, src, dst);
+    } else {
+      arithmetic_op_32(0x03, dst, src);
+    }
   }
 
   void addl(Register dst, Immediate src) {
@@ -574,8 +584,42 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
 
+  void cmpb_al(Immediate src);
+
+  void cmpb(Register dst, Register src) {
+    arithmetic_op(0x3A, dst, src);
+  }
+
+  void cmpb(Register dst, const Operand& src) {
+    arithmetic_op(0x3A, dst, src);
+  }
+
+  void cmpb(const Operand& dst, Register src) {
+    arithmetic_op(0x38, src, dst);
+  }
+
   void cmpb(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
+  }
+
+  void cmpw(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_16(0x7, dst, src);
+  }
+
+  void cmpw(Register dst, Immediate src) {
+    immediate_arithmetic_op_16(0x7, dst, src);
+  }
+
+  void cmpw(Register dst, const Operand& src) {
+    arithmetic_op_16(0x3B, dst, src);
+  }
+
+  void cmpw(Register dst, Register src) {
+    arithmetic_op_16(0x3B, dst, src);
+  }
+
+  void cmpw(const Operand& dst, Register src) {
+    arithmetic_op_16(0x39, src, dst);
   }
 
   void cmpl(Register dst, Register src) {
@@ -794,6 +838,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
 
+  void subb(Register dst, Immediate src) {
+    immediate_arithmetic_op_8(0x5, dst, src);
+  }
+
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
   void testl(Register dst, Register src);
@@ -870,6 +918,9 @@ class Assembler : public Malloced {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
+
+  // Jump near absolute indirect (m64)
+  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc, Label* L);
@@ -1141,26 +1192,36 @@ class Assembler : public Malloced {
   // AND, OR, XOR, or CMP.  The encodings of these operations are all
   // similar, differing just in the opcode or in the reg field of the
   // ModR/M byte.
-  void arithmetic_op(byte opcode, Register dst, Register src);
-  void arithmetic_op_32(byte opcode, Register dst, Register src);
+  void arithmetic_op_16(byte opcode, Register reg, Register rm_reg);
+  void arithmetic_op_16(byte opcode, Register reg, const Operand& rm_reg);
+  void arithmetic_op_32(byte opcode, Register reg, Register rm_reg);
   void arithmetic_op_32(byte opcode, Register reg, const Operand& rm_reg);
+  void arithmetic_op(byte opcode, Register reg, Register rm_reg);
   void arithmetic_op(byte opcode, Register reg, const Operand& rm_reg);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
-  // Operate on a 32-bit word in memory or register.
-  void immediate_arithmetic_op_32(byte subcode,
-                                  const Operand& dst,
-                                  Immediate src);
-  void immediate_arithmetic_op_32(byte subcode,
-                                  Register dst,
-                                  Immediate src);
   // Operate on a byte in memory or register.
-  void immediate_arithmetic_op_8(byte subcode,
-                                 const Operand& dst,
-                                 Immediate src);
   void immediate_arithmetic_op_8(byte subcode,
                                  Register dst,
                                  Immediate src);
+  void immediate_arithmetic_op_8(byte subcode,
+                                 const Operand& dst,
+                                 Immediate src);
+  // Operate on a word in memory or register.
+  void immediate_arithmetic_op_16(byte subcode,
+                                  Register dst,
+                                  Immediate src);
+  void immediate_arithmetic_op_16(byte subcode,
+                                  const Operand& dst,
+                                  Immediate src);
+  // Operate on a 32-bit word in memory or register.
+  void immediate_arithmetic_op_32(byte subcode,
+                                  Register dst,
+                                  Immediate src);
+  void immediate_arithmetic_op_32(byte subcode,
+                                  const Operand& dst,
+                                  Immediate src);
+
   // Emit machine code for a shift operation.
   void shift(Register dst, Immediate shift_amount, int subcode);
   void shift_32(Register dst, Immediate shift_amount, int subcode);
@@ -1180,6 +1241,7 @@ class Assembler : public Malloced {
 
   friend class CodePatcher;
   friend class EnsureSpace;
+  friend class RegExpMacroAssemblerX64;
 
   // Code buffer:
   // The buffer into which code and relocation info are generated.

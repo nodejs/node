@@ -1022,6 +1022,30 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 }
 
 
+static Object* Runtime_OptimizeObjectForAddingMultipleProperties(
+    Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_SMI_CHECKED(properties, args[1]);
+  if (object->HasFastProperties()) {
+    NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
+  }
+  return *object;
+}
+
+
+static Object* Runtime_TransformToFastProperties(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  if (!object->HasFastProperties() && !object->IsGlobalObject()) {
+    TransformToFastProperties(object, 0);
+  }
+  return *object;
+}
+
+
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -3075,7 +3099,7 @@ static Object* Runtime_Typeof(Arguments args) {
       }
       ASSERT(heap_obj->IsUndefined());
       return Heap::undefined_symbol();
-    case JS_FUNCTION_TYPE:
+    case JS_FUNCTION_TYPE: case JS_REGEXP_TYPE:
       return Heap::function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
@@ -4356,6 +4380,8 @@ static Object* Runtime_NewObject(Arguments args) {
     Handle<Code> stub = ComputeConstructStub(map);
     function->shared()->set_construct_stub(*stub);
   }
+  Counters::constructed_objects.Increment();
+  Counters::constructed_objects_runtime.Increment();
   return *result;
 }
 

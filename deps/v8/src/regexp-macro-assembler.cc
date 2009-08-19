@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <string.h>
 #include "v8.h"
 #include "ast.h"
 #include "assembler.h"
+#include "regexp-stack.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -42,38 +42,176 @@ RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 
-ByteArrayProvider::ByteArrayProvider(unsigned int initial_size)
-  : byte_array_size_(initial_size),
-    current_byte_array_(),
-    current_byte_array_free_offset_(initial_size) {}
+#ifdef V8_NATIVE_REGEXP  // Avoid unused code, e.g., on ARM.
+
+NativeRegExpMacroAssembler::NativeRegExpMacroAssembler() {
+}
 
 
-ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
-                                        unsigned int elem_size) {
-  ASSERT(size > 0);
-  size_t byte_size = size * elem_size;
-  int free_offset = current_byte_array_free_offset_;
-  // align elements
-  free_offset += elem_size - 1;
-  free_offset = free_offset - (free_offset % elem_size);
+NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
+}
 
-  if (free_offset + byte_size > byte_array_size_) {
-    if (byte_size > (byte_array_size_ / 2)) {
-      Handle<ByteArray> solo_buffer(Factory::NewByteArray(byte_size, TENURED));
-      return ArraySlice(solo_buffer, 0);
+const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
+    String* subject,
+    int start_index) {
+  // Not just flat, but ultra flat.
+  ASSERT(subject->IsExternalString() || subject->IsSeqString());
+  ASSERT(start_index >= 0);
+  ASSERT(start_index <= subject->length());
+  if (subject->IsAsciiRepresentation()) {
+    const byte* address;
+    if (StringShape(subject).IsExternal()) {
+      const char* data = ExternalAsciiString::cast(subject)->resource()->data();
+      address = reinterpret_cast<const byte*>(data);
+    } else {
+      ASSERT(subject->IsSeqAsciiString());
+      char* data = SeqAsciiString::cast(subject)->GetChars();
+      address = reinterpret_cast<const byte*>(data);
     }
-    current_byte_array_ = Factory::NewByteArray(byte_array_size_, TENURED);
-    free_offset = 0;
+    return address + start_index;
   }
-  current_byte_array_free_offset_ = free_offset + byte_size;
-  return ArraySlice(current_byte_array_, free_offset);
+  const uc16* data;
+  if (StringShape(subject).IsExternal()) {
+    data = ExternalTwoByteString::cast(subject)->resource()->data();
+  } else {
+    ASSERT(subject->IsSeqTwoByteString());
+    data = SeqTwoByteString::cast(subject)->GetChars();
+  }
+  return reinterpret_cast<const byte*>(data + start_index);
 }
 
 
-template <typename T>
-ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
-  ArraySlice slice = GetBuffer(values.length(), sizeof(T));
-  memcpy(slice.location(), values.start(), values.length() * sizeof(T));
-  return slice;
+NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
+    Handle<Code> regexp_code,
+    Handle<String> subject,
+    int* offsets_vector,
+    int offsets_vector_length,
+    int previous_index) {
+
+  ASSERT(subject->IsFlat());
+  ASSERT(previous_index >= 0);
+  ASSERT(previous_index <= subject->length());
+
+  // No allocations before calling the regexp, but we can't use
+  // AssertNoAllocation, since regexps might be preempted, and another thread
+  // might do allocation anyway.
+
+  String* subject_ptr = *subject;
+  // Character offsets into string.
+  int start_offset = previous_index;
+  int end_offset = subject_ptr->length();
+
+  bool is_ascii = subject->IsAsciiRepresentation();
+
+  if (StringShape(subject_ptr).IsCons()) {
+    subject_ptr = ConsString::cast(subject_ptr)->first();
+  } else if (StringShape(subject_ptr).IsSliced()) {
+    SlicedString* slice = SlicedString::cast(subject_ptr);
+    start_offset += slice->start();
+    end_offset += slice->start();
+    subject_ptr = slice->buffer();
+  }
+  // Ensure that an underlying string has the same ascii-ness.
+  ASSERT(subject_ptr->IsAsciiRepresentation() == is_ascii);
+  ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
+  // String is now either Sequential or External
+  int char_size_shift = is_ascii ? 0 : 1;
+  int char_length = end_offset - start_offset;
+
+  const byte* input_start =
+      StringCharacterPosition(subject_ptr, start_offset);
+  int byte_length = char_length << char_size_shift;
+  const byte* input_end = input_start + byte_length;
+  Result res = Execute(*regexp_code,
+                       subject_ptr,
+                       start_offset,
+                       input_start,
+                       input_end,
+                       offsets_vector,
+                       previous_index == 0);
+
+  if (res == SUCCESS) {
+    // Capture values are relative to start_offset only.
+    // Convert them to be relative to start of string.
+    for (int i = 0; i < offsets_vector_length; i++) {
+      if (offsets_vector[i] >= 0) {
+        offsets_vector[i] += previous_index;
+      }
+    }
+  }
+
+  return res;
 }
+
+
+NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
+    Code* code,
+    String* input,
+    int start_offset,
+    const byte* input_start,
+    const byte* input_end,
+    int* output,
+    bool at_start) {
+  typedef int (*matcher)(String*, int, const byte*,
+                         const byte*, int*, int, Address);
+  matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
+
+  int at_start_val = at_start ? 1 : 0;
+
+  // Ensure that the minimum stack has been allocated.
+  RegExpStack stack;
+  Address stack_base = RegExpStack::stack_base();
+
+  int result = matcher_func(input,
+                            start_offset,
+                            input_start,
+                            input_end,
+                            output,
+                            at_start_val,
+                            stack_base);
+  ASSERT(result <= SUCCESS);
+  ASSERT(result >= RETRY);
+
+  if (result == EXCEPTION && !Top::has_pending_exception()) {
+    // We detected a stack overflow (on the backtrack stack) in RegExp code,
+    // but haven't created the exception yet.
+    Top::StackOverflow();
+  }
+  return static_cast<Result>(result);
+}
+
+
+static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
+
+int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
+    Address byte_offset1,
+    Address byte_offset2,
+    size_t byte_length) {
+  // This function is not allowed to cause a garbage collection.
+  // A GC might move the calling generated code and invalidate the
+  // return address on the stack.
+  ASSERT(byte_length % 2 == 0);
+  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
+  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
+  size_t length = byte_length >> 1;
+
+  for (size_t i = 0; i < length; i++) {
+    unibrow::uchar c1 = substring1[i];
+    unibrow::uchar c2 = substring2[i];
+    if (c1 != c2) {
+      unibrow::uchar s1[1] = { c1 };
+      canonicalize.get(c1, '\0', s1);
+      if (s1[0] != c2) {
+        unibrow::uchar s2[1] = { c2 };
+        canonicalize.get(c2, '\0', s2);
+        if (s1[0] != s2[0]) {
+          return 0;
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+#endif  // V8_NATIVE_REGEXP
 } }  // namespace v8::internal

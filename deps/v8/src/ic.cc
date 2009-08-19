@@ -122,7 +122,7 @@ Address IC::OriginalCodeAddress() {
   // Get the address of the call site in the active code. This is the
   // place where the call to DebugBreakXXX is and where the IC
   // normally would be.
-  Address addr = pc() - Assembler::kTargetAddrToReturnAddrDist;
+  Address addr = pc() - Assembler::kPatchReturnSequenceLength;
   // Return the address in the original code. This is the place where
   // the call which has been overwritten by the DebugBreakXXX resides
   // and the place where the inline cache system should look.

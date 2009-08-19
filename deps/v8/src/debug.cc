@@ -1452,14 +1452,15 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Find the call address in the running code. This address holds the call to
   // either a DebugBreakXXX or to the debug break return entry code if the
   // break point is still active after processing the break point.
-  Address addr = frame->pc() - Assembler::kTargetAddrToReturnAddrDist;
+  Address addr = frame->pc() - Assembler::kPatchReturnSequenceLength;
 
   // Check if the location is at JS exit.
   bool at_js_exit = false;
   RelocIterator it(debug_info->code());
   while (!it.done()) {
     if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
-      at_js_exit = it.rinfo()->pc() == addr - 1;
+      at_js_exit = (it.rinfo()->pc() ==
+                        addr - Assembler::kPatchReturnSequenceAddressOffset);
     }
     it.next();
   }
@@ -1477,8 +1478,9 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
       addr +=  original_code->instruction_start() - code->instruction_start();
     }
 
-    // Move one byte back to where the call instruction was placed.
-    thread_local_.after_break_target_ = addr - 1;
+    // Move back to where the call instruction sequence started.
+    thread_local_.after_break_target_ =
+        addr - Assembler::kPatchReturnSequenceAddressOffset;
   } else {
     // Check if there still is a debug break call at the target address. If the
     // break point has been removed it will have disappeared. If it have

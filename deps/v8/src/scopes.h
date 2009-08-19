@@ -93,7 +93,6 @@ class Scope: public ZoneObject {
     GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
   };
 
-  Scope();
   Scope(Scope* outer_scope, Type type);
 
   virtual ~Scope() { }
@@ -130,7 +129,7 @@ class Scope: public ZoneObject {
   Variable* DeclareGlobal(Handle<String> name);
 
   // Add a parameter to the parameter list. The parameter must have been
-  // declared via Declare. The same parameter may occur more then once in
+  // declared via Declare. The same parameter may occur more than once in
   // the parameter list; they must be added in source order, from left to
   // right.
   void AddParameter(Variable* var);
@@ -286,6 +285,8 @@ class Scope: public ZoneObject {
  protected:
   friend class ParserFactory;
 
+  explicit Scope(Type type);
+
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -375,7 +376,7 @@ class Scope: public ZoneObject {
 
 class DummyScope : public Scope {
  public:
-  DummyScope() {
+  DummyScope() : Scope(GLOBAL_SCOPE) {
     outer_scope_ = this;
   }
 

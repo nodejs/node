@@ -103,22 +103,24 @@ function testStrippedCustomError() {
 
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
-function testTrace(fun, expected, unexpected) {
+function testTrace(name, fun, expected, unexpected) {
   var threw = false;
   try {
     fun();
   } catch (e) {
     for (var i = 0; i < expected.length; i++) {
-      assertTrue(e.stack.indexOf(expected[i]) != -1);
+      assertTrue(e.stack.indexOf(expected[i]) != -1,
+                 name + " doesn't contain expected[" + i + "]");
     }
     if (unexpected) {
       for (var i = 0; i < unexpected.length; i++) {
-        assertEquals(e.stack.indexOf(unexpected[i]), -1);
+        assertEquals(e.stack.indexOf(unexpected[i]), -1,
+                     name + " contains unexpected[" + i + "]");
       }
     }
     threw = true;
   }
-  assertTrue(threw);
+  assertTrue(threw, name + " didn't throw");
 }
 
 // Test that the error constructor is not shown in the trace
@@ -127,10 +129,11 @@ function testCallerCensorship() {
   try {
     FAIL;
   } catch (e) {
-    assertEquals(-1, e.stack.indexOf('at new ReferenceError'));
+    assertEquals(-1, e.stack.indexOf('at new ReferenceError'),
+                 "CallerCensorship contained new ReferenceError");
     threw = true;
   }
-  assertTrue(threw);
+  assertTrue(threw, "CallerCensorship didn't throw");
 }
 
 // Test that the explicit constructor call is shown in the trace
@@ -143,10 +146,11 @@ function testUnintendedCallerCensorship() {
       }
     });
   } catch (e) {
-    assertTrue(e.stack.indexOf('at new ReferenceError') != -1);
+    assertTrue(e.stack.indexOf('at new ReferenceError') != -1,
+               "UnintendedCallerCensorship didn't contain new ReferenceError");
     threw = true;
   }
-  assertTrue(threw);
+  assertTrue(threw, "UnintendedCallerCensorship didn't throw");
 }
 
 // If an error occurs while the stack trace is being formatted it should
@@ -161,9 +165,10 @@ function testErrorsDuringFormatting() {
     n.foo();
   } catch (e) {
     threw = true;
-    assertTrue(e.stack.indexOf('<error: ReferenceError') != -1);
+    assertTrue(e.stack.indexOf('<error: ReferenceError') != -1,
+               "ErrorsDuringFormatting didn't contain error: ReferenceError");
   }
-  assertTrue(threw);
+  assertTrue(threw, "ErrorsDuringFormatting didn't throw");
   threw = false;
   // Now we can't even format the message saying that we couldn't format
   // the stack frame.  Put that in your pipe and smoke it!
@@ -172,26 +177,28 @@ function testErrorsDuringFormatting() {
     n.foo();
   } catch (e) {
     threw = true;
-    assertTrue(e.stack.indexOf('<error>') != -1);
+    assertTrue(e.stack.indexOf('<error>') != -1,
+               "ErrorsDuringFormatting didn't contain <error>");
   }
-  assertTrue(threw);
+  assertTrue(threw, "ErrorsDuringFormatting didnt' throw (2)");
 }
 
-testTrace(testArrayNative, ["Array.map (native)"]);
-testTrace(testNested, ["at one", "at two", "at three"]);
-testTrace(testMethodNameInference, ["at Foo.bar"]);
-testTrace(testImplicitConversion, ["at Nirk.valueOf"]);
-testTrace(testEval, ["at Doo (eval at testEval"]);
-testTrace(testNestedEval, ["eval at Inner (eval at Outer"]);
-testTrace(testValue, ["at Number.causeError"]);
-testTrace(testConstructor, ["new Plonk"]);
-testTrace(testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
-testTrace(testAnonymousMethod, ["Array.<anonymous>"]);
-testTrace(testDefaultCustomError, ["hep-hey", "new CustomError"],
-    ["collectStackTrace"]);
-testTrace(testStrippedCustomError, ["hep-hey"], ["new CustomError",
-    "collectStackTrace"]);
 
+testTrace("testArrayNative", testArrayNative, ["Array.map (native)"]);
+testTrace("testNested", testNested, ["at one", "at two", "at three"]);
+testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
+testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);
+testTrace("testEval", testEval, ["at Doo (eval at testEval"]);
+testTrace("testNestedEval", testNestedEval, ["eval at Inner (eval at Outer"]);
+testTrace("testValue", testValue, ["at Number.causeError"]);
+testTrace("testConstructor", testConstructor, ["new Plonk"]);
+testTrace("testRenamedMethod", testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
+testTrace("testAnonymousMethod", testAnonymousMethod, ["Array.<anonymous>"]);
+testTrace("testDefaultCustomError", testDefaultCustomError,
+    ["hep-hey", "new CustomError"],
+    ["collectStackTrace"]);
+testTrace("testStrippedCustomError", testStrippedCustomError, ["hep-hey"],
+    ["new CustomError", "collectStackTrace"]);
 testCallerCensorship();
 testUnintendedCallerCensorship();
 testErrorsDuringFormatting();

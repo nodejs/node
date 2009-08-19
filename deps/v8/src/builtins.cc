@@ -61,7 +61,7 @@ namespace internal {
 // ----------------------------------------------------------------------------
 
 
-// TODO(1238487): We should consider passing whether or not the
+// TODO(428): We should consider passing whether or not the
 // builtin was invoked as a constructor as part of the
 // arguments. Maybe we also want to pass the called function?
 #define BUILTIN(name)                                                   \
@@ -336,9 +336,7 @@ BUILTIN(HandleApiCall) {
   HandleScope scope;
   bool is_construct = CalledAsConstructor();
 
-  // TODO(1238487): This is not nice. We need to get rid of this
-  // kludgy behavior and start handling API calls in a more direct
-  // way - maybe compile specialized stubs lazily?.
+  // TODO(428): Remove use of static variable, handle API callbacks directly.
   Handle<JSFunction> function =
       Handle<JSFunction>(JSFunction::cast(Builtins::builtin_passed_function));
 

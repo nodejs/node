@@ -500,17 +500,19 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   return_value->ToRegister(rax);
 
   // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
   Label check_exit_codesize;
   masm_->bind(&check_exit_codesize);
+#endif
 
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   // Add padding that will be overwritten by a debugger breakpoint.
-  // frame_->Exit() generates "movq rsp, rbp; pop rbp" length 5.
-  // "ret k" has length 2.
-  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
+  // with length 7 (3 + 1 + 3).
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
   for (int i = 0; i < kPadding; ++i) {
     masm_->int3();
   }
@@ -3084,25 +3086,18 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
-    Result tmp = allocator_->AllocateWithoutSpilling();
-    ASSERT(kSmiTagMask == 1 && kSmiTag == 0);
-    __ movl(tmp.reg(), Immediate(kSmiTagMask));
-    // Smi test.
     __ movq(kScratchRegister, new_value.reg());
     if (is_increment) {
       __ addl(kScratchRegister, Immediate(Smi::FromInt(1)));
     } else {
       __ subl(kScratchRegister, Immediate(Smi::FromInt(1)));
     }
-    // deferred->Branch(overflow);
-    __ cmovl(overflow, kScratchRegister, tmp.reg());
-    __ testl(kScratchRegister, tmp.reg());
-    tmp.Unuse();
+    // Smi test.
+    deferred->Branch(overflow);
+    __ testl(kScratchRegister, Immediate(kSmiTagMask));
     deferred->Branch(not_zero);
     __ movq(new_value.reg(), kScratchRegister);
-
     deferred->BindExit();
-
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -5738,6 +5733,13 @@ void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
+
+  // Record the source position for the property load.
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    cgen_->CodeForSourcePosition(property->position());
+  }
+
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");
@@ -6957,17 +6959,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-  // Call into the runtime system. Collect garbage before the call if
-  // running with --gc-greedy set.
-  if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0);
-    __ movq(rax, failure, RelocInfo::NONE);
-  }
+  // Call into the runtime system.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy,
+               false,
                false);
 
   // Do space-specific GC and retry runtime call.
@@ -7536,11 +7533,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Reserve space for converted numbers.
       __ subq(rsp, Immediate(2 * kPointerSize));
 
-      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
-      if (use_sse3) {
+      if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(CpuFeatures::SSE3);
         __ fisttp_s(Operand(rsp, 0 * kPointerSize));
         __ fisttp_s(Operand(rsp, 1 * kPointerSize));
         __ fnstsw_ax();
@@ -7625,7 +7621,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // the runtime system.
       __ bind(&operand_conversion_failure);
       __ addq(rsp, Immediate(2 * kPointerSize));
-      if (use_sse3) {
+      if (use_sse3_) {
         // If we've used the SSE3 instructions for truncating the
         // floating point values to integers and it failed, we have a
         // pending #IA exception. Clear it.

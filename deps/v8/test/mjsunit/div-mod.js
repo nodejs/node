@@ -48,7 +48,7 @@ function run_tests_for(divisor) {
   divmod(div_func, mod_func, 0, divisor);
   divmod(div_func, mod_func, 1 / 0, divisor);
   // Floating point number test.
-  for (exp = -1024; exp <= 1024; exp += 4) {
+  for (exp = -1024; exp <= 1024; exp += 8) {
     divmod(div_func, mod_func, Math.pow(2, exp), divisor);
     divmod(div_func, mod_func, 0.9999999 * Math.pow(2, exp), divisor);
     divmod(div_func, mod_func, 1.0000001 * Math.pow(2, exp), divisor);
@@ -76,13 +76,7 @@ var divisors = [
   8,
   9,
   10,
-  // These ones in the middle don't add much apart from slowness to the test.
   0x1000000,
-  0x2000000,
-  0x4000000,
-  0x8000000,
-  0x10000000,
-  0x20000000,
   0x40000000,
   12,
   60,
@@ -92,4 +86,3 @@ var divisors = [
 for (var i = 0; i < divisors.length; i++) {
   run_tests_for(divisors[i]);
 }
-

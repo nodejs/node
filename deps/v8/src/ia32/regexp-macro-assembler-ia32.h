@@ -31,21 +31,16 @@
 namespace v8 {
 namespace internal {
 
+#ifndef V8_NATIVE_REGEXP
 class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
-  // Type of input string to generate code for.
-  enum Mode { ASCII = 1, UC16 = 2 };
-  // Result of calling the generated RegExp code:
-  // RETRY: Something significant changed during execution, and the matching
-  //        should be retried from scratch.
-  // EXCEPTION: Something failed during execution. If no exception has been
-  //        thrown, it's an internal out-of-memory, and the caller should
-  //        throw the exception.
-  // FAILURE: Matching failed.
-  // SUCCESS: Matching succeeded, and the output array has been filled with
-  //        capture positions.
-  enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
+  RegExpMacroAssemblerIA32() { }
+  virtual ~RegExpMacroAssemblerIA32() { }
+};
 
+#else
+class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
+ public:
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
   virtual int stack_limit_slack();
@@ -54,7 +49,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void Backtrack();
   virtual void Bind(Label* label);
   virtual void CheckAtStart(Label* on_at_start);
-  virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(uint32_t c,
                                       uint32_t mask,
@@ -88,16 +82,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                           int cp_offset,
                                           bool check_offset,
                                           Label* on_no_match);
-  virtual void DispatchByteMap(uc16 start,
-                               Label* byte_map,
-                               const Vector<Label*>& destinations);
-  virtual void DispatchHalfNibbleMap(uc16 start,
-                                     Label* half_nibble_map,
-                                     const Vector<Label*>& destinations);
-  virtual void DispatchHighByteMap(byte start,
-                                   Label* byte_map,
-                                   const Vector<Label*>& destinations);
-  virtual void EmitOrLink(Label* label);
   virtual void Fail();
   virtual Handle<Object> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
@@ -122,20 +106,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
-
-  static Result Match(Handle<Code> regexp,
-                      Handle<String> subject,
-                      int* offsets_vector,
-                      int offsets_vector_length,
-                      int previous_index);
-
-  static Result Execute(Code* code,
-                        String* input,
-                        int start_offset,
-                        const byte* input_start,
-                        const byte* input_end,
-                        int* output,
-                        bool at_start);
 
  private:
   // Offsets from ebp of function parameters and stored registers.
@@ -163,16 +133,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
-  // Initial size of constant buffers allocated during compilation.
-  static const int kRegExpConstantsSize = 256;
-
-  static const byte* StringCharacterPosition(String* subject, int start_index);
-
-  // Compares two-byte strings case insensitively.
-  // Called from generated RegExp code.
-  static int CaseInsensitiveCompareUC16(Address byte_offset1,
-                                        Address byte_offset2,
-                                        size_t byte_length);
 
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.
@@ -218,11 +178,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // is NULL, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to, Hint hint = no_hint);
 
-  // Load the address of a "constant buffer" (a slice of a byte array)
-  // into a register. The address is computed from the ByteArray* address
-  // and an offset. Uses no extra registers.
-  void LoadConstantBufferAddress(Register reg, ArraySlice* buffer);
-
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
   inline void SafeCall(Label* to);
@@ -258,10 +213,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
   MacroAssembler* masm_;
 
-  // Constant buffer provider. Allocates external storage for storing
-  // constants.
-  ByteArrayProvider constants_;
-
   // Which mode to generate code for (ASCII or UC16).
   Mode mode_;
 
@@ -281,6 +232,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label check_preempt_label_;
   Label stack_overflow_label_;
 };
+#endif  // V8_NATIVE_REGEXP
 
 }}  // namespace v8::internal
 

@@ -219,11 +219,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                       lit->contains_array_literal(),
                                       code);
 
-  CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),
-                                 RelocInfo::kNoPosition,
-                                 lit->start_position(), lit->end_position(),
-                                 lit->is_expression(), true, script,
-                                 lit->inferred_name());
+  ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
+  CodeGenerator::SetFunctionInfo(fun, lit, true, script);
 
   // Hint to the runtime system used when allocating space for initial
   // property space by setting the expected number of properties for
@@ -269,7 +266,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
       Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
       buf->Reset(source.location());
-      pre_data = PreParse(buf.value(), extension);
+      pre_data = PreParse(source, buf.value(), extension);
     }
 
     // Create a script object describing the script to be compiled.

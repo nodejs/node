@@ -114,8 +114,8 @@ void ExitNode::Compile(MacroAssembler* masm) {
   int count = CfgGlobals::current()->fun()->scope()->num_parameters();
   __ ret((count + 1) * kPointerSize);
   // Add padding that will be overwritten by a debugger breakpoint.
-  // "movq rsp, rbp; pop rbp" has length 5.  "ret k" has length 2.
-  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  // "movq rsp, rbp; pop rbp" has length 4.  "ret k" has length 3.
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 4 - 3;
   for (int i = 0; i < kPadding; ++i) {
     __ int3();
   }

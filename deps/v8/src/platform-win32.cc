@@ -54,6 +54,10 @@
 #define _WIN32_WINNT 0x500
 #endif
 
+#ifdef  _WIN64
+#error Windows 64-bit blatforms not supported
+#endif
+
 #include <windows.h>
 
 #include <time.h>  // For LocalOffset() implementation.

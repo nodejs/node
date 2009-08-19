@@ -92,7 +92,8 @@ class Factory : public AllStatic {
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  static Handle<String> NewStringFromTwoByte(Vector<const uc16> str);
+  static Handle<String> NewStringFromTwoByte(Vector<const uc16> str,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and partially initializes a TwoByte String. The characters of
   // the string are uninitialized. Currently used in regexp code only, where
