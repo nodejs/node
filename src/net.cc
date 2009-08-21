@@ -117,7 +117,6 @@ Connection::~Connection ()
 {
   assert(stream_.recvfd < 0 && "garbage collecting open Connection"); 
   assert(stream_.sendfd < 0 && "garbage collecting open Connection"); 
-  ForceClose();
 }
 
 Handle<Value>

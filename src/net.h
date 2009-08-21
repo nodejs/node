@@ -139,7 +139,7 @@ protected:
   }
 
   virtual ~Server () {
-    evcom_server_close (&server_); 
+    assert(server_.fd >= 0);
   }
 
   int Listen (struct sockaddr *address, int backlog) { 
