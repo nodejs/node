@@ -98,6 +98,7 @@ void Top::InitializeThreadLocal() {
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
   thread_local_.context_ = NULL;
+  thread_local_.thread_id_ = ThreadManager::kInvalidId;
   thread_local_.external_caught_exception_ = false;
   thread_local_.failed_access_check_callback_ = NULL;
   clear_pending_exception();
@@ -598,6 +599,12 @@ Failure* Top::StackOverflow() {
 }
 
 
+Failure* Top::TerminateExecution() {
+  DoThrow(Heap::termination_exception(), NULL, NULL);
+  return Failure::Exception();
+}
+
+
 Failure* Top::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location, NULL);
   return Failure::Exception();
@@ -694,7 +701,8 @@ void Top::ReportUncaughtException(Handle<Object> exception,
 }
 
 
-bool Top::ShouldReportException(bool* is_caught_externally) {
+bool Top::ShouldReturnException(bool* is_caught_externally,
+                                bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
   StackHandler* handler =
       StackHandler::FromAddress(Top::handler(Top::GetCurrentThread()));
@@ -712,7 +720,8 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
   //
   // See comments in RegisterTryCatchHandler for details.
   *is_caught_externally = try_catch != NULL &&
-      (handler == NULL || handler == try_catch->js_handler_);
+      (handler == NULL || handler == try_catch->js_handler_ ||
+       !catchable_by_javascript);
 
   if (*is_caught_externally) {
     // Only report the exception if the external handler is verbose.
@@ -735,12 +744,17 @@ void Top::DoThrow(Object* exception,
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool should_return_exception = ShouldReportException(&is_caught_externally);
-  bool report_exception = !is_out_of_memory && should_return_exception;
+  bool is_termination_exception = exception == Heap::termination_exception();
+  bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
+  bool should_return_exception =
+      ShouldReturnException(&is_caught_externally, catchable_by_javascript);
+  bool report_exception = catchable_by_javascript && should_return_exception;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
-  Debugger::OnException(exception_handle, report_exception);
+  if (catchable_by_javascript) {
+    Debugger::OnException(exception_handle, report_exception);
+  }
 #endif
 
   // Generate the message.
@@ -791,14 +805,21 @@ void Top::ReportPendingMessages() {
   // the global context.  Note: We have to mark the global context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
+  bool external_caught = thread_local_.external_caught_exception_;
   HandleScope scope;
   if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
+  } else if (thread_local_.pending_exception_ ==
+             Heap::termination_exception()) {
+    if (external_caught) {
+      thread_local_.try_catch_handler_->can_continue_ = false;
+      thread_local_.try_catch_handler_->exception_ = Heap::null_value();
+    }
   } else {
     Handle<Object> exception(pending_exception());
-    bool external_caught = thread_local_.external_caught_exception_;
     thread_local_.external_caught_exception_ = false;
     if (external_caught) {
+      thread_local_.try_catch_handler_->can_continue_ = true;
       thread_local_.try_catch_handler_->exception_ =
         thread_local_.pending_exception_;
       if (!thread_local_.pending_message_obj_->IsTheHole()) {
@@ -834,16 +855,30 @@ void Top::TraceException(bool flag) {
 }
 
 
-bool Top::optional_reschedule_exception(bool is_bottom_call) {
+bool Top::OptionalRescheduleException(bool is_bottom_call,
+                                      bool force_clear_catchable) {
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
-    // Never reschedule the exception if this is the bottom call.
-    bool clear_exception = is_bottom_call;
+    bool is_termination_exception =
+        pending_exception() == Heap::termination_exception();
 
-    // If the exception is externally caught, clear it if there are no
-    // JavaScript frames on the way to the C++ frame that has the
-    // external handler.
-    if (thread_local_.external_caught_exception_) {
+    // Do not reschedule the exception if this is the bottom call or
+    // if we are asked to clear catchable exceptions.  Termination
+    // exceptions are not catchable and are only cleared if this is
+    // the bottom call.
+    bool clear_exception = is_bottom_call ||
+        (force_clear_catchable && !is_termination_exception);
+
+    if (is_termination_exception) {
+      thread_local_.external_caught_exception_ = false;
+      if (is_bottom_call) {
+        clear_pending_exception();
+        return false;
+      }
+    } else if (thread_local_.external_caught_exception_) {
+      // If the exception is externally caught, clear it if there are no
+      // JavaScript frames on the way to the C++ frame that has the
+      // external handler.
       ASSERT(thread_local_.try_catch_handler_ != NULL);
       Address external_handler_address =
           reinterpret_cast<Address>(thread_local_.try_catch_handler_);

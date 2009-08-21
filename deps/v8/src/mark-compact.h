@@ -75,6 +75,12 @@ class MarkCompactCollector: public AllStatic {
   // Type of functions to process non-live objects.
   typedef void (*ProcessNonLiveFunction)(HeapObject* object);
 
+  // Set the global force_compaction flag, it must be called before Prepare
+  // to take effect.
+  static void SetForceCompaction(bool value) {
+    force_compaction_ = value;
+  }
+
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   static void Prepare(GCTracer* tracer);
@@ -117,6 +123,10 @@ class MarkCompactCollector: public AllStatic {
   // The current stage of the collector.
   static CollectorState state_;
 #endif
+
+  // Global flag that forces a compaction.
+  static bool force_compaction_;
+
   // Global flag indicating whether spaces were compacted on the last GC.
   static bool compacting_collection_;
 

@@ -70,6 +70,9 @@
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
+// Types of uncatchable exceptions.
+enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
+
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/codegen-ia32.h"
@@ -291,12 +294,14 @@ class CEntryStub : public CodeStub {
   void GenerateBody(MacroAssembler* masm, bool is_debug_break);
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
+                    Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
                     StackFrame::Type frame_type,
                     bool do_gc,
                     bool always_allocate_scope);
   void GenerateThrowTOS(MacroAssembler* masm);
-  void GenerateThrowOutOfMemory(MacroAssembler* masm);
+  void GenerateThrowUncatchable(MacroAssembler* masm,
+                                UncatchableExceptionType type);
 
  private:
   Major MajorKey() { return CEntry; }

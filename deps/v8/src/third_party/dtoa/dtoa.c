@@ -1535,7 +1535,7 @@ strtod
 	double aadj, aadj1, adj, rv, rv0;
 	Long L;
 	ULong y, z;
-	Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
+	Bigint *bb = NULL, *bb1, *bd = NULL, *bd0, *bs = NULL, *delta = NULL;
 #ifdef SET_INEXACT
 	int inexact, oldinexact;
 #endif

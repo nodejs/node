@@ -144,8 +144,8 @@ class GlobalHandles::Node : public Malloced {
   // Returns the callback for this weak handle.
   WeakReferenceCallback callback() { return callback_; }
 
-  void PostGarbageCollectionProcessing() {
-    if (state_ != Node::PENDING) return;
+  bool PostGarbageCollectionProcessing() {
+    if (state_ != Node::PENDING) return false;
     LOG(HandleEvent("GlobalHandle::Processing", handle().location()));
     void* par = parameter();
     state_ = NEAR_DEATH;
@@ -153,14 +153,19 @@ class GlobalHandles::Node : public Malloced {
     // The callback function is resolved as late as possible to preserve old
     // behavior.
     WeakReferenceCallback func = callback();
-    if (func != NULL) {
-      v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
-      {
-        // Leaving V8.
-        VMState state(EXTERNAL);
-        func(object, par);
-      }
+    if (func == NULL) return false;
+
+    v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
+    {
+      // Forbid reuse of destroyed nodes as they might be already deallocated.
+      // It's fine though to reuse nodes that were destroyed in weak callback
+      // as those cannot be deallocated until we are back from the callback.
+      set_first_free(NULL);
+      // Leaving V8.
+      VMState state(EXTERNAL);
+      func(object, par);
     }
+    return true;
   }
 
   // Place the handle address first to avoid offset computation.
@@ -271,15 +276,26 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 }
 
 
+int post_gc_processing_count = 0;
+
 void GlobalHandles::PostGarbageCollectionProcessing() {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   // At the same time deallocate all DESTROYED nodes
   ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
+  const int initial_post_gc_processing_count = ++post_gc_processing_count;
   Node** p = &head_;
   while (*p != NULL) {
-    (*p)->PostGarbageCollectionProcessing();
+    if ((*p)->PostGarbageCollectionProcessing()) {
+      if (initial_post_gc_processing_count != post_gc_processing_count) {
+        // Weak callback triggered another GC and another round of
+        // PostGarbageCollection processing.  The current node might
+        // have been deleted in that round, so we need to bail out (or
+        // restart the processing).
+        break;
+      }
+    }
     if ((*p)->state_ == Node::DESTROYED) {
       // Delete the link.
       Node* node = *p;

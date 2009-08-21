@@ -50,6 +50,12 @@ class ThreadState {
   void set_id(int id) { id_ = id; }
   int id() { return id_; }
 
+  // Should the thread be terminated when it is restored?
+  bool terminate_on_restore() { return terminate_on_restore_; }
+  void set_terminate_on_restore(bool terminate_on_restore) {
+    terminate_on_restore_ = terminate_on_restore;
+  }
+
   // Get data area for archiving a thread.
   char* data() { return data_; }
  private:
@@ -58,6 +64,7 @@ class ThreadState {
   void AllocateSpace();
 
   int id_;
+  bool terminate_on_restore_;
   char* data_;
   ThreadState* next_;
   ThreadState* previous_;
@@ -87,6 +94,8 @@ class ThreadManager : public AllStatic {
 
   static int CurrentId();
   static void AssignId();
+
+  static void TerminateExecution(int thread_id);
 
   static const int kInvalidId = -1;
  private:

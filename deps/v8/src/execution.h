@@ -37,7 +37,8 @@ enum InterruptFlag {
   INTERRUPT = 1 << 0,
   DEBUGBREAK = 1 << 1,
   DEBUGCOMMAND = 1 << 2,
-  PREEMPT = 1 << 3
+  PREEMPT = 1 << 3,
+  TERMINATE = 1 << 4
 };
 
 class Execution : public AllStatic {
@@ -164,13 +165,15 @@ class StackGuard BASE_EMBEDDED {
   static void Preempt();
   static bool IsInterrupted();
   static void Interrupt();
-  static void Continue(InterruptFlag after_what);
+  static bool IsTerminateExecution();
+  static void TerminateExecution();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  static void DebugBreak();
-  static void DebugCommand();
   static bool IsDebugBreak();
+  static void DebugBreak();
   static bool IsDebugCommand();
+  static void DebugCommand();
 #endif
+  static void Continue(InterruptFlag after_what);
 
  private:
   // You should hold the ExecutionAccess lock when calling this method.

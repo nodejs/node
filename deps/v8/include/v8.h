@@ -2223,6 +2223,47 @@ class V8EXPORT V8 {
    */
   static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
+  /**
+   * Retrieve the V8 thread id of the calling thread.
+   *
+   * The thread id for a thread should only be retrieved after the V8
+   * lock has been acquired with a Locker object with that thread.
+   */
+  static int GetCurrentThreadId();
+
+  /**
+   * Forcefully terminate execution of a JavaScript thread.  This can
+   * be used to terminate long-running scripts.
+   *
+   * TerminateExecution should only be called when then V8 lock has
+   * been acquired with a Locker object.  Therefore, in order to be
+   * able to terminate long-running threads, preemption must be
+   * enabled to allow the user of TerminateExecution to acquire the
+   * lock.
+   *
+   * The termination is achieved by throwing an exception that is
+   * uncatchable by JavaScript exception handlers.  Termination
+   * exceptions act as if they were caught by a C++ TryCatch exception
+   * handlers.  If forceful termination is used, any C++ TryCatch
+   * exception handler that catches an exception should check if that
+   * exception is a termination exception and immediately return if
+   * that is the case.  Returning immediately in that case will
+   * continue the propagation of the termination exception if needed.
+   *
+   * The thread id passed to TerminateExecution must have been
+   * obtained by calling GetCurrentThreadId on the thread in question.
+   *
+   * \param thread_id The thread id of the thread to terminate.
+   */
+  static void TerminateExecution(int thread_id);
+
+  /**
+   * Forcefully terminate the current thread of JavaScript execution.
+   *
+   * This method can be used by any thread even if that thread has not
+   * acquired the V8 lock with a Locker object.
+   */
+  static void TerminateExecution();
 
   /**
    * Releases any resources used by v8 and stops any utility threads
@@ -2242,6 +2283,12 @@ class V8EXPORT V8 {
    * \param is_high_priority tells whether the embedder is high priority.
    */
   static void IdleNotification(bool is_high_priority);
+
+  /**
+   * Optional notification that the system is running low on memory.
+   * V8 uses these notifications to attempt to free memory.
+   */
+  static void LowMemoryNotification();
 
  private:
   V8();
@@ -2280,6 +2327,21 @@ class V8EXPORT TryCatch {
    * Returns true if an exception has been caught by this try/catch block.
    */
   bool HasCaught() const;
+
+  /**
+   * For certain types of exceptions, it makes no sense to continue
+   * execution.
+   *
+   * Currently, the only type of exception that can be caught by a
+   * TryCatch handler and for which it does not make sense to continue
+   * is termination exception.  Such exceptions are thrown when the
+   * TerminateExecution methods are called to terminate a long-running
+   * script.
+   *
+   * If CanContinue returns false, the correct action is to perform
+   * any C++ cleanup needed and then return.
+   */
+  bool CanContinue() const;
 
   /**
    * Returns the exception caught by this try/catch block.  If no exception has
@@ -2337,6 +2399,7 @@ class V8EXPORT TryCatch {
   void* exception_;
   void* message_;
   bool is_verbose_;
+  bool can_continue_;
   bool capture_message_;
   void* js_handler_;
 };

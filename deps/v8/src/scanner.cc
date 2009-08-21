@@ -183,7 +183,8 @@ uc32 TwoByteStringUTF16Buffer::Advance() {
 
 void TwoByteStringUTF16Buffer::PushBack(uc32 ch) {
   pos_--;
-  ASSERT(pos_ >= 0 && raw_data_[pos_] == ch);
+  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
+  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
 }
 
 

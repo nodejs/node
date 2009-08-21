@@ -156,6 +156,7 @@ uint32_t V8::Random() {
   return (hi << 16) + (lo & 0xFFFF);
 }
 
+
 void V8::IdleNotification(bool is_high_priority) {
   if (!FLAG_use_idle_notification) return;
   // Ignore high priority instances of V8.

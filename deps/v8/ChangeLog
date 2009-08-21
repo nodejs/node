@@ -1,3 +1,19 @@
+2009-08-21: Version 1.3.6
+
+        Add support for forceful termination of JavaScript execution.
+
+        Add low memory notification to the API. The embedding host can signal
+        a low memory situation to V8.
+
+        Changed the handling of global handles (persistent handles in the API
+        sense) to avoid issues regarding allocation of new global handles
+        during weak handle callbacks.
+
+        Changed the growth policy of the young space.
+
+        Fixed a GC issue introduced in version 1.3.5.
+
+
 2009-08-19: Version 1.3.5
 
         Optimize initialization of some arrays in the builtins.

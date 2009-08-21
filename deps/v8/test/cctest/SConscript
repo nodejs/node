@@ -56,6 +56,7 @@ SOURCES = {
     'test-spaces.cc',
     'test-strings.cc',
     'test-threads.cc',
+    'test-thread-termination.cc',
     'test-utils.cc',
     'test-version.cc'
   ],

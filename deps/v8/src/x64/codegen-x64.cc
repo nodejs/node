@@ -6747,6 +6747,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
+                              Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
                               bool do_gc,
@@ -6819,11 +6820,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry);
 
-  Label continue_exception;
-  // If the returned failure is EXCEPTION then promote Top::pending_exception().
-  __ movq(kScratchRegister, Failure::Exception(), RelocInfo::NONE);
+  // Special handling of out of memory exceptions.
+  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
   __ cmpq(rax, kScratchRegister);
-  __ j(not_equal, &continue_exception);
+  __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(Top::k_pending_exception_address);
@@ -6833,11 +6833,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ movq(rdx, Operand(rdx, 0));
   __ movq(Operand(kScratchRegister, 0), rdx);
 
-  __ bind(&continue_exception);
-  // Special handling of out of memory exception.
-  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
-  __ cmpq(rax, kScratchRegister);
-  __ j(equal, throw_out_of_memory_exception);
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ Cmp(rax, Factory::termination_exception());
+  __ j(equal, throw_termination_exception);
 
   // Handle normal exception.
   __ jmp(throw_normal_exception);
@@ -6847,7 +6846,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 }
 
 
-void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
+void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
+                                          UncatchableExceptionType type) {
   // Fetch top stack handler.
   ExternalReference handler_address(Top::k_handler_address);
   __ movq(kScratchRegister, handler_address);
@@ -6857,30 +6857,32 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  __ cmpq(Operand(rsp, StackHandlerConstants::kStateOffset),
-         Immediate(StackHandler::ENTRY));
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  __ cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
   __ j(equal, &done);
   // Fetch the next handler in the list.
-  ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(rsp);
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  __ movq(rsp, Operand(rsp, kNextOffset));
   __ jmp(&loop);
   __ bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  __ pop(rax);
-  __ store_rax(handler_address);
+  __ movq(kScratchRegister, handler_address);
+  __ pop(Operand(kScratchRegister, 0));
 
-  // Set external caught exception to false.
-  __ movq(rax, Immediate(false));
-  ExternalReference external_caught(Top::k_external_caught_exception_address);
-  __ store_rax(external_caught);
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    __ movq(rax, Immediate(false));
+    __ store_rax(external_caught);
 
-  // Set pending exception and rax to out of memory exception.
-  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
-  ExternalReference pending_exception(Top::k_pending_exception_address);
-  __ store_rax(pending_exception);
+    // Set pending exception and rax to out of memory exception.
+    ExternalReference pending_exception(Top::k_pending_exception_address);
+    __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+    __ store_rax(pending_exception);
+  }
 
-  // Clear the context pointer;
+  // Clear the context pointer.
   __ xor_(rsi, rsi);
 
   // Restore registers from handler.
@@ -6956,12 +6958,14 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // r14: number of arguments including receiver (C callee-saved).
   // r15: argv pointer (C callee-saved).
 
-  Label throw_out_of_memory_exception;
   Label throw_normal_exception;
+  Label throw_termination_exception;
+  Label throw_out_of_memory_exception;
 
   // Call into the runtime system.
   GenerateCore(masm,
                &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                false,
@@ -6970,6 +6974,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                true,
@@ -6980,14 +6985,17 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   __ movq(rax, failure, RelocInfo::NONE);
   GenerateCore(masm,
                &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                true,
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowOutOfMemory(masm);
-  // control flow for generated will not return.
+  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+
+  __ bind(&throw_termination_exception);
+  GenerateThrowUncatchable(masm, TERMINATION);
 
   __ bind(&throw_normal_exception);
   GenerateThrowTOS(masm);

@@ -212,6 +212,8 @@ class Scanner {
   static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
   static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
 
+  static const int kCharacterLookaheadBufferSize = 1;
+
  private:
   CharacterStreamUTF16Buffer char_stream_buffer_;
   TwoByteStringUTF16Buffer two_byte_string_buffer_;
@@ -241,8 +243,6 @@ class Scanner {
   TokenDesc next_;     // desc for next token (one token look-ahead)
   bool has_line_terminator_before_next_;
   bool is_pre_parsing_;
-
-  static const int kCharacterLookaheadBufferSize = 1;
 
   // Literal buffer support
   void StartLiteral();

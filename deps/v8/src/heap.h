@@ -111,6 +111,7 @@ namespace internal {
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
+  V(Object, termination_exception, TerminationException)                       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
@@ -626,8 +627,9 @@ class Heap : public AllStatic {
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);
 
-  // Performs a full garbage collection.
-  static void CollectAllGarbage();
+  // Performs a full garbage collection. Force compaction if the
+  // parameter is true.
+  static void CollectAllGarbage(bool force_compaction = false);
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
@@ -1386,12 +1388,32 @@ class AssertNoAllocation {
   bool old_state_;
 };
 
+class DisableAssertNoAllocation {
+ public:
+  DisableAssertNoAllocation() {
+    old_state_ = Heap::allow_allocation(true);
+  }
+
+  ~DisableAssertNoAllocation() {
+    Heap::allow_allocation(old_state_);
+  }
+
+ private:
+  bool old_state_;
+};
+
 #else  // ndef DEBUG
 
 class AssertNoAllocation {
  public:
   AssertNoAllocation() { }
   ~AssertNoAllocation() { }
+};
+
+class DisableAssertNoAllocation {
+ public:
+  DisableAssertNoAllocation() { }
+  ~DisableAssertNoAllocation() { }
 };
 
 #endif

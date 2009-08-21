@@ -7505,6 +7505,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
+                              Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
                               bool do_gc,
@@ -7568,10 +7569,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ test(eax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry, taken);
 
-  Label continue_exception;
-  // If the returned failure is EXCEPTION then promote Top::pending_exception().
-  __ cmp(eax, reinterpret_cast<int32_t>(Failure::Exception()));
-  __ j(not_equal, &continue_exception);
+  // Special handling of out of memory exceptions.
+  __ cmp(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
+  __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(Top::k_pending_exception_address);
@@ -7580,10 +7580,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
   __ mov(Operand::StaticVariable(pending_exception_address), edx);
 
-  __ bind(&continue_exception);
-  // Special handling of out of memory exception.
-  __ cmp(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
-  __ j(equal, throw_out_of_memory_exception);
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ cmp(eax, Factory::termination_exception());
+  __ j(equal, throw_termination_exception);
 
   // Handle normal exception.
   __ jmp(throw_normal_exception);
@@ -7593,7 +7593,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 }
 
 
-void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
+void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
+                                          UncatchableExceptionType type) {
   // Adjust this code if not the case.
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
@@ -7618,17 +7619,19 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   ASSERT(StackHandlerConstants::kNextOffset == 0);
   __ pop(Operand::StaticVariable(handler_address));
 
-  // Set external caught exception to false.
-  ExternalReference external_caught(Top::k_external_caught_exception_address);
-  __ mov(eax, false);
-  __ mov(Operand::StaticVariable(external_caught), eax);
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    __ mov(eax, false);
+    __ mov(Operand::StaticVariable(external_caught), eax);
 
-  // Set pending exception and eax to out of memory exception.
-  ExternalReference pending_exception(Top::k_pending_exception_address);
-  __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
-  __ mov(Operand::StaticVariable(pending_exception), eax);
+    // Set pending exception and eax to out of memory exception.
+    ExternalReference pending_exception(Top::k_pending_exception_address);
+    __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
+    __ mov(Operand::StaticVariable(pending_exception), eax);
+  }
 
-  // Clear the context pointer;
+  // Clear the context pointer.
   __ xor_(esi, Operand(esi));
 
   // Restore fp from handler and discard handler state.
@@ -7667,11 +7670,14 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // edi: number of arguments including receiver (C callee-saved)
   // esi: argv pointer (C callee-saved)
 
-  Label throw_out_of_memory_exception;
   Label throw_normal_exception;
+  Label throw_termination_exception;
+  Label throw_out_of_memory_exception;
 
   // Call into the runtime system.
-  GenerateCore(masm, &throw_normal_exception,
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                false,
@@ -7680,6 +7686,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                true,
@@ -7690,14 +7697,17 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
   GenerateCore(masm,
                &throw_normal_exception,
+               &throw_termination_exception,
                &throw_out_of_memory_exception,
                frame_type,
                true,
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowOutOfMemory(masm);
-  // control flow for generated will not return.
+  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+
+  __ bind(&throw_termination_exception);
+  GenerateThrowUncatchable(masm, TERMINATION);
 
   __ bind(&throw_normal_exception);
   GenerateThrowTOS(masm);

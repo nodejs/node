@@ -73,7 +73,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
-#elseif defined(V8_TARGET_ARCH_X64)
+#elif defined(V8_TARGET_ARCH_X64)
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
@@ -315,11 +315,13 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage() {
+void Heap::CollectAllGarbage(bool force_compaction) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
+  MarkCompactCollector::SetForceCompaction(force_compaction);
   CollectGarbage(0, OLD_POINTER_SPACE);
+  MarkCompactCollector::SetForceCompaction(false);
 }
 
 
@@ -485,7 +487,10 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
 void Heap::PostGarbageCollectionProcessing() {
   // Process weak handles post gc.
-  GlobalHandles::PostGarbageCollectionProcessing();
+  {
+    DisableAssertNoAllocation allow_allocation;
+    GlobalHandles::PostGarbageCollectionProcessing();
+  }
   // Update flat string readers.
   FlatStringReader::PostGarbageCollectionProcessing();
 }
@@ -1412,6 +1417,9 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   set_no_interceptor_result_sentinel(obj);
 
+  obj = CreateOddball(oddball_map(), "termination_exception", Smi::FromInt(-3));
+  if (obj->IsFailure()) return false;
+  set_termination_exception(obj);
 
   // Allocate the empty string.
   obj = AllocateRawAsciiString(0, TENURED);
@@ -2084,8 +2092,9 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
     if (count > in_object_properties) {
       count = in_object_properties;
     }
-    DescriptorArray* descriptors = *Factory::NewDescriptorArray(count);
-    if (descriptors->IsFailure()) return descriptors;
+    Object* descriptors_obj = DescriptorArray::Allocate(count);
+    if (descriptors_obj->IsFailure()) return descriptors_obj;
+    DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
     for (int i = 0; i < count; i++) {
       String* name = fun->shared()->GetThisPropertyAssignmentName(i);
       ASSERT(name->IsSymbol());

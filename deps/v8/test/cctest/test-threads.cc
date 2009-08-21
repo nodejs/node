@@ -50,5 +50,3 @@ TEST(Preemption) {
 
   script->Run();
 }
-
-

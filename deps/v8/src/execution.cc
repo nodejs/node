@@ -156,7 +156,8 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     ASSERT(catcher.HasCaught());
     ASSERT(Top::has_pending_exception());
     ASSERT(Top::external_caught_exception());
-    Top::optional_reschedule_exception(true);
+    bool is_bottom_call = HandleScopeImplementer::instance()->CallDepthIsZero();
+    Top::OptionalRescheduleException(is_bottom_call, true);
     result = v8::Utils::OpenHandle(*catcher.Exception());
   }
 
@@ -324,6 +325,19 @@ bool StackGuard::IsPreempted() {
 void StackGuard::Preempt() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= PREEMPT;
+  set_limits(kInterruptLimit, access);
+}
+
+
+bool StackGuard::IsTerminateExecution() {
+  ExecutionAccess access;
+  return thread_local_.interrupt_flags_ & TERMINATE;
+}
+
+
+void StackGuard::TerminateExecution() {
+  ExecutionAccess access;
+  thread_local_.interrupt_flags_ |= TERMINATE;
   set_limits(kInterruptLimit, access);
 }
 
@@ -638,6 +652,10 @@ Object* Execution::HandleStackGuardInterrupt() {
   }
 #endif
   if (StackGuard::IsPreempted()) RuntimePreempt();
+  if (StackGuard::IsTerminateExecution()) {
+    StackGuard::Continue(TERMINATE);
+    return Top::TerminateExecution();
+  }
   if (StackGuard::IsInterrupted()) {
     // interrupt
     StackGuard::Continue(INTERRUPT);

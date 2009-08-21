@@ -2843,7 +2843,7 @@ TEST(ErrorReporting) {
 
 static const char* js_code_causing_huge_string_flattening =
     "var str = 'X';"
-    "for (var i = 0; i < 29; i++) {"
+    "for (var i = 0; i < 30; i++) {"
     "  str = str + str;"
     "}"
     "str.match(/X/);";
@@ -6217,6 +6217,58 @@ TEST(DontLeakGlobalObjects) {
 }
 
 
+v8::Persistent<v8::Object> some_object;
+v8::Persistent<v8::Object> bad_handle;
+
+void NewPersistentHandleCallback(v8::Persistent<v8::Value>, void*) {
+  v8::HandleScope scope;
+  bad_handle = v8::Persistent<v8::Object>::New(some_object);
+}
+
+
+THREADED_TEST(NewPersistentHandleFromWeakCallback) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2;
+  {
+    v8::HandleScope scope;
+    some_object = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  // Note: order is implementation dependent alas: currently
+  // global handle nodes are processed by PostGarbageCollectionProcessing
+  // in reverse allocation order, so if second allocated handle is deleted,
+  // weak callback of the first handle would be able to 'reallocate' it.
+  handle1.MakeWeak(NULL, NewPersistentHandleCallback);
+  handle2.Dispose();
+  i::Heap::CollectAllGarbage();
+}
+
+
+v8::Persistent<v8::Object> to_be_disposed;
+
+void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
+  to_be_disposed.Dispose();
+  i::Heap::CollectAllGarbage();
+}
+
+
+THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2;
+  {
+    v8::HandleScope scope;
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
+  to_be_disposed = handle2;
+  i::Heap::CollectAllGarbage();
+}
+
+
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::V8::Initialize();
 
@@ -7117,6 +7169,30 @@ THREADED_TEST(MorphCompositeStringTest) {
              env->Global()->Get(v8_str("slice")));
     CHECK_EQ(String::New(expected_slice_on_cons),
              env->Global()->Get(v8_str("slice_on_cons")));
+  }
+}
+
+
+TEST(CompileExternalTwoByteSource) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // This is a very short list of sources, which currently is to check for a
+  // regression caused by r2703.
+  const char* ascii_sources[] = {
+    "0.5",
+    "-0.5",   // This mainly testes PushBack in the Scanner.
+    "--0.5",  // This mainly testes PushBack in the Scanner.
+    NULL
+  };
+
+  // Compile the sources as external two byte strings.
+  for (int i = 0; ascii_sources[i] != NULL; i++) {
+    uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
+    UC16VectorResource uc16_resource(
+        i::Vector<const uint16_t>(two_byte_string, strlen(ascii_sources[i])));
+    v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
+    v8::Script::Compile(source);
   }
 }
 

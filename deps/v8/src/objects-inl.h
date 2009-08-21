@@ -788,6 +788,7 @@ Failure* Failure::Exception() {
   return Construct(EXCEPTION);
 }
 
+
 Failure* Failure::OutOfMemoryException() {
   return Construct(OUT_OF_MEMORY_EXCEPTION);
 }

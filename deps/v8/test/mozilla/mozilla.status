@@ -624,7 +624,6 @@ js1_5/extensions/regress-333541: FAIL_OK
 js1_5/extensions/regress-335700: FAIL_OK
 js1_5/extensions/regress-336409-1: FAIL_OK
 js1_5/extensions/regress-336409-2: FAIL_OK
-js1_5/extensions/regress-336410-1: FAIL_OK
 js1_5/extensions/regress-336410-2: FAIL_OK
 js1_5/extensions/regress-341956-01: FAIL_OK
 js1_5/extensions/regress-341956-02: FAIL_OK
@@ -706,6 +705,11 @@ js1_5/extensions/toLocaleFormat-02: FAIL_OK
 js1_5/extensions/regress-330569: TIMEOUT
 js1_5/extensions/regress-351448: TIMEOUT
 js1_5/extensions/regress-342960: FAIL_OK || TIMEOUT if $mode == debug
+# In the 64-bit version, this test takes longer to run out of memory
+# than it does in the 32-bit version when attempting to generate a huge
+# error message in debug mode.
+js1_5/extensions/regress-336410-1: FAIL_OK || TIMEOUT if ($mode == debug && $arch == x64)
+
 
 
 ##################### DECOMPILATION TESTS #####################

@@ -1079,9 +1079,9 @@ void SemiSpace::TearDown() {
 
 
 bool SemiSpace::Grow() {
-  // Commit 50% extra space but only up to maximum capacity.
+  // Double the semispace size but only up to maximum capacity.
   int maximum_extra = maximum_capacity_ - capacity_;
-  int extra = Min(RoundUp(capacity_ / 2, OS::AllocateAlignment()),
+  int extra = Min(RoundUp(capacity_, OS::AllocateAlignment()),
                   maximum_extra);
   if (!MemoryAllocator::CommitBlock(high(), extra, executable())) {
     return false;

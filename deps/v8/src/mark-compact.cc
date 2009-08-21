@@ -39,6 +39,7 @@ namespace internal {
 // -------------------------------------------------------------------------
 // MarkCompactCollector
 
+bool MarkCompactCollector::force_compaction_ = false;
 bool MarkCompactCollector::compacting_collection_ = false;
 
 int MarkCompactCollector::previous_marked_count_ = 0;
@@ -110,7 +111,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
   ASSERT(!FLAG_always_compact || !FLAG_never_compact);
 
-  compacting_collection_ = FLAG_always_compact;
+  compacting_collection_ = FLAG_always_compact || force_compaction_;
 
   // We compact the old generation if it gets too fragmented (ie, we could
   // recover an expected amount of space by reclaiming the waste and free

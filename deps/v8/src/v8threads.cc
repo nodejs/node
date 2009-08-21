@@ -151,6 +151,10 @@ bool ThreadManager::RestoreThread() {
   from = RegExpStack::RestoreStack(from);
   from = Bootstrapper::RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
+  if (state->terminate_on_restore()) {
+    StackGuard::TerminateExecution();
+    state->set_terminate_on_restore(false);
+  }
   state->set_id(kInvalidId);
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
@@ -188,6 +192,7 @@ ThreadState* ThreadState::in_use_anchor_ = new ThreadState();
 
 
 ThreadState::ThreadState() : id_(ThreadManager::kInvalidId),
+                             terminate_on_restore_(false),
                              next_(this), previous_(this) {
 }
 
@@ -317,7 +322,21 @@ int ThreadManager::CurrentId() {
 
 void ThreadManager::AssignId() {
   if (!Thread::HasThreadLocal(thread_id_key)) {
-    Thread::SetThreadLocalInt(thread_id_key, next_id_++);
+    ASSERT(Locker::IsLocked());
+    int thread_id = next_id_++;
+    Thread::SetThreadLocalInt(thread_id_key, thread_id);
+    Top::set_thread_id(thread_id);
+  }
+}
+
+
+void ThreadManager::TerminateExecution(int thread_id) {
+  for (ThreadState* state = ThreadState::FirstInUse();
+       state != NULL;
+       state = state->Next()) {
+    if (thread_id == state->id()) {
+      state->set_terminate_on_restore(true);
+    }
   }
 }
 

@@ -46,6 +46,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
+  int thread_id_;
   Object* pending_exception_;
   bool has_pending_message_;
   const char* pending_message_;
@@ -118,6 +119,10 @@ class Top {
     thread_local_.save_context_ = save;
   }
 
+  // Access to current thread id.
+  static int thread_id() { return thread_local_.thread_id_; }
+  static void set_thread_id(int id) { thread_local_.thread_id_ = id; }
+
   // Interface to pending exception.
   static Object* pending_exception() {
     ASSERT(has_pending_exception());
@@ -152,7 +157,8 @@ class Top {
   // exceptions.  If an exception was thrown and not handled by an external
   // handler the exception is scheduled to be rethrown when we return to running
   // JavaScript code.  If an exception is scheduled true is returned.
-  static bool optional_reschedule_exception(bool is_bottom_call);
+  static bool OptionalRescheduleException(bool is_bottom_call,
+                                          bool force_clear_catchable);
 
   static bool* external_caught_exception_address() {
     return &thread_local_.external_caught_exception_;
@@ -246,7 +252,8 @@ class Top {
   static void DoThrow(Object* exception,
                       MessageLocation* location,
                       const char* message);
-  static bool ShouldReportException(bool* is_caught_externally);
+  static bool ShouldReturnException(bool* is_caught_externally,
+                                    bool catchable_by_javascript);
   static void ReportUncaughtException(Handle<Object> exception,
                                       MessageLocation* location,
                                       Handle<String> stack_trace);
@@ -260,6 +267,7 @@ class Top {
 
   // Out of resource exception helpers.
   static Failure* StackOverflow();
+  static Failure* TerminateExecution();
 
   // Administration
   static void Initialize();
