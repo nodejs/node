@@ -1,4 +1,20 @@
-2009.08.13, Version 0.1.4
+2009.08.21, Version 0.1.5
+
+  * Bugfix: Buggy connections could crash node.js. Now check connection
+    before sending data every time (Kevin van Zonneveld)
+
+  * Bugfix: stdin fd (0) being ignored by node.File. (Abe Fettig)
+
+  * API: Remove connnection.fullClose()
+
+  * API: Return the EventEmitter from addListener for chaining.
+
+  * API: tcp.Connection "disconnect" event renamed to "close"
+
+  * Upgrade evcom
+    Upgrade v8 to 1.3.6
+
+2009.08.13, Version 0.1.4, 0f888ed6de153f68c17005211d7e0f960a5e34f3
 
   * Major refactor to evcom.
 
