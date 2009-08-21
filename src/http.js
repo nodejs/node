@@ -341,14 +341,13 @@ function createIncomingMessageStream (connection, incoming_listener) {
 /* Returns true if the message queue is finished and the connection
  * should be closed. */
 function flushMessageQueue (connection, queue) {
-  if (connection.readyState !== "open" && connection.readyState !== "writeOnly") {
-    return false;
-  }
-
   while (queue[0]) {
     var message = queue[0];
 
     while (message.output.length > 0) {
+      if (connection.readyState !== "open" && connection.readyState !== "writeOnly") {
+        return false;
+      }
       var out = message.output.shift();
       connection.send(out, out.encoding);
     }
