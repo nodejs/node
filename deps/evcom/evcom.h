@@ -57,6 +57,7 @@ extern "C" {
 #define EVCOM_PAUSED            0x0040
 #define EVCOM_READABLE          0x0080
 #define EVCOM_WRITABLE          0x0100
+#define EVCOM_TOO_MANY_CONN     0x0200
 
 enum evcom_stream_state { EVCOM_INITIALIZED
                         , EVCOM_CONNECTING
@@ -181,6 +182,7 @@ void evcom_stream_init          (evcom_stream *, float timeout);
 
  int evcom_stream_pair          (evcom_stream *a, evcom_stream *b);
  int evcom_stream_connect       (evcom_stream *, struct sockaddr *address);
+void evcom_stream_assign_fds    (evcom_stream *, int recvfd, int sendfd);
 
 void evcom_stream_attach        (EV_P_ evcom_stream *);
 void evcom_stream_detach        (evcom_stream *);

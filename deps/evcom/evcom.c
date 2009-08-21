@@ -226,7 +226,10 @@ stream_send__close_one (evcom_stream *stream)
   /* TODO recover from EINTR */
 
   stream__set_send_closed(stream);
-  if (DUPLEX(stream)) stream__set_recv_closed(stream);
+
+  if (DUPLEX(stream) || stream->recv_action == stream_recv__wait_for_close) {
+    stream__set_recv_closed(stream);
+  }
 
   return OKAY;
 }
@@ -253,8 +256,11 @@ stream__close_both (evcom_stream *stream)
 static int
 stream_send__close (evcom_stream *stream)
 {
-  stream->send_action = DUPLEX(stream) ?
-      stream_send__close_one : stream__close_both;
+  if (DUPLEX(stream) || stream->recvfd < 0) {
+    stream->send_action = stream_send__close_one;
+  } else {
+    stream->send_action = stream__close_both;
+  }
   return OKAY;
 }
 
@@ -268,7 +274,10 @@ stream_recv__close_one (evcom_stream *stream)
   /* TODO recover from EINTR */
 
   stream__set_recv_closed(stream);
-  if (DUPLEX(stream)) stream__set_send_closed(stream);
+
+  if (DUPLEX(stream)) {
+    stream__set_send_closed(stream);
+  }
 
   return OKAY;
 }
@@ -276,8 +285,11 @@ stream_recv__close_one (evcom_stream *stream)
 static int
 stream_recv__close (evcom_stream *stream)
 {
-  stream->recv_action = DUPLEX(stream) ?
-      stream_recv__close_one : stream__close_both;
+  if (DUPLEX(stream) || stream->sendfd < 0) {
+    stream->recv_action = stream_recv__close_one;
+  } else {
+    stream->recv_action = stream__close_both;
+  }
   return OKAY;
 }
 
@@ -526,13 +538,13 @@ stream_recv__data (evcom_stream *stream)
     if (recved == 0) {
       stream->flags &= ~EVCOM_READABLE;
       ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
+      stream->recv_action = stream_recv__wait_for_close;
     }
 
     /* NOTE: EOF is signaled with recved == 0 on callback */
     if (stream->on_read) stream->on_read(stream, buf, recved);
 
     if (recved == 0) {
-      stream->recv_action = stream_recv__wait_for_close;
       return OKAY;
     }
   }
@@ -682,13 +694,21 @@ stream_send__wait_for_connection (evcom_stream *stream)
   return OKAY;
 }
 
-static void
+void
 evcom_stream_assign_fds (evcom_stream *stream, int recvfd, int sendfd)
 {
   assert(recvfd >= 0);
   assert(sendfd >= 0);
 
   if (recvfd == sendfd) stream->flags |= EVCOM_DUPLEX;
+
+  if (set_nonblock(recvfd) != 0) {
+    evcom_perror("set_nonblock(recvfd)", errno);
+  }
+
+  if (set_nonblock(sendfd) != 0) {
+    evcom_perror("set_nonblock(sendfd)", errno);
+  }
 
 #ifdef SO_NOSIGPIPE
   if (DUPLEX(stream)) {
@@ -736,7 +756,9 @@ accept_connection (evcom_server *server)
   if (fd < 0) {
     switch (errno) {
       case EMFILE:
+      case ENFILE:
         too_many_connections = 1;
+        server->flags |= EVCOM_TOO_MANY_CONN;
         evcom_server_detach(server);
         return NULL;
 
@@ -992,10 +1014,11 @@ stream_event (EV_P_ ev_io *w, int revents)
   if (stream->sendfd < 0 && stream->recvfd < 0) {
     ev_timer_stop(EV_A_ &stream->timeout_watcher);
 
-    if (too_many_connections && stream->server) {
+    if (stream->server && (stream->server->flags & EVCOM_TOO_MANY_CONN)) {
 #if EV_MULTIPLICITY
       struct ev_loop *loop = stream->server->loop;
 #endif
+      stream->server->flags &= ~EVCOM_TOO_MANY_CONN;
       evcom_server_attach(EV_A_ stream->server);
     }
     too_many_connections = 0;
@@ -1049,19 +1072,24 @@ void
 evcom_stream_close (evcom_stream *stream)
 {
   stream->flags |= EVCOM_GOT_CLOSE;
-  if (WRITABLE(stream)) {
-    ev_io_start(D_LOOP_(stream) &stream->write_watcher);
+  if (ATTACHED(stream)) {
+    // start the watchers if attached.
+    evcom_stream_attach(D_LOOP_(stream) stream); 
   }
 }
 
 void evcom_stream_force_close (evcom_stream *stream)
 {
-  close(stream->recvfd);
-  /* XXX What to do on EINTR? */
-  stream__set_recv_closed(stream);
+  if (stream->recvfd >= 0) {
+    close(stream->recvfd);
+    /* XXX What to do on EINTR? */
+    stream__set_recv_closed(stream);
+  }
 
-  if (!DUPLEX(stream)) close(stream->sendfd);
-  stream__set_send_closed(stream);
+  if (!DUPLEX(stream) && stream->sendfd >= 0) {
+    close(stream->sendfd);
+    stream__set_send_closed(stream);
+  }
 
   evcom_stream_detach(stream);
 }

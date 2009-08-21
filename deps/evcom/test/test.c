@@ -218,9 +218,6 @@ pingpong (struct sockaddr *address)
   nconnections = 0;
   got_server_close = 0;
 
-  printf("sizeof(evcom_server): %d\n", (int)sizeof(evcom_server));
-  printf("sizeof(evcom_stream): %d\n", (int)sizeof(evcom_stream));
-
   evcom_server_init(&server);
   server.on_connection = pingpong_on_server_connection;
   server.on_close = common_on_server_close;
@@ -549,7 +546,7 @@ void b_read (evcom_stream *stream, const void *buf, size_t len)
 }
 
 int
-pair_pingpong ()
+pair_pingpong (int use_pipe)
 {
   a_got_close = 0;
   a_got_connect = 0;
@@ -573,8 +570,18 @@ pair_pingpong ()
   if (use_tls) anon_tls_server(&b);
 #endif
 
-  int r = evcom_stream_pair(&a, &b);
-  assert(r == 0);
+  if (use_pipe) {
+    int pipeA[2], pipeB[2];
+    assert(0 == pipe(pipeA));
+    assert(0 == pipe(pipeB));
+
+    evcom_stream_assign_fds(&a, pipeA[0], pipeB[1]);
+    evcom_stream_assign_fds(&b, pipeB[0], pipeA[1]);
+
+  } else {
+    int r = evcom_stream_pair(&a, &b);
+    assert(r == 0);
+  }
 
   evcom_stream_attach(EV_DEFAULT_ &a);
   evcom_stream_attach(EV_DEFAULT_ &b);
@@ -764,6 +771,11 @@ free_unix_address (struct sockaddr *address)
 int
 main (void)
 {
+  fprintf(stderr, "sizeof(evcom_server): %d\n", (int)sizeof(evcom_server));
+  fprintf(stderr, "sizeof(evcom_stream): %d\n", (int)sizeof(evcom_stream));
+  fprintf(stderr, "sizeof(evcom_reader): %d\n", (int)sizeof(evcom_reader));
+  fprintf(stderr, "sizeof(evcom_writer): %d\n", (int)sizeof(evcom_writer));
+
 #if EVCOM_HAVE_GNUTLS
   gnutls_global_init();
 
@@ -785,16 +797,20 @@ main (void)
 
   use_tls = 0;
 
+  fprintf(stderr, "pair_pingpong use_pipe=1: ");
+  assert(pair_pingpong(1) == 0);
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "pair_pingpong use_pipe=0: ");
+  assert(pair_pingpong(0) == 0);
+  fprintf(stderr, "\n");
+
   fprintf(stderr, "zero_stream tcp: ");
   assert(zero_stream((struct sockaddr*)&tcp_address, 5*1024*1024) == 0);
   fprintf(stderr, "\n");
 
   fprintf(stderr, "pipe_stream: ");
   assert(pipe_stream() == 0);
-  fprintf(stderr, "\n");
-
-  fprintf(stderr, "pair_pingpong: ");
-  assert(pair_pingpong() == 0);
   fprintf(stderr, "\n");
 
   fprintf(stderr, "pingpong tcp: ");
@@ -812,8 +828,12 @@ main (void)
   assert(zero_stream((struct sockaddr*)&tcp_address, 50*1024) == 0);
   fprintf(stderr, "\n");
 
-  fprintf(stderr, "pair_pingpong ssl: ");
-  assert(pair_pingpong() == 0);
+  fprintf(stderr, "pair_pingpong ssl use_pipe=1: ");
+  assert(pair_pingpong(1) == 0);
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "pair_pingpong ssl use_pipe=0: ");
+  assert(pair_pingpong(0) == 0);
   fprintf(stderr, "\n");
 
   fprintf(stderr, "pingpong ssl: ");
