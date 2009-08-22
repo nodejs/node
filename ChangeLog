@@ -1,3 +1,7 @@
+2009.08.21, Version 0.1.6
+
+  * Bugfix: Ignore SIGPIPE.
+
 2009.08.21, Version 0.1.5
 
   * Bugfix: Buggy connections could crash node.js. Now check connection
