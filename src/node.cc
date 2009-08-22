@@ -318,6 +318,7 @@ ParseArgs (int *argc, char **argv)
 int
 main (int argc, char *argv[]) 
 {
+  evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
 
   // start eio thread pool

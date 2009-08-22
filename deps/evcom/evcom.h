@@ -159,6 +159,9 @@ typedef struct evcom_server {
     (*on_connection)(struct evcom_server *, struct sockaddr *remote_addr);
 } evcom_server;
 
+/* Highly recommended to ignore SIGPIPE! */
+void evcom_ignore_sigpipe (void);
+
 void evcom_reader_init          (evcom_reader*);
 void evcom_reader_set           (evcom_reader*, int fd);
 void evcom_reader_attach        (EV_P_ evcom_reader*);

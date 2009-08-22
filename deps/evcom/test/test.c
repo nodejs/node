@@ -776,6 +776,8 @@ main (void)
   fprintf(stderr, "sizeof(evcom_reader): %d\n", (int)sizeof(evcom_reader));
   fprintf(stderr, "sizeof(evcom_writer): %d\n", (int)sizeof(evcom_writer));
 
+  evcom_ignore_sigpipe();
+
 #if EVCOM_HAVE_GNUTLS
   gnutls_global_init();
 

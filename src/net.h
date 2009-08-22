@@ -95,10 +95,6 @@ private:
 
     connection->OnClose();
 
-    if (s->errorno) {
-      printf("socket died: %s\n", strerror(s->errorno));
-    }
-
     assert(connection->attached_);
 
     connection->Detach();

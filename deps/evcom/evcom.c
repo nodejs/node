@@ -32,6 +32,8 @@
 #include <errno.h>
 #include <string.h> /* memset */
 
+#include <signal.h>
+
 #include <netinet/tcp.h> /* TCP_NODELAY */
 #include <sys/types.h>
 #include <sys/socket.h> /* shutdown */
@@ -133,6 +135,14 @@ evcom_buf_new (const char *base, size_t len)
   memcpy(buf->base, base, len);
 
   return buf;
+}
+
+void evcom_ignore_sigpipe (void)
+{
+  struct sigaction sa;
+  bzero(&sa, sizeof(sa));
+  sa.sa_handler = SIG_IGN;
+  sigaction(SIGPIPE, &sa, NULL);
 }
 
 static int
