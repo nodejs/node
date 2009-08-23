@@ -18,7 +18,7 @@ World" after waiting two seconds:
 ----------------------------------------
 node.http.createServer(function (request, response) {
   setTimeout(function () {
-    response.sendHeader(200, [["Content-Type", "text/plain"]]);
+    response.sendHeader(200, {"Content-Type": "text/plain"});
     response.sendBody("Hello World");
     response.finish();
   }, 2000);
@@ -575,15 +575,14 @@ In particular, large, possibly chunk-encoded, messages. The interface is
 careful to never buffer entire requests or responses--the
 user is able to stream data.
 
-HTTP message headers are represented by an array of 2-element
-arrays like this
+HTTP message headers are represented by an object like this
 
 ----------------------------------------
-  [ ["Content-Length", "123"]
-  , ["Content-Type", "text/plain"]
-  , ["Connection", "keep-alive"]
-  , ["Accept", "*/*"]
-  ]
+  { "Content-Length": "123"
+  , "Content-Type": "text/plain"
+  , "Connection": "keep-alive"
+  , "Accept": "*/*"
+  }
 ----------------------------------------
 
 In order to support the full spectrum of possible HTTP applications, Node's
@@ -693,7 +692,6 @@ in the actual HTTP Request.
 
 
 +request.headers+ ::
-The request headers expressed as an array of 2-element arrays.
 Read only.
 
 
@@ -727,17 +725,16 @@ passed as the second parameter to the +"request"+ event.
 +response.sendHeader(statusCode, headers)+ ::
 
 Sends a response header to the request. The status code is a 3-digit HTTP
-status code, like +404+. The second argument, +headers+, should be an array
-of 2-element arrays, representing the response headers. 
+status code, like +404+. The second argument, +headers+ are the response headers. 
 +
 Example:
 +
 ----------------------------------------
 var body = "hello world";
-response.sendHeader(200, [ 
-  ["Content-Length", body.length],
-  ["Content-Type", "text/plain"]
-]);
+response.sendHeader(200, {
+  "Content-Length": body.length,
+  "Content-Type": "text/plain"
+});
 ----------------------------------------
 +
 This method must only be called once on a message and it must
@@ -799,8 +796,7 @@ connection is not established until a request is issued.
 Issues a request; if necessary establishes connection. Returns a +node.http.ClientRequest+ instance.
 +
 +request_headers+ is optional.
-+request_headers+ should be an array of 2-element
-arrays. Additional request headers might be added internally
+Additional request headers might be added internally
 by Node. Returns a +ClientRequest+ object.
 +
 Do remember to include the +Content-Length+ header if you
@@ -894,7 +890,7 @@ After emitted no other events will be emitted on the response.
   +"1.1"+ or +"1.0"+.
 
 +response.headers+ :: 
-  The response headers. An Array of 2-element arrays.
+  The response headers.
 
 +response.setBodyEncoding(encoding)+ :: 
   Set the encoding for the response body. Either +"utf8"+ or +"raw"+.

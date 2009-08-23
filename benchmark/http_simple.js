@@ -40,9 +40,9 @@ node.http.createServer(function (req, res) {
   var content_length = body.length.toString();
 
   res.sendHeader( status 
-                , [ ["Content-Type", "text/plain"]
-                  , ["Content-Length", content_length]
-                  ]
+                , { "Content-Type": "text/plain"
+                  , "Content-Length": content_length
+                  }
                 );
   res.sendBody(body);
           

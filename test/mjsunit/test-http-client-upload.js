@@ -17,7 +17,7 @@ var server = node.http.createServer(function(req, res) {
   req.addListener("complete", function () {
     server_req_complete = true;
     puts("request complete from server");
-    res.sendHeader(200, [['Content-Type', 'text/plain']]);
+    res.sendHeader(200, {'Content-Type': 'text/plain'});
     res.sendBody('hello\n');
     res.finish();
   });

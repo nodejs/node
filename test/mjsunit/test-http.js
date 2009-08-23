@@ -11,6 +11,13 @@ function onLoad () {
     if (responses_sent == 0) {
       assertEquals("GET", req.method);
       assertEquals("/hello", req.uri.path);
+
+      p(req.headers);
+      assertTrue("Accept" in req.headers);
+      assertEquals("*/*", req.headers["Accept"]);
+
+      assertTrue("Foo" in req.headers);
+      assertEquals("bar", req.headers["Foo"]);
     }
 
     if (responses_sent == 1) {
@@ -20,7 +27,7 @@ function onLoad () {
     }
 
     req.addListener("complete", function () {
-      res.sendHeader(200, [["Content-Type", "text/plain"]]);
+      res.sendHeader(200, {"Content-Type": "text/plain"});
       res.sendBody("The path was " + req.uri.path);
       res.finish();
       responses_sent += 1;
@@ -30,7 +37,7 @@ function onLoad () {
   }).listen(PORT);
 
   var client = node.http.createClient(PORT);
-  var req = client.get("/hello");
+  var req = client.get("/hello", {"Accept": "*/*", "Foo": "bar"});
   req.finish(function (res) {
     assertEquals(200, res.statusCode);
     responses_recvd += 1;

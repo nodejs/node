@@ -5,7 +5,7 @@ var request_count = 1000;
 var response_body = '{"ok": true}';
 
 var server = node.http.createServer(function(req, res) {
- res.sendHeader(200, [['Content-Type', 'text/javascript']]);
+ res.sendHeader(200, {'Content-Type': 'text/javascript'});
  res.sendBody(response_body);
  res.finish();
 });

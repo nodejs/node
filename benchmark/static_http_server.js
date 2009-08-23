@@ -12,10 +12,10 @@ for (var i = 0; i < bytes; i++) {
 }
 
 var server = node.http.createServer(function (req, res) {
-  res.sendHeader(200, [
-    ["Content-Type", "text/plain"],
-    ["Content-Length", body.length]
-  ]);
+  res.sendHeader(200, {
+    "Content-Type": "text/plain",
+    "Content-Length": body.length
+  });
   res.sendBody(body);
   res.finish();
 })

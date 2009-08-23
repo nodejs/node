@@ -6,10 +6,9 @@ var body2_s = "22222";
 
 var server = node.http.createServer(function (req, res) {
   var body = req.uri.path === "/1" ? body1_s : body2_s;
-  res.sendHeader(200, [
-    ["Content-Type", "text/plain"],
-    ["Content-Length", body.length]
-  ]);
+  res.sendHeader(200, { "Content-Type": "text/plain"
+                      , "Content-Length": body.length
+                      });
   res.sendBody(body);
   res.finish();
 });

@@ -26,7 +26,7 @@ function onLoad() {
     }
 
     setTimeout(function () {
-      res.sendHeader(200, [["Content-Type", "text/plain"]]);
+      res.sendHeader(200, {"Content-Type": "text/plain"});
       res.sendBody(req.uri.path);
       res.finish();
     }, 1);

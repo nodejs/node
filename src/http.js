@@ -117,7 +117,7 @@ function IncomingMessage (connection) {
 
   this.connection = connection;
   this.httpVersion = null;
-  this.headers = [];
+  this.headers = {};
 
   // request (server) only 
   this.uri = "";
@@ -142,6 +142,15 @@ IncomingMessage.prototype.resume = function () {
   this.connection.readResume();
 };
 
+IncomingMessage.prototype._addHeaderLine = function (field, value) {
+  if (field in this.headers) {
+    // TODO Certain headers like 'Content-Type' should not be concatinated. 
+    // See https://www.google.com/reader/view/?tab=my#overview-page
+    this.headers[field] += ", " + value;
+  } else {
+    this.headers[field] = value;
+  }
+};
 
 function OutgoingMessage () {
   node.EventEmitter.call(this);
@@ -162,22 +171,26 @@ OutgoingMessage.prototype.send = function (data, encoding) {
   this.output.push(data);
 };
 
-OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) {
+OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
   var sent_connection_header = false;
   var sent_content_length_header = false;
   var sent_transfer_encoding_header = false;
 
-  header_lines = header_lines || [];
-
   // first_line in the case of request is: "GET /index.html HTTP/1.1\r\n"
   // in the case of response it is: "HTTP/1.1 200 OK\r\n"
-  var header = first_line;
+  var message_header = first_line;
+  var field, value;
+  for (var i in headers) {
+    if (headers instanceof Array) {
+      field = headers[i][0];
+      value = headers[i][1];
+    } else {
+      if (!headers.hasOwnProperty(i)) continue;
+      field = i;
+      value = headers[i];
+    }
 
-  for (var i = 0; i < header_lines.length; i++) {
-    var field = header_lines[i][0];
-    var value = header_lines[i][1];
-
-    header += field + ": " + value + CRLF;
+    message_header += field + ": " + value + CRLF;
     
     if (connection_expression.exec(field)) {
       sent_connection_header = true;
@@ -196,23 +209,23 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, header_lines) 
   // keep-alive logic 
   if (sent_connection_header == false) {
     if (this.should_keep_alive) {
-      header += "Connection: keep-alive\r\n";
+      message_header += "Connection: keep-alive\r\n";
     } else {
       this.closeOnFinish = true;
-      header += "Connection: close\r\n";
+      message_header += "Connection: close\r\n";
     }
   }
 
   if (sent_content_length_header == false && sent_transfer_encoding_header == false) {
     if (this.use_chunked_encoding_by_default) {
-      header += "Transfer-Encoding: chunked\r\n";
+      message_header += "Transfer-Encoding: chunked\r\n";
       this.chunked_encoding = true;
     }
   }
 
-  header += CRLF;
+  message_header += CRLF;
 
-  this.send(header);
+  this.send(message_header);
   // wait until the first body chunk, or finish(), is sent to flush.
 };
 
@@ -255,7 +268,7 @@ ServerResponse.prototype.sendHeader = function (statusCode, headers) {
 };
 
 
-function ClientRequest (method, uri, header_lines) {
+function ClientRequest (method, uri, headers) {
   OutgoingMessage.call(this);
 
   this.should_keep_alive = false;
@@ -266,7 +279,7 @@ function ClientRequest (method, uri, header_lines) {
   }
   this.closeOnFinish = true;
 
-  this.sendHeaderLines(method + " " + uri + " HTTP/1.1\r\n", header_lines);
+  this.sendHeaderLines(method + " " + uri + " HTTP/1.1\r\n", headers);
 }
 node.inherits(ClientRequest, OutgoingMessage);
 
@@ -282,7 +295,7 @@ function createIncomingMessageStream (connection, incoming_listener) {
   stream.addListener("incoming", incoming_listener);
 
   var incoming;
-  var last_header_was_a_value = false;
+  var field = null, value = null;
 
   connection.addListener("message_begin", function () {
     incoming = new IncomingMessage(connection);
@@ -294,25 +307,31 @@ function createIncomingMessageStream (connection, incoming_listener) {
   });
 
   connection.addListener("header_field", function (data) {
-    if (incoming.headers.length > 0 && last_header_was_a_value == false) {
-      incoming.headers[incoming.headers.length-1][0] += data; 
-    } else {
-      incoming.headers.push([data]);
+    if (value) {
+      incoming._addHeaderLine(field, value);
+      field = null;
+      value = null;
     }
-    last_header_was_a_value = false;
+    if (field) {
+      field += data;
+    } else {
+      field = data;
+    }
   });
 
   connection.addListener("header_value", function (data) {
-    var last_pair = incoming.headers[incoming.headers.length-1];
-    if (last_pair.length == 1) {
-      last_pair[1] = data;
-    } else  {
-      last_pair[1] += data;
-    } 
-    last_header_was_a_value = true;
+    if (value) {
+      value += data;
+    } else {
+      value = data;
+    }
   });
 
   connection.addListener("headers_complete", function (info) {
+    if (field && value) {
+      incoming._addHeaderLine(field, value);
+    }
+
     incoming.httpVersion = info.httpVersion;
 
     if (info.method) {
