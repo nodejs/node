@@ -189,6 +189,16 @@ def build(bld):
   if bld.env["USE_DEBUG"]:
     http_parser.clone("debug")
 
+  ### coupling
+  coupling = bld.new_task_gen("cc", "staticlib")
+  coupling.source = "deps/coupling/coupling.c"
+  coupling.includes = "deps/coupling/"
+  coupling.name = "coupling"
+  coupling.target = "coupling"
+  coupling.install_path = None
+  if bld.env["USE_DEBUG"]:
+    coupling.clone("debug")
+
   ### src/native.cc
   def javascript_in_c(task):
     env = task.env
@@ -220,6 +230,7 @@ def build(bld):
     src/events.cc
     src/http.cc
     src/net.cc
+    src/node_stdio.cc
     src/dns.cc
     src/file.cc
     src/timer.cc
@@ -234,8 +245,9 @@ def build(bld):
     deps/libeio
     deps/evcom 
     deps/http_parser
+    deps/coupling
   """
-  node.uselib_local = "evcom ev eio http_parser"
+  node.uselib_local = "evcom ev eio http_parser coupling"
   node.uselib = "UDNS V8 EXECINFO PROFILER EFENCE"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755

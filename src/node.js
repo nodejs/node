@@ -73,7 +73,7 @@ node.Module.prototype.load = function (callback) {
   var promise = node.cat(self.filename, "utf8");
   
   promise.addErrback(function () {
-    stderr.puts("Error reading " + self.filename);
+    node.stdio.writeError("Error reading " + self.filename + "\n");
     node.exit(1);
   });
 

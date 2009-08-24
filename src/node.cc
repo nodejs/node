@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "process.h"
 #include "constants.h"
+#include "node_stdio.h"
 
 #include "natives.h" 
 
@@ -140,17 +141,6 @@ compile (const v8::Arguments& args)
   return scope.Close(result);
 }
 
-v8::Handle<v8::Value>
-debug (const v8::Arguments& args)
-{
-  if (args.Length() < 1) 
-    return Undefined();
-  HandleScope scope;
-  String::Utf8Value msg(args[0]->ToString());
-  fprintf(stderr, "DEBUG: %s\n", *msg);
-  return Undefined();
-}
-
 static void
 OnFatalError (const char* location, const char* message)
 {
@@ -240,11 +230,12 @@ Load (int argc, char *argv[])
   global_obj->Set(String::NewSymbol("ARGV"), arguments);
 
   NODE_SET_METHOD(node_obj, "compile", compile);
-  NODE_SET_METHOD(node_obj, "debug", debug);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
 
   EventEmitter::Initialize(node_obj);
   Promise::Initialize(node_obj);
+
+  Stdio::Initialize(node_obj);
   Timer::Initialize(node_obj);
   Process::Initialize(node_obj);
 

@@ -203,14 +203,3 @@ node.fs.File = function (options) {
     return self.write(data + "\n", null);
   };
 };
-
-stdout = new node.fs.File({ fd: node.STDOUT_FILENO });
-stderr = new node.fs.File({ fd: node.STDERR_FILENO });
-stdin  = new node.fs.File({ fd: node.STDIN_FILENO  });
-
-puts  = stdout.puts;
-print = stdout.print;
-p = function (data) {
-  return puts(JSON.stringify(data));
-}
-

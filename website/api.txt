@@ -102,8 +102,7 @@ execution.
 === Helpers
 
 +puts(string)+::
-Alias for +stdout.puts()+. Outputs the +string+ and a trailing new-line to
-+stdout+.
+Outputs the +string+ and a trailing new-line to +stdout+.
 +
 Everything in node is asynchronous; +puts()+ is no exception. This might
 seem ridiculous but, if for example, one is piping +stdout+ into an NFS
@@ -137,9 +136,6 @@ Immediately ends the process with the specified code.
 +ARGV+ ::
 An array containing the command line arguments.
 
-
-+stdout+, +stderr+, and +stdin+ ::
-Objects of type +node.fs.File+. (See below.)
 
 +__filename+ ::
 The filename of the script being executed.
@@ -194,6 +190,37 @@ Adds a listener for the +"success"+ event. Returns the same promise object.
 Adds a listener for the +"error"+ event. Returns the same promise object.
 
 
+=== Standard I/O
+
+Standard I/O is handled through a special object +node.stdio+. stdout and
+stdin are fully non-blocking (even when piping to files). stderr is
+synchronous. 
+
+[cols="1,2,10",options="header"]
+|=========================================================
+| Event      | Parameters | Notes
+
+| +"data"+   | +data+     | Made when stdin has received a chunk of data.
+                            Depending on the encoding that stdin was opened 
+                            with, +data+ will be either an array of integers
+                            (raw encoding) or a string (ascii or utf8
+                            encoding). This event will only be emited after
+                            +node.stdio.open()+ has been called.
+| +"close"+  |            | Made when stdin has been closed.
+|=========================================================
+
++node.stdio.open(encoding="utf8")+::
+Open stdin. The program will not exit until +node.stdio.close()+ has been
+called or the +"close"+ event has been emitted. 
+
++node.stdio.write(data)+::
+Write data to stdout.
+
++node.stdio.writeError(data)+::
+Write data to stderr. Synchronous.
+
++node.stdio.close()+::
+Close stdin.
 
 
 === Modules

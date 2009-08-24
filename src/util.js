@@ -86,3 +86,19 @@ node.path = new function () {
     return parts[parts.length-1];
   };
 };
+
+print = function (x) {
+  return node.stdio.write(x);
+};
+
+puts = function (x) {
+  return print(x.toString() + "\n");
+};
+
+p = function (x) {
+  return puts(JSON.stringify(x));
+};
+
+node.debug = function (x) {
+  return node.stdio.writeError("DEBUG: " + x.toString() + "\n");
+};

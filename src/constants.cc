@@ -16,10 +16,6 @@ node::DefineConstants (Handle<Object> target)
   NODE_DEFINE_CONSTANT(target, UTF8);
   NODE_DEFINE_CONSTANT(target, ASCII);
 
-  NODE_DEFINE_CONSTANT(target, STDIN_FILENO);
-  NODE_DEFINE_CONSTANT(target, STDOUT_FILENO);
-  NODE_DEFINE_CONSTANT(target, STDERR_FILENO);
-
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
