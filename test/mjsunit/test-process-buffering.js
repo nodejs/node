@@ -6,9 +6,11 @@ function pwd (callback) {
   var output = "";
   var process = node.createProcess("pwd");
   process.addListener("output", function (s) {
+    puts("stdout: " + JSON.stringify(s));
     if (s) output += s;
   });
-  process.addListener("exit", function(c) {
+  process.addListener("exit", function (c) {
+    puts("exit: " + c);
     assertEquals(0, c);
     callback(output);
     pwd_called = true;
@@ -18,7 +20,7 @@ function pwd (callback) {
 
 function onLoad () {
   pwd(function (result) {
-    print(result);  
+    p(result);  
     assertTrue(result.length > 1);
     assertEquals("\n", result[result.length-1]);
   });

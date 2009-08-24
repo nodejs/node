@@ -32,7 +32,6 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, RAW};
 enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void FatalException (v8::TryCatch &try_catch); 
-evcom_buf * buf_new (size_t size);
 
 } // namespace node
 #endif // node_h

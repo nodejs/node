@@ -24,31 +24,6 @@
 using namespace v8;
 using namespace node;
 
-static void
-buf_free (evcom_buf *b)
-{
-  size_t total = sizeof(evcom_buf) + b->len;
-  V8::AdjustAmountOfExternalAllocatedMemory(-total);
-  free(b);
-}
-
-evcom_buf *
-node::buf_new (size_t size)
-{
-  size_t total = sizeof(evcom_buf) + size;
-  void *p = malloc(total);
-  if (p == NULL) return NULL;
-
-  evcom_buf *b = static_cast<evcom_buf*>(p);
-  b->base = static_cast<char*>(p) + sizeof(evcom_buf);
-
-  b->len = size;
-  b->release = buf_free;
-  V8::AdjustAmountOfExternalAllocatedMemory(total);
-
-  return b;
-}
-
 // Extracts a C string from a V8 Utf8Value.
 const char*
 ToCString(const v8::String::Utf8Value& value)

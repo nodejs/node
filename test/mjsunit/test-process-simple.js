@@ -6,15 +6,23 @@ var response = "";
 var exit_status = -1;
 
 cat.addListener("output", function (chunk) {
+  puts("stdout: " + JSON.stringify(chunk));
   if (chunk) {
     response += chunk;
-    if (response === "hello world") cat.close();
+    if (response === "hello world") {
+      puts("closing cat");
+      cat.close();
+    }
   }
 });
 cat.addListener("error", function (chunk) {
+  puts("stderr: " + JSON.stringify(chunk));
   assertEquals(null, chunk);
 });
-cat.addListener("exit", function (status) { exit_status = status; });
+cat.addListener("exit", function (status) {
+  puts("exit event");
+  exit_status = status;
+});
 
 function onLoad () {
   cat.write("hello");

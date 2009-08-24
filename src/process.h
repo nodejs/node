@@ -26,35 +26,36 @@ class Process : EventEmitter {
   ~Process();
 
   int Spawn (const char *command);
-  int Write (evcom_buf *buf);
+  int Write (const char *str, size_t len);
   int Close (void);
   int Kill (int sig);
 
  private:
-  static void OnOutput (EV_P_ ev_io *watcher, int revents);
-  static void OnError (EV_P_ ev_io *watcher, int revents);
-  static void OnWritable (EV_P_ ev_io *watcher, int revents);
+  static void on_read (evcom_reader *r, const void *buf, size_t len);
+  static void reader_closed (evcom_reader *r);
+  static void stdin_closed (evcom_writer *w);
   static void OnCHLD (EV_P_ ev_child *watcher, int revents);
 
   void MaybeShutdown (void);
   void Shutdown (void);
 
-  ev_io stdout_watcher_;
-  ev_io stderr_watcher_;
-  ev_io stdin_watcher_;
+  evcom_reader stdout_reader_;
+  evcom_reader stderr_reader_;
+  evcom_writer stdin_writer_;
+
   ev_child child_watcher_;
 
-  int stdout_pipe_[2];
-  int stderr_pipe_[2];
-  int stdin_pipe_[2];
+  int stdout_fd_;
+  int stderr_fd_;
+  int stdin_fd_;
+
+  enum encoding stdout_encoding_;
+  enum encoding stderr_encoding_;
 
   pid_t pid_;
 
-  bool got_close_;
   bool got_chld_;
   int exit_code_;
-
-  evcom_queue out_stream_;
 };
 
 } // namespace node 
