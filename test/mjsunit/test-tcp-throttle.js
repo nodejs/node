@@ -1,6 +1,6 @@
 include("mjsunit.js");
 PORT = 20443;
-N = 500;
+N = 200;
 
 server = node.tcp.createServer(function (connection) {
   function send (j) {
