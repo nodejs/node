@@ -5,3 +5,5 @@ tags
 Makefile
 *.pyc
 website/api.html
+node
+node_g
