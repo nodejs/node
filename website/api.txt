@@ -403,12 +403,7 @@ the +node+ namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
 
 === File I/O
 
-This part of the API is split into two parts: simple wrappers
-around standard POSIX file I/O functions and a user-friendly
-+File+ object.
-
-==== POSIX Wrappers
-
+File I/O is provided by simple wrappers around standard POSIX functions.
 All POSIX wrappers have a similar form. 
 They return a promise (+node.Promise+). Example:
 
@@ -521,77 +516,6 @@ node.fs.cat("/etc/passwd", "utf8").addCallback(function (content) {
 +
 - on success: returns +data+, what was read from the file.
 - on error: no parameters.
-
-
-==== +node.fs.File+
-
-A buffered file object.
-
-Internal request queues exist for each instance of +node.fs.File+ so that
-multiple commands can be issued at once. Thus the following is safe:
-
-----------------------------------------
-var file = new node.fs.File();
-file.open("/tmp/blah", "w+");
-file.write("hello");
-file.write("world");
-file.close();
-----------------------------------------
-
-Here is an example of reading the first 10 bytes from +/etc/passwd+ and
-outputting it to +stdout+.
-
-----------------------------------------
-var file = new node.fs.File({encoding: "utf8"});
-file.open("/etc/passwd", "r");
-file.read(10).addCallback(function (chunk) {
-  puts(chunk);
-});
-file.close();
-----------------------------------------
-
-[cols="1,2,10",options="header"]
-|=========================================================
-|Event      |Parameters | Notes
-|+"error"+  |           | Emitted if an error happens.
-|=========================================================
-
-+new node.fs.File(options={})+::
-Creates a new file object. 
-+
-The +options+ argument is optional. It can contain
-the following fields
-+
-- +fd+:  a file descriptor for the file.
-- +encoding+:  how +file.read()+ should return data. Either +"raw"+ or +"utf8"+.
-Defaults to +"raw"+.
-
-
-+file.open(path, mode)+::
-Opens the file at +path+. 
-+
-+mode+ is a string:
-+
-- "r", open for reading and writing.
-- "r+", open for only reading.
-- "w", create a new file for reading and writing; if it already exists truncate it. 
-- "w+", create a new file for writing only; if it already exists truncate it. 
-- "a", create a new file for writing and reading.  Writes append to the end of the file.
-- "a+"
-
-
-+file.read(length, position)+::
-Reads +length+ bytes from the file at +position+.  +position+ can be omitted
-to write at the current file position. 
-
-
-+file.write(data, position)+::
-Writes +data+ to the file. +position+ can be omitted to write at the current
-file position. 
-
-
-+file.close()+::
-Closes the file.
 
 
 === HTTP
