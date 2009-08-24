@@ -1,11 +1,11 @@
-2009.08.21, Version 0.1.6
+2009.08.21, Version 0.1.6, 9c97b1db3099d61cd292aa59ec2227a619f3a7ab
 
   * Bugfix: Ignore SIGPIPE.
 
-2009.08.21, Version 0.1.5
+2009.08.21, Version 0.1.5, b0fd3e281cb5f7cd8d3a26bd2b89e1b59998e5ed
 
-  * Bugfix: Buggy connections could crash node.js. Now check connection
-    before sending data every time (Kevin van Zonneveld)
+  * Bugfix: Buggy connections could crash node.js. Now check
+    connection before sending data every time (Kevin van Zonneveld)
 
   * Bugfix: stdin fd (0) being ignored by node.File. (Abe Fettig)
 
