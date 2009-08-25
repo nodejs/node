@@ -238,7 +238,7 @@ int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
         amount_of_external_allocated_memory_ -
         amount_of_external_allocated_memory_at_last_global_gc_;
     if (amount_since_last_global_gc > external_allocation_limit_) {
-      CollectAllGarbage();
+      CollectAllGarbage(false);
     }
   } else {
     // Avoid underflow.
@@ -285,7 +285,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllGarbage();                                            \
+    Heap::CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __object__ = FUNCTION_CALL;                                         \

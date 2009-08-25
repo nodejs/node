@@ -332,7 +332,7 @@ void Heap::CollectAllGarbageIfContextDisposed() {
   // informed decisions about when to force a collection.
   if (!FLAG_expose_gc && context_disposed_pending_) {
     HistogramTimerScope scope(&Counters::gc_context);
-    CollectAllGarbage();
+    CollectAllGarbage(false);
   }
   context_disposed_pending_ = false;
 }
@@ -465,8 +465,9 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
+  } else {
+    Scavenge();
   }
-  Scavenge();
   Counters::objs_since_last_young.Set(0);
 
   PostGarbageCollectionProcessing();
@@ -520,6 +521,12 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   Counters::objs_since_last_full.Set(0);
   context_disposed_pending_ = false;
+
+  Scavenge();
+
+  // Shrink new space as much as possible after compacting full
+  // garbage collections.
+  if (is_compacting) new_space_.Shrink();
 }
 
 
@@ -668,8 +675,6 @@ void Heap::Scavenge() {
       survived_since_last_expansion_ > new_space_.Capacity()) {
     // Grow the size of new space if there is room to grow and enough
     // data has survived scavenge since the last expansion.
-    // TODO(1240712): NewSpace::Grow has a return value which is
-    // ignored here.
     new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }

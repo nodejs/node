@@ -54,10 +54,6 @@
 #define _WIN32_WINNT 0x500
 #endif
 
-#ifdef  _WIN64
-#error Windows 64-bit blatforms not supported
-#endif
-
 #include <windows.h>
 
 #include <time.h>  // For LocalOffset() implementation.
@@ -1190,6 +1186,9 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   memset(&context, 0, sizeof(context));
   context.ContextFlags = CONTEXT_CONTROL;
   context.ContextFlags = CONTEXT_CONTROL;
+#ifdef  _WIN64
+  // TODO(X64): Implement context capture.
+#else
   __asm    call x
   __asm x: pop eax
   __asm    mov context.Eip, eax
@@ -1199,15 +1198,22 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // capture the context instead of inline assembler. However it is
   // only available on XP, Vista, Server 2003 and Server 2008 which
   // might not be sufficient.
+#endif
 
   // Initialize the stack walking
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
+#ifdef  _WIN64
+  stack_frame.AddrPC.Offset = context.Rip;
+  stack_frame.AddrFrame.Offset = context.Rbp;
+  stack_frame.AddrStack.Offset = context.Rsp;
+#else
   stack_frame.AddrPC.Offset = context.Eip;
-  stack_frame.AddrPC.Mode = AddrModeFlat;
   stack_frame.AddrFrame.Offset = context.Ebp;
-  stack_frame.AddrFrame.Mode = AddrModeFlat;
   stack_frame.AddrStack.Offset = context.Esp;
+#endif
+  stack_frame.AddrPC.Mode = AddrModeFlat;
+  stack_frame.AddrFrame.Mode = AddrModeFlat;
   stack_frame.AddrStack.Mode = AddrModeFlat;
   int frames_count = 0;
 

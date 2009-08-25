@@ -414,8 +414,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK_EQ(NULL, Debug::debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  Heap::CollectAllGarbage();
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(false);
 
   // Iterate the head and check that there are no debugger related objects left.
   HeapIterator iterator;
@@ -843,7 +843,7 @@ static void DebugEventBreakPointCollectGarbage(
       Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
       // Mark sweep (and perhaps compact).
-      Heap::CollectAllGarbage();
+      Heap::CollectAllGarbage(false);
     }
   }
 }
@@ -1206,7 +1206,7 @@ static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectAllGarbage();
+    Heap::CollectAllGarbage(false);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -5094,7 +5094,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   script_collected_count = 0;
   v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
@@ -5106,7 +5106,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   CHECK_EQ(2, script_collected_count);
 
@@ -5141,7 +5141,7 @@ TEST(ScriptCollectedEventContext) {
 
     // Do garbage collection to ensure that only the script in this test will be
     // collected afterwards.
-    Heap::CollectAllGarbage();
+    Heap::CollectAllGarbage(false);
 
     v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
     {
@@ -5152,7 +5152,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   CHECK_EQ(2, script_collected_message_count);
 

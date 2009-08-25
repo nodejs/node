@@ -305,7 +305,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // sp: stack pointer
     // fp: frame pointer
     // cp: callee's context
-    __ mov(r0, Operand(Factory::undefined_value()));
+    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
 
     function_return_.Bind();
     if (FLAG_trace) {
@@ -478,11 +478,11 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     JumpTarget loaded;
     JumpTarget materialize_true;
     materialize_true.Branch(cc_reg_);
-    __ mov(r0, Operand(Factory::false_value()));
+    __ LoadRoot(r0, Heap::kFalseValueRootIndex);
     frame_->EmitPush(r0);
     loaded.Jump();
     materialize_true.Bind();
-    __ mov(r0, Operand(Factory::true_value()));
+    __ LoadRoot(r0, Heap::kTrueValueRootIndex);
     frame_->EmitPush(r0);
     loaded.Bind();
     cc_reg_ = al;
@@ -499,7 +499,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "true" if necessary.
     if (true_target.is_linked()) {
       true_target.Bind();
-      __ mov(r0, Operand(Factory::true_value()));
+      __ LoadRoot(r0, Heap::kTrueValueRootIndex);
       frame_->EmitPush(r0);
     }
     // If both "true" and "false" need to be loaded jump across the code for
@@ -510,7 +510,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "false" if necessary.
     if (false_target.is_linked()) {
       false_target.Bind();
-      __ mov(r0, Operand(Factory::false_value()));
+      __ LoadRoot(r0, Heap::kFalseValueRootIndex);
       frame_->EmitPush(r0);
     }
     // A value is loaded on all paths reaching this point.
@@ -640,15 +640,18 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
   // Fast case checks
 
   // Check if the value is 'false'.
-  __ cmp(r0, Operand(Factory::false_value()));
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ cmp(r0, ip);
   false_target->Branch(eq);
 
   // Check if the value is 'true'.
-  __ cmp(r0, Operand(Factory::true_value()));
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmp(r0, ip);
   true_target->Branch(eq);
 
   // Check if the value is 'undefined'.
-  __ cmp(r0, Operand(Factory::undefined_value()));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
   false_target->Branch(eq);
 
   // Check if the value is a smi.
@@ -661,7 +664,8 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kToBool, 1);
   // Convert the result (r0) to a condition code.
-  __ cmp(r0, Operand(Factory::false_value()));
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ cmp(r0, ip);
 
   cc_reg_ = ne;
 }
@@ -1185,7 +1189,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      __ mov(r0, Operand(Factory::the_hole_value()));
+      __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
       frame_->EmitPush(r0);
     } else if (node->fun() != NULL) {
       LoadAndSpill(node->fun());
@@ -1725,9 +1729,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
   frame_->EmitPop(r0);
-  __ cmp(r0, Operand(Factory::undefined_value()));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
   exit.Branch(eq);
-  __ cmp(r0, Operand(Factory::null_value()));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r0, ip);
   exit.Branch(eq);
 
   // Stack layout in body:
@@ -1759,7 +1765,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Otherwise, we got a FixedArray, and we have to do a slow check.
   __ mov(r2, Operand(r0));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Factory::meta_map()));
+  __ LoadRoot(ip, Heap::kMetaMapRootIndex);
+  __ cmp(r1, ip);
   fixed_array.Branch(ne);
 
   // Get enum cache
@@ -1833,7 +1840,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ mov(r3, Operand(r0));
 
   // If the property has been removed while iterating, we just skip it.
-  __ cmp(r3, Operand(Factory::null_value()));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r3, ip);
   node->continue_target()->Branch(eq);
 
   end_del_check.Bind();
@@ -2093,7 +2101,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
     // Fake a top of stack value (unneeded when FALLING) and set the
     // state in r2, then jump around the unlink blocks if any.
-    __ mov(r0, Operand(Factory::undefined_value()));
+    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
     frame_->EmitPush(r0);
     __ mov(r2, Operand(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
@@ -2135,7 +2143,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         frame_->EmitPush(r0);
       } else {
         // Fake TOS for targets that shadowed breaks and continues.
-        __ mov(r0, Operand(Factory::undefined_value()));
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
         frame_->EmitPush(r0);
       }
       __ mov(r2, Operand(Smi::FromInt(JUMPING + i)));
@@ -2322,8 +2330,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                                                  r2,
                                                  &slow));
         if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(r0, Operand(Factory::the_hole_value()));
-          __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r0, ip);
+          __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
         }
         // There is always control flow to slow from
         // ContextSlotOperandCheckExtensions so we have to jump around
@@ -2360,8 +2369,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       // value.
       Comment cmnt(masm_, "[ Unhole const");
       frame_->EmitPop(r0);
-      __ cmp(r0, Operand(Factory::the_hole_value()));
-      __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
+      __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+      __ cmp(r0, ip);
+      __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
       frame_->EmitPush(r0);
     }
   }
@@ -2404,7 +2414,8 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
     __ bind(&next);
     // Terminate at global context.
     __ ldr(tmp2, FieldMemOperand(tmp, HeapObject::kMapOffset));
-    __ cmp(tmp2, Operand(Factory::global_context_map()));
+    __ LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    __ cmp(tmp2, ip);
     __ b(eq, &fast);
     // Check that extension is NULL.
     __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
@@ -2501,7 +2512,8 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   __ ldr(r2, FieldMemOperand(r1, literal_offset));
 
   JumpTarget done;
-  __ cmp(r2, Operand(Factory::undefined_value()));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r2, ip);
   done.Branch(ne);
 
   // If the entry is undefined we call the runtime system to computed
@@ -2583,7 +2595,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
-  __ cmp(r2, Operand(Factory::undefined_value()));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r2, Operand(ip));
   deferred->Branch(eq);
   deferred->BindExit();
 
@@ -2705,7 +2718,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
-  __ cmp(r2, Operand(Factory::undefined_value()));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r2, Operand(ip));
   deferred->Branch(eq);
   deferred->BindExit();
 
@@ -3036,7 +3050,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   // Prepare stack for call to resolved function.
   LoadAndSpill(function);
-  __ mov(r2, Operand(Factory::undefined_value()));
+  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
   frame_->EmitPush(r2);  // Slot for receiver
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
@@ -3180,7 +3194,7 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Non-JS objects have class null.
   null.Bind();
-  __ mov(r0, Operand(Factory::null_value()));
+  __ LoadRoot(r0, Heap::kNullValueRootIndex);
   frame_->EmitPush(r0);
 
   // All done.
@@ -3253,7 +3267,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
     __ CallRuntime(Runtime::kLog, 2);
   }
 #endif
-  __ mov(r0, Operand(Factory::undefined_value()));
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   frame_->EmitPush(r0);
 }
 
@@ -3274,7 +3288,7 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
-  __ mov(r0, Operand(Factory::undefined_value()));
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   frame_->EmitPush(r0);
 }
 
@@ -3494,14 +3508,14 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       } else {
         // Default: Result of deleting non-global, not dynamically
         // introduced variables is false.
-        __ mov(r0, Operand(Factory::false_value()));
+        __ LoadRoot(r0, Heap::kFalseValueRootIndex);
       }
 
     } else {
       // Default: Result of deleting expressions is true.
       LoadAndSpill(node->expression());  // may have side-effects
       frame_->Drop();
-      __ mov(r0, Operand(Factory::true_value()));
+      __ LoadRoot(r0, Heap::kTrueValueRootIndex);
     }
     frame_->EmitPush(r0);
 
@@ -3554,7 +3568,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       case Token::VOID:
         // since the stack top is cached in r0, popping and then
         // pushing a value can be done by just writing to r0.
-        __ mov(r0, Operand(Factory::undefined_value()));
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
         break;
 
       case Token::ADD: {
@@ -3880,14 +3894,16 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     if (left_is_null || right_is_null) {
       LoadAndSpill(left_is_null ? right : left);
       frame_->EmitPop(r0);
-      __ cmp(r0, Operand(Factory::null_value()));
+      __ LoadRoot(ip, Heap::kNullValueRootIndex);
+      __ cmp(r0, ip);
 
       // The 'null' value is only equal to 'undefined' if using non-strict
       // comparisons.
       if (op != Token::EQ_STRICT) {
         true_target()->Branch(eq);
 
-        __ cmp(r0, Operand(Factory::undefined_value()));
+        __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+        __ cmp(r0, Operand(ip));
         true_target()->Branch(eq);
 
         __ tst(r0, Operand(kSmiTagMask));
@@ -3924,7 +3940,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ tst(r1, Operand(kSmiTagMask));
       true_target()->Branch(eq);
       __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ cmp(r1, Operand(Factory::heap_number_map()));
+      __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+      __ cmp(r1, ip);
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::string_symbol())) {
@@ -3944,13 +3961,16 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       cc_reg_ = lt;
 
     } else if (check->Equals(Heap::boolean_symbol())) {
-      __ cmp(r1, Operand(Factory::true_value()));
+      __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+      __ cmp(r1, ip);
       true_target()->Branch(eq);
-      __ cmp(r1, Operand(Factory::false_value()));
+      __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+      __ cmp(r1, ip);
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::undefined_symbol())) {
-      __ cmp(r1, Operand(Factory::undefined_value()));
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ cmp(r1, ip);
       true_target()->Branch(eq);
 
       __ tst(r1, Operand(kSmiTagMask));
@@ -3975,7 +3995,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       false_target()->Branch(eq);
 
       __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ cmp(r1, Operand(Factory::null_value()));
+      __ LoadRoot(ip, Heap::kNullValueRootIndex);
+      __ cmp(r1, ip);
       true_target()->Branch(eq);
 
       // It can be an undetectable object.
@@ -4206,7 +4227,8 @@ void Reference::SetValue(InitState init_state) {
           // executed, the code is identical to a normal store (see below).
           Comment cmnt(masm, "[ Init const");
           __ ldr(r2, cgen_->SlotOperand(slot, r2));
-          __ cmp(r2, Operand(Factory::the_hole_value()));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r2, ip);
           exit.Branch(ne);
         }
 
@@ -4939,7 +4961,7 @@ static void AllocateHeapNumber(
   // Tag and adjust back to start of new object.
   __ sub(result_reg, result_reg, Operand(HeapNumber::kSize - kHeapObjectTag));
   // Get heap number map into scratch2.
-  __ mov(scratch2, Operand(Factory::heap_number_map()));
+  __ LoadRoot(scratch2, Heap::kHeapNumberMapRootIndex);
   // Store heap number map in new object.
   __ str(scratch2, FieldMemOperand(result_reg, HeapObject::kMapOffset));
 }
@@ -6090,7 +6112,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&loop);
   __ cmp(r2, Operand(r4));
   __ b(eq, &is_instance);
-  __ cmp(r2, Operand(Factory::null_value()));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r2, ip);
   __ b(eq, &is_not_instance);
   __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ ldr(r2, FieldMemOperand(r2, Map::kPrototypeOffset));

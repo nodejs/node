@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
     }
   }
   // Get rid of unreferenced scripts with a global GC.
-  i::Heap::CollectAllGarbage();
+  i::Heap::CollectAllGarbage(false);
   i::Serializer ser;
   ser.Serialize();
   v8::internal::byte* bytes;

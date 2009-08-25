@@ -2604,8 +2604,8 @@ bool v8::V8::Dispose() {
 }
 
 
-void v8::V8::IdleNotification(bool is_high_priority) {
-  i::V8::IdleNotification(is_high_priority);
+bool v8::V8::IdleNotification(bool is_high_priority) {
+  return i::V8::IdleNotification(is_high_priority);
 }
 
 
@@ -3335,7 +3335,7 @@ void V8::ResumeProfilerEx(int flags) {
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
     i::Logger::ResumeProfiler(flags);
-    i::Heap::CollectAllGarbage();
+    i::Heap::CollectAllGarbage(false);
     i::Logger::PauseProfiler(~current_flags & flags);
   } else {
     i::Logger::ResumeProfiler(flags);

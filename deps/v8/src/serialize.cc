@@ -672,13 +672,17 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       2,
       "Factory::the_hole_value().location()");
-  Add(ExternalReference::address_of_stack_guard_limit().address(),
+  Add(ExternalReference::roots_address().address(),
       UNCLASSIFIED,
       3,
+      "Heap::roots_address()");
+  Add(ExternalReference::address_of_stack_guard_limit().address(),
+      UNCLASSIFIED,
+      4,
       "StackGuard::address_of_jslimit()");
   Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
-      4,
+      5,
       "RegExpStack::limit_address()");
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
@@ -699,36 +703,36 @@ void ExternalReferenceTable::PopulateTable() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break().address(),
       UNCLASSIFIED,
-      5,
+      10,
       "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      10,
+      11,
       "Debug::step_in_fp_addr()");
 #endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
-      11,
+      12,
       "add_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::SUB).address(),
       UNCLASSIFIED,
-      12,
+      13,
       "sub_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MUL).address(),
       UNCLASSIFIED,
-      13,
+      14,
       "mul_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::DIV).address(),
       UNCLASSIFIED,
-      14,
+      15,
       "div_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MOD).address(),
       UNCLASSIFIED,
-      15,
+      16,
       "mod_two_doubles");
   Add(ExternalReference::compare_doubles().address(),
       UNCLASSIFIED,
-      16,
+      17,
       "compare_doubles");
 }
 

@@ -789,12 +789,20 @@ def BuildSpecific(env, mode, env_overrides):
 
   context = BuildContext(options, env_overrides, samples=SplitList(env['sample']))
 
-  library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
+  # Remove variables which can't be imported from the user's external
+  # environment into a construction environment.
+  user_environ = os.environ.copy()
+  try:
+    del user_environ['ENV']
+  except KeyError:
+    pass
+
+  library_flags = context.AddRelevantFlags(user_environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
   mksnapshot_flags = context.AddRelevantFlags(library_flags, MKSNAPSHOT_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
-  sample_flags = context.AddRelevantFlags(os.environ, SAMPLE_FLAGS)
+  sample_flags = context.AddRelevantFlags(user_environ, SAMPLE_FLAGS)
   d8_flags = context.AddRelevantFlags(library_flags, D8_FLAGS)
 
   context.flags = {

@@ -563,6 +563,11 @@ ExternalReference ExternalReference::the_hole_value_location() {
 }
 
 
+ExternalReference ExternalReference::roots_address() {
+  return ExternalReference(Heap::roots_address());
+}
+
+
 ExternalReference ExternalReference::address_of_stack_guard_limit() {
   return ExternalReference(StackGuard::address_of_jslimit());
 }

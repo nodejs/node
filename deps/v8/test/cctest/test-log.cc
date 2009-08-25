@@ -685,7 +685,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       "  obj.test =\n"
       "    (function a(j) { return function b() { return j; } })(100);\n"
       "})(this);");
-  i::Heap::CollectAllGarbage();
+  i::Heap::CollectAllGarbage(false);
 
   EmbeddedVector<char, 204800> buffer;
   int log_size;

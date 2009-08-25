@@ -629,7 +629,7 @@ class Heap : public AllStatic {
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  static void CollectAllGarbage(bool force_compaction = false);
+  static void CollectAllGarbage(bool force_compaction);
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
@@ -732,6 +732,9 @@ class Heap : public AllStatic {
 
   // Update the next script id.
   static inline void SetLastScriptId(Object* last_script_id);
+
+  // Generated code can embed this address to get access to the roots.
+  static Object** roots_address() { return roots_; }
 
 #ifdef DEBUG
   static void Print();
@@ -839,6 +842,59 @@ class Heap : public AllStatic {
            > old_gen_allocation_limit_;
   }
 
+  // Can be called when the embedding application is idle.
+  static bool IdleNotification() {
+    static const int kIdlesBeforeCollection = 7;
+    static int number_idle_notifications = 0;
+    static int last_gc_count = gc_count_;
+
+    bool finished = false;
+
+    if (last_gc_count == gc_count_) {
+      number_idle_notifications++;
+    } else {
+      number_idle_notifications = 0;
+      last_gc_count = gc_count_;
+    }
+
+    if (number_idle_notifications >= kIdlesBeforeCollection) {
+      // The first time through we collect without forcing compaction.
+      // The second time through we force compaction and quit.
+      bool force_compaction =
+          number_idle_notifications > kIdlesBeforeCollection;
+      CollectAllGarbage(force_compaction);
+      last_gc_count = gc_count_;
+      if (force_compaction) {
+        number_idle_notifications = 0;
+        finished = true;
+      }
+    }
+
+    // Uncommit unused memory in new space.
+    Heap::UncommitFromSpace();
+    return finished;
+  }
+
+  // Declare all the root indices.
+  enum RootListIndex {
+#define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
+    STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
+#undef ROOT_INDEX_DECLARATION
+
+// Utility type maps
+#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
+  STRUCT_LIST(DECLARE_STRUCT_MAP)
+#undef DECLARE_STRUCT_MAP
+
+#define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
+    SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
+#undef SYMBOL_DECLARATION
+
+    kSymbolTableRootIndex,
+    kStrongRootListLength = kSymbolTableRootIndex,
+    kRootListLength
+  };
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -922,26 +978,6 @@ class Heap : public AllStatic {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   static int old_gen_exhausted_;
-
-  // Declare all the root indices.
-  enum RootListIndex {
-#define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
-    STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
-#undef ROOT_INDEX_DECLARATION
-
-// Utility type maps
-#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
-  STRUCT_LIST(DECLARE_STRUCT_MAP)
-#undef DECLARE_STRUCT_MAP
-
-#define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
-    SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
-#undef SYMBOL_DECLARATION
-
-    kSymbolTableRootIndex,
-    kStrongRootListLength = kSymbolTableRootIndex,
-    kRootListLength
-  };
 
   static Object* roots_[kRootListLength];
 

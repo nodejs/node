@@ -50,6 +50,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="winmm.lib Ws2_32.lib"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -111,6 +112,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="winmm.lib Ws2_32.lib"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"

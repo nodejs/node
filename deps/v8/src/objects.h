@@ -905,7 +905,7 @@ class Smi: public Object {
   static inline Smi* FromIntptr(intptr_t value);
 
   // Returns whether value can be represented in a Smi.
-  static inline bool IsValid(int value);
+  static inline bool IsValid(intptr_t value);
 
   static inline bool IsIntptrValid(intptr_t);
 

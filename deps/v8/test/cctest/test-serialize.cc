@@ -125,12 +125,14 @@ TEST(ExternalReferenceEncoder) {
            encoder.Encode(the_hole_value_location.address()));
   ExternalReference stack_guard_limit_address =
       ExternalReference::address_of_stack_guard_limit();
-  CHECK_EQ(make_code(UNCLASSIFIED, 3),
+  CHECK_EQ(make_code(UNCLASSIFIED, 4),
            encoder.Encode(stack_guard_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 5),
+  CHECK_EQ(make_code(UNCLASSIFIED, 10),
            encoder.Encode(ExternalReference::debug_break().address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 6),
            encoder.Encode(ExternalReference::new_space_start().address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 3),
+           encoder.Encode(ExternalReference::roots_address().address()));
 }
 
 
@@ -157,9 +159,9 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(ExternalReference::the_hole_value_location().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 2)));
   CHECK_EQ(ExternalReference::address_of_stack_guard_limit().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 3)));
+           decoder.Decode(make_code(UNCLASSIFIED, 4)));
   CHECK_EQ(ExternalReference::debug_break().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 5)));
+           decoder.Decode(make_code(UNCLASSIFIED, 10)));
   CHECK_EQ(ExternalReference::new_space_start().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 6)));
 }

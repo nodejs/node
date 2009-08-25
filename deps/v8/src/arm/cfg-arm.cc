@@ -67,7 +67,7 @@ void EntryNode::Compile(MacroAssembler* masm) {
     __ add(fp, sp, Operand(2 * kPointerSize));
     int count = CfgGlobals::current()->fun()->scope()->num_stack_slots();
     if (count > 0) {
-      __ mov(ip, Operand(Factory::undefined_value()));
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
       for (int i = 0; i < count; i++) {
         __ push(ip);
       }

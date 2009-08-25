@@ -480,7 +480,7 @@ TEST(Regress9746) {
   // symbol entry in the symbol table because it is used by the script
   // kept alive by the weak wrapper. Make sure we don't destruct the
   // external string.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
   CHECK(!resource_destructed);
 
   {
@@ -499,7 +499,7 @@ TEST(Regress9746) {
   // Forcing another garbage collection should let us get rid of the
   // slice from the symbol table. The external string remains in the
   // heap until the next GC.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
   CHECK(!resource_destructed);
   v8::HandleScope scope;
   Handle<String> key_string = Factory::NewStringFromAscii(key_vector);
@@ -508,7 +508,7 @@ TEST(Regress9746) {
 
   // Forcing yet another garbage collection must allow us to finally
   // get rid of the external string.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
   CHECK(resource_destructed);
 
   delete[] source;

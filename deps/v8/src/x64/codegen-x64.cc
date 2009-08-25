@@ -4586,7 +4586,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
                          : RelocInfo::CODE_TARGET_CONTEXT;
   Result answer = frame_->CallLoadIC(mode);
   // A test rax instruction following the call signals that the inobject
-  // property case was inlined.  Ensure that there is not a test eax
+  // property case was inlined.  Ensure that there is not a test rax
   // instruction here.
   masm_->nop();
   // Discard the global object. The result is in answer.
@@ -6264,8 +6264,8 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
         } else {
           unsigned_left >>= shift_amount;
         }
-        ASSERT(Smi::IsValid(unsigned_left));  // Converted to signed.
-        answer_object = Smi::FromInt(unsigned_left);  // Converted to signed.
+        ASSERT(Smi::IsValid(static_cast<int32_t>(unsigned_left)));
+        answer_object = Smi::FromInt(static_cast<int32_t>(unsigned_left));
         break;
       }
     default:

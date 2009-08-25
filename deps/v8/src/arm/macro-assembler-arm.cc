@@ -174,6 +174,13 @@ void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
 }
 
 
+void MacroAssembler::LoadRoot(Register destination,
+                              Heap::RootListIndex index,
+                              Condition cond) {
+  ldr(destination, MemOperand(r10, index << kPointerSizeLog2), cond);
+}
+
+
 // Will clobber 4 registers: object, offset, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -714,7 +721,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     push(holder_reg);  // Temporarily save holder on the stack.
     // Read the first word and compare to the global_context_map.
     ldr(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
-    cmp(holder_reg, Operand(Factory::global_context_map()));
+    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    cmp(holder_reg, ip);
     Check(eq, "JSGlobalObject::global_context should be a global context.");
     pop(holder_reg);  // Restore holder.
   }
@@ -731,11 +739,13 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     // that ip is clobbered as part of cmp with an object Operand.
     push(holder_reg);  // Temporarily save holder on the stack.
     mov(holder_reg, ip);  // Move ip to its holding place.
-    cmp(holder_reg, Operand(Factory::null_value()));
+    LoadRoot(ip, Heap::kNullValueRootIndex);
+    cmp(holder_reg, ip);
     Check(ne, "JSGlobalProxy::context() should not be null.");
 
     ldr(holder_reg, FieldMemOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, Operand(Factory::global_context_map()));
+    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    cmp(holder_reg, ip);
     Check(eq, "JSGlobalObject::global_context should be a global context.");
     // Restore ip is not needed. ip is reloaded below.
     pop(holder_reg);  // Restore holder.
@@ -792,7 +802,8 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the prototype or initial map is the hole, don't return it and
   // simply miss the cache instead. This will allow us to allocate a
   // prototype object on-demand in the runtime system.
-  cmp(result, Operand(Factory::the_hole_value()));
+  LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  cmp(result, ip);
   b(eq, miss);
 
   // If the function does not have an initial map, we're done.
@@ -832,7 +843,7 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     add(sp, sp, Operand(num_arguments * kPointerSize));
   }
-  mov(r0, Operand(Factory::undefined_value()));
+  LoadRoot(r0, Heap::kUndefinedValueRootIndex);
 }
 
 

@@ -7263,7 +7263,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -7339,7 +7339,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
@@ -7633,7 +7633,7 @@ void Runtime::PerformGC(Object* result) {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
     Counters::gc_last_resort_from_js.Increment();
-    Heap::CollectAllGarbage();
+    Heap::CollectAllGarbage(false);
   }
 }
 

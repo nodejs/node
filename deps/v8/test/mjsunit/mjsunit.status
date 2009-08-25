@@ -52,7 +52,7 @@ debug-evaluate-recursive: CRASH || FAIL
 debug-changebreakpoint: CRASH || FAIL
 debug-clearbreakpoint: CRASH || FAIL
 debug-clearbreakpointgroup: PASS, FAIL if $mode == debug
-debug-conditional-breakpoints: FAIL
+debug-conditional-breakpoints: CRASH || FAIL
 debug-evaluate: CRASH || FAIL
 debug-ignore-breakpoints: CRASH || FAIL
 debug-multiple-breakpoints: CRASH || FAIL

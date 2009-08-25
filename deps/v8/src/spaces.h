@@ -1010,6 +1010,15 @@ class SemiSpace : public Space {
   // address range to grow).
   bool Grow();
 
+  // Grow the semispace to the new capacity.  The new capacity
+  // requested must be larger than the current capacity.
+  bool GrowTo(int new_capacity);
+
+  // Shrinks the semispace to the new capacity.  The new capacity
+  // requested must be more than the amount of used memory in the
+  // semispace and less than the current capacity.
+  bool ShrinkTo(int new_capacity);
+
   // Returns the start address of the space.
   Address low() { return start_; }
   // Returns one past the end address of the space.
@@ -1057,11 +1066,14 @@ class SemiSpace : public Space {
   // Returns the maximum capacity of the semi space.
   int MaximumCapacity() { return maximum_capacity_; }
 
+  // Returns the initial capacity of the semi space.
+  int InitialCapacity() { return initial_capacity_; }
 
  private:
   // The current and maximum capacity of the space.
   int capacity_;
   int maximum_capacity_;
+  int initial_capacity_;
 
   // The start address of the space.
   Address start_;
@@ -1152,8 +1164,11 @@ class NewSpace : public Space {
   void Flip();
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
-  // their maximum capacity.  Returns a flag indicating success or failure.
-  bool Grow();
+  // their maximum capacity.
+  void Grow();
+
+  // Shrink the capacity of the semispaces.
+  void Shrink();
 
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
@@ -1179,6 +1194,12 @@ class NewSpace : public Space {
   int MaximumCapacity() {
     ASSERT(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
     return to_space_.MaximumCapacity();
+  }
+
+  // Returns the initial capacity of a semispace.
+  int InitialCapacity() {
+    ASSERT(to_space_.InitialCapacity() == from_space_.InitialCapacity());
+    return to_space_.InitialCapacity();
   }
 
   // Return the address of the allocation pointer in the active semispace.

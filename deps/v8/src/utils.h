@@ -114,8 +114,10 @@ static inline bool IsAligned(T value, T alignment) {
 
 
 // Returns true if (addr + offset) is aligned.
-static inline bool IsAddressAligned(Address addr, int alignment, int offset) {
-  int offs = OffsetFrom(addr + offset);
+static inline bool IsAddressAligned(Address addr,
+                                    intptr_t alignment,
+                                    int offset) {
+  intptr_t offs = OffsetFrom(addr + offset);
   return IsAligned(offs, alignment);
 }
 
@@ -446,15 +448,15 @@ class ScopedVector : public Vector<T> {
 
 
 inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, strlen(data));
+  return Vector<const char>(data, static_cast<int>(strlen(data)));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, strlen(data));
+  return Vector<char>(data, static_cast<int>(strlen(data)));
 }
 
 inline Vector<char> MutableCStrVector(char* data, int max) {
-  int length = strlen(data);
+  int length = static_cast<int>(strlen(data));
   return Vector<char>(data, (length < max) ? length : max);
 }
 

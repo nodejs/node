@@ -250,8 +250,8 @@ testCasesMisc.forEach(testDateParseMisc);
 
 
 // Test that we can parse our own date format.
-// (Dates from 1970 to ~2070 with 95h steps.)
-for (var i = 0; i < 24 * 365 * 100; i += 95) {
+// (Dates from 1970 to ~2070 with 150h steps.)
+for (var i = 0; i < 24 * 365 * 100; i += 150) {
   var ms = i * (3600 * 1000);
   var s = (new Date(ms)).toString();
   assertEquals(ms, Date.parse(s), "parse own: " + s);

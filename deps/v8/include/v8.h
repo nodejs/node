@@ -2280,9 +2280,13 @@ class V8EXPORT V8 {
   /**
    * Optional notification that the embedder is idle.
    * V8 uses the notification to reduce memory footprint.
+   * This call can be used repeatedly if the embedder remains idle.
    * \param is_high_priority tells whether the embedder is high priority.
+   * Returns true if the embedder should stop calling IdleNotification
+   * until real work has been done.  This indicates that V8 has done
+   * as much cleanup as it will be able to do.
    */
-  static void IdleNotification(bool is_high_priority);
+  static bool IdleNotification(bool is_high_priority);
 
   /**
    * Optional notification that the system is running low on memory.

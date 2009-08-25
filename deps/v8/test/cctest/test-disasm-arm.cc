@@ -123,13 +123,13 @@ TEST(Type0) {
           "20354189       eorcss r4, r5, r9, lsl #3");
 
   COMPARE(sub(r5, r6, Operand(r10, LSL, 31), LeaveCC, hs),
-          "20465f8a       subcs r5, r6, sl, lsl #31");
+          "20465f8a       subcs r5, r6, r10, lsl #31");
   COMPARE(sub(r5, r6, Operand(r10, LSL, 30), SetCC, cc),
-          "30565f0a       subccs r5, r6, sl, lsl #30");
+          "30565f0a       subccs r5, r6, r10, lsl #30");
   COMPARE(sub(r5, r6, Operand(r10, LSL, 24), LeaveCC, lo),
-          "30465c0a       subcc r5, r6, sl, lsl #24");
+          "30465c0a       subcc r5, r6, r10, lsl #24");
   COMPARE(sub(r5, r6, Operand(r10, LSL, 16), SetCC, mi),
-          "4056580a       submis r5, r6, sl, lsl #16");
+          "4056580a       submis r5, r6, r10, lsl #16");
 
   COMPARE(rsb(r6, r7, Operand(fp)),
           "e067600b       rsb r6, r7, fp");
@@ -163,7 +163,7 @@ TEST(Type0) {
   COMPARE(sbc(r7, r9, Operand(ip, ROR, 4)),
           "e0c9726c       sbc r7, r9, ip, ror #4");
   COMPARE(sbc(r7, r10, Operand(ip), SetCC),
-          "e0da700c       sbcs r7, sl, ip");
+          "e0da700c       sbcs r7, r10, ip");
   COMPARE(sbc(r7, ip, Operand(ip, ROR, 31), SetCC, hi),
           "80dc7fec       sbchis r7, ip, ip, ror #31");
 
@@ -240,7 +240,7 @@ TEST(Type0) {
           "51d10004       bicpls r0, r1, r4");
 
   COMPARE(mvn(r10, Operand(r1)),
-          "e1e0a001       mvn sl, r1");
+          "e1e0a001       mvn r10, r1");
   COMPARE(mvn(r9, Operand(r2)),
           "e1e09002       mvn r9, r2");
   COMPARE(mvn(r0, Operand(r3), SetCC),

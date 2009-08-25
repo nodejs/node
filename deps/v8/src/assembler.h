@@ -401,6 +401,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
 
+  // Static variable Heap::roots_address()
+  static ExternalReference roots_address();
+
   // Static variable StackGuard::address_of_jslimit()
   static ExternalReference address_of_stack_guard_limit();
 

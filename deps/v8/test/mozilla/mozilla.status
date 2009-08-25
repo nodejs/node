@@ -171,7 +171,7 @@ js1_5/Regress/regress-98901: PASS || FAIL
 
 # Tests that sorting arrays of ints is less than 3 times as fast
 # as sorting arrays of strings.
-js1_5/extensions/regress-371636: PASS || FAIL
+js1_5/extensions/regress-371636: PASS || FAIL || TIMEOUT if $mode == debug
 
 
 # Tests depend on GC timings. Inherently flaky.

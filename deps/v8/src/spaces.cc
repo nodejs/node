@@ -951,15 +951,43 @@ void NewSpace::Flip() {
 }
 
 
-bool NewSpace::Grow() {
+void NewSpace::Grow() {
   ASSERT(Capacity() < MaximumCapacity());
-  // TODO(1240712): Failure to double the from space can result in
-  // semispaces of different sizes.  In the event of that failure, the
-  // to space doubling should be rolled back before returning false.
-  if (!to_space_.Grow() || !from_space_.Grow()) return false;
+  if (to_space_.Grow()) {
+    // Only grow from space if we managed to grow to space.
+    if (!from_space_.Grow()) {
+      // If we managed to grow to space but couldn't grow from space,
+      // attempt to shrink to space.
+      if (!to_space_.ShrinkTo(from_space_.Capacity())) {
+        // We are in an inconsistent state because we could not
+        // commit/uncommit memory from new space.
+        V8::FatalProcessOutOfMemory("Failed to grow new space.");
+      }
+    }
+  }
   allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-  return true;
+}
+
+
+void NewSpace::Shrink() {
+  int new_capacity = Max(InitialCapacity(), 2 * Size());
+  int rounded_new_capacity = RoundUp(new_capacity, OS::AllocateAlignment());
+  if (rounded_new_capacity < Capacity() &&
+      to_space_.ShrinkTo(rounded_new_capacity))  {
+    // Only shrink from space if we managed to shrink to space.
+    if (!from_space_.ShrinkTo(rounded_new_capacity)) {
+      // If we managed to shrink to space but couldn't shrink from
+      // space, attempt to grow to space again.
+      if (!to_space_.GrowTo(from_space_.Capacity())) {
+        // We are in an inconsistent state because we could not
+        // commit/uncommit memory from new space.
+        V8::FatalProcessOutOfMemory("Failed to shrink new space.");
+      }
+    }
+  }
+  allocation_info_.limit = to_space_.high();
+  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1058,6 +1086,7 @@ bool SemiSpace::Setup(Address start,
   // otherwise.  In the mark-compact collector, the memory region of the from
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
+  initial_capacity_ = initial_capacity;
   capacity_ = initial_capacity;
   maximum_capacity_ = maximum_capacity;
   committed_ = false;
@@ -1087,6 +1116,32 @@ bool SemiSpace::Grow() {
     return false;
   }
   capacity_ += extra;
+  return true;
+}
+
+
+bool SemiSpace::GrowTo(int new_capacity) {
+  ASSERT(new_capacity <= maximum_capacity_);
+  ASSERT(new_capacity > capacity_);
+  size_t delta = new_capacity - capacity_;
+  ASSERT(IsAligned(delta, OS::AllocateAlignment()));
+  if (!MemoryAllocator::CommitBlock(high(), delta, executable())) {
+    return false;
+  }
+  capacity_ = new_capacity;
+  return true;
+}
+
+
+bool SemiSpace::ShrinkTo(int new_capacity) {
+  ASSERT(new_capacity >= initial_capacity_);
+  ASSERT(new_capacity < capacity_);
+  size_t delta = capacity_ - new_capacity;
+  ASSERT(IsAligned(delta, OS::AllocateAlignment()));
+  if (!MemoryAllocator::UncommitBlock(high() - delta, delta)) {
+    return false;
+  }
+  capacity_ = new_capacity;
   return true;
 }
 

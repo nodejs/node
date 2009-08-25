@@ -1548,8 +1548,8 @@ void Debug::CreateScriptCache() {
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappers and the second gets rid of the
   // scripts which is no longer referenced.
-  Heap::CollectAllGarbage();
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(false);
 
   ASSERT(script_cache_ == NULL);
   script_cache_ = new ScriptCache();
@@ -1599,7 +1599,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Perform GC to get unreferenced scripts evicted from the cache before
   // returning the content.
-  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage(false);
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();
