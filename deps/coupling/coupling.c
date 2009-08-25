@@ -176,11 +176,14 @@ pump (int pullfd, int pushfd)
     r = select(maxfd+1, &readfds, &writefds, &exceptfds, NULL);
 
     if (r < 0 || FD_ISSET(pushfd, &exceptfds)) {
+      close(pushfd);
+      close(pullfd);
       pushfd = pullfd = -1;
       return;
     }
 
     if (pullfd >= 0 && FD_ISSET(pullfd, &exceptfds)) {
+      close(pullfd);
       pullfd = -1;
     }
 
@@ -188,6 +191,7 @@ pump (int pullfd, int pushfd)
       r = ring_buffer_pull(&ring, pullfd);
       if (r == 0) {
         /* eof */
+        close(pullfd);
         pullfd = -1;
 
       } else if (r < 0) {
@@ -205,6 +209,8 @@ pump (int pullfd, int pushfd)
 
           case EPIPE:
             /* TODO catch SIGPIPE? */
+            close(pushfd);
+            close(pullfd);
             pushfd = pullfd = -1;
             return;
 
@@ -215,9 +221,13 @@ pump (int pullfd, int pushfd)
     }
   }
 
+  close(pushfd);
+  close(pullfd);
   return;
 
 error:
+  close(pushfd);
+  close(pullfd);
   perror("(coupling) pump");
 }
 
