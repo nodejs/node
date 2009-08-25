@@ -1,19 +1,19 @@
 body {
   background: #22252a;
   color: #eee;
-  font-size: 16pt;
+  font-size: 14pt;
   line-height: 150%;
   font-family: times, Times New Roman, times-roman, georgia, serif; 
   max-width: 30em;
-  margin: 0 0 5em 8em;
+  margin: 0 0 5em 9em;
 }
 #toc {
   position: fixed;
   top: 2em;
   left: 0;
   width: 8em;
-  font-size: 14pt;
-  line-height: 120%;
+  font-size: 12pt;
+  line-height: 150%;
 }
 #toctitle {
   display: none;
@@ -46,7 +46,7 @@ h1 a, h2 a, h3 a, h4 a
 
 pre, code {
   font-family: monospace;
-  font-size: 14pt;
+  font-size: 13pt;
   color: #eee0e0;
 }
 
