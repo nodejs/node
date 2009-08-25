@@ -31,7 +31,7 @@ using namespace node;
 static int
 AfterClose (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
   if (req->result == 0) {
     promise->EmitSuccess(0, NULL);
   } else {
@@ -48,7 +48,7 @@ Close (const Arguments& args)
   HandleScope scope;
   int fd = args[0]->Int32Value();
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
 
   eio_close(fd, EIO_PRI_DEFAULT, AfterClose, promise);
   return scope.Close(promise->Handle());
@@ -57,7 +57,7 @@ Close (const Arguments& args)
 static int
 AfterRename (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
   if (req->result == 0) {
     promise->EmitSuccess(0, NULL);
   } else {
@@ -74,7 +74,7 @@ static Handle<Value> Rename (const Arguments& args)
   String::Utf8Value path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
 
   eio_rename(*path, *new_path, EIO_PRI_DEFAULT, AfterRename, promise);
   return scope.Close(promise->Handle());
@@ -83,7 +83,7 @@ static Handle<Value> Rename (const Arguments& args)
 static int
 AfterUnlink (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
   if (req->result == 0) {
     promise->EmitSuccess(0, NULL);
   } else {
@@ -98,7 +98,7 @@ static Handle<Value> Unlink (const Arguments& args)
     return ThrowException(BAD_ARGUMENTS);
   HandleScope scope;
   String::Utf8Value path(args[0]->ToString());
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
   eio_unlink(*path, EIO_PRI_DEFAULT, AfterUnlink, promise);
   return scope.Close(promise->Handle());
 }
@@ -106,7 +106,7 @@ static Handle<Value> Unlink (const Arguments& args)
 static int
 AfterRMDir (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
   if (req->result == 0) {
     promise->EmitSuccess(0, NULL);
   } else {
@@ -121,7 +121,7 @@ static Handle<Value> RMDir (const Arguments& args)
     return ThrowException(BAD_ARGUMENTS);
   HandleScope scope;
   String::Utf8Value path(args[0]->ToString());
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
   eio_rmdir(*path, EIO_PRI_DEFAULT, AfterRMDir, promise);
   return scope.Close(promise->Handle());
 }
@@ -129,7 +129,7 @@ static Handle<Value> RMDir (const Arguments& args)
 static int
 AfterOpen (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
   if (req->result < 0) {
     promise->EmitError(0, NULL);
@@ -156,7 +156,7 @@ Open (const Arguments& args)
   int flags = args[1]->Int32Value();
   mode_t mode = static_cast<mode_t>(args[2]->Int32Value());
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
 
   eio_open(*path, flags, mode, EIO_PRI_DEFAULT, AfterOpen, promise);
   return scope.Close(promise->Handle());
@@ -165,7 +165,7 @@ Open (const Arguments& args)
 static int
 AfterWrite (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
   if (req->result < 0) {
     promise->EmitError(0, NULL);
@@ -231,7 +231,7 @@ Write (const Arguments& args)
     return ThrowException(BAD_ARGUMENTS);
   }
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
   eio_write(fd, buf, len, pos, EIO_PRI_DEFAULT, AfterWrite, promise);
   return scope.Close(promise->Handle());
 }
@@ -239,7 +239,7 @@ Write (const Arguments& args)
 static int
 AfterUtf8Read (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
   if (req->result < 0) {
     promise->EmitError(0, NULL);
@@ -267,7 +267,7 @@ AfterUtf8Read (eio_req *req)
 static int
 AfterRawRead(eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
   if (req->result < 0) {
     promise->EmitError(0, NULL);
@@ -326,7 +326,7 @@ Read (const Arguments& args)
     encoding = static_cast<enum encoding>(args[3]->Int32Value());
   }
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
 
   // NOTE: 2nd param: NULL pointer tells eio to allocate it itself
   eio_read(fd, NULL, len, pos, EIO_PRI_DEFAULT, 
@@ -338,7 +338,7 @@ Read (const Arguments& args)
 static int
 AfterStat (eio_req *req)
 {
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
+  Promise *promise = reinterpret_cast<Promise*>(req->data);
 
   if (req->result < 0) {
     promise->EmitError(0, NULL);
@@ -394,7 +394,7 @@ Stat (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
 
-  EIOPromise *promise = EIOPromise::Create();
+  Promise *promise = Promise::Create(true);
 
   eio_stat(*path, EIO_PRI_DEFAULT, AfterStat, promise);
 

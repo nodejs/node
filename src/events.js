@@ -30,12 +30,4 @@ promise.addErrback = function (listener) {
   return this;
 };
 
-promise.emitSuccess = function (args) {
-  this.emit("success", args);
-};
-
-promise.emitError = function (args) {
-  this.emit("error", args);
-};
-
 })(); // end anonymous namespace

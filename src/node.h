@@ -22,9 +22,9 @@ namespace node {
 
 #define NODE_SET_PROTOTYPE_METHOD(templ, name, callback)                  \
 do {                                                                      \
-  Local<Signature> __callback##_SIG = Signature::New(templ);              \
-  Local<FunctionTemplate> __callback##_TEM =                              \
-    FunctionTemplate::New(callback, Handle<Value>() , __callback##_SIG ); \
+  v8::Local<v8::Signature> __callback##_SIG = v8::Signature::New(templ);              \
+  v8::Local<v8::FunctionTemplate> __callback##_TEM =                              \
+    FunctionTemplate::New(callback, v8::Handle<v8::Value>() , __callback##_SIG ); \
   templ->PrototypeTemplate()->Set(v8::String::NewSymbol(name),            \
                                   __callback##_TEM);                      \
 } while(0)

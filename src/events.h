@@ -23,28 +23,35 @@ class Promise : public EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
+
+  static Promise* Create (bool ref = false);
  
   bool EmitSuccess (int argc, v8::Handle<v8::Value> argv[]);
   bool EmitError (int argc, v8::Handle<v8::Value> argv[]);
+  void Block ();
 
-  static Promise* Create (void);
 
-  v8::Handle<v8::Object> Handle(void) { return handle_; }
-
- protected:
-
-  Promise () : EventEmitter() { }
-};
-
-class EIOPromise : public Promise {
- public:    
-  static EIOPromise* Create (void);
+  v8::Handle<v8::Object> Handle ()
+  {
+    return handle_;
+  }
 
  protected:
-  void Attach (void);
-  void Detach (void);
+  static v8::Handle<v8::Value> New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> Block (const v8::Arguments& args);
+  static v8::Handle<v8::Value> EmitSuccess (const v8::Arguments& args);
+  static v8::Handle<v8::Value> EmitError (const v8::Arguments& args);
 
-  EIOPromise () : Promise() { }
+  virtual void Detach (void);
+
+  bool blocking_;
+  bool ref_;
+
+  Promise () : EventEmitter()
+  {
+    blocking_ = false;
+    ref_ = false;
+  }
 };
 
 } // namespace node

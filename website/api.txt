@@ -189,6 +189,11 @@ Adds a listener for the +"success"+ event. Returns the same promise object.
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
 
++promise.block()+ ::
+Blocks futher execution until the promise emits a success or error event.
+Events setup before the call to +promise.block()+ was made may still be
+emitted and executed while +promise.block()+ is blocking.
+
 
 === Standard I/O
 

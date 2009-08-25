@@ -1,4 +1,6 @@
 #include "events.h"
+#include <ev.h>
+#include <v8.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -21,7 +23,7 @@ using namespace node;
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
 void 
-EventEmitter::Initialize (v8::Handle<v8::Object> target)
+EventEmitter::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
@@ -108,29 +110,116 @@ Promise::Initialize (v8::Handle<v8::Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New();
+  Local<FunctionTemplate> t = FunctionTemplate::New(New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  // All prototype methods are defined in events.js
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "block", Block);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "emitSuccess", EmitSuccess);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "emitError", EmitError);
 
   target->Set(String::NewSymbol("Promise"),
               constructor_template->GetFunction());
 }
 
+v8::Handle<v8::Value>
+Promise::New (const v8::Arguments& args)
+{
+  HandleScope scope;
+
+  Promise *promise = new Promise();
+  promise->Wrap(args.This());
+  promise->Attach();
+
+  return args.This();
+}
+
+Handle<Value>
+Promise::Block (const Arguments& args)
+{
+  HandleScope scope;
+  Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
+  promise->Block();
+  return Undefined();
+}
+
+v8::Handle<v8::Value>
+Promise::EmitSuccess (const v8::Arguments& args)
+{
+  HandleScope scope;
+  Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
+
+  int argc = 0;
+  Local<Array> emit_args;
+  if (args[0]->IsArray()) {
+    emit_args = Local<Array>::Cast(args[0]);
+    argc = emit_args->Length();
+  }
+  Local<Value> argv[argc];
+  for (int i = 0; i < argc; i++) {
+    argv[i] = emit_args->Get(Integer::New(i));
+  }
+
+  bool r = promise->EmitSuccess(argc, argv);
+
+  return r ? True() : False();
+}
+
+v8::Handle<v8::Value>
+Promise::EmitError (const v8::Arguments& args)
+{
+  HandleScope scope;
+  Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
+
+  int argc = 0;
+  Local<Array> emit_args;
+  if (args[0]->IsArray()) {
+    emit_args = Local<Array>::Cast(args[0]);
+    argc = emit_args->Length();
+  }
+  Local<Value> argv[argc];
+  for (int i = 0; i < argc; i++) {
+    argv[i] = emit_args->Get(Integer::New(i));
+  }
+
+  bool r = promise->EmitError(argc, argv);
+
+  return r ? True() : False();
+}
+
+void
+Promise::Block (void)
+{
+  blocking_ = true;
+  ev_loop(EV_DEFAULT_UC_ 0);
+}
+
+void
+Promise::Detach (void)
+{
+  if (blocking_) {
+    ev_unloop(EV_DEFAULT_ EVUNLOOP_ONE);
+    blocking_ = false;
+  }
+  if (ref_) {
+    ev_unref(EV_DEFAULT_UC);
+  }
+  ObjectWrap::Detach();
+}
+
 Promise*
-Promise::Create (void)
+Promise::Create (bool ref)
 {
   HandleScope scope;
 
   Local<Object> handle =
     Promise::constructor_template->GetFunction()->NewInstance();
 
-  Promise *promise = new Promise();
-  promise->Wrap(handle);
+  Promise *promise = ObjectWrap::Unwrap<Promise>(handle);
 
-  promise->Attach();
+  promise->ref_ = ref;
+  if (ref) ev_ref(EV_DEFAULT_UC);
 
   return promise;
 }
@@ -153,34 +242,4 @@ Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
   Detach();
 
   return r;
-}
-
-void
-EIOPromise::Attach (void)
-{
-  ObjectWrap::Attach();
-  ev_ref(EV_DEFAULT_UC);
-}
-
-void
-EIOPromise::Detach (void)
-{
-  ObjectWrap::Detach();
-  ev_unref(EV_DEFAULT_UC);
-}
-
-EIOPromise*
-EIOPromise::Create (void)
-{
-  HandleScope scope;
-
-  Local<Object> handle =
-    Promise::constructor_template->GetFunction()->NewInstance();
-
-  EIOPromise *promise = new EIOPromise();
-  promise->Wrap(handle);
-
-  promise->Attach();
-
-  return promise;
 }
