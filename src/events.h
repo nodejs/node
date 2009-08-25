@@ -23,13 +23,11 @@ class Promise : public EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
-
-  static Promise* Create (bool ref = false);
+  static Promise* Create (void);
 
   bool EmitSuccess (int argc, v8::Handle<v8::Value> argv[]);
   bool EmitError (int argc, v8::Handle<v8::Value> argv[]);
   void Block ();
-
 
   v8::Handle<v8::Object> Handle ()
   {
@@ -45,7 +43,6 @@ class Promise : public EventEmitter {
   virtual void Detach (void);
 
   bool blocking_;
-  bool ref_;
   Promise *prev_; /* for the prev in the Poor Man's coroutine stack */
 
   void Destack ();
@@ -53,10 +50,8 @@ class Promise : public EventEmitter {
   Promise () : EventEmitter()
   {
     blocking_ = false;
-    ref_ = false;
     prev_ = NULL;
   }
 };
-
 } // namespace node
 #endif

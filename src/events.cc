@@ -220,27 +220,7 @@ Promise::Detach (void)
     coroutine_top->Destack();
   }
 
-  if (ref_) {
-    ev_unref(EV_DEFAULT_UC);
-  }
-
   ObjectWrap::Detach();
-}
-
-Promise*
-Promise::Create (bool ref)
-{
-  HandleScope scope;
-
-  Local<Object> handle =
-    Promise::constructor_template->GetFunction()->NewInstance();
-
-  Promise *promise = ObjectWrap::Unwrap<Promise>(handle);
-
-  promise->ref_ = ref;
-  if (ref) ev_ref(EV_DEFAULT_UC);
-
-  return promise;
 }
 
 bool
@@ -261,4 +241,19 @@ Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
   Detach();
 
   return r;
+}
+
+Promise*
+Promise::Create (void)
+{
+  HandleScope scope;
+
+  Local<Object> handle =
+    Promise::constructor_template->GetFunction()->NewInstance();
+
+  Promise *promise = new Promise();
+  promise->Wrap(handle);
+  promise->Attach();
+
+  return promise;
 }
