@@ -4,8 +4,6 @@ body {
   font-size: 16pt;
   line-height: 150%;
   font-family: times, Times New Roman, times-roman, georgia, serif; 
-}
-#content {
   max-width: 30em;
   margin: 0 0 5em 8em;
 }
@@ -17,8 +15,13 @@ body {
   font-size: 14pt;
   line-height: 120%;
 }
+#toctitle {
+  display: none;
+}
 #toc ol {
   list-style: none;
+}
+#toc ol, .toclevel2 {
   margin: 0;
   padding: 0;
   padding-left: 1em;

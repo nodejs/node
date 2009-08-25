@@ -109,7 +109,14 @@ benchmark: all
 website: website/api.html website/index.html
 
 website/api.html: website/api.txt
-	asciidoc -a toc -o website/api.html website/api.txt
+	asciidoc --unsafe              \\
+		-a theme=pipe                \\
+		-a toc                       \\
+		-a linkcss                   \\
+		-o website/api.html website/api.txt
+
+#		-a stylesdir=website/   \\
+#		-a scriptsdir=website/   \\
 
 website-upload: website
 	scp website/* linode:~/tinyclouds/node/

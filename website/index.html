@@ -9,7 +9,7 @@
     </style> 
     <script type="text/javascript" src="sh_main.js"></script>
     <script type="text/javascript" src="sh_javascript.min.js"></script>
-    <link type="text/css" rel="stylesheet" href="style.css" />
+    <link type="text/css" rel="stylesheet" href="pipe.css" />
     <link type="text/css" rel="stylesheet" href="sh_vim-dark.css" />
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title>node.js</title>
@@ -31,7 +31,7 @@
       <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
       <p id="introduction">
-        Purely event-based I/O for
+        Mostly event-based I/O for
         <a href="http://code.google.com/p/v8/">V8 javascript</a>.
       </p>
 
@@ -77,7 +77,7 @@ Server running at http://127.0.0.1:8000/</pre>
 
       <p>
         Node's goal is to provide an easy way to build scalable network
-        programs. In the above example, the 2 second delay does not
+        programs. In the above example, the two second delay does not
         prevent the server from handling new requests. Node tells the
         operating system (through <code>epoll</code>, <code>kqueue</code>,
         <code class="sh_none">/dev/poll</code>, or <code>select</code>) 
@@ -102,35 +102,34 @@ Server running at http://127.0.0.1:8000/</pre>
         than systems which allocate 2mb thread stacks for each connection.
 
         Furthermore, users of Node are free from worries of dead-locking
-        the process&mdash;there are no locks.  No function in Node
+        the process&mdash;there are no locks.  Almost no function in Node
         directly performs I/O, so the process never blocks. Because
         nothing blocks, less-than-expert programmers are able to develop
         fast systems.
       </p>
 
       <p>
-        Node is similar in design to systems like Ruby's
-        <a href="http://rubyeventmachine.com/">Event Machine</a>
-        or Python's <a href="http://twistedmatrix.com/">Twisted</a>.
-        Node takes the event model a bit further.  For example, in other
-        systems there is always a blocking call to start the event-loop.
-        Typically one defines behavior through callbacks at the beginning
-        of a script and at the end starts a server through a call like
-        <code>EventMachine::run()</code>. In Node it works differently.
-        By default Node enters the event loop after executing the input
-        script. Node exits the event loop when there are no more callbacks
-        to perform. Like in traditional browser javascript, the event loop
-        is hidden from the user.
+        Node is similar in design to systems like Ruby's <a
+        href="http://rubyeventmachine.com/">Event Machine</a> or Python's <a
+        href="http://twistedmatrix.com/">Twisted</a>.  Node takes the event
+        model a bit further.  For example, in other systems there is always
+        a blocking call to start the event-loop.  Typically one defines
+        behavior through callbacks at the beginning of a script and at the
+        end starts a server through a call like
+        <code>EventMachine::run()</code>. In Node there is no such
+        start-the-event-loop call.  Node simply enters the event loop after
+        executing the input script. Node exits the event loop when there are
+        no more callbacks to perform.  This behavior is like browser
+        javascript&mdash;the event loop is hidden from the user.
       </p>
       
       <p>
-        Node's HTTP API has grown out of my difficulties developing and
-        working with web servers. For example, streaming data through
-        most web frameworks is impossible. Or the oft-made false
-        assumption that all message headers have unique fields.  Node
-        attempts to correct these and other problems in its API. Coupled
-        with Node's purely evented infrastructure, it will make a more
-        comprehensive foundation for future web libraries/frameworks.
+        Node's HTTP library has grown out of my difficulties developing and
+        working with web servers. For example, streaming data through most
+        web frameworks is impossible.  Node attempts to correct these
+        problems in its HTTP API. Coupled with Node's purely evented
+        infrastructure, it makes a good foundation for web libraries or
+        frameworks.
       </p>
       
       <p>
@@ -138,7 +137,7 @@ Server running at http://127.0.0.1:8000/</pre>
           But what about multiple-processor concurrency? Threads are
           necessary to scale programs to multi-core computers.
         </i>
-        The name <i>Node</i> should give some hint at how it is envisioned
+        The name <i>Node</i> gives some hint at how it is envisioned
         being used.  Processes are necessary to scale to multi-core
         computers, not memory-sharing threads. The fundamentals of scalable
         systems are fast networking and non-blocking design&mdash;the rest

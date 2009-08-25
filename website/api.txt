@@ -4,13 +4,13 @@ Ryan Dahl <ry@tinyclouds.org>
 Version, 0.1.6, 2009.08.22
 
 
-== NAME
+== Name
 
 node - purely event-based I/O for V8 javascript
 
 
 
-== SYNOPSIS
+== Synopsis
 
 An example of a web server written with Node which responds with "Hello
 World" after waiting two seconds:
@@ -33,56 +33,6 @@ it with the node program
 > node example.js
 Server running at http://127.0.0.1:8000/
 ----------------------------------------
-
-
-== DESCRIPTION
-
-Node provides an easy way to build scalable network programs. In the above
-example, the 2 second delay does not prevent the server from handling new
-requests. Node tells the operating system (through +epoll+, +kqueue+,
-+/dev/poll+, or +select+) that it should be notified when the 2 seconds are
-up or if a new connection is made--then it goes to sleep. If someone new
-connects, then it executes the callback, if the timeout expires, it executes
-the inner callback. Each connection is only a small heap allocation.
-
-This is in contrast to today's more common model where OS threads are employed
-for concurrency. Thread-based networking 
-http://www.sics.se/~joe/apachevsyaws.html[is]
-http://www.kegel.com/c10k.html[relatively]
-http://bulk.fefe.de/scalable-networking.pdf[inefficient]
-and very difficult to use.  Node will show much better memory efficiency
-under high-loads than systems which allocate 2mb thread stacks for each
-connection.  Furthermore, users of Node are free from worries of
-dead-locking the process--there are no locks.  In fact, no function in Node
-directly performs I/O.  Because nothing blocks, less-than-expert programmers
-are able to develop fast systems.
-
-Node is similar in design to systems like Ruby's
-http://rubyeventmachine.com/[Event Machine]
-or Python's http://twistedmatrix.com/[Twisted].
-Node takes the event model a bit further.  For example, in other systems there
-is always a blocking call to start the event-loop.  Typically one defines
-behavior through callbacks at the beginning of a script and at the end starts a
-server through a call like +EventMachine::run()+. In Node it works differently.
-By default Node enters the event loop after executing the input script. Node
-exits the event loop when there are no more callbacks to perform. Like in
-traditional browser javascript, the event loop is hidden from the user.
-
-Node's HTTP API has grown out of my difficulties developing and working with
-web servers. For example, streaming data through most web frameworks is
-impossible. Or the oft-made false assumption that all message headers have
-unique fields.  Node attempts to correct these and other problems in its API.
-Coupled with Node's purely evented infrastructure, it will make a more
-comprehensive foundation for future web libraries/frameworks.
-
-_But what about multiple-processor concurrency? Threads are necessary to scale
-programs to multi-core computers._ The name _Node_ should give some hint at how
-it is envisioned being used.  Processes are necessary to scale to multi-core
-computers, not memory-sharing threads. The fundamentals of scalable systems are
-fast networking and non-blocking design--the rest is message passing.  In the
-future, I'd like Node to be able to spawn new processes (probably using the
-http://www.whatwg.org/specs/web-workers/current-work/[Web Workers API]),
-but this is something that fits well into the current design.
 
 
 
