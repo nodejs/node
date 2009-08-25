@@ -143,9 +143,8 @@ ring_buffer_push (ring_buffer *ring, int fd)
   return r;
 }
 
-
 static void
-pump (int pullfd, int pushfd)
+pump (int is_pull, int pullfd, int pushfd)
 {
   int r;
   ring_buffer ring;
@@ -160,26 +159,33 @@ pump (int pullfd, int pushfd)
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);
     
-    maxfd = pushfd;
-    FD_SET(pushfd, &exceptfds);
-
-    if (pullfd >= 0) {
-      FD_SET(pullfd, &exceptfds);
-      maxfd = MAX(pushfd, pullfd);
-      if (!ring_buffer_filled_p(&ring)) FD_SET(pullfd, &readfds);
+    maxfd = -1;
+    
+    if (is_pull) {
+      if (!ring_buffer_empty_p(&ring)) { 
+        maxfd = pushfd;
+        FD_SET(pushfd, &exceptfds);
+        FD_SET(pushfd, &writefds);
+      }
+    } else {
+      if (pullfd >= 0) {
+        if (!ring_buffer_filled_p(&ring)) {
+          maxfd = pullfd;
+          FD_SET(pullfd, &exceptfds);
+          FD_SET(pullfd, &readfds);
+        }
+      }
     }
 
-    if (!ring_buffer_empty_p(&ring)) {
-      FD_SET(pushfd, &writefds);
-    }
+    if (maxfd >= 0) {
+      r = select(maxfd+1, &readfds, &writefds, &exceptfds, NULL);
 
-    r = select(maxfd+1, &readfds, &writefds, &exceptfds, NULL);
-
-    if (r < 0 || FD_ISSET(pushfd, &exceptfds)) {
-      close(pushfd);
-      close(pullfd);
-      pushfd = pullfd = -1;
-      return;
+      if (r < 0 || (pullfd >= 0 && FD_ISSET(pushfd, &exceptfds))) {
+        close(pushfd);
+        close(pullfd);
+        pushfd = pullfd = -1;
+        return;
+      }
     }
 
     if (pullfd >= 0 && FD_ISSET(pullfd, &exceptfds)) {
@@ -187,7 +193,7 @@ pump (int pullfd, int pushfd)
       pullfd = -1;
     }
 
-    if (pullfd >= 0 && FD_ISSET(pullfd, &readfds)) {
+    if (pullfd >= 0 && (is_pull || FD_ISSET(pullfd, &readfds))) {
       r = ring_buffer_pull(&ring, pullfd);
       if (r == 0) {
         /* eof */
@@ -199,7 +205,7 @@ pump (int pullfd, int pushfd)
       }
     }
 
-    if (FD_ISSET(pushfd, &writefds)) {
+    if (!is_pull || FD_ISSET(pushfd, &writefds)) {
       r = ring_buffer_push(&ring, pushfd);
       if (r < 0) {
         switch (errno) {
@@ -256,7 +262,7 @@ pump_thread (void *data)
 {
   struct coupling *c = (struct coupling*)data;
 
-  pump(c->pullfd, c->pushfd);
+  pump(c->is_pull, c->pullfd, c->pushfd);
 
   return NULL;
 }
