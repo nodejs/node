@@ -19,6 +19,10 @@ node.inherits = function (ctor, superCtor) {
   ctor.prototype.constructor = ctor;
 };
 
+node.assert = function (x) {
+  if (!(x)) throw (msg || "assertion error");
+};
+
 // This is useful for dealing with raw encodings.
 node.encodeUtf8 = function (array) {
   var string = "";
