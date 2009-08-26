@@ -23,21 +23,16 @@ using namespace node;
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
 void 
-EventEmitter::Initialize (Handle<Object> target)
+EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New();
-
-  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template = Persistent<FunctionTemplate>::New(ctemplate);
 
   Local<FunctionTemplate> __emit = FunctionTemplate::New(Emit);
   constructor_template->PrototypeTemplate()->Set(String::NewSymbol("emit"), __emit);
 
   // All other prototype methods are defined in events.js
-
-  target->Set(String::NewSymbol("EventEmitter"),
-              constructor_template->GetFunction());
 }
 
 static bool

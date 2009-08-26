@@ -8,7 +8,7 @@ namespace node {
 
 class EventEmitter : public ObjectWrap {
  public:
-  static void Initialize (v8::Handle<v8::Object> target);
+  static void Initialize (v8::Local<v8::FunctionTemplate> ctemplate);
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   bool Emit (const char *event, int argc, v8::Handle<v8::Value> argv[]);

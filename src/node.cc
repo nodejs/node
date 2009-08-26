@@ -207,7 +207,8 @@ Load (int argc, char *argv[])
   NODE_SET_METHOD(node_obj, "compile", compile);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
 
-  EventEmitter::Initialize(node_obj);
+  node_obj->Set(String::NewSymbol("EventEmitter"),
+              EventEmitter::constructor_template->GetFunction());
   Promise::Initialize(node_obj);
 
   Stdio::Initialize(node_obj);
@@ -305,8 +306,19 @@ main (int argc, char *argv[])
   }
 
   HandleScope handle_scope;
-  Persistent<Context> context = Context::New(NULL, ObjectTemplate::New());
+
+  Local<FunctionTemplate> process_template = FunctionTemplate::New();
+
+  // The global object / "process" is an instance of EventEmitter.  For
+  // strange reasons we must initialize EventEmitter now!  it will be assign
+  // to it's namespace node.EventEmitter in Load() bellow. 
+  EventEmitter::Initialize(process_template);
+
+  Persistent<Context> context = Context::New(NULL,
+      process_template->InstanceTemplate());
   Context::Scope context_scope(context);
+
+  context->Global()->Set(String::NewSymbol("process"), context->Global());
 
   Local<Object> node_obj = Load(argc, argv);
 
