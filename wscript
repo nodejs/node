@@ -4,6 +4,9 @@ import sys, os, shutil
 from os.path import join, dirname, abspath
 from logging import fatal
 
+VERSION="0.1.6"
+APPNAME="node.js"
+
 import js2c
 
 srcdir = '.'
@@ -14,6 +17,7 @@ def set_options(opt):
   # the gcc module provides a --debug-level option
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
+  opt.tool_options('misc')
   opt.add_option( '--debug'
                 , action='store_true'
                 , default=False
@@ -267,10 +271,38 @@ def build(bld):
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 
+
+  def subflags(program):
+    debug_ext = ""
+    if bld.env["USE_DEBUG"]:
+      debug_ext = "_g"
+    x = { 'CCFLAGS': " ".join(program.env["CCFLAGS"])
+        , 'CPPFLAGS': " ".join(program.env["CPPFLAGS"])
+        , 'LIBFLAGS': " ".join(program.env["LIBFLAGS"])
+        , 'VERSION': VERSION
+        , 'PREFIX': program.env["PREFIX"]
+        , 'DEBUG_EXT': debug_ext
+        }
+    return x;
+
+
+  # process file.pc.in -> file.pc
+  pkgconfig = bld.new_task_gen('subst', before="cxx")
+  pkgconfig.source = 'src/node.pc.in'
+  pkgconfig.target = 'node.pc'
+  pkgconfig.install_path = '${PREFIX}/lib/pkgconfig'
+  pkgconfig.dict = subflags(node)
+
+
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
     node_g.target = "node_g"
 
     libnode_g = libnode.clone("debug")
     libnode_g.target = "node_g"
+
+    pkgconfig_g = pkgconfig.clone("debug")
+    pkgconfig_g.dict = subflags(node_g)
+    pkgconfig_g.target = 'node_g.pc'
+    
 

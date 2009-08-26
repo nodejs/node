@@ -1,0 +1,9 @@
+prefix=@PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include/node
+
+Name: node@DEBUG_EXT@
+Description: v8 powered non-browser javascript
+Version: @VERSION@
+Libs: @LIBFLAGS@ -L${libdir} -lnode@DEBUG_EXT@
+Cflags: @CCFLAGS@ @CPPFLAGS@ -I${includedir} 
