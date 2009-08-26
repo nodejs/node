@@ -234,7 +234,7 @@ def build(bld):
     src/dns.cc
     src/file.cc
     src/timer.cc
-    src/process.cc
+    src/child_process.cc
     src/constants.cc
   """
   node.includes = """

@@ -6,7 +6,7 @@
 #include "file.h"
 #include "http.h"
 #include "timer.h"
-#include "process.h"
+#include "child_process.h"
 #include "constants.h"
 #include "node_stdio.h"
 
@@ -213,7 +213,7 @@ Load (int argc, char *argv[])
 
   Stdio::Initialize(node_obj);
   Timer::Initialize(node_obj);
-  Process::Initialize(node_obj);
+  ChildProcess::Initialize(node_obj);
 
   DefineConstants(node_obj);
 

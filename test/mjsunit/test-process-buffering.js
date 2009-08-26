@@ -4,12 +4,12 @@ var pwd_called = false;
 
 function pwd (callback) {
   var output = "";
-  var process = node.createProcess("pwd");
-  process.addListener("output", function (s) {
+  var child = node.createChildProcess("pwd");
+  child.addListener("output", function (s) {
     puts("stdout: " + JSON.stringify(s));
     if (s) output += s;
   });
-  process.addListener("exit", function (c) {
+  child.addListener("exit", function (c) {
     puts("exit: " + c);
     assertEquals(0, c);
     callback(output);

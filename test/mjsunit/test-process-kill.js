@@ -2,7 +2,7 @@ include("mjsunit.js");
 
 var exit_status = -1;
 
-var cat = node.createProcess("cat");
+var cat = node.createChildProcess("cat");
 
 cat.addListener("output", function (chunk) { assertEquals(null, chunk); });
 cat.addListener("error", function (chunk) { assertEquals(null, chunk); });

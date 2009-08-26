@@ -8,8 +8,8 @@ var benchmark_dir = node.path.dirname(__filename);
 function exec (script, callback) {
   var command = ARGV[0] + " " + node.path.join(benchmark_dir, script);
   var start = new Date();
-  var process = node.createProcess(command);
-  process.addListener("exit", function (code) {
+  var child = node.createChildProcess(command);
+  child.addListener("exit", function (code) {
     var elapsed = new Date() - start;
     callback(elapsed, code);
   });

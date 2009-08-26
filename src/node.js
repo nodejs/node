@@ -5,10 +5,14 @@ node.tcp.createServer = function (on_connection, options) {
   return server;
 };
 
-node.createProcess = function (command) {
-  var process = new node.Process();
-  process.spawn(command);
-  return process;
+node.createProcess = function () {
+  throw "node.createProcess() has been changed to node.createChildProcess() update your code";
+};
+
+node.createChildProcess = function (command) {
+  var child = new node.ChildProcess();
+  child.spawn(command);
+  return child;
 };
 
 node.tcp.createConnection = function (port, host) {

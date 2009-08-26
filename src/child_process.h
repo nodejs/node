@@ -1,5 +1,5 @@
-#ifndef node_process_h
-#define node_process_h
+#ifndef node_child_process_h
+#define node_child_process_h
 
 #include "node.h"
 #include "events.h"
@@ -9,7 +9,7 @@
 
 namespace node {
 
-class Process : EventEmitter {
+class ChildProcess : EventEmitter {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
@@ -22,8 +22,8 @@ class Process : EventEmitter {
   static v8::Handle<v8::Value> Kill (const v8::Arguments& args);
   static v8::Handle<v8::Value> PIDGetter (v8::Local<v8::String> _, const v8::AccessorInfo& info);
 
-  Process();
-  ~Process();
+  ChildProcess();
+  ~ChildProcess();
 
   int Spawn (const char *command);
   int Write (const char *str, size_t len);
@@ -59,4 +59,4 @@ class Process : EventEmitter {
 };
 
 } // namespace node
-#endif //  node_process_h
+#endif //  node_child_process_h

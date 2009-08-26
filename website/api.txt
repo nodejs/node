@@ -313,10 +313,10 @@ Stops a interval from triggering.
 === Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
-+node.Process+. It is possible to stream data through the child's +stdin+,
++node.ChildProcess+. It is possible to stream data through the child's +stdin+,
 +stdout+, and +stderr+ in a fully non-blocking way.
 
-==== +node.Process+
+==== +node.ChildProcess+
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -341,31 +341,31 @@ that the +"output"+ and +"error"+ callbacks will no longer be made.
 
 |=========================================================
 
-+node.createProcess(command)+::
++node.createChildProcess(command)+::
 Launches a new process with the given +command+. For example:
 +
 ----------------------------------------
-var ls = node.createProcess("ls -lh /usr");
+var ls = node.createChildProcess("ls -lh /usr");
 ls.addListener("output", function (data) {
   puts(data);
 });
 ----------------------------------------
 
 
-+process.pid+ ::
++child.pid+ ::
 The PID of the child process.
 
 
-+process.write(data, encoding="ascii")+ ::
++child.write(data, encoding="ascii")+ ::
 Write data to the child process's +stdin+. The second argument is optional and
 specifies the encoding: possible values are +"utf8"+, +"ascii"+, and +"raw"+.
 
 
-+process.close()+ ::
++child.close()+ ::
 Closes the process's +stdin+ stream.
 
 
-+process.kill(signal=node.SIGTERM)+ ::
++child.kill(signal=node.SIGTERM)+ ::
 Send a single to the child process.  If no argument is given, the process
 will be sent +node.SIGTERM+.  The standard POSIX signals are defined under
 the +node+ namespace (+node.SIGINT+, +node.SIGUSR1+, ...).

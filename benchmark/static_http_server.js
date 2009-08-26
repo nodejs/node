@@ -34,11 +34,9 @@ function responseListener (res) {
   });
 }
 
-function onLoad () {
-  for (var i = 0; i < concurrency; i++) {
-    var client = node.http.createClient(port);
-    client.id = i;
-    client.get("/").finish(responseListener);
-    requests++;
-  }
+for (var i = 0; i < concurrency; i++) {
+  var client = node.http.createClient(port);
+  client.id = i;
+  client.get("/").finish(responseListener);
+  requests++;
 }

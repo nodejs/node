@@ -1,5 +1,5 @@
 #include "node.h"
-#include "process.h"
+#include "child_process.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -13,65 +13,65 @@ using namespace node;
 
 #define PID_SYMBOL String::NewSymbol("pid")
 
-Persistent<FunctionTemplate> Process::constructor_template;
+Persistent<FunctionTemplate> ChildProcess::constructor_template;
 
 void
-Process::Initialize (Handle<Object> target)
+ChildProcess::Initialize (Handle<Object> target)
 {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(Process::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(ChildProcess::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "spawn", Process::Spawn);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Process::Write);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Process::Close);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "kill", Process::Kill);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "spawn", ChildProcess::Spawn);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", ChildProcess::Write);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", ChildProcess::Close);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "kill", ChildProcess::Kill);
 
-  target->Set(String::NewSymbol("Process"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("ChildProcess"), constructor_template->GetFunction());
 }
 
 Handle<Value>
-Process::New (const Arguments& args)
+ChildProcess::New (const Arguments& args)
 {
   HandleScope scope;
 
-  Process *p = new Process();
+  ChildProcess *p = new ChildProcess();
   p->Wrap(args.Holder());
 
   return args.This();
 }
 
 Handle<Value>
-Process::Spawn (const Arguments& args)
+ChildProcess::Spawn (const Arguments& args)
 {
   if (args.Length() == 0 || !args[0]->IsString()) {
     return ThrowException(String::New("Bad argument."));
   }
 
   HandleScope scope;
-  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
+  ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
 
   String::Utf8Value command(args[0]->ToString());
 
-  int r = process->Spawn(*command);
+  int r = child->Spawn(*command);
   if (r != 0) {
     return ThrowException(String::New("Error spawning"));
   }
 
-  process->handle_->Set(PID_SYMBOL, Integer::New(process->pid_));
+  child->handle_->Set(PID_SYMBOL, Integer::New(child->pid_));
 
   return Undefined();
 }
 
 Handle<Value>
-Process::Write (const Arguments& args)
+ChildProcess::Write (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
-  assert(process);
+  ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
+  assert(child);
 
   ssize_t len;
 
@@ -109,69 +109,69 @@ Process::Write (const Arguments& args)
     }
   }
 
-  return process->Write(buf, len) == 0 ? True() : False();
+  return child->Write(buf, len) == 0 ? True() : False();
 }
 
 Handle<Value>
-Process::Kill (const Arguments& args)
+ChildProcess::Kill (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
-  assert(process);
+  ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
+  assert(child);
 
   int sig = SIGTERM;
   if (args[0]->IsInt32()) sig = args[0]->Int32Value();
 
-  if (process->Kill(sig) != 0) {
-    return ThrowException(String::New("Process already dead"));
+  if (child->Kill(sig) != 0) {
+    return ThrowException(String::New("ChildProcess already dead"));
   }
 
   return Undefined();
 }
 
 Handle<Value>
-Process::Close (const Arguments& args)
+ChildProcess::Close (const Arguments& args)
 {
   HandleScope scope;
-  Process *process = ObjectWrap::Unwrap<Process>(args.Holder());
-  assert(process);
-  return process->Close() == 0 ? True() : False();
+  ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
+  assert(child);
+  return child->Close() == 0 ? True() : False();
 }
 
 void
-Process::reader_closed (evcom_reader *r)
+ChildProcess::reader_closed (evcom_reader *r)
 {
-  Process *process = static_cast<Process*> (r->data);
-  if (r == &process->stdout_reader_) {
-    process->stdout_fd_ = -1;
+  ChildProcess *child = static_cast<ChildProcess*> (r->data);
+  if (r == &child->stdout_reader_) {
+    child->stdout_fd_ = -1;
   } else {
-    assert(r == &process->stderr_reader_);
-    process->stderr_fd_ = -1;
+    assert(r == &child->stderr_reader_);
+    child->stderr_fd_ = -1;
   }
   evcom_reader_detach(r);
-  process->MaybeShutdown();
+  child->MaybeShutdown();
 }
 
 void
-Process::stdin_closed (evcom_writer *w)
+ChildProcess::stdin_closed (evcom_writer *w)
 {
-  Process *process = static_cast<Process*> (w->data);
-  assert(w == &process->stdin_writer_);
-  process->stdin_fd_ = -1;
+  ChildProcess *child = static_cast<ChildProcess*> (w->data);
+  assert(w == &child->stdin_writer_);
+  child->stdin_fd_ = -1;
   evcom_writer_detach(w);
-  process->MaybeShutdown();
+  child->MaybeShutdown();
 }
 
 void
-Process::on_read (evcom_reader *r, const void *buf, size_t len)
+ChildProcess::on_read (evcom_reader *r, const void *buf, size_t len)
 {
-  Process *process = static_cast<Process*> (r->data);
+  ChildProcess *child = static_cast<ChildProcess*> (r->data);
   HandleScope scope;
 
-  bool isSTDOUT = (r == &process->stdout_reader_);
+  bool isSTDOUT = (r == &child->stdout_reader_);
   Local<Value> argv[1];
 
-  enum encoding encoding = isSTDOUT ? process->stdout_encoding_ : process->stderr_encoding_;
+  enum encoding encoding = isSTDOUT ? child->stdout_encoding_ : child->stderr_encoding_;
 
   if (len == 0) {
     argv[0] = Local<Value>::New(Null());
@@ -190,11 +190,11 @@ Process::on_read (evcom_reader *r, const void *buf, size_t len)
     argv[0] = String::New((const char*)buf, len);
   }
 
-  process->Emit(isSTDOUT ? "output" : "error", 1, argv);
-  process->MaybeShutdown();
+  child->Emit(isSTDOUT ? "output" : "error", 1, argv);
+  child->MaybeShutdown();
 }
 
-Process::Process ()
+ChildProcess::ChildProcess ()
   : EventEmitter()
 {
   evcom_reader_init(&stdout_reader_);
@@ -211,7 +211,7 @@ Process::Process ()
   stdin_writer_.data      = this;
   stdin_writer_.on_close  = stdin_closed;
 
-  ev_init(&child_watcher_, Process::OnCHLD);
+  ev_init(&child_watcher_, ChildProcess::OnCHLD);
   child_watcher_.data = this;
 
   stdout_fd_ = -1;
@@ -227,13 +227,13 @@ Process::Process ()
   pid_ = 0;
 }
 
-Process::~Process ()
+ChildProcess::~ChildProcess ()
 {
   Shutdown();
 }
 
 void
-Process::Shutdown ()
+ChildProcess::Shutdown ()
 {
   if (stdin_fd_ >= 0) {
     evcom_writer_close(&stdin_writer_);
@@ -269,7 +269,7 @@ SetNonBlocking (int fd)
 }
 
 int
-Process::Spawn (const char *command)
+ChildProcess::Spawn (const char *command)
 {
   assert(pid_ == 0);
   assert(stdout_fd_ == -1);
@@ -345,25 +345,25 @@ Process::Spawn (const char *command)
 }
 
 void
-Process::OnCHLD (EV_P_ ev_child *watcher, int revents)
+ChildProcess::OnCHLD (EV_P_ ev_child *watcher, int revents)
 {
   ev_child_stop(EV_A_ watcher);
-  Process *process = static_cast<Process*>(watcher->data);
+  ChildProcess *child = static_cast<ChildProcess*>(watcher->data);
 
   assert(revents == EV_CHILD);
-  assert(process->pid_ == watcher->rpid);
-  assert(&process->child_watcher_ == watcher);
+  assert(child->pid_ == watcher->rpid);
+  assert(&child->child_watcher_ == watcher);
 
-  process->got_chld_ = true;
-  process->exit_code_ = watcher->rstatus;
+  child->got_chld_ = true;
+  child->exit_code_ = watcher->rstatus;
 
-  if (process->stdin_fd_  >= 0) evcom_writer_close(&process->stdin_writer_);
+  if (child->stdin_fd_  >= 0) evcom_writer_close(&child->stdin_writer_);
 
-  process->MaybeShutdown();
+  child->MaybeShutdown();
 }
 
 int
-Process::Write (const char *str, size_t len)
+ChildProcess::Write (const char *str, size_t len)
 {
   if (stdin_fd_ < 0 || got_chld_) return -1;
   evcom_writer_write(&stdin_writer_, str, len);
@@ -371,7 +371,7 @@ Process::Write (const char *str, size_t len)
 }
 
 int
-Process::Close (void)
+ChildProcess::Close (void)
 {
   if (stdin_fd_ < 0 || got_chld_) return -1;
   evcom_writer_close(EV_DEFAULT_UC_ &stdin_writer_);
@@ -379,14 +379,14 @@ Process::Close (void)
 }
 
 int
-Process::Kill (int sig)
+ChildProcess::Kill (int sig)
 {
   if (got_chld_ || pid_ == 0) return -1;
   return kill(pid_, sig);
 }
 
 void
-Process::MaybeShutdown (void)
+ChildProcess::MaybeShutdown (void)
 {
   if (stdout_fd_ < 0 && stderr_fd_ < 0 && got_chld_) {
     HandleScope scope;
