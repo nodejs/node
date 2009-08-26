@@ -19,7 +19,7 @@ protected:
   static v8::Handle<v8::Value> NewServer (const v8::Arguments& args);
 
   HTTPConnection (enum http_parser_type type)
-    : Connection() 
+    : Connection()
   {
     http_parser_init (&parser_, type);
     parser_.on_message_begin    = on_message_begin;

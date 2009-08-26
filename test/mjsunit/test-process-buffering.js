@@ -19,7 +19,7 @@ function pwd (callback) {
 
 
 pwd(function (result) {
-  p(result);  
+  p(result);
   assertTrue(result.length > 1);
   assertEquals("\n", result[result.length-1]);
 });

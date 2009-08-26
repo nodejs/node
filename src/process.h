@@ -58,5 +58,5 @@ class Process : EventEmitter {
   int exit_code_;
 };
 
-} // namespace node 
+} // namespace node
 #endif //  node_process_h

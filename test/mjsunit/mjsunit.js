@@ -133,7 +133,7 @@ exports.assertThrows = function (code) {
   } catch (e) {
     // Do nothing.
   }
-  if (!threwException) { 
+  if (!threwException) {
     exports.assertTrue(false, "did not throw exception");
   }
 };

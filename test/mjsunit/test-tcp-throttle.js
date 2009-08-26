@@ -4,7 +4,7 @@ N = 200;
 
 server = node.tcp.createServer(function (connection) {
   function send (j) {
-    if (j >= N) { 
+    if (j >= N) {
       connection.close();
       return;
     }
@@ -29,7 +29,7 @@ client.addListener("receive", function (d) {
 });
 
 setTimeout(function () {
-  chars_recved = recv.length; 
+  chars_recved = recv.length;
   puts("pause at: " + chars_recved);
   assertTrue(chars_recved > 1);
   client.readPause();
@@ -39,7 +39,7 @@ setTimeout(function () {
     client.readResume();
 
     setTimeout(function () {
-      chars_recved = recv.length; 
+      chars_recved = recv.length;
       puts("pause at: " + chars_recved);
       client.readPause();
 

@@ -149,13 +149,13 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   Local<Object> message_info = Object::New();
 
-  // METHOD 
+  // METHOD
   if (connection->parser_.type == HTTP_REQUEST)
     message_info->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
 
-  // STATUS 
+  // STATUS
   if (connection->parser_.type == HTTP_RESPONSE)
-    message_info->Set(STATUS_CODE_SYMBOL, 
+    message_info->Set(STATUS_CODE_SYMBOL,
         Integer::New(connection->parser_.status_code));
 
   // VERSION
@@ -165,10 +165,10 @@ HTTPConnection::on_headers_complete (http_parser *parser)
           , "%d.%d"
           , connection->parser_.version_major
           , connection->parser_.version_minor
-          ); 
+          );
   message_info->Set(HTTP_VERSION_SYMBOL, String::New(version));
 
-  message_info->Set(SHOULD_KEEP_ALIVE_SYMBOL, 
+  message_info->Set(SHOULD_KEEP_ALIVE_SYMBOL,
       http_parser_should_keep_alive(&connection->parser_) ? True() : False());
 
   Local<Value> argv[1] = { message_info };
@@ -189,7 +189,7 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
 
   Handle<Value> argv[1];
 
-  // TODO each message should have their encoding. 
+  // TODO each message should have their encoding.
   // don't look at the conneciton for encoding
 
   if (connection->encoding_ == RAW) {

@@ -67,17 +67,17 @@ node.http.parseUri = function (str) {
     }
   });
   uri.toString = function () { return str; };
-  
+
   for (i = o.key.length - 1; i >= 0; i--){
     if (uri[o.key[i]] == "") delete uri[o.key[i]];
   }
-  
+
   return uri;
 };
 
 node.http.parseUri.options = {
   strictMode: false,
-  key: [ 
+  key: [
     "source",
     "protocol",
     "authority",
@@ -119,7 +119,7 @@ function IncomingMessage (connection) {
   this.httpVersion = null;
   this.headers = {};
 
-  // request (server) only 
+  // request (server) only
   this.uri = "";
   this.method = null;
 
@@ -130,7 +130,7 @@ function IncomingMessage (connection) {
 node.inherits(IncomingMessage, node.EventEmitter);
 
 IncomingMessage.prototype.setBodyEncoding = function (enc) {
-  // TODO: Find a cleaner way of doing this. 
+  // TODO: Find a cleaner way of doing this.
   this.connection.setEncoding(enc);
 };
 
@@ -144,7 +144,7 @@ IncomingMessage.prototype.resume = function () {
 
 IncomingMessage.prototype._addHeaderLine = function (field, value) {
   if (field in this.headers) {
-    // TODO Certain headers like 'Content-Type' should not be concatinated. 
+    // TODO Certain headers like 'Content-Type' should not be concatinated.
     // See https://www.google.com/reader/view/?tab=my#overview-page
     this.headers[field] += ", " + value;
   } else {
@@ -191,7 +191,7 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
     }
 
     message_header += field + ": " + value + CRLF;
-    
+
     if (connection_expression.exec(field)) {
       sent_connection_header = true;
       if (close_expression.exec(value)) this.closeOnFinish = true;
@@ -206,7 +206,7 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
     }
   }
 
-  // keep-alive logic 
+  // keep-alive logic
   if (sent_connection_header == false) {
     if (this.should_keep_alive) {
       message_header += "Connection: keep-alive\r\n";
@@ -336,11 +336,11 @@ function createIncomingMessageStream (connection, incoming_listener) {
 
     if (info.method) {
       // server only
-      incoming.method = info.method; 
+      incoming.method = info.method;
       incoming.uri = node.http.parseUri(incoming.uri); // TODO parse the URI lazily?
     } else {
       // client only
-      incoming.statusCode = info.statusCode; 
+      incoming.statusCode = info.statusCode;
     }
 
     stream.emit("incoming", [incoming, info.should_keep_alive]);
@@ -370,7 +370,7 @@ function flushMessageQueue (connection, queue) {
       var out = message.output.shift();
       connection.send(out, out.encoding);
     }
-  
+
     if (!message.finished) break;
 
     message.emit("sent");
@@ -416,7 +416,7 @@ function connectionListener (connection) {
       }
     });
     responses.push(res);
-    
+
     connection.server.emit("request", [req, res]);
   });
 }
@@ -454,7 +454,7 @@ node.http.createClient = function (port, host) {
       client.emit("error");
       return;
     }
-     
+
     //node.debug("HTTP CLIENT onClose. readyState = " + client.readyState);
 
     // If there are more requests to handle, reconnect.

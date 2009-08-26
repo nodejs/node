@@ -10,7 +10,7 @@
 #include "constants.h"
 #include "node_stdio.h"
 
-#include "natives.h" 
+#include "natives.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,16 +94,16 @@ v8::Handle<v8::Value>
 node_exit (const v8::Arguments& args)
 {
   int r = 0;
-  if (args.Length() > 0) 
+  if (args.Length() > 0)
     r = args[0]->IntegerValue();
   exit(r);
-  return Undefined(); 
+  return Undefined();
 }
 
 v8::Handle<v8::Value>
 compile (const v8::Arguments& args)
 {
-  if (args.Length() < 2) 
+  if (args.Length() < 2)
     return Undefined();
 
   HandleScope scope;
@@ -112,7 +112,7 @@ compile (const v8::Arguments& args)
   Local<String> filename = args[1]->ToString();
 
   Handle<Value> result = ExecuteString(source, filename);
-  
+
   return scope.Close(result);
 }
 
@@ -123,7 +123,7 @@ OnFatalError (const char* location, const char* message)
 #define FATAL_ERROR "\033[1;31mV8 FATAL ERROR.\033[m"
   if (location)
     fprintf(stderr, FATAL_ERROR " %s %s\n", location, message);
-  else 
+  else
     fprintf(stderr, FATAL_ERROR " %s\n", message);
 
   exit(1);
@@ -138,7 +138,7 @@ node::FatalException (TryCatch &try_catch)
 
 static ev_async eio_watcher;
 
-static void 
+static void
 node_eio_cb (EV_P_ ev_async *watcher, int revents)
 {
   assert(watcher == &eio_watcher);
@@ -149,7 +149,7 @@ node_eio_cb (EV_P_ ev_async *watcher, int revents)
 static void
 eio_want_poll (void)
 {
-  ev_async_send(EV_DEFAULT_UC_ &eio_watcher); 
+  ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
 }
 
 enum encoding
@@ -266,7 +266,7 @@ PrintHelp ( )
 }
 
 static void
-ParseArgs (int *argc, char **argv) 
+ParseArgs (int *argc, char **argv)
 {
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
@@ -283,7 +283,7 @@ ParseArgs (int *argc, char **argv)
 }
 
 int
-main (int argc, char *argv[]) 
+main (int argc, char *argv[])
 {
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
@@ -311,7 +311,7 @@ main (int argc, char *argv[])
 
   // The global object / "process" is an instance of EventEmitter.  For
   // strange reasons we must initialize EventEmitter now!  it will be assign
-  // to it's namespace node.EventEmitter in Load() bellow. 
+  // to it's namespace node.EventEmitter in Load() bellow.
   EventEmitter::Initialize(process_template);
 
   Persistent<Context> context = Context::New(NULL,

@@ -2,7 +2,7 @@ node.fs.exists = function (path, callback) {
   var p = node.fs.stat(path);
   p.addCallback(function () { callback(true); });
   p.addErrback(function () { callback(false); });
-}
+};
 
 node.fs.cat = function (path, encoding) {
   var open_promise = node.fs.open(path, node.O_RDONLY, 0666);

@@ -42,7 +42,7 @@ Timer::RepeatGetter (Local<String> property, const AccessorInfo& info)
   return scope.Close(v);
 }
 
-void 
+void
 Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorInfo& info)
 {
   HandleScope scope;

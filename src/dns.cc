@@ -35,7 +35,7 @@ set_timeout ()
 }
 
 static inline void
-maybe_start () 
+maybe_start ()
 {
   ev_io_start(EV_DEFAULT_UC_ &io_watcher);
   set_timeout();

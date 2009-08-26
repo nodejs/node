@@ -6,7 +6,7 @@
       padding: 0;
       margin: 0;
     }
-    </style> 
+    </style>
     <script type="text/javascript" src="sh_main.js"></script>
     <script type="text/javascript" src="sh_javascript.min.js"></script>
     <link type="text/css" rel="stylesheet" href="pipe.css" />
@@ -39,7 +39,7 @@
         An example of a web server written with Node which responds with
         "Hello World" after waiting two seconds:
       </p>
-      
+
       <pre>
 node.http.createServer(function (req, res) {
   setTimeout(function () {
@@ -49,7 +49,7 @@ node.http.createServer(function (req, res) {
   }, 2000);
 }).listen(8000);
 puts("Server running at http://127.0.0.1:8000/");</pre>
-      
+
       <p>
         To run the server, put the code into a file
         <code>example.js</code> and execute it with the <code>node</code>
@@ -58,7 +58,7 @@ puts("Server running at http://127.0.0.1:8000/");</pre>
       <pre class="sh_none">
 % /usr/local/bin/node example.js
 Server running at http://127.0.0.1:8000/</pre>
-      
+
       <p>
         See the <a href="api.html">API documentation</a> for more
         examples.
@@ -80,24 +80,24 @@ Server running at http://127.0.0.1:8000/</pre>
         programs. In the above example, the two second delay does not
         prevent the server from handling new requests. Node tells the
         operating system (through <code>epoll</code>, <code>kqueue</code>,
-        <code class="sh_none">/dev/poll</code>, or <code>select</code>) 
+        <code class="sh_none">/dev/poll</code>, or <code>select</code>)
         that it should be notified when the 2 seconds are up or if a new
         connection is made&mdash;then it goes to sleep. If someone new
         connects, then it executes the callback, if the timeout expires,
         it executes the inner callback. Each connection is only a small
         heap allocation.
       </p>
-      
+
       <p>
         This is in contrast to today's more common model where OS threads
-        are employed for concurrency. Thread-based networking 
+        are employed for concurrency. Thread-based networking
         <a href="http://www.sics.se/~joe/apachevsyaws.html">is</a>
         <a href="http://www.kegel.com/c10k.html">relatively</a>
         <a href="http://bulk.fefe.de/scalable-networking.pdf">inefficient</a>
         <!-- TODO needs links -->
-        and very difficult to use. 
+        and very difficult to use.
 
-        Node will show much better memory efficiency under high-loads 
+        Node will show much better memory efficiency under high-loads
         <!-- TODO benchmark -->
         than systems which allocate 2mb thread stacks for each connection.
 
@@ -122,7 +122,7 @@ Server running at http://127.0.0.1:8000/</pre>
         no more callbacks to perform.  This behavior is like browser
         javascript&mdash;the event loop is hidden from the user.
       </p>
-      
+
       <p>
         Node's HTTP library has grown out of my difficulties developing and
         working with web servers. For example, streaming data through most
@@ -131,7 +131,7 @@ Server running at http://127.0.0.1:8000/</pre>
         infrastructure, it makes a good foundation for web libraries or
         frameworks.
       </p>
-      
+
       <p>
         <i>
           But what about multiple-processor concurrency? Threads are
@@ -168,7 +168,7 @@ Server running at http://127.0.0.1:8000/</pre>
         built, supports only IA-32 and ARM processors. V8 is included in the
         Node distribution. There are no dependencies.
       </p>
-      
+
       <pre class="sh_none">
 ./configure
 make
@@ -181,7 +181,7 @@ make install</pre>
       <p>To run the tests</p>
 
       <pre class="sh_none">make test</pre>
-      
+
       <h2 id="demo">Demo</h2>
       <p>
         A chat room demo is running at <a

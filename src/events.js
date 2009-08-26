@@ -50,7 +50,7 @@ node.Promise.prototype.wait = function () {
         ret = arg;
       })
       .block();
-  
+
   if (had_error) throw ret;
   return ret;
 };

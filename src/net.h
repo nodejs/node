@@ -32,7 +32,7 @@ protected:
   static v8::Handle<v8::Value> ReadyStateGetter (v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
 
-  Connection (void) : EventEmitter() 
+  Connection (void) : EventEmitter()
   {
     encoding_ = RAW;
 
@@ -126,7 +126,7 @@ protected:
   static v8::Handle<v8::Value> Listen (const v8::Arguments& args);
   static v8::Handle<v8::Value> Close (const v8::Arguments& args);
 
-  Server (void) : EventEmitter() 
+  Server (void) : EventEmitter()
   {
     evcom_server_init(&server_);
     server_.on_connection = Server::on_connection;
@@ -138,16 +138,16 @@ protected:
     assert(server_.fd >= 0);
   }
 
-  int Listen (struct sockaddr *address, int backlog) { 
-    int r = evcom_server_listen (&server_, address, backlog); 
+  int Listen (struct sockaddr *address, int backlog) {
+    int r = evcom_server_listen (&server_, address, backlog);
     if(r != 0) return r;
-    evcom_server_attach (EV_DEFAULT_ &server_); 
+    evcom_server_attach (EV_DEFAULT_ &server_);
     Attach();
     return 0;
   }
 
   void Close ( ) {
-    evcom_server_close (&server_); 
+    evcom_server_close (&server_);
   }
 
   virtual v8::Handle<v8::FunctionTemplate> GetConnectionTemplate (void);

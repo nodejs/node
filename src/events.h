@@ -25,7 +25,7 @@ class Promise : public EventEmitter {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static Promise* Create (bool ref = false);
- 
+
   bool EmitSuccess (int argc, v8::Handle<v8::Value> argv[]);
   bool EmitError (int argc, v8::Handle<v8::Value> argv[]);
   void Block ();

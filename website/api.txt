@@ -90,13 +90,16 @@ An array containing the command line arguments.
 +__filename+ ::
 The filename of the script being executed.
 
++process+ ::
+A special global object. The +process+ object is like the +window+ object of
+browser-side javascript.
 
 
 === Events
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
-objects which emit events are are instances of +node.EventEmitter+. 
+objects which emit events are are instances of +node.EventEmitter+.
 
 Events are represented by a snakecased string. Here are some examples:
 +"connection"+, +"receive"+, +"message_begin"+.
@@ -117,7 +120,7 @@ added.
 |=========================================================
 | Event           | Parameters       | Notes
 
-| +"newListener"+ | +event, listener+| This event is made 
+| +"newListener"+ | +event, listener+| This event is made
                                        any time someone adds
                                        a new listener.
 |=========================================================
@@ -132,7 +135,7 @@ server.addListener("connection", function (socket) {
 ----------------------------------------
 
 
-+emitter.listeners(event)+ :: 
++emitter.listeners(event)+ ::
 Returns an array of listeners for the specified event. This array can be
 manipulated, e.g. to remove listeners.
 
@@ -148,8 +151,8 @@ emit anymore events.
 [cols="1,2,10",options="header"]
 |=========================================================
 | Event       | Parameters       | Notes
-| +"success"+ | (depends)        | 
-| +"error"+   | (depends)        | 
+| +"success"+ | (depends)        |
+| +"error"+   | (depends)        |
 |=========================================================
 
 +promise.addCallback(listener)+ ::
@@ -174,14 +177,14 @@ If +"error"+ was emitted instead, +wait()+ throws an error.
 
 Standard I/O is handled through a special object +node.stdio+. stdout and
 stdin are fully non-blocking (even when piping to files). stderr is
-synchronous. 
+synchronous.
 
 [cols="1,2,10",options="header"]
 |=========================================================
 | Event      | Parameters | Notes
 
 | +"data"+   | +data+     | Made when stdin has received a chunk of data.
-                            Depending on the encoding that stdin was opened 
+                            Depending on the encoding that stdin was opened
                             with, +data+ will be either an array of integers
                             (raw encoding) or a string (ascii or utf8
                             encoding). This event will only be emited after
@@ -191,7 +194,7 @@ synchronous.
 
 +node.stdio.open(encoding="utf8")+::
 Open stdin. The program will not exit until +node.stdio.close()+ has been
-called or the +"close"+ event has been emitted. 
+called or the +"close"+ event has been emitted.
 
 +node.stdio.write(data)+::
 Write data to stdout.
@@ -282,7 +285,7 @@ process.addListener("exit", function () {
 ----------------------------------------
 
 Just to reiterate: the +"exit"+ event, is not the place to close files or
-shutdown servers. The process will exit before they get performed. 
+shutdown servers. The process will exit before they get performed.
 
 
 
@@ -372,7 +375,7 @@ the +node+ namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
 === File I/O
 
 File I/O is provided by simple wrappers around standard POSIX functions.
-All POSIX wrappers have a similar form. 
+All POSIX wrappers have a similar form.
 They return a promise (+node.Promise+). Example:
 
 ------------------------------------------------------------------------------
@@ -413,7 +416,7 @@ node.fs.stat("/tmp/world").addCallback(function (stats) {
 ------------------------------------------------------------------------------
 
 +node.fs.rename(path1, path2)+ ::
-  See rename(2). 
+  See rename(2).
   - on success: no parameters.
   - on error: no parameters.
 
@@ -524,20 +527,20 @@ multi-part bodies.  _This is left to the user._
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"request"+     | +request, response+ | 
+|+"request"+     | +request, response+ |
 +request+ is an instance of +node.http.ServerRequest+
 +
 +response+ is an instance of +node.http.ServerResponse+
 
-|+"connection"+  | +connection+ | 
-When a new TCP connection is established. 
+|+"connection"+  | +connection+ |
+When a new TCP connection is established.
 +connection+ is an object of type +node.http.Connection+. Usually users will not
 want to access this event. The +connection+ can also be accessed at
 +request.connection+.
 
 |+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
                                   is an integer which indicates what, if any,
-                                  error caused the server to close. If no 
+                                  error caused the server to close. If no
                                   error occured +errorno+ will be 0.
 
 |=========================================================
@@ -571,14 +574,14 @@ the user--and passed as the first argument to a +"request"+ listener.
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"body"+        | +chunk+ | 
+|+"body"+        | +chunk+ |
 Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
 decoded.  The body chunk is either a String in the case of UTF-8 encoding or
 an array of numbers in the case of raw encoding.  The body encoding is set
 with +request.setBodyEncoding()+.
 
-|+"complete"+    |        | 
+|+"complete"+    |        |
 Emitted exactly once for each message. No arguments.
 After emitted no other events will be emitted on the request.
 
@@ -599,21 +602,21 @@ Accept: */*\r\n
 \r\n
 ----------------------------------------
 +
-Then +request.uri+ will be 
+Then +request.uri+ will be
 +
 ----------------------------------------
-{ path: "/status", 
-  file: "status", 
-  directory: "/", 
-  params: { "name" : "ryan" } 
+{ path: "/status",
+  file: "status",
+  directory: "/",
+  params: { "name" : "ryan" }
 }
 ----------------------------------------
 +
 In particular, note that +request.uri.protocol+ is
 +undefined+. This is because there was no URI protocol given
-in the actual HTTP Request. 
+in the actual HTTP Request.
 +
-+request.uri.anchor+, +request.uri.query+, +request.uri.file+, +request.uri.directory+, +request.uri.path+, +request.uri.relative+, +request.uri.port+, +request.uri.host+, +request.uri.password+, +request.uri.user+, +request.uri.authority+, +request.uri.protocol+, +request.uri.params+, +request.uri.toString()+, +request.uri.source+ 
++request.uri.anchor+, +request.uri.query+, +request.uri.file+, +request.uri.directory+, +request.uri.path+, +request.uri.relative+, +request.uri.port+, +request.uri.host+, +request.uri.password+, +request.uri.user+, +request.uri.authority+, +request.uri.protocol+, +request.uri.params+, +request.uri.toString()+, +request.uri.source+
 
 
 +request.headers+ ::
@@ -650,7 +653,7 @@ passed as the second parameter to the +"request"+ event.
 +response.sendHeader(statusCode, headers)+ ::
 
 Sends a response header to the request. The status code is a 3-digit HTTP
-status code, like +404+. The second argument, +headers+ are the response headers. 
+status code, like +404+. The second argument, +headers+ are the response headers.
 +
 Example:
 +
@@ -675,13 +678,13 @@ If +chunk+ is a string, the second parameter
 specifies how to encode it into a byte stream. By default the
 +encoding+ is +"ascii"+.
 +
-Note: This is the raw HTTP body and has nothing to do with 
-higher-level multi-part body encodings that may be used. 
+Note: This is the raw HTTP body and has nothing to do with
+higher-level multi-part body encodings that may be used.
 
 
 +response.finish()+ ::
 This method signals to the server that all of the response headers and body
-has been sent; that server should consider this message complete. 
+has been sent; that server should consider this message complete.
 The method, +response.finish()+, MUST be called on each
 response.
 
@@ -733,7 +736,7 @@ the header of the request. One needs to call
 +request.finish()+ to finalize the request and retrieve
 the response.  (This sounds convoluted but it provides a chance
 for the user to stream a body to the server with
-+request.sendBody()+.) 
++request.sendBody()+.)
 
 
 ==== +node.http.ClientRequest+
@@ -761,7 +764,7 @@ Sends a sucessive peice of the body.  By calling this method
 many times, the user can stream a request body to a
 server&mdash;in that case it is suggested to use the
 +["Transfer-Encoding", "chunked"]+ header line when
-creating the request.  
+creating the request.
 +
 The +chunk+ argument should be an array of integers
 or a string.
@@ -779,7 +782,7 @@ Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the socket. If the request is
 chunked, this will send the terminating +"0\r\n\r\n"+.
 +
-The parameter +response_listener+ is a callback which 
+The parameter +response_listener+ is a callback which
 will be executed when the response headers have been received.
 The +response_listener+ callback is executed with one
 argument which is an instance of +node.http.ClientResponse+.
@@ -794,14 +797,14 @@ This object is created internally and passed to the +"response"+ event.
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"body"+        | +chunk+ | 
+|+"body"+        | +chunk+ |
 Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
 decoded.  The body chunk is either a String in the case of UTF-8 encoding or
 an array of numbers in the case of raw encoding.  The body encoding is set
 with +response.setBodyEncoding()+.
 
-|+"complete"+    |        | 
+|+"complete"+    |        |
 Emitted exactly once for each message. No arguments.
 After emitted no other events will be emitted on the response.
 
@@ -811,13 +814,13 @@ After emitted no other events will be emitted on the response.
   The 3-digit HTTP response status code. E.G. +404+.
 
 +response.httpVersion+ ::
-  The HTTP version of the connected-to server. Probably either 
+  The HTTP version of the connected-to server. Probably either
   +"1.1"+ or +"1.0"+.
 
-+response.headers+ :: 
++response.headers+ ::
   The response headers.
 
-+response.setBodyEncoding(encoding)+ :: 
++response.setBodyEncoding(encoding)+ ::
   Set the encoding for the response body. Either +"utf8"+ or +"raw"+.
   Defaults to raw.
 
@@ -865,7 +868,7 @@ server.listen(7000, "localhost");
                                   +connection+ is an instance of +node.tcp.Connection+.
 |+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
                                   is an integer which indicates what, if any,
-                                  error caused the server to close. If no 
+                                  error caused the server to close. If no
                                   error occured +errorno+ will be 0.
 |=========================================================
 
@@ -877,16 +880,16 @@ the +"connection"+ event.
 
 
 +server.listen(port, host=null, backlog=1024)+ ::
-Tells the server to listen for TCP connections to +port+ and +host+. 
+Tells the server to listen for TCP connections to +port+ and +host+.
 +
 +host+ is optional. If +host+ is not specified the server will accept client
 connections on any network address.
 +
 The third argument, +backlog+, is also optional and defaults to 1024.  The
 +backlog+ argument defines the maximum length to which the queue of pending
-connections for the server may grow. 
+connections for the server may grow.
 +
-This function is synchronous. 
+This function is synchronous.
 
 
 +server.close()+::
@@ -904,22 +907,22 @@ socket for +node.tcp.Server+.
 |=========================================================
 |Event           | Parameters   | Notes
 |+"connect"+     |              | Call once the connection is established
-                                  after a call to +createConnection()+ or 
+                                  after a call to +createConnection()+ or
                                   +connect()+.
-|+"receive"+     | +data+       | Called when data is received on the 
-                                  connection.  Encoding of data is set 
-                                  by +connection.setEncoding()+.  +data+ 
-                                  will either be a string, in the case of 
-                                  utf8, or an array of integer in the case 
+|+"receive"+     | +data+       | Called when data is received on the
+                                  connection.  Encoding of data is set
+                                  by +connection.setEncoding()+.  +data+
+                                  will either be a string, in the case of
+                                  utf8, or an array of integer in the case
                                   of raw encoding.
-|+"eof"+         |              | Called when the other end of the 
+|+"eof"+         |              | Called when the other end of the
                                   connection sends a FIN packet.
-                                  After this is emitted the +readyState+ 
-                                  will be +"writeOnly"+. One should probably 
+                                  After this is emitted the +readyState+
+                                  will be +"writeOnly"+. One should probably
                                   just call +connection.close()+ when this
                                   event is emitted.
 |+"close"+       | +had_error+  | Emitted once the connection is fully
-                                  closed. The argument +had_error+ 
+                                  closed. The argument +had_error+
                                   is a boolean which says if the connection
                                   was closed due to a transmission error.
                                   (TODO: access error codes.)
@@ -927,7 +930,7 @@ socket for +node.tcp.Server+.
 
 +node.tcp.createConnection(port, host="127.0.0.1")+::
 Creates a new connection object and opens a connection to the specified
-+port+ and +host+. If the second parameter is omitted, localhost is assumed. 
++port+ and +host+. If the second parameter is omitted, localhost is assumed.
 +
 When the connection is established the +"connect"+ event will be emitted.
 
@@ -935,7 +938,7 @@ When the connection is established the +"connect"+ event will be emitted.
 Opens a connection to the specified +port+ and +host+. +createConnection()+
 also opens a connection; normally this method is not needed. Use this only
 if a connection is closed and you want to reuse the object to connect to
-another server. 
+another server.
 +
 This function is asynchronous. When the +"connect"+ event is emitted the
 connection is established. If there is a problem connecting, the +"connect"+
@@ -943,7 +946,7 @@ event will not be emitted, the +"close"+ event will be emitted with
 +had_error == true+.
 
 +connection.remoteAddress+::
-The string representation of the remote IP address.  For example, 
+The string representation of the remote IP address.  For example,
 +"74.125.127.100"+ or +"2001:4860:a005::68"+.
 +
 This member is only present in server-side connections.
@@ -954,7 +957,7 @@ Either +"closed"+, +"open"+, +"opening"+, +"readOnly"+, or +"writeOnly"+.
 
 
 +connection.setEncoding(encoding)+::
-Sets the encoding (either +"utf8"+ or +"raw"+) for data that is received. 
+Sets the encoding (either +"utf8"+ or +"raw"+) for data that is received.
 
 +connection.send(data, encoding="ascii")+::
 Sends data on the connection. The data should be eithre an array
@@ -986,7 +989,7 @@ Resumes reading if reading was paused by +readPause()+.
 === DNS
 
 Here is an example of which resolves +"www.google.com"+ then reverse
-resolves the IP addresses which are returned. 
+resolves the IP addresses which are returned.
 
 -------------------------------------------------------------------------
 var resolution = node.dns.resolve4("www.google.com");
@@ -1018,12 +1021,12 @@ resolution.addErrback(function (code, msg) {
 
 Resolves a domain (e.g. +"google.com"+) into an array of IPv4 addresses (e.g.
 +["74.125.79.104", "74.125.79.105", "74.125.79.106"]+).
-This function returns a promise. 
+This function returns a promise.
 - on success: returns +addresses, ttl, cname+. +ttl+ (time-to-live) is an integer
   specifying the number of seconds this result is valid for. +cname+ is the
   canonical name for the query.
 - on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English. 
+  below and +msg+ is a string describing the error in English.
 
 +node.dns.resolve6(domain)+::
 
@@ -1031,13 +1034,13 @@ The same as +node.dns.resolve4()+ except for IPv6 queries (an +AAAA+ query).
 
 +node.dns.reverse(ip)+::
 
-Reverse resolves an ip address to an array of domain names. 
+Reverse resolves an ip address to an array of domain names.
 
 - on success: returns +domains, ttl, cname+. +ttl+ (time-to-live) is an integer
   specifying the number of seconds this result is valid for. +cname+ is the
   canonical name for the query. +domains+ is an array of domains.
 - on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English. 
+  below and +msg+ is a string describing the error in English.
 
 
 Each DNS query can return an error code.

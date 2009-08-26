@@ -49,7 +49,7 @@ function runClient (callback) {
     if (this.connections < connections_per_client) {
       this.connect(port);
     } else {
-      callback(); 
+      callback();
     }
   });
 }

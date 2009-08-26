@@ -29,7 +29,7 @@ setInterval(function () {
   var t = interval_count * 1000;
 
   assertTrue(t - WINDOW < diff && diff < t + WINDOW);
-  
+
   assertTrue(interval_count <= 3);
   if (interval_count == 3)
     clearInterval(this);

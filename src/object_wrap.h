@@ -17,7 +17,7 @@ class ObjectWrap {
       assert(handle_.IsNearDeath());
       handle_->SetInternalField(0, v8::Undefined());
       handle_.Dispose();
-      handle_.Clear(); 
+      handle_.Clear();
     }
   }
 
@@ -55,7 +55,7 @@ class ObjectWrap {
     assert(handle_.IsWeak());
     attached_++;
   }
-  
+
   /* Detach() marks an object as detached from the event loop.  This is its
    * default state.  When an object with a "weak" reference changes from
    * attached to detached state it will be freed. Be careful not to access

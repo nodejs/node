@@ -29,5 +29,5 @@ class Timer : EventEmitter {
   ev_timer watcher_;
 };
 
-} // namespace node 
+} // namespace node
 #endif //  node_timer_h

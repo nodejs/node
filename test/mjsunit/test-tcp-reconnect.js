@@ -40,7 +40,7 @@ client.addListener("receive", function (chunk) {
 client.addListener("close", function (had_error) {
   puts("disconnect");
   assertFalse(had_error);
-  if (disconnect_count++ < N) 
+  if (disconnect_count++ < N)
     client.connect(port); // reconnect
   else
     server.close();

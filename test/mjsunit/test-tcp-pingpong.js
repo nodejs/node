@@ -51,7 +51,7 @@ function pingPongTest (port, host, on_complete) {
 
   client.addListener("receive", function (data) {
     assertEquals("PONG", data);
-    count += 1; 
+    count += 1;
 
     if (sent_final_ping) {
       assertEquals("readOnly", client.readyState);

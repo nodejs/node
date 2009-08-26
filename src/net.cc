@@ -32,14 +32,14 @@ using namespace node;
 #define CLOSING_SYMBOL      String::NewSymbol("closing")
 #define CLOSED_SYMBOL       String::NewSymbol("closed")
 
-static const struct addrinfo server_tcp_hints = 
-/* ai_flags      */ { AI_PASSIVE 
+static const struct addrinfo server_tcp_hints =
+/* ai_flags      */ { AI_PASSIVE
 /* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
                     , 0
                     };
 
-static const struct addrinfo client_tcp_hints = 
+static const struct addrinfo client_tcp_hints =
 /* ai_flags      */ { 0
 /* ai_family     */ , AF_UNSPEC
 /* ai_socktype   */ , SOCK_STREAM
@@ -48,7 +48,7 @@ static const struct addrinfo client_tcp_hints =
 
 Persistent<FunctionTemplate> Connection::constructor_template;
 
-void 
+void
 Connection::Initialize (v8::Handle<v8::Object> target)
 {
   HandleScope scope;
@@ -115,8 +115,8 @@ Connection::Init (void)
 
 Connection::~Connection ()
 {
-  assert(stream_.recvfd < 0 && "garbage collecting open Connection"); 
-  assert(stream_.sendfd < 0 && "garbage collecting open Connection"); 
+  assert(stream_.recvfd < 0 && "garbage collecting open Connection");
+  assert(stream_.sendfd < 0 && "garbage collecting open Connection");
 }
 
 Handle<Value>
@@ -146,7 +146,7 @@ Connection::Connect (const Arguments& args)
 
   if (connection->ReadyState() != EVCOM_INITIALIZED) {
     return ThrowException(String::New("Socket is not in CLOSED state."));
-  } 
+  }
 
   assert(connection->stream_.recvfd < 0);
   assert(connection->stream_.sendfd < 0);
@@ -169,10 +169,10 @@ Connection::Connect (const Arguments& args)
   ev_ref(EV_DEFAULT_UC);
 
   connection->Attach();
-  
+
 #ifdef __APPLE__
   /* HACK: Bypass the thread pool and do it sync on Macintosh.
-   * Experiecing strange error where execution halts on 
+   * Experiecing strange error where execution halts on
    * getaddrinfo() and CPU goes to 100%. FIXME.
    */
   eio_req *req = static_cast<eio_req*>(malloc(sizeof(eio_req)));
@@ -180,8 +180,8 @@ Connection::Connect (const Arguments& args)
   Connection::Resolve(req);
 #else
   /* For the moment I will do DNS lookups in the eio thread pool. This is
-   * sub-optimal and cannot handle massive numbers of requests. 
-   * In the future I will move to a system using adns or udns: 
+   * sub-optimal and cannot handle massive numbers of requests.
+   * In the future I will move to a system using adns or udns:
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
   eio_custom( Connection::Resolve
@@ -202,7 +202,7 @@ Connection::Resolve (eio_req *req)
   assert(connection->attached_);
   assert(connection->resolving_);
 
-  req->result = getaddrinfo(connection->host_, connection->port_, 
+  req->result = getaddrinfo(connection->host_, connection->port_,
                             &client_tcp_hints, &address);
   req->ptr2 = address;
 
@@ -251,7 +251,7 @@ Connection::AfterResolve (eio_req *req)
   int r = 0;
   if (req->result == 0) r = connection->Connect(address->ai_addr);
 
-  if (address_list) freeaddrinfo(address_list); 
+  if (address_list) freeaddrinfo(address_list);
 
   // no error. return.
   if (req->result == 0) {
@@ -262,7 +262,7 @@ Connection::AfterResolve (eio_req *req)
   /* RESOLVE ERROR */
 
   /* TODO: the whole resolve process should be moved into evcom_stream.
-   * The fact that I'm modifying a read-only variable here should be 
+   * The fact that I'm modifying a read-only variable here should be
    * good evidence of this.
    */
   connection->stream_.errorno = req->result;
@@ -364,10 +364,10 @@ Connection::Send (const Arguments& args)
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
 
-  if ( connection->ReadyState() != EVCOM_CONNECTED_RW 
+  if ( connection->ReadyState() != EVCOM_CONNECTED_RW
     && connection->ReadyState() != EVCOM_CONNECTED_WO
      )
-  { 
+  {
     return ThrowException(String::New("Socket is not open for writing"));
   }
 
@@ -377,7 +377,7 @@ Connection::Send (const Arguments& args)
   // memory pool or ring buffer. Of course, expressing binary data as an
   // array of integers is extremely inefficent. This can improved when v8
   // bug 270 (http://code.google.com/p/v8/issues/detail?id=270) has been
-  // addressed. 
+  // addressed.
 
   if (args[0]->IsString()) {
     enum encoding enc = ParseEncoding(args[1]);
@@ -411,10 +411,10 @@ Connection::Send (const Arguments& args)
 
   } else return ThrowException(String::New("Bad argument"));
 
-  return Undefined();  
+  return Undefined();
 }
 
-void 
+void
 Connection::OnReceive (const void *buf, size_t len)
 {
   HandleScope scope;
@@ -438,13 +438,13 @@ Connection::OnReceive (const void *buf, size_t len)
       argv[0] = chunk;
     }
   } else {
-    argv[0] = Local<Value>::New(Null());  
+    argv[0] = Local<Value>::New(Null());
   }
 
   Emit("receive", argc, argv);
 }
 
-void 
+void
 Connection::OnClose ()
 {
   HandleScope scope;
@@ -529,7 +529,7 @@ Server::OnConnection (struct sockaddr *addr)
 
   Local<Object> js_connection =
     GetConnectionTemplate()->GetFunction()->NewInstance(0, NULL);
-  
+
   if (js_connection.IsEmpty()) {
     FatalException(try_catch);
     return NULL;
@@ -623,7 +623,7 @@ Server::Listen (const Arguments& args)
 
   server->Listen(address->ai_addr, backlog);
 
-  if (address_list) freeaddrinfo(address_list); 
+  if (address_list) freeaddrinfo(address_list);
 
   return Undefined();
 }

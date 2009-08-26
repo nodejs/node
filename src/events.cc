@@ -22,7 +22,7 @@ using namespace node;
 
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
-void 
+void
 EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
 {
   HandleScope scope;
@@ -38,7 +38,7 @@ EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
 static bool
 ReallyEmit (Handle<Object> self, Handle<String> event, int argc, Handle<Value> argv[])
 {
-  HandleScope scope; 
+  HandleScope scope;
 
   Local<Value> events_v = self->Get(String::NewSymbol("_events"));
   if (!events_v->IsObject()) return false;
@@ -49,7 +49,7 @@ ReallyEmit (Handle<Object> self, Handle<String> event, int argc, Handle<Value> a
   Local<Array> listeners = Local<Array>::Cast(listeners_v);
 
   for (unsigned int i = 0; i < listeners->Length(); i++) {
-    HandleScope scope; 
+    HandleScope scope;
 
     Local<Value> listener_v = listeners->Get(Integer::New(i));
     if (!listener_v->IsFunction()) continue;
@@ -71,7 +71,7 @@ ReallyEmit (Handle<Object> self, Handle<String> event, int argc, Handle<Value> a
 Handle<Value>
 EventEmitter::Emit (const Arguments& args)
 {
-  HandleScope scope; 
+  HandleScope scope;
   Local<String> event = args[0]->ToString();
   int argc = 0;
   Local<Array> emit_args;
@@ -85,7 +85,7 @@ EventEmitter::Emit (const Arguments& args)
     argv[i] = emit_args->Get(Integer::New(i));
   }
 
-  bool r = ReallyEmit(args.Holder(), event, argc, argv); 
+  bool r = ReallyEmit(args.Holder(), event, argc, argv);
 
   return scope.Close(r ? True() : False());
 }
@@ -93,14 +93,14 @@ EventEmitter::Emit (const Arguments& args)
 bool
 EventEmitter::Emit (const char *event_s, int argc, Handle<Value> argv[])
 {
-  HandleScope scope; 
+  HandleScope scope;
   Local<String> event = String::NewSymbol(event_s);
   return ReallyEmit(handle_, event, argc, argv);
 }
 
 Persistent<FunctionTemplate> Promise::constructor_template;
 
-void 
+void
 Promise::Initialize (v8::Handle<v8::Object> target)
 {
   HandleScope scope;
