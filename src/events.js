@@ -21,16 +21,38 @@ node.EventEmitter.prototype.listeners = function (type) {
 };
 
 // node.Promise is defined in src/events.cc
-var promise = node.Promise.prototype;
 
-promise.addCallback = function (listener) {
+node.Promise.prototype.addCallback = function (listener) {
   this.addListener("success", listener);
   return this;
 };
 
-promise.addErrback = function (listener) {
+node.Promise.prototype.addErrback = function (listener) {
   this.addListener("error", listener);
   return this;
+};
+
+node.Promise.prototype.wait = function () {
+  var ret;
+  var had_error = false;
+  this.addCallback(function () {
+        if (arguments.length == 1) {
+          ret = arguments[0];
+        } else if (arguments.length > 1) {
+          ret = [];
+          for (var i = 0; i < arguments.length; i++) {
+            ret.push(arguments[i]);
+          }
+        }
+      })
+      .addErrback(function (arg) {
+        had_error = true;
+        ret = arg;
+      })
+      .block();
+  
+  if (had_error) throw ret;
+  return ret;
 };
 
 })(); // end anonymous namespace

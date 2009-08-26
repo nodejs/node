@@ -158,10 +158,16 @@ Adds a listener for the +"success"+ event. Returns the same promise object.
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
 
-+promise.block()+ ::
++promise.wait()+ ::
 Blocks futher execution until the promise emits a success or error event.
-Events setup before the call to +promise.block()+ was made may still be
-emitted and executed while +promise.block()+ is blocking.
+Events setup before the call to +promise.wait()+ was made may still be
+emitted and executed while +promise.wait()+ is blocking.
++
+If there was a single argument to the +"success"+ event then it is returned.
+If there were multiple arguments to +"success"+ then they are returned as an
+array.
++
+If +"error"+ was emitted instead, +wait()+ throws an error.
 
 
 === Standard I/O
@@ -409,10 +415,10 @@ node.fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
 });
 ------------------------------------------------------------------------------
 
-Or use the +promise.block()+ functionality:
+Or use the +promise.wait()+ functionality:
 
 ------------------------------------------------------------------------------
-node.fs.rename("/tmp/hello", "/tmp/world").block();
+node.fs.rename("/tmp/hello", "/tmp/world").wait();
 node.fs.stat("/tmp/world").addCallback(function (stats) {
   puts("stats: " + JSON.stringify(stats));
 });
