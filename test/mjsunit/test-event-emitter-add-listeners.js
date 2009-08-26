@@ -21,9 +21,9 @@ puts("start");
 
 e.emit("hello", ["a", "b"]);
 
-function onExit () {
+process.addListener("exit", function () {
   assertArrayEquals(["hello"], events_new_listener_emited);
   assertEquals(1, times_hello_emited);
-}
+});
 
 

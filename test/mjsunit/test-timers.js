@@ -35,7 +35,7 @@ setInterval(function () {
     clearInterval(this);
 }, 1000);
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(setTimeout_called);
   assertEquals(3, interval_count);
-}
+});

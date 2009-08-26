@@ -20,7 +20,7 @@ assertEquals("D", d.D());
 assertInstanceof(d2.D, Function);
 assertEquals("D", d2.D());
 
-function onExit () {
+process.addListener("exit", function () {
   assertInstanceof(a.A, Function);
   assertEquals("A done", a.A());
 
@@ -35,4 +35,4 @@ function onExit () {
 
   assertInstanceof(d2.D, Function);
   assertEquals("D done", d2.D());
-}
+});

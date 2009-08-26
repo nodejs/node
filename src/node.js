@@ -20,14 +20,14 @@ node.tcp.createConnection = function (port, host) {
 // Timers
 
 function setTimeout (callback, after) {
-  var timer = new node.Timer(); 
+  var timer = new node.Timer();
   timer.addListener("timeout", callback);
   timer.start(after, 0);
   return timer;
 }
 
 function setInterval (callback, repeat) {
-  var timer = new node.Timer(); 
+  var timer = new node.Timer();
   timer.addListener("timeout", callback);
   timer.start(repeat, repeat);
   return timer;
@@ -96,7 +96,7 @@ node.Module.prototype.load = function (callback) {
   self.loadPromise = loadPromise;
 
   var cat_promise = node.cat(self.filename, "utf8");
-  
+
   cat_promise.addErrback(function () {
     node.stdio.writeError("Error reading " + self.filename + "\n");
     loadPromise.emitError();
@@ -124,13 +124,15 @@ node.Module.prototype.load = function (callback) {
 
     self.onLoad = self.target.__onLoad;
     self.onExit = self.target.__onExit;
+    if (self.onLoad || self.onExit) {
+      node.stdio.writeError( "(node) onLoad is depreciated it will be "
+                           + "removed in the future. Don't want it to "
+                           + "leave? Discuss on mailing list.\n"
+                           );
+    }
 
     self.waitChildrenLoad(function () {
       if (self.onLoad) {
-        node.stdio.writeError( "(node) onLoad is depreciated it will be "
-                             + "removed in the future. Don't want it to "
-                             + "leave? Discuss on mailing list.\n"
-                             );
         self.onLoad();
       }
       self.loaded = true;
@@ -140,7 +142,7 @@ node.Module.prototype.load = function (callback) {
 };
 
 node.Module.prototype.newChild = function (path, target) {
-  var child = new node.Module({ 
+  var child = new node.Module({
     target: target,
     path: path,
     base_directory: node.path.dirname(this.filename),
@@ -152,7 +154,7 @@ node.Module.prototype.newChild = function (path, target) {
 };
 
 node.Module.prototype.waitChildrenLoad = function (callback) {
-  var nloaded = 0; 
+  var nloaded = 0;
   var children = this.children;
   for (var i = 0; i < children.length; i++) {
     var child = children[i];
@@ -175,7 +177,7 @@ node.Module.prototype.exitChildren = function (callback) {
   for (var i = 0; i < children.length; i++) {
     children[i].exit(function () {
       nexited += 1;
-      if (nexited == children.length && callback) callback(); 
+      if (nexited == children.length && callback) callback();
     });
   }
 };
@@ -197,14 +199,15 @@ node.Module.prototype.exit = function (callback) {
 (function () {
   // Load the root module--the command line argument.
   var root_module = new node.Module({
-    path: node.path.filename(ARGV[1]), 
+    path: node.path.filename(ARGV[1]),
     base_directory: node.path.dirname(ARGV[1]),
-    target: this 
+    target: this
   });
   root_module.load();
 
   node.exit = function (code) {
     root_module.exit(function () {
+      process.emit("exit");
       node.reallyExit(code);
     });
   };

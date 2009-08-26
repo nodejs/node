@@ -73,10 +73,10 @@ assertArrayEquals(["a","b","c"], ret4);
 
 assertTrue(p4_done);
 
-function onExit() {
+process.addListener("exit", function () {
   assertTrue(p1_done);
   assertTrue(p2_done);
   assertTrue(p3_done);
   assertTrue(p4_done);
   assertTrue(p5_done);
-}
+});

@@ -10,6 +10,6 @@ cat.addListener("exit", function (status) { exit_status = status; });
 
 cat.kill();
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(exit_status > 0);
-}
+});

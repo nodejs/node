@@ -4,7 +4,7 @@ exports.D = function () {
   return string;
 };
 
-function onExit () {
+process.addListener("exit", function () {
   string = "D done";
-}
+});
 

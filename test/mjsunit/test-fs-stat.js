@@ -16,9 +16,9 @@ promise.addErrback(function () {
   got_error = true;
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(got_success);
   assertFalse(got_error);
   assertTrue(stats.mtime instanceof Date);
-}
+});
 

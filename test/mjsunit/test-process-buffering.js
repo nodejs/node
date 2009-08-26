@@ -24,6 +24,6 @@ pwd(function (result) {
   assertEquals("\n", result[result.length-1]);
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(pwd_called);
-}
+});

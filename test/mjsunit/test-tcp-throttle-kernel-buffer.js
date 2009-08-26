@@ -49,7 +49,7 @@ client.addListener("eof", function () {
   client.close();
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(N, chars_recved);
   assertTrue(npauses > 2);
-}
+});

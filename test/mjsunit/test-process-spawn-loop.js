@@ -22,6 +22,6 @@ function spawn (i) {
 
 spawn(0);
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(finished);
-}
+});

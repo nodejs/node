@@ -45,7 +45,7 @@ promise.addErrback(function () {
   errors += 1;
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(2, successes);
   assertEquals(0, errors);
-}
+});

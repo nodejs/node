@@ -82,6 +82,6 @@ pingPongTest(20989, "localhost");
 pingPongTest(20988, null);
 pingPongTest(20997, "::1");
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(3, tests_run);
-}
+});

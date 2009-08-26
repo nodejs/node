@@ -35,7 +35,7 @@ client.get("/1").finish(function (res1) {
   });
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(body1_s, body1);
   assertEquals(body2_s, body2);
-}
+});

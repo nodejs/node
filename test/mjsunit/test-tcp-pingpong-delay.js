@@ -85,6 +85,6 @@ function pingPongTest (port, host, on_complete) {
 
 pingPongTest(21988);
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(1, tests_run);
-}
+});

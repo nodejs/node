@@ -46,7 +46,7 @@ client.addListener("close", function (had_error) {
     server.close();
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(N+1, disconnect_count);
   assertEquals(N+1, client_recv_count);
-}
+});

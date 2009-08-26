@@ -47,6 +47,6 @@ req.finish(function (res) {
   });
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(body, "hello world\n");
-}
+});

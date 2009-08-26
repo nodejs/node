@@ -10,6 +10,6 @@ exports.D = function () {
   return d.D();
 };
 
-function onExit () {
+process.addListener("exit", function () {
   string = "C done";
-}
+});

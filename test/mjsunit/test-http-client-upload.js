@@ -43,8 +43,8 @@ req.finish(function(res) {
   });
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals("1\n2\n3\n", sent_body);
   assertTrue(server_req_complete);
   assertTrue(client_res_complete);
-}
+});

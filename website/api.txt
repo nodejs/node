@@ -258,12 +258,12 @@ puts("The area of a cirlce of radius 4 is " + area(4));
 Functions +require_async()+ and +include_async()+ also exist.
 
 
-==== +onExit()+
+==== +process.addListener("exit", function () { })+
 
-When the program exits a callback +onExit()+ will be called for each module
-(children first).
+When the program exits a special object called +process+ will emit an
++"exit"+ event.
 
-The +onExit()+ callback cannot perform I/O since the process is going to
+The +"exit"+ event cannot perform I/O since the process is going to
 forcably exit in less than microsecond. However, it is a good hook to
 perform constant time checks of the module's state. E.G. for unit tests:
 
@@ -276,13 +276,13 @@ setTimeout(function () {
   timer_executed = true
 }, 1000);
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(timer_executed);
-}
+});
 ----------------------------------------
 
-Just to reiterate: +onExit()+, is not the place to close files or shutdown
-servers. The process will exit before they get performed. 
+Just to reiterate: the +"exit"+ event, is not the place to close files or
+shutdown servers. The process will exit before they get performed. 
 
 
 

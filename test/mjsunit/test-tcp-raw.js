@@ -36,10 +36,10 @@ c.addListener("close", function () {
   echoServer.close();
 });
 
-function onExit () {
+process.addListener("exit", function () {
   var expected = [];
   for (var i = 0; i < 256; i++) {
     expected.push(i);
   }
   assertEquals(expected, recv);
-}
+});

@@ -28,7 +28,7 @@ node.http.cat("http://localhost:12312/", "utf8").addErrback(function () {
   bad_server_got_error = true;
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertTrue(got_good_server_content);
   assertTrue(bad_server_got_error);
-}
+});

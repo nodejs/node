@@ -62,7 +62,7 @@ for (var i = 0; i < concurrency; i++) {
   });
 }
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(connections_per_client * concurrency, total_connections);
   puts("\nokay!");
-}
+});

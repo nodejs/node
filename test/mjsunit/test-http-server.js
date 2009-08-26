@@ -59,7 +59,7 @@ c.addListener("close", function () {
   assertEquals(c.readyState, "closed");
 });
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(2, request_number);
   assertEquals(2, requests_sent);
 
@@ -70,4 +70,4 @@ function onExit () {
   assertTrue(quit.exec(server_response) != null);
 
   assertTrue(client_got_eof);
-}
+});

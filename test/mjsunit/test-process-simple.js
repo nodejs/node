@@ -28,7 +28,7 @@ cat.write("hello");
 cat.write(" ");
 cat.write("world");
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(0, exit_status);
   assertEquals("hello world", response);
-}
+});

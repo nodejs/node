@@ -56,7 +56,7 @@ setTimeout(function () {
   });
 }, 1);
 
-function onExit () {
+process.addListener("exit", function () {
   node.debug("responses_recvd: " + responses_recvd);
   assertEquals(2, responses_recvd);
 
@@ -65,5 +65,5 @@ function onExit () {
 
   assertEquals("The path was /hello", body0);
   assertEquals("The path was /world", body1);
-}
+});
 
