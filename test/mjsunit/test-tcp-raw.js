@@ -14,29 +14,27 @@ echoServer.listen(PORT);
 var recv = [];
 var j = 0;
 
-function onLoad () {
-  var c = node.tcp.createConnection(PORT);
+var c = node.tcp.createConnection(PORT);
 
-  c.addListener("receive", function (chunk) {
-    if (++j < 256) {
-      c.send([j], "raw");
-    } else {
-      c.close();
-    }
-    for (var i = 0; i < chunk.length; i++) {
-      recv.push(chunk[i]);
-    }
-  });
-
-  c.addListener("connect", function () {
+c.addListener("receive", function (chunk) {
+  if (++j < 256) {
     c.send([j], "raw");
-  });
+  } else {
+    c.close();
+  }
+  for (var i = 0; i < chunk.length; i++) {
+    recv.push(chunk[i]);
+  }
+});
 
-  c.addListener("close", function () {
-    p(recv);
-    echoServer.close();
-  });
-};
+c.addListener("connect", function () {
+  c.send([j], "raw");
+});
+
+c.addListener("close", function () {
+  p(recv);
+  echoServer.close();
+});
 
 function onExit () {
   var expected = [];

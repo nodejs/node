@@ -83,9 +83,7 @@ function pingPongTest (port, host, on_complete) {
   });
 }
 
-function onLoad () {
-  pingPongTest(21988);
-}
+pingPongTest(21988);
 
 function onExit () {
   assertEquals(1, tests_run);

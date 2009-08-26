@@ -44,36 +44,34 @@ p5.addCallback(function () {
   }, 100);
 });
 
-function onLoad () {
 
-  p2.emitSuccess();
+p2.emitSuccess();
 
-  assertFalse(p1_done);
-  assertTrue(p2_done);
-  assertFalse(p3_done);
+assertFalse(p1_done);
+assertTrue(p2_done);
+assertFalse(p3_done);
 
-  var ret1 = p1.wait()
-  assertEquals("single arg", ret1);
+var ret1 = p1.wait()
+assertEquals("single arg", ret1);
 
-  assertTrue(p1_done);
-  assertTrue(p2_done);
-  assertFalse(p3_done);
+assertTrue(p1_done);
+assertTrue(p2_done);
+assertFalse(p3_done);
 
-  p3.emitSuccess();
+p3.emitSuccess();
 
-  assertFalse(p4_done);
-  assertFalse(p5_done);
+assertFalse(p4_done);
+assertFalse(p5_done);
 
-  p5.emitSuccess();
+p5.emitSuccess();
 
-  assertFalse(p4_done);
-  assertTrue(p5_done);
+assertFalse(p4_done);
+assertTrue(p5_done);
 
-  var ret4 = p4.wait();
-  assertArrayEquals(["a","b","c"], ret4);
-  
-  assertTrue(p4_done);
-}
+var ret4 = p4.wait();
+assertArrayEquals(["a","b","c"], ret4);
+
+assertTrue(p4_done);
 
 function onExit() {
   assertTrue(p1_done);

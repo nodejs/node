@@ -24,11 +24,9 @@ cat.addListener("exit", function (status) {
   exit_status = status;
 });
 
-function onLoad () {
-  cat.write("hello");
-  cat.write(" ");
-  cat.write("world");
-}
+cat.write("hello");
+cat.write(" ");
+cat.write("world");
 
 function onExit () {
   assertEquals(0, exit_status);

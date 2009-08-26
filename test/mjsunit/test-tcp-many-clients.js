@@ -55,13 +55,11 @@ function runClient (callback) {
 }
 
 
-function onLoad () {
-  var finished_clients = 0;
-  for (var i = 0; i < concurrency; i++) {
-    runClient(function () {
-      if (++finished_clients == concurrency) server.close();
-    });
-  }
+var finished_clients = 0;
+for (var i = 0; i < concurrency; i++) {
+  runClient(function () {
+    if (++finished_clients == concurrency) server.close();
+  });
 }
 
 function onExit () {

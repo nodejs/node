@@ -77,12 +77,10 @@ function pingPongTest (port, host, on_complete) {
   });
 }
 
-function onLoad () {
-  /* All are run at once, so run on different ports */
-  pingPongTest(20989, "localhost");
-  pingPongTest(20988, null);
-  pingPongTest(20997, "::1");
-}
+/* All are run at once, so run on different ports */
+pingPongTest(20989, "localhost");
+pingPongTest(20988, null);
+pingPongTest(20997, "::1");
 
 function onExit () {
   assertEquals(3, tests_run);

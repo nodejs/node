@@ -24,26 +24,24 @@ var server = node.http.createServer(function(req, res) {
 });
 server.listen(PORT);
 
-function onLoad () {
-  var client = node.http.createClient(PORT);
-  var req = client.post('/');
+var client = node.http.createClient(PORT);
+var req = client.post('/');
 
-  req.sendBody('1\n');
-  req.sendBody('2\n');
-  req.sendBody('3\n');
+req.sendBody('1\n');
+req.sendBody('2\n');
+req.sendBody('3\n');
 
-  puts("client finished sending request");
-  req.finish(function(res) {
-    res.setBodyEncoding("utf8");
-    res.addListener('body', function(chunk) {
-      puts(chunk);
-    });
-    res.addListener('complete', function() {
-      client_res_complete = true;
-      server.close();
-    });
+puts("client finished sending request");
+req.finish(function(res) {
+  res.setBodyEncoding("utf8");
+  res.addListener('body', function(chunk) {
+    puts(chunk);
   });
-}
+  res.addListener('complete', function() {
+    client_res_complete = true;
+    server.close();
+  });
+});
 
 function onExit () {
   assertEquals("1\n2\n3\n", sent_body);

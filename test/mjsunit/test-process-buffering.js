@@ -18,13 +18,11 @@ function pwd (callback) {
 }
 
 
-function onLoad () {
-  pwd(function (result) {
-    p(result);  
-    assertTrue(result.length > 1);
-    assertEquals("\n", result[result.length-1]);
-  });
-}
+pwd(function (result) {
+  p(result);  
+  assertTrue(result.length > 1);
+  assertEquals("\n", result[result.length-1]);
+});
 
 function onExit () {
   assertTrue(pwd_called);

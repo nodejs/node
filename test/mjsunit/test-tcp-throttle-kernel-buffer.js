@@ -23,33 +23,31 @@ chars_recved = 0;
 npauses = 0;
 
 
-function onLoad () {
-  var paused = false;
-  client = node.tcp.createConnection(PORT);
-  client.setEncoding("ascii");
-  client.addListener("receive", function (d) {
-    chars_recved += d.length;
-    puts("got " + chars_recved);
-    if (!paused) {
-      client.readPause();
-      npauses += 1;
-      paused = true;
-      puts("pause");
-      x = chars_recved;
-      setTimeout(function () {
-        assertEquals(chars_recved, x);
-        client.readResume();
-        puts("resume");
-        paused = false;
-      }, 100);
-    }
-  });
+var paused = false;
+client = node.tcp.createConnection(PORT);
+client.setEncoding("ascii");
+client.addListener("receive", function (d) {
+  chars_recved += d.length;
+  puts("got " + chars_recved);
+  if (!paused) {
+    client.readPause();
+    npauses += 1;
+    paused = true;
+    puts("pause");
+    x = chars_recved;
+    setTimeout(function () {
+      assertEquals(chars_recved, x);
+      client.readResume();
+      puts("resume");
+      paused = false;
+    }, 100);
+  }
+});
 
-  client.addListener("eof", function () {
-    server.close();
-    client.close();
-  });
-}
+client.addListener("eof", function () {
+  server.close();
+  client.close();
+});
 
 function onExit () {
   assertEquals(N, chars_recved);

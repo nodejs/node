@@ -32,22 +32,20 @@ proxy.listen(PROXY_PORT);
 
 var body = "";
 
-function onLoad () {
-  var client = node.http.createClient(PROXY_PORT);
-  var req = client.get("/test");
-  // node.debug("client req")
-  req.finish(function (res) {
-    // node.debug("got res");
-    assertEquals(200, res.statusCode);
-    res.setBodyEncoding("utf8");
-    res.addListener("body", function (chunk) { body += chunk; });
-    res.addListener("complete", function () {
-      proxy.close();
-      backend.close();
-      // node.debug("closed both");
-    });
+var client = node.http.createClient(PROXY_PORT);
+var req = client.get("/test");
+// node.debug("client req")
+req.finish(function (res) {
+  // node.debug("got res");
+  assertEquals(200, res.statusCode);
+  res.setBodyEncoding("utf8");
+  res.addListener("body", function (chunk) { body += chunk; });
+  res.addListener("complete", function () {
+    proxy.close();
+    backend.close();
+    // node.debug("closed both");
   });
-}
+});
 
 function onExit () {
   assertEquals(body, "hello world\n");

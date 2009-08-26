@@ -12,8 +12,6 @@ s.listen(8000);
 include("mjsunit.js");
 var a = require("http://localhost:8000/")
 
-function onLoad() {
-  assertInstanceof(a.A, Function);
-  assertEquals("A", a.A());
-  s.close();
-}
+assertInstanceof(a.A, Function);
+assertEquals("A", a.A());
+s.close();

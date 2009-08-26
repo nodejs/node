@@ -126,7 +126,13 @@ node.Module.prototype.load = function (callback) {
     self.onExit = self.target.__onExit;
 
     self.waitChildrenLoad(function () {
-      if (self.onLoad) self.onLoad();
+      if (self.onLoad) {
+        node.stdio.writeError( "(node) onLoad is depreciated it will be "
+                             + "removed in the future. Don't want it to "
+                             + "leave? Discuss on mailing list.\n"
+                             );
+        self.onLoad();
+      }
       self.loaded = true;
       loadPromise.emitSuccess([self.target]);
     });

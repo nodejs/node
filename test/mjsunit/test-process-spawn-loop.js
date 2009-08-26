@@ -20,9 +20,7 @@ function spawn (i) {
   });
 }
 
-function onLoad () {
-  spawn(0);
-}
+spawn(0);
 
 function onExit () {
   assertTrue(finished);

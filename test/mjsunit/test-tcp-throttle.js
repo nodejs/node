@@ -21,35 +21,32 @@ server.listen(PORT);
 recv = "";
 chars_recved = 0;
 
-function onLoad () {
-  client = node.tcp.createConnection(PORT);
-  client.setEncoding("ascii");
-  client.addListener("receive", function (d) {
-      print(d);
-      recv += d;
-  });
+client = node.tcp.createConnection(PORT);
+client.setEncoding("ascii");
+client.addListener("receive", function (d) {
+    print(d);
+    recv += d;
+});
 
+setTimeout(function () {
+  chars_recved = recv.length; 
+  puts("pause at: " + chars_recved);
+  assertTrue(chars_recved > 1);
+  client.readPause();
   setTimeout(function () {
-    chars_recved = recv.length; 
-    puts("pause at: " + chars_recved);
-    assertTrue(chars_recved > 1);
-    client.readPause();
+    puts("resume at: " + chars_recved);
+    assertEquals(chars_recved, recv.length);
+    client.readResume();
+
     setTimeout(function () {
-      puts("resume at: " + chars_recved);
-      assertEquals(chars_recved, recv.length);
-      client.readResume();
+      chars_recved = recv.length; 
+      puts("pause at: " + chars_recved);
+      client.readPause();
 
       setTimeout(function () {
-        chars_recved = recv.length; 
-        puts("pause at: " + chars_recved);
-        client.readPause();
-
-        setTimeout(function () {
-          puts("resume at: " + chars_recved);
-          assertEquals(chars_recved, recv.length);
-          client.readResume();
-
-        }, 500);
+        puts("resume at: " + chars_recved);
+        assertEquals(chars_recved, recv.length);
+        client.readResume();
 
       }, 500);
 
@@ -57,11 +54,12 @@ function onLoad () {
 
   }, 500);
 
-  client.addListener("eof", function () {
-    server.close();
-    client.close();
-  });
-}
+}, 500);
+
+client.addListener("eof", function () {
+  server.close();
+  client.close();
+});
 
 function onExit () {
   assertEquals(N, recv.length);

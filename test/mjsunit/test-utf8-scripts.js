@@ -4,7 +4,5 @@ include("mjsunit.js");
 
 puts("Σὲ γνωρίζω ἀπὸ τὴν κόψη");
 
-function onLoad () {
-  assertTrue( /Hellö Wörld/.test("Hellö Wörld") ); 
-}
+assertTrue( /Hellö Wörld/.test("Hellö Wörld") ); 
 
