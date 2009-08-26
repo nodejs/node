@@ -213,9 +213,7 @@ The contents of +foo.js+:
 
 ----------------------------------------
 var circle = require("circle.js");
-function onLoad () {
-  puts("The area of a cirlce of radius 4 is " + circle.area(4));
-}
+puts("The area of a cirlce of radius 4 is " + circle.area(4));
 ----------------------------------------
 
 The contents of +circle.js+:
@@ -254,20 +252,10 @@ the global namespace. For example:
 
 ----------------------------------------
 include("circle.js");
-function onLoad () {
-  puts("The area of a cirlce of radius 4 is " + area(4));
-}
+puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 
-
-==== +onLoad()+
-
-Because module loading does not happen instantaneously and because Node has
-a policy of never blocking, a callback +onLoad+ can be set that will notify
-the user when the included modules are loaded.  Each file/module can have
-its own +onLoad+ callback.
-
-+include()+ and +require()+ cannot be used after +onLoad()+ is called. 
+Functions +require_async()+ and +include_async()+ also exist.
 
 
 ==== +onExit()+

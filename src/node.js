@@ -42,6 +42,26 @@ clearInterval = clearTimeout;
 
 // Module
 
+node.loadingModules = [];
+
+function require_async (url) {
+  var currentModule = node.loadingModules[0];
+  return currentModule.newChild(url, {});
+}
+
+function require (url) {
+  return require_async(url).wait();
+}
+
+function include_async (url) {
+  var currentModule = node.loadingModules[0];
+  return currentModule.newChild(url, currentModule.target);
+}
+
+function include (url) {
+  include_async(url).wait();
+}
+
 node.Module = function (o) {
   this.parent = o.parent;
   this.target = o.target || {};
@@ -60,6 +80,7 @@ node.Module = function (o) {
   }
 
   this.loaded = false;
+  this.loadPromise = null;
   this.exited = false;
   this.children = [];
 };
@@ -70,17 +91,18 @@ node.Module.prototype.load = function (callback) {
     throw "Module '" + self.filename + "' is already loaded.";
   }
 
-  var promise = node.cat(self.filename, "utf8");
+  var loadPromise = new node.Promise();
+  node.assert(self.loadPromise === null);
+  self.loadPromise = loadPromise;
+
+  var cat_promise = node.cat(self.filename, "utf8");
   
-  promise.addErrback(function () {
+  cat_promise.addErrback(function () {
     node.stdio.writeError("Error reading " + self.filename + "\n");
-    node.exit(1);
+    loadPromise.emitError();
   });
 
-  promise.addCallback(function (content) {
-    self.target.__require = function (path) { return self.newChild(path, {}); };
-    self.target.__include = function (path) { self.newChild(path, self.target); };
-
+  cat_promise.addCallback(function (content) {
     // remove shebang
     content = content.replace(/^\#\!.*/, '');
 
@@ -89,22 +111,24 @@ node.Module.prototype.load = function (callback) {
                   "  var onLoad; "+
                   "  var onExit; "+
                   "  var exports = this; "+
-                  "  var require = this.__require; "+
-                  "  var include = this.__include; "+
                   content+
                   "\n"+
                   "  this.__onLoad = onLoad;\n"+
                   "  this.__onExit = onExit;\n"+
                   "};\n";
     var compiled_wrapper = node.compile(wrapper, self.filename);
+
+    node.loadingModules.unshift(self);
     compiled_wrapper.apply(self.target, [self.filename]);
+    node.loadingModules.shift();
+
     self.onLoad = self.target.__onLoad;
     self.onExit = self.target.__onExit;
 
-    self.loadChildren(function () {
+    self.waitChildrenLoad(function () {
       if (self.onLoad) self.onLoad();
       self.loaded = true;
-      if (callback) callback();
+      loadPromise.emitSuccess([self.target]);
     });
   });
 };
@@ -117,20 +141,25 @@ node.Module.prototype.newChild = function (path, target) {
     parent: this
   });
   this.children.push(child);
-  return target;
+  child.load();
+  return child.loadPromise;
 };
 
-node.Module.prototype.loadChildren = function (callback) {
+node.Module.prototype.waitChildrenLoad = function (callback) {
+  var nloaded = 0; 
   var children = this.children;
-  if (children.length == 0 && callback) callback();
-  var nloaded = 0;
   for (var i = 0; i < children.length; i++) {
     var child = children[i];
-    child.load(function () {
-      nloaded += 1;
-      if (nloaded == children.length && callback) callback(); 
-    });
+    if (child.loaded) {
+      nloaded++;
+    } else {
+      child.addCallback(function () {
+        nloaded++;
+        if (children.length == nloaded && callback) callback();
+      });
+    }
   }
+  if (children.length == nloaded && callback) callback();
 };
 
 node.Module.prototype.exitChildren = function (callback) {
