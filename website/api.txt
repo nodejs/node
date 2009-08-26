@@ -141,7 +141,9 @@ Execute each of the listeners in order with the array +args+ as arguments.
 
 ==== +node.Promise+
 
-Promises emit two special events +"success"+ and +"error"+. 
++node.Promise+ inherits from +node.eventEmitter+. A promise emits one of two
+events: +"success"+ or +"error"+.  After emitting its event, it will not
+emit anymore events.
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -149,10 +151,6 @@ Promises emit two special events +"success"+ and +"error"+.
 | +"success"+ | (depends)        | 
 | +"error"+   | (depends)        | 
 |=========================================================
-
-+node.Promise+ inherits from +node.eventEmitter+. A promise emits one of two
-events: +"success"+ or +"error"+.  After emitting its event, it will not
-emit anymore events.
 
 +promise.addCallback(listener)+ ::
 Adds a listener for the +"success"+ event. Returns the same promise object.
@@ -383,36 +381,42 @@ File I/O is provided by simple wrappers around standard POSIX functions.
 All POSIX wrappers have a similar form. 
 They return a promise (+node.Promise+). Example:
 
-----------------------------------------
+------------------------------------------------------------------------------
 var promise = node.fs.unlink("/tmp/hello");
 promise.addCallback(function () {
   puts("successfully deleted /tmp/hello");
 });
-----------------------------------------
+------------------------------------------------------------------------------
 
 There is no guaranteed ordering to the POSIX wrappers. The
 following is very much prone to error
 
-----------------------------------------
+------------------------------------------------------------------------------
 node.fs.rename("/tmp/hello", "/tmp/world");
 node.fs.stat("/tmp/world").addCallback(function (stats) {
   puts("stats: " + JSON.stringify(stats));
 });
-----------------------------------------
+------------------------------------------------------------------------------
 
 It could be that +stat()+ is executed before the +rename()+.
 The correct way to do this is to chain the promises.
 
-----------------------------------------
-node.fs.rename("/tmp/hello", "/tmp/world")
-  .addCallback(function () {
-    node.fs.stat("/tmp/world")
-      .addCallback(function (stats) {
-        puts("stats: " + JSON.stringify(stats));
-      });
+------------------------------------------------------------------------------
+node.fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
+  node.fs.stat("/tmp/world").addCallback(function (stats) {
+    puts("stats: " + JSON.stringify(stats));
   });
-----------------------------------------
+});
+------------------------------------------------------------------------------
 
+Or use the +promise.block()+ functionality:
+
+------------------------------------------------------------------------------
+node.fs.rename("/tmp/hello", "/tmp/world").block();
+node.fs.stat("/tmp/world").addCallback(function (stats) {
+  puts("stats: " + JSON.stringify(stats));
+});
+------------------------------------------------------------------------------
 
 +node.fs.rename(path1, path2)+ ::
   See rename(2). 
