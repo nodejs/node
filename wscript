@@ -4,7 +4,7 @@ import sys, os, shutil
 from os.path import join, dirname, abspath
 from logging import fatal
 
-VERSION="0.1.6"
+VERSION="0.1.7"
 APPNAME="node.js"
 
 import js2c
@@ -260,7 +260,7 @@ def build(bld):
   libnode.uselib_local = "evcom ev eio http_parser coupling"
   libnode.uselib = "UDNS V8 EXECINFO PROFILER EFENCE DL"
   libnode.install_path = '${PREFIX}/lib'
-  bld.install_files('${PREFIX}/include/node/', 'config.h src/node.h src/object_wrap.h');
+  bld.install_files('${PREFIX}/include/node/', 'config.h src/node.h src/node_version.h src/object_wrap.h');
 
   ### node
   node = bld.new_task_gen("cxx", "program")
@@ -274,14 +274,13 @@ def build(bld):
 
   def subflags(program):
     debug_ext = ""
-    if bld.env["USE_DEBUG"]:
-      debug_ext = "_g"
-    x = { 'CCFLAGS': " ".join(program.env["CCFLAGS"])
-        , 'CPPFLAGS': " ".join(program.env["CPPFLAGS"])
-        , 'LIBFLAGS': " ".join(program.env["LIBFLAGS"])
-        , 'VERSION': VERSION
-        , 'PREFIX': program.env["PREFIX"]
-        , 'DEBUG_EXT': debug_ext
+    if program.target == "node_g": debug_ext = "_g"
+    x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"])
+        , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"])
+        , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"])
+        , 'VERSION'   : VERSION
+        , 'PREFIX'    : program.env["PREFIX"]
+        , 'DEBUG_EXT' : debug_ext
         }
     return x;
 
@@ -293,6 +292,11 @@ def build(bld):
   pkgconfig.install_path = '${PREFIX}/lib/pkgconfig'
   pkgconfig.dict = subflags(node)
 
+  # process file.pc.in -> file.pc
+  node_version = bld.new_task_gen('subst', before="cxx")
+  node_version.source = 'src/node_version.h.in'
+  node_version.target = 'src/node_version.h'
+  node_version.dict = subflags(node)
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
@@ -305,4 +309,6 @@ def build(bld):
     pkgconfig_g.dict = subflags(node_g)
     pkgconfig_g.target = 'node_g.pc'
     
+    node_version_g = node_version.clone("debug")
+    node_version_g.dict = subflags(node_g)
 

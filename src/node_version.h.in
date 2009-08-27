@@ -1,0 +1,3 @@
+#define NODE_VERSION "@VERSION@"
+#define NODE_CFLAGS "@CCFLAGS@ @CPPFLAGS@ -I@PREFIX@/include"
+#define NODE_LIBFLAGS "@LIBFLAGS@ -L@PREFIX@/lib -lnode@DEBUG_EXT@"

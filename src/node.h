@@ -7,10 +7,9 @@
 #include <evcom.h>
 
 #include "object_wrap.h"
+#include "node_version.h"
 
 namespace node {
-
-#define NODE_VERSION "0.1.7"
 
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
