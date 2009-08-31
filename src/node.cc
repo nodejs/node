@@ -126,13 +126,15 @@ node_dlopen (const v8::Arguments& args)
 
   void *handle = dlopen(*filename, RTLD_LAZY);
   if (handle == NULL) {
-    return ThrowException(String::New("dlopen() failed."));
+    Local<Value> exception = Exception::Error(String::New(dlerror()));
+    return ThrowException(exception);
   }
 
   void *init_handle = dlsym(handle, "init");
   if (init_handle == NULL) {
-    ThrowException(String::New("No 'init' symbol found in module."));
-    return Undefined();
+    Local<Value> exception =
+      Exception::Error(String::New("No 'init' symbol found in module."));
+    return ThrowException(exception);
   }
   extInit init = reinterpret_cast<extInit>(init_handle);
 
