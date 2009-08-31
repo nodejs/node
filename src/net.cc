@@ -66,6 +66,7 @@ Connection::Initialize (v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ReadPause);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ReadResume);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
@@ -104,8 +105,7 @@ void
 Connection::Init (void)
 {
   resolving_ = false;
-  double timeout = 60.0; // default
-  evcom_stream_init(&stream_, timeout);
+  evcom_stream_init(&stream_);
   stream_.on_connect = Connection::on_connect;
   stream_.on_read    = Connection::on_read;
   stream_.on_close   = Connection::on_close;
@@ -329,6 +329,21 @@ Connection::ReadResume (const Arguments& args)
   assert(connection);
 
   connection->ReadResume();
+
+  return Undefined();
+}
+
+Handle<Value>
+Connection::SetTimeout (const Arguments& args)
+{
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+
+  float timeout = (float)(args[0]->IntegerValue()) / 1000;
+
+  connection->SetTimeout(timeout);
 
   return Undefined();
 }

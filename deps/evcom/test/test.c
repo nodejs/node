@@ -155,10 +155,11 @@ pingpong_on_server_connection (evcom_server *_server, struct sockaddr *addr)
   assert(addr);
 
   evcom_stream *stream = malloc(sizeof(evcom_stream));
-  evcom_stream_init(stream, PINGPONG_TIMEOUT);
+  evcom_stream_init(stream);
   stream->on_read = pingpong_on_peer_read;
   stream->on_close = common_on_peer_close;
   stream->on_timeout = common_on_peer_timeout;
+  evcom_stream_reset_timeout(stream, PINGPONG_TIMEOUT);
 
   assert(EVCOM_INITIALIZED == evcom_stream_state(stream));
 
@@ -226,11 +227,12 @@ pingpong (struct sockaddr *address)
   assert(r == 0);
   evcom_server_attach(EV_DEFAULT_ &server);
 
-  evcom_stream_init(&client, PINGPONG_TIMEOUT);
+  evcom_stream_init(&client);
   client.on_read    = pingpong_on_client_read;
   client.on_connect = pingpong_on_client_connect;
   client.on_close   = pingpong_on_client_close;
   client.on_timeout = common_on_client_timeout;
+  evcom_stream_reset_timeout(&client, PINGPONG_TIMEOUT);
 
   assert(EVCOM_INITIALIZED == evcom_stream_state(&client));
 
@@ -274,10 +276,11 @@ connint_on_connection(evcom_server *_server, struct sockaddr *addr)
   assert(addr);
 
   evcom_stream *stream = malloc(sizeof(evcom_stream));
-  evcom_stream_init(stream, CONNINT_TIMEOUT);
+  evcom_stream_init(stream);
   stream->on_read    = send_bye_and_close;
   stream->on_close   = common_on_peer_close;
   stream->on_timeout = common_on_peer_timeout;
+  evcom_stream_reset_timeout(stream, CONNINT_TIMEOUT);
 
 #if EVCOM_HAVE_GNUTLS
   if (use_tls) anon_tls_server(stream);
@@ -349,11 +352,12 @@ connint (struct sockaddr *address)
   int i;
   for (i = 0; i < NCONN; i++) {
     evcom_stream *client = &clients[i];
-    evcom_stream_init(client, CONNINT_TIMEOUT);
+    evcom_stream_init(client);
     client->on_read    = connint_on_client_read;
     client->on_connect = connint_on_client_connect;
     client->on_close   = connint_on_client_close;
     client->on_timeout = common_on_client_timeout;
+    evcom_stream_reset_timeout(client, CONNINT_TIMEOUT);
 #if EVCOM_HAVE_GNUTLS
     if (use_tls) anon_tls_client(client);
 #endif
@@ -554,18 +558,20 @@ pair_pingpong (int use_pipe)
   b_got_connect = 0;
   pair_pingpong_cnt = 0;
 
-  evcom_stream_init(&a, PAIR_PINGPONG_TIMEOUT);
+  evcom_stream_init(&a);
   a.on_close = a_close;
   a.on_connect = a_connect;
   a.on_read = a_read;
+  evcom_stream_reset_timeout(&a, PAIR_PINGPONG_TIMEOUT);
 #if EVCOM_HAVE_GNUTLS
   if (use_tls) anon_tls_client(&a);
 #endif
 
-  evcom_stream_init(&b, PAIR_PINGPONG_TIMEOUT);
+  evcom_stream_init(&b);
   b.on_close = b_close;
   b.on_connect = b_connect;
   b.on_read = b_read;
+  evcom_stream_reset_timeout(&b, PAIR_PINGPONG_TIMEOUT);
 #if EVCOM_HAVE_GNUTLS
   if (use_tls) anon_tls_server(&b);
 #endif
@@ -639,10 +645,11 @@ make_echo_connection (evcom_server *server, struct sockaddr *addr)
   assert(addr);
 
   evcom_stream *stream = malloc(sizeof(evcom_stream));
-  evcom_stream_init(stream, ZERO_TIMEOUT);
+  evcom_stream_init(stream);
   stream->on_read = echo;
   stream->on_close = free_stream;
   stream->on_timeout = error_out;
+  evcom_stream_reset_timeout(stream, ZERO_TIMEOUT);
 
 #if EVCOM_HAVE_GNUTLS
   if (use_tls) anon_tls_server(stream);
@@ -717,11 +724,12 @@ zero_stream (struct sockaddr *address, size_t to_write)
   evcom_server_attach(EV_DEFAULT_ &server);
 
   evcom_stream client;
-  evcom_stream_init(&client, ZERO_TIMEOUT);
+  evcom_stream_init(&client);
   client.on_read    = zero_recv;
   client.on_connect = zero_start;
   client.on_close   = zero_close;
   client.on_timeout = error_out;
+  evcom_stream_reset_timeout(&client, ZERO_TIMEOUT);
 #if EVCOM_HAVE_GNUTLS
   if (use_tls) anon_tls_client(&client);
 #endif

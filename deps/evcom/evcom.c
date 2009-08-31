@@ -392,7 +392,7 @@ stream__handshake (evcom_stream *stream)
     return OKAY;
   }
 
-  evcom_stream_reset_timeout(stream);
+  ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
 
   if (r == GNUTLS_E_INTERRUPTED || r == GNUTLS_E_AGAIN) {
     if (0 == gnutls_record_get_direction((stream)->session)) {
@@ -411,11 +411,14 @@ stream__handshake (evcom_stream *stream)
   stream->flags |= EVCOM_CONNECTED;
   if (stream->on_connect) stream->on_connect(stream);
 
-  ev_io_start(D_LOOP_(stream) &stream->read_watcher);
-  ev_io_start(D_LOOP_(stream) &stream->write_watcher);
+  /* evcom_stream_force_close might have been called. */
+  if (stream->recvfd >= 0 && stream->sendfd >= 0) {
+    ev_io_start(D_LOOP_(stream) &stream->read_watcher);
+    ev_io_start(D_LOOP_(stream) &stream->write_watcher);
 
-  stream->send_action = stream_send__data;
-  stream->recv_action = stream_recv__data;
+    stream->send_action = stream_send__data;
+    stream->recv_action = stream_recv__data;
+  }
 
   return OKAY;
 }
@@ -541,7 +544,7 @@ stream_recv__data (evcom_stream *stream)
       return OKAY;
     }
 
-    evcom_stream_reset_timeout(stream);
+    ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
 
     assert(recved >= 0);
 
@@ -614,7 +617,7 @@ stream_send__data (evcom_stream *stream)
       return OKAY;
     }
 
-    evcom_stream_reset_timeout(stream);
+    ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
 
     assert(sent >= 0);
 
@@ -638,14 +641,24 @@ stream_send__shutdown (evcom_stream *stream)
   int r = shutdown(stream->sendfd, SHUT_WR);
 
   if (r < 0) {
-    stream->errorno = errno;
-    evcom_perror("shutdown()", errno);
+    switch (errno) {
+      case EINTR:
+        assert(stream->send_action == stream_send__shutdown);
+        return OKAY;
+
+      case ENOTCONN:
+        break;
+
+      default: 
+        stream->errorno = errno;
+        evcom_perror("shutdown()", errno);
+        break;
+    }
     stream->send_action = stream_send__close;
     return OKAY;
   }
 
   stream->flags &= ~EVCOM_WRITABLE;
-
   stream->send_action = stream_send__wait_for_eof;
   return OKAY;
 }
@@ -985,13 +998,15 @@ on_timeout (EV_P_ ev_timer *watcher, int revents)
   assert(watcher == &stream->timeout_watcher);
 
   if (PAUSED(stream)) {
-    evcom_stream_reset_timeout(stream);
+    ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
     return;
   }
 
   if (stream->on_timeout) stream->on_timeout(stream);
 
   evcom_stream_force_close(stream);
+
+  if (stream->on_close) stream->on_close(stream);
 }
 
 static void 
@@ -1045,7 +1060,7 @@ stream_event (EV_P_ ev_io *w, int revents)
  *   gnutls_db_set_ptr (stream->session, _);
  */
 void
-evcom_stream_init (evcom_stream *stream, float timeout)
+evcom_stream_init (evcom_stream *stream)
 {
   stream->flags = 0;
   stream->errorno = 0;
@@ -1069,7 +1084,7 @@ evcom_stream_init (evcom_stream *stream, float timeout)
   stream->gnutls_errorno = 0;
   stream->session = NULL;
 #endif
-  ev_timer_init(&stream->timeout_watcher, on_timeout, 0., timeout);
+  ev_timer_init(&stream->timeout_watcher, on_timeout, 0., 60.);
   stream->timeout_watcher.data = stream;
 
   stream->on_connect = NULL;
@@ -1098,8 +1113,8 @@ void evcom_stream_force_close (evcom_stream *stream)
 
   if (!DUPLEX(stream) && stream->sendfd >= 0) {
     close(stream->sendfd);
-    stream__set_send_closed(stream);
   }
+  stream__set_send_closed(stream);
 
   evcom_stream_detach(stream);
 }
@@ -1175,9 +1190,12 @@ close:
 }
 
 void
-evcom_stream_reset_timeout (evcom_stream *stream)
+evcom_stream_reset_timeout (evcom_stream *stream, float timeout)
 {
-  ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
+  stream->timeout_watcher.repeat = timeout;
+  if (ATTACHED(stream)) {
+    ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
+  }
 }
 
 void
@@ -1211,6 +1229,7 @@ void
 evcom_stream_read_pause (evcom_stream *stream)
 {
   stream->flags |= EVCOM_PAUSED;
+  ev_timer_stop(D_LOOP_(stream) &stream->timeout_watcher);
   if (stream->recv_action == stream_recv__data) {
     ev_io_stop(D_LOOP_(stream) &stream->read_watcher);
     stream->recv_action = stream_recv__wait_for_resume;
@@ -1221,12 +1240,13 @@ void
 evcom_stream_read_resume (evcom_stream *stream)
 {
   stream->flags &= ~EVCOM_PAUSED;
-  evcom_stream_reset_timeout(stream);
+  ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
   if (stream->recv_action == stream_recv__wait_for_resume) {
     stream->recv_action = stream_recv__data;
   }
-  if (ATTACHED(stream) && READABLE(stream)) {
-    ev_io_start(D_LOOP_(stream) &stream->read_watcher);
+  if (ATTACHED(stream)) {
+    ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
+    if (READABLE(stream)) ev_io_start(D_LOOP_(stream) &stream->read_watcher);
   }
 }
 

@@ -181,7 +181,7 @@ void evcom_server_attach        (EV_P_ evcom_server *);
 void evcom_server_detach        (evcom_server *);
 void evcom_server_close         (evcom_server *);
 
-void evcom_stream_init          (evcom_stream *, float timeout);
+void evcom_stream_init          (evcom_stream *);
 
  int evcom_stream_pair          (evcom_stream *a, evcom_stream *b);
  int evcom_stream_connect       (evcom_stream *, struct sockaddr *address);
@@ -191,8 +191,7 @@ void evcom_stream_attach        (EV_P_ evcom_stream *);
 void evcom_stream_detach        (evcom_stream *);
 void evcom_stream_read_resume   (evcom_stream *);
 void evcom_stream_read_pause    (evcom_stream *);
-/* Resets the timeout to stay alive for another stream->timeout seconds */
-void evcom_stream_reset_timeout (evcom_stream *);
+void evcom_stream_reset_timeout (evcom_stream *, float timeout);
 void evcom_stream_write         (evcom_stream *, const char *str, size_t len);
 /* Once the write buffer is drained, evcom_stream_close will shutdown the
  * writing end of the stream and will close the read end once the server

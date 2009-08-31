@@ -921,6 +921,9 @@ socket for +node.tcp.Server+.
                                   will be +"writeOnly"+. One should probably
                                   just call +connection.close()+ when this
                                   event is emitted.
+|+"timeout"+     |              | Emitted if the connection times out from
+                                  inactivity. The +"close"+ event will be 
+                                  emitted immediately following this event. 
 |+"close"+       | +had_error+  | Emitted once the connection is fully
                                   closed. The argument +had_error+
                                   is a boolean which says if the connection
@@ -984,6 +987,12 @@ Useful to throttle back an upload.
 +connection.readResume()+::
 Resumes reading if reading was paused by +readPause()+.
 
++connection.setTimeout(timeout)+::
+Sets the connection to timeout after +timeout+ milliseconds of inacitivty on
+the connection. By default all +node.tcp.Connection+ objects have a timeout
+of 60 seconds (60000 ms).
++
+If +timeout+ is 0, then the idle timeout is disabled.
 
 
 === DNS

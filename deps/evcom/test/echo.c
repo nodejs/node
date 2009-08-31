@@ -58,10 +58,11 @@ on_server_connection (evcom_server *server, struct sockaddr *addr)
   assert(addr);
 
   evcom_stream *stream = malloc(sizeof(evcom_stream));
-  evcom_stream_init(stream, TIMEOUT);
+  evcom_stream_init(stream);
   stream->on_read = on_peer_read;
   stream->on_close = on_peer_close;
   stream->on_timeout = on_peer_timeout;
+  evcom_stream_reset_timeout(stream, TIMEOUT);
 
   nconnections++;
 
