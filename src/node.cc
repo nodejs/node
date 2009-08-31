@@ -32,23 +32,29 @@ ToCString(const v8::String::Utf8Value& value)
   return *value ? *value : "<string conversion failed>";
 }
 
-void
-ReportException(TryCatch* try_catch)
+static void
+ReportException (TryCatch &try_catch)
 {
-  HandleScope handle_scope;
-  String::Utf8Value exception(try_catch->Exception());
-  const char* exception_string = ToCString(exception);
-  Handle<Message> message = try_catch->Message();
+  Handle<Message> message = try_catch.Message();
   if (message.IsEmpty()) {
-    // V8 didn't provide any extra information about this error; just
-    // print the exception.
-    fprintf(stderr, "%s\n", exception_string);
-  } else {
+    fprintf(stderr, "Error: (no message)\n");
+    return;
+  }
+  Handle<Value> error = try_catch.Exception();
+  Handle<String> stack;
+  if (error->IsObject()) {
+    Handle<Object> obj = Handle<Object>::Cast(error);
+    Handle<Value> raw_stack = obj->Get(String::New("stack"));
+    if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
+  }
+  if (stack.IsEmpty()) {
+    String::Utf8Value exception(error);
+
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
-    fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, exception_string);
+    fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, *exception);
     // Print line of source code.
     String::Utf8Value sourceline(message->GetSourceLine());
     const char* sourceline_string = ToCString(sourceline);
@@ -65,6 +71,11 @@ ReportException(TryCatch* try_catch)
     fprintf(stderr, "\n");
 
     message->PrintCurrentStackTrace(stderr);
+
+
+  } else {
+    String::Utf8Value trace(stack);
+    fprintf(stderr, "%s\n", *trace);
   }
 }
 
@@ -78,13 +89,13 @@ ExecuteString(v8::Handle<v8::String> source,
 
   Handle<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
   Handle<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
@@ -162,7 +173,7 @@ OnFatalError (const char* location, const char* message)
 void
 node::FatalException (TryCatch &try_catch)
 {
-  ReportException(&try_catch);
+  ReportException(try_catch);
   exit(1);
 }
 
@@ -210,7 +221,7 @@ ExecuteNativeJS (const char *filename, const char *data)
   if (try_catch.HasCaught())  {
     puts("There is an error in Node's built-in javascript");
     puts("This should be reported as a bug!");
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 }
@@ -242,6 +253,9 @@ Load (int argc, char *argv[])
               EventEmitter::constructor_template->GetFunction());
   Promise::Initialize(node_obj);
 
+  ExecuteNativeJS("util.js", native_util);
+  ExecuteNativeJS("events.js", native_events);
+
   Stdio::Initialize(node_obj);
   Timer::Initialize(node_obj);
   ChildProcess::Initialize(node_obj);
@@ -266,8 +280,6 @@ Load (int argc, char *argv[])
   HTTPServer::Initialize(http);
   HTTPConnection::Initialize(http);
 
-  ExecuteNativeJS("util.js", native_util);
-  ExecuteNativeJS("events.js", native_events);
   ExecuteNativeJS("http.js", native_http);
   ExecuteNativeJS("file.js", native_file);
   ExecuteNativeJS("node.js", native_node);

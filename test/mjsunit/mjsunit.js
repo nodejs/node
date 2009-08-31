@@ -33,6 +33,7 @@
 
 function MjsUnitAssertionError(message) {
   this.message = message;
+  Error.captureStackTrace(this, fail);
 }
 
 MjsUnitAssertionError.prototype.toString = function () {
