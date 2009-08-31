@@ -26,7 +26,7 @@ using namespace node;
 #define ATIME_SYMBOL       String::NewSymbol("atime")
 #define MTIME_SYMBOL       String::NewSymbol("mtime")
 #define CTIME_SYMBOL       String::NewSymbol("ctime")
-#define BAD_ARGUMENTS      String::New("Bad argument")
+#define BAD_ARGUMENTS      Exception::TypeError(String::New("Bad argument"))
 
 static int
 AfterClose (eio_req *req)

@@ -145,14 +145,17 @@ Connection::Connect (const Arguments& args)
   }
 
   if (connection->ReadyState() != EVCOM_INITIALIZED) {
-    return ThrowException(String::New("Socket is not in CLOSED state."));
+    Local<Value> exception = Exception::Error(String::New("Socket is not in CLOSED state."));
+    return ThrowException(exception);
   }
 
   assert(connection->stream_.recvfd < 0);
   assert(connection->stream_.sendfd < 0);
 
-  if (args.Length() == 0)
-    return ThrowException(String::New("Must specify a port."));
+  if (args.Length() == 0) {
+    Local<Value> exception = Exception::TypeError(String::New("First argument must be a port number"));
+    return ThrowException(exception);
+  }
 
   String::AsciiValue port_sv(args[0]->ToString());
   assert(connection->port_ == NULL);
@@ -383,7 +386,8 @@ Connection::Send (const Arguments& args)
     && connection->ReadyState() != EVCOM_CONNECTED_WO
      )
   {
-    return ThrowException(String::New("Socket is not open for writing"));
+    Local<Value> exception = Exception::Error(String::New("Socket is not open for writing"));
+    return ThrowException(exception);
   }
 
   // XXX
@@ -424,7 +428,10 @@ Connection::Send (const Arguments& args)
     }
     connection->Send(buf, len);
 
-  } else return ThrowException(String::New("Bad argument"));
+  } else {
+    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+    return ThrowException(exception);
+  }
 
   return Undefined();
 }
@@ -598,8 +605,10 @@ Server::Listen (const Arguments& args)
 
   HandleScope scope;
 
-  if (args.Length() == 0)
-    return ThrowException(String::New("Must give at least a port as argument."));
+  if (args.Length() == 0) {
+    Local<Value> exception = Exception::TypeError(String::New("First argument must be a port number"));
+    return ThrowException(exception);
+  }
 
   String::AsciiValue port(args[0]->ToString());
 
@@ -631,8 +640,10 @@ Server::Listen (const Arguments& args)
   struct addrinfo *address = NULL,
                   *address_list = NULL;
   int r = getaddrinfo(strlen(host) ? host : NULL, *port, &server_tcp_hints, &address_list);
-  if (r != 0)
-    return ThrowException(String::New(strerror(errno)));
+  if (r != 0) {
+    Local<Value> exception = Exception::Error(String::New(strerror(errno)));
+    return ThrowException(exception);
+  }
 
   address = AddressDefaultToIPv4(address_list);
 
