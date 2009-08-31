@@ -616,7 +616,7 @@ class Context(object):
 
   def GetVm(self, mode):
     if mode == 'debug':
-      name = 'build/debug/node'
+      name = 'build/debug/node_g'
     else:
       name = 'build/default/node'
     if utils.IsWindows() and not name.endswith('.exe'):
