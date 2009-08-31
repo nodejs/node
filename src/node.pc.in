@@ -2,8 +2,8 @@ prefix=@PREFIX@
 libdir=${prefix}/lib
 includedir=${prefix}/include/node
 
-Name: node@DEBUG_EXT@
+Name: node
 Description: v8 powered non-browser javascript
 Version: @VERSION@
-Libs: @LIBFLAGS@ -L${libdir} -lnode@DEBUG_EXT@
+Libs: @LIBFLAGS@ -R${libdir}
 Cflags: @CCFLAGS@ @CPPFLAGS@ -I${includedir} 

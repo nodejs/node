@@ -90,6 +90,32 @@ node.Module = function (o) {
 };
 
 node.Module.prototype.load = function (callback) {
+  if (this.filename.match(/\.node$/)) {
+    return this.loadObject(callback);
+  } else {
+    return this.loadScript(callback);
+  }
+};
+
+node.Module.prototype.loadObject = function (callback) {
+  var self = this;
+  var loadPromise = new node.Promise();
+  self.loadPromise = loadPromise;
+  // XXX Not yet supporting loading from HTTP. would need to download the
+  // file, store it to tmp then run dlopen on it. 
+  node.fs.exists(self.filename, function (does_exist) {
+    if (does_exist) {
+      node.dlopen(self.filename, self.target); // FIXME synchronus
+      loadPromise.emitSuccess([self.target]);
+    } else {
+      node.stdio.writeError("Error reading " + self.filename + "\n");
+      loadPromise.emitError();
+    }
+  });
+  return loadPromise;
+};
+
+node.Module.prototype.loadScript = function (callback) {
   var self = this;
   if (self.loaded) {
     throw "Module '" + self.filename + "' is already loaded.";
@@ -165,7 +191,7 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
     if (child.loaded) {
       nloaded++;
     } else {
-      child.addCallback(function () {
+      child.loadPromise.addCallback(function () {
         nloaded++;
         if (children.length == nloaded && callback) callback();
       });

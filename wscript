@@ -61,6 +61,8 @@ def configure(conf):
   conf.env["USE_DEBUG"] = Options.options.debug
 
   conf.check(lib='dl', uselib_store='DL')
+  conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
+
   if Options.options.debug:
     conf.check(lib='profiler', uselib_store='PROFILER')
 
@@ -260,30 +262,33 @@ def build(bld):
   libnode.uselib_local = "evcom ev eio http_parser coupling"
   libnode.uselib = "UDNS V8 EXECINFO PROFILER EFENCE DL"
   libnode.install_path = '${PREFIX}/lib'
-  bld.install_files('${PREFIX}/include/node/', 'config.h src/node.h src/node_version.h src/object_wrap.h');
+
+
+  libnode_static = bld.new_task_gen("cxx", "staticlib")
+  libnode_static.name = "node-static"
+  libnode_static.target = libnode.target
+  libnode_static.source = libnode.source
+  libnode_static.includes = libnode.includes
+  libnode_static.uselib_local = libnode.uselib_local
+  libnode_static.uselib  = libnode.uselib
 
   ### node
   node = bld.new_task_gen("cxx", "program")
   node.target = 'node'
   node.source = "src/main.cc"
   node.includes = libnode.includes
-  node.uselib_local = "node"
+  node.uselib_local = "node-static"
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 
-
   def subflags(program):
-    debug_ext = ""
-    if program.target == "node_g": debug_ext = "_g"
     x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"])
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"])
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"])
         , 'VERSION'   : VERSION
         , 'PREFIX'    : program.env["PREFIX"]
-        , 'DEBUG_EXT' : debug_ext
         }
     return x;
-
 
   # process file.pc.in -> file.pc
   pkgconfig = bld.new_task_gen('subst', before="cxx")
@@ -297,6 +302,7 @@ def build(bld):
   node_version.source = 'src/node_version.h.in'
   node_version.target = 'src/node_version.h'
   node_version.dict = subflags(node)
+  node_version.install_path = '${PREFIX}/include/node'
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
@@ -305,10 +311,18 @@ def build(bld):
     libnode_g = libnode.clone("debug")
     libnode_g.target = "node_g"
 
-    pkgconfig_g = pkgconfig.clone("debug")
-    pkgconfig_g.dict = subflags(node_g)
-    pkgconfig_g.target = 'node_g.pc'
+    libnode_static_g = libnode_static.clone("debug")
+    libnode_static_g.target = "node_g"
     
     node_version_g = node_version.clone("debug")
     node_version_g.dict = subflags(node_g)
+    node_version_g.install_path = None
 
+
+  bld.install_files('${PREFIX}/include/node/', """
+    config.h
+    src/node.h
+    src/object_wrap.h
+    src/events.h
+    src/net.h
+  """);

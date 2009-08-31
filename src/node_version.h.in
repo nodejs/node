@@ -1,3 +1,12 @@
-#define NODE_VERSION "@VERSION@"
-#define NODE_CFLAGS "@CCFLAGS@ @CPPFLAGS@ -I@PREFIX@/include"
-#define NODE_LIBFLAGS "@LIBFLAGS@ -L@PREFIX@/lib -lnode@DEBUG_EXT@"
+#ifndef node_version_h
+#define node_version_h
+
+#ifdef NDEBUG
+# define NODE_VERSION "@VERSION@"
+#else
+# define NODE_VERSION "@VERSION@ (debug)"
+#endif
+#define NODE_CFLAGS "@CCFLAGS@ @CPPFLAGS@ -I@PREFIX@/include/node"
+#define NODE_LIBFLAGS "@LIBFLAGS@ -R@PREFIX@/lib"
+
+#endif /* node_version_h */

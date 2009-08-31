@@ -33,38 +33,38 @@ ToCString(const v8::String::Utf8Value& value)
 }
 
 void
-ReportException(v8::TryCatch* try_catch)
+ReportException(TryCatch* try_catch)
 {
-  v8::HandleScope handle_scope;
-  v8::String::Utf8Value exception(try_catch->Exception());
+  HandleScope handle_scope;
+  String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
-  v8::Handle<v8::Message> message = try_catch->Message();
+  Handle<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
-    printf("%s\n", exception_string);
+    fprintf(stderr, "%s\n", exception_string);
   } else {
-    message->PrintCurrentStackTrace(stdout);
-
     // Print (filename):(line number): (message).
-    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
-    printf("%s:%i: %s\n", filename_string, linenum, exception_string);
+    fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, exception_string);
     // Print line of source code.
-    v8::String::Utf8Value sourceline(message->GetSourceLine());
+    String::Utf8Value sourceline(message->GetSourceLine());
     const char* sourceline_string = ToCString(sourceline);
-    printf("%s\n", sourceline_string);
+    fprintf(stderr, "%s\n", sourceline_string);
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
     for (int i = 0; i < start; i++) {
-      printf(" ");
+      fprintf(stderr, " ");
     }
     int end = message->GetEndColumn();
     for (int i = start; i < end; i++) {
-      printf("^");
+      fprintf(stderr, "^");
     }
-    printf("\n");
+    fprintf(stderr, "\n");
+
+    message->PrintCurrentStackTrace(stderr);
   }
 }
 
@@ -106,17 +106,16 @@ typedef void (*extInit)(Handle<Object> exports);
 Handle<Value>
 node_dlopen (const v8::Arguments& args)
 {
-  if (args.Length() < 2) return Undefined();
-
   HandleScope scope;
+
+  if (args.Length() < 2) return Undefined();
 
   String::Utf8Value filename(args[0]->ToString());
   Local<Object> target = args[1]->ToObject();
 
   void *handle = dlopen(*filename, RTLD_LAZY);
   if (handle == NULL) {
-    ThrowException(String::New("dlopen() failed."));
-    return Undefined();
+    return ThrowException(String::New("dlopen() failed."));
   }
 
   void *init_handle = dlsym(handle, "init");
@@ -294,6 +293,8 @@ PrintHelp ( )
 {
   printf("Usage: node [switches] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
+         "  --libs           print linker flags for modules\n"
+         "  --cflags         print pre-processor and compiler flags\n"
          "  --v8-options     print v8 command line options\n");
 }
 
