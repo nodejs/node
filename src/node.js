@@ -105,6 +105,7 @@ node.Module.prototype.loadObject = function (callback) {
   // file, store it to tmp then run dlopen on it. 
   node.fs.exists(self.filename, function (does_exist) {
     if (does_exist) {
+      self.loaded = true;
       node.dlopen(self.filename, self.target); // FIXME synchronus
       loadPromise.emitSuccess([self.target]);
     } else {
