@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <assert.h>
+#include <unistd.h>
+#include <errno.h>
 #include <dlfcn.h> /* dlopen(), dlsym() */
 
 #include <string>
@@ -100,6 +102,21 @@ ExecuteString(v8::Handle<v8::String> source,
   }
 
   return scope.Close(result);
+}
+
+static Handle<Value>
+Cwd (const Arguments& args)
+{
+  HandleScope scope;
+
+  char output[PATH_MAX];
+  char *r = getcwd(output, PATH_MAX);
+  if (r == NULL) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+  Local<String> cwd = String::New(output);
+
+  return scope.Close(cwd);
 }
 
 v8::Handle<v8::Value>
@@ -249,6 +266,7 @@ Load (int argc, char *argv[])
 
   NODE_SET_METHOD(node_obj, "compile", compile);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
+  NODE_SET_METHOD(node_obj, "cwd", Cwd);
   NODE_SET_METHOD(node_obj, "dlopen", node_dlopen);
 
   node_obj->Set(String::NewSymbol("EventEmitter"),

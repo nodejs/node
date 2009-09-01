@@ -77,6 +77,8 @@ Like +puts()+ but without the trailing new-line.
 +node.exit(code)+::
 Immediately ends the process with the specified code.
 
++node.cwd()+::
+Returns the current working directory of the process.
 
 
 === Global Variables
