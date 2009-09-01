@@ -326,7 +326,6 @@ PrintHelp ( )
 {
   printf("Usage: node [switches] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
-         "  --libs           print linker flags for modules\n"
          "  --cflags         print pre-processor and compiler flags\n"
          "  --v8-options     print v8 command line options\n");
 }
@@ -334,39 +333,20 @@ PrintHelp ( )
 static void
 ParseArgs (int *argc, char **argv)
 {
-  bool cflags = false, libs = false;
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
     if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--cflags") == 0) {
-      cflags = true;
-      continue;
-    } else if (strcmp(arg, "--libs") == 0) {
-      libs = true;
-      continue;
+      printf("%s\n", NODE_CFLAGS);
+      exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = (char*)"--help";
     }
-  }
-
-  /* XXX Wow this is terrible code. */
-  bool should_exit = false;
-  if (cflags) {
-    should_exit = true;
-    printf("%s ", NODE_CFLAGS);
-  }
-  if (libs) {
-    should_exit = true;
-    printf("%s ", NODE_LIBFLAGS);
-  }
-  if (should_exit) {
-    printf("\n");
-    exit(0);
   }
 }
 

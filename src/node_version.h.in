@@ -7,6 +7,5 @@
 # define NODE_VERSION "@VERSION@ (debug)"
 #endif
 #define NODE_CFLAGS "@CCFLAGS@ @CPPFLAGS@ -I@PREFIX@/include/node"
-#define NODE_LIBFLAGS "@LIBFLAGS@ -R@PREFIX@/lib"
 
 #endif /* node_version_h */
