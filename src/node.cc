@@ -142,6 +142,7 @@ node_dlopen (const v8::Arguments& args)
   Local<Object> target = args[1]->ToObject();
 
   void *handle = dlopen(*filename, RTLD_LAZY);
+
   if (handle == NULL) {
     Local<Value> exception = Exception::Error(String::New(dlerror()));
     return ThrowException(exception);
@@ -370,7 +371,7 @@ ParseArgs (int *argc, char **argv)
 }
 
 int
-node::start (int argc, char *argv[])
+main(int argc, char *argv[])
 {
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.

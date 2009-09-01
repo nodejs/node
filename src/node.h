@@ -31,7 +31,6 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, RAW};
 enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
 void FatalException (v8::TryCatch &try_catch);
-int start (int argc, char *argv[]);
 
 } // namespace node
 #endif // node_h

@@ -61,13 +61,14 @@ def configure(conf):
   conf.env["USE_DEBUG"] = Options.options.debug
 
   conf.check(lib='dl', uselib_store='DL')
+  conf.env.append_value("CCFLAGS", "-rdynamic")
   conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
-  if Options.options.debug:
-    conf.check(lib='profiler', uselib_store='PROFILER')
+  #if Options.options.debug:
+  #  conf.check(lib='profiler', uselib_store='PROFILER')
 
-  if Options.options.efence:
-    conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
+  #if Options.options.efence:
+  #  conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
   if sys.platform.startswith("freebsd"):
     if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
@@ -234,10 +235,10 @@ def build(bld):
     native_cc.clone("debug")
 
   ### node lib
-  libnode = bld.new_task_gen("cxx", "shlib")
-  libnode.name         = "node"
-  libnode.target       = "node"
-  libnode.source = """
+  node = bld.new_task_gen("cxx", "program")
+  node.name         = "node"
+  node.target       = "node"
+  node.source = """
     src/node.cc
     src/events.cc
     src/http.cc
@@ -249,7 +250,7 @@ def build(bld):
     src/child_process.cc
     src/constants.cc
   """
-  libnode.includes = """
+  node.includes = """
     src/ 
     deps/v8/include
     deps/libev
@@ -259,25 +260,9 @@ def build(bld):
     deps/http_parser
     deps/coupling
   """
-  libnode.uselib_local = "evcom ev eio http_parser coupling"
-  libnode.uselib = "UDNS V8 EXECINFO PROFILER EFENCE DL"
-  libnode.install_path = '${PREFIX}/lib'
-
-
-  libnode_static = bld.new_task_gen("cxx", "staticlib")
-  libnode_static.name = "node-static"
-  libnode_static.target = libnode.target
-  libnode_static.source = libnode.source
-  libnode_static.includes = libnode.includes
-  libnode_static.uselib_local = libnode.uselib_local
-  libnode_static.uselib  = libnode.uselib
-
-  ### node
-  node = bld.new_task_gen("cxx", "program")
-  node.target = 'node'
-  node.source = "src/main.cc"
-  node.includes = libnode.includes
-  node.uselib_local = "node-static"
+  node.uselib_local = "evcom ev eio http_parser coupling"
+  node.uselib = "UDNS V8 EXECINFO DL"
+  node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
 
@@ -307,12 +292,6 @@ def build(bld):
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
     node_g.target = "node_g"
-
-    libnode_g = libnode.clone("debug")
-    libnode_g.target = "node_g"
-
-    libnode_static_g = libnode_static.clone("debug")
-    libnode_static_g.target = "node_g"
     
     node_version_g = node_version.clone("debug")
     node_version_g.dict = subflags(node_g)
