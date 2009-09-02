@@ -1,4 +1,6 @@
 # /usr/bin/env python
+import platform
+import re
 import Options
 import sys, os, shutil
 from os.path import join, dirname, abspath
@@ -95,14 +97,14 @@ def configure(conf):
   # Configure debug variant
   conf.setenv('debug')
   debug_env.set_variant('debug')
-  debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra', '-m32'])
-  debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra', '-m32'])
+  debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
+  debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
   conf.write_config_header("config.h")
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3', '-m32'])
-  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3', '-m32'])
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
   conf.write_config_header("config.h")
 
 def build_udns(bld):
@@ -137,6 +139,18 @@ def build_udns(bld):
     bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
   bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h');
 
+# XXX Remove this when v8 defaults x86_64 to native builds
+def GuessArchitecture():
+  id = platform.machine()
+  if id.startswith('arm'):
+    return 'arm'
+  elif '64' in id:
+    return 'x64'
+  elif (not id) or (not re.match('(x|i[3-6])86', id) is None):
+    return 'ia32'
+  else:
+    return None
+
 
 def build_v8(bld):
   deps_src = join(bld.path.abspath(),"deps")
@@ -146,18 +160,22 @@ def build_v8(bld):
   scons = os.path.join(cwd, 'tools/scons/scons.py')
 
   v8rule = 'cd %s && ' \
-           'python %s -Q mode=%s library=static snapshot=on'
+           'python %s -Q mode=%s %s library=static snapshot=on'
+
+  arch = ""
+  if GuessArchitecture() == "x64":
+    arch = "arch=x64"
 
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
-    rule=v8rule % (v8dir_tgt, scons, "release"),
+    rule=v8rule % (v8dir_tgt, scons, "release", arch),
     before="cxx",
     install_path = None
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
   bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
-  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
+  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -167,8 +185,8 @@ def build_v8(bld):
     v8_debug = v8.clone("debug")
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
-    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
-    v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug")
+    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
+    v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug", arch)
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/v8*');

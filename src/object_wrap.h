@@ -37,7 +37,6 @@ class ObjectWrap {
     assert(handle->InternalFieldCount() > 0);
     handle_ = v8::Persistent<v8::Object>::New(handle);
     handle_->SetInternalField(0, v8::External::New(this));
-    handle_->Set(v8::String::NewSymbol("nodeId"), v8::Integer::New((int32_t)this));
     MakeWeak();
   }
 
