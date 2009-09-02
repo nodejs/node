@@ -53,8 +53,8 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-void** HandleScope::Extend() {
-  void** result = current_.next;
+Object** HandleScope::Extend() {
+  Object** result = current_.next;
 
   ASSERT(result == current_.limit);
   // Make sure there's at least one scope on the stack and that the
@@ -68,7 +68,7 @@ void** HandleScope::Extend() {
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
   if (!impl->Blocks()->is_empty()) {
-    void** limit = &impl->Blocks()->last()[kHandleBlockSize];
+    Object** limit = &impl->Blocks()->last()[kHandleBlockSize];
     if (current_.limit != limit) {
       current_.limit = limit;
     }
@@ -96,10 +96,10 @@ void HandleScope::DeleteExtensions() {
 }
 
 
-void HandleScope::ZapRange(void** start, void** end) {
+void HandleScope::ZapRange(Object** start, Object** end) {
   if (start == NULL) return;
-  for (void** p = start; p < end; p++) {
-    *p = reinterpret_cast<void*>(v8::internal::kHandleZapValue);
+  for (Object** p = start; p < end; p++) {
+    *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
   }
 }
 

@@ -75,7 +75,7 @@ namespace v8 {
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
-      i::Top::OptionalRescheduleException(call_depth_is_zero, false);        \
+      i::Top::OptionalRescheduleException(call_depth_is_zero);                 \
       return value;                                                            \
     }                                                                          \
   } while (false)
@@ -100,7 +100,9 @@ static i::HandleScopeImplementer thread_local;
 
 
 static FatalErrorCallback exception_behavior = NULL;
-
+int i::Internals::kJSObjectType = JS_OBJECT_TYPE;
+int i::Internals::kFirstNonstringType = FIRST_NONSTRING_TYPE;
+int i::Internals::kProxyType = PROXY_TYPE;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
@@ -223,7 +225,8 @@ ImplementationUtilities::HandleScopeData*
 
 
 #ifdef DEBUG
-void ImplementationUtilities::ZapHandleRange(void** begin, void** end) {
+void ImplementationUtilities::ZapHandleRange(i::Object** begin,
+                                             i::Object** end) {
   i::HandleScope::ZapRange(begin, end);
 }
 #endif
@@ -349,49 +352,47 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
 }
 
 
-void** V8::GlobalizeReference(void** obj) {
+i::Object** V8::GlobalizeReference(i::Object** obj) {
   if (IsDeadCheck("V8::Persistent::New")) return NULL;
   LOG_API("Persistent::New");
   i::Handle<i::Object> result =
-      i::GlobalHandles::Create(*reinterpret_cast<i::Object**>(obj));
-  return reinterpret_cast<void**>(result.location());
+      i::GlobalHandles::Create(*obj);
+  return result.location();
 }
 
 
-void V8::MakeWeak(void** object, void* parameters,
+void V8::MakeWeak(i::Object** object, void* parameters,
                   WeakReferenceCallback callback) {
   LOG_API("MakeWeak");
-  i::GlobalHandles::MakeWeak(reinterpret_cast<i::Object**>(object), parameters,
-      callback);
+  i::GlobalHandles::MakeWeak(object, parameters, callback);
 }
 
 
-void V8::ClearWeak(void** obj) {
+void V8::ClearWeak(i::Object** obj) {
   LOG_API("ClearWeak");
-  i::GlobalHandles::ClearWeakness(reinterpret_cast<i::Object**>(obj));
+  i::GlobalHandles::ClearWeakness(obj);
 }
 
 
-bool V8::IsGlobalNearDeath(void** obj) {
+bool V8::IsGlobalNearDeath(i::Object** obj) {
   LOG_API("IsGlobalNearDeath");
   if (!i::V8::IsRunning()) return false;
-  return i::GlobalHandles::IsNearDeath(reinterpret_cast<i::Object**>(obj));
+  return i::GlobalHandles::IsNearDeath(obj);
 }
 
 
-bool V8::IsGlobalWeak(void** obj) {
+bool V8::IsGlobalWeak(i::Object** obj) {
   LOG_API("IsGlobalWeak");
   if (!i::V8::IsRunning()) return false;
-  return i::GlobalHandles::IsWeak(reinterpret_cast<i::Object**>(obj));
+  return i::GlobalHandles::IsWeak(obj);
 }
 
 
-void V8::DisposeGlobal(void** obj) {
+void V8::DisposeGlobal(i::Object** obj) {
   LOG_API("DisposeGlobal");
   if (!i::V8::IsRunning()) return;
-  i::Object** ptr = reinterpret_cast<i::Object**>(obj);
-  if ((*ptr)->IsGlobalContext()) i::Heap::NotifyContextDisposed();
-  i::GlobalHandles::Destroy(ptr);
+  if ((*obj)->IsGlobalContext()) i::Heap::NotifyContextDisposed();
+  i::GlobalHandles::Destroy(obj);
 }
 
 // --- H a n d l e s ---
@@ -415,9 +416,8 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-void** v8::HandleScope::CreateHandle(void* value) {
-  return reinterpret_cast<void**>(
-      i::HandleScope::CreateHandle(reinterpret_cast<i::Object*>(value)));
+i::Object** v8::HandleScope::CreateHandle(i::Object* value) {
+  return i::HandleScope::CreateHandle(value);
 }
 
 
@@ -481,7 +481,7 @@ v8::Local<v8::Value> Context::GetData() {
 }
 
 
-void** v8::HandleScope::RawClose(void** value) {
+i::Object** v8::HandleScope::RawClose(i::Object** value) {
   if (!ApiCheck(!is_closed_,
                 "v8::HandleScope::Close()",
                 "Local scope has already been closed")) {
@@ -490,13 +490,13 @@ void** v8::HandleScope::RawClose(void** value) {
   LOG_API("CloseHandleScope");
 
   // Read the result before popping the handle block.
-  i::Object* result = reinterpret_cast<i::Object*>(*value);
+  i::Object* result = *value;
   is_closed_ = true;
   i::HandleScope::Leave(&previous_);
 
   // Allocate a new handle on the previous handle block.
   i::Handle<i::Object> handle(result);
-  return reinterpret_cast<void**>(handle.location());
+  return handle.location();
 }
 
 
@@ -1459,9 +1459,11 @@ bool Value::IsFunction() const {
 }
 
 
-bool Value::IsString() const {
+bool Value::FullIsString() const {
   if (IsDeadCheck("v8::Value::IsString()")) return false;
-  return Utils::OpenHandle(this)->IsString();
+  bool result = Utils::OpenHandle(this)->IsString();
+  ASSERT_EQ(result, QuickIsString());
+  return result;
 }
 
 
@@ -1613,83 +1615,75 @@ Local<Integer> Value::ToInteger() const {
 }
 
 
-External* External::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::External::Cast()")) return 0;
+void External::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::External::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsProxy(),
            "v8::External::Cast()",
            "Could not convert to external");
-  return static_cast<External*>(that);
 }
 
 
-v8::Object* v8::Object::Cast(Value* that) {
-  if (IsDeadCheck("v8::Object::Cast()")) return 0;
+void v8::Object::CheckCast(Value* that) {
+  if (IsDeadCheck("v8::Object::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSObject(),
            "v8::Object::Cast()",
            "Could not convert to object");
-  return static_cast<v8::Object*>(that);
 }
 
 
-v8::Function* v8::Function::Cast(Value* that) {
-  if (IsDeadCheck("v8::Function::Cast()")) return 0;
+void v8::Function::CheckCast(Value* that) {
+  if (IsDeadCheck("v8::Function::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSFunction(),
            "v8::Function::Cast()",
            "Could not convert to function");
-  return static_cast<v8::Function*>(that);
 }
 
 
-v8::String* v8::String::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::String::Cast()")) return 0;
+void v8::String::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::String::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsString(),
            "v8::String::Cast()",
            "Could not convert to string");
-  return static_cast<v8::String*>(that);
 }
 
 
-v8::Number* v8::Number::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::Number::Cast()")) return 0;
+void v8::Number::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::Number::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
            "v8::Number::Cast()",
            "Could not convert to number");
-  return static_cast<v8::Number*>(that);
 }
 
 
-v8::Integer* v8::Integer::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::Integer::Cast()")) return 0;
+void v8::Integer::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::Integer::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
            "v8::Integer::Cast()",
            "Could not convert to number");
-  return static_cast<v8::Integer*>(that);
 }
 
 
-v8::Array* v8::Array::Cast(Value* that) {
-  if (IsDeadCheck("v8::Array::Cast()")) return 0;
+void v8::Array::CheckCast(Value* that) {
+  if (IsDeadCheck("v8::Array::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSArray(),
            "v8::Array::Cast()",
            "Could not convert to array");
-  return static_cast<v8::Array*>(that);
 }
 
 
-v8::Date* v8::Date::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::Date::Cast()")) return 0;
+void v8::Date::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::Date::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
-  return static_cast<v8::Date*>(that);
 }
 
 
@@ -2450,16 +2444,17 @@ bool v8::String::IsExternalAscii() const {
 }
 
 
-v8::String::ExternalStringResource*
-v8::String::GetExternalStringResource() const {
-  EnsureInitialized("v8::String::GetExternalStringResource()");
+void v8::String::VerifyExternalStringResource(
+    v8::String::ExternalStringResource* value) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  v8::String::ExternalStringResource* expected;
   if (i::StringShape(*str).IsExternalTwoByte()) {
     void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-    return reinterpret_cast<ExternalStringResource*>(resource);
+    expected = reinterpret_cast<ExternalStringResource*>(resource);
   } else {
-    return NULL;
+    expected = NULL;
   }
+  CHECK_EQ(expected, value);
 }
 
 
@@ -2519,7 +2514,7 @@ int v8::Object::InternalFieldCount() {
 }
 
 
-Local<Value> v8::Object::GetInternalField(int index) {
+Local<Value> v8::Object::CheckedGetInternalField(int index) {
   if (IsDeadCheck("v8::Object::GetInternalField()")) return Local<Value>();
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
@@ -2528,7 +2523,12 @@ Local<Value> v8::Object::GetInternalField(int index) {
     return Local<Value>();
   }
   i::Handle<i::Object> value(obj->GetInternalField(index));
-  return Utils::ToLocal(value);
+  Local<Value> result = Utils::ToLocal(value);
+#ifdef DEBUG
+  Local<Value> unchecked = UncheckedGetInternalField(index);
+  ASSERT(unchecked.IsEmpty() || (unchecked == result));
+#endif
+  return result;
 }
 
 
@@ -2546,41 +2546,8 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 }
 
 
-void* v8::Object::GetPointerFromInternalField(int index) {
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  i::Object* pointer = obj->GetInternalField(index);
-  if (pointer->IsSmi()) {
-    // Fast case, aligned native pointer.
-    return pointer;
-  }
-
-  // Read from uninitialized field.
-  if (!pointer->IsProxy()) {
-    // Play safe even if it's something unexpected.
-    ASSERT(pointer->IsUndefined());
-    return NULL;
-  }
-
-  // Unaligned native pointer.
-  return reinterpret_cast<void*>(i::Proxy::cast(pointer)->proxy());
-}
-
-
 void v8::Object::SetPointerInInternalField(int index, void* value) {
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  i::Object* as_object = reinterpret_cast<i::Object*>(value);
-  if (as_object->IsSmi()) {
-    // Aligned pointer, store as is.
-    obj->SetInternalField(index, as_object);
-  } else {
-    // Currently internal fields are used by DOM wrappers which only
-    // get garbage collected by the mark-sweep collector, so we
-    // pretenure the proxy.
-    HandleScope scope;
-    i::Handle<i::Proxy> proxy =
-        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
-    if (!proxy.is_null()) obj->SetInternalField(index, *proxy);
-  }
+  SetInternalField(index, External::Wrap(value));
 }
 
 
@@ -2605,12 +2572,14 @@ bool v8::V8::Dispose() {
 
 
 bool v8::V8::IdleNotification(bool is_high_priority) {
+  if (!i::V8::IsRunning()) return false;
   return i::V8::IdleNotification(is_high_priority);
 }
 
 
 void v8::V8::LowMemoryNotification() {
 #if defined(ANDROID)
+  if (!i::V8::IsRunning()) return;
   i::Heap::CollectAllGarbage(true);
 #endif
 }
@@ -2836,8 +2805,6 @@ static void* ExternalValueImpl(i::Handle<i::Object> obj) {
 
 
 static const intptr_t kAlignedPointerMask = 3;
-static const int kAlignedPointerShift = 2;
-
 
 Local<Value> v8::External::Wrap(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
@@ -2847,7 +2814,7 @@ Local<Value> v8::External::Wrap(void* data) {
   if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
     uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
     intptr_t data_value =
-        static_cast<intptr_t>(data_ptr >> kAlignedPointerShift);
+        static_cast<intptr_t>(data_ptr >> i::Internals::kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
     if (i::Smi::IsIntptrValid(data_value)) {
       i::Handle<i::Object> obj(i::Smi::FromIntptr(data_value));
@@ -2858,16 +2825,22 @@ Local<Value> v8::External::Wrap(void* data) {
 }
 
 
-void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
+void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
   if (IsDeadCheck("v8::External::Unwrap()")) return 0;
-  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
+  i::Handle<i::Object> obj = Utils::OpenHandle(*wrapper);
+  void* result;
   if (obj->IsSmi()) {
     // The external value was an aligned pointer.
-    uintptr_t result = static_cast<uintptr_t>(
-        i::Smi::cast(*obj)->value()) << kAlignedPointerShift;
-    return reinterpret_cast<void*>(result);
+    uintptr_t value = static_cast<uintptr_t>(
+        i::Smi::cast(*obj)->value()) << i::Internals::kAlignedPointerShift;
+    result = reinterpret_cast<void*>(value);
+  } else if (obj->IsProxy()) {
+    result = ExternalValueImpl(obj);
+  } else {
+    result = NULL;
   }
-  return ExternalValueImpl(obj);
+  ASSERT_EQ(result, QuickUnwrap(wrapper));
+  return result;
 }
 
 
@@ -3729,19 +3702,17 @@ char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
 
 void HandleScopeImplementer::Iterate(
     ObjectVisitor* v,
-    List<void**>* blocks,
+    List<i::Object**>* blocks,
     v8::ImplementationUtilities::HandleScopeData* handle_data) {
   // Iterate over all handles in the blocks except for the last.
   for (int i = blocks->length() - 2; i >= 0; --i) {
-    Object** block =
-        reinterpret_cast<Object**>(blocks->at(i));
+    Object** block = blocks->at(i);
     v->VisitPointers(block, &block[kHandleBlockSize]);
   }
 
   // Iterate over live handles in the last block (if any).
   if (!blocks->is_empty()) {
-    v->VisitPointers(reinterpret_cast<Object**>(blocks->last()),
-       reinterpret_cast<Object**>(handle_data->next));
+    v->VisitPointers(blocks->last(), handle_data->next);
   }
 }
 
@@ -3756,7 +3727,7 @@ void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
   HandleScopeImplementer* thread_local =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  List<void**>* blocks_of_archived_thread = thread_local->Blocks();
+  List<internal::Object**>* blocks_of_archived_thread = thread_local->Blocks();
   v8::ImplementationUtilities::HandleScopeData* handle_data_of_archived_thread =
       &thread_local->handle_scope_data_;
   Iterate(v, blocks_of_archived_thread, handle_data_of_archived_thread);

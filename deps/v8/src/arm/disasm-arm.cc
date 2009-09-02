@@ -119,6 +119,7 @@ class Decoder {
   void DecodeType5(Instr* instr);
   void DecodeType6(Instr* instr);
   void DecodeType7(Instr* instr);
+  void DecodeUnconditional(Instr* instr);
 
   const disasm::NameConverter& converter_;
   v8::internal::Vector<char> out_buffer_;
@@ -774,6 +775,67 @@ void Decoder::DecodeType7(Instr* instr) {
 }
 
 
+void Decoder::DecodeUnconditional(Instr* instr) {
+  if (instr->Bits(7, 4) == 0xB && instr->Bits(27, 25) == 0 && instr->HasL()) {
+    Format(instr, "'memop'h'pu 'rd, ");
+    bool immediate = instr->HasB();
+    switch (instr->PUField()) {
+      case 0: {
+        // Post index, negative.
+        if (instr->HasW()) {
+          Unknown(instr);
+          break;
+        }
+        if (immediate) {
+          Format(instr, "['rn], #-'imm12");
+        } else {
+          Format(instr, "['rn], -'rm");
+        }
+        break;
+      }
+      case 1: {
+        // Post index, positive.
+        if (instr->HasW()) {
+          Unknown(instr);
+          break;
+        }
+        if (immediate) {
+          Format(instr, "['rn], #+'imm12");
+        } else {
+          Format(instr, "['rn], +'rm");
+        }
+        break;
+      }
+      case 2: {
+        // Pre index or offset, negative.
+        if (immediate) {
+          Format(instr, "['rn, #-'imm12]'w");
+        } else {
+          Format(instr, "['rn, -'rm]'w");
+        }
+        break;
+      }
+      case 3: {
+        // Pre index or offset, positive.
+        if (immediate) {
+          Format(instr, "['rn, #+'imm12]'w");
+        } else {
+          Format(instr, "['rn, +'rm]'w");
+        }
+        break;
+      }
+      default: {
+        // The PU field is a 2-bit field.
+        UNREACHABLE();
+        break;
+      }
+    }
+    return;
+  }
+  Format(instr, "break 'msg");
+}
+
+
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instr* instr = Instr::At(instr_ptr);
@@ -782,7 +844,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                        "%08x       ",
                                        instr->InstructionBits());
   if (instr->ConditionField() == special_condition) {
-    Format(instr, "break 'msg");
+    DecodeUnconditional(instr);
     return Instr::kInstrSize;
   }
   switch (instr->TypeField()) {

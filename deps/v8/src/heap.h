@@ -28,15 +28,31 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
+#include <math.h>
+
 #include "zone-inl.h"
+
 
 namespace v8 {
 namespace internal {
 
 // Defines all the roots in Heap.
-#define STRONG_ROOT_LIST(V)                                                    \
-  V(Map, meta_map, MetaMap)                                                    \
+#define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
+  /* Cluster the most popular ones in a few cache lines here at the top. */    \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, the_hole_value, TheHoleValue)                                      \
+  V(Object, null_value, NullValue)                                             \
+  V(Object, true_value, TrueValue)                                             \
+  V(Object, false_value, FalseValue)                                           \
   V(Map, heap_number_map, HeapNumberMap)                                       \
+  V(Map, global_context_map, GlobalContextMap)                                 \
+  V(Map, fixed_array_map, FixedArrayMap)                                       \
+  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
+  V(Map, meta_map, MetaMap)                                                    \
+  V(Object, termination_exception, TerminationException)                       \
+  V(Map, hash_table_map, HashTableMap)                                         \
+  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(Map, short_string_map, ShortStringMap)                                     \
   V(Map, medium_string_map, MediumStringMap)                                   \
   V(Map, long_string_map, LongStringMap)                                       \
@@ -95,11 +111,8 @@ namespace internal {
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, pixel_array_map, PixelArrayMap)                                       \
-  V(Map, fixed_array_map, FixedArrayMap)                                       \
-  V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
-  V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -109,17 +122,9 @@ namespace internal {
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
-  V(Object, undefined_value, UndefinedValue)                                   \
-  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
-  V(Object, termination_exception, TerminationException)                       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
-  V(Object, null_value, NullValue)                                             \
-  V(Object, true_value, TrueValue)                                             \
-  V(Object, false_value, FalseValue)                                           \
   V(String, empty_string, EmptyString)                                         \
-  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
-  V(Object, the_hole_value, TheHoleValue)                                      \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Proxy, prototype_accessors, PrototypeAccessors)                            \
@@ -132,8 +137,15 @@ namespace internal {
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
-  V(Object, last_script_id, LastScriptId)
+  V(Object, last_script_id, LastScriptId)                                      \
 
+#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+#define STRONG_ROOT_LIST(V)                                                    \
+  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
+  V(Code, re_c_entry_code, RegExpCEntryCode)
+#else
+#define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
+#endif
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -226,6 +238,11 @@ class Heap : public AllStatic {
 
   // Destroys all memory allocated by the heap.
   static void TearDown();
+
+  // Sets the stack limit in the roots_ array.  Some architectures generate code
+  // that looks here, because it is faster than loading from the static jslimit_
+  // variable.
+  static void SetStackLimit(intptr_t limit);
 
   // Returns whether Setup has been called.
   static bool HasBeenSetup();
@@ -843,37 +860,7 @@ class Heap : public AllStatic {
   }
 
   // Can be called when the embedding application is idle.
-  static bool IdleNotification() {
-    static const int kIdlesBeforeCollection = 7;
-    static int number_idle_notifications = 0;
-    static int last_gc_count = gc_count_;
-
-    bool finished = false;
-
-    if (last_gc_count == gc_count_) {
-      number_idle_notifications++;
-    } else {
-      number_idle_notifications = 0;
-      last_gc_count = gc_count_;
-    }
-
-    if (number_idle_notifications >= kIdlesBeforeCollection) {
-      // The first time through we collect without forcing compaction.
-      // The second time through we force compaction and quit.
-      bool force_compaction =
-          number_idle_notifications > kIdlesBeforeCollection;
-      CollectAllGarbage(force_compaction);
-      last_gc_count = gc_count_;
-      if (force_compaction) {
-        number_idle_notifications = 0;
-        finished = true;
-      }
-    }
-
-    // Uncommit unused memory in new space.
-    Heap::UncommitFromSpace();
-    return finished;
-  }
+  static bool IdleNotification();
 
   // Declare all the root indices.
   enum RootListIndex {
@@ -1048,6 +1035,8 @@ class Heap : public AllStatic {
   static void CreateCEntryDebugBreakStub();
   static void CreateJSEntryStub();
   static void CreateJSConstructEntryStub();
+  static void CreateRegExpCEntryStub();
+
   static void CreateFixedStubs();
 
   static Object* CreateOddball(Map* map,
@@ -1532,6 +1521,91 @@ class GCTracer BASE_EMBEDDED {
   // was no previous full GC.
   int previous_marked_count_;
 };
+
+
+class TranscendentalCache {
+ public:
+  enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+
+  explicit TranscendentalCache(Type t);
+
+  // Returns a heap number with f(input), where f is a math function specified
+  // by the 'type' argument.
+  static inline Object* Get(Type type, double input) {
+    TranscendentalCache* cache = caches_[type];
+    if (cache == NULL) {
+      caches_[type] = cache = new TranscendentalCache(type);
+    }
+    return cache->Get(input);
+  }
+
+  // The cache contains raw Object pointers.  This method disposes of
+  // them before a garbage collection.
+  static void Clear();
+
+ private:
+  inline Object* Get(double input) {
+    Converter c;
+    c.dbl = input;
+    int hash = Hash(c);
+    Element e = elements_[hash];
+    if (e.in[0] == c.integers[0] &&
+        e.in[1] == c.integers[1]) {
+      ASSERT(e.output != NULL);
+      return e.output;
+    }
+    double answer = Calculate(input);
+    Object* heap_number = Heap::AllocateHeapNumber(answer);
+    if (!heap_number->IsFailure()) {
+      elements_[hash].in[0] = c.integers[0];
+      elements_[hash].in[1] = c.integers[1];
+      elements_[hash].output = heap_number;
+    }
+    return heap_number;
+  }
+
+  inline double Calculate(double input) {
+    switch (type_) {
+      case ACOS:
+        return acos(input);
+      case ASIN:
+        return asin(input);
+      case ATAN:
+        return atan(input);
+      case COS:
+        return cos(input);
+      case EXP:
+        return exp(input);
+      case LOG:
+        return log(input);
+      case SIN:
+        return sin(input);
+      case TAN:
+        return tan(input);
+      default:
+        return 0.0;  // Never happens.
+    }
+  }
+  static const int kCacheSize = 512;
+  struct Element {
+    uint32_t in[2];
+    Object* output;
+  };
+  union Converter {
+    double dbl;
+    uint32_t integers[2];
+  };
+  inline static int Hash(const Converter& c) {
+    uint32_t hash = (c.integers[0] ^ c.integers[1]);
+    hash ^= hash >> 16;
+    hash ^= hash >> 8;
+    return (hash & (kCacheSize - 1));
+  }
+  static TranscendentalCache* caches_[kNumberOfCaches];
+  Element elements_[kCacheSize];
+  Type type_;
+};
+
 
 } }  // namespace v8::internal
 

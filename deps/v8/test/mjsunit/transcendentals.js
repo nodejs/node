@@ -25,29 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_SIMULATOR_X64_H_
-#define V8_X64_SIMULATOR_X64_H_
 
+// Two fp numbers that have the same hash value (see TranscendentalCache
+// in heap.h).
+var x = 0x123456789ABCD / 0x2000000000000;
+var y = 0x1134567899BCD / 0x2000000000000;
 
-// Since there is no simulator for the ia32 architecture the only thing we can
-// do is to call the entry directly.
-// TODO(X64): Don't pass p0, since it isn't used?
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  entry(p0, p1, p2, p3, p4);
+assertTrue(Math.sin(x) != Math.sin(y));
 
-// Calculated the stack limit beyond which we will throw stack overflow errors.
-// This macro must be called from a C++ method. It relies on being able to take
-// the address of "this" to get a value on the current execution stack and then
-// calculates the stack limit based on that value.
-// NOTE: The check for overflow is not safe as there is no guarantee that the
-// running thread has its stack in all memory up to address 0x00000000.
-#define GENERATED_CODE_STACK_LIMIT(limit) \
-  (reinterpret_cast<uintptr_t>(this) >= limit ? \
-      reinterpret_cast<uintptr_t>(this) - limit : 0)
+assertTrue(Math.cos(x) != Math.cos(y));
 
-// Call the generated regexp code directly. The entry function pointer should
-// expect seven int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  entry(p0, p1, p2, p3, p4, p5, p6)
+assertTrue(Math.tan(x) != Math.tan(y));
 
-#endif  // V8_X64_SIMULATOR_X64_H_
+assertTrue(Math.log(x) != Math.log(y));
+
+assertTrue(Math.asin(x) != Math.asin(y));
+
+assertTrue(Math.acos(x) != Math.acos(y));
+
+assertTrue(Math.atan(x) != Math.atan(y));
+
+assertTrue(Math.exp(x) != Math.exp(y));
+

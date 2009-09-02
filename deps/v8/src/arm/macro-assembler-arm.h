@@ -188,6 +188,20 @@ class MacroAssembler: public Assembler {
 
 
   // ---------------------------------------------------------------------------
+  // Allocation support
+
+  // Allocate an object in new space. If the new space is exhausted control
+  // continues at the gc_required label. The allocated object is returned in
+  // result. If the flag tag_allocated_object is true the result is tagged as
+  // as a heap object.
+  void AllocateObjectInNewSpace(int object_size,
+                                Register result,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* gc_required,
+                                bool tag_allocated_object);
+
+  // ---------------------------------------------------------------------------
   // Support functions.
 
   // Try to get function prototype of a function and puts the value in
@@ -231,7 +245,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.
-  void CallStub(CodeStub* stub);
+  void CallStub(CodeStub* stub, Condition cond = al);
   void CallJSExitStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.

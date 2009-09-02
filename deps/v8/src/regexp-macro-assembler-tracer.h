@@ -37,7 +37,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
   virtual ~RegExpMacroAssemblerTracer();
   virtual int stack_limit_slack() { return assembler_->stack_limit_slack(); }
-
+  virtual bool CanReadUnaligned() { return assembler_->CanReadUnaligned(); }
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void Backtrack();

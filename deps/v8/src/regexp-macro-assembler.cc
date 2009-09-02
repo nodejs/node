@@ -30,6 +30,13 @@
 #include "assembler.h"
 #include "regexp-stack.h"
 #include "regexp-macro-assembler.h"
+#if V8_TARGET_ARCH_ARM
+#include "arm/simulator-arm.h"
+#elif V8_TARGET_ARCH_IA32
+#include "ia32/simulator-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/simulator-x64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -42,6 +49,15 @@ RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 
+bool RegExpMacroAssembler::CanReadUnaligned() {
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+  return true;
+#else
+  return false;
+#endif
+}
+
+
 #ifdef V8_NATIVE_REGEXP  // Avoid unused code, e.g., on ARM.
 
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler() {
@@ -49,6 +65,15 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler() {
 
 
 NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
+}
+
+
+bool NativeRegExpMacroAssembler::CanReadUnaligned() {
+#ifdef V8_TARGET_CAN_READ_UNALIGNED
+  return true;
+#else
+  return false;
+#endif
 }
 
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
@@ -162,13 +187,14 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
   RegExpStack stack;
   Address stack_base = RegExpStack::stack_base();
 
-  int result = matcher_func(input,
-                            start_offset,
-                            input_start,
-                            input_end,
-                            output,
-                            at_start_val,
-                            stack_base);
+  int result = CALL_GENERATED_REGEXP_CODE(matcher_func,
+                                          input,
+                                          start_offset,
+                                          input_start,
+                                          input_end,
+                                          output,
+                                          at_start_val,
+                                          stack_base);
   ASSERT(result <= SUCCESS);
   ASSERT(result >= RETRY);
 
@@ -211,6 +237,23 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     }
   }
   return 1;
+}
+
+
+Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
+                                              Address* stack_base) {
+  size_t size = RegExpStack::stack_capacity();
+  Address old_stack_base = RegExpStack::stack_base();
+  ASSERT(old_stack_base == *stack_base);
+  ASSERT(stack_pointer <= old_stack_base);
+  ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
+  Address new_stack_base = RegExpStack::EnsureCapacity(size * 2);
+  if (new_stack_base == NULL) {
+    return NULL;
+  }
+  *stack_base = new_stack_base;
+  intptr_t stack_content_size = old_stack_base - stack_pointer;
+  return new_stack_base - stack_content_size;
 }
 
 #endif  // V8_NATIVE_REGEXP

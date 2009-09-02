@@ -1,3 +1,30 @@
+2009-09-02: Version 1.3.9
+
+        Optimized stack guard checks on ARM.
+
+        Optimized API operations by inlining more in the API.
+
+        Optimized creation of objects from simple constructor functions.
+
+        Enabled a number of missing optimizations in the 64-bit port.
+
+        Implemented native-code support for regular expressions on ARM.
+
+        Stopped using the 'sahf' instruction on 64-bit machines that do
+        not support it.
+
+        Fixed a bug in the support for forceful termination of JavaScript
+        execution.
+
+
+2009-08-26: Version 1.3.8
+
+        Changed the handling of idle notifications to allow idle
+        notifications when V8 has not yet been initialized.
+
+        Fixed ARM simulator compilation problem on Windows.
+        
+
 2009-08-25: Version 1.3.7
 
         Reduced the size of generated code on ARM platforms by reducing

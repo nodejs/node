@@ -51,18 +51,18 @@ int RegisterAllocator::ToNumber(Register reg) {
     2,   // rcx
     3,   // rdx
     1,   // rbx
-    -1,  // rsp
-    -1,  // rbp
-    -1,  // rsi
+    -1,  // rsp  Stack pointer.
+    -1,  // rbp  Frame pointer.
+    -1,  // rsi  Context.
     4,   // rdi
     5,   // r8
     6,   // r9
-    -1,  // r10
-    7,   // r11
-    11,  // r12
-    10,   // r13
-    8,   // r14
-    9   // r15
+    -1,  // r10  Scratch register.
+    9,   // r11
+    10,  // r12
+    -1,  // r13  Roots array.  This is callee saved.
+    7,   // r14
+    8    // r15
   };
   return kNumbers[reg.code()];
 }
@@ -71,7 +71,7 @@ int RegisterAllocator::ToNumber(Register reg) {
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
   const Register kRegisters[] =
-      { rax, rbx, rcx, rdx, rdi, r8, r9, r11, r14, r15, r13, r12 };
+      { rax, rbx, rcx, rdx, rdi, r8, r9, r14, r15, r11, r12 };
   return kRegisters[num];
 }
 

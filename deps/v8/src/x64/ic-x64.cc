@@ -339,7 +339,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&fast);
   __ movq(rax, Operand(rcx, rax, times_pointer_size,
                       FixedArray::kHeaderSize - kHeapObjectTag));
-  __ Cmp(rax, Factory::the_hole_value());
+  __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
   __ j(equal, &slow);
@@ -613,9 +613,9 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Check for boolean.
   __ bind(&non_string);
-  __ Cmp(rdx, Factory::true_value());
+  __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
   __ j(equal, &boolean);
-  __ Cmp(rdx, Factory::false_value());
+  __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
   __ j(not_equal, &miss);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -785,7 +785,19 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, rax, rdx, rbx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
@@ -805,7 +817,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   StubCache::GenerateProbe(masm, flags, rax, rcx, rbx, rdx);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
@@ -819,7 +831,52 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss, probe, global;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that the receiver is a valid JS object.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+  __ j(below, &miss);
+
+  // If this assert fails, we have to check upper bound too.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+
+  // Check for access to global object (unlikely).
+  __ CmpInstanceType(rbx, JS_GLOBAL_PROXY_TYPE);
+  __ j(equal, &global);
+
+  // Check for non-global object that requires access check.
+  __ testl(FieldOperand(rbx, Map::kBitFieldOffset),
+          Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &miss);
+
+  // Search the dictionary placing the result in eax.
+  __ bind(&probe);
+  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx);
+  GenerateCheckNonObjectOrLoaded(masm, &miss, rax);
+  __ ret(0);
+
+  // Global object access: Check access rights.
+  __ bind(&global);
+  __ CheckAccessGlobalProxy(rax, rdx, &miss);
+  __ jmp(&probe);
+
+  // Cache miss: Restore receiver from stack and jump to runtime.
+  __ bind(&miss);
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
@@ -906,6 +963,21 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  // Get the receiver from the stack and probe the stub cache.
+  __ movq(rdx, Operand(rsp, kPointerSize));
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
+  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
+
+  // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
 }
 

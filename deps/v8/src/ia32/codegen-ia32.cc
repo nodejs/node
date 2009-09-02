@@ -2139,7 +2139,8 @@ void CodeGenerator::CallApplyLazy(Property* apply,
     Label invoke, adapted;
     __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
     __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-    __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+    __ cmp(Operand(ecx),
+           Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
     __ j(equal, &adapted);
 
     // No arguments adaptor frame. Copy fixed number of arguments.
@@ -4912,7 +4913,7 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ cmp(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
-         Immediate(ArgumentsAdaptorFrame::SENTINEL));
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &check_frame_marker);
   __ mov(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
 
@@ -6947,21 +6948,18 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                                              Register scratch1,
                                              Register scratch2,
                                              Register result) {
-  ExternalReference allocation_top =
-      ExternalReference::new_space_allocation_top_address();
-  ExternalReference allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  __ mov(Operand(scratch1), Immediate(allocation_top));
-  __ mov(result, Operand(scratch1, 0));
-  __ lea(scratch2, Operand(result, HeapNumber::kSize));  // scratch2: new top
-  __ cmp(scratch2, Operand::StaticVariable(allocation_limit));
-  __ j(above, need_gc, not_taken);
+  // Allocate heap number in new space.
+  __ AllocateObjectInNewSpace(HeapNumber::kSize,
+                              result,
+                              scratch1,
+                              scratch2,
+                              need_gc,
+                              false);
 
-  __ mov(Operand(scratch1, 0), scratch2);  // store new top
+  // Set the map and tag the result.
   __ mov(Operand(result, HeapObject::kMapOffset),
          Immediate(Factory::heap_number_map()));
-  // Tag old top and use as result.
-  __ add(Operand(result), Immediate(kHeapObjectTag));
+  __ or_(Operand(result), Immediate(kHeapObjectTag));
 }
 
 
@@ -7109,7 +7107,7 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   Label adaptor;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor);
 
   // Nothing to do: The formal number of parameters has already been
@@ -7141,7 +7139,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   Label adaptor;
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(ebx, StandardFrameConstants::kContextOffset));
-  __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor);
 
   // Check index against formal parameters count limit passed in
@@ -7192,7 +7190,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   Label runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &runtime);
 
   // Patch the arguments.length and the parameters pointer.
@@ -7724,11 +7722,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(ebp);
   __ mov(ebp, Operand(esp));
 
-  // Save callee-saved registers (C calling conventions).
+  // Push marker in two places.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  // Push something that is not an arguments adaptor.
-  __ push(Immediate(~ArgumentsAdaptorFrame::SENTINEL));
-  __ push(Immediate(Smi::FromInt(marker)));  // @ function offset
+  __ push(Immediate(Smi::FromInt(marker)));  // context slot
+  __ push(Immediate(Smi::FromInt(marker)));  // function slot
+  // Save callee-saved registers (C calling conventions).
   __ push(edi);
   __ push(esi);
   __ push(ebx);

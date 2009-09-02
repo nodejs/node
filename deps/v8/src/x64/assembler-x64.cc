@@ -120,13 +120,23 @@ void CpuFeatures::Probe()  {
   supported_ = kDefaultCpuFeatures | (1 << CPUID);
   { Scope fscope(CPUID);
     __ cpuid();
+    // Move the result from ecx:edx to rdi.
+    __ movl(rdi, rdx);  // Zero-extended to 64 bits.
+    __ shl(rcx, Immediate(32));
+    __ or_(rdi, rcx);
+
+    // Get the sahf supported flag, from CPUID(0x80000001)
+    __ movq(rax, 0x80000001, RelocInfo::NONE);
+    __ cpuid();
   }
   supported_ = kDefaultCpuFeatures;
 
-  // Move the result from ecx:edx to rax and make sure to mark the
-  // CPUID feature as supported.
-  __ movl(rax, rdx);  // Zero-extended to 64 bits.
-  __ shl(rcx, Immediate(32));
+  // Put the CPU flags in rax.
+  // rax = (rcx & 1) | (rdi & ~1) | (1 << CPUID).
+  __ movl(rax, Immediate(1));
+  __ and_(rcx, rax);  // Bit 0 is set if SAHF instruction supported.
+  __ not_(rax);
+  __ and_(rax, rdi);
   __ or_(rax, rcx);
   __ or_(rax, Immediate(1 << CPUID));
 

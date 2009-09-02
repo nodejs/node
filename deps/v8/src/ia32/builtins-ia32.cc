@@ -132,15 +132,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Make sure that the maximum heap object size will never cause us
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
-    ExternalReference new_space_allocation_top =
-        ExternalReference::new_space_allocation_top_address();
-    __ mov(ebx, Operand::StaticVariable(new_space_allocation_top));
-    __ add(edi, Operand(ebx));  // Calculate new top
-    ExternalReference new_space_allocation_limit =
-        ExternalReference::new_space_allocation_limit_address();
-    __ cmp(edi, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(above_equal, &rt_call);
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
+    __ AllocateObjectInNewSpace(edi, ebx, edi, no_reg, &rt_call, false);
     // Allocated the JSObject, now initialize the fields.
     // eax: initial map
     // ebx: JSObject
@@ -165,15 +158,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       __ j(less, &loop);
     }
 
-    // Mostly done with the JSObject. Add the heap tag and store the new top, so
-    // that we can continue and jump into the continuation code at any time from
-    // now on. Any failures need to undo the setting of the new top, so that the
-    // heap is in a consistent state and verifiable.
+    // Add the object tag to make the JSObject real, so that we can continue and
+    // jump into the continuation code at any time from now on. Any failures
+    // need to undo the allocation, so that the heap is in a consistent state
+    // and verifiable.
     // eax: initial map
     // ebx: JSObject
     // edi: start of next object
     __ or_(Operand(ebx), Immediate(kHeapObjectTag));
-    __ mov(Operand::StaticVariable(new_space_allocation_top), edi);
 
     // Check if a non-empty properties array is needed.
     // Allocate and initialize a FixedArray if it is.
@@ -198,10 +190,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // edx: number of elements in properties array
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
-    __ lea(ecx, Operand(edi, edx, times_pointer_size, FixedArray::kHeaderSize));
-    __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(above_equal, &undo_allocation);
-    __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
+    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
+                                times_pointer_size,
+                                edx,
+                                edi,
+                                ecx,
+                                no_reg,
+                                &undo_allocation,
+                                true);
 
     // Initialize the FixedArray.
     // ebx: JSObject
@@ -245,8 +241,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // allocated objects unused properties.
     // ebx: JSObject (previous new top)
     __ bind(&undo_allocation);
-    __ xor_(Operand(ebx), Immediate(kHeapObjectTag));  // clear the heap tag
-    __ mov(Operand::StaticVariable(new_space_allocation_top), ebx);
+    __ UndoAllocationInNewSpace(ebx);
   }
 
   // Allocate the new receiver object using the runtime call.
@@ -669,7 +664,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(ebp, Operand(esp));
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ push(edi);

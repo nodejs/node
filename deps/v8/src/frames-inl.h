@@ -128,8 +128,9 @@ inline Address StandardFrame::ComputePCAddress(Address fp) {
 
 
 inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
-  int context = Memory::int_at(fp + StandardFrameConstants::kContextOffset);
-  return context == ArgumentsAdaptorFrame::SENTINEL;
+  Object* marker =
+      Memory::Object_at(fp + StandardFrameConstants::kContextOffset);
+  return marker == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
 

@@ -102,7 +102,8 @@ void VirtualFrame::Enter() {
 #ifdef DEBUG
   // Verify that r1 contains a JS function.  The following code relies
   // on r2 being available for use.
-  { Label map_check, done;
+  if (FLAG_debug_code) {
+    Label map_check, done;
     __ tst(r1, Operand(kSmiTagMask));
     __ b(ne, &map_check);
     __ stop("VirtualFrame::Enter - r1 is not a function (smi check).");
@@ -140,9 +141,26 @@ void VirtualFrame::AllocateStackSlots() {
     Adjust(count);
       // Initialize stack slots with 'undefined' value.
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    for (int i = 0; i < count; i++) {
-      __ push(ip);
-    }
+  }
+  if (FLAG_check_stack) {
+    __ LoadRoot(r2, Heap::kStackLimitRootIndex);
+  }
+  for (int i = 0; i < count; i++) {
+    __ push(ip);
+  }
+  if (FLAG_check_stack) {
+    // Put the lr setup instruction in the delay slot.  The 'sizeof(Instr)' is
+    // added to the implicit 8 byte offset that always applies to operations
+    // with pc and gives a return address 12 bytes down.
+    masm()->add(lr, pc, Operand(sizeof(Instr)));
+    masm()->cmp(sp, Operand(r2));
+    StackCheckStub stub;
+    // Call the stub if lower.
+    masm()->mov(pc,
+                Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
+                        RelocInfo::CODE_TARGET),
+                LeaveCC,
+                lo);
   }
 }
 

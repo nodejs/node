@@ -39,6 +39,8 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_NATIVE_REGEXP
+
 /*
  * This assembler uses the following register assignment convention
  * - rdx : currently loaded character(s) as ASCII or UC16. Must be loaded using
@@ -110,6 +112,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
       success_label_(),
       backtrack_label_(),
       exit_label_() {
+  ASSERT_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code when we know more.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -319,7 +322,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   } else {
     ASSERT(mode_ == UC16);
     // Save important/volatile registers before calling C function.
-#ifndef __MSVC__
+#ifndef _WIN64
     // Callee save on Win64
     __ push(rsi);
     __ push(rdi);
@@ -333,7 +336,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
-#ifdef __MSVC__
+#ifdef _WIN64
     // Compute and set byte_offset1 (start of capture).
     __ lea(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
@@ -350,13 +353,14 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Set byte_length.
     __ movq(rdx, rbx);
 #endif
-    Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
-    CallCFunction(function_address, num_arguments);
+    ExternalReference compare =
+        ExternalReference::re_case_insensitive_compare_uc16();
+    CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_->CodeObject());
     __ pop(backtrack_stackpointer());
-#ifndef __MSVC__
+#ifndef _WIN64
     __ pop(rdi);
     __ pop(rsi);
 #endif
@@ -604,7 +608,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
   //  to order of kBackup_ebx etc.
-#ifdef __MSVC__
+#ifdef _WIN64
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
   __ movq(Operand(rbp, kInputString), rcx);
@@ -740,7 +744,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Exit and return rax
   __ bind(&exit_label_);
 
-#ifdef __MSVC__
+#ifdef _WIN64
   // Restore callee save registers.
   __ lea(rsp, Operand(rbp, kLastCalleeSaveRegister));
   __ pop(rbx);
@@ -794,7 +798,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     Label grow_failed;
     // Save registers before calling C function
-#ifndef __MSVC__
+#ifndef _WIN64
     // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
     __ push(rsi);
     __ push(rdi);
@@ -803,16 +807,17 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 2;
     FrameAlign(num_arguments);
-#ifdef __MSVC__
+#ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx.
     // First argument, backtrack stackpointer, is already in rcx.
     __ lea(rdx, Operand(rbp, kStackHighEnd));  // Second argument
 #else
-    // AMD64 ABI passes paremeters in rdi, rsi.
+    // AMD64 ABI passes parameters in rdi, rsi.
     __ movq(rdi, backtrack_stackpointer());   // First argument.
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
 #endif
-    CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
+    CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ testq(rax, rax);
@@ -821,7 +826,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_->CodeObject());
-#ifndef __MSVC__
+#ifndef _WIN64
     __ pop(rdi);
     __ pop(rsi);
 #endif
@@ -889,7 +894,9 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacter(int cp_offset,
                                                    int characters) {
   ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  CheckPosition(cp_offset + characters - 1, on_end_of_input);
+  if (check_bounds) {
+    CheckPosition(cp_offset + characters - 1, on_end_of_input);
+  }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
@@ -980,7 +987,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // store anything volatile in a C call or overwritten by this function.
   int num_arguments = 3;
   FrameAlign(num_arguments);
-#ifdef __MSVC__
+#ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).
   __ movq(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.
@@ -997,7 +1004,9 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // return address).
   __ lea(rdi, Operand(rsp, -kPointerSize));
 #endif
-  CallCFunction(FUNCTION_ADDR(&CheckStackGuardState), num_arguments);
+  ExternalReference stack_check =
+      ExternalReference::re_check_stack_guard_state();
+  CallCFunction(stack_check, num_arguments);
 }
 
 
@@ -1077,23 +1086,6 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   }
 
   return 0;
-}
-
-
-Address RegExpMacroAssemblerX64::GrowStack(Address stack_pointer,
-                                           Address* stack_base) {
-  size_t size = RegExpStack::stack_capacity();
-  Address old_stack_base = RegExpStack::stack_base();
-  ASSERT(old_stack_base == *stack_base);
-  ASSERT(stack_pointer <= old_stack_base);
-  ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
-  Address new_stack_base = RegExpStack::EnsureCapacity(size * 2);
-  if (new_stack_base == NULL) {
-    return NULL;
-  }
-  *stack_base = new_stack_base;
-  intptr_t stack_content_size = old_stack_base - stack_pointer;
-  return new_stack_base - stack_content_size;
 }
 
 
@@ -1242,10 +1234,10 @@ void RegExpMacroAssemblerX64::FrameAlign(int num_arguments) {
   // (on Win64 only) and the original value of rsp.
   __ movq(kScratchRegister, rsp);
   ASSERT(IsPowerOf2(frameAlignment));
-#ifdef __MSVC__
+#ifdef _WIN64
   // Allocate space for parameters and old rsp.
   __ subq(rsp, Immediate((num_arguments + 1) * kPointerSize));
-  __ and_(rsp, -frameAlignment);
+  __ and_(rsp, Immediate(-frameAlignment));
   __ movq(Operand(rsp, num_arguments * kPointerSize), kScratchRegister);
 #else
   // Allocate space for old rsp.
@@ -1256,17 +1248,16 @@ void RegExpMacroAssemblerX64::FrameAlign(int num_arguments) {
 }
 
 
-void RegExpMacroAssemblerX64::CallCFunction(Address function_address,
+void RegExpMacroAssemblerX64::CallCFunction(ExternalReference function,
                                             int num_arguments) {
-  // Don't compile regexps with serialization enabled. The addresses of the C++
-  // function being called isn't relocatable.
-  ASSERT(!Serializer::enabled());
-  __ movq(rax, reinterpret_cast<intptr_t>(function_address), RelocInfo::NONE);
+  __ movq(rax, function);
   __ call(rax);
   ASSERT(OS::ActivationFrameAlignment() != 0);
-#ifdef __MSVC__
+#ifdef _WIN64
   __ movq(rsp, Operand(rsp, num_arguments * kPointerSize));
 #else
+  // All arguments passed in registers.
+  ASSERT(num_arguments <= 6);
   __ pop(rsp);
 #endif
 }
@@ -1297,5 +1288,12 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
 }
 
 
+void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
+  __ int3();  // Unused on x64.
+}
+
 #undef __
+
+#endif  // V8_NATIVE_REGEXP
+
 }}  // namespace v8::internal

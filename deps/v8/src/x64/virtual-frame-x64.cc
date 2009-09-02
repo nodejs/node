@@ -205,6 +205,14 @@ void VirtualFrame::EmitPush(Handle<Object> value) {
 }
 
 
+void VirtualFrame::EmitPush(Heap::RootListIndex index) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ PushRoot(index);
+}
+
+
 void VirtualFrame::Drop(int count) {
   ASSERT(count >= 0);
   ASSERT(height() >= count);

@@ -179,7 +179,7 @@ TEST(HeapObjects) {
 TEST(Tagging) {
   InitializeVM();
   int request = 24;
-  ASSERT_EQ(request, OBJECT_SIZE_ALIGN(request));
+  CHECK_EQ(request, static_cast<int>(OBJECT_SIZE_ALIGN(request)));
   CHECK(Smi::FromInt(42)->IsSmi());
   CHECK(Failure::RetryAfterGC(request, NEW_SPACE)->IsFailure());
   CHECK_EQ(request, Failure::RetryAfterGC(request, NEW_SPACE)->requested());

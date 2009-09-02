@@ -63,32 +63,22 @@ SOURCES = {
     'arm/register-allocator-arm.cc', 'arm/stub-cache-arm.cc',
     'arm/virtual-frame-arm.cc'
   ],
-  'arch:ia32': {
-    'all': [
-      'ia32/assembler-ia32.cc', 'ia32/builtins-ia32.cc', 'ia32/cfg-ia32.cc',
-      'ia32/codegen-ia32.cc', 'ia32/cpu-ia32.cc', 'ia32/disasm-ia32.cc',
-      'ia32/debug-ia32.cc', 'ia32/frames-ia32.cc', 'ia32/ic-ia32.cc',
-      'ia32/jump-target-ia32.cc', 'ia32/macro-assembler-ia32.cc',
-      'ia32/register-allocator-ia32.cc', 'ia32/stub-cache-ia32.cc',
-      'ia32/virtual-frame-ia32.cc'
-    ],
-    'regexp:native': [
-      'ia32/regexp-macro-assembler-ia32.cc',
-    ]
-  },
-  'arch:x64': {
-    'all': [
-      'x64/assembler-x64.cc', 'x64/builtins-x64.cc', 'x64/cfg-x64.cc',
-      'x64/codegen-x64.cc', 'x64/cpu-x64.cc', 'x64/disasm-x64.cc',
-      'x64/debug-x64.cc', 'x64/frames-x64.cc', 'x64/ic-x64.cc',
-      'x64/jump-target-x64.cc', 'x64/macro-assembler-x64.cc',
-      'x64/register-allocator-x64.cc',
-      'x64/stub-cache-x64.cc', 'x64/virtual-frame-x64.cc'
-    ],
-    'regexp:native': [
-      'x64/regexp-macro-assembler-x64.cc'
-    ]
-  },
+  'arch:ia32': [
+    'ia32/assembler-ia32.cc', 'ia32/builtins-ia32.cc', 'ia32/cfg-ia32.cc',
+    'ia32/codegen-ia32.cc', 'ia32/cpu-ia32.cc', 'ia32/disasm-ia32.cc',
+    'ia32/debug-ia32.cc', 'ia32/frames-ia32.cc', 'ia32/ic-ia32.cc',
+    'ia32/jump-target-ia32.cc', 'ia32/macro-assembler-ia32.cc',
+    'ia32/regexp-macro-assembler-ia32.cc', 'ia32/register-allocator-ia32.cc',
+    'ia32/stub-cache-ia32.cc', 'ia32/virtual-frame-ia32.cc'
+  ],
+  'arch:x64': [
+    'x64/assembler-x64.cc', 'x64/builtins-x64.cc', 'x64/cfg-x64.cc',
+    'x64/codegen-x64.cc', 'x64/cpu-x64.cc', 'x64/disasm-x64.cc',
+    'x64/debug-x64.cc', 'x64/frames-x64.cc', 'x64/ic-x64.cc',
+    'x64/jump-target-x64.cc', 'x64/macro-assembler-x64.cc',
+    'x64/regexp-macro-assembler-x64.cc', 'x64/register-allocator-x64.cc',
+    'x64/stub-cache-x64.cc', 'x64/virtual-frame-x64.cc'
+  ],
   'simulator:arm': ['arm/simulator-arm.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
   'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],

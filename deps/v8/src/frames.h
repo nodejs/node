@@ -434,15 +434,6 @@ class JavaScriptFrame: public StandardFrame {
 // match the formal number of parameters.
 class ArgumentsAdaptorFrame: public JavaScriptFrame {
  public:
-  // This sentinel value is temporarily used to distinguish arguments
-  // adaptor frames from ordinary JavaScript frames. If a frame has
-  // the sentinel as its context, it is an arguments adaptor frame. It
-  // must be tagged as a small integer to avoid GC issues. Crud.
-  enum {
-    SENTINEL = (1 << kSmiTagSize) | kSmiTag,
-    NON_SENTINEL = ~SENTINEL
-  };
-
   virtual Type type() const { return ARGUMENTS_ADAPTOR; }
 
   // Determine the code for the frame.

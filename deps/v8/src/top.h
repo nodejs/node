@@ -157,8 +157,8 @@ class Top {
   // exceptions.  If an exception was thrown and not handled by an external
   // handler the exception is scheduled to be rethrown when we return to running
   // JavaScript code.  If an exception is scheduled true is returned.
-  static bool OptionalRescheduleException(bool is_bottom_call,
-                                          bool force_clear_catchable);
+  static bool OptionalRescheduleException(bool is_bottom_call);
+
 
   static bool* external_caught_exception_address() {
     return &thread_local_.external_caught_exception_;

@@ -375,6 +375,7 @@ class VirtualFrame : public ZoneObject {
   // corresponding push instruction.
   void EmitPush(Register reg);
   void EmitPush(const Operand& operand);
+  void EmitPush(Heap::RootListIndex index);
   void EmitPush(Immediate immediate);
   // Uses kScratchRegister, emits appropriate relocation info.
   void EmitPush(Handle<Object> value);

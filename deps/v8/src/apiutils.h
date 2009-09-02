@@ -60,7 +60,7 @@ class ImplementationUtilities {
   static HandleScopeData* CurrentHandleScope();
 
 #ifdef DEBUG
-  static void ZapHandleRange(void** begin, void** end);
+  static void ZapHandleRange(internal::Object** begin, internal::Object** end);
 #endif
 };
 

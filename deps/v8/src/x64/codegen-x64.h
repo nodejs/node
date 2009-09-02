@@ -481,6 +481,14 @@ class CodeGenerator: public AstVisitor {
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
+  // Use an optimized version of Function.prototype.apply that avoid
+  // allocating the arguments object and just copies the arguments
+  // from the stack.
+  void CallApplyLazy(Property* apply,
+                     Expression* receiver,
+                     VariableProxy* arguments,
+                     int position);
+
   void CheckStack();
 
   struct InlineRuntimeLUT {

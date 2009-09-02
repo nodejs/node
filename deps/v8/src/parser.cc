@@ -2397,12 +2397,6 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
 
-  // We do not allow the use of 'with' statements in the internal JS
-  // code. If 'with' statements were allowed, the simplified setup of
-  // the runtime context chain would allow access to properties in the
-  // global object from within a 'with' statement.
-  ASSERT(extension_ != NULL || !Bootstrapper::IsActive());
-
   Expect(Token::WITH, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   Expression* expr = ParseExpression(true, CHECK_OK);
@@ -3088,9 +3082,6 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
             Handle<String> name = callee->name();
             Variable* var = top_scope_->Lookup(name);
             if (var == NULL) {
-              // We do not allow direct calls to 'eval' in our internal
-              // JS files. Use builtin functions instead.
-              ASSERT(extension_ != NULL || !Bootstrapper::IsActive());
               top_scope_->RecordEvalCall();
               is_potentially_direct_eval = true;
             }

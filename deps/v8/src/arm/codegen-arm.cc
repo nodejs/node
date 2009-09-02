@@ -176,7 +176,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
 #endif
 
-    // Allocate space for locals and initialize them.
+    // Allocate space for locals and initialize them.  This also checks
+    // for stack overflow.
     frame_->AllocateStackSlots();
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
@@ -278,7 +279,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->CallRuntime(Runtime::kTraceEnter, 0);
       // Ignore the return value.
     }
-    CheckStack();
 
     // Compile the body of the function in a vanilla state. Don't
     // bother compiling all the code if the scope has an illegal
@@ -1110,8 +1110,19 @@ void CodeGenerator::CheckStack() {
   VirtualFrame::SpilledScope spilled_scope;
   if (FLAG_check_stack) {
     Comment cmnt(masm_, "[ check stack");
+    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+    // Put the lr setup instruction in the delay slot.  The 'sizeof(Instr)' is
+    // added to the implicit 8 byte offset that always applies to operations
+    // with pc and gives a return address 12 bytes down.
+    masm_->add(lr, pc, Operand(sizeof(Instr)));
+    masm_->cmp(sp, Operand(ip));
     StackCheckStub stub;
-    frame_->CallStub(&stub, 0);
+    // Call the stub if lower.
+    masm_->mov(pc,
+               Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
+                       RelocInfo::CODE_TARGET),
+               LeaveCC,
+               lo);
   }
 }
 
@@ -3322,7 +3333,7 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r1, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &check_frame_marker);
   __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
 
@@ -4934,36 +4945,21 @@ void CompareStub::Generate(MacroAssembler* masm) {
 static void AllocateHeapNumber(
     MacroAssembler* masm,
     Label* need_gc,       // Jump here if young space is full.
-    Register result_reg,  // The tagged address of the new heap number.
-    Register allocation_top_addr_reg,  // A scratch register.
+    Register result,  // The tagged address of the new heap number.
+    Register scratch1,  // A scratch register.
     Register scratch2) {  // Another scratch register.
-  ExternalReference allocation_top =
-      ExternalReference::new_space_allocation_top_address();
-  ExternalReference allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
+  // Allocate an object in the heap for the heap number and tag it as a heap
+  // object.
+  __ AllocateObjectInNewSpace(HeapNumber::kSize,
+                              result,
+                              scratch1,
+                              scratch2,
+                              need_gc,
+                              true);
 
-  // allocat := the address of the allocation top variable.
-  __ mov(allocation_top_addr_reg, Operand(allocation_top));
-  // result_reg := the old allocation top.
-  __ ldr(result_reg, MemOperand(allocation_top_addr_reg));
-  // scratch2 := the address of the allocation limit.
-  __ mov(scratch2, Operand(allocation_limit));
-  // scratch2 := the allocation limit.
-  __ ldr(scratch2, MemOperand(scratch2));
-  // result_reg := the new allocation top.
-  __ add(result_reg, result_reg, Operand(HeapNumber::kSize));
-  // Compare new new allocation top and limit.
-  __ cmp(result_reg, Operand(scratch2));
-  // Branch if out of space in young generation.
-  __ b(hi, need_gc);
-  // Store new allocation top.
-  __ str(result_reg, MemOperand(allocation_top_addr_reg));  // store new top
-  // Tag and adjust back to start of new object.
-  __ sub(result_reg, result_reg, Operand(HeapNumber::kSize - kHeapObjectTag));
-  // Get heap number map into scratch2.
-  __ LoadRoot(scratch2, Heap::kHeapNumberMapRootIndex);
-  // Store heap number map in new object.
-  __ str(scratch2, FieldMemOperand(result_reg, HeapObject::kMapOffset));
+  // Get heap number map and store it in the allocated object.
+  __ LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);
+  __ str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
 
@@ -5623,17 +5619,11 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  Label within_limit;
-  __ mov(ip, Operand(ExternalReference::address_of_stack_guard_limit()));
-  __ ldr(ip, MemOperand(ip));
-  __ cmp(sp, Operand(ip));
-  __ b(hs, &within_limit);
   // Do tail-call to runtime routine.  Runtime routines expect at least one
   // argument, so give it a Smi.
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ push(r0);
   __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
-  __ bind(&within_limit);
 
   __ StubReturn(1);
 }
@@ -5677,9 +5667,9 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
   } else {
     AllocateHeapNumber(masm, &slow, r1, r2, r3);
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-    __ str(r2, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
+    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
     __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+    __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
     __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
     __ str(r2, FieldMemOperand(r1, HeapNumber::kExponentOffset));
     __ mov(r0, Operand(r1));
@@ -5984,9 +5974,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r2: receiver
   // r3: argc
   // r4: argv
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ mov(r7, Operand(~ArgumentsAdaptorFrame::SENTINEL));
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
   __ ldr(r5, MemOperand(r5));
@@ -6143,7 +6133,7 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &adaptor);
 
   // Nothing to do: The formal number of parameters has already been
@@ -6172,7 +6162,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &adaptor);
 
   // Check index against formal parameters count limit passed in
@@ -6214,7 +6204,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   Label runtime;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &runtime);
 
   // Patch the arguments.length and the parameters pointer.

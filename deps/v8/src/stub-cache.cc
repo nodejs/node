@@ -1097,4 +1097,16 @@ Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
 }
 
 
+Object* ConstructStubCompiler::GetCode() {
+  Code::Flags flags = Code::ComputeFlags(Code::STUB);
+  Object* result = GetCodeWithFlags(flags, "ConstructStub");
+  if (!result->IsFailure()) {
+    Code* code = Code::cast(result);
+    USE(code);
+    LOG(CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
+  }
+  return result;
+}
+
+
 } }  // namespace v8::internal

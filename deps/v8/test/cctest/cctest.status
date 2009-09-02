@@ -50,6 +50,10 @@ test-api/RegExpInterruption: SKIP
 test-api/OutOfMemory: SKIP
 test-api/OutOfMemoryNested: SKIP
 
+# BUG(432): Fail on ARM hardware.
+test-regexp/MacroAssemblerNativeSimple: PASS || FAIL
+test-regexp/MacroAssemblerNativeSimpleUC16: PASS || FAIL
+
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
 

@@ -193,3 +193,63 @@ TEST(TerminateMultipleV8Threads) {
   delete semaphore;
   semaphore = NULL;
 }
+
+
+int call_count = 0;
+
+
+v8::Handle<v8::Value> TerminateOrReturnObject(const v8::Arguments& args) {
+  if (++call_count == 10) {
+    v8::V8::TerminateExecution();
+    return v8::Undefined();
+  }
+  v8::Local<v8::Object> result = v8::Object::New();
+  result->Set(v8::String::New("x"), v8::Integer::New(42));
+  return result;
+}
+
+
+v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  v8::Script::Compile(v8::String::New("function f() {"
+                                      "  try {"
+                                      "    while(true) {"
+                                      "      terminate_or_return_object().x;"
+                                      "    }"
+                                      "    fail();"
+                                      "  } catch(e) {"
+                                      "    fail();"
+                                      "  }"
+                                      "}"
+                                      "f()"))->Run();
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->IsNull());
+  CHECK(try_catch.Message().IsEmpty());
+  CHECK(!try_catch.CanContinue());
+  return v8::Undefined();
+}
+
+
+// Test that we correctly handle termination exceptions if they are
+// triggered by the creation of error objects in connection with ICs.
+TEST(TerminateLoadICException) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  global->Set(v8::String::New("terminate_or_return_object"),
+              v8::FunctionTemplate::New(TerminateOrReturnObject));
+  global->Set(v8::String::New("fail"), v8::FunctionTemplate::New(Fail));
+  global->Set(v8::String::New("loop"),
+              v8::FunctionTemplate::New(LoopGetProperty));
+
+  v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Context::Scope context_scope(context);
+  // Run a loop that will be infinite if thread termination does not work.
+  v8::Handle<v8::String> source =
+      v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
+  call_count = 0;
+  v8::Script::Compile(source)->Run();
+  // Test that we can run the code again after thread termination.
+  call_count = 0;
+  v8::Script::Compile(source)->Run();
+  context.Dispose();
+}

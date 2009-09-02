@@ -1740,6 +1740,135 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
+// Specialized stub for constructing objects from functions which only have only
+// simple assignments of the form this.x = ...; in their body.
+Object* ConstructStubCompiler::CompileConstructStub(
+    SharedFunctionInfo* shared) {
+  // ----------- S t a t e -------------
+  //  -- eax : argc
+  //  -- edi : constructor
+  //  -- esp[0] : return address
+  //  -- esp[4] : last argument
+  // -----------------------------------
+  Label generic_stub_call;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Check to see whether there are any break points in the function code. If
+  // there are jump to the generic constructor stub which calls the actual
+  // code for the function thereby hitting the break points.
+  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kDebugInfoOffset));
+  __ cmp(ebx, Factory::undefined_value());
+  __ j(not_equal, &generic_stub_call, not_taken);
+#endif
+
+  // Load the initial map and verify that it is in fact a map.
+  __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
+  // Will both indicate a NULL and a Smi.
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &generic_stub_call);
+  __ CmpObjectType(ebx, MAP_TYPE, ecx);
+  __ j(not_equal, &generic_stub_call);
+
+#ifdef DEBUG
+  // Cannot construct functions this way.
+  // edi: constructor
+  // ebx: initial map
+  __ CmpInstanceType(ebx, JS_FUNCTION_TYPE);
+  __ Assert(not_equal, "Function constructed by construct stub.");
+#endif
+
+  // Now allocate the JSObject on the heap by moving the new space allocation
+  // top forward.
+  // edi: constructor
+  // ebx: initial map
+  __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
+  __ shl(ecx, kPointerSizeLog2);
+  // Make sure that the maximum heap object size will never cause us
+  // problems here.
+  ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
+  __ AllocateObjectInNewSpace(ecx, edx, ecx, no_reg, &generic_stub_call, false);
+
+  // Allocated the JSObject, now initialize the fields and add the heap tag.
+  // ebx: initial map
+  // edx: JSObject (untagged)
+  __ mov(Operand(edx, JSObject::kMapOffset), ebx);
+  __ mov(ebx, Factory::empty_fixed_array());
+  __ mov(Operand(edx, JSObject::kPropertiesOffset), ebx);
+  __ mov(Operand(edx, JSObject::kElementsOffset), ebx);
+
+  // Push the allocated object to the stack. This is the object that will be
+  // returned (after it is tagged).
+  __ push(edx);
+
+  // eax: argc
+  // edx: JSObject (untagged)
+  // Load the address of the first in-object property into edx.
+  __ lea(edx, Operand(edx, JSObject::kHeaderSize));
+  // Calculate the location of the first argument. The stack contains the
+  // allocated object and the return address on top of the argc arguments.
+  __ lea(ecx, Operand(esp, eax, times_4, 1 * kPointerSize));
+
+  // Use edi for holding undefined which is used in several places below.
+  __ mov(edi, Factory::undefined_value());
+
+  // eax: argc
+  // ecx: first argument
+  // edx: first in-object property of the JSObject
+  // edi: undefined
+  // Fill the initialized properties with a constant value or a passed argument
+  // depending on the this.x = ...; assignment in the function.
+  for (int i = 0; i < shared->this_property_assignments_count(); i++) {
+    if (shared->IsThisPropertyAssignmentArgument(i)) {
+      Label not_passed;
+      // Set the property to undefined.
+      __ mov(Operand(edx, i * kPointerSize), edi);
+      // Check if the argument assigned to the property is actually passed.
+      int arg_number = shared->GetThisPropertyAssignmentArgument(i);
+      __ cmp(eax, arg_number);
+      __ j(below_equal, &not_passed);
+      // Argument passed - find it on the stack.
+      __ mov(ebx, Operand(ecx, arg_number * -kPointerSize));
+      __ mov(Operand(edx, i * kPointerSize), ebx);
+      __ bind(&not_passed);
+    } else {
+      // Set the property to the constant value.
+      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
+      __ mov(Operand(edx, i * kPointerSize), Immediate(constant));
+    }
+  }
+
+  // Fill the unused in-object property fields with undefined.
+  for (int i = shared->this_property_assignments_count();
+       i < shared->CalculateInObjectProperties();
+       i++) {
+    __ mov(Operand(edx, i * kPointerSize), edi);
+  }
+
+  // Move argc to ebx and retrieve and tag the JSObject to return.
+  __ mov(ebx, eax);
+  __ pop(eax);
+  __ or_(Operand(eax), Immediate(kHeapObjectTag));
+
+  // Remove caller arguments and receiver from the stack and return.
+  __ pop(ecx);
+  __ lea(esp, Operand(esp, ebx, times_pointer_size, 1 * kPointerSize));
+  __ push(ecx);
+  __ IncrementCounter(&Counters::constructed_objects, 1);
+  __ IncrementCounter(&Counters::constructed_objects_stub, 1);
+  __ ret(0);
+
+  // Jump to the generic stub in case the specialized code cannot handle the
+  // construction.
+  __ bind(&generic_stub_call);
+  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Handle<Code> generic_construct_stub(code);
+  __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

@@ -175,6 +175,10 @@ class StackGuard BASE_EMBEDDED {
 #endif
   static void Continue(InterruptFlag after_what);
 
+  static uintptr_t jslimit() {
+    return thread_local_.jslimit_;
+  }
+
  private:
   // You should hold the ExecutionAccess lock when calling this method.
   static bool IsSet(const ExecutionAccess& lock);
@@ -188,6 +192,7 @@ class StackGuard BASE_EMBEDDED {
 
   // You should hold the ExecutionAccess lock when calling this method.
   static void set_limits(uintptr_t value, const ExecutionAccess& lock) {
+    Heap::SetStackLimit(value);
     thread_local_.jslimit_ = value;
     thread_local_.climit_ = value;
   }
@@ -200,6 +205,7 @@ class StackGuard BASE_EMBEDDED {
       set_limits(kIllegalLimit, lock);
     } else {
       thread_local_.jslimit_ = thread_local_.initial_jslimit_;
+      Heap::SetStackLimit(thread_local_.jslimit_);
       thread_local_.climit_ = thread_local_.initial_climit_;
     }
   }
@@ -220,13 +226,15 @@ class StackGuard BASE_EMBEDDED {
   class ThreadLocal {
    public:
     ThreadLocal()
-     : initial_jslimit_(kIllegalLimit),
-       jslimit_(kIllegalLimit),
-       initial_climit_(kIllegalLimit),
-       climit_(kIllegalLimit),
-       nesting_(0),
-       postpone_interrupts_nesting_(0),
-       interrupt_flags_(0) {}
+      : initial_jslimit_(kIllegalLimit),
+        jslimit_(kIllegalLimit),
+        initial_climit_(kIllegalLimit),
+        climit_(kIllegalLimit),
+        nesting_(0),
+        postpone_interrupts_nesting_(0),
+        interrupt_flags_(0) {
+      Heap::SetStackLimit(kIllegalLimit);
+    }
     uintptr_t initial_jslimit_;
     uintptr_t jslimit_;
     uintptr_t initial_climit_;

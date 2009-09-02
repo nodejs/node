@@ -855,23 +855,18 @@ void Top::TraceException(bool flag) {
 }
 
 
-bool Top::OptionalRescheduleException(bool is_bottom_call,
-                                      bool force_clear_catchable) {
+bool Top::OptionalRescheduleException(bool is_bottom_call) {
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
         pending_exception() == Heap::termination_exception();
 
-    // Do not reschedule the exception if this is the bottom call or
-    // if we are asked to clear catchable exceptions.  Termination
-    // exceptions are not catchable and are only cleared if this is
-    // the bottom call.
-    bool clear_exception = is_bottom_call ||
-        (force_clear_catchable && !is_termination_exception);
+    // Do not reschedule the exception if this is the bottom call.
+    bool clear_exception = is_bottom_call;
 
     if (is_termination_exception) {
-      thread_local_.external_caught_exception_ = false;
       if (is_bottom_call) {
+        thread_local_.external_caught_exception_ = false;
         clear_pending_exception();
         return false;
       }

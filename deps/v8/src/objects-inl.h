@@ -131,7 +131,7 @@ bool Object::IsSmi() {
 
 
 bool Object::IsHeapObject() {
-  return HAS_HEAP_OBJECT_TAG(this);
+  return Internals::HasHeapObjectTag(this);
 }
 
 
@@ -300,6 +300,10 @@ uint32_t StringShape::full_representation_tag() {
 }
 
 
+STATIC_CHECK((kStringRepresentationMask | kStringEncodingMask) ==
+             Internals::kFullStringRepresentationMask);
+
+
 uint32_t StringShape::size_tag() {
   return (type_ & kStringSizeMask);
 }
@@ -323,6 +327,10 @@ bool StringShape::IsExternalAscii() {
 bool StringShape::IsExternalTwoByte() {
   return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
 }
+
+
+STATIC_CHECK((kExternalStringTag | kTwoByteStringTag) ==
+             Internals::kExternalTwoByteRepresentationTag);
 
 
 uc32 FlatStringReader::Get(int index) {
@@ -730,7 +738,7 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 
 
 int Smi::value() {
-  return static_cast<int>(reinterpret_cast<intptr_t>(this)) >> kSmiTagSize;
+  return Internals::SmiValue(this);
 }
 
 

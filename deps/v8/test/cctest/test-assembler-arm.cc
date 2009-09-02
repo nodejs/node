@@ -185,7 +185,7 @@ TEST(3) {
   Label L, C;
 
   __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, r4.bit() | fp.bit() | sp.bit() | lr.bit());
+  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
   __ sub(fp, ip, Operand(4));
   __ mov(r4, Operand(r0));
   __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)));
@@ -199,7 +199,7 @@ TEST(3) {
   __ add(r0, r2, Operand(r0));
   __ mov(r2, Operand(r2, ASR, 3));
   __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)));
-  __ ldm(ia, sp, r4.bit() | fp.bit() | sp.bit() | pc.bit());
+  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
   CodeDesc desc;
   assm.GetCode(&desc);

@@ -768,6 +768,44 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::AllocateObjectInNewSpace(int object_size,
+                                              Register result,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              Label* gc_required,
+                                              bool tag_allocated_object) {
+  ASSERT(!result.is(scratch1));
+  ASSERT(!scratch1.is(scratch2));
+
+  // Load address of new object into result and allocation top address into
+  // scratch1.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  mov(scratch1, Operand(new_space_allocation_top));
+  ldr(result, MemOperand(scratch1));
+
+  // Calculate new top and bail out if new space is exhausted. Use result
+  // to calculate the new top.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  mov(scratch2, Operand(new_space_allocation_limit));
+  ldr(scratch2, MemOperand(scratch2));
+  add(result, result, Operand(object_size));
+  cmp(result, Operand(scratch2));
+  b(hi, gc_required);
+
+  // Update allocation top. result temporarily holds the new top,
+  str(result, MemOperand(scratch1));
+
+  // Tag and adjust back to start of new object.
+  if (tag_allocated_object) {
+    sub(result, result, Operand(object_size - kHeapObjectTag));
+  } else {
+    sub(result, result, Operand(object_size));
+  }
+}
+
+
 void MacroAssembler::CompareObjectType(Register function,
                                        Register map,
                                        Register type_reg,
@@ -825,9 +863,9 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub) {
+void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 
@@ -1021,5 +1059,6 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
 }
+
 
 } }  // namespace v8::internal

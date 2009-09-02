@@ -53,7 +53,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ movq(rbp, rsp);
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ push(rdi);
@@ -139,9 +139,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Fill remaining expected arguments with undefined values.
     Label fill;
-    __ movq(kScratchRegister,
-            Factory::undefined_value(),
-            RelocInfo::EMBEDDED_OBJECT);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ bind(&fill);
     __ incq(rcx);
     __ push(kScratchRegister);
@@ -218,9 +216,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testl(rbx, Immediate(kSmiTagMask));
     __ j(zero, &call_to_object);
 
-    __ Cmp(rbx, Factory::null_value());
+    __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
-    __ Cmp(rbx, Factory::undefined_value());
+    __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
     __ j(equal, &use_global_receiver);
 
     __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
@@ -386,9 +384,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, kReceiverOffset));
   __ testl(rbx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
-  __ Cmp(rbx, Factory::null_value());
+  __ CompareRoot(rbx, Heap::kNullValueRootIndex);
   __ j(equal, &use_global_receiver);
-  __ Cmp(rbx, Factory::undefined_value());
+  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
   __ j(equal, &use_global_receiver);
 
   // If given receiver is already a JavaScript object then there's no
@@ -542,22 +540,13 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
-    ExternalReference new_space_allocation_top =
-        ExternalReference::new_space_allocation_top_address();
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(rbx, Operand(kScratchRegister, 0));
-    __ addq(rdi, rbx);  // Calculate new top
-    ExternalReference new_space_allocation_limit =
-        ExternalReference::new_space_allocation_limit_address();
-    __ movq(kScratchRegister, new_space_allocation_limit);
-    __ cmpq(rdi, Operand(kScratchRegister, 0));
-    __ j(above_equal, &rt_call);
+    __ AllocateObjectInNewSpace(rdi, rbx, rdi, no_reg, &rt_call, false);
     // Allocated the JSObject, now initialize the fields.
     // rax: initial map
     // rbx: JSObject (not HeapObject tagged - the actual address).
     // rdi: start of next object
     __ movq(Operand(rbx, JSObject::kMapOffset), rax);
-    __ Move(rcx, Factory::empty_fixed_array());
+    __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
     __ movq(Operand(rbx, JSObject::kPropertiesOffset), rcx);
     __ movq(Operand(rbx, JSObject::kElementsOffset), rcx);
     // Set extra fields in the newly allocated object.
@@ -565,7 +554,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject
     // rdi: start of next object
     { Label loop, entry;
-      __ Move(rdx, Factory::undefined_value());
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -576,16 +565,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       __ j(less, &loop);
     }
 
-    // Mostly done with the JSObject. Add the heap tag and store the new top, so
-    // that we can continue and jump into the continuation code at any time from
-    // now on. Any failures need to undo the setting of the new top, so that the
-    // heap is in a consistent state and verifiable.
+    // Add the object tag to make the JSObject real, so that we can continue and
+    // jump into the continuation code at any time from now on. Any failures
+    // need to undo the allocation, so that the heap is in a consistent state
+    // and verifiable.
     // rax: initial map
     // rbx: JSObject
     // rdi: start of next object
     __ or_(rbx, Immediate(kHeapObjectTag));
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(Operand(kScratchRegister, 0), rdi);
 
     // Check if a non-empty properties array is needed.
     // Allocate and initialize a FixedArray if it is.
@@ -610,18 +597,21 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rdx: number of elements in properties array
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
-    __ lea(rax, Operand(rdi, rdx, times_pointer_size, FixedArray::kHeaderSize));
-    __ movq(kScratchRegister, new_space_allocation_limit);
-    __ cmpq(rax, Operand(kScratchRegister, 0));
-    __ j(above_equal, &undo_allocation);
-    __ store_rax(new_space_allocation_top);
+    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
+                                times_pointer_size,
+                                rdx,
+                                rdi,
+                                rax,
+                                no_reg,
+                                &undo_allocation,
+                                true);
 
     // Initialize the FixedArray.
     // rbx: JSObject
     // rdi: FixedArray
     // rdx: number of elements
     // rax: start of next object
-    __ Move(rcx, Factory::fixed_array_map());
+    __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
     __ movq(Operand(rdi, JSObject::kMapOffset), rcx);  // setup the map
     __ movl(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
 
@@ -631,7 +621,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rax: start of next object
     // rdx: number of elements
     { Label loop, entry;
-      __ Move(rdx, Factory::undefined_value());
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -659,9 +649,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // allocated objects unused properties.
     // rbx: JSObject (previous new top)
     __ bind(&undo_allocation);
-    __ xor_(rbx, Immediate(kHeapObjectTag));  // clear the heap tag
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(Operand(kScratchRegister, 0), rbx);
+    __ UndoAllocationInNewSpace(rbx);
   }
 
   // Allocate the new receiver object using the runtime call.
@@ -756,7 +744,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // an internal frame and the pushed function and receiver, and
   // register rax and rbx holds the argument count and argument array,
   // while rdi holds the function pointer and rsi the context.
-#ifdef __MSVC__
+#ifdef _WIN64
   // MSVC parameters in:
   // rcx : entry (ignored)
   // rdx : function
@@ -766,7 +754,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Clear the context before we push it when entering the JS frame.
   __ xor_(rsi, rsi);
-  // Enter an internal frame.
   __ EnterInternalFrame();
 
   // Load the function context into rsi.
@@ -783,7 +770,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ movq(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
   // Load the function pointer into rdi.
   __ movq(rdi, rdx);
-#else  // !defined(__MSVC__)
+#else  // !defined(_WIN64)
   // GCC parameters in:
   // rdi : entry (ignored)
   // rsi : function
@@ -807,7 +794,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Load the number of arguments and setup pointer to the arguments.
   __ movq(rax, rcx);
   __ movq(rbx, r8);
-#endif  // __MSVC__
+#endif  // _WIN64
+
+  // Set up the roots register.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ movq(r13, roots_address);
+
   // Current stack contents:
   // [rsp + 2 * kPointerSize ... ]: Internal frame
   // [rsp + kPointerSize]         : function

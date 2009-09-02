@@ -76,7 +76,7 @@ void MarkCompactCollector::CollectGarbage() {
 
   SweepLargeObjectSpace();
 
-  if (compacting_collection_) {
+  if (IsCompacting()) {
     EncodeForwardingAddresses();
 
     UpdatePointers();

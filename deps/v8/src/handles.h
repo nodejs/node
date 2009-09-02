@@ -121,7 +121,7 @@ class HandleScope {
   // Creates a new handle with the given value.
   template <typename T>
   static inline T** CreateHandle(T* value) {
-    void** cur = current_.next;
+    internal::Object** cur = current_.next;
     if (cur == current_.limit) cur = Extend();
     // Update the current next field, set the value in the created
     // handle, and return the result.
@@ -164,13 +164,13 @@ class HandleScope {
   }
 
   // Extend the handle scope making room for more handles.
-  static void** Extend();
+  static internal::Object** Extend();
 
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions();
 
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(void** start, void** end);
+  static void ZapRange(internal::Object** start, internal::Object** end);
 
   friend class v8::HandleScope;
   friend class v8::ImplementationUtilities;

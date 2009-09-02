@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "arguments.h"
 #include "bootstrapper.h"
 #include "builtins.h"
 #include "ic-inl.h"
@@ -47,17 +48,13 @@ namespace internal {
 //   BUILTIN_END
 //
 // In the body of the builtin function, the variable 'receiver' is visible.
-// The arguments can be accessed through:
+// The arguments can be accessed through the Arguments object args.
 //
-//   BUILTIN_ARG(0): Receiver (also available as 'receiver')
-//   BUILTIN_ARG(1): First argument
+//   args[0]: Receiver (also available as 'receiver')
+//   args[1]: First argument
 //     ...
-//   BUILTIN_ARG(n): Last argument
-//
-// and they evaluate to undefined values if too few arguments were
-// passed to the builtin function invocation.
-//
-// __argc__ is the number of arguments including the receiver.
+//   args[n]: Last argument
+//   args.length(): Number of arguments including the receiver.
 // ----------------------------------------------------------------------------
 
 
@@ -65,21 +62,8 @@ namespace internal {
 // builtin was invoked as a constructor as part of the
 // arguments. Maybe we also want to pass the called function?
 #define BUILTIN(name)                                                   \
-  static Object* Builtin_##name(int __argc__, Object** __argv__) {      \
-    Handle<Object> receiver(&__argv__[0]);
-
-
-// Use an inline function to avoid evaluating the index (n) more than
-// once in the BUILTIN_ARG macro.
-static inline Object* __builtin_arg__(int n, int argc, Object** argv) {
-  ASSERT(n >= 0);
-  return (argc > n) ? argv[-n] : Heap::undefined_value();
-}
-
-
-// NOTE: Argument 0 is the receiver. The first 'real' argument is
-// argument 1 - BUILTIN_ARG(1).
-#define BUILTIN_ARG(n) (__builtin_arg__(n, __argc__, __argv__))
+  static Object* Builtin_##name(Arguments args) {      \
+    Handle<Object> receiver = args.at<Object>(0);
 
 
 #define BUILTIN_END                             \
@@ -168,8 +152,8 @@ BUILTIN(ArrayCode) {
 
   // Optimize the case where there is one argument and the argument is a
   // small smi.
-  if (__argc__ == 2) {
-    Object* obj = BUILTIN_ARG(1);
+  if (args.length() == 2) {
+    Object* obj = args[1];
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
       if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
@@ -182,14 +166,14 @@ BUILTIN(ArrayCode) {
     // Take the argument as the length.
     obj = array->Initialize(0);
     if (obj->IsFailure()) return obj;
-    if (__argc__ == 2) return array->SetElementsLength(BUILTIN_ARG(1));
+    if (args.length() == 2) return array->SetElementsLength(args[1]);
   }
 
   // Optimize the case where there are no parameters passed.
-  if (__argc__ == 1) return array->Initialize(4);
+  if (args.length() == 1) return array->Initialize(4);
 
   // Take the arguments as elements.
-  int number_of_elements = __argc__ - 1;
+  int number_of_elements = args.length() - 1;
   Smi* len = Smi::FromInt(number_of_elements);
   Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
   if (obj->IsFailure()) return obj;
@@ -197,7 +181,7 @@ BUILTIN(ArrayCode) {
   WriteBarrierMode mode = elms->GetWriteBarrierMode();
   // Fill in the content
   for (int index = 0; index < number_of_elements; index++) {
-    elms->set(index, BUILTIN_ARG(index+1), mode);
+    elms->set(index, args[index+1], mode);
   }
 
   // Set length and elements on the array.
@@ -217,13 +201,13 @@ BUILTIN(ArrayPush) {
   int len = Smi::cast(array->length())->value();
 
   // Set new length.
-  int new_length = len + __argc__ - 1;
+  int new_length = len + args.length() - 1;
   FixedArray* elms = FixedArray::cast(array->elements());
 
   if (new_length <= elms->length()) {
     // Backing storage has extra space for the provided values.
-    for (int index = 0; index < __argc__ - 1; index++) {
-      elms->set(index + len, BUILTIN_ARG(index+1));
+    for (int index = 0; index < args.length() - 1; index++) {
+      elms->set(index + len, args[index+1]);
     }
   } else {
     // New backing storage is needed.
@@ -235,8 +219,8 @@ BUILTIN(ArrayPush) {
     // Fill out the new array with old elements.
     for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
     // Add the provided values.
-    for (int index = 0; index < __argc__ - 1; index++) {
-      new_elms->set(index + len, BUILTIN_ARG(index+1), mode);
+    for (int index = 0; index < args.length() - 1; index++) {
+      new_elms->set(index + len, args[index+1], mode);
     }
     // Set the new backing storage.
     array->set_elements(new_elms);
@@ -353,7 +337,7 @@ BUILTIN(HandleApiCall) {
 
   FunctionTemplateInfo* fun_data =
       FunctionTemplateInfo::cast(function->shared()->function_data());
-  Object* raw_holder = TypeCheck(__argc__, __argv__, fun_data);
+  Object* raw_holder = TypeCheck(args.length(), &args[0], fun_data);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
@@ -380,19 +364,19 @@ BUILTIN(HandleApiCall) {
     Handle<JSObject> holder_handle(JSObject::cast(raw_holder));
     v8::Local<v8::Object> holder = v8::Utils::ToLocal(holder_handle);
     LOG(ApiObjectAccess("call", JSObject::cast(*receiver)));
-    v8::Arguments args = v8::ImplementationUtilities::NewArguments(
+    v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         data,
         holder,
         callee,
         is_construct,
-        reinterpret_cast<void**>(__argv__ - 1),
-        __argc__ - 1);
+        reinterpret_cast<void**>(&args[0] - 1),
+        args.length() - 1);
 
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
-      value = callback(args);
+      value = callback(new_args);
     }
     if (value.IsEmpty()) {
       result = Heap::undefined_value();
@@ -413,13 +397,12 @@ BUILTIN_END
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
 static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
-                                                    int __argc__,
-                                                    Object** __argv__) {
+                                                    Arguments args) {
   // Non-functions are never called as constructors. Even if this is an object
   // called as a constructor the delegate call is not a construct call.
   ASSERT(!CalledAsConstructor());
 
-  Handle<Object> receiver(&__argv__[0]);
+  Handle<Object> receiver = args.at<Object>(0);
 
   // Get the object called.
   JSObject* obj = JSObject::cast(*receiver);
@@ -448,18 +431,18 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
     Handle<JSFunction> callee_handle(constructor);
     v8::Local<v8::Function> callee = v8::Utils::ToLocal(callee_handle);
     LOG(ApiObjectAccess("call non-function", JSObject::cast(*receiver)));
-    v8::Arguments args = v8::ImplementationUtilities::NewArguments(
+    v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         data,
         self,
         callee,
         is_construct_call,
-        reinterpret_cast<void**>(__argv__ - 1),
-        __argc__ - 1);
+        reinterpret_cast<void**>(&args[0] - 1),
+        args.length() - 1);
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
-      value = callback(args);
+      value = callback(new_args);
     }
     if (value.IsEmpty()) {
       result = Heap::undefined_value();
@@ -476,7 +459,7 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a normal function call.
 BUILTIN(HandleApiCallAsFunction) {
-  return HandleApiCallAsFunctionOrConstructor(false, __argc__, __argv__);
+  return HandleApiCallAsFunctionOrConstructor(false, args);
 }
 BUILTIN_END
 
@@ -484,7 +467,7 @@ BUILTIN_END
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a construct call.
 BUILTIN(HandleApiCallAsConstructor) {
-  return HandleApiCallAsFunctionOrConstructor(true, __argc__, __argv__);
+  return HandleApiCallAsFunctionOrConstructor(true, args);
 }
 BUILTIN_END
 

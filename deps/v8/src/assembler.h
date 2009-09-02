@@ -431,6 +431,19 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference debug_step_in_fp_address();
 #endif
 
+#ifdef V8_NATIVE_REGEXP
+  // C functions called from RegExp generated code.
+
+  // Function NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()
+  static ExternalReference re_case_insensitive_compare_uc16();
+
+  // Function RegExpMacroAssembler*::CheckStackGuardState()
+  static ExternalReference re_check_stack_guard_state();
+
+  // Function NativeRegExpMacroAssembler::GrowStack()
+  static ExternalReference re_grow_stack();
+#endif
+
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
   static void set_redirector(ExternalReferenceRedirector* redirector) {

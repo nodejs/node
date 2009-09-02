@@ -59,6 +59,10 @@ function f() {
 break_break_point_hit_count = 0;
 f();
 assertEquals(5, break_break_point_hit_count);
+f();
+assertEquals(10, break_break_point_hit_count);
+f();
+assertEquals(15, break_break_point_hit_count);
 
 // Test step into constructor with builtin constructor.
 function g() {

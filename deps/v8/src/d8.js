@@ -1143,7 +1143,7 @@ function DebugResponseDetails(response) {
  * @constructor
  */
 function ProtocolPackage(json) {
-  this.packet_ = eval('(' + json + ')');
+  this.packet_ = JSON.parse(json);
   this.refs_ = [];
   if (this.packet_.refs) {
     for (var i = 0; i < this.packet_.refs.length; i++) {

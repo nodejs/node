@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-
+#include <cstdarg>
 #include "v8.h"
 
 #include "disasm.h"
@@ -598,7 +598,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instr* instr) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned read at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned unsigned halfword read at %x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
   return 0;
 }
@@ -609,7 +609,7 @@ int16_t Simulator::ReadH(int32_t addr, Instr* instr) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned read at %x\n", addr);
+  PrintF("Unaligned signed halfword read at %x\n", addr);
   UNIMPLEMENTED();
   return 0;
 }
@@ -621,7 +621,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instr* instr) {
     *ptr = value;
     return;
   }
-  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned unsigned halfword write at %x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
 }
 
@@ -632,7 +632,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instr* instr) {
     *ptr = value;
     return;
   }
-  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned halfword write at %x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
 }
 
@@ -1051,7 +1051,6 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
         }
         set_register(r0, lo_res);
         set_register(r1, hi_res);
-        set_register(r0, result);
       }
       set_register(lr, saved_lr);
       set_pc(get_register(lr));
@@ -1417,8 +1416,12 @@ void Simulator::DecodeType01(Instr* instr) {
 
       case CMN: {
         if (instr->HasS()) {
-          Format(instr, "cmn'cond 'rn, 'shift_rm");
-          Format(instr, "cmn'cond 'rn, 'imm");
+          // Format(instr, "cmn'cond 'rn, 'shift_rm");
+          // Format(instr, "cmn'cond 'rn, 'imm");
+          alu_out = rn_val + shifter_operand;
+          SetNZFlags(alu_out);
+          SetCFlag(!CarryFrom(rn_val, shifter_operand));
+          SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
         } else {
           ASSERT(type == 0);
           int rm = instr->RmField();
@@ -1567,6 +1570,7 @@ void Simulator::DecodeType2(Instr* instr) {
 
 
 void Simulator::DecodeType3(Instr* instr) {
+  ASSERT(instr->Bit(4) == 0);
   int rd = instr->RdField();
   int rn = instr->RnField();
   int32_t rn_val = get_register(rn);
@@ -1606,7 +1610,12 @@ void Simulator::DecodeType3(Instr* instr) {
     }
   }
   if (instr->HasB()) {
-    UNIMPLEMENTED();
+    if (instr->HasL()) {
+      uint8_t byte = ReadB(addr);
+      set_register(rd, byte);
+    } else {
+      UNIMPLEMENTED();
+    }
   } else {
     if (instr->HasL()) {
       set_register(rd, ReadW(addr, instr));
@@ -1631,12 +1640,13 @@ void Simulator::DecodeType4(Instr* instr) {
 
 void Simulator::DecodeType5(Instr* instr) {
   // Format(instr, "b'l'cond 'target");
-  int off = (instr->SImmed24Field() << 2) + 8;
-  intptr_t pc = get_pc();
+  int off = (instr->SImmed24Field() << 2);
+  intptr_t pc_address = get_pc();
   if (instr->HasLink()) {
-    set_register(lr, pc + Instr::kInstrSize);
+    set_register(lr, pc_address + Instr::kInstrSize);
   }
-  set_pc(pc+off);
+  int pc_reg = get_register(pc);
+  set_pc(pc_reg + off);
 }
 
 
@@ -1655,14 +1665,75 @@ void Simulator::DecodeType7(Instr* instr) {
 }
 
 
+void Simulator::DecodeUnconditional(Instr* instr) {
+  if (instr->Bits(7, 4) == 0x0B && instr->Bits(27, 25) == 0 && instr->HasL()) {
+    // Load halfword instruction, either register or immediate offset.
+    int rd = instr->RdField();
+    int rn = instr->RnField();
+    int32_t rn_val = get_register(rn);
+    int32_t addr = 0;
+    int32_t offset;
+    if (instr->Bit(22) == 0) {
+      // Register offset.
+      int rm = instr->RmField();
+      offset = get_register(rm);
+    } else {
+      // Immediate offset
+      offset = instr->Bits(3, 0) + (instr->Bits(11, 8) << 4);
+    }
+    switch (instr->PUField()) {
+      case 0: {
+        // Post index, negative.
+        ASSERT(!instr->HasW());
+        addr = rn_val;
+        rn_val -= offset;
+        set_register(rn, rn_val);
+        break;
+      }
+      case 1: {
+        // Post index, positive.
+        ASSERT(!instr->HasW());
+        addr = rn_val;
+        rn_val += offset;
+        set_register(rn, rn_val);
+        break;
+      }
+      case 2: {
+        // Pre index or offset, negative.
+        rn_val -= offset;
+        addr = rn_val;
+        if (instr->HasW()) {
+          set_register(rn, rn_val);
+        }
+        break;
+      }
+      case 3: {
+        // Pre index or offset, positive.
+        rn_val += offset;
+        addr = rn_val;
+        if (instr->HasW()) {
+          set_register(rn, rn_val);
+        }
+        break;
+      }
+      default: {
+        // The PU field is a 2-bit field.
+        UNREACHABLE();
+        break;
+      }
+    }
+    // Not sign extending, so load as unsigned.
+    uint16_t halfword = ReadH(addr, instr);
+    set_register(rd, halfword);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instr* instr) {
   pc_modified_ = false;
-  if (instr->ConditionField() == special_condition) {
-    Debugger dbg(this);
-    dbg.Stop(instr);
-    return;
-  }
   if (::v8::internal::FLAG_trace_sim) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
@@ -1672,7 +1743,9 @@ void Simulator::InstructionDecode(Instr* instr) {
                            reinterpret_cast<byte*>(instr));
     PrintF("  0x%x  %s\n", instr, buffer.start());
   }
-  if (ConditionallyExecute(instr)) {
+  if (instr->ConditionField() == special_condition) {
+    DecodeUnconditional(instr);
+  } else if (ConditionallyExecute(instr)) {
     switch (instr->TypeField()) {
       case 0:
       case 1: {
@@ -1748,19 +1821,35 @@ void Simulator::Execute() {
 }
 
 
-Object* Simulator::Call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
-                        int32_t p3, int32_t p4) {
-  // Setup parameters
-  set_register(r0, p0);
-  set_register(r1, p1);
-  set_register(r2, p2);
-  set_register(r3, p3);
-  intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
-  *(--stack_pointer) = p4;
-  set_register(sp, reinterpret_cast<int32_t>(stack_pointer));
+int32_t Simulator::Call(byte* entry, int argument_count, ...) {
+  va_list parameters;
+  va_start(parameters, argument_count);
+  // Setup arguments
+
+  // First four arguments passed in registers.
+  ASSERT(argument_count >= 4);
+  set_register(r0, va_arg(parameters, int32_t));
+  set_register(r1, va_arg(parameters, int32_t));
+  set_register(r2, va_arg(parameters, int32_t));
+  set_register(r3, va_arg(parameters, int32_t));
+
+  // Remaining arguments passed on stack.
+  int original_stack = get_register(sp);
+  // Compute position of stack on entry to generated code.
+  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t));
+  if (OS::ActivationFrameAlignment() != 0) {
+    entry_stack &= -OS::ActivationFrameAlignment();
+  }
+  // Store remaining arguments on stack, from low to high memory.
+  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
+  for (int i = 4; i < argument_count; i++) {
+    stack_argument[i - 4] = va_arg(parameters, int32_t);
+  }
+  va_end(parameters);
+  set_register(sp, entry_stack);
 
   // Prepare to execute the code at entry
-  set_register(pc, entry);
+  set_register(pc, reinterpret_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -1794,14 +1883,14 @@ Object* Simulator::Call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
   Execute();
 
   // Check that the callee-saved registers have been preserved.
-  CHECK_EQ(get_register(r4), callee_saved_value);
-  CHECK_EQ(get_register(r5), callee_saved_value);
-  CHECK_EQ(get_register(r6), callee_saved_value);
-  CHECK_EQ(get_register(r7), callee_saved_value);
-  CHECK_EQ(get_register(r8), callee_saved_value);
-  CHECK_EQ(get_register(r9), callee_saved_value);
-  CHECK_EQ(get_register(r10), callee_saved_value);
-  CHECK_EQ(get_register(r11), callee_saved_value);
+  CHECK_EQ(callee_saved_value, get_register(r4));
+  CHECK_EQ(callee_saved_value, get_register(r5));
+  CHECK_EQ(callee_saved_value, get_register(r6));
+  CHECK_EQ(callee_saved_value, get_register(r7));
+  CHECK_EQ(callee_saved_value, get_register(r8));
+  CHECK_EQ(callee_saved_value, get_register(r9));
+  CHECK_EQ(callee_saved_value, get_register(r10));
+  CHECK_EQ(callee_saved_value, get_register(r11));
 
   // Restore callee-saved registers with the original value.
   set_register(r4, r4_val);
@@ -1813,8 +1902,12 @@ Object* Simulator::Call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
   set_register(r10, r10_val);
   set_register(r11, r11_val);
 
-  int result = get_register(r0);
-  return reinterpret_cast<Object*>(result);
+  // Pop stack passed arguments.
+  CHECK_EQ(entry_stack, get_register(sp));
+  set_register(sp, original_stack);
+
+  int32_t result = get_register(r0);
+  return result;
 }
 
 } }  // namespace assembler::arm

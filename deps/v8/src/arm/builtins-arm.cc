@@ -573,7 +573,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ mov(r4, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() | fp.bit() | lr.bit());
   __ add(fp, sp, Operand(3 * kPointerSize));
 }

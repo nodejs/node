@@ -141,6 +141,7 @@ namespace internal {
   SC(call_global_inline_miss, V8.CallGlobalInlineMiss)              \
   SC(constructed_objects, V8.ConstructedObjects)                    \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)     \
+  SC(constructed_objects_stub, V8.ConstructedObjectsStub)           \
   SC(for_in, V8.ForIn)                                              \
   SC(enum_cache_hits, V8.EnumCacheHits)                             \
   SC(enum_cache_misses, V8.EnumCacheMisses)                         \

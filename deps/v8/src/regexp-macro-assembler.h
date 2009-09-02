@@ -61,6 +61,7 @@ class RegExpMacroAssembler {
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack() = 0;
+  virtual bool CanReadUnaligned();
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
   // Continues execution from the position pushed on the top of the backtrack
@@ -182,6 +183,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   NativeRegExpMacroAssembler();
   virtual ~NativeRegExpMacroAssembler();
+  virtual bool CanReadUnaligned();
 
   static Result Match(Handle<Code> regexp,
                       Handle<String> subject,
@@ -195,6 +197,13 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                                         Address byte_offset2,
                                         size_t byte_length);
 
+  // Called from RegExp if the backtrack stack limit is hit.
+  // Tries to expand the stack. Returns the new stack-pointer if
+  // successful, and updates the stack_top address, or returns 0 if unable
+  // to grow the stack.
+  // This function must not trigger a garbage collection.
+  static Address GrowStack(Address stack_pointer, Address* stack_top);
+
   static const byte* StringCharacterPosition(String* subject, int start_index);
 
   static Result Execute(Code* code,
@@ -205,7 +214,25 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                         int* output,
                         bool at_start);
 };
+
+
+// Enter C code from generated RegExp code in a way that allows
+// the C code to fix the return address in case of a GC.
+// Currently only needed on ARM.
+class RegExpCEntryStub: public CodeStub {
+ public:
+  RegExpCEntryStub() {}
+  virtual ~RegExpCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return RegExpCEntry; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "RegExpCEntryStub"; }
+};
+
 #endif  // V8_NATIVE_REGEXP
+
 } }  // namespace v8::internal
 
 #endif  // V8_REGEXP_MACRO_ASSEMBLER_H_

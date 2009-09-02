@@ -39,7 +39,7 @@
 
 #ifndef V8_ARM_ASSEMBLER_ARM_H_
 #define V8_ARM_ASSEMBLER_ARM_H_
-
+#include <stdio.h>
 #include "assembler.h"
 
 namespace v8 {
@@ -165,9 +165,10 @@ enum Coprocessor {
 enum Condition {
   eq =  0 << 28,  // Z set            equal.
   ne =  1 << 28,  // Z clear          not equal.
-  cs =  2 << 28,  // C set            unsigned higher or same.
+  nz =  1 << 28,  // Z clear          not zero.
+  cs =  2 << 28,  // C set            carry set.
   hs =  2 << 28,  // C set            unsigned higher or same.
-  cc =  3 << 28,  // C clear          unsigned lower.
+  cc =  3 << 28,  // C clear          carry clear.
   lo =  3 << 28,  // C clear          unsigned lower.
   mi =  4 << 28,  // N set            negative.
   pl =  5 << 28,  // N clear          positive or zero.
@@ -420,6 +421,10 @@ class Assembler : public Malloced {
   // Manages the jump elimination optimization if the second parameter is true.
   int branch_offset(Label* L, bool jump_elimination_allowed);
 
+  // Puts a labels target address at the given position.
+  // The high 8 bits are set to zero.
+  void label_at_put(Label* L, int at_offset);
+
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
   INLINE(static Address target_address_address_at(Address pc));
@@ -434,6 +439,10 @@ class Assembler : public Malloced {
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;
+
+  // Difference between address of current opcode and value read from pc
+  // register.
+  static const int kPcLoadDelta = 8;
 
 
   // ---------------------------------------------------------------------------
@@ -784,6 +793,8 @@ class Assembler : public Malloced {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  friend class RegExpMacroAssemblerARM;
 };
 
 } }  // namespace v8::internal

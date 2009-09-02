@@ -57,6 +57,7 @@ class CodeStub BASE_EMBEDDED {
     SetProperty,   // ARM only
     InvokeBuiltin,  // ARM only
     JSExit,        // ARM only
+    RegExpCEntry,  // ARM only
     NUMBER_OF_IDS
   };
 

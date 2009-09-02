@@ -661,7 +661,7 @@ bool Debug::CompileDebuggerScript(int index) {
   // Check for caught exceptions.
   if (caught_exception) {
     Handle<Object> message = MessageHandler::MakeMessageObject(
-        "error_loading_debugger", NULL, HandleVector<Object>(&result, 1),
+        "error_loading_debugger", NULL, Vector<Handle<Object> >::empty(),
         Handle<String>());
     MessageHandler::ReportMessage(NULL, message);
     return false;
@@ -2001,9 +2001,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                               event_listener_data_.location() };
       Handle<Object> result = Execution::TryCall(fun, Top::global(),
                                                  argc, argv, &caught_exception);
-      if (caught_exception) {
-        // Silently ignore exceptions from debug event listeners.
-      }
+      // Silently ignore exceptions from debug event listeners.
     }
   }
 }

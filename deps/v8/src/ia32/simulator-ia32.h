@@ -44,4 +44,9 @@
   (reinterpret_cast<uintptr_t>(this) >= limit ? \
       reinterpret_cast<uintptr_t>(this) - limit : 0)
 
+// Call the generated regexp code directly. The entry function pointer should
+// expect seven int/pointer sized arguments and return an int.
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  entry(p0, p1, p2, p3, p4, p5, p6)
+
 #endif  // V8_IA32_SIMULATOR_IA32_H_

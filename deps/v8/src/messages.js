@@ -163,7 +163,7 @@ function FormatMessage(message) {
       illegal_break:                "Illegal break statement",
       illegal_continue:             "Illegal continue statement",
       illegal_return:               "Illegal return statement",
-      error_loading_debugger:       "Error loading debugger %0",
+      error_loading_debugger:       "Error loading debugger",
       no_input_to_regexp:           "No input to %0",
       result_not_primitive:         "Result of %0 must be a primitive, was %1",
       invalid_json:                 "String '%0' is not valid JSON",

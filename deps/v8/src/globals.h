@@ -47,7 +47,14 @@ namespace internal {
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
 #else
-#error Your architecture was not detected as supported by v8
+#error Your host architecture was not detected as supported by v8
+#endif
+
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+#define V8_TARGET_CAN_READ_UNALIGNED 1
+#elif V8_TARGET_ARCH_ARM
+#else
+#error Your target architecture is not supported by v8
 #endif
 
 // Support for alternative bool type. This is only enabled if the code is
@@ -133,17 +140,6 @@ const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 // Desired alignment for pointers.
 const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
 const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
-
-// Tag information for HeapObject.
-const int kHeapObjectTag = 1;
-const int kHeapObjectTagSize = 2;
-const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
-
-
-// Tag information for Smi.
-const int kSmiTag = 0;
-const int kSmiTagSize = 1;
-const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
 
 // Tag information for Failure.
@@ -428,9 +424,6 @@ enum StateTag {
 
 #define HAS_FAILURE_TAG(value) \
   ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
-
-#define HAS_HEAP_OBJECT_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) == kHeapObjectTag)
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \

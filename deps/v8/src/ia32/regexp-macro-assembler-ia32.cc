@@ -102,6 +102,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
       success_label_(),
       backtrack_label_(),
       exit_label_() {
+  ASSERT_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -337,8 +338,9 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ add(edx, Operand(esi));
     __ mov(Operand(esp, 0 * kPointerSize), edx);
 
-    Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
-    CallCFunction(function_address, argument_count);
+    ExternalReference compare =
+        ExternalReference::re_case_insensitive_compare_uc16();
+    CallCFunction(compare, argument_count);
     // Pop original values before reacting on result value.
     __ pop(ebx);
     __ pop(backtrack_stackpointer());
@@ -745,7 +747,8 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ lea(eax, Operand(ebp, kStackHighEnd));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
     __ mov(Operand(esp, 0 * kPointerSize), backtrack_stackpointer());
-    CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
+    CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ or_(eax, Operand(eax));
@@ -817,7 +820,9 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
                                                     int characters) {
   ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  CheckPosition(cp_offset + characters - 1, on_end_of_input);
+  if (check_bounds) {
+    CheckPosition(cp_offset + characters - 1, on_end_of_input);
+  }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
@@ -913,7 +918,9 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   // Next address on the stack (will be address of return address).
   __ lea(eax, Operand(esp, -kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), eax);
-  CallCFunction(FUNCTION_ADDR(&CheckStackGuardState), num_arguments);
+  ExternalReference check_stack_guard =
+      ExternalReference::re_check_stack_guard_state();
+  CallCFunction(check_stack_guard, num_arguments);
 }
 
 
@@ -993,22 +1000,6 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
   }
 
   return 0;
-}
-
-
-Address RegExpMacroAssemblerIA32::GrowStack(Address stack_pointer,
-                                            Address* stack_base) {
-  size_t size = RegExpStack::stack_capacity();
-  Address old_stack_base = RegExpStack::stack_base();
-  ASSERT(old_stack_base == *stack_base);
-  ASSERT(stack_pointer <= old_stack_base);
-  ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
-  Address new_stack_base = RegExpStack::EnsureCapacity(size * 2);
-  if (new_stack_base == NULL) {
-    return NULL;
-  }
-  *stack_base = new_stack_base;
-  return new_stack_base - (old_stack_base - stack_pointer);
 }
 
 
@@ -1135,9 +1126,9 @@ void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments, Register scratch) {
 }
 
 
-void RegExpMacroAssemblerIA32::CallCFunction(Address function_address,
+void RegExpMacroAssemblerIA32::CallCFunction(ExternalReference function,
                                              int num_arguments) {
-  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(function_address)));
+  __ mov(Operand(eax), Immediate(function));
   __ call(Operand(eax));
   if (OS::ActivationFrameAlignment() != 0) {
     __ mov(esp, Operand(esp, num_arguments * kPointerSize));
@@ -1171,6 +1162,10 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 }
 
+
+void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
+  __ int3();  // Unused on ia32.
+}
 
 #undef __
 

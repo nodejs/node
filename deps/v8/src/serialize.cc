@@ -734,6 +734,20 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       17,
       "compare_doubles");
+#ifdef V8_NATIVE_REGEXP
+  Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
+      UNCLASSIFIED,
+      18,
+      "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
+  Add(ExternalReference::re_check_stack_guard_state().address(),
+      UNCLASSIFIED,
+      19,
+      "RegExpMacroAssembler*::CheckStackGuardState()");
+  Add(ExternalReference::re_grow_stack().address(),
+      UNCLASSIFIED,
+      20,
+      "NativeRegExpMacroAssembler::GrowStack()");
+#endif
 }
 
 
@@ -1119,6 +1133,11 @@ void Serializer::PutHeader() {
 #else
   writer_->PutC('0');
 #endif
+#ifdef V8_NATIVE_REGEXP
+  writer_->PutC('N');
+#else  // Interpreted regexp
+  writer_->PutC('I');
+#endif
   // Write sizes of paged memory spaces. Allocate extra space for the old
   // and code spaces, because objects in new space will be promoted to them.
   writer_->PutC('S');
@@ -1238,7 +1257,7 @@ Address Serializer::PutObject(HeapObject* obj) {
 
   // Write out the object prologue: type, size, and simulated address of obj.
   writer_->PutC('[');
-  CHECK_EQ(0, size & kObjectAlignmentMask);
+  CHECK_EQ(0, static_cast<int>(size & kObjectAlignmentMask));
   writer_->PutInt(type);
   writer_->PutInt(size >> kObjectAlignmentBits);
   PutEncodedAddress(addr);  // encodes AllocationSpace
@@ -1474,6 +1493,11 @@ void Deserializer::GetHeader() {
   // In release mode, don't attempt to read a snapshot containing
   // synchronization tags.
   if (reader_.GetC() != '0') FATAL("Snapshot contains synchronization tags.");
+#endif
+#ifdef V8_NATIVE_REGEXP
+  reader_.ExpectC('N');
+#else  // Interpreted regexp.
+  reader_.ExpectC('I');
 #endif
   // Ensure sufficient capacity in paged memory spaces to avoid growth
   // during deserialization.

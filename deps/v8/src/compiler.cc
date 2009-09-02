@@ -425,6 +425,13 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
 
+  // Set the optimication hints after performing lazy compilation, as these are
+  // not set when the function is set up as a lazily compiled function.
+  shared->SetThisPropertyAssignmentsInfo(
+      lit->has_only_this_property_assignments(),
+      lit->has_only_simple_this_property_assignments(),
+      *lit->this_property_assignments());
+
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
   return true;

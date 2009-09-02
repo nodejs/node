@@ -434,7 +434,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                                            holder_obj);
 
     Label interceptor_failed;
-    __ Cmp(rax, Factory::no_interceptor_result_sentinel());
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
     __ j(equal, &interceptor_failed);
     __ LeaveInternalFrame();
     __ ret(0);
@@ -612,7 +612,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ pop(receiver);  // restore holder
     __ LeaveInternalFrame();
 
-    __ Cmp(rax, Factory::no_interceptor_result_sentinel());
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
     Label invoke;
     __ j(not_equal, &invoke);
 
@@ -755,9 +755,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     case BOOLEAN_CHECK: {
       Label fast;
       // Check that the object is a boolean.
-      __ Cmp(rdx, Factory::true_value());
+      __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
       __ j(equal, &fast);
-      __ Cmp(rdx, Factory::false_value());
+      __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
       __ j(not_equal, &miss);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
@@ -1125,10 +1125,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ Cmp(rax, Factory::the_hole_value());
+    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
-    __ Cmp(rax, Factory::the_hole_value());
+    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
@@ -1735,6 +1735,136 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   // Return the constant value.
   __ Move(rax, Handle<Object>(value));
   __ ret(0);
+}
+
+
+// Specialized stub for constructing objects from functions which only have only
+// simple assignments of the form this.x = ...; in their body.
+Object* ConstructStubCompiler::CompileConstructStub(
+    SharedFunctionInfo* shared) {
+  // ----------- S t a t e -------------
+  //  -- rax : argc
+  //  -- rdi : constructor
+  //  -- rsp[0] : return address
+  //  -- rsp[4] : last argument
+  // -----------------------------------
+  Label generic_stub_call;
+
+  // Use r8 for holding undefined which is used in several places below.
+  __ Move(r8, Factory::undefined_value());
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Check to see whether there are any break points in the function code. If
+  // there are jump to the generic constructor stub which calls the actual
+  // code for the function thereby hitting the break points.
+  __ movq(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movq(rbx, FieldOperand(rbx, SharedFunctionInfo::kDebugInfoOffset));
+  __ cmpq(rbx, r8);
+  __ j(not_equal, &generic_stub_call);
+#endif
+
+  // Load the initial map and verify that it is in fact a map.
+  __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+  // Will both indicate a NULL and a Smi.
+  __ testq(rbx, Immediate(kSmiTagMask));
+  __ j(zero, &generic_stub_call);
+  __ CmpObjectType(rbx, MAP_TYPE, rcx);
+  __ j(not_equal, &generic_stub_call);
+
+#ifdef DEBUG
+  // Cannot construct functions this way.
+  // rdi: constructor
+  // rbx: initial map
+  __ CmpInstanceType(rbx, JS_FUNCTION_TYPE);
+  __ Assert(not_equal, "Function constructed by construct stub.");
+#endif
+
+  // Now allocate the JSObject in new space.
+  // rdi: constructor
+  // rbx: initial map
+  __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
+  __ shl(rcx, Immediate(kPointerSizeLog2));
+  // Make sure that the maximum heap object size will never cause us
+  // problems here.
+  ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
+  __ AllocateObjectInNewSpace(rcx, rdx, rcx, no_reg, &generic_stub_call, false);
+
+  // Allocated the JSObject, now initialize the fields and add the heap tag.
+  // rbx: initial map
+  // rdx: JSObject (untagged)
+  __ movq(Operand(rdx, JSObject::kMapOffset), rbx);
+  __ Move(rbx, Factory::empty_fixed_array());
+  __ movq(Operand(rdx, JSObject::kPropertiesOffset), rbx);
+  __ movq(Operand(rdx, JSObject::kElementsOffset), rbx);
+
+  // rax: argc
+  // rdx: JSObject (untagged)
+  // Load the address of the first in-object property into r9.
+  __ lea(r9, Operand(rdx, JSObject::kHeaderSize));
+  // Calculate the location of the first argument. The stack contains only the
+  // return address on top of the argc arguments.
+  __ lea(rcx, Operand(rsp, rax, times_pointer_size, 0));
+
+  // rax: argc
+  // rcx: first argument
+  // rdx: JSObject (untagged)
+  // r8: undefined
+  // r9: first in-object property of the JSObject
+  // Fill the initialized properties with a constant value or a passed argument
+  // depending on the this.x = ...; assignment in the function.
+  for (int i = 0; i < shared->this_property_assignments_count(); i++) {
+    if (shared->IsThisPropertyAssignmentArgument(i)) {
+      Label not_passed;
+      // Set the property to undefined.
+      __ movq(Operand(r9, i * kPointerSize), r8);
+      // Check if the argument assigned to the property is actually passed.
+      int arg_number = shared->GetThisPropertyAssignmentArgument(i);
+      __ cmpq(rax, Immediate(arg_number));
+      __ j(below_equal, &not_passed);
+      // Argument passed - find it on the stack.
+      __ movq(rbx, Operand(rcx, arg_number * -kPointerSize));
+      __ movq(Operand(r9, i * kPointerSize), rbx);
+      __ bind(&not_passed);
+    } else {
+      // Set the property to the constant value.
+      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
+      __ Move(Operand(r9, i * kPointerSize), constant);
+    }
+  }
+
+  // Fill the unused in-object property fields with undefined.
+  for (int i = shared->this_property_assignments_count();
+       i < shared->CalculateInObjectProperties();
+       i++) {
+    __ movq(Operand(r9, i * kPointerSize), r8);
+  }
+
+  // rax: argc
+  // rdx: JSObject (untagged)
+  // Move argc to rbx and the JSObject to return to rax and tag it.
+  __ movq(rbx, rax);
+  __ movq(rax, rdx);
+  __ or_(rax, Immediate(kHeapObjectTag));
+
+  // rax: JSObject
+  // rbx: argc
+  // Remove caller arguments and receiver from the stack and return.
+  __ pop(rcx);
+  __ lea(rsp, Operand(rsp, rbx, times_pointer_size, 1 * kPointerSize));
+  __ push(rcx);
+  __ IncrementCounter(&Counters::constructed_objects, 1);
+  __ IncrementCounter(&Counters::constructed_objects_stub, 1);
+  __ ret(0);
+
+  // Jump to the generic stub in case the specialized code cannot handle the
+  // construction.
+  __ bind(&generic_stub_call);
+  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Handle<Code> generic_construct_stub(code);
+  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode();
 }
 
 

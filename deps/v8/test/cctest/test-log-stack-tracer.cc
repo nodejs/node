@@ -336,8 +336,10 @@ static void CFuncDoTrace() {
 #elif defined _MSC_VER && defined V8_TARGET_ARCH_IA32
   __asm mov [fp], ebp  // NOLINT
 #elif defined _MSC_VER && defined V8_TARGET_ARCH_X64
-  // FIXME: I haven't really tried to compile it.
-  __asm movq [fp], rbp  // NOLINT
+  // TODO(X64): __asm extension is not supported by the Microsoft Visual C++
+  // 64-bit compiler.
+  fp = 0;
+  UNIMPLEMENTED();
 #endif
   DoTrace(fp);
 }

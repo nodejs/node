@@ -42,6 +42,20 @@
 #include "serialize.h"
 #include "stub-cache.h"
 #include "regexp-stack.h"
+#include "ast.h"
+#include "regexp-macro-assembler.h"
+// Include native regexp-macro-assembler.
+#ifdef V8_NATIVE_REGEXP
+#if V8_TARGET_ARCH_IA32
+#include "ia32/regexp-macro-assembler-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/regexp-macro-assembler-arm.h"
+#else  // Unknown architecture.
+#error "Unknown architecture."
+#endif  // Target architecture.
+#endif  // V8_NATIVE_REGEXP
 
 namespace v8 {
 namespace internal {
@@ -596,6 +610,34 @@ ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
   return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
 }
+
+#ifdef V8_NATIVE_REGEXP
+
+ExternalReference ExternalReference::re_check_stack_guard_state() {
+  Address function;
+#ifdef V8_TARGET_ARCH_X64
+  function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
+#elif V8_TARGET_ARCH_IA32
+  function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
+#elif V8_TARGET_ARCH_ARM
+  function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
+#else
+  UNREACHABLE("Unexpected architecture");
+#endif
+  return ExternalReference(Redirect(function));
+}
+
+ExternalReference ExternalReference::re_grow_stack() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(NativeRegExpMacroAssembler::GrowStack)));
+}
+
+ExternalReference ExternalReference::re_case_insensitive_compare_uc16() {
+  return ExternalReference(Redirect(
+      FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
+}
+
+#endif
 
 
 static double add_two_doubles(double x, double y) {

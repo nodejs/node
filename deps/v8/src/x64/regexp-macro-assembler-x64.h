@@ -31,6 +31,8 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_NATIVE_REGEXP
+
 class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerX64(Mode mode, int registers_to_save);
@@ -113,6 +115,13 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
                         int* output,
                         bool at_start);
 
+  // Called from RegExp if the stack-guard is triggered.
+  // If the code object is relocated, the return address is fixed before
+  // returning.
+  static int CheckStackGuardState(Address* return_address,
+                                  Code* re_code,
+                                  Address re_frame);
+
  private:
   // Offsets from rbp of function parameters and stored registers.
   static const int kFramePointer = 0;
@@ -181,22 +190,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  // Called from RegExp if the stack-guard is triggered.
-  // If the code object is relocated, the return address is fixed before
-  // returning.
-  static int CheckStackGuardState(Address* return_address,
-                                  Code* re_code,
-                                  Address re_frame);
-
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState();
-
-  // Called from RegExp if the backtrack stack limit is hit.
-  // Tries to expand the stack. Returns the new stack-pointer if
-  // successful, and updates the stack_top address, or returns 0 if unable
-  // to grow the stack.
-  // This function must not trigger a garbage collection.
-  static Address GrowStack(Address stack_pointer, Address* stack_top);
 
   // The rbp-relative location of a regexp register.
   Operand register_location(int register_index);
@@ -264,7 +259,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // by FrameAlign. The called function is not allowed to trigger a garbage
   // collection, since that might move the code and invalidate the return
   // address (unless this is somehow accounted for by the called function).
-  inline void CallCFunction(Address function_address, int num_arguments);
+  inline void CallCFunction(ExternalReference function, int num_arguments);
 
   MacroAssembler* masm_;
 
@@ -289,6 +284,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   Label check_preempt_label_;
   Label stack_overflow_label_;
 };
+
+#endif  // V8_NATIVE_REGEXP
 
 }}  // namespace v8::internal
 

@@ -338,7 +338,7 @@ class HandleScopeImplementer {
   static char* Iterate(v8::internal::ObjectVisitor* v, char* data);
 
 
-  inline void** GetSpareOrNewBlock();
+  inline internal::Object** GetSpareOrNewBlock();
   inline void DeleteExtensions(int extensions);
 
   inline void IncrementCallDepth() {call_depth++;}
@@ -356,13 +356,13 @@ class HandleScopeImplementer {
   inline Handle<Object> RestoreContext();
   inline bool HasSavedContexts();
 
-  inline List<void**>* Blocks() { return &blocks; }
+  inline List<internal::Object**>* Blocks() { return &blocks; }
 
   inline bool IgnoreOutOfMemory() { return ignore_out_of_memory; }
   inline void SetIgnoreOutOfMemory(bool value) { ignore_out_of_memory = value; }
 
  private:
-  List<void**> blocks;
+  List<internal::Object**> blocks;
   Object** spare;
   int call_depth;
   // Used as a stack to keep track of entered contexts.
@@ -374,7 +374,7 @@ class HandleScopeImplementer {
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
   static void Iterate(ObjectVisitor* v,
-      List<void**>* blocks,
+      List<internal::Object**>* blocks,
       v8::ImplementationUtilities::HandleScopeData* handle_data);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
@@ -420,10 +420,10 @@ Handle<Object> HandleScopeImplementer::LastEnteredContext() {
 
 
 // If there's a spare block, use it for growing the current scope.
-void** HandleScopeImplementer::GetSpareOrNewBlock() {
-  void** block = (spare != NULL) ?
-      reinterpret_cast<void**>(spare) :
-      NewArray<void*>(kHandleBlockSize);
+internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
+  internal::Object** block = (spare != NULL) ?
+      spare :
+      NewArray<internal::Object*>(kHandleBlockSize);
   spare = NULL;
   return block;
 }
@@ -435,18 +435,18 @@ void HandleScopeImplementer::DeleteExtensions(int extensions) {
     spare = NULL;
   }
   for (int i = extensions; i > 1; --i) {
-    void** block = blocks.RemoveLast();
+    internal::Object** block = blocks.RemoveLast();
 #ifdef DEBUG
     v8::ImplementationUtilities::ZapHandleRange(block,
                                                 &block[kHandleBlockSize]);
 #endif
     DeleteArray(block);
   }
-  spare = reinterpret_cast<Object**>(blocks.RemoveLast());
+  spare = blocks.RemoveLast();
 #ifdef DEBUG
   v8::ImplementationUtilities::ZapHandleRange(
-      reinterpret_cast<void**>(spare),
-      reinterpret_cast<void**>(&spare[kHandleBlockSize]));
+      spare,
+      &spare[kHandleBlockSize]);
 #endif
 }
 

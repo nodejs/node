@@ -98,6 +98,10 @@ bool V8::Initialize(Deserializer *des) {
     StubCache::Clear();
   }
 
+  // Deserializing may put strange things in the root array's copy of the
+  // stack guard.
+  Heap::SetStackLimit(StackGuard::jslimit());
+
   // Setup the CPU support. Must be done after heap setup and after
   // any deserialization because we have to have the initial heap
   // objects in place for creating the code object used for probing.

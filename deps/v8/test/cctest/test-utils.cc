@@ -158,7 +158,7 @@ TEST(Utils1) {
   // int8_t and intptr_t signed integers.
   CHECK_EQ(-2, -8 >> 2);
   CHECK_EQ(-2, static_cast<int8_t>(-8) >> 2);
-  CHECK_EQ(-2, static_cast<intptr_t>(-8) >> 2);
+  CHECK_EQ(-2, static_cast<int>(static_cast<intptr_t>(-8) >> 2));
 }
 
 

@@ -156,9 +156,12 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     ASSERT(catcher.HasCaught());
     ASSERT(Top::has_pending_exception());
     ASSERT(Top::external_caught_exception());
-    bool is_bottom_call = HandleScopeImplementer::instance()->CallDepthIsZero();
-    Top::OptionalRescheduleException(is_bottom_call, true);
-    result = v8::Utils::OpenHandle(*catcher.Exception());
+    if (Top::pending_exception() == Heap::termination_exception()) {
+      result = Factory::termination_exception();
+    } else {
+      result = v8::Utils::OpenHandle(*catcher.Exception());
+    }
+    Top::OptionalRescheduleException(true);
   }
 
   ASSERT(!Top::has_pending_exception());
@@ -234,8 +237,9 @@ StackGuard::StackGuard() {
            (thread_local_.climit_ == kInterruptLimit &&
             thread_local_.interrupt_flags_ != 0));
 
-    thread_local_.initial_jslimit_ = thread_local_.jslimit_ =
-        GENERATED_CODE_STACK_LIMIT(kLimitSize);
+    uintptr_t limit = GENERATED_CODE_STACK_LIMIT(kLimitSize);
+    thread_local_.initial_jslimit_ = thread_local_.jslimit_ = limit;
+    Heap::SetStackLimit(limit);
     // NOTE: The check for overflow is not safe as there is no guarantee that
     // the running thread has its stack in all memory up to address 0x00000000.
     thread_local_.initial_climit_ = thread_local_.climit_ =
@@ -283,6 +287,7 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   // leave them alone.
   if (thread_local_.jslimit_ == thread_local_.initial_jslimit_) {
     thread_local_.jslimit_ = limit;
+    Heap::SetStackLimit(limit);
   }
   if (thread_local_.climit_ == thread_local_.initial_climit_) {
     thread_local_.climit_ = limit;
@@ -397,6 +402,7 @@ char* StackGuard::ArchiveStackGuard(char* to) {
 char* StackGuard::RestoreStackGuard(char* from) {
   ExecutionAccess access;
   memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  Heap::SetStackLimit(thread_local_.jslimit_);
   return from + sizeof(ThreadLocal);
 }
 

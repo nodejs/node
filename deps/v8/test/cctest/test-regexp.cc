@@ -40,6 +40,7 @@
 #include "regexp-macro-assembler-irregexp.h"
 #ifdef V8_NATIVE_REGEXP
 #ifdef V8_TARGET_ARCH_ARM
+#include "arm/macro-assembler-arm.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
 #ifdef V8_TARGET_ARCH_X64
@@ -605,11 +606,12 @@ TEST(DispatchTableConstruction) {
 
 #ifdef V8_NATIVE_REGEXP
 
-#ifdef V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32
 typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
-#endif
-#ifdef V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64
 typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_ARM
+typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 #endif
 
 class ContextInitializer {
@@ -845,7 +847,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   v8::V8::Initialize();
   ContextInitializer initializer;
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 3);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4);
 
   m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
@@ -870,7 +872,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  int output[3];
+  int output[4];
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,
               *input,
@@ -884,6 +886,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   CHECK_EQ(0, output[0]);
   CHECK_EQ(2, output[1]);
   CHECK_EQ(6, output[2]);
+  CHECK_EQ(-1, output[3]);
 }
 
 
@@ -891,7 +894,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   v8::V8::Initialize();
   ContextInitializer initializer;
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::UC16, 3);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::UC16, 4);
 
   m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
@@ -918,7 +921,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  int output[3];
+  int output[4];
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,
                   *input,
@@ -932,6 +935,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   CHECK_EQ(0, output[0]);
   CHECK_EQ(2, output[1]);
   CHECK_EQ(6, output[2]);
+  CHECK_EQ(-1, output[3]);
 }
 
 
@@ -1055,12 +1059,12 @@ TEST(MacroAssemblerNativeRegisters) {
   v8::V8::Initialize();
   ContextInitializer initializer;
 
-  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 5);
+  ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 6);
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
   Vector<const uc16> foo(foo_chars, 3);
 
-  enum registers { out1, out2, out3, out4, out5, sp, loop_cnt };
+  enum registers { out1, out2, out3, out4, out5, out6, sp, loop_cnt };
   Label fail;
   Label backtrack;
   m.WriteCurrentPositionToRegister(out1, 0);  // Output: [0]
@@ -1114,7 +1118,7 @@ TEST(MacroAssemblerNativeRegisters) {
   m.GoTo(&loop3);
   m.Bind(&exit_loop3);
   m.PopCurrentPosition();
-  m.WriteCurrentPositionToRegister(out5, 0);  // [0,3,6,9,9]
+  m.WriteCurrentPositionToRegister(out5, 0);  // [0,3,6,9,9,-1]
 
   m.Succeed();
 
@@ -1132,15 +1136,15 @@ TEST(MacroAssemblerNativeRegisters) {
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  int output[5];
+  int output[6];
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,
-                  *input,
-                  0,
-                  start_adr,
-                  start_adr + input->length(),
-                  output,
-                  true);
+              *input,
+              0,
+              start_adr,
+              start_adr + input->length(),
+              output,
+              true);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1148,6 +1152,7 @@ TEST(MacroAssemblerNativeRegisters) {
   CHECK_EQ(6, output[2]);
   CHECK_EQ(9, output[3]);
   CHECK_EQ(9, output[4]);
+  CHECK_EQ(-1, output[5]);
 }
 
 

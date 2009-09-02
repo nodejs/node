@@ -51,6 +51,7 @@
 #include "x64/macro-assembler-x64.h"
 #include "x64/regexp-macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM
+#include "arm/macro-assembler-arm.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #else
 #error Unsupported target architecture.
@@ -419,9 +420,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
 
 #ifdef V8_NATIVE_REGEXP
-#ifdef V8_TARGET_ARCH_ARM
-  UNIMPLEMENTED();
-#else  // Native regexp supported.
+
   OffsetsVector captures(number_of_capture_registers);
   int* captures_vector = captures.vector();
   NativeRegExpMacroAssembler::Result res;
@@ -455,9 +454,9 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     SetCapture(*array, i, captures_vector[i]);
     SetCapture(*array, i + 1, captures_vector[i + 1]);
   }
-#endif  // Native regexp supported.
 
 #else  // ! V8_NATIVE_REGEXP
+
   bool is_ascii = subject->IsAsciiRepresentation();
   if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
     return Handle<Object>::null();
@@ -487,6 +486,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     SetCapture(*array, i, register_vector[i]);
     SetCapture(*array, i + 1, register_vector[i + 1]);
   }
+
 #endif  // V8_NATIVE_REGEXP
 
   SetLastCaptureCount(*array, number_of_capture_registers);
@@ -1723,6 +1723,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   GetQuickCheckDetails(details, compiler, 0, trace->at_start() == Trace::FALSE);
   if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->ascii())) return false;
+  ASSERT(details->characters() == 1 ||
+         compiler->macro_assembler()->CanReadUnaligned());
   uint32_t mask = details->mask();
   uint32_t value = details->value();
 
@@ -2522,20 +2524,20 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
   int preload_characters = EatsAtLeast(4, 0);
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  bool ascii = compiler->ascii();
-  if (ascii) {
-    if (preload_characters > 4) preload_characters = 4;
-    // We can't preload 3 characters because there is no machine instruction
-    // to do that.  We can't just load 4 because we could be reading
-    // beyond the end of the string, which could cause a memory fault.
-    if (preload_characters == 3) preload_characters = 2;
+  if (compiler->macro_assembler()->CanReadUnaligned()) {
+    bool ascii = compiler->ascii();
+    if (ascii) {
+      if (preload_characters > 4) preload_characters = 4;
+      // We can't preload 3 characters because there is no machine instruction
+      // to do that.  We can't just load 4 because we could be reading
+      // beyond the end of the string, which could cause a memory fault.
+      if (preload_characters == 3) preload_characters = 2;
+    } else {
+      if (preload_characters > 2) preload_characters = 2;
+    }
   } else {
-    if (preload_characters > 2) preload_characters = 2;
+    if (preload_characters > 1) preload_characters = 1;
   }
-#else
-  if (preload_characters > 1) preload_characters = 1;
-#endif
   return preload_characters;
 }
 
@@ -4470,16 +4472,12 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
       is_ascii ? NativeRegExpMacroAssembler::ASCII
                : NativeRegExpMacroAssembler::UC16;
 
-#ifdef V8_TARGET_ARCH_IA32
-  RegExpMacroAssemblerIA32 macro_assembler(mode,
-                                           (data->capture_count + 1) * 2);
-#endif
-#ifdef V8_TARGET_ARCH_X64
-  RegExpMacroAssemblerX64 macro_assembler(mode,
-                                          (data->capture_count + 1) * 2);
-#endif
-#ifdef V8_TARGET_ARCH_ARM
-  UNIMPLEMENTED();
+#if V8_TARGET_ARCH_IA32
+  RegExpMacroAssemblerIA32 macro_assembler(mode, (data->capture_count + 1) * 2);
+#elif V8_TARGET_ARCH_X64
+  RegExpMacroAssemblerX64 macro_assembler(mode, (data->capture_count + 1) * 2);
+#elif V8_TARGET_ARCH_ARM
+  RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2);
 #endif
 
 #else  // ! V8_NATIVE_REGEXP

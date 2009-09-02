@@ -361,7 +361,12 @@ class CpuFeatures : public AllStatic {
   // Feature flags bit positions. They are mostly based on the CPUID spec.
   // (We assign CPUID itself to one of the currently reserved bits --
   // feel free to change this if needed.)
-  enum Feature { SSE3 = 32, SSE2 = 26, CMOV = 15, RDTSC = 4, CPUID = 10 };
+  enum Feature { SSE3 = 32,
+                 SSE2 = 26,
+                 CMOV = 15,
+                 RDTSC = 4,
+                 CPUID = 10,
+                 SAHF = 0};
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
   static void Probe();

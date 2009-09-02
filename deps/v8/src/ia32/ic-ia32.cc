@@ -604,7 +604,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(eax, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(eax, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &miss, not_taken);
+  __ j(below, &miss, not_taken);
 
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);

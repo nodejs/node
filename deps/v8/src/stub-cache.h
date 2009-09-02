@@ -561,6 +561,17 @@ class CallStubCompiler: public StubCompiler {
 };
 
 
+class ConstructStubCompiler: public StubCompiler {
+ public:
+  explicit ConstructStubCompiler() {}
+
+  Object* CompileConstructStub(SharedFunctionInfo* shared);
+
+ private:
+  Object* GetCode();
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_STUB_CACHE_H_

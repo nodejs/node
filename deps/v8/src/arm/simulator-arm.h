@@ -40,7 +40,7 @@
 
 // When running without a simulator we call the entry directly.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(entry(p0, p1, p2, p3, p4))
+  (entry(p0, p1, p2, p3, p4))
 
 // Calculated the stack limit beyond which we will throw stack overflow errors.
 // This macro must be called from a C++ method. It relies on being able to take
@@ -49,19 +49,30 @@
 #define GENERATED_CODE_STACK_LIMIT(limit) \
   (reinterpret_cast<uintptr_t>(this) - limit)
 
+
+// Call the generated regexp code directly. The entry function pointer should
+// expect seven int/pointer sized arguments and return an int.
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  entry(p0, p1, p2, p3, p4, p5, p6)
+
 #else  // defined(__arm__)
 
 // When running with the simulator transition into simulated execution at this
 // point.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  assembler::arm::Simulator::current()->Call((int32_t)entry, (int32_t)p0, \
-    (int32_t)p1, (int32_t)p2, (int32_t)p3, (int32_t)p4)
+  reinterpret_cast<Object*>( \
+      assembler::arm::Simulator::current()->Call(FUNCTION_ADDR(entry), 5, \
+                                                 p0, p1, p2, p3, p4))
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.
 #define GENERATED_CODE_STACK_LIMIT(limit) \
   (assembler::arm::Simulator::current()->StackLimit())
 
+
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  assembler::arm::Simulator::current()->Call( \
+    FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
 
 #include "constants-arm.h"
 
@@ -109,11 +120,10 @@ class Simulator {
   // Call on program start.
   static void Initialize();
 
-  // V8 generally calls into generated code with 5 parameters. This is a
-  // convenience function, which sets up the simulator state and grabs the
-  // result on return.
-  v8::internal::Object* Call(int32_t entry, int32_t p0, int32_t p1,
-                             int32_t p2, int32_t p3, int32_t p4);
+  // V8 generally calls into generated JS code with 5 parameters and into
+  // generated RegExp code with 7 parameters. This is a convenience function,
+  // which sets up the simulator state and grabs the result on return.
+  int32_t Call(byte* entry, int argument_count, ...);
 
  private:
   enum special_values {
@@ -174,6 +184,7 @@ class Simulator {
   void DecodeType5(Instr* instr);
   void DecodeType6(Instr* instr);
   void DecodeType7(Instr* instr);
+  void DecodeUnconditional(Instr* instr);
 
   // Executes one instruction.
   void InstructionDecode(Instr* instr);

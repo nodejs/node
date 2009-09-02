@@ -127,6 +127,12 @@ class FunctionTemplate;
 class ObjectTemplate;
 class Data;
 
+namespace internal {
+
+class Object;
+
+}
+
 
 // --- W e a k  H a n d l e s
 
@@ -227,8 +233,8 @@ template <class T> class V8EXPORT_INLINE Handle {
    * The handles' references are not checked.
    */
   template <class S> bool operator==(Handle<S> that) const {
-    void** a = reinterpret_cast<void**>(**this);
-    void** b = reinterpret_cast<void**>(*that);
+    internal::Object** a = reinterpret_cast<internal::Object**>(**this);
+    internal::Object** b = reinterpret_cast<internal::Object**>(*that);
     if (a == 0) return b == 0;
     if (b == 0) return false;
     return *a == *b;
@@ -245,7 +251,11 @@ template <class T> class V8EXPORT_INLINE Handle {
   }
 
   template <class S> static inline Handle<T> Cast(Handle<S> that) {
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
     if (that.IsEmpty()) return Handle<T>();
+#endif
     return Handle<T>(T::Cast(*that));
   }
 
@@ -275,7 +285,11 @@ template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
   }
   template <class S> inline Local(S* that) : Handle<T>(that) { }
   template <class S> static inline Local<T> Cast(Local<S> that) {
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
     if (that.IsEmpty()) return Local<T>();
+#endif
     return Local<T>(T::Cast(*that));
   }
 
@@ -344,7 +358,11 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
       : Handle<T>(*that) { }
 
   template <class S> static inline Persistent<T> Cast(Persistent<S> that) {
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
     if (that.IsEmpty()) return Persistent<T>();
+#endif
     return Persistent<T>(T::Cast(*that));
   }
 
@@ -423,7 +441,7 @@ class V8EXPORT HandleScope {
   /**
    * Creates a new handle with the given value.
    */
-  static void** CreateHandle(void* value);
+  static internal::Object** CreateHandle(internal::Object* value);
 
  private:
   // Make it impossible to create heap-allocated or illegal handle
@@ -438,8 +456,8 @@ class V8EXPORT HandleScope {
   class V8EXPORT Data {
    public:
     int extensions;
-    void** next;
-    void** limit;
+    internal::Object** next;
+    internal::Object** limit;
     inline void Initialize() {
       extensions = -1;
       next = limit = NULL;
@@ -451,7 +469,7 @@ class V8EXPORT HandleScope {
   // Allow for the active closing of HandleScopes which allows to pass a handle
   // from the HandleScope being closed to the next top most HandleScope.
   bool is_closed_;
-  void** RawClose(void** value);
+  internal::Object** RawClose(internal::Object** value);
 
   friend class ImplementationUtilities;
 };
@@ -671,7 +689,7 @@ class V8EXPORT Value : public Data {
    * Returns true if this value is an instance of the String type.
    * See ECMA-262 8.4.
    */
-  bool IsString() const;
+  inline bool IsString() const;
 
   /**
    * Returns true if this value is a function.
@@ -737,6 +755,10 @@ class V8EXPORT Value : public Data {
   /** JS == */
   bool Equals(Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
+  
+ private:
+  inline bool QuickIsString() const;
+  bool FullIsString() const;
 };
 
 
@@ -868,7 +890,7 @@ class V8EXPORT String : public Primitive {
    * Get the ExternalStringResource for an external string.  Returns
    * NULL if IsExternal() doesn't return true.
    */
-  ExternalStringResource* GetExternalStringResource() const;
+  inline ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalAsciiStringResource for an external ascii string.
@@ -876,7 +898,7 @@ class V8EXPORT String : public Primitive {
    */
   ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
-  static String* Cast(v8::Value* obj);
+  static inline String* Cast(v8::Value* obj);
 
   /**
    * Allocates a new string from either utf-8 encoded or ascii data.
@@ -1010,6 +1032,10 @@ class V8EXPORT String : public Primitive {
     Value(const Value&);
     void operator=(const Value&);
   };
+  
+ private:
+  void VerifyExternalStringResource(ExternalStringResource* val) const;
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1020,9 +1046,10 @@ class V8EXPORT Number : public Primitive {
  public:
   double Value() const;
   static Local<Number> New(double value);
-  static Number* Cast(v8::Value* obj);
+  static inline Number* Cast(v8::Value* obj);
  private:
   Number();
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1033,9 +1060,10 @@ class V8EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
   int64_t Value() const;
-  static Integer* Cast(v8::Value* obj);
+  static inline Integer* Cast(v8::Value* obj);
  private:
   Integer();
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1074,7 +1102,9 @@ class V8EXPORT Date : public Value {
    */
   double NumberValue() const;
 
-  static Date* Cast(v8::Value* obj);
+  static inline Date* Cast(v8::Value* obj);
+ private:
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1153,14 +1183,13 @@ class V8EXPORT Object : public Value {
   /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
   /** Gets the value in an internal field. */
-  Local<Value> GetInternalField(int index);
+  inline Local<Value> GetInternalField(int index);
   /** Sets the value in an internal field. */
   void SetInternalField(int index, Handle<Value> value);
 
-  // The two functions below do not perform index bounds checks and
-  // they do not check that the VM is still running. Use with caution.
   /** Gets a native pointer from an internal field. */
-  void* GetPointerFromInternalField(int index);
+  inline void* GetPointerFromInternalField(int index);
+  
   /** Sets a native pointer in an internal field. */
   void SetPointerInInternalField(int index, void* value);
 
@@ -1223,9 +1252,17 @@ class V8EXPORT Object : public Value {
   void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
 
   static Local<Object> New();
-  static Object* Cast(Value* obj);
+  static inline Object* Cast(Value* obj);
  private:
   Object();
+  static void CheckCast(Value* obj);
+  Local<Value> CheckedGetInternalField(int index);
+
+  /**
+   * If quick access to the internal field is possible this method
+   * returns the value.  Otherwise an empty handle is returned. 
+   */
+  inline Local<Value> UncheckedGetInternalField(int index);
 };
 
 
@@ -1243,9 +1280,10 @@ class V8EXPORT Array : public Object {
   Local<Object> CloneElementAt(uint32_t index);
 
   static Local<Array> New(int length = 0);
-  static Array* Cast(Value* obj);
+  static inline Array* Cast(Value* obj);
  private:
   Array();
+  static void CheckCast(Value* obj);
 };
 
 
@@ -1259,9 +1297,10 @@ class V8EXPORT Function : public Object {
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
-  static Function* Cast(Value* obj);
+  static inline Function* Cast(Value* obj);
  private:
   Function();
+  static void CheckCast(Value* obj);
 };
 
 
@@ -1279,13 +1318,16 @@ class V8EXPORT Function : public Object {
 class V8EXPORT External : public Value {
  public:
   static Local<Value> Wrap(void* data);
-  static void* Unwrap(Handle<Value> obj);
+  static inline void* Unwrap(Handle<Value> obj);
 
   static Local<External> New(void* value);
-  static External* Cast(Value* obj);
+  static inline External* Cast(Value* obj);
   void* Value() const;
  private:
   External();
+  static void CheckCast(v8::Value* obj);
+  static inline void* QuickUnwrap(Handle<v8::Value> obj);
+  static void* FullUnwrap(Handle<v8::Value> obj);
 };
 
 
@@ -2297,12 +2339,14 @@ class V8EXPORT V8 {
  private:
   V8();
 
-  static void** GlobalizeReference(void** handle);
-  static void DisposeGlobal(void** global_handle);
-  static void MakeWeak(void** global_handle, void* data, WeakReferenceCallback);
-  static void ClearWeak(void** global_handle);
-  static bool IsGlobalNearDeath(void** global_handle);
-  static bool IsGlobalWeak(void** global_handle);
+  static internal::Object** GlobalizeReference(internal::Object** handle);
+  static void DisposeGlobal(internal::Object** global_handle);
+  static void MakeWeak(internal::Object** global_handle,
+                       void* data,
+                       WeakReferenceCallback);
+  static void ClearWeak(internal::Object** global_handle);
+  static bool IsGlobalNearDeath(internal::Object** global_handle);
+  static bool IsGlobalWeak(internal::Object** global_handle);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -2641,6 +2685,76 @@ class V8EXPORT Locker {
 
 // --- I m p l e m e n t a t i o n ---
 
+
+namespace internal {
+
+
+// Tag information for HeapObject.
+const int kHeapObjectTag = 1;
+const int kHeapObjectTagSize = 2;
+const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+
+
+// Tag information for Smi.
+const int kSmiTag = 0;
+const int kSmiTagSize = 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
+
+
+/**
+ * This class exports constants and functionality from within v8 that
+ * is necessary to implement inline functions in the v8 api.  Don't
+ * depend on functions and constants defined here.
+ */
+class Internals {
+ public:
+
+  // These values match non-compiler-dependent values defined within
+  // the implementation of v8.
+  static const int kHeapObjectMapOffset = 0;
+  static const int kMapInstanceTypeOffset = sizeof(void*) + sizeof(int);
+  static const int kStringResourceOffset = 2 * sizeof(void*);
+  static const int kProxyProxyOffset = sizeof(void*);
+  static const int kJSObjectHeaderSize = 3 * sizeof(void*);
+  static const int kFullStringRepresentationMask = 0x07;
+  static const int kExternalTwoByteRepresentationTag = 0x03;
+  static const int kAlignedPointerShift = 2;
+
+  // These constants are compiler dependent so their values must be
+  // defined within the implementation.
+  static int kJSObjectType;
+  static int kFirstNonstringType;
+  static int kProxyType;
+
+  static inline bool HasHeapObjectTag(internal::Object* value) {
+    return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
+            kHeapObjectTag);
+  }
+  
+  static inline bool HasSmiTag(internal::Object* value) {
+    return ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag);
+  }
+  
+  static inline int SmiValue(internal::Object* value) {
+    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> kSmiTagSize;
+  }
+  
+  static inline bool IsExternalTwoByteString(int instance_type) {
+    int representation = (instance_type & kFullStringRepresentationMask);
+    return representation == kExternalTwoByteRepresentationTag;
+  }
+
+  template <typename T>
+  static inline T ReadField(Object* ptr, int offset) {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
+    return *reinterpret_cast<T*>(addr);
+  }
+
+};
+
+}
+
+
 template <class T>
 Handle<T>::Handle() : val_(0) { }
 
@@ -2652,7 +2766,7 @@ Local<T>::Local() : Handle<T>() { }
 template <class T>
 Local<T> Local<T>::New(Handle<T> that) {
   if (that.IsEmpty()) return Local<T>();
-  void** p = reinterpret_cast<void**>(*that);
+  internal::Object** p = reinterpret_cast<internal::Object**>(*that);
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
 }
 
@@ -2660,7 +2774,7 @@ Local<T> Local<T>::New(Handle<T> that) {
 template <class T>
 Persistent<T> Persistent<T>::New(Handle<T> that) {
   if (that.IsEmpty()) return Persistent<T>();
-  void** p = reinterpret_cast<void**>(*that);
+  internal::Object** p = reinterpret_cast<internal::Object**>(*that);
   return Persistent<T>(reinterpret_cast<T*>(V8::GlobalizeReference(p)));
 }
 
@@ -2668,21 +2782,21 @@ Persistent<T> Persistent<T>::New(Handle<T> that) {
 template <class T>
 bool Persistent<T>::IsNearDeath() const {
   if (this->IsEmpty()) return false;
-  return V8::IsGlobalNearDeath(reinterpret_cast<void**>(**this));
+  return V8::IsGlobalNearDeath(reinterpret_cast<internal::Object**>(**this));
 }
 
 
 template <class T>
 bool Persistent<T>::IsWeak() const {
   if (this->IsEmpty()) return false;
-  return V8::IsGlobalWeak(reinterpret_cast<void**>(**this));
+  return V8::IsGlobalWeak(reinterpret_cast<internal::Object**>(**this));
 }
 
 
 template <class T>
 void Persistent<T>::Dispose() {
   if (this->IsEmpty()) return;
-  V8::DisposeGlobal(reinterpret_cast<void**>(**this));
+  V8::DisposeGlobal(reinterpret_cast<internal::Object**>(**this));
 }
 
 
@@ -2691,12 +2805,14 @@ Persistent<T>::Persistent() : Handle<T>() { }
 
 template <class T>
 void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
-  V8::MakeWeak(reinterpret_cast<void**>(**this), parameters, callback);
+  V8::MakeWeak(reinterpret_cast<internal::Object**>(**this),
+               parameters,
+               callback);
 }
 
 template <class T>
 void Persistent<T>::ClearWeak() {
-  V8::ClearWeak(reinterpret_cast<void**>(**this));
+  V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
 }
 
 Local<Value> Arguments::operator[](int i) const {
@@ -2752,7 +2868,8 @@ Local<Object> AccessorInfo::Holder() const {
 
 template <class T>
 Local<T> HandleScope::Close(Handle<T> value) {
-  void** after = RawClose(reinterpret_cast<void**>(*value));
+  internal::Object** before = reinterpret_cast<internal::Object**>(*value);
+  internal::Object** after = RawClose(before);
   return Local<T>(reinterpret_cast<T*>(after));
 }
 
@@ -2778,6 +2895,171 @@ Handle<Boolean> Boolean::New(bool value) {
 
 void Template::Set(const char* name, v8::Handle<Data> value) {
   Set(v8::String::New(name), value);
+}
+
+
+Local<Value> Object::GetInternalField(int index) {
+#ifndef V8_ENABLE_CHECKS
+  Local<Value> quick_result = UncheckedGetInternalField(index);
+  if (!quick_result.IsEmpty()) return quick_result;
+#endif
+  return CheckedGetInternalField(index);
+}
+
+
+Local<Value> Object::UncheckedGetInternalField(int index) {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(this);
+  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
+  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
+  if (instance_type == I::kJSObjectType) {
+    // If the object is a plain JSObject, which is the common case,
+    // we know where to find the internal fields and can return the
+    // value directly.
+    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    O* value = I::ReadField<O*>(obj, offset);
+    O** result = HandleScope::CreateHandle(value);
+    return Local<Value>(reinterpret_cast<Value*>(result));
+  } else {
+    return Local<Value>();
+  }
+}
+
+
+void* External::Unwrap(Handle<v8::Value> obj) {
+#ifdef V8_ENABLE_CHECKS
+  return FullUnwrap(obj);
+#else
+  return QuickUnwrap(obj);
+#endif
+}
+
+
+void* External::QuickUnwrap(Handle<v8::Value> wrapper) {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<v8::Value*>(*wrapper));
+  if (I::HasSmiTag(obj)) {
+    int value = I::SmiValue(obj) << I::kAlignedPointerShift;
+    return reinterpret_cast<void*>(value);
+  } else {
+    O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
+    int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
+    if (instance_type == I::kProxyType) {
+      return I::ReadField<void*>(obj, I::kProxyProxyOffset);
+    } else {
+      return NULL;
+    }
+  }
+}
+
+
+void* Object::GetPointerFromInternalField(int index) {
+  return External::Unwrap(GetInternalField(index));
+}
+
+
+String* String::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<String*>(value);
+}
+
+
+String::ExternalStringResource* String::GetExternalStringResource() const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
+  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
+  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
+  String::ExternalStringResource* result;
+  if (I::IsExternalTwoByteString(instance_type)) {
+    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
+    result = reinterpret_cast<String::ExternalStringResource*>(value);
+  } else {
+    result = NULL;
+  }
+#ifdef V8_ENABLE_CHECKS
+  VerifyExternalStringResource(result);
+#endif
+  return result;
+}
+
+
+bool Value::IsString() const {
+#ifdef V8_ENABLE_CHECKS
+  return FullIsString();
+#else
+  return QuickIsString();
+#endif
+}
+
+bool Value::QuickIsString() const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  if (!I::HasHeapObjectTag(obj)) return false;
+  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
+  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
+  return (instance_type < I::kFirstNonstringType);
+}
+
+
+Number* Number::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Number*>(value);
+}
+
+
+Integer* Integer::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Integer*>(value);
+}
+
+
+Date* Date::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Date*>(value);
+}
+
+
+Object* Object::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Object*>(value);
+}
+
+
+Array* Array::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Array*>(value);
+}
+
+
+Function* Function::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Function*>(value);
+}
+
+
+External* External::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<External*>(value);
 }
 
 

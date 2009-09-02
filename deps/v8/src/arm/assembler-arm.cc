@@ -329,19 +329,30 @@ const int kEndOfChain = -4;
 
 int Assembler::target_at(int pos)  {
   Instr instr = instr_at(pos);
+  if ((instr & ~Imm24Mask) == 0) {
+    // Emitted label constant, not part of a branch.
+    return instr - (Code::kHeaderSize - kHeapObjectTag);
+  }
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
   int imm26 = ((instr & Imm24Mask) << 8) >> 6;
   if ((instr & CondMask) == nv && (instr & B24) != 0)
     // blx uses bit 24 to encode bit 2 of imm26
     imm26 += 2;
 
-  return pos + 8 + imm26;
+  return pos + kPcLoadDelta + imm26;
 }
 
 
 void Assembler::target_at_put(int pos, int target_pos) {
-  int imm26 = target_pos - pos - 8;
   Instr instr = instr_at(pos);
+  if ((instr & ~Imm24Mask) == 0) {
+    ASSERT(target_pos == kEndOfChain || target_pos >= 0);
+    // Emitted label constant, not part of a branch.
+    // Make label relative to Code* of generated Code object.
+    instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+    return;
+  }
+  int imm26 = target_pos - (pos + kPcLoadDelta);
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
   if ((instr & CondMask) == nv) {
     // blx uses bit 24 to encode bit 2 of imm26
@@ -368,41 +379,45 @@ void Assembler::print(Label* L) {
     while (l.is_linked()) {
       PrintF("@ %d ", l.pos());
       Instr instr = instr_at(l.pos());
-      ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx
-      int cond = instr & CondMask;
-      const char* b;
-      const char* c;
-      if (cond == nv) {
-        b = "blx";
-        c = "";
+      if ((instr & ~Imm24Mask) == 0) {
+        PrintF("value\n");
       } else {
-        if ((instr & B24) != 0)
-          b = "bl";
-        else
-          b = "b";
+        ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx
+        int cond = instr & CondMask;
+        const char* b;
+        const char* c;
+        if (cond == nv) {
+          b = "blx";
+          c = "";
+        } else {
+          if ((instr & B24) != 0)
+            b = "bl";
+          else
+            b = "b";
 
-        switch (cond) {
-          case eq: c = "eq"; break;
-          case ne: c = "ne"; break;
-          case hs: c = "hs"; break;
-          case lo: c = "lo"; break;
-          case mi: c = "mi"; break;
-          case pl: c = "pl"; break;
-          case vs: c = "vs"; break;
-          case vc: c = "vc"; break;
-          case hi: c = "hi"; break;
-          case ls: c = "ls"; break;
-          case ge: c = "ge"; break;
-          case lt: c = "lt"; break;
-          case gt: c = "gt"; break;
-          case le: c = "le"; break;
-          case al: c = ""; break;
-          default:
-            c = "";
-            UNREACHABLE();
+          switch (cond) {
+            case eq: c = "eq"; break;
+            case ne: c = "ne"; break;
+            case hs: c = "hs"; break;
+            case lo: c = "lo"; break;
+            case mi: c = "mi"; break;
+            case pl: c = "pl"; break;
+            case vs: c = "vs"; break;
+            case vc: c = "vc"; break;
+            case hi: c = "hi"; break;
+            case ls: c = "ls"; break;
+            case ge: c = "ge"; break;
+            case lt: c = "lt"; break;
+            case gt: c = "gt"; break;
+            case le: c = "le"; break;
+            case al: c = ""; break;
+            default:
+              c = "";
+              UNREACHABLE();
+          }
         }
+        PrintF("%s%s\n", b, c);
       }
-      PrintF("%s%s\n", b, c);
       next(&l);
     }
   } else {
@@ -670,8 +685,23 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
   // Block the emission of the constant pool, since the branch instruction must
   // be emitted at the pc offset recorded by the label
   BlockConstPoolBefore(pc_offset() + kInstrSize);
+  return target_pos - (pc_offset() + kPcLoadDelta);
+}
 
-  return target_pos - pc_offset() - 8;
+
+void Assembler::label_at_put(Label* L, int at_offset) {
+  int target_pos;
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();  // L's link
+    } else {
+      target_pos = kEndOfChain;
+    }
+    L->link_to(at_offset);
+    instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+  }
 }
 
 

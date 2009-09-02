@@ -184,6 +184,48 @@ class MacroAssembler: public Assembler {
 
 
   // ---------------------------------------------------------------------------
+  // Allocation support
+
+  // Allocate an object in new space. If the new space is exhausted control
+  // continues at the gc_required label. The allocated object is returned in
+  // result and end of the new object is returned in result_end. The register
+  // scratch can be passed as no_reg in which case an additional object
+  // reference will be added to the reloc info. The returned pointers in result
+  // and result_end have not yet been tagged as heap objects. If
+  // result_contains_top_on_entry is true the contnt of result is known to be
+  // the allocation top on entry (could be result_end from a previous call to
+  // AllocateObjectInNewSpace). If result_contains_top_on_entry is true scratch
+  // should be no_reg as it is never used.
+  void AllocateObjectInNewSpace(int object_size,
+                                Register result,
+                                Register result_end,
+                                Register scratch,
+                                Label* gc_required,
+                                bool result_contains_top_on_entry);
+
+  void AllocateObjectInNewSpace(int header_size,
+                                ScaleFactor element_size,
+                                Register element_count,
+                                Register result,
+                                Register result_end,
+                                Register scratch,
+                                Label* gc_required,
+                                bool result_contains_top_on_entry);
+
+  void AllocateObjectInNewSpace(Register object_size,
+                                Register result,
+                                Register result_end,
+                                Register scratch,
+                                Label* gc_required,
+                                bool result_contains_top_on_entry);
+
+  // Undo allocation in new space. The object passed and objects allocated after
+  // it will no longer be allocated. Make sure that no pointers are left to the
+  // object(s) no longer allocated as they would be invalid when allocation is
+  // un-done.
+  void UndoAllocationInNewSpace(Register object);
+
+  // ---------------------------------------------------------------------------
   // Support functions.
 
   // Check if result is zero and op is negative.
@@ -303,6 +345,13 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  // Allocation support helpers.
+  void LoadAllocationTopHelper(Register result,
+                               Register result_end,
+                               Register scratch,
+                               bool result_contains_top_on_entry);
+  void UpdateAllocationTopHelper(Register result_end, Register scratch);
 };
 
 
