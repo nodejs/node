@@ -147,6 +147,30 @@ EIOPromise::After (eio_req *req)
       break;
     }
 
+    case EIO_READDIR:
+    {
+      char *namebuf = static_cast<char*>(req->ptr2);
+      int nnames = req->result;
+
+      Local<Array> names = Array::New(nnames);
+
+      for (int i = 0; i < nnames; i++) {
+        Local<String> name = String::New(namebuf);
+        names->Set(Integer::New(i), name);
+#ifndef NDEBUG
+        namebuf += strlen(namebuf);
+        assert(*namebuf == '\0');
+        namebuf += 1;
+#else
+        namebuf += strlen(namebuf) + 1;
+#endif
+      }
+
+      argc = 1;
+      argv[0] = names;
+      break;
+    }
+
     default:
       assert(0 && "Unhandled eio response");
   }
@@ -225,6 +249,19 @@ RMDir (const Arguments& args)
 
   String::Utf8Value path(args[0]->ToString());
   return scope.Close(EIOPromise::RMDir(*path));
+}
+
+static Handle<Value>
+ReadDir (const Arguments& args)
+{
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return ThrowException(BAD_ARGUMENTS);
+  }
+
+  String::Utf8Value path(args[0]->ToString());
+  return scope.Close(EIOPromise::ReadDir(*path));
 }
 
 static Handle<Value>
@@ -332,6 +369,7 @@ File::Initialize (Handle<Object> target)
   NODE_SET_METHOD(target, "read", Read);
   NODE_SET_METHOD(target, "rename", Rename);
   NODE_SET_METHOD(target, "rmdir", RMDir);
+  NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);

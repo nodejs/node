@@ -453,6 +453,12 @@ node.fs.stat("/tmp/world").addCallback(function (stats) {
   - on success: no parameters.
   - on error: no parameters.
 
++node.fs.readdir(path)+ ::
+  Reads the contents of a directory.
+  - on success: One argument, an array containing the names (strings) of the
+    files in the directory (excluding "." and "..").
+  - on error: no parameters.
+
 
 +node.fs.close(fd)+ ::
   See close(2)

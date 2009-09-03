@@ -93,6 +93,16 @@ class EIOPromise : public Promise {
     return p->handle_;
   }
 
+  static v8::Handle<v8::Object>
+  ReadDir (const char *path)
+  {
+    EIOPromise *p = Create();
+    // By using EIO_READDIR_DENTS (or other flags), more complex results can
+    // be had from eio_readdir. Doesn't seem that we need that though.
+    p->req_ = eio_readdir(path, 0, EIO_PRI_DEFAULT, After, p);
+    return p->handle_;
+  }
+
   static EIOPromise* Create (void);
 
  protected:
