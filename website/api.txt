@@ -1073,4 +1073,78 @@ Each DNS query can return an error code.
 - +node.dns.BADQUERY+: the query is malformed.
 
 
+
+== Extension API
+
+External modules can be compiled and dynamically linked into Node. 
+Node is more or less glue between several C and C++ libraries:
+
+ - V8 Javascript, a C++ library. Used for interfacing with Javascript:
+   creating objects, calling functions, etc.  Documented mostly in the
+   +v8.h+ header file (+deps/v8/include/v8.h+ in the Node source tree).
+
+ - libev, C event loop library. Anytime one needs to wait for a file
+   descriptor to become readable, wait for a timer, or wait for a signal to
+   received one will need to interface with libev.  That is, if you perform
+   any I/O, libev will need to be used.  Node uses the +EV_DEFAULT+ event
+   loop.  Documentation can be found http:/cvs.schmorp.de/libev/ev.html[here].
+
+ - libeio, C thread pool library. Used to execute blocking POSIX system
+   calls asynchronously. Mostly wrappers already exist for such calls, in
+   +src/file.cc+ so you will probably not need to use it. If you do need it,
+   look at the header file +deps/libeio/eio.h+.
+
+ - Internal Node libraries. Most importantly is the +node::EventEmitter+
+   class which you will likely want to derive from. 
+
+ - Others. Look in +deps/+ for what else is available. 
+
+Node statically compiles all its dependencies into the executable. When
+compiling your module, you don't need to worry about linking to any of these
+libraries. 
+
+Here is a sample Makefile taken from 
+http://github.com/ry/node_postgres[node_postgres]:
+-----------------------------------------------------
+binding.node: binding.o Makefile
+	gcc -shared -o binding.node  binding.o \
+		-L`pg_config --libdir` -lpq
+
+binding.o: binding.cc Makefile
+	gcc `node --cflags` -I`pg_config --includedir` \
+		binding.cc -c -o binding.o
+
+clean:
+	rm -f binding.o binding.node
+.PHONY: clean
+-----------------------------------------------------
+As you can see, the only thing your module needs to know about Node is the
+CFLAGS that node was compiled with which are gotten from +node --cflags+
+If you want to make a debug build, then use +node_g --cflags+. (+node_g+ is
+the debug build of node, which can built with +configure --debug; make; make
+install+.)
+
+Node extension modules are dynamically linked libraries with a +.node+
+extension. Node opens this file and looks for a function called +init()+
+which must be of the form:
+
+-----------------------------------------------------
+extern "C" void init (Handle<Object> target) 
+-----------------------------------------------------
+
+In this function you can create new javascript objects and attach them to
++target+. Here is a very simple module:
+
+-----------------------------------------------------
+extern "C" void
+init (Handle<Object> target) 
+{
+  HandleScope scope;
+  target->Set(String::New("hello"), String::New("World"));
+}
+-----------------------------------------------------
+
+Further documentation will come soon. For now see the source code of
+http://github.com/ry/node_postgres[node_postgres].
+
 // vim: set syntax=asciidoc:
