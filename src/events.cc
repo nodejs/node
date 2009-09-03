@@ -22,6 +22,9 @@ using namespace node;
 
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
+/* Poor Man's coroutines */
+static Promise *coroutine_top;
+
 void
 EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
 {
@@ -33,6 +36,8 @@ EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
   constructor_template->PrototypeTemplate()->Set(String::NewSymbol("emit"), __emit);
 
   // All other prototype methods are defined in events.js
+
+  coroutine_top = NULL;
 }
 
 static bool
@@ -187,19 +192,38 @@ void
 Promise::Block (void)
 {
   blocking_ = true;
+
+  assert(prev_ == NULL);
+  if (coroutine_top) prev_ = coroutine_top;
+  coroutine_top = this;
+
   ev_loop(EV_DEFAULT_UC_ 0);
+
+  assert(!blocking_);
+}
+
+void
+Promise::Destack ()
+{
+  assert(coroutine_top == this);
+  ev_unloop(EV_DEFAULT_ EVUNLOOP_ONE);
+  coroutine_top = prev_;
+  prev_ = NULL;
 }
 
 void
 Promise::Detach (void)
 {
-  if (blocking_) {
-    ev_unloop(EV_DEFAULT_ EVUNLOOP_ONE);
-    blocking_ = false;
+  /* Poor Man's coroutines */
+  blocking_ = false;
+  while (coroutine_top && !coroutine_top->blocking_) {
+    coroutine_top->Destack();
   }
+
   if (ref_) {
     ev_unref(EV_DEFAULT_UC);
   }
+
   ObjectWrap::Detach();
 }
 

@@ -173,6 +173,15 @@ If there were multiple arguments to +"success"+ then they are returned as an
 array.
 +
 If +"error"+ was emitted instead, +wait()+ throws an error.
++
+*IMPORTANT* +promise.wait()+ is not a true fiber/coroutine. If any other
+promises are created and made to wait while the first promise waits, the
+first promise's wait will not return until all others return. The benefit of
+this is a simple implementation and the event loop does not get blocked.
+Disadvantage is the possibility of situations where the promise stack grows
+infinitely large because promises keep getting created and keep being told
+to wait(). Use +promise.wait()+ sparingly--probably best used only during
+program setup, not during busy server activity. 
 
 
 === Standard I/O

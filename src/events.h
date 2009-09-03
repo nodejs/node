@@ -46,11 +46,15 @@ class Promise : public EventEmitter {
 
   bool blocking_;
   bool ref_;
+  Promise *prev_; /* for the prev in the Poor Man's coroutine stack */
+
+  void Destack ();
 
   Promise () : EventEmitter()
   {
     blocking_ = false;
     ref_ = false;
+    prev_ = NULL;
   }
 };
 
