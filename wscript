@@ -88,7 +88,7 @@ def configure(conf):
 
   conf.define("HAVE_CONFIG_H", 1)
 
-  conf.env.append_value("CCFLAGS", "-DEIO_STACKSIZE=%d" % (4096*8))
+  conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
 
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
