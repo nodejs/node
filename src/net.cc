@@ -173,15 +173,6 @@ Connection::Connect (const Arguments& args)
 
   connection->Attach();
 
-#ifdef __APPLE__
-  /* HACK: Bypass the thread pool and do it sync on Macintosh.
-   * Experiecing strange error where execution halts on
-   * getaddrinfo() and CPU goes to 100%. FIXME.
-   */
-  eio_req *req = static_cast<eio_req*>(malloc(sizeof(eio_req)));
-  req->data = connection;
-  Connection::Resolve(req);
-#else
   /* For the moment I will do DNS lookups in the eio thread pool. This is
    * sub-optimal and cannot handle massive numbers of requests.
    * In the future I will move to a system using adns or udns:
@@ -192,7 +183,7 @@ Connection::Connect (const Arguments& args)
             , Connection::AfterResolve
             , connection
             );
-#endif // __APPLE__
+
   return Undefined();
 }
 
@@ -214,10 +205,6 @@ Connection::Resolve (eio_req *req)
 
   free(connection->port_);
   connection->port_ = NULL;
-
-#ifdef __APPLE__
-  Connection::AfterResolve(req);
-#endif
 
   return 0;
 }
@@ -275,9 +262,6 @@ Connection::AfterResolve (eio_req *req)
   connection->Detach();
 
 out:
-#ifdef __APPLE__
-  free(req);
-#endif
   return 0;
 }
 
