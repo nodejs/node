@@ -31,7 +31,7 @@
       <h1><a href="http://tinyclouds.org/node">Node</a></h1>
 
       <p id="introduction">
-        Event-based I/O for
+        Evented I/O for
         <a href="http://code.google.com/p/v8/">V8 javascript</a>.
       </p>
 
@@ -89,8 +89,8 @@ Server running at http://127.0.0.1:8000/</pre>
       </p>
 
       <p>
-        This is in contrast to today's more common model where OS threads
-        are employed for concurrency. Thread-based networking
+        This is in contrast to today's more common concurrency model where
+        OS threads are employed. Thread-based networking
         <a href="http://www.sics.se/~joe/apachevsyaws.html">is</a>
         <a href="http://www.kegel.com/c10k.html">relatively</a>
         <a href="http://bulk.fefe.de/scalable-networking.pdf">inefficient</a>
@@ -109,13 +109,14 @@ Server running at http://127.0.0.1:8000/</pre>
       </p>
 
       <p>
-        Node is similar in design to systems like Ruby's <a
+        Node is similar in design to and inflused by systems like Ruby's <a
         href="http://rubyeventmachine.com/">Event Machine</a> or Python's <a
         href="http://twistedmatrix.com/">Twisted</a>.  Node takes the event
-        model a bit further.  For example, in other systems there is always
+        model a bit further&mdash;it presents the event loop as a language
+        construct instead of as a library. In other systems there is always
         a blocking call to start the event-loop.  Typically one defines
         behavior through callbacks at the beginning of a script and at the
-        end starts a server through a call like
+        end starts a server through a blocking call like
         <code>EventMachine::run()</code>. In Node there is no such
         start-the-event-loop call.  Node simply enters the event loop after
         executing the input script. Node exits the event loop when there are
@@ -124,12 +125,13 @@ Server running at http://127.0.0.1:8000/</pre>
       </p>
 
       <p>
-        Node's HTTP library has grown out of my difficulties developing and
-        working with web servers. For example, streaming data through most
-        web frameworks is impossible.  Node attempts to correct these
-        problems in its HTTP API. Coupled with Node's purely evented
-        infrastructure, it makes a good foundation for web libraries or
-        frameworks.
+        HTTP is a first class protocol in Node.  Node's HTTP library has
+        grown out of the author's experiences developing and working with
+        web servers. For example, streaming data through most web frameworks
+        is impossible.  Node attempts to correct these problems in its HTTP
+        <a href="http://github.com/ry/http-parser/tree/master">parser</a>
+        and API. Coupled with Node's purely evented infrastructure, it makes
+        a good foundation for web libraries or frameworks.
       </p>
 
       <p>
@@ -137,15 +139,14 @@ Server running at http://127.0.0.1:8000/</pre>
           But what about multiple-processor concurrency? Threads are
           necessary to scale programs to multi-core computers.
         </i>
-        The name <i>Node</i> gives some hint at how it is envisioned
-        being used.  Processes are necessary to scale to multi-core
-        computers, not memory-sharing threads. The fundamentals of scalable
-        systems are fast networking and non-blocking design&mdash;the rest
-        is message passing.  In the future, I'd like Node to be able to
-        spawn new processes (probably using the
-        <a href="http://www.whatwg.org/specs/web-workers/current-work/">
-          Web Workers API
-        </a>), but this is something that fits well into the current design.
+        Processes are necessary to scale to multi-core computers, not
+        memory-sharing threads. The fundamentals of scalable systems are
+        fast networking and non-blocking design&mdash;the rest is message
+        passing.  In future versions, Node will be able to fork new
+        processes (using the <a
+        href="http://www.whatwg.org/specs/web-workers/current-work/"> Web
+        Workers API </a>), but this is something that fits well into the
+        current design.
       </p>
 
       <h2 id="download">Download</h2>

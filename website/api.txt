@@ -6,7 +6,7 @@ Version, 0.1.7, 2009.08.27
 
 == Name
 
-node - purely event-based I/O for V8 javascript
+node - evented I/O for V8 javascript
 
 
 
