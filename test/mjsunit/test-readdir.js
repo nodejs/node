@@ -11,7 +11,7 @@ puts("readdir " + fixtures);
 
 promise.addCallback(function (files) {
   p(files);
-  assertArrayEquals(["b","a.js","x.txt"], files);
+  assertArrayEquals(["a.js", "b","x.txt"], files.sort());
 });
 
 promise.addErrback(function () {
