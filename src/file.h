@@ -94,6 +94,14 @@ class EIOPromise : public Promise {
   }
 
   static v8::Handle<v8::Object>
+  MKDir (const char *path, mode_t mode)
+  {
+    EIOPromise *p = Create();
+    p->req_ = eio_mkdir(path, mode, EIO_PRI_DEFAULT, After, p);
+    return p->handle_;
+  }
+
+  static v8::Handle<v8::Object>
   ReadDir (const char *path)
   {
     EIOPromise *p = Create();

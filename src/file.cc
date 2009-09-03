@@ -82,6 +82,7 @@ EIOPromise::After (eio_req *req)
     case EIO_RENAME:
     case EIO_UNLINK:
     case EIO_RMDIR:
+    case EIO_MKDIR:
       argc = 0;
       break;
 
@@ -252,6 +253,21 @@ RMDir (const Arguments& args)
 }
 
 static Handle<Value>
+MKDir (const Arguments& args)
+{
+  HandleScope scope;
+
+  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
+    return ThrowException(BAD_ARGUMENTS);
+  }
+
+  String::Utf8Value path(args[0]->ToString());
+  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+
+  return scope.Close(EIOPromise::MKDir(*path, mode));
+}
+
+static Handle<Value>
 ReadDir (const Arguments& args)
 {
   HandleScope scope;
@@ -369,6 +385,7 @@ File::Initialize (Handle<Object> target)
   NODE_SET_METHOD(target, "read", Read);
   NODE_SET_METHOD(target, "rename", Rename);
   NODE_SET_METHOD(target, "rmdir", RMDir);
+  NODE_SET_METHOD(target, "mkdir", MKDir);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
