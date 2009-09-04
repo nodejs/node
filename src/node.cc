@@ -275,9 +275,6 @@ Load (int argc, char *argv[])
               EventEmitter::constructor_template->GetFunction());
   Promise::Initialize(node_obj);
 
-  ExecuteNativeJS("util.js", native_util);
-  ExecuteNativeJS("events.js", native_events);
-
   Stdio::Initialize(node_obj);
   Timer::Initialize(node_obj);
   ChildProcess::Initialize(node_obj);
@@ -302,6 +299,8 @@ Load (int argc, char *argv[])
   HTTPServer::Initialize(http);
   HTTPConnection::Initialize(http);
 
+  ExecuteNativeJS("util.js", native_util);
+  ExecuteNativeJS("events.js", native_events);
   ExecuteNativeJS("http.js", native_http);
   ExecuteNativeJS("file.js", native_file);
   ExecuteNativeJS("node.js", native_node);
