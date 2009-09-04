@@ -61,8 +61,12 @@ node.http.parseUri = function (str) {
   uri[o.q.name] = {};
   uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
     if ($1) {
-      var key = decode($1);
-      var val = decode($2);
+      try {
+        var key = decode($1);
+        var val = decode($2);
+      } catch (e) {
+        return;
+      }
       uri[o.q.name][key] = val;
     }
   });
