@@ -1,4 +1,24 @@
-2009.08.27, Version 0.1.7
+2009.09.04, Version 0.1.8
+
+  * Feature: External modules
+
+  * Feature: setTimeout() for node.tcp.Connection
+
+  * Feature: add node.cwd(), node.fs.readdir(), node.fs.mkdir()
+
+  * Bugfix: promise.wait() releasing out of order.
+
+  * Bugfix: Asyncly do getaddrinfo() on Apple.
+
+  * Disable useless evcom error messages.
+
+  * Better stack traces.
+
+  * Built natively on x64.
+
+  * Upgrade v8 to 1.3.9
+
+2009.08.27, Version 0.1.7, f7acef9acf8ba8433d697ad5ed99d2e857387e4b
 
   * Feature: global 'process' object. Emits "exit".
 
@@ -6,13 +26,16 @@
 
   * Feature: node.stdio
 
-  * Feature: EventEmitters emit "newListener" when listeners are added
+  * Feature: EventEmitters emit "newListener" when listeners are
+    added
 
-  * API:  Use flat object instead of array-of-arrays for HTTP headers.
+  * API:  Use flat object instead of array-of-arrays for HTTP
+    headers.
 
   * API: Remove buffered file object (node.File)
 
-  * API: require(), include() are synchronous. (Uses continuations.)
+  * API: require(), include() are synchronous. (Uses
+    continuations.)
 
   * API: Deprecate onLoad and onExit.
 
@@ -113,7 +136,7 @@
 
   * Move EventEmitter.prototype.emit() completely into C++.
 
-  * Bugfix: Fix memory leak in event emitters. 
+  * Bugfix: Fix memory leak in event emitters.
     http://groups.google.com/group/nodejs/browse_thread/thread/a8d1dfc2fd57a6d1
 
   * Bugfix: Had problems reading scripts with non-ascii characters.
@@ -122,7 +145,7 @@
 
   * Bugfix: Sockets not properly reattached if reconnected during
     disconnect event.
-  
+
   * Bugfix: Server-side clients not attached between creation and
     on_connect.
 
@@ -139,17 +162,17 @@
   * Update documentation, use asciidoc.
 
   * EventEmitter and Promise interfaces. (Breaks previous API.)
-  
+
   * Remove node.Process constructor in favor of node.createProcess
 
   * Add -m32 flags for compiling on x64 platforms.
     (Thanks to András Bártházi)
 
   * Upgrade v8 to 1.2.10 and libev to 3.6
-  
+
   * Bugfix: Timer::RepeatSetter wasn't working.
 
-  * Bugfix: Spawning many processes in a loop 
+  * Bugfix: Spawning many processes in a loop
     (reported by Felix Geisendörfer)
 
 
