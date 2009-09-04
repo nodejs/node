@@ -605,16 +605,20 @@ stream_send__data (evcom_stream *stream)
     }
 
     if (sent <= 0) {
-      if (errno == EAGAIN || errno == EINTR) {
-        assert(stream->send_action == stream_send__data);
-        return AGAIN;
+      switch (errno) {
+        case EAGAIN:
+        case EINTR:
+          assert(stream->send_action == stream_send__data);
+          return AGAIN;
+
+        default:
+          stream->errorno = errno;
+          evcom_perror("send()", errno);
+          /* pass through */
+        case EPIPE:
+          stream->send_action = stream_send__close;
+          return OKAY;
       }
-
-      stream->errorno = errno;
-      evcom_perror("send()", errno);
-
-      stream->send_action = stream_send__close;
-      return OKAY;
     }
 
     ev_timer_again(D_LOOP_(stream) &stream->timeout_watcher);
@@ -1151,6 +1155,9 @@ evcom_stream_write (evcom_stream *stream, const char *str, size_t len)
 
     if (sent < 0) {
       switch (errno) {
+        case EPIPE:
+          goto close;
+
         case EINTR:
         case EAGAIN:
           sent = 0;
