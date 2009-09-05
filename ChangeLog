@@ -1,4 +1,10 @@
-2009.09.04, Version 0.1.8
+2009.09.05, Version 0.1.9
+
+  * Bugfix: Compile on Snow Leopard.
+
+  * Bugfix: Malformed URIs raising exceptions.
+
+2009.09.04, Version 0.1.8, e6d712a937b61567e81b15085edba863be16ba96
 
   * Feature: External modules
 
