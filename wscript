@@ -99,12 +99,24 @@ def configure(conf):
   debug_env.set_variant('debug')
   debug_env.append_value('CCFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
   debug_env.append_value('CXXFLAGS', ['-DDEBUG', '-g', '-O0', '-Wall', '-Wextra'])
+
+  # HACK FIXME - use 32bit on Mac
+  if platform.system() == "Darwin":
+    debug_env.append_value('CCFLAGS', '-m32')
+    debug_env.append_value('CXXFLAGS', '-m32')
+
   conf.write_config_header("config.h")
 
   # Configure default variant
   conf.setenv('default')
   conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3'])
   conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
+
+  # HACK FIXME - use 32bit on Mac
+  if platform.system() == "Darwin":
+    conf.env.append_value('CCFLAGS', '-m32')
+    conf.env.append_value('CXXFLAGS', '-m32')
+
   conf.write_config_header("config.h")
 
 def build_udns(bld):
@@ -166,6 +178,9 @@ def build_v8(bld):
   if GuessArchitecture() == "x64":
     arch = "arch=x64"
 
+  # HACK FIXME - use 32bit on Mac
+  if platform.system() == "Darwin": arch = "arch=ia32";
+
   v8 = bld.new_task_gen(
     target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
     rule=v8rule % (v8dir_tgt, scons, "release", arch),
@@ -177,6 +192,10 @@ def build_v8(bld):
   bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
   bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
 
+  # HACK FIXME - use 32bit on Mac
+  if platform.system() == "Darwin":
+    bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
+
   ### v8 debug
   if bld.env["USE_DEBUG"]:
     deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("debug")),"deps")
@@ -186,6 +205,11 @@ def build_v8(bld):
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
     bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
+
+    # HACK FIXME - use 32bit on Mac
+    if platform.system() == "Darwin":
+      bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", "-m32"]
+
     v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug", arch)
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
