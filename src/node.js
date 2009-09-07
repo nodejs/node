@@ -202,6 +202,15 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
 };
 
 (function () {
+  // Make ARGV[0] and ARGV[1] into full paths.
+  if (ARGV[0].charAt(0) != "/") {
+    ARGV[0] = node.path.join(node.cwd(), ARGV[0]);
+  }
+
+  if (ARGV[1].charAt(0) != "/") {
+    ARGV[1] = node.path.join(node.cwd(), ARGV[1]);
+  }
+
   // Load the root module--the command line argument.
   var root_module = new node.Module({
     path: node.path.filename(ARGV[1]),
