@@ -158,16 +158,14 @@ node.Module.prototype.loadScript = function (callback) {
     self.onLoad = self.target.__onLoad;
     self.onExit = self.target.__onExit;
     if (self.onLoad || self.onExit) {
-      node.stdio.writeError( "(node) onLoad is depreciated it will be "
-                           + "removed in the future. Don't want it to "
-                           + "leave? Discuss on mailing list.\n"
+      node.stdio.writeError( "(node) onLoad and onExit have been removed. "
+                           + " module load is synchronous so onLoad is unnecessary"
+                           + " Use process.addListener('exit') for onExit. "
                            );
+      node.exit(1);
     }
 
     self.waitChildrenLoad(function () {
-      if (self.onLoad) {
-        self.onLoad();
-      }
       self.loaded = true;
       loadPromise.emitSuccess([self.target]);
     });
@@ -203,32 +201,6 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
   if (children.length == nloaded && callback) callback();
 };
 
-node.Module.prototype.exitChildren = function (callback) {
-  var children = this.children;
-  if (children.length == 0 && callback) callback();
-  var nexited = 0;
-  for (var i = 0; i < children.length; i++) {
-    children[i].exit(function () {
-      nexited += 1;
-      if (nexited == children.length && callback) callback();
-    });
-  }
-};
-
-node.Module.prototype.exit = function (callback) {
-  var self = this;
-
-  if (self.exited) {
-    throw "Module '" + self.filename + "' is already exited.";
-  }
-
-  this.exitChildren(function () {
-    if (self.onExit) self.onExit();
-    self.exited = true;
-    if (callback) callback();
-  });
-};
-
 (function () {
   // Load the root module--the command line argument.
   var root_module = new node.Module({
@@ -239,9 +211,7 @@ node.Module.prototype.exit = function (callback) {
   root_module.load();
 
   node.exit = function (code) {
-    root_module.exit(function () {
-      process.emit("exit");
-      node.reallyExit(code);
-    });
+    process.emit("exit");
+    node.reallyExit(code);
   };
 }());
