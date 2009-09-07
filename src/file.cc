@@ -58,7 +58,6 @@ EIOPromise::Create (void)
   return promise;
 }
 
-#define NODE_UNIXTIME(t) v8::Date::New(1000*static_cast<double>(t))
 int
 EIOPromise::After (eio_req *req)
 {
@@ -106,9 +105,9 @@ EIOPromise::After (eio_req *req)
       stats->Set(SIZE_SYMBOL, Integer::New(s->st_size)); /* total size, in bytes */
       stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize)); /* blocksize for filesystem I/O */
       stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks)); /* number of blocks allocated */
-      stats->Set(ATIME_SYMBOL, NODE_UNIXTIME(s->st_atime)); /* time of last access */
-      stats->Set(MTIME_SYMBOL, NODE_UNIXTIME(s->st_mtime)); /* time of last modification */
-      stats->Set(CTIME_SYMBOL, NODE_UNIXTIME(s->st_ctime)); /* time of last status change */
+      stats->Set(ATIME_SYMBOL, NODE_UNIXTIME_V8(s->st_atime)); /* time of last access */
+      stats->Set(MTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_mtime)); /* time of last modification */
+      stats->Set(CTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_ctime)); /* time of last status change */
       argc = 1;
       argv[0] = stats;
       break;

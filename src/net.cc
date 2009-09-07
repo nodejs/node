@@ -328,7 +328,7 @@ Connection::SetTimeout (const Arguments& args)
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
   assert(connection);
 
-  float timeout = (float)(args[0]->IntegerValue()) / 1000;
+  float timeout = NODE_V8_UNIXTIME(args[0]);
 
   connection->SetTimeout(timeout);
 

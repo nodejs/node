@@ -51,7 +51,7 @@ Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorI
   assert(timer);
   assert(property == REPEAT_SYMBOL);
 
-  timer->watcher_.repeat = (double)(value->IntegerValue()) / 1000;
+  timer->watcher_.repeat = NODE_V8_UNIXTIME(value);
 }
 
 void
@@ -91,8 +91,8 @@ Timer::Start (const Arguments& args)
   if (args.Length() != 2)
     return ThrowException(String::New("Bad arguments"));
 
-  ev_tstamp after = (double)(args[0]->IntegerValue())  / 1000.0;
-  ev_tstamp repeat = (double)(args[1]->IntegerValue())  / 1000.0;
+  ev_tstamp after = NODE_V8_UNIXTIME(args[0]);
+  ev_tstamp repeat = NODE_V8_UNIXTIME(args[1]);
 
   ev_timer_init(&timer->watcher_, Timer::OnTimeout, after, repeat);
   timer->watcher_.data = timer;
