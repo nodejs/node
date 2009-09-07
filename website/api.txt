@@ -702,6 +702,12 @@ specifies how to encode it into a byte stream. By default the
 +
 Note: This is the raw HTTP body and has nothing to do with
 higher-level multi-part body encodings that may be used.
++
+The first time +sendBody+ is called, it will send the buffered header
+information and the first body to the client. The second time
++sendBody+ is called, Node assumes you're going to be streaming data, and
+sends that seperately. That is, the response is buffered up to the
+first chunk of body.
 
 
 +response.finish()+ ::
