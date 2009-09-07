@@ -111,6 +111,7 @@ node.Module.prototype.loadObject = function (callback) {
     } else {
       node.stdio.writeError("Error reading " + self.filename + "\n");
       loadPromise.emitError();
+      node.exit(1);
     }
   });
   return loadPromise;
@@ -131,6 +132,7 @@ node.Module.prototype.loadScript = function (callback) {
   cat_promise.addErrback(function () {
     node.stdio.writeError("Error reading " + self.filename + "\n");
     loadPromise.emitError();
+    node.exit(1);
   });
 
   cat_promise.addCallback(function (content) {
