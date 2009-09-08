@@ -19,8 +19,8 @@ node.inherits = function (ctor, superCtor) {
   ctor.prototype.constructor = ctor;
 };
 
-node.assert = function (x) {
-  if (!(x)) throw (msg || "assertion error");
+node.assert = function (x, msg) {
+  if (!(x)) throw new Error(msg || "assertion error");
 };
 
 // This is useful for dealing with raw encodings.

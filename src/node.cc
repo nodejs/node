@@ -25,6 +25,8 @@
 #include <list>
 #include <map>
 
+#include <v8-debug.h>
+
 using namespace v8;
 using namespace node;
 
@@ -382,9 +384,13 @@ main(int argc, char *argv[])
   // to it's namespace node.EventEmitter in Load() bellow.
   EventEmitter::Initialize(process_template);
 
+  Debug::EnableAgent("node", 2222);
+
   Persistent<Context> context = Context::New(NULL,
       process_template->InstanceTemplate());
   Context::Scope context_scope(context);
+
+
 
   context->Global()->Set(String::NewSymbol("process"), context->Global());
 
