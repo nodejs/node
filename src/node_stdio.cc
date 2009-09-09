@@ -67,41 +67,18 @@ Write (const Arguments& args)
 {
   HandleScope scope;
 
-  ssize_t len;
+  enum encoding enc = ParseEncoding(args[1]);
+  ssize_t len = DecodeBytes(args[0], enc);
 
-  Local<String> string;
-  Local<Array> array;
-
-  if (args[0]->IsArray()) {
-    array = Local<Array>::Cast(args[0]);
-    len = array->Length();
-  } else {
-    string = args[0]->ToString();
-    len = string->Utf8Length();
+  if (len < 0) {
+    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+    return ThrowException(exception);
   }
 
   char buf[len];
-
-  if (args[0]->IsArray()) {
-    for (ssize_t index = 0; index < len; index++) {
-      Local<Value> int_value = array->Get(Integer::New(index));
-      buf[index] = int_value->IntegerValue();
-    }
-  } else {
-    switch (ParseEncoding(args[1])) {
-      case RAW:
-      case ASCII:
-        string->WriteAscii(buf, 0, len);
-        break;
-
-      case UTF8:
-        string->WriteUtf8(buf, len);
-        break;
-
-      default:
-        return ThrowException(String::New("Unknown encoding."));
-    }
-  }
+  ssize_t written = DecodeWrite(buf, len, args[0], enc);
+  
+  assert(written == len);
 
   evcom_writer_write(&out, buf, len);
 
@@ -149,23 +126,9 @@ on_read (evcom_reader *r, const void *buf, size_t len)
     return;
   }
 
-  Local<Value> input;
+  Local<Value> data = Encode(buf, len, stdin_encoding);
 
-  if (stdin_encoding == RAW) {
-    // raw encoding
-    Local<Array> array = Array::New(len);
-    for (size_t i = 0; i < len; i++) {
-      unsigned char val = static_cast<const unsigned char*>(buf)[i];
-      array->Set(Integer::New(i), Integer::New(val));
-    }
-    input = array;
-
-  } else {
-    // utf8 or ascii encoding
-    input = String::New((const char*)buf, len);
-  }
-
-  EmitInput(input);
+  EmitInput(data);
 }
 
 static inline int

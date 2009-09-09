@@ -30,6 +30,89 @@
 using namespace v8;
 using namespace node;
 
+Local<Value>
+node::Encode (const void *buf, size_t len, enum encoding encoding)
+{
+  HandleScope scope;
+
+  if (!len) return scope.Close(Null());
+
+  if (encoding == RAW) {
+    // raw encoding
+    Local<Array> array = Array::New(len);
+    for (size_t i = 0; i < len; i++) {
+      unsigned char val = static_cast<const unsigned char*>(buf)[i];
+      array->Set(Integer::New(i), Integer::New(val));
+    }
+    return scope.Close(array);
+  } 
+
+  // utf8 or ascii encoding
+  Local<String> chunk = String::New((const char*)buf, len);
+  return scope.Close(chunk);
+}
+
+// Returns -1 if the handle was not valid for decoding 
+ssize_t
+node::DecodeBytes (v8::Handle<v8::Value> val, enum encoding encoding)
+{
+  HandleScope scope;
+
+  if (val->IsArray()) {
+    if (encoding != RAW) return -1;
+    Handle<Array> array = Handle<Array>::Cast(val);
+    return array->Length();
+  }
+
+  if (!val->IsString()) return -1;
+
+  Handle<String> string = Handle<String>::Cast(val);
+
+  if (encoding == UTF8) return string->Utf8Length();
+
+  return string->Length();
+}
+
+#ifndef MIN
+# define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
+// Returns number of bytes written.
+ssize_t
+node::DecodeWrite (char *buf, size_t buflen, v8::Handle<v8::Value> val, enum encoding encoding)
+{
+  size_t i;
+  HandleScope scope;
+
+  // XXX
+  // A lot of improvement can be made here. See:
+  // http://code.google.com/p/v8/issues/detail?id=270
+  // http://groups.google.com/group/v8-dev/browse_thread/thread/dba28a81d9215291/ece2b50a3b4022c
+  // http://groups.google.com/group/v8-users/browse_thread/thread/1f83b0ba1f0a611
+
+  if (val->IsArray()) {
+    if (encoding != RAW) return -1;
+    Handle<Array> array = Handle<Array>::Cast(val);
+    size_t array_len = array->Length();
+    for (i = 0; i < MIN(buflen, array_len); i++) {
+      Local<Value> int_value = array->Get(Integer::New(i));
+      buf[i] = int_value->IntegerValue();
+    }
+    return i;
+  }
+
+  assert(val->IsString());
+  Handle<String> string = Handle<String>::Cast(val);
+
+  if (encoding == UTF8) {
+    string->WriteUtf8(buf, buflen);
+    return buflen;
+  }
+
+  string->WriteAscii(buf, 0, buflen);
+  return buflen;
+}
+
 // Extracts a C string from a V8 Utf8Value.
 const char*
 ToCString(const v8::String::Utf8Value& value)

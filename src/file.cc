@@ -116,34 +116,8 @@ EIOPromise::After (eio_req *req)
     case EIO_READ:
     {
       argc = 2;
-      // FIXME the following is really ugly!
-      if (promise->encoding_ == RAW) {
-        if (req->result == 0) {
-          argv[0] = Local<Value>::New(Null());
-          argv[1] = Integer::New(0);
-        } else {
-          char *buf = reinterpret_cast<char*>(req->ptr2);
-          size_t len = req->result;
-          Local<Array> array = Array::New(len);
-          for (unsigned int i = 0; i < len; i++) {
-            unsigned char val = reinterpret_cast<const unsigned char*>(buf)[i];
-            array->Set(Integer::New(i), Integer::New(val));
-          }
-          argv[0] = array;
-          argv[1] = Integer::New(req->result);
-        }
-      } else {
-        // UTF8
-        if (req->result == 0) {
-          // eof
-          argv[0] = Local<Value>::New(Null());
-          argv[1] = Integer::New(0);
-        } else {
-          char *buf = reinterpret_cast<char*>(req->ptr2);
-          argv[0] = String::New(buf, req->result);
-          argv[1] = Integer::New(req->result);
-        }
-      }
+      argv[0] = Encode(req->ptr2, req->result, promise->encoding_);
+      argv[1] = Integer::New(req->result);
       break;
     }
 
@@ -304,6 +278,7 @@ Open (const Arguments& args)
  * 1 data      the data to write (string = utf8, array = raw)
  * 2 position  if integer, position to write at in the file.
  *             if null, write from the current position
+ * 3 encoding  
  */
 static Handle<Value>
 Write (const Arguments& args)
@@ -317,29 +292,15 @@ Write (const Arguments& args)
   int fd = args[0]->Int32Value();
   off_t offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
 
-  char *buf = NULL;
-  size_t len = 0;
-
-  if (args[1]->IsString()) {
-    // utf8 encoding
-    Local<String> string = args[1]->ToString();
-    len = string->Utf8Length();
-    buf = reinterpret_cast<char*>(malloc(len));
-    string->WriteUtf8(buf, len);
-
-  } else if (args[1]->IsArray()) {
-    // raw encoding
-    Local<Array> array = Local<Array>::Cast(args[1]);
-    len = array->Length();
-    buf = reinterpret_cast<char*>(malloc(len));
-    for (unsigned int i = 0; i < len; i++) {
-      Local<Value> int_value = array->Get(Integer::New(i));
-      buf[i] = int_value->Int32Value();
-    }
-
-  } else {
-    return ThrowException(BAD_ARGUMENTS);
+  enum encoding enc = ParseEncoding(args[3]);
+  ssize_t len = DecodeBytes(args[1], enc);
+  if (len < 0) {
+    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+    return ThrowException(exception);
   }
+  char buf[len];
+  ssize_t written = DecodeWrite(buf, len, args[1], enc);
+  assert(written == len);
 
   return scope.Close(EIOPromise::Write(fd, buf, len, offset));
 }

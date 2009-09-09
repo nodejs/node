@@ -374,80 +374,30 @@ Connection::Send (const Arguments& args)
     return ThrowException(exception);
   }
 
-  // XXX
-  // A lot of improvement can be made here. First of all we're allocating
-  // evcom_bufs for every send which is clearly inefficent - it should use a
-  // memory pool or ring buffer. Of course, expressing binary data as an
-  // array of integers is extremely inefficent. This can improved when v8
-  // bug 270 (http://code.google.com/p/v8/issues/detail?id=270) has been
-  // addressed.
+  enum encoding enc = ParseEncoding(args[1]);
+  ssize_t len = DecodeBytes(args[0], enc);
 
-  if (args[0]->IsString()) {
-    enum encoding enc = ParseEncoding(args[1]);
-    Local<String> s = args[0]->ToString();
-    size_t len = s->Utf8Length();
-    char buf[len];
-    switch (enc) {
-      case RAW:
-      case ASCII:
-        s->WriteAscii(buf, 0, len);
-        break;
-
-      case UTF8:
-        s->WriteUtf8(buf, len);
-        break;
-
-      default:
-        assert(0 && "unhandled string encoding");
-    }
-    connection->Send(buf, len);
-
-  } else if (args[0]->IsArray()) {
-    Handle<Array> array = Handle<Array>::Cast(args[0]);
-    size_t len = array->Length();
-    char buf[len];
-    for (size_t i = 0; i < len; i++) {
-      Local<Value> int_value = array->Get(Integer::New(i));
-      buf[i] = int_value->IntegerValue();
-    }
-    connection->Send(buf, len);
-
-  } else {
+  if (len < 0) {
     Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
     return ThrowException(exception);
   }
 
-  return Undefined();
+  char buf[len];
+  ssize_t written = DecodeWrite(buf, len, args[0], enc);
+  
+  assert(written == len);
+
+  connection->Send(buf, written);
+
+  return scope.Close(Integer::New(written));
 }
 
 void
 Connection::OnReceive (const void *buf, size_t len)
 {
   HandleScope scope;
-
-  const int argc = 1;
-  Handle<Value> argv[argc];
-
-  if(len) {
-    if (encoding_ == RAW) {
-      // raw encoding
-      Local<Array> array = Array::New(len);
-      for (size_t i = 0; i < len; i++) {
-        unsigned char val = static_cast<const unsigned char*>(buf)[i];
-        array->Set(Integer::New(i), Integer::New(val));
-      }
-      argv[0] = array;
-
-    } else {
-      // utf8 or ascii encoding
-      Handle<String> chunk = String::New((const char*)buf, len);
-      argv[0] = chunk;
-    }
-  } else {
-    argv[0] = Local<Value>::New(Null());
-  }
-
-  Emit("receive", argc, argv);
+  Local<Value> data = Encode(buf, len, encoding_);
+  Emit("receive", 1, &data);
 }
 
 void
