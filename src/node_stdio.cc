@@ -155,7 +155,7 @@ Open (const Arguments& args)
   HandleScope scope;
 
   if (stdin_fd >= 0) {
-    return ThrowException(String::New("stdin already open"));
+    return ThrowException(Exception::Error(String::New("stdin already open")));
   }
 
   stdin_encoding = UTF8;
@@ -190,7 +190,7 @@ Close (const Arguments& args)
   HandleScope scope;
 
   if (stdin_fd < 0) {
-    return ThrowException(String::New("stdin not open"));
+    return ThrowException(Exception::Error(String::New("stdin not open")));
   }
 
   evcom_reader_close(&in);

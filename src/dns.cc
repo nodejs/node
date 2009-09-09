@@ -151,7 +151,7 @@ ResolveA (int type, const Arguments& args)
   HandleScope scope;
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(String::New("Argument must be a string."));
+    return ThrowException(Exception::Error(String::New("Argument must be a string.")));
   }
 
   String::Utf8Value name(args[0]->ToString());
@@ -168,7 +168,7 @@ ResolveA (int type, const Arguments& args)
       break;
 
     default:
-      return ThrowException(String::New("Unsupported type"));
+      return ThrowException(Exception::Error(String::New("Unsupported type")));
   }
 
   assert(query); // TODO better error handling.
@@ -230,7 +230,7 @@ Reverse (const Arguments& args)
   HandleScope scope;
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(String::New("Argument must be a string."));
+    return ThrowException(Exception::Error(String::New("Argument must be a string.")));
   }
 
   String::Utf8Value ip_address(args[0]->ToString());
@@ -247,7 +247,7 @@ Reverse (const Arguments& args)
   } else if (dns_pton(AF_INET6, *ip_address, &a.addr6) > 0) {
     v4 = false;
   } else {
-    return ThrowException(String::New("Invalid IP address"));
+    return ThrowException(Exception::Error(String::New("Invalid IP address")));
   }
 
 

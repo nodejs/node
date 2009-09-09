@@ -99,7 +99,7 @@ Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
   }
 
   assert(0 && "This shouldnt happen");
-  return ThrowException(String::New("This shouldn't happen."));
+  return ThrowException(Exception::Error(String::New("This shouldn't happen.")));
 }
 
 void

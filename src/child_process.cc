@@ -48,7 +48,7 @@ Handle<Value>
 ChildProcess::Spawn (const Arguments& args)
 {
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(String::New("Bad argument."));
+    return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
   HandleScope scope;
@@ -58,7 +58,7 @@ ChildProcess::Spawn (const Arguments& args)
 
   int r = child->Spawn(*command);
   if (r != 0) {
-    return ThrowException(String::New("Error spawning"));
+    return ThrowException(Exception::Error(String::New("Error spawning")));
   }
 
   child->handle_->Set(PID_SYMBOL, Integer::New(child->pid_));
@@ -100,7 +100,7 @@ ChildProcess::Kill (const Arguments& args)
   if (args[0]->IsInt32()) sig = args[0]->Int32Value();
 
   if (child->Kill(sig) != 0) {
-    return ThrowException(String::New("ChildProcess already dead"));
+    return ThrowException(Exception::Error(String::New("ChildProcess already dead")));
   }
 
   return Undefined();
