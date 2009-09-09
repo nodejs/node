@@ -70,7 +70,8 @@ class Debugger {
 
   Simulator* sim_;
 
-  bool GetValue(char* desc, int32_t* value);
+  int32_t GetRegisterValue(int regnum);
+  bool GetValue(const char* desc, int32_t* value);
 
   // Set or delete a breakpoint. Returns true if successful.
   bool SetBreakpoint(Instr* breakpc);
@@ -132,41 +133,19 @@ void Debugger::Stop(Instr* instr) {
 #endif
 
 
-static const char* reg_names[] = {  "r0",  "r1",  "r2",  "r3",
-                                    "r4",  "r5",  "r6",  "r7",
-                                    "r8",  "r9", "r10", "r11",
-                                   "r12", "r13", "r14", "r15",
-                                    "pc",  "lr",  "sp",  "ip",
-                                    "fp",  "sl", ""};
-
-static int   reg_nums[]  = {           0,     1,     2,     3,
-                                       4,     5,     6,     7,
-                                       8,     9,    10,    11,
-                                      12,    13,    14,    15,
-                                      15,    14,    13,    12,
-                                      11,    10};
-
-
-static int RegNameToRegNum(char* name) {
-  int reg = 0;
-  while (*reg_names[reg] != 0) {
-    if (strcmp(reg_names[reg], name) == 0) {
-      return reg_nums[reg];
-    }
-    reg++;
+int32_t Debugger::GetRegisterValue(int regnum) {
+  if (regnum == kPCRegister) {
+    return sim_->get_pc();
+  } else {
+    return sim_->get_register(regnum);
   }
-  return -1;
 }
 
 
-bool Debugger::GetValue(char* desc, int32_t* value) {
-  int regnum = RegNameToRegNum(desc);
-  if (regnum >= 0) {
-    if (regnum == 15) {
-      *value = sim_->get_pc();
-    } else {
-      *value = sim_->get_register(regnum);
-    }
+bool Debugger::GetValue(const char* desc, int32_t* value) {
+  int regnum = Registers::Number(desc);
+  if (regnum != kNoRegister) {
+    *value = GetRegisterValue(regnum);
     return true;
   } else {
     return SScanF(desc, "%i", value) == 1;
@@ -246,7 +225,7 @@ void Debugger::Debug() {
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%x  %s\n", sim_->get_pc(), buffer.start());
+      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.start());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -270,13 +249,20 @@ void Debugger::Debug() {
       } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
         if (args == 2) {
           int32_t value;
-          if (GetValue(arg1, &value)) {
-            PrintF("%s: %d 0x%x\n", arg1, value, value);
+          if (strcmp(arg1, "all") == 0) {
+            for (int i = 0; i < kNumRegisters; i++) {
+              value = GetRegisterValue(i);
+              PrintF("%3s: 0x%08x %10d\n", Registers::Name(i), value, value);
+            }
           } else {
-            PrintF("%s unrecognized\n", arg1);
+            if (GetValue(arg1, &value)) {
+              PrintF("%s: 0x%08x %d \n", arg1, value, value);
+            } else {
+              PrintF("%s unrecognized\n", arg1);
+            }
           }
         } else {
-          PrintF("print value\n");
+          PrintF("print <register>\n");
         }
       } else if ((strcmp(cmd, "po") == 0)
                  || (strcmp(cmd, "printobject") == 0)) {
@@ -284,16 +270,18 @@ void Debugger::Debug() {
           int32_t value;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
-            USE(obj);
             PrintF("%s: \n", arg1);
-#if defined(DEBUG)
+#ifdef DEBUG
             obj->PrintLn();
-#endif  // defined(DEBUG)
+#else
+            obj->ShortPrint();
+            PrintF("\n");
+#endif
           } else {
             PrintF("%s unrecognized\n", arg1);
           }
         } else {
-          PrintF("printobject value\n");
+          PrintF("printobject <value>\n");
         }
       } else if (strcmp(cmd, "disasm") == 0) {
         disasm::NameConverter converter;
@@ -325,7 +313,7 @@ void Debugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%x  %s\n", cur, buffer.start());
+          PrintF("  0x%08x  %s\n", cur, buffer.start());
           cur += Instr::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -343,7 +331,7 @@ void Debugger::Debug() {
             PrintF("%s unrecognized\n", arg1);
           }
         } else {
-          PrintF("break addr\n");
+          PrintF("break <address>\n");
         }
       } else if (strcmp(cmd, "del") == 0) {
         if (!DeleteBreakpoint(NULL)) {
@@ -362,6 +350,30 @@ void Debugger::Debug() {
         } else {
           PrintF("Not at debugger stop.");
         }
+      } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
+        PrintF("cont\n");
+        PrintF("  continue execution (alias 'c')\n");
+        PrintF("stepi\n");
+        PrintF("  step one instruction (alias 'si')\n");
+        PrintF("print <register>\n");
+        PrintF("  print register content (alias 'p')\n");
+        PrintF("  use register name 'all' to print all registers\n");
+        PrintF("printobject <register>\n");
+        PrintF("  print an object from a register (alias 'po')\n");
+        PrintF("flags\n");
+        PrintF("  print flags\n");
+        PrintF("disasm [<instructions>]\n");
+        PrintF("disasm [[<address>] <instructions>]\n");
+        PrintF("  disassemble code, default is 10 instructions from pc\n");
+        PrintF("gdb\n");
+        PrintF("  enter gdb\n");
+        PrintF("break <address>\n");
+        PrintF("  set a break point on the address\n");
+        PrintF("del\n");
+        PrintF("  delete the breakpoint\n");
+        PrintF("unstop\n");
+        PrintF("  ignore the stop instruction at the current location");
+        PrintF(" from now on\n");
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }
@@ -576,7 +588,7 @@ int Simulator::ReadW(int32_t addr, Instr* instr) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned read at %x\n", addr);
+  PrintF("Unaligned read at 0x%08x\n", addr);
   UNIMPLEMENTED();
   return 0;
 }
@@ -588,7 +600,7 @@ void Simulator::WriteW(int32_t addr, int value, Instr* instr) {
     *ptr = value;
     return;
   }
-  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned write at 0x%08x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
 }
 
@@ -598,7 +610,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instr* instr) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned unsigned halfword read at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned unsigned halfword read at 0x%08x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
   return 0;
 }
@@ -609,7 +621,7 @@ int16_t Simulator::ReadH(int32_t addr, Instr* instr) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned signed halfword read at %x\n", addr);
+  PrintF("Unaligned signed halfword read at 0x%08x\n", addr);
   UNIMPLEMENTED();
   return 0;
 }
@@ -621,7 +633,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instr* instr) {
     *ptr = value;
     return;
   }
-  PrintF("Unaligned unsigned halfword write at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned unsigned halfword write at 0x%08x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
 }
 
@@ -632,7 +644,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instr* instr) {
     *ptr = value;
     return;
   }
-  PrintF("Unaligned halfword write at %x, pc=%p\n", addr, instr);
+  PrintF("Unaligned halfword write at 0x%08x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
 }
 
@@ -671,7 +683,7 @@ uintptr_t Simulator::StackLimit() const {
 
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instr* instr, const char* format) {
-  PrintF("Simulator found unsupported instruction:\n 0x%x: %s\n",
+  PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
          instr, format);
   UNIMPLEMENTED();
 }
@@ -1726,7 +1738,8 @@ void Simulator::DecodeUnconditional(Instr* instr) {
     uint16_t halfword = ReadH(addr, instr);
     set_register(rd, halfword);
   } else {
-    UNIMPLEMENTED();
+    Debugger dbg(this);
+    dbg.Stop(instr);
   }
 }
 
@@ -1741,7 +1754,7 @@ void Simulator::InstructionDecode(Instr* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%x  %s\n", instr, buffer.start());
+    PrintF("  0x%08x  %s\n", instr, buffer.start());
   }
   if (instr->ConditionField() == special_condition) {
     DecodeUnconditional(instr);

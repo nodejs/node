@@ -197,7 +197,7 @@ class Serializer: public ObjectVisitor {
 
   int flags_end_;  // The position right after the flags.
 
-  // An array of per-space SimulatedHeapSpacees used as memory allocators.
+  // An array of per-space SimulatedHeapSpaces used as memory allocators.
   SimulatedHeapSpace* allocator_[LAST_SPACE+1];
   // A list of global handles at serialization time.
   List<Object**> global_handles_;

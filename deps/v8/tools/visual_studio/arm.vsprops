@@ -2,11 +2,13 @@
 <VisualStudioPropertySheet
 	ProjectType="Visual C++"
 	Version="8.00"
+	OutputDirectory="$(SolutionDir)$(ConfigurationName)Arm"
+	IntermediateDirectory="$(SolutionDir)$(ConfigurationName)Arm\obj\$(ProjectName)"
 	Name="arm"
 	>
 	<Tool
 		Name="VCCLCompilerTool"
-		PreprocessorDefinitions="V8_TARGET_ARCH_ARM"
+		PreprocessorDefinitions="_USE_32BIT_TIME_T;V8_TARGET_ARCH_ARM;V8_NATIVE_REGEXP"
 		DisableSpecificWarnings="4996"
 	/>
 </VisualStudioPropertySheet>

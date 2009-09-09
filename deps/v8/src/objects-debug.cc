@@ -769,11 +769,14 @@ void JSRegExp::JSRegExpVerify() {
 
       FixedArray* arr = FixedArray::cast(data());
       Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
-      ASSERT(ascii_data->IsTheHole()
-          || (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
+      // TheHole : Not compiled yet.
+      // JSObject: Compilation error.
+      // Code/ByteArray: Compiled code.
+      ASSERT(ascii_data->IsTheHole() || ascii_data->IsJSObject() ||
+          (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      ASSERT(uc16_data->IsTheHole()
-          || (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
+      ASSERT(uc16_data->IsTheHole() || ascii_data->IsJSObject() ||
+          (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
       ASSERT(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
       ASSERT(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());
       break;

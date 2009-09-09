@@ -404,7 +404,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ push(eax);
   __ push(ecx);
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
 
   // Check whether the elements is a pixel array.
   // eax: value
@@ -667,7 +667,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ push(ebx);
 
   // Call the entry.
-  CEntryStub stub;
+  CEntryStub stub(1);
   __ mov(eax, Immediate(2));
   __ mov(ebx, Immediate(f));
   __ CallStub(&stub);
@@ -799,7 +799,7 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -927,7 +927,7 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -967,7 +967,7 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Perform tail call to the entry.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 
@@ -987,7 +987,7 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ebx);
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 
@@ -1010,7 +1010,7 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ecx);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 
@@ -1032,7 +1032,7 @@ void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 #undef __

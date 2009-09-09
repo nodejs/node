@@ -56,9 +56,9 @@ SOURCES = {
   ],
   'arch:arm': [
     'arm/assembler-arm.cc', 'arm/builtins-arm.cc', 'arm/cfg-arm.cc',
-    'arm/codegen-arm.cc', 'arm/cpu-arm.cc', 'arm/disasm-arm.cc',
-    'arm/debug-arm.cc', 'arm/frames-arm.cc', 'arm/ic-arm.cc',
-    'arm/jump-target-arm.cc', 'arm/macro-assembler-arm.cc',
+    'arm/codegen-arm.cc', 'arm/constants-arm.cc', 'arm/cpu-arm.cc',
+    'arm/disasm-arm.cc', 'arm/debug-arm.cc', 'arm/frames-arm.cc',
+    'arm/ic-arm.cc', 'arm/jump-target-arm.cc', 'arm/macro-assembler-arm.cc',
     'arm/regexp-macro-assembler-arm.cc',
     'arm/register-allocator-arm.cc', 'arm/stub-cache-arm.cc',
     'arm/virtual-frame-arm.cc'

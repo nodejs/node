@@ -130,6 +130,9 @@ class MarkCompactCollector: public AllStatic {
   // Global flag indicating whether spaces were compacted on the last GC.
   static bool compacting_collection_;
 
+  // Global flag indicating whether spaces will be compacted on the next GC.
+  static bool compact_on_next_gc_;
+
   // The number of objects left marked at the end of the last completed full
   // GC (expected to be zero).
   static int previous_marked_count_;

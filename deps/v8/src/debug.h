@@ -119,6 +119,8 @@ class BreakLocationIterator {
     return reloc_iterator_original_->rinfo()->rmode();
   }
 
+  bool IsDebuggerStatement();
+
  protected:
   bool RinfoDone() const;
   void RinfoNext();
@@ -128,6 +130,7 @@ class BreakLocationIterator {
   int position_;
   int statement_position_;
   Handle<DebugInfo> debug_info_;
+  Handle<Code> debug_break_stub_;
   RelocIterator* reloc_iterator_;
   RelocIterator* reloc_iterator_original_;
 
@@ -279,6 +282,9 @@ class Debug {
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
   static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
 
+  static bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
+  static Address step_out_fp() { return thread_local_.step_out_fp_; }
+
   static EnterDebugger* debugger_entry() {
     return thread_local_.debugger_entry_;
   }
@@ -329,10 +335,8 @@ class Debug {
     return &registers_[r];
   }
 
-  // Address of the debug break return entry code.
-  static Code* debug_break_return_entry() { return debug_break_return_entry_; }
-
-  // Support for getting the address of the debug break on return code.
+  // Access to the debug break on return code.
+  static Code* debug_break_return() { return debug_break_return_; }
   static Code** debug_break_return_address() {
     return &debug_break_return_;
   }
@@ -379,7 +383,6 @@ class Debug {
   static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateConstructCallDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateReturnDebugBreakEntry(MacroAssembler* masm);
   static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
 
   // Called from stub-cache.cc.
@@ -390,6 +393,8 @@ class Debug {
   static void ClearOneShot();
   static void ActivateStepIn(StackFrame* frame);
   static void ClearStepIn();
+  static void ActivateStepOut(StackFrame* frame);
+  static void ClearStepOut();
   static void ClearStepNext();
   // Returns whether the compile succeeded.
   static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
@@ -442,6 +447,10 @@ class Debug {
     // Frame pointer for frame from which step in was performed.
     Address step_into_fp_;
 
+    // Frame pointer for the frame where debugger should be called when current
+    // step out action is completed.
+    Address step_out_fp_;
+
     // Storage location for jump when exiting debug break calls.
     Address after_break_target_;
 
@@ -456,9 +465,6 @@ class Debug {
   static JSCallerSavedBuffer registers_;
   static ThreadLocal thread_local_;
   static void ThreadInit();
-
-  // Code object for debug break return entry code.
-  static Code* debug_break_return_entry_;
 
   // Code to call for handling debug break on return.
   static Code* debug_break_return_;

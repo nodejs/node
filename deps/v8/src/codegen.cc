@@ -517,7 +517,10 @@ const char* RuntimeStub::GetName() {
 
 
 void RuntimeStub::Generate(MacroAssembler* masm) {
-  masm->TailCallRuntime(ExternalReference(id_), num_arguments_);
+  Runtime::Function* f = Runtime::FunctionForId(id_);
+  masm->TailCallRuntime(ExternalReference(f),
+                        num_arguments_,
+                        f->result_size);
 }
 
 

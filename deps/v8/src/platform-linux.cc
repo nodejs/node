@@ -56,6 +56,8 @@
 #include "v8.h"
 
 #include "platform.h"
+#include "top.h"
+#include "v8threads.h"
 
 
 namespace v8 {
@@ -145,7 +147,9 @@ void* OS::Allocate(const size_t requested,
 
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
-  munmap(address, size);
+  int result = munmap(address, size);
+  USE(result);
+  ASSERT(result == 0);
 }
 
 
@@ -360,7 +364,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -580,6 +584,7 @@ Semaphore* OS::CreateSemaphore(int count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
+static pthread_t vm_thread_ = 0;
 
 
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
@@ -606,6 +611,30 @@ typedef struct ucontext {
 enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 
 #endif
+
+
+// A function that determines if a signal handler is called in the context
+// of a VM thread.
+//
+// The problem is that SIGPROF signal can be delivered to an arbitrary thread
+// (see http://code.google.com/p/google-perftools/issues/detail?id=106#c2)
+// So, if the signal is being handled in the context of a non-VM thread,
+// it means that the VM thread is running, and trying to sample its stack can
+// cause a crash.
+static inline bool IsVmThread() {
+  // In the case of a single VM thread, this check is enough.
+  if (pthread_equal(pthread_self(), vm_thread_)) return true;
+  // If there are multiple threads that use VM, they must have a thread id
+  // stored in TLS. To verify that the thread is really executing VM,
+  // we check Top's data. Having that ThreadManager::RestoreThread first
+  // restores ThreadLocalTop from TLS, and only then erases the TLS value,
+  // reading Top::thread_id() should not be affected by races.
+  if (ThreadManager::HasId() && !ThreadManager::IsArchived() &&
+      ThreadManager::CurrentId() == Top::thread_id()) {
+    return true;
+  }
+  return false;
+}
 
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
@@ -640,7 +669,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     sample.fp = mcontext.arm_fp;
 #endif
 #endif
-    active_sampler_->SampleStack(&sample);
+    if (IsVmThread())
+      active_sampler_->SampleStack(&sample);
   }
 
   // We always sample the VM state.
@@ -678,6 +708,8 @@ void Sampler::Start() {
   // platforms.
   if (active_sampler_ != NULL) return;
 
+  vm_thread_ = pthread_self();
+
   // Request profiling signals.
   struct sigaction sa;
   sa.sa_sigaction = ProfilerSignalHandler;
@@ -712,6 +744,7 @@ void Sampler::Stop() {
   active_sampler_ = NULL;
   active_ = false;
 }
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

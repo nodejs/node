@@ -124,6 +124,10 @@ ecma/Date/15.9.5.28-1: PASS || ($ARM && FAIL)
 ecma/Array/15.4.4.5-3: PASS || ($ARM && FAIL)
 ecma/Date/15.9.5.22-2: PASS || ($ARM && FAIL)
 
+# Flaky test that fails due to what appears to be a bug in the test.
+# Occurs depending on current time
+ecma/Date/15.9.5.8: PASS || FAIL
+
 # Severely brain-damaged test. Access to local variables must not
 # be more than 2.5 times faster than access to global variables? WTF?
 js1_5/Regress/regress-169559: PASS || FAIL

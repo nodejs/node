@@ -258,6 +258,10 @@ V8_EXTRA_FLAGS = {
     'all': {
       'WARNINGFLAGS': ['/WX', '/wd4355', '/wd4800']
     },
+    'library:shared': {
+      'CPPDEFINES': ['BUILDING_V8_SHARED'],
+      'LIBS': ['winmm', 'ws2_32']
+    },
     'arch:ia32': {
       'WARNINGFLAGS': ['/W3']
     },

@@ -90,8 +90,9 @@ assertEquals(F.prototype, GetPrototypeOf(F));
 // in GetPrototypeOf and go to a monomorphic IC load instead.
 assertEquals(87, GetPrototypeOf({prototype:87}));
 
-// Check the prototype is enumerable as specified in ECMA262, 15.3.5.2
+// Check the prototype is not enumerable, for compatibility with
+// safari.  This is deliberately incompatible with ECMA262, 15.3.5.2.
 var foo = new Function("return x");
 var result  = ""
 for (var n in foo) result += n;
-assertEquals(result, "prototype");
+assertEquals(result, "");

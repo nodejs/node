@@ -427,7 +427,7 @@ void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   thread_local.EnterContext(env);
 
-  thread_local.SaveContext(i::GlobalHandles::Create(i::Top::context()));
+  thread_local.SaveContext(i::Top::context());
   i::Top::set_context(*env);
 }
 
@@ -441,9 +441,8 @@ void Context::Exit() {
   }
 
   // Content of 'last_context' could be NULL.
-  i::Handle<i::Object> last_context = thread_local.RestoreContext();
-  i::Top::set_context(static_cast<i::Context*>(*last_context));
-  i::GlobalHandles::Destroy(last_context.location());
+  i::Context* last_context = thread_local.RestoreContext();
+  i::Top::set_context(last_context);
 }
 
 
@@ -3700,19 +3699,21 @@ char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
 }
 
 
-void HandleScopeImplementer::Iterate(
-    ObjectVisitor* v,
-    List<i::Object**>* blocks,
-    v8::ImplementationUtilities::HandleScopeData* handle_data) {
+void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   // Iterate over all handles in the blocks except for the last.
-  for (int i = blocks->length() - 2; i >= 0; --i) {
-    Object** block = blocks->at(i);
+  for (int i = Blocks()->length() - 2; i >= 0; --i) {
+    Object** block = Blocks()->at(i);
     v->VisitPointers(block, &block[kHandleBlockSize]);
   }
 
   // Iterate over live handles in the last block (if any).
-  if (!blocks->is_empty()) {
-    v->VisitPointers(blocks->last(), handle_data->next);
+  if (!Blocks()->is_empty()) {
+    v->VisitPointers(Blocks()->last(), handle_scope_data_.next);
+  }
+
+  if (!saved_contexts_.is_empty()) {
+    Object** start = reinterpret_cast<Object**>(&saved_contexts_.first());
+    v->VisitPointers(start, start + saved_contexts_.length());
   }
 }
 
@@ -3720,18 +3721,15 @@ void HandleScopeImplementer::Iterate(
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
       v8::ImplementationUtilities::CurrentHandleScope();
-  Iterate(v, thread_local.Blocks(), current);
+  thread_local.handle_scope_data_ = *current;
+  thread_local.IterateThis(v);
 }
 
 
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
   HandleScopeImplementer* thread_local =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  List<internal::Object**>* blocks_of_archived_thread = thread_local->Blocks();
-  v8::ImplementationUtilities::HandleScopeData* handle_data_of_archived_thread =
-      &thread_local->handle_scope_data_;
-  Iterate(v, blocks_of_archived_thread, handle_data_of_archived_thread);
-
+  thread_local->IterateThis(v);
   return storage + ArchiveSpacePerThread();
 }
 

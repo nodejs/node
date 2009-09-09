@@ -60,8 +60,11 @@ debug-setbreakpoint: CRASH || FAIL || PASS
 debug-step-stub-callfunction: SKIP
 debug-stepin-accessor: CRASH || FAIL
 debug-stepin-builtin: CRASH || FAIL
+debug-stepin-call-function-stub: CRASH || FAIL
 debug-stepin-constructor: CRASH, FAIL
 debug-stepin-function-call: CRASH || FAIL
+debug-stepout-recursive-function: CRASH || FAIL
+debug-stepout-to-builtin: CRASH || FAIL
 debug-step: SKIP
 debug-breakpoints: PASS || FAIL
 debug-handle: CRASH || FAIL || PASS

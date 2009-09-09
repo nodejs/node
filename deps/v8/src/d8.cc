@@ -159,8 +159,7 @@ Handle<Value> Shell::Write(const Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    const char* cstr = ToCString(str);
-    printf("%s", cstr);
+    fwrite(*str, sizeof(**str), str.length(), stdout);
   }
   return Undefined();
 }
@@ -180,15 +179,15 @@ Handle<Value> Shell::Read(const Arguments& args) {
 
 
 Handle<Value> Shell::ReadLine(const Arguments& args) {
-  char line_buf[256];
-  if (fgets(line_buf, sizeof(line_buf), stdin) == NULL) {
-    return ThrowException(String::New("Error reading line"));
+  i::SmartPointer<char> line(i::ReadLine(""));
+  if (*line == NULL) {
+    return Null();
   }
-  int len = strlen(line_buf);
-  if (line_buf[len - 1] == '\n') {
+  size_t len = strlen(*line);
+  if (len > 0 && line[len - 1] == '\n') {
     --len;
   }
-  return String::New(line_buf, len);
+  return String::New(*line, len);
 }
 
 

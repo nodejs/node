@@ -236,7 +236,7 @@ void KeyedLoadIC::Generate(MacroAssembler* masm,
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -373,7 +373,7 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   __ push(rcx);  // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 
@@ -394,7 +394,7 @@ void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 
@@ -460,7 +460,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ push(rax);
   __ push(rcx);
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
 
 
   // Extra capacity case: Check if there is extra capacity to
@@ -532,7 +532,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ push(rbx);
 
   // Call the entry.
-  CEntryStub stub;
+  CEntryStub stub(1);
   __ movq(rax, Immediate(2));
   __ movq(rbx, f);
   __ CallStub(&stub);
@@ -763,7 +763,7 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -940,7 +940,7 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
@@ -959,7 +959,7 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Perform tail call to the entry.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {

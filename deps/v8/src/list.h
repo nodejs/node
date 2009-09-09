@@ -62,9 +62,8 @@ class List {
     return data_[i];
   }
   inline T& at(int i) const  { return operator[](i); }
-  inline T& last() const {
-    return at(length_ - 1);
-  }
+  inline T& last() const { return at(length_ - 1); }
+  inline T& first() const { return at(0); }
 
   INLINE(bool is_empty() const) { return length_ == 0; }
   INLINE(int length() const) { return length_; }

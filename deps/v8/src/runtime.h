@@ -43,269 +43,269 @@ namespace internal {
 // this problem. Please avoid large recursive macros whenever possible.
 #define RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   /* Property access */ \
-  F(GetProperty, 2) \
-  F(KeyedGetProperty, 2) \
-  F(DeleteProperty, 2) \
-  F(HasLocalProperty, 2) \
-  F(HasProperty, 2) \
-  F(HasElement, 2) \
-  F(IsPropertyEnumerable, 2) \
-  F(GetPropertyNames, 1) \
-  F(GetPropertyNamesFast, 1) \
-  F(GetArgumentsProperty, 1) \
-  F(ToFastProperties, 1) \
-  F(ToSlowProperties, 1) \
+  F(GetProperty, 2, 1) \
+  F(KeyedGetProperty, 2, 1) \
+  F(DeleteProperty, 2, 1) \
+  F(HasLocalProperty, 2, 1) \
+  F(HasProperty, 2, 1) \
+  F(HasElement, 2, 1) \
+  F(IsPropertyEnumerable, 2, 1) \
+  F(GetPropertyNames, 1, 1) \
+  F(GetPropertyNamesFast, 1, 1) \
+  F(GetArgumentsProperty, 1, 1) \
+  F(ToFastProperties, 1, 1) \
+  F(ToSlowProperties, 1, 1) \
   \
-  F(IsInPrototypeChain, 2) \
-  F(SetHiddenPrototype, 2) \
+  F(IsInPrototypeChain, 2, 1) \
+  F(SetHiddenPrototype, 2, 1) \
   \
-  F(IsConstructCall, 0) \
+  F(IsConstructCall, 0, 1) \
   \
   /* Utilities */ \
-  F(GetCalledFunction, 0) \
-  F(GetFunctionDelegate, 1) \
-  F(GetConstructorDelegate, 1) \
-  F(NewArguments, 1) \
-  F(NewArgumentsFast, 3) \
-  F(LazyCompile, 1) \
-  F(SetNewFunctionAttributes, 1) \
+  F(GetCalledFunction, 0, 1) \
+  F(GetFunctionDelegate, 1, 1) \
+  F(GetConstructorDelegate, 1, 1) \
+  F(NewArguments, 1, 1) \
+  F(NewArgumentsFast, 3, 1) \
+  F(LazyCompile, 1, 1) \
+  F(SetNewFunctionAttributes, 1, 1) \
   \
   /* Array join support */ \
-  F(PushIfAbsent, 2) \
-  F(ArrayConcat, 1) \
+  F(PushIfAbsent, 2, 1) \
+  F(ArrayConcat, 1, 1) \
   \
   /* Conversions */ \
-  F(ToBool, 1) \
-  F(Typeof, 1) \
+  F(ToBool, 1, 1) \
+  F(Typeof, 1, 1) \
   \
-  F(StringToNumber, 1) \
-  F(StringFromCharCodeArray, 1) \
-  F(StringParseInt, 2) \
-  F(StringParseFloat, 1) \
-  F(StringToLowerCase, 1) \
-  F(StringToUpperCase, 1) \
-  F(CharFromCode, 1) \
-  F(URIEscape, 1) \
-  F(URIUnescape, 1) \
+  F(StringToNumber, 1, 1) \
+  F(StringFromCharCodeArray, 1, 1) \
+  F(StringParseInt, 2, 1) \
+  F(StringParseFloat, 1, 1) \
+  F(StringToLowerCase, 1, 1) \
+  F(StringToUpperCase, 1, 1) \
+  F(CharFromCode, 1, 1) \
+  F(URIEscape, 1, 1) \
+  F(URIUnescape, 1, 1) \
   \
-  F(NumberToString, 1) \
-  F(NumberToInteger, 1) \
-  F(NumberToJSUint32, 1) \
-  F(NumberToJSInt32, 1) \
-  F(NumberToSmi, 1) \
+  F(NumberToString, 1, 1) \
+  F(NumberToInteger, 1, 1) \
+  F(NumberToJSUint32, 1, 1) \
+  F(NumberToJSInt32, 1, 1) \
+  F(NumberToSmi, 1, 1) \
   \
   /* Arithmetic operations */ \
-  F(NumberAdd, 2) \
-  F(NumberSub, 2) \
-  F(NumberMul, 2) \
-  F(NumberDiv, 2) \
-  F(NumberMod, 2) \
-  F(NumberUnaryMinus, 1) \
+  F(NumberAdd, 2, 1) \
+  F(NumberSub, 2, 1) \
+  F(NumberMul, 2, 1) \
+  F(NumberDiv, 2, 1) \
+  F(NumberMod, 2, 1) \
+  F(NumberUnaryMinus, 1, 1) \
   \
-  F(StringAdd, 2) \
-  F(StringBuilderConcat, 2) \
+  F(StringAdd, 2, 1) \
+  F(StringBuilderConcat, 2, 1) \
   \
   /* Bit operations */ \
-  F(NumberOr, 2) \
-  F(NumberAnd, 2) \
-  F(NumberXor, 2) \
-  F(NumberNot, 1) \
+  F(NumberOr, 2, 1) \
+  F(NumberAnd, 2, 1) \
+  F(NumberXor, 2, 1) \
+  F(NumberNot, 1, 1) \
   \
-  F(NumberShl, 2) \
-  F(NumberShr, 2) \
-  F(NumberSar, 2) \
+  F(NumberShl, 2, 1) \
+  F(NumberShr, 2, 1) \
+  F(NumberSar, 2, 1) \
   \
   /* Comparisons */ \
-  F(NumberEquals, 2) \
-  F(StringEquals, 2) \
+  F(NumberEquals, 2, 1) \
+  F(StringEquals, 2, 1) \
   \
-  F(NumberCompare, 3) \
-  F(SmiLexicographicCompare, 2) \
-  F(StringCompare, 2) \
+  F(NumberCompare, 3, 1) \
+  F(SmiLexicographicCompare, 2, 1) \
+  F(StringCompare, 2, 1) \
   \
   /* Math */ \
-  F(Math_abs, 1) \
-  F(Math_acos, 1) \
-  F(Math_asin, 1) \
-  F(Math_atan, 1) \
-  F(Math_atan2, 2) \
-  F(Math_ceil, 1) \
-  F(Math_cos, 1) \
-  F(Math_exp, 1) \
-  F(Math_floor, 1) \
-  F(Math_log, 1) \
-  F(Math_pow, 2) \
-  F(Math_round, 1) \
-  F(Math_sin, 1) \
-  F(Math_sqrt, 1) \
-  F(Math_tan, 1) \
+  F(Math_abs, 1, 1) \
+  F(Math_acos, 1, 1) \
+  F(Math_asin, 1, 1) \
+  F(Math_atan, 1, 1) \
+  F(Math_atan2, 2, 1) \
+  F(Math_ceil, 1, 1) \
+  F(Math_cos, 1, 1) \
+  F(Math_exp, 1, 1) \
+  F(Math_floor, 1, 1) \
+  F(Math_log, 1, 1) \
+  F(Math_pow, 2, 1) \
+  F(Math_round, 1, 1) \
+  F(Math_sin, 1, 1) \
+  F(Math_sqrt, 1, 1) \
+  F(Math_tan, 1, 1) \
   \
   /* Regular expressions */ \
-  F(RegExpCompile, 3) \
-  F(RegExpExec, 4) \
+  F(RegExpCompile, 3, 1) \
+  F(RegExpExec, 4, 1) \
   \
   /* Strings */ \
-  F(StringCharCodeAt, 2) \
-  F(StringIndexOf, 3) \
-  F(StringLastIndexOf, 3) \
-  F(StringLocaleCompare, 2) \
-  F(StringSlice, 3) \
-  F(StringReplaceRegExpWithString, 4) \
-  F(StringMatch, 3) \
+  F(StringCharCodeAt, 2, 1) \
+  F(StringIndexOf, 3, 1) \
+  F(StringLastIndexOf, 3, 1) \
+  F(StringLocaleCompare, 2, 1) \
+  F(StringSlice, 3, 1) \
+  F(StringReplaceRegExpWithString, 4, 1) \
+  F(StringMatch, 3, 1) \
   \
   /* Numbers */ \
-  F(NumberToRadixString, 2) \
-  F(NumberToFixed, 2) \
-  F(NumberToExponential, 2) \
-  F(NumberToPrecision, 2)
+  F(NumberToRadixString, 2, 1) \
+  F(NumberToFixed, 2, 1) \
+  F(NumberToExponential, 2, 1) \
+  F(NumberToPrecision, 2, 1)
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   /* Reflection */ \
-  F(FunctionSetInstanceClassName, 2) \
-  F(FunctionSetLength, 2) \
-  F(FunctionSetPrototype, 2) \
-  F(FunctionGetName, 1) \
-  F(FunctionSetName, 2) \
-  F(FunctionGetSourceCode, 1) \
-  F(FunctionGetScript, 1) \
-  F(FunctionGetScriptSourcePosition, 1) \
-  F(FunctionGetPositionForOffset, 2) \
-  F(FunctionIsAPIFunction, 1) \
-  F(GetScript, 1) \
-  F(CollectStackTrace, 2) \
+  F(FunctionSetInstanceClassName, 2, 1) \
+  F(FunctionSetLength, 2, 1) \
+  F(FunctionSetPrototype, 2, 1) \
+  F(FunctionGetName, 1, 1) \
+  F(FunctionSetName, 2, 1) \
+  F(FunctionGetSourceCode, 1, 1) \
+  F(FunctionGetScript, 1, 1) \
+  F(FunctionGetScriptSourcePosition, 1, 1) \
+  F(FunctionGetPositionForOffset, 2, 1) \
+  F(FunctionIsAPIFunction, 1, 1) \
+  F(GetScript, 1, 1) \
+  F(CollectStackTrace, 2, 1) \
   \
-  F(ClassOf, 1) \
-  F(SetCode, 2) \
+  F(ClassOf, 1, 1) \
+  F(SetCode, 2, 1) \
   \
-  F(CreateApiFunction, 1) \
-  F(IsTemplate, 1) \
-  F(GetTemplateField, 2) \
-  F(DisableAccessChecks, 1) \
-  F(EnableAccessChecks, 1) \
+  F(CreateApiFunction, 1, 1) \
+  F(IsTemplate, 1, 1) \
+  F(GetTemplateField, 2, 1) \
+  F(DisableAccessChecks, 1, 1) \
+  F(EnableAccessChecks, 1, 1) \
   \
   /* Dates */ \
-  F(DateCurrentTime, 0) \
-  F(DateParseString, 2) \
-  F(DateLocalTimezone, 1) \
-  F(DateLocalTimeOffset, 0) \
-  F(DateDaylightSavingsOffset, 1) \
+  F(DateCurrentTime, 0, 1) \
+  F(DateParseString, 2, 1) \
+  F(DateLocalTimezone, 1, 1) \
+  F(DateLocalTimeOffset, 0, 1) \
+  F(DateDaylightSavingsOffset, 1, 1) \
   \
   /* Numbers */ \
-  F(NumberIsFinite, 1) \
+  F(NumberIsFinite, 1, 1) \
   \
   /* Globals */ \
-  F(CompileString, 2) \
-  F(GlobalPrint, 1) \
+  F(CompileString, 2, 1) \
+  F(GlobalPrint, 1, 1) \
   \
   /* Eval */ \
-  F(GlobalReceiver, 1) \
-  F(ResolvePossiblyDirectEval, 2) \
+  F(GlobalReceiver, 1, 1) \
+  F(ResolvePossiblyDirectEval, 2, 1) \
   \
-  F(SetProperty, -1 /* 3 or 4 */) \
-  F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */) \
+  F(SetProperty, -1 /* 3 or 4 */, 1) \
+  F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
   \
   /* Arrays */ \
-  F(RemoveArrayHoles, 2) \
-  F(GetArrayKeys, 2) \
-  F(MoveArrayContents, 2) \
-  F(EstimateNumberOfElements, 1) \
+  F(RemoveArrayHoles, 2, 1) \
+  F(GetArrayKeys, 2, 1) \
+  F(MoveArrayContents, 2, 1) \
+  F(EstimateNumberOfElements, 1, 1) \
   \
   /* Getters and Setters */ \
-  F(DefineAccessor, -1 /* 4 or 5 */) \
-  F(LookupAccessor, 3) \
+  F(DefineAccessor, -1 /* 4 or 5 */, 1) \
+  F(LookupAccessor, 3, 1) \
   \
   /* Literals */ \
-  F(MaterializeRegExpLiteral, 4)\
-  F(CreateArrayLiteralBoilerplate, 3) \
-  F(CreateObjectLiteralBoilerplate, 3) \
-  F(CloneLiteralBoilerplate, 1) \
-  F(CloneShallowLiteralBoilerplate, 1) \
+  F(MaterializeRegExpLiteral, 4, 1)\
+  F(CreateArrayLiteralBoilerplate, 3, 1) \
+  F(CreateObjectLiteralBoilerplate, 3, 1) \
+  F(CloneLiteralBoilerplate, 1, 1) \
+  F(CloneShallowLiteralBoilerplate, 1, 1) \
   \
   /* Catch context extension objects */ \
-  F(CreateCatchExtensionObject, 2) \
+  F(CreateCatchExtensionObject, 2, 1) \
   \
   /* Statements */ \
-  F(NewClosure, 2) \
-  F(NewObject, 1) \
-  F(Throw, 1) \
-  F(ReThrow, 1) \
-  F(ThrowReferenceError, 1) \
-  F(StackGuard, 1) \
+  F(NewClosure, 2, 1) \
+  F(NewObject, 1, 1) \
+  F(Throw, 1, 1) \
+  F(ReThrow, 1, 1) \
+  F(ThrowReferenceError, 1, 1) \
+  F(StackGuard, 1, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 1) \
-  F(PushContext, 1) \
-  F(PushCatchContext, 1) \
-  F(LookupContext, 2) \
-  F(LoadContextSlot, 2) \
-  F(LoadContextSlotNoReferenceError, 2) \
-  F(StoreContextSlot, 3) \
+  F(NewContext, 1, 1) \
+  F(PushContext, 1, 1) \
+  F(PushCatchContext, 1, 1) \
+  F(LookupContext, 2, 1) \
+  F(LoadContextSlot, 2, 2) \
+  F(LoadContextSlotNoReferenceError, 2, 2) \
+  F(StoreContextSlot, 3, 1) \
   \
   /* Declarations and initialization */ \
-  F(DeclareGlobals, 3) \
-  F(DeclareContextSlot, 4) \
-  F(InitializeVarGlobal, -1 /* 1 or 2 */) \
-  F(InitializeConstGlobal, 2) \
-  F(InitializeConstContextSlot, 3) \
-  F(OptimizeObjectForAddingMultipleProperties, 2) \
-  F(TransformToFastProperties, 1) \
+  F(DeclareGlobals, 3, 1) \
+  F(DeclareContextSlot, 4, 1) \
+  F(InitializeVarGlobal, -1 /* 1 or 2 */, 1) \
+  F(InitializeConstGlobal, 2, 1) \
+  F(InitializeConstContextSlot, 3, 1) \
+  F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
+  F(TransformToFastProperties, 1, 1) \
   \
   /* Debugging */ \
-  F(DebugPrint, 1) \
-  F(DebugTrace, 0) \
-  F(TraceEnter, 0) \
-  F(TraceExit, 1) \
-  F(Abort, 2) \
+  F(DebugPrint, 1, 1) \
+  F(DebugTrace, 0, 1) \
+  F(TraceEnter, 0, 1) \
+  F(TraceExit, 1, 1) \
+  F(Abort, 2, 1) \
   /* Logging */ \
-  F(Log, 2) \
+  F(Log, 2, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
-  F(IS_VAR, 1)
+  F(IS_VAR, 1, 1)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
   /* Debugger support*/ \
-  F(DebugBreak, 0) \
-  F(SetDebugEventListener, 2) \
-  F(Break, 0) \
-  F(DebugGetPropertyDetails, 2) \
-  F(DebugGetProperty, 2) \
-  F(DebugLocalPropertyNames, 1) \
-  F(DebugLocalElementNames, 1) \
-  F(DebugPropertyTypeFromDetails, 1) \
-  F(DebugPropertyAttributesFromDetails, 1) \
-  F(DebugPropertyIndexFromDetails, 1) \
-  F(DebugInterceptorInfo, 1) \
-  F(DebugNamedInterceptorPropertyNames, 1) \
-  F(DebugIndexedInterceptorElementNames, 1) \
-  F(DebugNamedInterceptorPropertyValue, 2) \
-  F(DebugIndexedInterceptorElementValue, 2) \
-  F(CheckExecutionState, 1) \
-  F(GetFrameCount, 1) \
-  F(GetFrameDetails, 2) \
-  F(GetScopeCount, 2) \
-  F(GetScopeDetails, 3) \
-  F(DebugPrintScopes, 0) \
-  F(GetCFrames, 1) \
-  F(GetThreadCount, 1) \
-  F(GetThreadDetails, 2) \
-  F(GetBreakLocations, 1) \
-  F(SetFunctionBreakPoint, 3) \
-  F(SetScriptBreakPoint, 3) \
-  F(ClearBreakPoint, 1) \
-  F(ChangeBreakOnException, 2) \
-  F(PrepareStep, 3) \
-  F(ClearStepping, 0) \
-  F(DebugEvaluate, 4) \
-  F(DebugEvaluateGlobal, 3) \
-  F(DebugGetLoadedScripts, 0) \
-  F(DebugReferencedBy, 3) \
-  F(DebugConstructedBy, 2) \
-  F(DebugGetPrototype, 1) \
-  F(SystemBreak, 0) \
-  F(DebugDisassembleFunction, 1) \
-  F(DebugDisassembleConstructor, 1) \
-  F(FunctionGetInferredName, 1)
+  F(DebugBreak, 0, 1) \
+  F(SetDebugEventListener, 2, 1) \
+  F(Break, 0, 1) \
+  F(DebugGetPropertyDetails, 2, 1) \
+  F(DebugGetProperty, 2, 1) \
+  F(DebugLocalPropertyNames, 1, 1) \
+  F(DebugLocalElementNames, 1, 1) \
+  F(DebugPropertyTypeFromDetails, 1, 1) \
+  F(DebugPropertyAttributesFromDetails, 1, 1) \
+  F(DebugPropertyIndexFromDetails, 1, 1) \
+  F(DebugInterceptorInfo, 1, 1) \
+  F(DebugNamedInterceptorPropertyNames, 1, 1) \
+  F(DebugIndexedInterceptorElementNames, 1, 1) \
+  F(DebugNamedInterceptorPropertyValue, 2, 1) \
+  F(DebugIndexedInterceptorElementValue, 2, 1) \
+  F(CheckExecutionState, 1, 1) \
+  F(GetFrameCount, 1, 1) \
+  F(GetFrameDetails, 2, 1) \
+  F(GetScopeCount, 2, 1) \
+  F(GetScopeDetails, 3, 1) \
+  F(DebugPrintScopes, 0, 1) \
+  F(GetCFrames, 1, 1) \
+  F(GetThreadCount, 1, 1) \
+  F(GetThreadDetails, 2, 1) \
+  F(GetBreakLocations, 1, 1) \
+  F(SetFunctionBreakPoint, 3, 1) \
+  F(SetScriptBreakPoint, 3, 1) \
+  F(ClearBreakPoint, 1, 1) \
+  F(ChangeBreakOnException, 2, 1) \
+  F(PrepareStep, 3, 1) \
+  F(ClearStepping, 0, 1) \
+  F(DebugEvaluate, 4, 1) \
+  F(DebugEvaluateGlobal, 3, 1) \
+  F(DebugGetLoadedScripts, 0, 1) \
+  F(DebugReferencedBy, 3, 1) \
+  F(DebugConstructedBy, 2, 1) \
+  F(DebugGetPrototype, 1, 1) \
+  F(SystemBreak, 0, 1) \
+  F(DebugDisassembleFunction, 1, 1) \
+  F(DebugDisassembleConstructor, 1, 1) \
+  F(FunctionGetInferredName, 1, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif
@@ -313,7 +313,7 @@ namespace internal {
 #ifdef DEBUG
 #define RUNTIME_FUNCTION_LIST_DEBUG(F) \
   /* Testing */ \
-  F(ListNatives, 0)
+  F(ListNatives, 0, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUG(F)
 #endif
@@ -336,7 +336,7 @@ namespace internal {
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
-#define F(name, nargs) k##name,
+#define F(name, nargs, ressize) k##name,
     RUNTIME_FUNCTION_LIST(F)
     kNofFunctions
 #undef F
@@ -357,6 +357,9 @@ class Runtime : public AllStatic {
     // arguments.
     int nargs;
     int stub_id;
+    // Size of result, if complex (larger than a single pointer),
+    // otherwise zero.
+    int result_size;
   };
 
   // Get the runtime function with the given function id.

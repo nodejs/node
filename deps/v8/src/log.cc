@@ -890,9 +890,7 @@ void Logger::HeapSampleJSConstructorEvent(const char* constructor,
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
   msg.Append("heap-js-cons-item,%s,%d,%d\n",
-             constructor != NULL ?
-                 (constructor[0] != '\0' ? constructor : "(anonymous)") :
-                 "(no_constructor)",
+             constructor[0] != '\0' ? constructor : "(anonymous)",
              number, bytes);
   msg.WriteToLogFile();
 #endif

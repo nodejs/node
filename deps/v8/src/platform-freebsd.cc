@@ -141,7 +141,9 @@ void* OS::Allocate(const size_t requested,
 
 void OS::Free(void* buf, const size_t length) {
   // TODO(1240712): munmap has a return value which is ignored here.
-  munmap(buf, length);
+  int result = munmap(buf, length);
+  USE(result);
+  ASSERT(result == 0);
 }
 
 
@@ -334,7 +336,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 

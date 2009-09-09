@@ -31,7 +31,7 @@ from os.path import join, dirname, exists
 import platform
 import utils
 
-DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
+CCTEST_DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
 
 
 class CcTestCase(test.TestCase):
@@ -55,7 +55,7 @@ class CcTestCase(test.TestCase):
     serialization_option = '--testing_serialization_file=' + serialization_file
     result = [ self.executable, name, serialization_option ]
     if self.mode == 'debug':
-      result += DEBUG_FLAGS
+      result += CCTEST_DEBUG_FLAGS
     return result
 
   def GetCommand(self):

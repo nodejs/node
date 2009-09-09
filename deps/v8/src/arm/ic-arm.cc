@@ -391,7 +391,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(r0, Operand(2));
   __ mov(r1, Operand(f));
 
-  CEntryStub stub;
+  CEntryStub stub(1);
   __ CallStub(&stub);
 
   // Move result to r1 and leave the internal frame.
@@ -503,7 +503,7 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -543,7 +543,7 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
-  __ TailCallRuntime(f, 2);
+  __ TailCallRuntime(f, 2, 1);
 }
 
 
@@ -599,7 +599,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldm(ia, sp, r0.bit() | r1.bit());
   __ stm(db_w, sp, r0.bit() | r1.bit());
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2, 1);
 
   // Fast case: Do the load.
   __ bind(&fast);
@@ -626,7 +626,7 @@ void KeyedStoreIC::Generate(MacroAssembler* masm,
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 
@@ -684,7 +684,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
   __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -761,7 +761,7 @@ void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Perform tail call to the entry.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 
@@ -798,7 +798,7 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 
   // Perform tail call to the entry.
   __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 
@@ -814,7 +814,7 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3);
+  __ TailCallRuntime(f, 3, 1);
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,64 +25,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MACRO_ASSEMBLER_H_
-#define V8_MACRO_ASSEMBLER_H_
+#include "v8.h"
+
+#include "constants-arm.h"
 
 
-// Helper types to make boolean flag easier to read at call-site.
-enum InvokeFlag {
-  CALL_FUNCTION,
-  JUMP_FUNCTION
+namespace assembler {
+namespace arm {
+
+namespace v8i = v8::internal;
+
+
+// These register names are defined in a way to match the native disassembler
+// formatting. See for example the command "objdump -d <binary file>".
+const char* Registers::names_[kNumRegisters] = {
+  "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+  "r8", "r9", "r10", "fp", "ip", "sp", "lr", "pc",
 };
 
 
-enum CodeLocation {
-  IN_JAVASCRIPT,
-  IN_JS_ENTRY,
-  IN_C_ENTRY
+// List of alias names which can be used when referring to ARM registers.
+const Registers::RegisterAlias Registers::aliases_[] = {
+  {10, "sl"},
+  {11, "r11"},
+  {12, "r12"},
+  {13, "r13"},
+  {14, "r14"},
+  {15, "r15"},
+  {kNoRegister, NULL}
 };
 
 
-enum HandlerType {
-  TRY_CATCH_HANDLER,
-  TRY_FINALLY_HANDLER,
-  JS_ENTRY_HANDLER
-};
+const char* Registers::Name(int reg) {
+  const char* result;
+  if ((0 <= reg) && (reg < kNumRegisters)) {
+    result = names_[reg];
+  } else {
+    result = "noreg";
+  }
+  return result;
+}
 
 
-// Flags used for the AllocateObjectInNewSpace functions.
-enum AllocationFlags {
-  // No special flags.
-  NO_ALLOCATION_FLAGS = 0,
-  // Return the pointer to the allocated already tagged as a heap object.
-  TAG_OBJECT = 1 << 0,
-  // The content of the result register already contains the allocation top in
-  // new space.
-  RESULT_CONTAINS_TOP = 1 << 1
-};
+int Registers::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumRegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
+    }
+  }
+
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].reg != kNoRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].reg;
+    }
+    i++;
+  }
+
+  // No register with the reguested name found.
+  return kNoRegister;
+}
 
 
-#if V8_TARGET_ARCH_IA32
-#include "assembler.h"
-#include "ia32/assembler-ia32.h"
-#include "ia32/assembler-ia32-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "ia32/macro-assembler-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "assembler.h"
-#include "x64/assembler-x64.h"
-#include "x64/assembler-x64-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "x64/macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/constants-arm.h"
-#include "assembler.h"
-#include "arm/assembler-arm.h"
-#include "arm/assembler-arm-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "arm/macro-assembler-arm.h"
-#else
-#error Unsupported target architecture.
-#endif
-
-#endif  // V8_MACRO_ASSEMBLER_H_
+} }  // namespace assembler::arm

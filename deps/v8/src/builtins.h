@@ -90,7 +90,6 @@ namespace internal {
 // Define list of builtins used by the debugger implemented in assembly.
 #define BUILTIN_LIST_DEBUG_A(V)                                \
   V(Return_DebugBreak,          BUILTIN, DEBUG_BREAK)          \
-  V(Return_DebugBreakEntry,     BUILTIN, DEBUG_BREAK)          \
   V(ConstructCall_DebugBreak,   BUILTIN, DEBUG_BREAK)          \
   V(StubNoRegisters_DebugBreak, BUILTIN, DEBUG_BREAK)          \
   V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK)          \

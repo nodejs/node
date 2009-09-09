@@ -352,8 +352,8 @@ class HandleScopeImplementer {
   // contexts have been entered.
   inline Handle<Object> LastEnteredContext();
 
-  inline void SaveContext(Handle<Object> context);
-  inline Handle<Object> RestoreContext();
+  inline void SaveContext(Context* context);
+  inline Context* RestoreContext();
   inline bool HasSavedContexts();
 
   inline List<internal::Object**>* Blocks() { return &blocks; }
@@ -368,14 +368,12 @@ class HandleScopeImplementer {
   // Used as a stack to keep track of entered contexts.
   List<Handle<Object> > entered_contexts_;
   // Used as a stack to keep track of saved contexts.
-  List<Handle<Object> > saved_contexts_;
+  List<Context*> saved_contexts_;
   bool ignore_out_of_memory;
   // This is only used for threading support.
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
-  static void Iterate(ObjectVisitor* v,
-      List<internal::Object**>* blocks,
-      v8::ImplementationUtilities::HandleScopeData* handle_data);
+  void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
@@ -386,12 +384,12 @@ class HandleScopeImplementer {
 static const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
 
-void HandleScopeImplementer::SaveContext(Handle<Object> context) {
+void HandleScopeImplementer::SaveContext(Context* context) {
   saved_contexts_.Add(context);
 }
 
 
-Handle<Object> HandleScopeImplementer::RestoreContext() {
+Context* HandleScopeImplementer::RestoreContext() {
   return saved_contexts_.RemoveLast();
 }
 

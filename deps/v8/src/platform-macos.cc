@@ -141,7 +141,9 @@ void* OS::Allocate(const size_t requested,
 
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
-  munmap(address, size);
+  int result = munmap(address, size);
+  USE(result);
+  ASSERT(result == 0);
 }
 
 
@@ -211,8 +213,17 @@ void OS::LogSharedLibraryAddresses() {
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
     if (header == NULL) continue;
+#if V8_HOST_ARCH_X64
+    uint64_t size;
+    char* code_ptr = getsectdatafromheader_64(
+        reinterpret_cast<const mach_header_64*>(header),
+        SEG_TEXT,
+        SECT_TEXT,
+        &size);
+#else
     unsigned int size;
     char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
+#endif
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
@@ -309,7 +320,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 

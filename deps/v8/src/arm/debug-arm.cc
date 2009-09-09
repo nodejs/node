@@ -179,12 +179,6 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateReturnDebugBreakEntry(MacroAssembler* masm) {
-  // Generate nothing as this handling of debug break return is not done this
-  // way on ARM  - yet.
-}
-
-
 void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
   // Generate nothing as CodeStub CallFunction is not used on ARM.
 }

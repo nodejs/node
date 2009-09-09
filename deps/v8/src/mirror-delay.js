@@ -201,7 +201,8 @@ PropertyAttribute.DontDelete = DONT_DELETE;
 ScopeType = { Global: 0,
               Local: 1,
               With: 2,
-              Closure: 3 };
+              Closure: 3,
+              Catch: 4 };
 
 
 // Mirror hierarchy:

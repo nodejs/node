@@ -54,7 +54,7 @@ function f() {
 
 break_break_point_hit_count = 0;
 f();
-assertEquals(5, break_break_point_hit_count);
+assertEquals(6, break_break_point_hit_count);
 
 // Use an inner function to ensure that the function call is through CodeStub
 // CallFunction see Ia32CodeGenerator::VisitCall and
@@ -67,7 +67,21 @@ function g() {
 
 break_break_point_hit_count = 0;
 g();
-assertEquals(4, break_break_point_hit_count);
+assertEquals(5, break_break_point_hit_count);
+
+
+// Use an inner function to ensure that the function call is through CodeStub
+// CallFunction.
+function testCallInExpreesion() {
+  function h() {}
+  debugger;
+  var x = 's' + h(10, 20);
+};
+
+break_break_point_hit_count = 0;
+testCallInExpreesion();
+assertEquals(5, break_break_point_hit_count);
+
 
 // Get rid of the debug event listener.
 Debug.setListener(null);

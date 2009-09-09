@@ -4503,14 +4503,16 @@ TEST(DebuggerHostDispatch) {
 
 
 TEST(DebuggerAgent) {
-  // Make sure this port is not used by other tests to allow tests to run in
+  // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.
-  const int kPort = 5858;
+  const int kPort1 = 5858;
+  const int kPort2 = 5857;
+  const int kPort3 = 5856;
 
-  // Make a string with the port number.
+  // Make a string with the port2 number.
   const int kPortBufferLen = 6;
-  char port_str[kPortBufferLen];
-  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
+  char port2_str[kPortBufferLen];
+  OS::SNPrintF(i::Vector<char>(port2_str, kPortBufferLen), "%d", kPort2);
 
   bool ok;
 
@@ -4518,15 +4520,15 @@ TEST(DebuggerAgent) {
   i::Socket::Setup();
 
   // Test starting and stopping the agent without any client connection.
-  i::Debugger::StartAgent("test", kPort);
+  i::Debugger::StartAgent("test", kPort1);
   i::Debugger::StopAgent();
 
   // Test starting the agent, connecting a client and shutting down the agent
   // with the client connected.
-  ok = i::Debugger::StartAgent("test", kPort);
+  ok = i::Debugger::StartAgent("test", kPort2);
   CHECK(ok);
   i::Socket* client = i::OS::CreateSocket();
-  ok = client->Connect("localhost", port_str);
+  ok = client->Connect("localhost", port2_str);
   CHECK(ok);
   i::Debugger::StopAgent();
   delete client;
@@ -4534,9 +4536,9 @@ TEST(DebuggerAgent) {
   // Test starting and stopping the agent with the required port already
   // occoupied.
   i::Socket* server = i::OS::CreateSocket();
-  server->Bind(kPort);
+  server->Bind(kPort3);
 
-  i::Debugger::StartAgent("test", kPort);
+  i::Debugger::StartAgent("test", kPort3);
   i::Debugger::StopAgent();
 
   delete server;

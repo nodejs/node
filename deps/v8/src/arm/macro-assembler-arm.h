@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,32 +38,9 @@ namespace internal {
 const Register cp = { 8 };  // JavaScript context pointer
 
 
-// Helper types to make boolean flag easier to read at call-site.
-enum InvokeFlag {
-  CALL_FUNCTION,
-  JUMP_FUNCTION
-};
-
 enum InvokeJSFlags {
   CALL_JS,
   JUMP_JS
-};
-
-enum ExitJSFlag {
-  RETURN,
-  DO_NOT_RETURN
-};
-
-enum CodeLocation {
-  IN_JAVASCRIPT,
-  IN_JS_ENTRY,
-  IN_C_ENTRY
-};
-
-enum HandlerType {
-  TRY_CATCH_HANDLER,
-  TRY_FINALLY_HANDLER,
-  JS_ENTRY_HANDLER
 };
 
 
@@ -190,16 +167,28 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Allocation support
 
-  // Allocate an object in new space. If the new space is exhausted control
-  // continues at the gc_required label. The allocated object is returned in
-  // result. If the flag tag_allocated_object is true the result is tagged as
-  // as a heap object.
+  // Allocate an object in new space. The object_size is specified in words (not
+  // bytes). If the new space is exhausted control continues at the gc_required
+  // label. The allocated object is returned in result. If the flag
+  // tag_allocated_object is true the result is tagged as as a heap object.
   void AllocateObjectInNewSpace(int object_size,
                                 Register result,
                                 Register scratch1,
                                 Register scratch2,
                                 Label* gc_required,
-                                bool tag_allocated_object);
+                                AllocationFlags flags);
+  void AllocateObjectInNewSpace(Register object_size,
+                                Register result,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* gc_required,
+                                AllocationFlags flags);
+
+  // Undo allocation in new space. The object passed and objects allocated after
+  // it will no longer be allocated. The caller must make sure that no pointers
+  // are left to the object(s) no longer allocated as they would be invalid when
+  // allocation is undone.
+  void UndoAllocationInNewSpace(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -220,11 +209,20 @@ class MacroAssembler: public Assembler {
   // It leaves the map in the map register (unless the type_reg and map register
   // are the same register).  It leaves the heap object in the heap_object
   // register unless the heap_object register is the same register as one of the
-  // other // registers.
+  // other registers.
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
                          InstanceType type);
+
+  // Compare instance type in a map.  map contains a valid map object whose
+  // object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.  It
+  // leaves the heap object in the heap_object register unless the heap_object
+  // register is the same register as type_reg.
+  void CompareInstanceType(Register map,
+                           Register type_reg,
+                           InstanceType type);
 
   inline void BranchOnSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
@@ -261,7 +259,9 @@ class MacroAssembler: public Assembler {
   // Tail call of a runtime routine (jump).
   // Like JumpToBuiltin, but also takes care of passing the number
   // of parameters.
-  void TailCallRuntime(const ExternalReference& ext, int num_arguments);
+  void TailCallRuntime(const ExternalReference& ext,
+                       int num_arguments,
+                       int result_size);
 
   // Jump to the builtin routine.
   void JumpToBuiltin(const ExternalReference& builtin);

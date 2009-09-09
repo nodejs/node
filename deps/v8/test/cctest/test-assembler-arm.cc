@@ -37,9 +37,9 @@ using namespace v8::internal;
 
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
-typedef int (*F1)(int x, int p1, int p2, int p3, int p4);
-typedef int (*F2)(int x, int y, int p2, int p3, int p4);
-typedef int (*F3)(void* p, int p1, int p2, int p3, int p4);
+typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
+typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
+typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 
 static v8::Persistent<v8::Context> env;

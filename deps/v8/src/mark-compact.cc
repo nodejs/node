@@ -41,6 +41,7 @@ namespace internal {
 
 bool MarkCompactCollector::force_compaction_ = false;
 bool MarkCompactCollector::compacting_collection_ = false;
+bool MarkCompactCollector::compact_on_next_gc_ = false;
 
 int MarkCompactCollector::previous_marked_count_ = 0;
 GCTracer* MarkCompactCollector::tracer_ = NULL;
@@ -104,35 +105,15 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // variable.
   tracer_ = tracer;
 
-  static const int kFragmentationLimit = 50;  // Percent.
 #ifdef DEBUG
   ASSERT(state_ == IDLE);
   state_ = PREPARE_GC;
 #endif
   ASSERT(!FLAG_always_compact || !FLAG_never_compact);
 
-  compacting_collection_ = FLAG_always_compact || force_compaction_;
-
-  // We compact the old generation if it gets too fragmented (ie, we could
-  // recover an expected amount of space by reclaiming the waste and free
-  // list blocks).  We always compact when the flag --gc-global is true
-  // because objects do not get promoted out of new space on non-compacting
-  // GCs.
-  if (!compacting_collection_) {
-    int old_gen_recoverable = 0;
-    int old_gen_used = 0;
-
-    OldSpaces spaces;
-    while (OldSpace* space = spaces.next()) {
-      old_gen_recoverable += space->Waste() + space->AvailableFree();
-      old_gen_used += space->Size();
-    }
-    int old_gen_fragmentation =
-      static_cast<int>((old_gen_recoverable * 100.0) / old_gen_used);
-    if (old_gen_fragmentation > kFragmentationLimit) {
-      compacting_collection_ = true;
-    }
-  }
+  compacting_collection_ =
+      FLAG_always_compact || force_compaction_ || compact_on_next_gc_;
+  compact_on_next_gc_ = false;
 
   if (FLAG_never_compact) compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
@@ -173,6 +154,31 @@ void MarkCompactCollector::Finish() {
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
   StubCache::Clear();
+
+  // If we've just compacted old space there's no reason to check the
+  // fragmentation limit. Just return.
+  if (HasCompacted()) return;
+
+  // We compact the old generation on the next GC if it has gotten too
+  // fragmented (ie, we could recover an expected amount of space by
+  // reclaiming the waste and free list blocks).
+  static const int kFragmentationLimit = 15;        // Percent.
+  static const int kFragmentationAllowed = 1 * MB;  // Absolute.
+  int old_gen_recoverable = 0;
+  int old_gen_used = 0;
+
+  OldSpaces spaces;
+  while (OldSpace* space = spaces.next()) {
+    old_gen_recoverable += space->Waste() + space->AvailableFree();
+    old_gen_used += space->Size();
+  }
+
+  int old_gen_fragmentation =
+      static_cast<int>((old_gen_recoverable * 100.0) / old_gen_used);
+  if (old_gen_fragmentation > kFragmentationLimit &&
+      old_gen_recoverable > kFragmentationAllowed) {
+    compact_on_next_gc_ = true;
+  }
 }
 
 

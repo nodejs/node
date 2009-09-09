@@ -474,7 +474,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   // Please note that the prototype property for function instances must be
   // writable.
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false, true);
+      ComputeFunctionInstanceDescriptor(false, false);
   fm->set_instance_descriptors(*function_map_descriptors);
 
   // Allocate the function map first and then patch the prototype later

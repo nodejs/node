@@ -102,7 +102,8 @@ Debug.ScriptCompilationType = { Host: 0,
 Debug.ScopeType = { Global: 0,
                     Local: 1,
                     With: 2,
-                    Closure: 3 };
+                    Closure: 3,
+                    Catch: 4 };
 
 
 // Current debug state.
@@ -898,6 +899,10 @@ function formatScope_(scope) {
       break;
     case Debug.ScopeType.With:
       result += 'With, ';
+      result += '#' + scope.object.ref + '#';
+      break;
+    case Debug.ScopeType.Catch:
+      result += 'Catch, ';
       result += '#' + scope.object.ref + '#';
       break;
     case Debug.ScopeType.Closure:

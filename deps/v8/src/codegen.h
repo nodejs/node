@@ -286,7 +286,7 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  CEntryStub() { }
+  explicit CEntryStub(int result_size) : result_size_(result_size) { }
 
   void Generate(MacroAssembler* masm) { GenerateBody(masm, false); }
 
@@ -302,10 +302,14 @@ class CEntryStub : public CodeStub {
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowUncatchable(MacroAssembler* masm,
                                 UncatchableExceptionType type);
-
  private:
+  // Number of pointers/values returned.
+  int result_size_;
+
   Major MajorKey() { return CEntry; }
-  int MinorKey() { return 0; }
+  // Minor key must differ if different result_size_ values means different
+  // code is generated.
+  int MinorKey();
 
   const char* GetName() { return "CEntryStub"; }
 };
@@ -313,7 +317,7 @@ class CEntryStub : public CodeStub {
 
 class CEntryDebugBreakStub : public CEntryStub {
  public:
-  CEntryDebugBreakStub() { }
+  CEntryDebugBreakStub() : CEntryStub(1) { }
 
   void Generate(MacroAssembler* masm) { GenerateBody(masm, true); }
 

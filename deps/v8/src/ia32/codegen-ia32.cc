@@ -6886,7 +6886,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ j(above_equal, &string1);
 
       // First and second argument are strings.
-      __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2);
+      __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
 
       // Only first argument is a string.
       __ bind(&string1);
@@ -6954,12 +6954,11 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                               scratch1,
                               scratch2,
                               need_gc,
-                              false);
+                              TAG_OBJECT);
 
-  // Set the map and tag the result.
-  __ mov(Operand(result, HeapObject::kMapOffset),
+  // Set the map.
+  __ mov(FieldOperand(result, HeapObject::kMapOffset),
          Immediate(Factory::heap_number_map()));
-  __ or_(Operand(result), Immediate(kHeapObjectTag));
 }
 
 
@@ -7176,7 +7175,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ pop(ebx);  // Return address.
   __ push(edx);
   __ push(ebx);
-  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1, 1);
 }
 
 
@@ -7201,7 +7200,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
 }
 
 
@@ -7437,7 +7436,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(eax);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1, 1);
 }
 
 
@@ -7466,6 +7465,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+int CEntryStub::MinorKey() {
+  ASSERT(result_size_ <= 2);
+  // Result returned in eax, or eax+edx if result_size_ is 2.
+  return 0;
 }
 
 

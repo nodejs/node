@@ -354,7 +354,7 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
   __ movq(rax, Immediate(5));
   __ movq(rbx, ref);
 
-  CEntryStub stub;
+  CEntryStub stub(1);
   __ CallStub(&stub);
 }
 
@@ -489,7 +489,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-      __ TailCallRuntime(ref, 5);
+      __ TailCallRuntime(ref, 5, 1);
 
       __ bind(&cleanup);
       __ pop(scratch1);
@@ -511,7 +511,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
-    __ TailCallRuntime(ref, 5);
+    __ TailCallRuntime(ref, 5, 1);
   }
 
  private:
@@ -661,7 +661,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ movq(rax, Immediate(5));
     __ movq(rbx, ref);
 
-    CEntryStub stub;
+    CEntryStub stub(1);
     __ CallStub(&stub);
 
     __ LeaveInternalFrame();
@@ -1362,7 +1362,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
-  __ TailCallRuntime(store_callback_property, 4);
+  __ TailCallRuntime(store_callback_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1450,7 +1450,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallRuntime(store_ic_property, 3);
+  __ TailCallRuntime(store_ic_property, 3, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1652,7 +1652,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 5);
+  __ TailCallRuntime(load_callback_property, 5, 1);
 }
 
 
@@ -1784,10 +1784,12 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // rbx: initial map
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ shl(rcx, Immediate(kPointerSizeLog2));
-  // Make sure that the maximum heap object size will never cause us
-  // problems here.
-  ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-  __ AllocateObjectInNewSpace(rcx, rdx, rcx, no_reg, &generic_stub_call, false);
+  __ AllocateObjectInNewSpace(rcx,
+                              rdx,
+                              rcx,
+                              no_reg,
+                              &generic_stub_call,
+                              NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // rbx: initial map

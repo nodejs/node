@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
-	Name="v8_cctest"
-	ProjectGUID="{97ECC711-7430-4FC4-90FD-004DA880E72A}"
-	RootNamespace="v8_cctest"
+	Name="v8_shell_sample"
+	ProjectGUID="{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}"
+	RootNamespace="v8_shell_sample"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -18,7 +18,7 @@
 		<Configuration
 			Name="Debug|Win32"
 			ConfigurationType="1"
-			InheritedPropertySheets=".\common.vsprops;.\debug.vsprops;.\arm.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\arm.vsprops;.\debug.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -79,7 +79,7 @@
 		<Configuration
 			Name="Release|Win32"
 			ConfigurationType="1"
-			InheritedPropertySheets=".\common.vsprops;.\release.vsprops;.\arm.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\arm.vsprops;.\release.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -142,95 +142,7 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="..\..\test\cctest\cctest.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-alloc.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-api.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-assembler-arm.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-ast.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-compiler.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-conversions.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-debug.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-decls.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-disasm-arm.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-flags.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-hashmap.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-heap.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-lock.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-log.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-log-utils.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-mark-compact.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-platform-win32.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-serialize.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-spaces.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-strings.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-utils.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-version.cc"
+			RelativePath="..\..\samples\shell.cc"
 			>
 		</File>
 	</Files>

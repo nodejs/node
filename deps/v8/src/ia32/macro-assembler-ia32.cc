@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -620,18 +620,22 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
-void MacroAssembler::LoadAllocationTopHelper(
-    Register result,
-    Register result_end,
-    Register scratch,
-    bool result_contains_top_on_entry) {
+void MacroAssembler::LoadAllocationTopHelper(Register result,
+                                             Register result_end,
+                                             Register scratch,
+                                             AllocationFlags flags) {
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
 
   // Just return if allocation top is already known.
-  if (result_contains_top_on_entry) {
+  if ((flags & RESULT_CONTAINS_TOP) != 0) {
     // No use of scratch if allocation top is provided.
     ASSERT(scratch.is(no_reg));
+#ifdef DEBUG
+    // Assert that result actually contains top on entry.
+    cmp(result, Operand::StaticVariable(new_space_allocation_top));
+    Check(equal, "Unexpected allocation top");
+#endif
     return;
   }
 
@@ -659,20 +663,17 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
   }
 }
 
-void MacroAssembler::AllocateObjectInNewSpace(
-    int object_size,
-    Register result,
-    Register result_end,
-    Register scratch,
-    Label* gc_required,
-    bool result_contains_top_on_entry) {
+
+void MacroAssembler::AllocateObjectInNewSpace(int object_size,
+                                              Register result,
+                                              Register result_end,
+                                              Register scratch,
+                                              Label* gc_required,
+                                              AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result,
-                          result_end,
-                          scratch,
-                          result_contains_top_on_entry);
+  LoadAllocationTopHelper(result, result_end, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -683,25 +684,26 @@ void MacroAssembler::AllocateObjectInNewSpace(
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch);
+
+  // Tag result if requested.
+  if ((flags & TAG_OBJECT) != 0) {
+    or_(Operand(result), Immediate(kHeapObjectTag));
+  }
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(
-    int header_size,
-    ScaleFactor element_size,
-    Register element_count,
-    Register result,
-    Register result_end,
-    Register scratch,
-    Label* gc_required,
-    bool result_contains_top_on_entry) {
+void MacroAssembler::AllocateObjectInNewSpace(int header_size,
+                                              ScaleFactor element_size,
+                                              Register element_count,
+                                              Register result,
+                                              Register result_end,
+                                              Register scratch,
+                                              Label* gc_required,
+                                              AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result,
-                          result_end,
-                          scratch,
-                          result_contains_top_on_entry);
+  LoadAllocationTopHelper(result, result_end, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -712,24 +714,24 @@ void MacroAssembler::AllocateObjectInNewSpace(
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch);
+
+  // Tag result if requested.
+  if ((flags & TAG_OBJECT) != 0) {
+    or_(Operand(result), Immediate(kHeapObjectTag));
+  }
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(
-    Register object_size,
-    Register result,
-    Register result_end,
-    Register scratch,
-    Label* gc_required,
-    bool result_contains_top_on_entry) {
+void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
+                                              Register result,
+                                              Register result_end,
+                                              Register scratch,
+                                              Label* gc_required,
+                                              AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result,
-                          result_end,
-                          scratch,
-                          result_contains_top_on_entry);
-
+  LoadAllocationTopHelper(result, result_end, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -743,6 +745,11 @@ void MacroAssembler::AllocateObjectInNewSpace(
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch);
+
+  // Tag result if requested.
+  if ((flags & TAG_OBJECT) != 0) {
+    or_(Operand(result), Immediate(kHeapObjectTag));
+  }
 }
 
 
@@ -889,7 +896,8 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 
 void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments) {
+                                     int num_arguments,
+                                     int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -902,7 +910,7 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
 void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
-  CEntryStub ces;
+  CEntryStub ces(1);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
@@ -1162,8 +1170,9 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 CodePatcher::CodePatcher(byte* address, int size)
-  : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
+    : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.
@@ -1179,6 +1188,7 @@ CodePatcher::~CodePatcher() {
   ASSERT(masm_.pc_ == address_ + size_);
   ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
 }
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 } }  // namespace v8::internal

@@ -216,25 +216,29 @@ void RegExpMacroAssemblerARM::CheckCharacters(Vector<const uc16> str,
                                               int cp_offset,
                                               Label* on_failure,
                                               bool check_end_of_string) {
-  int byte_length = str.length() * char_size();
-  int byte_offset = cp_offset * char_size();
-  if (check_end_of_string) {
-    // Check that there are at least str.length() characters left in the input.
-    __ cmp(end_of_input_address(), Operand(-(byte_offset + byte_length)));
-    BranchOrBacktrack(gt, on_failure);
-  }
-
   if (on_failure == NULL) {
-    // Instead of inlining a backtrack, (re)use the global backtrack target.
+    // Instead of inlining a backtrack for each test, (re)use the global
+    // backtrack target.
     on_failure = &backtrack_label_;
   }
 
+  if (check_end_of_string) {
+    // Is last character of required match inside string.
+    CheckPosition(cp_offset + str.length() - 1, on_failure);
+  }
+
   __ add(r0, end_of_input_address(), Operand(current_input_offset()));
+  if (cp_offset != 0) {
+    int byte_offset = cp_offset * char_size();
+    __ add(r0, r0, Operand(byte_offset));
+  }
+
+  // r0 : Address of characters to match against str.
   int stored_high_byte = 0;
   for (int i = 0; i < str.length(); i++) {
     if (mode_ == ASCII) {
       __ ldrb(r1, MemOperand(r0, char_size(), PostIndex));
-      // str[i] is known to be an ASCII character.
+      ASSERT(str[i] <= String::kMaxAsciiCharCode);
       __ cmp(r1, Operand(str[i]));
     } else {
       __ ldrh(r1, MemOperand(r0, char_size(), PostIndex));

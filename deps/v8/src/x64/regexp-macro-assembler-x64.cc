@@ -612,7 +612,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
   __ movq(Operand(rbp, kInputString), rcx);
-  __ movq(Operand(rbp, kStartIndex), rdx);
+  __ movq(Operand(rbp, kStartIndex), rdx);  // Passed as int32 in edx.
   __ movq(Operand(rbp, kInputStart), r8);
   __ movq(Operand(rbp, kInputEnd), r9);
   // Callee-save on Win64.
@@ -711,7 +711,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ Move(code_object_pointer(), masm_->CodeObject());
   // Load previous char as initial value of current-character.
   Label at_start;
-  __ cmpq(Operand(rbp, kAtStart), Immediate(0));
+  __ cmpb(Operand(rbp, kAtStart), Immediate(0));
   __ j(not_equal, &at_start);
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);

@@ -174,6 +174,7 @@ void CpuFeatures::Probe()  {
 // Additional guard int3 instructions can be added if required.
 void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   // Call instruction takes up 13 bytes and int3 takes up one byte.
+  static const int kCallInstructionSize = 13;
   Address patch_site = pc_;
   Memory::uint16_at(patch_site) = 0xBA49u;  // movq r10, imm64
   // Write "0x00, call r10" starting at last byte of address.  We overwrite
@@ -183,8 +184,11 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 
   // Add the requested number of int3 instructions after the call.
   for (int i = 0; i < guard_bytes; i++) {
-    *(patch_site + 13 + i) = 0xCC;  // int3
+    *(patch_site + kCallInstructionSize + i) = 0xCC;  // int3
   }
+
+  // Indicate that code has changed.
+  CPU::FlushICache(patch_site, kCallInstructionSize + guard_bytes);
 }
 
 
@@ -275,7 +279,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
 
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
-  // existing code in it; see CodePatcher::CodePatcher(...).
+  // existing code in it.
 #ifdef DEBUG
   if (own_buffer_) {
     memset(buffer_, 0xCC, buffer_size);  // int3

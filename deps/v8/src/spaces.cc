@@ -2561,10 +2561,12 @@ void LargeObjectSpace::Verify() {
     ASSERT(map->IsMap());
     ASSERT(Heap::map_space()->Contains(map));
 
-    // We have only code, sequential strings, fixed arrays, and byte arrays
-    // in large object space.
-    ASSERT(object->IsCode() || object->IsSeqString()
-           || object->IsFixedArray() || object->IsByteArray());
+    // We have only code, sequential strings, external strings
+    // (sequential strings that have been morphed into external
+    // strings), fixed arrays, and byte arrays in large object space.
+    ASSERT(object->IsCode() || object->IsSeqString() ||
+           object->IsExternalString() || object->IsFixedArray() ||
+           object->IsByteArray());
 
     // The object itself should look OK.
     object->Verify();

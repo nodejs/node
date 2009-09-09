@@ -52,6 +52,13 @@
 namespace assembler {
 namespace arm {
 
+// Number of registers in normal ARM mode.
+static const int kNumRegisters = 16;
+
+// PC is register 15.
+static const int kPCRegister = 15;
+static const int kNoRegister = -1;
+
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate ARM instructions.
 //
@@ -267,6 +274,27 @@ class Instr {
   // We need to prevent the creation of instances of class Instr.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Instr);
 };
+
+
+// Helper functions for converting between register numbers and names.
+class Registers {
+ public:
+  // Return the name of the register.
+  static const char* Name(int reg);
+
+  // Lookup the register number for the name provided.
+  static int Number(const char* name);
+
+  struct RegisterAlias {
+    int reg;
+    const char *name;
+  };
+
+ private:
+  static const char* names_[kNumRegisters];
+  static const RegisterAlias aliases_[];
+};
+
 
 
 } }  // namespace assembler::arm

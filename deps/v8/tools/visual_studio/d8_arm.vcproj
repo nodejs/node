@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
-	Name="v8_cctest"
-	ProjectGUID="{97ECC711-7430-4FC4-90FD-004DA880E72A}"
-	RootNamespace="v8_cctest"
+	Name="d8"
+	ProjectGUID="{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}"
+	RootNamespace="d8"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -18,7 +18,7 @@
 		<Configuration
 			Name="Debug|Win32"
 			ConfigurationType="1"
-			InheritedPropertySheets=".\common.vsprops;.\debug.vsprops;.\arm.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\arm.vsprops;.\debug.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -79,7 +79,7 @@
 		<Configuration
 			Name="Release|Win32"
 			ConfigurationType="1"
-			InheritedPropertySheets=".\common.vsprops;.\release.vsprops;.\arm.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\arm.vsprops;.\release.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -142,97 +142,57 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="..\..\test\cctest\cctest.cc"
+			RelativePath="..\..\src\d8.cc"
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-alloc.cc"
+			RelativePath="..\..\src\d8.h"
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-api.cc"
+			RelativePath="..\..\src\d8-debug.cc"
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-assembler-arm.cc"
+			RelativePath="..\..\src\d8-debug.h"
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-ast.cc"
+			RelativePath="..\..\src\d8-windows.cc"
 			>
 		</File>
 		<File
-			RelativePath="..\..\test\cctest\test-compiler.cc"
+			RelativePath="..\..\src\d8.js"
 			>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Processing js files..."
+						CommandLine=".\d8js2c.cmd ..\..\src &quot;$(IntDir)\DerivedSources&quot;"
+												Outputs="$(IntDir)\DerivedSources\natives.cc;$(IntDir)\DerivedSources\natives-empty.cc"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Processing js files..."
+						CommandLine=".\d8js2c.cmd ..\..\src &quot;$(IntDir)\DerivedSources&quot;"
+						Outputs="$(IntDir)\DerivedSources\natives.cc;$(IntDir)\DerivedSources\natives-empty.cc"
+					/>
+				</FileConfiguration>
 		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-conversions.cc"
+		<Filter
+			Name="generated files"
 			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-debug.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-decls.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-disasm-arm.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-flags.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-hashmap.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-heap.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-lock.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-log.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-log-utils.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-mark-compact.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-platform-win32.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-serialize.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-spaces.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-strings.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-utils.cc"
-			>
-		</File>
-		<File
-			RelativePath="..\..\test\cctest\test-version.cc"
-			>
-		</File>
+			<File
+				RelativePath="$(IntDir)\DerivedSources\natives.cc"
+				>
+			</File>
+		</Filter>
 	</Files>
 	<Globals>
 	</Globals>

@@ -478,7 +478,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 5);
+  __ TailCallRuntime(load_callback_property, 5, 1);
 }
 
 
@@ -514,7 +514,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
-  __ TailCallRuntime(load_ic_property, 5);
+  __ TailCallRuntime(load_ic_property, 5, 1);
 }
 
 
@@ -884,7 +884,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
-  __ TailCallRuntime(store_callback_property, 4);
+  __ TailCallRuntime(store_callback_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -936,7 +936,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallRuntime(store_ic_property, 3);
+  __ TailCallRuntime(store_ic_property, 3, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1344,7 +1344,138 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 
 Object* ConstructStubCompiler::CompileConstructStub(
     SharedFunctionInfo* shared) {
-  // Not implemented yet - just jump to generic stub.
+  // ----------- S t a t e -------------
+  //  -- r0    : argc
+  //  -- r1    : constructor
+  //  -- lr    : return address
+  //  -- [sp]  : last argument
+  // -----------------------------------
+  Label generic_stub_call;
+
+  // Use r7 for holding undefined which is used in several places below.
+  __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Check to see whether there are any break points in the function code. If
+  // there are jump to the generic constructor stub which calls the actual
+  // code for the function thereby hitting the break points.
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kDebugInfoOffset));
+  __ cmp(r2, r7);
+  __ b(ne, &generic_stub_call);
+#endif
+
+  // Load the initial map and verify that it is in fact a map.
+  // r1: constructor function
+  // r7: undefined
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(eq, &generic_stub_call);
+  __ CompareObjectType(r2, r3, r4, MAP_TYPE);
+  __ b(ne, &generic_stub_call);
+
+#ifdef DEBUG
+  // Cannot construct functions this way.
+  // r0: argc
+  // r1: constructor function
+  // r2: initial map
+  // r7: undefined
+  __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE);
+  __ Check(ne, "Function constructed by construct stub.");
+#endif
+
+  // Now allocate the JSObject in new space.
+  // r0: argc
+  // r1: constructor function
+  // r2: initial map
+  // r7: undefined
+  __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
+  __ AllocateObjectInNewSpace(r3,
+                              r4,
+                              r5,
+                              r6,
+                              &generic_stub_call,
+                              NO_ALLOCATION_FLAGS);
+
+  // Allocated the JSObject, now initialize the fields. Map is set to initial
+  // map and properties and elements are set to empty fixed array.
+  // r0: argc
+  // r1: constructor function
+  // r2: initial map
+  // r3: object size (in words)
+  // r4: JSObject (not tagged)
+  // r7: undefined
+  __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
+  __ mov(r5, r4);
+  ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
+  __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
+  ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
+  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
+  ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
+  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
+
+  // Calculate the location of the first argument. The stack contains only the
+  // argc arguments.
+  __ add(r1, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+  // Fill all the in-object properties with undefined.
+  // r0: argc
+  // r1: first argument
+  // r3: object size (in words)
+  // r4: JSObject (not tagged)
+  // r5: First in-object property of JSObject (not tagged)
+  // r7: undefined
+  // Fill the initialized properties with a constant value or a passed argument
+  // depending on the this.x = ...; assignment in the function.
+  for (int i = 0; i < shared->this_property_assignments_count(); i++) {
+    if (shared->IsThisPropertyAssignmentArgument(i)) {
+      Label not_passed, next;
+      // Check if the argument assigned to the property is actually passed.
+      int arg_number = shared->GetThisPropertyAssignmentArgument(i);
+      __ cmp(r0, Operand(arg_number));
+      __ b(le, &not_passed);
+      // Argument passed - find it on the stack.
+      __ ldr(r2, MemOperand(r1, (arg_number + 1) * -kPointerSize));
+      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
+      __ b(&next);
+      __ bind(&not_passed);
+      // Set the property to undefined.
+      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
+      __ bind(&next);
+    } else {
+      // Set the property to the constant value.
+      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
+      __ mov(r2, Operand(constant));
+      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
+    }
+  }
+
+  // Fill the unused in-object property fields with undefined.
+  for (int i = shared->this_property_assignments_count();
+       i < shared->CalculateInObjectProperties();
+       i++) {
+      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
+  }
+
+  // r0: argc
+  // r4: JSObject (not tagged)
+  // Move argc to r1 and the JSObject to return to r0 and tag it.
+  __ mov(r1, r0);
+  __ mov(r0, r4);
+  __ orr(r0, r0, Operand(kHeapObjectTag));
+
+  // r0: JSObject
+  // r1: argc
+  // Remove caller arguments and receiver from the stack and return.
+  __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2));
+  __ add(sp, sp, Operand(kPointerSize));
+  __ IncrementCounter(&Counters::constructed_objects, 1, r1, r2);
+  __ IncrementCounter(&Counters::constructed_objects_stub, 1, r1, r2);
+  __ Jump(lr);
+
+  // Jump to the generic stub in case the specialized code cannot handle the
+  // construction.
+  __ bind(&generic_stub_call);
   Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);

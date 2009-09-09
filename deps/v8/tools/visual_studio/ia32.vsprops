@@ -2,6 +2,8 @@
 <VisualStudioPropertySheet
 	ProjectType="Visual C++"
 	Version="8.00"
+	OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+	IntermediateDirectory="$(SolutionDir)$(ConfigurationName)\obj\$(ProjectName)"
 	Name="ia32"
 	>
 	<Tool

@@ -4950,12 +4950,12 @@ static void AllocateHeapNumber(
     Register scratch2) {  // Another scratch register.
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
-  __ AllocateObjectInNewSpace(HeapNumber::kSize,
+  __ AllocateObjectInNewSpace(HeapNumber::kSize / kPointerSize,
                               result,
                               scratch1,
                               scratch2,
                               need_gc,
-                              true);
+                              TAG_OBJECT);
 
   // Get heap number map and store it in the allocated object.
   __ LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);
@@ -5623,7 +5623,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   // argument, so give it a Smi.
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ push(r0);
-  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1, 1);
 
   __ StubReturn(1);
 }
@@ -5675,6 +5675,13 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
     __ mov(r0, Operand(r1));
   }
   __ StubReturn(1);
+}
+
+
+int CEntryStub::MinorKey() {
+  ASSERT(result_size_ <= 2);
+  // Result returned in r0 or r0+r1 by default.
+  return 0;
 }
 
 
@@ -6195,7 +6202,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // by calling the runtime system.
   __ bind(&slow);
   __ push(r1);
-  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1, 1);
 }
 
 
@@ -6216,7 +6223,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
 }
 
 

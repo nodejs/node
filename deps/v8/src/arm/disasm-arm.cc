@@ -57,6 +57,7 @@
 
 #include "v8.h"
 
+#include "constants-arm.h"
 #include "disasm.h"
 #include "macro-assembler.h"
 #include "platform.h"
@@ -898,16 +899,6 @@ namespace disasm {
 namespace v8i = v8::internal;
 
 
-static const int kMaxRegisters = 16;
-
-// These register names are defined in a way to match the native disassembler
-// formatting. See for example the command "objdump -d <binary file>".
-static const char* reg_names[kMaxRegisters] = {
-  "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
-  "r8", "r9", "r10", "fp", "ip", "sp", "lr", "pc",
-};
-
-
 const char* NameConverter::NameOfAddress(byte* addr) const {
   static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
   v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
@@ -921,13 +912,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  const char* result;
-  if ((0 <= reg) && (reg < kMaxRegisters)) {
-    result = reg_names[reg];
-  } else {
-    result = "noreg";
-  }
-  return result;
+  return assembler::arm::Registers::Name(reg);
 }
 
 

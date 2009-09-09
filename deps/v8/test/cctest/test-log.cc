@@ -5,12 +5,15 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #ifdef __linux__
+#include <math.h>
+#include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
-#endif
+#endif  // __linux__
 
 #include "v8.h"
 #include "log.h"
+#include "v8threads.h"
 #include "cctest.h"
 
 using v8::internal::Address;
@@ -155,9 +158,10 @@ static bool was_sigprof_received = true;
 #ifdef __linux__
 
 struct sigaction old_sigprof_handler;
+pthread_t our_thread;
 
 static void SigProfSignalHandler(int signal, siginfo_t* info, void* context) {
-  if (signal != SIGPROF) return;
+  if (signal != SIGPROF || !pthread_equal(pthread_self(), our_thread)) return;
   was_sigprof_received = true;
   old_sigprof_handler.sa_sigaction(signal, info, context);
 }
@@ -185,6 +189,7 @@ static int CheckThatProfilerWorks(int log_pos) {
   // Intercept SIGPROF handler to make sure that the test process
   // had received it. Under load, system can defer it causing test failure.
   // It is important to execute this after 'ResumeProfiler'.
+  our_thread = pthread_self();
   was_sigprof_received = false;
   struct sigaction sa;
   sa.sa_sigaction = SigProfSignalHandler;
@@ -278,6 +283,158 @@ TEST(ProfLazyMode) {
   i::FLAG_prof = saved_prof;
   i::FLAG_prof_auto = saved_prof_auto;
 }
+
+
+// Profiling multiple threads that use V8 is currently only available on Linux.
+#ifdef __linux__
+
+namespace {
+
+class LoopingThread : public v8::internal::Thread {
+ public:
+  LoopingThread()
+      : v8::internal::Thread(),
+        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        run_(true) {
+  }
+
+  virtual ~LoopingThread() { delete semaphore_; }
+
+  void Run() {
+    self_ = pthread_self();
+    RunLoop();
+  }
+
+  void SendSigProf() { pthread_kill(self_, SIGPROF); }
+
+  void Stop() { run_ = false; }
+
+  bool WaitForRunning() { return semaphore_->Wait(1000000); }
+
+ protected:
+  bool IsRunning() { return run_; }
+
+  virtual void RunLoop() = 0;
+
+  void SetV8ThreadId() {
+    v8_thread_id_ = v8::V8::GetCurrentThreadId();
+  }
+
+  void SignalRunning() { semaphore_->Signal(); }
+
+ private:
+  v8::internal::Semaphore* semaphore_;
+  bool run_;
+  pthread_t self_;
+  int v8_thread_id_;
+};
+
+
+class LoopingJsThread : public LoopingThread {
+ public:
+  void RunLoop() {
+    {
+      v8::Locker locker;
+      CHECK(v8::internal::ThreadManager::HasId());
+      SetV8ThreadId();
+    }
+    while (IsRunning()) {
+      v8::Locker locker;
+      v8::HandleScope scope;
+      v8::Persistent<v8::Context> context = v8::Context::New();
+      v8::Context::Scope context_scope(context);
+      SignalRunning();
+      CompileAndRunScript(
+          "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
+      context.Dispose();
+      i::OS::Sleep(1);
+    }
+  }
+};
+
+
+class LoopingNonJsThread : public LoopingThread {
+ public:
+  void RunLoop() {
+    v8::Locker locker;
+    v8::Unlocker unlocker;
+    // Now thread has V8's id, but will not run VM code.
+    CHECK(v8::internal::ThreadManager::HasId());
+    double i = 10;
+    SignalRunning();
+    while (IsRunning()) {
+      i = sin(i);
+      i::OS::Sleep(1);
+    }
+  }
+};
+
+
+class TestSampler : public v8::internal::Sampler {
+ public:
+  TestSampler()
+      : Sampler(0, true),
+        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        was_sample_stack_called_(false) {
+  }
+
+  ~TestSampler() { delete semaphore_; }
+
+  void SampleStack(v8::internal::TickSample*) {
+    was_sample_stack_called_ = true;
+  }
+
+  void Tick(v8::internal::TickSample*) { semaphore_->Signal(); }
+
+  bool WaitForTick() { return semaphore_->Wait(1000000); }
+
+  void Reset() { was_sample_stack_called_ = false; }
+
+  bool WasSampleStackCalled() { return was_sample_stack_called_; }
+
+ private:
+  v8::internal::Semaphore* semaphore_;
+  bool was_sample_stack_called_;
+};
+
+
+}  // namespace
+
+TEST(ProfMultipleThreads) {
+  // V8 needs to be initialized before the first Locker
+  // instantiation. Otherwise, Top::Initialize will reset
+  // thread_id_ in ThreadTopLocal.
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  LoopingJsThread jsThread;
+  jsThread.Start();
+  LoopingNonJsThread nonJsThread;
+  nonJsThread.Start();
+
+  TestSampler sampler;
+  sampler.Start();
+  CHECK(!sampler.WasSampleStackCalled());
+  jsThread.WaitForRunning();
+  jsThread.SendSigProf();
+  CHECK(sampler.WaitForTick());
+  CHECK(sampler.WasSampleStackCalled());
+  sampler.Reset();
+  CHECK(!sampler.WasSampleStackCalled());
+  nonJsThread.WaitForRunning();
+  nonJsThread.SendSigProf();
+  CHECK(sampler.WaitForTick());
+  CHECK(!sampler.WasSampleStackCalled());
+  sampler.Stop();
+
+  jsThread.Stop();
+  nonJsThread.Stop();
+  jsThread.Join();
+  nonJsThread.Join();
+}
+
+#endif  // __linux__
 
 
 static inline bool IsStringEqualTo(const char* r, const char* s) {

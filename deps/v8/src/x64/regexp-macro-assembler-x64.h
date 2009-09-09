@@ -129,16 +129,18 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kReturn_eip = kFramePointer + kPointerSize;
   static const int kFrameAlign = kReturn_eip + kPointerSize;
 
-#ifdef __MSVC__
+#ifdef _WIN64
   // Parameters (first four passed as registers, but with room on stack).
   // In Microsoft 64-bit Calling Convention, there is room on the callers
   // stack (before the return address) to spill parameter registers. We
   // use this space to store the register passed parameters.
   static const int kInputString = kFrameAlign;
+  // StartIndex is passed as 32 bit int.
   static const int kStartIndex = kInputString + kPointerSize;
   static const int kInputStart = kStartIndex + kPointerSize;
   static const int kInputEnd = kInputStart + kPointerSize;
   static const int kRegisterOutput = kInputEnd + kPointerSize;
+  // AtStart is passed as 32 bit int (values 0 or 1).
   static const int kAtStart = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kAtStart + kPointerSize;
 #else
@@ -154,7 +156,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kStackHighEnd = kFrameAlign;
 #endif
 
-#ifdef __MSVC__
+#ifdef _WIN64
   // Microsoft calling convention has three callee-saved registers
   // (that we are using). We push these after the frame pointer.
   static const int kBackup_rsi = kFramePointer - kPointerSize;

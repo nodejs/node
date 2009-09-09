@@ -3,8 +3,6 @@
 	ProjectType="Visual C++"
 	Version="8.00"
 	Name="essential"
-	OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-	IntermediateDirectory="$(SolutionDir)$(ConfigurationName)\obj\$(ProjectName)"
 	CharacterSet="1"
 	>
 	<Tool

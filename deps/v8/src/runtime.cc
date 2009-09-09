@@ -4556,22 +4556,25 @@ static Object* Runtime_LookupContext(Arguments args) {
 }
 
 
-// A mechanism to return pairs of Object*'s. This is somewhat
-// compiler-dependent as it assumes that a 64-bit value (a long long)
-// is returned via two registers (edx:eax on ia32). Both the ia32 and
-// arm platform support this; it is mostly an issue of "coaxing" the
-// compiler to do the right thing.
-//
-// TODO(1236026): This is a non-portable hack that should be removed.
+// A mechanism to return a pair of Object pointers in registers (if possible).
+// How this is achieved is calling convention-dependent.
+// All currently supported x86 compiles uses calling conventions that are cdecl
+// variants where a 64-bit value is returned in two 32-bit registers
+// (edx:eax on ia32, r1:r0 on ARM).
+// In AMD-64 calling convention a struct of two pointers is returned in rdx:rax.
+// In Win64 calling convention, a struct of two pointers is returned in memory,
+// allocated by the caller, and passed as a pointer in a hidden first parameter.
 #ifdef V8_HOST_ARCH_64_BIT
-// Tested with GCC, not with MSVC.
 struct ObjectPair {
   Object* x;
   Object* y;
 };
+
 static inline ObjectPair MakePair(Object* x, Object* y) {
   ObjectPair result = {x, y};
-  return result;  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+  // In Win64 they are assigned to a hidden first argument.
+  return result;
 }
 #else
 typedef uint64_t ObjectPair;
@@ -4580,8 +4583,6 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
       (reinterpret_cast<ObjectPair>(y) << 32);
 }
 #endif
-
-
 
 
 static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
@@ -4612,7 +4613,7 @@ static JSObject* ComputeReceiverForNonGlobal(JSObject* holder) {
 
 static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT_EQ(2, args.length());
 
   if (!args[0]->IsContext() || !args[1]->IsString()) {
     return MakePair(Top::ThrowIllegalOperation(), NULL);
@@ -6341,7 +6342,12 @@ class ScopeIterator {
     ScopeTypeGlobal = 0,
     ScopeTypeLocal,
     ScopeTypeWith,
-    ScopeTypeClosure
+    ScopeTypeClosure,
+    // Every catch block contains an implicit with block (its parameter is
+    // a JSContextExtensionObject) that extends current scope with a variable
+    // holding exception object. Such with blocks are treated as scopes of their
+    // own type.
+    ScopeTypeCatch
   };
 
   explicit ScopeIterator(JavaScriptFrame* frame)
@@ -6417,7 +6423,14 @@ class ScopeIterator {
       return ScopeTypeClosure;
     }
     ASSERT(context_->has_extension());
-    ASSERT(!context_->extension()->IsJSContextExtensionObject());
+    // Current scope is either an explicit with statement or a with statement
+    // implicitely generated for a catch block.
+    // If the extension object here is a JSContextExtensionObject then
+    // current with statement is one frome a catch block otherwise it's a
+    // regular with statement.
+    if (context_->extension()->IsJSContextExtensionObject()) {
+      return ScopeTypeCatch;
+    }
     return ScopeTypeWith;
   }
 
@@ -6432,6 +6445,7 @@ class ScopeIterator {
         return MaterializeLocalScope(frame_);
         break;
       case ScopeIterator::ScopeTypeWith:
+      case ScopeIterator::ScopeTypeCatch:
         // Return the with object.
         return Handle<JSObject>(CurrentContext()->extension());
         break;
@@ -6482,6 +6496,14 @@ class ScopeIterator {
 
       case ScopeIterator::ScopeTypeWith: {
         PrintF("With:\n");
+        Handle<JSObject> extension =
+            Handle<JSObject>(CurrentContext()->extension());
+        extension->Print();
+        break;
+      }
+
+      case ScopeIterator::ScopeTypeCatch: {
+        PrintF("Catch:\n");
         Handle<JSObject> extension =
             Handle<JSObject>(CurrentContext()->extension());
         extension->Print();
@@ -6799,8 +6821,20 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
               target_start_position = start_position;
               target = shared;
             } else {
-              if (target_start_position < start_position &&
-                  shared->end_position() < target->end_position()) {
+              if (target_start_position == start_position &&
+                  shared->end_position() == target->end_position()) {
+                  // If a top-level function contain only one function
+                  // declartion the source for the top-level and the function is
+                  // the same. In that case prefer the non top-level function.
+                if (!shared->is_toplevel()) {
+                  target_start_position = start_position;
+                  target = shared;
+                }
+              } else if (target_start_position <= start_position &&
+                         shared->end_position() <= target->end_position()) {
+                // This containment check includes equality as a function inside
+                // a top-level function can share either start or end position
+                // with the top-level function.
                 target_start_position = start_position;
                 target = shared;
               }
@@ -6912,7 +6946,8 @@ static Object* Runtime_ChangeBreakOnException(Arguments args) {
 // Prepare for stepping
 // args[0]: break id for checking execution state
 // args[1]: step action from the enumeration StepAction
-// args[2]: number of times to perform the step
+// args[2]: number of times to perform the step, for step out it is the number
+//          of frames to step down.
 static Object* Runtime_PrepareStep(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -6938,6 +6973,9 @@ static Object* Runtime_PrepareStep(Arguments args) {
   if (step_count < 1) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }
+
+  // Clear all current stepping setup.
+  Debug::ClearStepping();
 
   // Prepare step.
   Debug::PrepareStep(static_cast<StepAction>(step_action), step_count);
@@ -7598,7 +7636,7 @@ static Object* Runtime_ListNatives(Arguments args) {
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;
-#define ADD_ENTRY(Name, argc)                                                \
+#define ADD_ENTRY(Name, argc, ressize)                                       \
   {                                                                          \
     HandleScope inner;                                                       \
     Handle<String> name =                                                    \
@@ -7634,13 +7672,13 @@ static Object* Runtime_IS_VAR(Arguments args) {
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
-#define F(name, nargs)                                                 \
+#define F(name, nargs, ressize)                                           \
   { #name, "RuntimeStub_" #name, FUNCTION_ADDR(Runtime_##name), nargs, \
-    static_cast<int>(Runtime::k##name) },
+    static_cast<int>(Runtime::k##name), ressize },
 
 static Runtime::Function Runtime_functions[] = {
   RUNTIME_FUNCTION_LIST(F)
-  { NULL, NULL, NULL, 0, -1 }
+  { NULL, NULL, NULL, 0, -1, 0 }
 };
 
 #undef F

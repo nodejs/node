@@ -44,7 +44,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // rax, but JumpToBuiltin expects rax to contain the number of
   // arguments including the receiver.
   __ incq(rax);
-  __ JumpToBuiltin(ExternalReference(id));
+  __ JumpToBuiltin(ExternalReference(id), 1);
 }
 
 
@@ -536,11 +536,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
     __ shl(rdi, Immediate(kPointerSizeLog2));
     // rdi: size of new object
-    // Make sure that the maximum heap object size will never cause us
-    // problem here, because it is always greater than the maximum
-    // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
-    __ AllocateObjectInNewSpace(rdi, rbx, rdi, no_reg, &rt_call, false);
+    __ AllocateObjectInNewSpace(rdi,
+                                rbx,
+                                rdi,
+                                no_reg,
+                                &rt_call,
+                                NO_ALLOCATION_FLAGS);
     // Allocated the JSObject, now initialize the fields.
     // rax: initial map
     // rbx: JSObject (not HeapObject tagged - the actual address).
@@ -595,8 +596,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject
     // rdi: start of next object (will be start of FixedArray)
     // rdx: number of elements in properties array
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >
-           (FixedArray::kHeaderSize + 255*kPointerSize));
     __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
                                 times_pointer_size,
                                 rdx,
@@ -604,7 +603,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
                                 rax,
                                 no_reg,
                                 &undo_allocation,
-                                true);
+                                RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // rbx: JSObject

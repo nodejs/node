@@ -313,6 +313,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\arm\constants-arm.cc"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\arm\constants-arm.h"
 				>
 			</File>
