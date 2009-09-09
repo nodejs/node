@@ -189,6 +189,8 @@ Close (const Arguments& args)
 {
   HandleScope scope;
 
+  assert(stdio == args.Holder());
+
   if (stdin_fd < 0) {
     return ThrowException(Exception::Error(String::New("stdin not open")));
   }
