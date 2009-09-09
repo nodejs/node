@@ -153,6 +153,7 @@ ReportException (TryCatch &try_catch)
   Handle<Message> message = try_catch.Message();
   if (message.IsEmpty()) {
     fprintf(stderr, "Error: (no message)\n");
+    fflush(stderr);
     return;
   }
   Handle<Value> error = try_catch.Exception();
@@ -192,6 +193,7 @@ ReportException (TryCatch &try_catch)
     String::Utf8Value trace(stack);
     fprintf(stderr, "%s\n", *trace);
   }
+  fflush(stderr);
 }
 
 // Executes a string within the current v8 context.
@@ -238,6 +240,7 @@ node_exit (const v8::Arguments& args)
   int r = 0;
   if (args.Length() > 0)
     r = args[0]->IntegerValue();
+  fflush(stderr);
   exit(r);
   return Undefined();
 }
