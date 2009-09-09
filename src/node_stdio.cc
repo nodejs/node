@@ -67,7 +67,13 @@ Write (const Arguments& args)
 {
   HandleScope scope;
 
-  enum encoding enc = ParseEncoding(args[1]);
+  if (args.Length() == 0) {
+    return ThrowException(Exception::Error(String::New("Bad argument")));
+  }
+
+  enum encoding enc = UTF8;
+  if (args.Length() > 1) enc = ParseEncoding(args[1], UTF8);
+
   ssize_t len = DecodeBytes(args[0], enc);
 
   if (len < 0) {

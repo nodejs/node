@@ -32,8 +32,8 @@ do {                                                                      \
                                   __callback##_TEM);                      \
 } while(0)
 
-enum encoding {ASCII, UTF8, RAW};
-enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v);
+enum encoding {ASCII, UTF8, RAW, RAWS};
+enum encoding ParseEncoding (v8::Handle<v8::Value> encoding_v, enum encoding _default = RAW);
 void FatalException (v8::TryCatch &try_catch);
 
 v8::Local<v8::Value>

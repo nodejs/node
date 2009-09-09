@@ -47,6 +47,17 @@ node::Encode (const void *buf, size_t len, enum encoding encoding)
     return scope.Close(array);
   } 
 
+  if (encoding == RAWS) {
+    const unsigned char *cbuf = static_cast<const unsigned char*>(buf);
+    uint16_t twobytebuf[len];
+    for (size_t i = 0; i < len; i++) {
+      // XXX is the following line platform independent? 
+      twobytebuf[i] = cbuf[i];
+    }
+    Local<String> chunk = String::New(twobytebuf, len);
+    return scope.Close(chunk);
+  }
+
   // utf8 or ascii encoding
   Local<String> chunk = String::New((const char*)buf, len);
   return scope.Close(chunk);
@@ -109,7 +120,23 @@ node::DecodeWrite (char *buf, size_t buflen, v8::Handle<v8::Value> val, enum enc
     return buflen;
   }
 
-  string->WriteAscii(buf, 0, buflen);
+  if (encoding == ASCII) {
+    string->WriteAscii(buf, 0, buflen);
+    return buflen;
+  }
+
+  // THIS IS AWFUL!!! FIXME
+
+  uint16_t twobytebuf[buflen];
+
+  string->Write(twobytebuf, 0, buflen);
+
+  for (size_t i = 0; i < buflen; i++) {
+    unsigned char *b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
+    assert(b[1] == 0);
+    buf[i] = b[0];
+  }
+
   return buflen;
 }
 
@@ -300,7 +327,7 @@ eio_want_poll (void)
 }
 
 enum encoding
-node::ParseEncoding (Handle<Value> encoding_v)
+node::ParseEncoding (Handle<Value> encoding_v, enum encoding _default)
 {
   HandleScope scope;
 
@@ -313,8 +340,12 @@ node::ParseEncoding (Handle<Value> encoding_v)
     return UTF8;
   } else if (strcasecmp(*encoding, "ascii") == 0) {
     return ASCII;
-  } else {
+  } else if (strcasecmp(*encoding, "raw") == 0) {
     return RAW;
+  } else if (strcasecmp(*encoding, "raws") == 0) {
+    return RAWS;
+  } else {
+    return _default;
   }
 }
 

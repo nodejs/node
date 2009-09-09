@@ -19,6 +19,7 @@ using namespace node;
 
 #define UTF8_SYMBOL           String::NewSymbol("utf8")
 #define RAW_SYMBOL            String::NewSymbol("raw")
+#define RAWS_SYMBOL           String::NewSymbol("raws")
 #define ASCII_SYMBOL          String::NewSymbol("ascii")
 
 #define SERVER_SYMBOL         String::NewSymbol("server")
@@ -288,9 +289,12 @@ Connection::SetEncoding (const Arguments& args)
       return scope.Close(UTF8_SYMBOL);
 
     case RAW:
-    default:
       connection->encoding_ = RAW;
       return scope.Close(RAW_SYMBOL);
+
+    case RAWS:
+      connection->encoding_ = RAWS;
+      return scope.Close(RAWS_SYMBOL);
   }
 }
 
