@@ -472,6 +472,9 @@ ParseArgs (int *argc, char **argv)
 int
 main(int argc, char *argv[])
 {
+  ParseArgs(&argc, argv);
+  V8::SetFlagsFromCommandLine(&argc, argv, true);
+
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
 
@@ -481,8 +484,6 @@ main(int argc, char *argv[])
   ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
   ev_unref(EV_DEFAULT_UC);
 
-  ParseArgs(&argc, argv);
-  V8::SetFlagsFromCommandLine(&argc, argv, true);
   V8::Initialize();
   V8::SetFatalErrorHandler(OnFatalError);
 
