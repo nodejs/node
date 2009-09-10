@@ -347,3 +347,4 @@ def build(bld):
     src/events.h
     src/net.h
   """);
+  bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1');

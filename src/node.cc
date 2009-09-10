@@ -446,7 +446,9 @@ PrintHelp ( )
   printf("Usage: node [switches] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
          "  --cflags         print pre-processor and compiler flags\n"
-         "  --v8-options     print v8 command line options\n");
+         "  --v8-options     print v8 command line options\n\n"
+         "Documentation can be found at http://tinyclouds.org/node/api.html"
+         " or with 'man node'\n");
 }
 
 static void

@@ -4,13 +4,13 @@ Ryan Dahl <ry@tinyclouds.org>
 Version, 0.1.9, 2009.09.05
 
 
-== Name
+== NAME
 
 node - evented I/O for V8 javascript
 
 
 
-== Synopsis
+== SYNOPSIS
 
 An example of a web server written with Node which responds with "Hello
 World" after waiting two seconds:

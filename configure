@@ -106,20 +106,25 @@ test-debug: all
 benchmark: all
 	build/default/node benchmark/run.js
 
-website: website/api.html website/index.html
+doc: doc/node.1 doc/api.html doc/index.html
 
-website/api.html: website/api.txt
+doc/api.html: doc/api.txt
 	asciidoc --unsafe              \\
 		-a theme=pipe                \\
 		-a toc                       \\
 		-a linkcss                   \\
-		-o website/api.html website/api.txt
+		-o doc/api.html doc/api.txt
 
-#		-a stylesdir=website/   \\
-#		-a scriptsdir=website/   \\
+doc/api.xml: doc/api.txt
+	asciidoc -b docbook -d manpage -o doc/api.xml doc/api.txt
 
-website-upload: website
-	scp website/* linode:~/tinyclouds/node/
+doc/node.1: doc/api.xml
+	xsltproc --output doc/node.1                \\
+		--nonet /etc/asciidoc/docbook-xsl/manpage.xsl \\
+		doc/api.xml
+
+website-upload: doc
+	scp doc/* linode:~/tinyclouds/node/
 
 clean:
 	@$WAF clean
@@ -136,7 +141,7 @@ check:
 dist:
 	@$WAF dist
 
-.PHONY: benchmark clean dist distclean check uninstall install all test test-all website website-upload
+.PHONY: benchmark clean dist distclean check uninstall install all test test-all website-upload
 
 EOF
 }
