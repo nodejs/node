@@ -88,6 +88,8 @@ Returns the current working directory of the process.
 +ARGV+ ::
 An array containing the command line arguments.
 
++ENV+ ::
+An object containing the user environment. See environ(7).
 
 +__filename+ ::
 The filename of the script being executed.

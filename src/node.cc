@@ -378,12 +378,25 @@ Load (int argc, char *argv[])
 
   node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
+  int i,j;
   Local<Array> arguments = Array::New(argc);
-  for (int i = 0; i < argc; i++) {
+  for (i = 0; i < argc; i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(i), arg);
   }
   global_obj->Set(String::NewSymbol("ARGV"), arguments);
+
+  Local<Object> env = Object::New();
+  for (i = 0; environ[i]; i++) {
+    for (j = 0; environ[i][j] && environ[i][j] != '='; j++) { ; }
+    Local<String> field = String::New(environ[i], j);
+    Local<String> value = Local<String>();
+    if (environ[i][j] == '=') {
+      value = String::New(environ[i]+j+1);
+    }
+    env->Set(field, value);
+  }
+  global_obj->Set(String::NewSymbol("ENV"), env);
 
   NODE_SET_METHOD(node_obj, "compile", compile);
   NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
