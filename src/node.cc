@@ -502,8 +502,6 @@ main(int argc, char *argv[])
   // to it's namespace node.EventEmitter in Load() bellow.
   EventEmitter::Initialize(process_template);
 
-  Debug::EnableAgent("node", 2222);
-
   Persistent<Context> context = Context::New(NULL,
       process_template->InstanceTemplate());
   Context::Scope context_scope(context);
