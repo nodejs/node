@@ -30,6 +30,8 @@
 using namespace v8;
 using namespace node;
 
+extern char **environ;
+
 Local<Value>
 node::Encode (const void *buf, size_t len, enum encoding encoding)
 {
