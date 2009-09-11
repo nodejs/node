@@ -1,4 +1,25 @@
-2009.09.05, Version 0.1.9
+2009.09.11, Version 0.1.10
+
+  * Feature: raw string encoding "raws"
+
+  * Feature: access to environ through "ENV"
+
+  * Feature: add isDirectory, isFile, isSocket, ... methods
+    to stats object.
+
+  * Bugfix: Internally use full paths when loading modules
+    this fixes a shebang loading problem.
+
+  * Bugfix: Add '--' command line argument for seperating v8
+    args from program args.
+
+  * Add man page.
+
+  * Add node-repl
+
+  * Upgrade v8 to 1.3.10
+
+2009.09.05, Version 0.1.9, d029764bb32058389ecb31ed54a5d24d2915ad4c
 
   * Bugfix: Compile on Snow Leopard.
 
