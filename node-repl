@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+node.stdio.open();
+
+var buffered_cmd = '';
+
+function prompt () {
+  node.stdio.write(buffered_cmd.length ? '...   ' : "\nnode> ");
+}
+
+node.stdio.write("Welcome to the Node.js REPL.\n");
+node.stdio.write("Enter ECMAScript at the prompt.\n");
+node.stdio.write("Type Control-D to exit.\n");
+node.stdio.write("For more information, see http://tinyclouds.org/node\n");
+
+prompt();
+
+var trimmer = /^\s*(.+)\s*$/m;
+
+node.stdio.addListener("data", function (cmd) {
+  var matches = trimmer.exec(cmd);
+
+  if (matches && matches.length == 2) {
+    cmd = matches[1];
+    try {
+      buffered_cmd += cmd;
+      try {
+        node.stdio.write(JSON.stringify(eval(buffered_cmd)) + "\n");
+        buffered_cmd = '';
+      } catch (e) { 
+        if (!(e instanceof SyntaxError)) 
+          throw e;
+      }
+    } catch (e) {
+      node.stdio.writeError('caught an exception: ' + e + '\n');
+      buffered_cmd = '';
+    }
+  }
+
+  prompt();
+});
+
+// vim:ft=javascript

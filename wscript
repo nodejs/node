@@ -348,3 +348,4 @@ def build(bld):
     src/net.h
   """);
   bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1');
+  bld.install_files('${PREFIX}/bin/', 'node-repl', chmod=0755);
