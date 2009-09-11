@@ -58,7 +58,7 @@ Server running at http://127.0.0.1:8000/</tt></pre>
 <div class="paragraph"><p>Node supports 4 byte-string encodings. ASCII (<tt>"ascii"</tt>), UTF-8 (<tt>"utf8"</tt>)
 both use the string object, obviously. Then two "raw binary" encodings - one
 uses an array of integers (<tt>"raw"</tt>) and the other uses a string (<tt>"raws"</tt>).
-Neither raw encodings are perfect and thier implemenations are rather
+Neither raw encodings are perfect and their implementations are rather
 inefficient. Hopefully the raw encoding situation will improve in the
 future.</p></div>
 <div class="paragraph"><p>Unless otherwise noted, functions are all asynchronous and do not block
@@ -383,7 +383,7 @@ one-to-one correspondence.  As an example, <tt>foo.js</tt> loads the module
 <div class="listingblock">
 <div class="content">
 <pre><tt>var circle = require("circle.js");
-puts("The area of a cirlce of radius 4 is " + circle.area(4));</tt></pre>
+puts("The area of a circle of radius 4 is " + circle.area(4));</tt></pre>
 </div></div>
 <div class="paragraph"><p>The contents of <tt>circle.js</tt>:</p></div>
 <div class="listingblock">
@@ -424,7 +424,7 @@ puts("The area of a cirlce of radius 4 is " + area(4));</tt></pre>
 <div class="paragraph"><p>When the program exits a special object called <tt>process</tt> will emit an
 <tt>"exit"</tt> event.</p></div>
 <div class="paragraph"><p>The <tt>"exit"</tt> event cannot perform I/O since the process is going to
-forcably exit in less than microsecond. However, it is a good hook to
+forcibly exit in less than microsecond. However, it is a good hook to
 perform constant time checks of the module&#8217;s state. E.G. for unit tests:</p></div>
 <div class="listingblock">
 <div class="content">
@@ -466,7 +466,7 @@ Prevents said timeout from triggering.
 </dt>
 <dd>
 <p>
-To schedule the repeated execution of callback everydelay milliseconds. Returns
+To schedule the repeated execution of callback every <tt>delay</tt> milliseconds. Returns
 a <tt>intervalId</tt> for possible use with <tt>clearInterval()</tt>.
 </p>
 </dd>
@@ -504,8 +504,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>"output"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>data</tt></p></td>
 <td align="left" valign="top"><p class="table">Each time the child process sends data to its <tt>stdout</tt>, this event is
-triggered. <tt>data</tt> is a string. At the moment all data passed to <tt>stdout</tt> is
-interrpreted as UTF-8 encoded.<br />
+emitted. <tt>data</tt> is a string.<br />
 If the child process closes its <tt>stdout</tt> stream (a common thing to do on
 exit), this event will be emitted with <tt>data === null</tt>.</p></td>
 </tr>
@@ -1036,7 +1035,7 @@ The request method as a string. Read only. Example:
 <dd>
 <p>
 Request URI Object. This contains only the parameters that are
-present in the actual http request. That is, if the request is
+present in the actual HTTP request. That is, if the request is
 </p>
 <div class="listingblock">
 <div class="content">
@@ -1261,7 +1260,7 @@ The <tt>response</tt> argument will be an instance of <tt>node.http.ClientRespon
 </dt>
 <dd>
 <p>
-Sends a sucessive peice of the body.  By calling this method
+Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
 server&mdash;in that case it is suggested to use the
 <tt>["Transfer-Encoding", "chunked"]</tt> header line when
@@ -1436,7 +1435,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">Emitted when the server closes. <tt>errorno</tt>
                                   is an integer which indicates what, if any,
                                   error caused the server to close. If no
-                                  error occured <tt>errorno</tt> will be 0.</p></td>
+                                  error occurred <tt>errorno</tt> will be 0.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1611,7 +1610,7 @@ rather slow.
 </dt>
 <dd>
 <p>
-Half-closes the connection. I.E. sends a FIN packet. It is
+Half-closes the connection. I.E., it sends a FIN packet. It is
 possible the server will still send some data. After calling
 this <tt>readyState</tt> will be <tt>"readOnly"</tt>.
 </p>
@@ -1647,7 +1646,7 @@ Resumes reading if reading was paused by <tt>readPause()</tt>.
 </dt>
 <dd>
 <p>
-Sets the connection to timeout after <tt>timeout</tt> milliseconds of inacitivty on
+Sets the connection to timeout after <tt>timeout</tt> milliseconds of inactivity on
 the connection. By default all <tt>node.tcp.Connection</tt> objects have a timeout
 of 60 seconds (60000 ms).
 </p>
@@ -1863,7 +1862,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.10<br />
-Last updated 2009-09-11 21:05:26 CEST
+Last updated 2009-09-11 21:26:05 CEST
 </div>
 </div>
 </body>

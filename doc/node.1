@@ -38,7 +38,7 @@ Server running at http://127\.0\.0\.1:8000/
 .fi
 .RE
 .SH "API"
-Node supports 4 byte\-string encodings\. ASCII ("ascii"), UTF\-8 ("utf8") both use the string object, obviously\. Then two "raw binary" encodings \- one uses an array of integers ("raw") and the other uses a string ("raws")\. Neither raw encodings are perfect and thier implemenations are rather inefficient\. Hopefully the raw encoding situation will improve in the future\.
+Node supports 4 byte\-string encodings\. ASCII ("ascii"), UTF\-8 ("utf8") both use the string object, obviously\. Then two "raw binary" encodings \- one uses an array of integers ("raw") and the other uses a string ("raws")\. Neither raw encodings are perfect and their implementations are rather inefficient\. Hopefully the raw encoding situation will improve in the future\.
 .sp
 Unless otherwise noted, functions are all asynchronous and do not block execution\.
 .sp
@@ -334,7 +334,7 @@ The contents of foo\.js:
 .RS 4
 .nf
 var circle = require("circle\.js");
-puts("The area of a cirlce of radius 4 is " + circle\.area(4));
+puts("The area of a circle of radius 4 is " + circle\.area(4));
 .fi
 .RE
 The contents of circle\.js:
@@ -385,7 +385,7 @@ process.addListener("exit", function () { })
 .RS
 When the program exits a special object called process will emit an "exit" event\.
 .sp
-The "exit" event cannot perform I/O since the process is going to forcably exit in less than microsecond\. However, it is a good hook to perform constant time checks of the module\(cqs state\. E\.G\. for unit tests:
+The "exit" event cannot perform I/O since the process is going to forcibly exit in less than microsecond\. However, it is a good hook to perform constant time checks of the module\(cqs state\. E\.G\. for unit tests:
 .sp
 .sp
 .RS 4
@@ -423,7 +423,9 @@ Prevents said timeout from triggering\.
 .PP
 setInterval(callback, delay)
 .RS 4
-To schedule the repeated execution of callback everydelay milliseconds\. Returns a
+To schedule the repeated execution of callback every
+delay
+milliseconds\. Returns a
 intervalId
 for possible use with
 clearInterval()\.
@@ -464,7 +466,7 @@ T}:T{
 data
 .sp
 T}:T{
-Each time the child process sends data to its stdout, this event is triggered\. data is a string\. At the moment all data passed to stdout is interrpreted as UTF\-8 encoded\. If the child process closes its stdout stream (a common thing to do on exit), this event will be emitted with data === null\.
+Each time the child process sends data to its stdout, this event is emitted\. data is a string\. If the child process closes its stdout stream (a common thing to do on exit), this event will be emitted with data === null\.
 .sp
 T}
 T{
@@ -933,7 +935,7 @@ The request method as a string\. Read only\. Example:
 .PP
 request\.uri
 .RS 4
-Request URI Object\. This contains only the parameters that are present in the actual http request\. That is, if the request is
+Request URI Object\. This contains only the parameters that are present in the actual HTTP request\. That is, if the request is
 .sp
 .RS 4
 .nf
@@ -1172,7 +1174,7 @@ T}
 .PP
 request\.sendBody(chunk, encoding="ascii")
 .RS 4
-Sends a sucessive peice of the body\. By calling this method many times, the user can stream a request body to a server\(emin that case it is suggested to use the
+Sends a chunk of the body\. By calling this method many times, the user can stream a request body to a server\(emin that case it is suggested to use the
 ["Transfer\-Encoding", "chunked"]
 header line when creating the request\.
 .sp
@@ -1350,7 +1352,7 @@ T}:T{
 errorno
 .sp
 T}:T{
-Emitted when the server closes\. errorno is an integer which indicates what, if any, error caused the server to close\. If no error occured errorno will be 0\.
+Emitted when the server closes\. errorno is an integer which indicates what, if any, error caused the server to close\. If no error occurred errorno will be 0\.
 .sp
 T}
 .TE
@@ -1533,7 +1535,7 @@ Sends data on the connection\. The data should be eithre an array of integers (f
 .PP
 connection\.close()
 .RS 4
-Half\-closes the connection\. I\.E\. sends a FIN packet\. It is possible the server will still send some data\. After calling this
+Half\-closes the connection\. I\.E\., it sends a FIN packet\. It is possible the server will still send some data\. After calling this
 readyState
 will be
 "readOnly"\.
@@ -1561,7 +1563,7 @@ connection\.setTimeout(timeout)
 .RS 4
 Sets the connection to timeout after
 timeout
-milliseconds of inacitivty on the connection\. By default all
+milliseconds of inactivity on the connection\. By default all
 node\.tcp\.Connection
 objects have a timeout of 60 seconds (60000 ms)\.
 .sp

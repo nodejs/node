@@ -41,7 +41,7 @@ Server running at http://127.0.0.1:8000/
 Node supports 4 byte-string encodings. ASCII (+"ascii"+), UTF-8 (+"utf8"+)
 both use the string object, obviously. Then two "raw binary" encodings - one
 uses an array of integers (+"raw"+) and the other uses a string (+"raws"+). 
-Neither raw encodings are perfect and thier implemenations are rather
+Neither raw encodings are perfect and their implementations are rather
 inefficient. Hopefully the raw encoding situation will improve in the
 future.
 
@@ -229,7 +229,7 @@ The contents of +foo.js+:
 
 ----------------------------------------
 var circle = require("circle.js");
-puts("The area of a cirlce of radius 4 is " + circle.area(4));
+puts("The area of a circle of radius 4 is " + circle.area(4));
 ----------------------------------------
 
 The contents of +circle.js+:
@@ -280,7 +280,7 @@ When the program exits a special object called +process+ will emit an
 +"exit"+ event.
 
 The +"exit"+ event cannot perform I/O since the process is going to
-forcably exit in less than microsecond. However, it is a good hook to
+forcibly exit in less than microsecond. However, it is a good hook to
 perform constant time checks of the module's state. E.G. for unit tests:
 
 ----------------------------------------
@@ -315,7 +315,7 @@ Prevents said timeout from triggering.
 
 
 +setInterval(callback, delay)+::
-To schedule the repeated execution of callback everydelay milliseconds. Returns
+To schedule the repeated execution of callback every +delay+ milliseconds. Returns
 a +intervalId+ for possible use with +clearInterval()+.
 
 
@@ -337,8 +337,7 @@ Node provides a tridirectional +popen(3)+ facility through the class
 
 |+"output"+ | +data+   |
 Each time the child process sends data to its +stdout+, this event is
-triggered. +data+ is a string. At the moment all data passed to +stdout+ is
-interrpreted as UTF-8 encoded.
+emitted. +data+ is a string.
 +
 If the child process closes its +stdout+ stream (a common thing to do on
 exit), this event will be emitted with +data === null+.
@@ -636,7 +635,7 @@ The request method as a string. Read only. Example:
 
 +request.uri+ ::
 Request URI Object. This contains only the parameters that are
-present in the actual http request. That is, if the request is
+present in the actual HTTP request. That is, if the request is
 +
 ----------------------------------------
 GET /status?name=ryan HTTP/1.1\r\n
@@ -808,7 +807,7 @@ The +response+ argument will be an instance of +node.http.ClientResponse+.
 
 +request.sendBody(chunk, encoding="ascii")+ ::
 
-Sends a sucessive peice of the body.  By calling this method
+Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
 server&mdash;in that case it is suggested to use the
 +["Transfer-Encoding", "chunked"]+ header line when
@@ -917,7 +916,7 @@ server.listen(7000, "localhost");
 |+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
                                   is an integer which indicates what, if any,
                                   error caused the server to close. If no
-                                  error occured +errorno+ will be 0.
+                                  error occurred +errorno+ will be 0.
 |=========================================================
 
 +node.tcp.createServer(connection_listener);+ ::
@@ -1019,7 +1018,7 @@ rather slow.
 
 
 +connection.close()+::
-Half-closes the connection. I.E. sends a FIN packet. It is
+Half-closes the connection. I.E., it sends a FIN packet. It is
 possible the server will still send some data. After calling
 this +readyState+ will be +"readOnly"+.
 
@@ -1036,7 +1035,7 @@ Useful to throttle back an upload.
 Resumes reading if reading was paused by +readPause()+.
 
 +connection.setTimeout(timeout)+::
-Sets the connection to timeout after +timeout+ milliseconds of inacitivty on
+Sets the connection to timeout after +timeout+ milliseconds of inactivity on
 the connection. By default all +node.tcp.Connection+ objects have a timeout
 of 60 seconds (60000 ms).
 +
