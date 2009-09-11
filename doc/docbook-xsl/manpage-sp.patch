@@ -1,0 +1,41 @@
+diff -u ./manpages.ORIG/block.xsl ./manpages/block.xsl
+--- ./manpages.ORIG/block.xsl	2005-11-30 17:31:23.135642494 +1300
++++ ./manpages/block.xsl	2005-11-30 17:35:59.368886010 +1300
+@@ -37,7 +37,7 @@
+     <xsl:apply-templates/>
+   </xsl:variable>
+   <xsl:value-of select="normalize-space($content)"/>
+-  <xsl:text>.sp&#10;</xsl:text>
++  <xsl:text>&#10;.sp&#10;</xsl:text>
+ </xsl:template>
+ 
+ <xsl:template match="address|literallayout|programlisting|screen|synopsis">
+@@ -56,7 +56,7 @@
+     <xsl:when test="parent::caption|parent::entry|parent::para|
+                     parent::td|parent::th" /> <!-- do nothing -->
+     <xsl:otherwise>
+-      <xsl:text>.sp&#10;</xsl:text>
++      <xsl:text>&#10;.sp&#10;</xsl:text>
+     </xsl:otherwise>
+   </xsl:choose>
+   <xsl:text>.nf&#10;</xsl:text>
+diff -u ./manpages.ORIG/param.xsl ./manpages/param.xsl
+--- ./manpages.ORIG/param.xsl	2005-11-30 17:31:23.164638883 +1300
++++ ./manpages/param.xsl	2005-11-30 17:58:14.345174391 +1300
+@@ -47,6 +47,16 @@
+   <substitution oldstring="&#xA;&#xA;." newstring="&#xA;."/>
+   <!-- * remove any .sp occurences that directly follow a .PP  -->
+   <substitution oldstring=".PP&#xA;.sp" newstring=".PP"/>
++
++  <!-- * remove any .sp occurences that directly preceed a .SH  -->
++  <substitution oldstring=".sp&#xA;.SH" newstring=".SH"/>
++  <!-- * remove any .sp occurences that directly preceed a .TP  -->
++  <substitution oldstring=".sp&#xA;.TP" newstring=".TP"/>
++  <!-- * remove any .sp occurences that directly preceed a .SS  -->
++  <substitution oldstring=".sp&#xA;.SS" newstring=".SS"/>
++  <!-- * remove any .sp occurences that directly preceed a .sp  -->
++  <substitution oldstring=".sp&#xA;.sp" newstring=".sp"/>
++
+   <!-- * squeeze multiple newlines after start of no-fill (verbatim) env. -->
+   <substitution oldstring=".nf&#xA;&#xA;" newstring=".nf&#xA;"/>
+   <!-- * an apostrophe at the beginning of a line gets interpreted as a -->
