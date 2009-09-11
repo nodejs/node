@@ -55,12 +55,12 @@ Server running at http://127.0.0.1:8000/</tt></pre>
 </div>
 <h2 id="_api">API</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Node supports 3 byte-string encodings: ASCII (<tt>"ascii"</tt>), UTF-8 (<tt>"utf8"</tt>),
-and raw binary (<tt>"raw"</tt>).  It uses strings to represent ASCII and UTF-8
-encoded data. For the moment, arrays of integers are used to represent raw
-binary data&#8212;this representation is rather inefficient. This will
-change in the future, when
-<a href="http://code.google.com/p/v8/issues/detail?id=270">V8 supports Blob objects</a>.</p></div>
+<div class="paragraph"><p>Node supports 4 byte-string encodings. ASCII (<tt>"ascii"</tt>), UTF-8 (<tt>"utf8"</tt>)
+both use the string object, obviously. Then two "raw binary" encodings - one
+uses an array of integers (<tt>"raw"</tt>) and the other uses a string (<tt>"raws"</tt>).
+Neither raw encodings are perfect and thier implemenations are rather
+inefficient. Hopefully the raw encoding situation will improve in the
+future.</p></div>
 <div class="paragraph"><p>Unless otherwise noted, functions are all asynchronous and do not block
 execution.</p></div>
 <h3 id="_helpers">Helpers</h3><div style="clear:left"></div>
@@ -1863,7 +1863,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.9<br />
-Last updated 2009-09-11 13:40:01 CEST
+Last updated 2009-09-11 20:58:54 CEST
 </div>
 </div>
 </body>

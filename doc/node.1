@@ -38,7 +38,7 @@ Server running at http://127\.0\.0\.1:8000/
 .fi
 .RE
 .SH "API"
-Node supports 3 byte\-string encodings: ASCII ("ascii"), UTF\-8 ("utf8"), and raw binary ("raw")\. It uses strings to represent ASCII and UTF\-8 encoded data\. For the moment, arrays of integers are used to represent raw binary data\(emthis representation is rather inefficient\. This will change in the future, when V8 supports Blob objects\.
+Node supports 4 byte\-string encodings\. ASCII ("ascii"), UTF\-8 ("utf8") both use the string object, obviously\. Then two "raw binary" encodings \- one uses an array of integers ("raw") and the other uses a string ("raws")\. Neither raw encodings are perfect and thier implemenations are rather inefficient\. Hopefully the raw encoding situation will improve in the future\.
 .sp
 Unless otherwise noted, functions are all asynchronous and do not block execution\.
 .sp
@@ -1774,16 +1774,11 @@ Further documentation will come soon\. For now see the source code of node_postg
 .sp
 .SH "NOTES"
 .IP " 1." 4
-V8 supports Blob objects
-.RS 4
-\%http://code.google.com/p/v8/issues/detail?id=270
-.RE
-.IP " 2." 4
 here
 .RS 4
 \%http:/cvs.schmorp.de/libev/ev.html
 .RE
-.IP " 3." 4
+.IP " 2." 4
 node_postgres
 .RS 4
 \%http://github.com/ry/node_postgres
