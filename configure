@@ -120,7 +120,7 @@ doc/api.xml: doc/api.txt
 
 doc/node.1: doc/api.xml
 	xsltproc --output doc/node.1                \\
-		--nonet doc/docbook-xsl/manpage.xsl       \\
+		--nonet /etc/asciidoc/docbook-xsl/manpage.xsl \\
 		doc/api.xml
 
 website-upload: doc
