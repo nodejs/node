@@ -1,16 +1,5 @@
-#include "node.h"
-
-#include "events.h"
-#include "dns.h"
-#include "net.h"
-#include "file.h"
-#include "http.h"
-#include "timer.h"
-#include "child_process.h"
-#include "constants.h"
-#include "node_stdio.h"
-
-#include "natives.h"
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <node.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,20 +10,25 @@
 #include <errno.h>
 #include <dlfcn.h> /* dlopen(), dlsym() */
 
-#include <string>
-#include <list>
-#include <map>
-
+#include <events.h>
+#include <dns.h>
+#include <net.h>
+#include <file.h>
+#include <http.h>
+#include <timer.h>
+#include <child_process.h>
+#include <constants.h>
+#include <node_stdio.h>
+#include <natives.h>
 #include <v8-debug.h>
 
 using namespace v8;
-using namespace node;
 
 extern char **environ;
 
-Local<Value>
-node::Encode (const void *buf, size_t len, enum encoding encoding)
-{
+namespace node {
+
+Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
   HandleScope scope;
 
   if (!len) return scope.Close(Null());
@@ -47,16 +41,17 @@ node::Encode (const void *buf, size_t len, enum encoding encoding)
       array->Set(Integer::New(i), Integer::New(val));
     }
     return scope.Close(array);
-  } 
+  }
 
   if (encoding == RAWS) {
     const unsigned char *cbuf = static_cast<const unsigned char*>(buf);
-    uint16_t twobytebuf[len];
+    uint16_t * twobytebuf = new uint16_t[len];
     for (size_t i = 0; i < len; i++) {
-      // XXX is the following line platform independent? 
+      // XXX is the following line platform independent?
       twobytebuf[i] = cbuf[i];
     }
     Local<String> chunk = String::New(twobytebuf, len);
+    delete twobytebuf;
     return scope.Close(chunk);
   }
 
@@ -65,10 +60,8 @@ node::Encode (const void *buf, size_t len, enum encoding encoding)
   return scope.Close(chunk);
 }
 
-// Returns -1 if the handle was not valid for decoding 
-ssize_t
-node::DecodeBytes (v8::Handle<v8::Value> val, enum encoding encoding)
-{
+// Returns -1 if the handle was not valid for decoding
+ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
   HandleScope scope;
 
   if (val->IsArray()) {
@@ -79,21 +72,21 @@ node::DecodeBytes (v8::Handle<v8::Value> val, enum encoding encoding)
 
   if (!val->IsString()) return -1;
 
-  Handle<String> string = Handle<String>::Cast(val);
+  Handle<String> str = Handle<String>::Cast(val);
 
-  if (encoding == UTF8) return string->Utf8Length();
+  if (encoding == UTF8) return str->Utf8Length();
 
-  return string->Length();
+  return str->Length();
 }
 
 #ifndef MIN
-# define MIN(a,b) ((a) < (b) ? (a) : (b))
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 // Returns number of bytes written.
-ssize_t
-node::DecodeWrite (char *buf, size_t buflen, v8::Handle<v8::Value> val, enum encoding encoding)
-{
+ssize_t DecodeWrite(char *buf, size_t buflen,
+                    v8::Handle<v8::Value> val,
+                    enum encoding encoding) {
   size_t i;
   HandleScope scope;
 
@@ -115,23 +108,23 @@ node::DecodeWrite (char *buf, size_t buflen, v8::Handle<v8::Value> val, enum enc
   }
 
   assert(val->IsString());
-  Handle<String> string = Handle<String>::Cast(val);
+  Handle<String> str = Handle<String>::Cast(val);
 
   if (encoding == UTF8) {
-    string->WriteUtf8(buf, buflen);
+    str->WriteUtf8(buf, buflen);
     return buflen;
   }
 
   if (encoding == ASCII) {
-    string->WriteAscii(buf, 0, buflen);
+    str->WriteAscii(buf, 0, buflen);
     return buflen;
   }
 
   // THIS IS AWFUL!!! FIXME
 
-  uint16_t twobytebuf[buflen];
+  uint16_t * twobytebuf = new uint16_t[buflen];
 
-  string->Write(twobytebuf, 0, buflen);
+  str->Write(twobytebuf, 0, buflen);
 
   for (size_t i = 0; i < buflen; i++) {
     unsigned char *b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
@@ -139,26 +132,24 @@ node::DecodeWrite (char *buf, size_t buflen, v8::Handle<v8::Value> val, enum enc
     buf[i] = b[0];
   }
 
+  delete twobytebuf;
+
   return buflen;
 }
 
-// Extracts a C string from a V8 Utf8Value.
-const char*
-ToCString(const v8::String::Utf8Value& value)
-{
-  return *value ? *value : "<string conversion failed>";
+// Extracts a C str from a V8 Utf8Value.
+const char* ToCString(const v8::String::Utf8Value& value) {
+  return *value ? *value : "<str conversion failed>";
 }
 
-static void
-ReportException (TryCatch &try_catch)
-{
-  Handle<Message> message = try_catch.Message();
+static void ReportException(TryCatch *try_catch) {
+  Handle<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     fprintf(stderr, "Error: (no message)\n");
     fflush(stderr);
     return;
   }
-  Handle<Value> error = try_catch.Exception();
+  Handle<Value> error = try_catch->Exception();
   Handle<String> stack;
   if (error->IsObject()) {
     Handle<Object> obj = Handle<Object>::Cast(error);
@@ -198,32 +189,28 @@ ReportException (TryCatch &try_catch)
   fflush(stderr);
 }
 
-// Executes a string within the current v8 context.
-Handle<Value>
-ExecuteString(v8::Handle<v8::String> source,
-              v8::Handle<v8::Value> filename)
-{
+// Executes a str within the current v8 context.
+Handle<Value> ExecuteString(v8::Handle<v8::String> source,
+                            v8::Handle<v8::Value> filename) {
   HandleScope scope;
   TryCatch try_catch;
 
   Handle<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(&try_catch);
     exit(1);
   }
 
   Handle<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(&try_catch);
     exit(1);
   }
 
   return scope.Close(result);
 }
 
-static Handle<Value>
-Cwd (const Arguments& args)
-{
+static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
 
   char output[PATH_MAX];
@@ -236,9 +223,7 @@ Cwd (const Arguments& args)
   return scope.Close(cwd);
 }
 
-v8::Handle<v8::Value>
-node_exit (const v8::Arguments& args)
-{
+v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   int r = 0;
   if (args.Length() > 0)
     r = args[0]->IntegerValue();
@@ -249,9 +234,7 @@ node_exit (const v8::Arguments& args)
 
 typedef void (*extInit)(Handle<Object> exports);
 
-Handle<Value>
-node_dlopen (const v8::Arguments& args)
-{
+Handle<Value> DLOpen(const v8::Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2) return Undefined();
@@ -279,9 +262,7 @@ node_dlopen (const v8::Arguments& args)
   return Undefined();
 }
 
-v8::Handle<v8::Value>
-compile (const v8::Arguments& args)
-{
+v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
   if (args.Length() < 2)
     return Undefined();
 
@@ -295,10 +276,7 @@ compile (const v8::Arguments& args)
   return scope.Close(result);
 }
 
-static void
-OnFatalError (const char* location, const char* message)
-{
-
+static void OnFatalError(const char* location, const char* message) {
 #define FATAL_ERROR "\033[1;31mV8 FATAL ERROR.\033[m"
   if (location)
     fprintf(stderr, FATAL_ERROR " %s %s\n", location, message);
@@ -308,32 +286,24 @@ OnFatalError (const char* location, const char* message)
   exit(1);
 }
 
-void
-node::FatalException (TryCatch &try_catch)
-{
-  ReportException(try_catch);
+void FatalException(TryCatch &try_catch) {
+  ReportException(&try_catch);
   exit(1);
 }
 
 static ev_async eio_watcher;
 
-static void
-node_eio_cb (EV_P_ ev_async *watcher, int revents)
-{
+static void EIOCallback(EV_P_ ev_async *watcher, int revents) {
   assert(watcher == &eio_watcher);
   assert(revents == EV_ASYNC);
   eio_poll();
 }
 
-static void
-eio_want_poll (void)
-{
+static void EIOWantPoll(void) {
   ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
 }
 
-enum encoding
-node::ParseEncoding (Handle<Value> encoding_v, enum encoding _default)
-{
+enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope;
 
   if (!encoding_v->IsString())
@@ -341,7 +311,7 @@ node::ParseEncoding (Handle<Value> encoding_v, enum encoding _default)
 
   String::Utf8Value encoding(encoding_v->ToString());
 
-  if(strcasecmp(*encoding, "utf8") == 0) {
+  if (strcasecmp(*encoding, "utf8") == 0) {
     return UTF8;
   } else if (strcasecmp(*encoding, "ascii") == 0) {
     return ASCII;
@@ -354,23 +324,19 @@ node::ParseEncoding (Handle<Value> encoding_v, enum encoding _default)
   }
 }
 
-static void
-ExecuteNativeJS (const char *filename, const char *data)
-{
+static void ExecuteNativeJS(const char *filename, const char *data) {
   HandleScope scope;
   TryCatch try_catch;
   ExecuteString(String::New(data), String::New(filename));
   if (try_catch.HasCaught())  {
     puts("There is an error in Node's built-in javascript");
     puts("This should be reported as a bug!");
-    ReportException(try_catch);
+    ReportException(&try_catch);
     exit(1);
   }
 }
 
-static Local<Object>
-Load (int argc, char *argv[])
-{
+static Local<Object> Load(int argc, char *argv[]) {
   HandleScope scope;
 
   Local<Object> global_obj = Context::GetCurrent()->Global();
@@ -380,7 +346,7 @@ Load (int argc, char *argv[])
 
   node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
-  int i,j;
+  int i, j;
   Local<Array> arguments = Array::New(argc);
   for (i = 0; i < argc; i++) {
     Local<String> arg = String::New(argv[i]);
@@ -400,10 +366,10 @@ Load (int argc, char *argv[])
   }
   global_obj->Set(String::NewSymbol("ENV"), env);
 
-  NODE_SET_METHOD(node_obj, "compile", compile);
-  NODE_SET_METHOD(node_obj, "reallyExit", node_exit);
+  NODE_SET_METHOD(node_obj, "compile", Compile);
+  NODE_SET_METHOD(node_obj, "reallyExit", Exit);
   NODE_SET_METHOD(node_obj, "cwd", Cwd);
-  NODE_SET_METHOD(node_obj, "dlopen", node_dlopen);
+  NODE_SET_METHOD(node_obj, "dlopen", DLOpen);
 
   node_obj->Set(String::NewSymbol("EventEmitter"),
               EventEmitter::constructor_template->GetFunction());
@@ -442,9 +408,7 @@ Load (int argc, char *argv[])
   return scope.Close(node_obj);
 }
 
-static void
-CallExitHandler (Handle<Object> node_obj)
-{
+static void CallExitHandler(Handle<Object> node_obj) {
   HandleScope scope;
   Local<Value> exit_v = node_obj->Get(String::New("exit"));
   assert(exit_v->IsFunction());
@@ -455,10 +419,8 @@ CallExitHandler (Handle<Object> node_obj)
     node::FatalException(try_catch);
 }
 
-static void
-PrintHelp ( )
-{
-  printf("Usage: node [switches] script.js [arguments] \n"
+static void PrintHelp() {
+  printf("Usage: node [options] [--] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
          "  --cflags         print pre-processor and compiler flags\n"
          "  --v8-options     print v8 command line options\n\n"
@@ -466,9 +428,7 @@ PrintHelp ( )
          " or with 'man node'\n");
 }
 
-static void
-ParseArgs (int *argc, char **argv)
-{
+static void ParseArgs(int *argc, char **argv) {
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
     if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
@@ -481,32 +441,32 @@ ParseArgs (int *argc, char **argv)
       PrintHelp();
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
-      argv[i] = (char*)"--help";
+      argv[i] = reinterpret_cast<const char*>("--help");
     }
   }
 }
 
-int
-main(int argc, char *argv[])
-{
-  ParseArgs(&argc, argv);
+}  // namespace node
+
+int main(int argc, char *argv[]) {
+  node::ParseArgs(&argc, argv);
   V8::SetFlagsFromCommandLine(&argc, argv, true);
 
   evcom_ignore_sigpipe();
-  ev_default_loop(EVFLAG_AUTO); // initialize the default ev loop.
+  ev_default_loop(EVFLAG_AUTO);  // initialize the default ev loop.
 
   // start eio thread pool
-  ev_async_init(&eio_watcher, node_eio_cb);
-  eio_init(eio_want_poll, NULL);
-  ev_async_start(EV_DEFAULT_UC_ &eio_watcher);
+  ev_async_init(&node::eio_watcher, node::EIOCallback);
+  eio_init(node::EIOWantPoll, NULL);
+  ev_async_start(EV_DEFAULT_UC_ &node::eio_watcher);
   ev_unref(EV_DEFAULT_UC);
 
   V8::Initialize();
-  V8::SetFatalErrorHandler(OnFatalError);
+  V8::SetFatalErrorHandler(node::OnFatalError);
 
-  if(argc < 2)  {
+  if (argc < 2)  {
     fprintf(stderr, "No script was specified.\n");
-    PrintHelp();
+    node::PrintHelp();
     return 1;
   }
 
@@ -517,7 +477,7 @@ main(int argc, char *argv[])
   // The global object / "process" is an instance of EventEmitter.  For
   // strange reasons we must initialize EventEmitter now!  it will be assign
   // to it's namespace node.EventEmitter in Load() bellow.
-  EventEmitter::Initialize(process_template);
+  node::EventEmitter::Initialize(process_template);
 
   Persistent<Context> context = Context::New(NULL,
       process_template->InstanceTemplate());
@@ -527,14 +487,15 @@ main(int argc, char *argv[])
 
   context->Global()->Set(String::NewSymbol("process"), context->Global());
 
-  Local<Object> node_obj = Load(argc, argv);
+  Local<Object> node_obj = node::Load(argc, argv);
 
-  ev_loop(EV_DEFAULT_UC_ 0); // main event loop
+  ev_loop(EV_DEFAULT_UC_ 0);  // main event loop
 
-  CallExitHandler(node_obj);
+  node::CallExitHandler(node_obj);
 
   context.Dispose();
   V8::Dispose();
 
   return 0;
 }
+
