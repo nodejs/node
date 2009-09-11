@@ -437,11 +437,12 @@ node.fs.stat("/tmp/world").addCallback(function (stats) {
 
 +node.fs.stat(path)+ ::
   See stat(2).
-  - on success: Returns +stats+ object. It looks like this:
+  - on success: Returns +node.fs.Stats+ object. It looks like this:
     +{ dev: 2049, ino: 305352, mode: 16877, nlink: 12, uid: 1000, gid: 1000,
     rdev: 0, size: 4096, blksize: 4096, blocks: 8, atime:
     "2009-06-29T11:11:55Z", mtime: "2009-06-29T11:11:40Z", ctime:
     "2009-06-29T11:11:40Z" }+
+    See the +node.fs.Stats+ section below for more information.
   - on error: no parameters.
 
 +node.fs.unlink(path)+ ::
@@ -518,6 +519,23 @@ node.fs.cat("/etc/passwd", "utf8").addCallback(function (content) {
 - on success: returns +data+, what was read from the file.
 - on error: no parameters.
 
+==== +node.fs.Stats+
+
+Objects returned from +node.fs.stat()+ are of this type.
+
++stats.isFile()+::
+
++stats.isDirectory()+::
+
++stats.isBlockDevice()+::
+
++stats.isCharacterDevice()+::
+
++stats.isSymbolicLink()+::
+
++stats.isFIFO()+::
+
++stats.isSocket()+::
 
 === HTTP
 

@@ -58,6 +58,58 @@ EIOPromise::Create (void)
   return promise;
 }
 
+static Persistent<FunctionTemplate> stats_constructor_template;
+
+static Local<Object>
+BuildStatsObject (struct stat * s)
+{
+  HandleScope scope;
+
+  Local<Object> stats =
+    stats_constructor_template->GetFunction()->NewInstance();
+
+  /* ID of device containing file */
+  stats->Set(DEV_SYMBOL, Integer::New(s->st_dev));
+
+  /* inode number */
+  stats->Set(INO_SYMBOL, Integer::New(s->st_ino));
+
+  /* protection */
+  stats->Set(MODE_SYMBOL, Integer::New(s->st_mode));
+
+  /* number of hard links */
+  stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink));
+
+  /* user ID of owner */
+  stats->Set(UID_SYMBOL, Integer::New(s->st_uid));
+
+  /* group ID of owner */
+  stats->Set(GID_SYMBOL, Integer::New(s->st_gid));
+
+  /* device ID (if special file) */
+  stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev));
+
+  /* total size, in bytes */
+  stats->Set(SIZE_SYMBOL, Integer::New(s->st_size));
+
+  /* blocksize for filesystem I/O */
+  stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize));
+
+  /* number of blocks allocated */
+  stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks));
+
+  /* time of last access */
+  stats->Set(ATIME_SYMBOL, NODE_UNIXTIME_V8(s->st_atime));
+
+  /* time of last modification */
+  stats->Set(MTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_mtime));
+
+  /* time of last status change */
+  stats->Set(CTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_ctime));
+
+  return scope.Close(stats);
+}
+
 int
 EIOPromise::After (eio_req *req)
 {
@@ -93,23 +145,9 @@ EIOPromise::After (eio_req *req)
 
     case EIO_STAT:
     {
-      Local<Object> stats = Object::New();
       struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
-      stats->Set(DEV_SYMBOL, Integer::New(s->st_dev)); /* ID of device containing file */
-      stats->Set(INO_SYMBOL, Integer::New(s->st_ino)); /* inode number */
-      stats->Set(MODE_SYMBOL, Integer::New(s->st_mode)); /* protection */
-      stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink)); /* number of hard links */
-      stats->Set(UID_SYMBOL, Integer::New(s->st_uid)); /* user ID of owner */
-      stats->Set(GID_SYMBOL, Integer::New(s->st_gid)); /* group ID of owner */
-      stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev)); /* device ID (if special file) */
-      stats->Set(SIZE_SYMBOL, Integer::New(s->st_size)); /* total size, in bytes */
-      stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize)); /* blocksize for filesystem I/O */
-      stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks)); /* number of blocks allocated */
-      stats->Set(ATIME_SYMBOL, NODE_UNIXTIME_V8(s->st_atime)); /* time of last access */
-      stats->Set(MTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_mtime)); /* time of last modification */
-      stats->Set(CTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_ctime)); /* time of last status change */
       argc = 1;
-      argv[0] = stats;
+      argv[0] = BuildStatsObject(s);
       break;
     }
 
@@ -350,4 +388,9 @@ File::Initialize (Handle<Object> target)
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
+
+  Local<FunctionTemplate> t = FunctionTemplate::New();
+  stats_constructor_template = Persistent<FunctionTemplate>::New(t);
+  target->Set(String::NewSymbol("Stats"),
+      stats_constructor_template->GetFunction());
 }

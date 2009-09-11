@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 using namespace v8;
 using namespace node;
@@ -20,6 +22,14 @@ node::DefineConstants (Handle<Object> target)
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
   NODE_DEFINE_CONSTANT(target, O_RDWR);
+
+  NODE_DEFINE_CONSTANT(target, S_IFREG);
+  NODE_DEFINE_CONSTANT(target, S_IFDIR);
+  NODE_DEFINE_CONSTANT(target, S_IFCHR);
+  NODE_DEFINE_CONSTANT(target, S_IFBLK);
+  NODE_DEFINE_CONSTANT(target, S_IFIFO);
+  NODE_DEFINE_CONSTANT(target, S_IFLNK);
+  NODE_DEFINE_CONSTANT(target, S_IFSOCK);
 
 #ifdef O_CREAT
   NODE_DEFINE_CONSTANT(target, O_CREAT);
