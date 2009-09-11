@@ -28,6 +28,8 @@ extern char **environ;
 
 namespace node {
 
+static int dash_dash_index = 0;
+
 Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
   HandleScope scope;
 
@@ -347,10 +349,12 @@ static Local<Object> Load(int argc, char *argv[]) {
   node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
   int i, j;
-  Local<Array> arguments = Array::New(argc);
-  for (i = 0; i < argc; i++) {
+  Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
+  
+  arguments->Set(Integer::New(0), String::New(argv[0]));
+  for (j = 1, i = dash_dash_index + 1; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
-    arguments->Set(Integer::New(i), arg);
+    arguments->Set(Integer::New(j), arg);
   }
   global_obj->Set(String::NewSymbol("ARGV"), arguments);
 
@@ -431,7 +435,10 @@ static void PrintHelp() {
 static void ParseArgs(int *argc, char **argv) {
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
-    if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
+    if (strcmp(arg, "--") == 0) {
+      dash_dash_index = i;
+      break;
+    } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--cflags") == 0) {
@@ -450,7 +457,7 @@ static void ParseArgs(int *argc, char **argv) {
 
 int main(int argc, char *argv[]) {
   node::ParseArgs(&argc, argv);
-  V8::SetFlagsFromCommandLine(&argc, argv, true);
+  V8::SetFlagsFromCommandLine(&argc, argv, false);
 
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO);  // initialize the default ev loop.
