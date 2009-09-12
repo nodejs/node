@@ -142,12 +142,6 @@ else
 EOF
 fi
 
-# HACK FIXME - use 32bit on Mac
-os=`uname -s`;
-if [ $os = "Darwin"  ]; then
-  CFLAGS="$CFLAGS -m32"
-fi
-
 ac_config_h
 ac_output Makefile
 ac_msg "creating config.status"
