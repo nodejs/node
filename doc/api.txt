@@ -534,7 +534,9 @@ Objects returned from +node.fs.stat()+ are of this type.
 
 +stats.isFIFO()+::
 
-+stats.isSocket()+::
++stats.isSocket()+:: ...
+
+
 
 === HTTP
 

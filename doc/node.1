@@ -780,8 +780,10 @@ Objects returned from node\.fs\.stat() are of this type\.
 .PP
 stats\.isFile(), stats\.isDirectory(), stats\.isBlockDevice(), stats\.isCharacterDevice(), stats\.isSymbolicLink(), stats\.isFIFO(), stats\.isSocket()
 .RS 4
-=== HTTP
+\&...
 .RE
+.RE
+.SS "HTTP"
 The HTTP interfaces in Node are designed to support many features of the protocol which have been traditionally difficult to use\. In particular, large, possibly chunk\-encoded, messages\. The interface is careful to never buffer entire requests or responses\(emthe user is able to stream data\.
 .sp
 HTTP message headers are represented by an object like this
@@ -798,7 +800,6 @@ HTTP message headers are represented by an object like this
 .RE
 In order to support the full spectrum of possible HTTP applications, Node\(cqs HTTP API is very low\-level\. It deals with connection handling and message parsing only\. It parses a message into headers and body but it does not parse the actual headers or the body\. That means, for example, that Node does not, and will never, provide API to access or manipulate Cookies or multi\-part bodies\. \fIThis is left to the user\.\fR
 .sp
-.RE
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
