@@ -1,26 +1,27 @@
-#include "node.h"
-#include "dns.h"
-#include "events.h"
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <dns.h>
 
 #include <stdlib.h> /* exit() */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <assert.h>
+
+#include <events.h>
 
 #include <v8.h>
 #include <ev.h>
 #include <udns.h>
 
+namespace node {
+
 using namespace v8;
-using namespace node;
 
 static ev_io io_watcher;
 static ev_timer timer_watcher;
 
-static inline void
-set_timeout ()
-{
+static inline void set_timeout() {
   int maxwait = 20;
   int wait = dns_timeouts(NULL, maxwait, ev_now(EV_DEFAULT_UC));
 
@@ -29,21 +30,17 @@ set_timeout ()
   if (!dns_active(NULL)) return;
 
   if (wait >= 0) {
-    ev_timer_set(&timer_watcher, (double)wait, 0.0);
+    ev_timer_set(&timer_watcher, static_cast<double>(wait), 0.0);
     ev_timer_start(EV_DEFAULT_UC_ &timer_watcher);
   }
 }
 
-static inline void
-maybe_start ()
-{
+static inline void maybe_start() {
   ev_io_start(EV_DEFAULT_UC_ &io_watcher);
   set_timeout();
 }
 
-static void
-ioevent (EV_P_ ev_io *_watcher, int revents)
-{
+static void ioevent(EV_P_ ev_io *_watcher, int revents) {
   assert(revents == EV_READ);
   assert(_watcher == &io_watcher);
   dns_ioevent(NULL, ev_now(EV_DEFAULT_UC));
@@ -51,17 +48,13 @@ ioevent (EV_P_ ev_io *_watcher, int revents)
   set_timeout();
 }
 
-static void
-timeout (EV_P_ ev_timer *_watcher, int revents)
-{
+static void timeout(EV_P_ ev_timer *_watcher, int revents) {
   assert(revents == EV_TIMEOUT);
   assert(_watcher == &timer_watcher);
   set_timeout();
 }
 
-static void
-ResolveError (Promise *promise)
-{
+static void ResolveError(Promise *promise) {
   HandleScope scope;
   int status = dns_status(NULL);
   assert(status < 0);
@@ -72,9 +65,9 @@ ResolveError (Promise *promise)
   promise->EmitError(2, argv);
 }
 
-static void
-AfterResolveA4 (struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data)
-{
+static void AfterResolveA4(struct dns_ctx *ctx,
+                           struct dns_rr_a4 *result,
+                           void *data) {
   assert(ctx == &dns_defctx);
 
   HandleScope scope;
@@ -108,9 +101,9 @@ AfterResolveA4 (struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data)
   promise->EmitSuccess(3, argv);
 }
 
-static void
-AfterResolveA6 (struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data)
-{
+static void AfterResolveA6(struct dns_ctx *ctx,
+                           struct dns_rr_a6 *result,
+                           void *data) {
   assert(ctx == &dns_defctx);
 
   HandleScope scope;
@@ -144,14 +137,12 @@ AfterResolveA6 (struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data)
   promise->EmitSuccess(3, argv);
 }
 
-
-static Handle<Value>
-ResolveA (int type, const Arguments& args)
-{
+static Handle<Value> ResolveA(int type, const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New("Argument must be a string.")));
+    return ThrowException(Exception::Error(
+          String::New("Argument must be a string.")));
   }
 
   String::Utf8Value name(args[0]->ToString());
@@ -171,28 +162,24 @@ ResolveA (int type, const Arguments& args)
       return ThrowException(Exception::Error(String::New("Unsupported type")));
   }
 
-  assert(query); // TODO better error handling.
+  assert(query);  // TODO(ry) better error handling.
 
   maybe_start();
 
   return scope.Close(promise->Handle());
 }
 
-static Handle<Value>
-ResolveA4 (const Arguments& args)
-{
+static Handle<Value> ResolveA4(const Arguments& args) {
   return ResolveA(DNS_T_A, args);
 }
 
-static Handle<Value>
-ResolveA6 (const Arguments& args)
-{
+static Handle<Value> ResolveA6(const Arguments& args) {
   return ResolveA(DNS_T_AAAA, args);
 }
 
-static void
-AfterReverse (struct dns_ctx *ctx, struct dns_rr_ptr *result, void *data)
-{
+static void AfterReverse(struct dns_ctx *ctx,
+                         struct dns_rr_ptr *result,
+                         void *data) {
   assert(ctx == &dns_defctx);
 
   HandleScope scope;
@@ -224,13 +211,12 @@ AfterReverse (struct dns_ctx *ctx, struct dns_rr_ptr *result, void *data)
   promise->EmitSuccess(3, argv);
 }
 
-static Handle<Value>
-Reverse (const Arguments& args)
-{
+static Handle<Value> Reverse(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New("Argument must be a string.")));
+    return ThrowException(Exception::Error(
+          String::New("Argument must be a string.")));
   }
 
   String::Utf8Value ip_address(args[0]->ToString());
@@ -260,16 +246,14 @@ Reverse (const Arguments& args)
     query = dns_submit_a6ptr(NULL, &a.addr6, AfterReverse, promise);
   }
 
-  assert(query); // TODO better error handling.
+  assert(query);  // TODO(ry) better error handling.
 
   maybe_start();
 
   return scope.Close(promise->Handle());
 }
 
-void
-DNS::Initialize (Handle<Object> target)
-{
+void DNS::Initialize(Handle<Object> target) {
   if (dns_init(NULL, 0) < 0) {
     fprintf(stderr, "Error initializing UDNS context\n");
     exit(-2);
@@ -298,3 +282,5 @@ DNS::Initialize (Handle<Object> target)
   Local<FunctionTemplate> reverse = FunctionTemplate::New(Reverse);
   target->Set(String::NewSymbol("reverse"), reverse->GetFunction());
 }
+
+}  // namespace node

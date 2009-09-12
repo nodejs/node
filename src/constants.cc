@@ -1,5 +1,5 @@
-#include "node.h"
-#include "constants.h"
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <constants.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -8,12 +8,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-using namespace v8;
-using namespace node;
+namespace node {
 
-void
-node::DefineConstants (Handle<Object> target)
-{
+using namespace v8;
+
+void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, RAW);
   NODE_DEFINE_CONSTANT(target, UTF8);
   NODE_DEFINE_CONSTANT(target, ASCII);
@@ -571,6 +570,6 @@ node::DefineConstants (Handle<Object> target)
 #ifdef SIGUNUSED
   NODE_DEFINE_CONSTANT(target, SIGUNUSED);
 #endif
-
 }
 
+}  // namespace node

@@ -1,6 +1,5 @@
-#include "events.h"
-#include <ev.h>
-#include <v8.h>
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <events.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -13,36 +12,41 @@
 #include <arpa/inet.h> /* inet_ntop */
 #include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
+#include <node.h>
+#include <ev.h>
+#include <v8.h>
+
+namespace node {
+
 #ifndef RAMP
 # define RAMP(x) ((x) > 0 ? (x) : 0)
 #endif
 
 using namespace v8;
-using namespace node;
 
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
 /* Poor Man's coroutines */
 static Promise *coroutine_top;
 
-void
-EventEmitter::Initialize (Local<FunctionTemplate> ctemplate)
-{
+void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   HandleScope scope;
 
   constructor_template = Persistent<FunctionTemplate>::New(ctemplate);
 
   Local<FunctionTemplate> __emit = FunctionTemplate::New(Emit);
-  constructor_template->PrototypeTemplate()->Set(String::NewSymbol("emit"), __emit);
+  constructor_template->PrototypeTemplate()->Set(String::NewSymbol("emit"),
+      __emit);
 
   // All other prototype methods are defined in events.js
 
   coroutine_top = NULL;
 }
 
-static bool
-ReallyEmit (Handle<Object> self, Handle<String> event, int argc, Handle<Value> argv[])
-{
+static bool ReallyEmit(Handle<Object> self,
+                       Handle<String> event,
+                       int argc,
+                       Handle<Value> argv[]) {
   HandleScope scope;
 
   Local<Value> events_v = self->Get(String::NewSymbol("_events"));
@@ -73,9 +77,7 @@ ReallyEmit (Handle<Object> self, Handle<String> event, int argc, Handle<Value> a
   return true;
 }
 
-Handle<Value>
-EventEmitter::Emit (const Arguments& args)
-{
+Handle<Value> EventEmitter::Emit(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() == 0) {
@@ -97,9 +99,7 @@ EventEmitter::Emit (const Arguments& args)
   return scope.Close(r ? True() : False());
 }
 
-bool
-EventEmitter::Emit (const char *event_s, int argc, Handle<Value> argv[])
-{
+bool EventEmitter::Emit(const char *event_s, int argc, Handle<Value> argv[]) {
   HandleScope scope;
   Local<String> event = String::NewSymbol(event_s);
   return ReallyEmit(handle_, event, argc, argv);
@@ -107,9 +107,7 @@ EventEmitter::Emit (const char *event_s, int argc, Handle<Value> argv[])
 
 Persistent<FunctionTemplate> Promise::constructor_template;
 
-void
-Promise::Initialize (v8::Handle<v8::Object> target)
-{
+void Promise::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -125,9 +123,7 @@ Promise::Initialize (v8::Handle<v8::Object> target)
               constructor_template->GetFunction());
 }
 
-v8::Handle<v8::Value>
-Promise::New (const v8::Arguments& args)
-{
+v8::Handle<v8::Value> Promise::New(const v8::Arguments& args) {
   HandleScope scope;
 
   Promise *promise = new Promise();
@@ -137,18 +133,14 @@ Promise::New (const v8::Arguments& args)
   return args.This();
 }
 
-Handle<Value>
-Promise::Block (const Arguments& args)
-{
+Handle<Value> Promise::Block(const Arguments& args) {
   HandleScope scope;
   Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
   promise->Block();
   return Undefined();
 }
 
-v8::Handle<v8::Value>
-Promise::EmitSuccess (const v8::Arguments& args)
-{
+v8::Handle<v8::Value> Promise::EmitSuccess(const v8::Arguments& args) {
   HandleScope scope;
   Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
 
@@ -163,9 +155,7 @@ Promise::EmitSuccess (const v8::Arguments& args)
   return r ? True() : False();
 }
 
-v8::Handle<v8::Value>
-Promise::EmitError (const v8::Arguments& args)
-{
+v8::Handle<v8::Value> Promise::EmitError(const v8::Arguments& args) {
   HandleScope scope;
   Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
 
@@ -180,9 +170,7 @@ Promise::EmitError (const v8::Arguments& args)
   return r ? True() : False();
 }
 
-void
-Promise::Block (void)
-{
+void Promise::Block(void) {
   blocking_ = true;
 
   assert(prev_ == NULL);
@@ -194,18 +182,14 @@ Promise::Block (void)
   assert(!blocking_);
 }
 
-void
-Promise::Destack ()
-{
+void Promise::Destack() {
   assert(coroutine_top == this);
   ev_unloop(EV_DEFAULT_ EVUNLOOP_ONE);
   coroutine_top = prev_;
   prev_ = NULL;
 }
 
-void
-Promise::Detach (void)
-{
+void Promise::Detach(void) {
   /* Poor Man's coroutines */
   blocking_ = false;
   while (coroutine_top && !coroutine_top->blocking_) {
@@ -215,9 +199,7 @@ Promise::Detach (void)
   ObjectWrap::Detach();
 }
 
-bool
-Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
-{
+bool Promise::EmitSuccess(int argc, v8::Handle<v8::Value> argv[]) {
   bool r = Emit("success", argc, argv);
 
   Detach();
@@ -225,9 +207,7 @@ Promise::EmitSuccess (int argc, v8::Handle<v8::Value> argv[])
   return r;
 }
 
-bool
-Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
-{
+bool Promise::EmitError(int argc, v8::Handle<v8::Value> argv[]) {
   bool r = Emit("error", argc, argv);
 
   Detach();
@@ -235,9 +215,7 @@ Promise::EmitError (int argc, v8::Handle<v8::Value> argv[])
   return r;
 }
 
-Promise*
-Promise::Create (void)
-{
+Promise* Promise::Create(void) {
   HandleScope scope;
 
   Local<Object> handle =
@@ -249,3 +227,5 @@ Promise::Create (void)
 
   return promise;
 }
+
+}  // namespace node

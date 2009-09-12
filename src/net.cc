@@ -1,7 +1,5 @@
-#include "net.h"
-#include "events.h"
-
-#include <udns.h>
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <net.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -15,7 +13,8 @@
 #include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
 
 using namespace v8;
-using namespace node;
+
+namespace node {
 
 #define UTF8_SYMBOL           String::NewSymbol("utf8")
 #define RAW_SYMBOL            String::NewSymbol("raw")
@@ -49,9 +48,7 @@ static const struct addrinfo client_tcp_hints =
 
 Persistent<FunctionTemplate> Connection::constructor_template;
 
-void
-Connection::Initialize (v8::Handle<v8::Object> target)
-{
+void Connection::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -73,12 +70,12 @@ Connection::Initialize (v8::Handle<v8::Object> target)
       READY_STATE_SYMBOL,
       ReadyStateGetter);
 
-  target->Set(String::NewSymbol("Connection"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("Connection"),
+      constructor_template->GetFunction());
 }
 
-Handle<Value>
-Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
-{
+Handle<Value> Connection::ReadyStateGetter(Local<String> property,
+                                           const AccessorInfo& info) {
   Connection *connection = ObjectWrap::Unwrap<Connection>(info.This());
   assert(connection);
 
@@ -99,12 +96,11 @@ Connection::ReadyStateGetter (Local<String> property, const AccessorInfo& info)
   }
 
   assert(0 && "This shouldnt happen");
-  return ThrowException(Exception::Error(String::New("This shouldn't happen.")));
+  return ThrowException(Exception::Error(
+        String::New("This shouldn't happen.")));
 }
 
-void
-Connection::Init (void)
-{
+void Connection::Init() {
   resolving_ = false;
   evcom_stream_init(&stream_);
   stream_.on_connect = Connection::on_connect;
@@ -114,15 +110,12 @@ Connection::Init (void)
   stream_.data = this;
 }
 
-Connection::~Connection ()
-{
+Connection::~Connection() {
   assert(stream_.recvfd < 0 && "garbage collecting open Connection");
   assert(stream_.sendfd < 0 && "garbage collecting open Connection");
 }
 
-Handle<Value>
-Connection::New (const Arguments& args)
-{
+Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = new Connection();
@@ -131,9 +124,7 @@ Connection::New (const Arguments& args)
   return args.This();
 }
 
-Handle<Value>
-Connection::Connect (const Arguments& args)
-{
+Handle<Value> Connection::Connect(const Arguments& args) {
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   assert(connection);
@@ -141,12 +132,13 @@ Connection::Connect (const Arguments& args)
   HandleScope scope;
 
   if (connection->ReadyState() == EVCOM_CLOSED) {
-    connection->Init(); // in case we're reusing the socket
+    connection->Init();  // in case we're reusing the socket
     assert(connection->ReadyState() == EVCOM_INITIALIZED);
   }
 
   if (connection->ReadyState() != EVCOM_INITIALIZED) {
-    Local<Value> exception = Exception::Error(String::New("Socket is not in CLOSED state."));
+    Local<Value> exception = Exception::Error(
+        String::New("Socket is not in CLOSED state."));
     return ThrowException(exception);
   }
 
@@ -154,7 +146,8 @@ Connection::Connect (const Arguments& args)
   assert(connection->stream_.sendfd < 0);
 
   if (args.Length() == 0) {
-    Local<Value> exception = Exception::TypeError(String::New("First argument must be a port number"));
+    Local<Value> exception = Exception::TypeError(
+        String::New("First argument must be a port number"));
     return ThrowException(exception);
   }
 
@@ -179,18 +172,13 @@ Connection::Connect (const Arguments& args)
    * In the future I will move to a system using adns or udns:
    * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
    */
-  eio_custom( Connection::Resolve
-            , EIO_PRI_DEFAULT
-            , Connection::AfterResolve
-            , connection
-            );
+  eio_custom(Connection::Resolve, EIO_PRI_DEFAULT, Connection::AfterResolve,
+      connection);
 
   return Undefined();
 }
 
-int
-Connection::Resolve (eio_req *req)
-{
+int Connection::Resolve(eio_req *req) {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
 
@@ -210,9 +198,7 @@ Connection::Resolve (eio_req *req)
   return 0;
 }
 
-static struct addrinfo *
-AddressDefaultToIPv4 (struct addrinfo *address_list)
-{
+static struct addrinfo * AddressDefaultToIPv4(struct addrinfo *address_list) {
   struct addrinfo *address = NULL;
 
   for (address = address_list; address != NULL; address = address->ai_next) {
@@ -222,9 +208,7 @@ AddressDefaultToIPv4 (struct addrinfo *address_list)
   return address == NULL ? address_list : address;
 }
 
-int
-Connection::AfterResolve (eio_req *req)
-{
+int Connection::AfterResolve(eio_req *req) {
   ev_unref(EV_DEFAULT_UC);
 
   Connection *connection = static_cast<Connection*> (req->data);
@@ -246,7 +230,7 @@ Connection::AfterResolve (eio_req *req)
 
   // no error. return.
   if (req->result == 0) {
-    evcom_stream_attach (EV_DEFAULT_UC_ &connection->stream_);
+    evcom_stream_attach(EV_DEFAULT_UC_ &connection->stream_);
     goto out;
   }
 
@@ -262,13 +246,11 @@ Connection::AfterResolve (eio_req *req)
 
   connection->Detach();
 
-out:
+ out:
   return 0;
 }
 
-Handle<Value>
-Connection::SetEncoding (const Arguments& args)
-{
+Handle<Value> Connection::SetEncoding(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
@@ -296,11 +278,12 @@ Connection::SetEncoding (const Arguments& args)
       connection->encoding_ = RAWS;
       return scope.Close(RAWS_SYMBOL);
   }
+  assert(0 && "this shouldn't happen");
+  return ThrowException(Exception::Error(
+        String::New("Could not parse encoding. This is a Node bug.")));
 }
 
-Handle<Value>
-Connection::ReadPause (const Arguments& args)
-{
+Handle<Value> Connection::ReadPause(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
@@ -311,9 +294,7 @@ Connection::ReadPause (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Connection::ReadResume (const Arguments& args)
-{
+Handle<Value> Connection::ReadResume(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
@@ -324,9 +305,7 @@ Connection::ReadResume (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Connection::SetTimeout (const Arguments& args)
-{
+Handle<Value> Connection::SetTimeout(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
@@ -339,9 +318,7 @@ Connection::SetTimeout (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Connection::Close (const Arguments& args)
-{
+Handle<Value> Connection::Close(const Arguments& args) {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
@@ -350,9 +327,7 @@ Connection::Close (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Connection::ForceClose (const Arguments& args)
-{
+Handle<Value> Connection::ForceClose(const Arguments& args) {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
@@ -362,19 +337,15 @@ Connection::ForceClose (const Arguments& args)
   return Undefined();
 }
 
-
-Handle<Value>
-Connection::Send (const Arguments& args)
-{
+Handle<Value> Connection::Send(const Arguments& args) {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
 
-  if ( connection->ReadyState() != EVCOM_CONNECTED_RW
-    && connection->ReadyState() != EVCOM_CONNECTED_WO
-     )
-  {
-    Local<Value> exception = Exception::Error(String::New("Socket is not open for writing"));
+  if (connection->ReadyState() != EVCOM_CONNECTED_RW &&
+      connection->ReadyState() != EVCOM_CONNECTED_WO) {
+    Local<Value> exception = Exception::Error(
+        String::New("Socket is not open for writing"));
     return ThrowException(exception);
   }
 
@@ -386,27 +357,22 @@ Connection::Send (const Arguments& args)
     return ThrowException(exception);
   }
 
-  char buf[len];
+  char * buf = new char[len];
   ssize_t written = DecodeWrite(buf, len, args[0], enc);
-  
   assert(written == len);
-
   connection->Send(buf, written);
+  delete buf;
 
   return scope.Close(Integer::New(written));
 }
 
-void
-Connection::OnReceive (const void *buf, size_t len)
-{
+void Connection::OnReceive(const void *buf, size_t len) {
   HandleScope scope;
   Local<Value> data = Encode(buf, len, encoding_);
   Emit("receive", 1, &data);
 }
 
-void
-Connection::OnClose ()
-{
+void Connection::OnClose() {
   HandleScope scope;
 
   Handle<Value> argv[1];
@@ -416,10 +382,10 @@ Connection::OnClose ()
 }
 
 #define DEFINE_SIMPLE_CALLBACK(name, type)                          \
-void name ()                                                        \
+void name()                                                        \
 {                                                                   \
   HandleScope scope;                                                \
-  Emit (type, 0, NULL);                                             \
+  Emit(type, 0, NULL);                                             \
 }
 
 DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "connect")
@@ -428,9 +394,7 @@ DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "eof")
 
 Persistent<FunctionTemplate> Server::constructor_template;
 
-void
-Server::Initialize (Handle<Object> target)
-{
+void Server::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -444,10 +408,7 @@ Server::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
-
-static Local<String>
-GetAddressString (struct sockaddr *addr)
-{
+static Local<String> GetAddressString(struct sockaddr *addr) {
   HandleScope scope;
   char ip[INET6_ADDRSTRLEN];
   Local<String> remote_address;
@@ -462,27 +423,23 @@ GetAddressString (struct sockaddr *addr)
     inet_ntop(AF_INET6, &(sa6->sin6_addr), ip, INET6_ADDRSTRLEN);
     remote_address = String::New(ip);
 
-  } else assert(0 && "received a bad sa_family");
+  } else {
+    assert(0 && "received a bad sa_family");
+  }
 
   return scope.Close(remote_address);
 }
 
-Handle<FunctionTemplate>
-Server::GetConnectionTemplate (void)
-{
+Handle<FunctionTemplate> Server::GetConnectionTemplate() {
   return Connection::constructor_template;
 }
 
-Connection*
-Server::UnwrapConnection (Local<Object> connection)
-{
+Connection* Server::UnwrapConnection(Local<Object> connection) {
   HandleScope scope;
   return ObjectWrap::Unwrap<Connection>(connection);
 }
 
-Connection*
-Server::OnConnection (struct sockaddr *addr)
-{
+Connection* Server::OnConnection(struct sockaddr *addr) {
   HandleScope scope;
 
   TryCatch try_catch;
@@ -511,9 +468,7 @@ Server::OnConnection (struct sockaddr *addr)
   return connection;
 }
 
-void
-Server::OnClose (int errorno)
-{
+void Server::OnClose(int errorno) {
   HandleScope scope;
 
   Handle<Value> argv[1] = { Integer::New(errorno) };
@@ -521,12 +476,7 @@ Server::OnClose (int errorno)
   Emit("close", 1, argv);
 }
 
-// TODO Server->SetOptions
-// TODO Server -> Server rename
-
-Handle<Value>
-Server::New (const Arguments& args)
-{
+Handle<Value> Server::New(const Arguments& args) {
   HandleScope scope;
 
   Server *server = new Server();
@@ -535,20 +485,23 @@ Server::New (const Arguments& args)
   return args.This();
 }
 
-Handle<Value>
-Server::Listen (const Arguments& args)
-{
+Handle<Value> Server::Listen(const Arguments& args) {
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   assert(server);
 
   HandleScope scope;
 
   if (args.Length() == 0) {
-    Local<Value> exception = Exception::TypeError(String::New("First argument must be a port number"));
+    Local<Value> exception = Exception::TypeError(
+        String::New("First argument must be a port number"));
     return ThrowException(exception);
   }
 
   String::AsciiValue port(args[0]->ToString());
+
+#ifndef DNS_MAXNAME
+# define DNS_MAXNAME 1024
+#endif
 
   char host[DNS_MAXNAME+1] = "\0";
   int backlog = 1024;
@@ -575,9 +528,12 @@ Server::Listen (const Arguments& args)
   // For servers call getaddrinfo inline. This is blocking but it shouldn't
   // matter much. If someone actually complains then simply swap it out
   // with a libeio call.
-  struct addrinfo *address = NULL,
-                  *address_list = NULL;
-  int r = getaddrinfo(strlen(host) ? host : NULL, *port, &server_tcp_hints, &address_list);
+  struct addrinfo * address = NULL,
+                  * address_list = NULL;
+
+  int r = getaddrinfo(strlen(host) ?
+      host : NULL, *port, &server_tcp_hints, &address_list);
+
   if (r != 0) {
     Local<Value> exception = Exception::Error(String::New(strerror(errno)));
     return ThrowException(exception);
@@ -592,12 +548,12 @@ Server::Listen (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Server::Close (const Arguments& args)
-{
+Handle<Value> Server::Close(const Arguments& args) {
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   assert(server);
 
   server->Close();
   return Undefined();
 }
+
+}  // namespace node
