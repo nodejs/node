@@ -143,8 +143,8 @@ server.addListener("connection", function (socket) {
 Returns an array of listeners for the specified event. This array can be
 manipulated, e.g. to remove listeners.
 
-+emitter.emit(event, args)+ ::
-Execute each of the listeners in order with the array +args+ as arguments.
++emitter.emit(event, arg1, arg2, ...)+ ::
+Execute each of the listeners in order with the supplied arguments.
 
 ==== +node.Promise+
 

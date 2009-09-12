@@ -13,7 +13,7 @@ var p2 = new node.Promise();
 p2.addCallback(function () {
   p2_done = true;
   setTimeout(function () {
-    p1.emitSuccess(["single arg"]);
+    p1.emitSuccess("single arg");
   }, 100);
 });
 
@@ -40,7 +40,7 @@ var p5 = new node.Promise();
 p5.addCallback(function () {
   p5_done = true;
   setTimeout(function () {
-    p4.emitSuccess(["a","b","c"]);
+    p4.emitSuccess("a","b","c");
   }, 100);
 });
 

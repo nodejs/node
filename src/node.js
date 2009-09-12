@@ -107,7 +107,7 @@ node.Module.prototype.loadObject = function (callback) {
     if (does_exist) {
       self.loaded = true;
       node.dlopen(self.filename, self.target); // FIXME synchronus
-      loadPromise.emitSuccess([self.target]);
+      loadPromise.emitSuccess(self.target);
     } else {
       node.stdio.writeError("Error reading " + self.filename + "\n");
       loadPromise.emitError();
@@ -167,7 +167,7 @@ node.Module.prototype.loadScript = function (callback) {
 
     self.waitChildrenLoad(function () {
       self.loaded = true;
-      loadPromise.emitSuccess([self.target]);
+      loadPromise.emitSuccess(self.target);
     });
   });
 };

@@ -77,17 +77,19 @@ Handle<Value>
 EventEmitter::Emit (const Arguments& args)
 {
   HandleScope scope;
-  Local<String> event = args[0]->ToString();
-  int argc = 0;
-  Local<Array> emit_args;
-  if (args[1]->IsArray()) {
-    emit_args = Local<Array>::Cast(args[1]);
-    argc = emit_args->Length();
+
+  if (args.Length() == 0) {
+    return ThrowException(Exception::TypeError(
+          String::New("Must give event name.")));
   }
+
+  Local<String> event = args[0]->ToString();
+
+  int argc = args.Length() - 1;
   Local<Value> argv[argc];
 
   for (int i = 0; i < argc; i++) {
-    argv[i] = emit_args->Get(Integer::New(i));
+    argv[i] = args[i+1];
   }
 
   bool r = ReallyEmit(args.Holder(), event, argc, argv);
@@ -150,15 +152,10 @@ Promise::EmitSuccess (const v8::Arguments& args)
   HandleScope scope;
   Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
 
-  int argc = 0;
-  Local<Array> emit_args;
-  if (args[0]->IsArray()) {
-    emit_args = Local<Array>::Cast(args[0]);
-    argc = emit_args->Length();
-  }
+  int argc = args.Length();
   Local<Value> argv[argc];
   for (int i = 0; i < argc; i++) {
-    argv[i] = emit_args->Get(Integer::New(i));
+    argv[i] = args[i];
   }
 
   bool r = promise->EmitSuccess(argc, argv);
@@ -172,15 +169,10 @@ Promise::EmitError (const v8::Arguments& args)
   HandleScope scope;
   Promise *promise = ObjectWrap::Unwrap<Promise>(args.Holder());
 
-  int argc = 0;
-  Local<Array> emit_args;
-  if (args[0]->IsArray()) {
-    emit_args = Local<Array>::Cast(args[0]);
-    argc = emit_args->Length();
-  }
+  int argc = args.Length();
   Local<Value> argv[argc];
   for (int i = 0; i < argc; i++) {
-    argv[i] = emit_args->Get(Integer::New(i));
+    argv[i] = args[i];
   }
 
   bool r = promise->EmitError(argc, argv);

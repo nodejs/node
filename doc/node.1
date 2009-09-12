@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/11/2009
+.\"      Date: 09/12/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/11/2009" "" ""
+.TH "NODE" "1" "09/12/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -175,11 +175,9 @@ emitter\.listeners(event)
 Returns an array of listeners for the specified event\. This array can be manipulated, e\.g\. to remove listeners\.
 .RE
 .PP
-emitter\.emit(event, args)
+emitter\.emit(event, arg1, arg2, \&...)
 .RS 4
-Execute each of the listeners in order with the array
-args
-as arguments\.
+Execute each of the listeners in order with the supplied arguments\.
 .RE
 .RE
 .sp

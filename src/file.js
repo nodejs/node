@@ -30,7 +30,7 @@ node.fs.cat = function (path, encoding) {
           pos += bytes_read;
           readChunk();
         } else {
-          cat_promise.emitSuccess([content]);
+          cat_promise.emitSuccess(content);
           node.fs.close(fd);
         }
       });

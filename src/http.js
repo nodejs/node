@@ -347,11 +347,11 @@ function createIncomingMessageStream (connection, incoming_listener) {
       incoming.statusCode = info.statusCode;
     }
 
-    stream.emit("incoming", [incoming, info.should_keep_alive]);
+    stream.emit("incoming", incoming, info.should_keep_alive);
   });
 
   connection.addListener("body", function (chunk) {
-    incoming.emit("body", [chunk]);
+    incoming.emit("body", chunk);
   });
 
   connection.addListener("message_complete", function () {
@@ -421,7 +421,7 @@ function connectionListener (connection) {
     });
     responses.push(res);
 
-    connection.server.emit("request", [req, res]);
+    connection.server.emit("request", req, res);
   });
 }
 
@@ -477,7 +477,7 @@ node.http.createClient = function (port, host) {
     });
 
     var req = requests.shift();
-    req.emit("response", [res]);
+    req.emit("response", res);
   });
 
   return client;
@@ -529,13 +529,13 @@ node.http.cat = function (url, encoding) {
 
   req.finish(function (res) {
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      promise.emitError([res.statusCode]);
+      promise.emitError(res.statusCode);
       return;
     }
     res.setBodyEncoding(encoding);
     res.addListener("body", function (chunk) { content += chunk; });
     res.addListener("complete", function () {
-      promise.emitSuccess([content]);
+      promise.emitSuccess(content);
     });
   });
 
