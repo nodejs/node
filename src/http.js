@@ -173,7 +173,8 @@ node.inherits(OutgoingMessage, node.EventEmitter);
 
 OutgoingMessage.prototype.send = function (data, encoding) {
   this.output.push(data);
-  this.outputEncodings.push(encoding || "raws");
+  encoding = encoding || (data.constructor === Array ? "raw" : "raws");
+  this.outputEncodings.push(encoding);
 };
 
 OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
