@@ -350,7 +350,7 @@ Write (const Arguments& args)
  * 1 length    integer. length to read
  * 2 position  if integer, position to read from in the file.
  *             if null, read from the current position
- * 3 encoding  either node.UTF8 or node.RAW
+ * 3 encoding
  */
 static Handle<Value>
 Read (const Arguments& args)
@@ -365,10 +365,7 @@ Read (const Arguments& args)
   size_t len = args[1]->IntegerValue();
   off_t pos = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
 
-  enum encoding encoding = RAW;
-  if (args[3]->IsInt32()) {
-    encoding = static_cast<enum encoding>(args[3]->Int32Value());
-  }
+  enum encoding encoding = ParseEncoding(args[3]);
 
   return scope.Close(EIOPromise::Read(fd, len, pos, encoding));
 }

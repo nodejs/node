@@ -13,10 +13,6 @@ namespace node {
 using namespace v8;
 
 void DefineConstants(Handle<Object> target) {
-  NODE_DEFINE_CONSTANT(target, RAW);
-  NODE_DEFINE_CONSTANT(target, UTF8);
-  NODE_DEFINE_CONSTANT(target, ASCII);
-
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);

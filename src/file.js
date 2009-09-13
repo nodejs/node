@@ -8,11 +8,9 @@ node.fs.cat = function (path, encoding) {
   var open_promise = node.fs.open(path, node.O_RDONLY, 0666);
   var cat_promise = new node.Promise();
 
-  encoding = (encoding === "raw" ? node.RAW : node.UTF8);
-
   open_promise.addErrback(function () { cat_promise.emitError(); });
   open_promise.addCallback(function (fd) {
-    var content = (encoding === node.UTF8 ? "" : []);
+    var content = (encoding === "raw" ? [] : "");
     var pos = 0;
 
     function readChunk () {
