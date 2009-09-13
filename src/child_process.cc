@@ -305,7 +305,7 @@ int ChildProcess::Write(const char *str, size_t len) {
 
 int ChildProcess::Close(void) {
   if (stdin_fd_ < 0 || got_chld_) return -1;
-  evcom_writer_close(EV_DEFAULT_UC_ &stdin_writer_);
+  evcom_writer_close(&stdin_writer_);
   return 0;
 }
 
