@@ -151,39 +151,38 @@ static void ReportException(TryCatch *try_catch) {
     fflush(stderr);
     return;
   }
+
   Handle<Value> error = try_catch->Exception();
   Handle<String> stack;
+
   if (error->IsObject()) {
     Handle<Object> obj = Handle<Object>::Cast(error);
     Handle<Value> raw_stack = obj->Get(String::New("stack"));
     if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
   }
+
+  // Print (filename):(line number): (message).
+  String::Utf8Value filename(message->GetScriptResourceName());
+  const char* filename_string = ToCString(filename);
+  int linenum = message->GetLineNumber();
+  fprintf(stderr, "%s:%i\n", filename_string, linenum);
+  // Print line of source code.
+  String::Utf8Value sourceline(message->GetSourceLine());
+  const char* sourceline_string = ToCString(sourceline);
+  fprintf(stderr, "%s\n", sourceline_string);
+  // Print wavy underline (GetUnderline is deprecated).
+  int start = message->GetStartColumn();
+  for (int i = 0; i < start; i++) {
+    fprintf(stderr, " ");
+  }
+  int end = message->GetEndColumn();
+  for (int i = start; i < end; i++) {
+    fprintf(stderr, "^");
+  }
+  fprintf(stderr, "\n");
+
   if (stack.IsEmpty()) {
-    String::Utf8Value exception(error);
-
-    // Print (filename):(line number): (message).
-    String::Utf8Value filename(message->GetScriptResourceName());
-    const char* filename_string = ToCString(filename);
-    int linenum = message->GetLineNumber();
-    fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, *exception);
-    // Print line of source code.
-    String::Utf8Value sourceline(message->GetSourceLine());
-    const char* sourceline_string = ToCString(sourceline);
-    fprintf(stderr, "%s\n", sourceline_string);
-    // Print wavy underline (GetUnderline is deprecated).
-    int start = message->GetStartColumn();
-    for (int i = 0; i < start; i++) {
-      fprintf(stderr, " ");
-    }
-    int end = message->GetEndColumn();
-    for (int i = start; i < end; i++) {
-      fprintf(stderr, "^");
-    }
-    fprintf(stderr, "\n");
-
     message->PrintCurrentStackTrace(stderr);
-
-
   } else {
     String::Utf8Value trace(stack);
     fprintf(stderr, "%s\n", *trace);
@@ -265,15 +264,21 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 }
 
 v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
-  if (args.Length() < 2)
-    return Undefined();
-
   HandleScope scope;
+
+  if (args.Length() < 2) {
+    return ThrowException(Exception::TypeError(
+          String::New("needs two arguments.")));
+  }
 
   Local<String> source = args[0]->ToString();
   Local<String> filename = args[1]->ToString();
 
-  Handle<Value> result = ExecuteString(source, filename);
+  Handle<Script> script = Script::Compile(source, filename);
+  if (script.IsEmpty()) return Undefined();
+
+  Handle<Value> result = script->Run();
+  if (result.IsEmpty()) return Undefined();
 
   return scope.Close(result);
 }
