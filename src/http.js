@@ -160,6 +160,7 @@ function OutgoingMessage () {
   node.EventEmitter.call(this);
 
   this.output = [];
+  this.outputEncodings = [];
 
   this.closeOnFinish = false;
   this.chunked_encoding = false;
@@ -171,8 +172,8 @@ function OutgoingMessage () {
 node.inherits(OutgoingMessage, node.EventEmitter);
 
 OutgoingMessage.prototype.send = function (data, encoding) {
-  data.encoding = data.constructor === String ? encoding || "ascii" : "raw";
   this.output.push(data);
+  this.outputEncodings.push(encoding || "raws");
 };
 
 OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
@@ -235,10 +236,10 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
 
 OutgoingMessage.prototype.sendBody = function (chunk, encoding) {
   if (this.chunked_encoding) {
-    this.send(chunk.length.toString(16));
-    this.send(CRLF);
+    this.send(chunk.length.toString(16), "ascii");
+    this.send(CRLF, "ascii");
     this.send(chunk, encoding);
-    this.send(CRLF);
+    this.send(CRLF, "ascii");
   } else {
     this.send(chunk, encoding);
   }
@@ -371,8 +372,11 @@ function flushMessageQueue (connection, queue) {
       if (connection.readyState !== "open" && connection.readyState !== "writeOnly") {
         return false;
       }
-      var out = message.output.shift();
-      connection.send(out, out.encoding);
+
+      var data = message.output.shift();
+      var encoding = message.outputEncodings.shift();
+
+      connection.send(data, encoding);
     }
 
     if (!message.finished) break;
