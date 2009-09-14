@@ -191,23 +191,8 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
 
   // TODO each message should have their encoding.
   // don't look at the conneciton for encoding
-
-  if (connection->encoding_ == RAW) {
-    // raw encoding
-    Local<Array> array = Array::New(len);
-    for (size_t i = 0; i < len; i++) {
-      unsigned char val = reinterpret_cast<const unsigned char*>(buf)[i];
-      array->Set(Integer::New(i), Integer::New(val));
-    }
-    argv[0] = array;
-
-  } else {
-    // utf8 or ascii encoding
-    Handle<String> chunk = String::New((const char*)buf, len);
-    argv[0] = chunk;
-  }
-
-  connection->Emit("body", 1, argv);
+  Local<Value> data = Encode(buf, len, connection->encoding_);
+  connection->Emit("body", 1, &data);
 
   return 0;
 }

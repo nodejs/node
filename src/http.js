@@ -167,13 +167,37 @@ function OutgoingMessage () {
   this.should_keep_alive = true;
   this.use_chunked_encoding_by_default = true;
 
+  this.flushing = false;
+
   this.finished = false;
 }
 node.inherits(OutgoingMessage, node.EventEmitter);
 
 OutgoingMessage.prototype.send = function (data, encoding) {
+  var length = this.output.length;
+
+  if (length === 0) {
+    this.output.push(data);
+    encoding = encoding || (data.constructor === Array ? "raw" : "ascii");
+    this.outputEncodings.push(encoding);
+    return;
+  }
+
+  var lastEncoding = this.outputEncodings[length-1];
+  var lastData = this.output[length-1];
+
+  if ((lastEncoding === encoding) ||
+      (!encoding && data.constructor === lastData.constructor)) {
+    if (lastData.constructor === String) {
+      this.output[length-1] = lastData + data;
+    } else {
+      this.output[length-1] = lastData.concat(data);
+    }
+    return;
+  }
+
   this.output.push(data);
-  encoding = encoding || (data.constructor === Array ? "raw" : "raws");
+  encoding = encoding || (data.constructor === Array ? "raw" : "ascii");
   this.outputEncodings.push(encoding);
 };
 
@@ -237,15 +261,19 @@ OutgoingMessage.prototype.sendHeaderLines = function (first_line, headers) {
 
 OutgoingMessage.prototype.sendBody = function (chunk, encoding) {
   if (this.chunked_encoding) {
-    this.send(chunk.length.toString(16), "ascii");
-    this.send(CRLF, "ascii");
+    this.send(chunk.length.toString(16));
+    this.send(CRLF);
     this.send(chunk, encoding);
-    this.send(CRLF, "ascii");
+    this.send(CRLF);
   } else {
     this.send(chunk, encoding);
   }
 
-  this.flush();
+  if (this.flushing) {
+    this.flush();
+  } else {
+    this.flushing = true;
+  }
 };
 
 OutgoingMessage.prototype.flush = function () {
