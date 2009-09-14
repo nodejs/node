@@ -187,8 +187,6 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
   assert(connection->attached_);
   HandleScope scope;
 
-  Handle<Value> argv[1];
-
   // TODO each message should have their encoding.
   // don't look at the conneciton for encoding
   Local<Value> data = Encode(buf, len, connection->encoding_);
