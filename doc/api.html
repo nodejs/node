@@ -280,6 +280,25 @@ Adds a listener for the <tt>"error"</tt> event. Returns the same promise object.
 </p>
 </dd>
 <dt class="hdlist1">
+<tt>promise.emitSuccess(arg1, arg2, &#8230;)</tt> 
+</dt>
+<dd>
+<p>
+If you created the promise (by doing <tt>new node.Promise()</tt>) then call
+<tt>emitSuccess</tt> to emit the <tt>"success"</tt> event with the given arguments.
+</p>
+<div class="paragraph"><p>(<tt>promise.emit("success", arg1, arg2, &#8230;)</tt> should also work, but doesn&#8217;t at
+the moment due to a bug; use <tt>emitSuccess</tt> instead.)</p></div>
+</dd>
+<dt class="hdlist1">
+<tt>promise.emitError(arg1, arg2, &#8230;)</tt> 
+</dt>
+<dd>
+<p>
+Emits the <tt>"error"</tt> event.
+</p>
+</dd>
+<dt class="hdlist1">
 <tt>promise.wait()</tt> 
 </dt>
 <dd>
@@ -1861,7 +1880,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.10<br />
-Last updated 2009-09-13 18:25:27 CEST
+Last updated 2009-09-15 15:23:59 CEST
 </div>
 </div>
 </body>

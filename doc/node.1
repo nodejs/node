@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/13/2009
+.\"      Date: 09/15/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/13/2009" "" ""
+.TH "NODE" "1" "09/15/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -234,6 +234,28 @@ promise\.addErrback(listener)
 Adds a listener for the
 "error"
 event\. Returns the same promise object\.
+.RE
+.PP
+promise\.emitSuccess(arg1, arg2, \&...)
+.RS 4
+If you created the promise (by doing
+new node\.Promise()) then call
+emitSuccess
+to emit the
+"success"
+event with the given arguments\.
+.sp
+(promise\.emit("success", arg1, arg2, \&...)
+should also work, but doesn\(cqt at the moment due to a bug; use
+emitSuccess
+instead\.)
+.RE
+.PP
+promise\.emitError(arg1, arg2, \&...)
+.RS 4
+Emits the
+"error"
+event\.
 .RE
 .PP
 promise\.wait()

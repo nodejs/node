@@ -165,6 +165,16 @@ Adds a listener for the +"success"+ event. Returns the same promise object.
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
 
++promise.emitSuccess(arg1, arg2, ...)+ ::
+If you created the promise (by doing +new node.Promise()+) then call
++emitSuccess+ to emit the +"success"+ event with the given arguments. 
++
+(+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
+the moment due to a bug; use +emitSuccess+ instead.)
+
++promise.emitError(arg1, arg2, ...)+ ::
+Emits the +"error"+ event.
+
 +promise.wait()+ ::
 Blocks futher execution until the promise emits a success or error event.
 Events setup before the call to +promise.wait()+ was made may still be
