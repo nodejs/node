@@ -783,13 +783,13 @@ data, bytes_read, what was read from the file\.
 .RE
 .RE
 .PP
-node\.fs\.cat(filename, encoding)
+node\.fs\.cat(filename, encoding="utf8")
 .RS 4
 Outputs the entire contents of a file\. Example:
 .sp
 .RS 4
 .nf
-node\.fs\.cat("/etc/passwd", "utf8")\.addCallback(function (content) {
+node\.fs\.cat("/etc/passwd")\.addCallback(function (content) {
   puts(content);
 });
 .fi

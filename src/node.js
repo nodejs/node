@@ -152,7 +152,7 @@ node.Module.prototype.loadScript = function (callback) {
   node.assert(self.loadPromise === null);
   self.loadPromise = loadPromise;
 
-  var cat_promise = node.cat(self.filename, "utf8");
+  var cat_promise = node.cat(self.filename);
 
   cat_promise.addErrback(function () {
     node.stdio.writeError("Error reading " + self.filename + "\n");

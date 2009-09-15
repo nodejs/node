@@ -8,6 +8,8 @@ node.fs.cat = function (path, encoding) {
   var open_promise = node.fs.open(path, node.O_RDONLY, 0666);
   var cat_promise = new node.Promise();
 
+  encoding = encoding || "utf8";
+
   open_promise.addErrback(function () { cat_promise.emitError(); });
   open_promise.addCallback(function (fd) {
     var content = (encoding === "raw" ? [] : "");

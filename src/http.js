@@ -550,6 +550,8 @@ node.http.Client.prototype.put = function (uri, headers) {
 node.http.cat = function (url, encoding) {
   var promise = new node.Promise();
 
+  encoding = encoding || "utf8";
+
   var uri = node.http.parseUri(url);
   var client = node.http.createClient(uri.port || 80, uri.host);
   var req = client.get(uri.path || "/");

@@ -874,7 +874,7 @@ on error: no parameters.
 </ul></div>
 </dd>
 <dt class="hdlist1">
-<tt>node.fs.cat(filename, encoding)</tt>
+<tt>node.fs.cat(filename, encoding="utf8")</tt>
 </dt>
 <dd>
 <p>
@@ -882,7 +882,7 @@ Outputs the entire contents of a file. Example:
 </p>
 <div class="listingblock">
 <div class="content">
-<pre><tt>node.fs.cat("/etc/passwd", "utf8").addCallback(function (content) {
+<pre><tt>node.fs.cat("/etc/passwd").addCallback(function (content) {
   puts(content);
 });</tt></pre>
 </div></div>
@@ -1906,7 +1906,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.10<br />
-Last updated 2009-09-15 22:31:35 CEST
+Last updated 2009-09-15 22:34:24 CEST
 </div>
 </div>
 </body>

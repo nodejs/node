@@ -525,12 +525,12 @@ reading from in the file.
 - on success: returns +data, bytes_read+, what was read from the file.
 - on error: no parameters.
 
-+node.fs.cat(filename, encoding)+::
++node.fs.cat(filename, encoding="utf8")+::
 
 Outputs the entire contents of a file. Example:
 +
 --------------------------------
-node.fs.cat("/etc/passwd", "utf8").addCallback(function (content) {
+node.fs.cat("/etc/passwd").addCallback(function (content) {
   puts(content);
 });
 --------------------------------
