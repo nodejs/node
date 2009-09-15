@@ -15,6 +15,31 @@ node.createChildProcess = function (command) {
   return child;
 };
 
+node.exec = function (command) {
+  var child = node.createChildProcess(command);
+  var stdout = "";
+  var stderr = "";
+  var promise = new node.Promise();
+
+  child.addListener("output", function (chunk) {
+    if (chunk) stdout += chunk; 
+  });
+
+  child.addListener("error", function (chunk) {
+    if (chunk) stderr += chunk; 
+  });
+  
+  child.addListener("exit", function (code) {
+    if (code == 0) {
+      promise.emitSuccess(stdout, stderr);
+    } else {
+      promise.emitError(code, stdout, stderr);
+    }
+  });
+
+  return promise;
+};
+
 node.tcp.createConnection = function (port, host) {
   var connection = new node.tcp.Connection();
   connection.connect(port, host);

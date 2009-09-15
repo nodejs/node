@@ -86,6 +86,27 @@ node\.exit(code)
 Immediately ends the process with the specified code\.
 .RE
 .PP
+node\.exec(command)
+.RS 4
+Executes the command as a child process, buffers the output and returns it in a promise callback\.
+.sp
+.RS 4
+.nf
+node\.exec("ls /")\.addCallback(function (stdout, stderr) {
+  puts(stdout);
+});
+.fi
+.RE
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on success: stdout buffer, stderr buffer
+.RE
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on error: exit code, stdout buffer, stderr buffer
+.RE
+.RE
+.PP
 node\.cwd()
 .RS 4
 Returns the current working directory of the process\.

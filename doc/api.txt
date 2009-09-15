@@ -77,6 +77,20 @@ Like +puts()+ but without the trailing new-line.
 +node.exit(code)+::
 Immediately ends the process with the specified code.
 
++node.exec(command)+::
+Executes the command as a child process, buffers the output and returns it
+in a promise callback.
++
+----------------------------------------
+node.exec("ls /").addCallback(function (stdout, stderr) {
+  puts(stdout);
+});
+----------------------------------------
++
+- on success: stdout buffer, stderr buffer
+- on error: exit code, stdout buffer, stderr buffer
+
+
 +node.cwd()+::
 Returns the current working directory of the process.
 
