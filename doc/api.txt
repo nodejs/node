@@ -503,12 +503,11 @@ node.fs.stat("/tmp/world").addCallback(function (stats) {
   - on error: no parameters.
 
 
-+node.fs.write(fd, data, position)+::
-  Write data to the file specified by +fd+. +data+ is either an array of
-  integers (for raw data) or a string for UTF-8 encoded characters.
-  +position+ refers to the offset from the beginning of the file where this
-  data should be written. If +position+ is +null+, the data will be written at
-  the current position. See pwrite(2).
++node.fs.write(fd, data, position, encoding)+::
+  Write data to the file specified by +fd+.  +position+ refers to the offset
+  from the beginning of the file where this data should be written. If
+  +position+ is +null+, the data will be written at the current position.
+  See pwrite(2).
   - on success: returns an integer +written+ which specifies how many _bytes_ were written.
   - on error: no parameters.
 

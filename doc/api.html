@@ -827,15 +827,14 @@ on error: no parameters.
 </ul></div>
 </dd>
 <dt class="hdlist1">
-<tt>node.fs.write(fd, data, position)</tt>
+<tt>node.fs.write(fd, data, position, encoding)</tt>
 </dt>
 <dd>
 <p>
-  Write data to the file specified by <tt>fd</tt>. <tt>data</tt> is either an array of
-  integers (for raw data) or a string for UTF-8 encoded characters.
-  <tt>position</tt> refers to the offset from the beginning of the file where this
-  data should be written. If <tt>position</tt> is <tt>null</tt>, the data will be written at
-  the current position. See pwrite(2).
+  Write data to the file specified by <tt>fd</tt>.  <tt>position</tt> refers to the offset
+  from the beginning of the file where this data should be written. If
+  <tt>position</tt> is <tt>null</tt>, the data will be written at the current position.
+  See pwrite(2).
 </p>
 <div class="ulist"><ul>
 <li>
@@ -1907,7 +1906,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.10<br />
-Last updated 2009-09-15 15:41:15 CEST
+Last updated 2009-09-15 22:31:35 CEST
 </div>
 </div>
 </body>

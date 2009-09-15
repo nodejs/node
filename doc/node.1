@@ -739,12 +739,10 @@ is given as the parameter\.
 .RE
 .RE
 .PP
-node\.fs\.write(fd, data, position)
+node\.fs\.write(fd, data, position, encoding)
 .RS 4
 Write data to the file specified by
 fd\.
-data
-is either an array of integers (for raw data) or a string for UTF\-8 encoded characters\.
 position
 refers to the offset from the beginning of the file where this data should be written\. If
 position
