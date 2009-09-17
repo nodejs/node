@@ -840,7 +840,7 @@ void KeyedStoreIC::RestoreInlinedVersion(Address address) {
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // The address of the instruction following the call.
   Address test_instruction_address =
-      address + Assembler::kPatchReturnSequenceLength;
+      address + Assembler::kCallTargetAddressOffset;
   // If the instruction following the call is not a test eax, nothing
   // was inlined.
   if (*test_instruction_address != kTestEaxByte) return false;
@@ -867,7 +867,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 static bool PatchInlinedMapCheck(Address address, Object* map) {
   Address test_instruction_address =
-      address + Assembler::kPatchReturnSequenceLength;
+      address + Assembler::kCallTargetAddressOffset;
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
   if (*test_instruction_address != kTestEaxByte) return false;

@@ -157,6 +157,9 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   for (int i = 0; i < instruction_count; i++) {
     *(pc_ + i) = *(instructions + i);
   }
+
+  // Indicate that code has changed.
+  CPU::FlushICache(pc_, instruction_count);
 }
 
 
@@ -164,11 +167,24 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // Additional guard int3 instructions can be added if required.
 void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   // Call instruction takes up 5 bytes and int3 takes up one byte.
-  int code_size = 5 + guard_bytes;
+  static const int kCallCodeSize = 5;
+  int code_size = kCallCodeSize + guard_bytes;
+
+  // Create a code patcher.
+  CodePatcher patcher(pc_, code_size);
+
+  // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
+  Label check_codesize;
+  patcher.masm()->bind(&check_codesize);
+#endif
 
   // Patch the code.
-  CodePatcher patcher(pc_, code_size);
   patcher.masm()->call(target, RelocInfo::NONE);
+
+  // Check that the size of the code generated is as expected.
+  ASSERT_EQ(kCallCodeSize,
+            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 
   // Add the requested number of int3 instructions after the call.
   for (int i = 0; i < guard_bytes; i++) {
@@ -721,10 +737,10 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CMOV));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  UNIMPLEMENTED();
-  USE(cc);
-  USE(dst);
-  USE(src);
+  // Opcode: 0f 40 + cc /r
+  EMIT(0x0F);
+  EMIT(0x40 + cc);
+  emit_operand(dst, src);
 }
 
 
@@ -863,6 +879,13 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_arith(7, op, imm);
+}
+
+
+void Assembler::cmp(const Operand& op, Handle<Object> handle) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_arith(7, op, Immediate(handle));
 }
 
 
@@ -1943,6 +1966,17 @@ void Assembler::divsd(XMMRegister dst, XMMRegister src) {
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x5E);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::comisd(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x2F);
   emit_sse_operand(dst, src);
 }
 

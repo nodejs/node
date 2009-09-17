@@ -1,3 +1,16 @@
+2009-09-15: Version 1.3.11
+
+        Fixed crash in error reporting during bootstrapping.
+
+        Optimized generated IA32 math code by using SSE2 instructions when
+        available.
+
+        Implemented missing pieces of debugger infrastructure on ARM.  The
+        debugger is now fully functional on ARM.
+
+        Make 'hidden' the default visibility for gcc.
+
+
 2009-09-09: Version 1.3.10
 
         Fixed profiler on Mac in 64-bit mode.

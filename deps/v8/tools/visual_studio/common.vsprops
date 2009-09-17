@@ -8,7 +8,7 @@
 	<Tool
 		Name="VCCLCompilerTool"
 		AdditionalIncludeDirectories="$(ProjectDir)\..\..\src;$(IntDir)\DerivedSources"
-		PreprocessorDefinitions="WIN32;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_HAS_EXCEPTIONS=0;ENABLE_LOGGING_AND_PROFILING"
+		PreprocessorDefinitions="WIN32;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_HAS_EXCEPTIONS=0;ENABLE_LOGGING_AND_PROFILING;ENABLE_DEBUGGER_SUPPORT"
 		MinimalRebuild="false"
 		ExceptionHandling="0"
 		RuntimeTypeInfo="false"

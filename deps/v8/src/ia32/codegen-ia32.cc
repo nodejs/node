@@ -768,6 +768,11 @@ class FloatingPointHelper : public AllStatic {
   static void CheckFloatOperands(MacroAssembler* masm,
                                  Label* non_float,
                                  Register scratch);
+  // Test if operands are numbers (smi or HeapNumber objects), and load
+  // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
+  // either operand is not a number.  Operands are in edx and eax.
+  // Leaves operands unchanged.
+  static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
   // Allocate a heap number in new space with undefined value.
   // Returns tagged pointer in eax, or jumps to need_gc if new space is full.
   static void AllocateHeapNumber(MacroAssembler* masm,
@@ -6699,41 +6704,79 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // eax: y
       // edx: x
-      FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
-      // Fast-case: Both operands are numbers.
-      // Allocate a heap number, if needed.
-      Label skip_allocation;
-      switch (mode_) {
-        case OVERWRITE_LEFT:
-          __ mov(eax, Operand(edx));
-          // Fall through!
-        case OVERWRITE_RIGHT:
-          // If the argument in eax is already an object, we skip the
-          // allocation of a heap number.
-          __ test(eax, Immediate(kSmiTagMask));
-          __ j(not_zero, &skip_allocation, not_taken);
-          // Fall through!
-        case NO_OVERWRITE:
-          FloatingPointHelper::AllocateHeapNumber(masm,
-                                                  &call_runtime,
-                                                  ecx,
-                                                  edx,
-                                                  eax);
-          __ bind(&skip_allocation);
-          break;
-        default: UNREACHABLE();
-      }
-      FloatingPointHelper::LoadFloatOperands(masm, ecx);
 
-      switch (op_) {
-        case Token::ADD: __ faddp(1); break;
-        case Token::SUB: __ fsubp(1); break;
-        case Token::MUL: __ fmulp(1); break;
-        case Token::DIV: __ fdivp(1); break;
-        default: UNREACHABLE();
+      if (CpuFeatures::IsSupported(CpuFeatures::SSE2)) {
+        CpuFeatures::Scope use_sse2(CpuFeatures::SSE2);
+        FloatingPointHelper::LoadSse2Operands(masm, &call_runtime);
+
+        switch (op_) {
+          case Token::ADD: __ addsd(xmm0, xmm1); break;
+          case Token::SUB: __ subsd(xmm0, xmm1); break;
+          case Token::MUL: __ mulsd(xmm0, xmm1); break;
+          case Token::DIV: __ divsd(xmm0, xmm1); break;
+          default: UNREACHABLE();
+        }
+        // Allocate a heap number, if needed.
+        Label skip_allocation;
+        switch (mode_) {
+          case OVERWRITE_LEFT:
+            __ mov(eax, Operand(edx));
+            // Fall through!
+          case OVERWRITE_RIGHT:
+            // If the argument in eax is already an object, we skip the
+            // allocation of a heap number.
+            __ test(eax, Immediate(kSmiTagMask));
+            __ j(not_zero, &skip_allocation, not_taken);
+            // Fall through!
+          case NO_OVERWRITE:
+            FloatingPointHelper::AllocateHeapNumber(masm,
+                                                    &call_runtime,
+                                                    ecx,
+                                                    edx,
+                                                    eax);
+            __ bind(&skip_allocation);
+            break;
+          default: UNREACHABLE();
+        }
+        __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+        __ ret(2 * kPointerSize);
+
+      } else {  // SSE2 not available, use FPU.
+        FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
+        // Allocate a heap number, if needed.
+        Label skip_allocation;
+        switch (mode_) {
+          case OVERWRITE_LEFT:
+            __ mov(eax, Operand(edx));
+            // Fall through!
+          case OVERWRITE_RIGHT:
+            // If the argument in eax is already an object, we skip the
+            // allocation of a heap number.
+            __ test(eax, Immediate(kSmiTagMask));
+            __ j(not_zero, &skip_allocation, not_taken);
+            // Fall through!
+          case NO_OVERWRITE:
+            FloatingPointHelper::AllocateHeapNumber(masm,
+                                                    &call_runtime,
+                                                    ecx,
+                                                    edx,
+                                                    eax);
+            __ bind(&skip_allocation);
+            break;
+          default: UNREACHABLE();
+        }
+        FloatingPointHelper::LoadFloatOperands(masm, ecx);
+
+        switch (op_) {
+          case Token::ADD: __ faddp(1); break;
+          case Token::SUB: __ fsubp(1); break;
+          case Token::MUL: __ fmulp(1); break;
+          case Token::DIV: __ fdivp(1); break;
+          default: UNREACHABLE();
+        }
+        __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+        __ ret(2 * kPointerSize);
       }
-      __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-      __ ret(2 * kPointerSize);
     }
     case Token::MOD: {
       // For MOD we go directly to runtime in the non-smi case.
@@ -6977,6 +7020,38 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ fild_s(Operand(esp, 0));
   __ pop(number);
 
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
+                                           Label* not_numbers) {
+  Label load_smi_edx, load_eax, load_smi_eax, load_float_eax, done;
+  // Load operand in edx into xmm0, or branch to not_numbers.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_edx, not_taken);  // Argument in edx is a smi.
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, not_numbers);  // Argument in edx is not a number.
+  __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
+  __ bind(&load_eax);
+  // Load operand in eax into xmm1, or branch to not_numbers.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_eax, not_taken);  // Argument in eax is a smi.
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(equal, &load_float_eax);
+  __ jmp(not_numbers);  // Argument in eax is not a number.
+  __ bind(&load_smi_edx);
+  __ sar(edx, 1);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm0, Operand(edx));
+  __ shl(edx, 1);  // Retag smi for heap number overwriting test.
+  __ jmp(&load_eax);
+  __ bind(&load_smi_eax);
+  __ sar(eax, 1);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm1, Operand(eax));
+  __ shl(eax, 1);  // Retag smi for heap number overwriting test.
+  __ jmp(&done);
+  __ bind(&load_float_eax);
+  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
   __ bind(&done);
 }
 
@@ -7343,28 +7418,56 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Inlined floating point compare.
   // Call builtin if operands are not floating point or smi.
   Label check_for_symbols;
-  FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
-  FloatingPointHelper::LoadFloatOperands(masm, ecx);
-  __ FCmp();
+  Label unordered;
+  if (CpuFeatures::IsSupported(CpuFeatures::SSE2)) {
+    CpuFeatures::Scope use_sse2(CpuFeatures::SSE2);
+    CpuFeatures::Scope use_cmov(CpuFeatures::CMOV);
 
-  // Jump to builtin for NaN.
-  __ j(parity_even, &call_builtin, not_taken);
+    FloatingPointHelper::LoadSse2Operands(masm, &check_for_symbols);
+    __ comisd(xmm0, xmm1);
 
-  // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
-  Label below_lbl, above_lbl;
-  // use edx, eax to convert unsigned to signed comparison
-  __ j(below, &below_lbl, not_taken);
-  __ j(above, &above_lbl, not_taken);
+    // Jump to builtin for NaN.
+    __ j(parity_even, &unordered, not_taken);
+    __ mov(eax, 0);  // equal
+    __ mov(ecx, Immediate(Smi::FromInt(1)));
+    __ cmov(above, eax, Operand(ecx));
+    __ mov(ecx, Immediate(Smi::FromInt(-1)));
+    __ cmov(below, eax, Operand(ecx));
+    __ ret(2 * kPointerSize);
+  } else {
+    FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
+    FloatingPointHelper::LoadFloatOperands(masm, ecx);
+    __ FCmp();
 
-  __ xor_(eax, Operand(eax));  // equal
-  __ ret(2 * kPointerSize);
+    // Jump to builtin for NaN.
+    __ j(parity_even, &unordered, not_taken);
 
-  __ bind(&below_lbl);
-  __ mov(eax, -1);
-  __ ret(2 * kPointerSize);
+    Label below_lbl, above_lbl;
+    // Return a result of -1, 0, or 1, to indicate result of comparison.
+    __ j(below, &below_lbl, not_taken);
+    __ j(above, &above_lbl, not_taken);
 
-  __ bind(&above_lbl);
-  __ mov(eax, 1);
+    __ xor_(eax, Operand(eax));  // equal
+    // Both arguments were pushed in case a runtime call was needed.
+    __ ret(2 * kPointerSize);
+
+    __ bind(&below_lbl);
+    __ mov(eax, Immediate(Smi::FromInt(-1)));
+    __ ret(2 * kPointerSize);
+
+    __ bind(&above_lbl);
+    __ mov(eax, Immediate(Smi::FromInt(1)));
+    __ ret(2 * kPointerSize);  // eax, edx were pushed
+  }
+  // If one of the numbers was NaN, then the result is always false.
+  // The cc is never not-equal.
+  __ bind(&unordered);
+  ASSERT(cc_ != not_equal);
+  if (cc_ == less || cc_ == less_equal) {
+    __ mov(eax, Immediate(Smi::FromInt(1)));
+  } else {
+    __ mov(eax, Immediate(Smi::FromInt(-1)));
+  }
   __ ret(2 * kPointerSize);  // eax, edx were pushed
 
   // Fast negative check for symbol-to-symbol equality.

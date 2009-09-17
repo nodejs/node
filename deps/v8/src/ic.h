@@ -390,7 +390,7 @@ class KeyedStoreIC: public IC {
   // Support for patching the map that is checked in an inlined
   // version of keyed store.
   // The address is the patch point for the IC call
-  // (Assembler::kPatchReturnSequenceLength before the end of
+  // (Assembler::kCallTargetAddressOffset before the end of
   // the call/return address).
   // The map is the new map that the inlined code should check against.
   static bool PatchInlinedStore(Address address, Object* map);

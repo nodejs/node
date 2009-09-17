@@ -376,6 +376,10 @@ class MemOperand BASE_EMBEDDED {
 typedef int32_t Instr;
 
 
+extern const Instr kMovLrPc;
+extern const Instr kLdrPCPattern;
+
+
 class Assembler : public Malloced {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -433,12 +437,16 @@ class Assembler : public Malloced {
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));
 
+  // Size of an instruction.
+  static const int kInstrSize = sizeof(Instr);
+
   // Distance between the instruction referring to the address of the call
   // target (ldr pc, [target addr in const pool]) and the return address
-  static const int kPatchReturnSequenceLength = sizeof(Instr);
+  static const int kCallTargetAddressOffset = kInstrSize;
+
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 1;
+  static const int kPatchReturnSequenceAddressOffset = kInstrSize;
 
   // Difference between address of current opcode and value read from pc
   // register.
@@ -652,8 +660,15 @@ class Assembler : public Malloced {
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
 
+  // Check the code size generated from label to here.
+  int InstructionsGeneratedSince(Label* l) {
+    return (pc_offset() - l->pos()) / kInstrSize;
+  }
 
   // Debugging
+
+  // Mark address of the ExitJSFrame code.
+  void RecordJSReturn();
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --debug_code to enable.
@@ -671,7 +686,7 @@ class Assembler : public Malloced {
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions
-  Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
+  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
@@ -708,7 +723,6 @@ class Assembler : public Malloced {
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Code generation
-  static const int kInstrSize = sizeof(Instr);  // signed size
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
@@ -795,6 +809,8 @@ class Assembler : public Malloced {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
   friend class RegExpMacroAssemblerARM;
+  friend class RelocInfo;
+  friend class CodePatcher;
 };
 
 } }  // namespace v8::internal

@@ -447,7 +447,7 @@ class Assembler : public Malloced {
 
   // Distance between the address of the code target in the call instruction
   // and the return address.  Checked in the debug build.
-  static const int kPatchReturnSequenceLength = 3 + kPointerSize;
+  static const int kCallTargetAddressOffset = 3 + kPointerSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to (movq = REX.W 0xB8+r.).
   static const int kPatchReturnSequenceAddressOffset = 2;
@@ -721,12 +721,17 @@ class Assembler : public Malloced {
 
   void neg(Register dst);
   void neg(const Operand& dst);
+  void negl(Register dst);
 
   void not_(Register dst);
   void not_(const Operand& dst);
 
   void or_(Register dst, Register src) {
     arithmetic_op(0x0B, dst, src);
+  }
+
+  void orl(Register dst, Register src) {
+    arithmetic_op_32(0x0B, dst, src);
   }
 
   void or_(Register dst, const Operand& src) {
@@ -858,6 +863,10 @@ class Assembler : public Malloced {
 
   void xor_(Register dst, Register src) {
     arithmetic_op(0x33, dst, src);
+  }
+
+  void xorl(Register dst, Register src) {
+    arithmetic_op_32(0x33, dst, src);
   }
 
   void xor_(Register dst, const Operand& src) {
@@ -1049,7 +1058,9 @@ class Assembler : public Malloced {
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
-  inline bool overflow() const { return pc_ >= reloc_info_writer.pos() - kGap; }
+  inline bool buffer_overflow() const {
+    return pc_ >= reloc_info_writer.pos() - kGap;
+  }
 
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
@@ -1279,7 +1290,7 @@ class Assembler : public Malloced {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
-    if (assembler_->overflow()) assembler_->GrowBuffer();
+    if (assembler_->buffer_overflow()) assembler_->GrowBuffer();
 #ifdef DEBUG
     space_before_ = assembler_->available_space();
 #endif

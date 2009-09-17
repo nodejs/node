@@ -30,7 +30,7 @@
 
 import optparse
 import os
-from os.path import abspath, join, dirname, basename
+from os.path import abspath, join, dirname, basename, exists
 import re
 import sys
 import subprocess
@@ -103,7 +103,7 @@ class SourceFileProcessor(object):
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    if not self.ProcessFiles(all_files):
+    if not self.ProcessFiles(all_files, path):
       return False
     return True
 
@@ -145,9 +145,12 @@ class CppLintProcessor(SourceFileProcessor):
   def GetPathsToSearch(self):
     return ['src', 'public', 'samples', join('test', 'cctest')]
 
-  def ProcessFiles(self, files):
+  def ProcessFiles(self, files, path):
     filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
     command = ['cpplint.py', '--filter', filt] + join(files)
+    local_cpplint = join(path, "tools", "cpplint.py")
+    if exists(local_cpplint):
+      command = ['python', local_cpplint, '--filter', filt] + join(files)
     process = subprocess.Popen(command)
     return process.wait() == 0
 
@@ -194,7 +197,7 @@ class SourceProcessor(SourceFileProcessor):
         result = False
     return result
 
-  def ProcessFiles(self, files):
+  def ProcessFiles(self, files, path):
     success = True
     for file in files:
       try:

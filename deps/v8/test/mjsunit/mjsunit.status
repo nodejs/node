@@ -45,31 +45,6 @@ debug-scripts-request: PASS, SKIP if $mode == debug
 # Flaky test that can hit compilation-time stack overflow in debug mode.
 unicode-test: PASS, (PASS || FAIL) if $mode == debug
 
-# Bug number 1020483: Debug tests fail on ARM.
-debug-constructor: CRASH, FAIL
-debug-continue: SKIP
-debug-evaluate-recursive: CRASH || FAIL
-debug-changebreakpoint: CRASH || FAIL
-debug-clearbreakpoint: CRASH || FAIL
-debug-clearbreakpointgroup: PASS, FAIL if $mode == debug
-debug-conditional-breakpoints: CRASH || FAIL
-debug-evaluate: CRASH || FAIL
-debug-ignore-breakpoints: CRASH || FAIL
-debug-multiple-breakpoints: CRASH || FAIL
-debug-setbreakpoint: CRASH || FAIL || PASS
-debug-step-stub-callfunction: SKIP
-debug-stepin-accessor: CRASH || FAIL
-debug-stepin-builtin: CRASH || FAIL
-debug-stepin-call-function-stub: CRASH || FAIL
-debug-stepin-constructor: CRASH, FAIL
-debug-stepin-function-call: CRASH || FAIL
-debug-stepout-recursive-function: CRASH || FAIL
-debug-stepout-to-builtin: CRASH || FAIL
-debug-step: SKIP
-debug-breakpoints: PASS || FAIL
-debug-handle: CRASH || FAIL || PASS
-regress/regress-269: SKIP
-
 # Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
 # Fails on real ARM hardware but not on the simulator.
 string-compare-alignment: PASS || FAIL

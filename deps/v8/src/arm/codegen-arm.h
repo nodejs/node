@@ -180,6 +180,10 @@ class CodeGenerator: public AstVisitor {
 
   static const int kUnknownIntValue = -1;
 
+  // Number of instructions used for the JS return sequence. The constant is
+  // used by the debugger to patch the JS return sequence.
+  static const int kJSReturnSequenceLength = 4;
+
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);

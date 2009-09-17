@@ -494,7 +494,7 @@ void RelocInfo::Verify() {
       Address addr = target_address();
       ASSERT(addr != NULL);
       // Check that we can find the right code object.
-      HeapObject* code = HeapObject::FromAddress(addr - Code::kHeaderSize);
+      Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = Heap::FindCodeObject(addr);
       ASSERT(found->IsCode());
       ASSERT(code->address() == HeapObject::cast(found)->address());

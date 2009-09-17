@@ -2725,9 +2725,9 @@ class Internals {
 
   // These constants are compiler dependent so their values must be
   // defined within the implementation.
-  static int kJSObjectType;
-  static int kFirstNonstringType;
-  static int kProxyType;
+  V8EXPORT static int kJSObjectType;
+  V8EXPORT static int kFirstNonstringType;
+  V8EXPORT static int kProxyType;
 
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==

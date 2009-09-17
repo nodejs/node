@@ -93,7 +93,14 @@ const int RelocInfo::kApplyMask = 0;
 
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
-  UNIMPLEMENTED();
+  Instr* pc = reinterpret_cast<Instr*>(pc_);
+  Instr* instr = reinterpret_cast<Instr*>(instructions);
+  for (int i = 0; i < instruction_count; i++) {
+    *(pc + i) = *(instr + i);
+  }
+
+  // Indicate that code has changed.
+  CPU::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
 }
 
 
@@ -232,6 +239,10 @@ static const Instr kPushRegPattern =
 // register r is not encoded.
 static const Instr kPopRegPattern =
     al | B26 | L | 4 | PostIndex | sp.code() * B16;
+// mov lr, pc
+const Instr kMovLrPc = al | 13*B21 | pc.code() | lr.code() * B12;
+// ldr pc, [pc, #XXX]
+const Instr kLdrPCPattern = al | B26 | L | pc.code() * B16;
 
 // spare_buffer_
 static const int kMinimalBufferSize = 4*KB;
@@ -1301,6 +1312,13 @@ void Assembler::lea(Register dst,
 
 
 // Debugging
+void Assembler::RecordJSReturn() {
+  WriteRecordedPositions();
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::JS_RETURN);
+}
+
+
 void Assembler::RecordComment(const char* msg) {
   if (FLAG_debug_code) {
     CheckBuffer();
@@ -1387,16 +1405,20 @@ void Assembler::GrowBuffer() {
     RelocInfo& rinfo = prinfo_[i];
     ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
            rinfo.rmode() != RelocInfo::POSITION);
-    rinfo.set_pc(rinfo.pc() + pc_delta);
+    if (rinfo.rmode() != RelocInfo::JS_RETURN) {
+      rinfo.set_pc(rinfo.pc() + pc_delta);
+    }
   }
 }
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
-  if (rmode >= RelocInfo::COMMENT && rmode <= RelocInfo::STATEMENT_POSITION) {
-    // adjust code for new modes
-    ASSERT(RelocInfo::IsComment(rmode) || RelocInfo::IsPosition(rmode));
+  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::STATEMENT_POSITION) {
+    // Adjust code for new modes
+    ASSERT(RelocInfo::IsJSReturn(rmode)
+           || RelocInfo::IsComment(rmode)
+           || RelocInfo::IsPosition(rmode));
     // these modes do not need an entry in the constant pool
   } else {
     ASSERT(num_prinfo_ < kMaxNumPRInfo);
@@ -1490,6 +1512,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
            rinfo.rmode() != RelocInfo::POSITION &&
            rinfo.rmode() != RelocInfo::STATEMENT_POSITION);
     Instr instr = instr_at(rinfo.pc());
+
     // Instruction to patch must be a ldr/str [pc, #offset]
     // P and U set, B and W clear, Rn == pc, offset12 still 0
     ASSERT((instr & (7*B25 | P | U | B | W | 15*B16 | Off12Mask)) ==

@@ -501,7 +501,9 @@ Balloc
 #endif
 
 	ACQUIRE_DTOA_LOCK(0);
-	if ((rv = freelist[k])) {
+        /* The k > Kmax case does not need ACQUIRE_DTOA_LOCK(0). */
+        /* but this case seems very unlikely. */
+	if (k <= Kmax && (rv = freelist[k])) {
 		freelist[k] = rv->next;
 		}
 	else {
@@ -511,7 +513,7 @@ Balloc
 #else
 		len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
 			/sizeof(double);
-		if (pmem_next - private_mem + len <= PRIVATE_mem) {
+		if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem) {
 			rv = (Bigint*)pmem_next;
 			pmem_next += len;
 			}
@@ -535,10 +537,14 @@ Bfree
 #endif
 {
 	if (v) {
-		ACQUIRE_DTOA_LOCK(0);
-		v->next = freelist[v->k];
-		freelist[v->k] = v;
-		FREE_DTOA_LOCK(0);
+                if (v->k > Kmax)
+                        free((void*)v);
+                else {
+         		ACQUIRE_DTOA_LOCK(0);
+         		v->next = freelist[v->k];
+        		freelist[v->k] = v;
+        		FREE_DTOA_LOCK(0);
+                        }
 		}
 	}
 

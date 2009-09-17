@@ -2672,9 +2672,7 @@ Persistent<Context> v8::Context::New(
   }
   // Leave V8.
 
-  if (!ApiCheck(!env.is_null(),
-                "v8::Context::New()",
-                "Could not initialize environment"))
+  if (env.is_null())
     return Persistent<Context>();
   return Persistent<Context>(Utils::ToLocal(env));
 }

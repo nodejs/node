@@ -1686,7 +1686,7 @@ class CellSpace : public FixedSpace {
 #endif
 
  public:
-  TRACK_MEMORY("MapSpace")
+  TRACK_MEMORY("CellSpace")
 };
 
 

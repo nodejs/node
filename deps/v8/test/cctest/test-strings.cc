@@ -48,6 +48,21 @@ static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
 
+class Resource: public v8::String::ExternalStringResource,
+                public ZoneObject {
+ public:
+  explicit Resource(Vector<const uc16> string): data_(string.start()) {
+    length_ = string.length();
+  }
+  virtual const uint16_t* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const uc16* data_;
+  size_t length_;
+};
+
+
 static void InitializeBuildingBlocks(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
   // A list of pointers that we don't have any interest in cleaning up.
@@ -83,19 +98,6 @@ static void InitializeBuildingBlocks(
         break;
       }
       case 2: {
-        class Resource: public v8::String::ExternalStringResource,
-                        public ZoneObject {
-         public:
-          explicit Resource(Vector<const uc16> string): data_(string.start()) {
-            length_ = string.length();
-          }
-          virtual const uint16_t* data() const { return data_; }
-          virtual size_t length() const { return length_; }
-
-         private:
-          const uc16* data_;
-          size_t length_;
-        };
         uc16* buf = Zone::NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = gen() % 65536;

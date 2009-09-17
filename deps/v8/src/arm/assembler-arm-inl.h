@@ -105,40 +105,45 @@ Address* RelocInfo::target_reference_address() {
 
 Address RelocInfo::call_address() {
   ASSERT(IsCallInstruction());
-  UNIMPLEMENTED();
-  return NULL;
+  // The 2 instructions offset assumes patched return sequence.
+  ASSERT(IsJSReturn(rmode()));
+  return Memory::Address_at(pc_ + 2 * Assembler::kInstrSize);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
   ASSERT(IsCallInstruction());
-  UNIMPLEMENTED();
+  // The 2 instructions offset assumes patched return sequence.
+  ASSERT(IsJSReturn(rmode()));
+  Memory::Address_at(pc_ + 2 * Assembler::kInstrSize) = target;
 }
 
 
 Object* RelocInfo::call_object() {
-  ASSERT(IsCallInstruction());
-  UNIMPLEMENTED();
-  return NULL;
+  return *call_object_address();
 }
 
 
 Object** RelocInfo::call_object_address() {
   ASSERT(IsCallInstruction());
-  UNIMPLEMENTED();
-  return NULL;
+  // The 2 instructions offset assumes patched return sequence.
+  ASSERT(IsJSReturn(rmode()));
+  return reinterpret_cast<Object**>(pc_ + 2 * Assembler::kInstrSize);
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  ASSERT(IsCallInstruction());
-  UNIMPLEMENTED();
+  *call_object_address() = target;
 }
 
 
 bool RelocInfo::IsCallInstruction() {
-  UNIMPLEMENTED();
-  return false;
+  // On ARM a "call instruction" is actually two instructions.
+  //   mov lr, pc
+  //   ldr pc, [pc, #XXX]
+  return (Assembler::instr_at(pc_) == kMovLrPc)
+          && ((Assembler::instr_at(pc_ + Assembler::kInstrSize) & kLdrPCPattern)
+              == kLdrPCPattern);
 }
 
 

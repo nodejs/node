@@ -2301,13 +2301,8 @@ TEST(DebugStepLinearMixedICs) {
   break_point_hit_count = 0;
   foo->Call(env->Global(), 0, NULL);
 
-  // With stepping all break locations are hit. For ARM the keyed load/store
-  // is not hit as they are not implemented as ICs.
-#if defined (__arm__) || defined(__thumb__)
-  CHECK_EQ(6, break_point_hit_count);
-#else
+  // With stepping all break locations are hit.
   CHECK_EQ(8, break_point_hit_count);
-#endif
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();

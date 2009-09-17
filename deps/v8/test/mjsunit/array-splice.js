@@ -309,3 +309,6 @@ Array.prototype[1] = 1;
 assertEquals(1, arr.pop());
 assertEquals(0, arr.pop());
 Array.prototype[1] = undefined;
+
+// Test http://code.google.com/p/chromium/issues/detail?id=21860
+Array.prototype.push.apply([], [1].splice(0, -(-1 % 5)));

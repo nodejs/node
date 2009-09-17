@@ -1084,6 +1084,8 @@ def BuildOptions():
       choices=PROGRESS_INDICATORS.keys(), default="mono")
   result.add_option("--no-build", help="Don't build requirements",
       default=False, action="store_true")
+  result.add_option("--build-only", help="Only build requirements, don't run the tests",
+      default=False, action="store_true")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
@@ -1261,6 +1263,10 @@ def Main():
       if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
         return 1
 
+  # Just return if we are only building the targets for running the tests.
+  if options.build_only:
+    return 0
+  
   # Get status for tests
   sections = [ ]
   defs = { }

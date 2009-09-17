@@ -127,6 +127,10 @@ void VirtualFrame::Enter() {
 
 void VirtualFrame::Exit() {
   Comment cmnt(masm(), "[ Exit JS frame");
+  // Record the location of the JS exit code for patching when setting
+  // break point.
+  __ RecordJSReturn();
+
   // Drop the execution stack down to the frame pointer and restore the caller
   // frame pointer and return address.
   __ mov(sp, fp);
@@ -149,10 +153,10 @@ void VirtualFrame::AllocateStackSlots() {
     __ push(ip);
   }
   if (FLAG_check_stack) {
-    // Put the lr setup instruction in the delay slot.  The 'sizeof(Instr)' is
-    // added to the implicit 8 byte offset that always applies to operations
-    // with pc and gives a return address 12 bytes down.
-    masm()->add(lr, pc, Operand(sizeof(Instr)));
+    // Put the lr setup instruction in the delay slot.  The kInstrSize is added
+    // to the implicit 8 byte offset that always applies to operations with pc
+    // and gives a return address 12 bytes down.
+    masm()->add(lr, pc, Operand(Assembler::kInstrSize));
     masm()->cmp(sp, Operand(r2));
     StackCheckStub stub;
     // Call the stub if lower.

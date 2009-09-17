@@ -65,8 +65,8 @@ void VirtualFrame::Enter() {
 #ifdef DEBUG
   // Verify that rdi contains a JS function.  The following code
   // relies on rax being available for use.
-  __ testl(rdi, Immediate(kSmiTagMask));
-  __ Check(not_zero,
+  Condition not_smi = masm()->CheckNotSmi(rdi);
+  __ Check(not_smi,
            "VirtualFrame::Enter - rdi is not a function (smi check).");
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
   __ Check(equal,

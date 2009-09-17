@@ -437,7 +437,7 @@ class Assembler : public Malloced {
 
   // Distance between the address of the code target in the call instruction
   // and the return address
-  static const int kPatchReturnSequenceLength = kPointerSize;
+  static const int kCallTargetAddressOffset = kPointerSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
@@ -539,6 +539,7 @@ class Assembler : public Malloced {
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
+  void cmp(const Operand& op, Handle<Object> handle);
 
   void dec_b(Register dst);
 
@@ -718,6 +719,8 @@ class Assembler : public Malloced {
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
+
+  void comisd(XMMRegister dst, XMMRegister src);
 
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);

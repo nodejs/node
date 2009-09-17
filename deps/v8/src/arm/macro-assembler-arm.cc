@@ -133,7 +133,7 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
   // and the target address of the call would be referenced by the first
   // instruction rather than the second one, which would make it harder to patch
   // (two instructions before the return address, instead of one).
-  ASSERT(kPatchReturnSequenceLength == sizeof(Instr));
+  ASSERT(kCallTargetAddressOffset == kInstrSize);
 }
 
 
@@ -167,7 +167,7 @@ void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   add(pc, pc, Operand(index,
                       LSL,
                       assembler::arm::Instr::kInstrSizeLog2 - kSmiTagSize));
-  BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * sizeof(Instr));
+  BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * kInstrSize);
   nop();  // Jump table alignment.
   for (int i = 0; i < targets.length(); i++) {
     b(targets[i]);
@@ -1054,7 +1054,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
         Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry = { pc_offset() - sizeof(Instr), flags, name };
+    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);
   }
 }
@@ -1072,7 +1072,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
         Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - sizeof(Instr), flags, name };
+    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);
   }
 
@@ -1151,6 +1151,40 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
 }
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+CodePatcher::CodePatcher(byte* address, int instructions)
+    : address_(address),
+      instructions_(instructions),
+      size_(instructions * Assembler::kInstrSize),
+      masm_(address, size_ + Assembler::kGap) {
+  // Create a new macro assembler pointing to the address of the code to patch.
+  // The size is adjusted with kGap on order for the assembler to generate size
+  // bytes of instructions without failing with buffer size constraints.
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+CodePatcher::~CodePatcher() {
+  // Indicate that code has changed.
+  CPU::FlushICache(address_, size_);
+
+  // Check that the code was patched as expected.
+  ASSERT(masm_.pc_ == address_ + size_);
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+void CodePatcher::Emit(Instr x) {
+  masm()->emit(x);
+}
+
+
+void CodePatcher::Emit(Address addr) {
+  masm()->emit(reinterpret_cast<Instr>(addr));
+}
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 } }  // namespace v8::internal

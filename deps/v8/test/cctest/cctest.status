@@ -36,8 +36,6 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 
 [ $arch == arm ]
 
-test-debug: SKIP
-
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL
 

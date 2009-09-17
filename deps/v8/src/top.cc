@@ -690,12 +690,17 @@ void Top::ComputeLocation(MessageLocation* target) {
 void Top::ReportUncaughtException(Handle<Object> exception,
                                   MessageLocation* location,
                                   Handle<String> stack_trace) {
-  Handle<Object> message =
-    MessageHandler::MakeMessageObject("uncaught_exception",
-                                      location,
-                                      HandleVector<Object>(&exception, 1),
-                                      stack_trace);
-
+  Handle<Object> message;
+  if (!Bootstrapper::IsActive()) {
+    // It's not safe to try to make message objects while the bootstrapper
+    // is active since the infrastructure may not have been properly
+    // initialized.
+    message =
+      MessageHandler::MakeMessageObject("uncaught_exception",
+                                        location,
+                                        HandleVector<Object>(&exception, 1),
+                                        stack_trace);
+  }
   // Report the uncaught exception.
   MessageHandler::ReportMessage(location, message);
 }
@@ -769,10 +774,15 @@ void Top::DoThrow(Object* exception,
       ComputeLocation(&potential_computed_location);
       location = &potential_computed_location;
     }
-    Handle<String> stack_trace;
-    if (FLAG_trace_exception) stack_trace = StackTrace();
-    message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
-        location, HandleVector<Object>(&exception_handle, 1), stack_trace);
+    if (!Bootstrapper::IsActive()) {
+      // It's not safe to try to make message objects or collect stack
+      // traces while the bootstrapper is active since the infrastructure
+      // may not have been properly initialized.
+      Handle<String> stack_trace;
+      if (FLAG_trace_exception) stack_trace = StackTrace();
+      message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
+          location, HandleVector<Object>(&exception_handle, 1), stack_trace);
+    }
   }
 
   // Save the message for reporting if the the exception remains uncaught.

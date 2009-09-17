@@ -61,8 +61,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Preserve the number of arguments on the stack. Must preserve both
   // rax and rbx because these registers are used when copying the
   // arguments and the receiver.
-  ASSERT(kSmiTagSize == 1);
-  __ lea(rcx, Operand(rax, rax, times_1, kSmiTag));
+  __ Integer32ToSmi(rcx, rax);
   __ push(rcx);
 }
 
@@ -77,10 +76,13 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack.
   // rbx holds a Smi, so we convery to dword offset by multiplying by 4.
+  // TODO(smi): Find a way to abstract indexing by a smi.
   ASSERT_EQ(kSmiTagSize, 1 && kSmiTag == 0);
   ASSERT_EQ(kPointerSize, (1 << kSmiTagSize) * 4);
+  // TODO(smi): Find way to abstract indexing by a smi.
   __ pop(rcx);
-  __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
+  // 1 * kPointerSize is offset of receiver.
+  __ lea(rsp, Operand(rsp, rbx, times_half_pointer_size, 1 * kPointerSize));
   __ push(rcx);
 }
 
@@ -192,8 +194,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label done, non_function, function;
     // The function to call is at position n+1 on the stack.
     __ movq(rdi, Operand(rsp, rax, times_pointer_size, +1 * kPointerSize));
-    __ testl(rdi, Immediate(kSmiTagMask));
-    __ j(zero, &non_function);
+    __ JumpIfSmi(rdi, &non_function);
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(equal, &function);
 
@@ -213,8 +214,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label call_to_object, use_global_receiver, patch_receiver, done;
     __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
 
-    __ testl(rbx, Immediate(kSmiTagMask));
-    __ j(zero, &call_to_object);
+    __ JumpIfSmi(rbx, &call_to_object);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
@@ -230,8 +230,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ EnterInternalFrame();  // preserves rax, rbx, rdi
 
     // Store the arguments count on the stack (smi tagged).
-    ASSERT(kSmiTag == 0);
-    __ shl(rax, Immediate(kSmiTagSize));
+    __ Integer32ToSmi(rax, rax);
     __ push(rax);
 
     __ push(rdi);  // save edi across the call
@@ -242,7 +241,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Get the arguments count and untag it.
     __ pop(rax);
-    __ shr(rax, Immediate(kSmiTagSize));
+    __ SmiToInteger32(rax, rax);
 
     __ LeaveInternalFrame();
     __ jmp(&patch_receiver);
@@ -355,8 +354,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     Label okay;
     // Make rdx the space we need for the array when it is unrolled onto the
     // stack.
-    __ movq(rdx, rax);
-    __ shl(rdx, Immediate(kPointerSizeLog2 - kSmiTagSize));
+    __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
     __ cmpq(rcx, rdx);
     __ j(greater, &okay);
 
@@ -382,8 +380,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Compute the receiver.
   Label call_to_object, use_global_receiver, push_receiver;
   __ movq(rbx, Operand(rbp, kReceiverOffset));
-  __ testl(rbx, Immediate(kSmiTagMask));
-  __ j(zero, &call_to_object);
+  __ JumpIfSmi(rbx, &call_to_object);
   __ CompareRoot(rbx, Heap::kNullValueRootIndex);
   __ j(equal, &use_global_receiver);
   __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
@@ -446,7 +443,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Invoke the function.
   ParameterCount actual(rax);
-  __ shr(rax, Immediate(kSmiTagSize));
+  __ SmiToInteger32(rax, rax);
   __ movq(rdi, Operand(rbp, kFunctionOffset));
   __ InvokeFunction(rdi, actual, CALL_FUNCTION);
 
@@ -463,8 +460,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label non_function_call;
   // Check that function is not a smi.
-  __ testl(rdi, Immediate(kSmiTagMask));
-  __ j(zero, &non_function_call);
+  __ JumpIfSmi(rdi, &non_function_call);
   // Check that function is a JSFunction.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &non_function_call);
@@ -492,7 +488,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ EnterConstructFrame();
 
   // Store a smi-tagged arguments count on the stack.
-  __ shl(rax, Immediate(kSmiTagSize));
+  __ Integer32ToSmi(rax, rax);
   __ push(rax);
 
   // Push the function to invoke on the stack.
@@ -517,8 +513,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rdi: constructor
     __ movq(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi
-    __ testl(rax, Immediate(kSmiTagMask));
-    __ j(zero, &rt_call);
+    __ JumpIfSmi(rax, &rt_call);
     // rdi: constructor
     // rax: initial map (if proven valid below)
     __ CmpObjectType(rax, MAP_TYPE, rbx);
@@ -668,7 +663,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Retrieve smi-tagged arguments count from the stack.
   __ movq(rax, Operand(rsp, 0));
-  __ shr(rax, Immediate(kSmiTagSize));
+  __ SmiToInteger32(rax, rax);
 
   // Push the allocated receiver to the stack. We need two copies
   // because we may have to return the original one and the calling
@@ -701,8 +696,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on page 74.
   Label use_receiver, exit;
   // If the result is a smi, it is *not* an object in the ECMA sense.
-  __ testl(rax, Immediate(kSmiTagMask));
-  __ j(zero, &use_receiver);
+  __ JumpIfSmi(rax, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
@@ -721,8 +715,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  // TODO(smi): Find a way to abstract indexing by a smi.
   __ pop(rcx);
-  __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
+  // 1 * kPointerSize is offset of receiver.
+  __ lea(rsp, Operand(rsp, rbx, times_half_pointer_size, 1 * kPointerSize));
   __ push(rcx);
   __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);

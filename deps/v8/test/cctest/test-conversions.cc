@@ -91,13 +91,15 @@ TEST(NonStrDecimalLiteral) {
   CHECK_EQ(0.0, StringToDouble(" ", NO_FLAGS));
 }
 
+class OneBit1: public BitField<uint32_t, 0, 1> {};
+class OneBit2: public BitField<uint32_t, 7, 1> {};
+class EightBit1: public BitField<uint32_t, 0, 8> {};
+class EightBit2: public BitField<uint32_t, 13, 8> {};
 
 TEST(BitField) {
   uint32_t x;
 
   // One bit bit field can hold values 0 and 1.
-  class OneBit1: public BitField<uint32_t, 0, 1> {};
-  class OneBit2: public BitField<uint32_t, 7, 1> {};
   CHECK(!OneBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!OneBit2::is_valid(static_cast<uint32_t>(-1)));
   for (int i = 0; i < 2; i++) {
@@ -113,8 +115,6 @@ TEST(BitField) {
   CHECK(!OneBit2::is_valid(2));
 
   // Eight bit bit field can hold values from 0 tp 255.
-  class EightBit1: public BitField<uint32_t, 0, 8> {};
-  class EightBit2: public BitField<uint32_t, 13, 8> {};
   CHECK(!EightBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!EightBit2::is_valid(static_cast<uint32_t>(-1)));
   for (int i = 0; i < 256; i++) {

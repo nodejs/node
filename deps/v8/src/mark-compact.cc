@@ -279,7 +279,7 @@ class MarkingVisitor : public ObjectVisitor {
 
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Code* code = CodeFromDerivedPointer(rinfo->target_address());
+    Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
       // Please note targets for cleared inline cached do not have to be
@@ -289,7 +289,7 @@ class MarkingVisitor : public ObjectVisitor {
     }
     if (IsCompacting()) {
       // When compacting we convert the target to a real object pointer.
-      code = CodeFromDerivedPointer(rinfo->target_address());
+      code = Code::GetCodeFromTargetAddress(rinfo->target_address());
       rinfo->set_target_object(code);
     }
   }
@@ -297,7 +297,7 @@ class MarkingVisitor : public ObjectVisitor {
   void VisitDebugTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
            rinfo->IsCallInstruction());
-    HeapObject* code = CodeFromDerivedPointer(rinfo->call_address());
+    HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
     MarkCompactCollector::MarkObject(code);
     // When compacting we convert the call to a real object pointer.
     if (IsCompacting()) rinfo->set_call_object(code);
@@ -313,13 +313,6 @@ class MarkingVisitor : public ObjectVisitor {
 
   // Tells whether the mark sweep collection will perform compaction.
   bool IsCompacting() { return MarkCompactCollector::IsCompacting(); }
-
-  // Retrieves the Code pointer from derived code entry.
-  Code* CodeFromDerivedPointer(Address addr) {
-    ASSERT(addr != NULL);
-    return reinterpret_cast<Code*>(
-        HeapObject::FromAddress(addr - Code::kHeaderSize));
-  }
 
   // Visit an unmarked object.
   void VisitUnmarkedObject(HeapObject* obj) {

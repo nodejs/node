@@ -95,7 +95,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
       StringDictionary::kHeaderSize +
       StringDictionary::kCapacityIndex * kPointerSize;
   __ movq(r2, FieldOperand(r0, kCapacityOffset));
-  __ shrl(r2, Immediate(kSmiTagSize));  // convert smi to int
+  __ SmiToInteger32(r2, r2);
   __ decl(r2);
 
   // Generate an unrolled loop that performs a few probes before
@@ -132,7 +132,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   __ bind(&done);
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ testl(Operand(r0, r1, times_pointer_size, kDetailsOffset - kHeapObjectTag),
-           Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
+           Immediate(Smi::FromInt(PropertyDetails::TypeField::mask())));
   __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
@@ -148,8 +148,7 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
                                            Register value) {
   Label done;
   // Check if the value is a Smi.
-  __ testl(value, Immediate(kSmiTagMask));
-  __ j(zero, &done);
+  __ JumpIfSmi(value, &done);
   // Check if the object has been loaded.
   __ movq(kScratchRegister, FieldOperand(value, JSFunction::kMapOffset));
   __ testb(FieldOperand(kScratchRegister, Map::kBitField2Offset),
@@ -167,7 +166,7 @@ static bool PatchInlinedMapCheck(Address address, Object* map) {
   // Arguments are address of start of call sequence that called
   // the IC,
   Address test_instruction_address =
-      address + Assembler::kPatchReturnSequenceLength;
+      address + Assembler::kCallTargetAddressOffset;
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
   if (*test_instruction_address != kTestEaxByte) return false;
@@ -265,8 +264,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movq(rcx, Operand(rsp, 2 * kPointerSize));
 
   // Check that the object isn't a smi.
-  __ testl(rcx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(rcx, &slow);
 
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -283,9 +281,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(not_zero, &slow);
 
   // Check that the key is a smi.
-  __ testl(rax, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string);
-  __ sarl(rax, Immediate(kSmiTagSize));
+  __ JumpIfNotSmi(rax, &check_string);
+  __ SmiToInteger32(rax, rax);
   // Get the elements array of the object.
   __ bind(&index_int);
   __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
@@ -410,8 +407,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Get the receiver from the stack.
   __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // 2 ~ return address, key
   // Check that the object isn't a smi.
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(rdx, &slow);
   // Get the map from the receiver.
   __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
@@ -422,8 +418,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Get the key from the stack.
   __ movq(rbx, Operand(rsp, 1 * kPointerSize));  // 1 ~ return address
   // Check that the key is a smi.
-  __ testl(rbx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow);
+  __ JumpIfNotSmi(rbx, &slow);
   // If it is a smi, make sure it is zero-extended, so it can be
   // used as an index in a memory operand.
   __ movl(rbx, rbx);  // Clear the high bits of rbx.
@@ -443,8 +438,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
   __ j(not_equal, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
-  __ movl(rdx, rbx);
-  __ sarl(rdx, Immediate(kSmiTagSize));
+  __ SmiToInteger32(rdx, rbx);
   __ cmpl(rdx, FieldOperand(rcx, Array::kLengthOffset));
   // rax: value
   // rcx: FixedArray
@@ -473,13 +467,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rbx: index (as a smi)
   // flags: compare (rbx, rdx.length())
   __ j(not_equal, &slow);  // do not leave holes in the array
-  __ sarl(rbx, Immediate(kSmiTagSize));  // untag
+  __ SmiToInteger64(rbx, rbx);
   __ cmpl(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ j(above_equal, &slow);
-  // Restore tag and increment.
-  __ lea(rbx, Operand(rbx, rbx, times_1, 1 << kSmiTagSize));
+  // Increment and restore smi-tag.
+  __ Integer64AddToSmi(rbx, rbx, 1);
   __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rbx);
-  __ subl(rbx, Immediate(1 << kSmiTagSize));  // decrement rbx again
+  __ SmiSubConstant(rbx, rbx, 1, NULL);
   __ jmp(&fast);
 
 
@@ -544,8 +538,7 @@ void CallIC::Generate(MacroAssembler* masm,
   // Check if the receiver is a global object of some sort.
   Label invoke, global;
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, &invoke);
+  __ JumpIfSmi(rdx, &invoke);
   __ CmpObjectType(rdx, JS_GLOBAL_OBJECT_TYPE, rcx);
   __ j(equal, &global);
   __ CmpInstanceType(rcx, JS_BUILTINS_OBJECT_TYPE);
@@ -594,8 +587,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // to probe.
   //
   // Check for number.
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, &number);
+  __ JumpIfSmi(rdx, &number);
   __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rbx);
   __ j(not_equal, &non_number);
   __ bind(&number);
@@ -640,8 +632,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
   // Move the result to register rdi and check that it isn't a smi.
   __ movq(rdi, rdx);
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(rdx, miss);
 
   // Check that the value is a JavaScript function.
   __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rdx);
@@ -683,8 +674,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ movq(rcx, Operand(rsp, (argc + 2) * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rdx, &miss);
 
   // Check that the receiver is a valid JS object.
   // Because there are so many map checks and type checks, do not
@@ -844,8 +834,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ movq(rax, Operand(rsp, kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ testl(rax, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rax, &miss);
 
   // Check that the receiver is a valid JS object.
   __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
@@ -902,7 +891,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // The address of the instruction following the call.
   Address test_instruction_address =
-      address + Assembler::kPatchReturnSequenceLength;
+      address + Assembler::kCallTargetAddressOffset;
   // If the instruction following the call is not a test eax, nothing
   // was inlined.
   if (*test_instruction_address != kTestEaxByte) return false;

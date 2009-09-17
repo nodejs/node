@@ -96,13 +96,18 @@ ANDROID_LINKFLAGS = ['-nostdlib',
 
 LIBRARY_FLAGS = {
   'all': {
-    'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
     'CPPPATH': [join(root_dir, 'src')],
     'regexp:native': {
         'CPPDEFINES': ['V8_NATIVE_REGEXP']
     },
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS']
+    },
+    'profilingsupport:on': {
+      'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
+    },
+    'debuggersupport:on': {
+      'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT'],
     }
   },
   'gcc': {
@@ -110,11 +115,14 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
     },
+    'visibility:hidden': {
+      # Use visibility=default to disable this.
+      'CXXFLAGS':     ['-fvisibility=hidden']
+    },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
       'os:android': {
-        'CPPDEFINES': ['ENABLE_DEBUGGER_SUPPORT'],
         'CCFLAGS':    ['-mthumb']
       }
     },
@@ -123,7 +131,7 @@ LIBRARY_FLAGS = {
                        '-ffunction-sections'],
       'os:android': {
         'CCFLAGS':    ['-mthumb', '-Os'],
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG', 'ENABLE_DEBUGGER_SUPPORT']
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
     'os:linux': {
@@ -229,7 +237,6 @@ LIBRARY_FLAGS = {
 V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'CXXFLAGS':     [], #['-fvisibility=hidden'],
       'WARNINGFLAGS': ['-Wall',
                        '-Werror',
                        '-W',
@@ -576,6 +583,16 @@ SIMPLE_OPTIONS = {
     'default': 'static',
     'help': 'the type of library to produce'
   },
+  'profilingsupport': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'enable profiling of JavaScript code'
+  },
+  'debuggersupport': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'enable debugging of JavaScript code'
+  },
   'soname': {
     'values': ['on', 'off'],
     'default': 'off',
@@ -615,6 +632,11 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'more output from compiler and linker'
+  },
+  'visibility': {
+    'values': ['default', 'hidden'],
+    'default': 'hidden',
+    'help': 'shared library symbol visibility'
   }
 }
 
@@ -794,6 +816,10 @@ def PostprocessOptions(options):
       # Print a warning if arch has explicitly been set
       print "Warning: forcing architecture to match simulator (%s)" % options['simulator']
     options['arch'] = options['simulator']
+  if (options['prof'] != 'off') and (options['profilingsupport'] == 'off'):
+    # Print a warning if profiling is enabled without profiling support
+    print "Warning: forcing profilingsupport on when prof is on"
+    options['profilingsupport'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):

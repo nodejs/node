@@ -401,10 +401,12 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* type,
                                  Handle<JSArray> args) {
   Handle<String> make_str = Factory::LookupAsciiSymbol(maker);
-  Handle<JSFunction> fun =
-      Handle<JSFunction>(
-          JSFunction::cast(
-              Top::builtins()->GetProperty(*make_str)));
+  Handle<Object> fun_obj(Top::builtins()->GetProperty(*make_str));
+  // If the builtins haven't been properly configured yet this error
+  // constructor may not have been defined.  Bail out.
+  if (!fun_obj->IsJSFunction())
+    return Factory::undefined_value();
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
   Handle<Object> type_obj = Factory::LookupAsciiSymbol(type);
   Object** argv[2] = { type_obj.location(),
                        Handle<Object>::cast(args).location() };

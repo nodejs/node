@@ -889,11 +889,11 @@ class Object BASE_EMBEDDED {
 
 
 // Smi represents integer Numbers that can be stored in 31 bits.
-// TODO(X64) Increase to 53 bits?
 // Smis are immediate which means they are NOT allocated in the heap.
-// The this pointer has the following format: [31 bit signed int] 0
-// TODO(X64): 31 bits signed int sign-extended to 63 bits.
 // Smi stands for small integer.
+// The this pointer has the following format: [31 bit signed int] 0
+// On 64-bit, the top 32 bits of the pointer is allowed to have any
+// value.
 class Smi: public Object {
  public:
   // Returns the integer value.

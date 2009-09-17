@@ -319,7 +319,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 
 
 void MacroAssembler::FCmp() {
-  fcompp();
+  fucompp();
   push(eax);
   fnstsw_ax();
   sahf();
@@ -1170,7 +1170,6 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.
@@ -1188,7 +1187,6 @@ CodePatcher::~CodePatcher() {
   ASSERT(masm_.pc_ == address_ + size_);
   ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 } }  // namespace v8::internal
