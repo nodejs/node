@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/15/2009
+.\"      Date: 09/17/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/15/2009" "" ""
+.TH "NODE" "1" "09/17/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -1226,17 +1226,49 @@ or
 "ascii"\. By default the body uses ASCII encoding, as it is faster\.
 .RE
 .PP
-request\.finish(response_listener)
+request\.finish(responseListener)
 .RS 4
 Finishes sending the request\. If any parts of the body are unsent, it will flush them to the socket\. If the request is chunked, this will send the terminating
 "0\er\en\er\en"\.
 .sp
 The parameter
-response_listener
+responseListener
 is a callback which will be executed when the response headers have been received\. The
-response_listener
+responseListener
 callback is executed with one argument which is an instance of
 node\.http\.ClientResponse\.
+.sp
+In the
+responseListener
+callback, one can add more listeners to the response, in particular listening for the
+"body"
+event\. Note that the
+responseListener
+is called before any part of the body is receieved, so there is no need to worry about racing to catch the first part of the body\. As long as a listener for
+"body"
+is added during the
+responseListener
+callback, the entire body will be caught\.
+.sp
+.RS 4
+.nf
+// Good
+request\.finish(function (response) {
+  response\.addListener("body", function (chunk) {
+    puts("BODY: " + chunk);
+  });
+});
+
+// Bad \- misses all or part of the body
+request\.finish(function (response) {
+  setTimeout(function () {
+    response\.addListener("body", function (chunk) {
+      puts("BODY: " + chunk);
+    });
+  }, 10);
+});
+.fi
+.RE
 .RE
 .RE
 .sp

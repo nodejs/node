@@ -1319,7 +1319,7 @@ argument should be either <tt>"utf8"</tt> or
 as it is faster.</p></div>
 </dd>
 <dt class="hdlist1">
-<tt>request.finish(response_listener)</tt> 
+<tt>request.finish(responseListener)</tt> 
 </dt>
 <dd>
 <p>
@@ -1327,10 +1327,34 @@ Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the socket. If the request is
 chunked, this will send the terminating <tt>"0\r\n\r\n"</tt>.
 </p>
-<div class="paragraph"><p>The parameter <tt>response_listener</tt> is a callback which
+<div class="paragraph"><p>The parameter <tt>responseListener</tt> is a callback which
 will be executed when the response headers have been received.
-The <tt>response_listener</tt> callback is executed with one
+The <tt>responseListener</tt> callback is executed with one
 argument which is an instance of <tt>node.http.ClientResponse</tt>.</p></div>
+<div class="paragraph"><p>In the <tt>responseListener</tt> callback, one can add more listeners to the
+response, in particular listening for the <tt>"body"</tt> event. Note that
+the <tt>responseListener</tt> is called before any part of the body is receieved,
+so there is no need to worry about racing to catch the first part of the
+body. As long as a listener for <tt>"body"</tt> is added during the
+<tt>responseListener</tt> callback, the entire body will be caught.</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>// Good
+request.finish(function (response) {
+  response.addListener("body", function (chunk) {
+    puts("BODY: " + chunk);
+  });
+});
+
+// Bad - misses all or part of the body
+request.finish(function (response) {
+  setTimeout(function () {
+    response.addListener("body", function (chunk) {
+      puts("BODY: " + chunk);
+    });
+  }, 10);
+});</tt></pre>
+</div></div>
 </dd>
 </dl></div>
 <h4 id="_tt_node_http_clientresponse_tt"><tt>node.http.ClientResponse</tt></h4>
@@ -1906,7 +1930,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.10<br />
-Last updated 2009-09-15 22:34:24 CEST
+Last updated 2009-09-17 15:13:13 CEST
 </div>
 </div>
 </body>
