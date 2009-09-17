@@ -138,9 +138,15 @@ EIOPromise::After (eio_req *req)
       break;
 
     case EIO_OPEN:
+      argc = 1;
+      argv[0] = Integer::New(req->result);
+      break;
+
     case EIO_WRITE:
       argc = 1;
       argv[0] = Integer::New(req->result);
+      assert(req->ptr2);
+      delete req->ptr2;
       break;
 
     case EIO_STAT:
@@ -336,7 +342,8 @@ Write (const Arguments& args)
     Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
     return ThrowException(exception);
   }
-  char buf[len];
+
+  char * buf = new char[len];
   ssize_t written = DecodeWrite(buf, len, args[1], enc);
   assert(written == len);
 
