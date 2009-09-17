@@ -352,6 +352,7 @@ static Local<Object> Load(int argc, char *argv[]) {
   global_obj->Set(String::NewSymbol("node"), node_obj);
 
   node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+  node_obj->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
 
   int i, j;
   Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
