@@ -1,4 +1,25 @@
-2009.09.11, Version 0.1.10
+2009.09.18, Version 0.1.11
+
+  * API: default to utf8 encoding for node.fs.cat()
+
+  * API: add node.exec() 
+
+  * API: node.fs.read() takes a normal encoding parameter.
+
+  * API: Change arguments of emit(), emitSuccess(), emitError()
+
+  * Bugfix: node.fs.write() was stack allocating buffer.
+
+  * Bugfix: ReportException shouldn't forget the top frame.
+
+  * Improve buffering for HTTP outgoing messages
+
+  * Fix and reenable x64 macintosh build.
+
+  * Upgrade v8 to 1.3.11
+
+
+2009.09.11, Version 0.1.10, 12bb0d46ce761e3d00a27170e63b40408c15b558
 
   * Feature: raw string encoding "raws"
 
