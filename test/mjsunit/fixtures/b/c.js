@@ -1,3 +1,5 @@
+node.debug("load fixtures/b/c.js");
+
 var d = require("d.js");
 
 var string = "C";
@@ -12,4 +14,5 @@ exports.D = function () {
 
 process.addListener("exit", function () {
   string = "C done";
+  puts("b/c.js exit");
 });

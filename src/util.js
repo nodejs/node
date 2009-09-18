@@ -92,17 +92,23 @@ node.path = new function () {
 };
 
 print = function (x) {
-  return node.stdio.write(x);
+  node.stdio.write(x);
 };
 
 puts = function (x) {
-  return print(x.toString() + "\n");
+  print(x.toString() + "\n");
 };
 
 p = function (x) {
-  return puts(JSON.stringify(x));
+  if (x === null) {
+    puts("null");
+  } else if (x === NaN) {
+    puts("NaN");
+  } else {
+    puts(JSON.stringify(x) || "undefined");
+  }
 };
 
 node.debug = function (x) {
-  return node.stdio.writeError("DEBUG: " + x.toString() + "\n");
+  node.stdio.writeError("DEBUG: " + x.toString() + "\n");
 };

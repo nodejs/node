@@ -1,5 +1,8 @@
+node.debug("load fixtures/a.js");
+
 var c = require("b/c.js");
 var string = "A";
+
 
 exports.A = function () {
   return string;

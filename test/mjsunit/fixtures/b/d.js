@@ -1,3 +1,5 @@
+node.debug("load fixtures/b/d.js");
+
 var string = "D";
 
 exports.D = function () {
