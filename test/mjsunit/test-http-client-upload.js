@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 var PORT = 18032;
 
 var sent_body = "";

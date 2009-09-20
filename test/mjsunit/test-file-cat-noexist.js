@@ -1,9 +1,7 @@
-include("mjsunit.js");
+include("common.js");
 var got_error = false;
 
-var dirname = node.path.dirname(__filename);
-var fixtures = node.path.join(dirname, "fixtures");
-var filename = node.path.join(fixtures, "does_not_exist.txt");
+var filename = node.path.join(fixturesDir, "does_not_exist.txt");
 var promise = node.fs.cat(filename, "raw");
 
 promise.addCallback(function (content) {
@@ -17,5 +15,6 @@ promise.addErrback(function () {
 });
 
 process.addListener("exit", function () {
+  puts("done");
   assertTrue(got_error);
 });

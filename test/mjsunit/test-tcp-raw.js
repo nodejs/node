@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 PORT = 23123;
 
 var echoServer = node.tcp.createServer(function (connection) {

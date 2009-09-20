@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 function timer (t) {
   var promise = new node.Promise();

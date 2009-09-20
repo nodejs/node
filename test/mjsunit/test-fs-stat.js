@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var got_error = false;
 var success_count = 0;

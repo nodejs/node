@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 PORT = 8888;
 
 var body1_s = "1111111111111111";

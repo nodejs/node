@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var p1_done = false;
 var p1 = new node.Promise();

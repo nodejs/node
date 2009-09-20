@@ -1,13 +1,9 @@
-
-include("mjsunit.js");
-
-var dirname = node.path.dirname(__filename);
-var fixtures = node.path.join(dirname, "fixtures");
+include("common.js");
 
 var got_error = false;
 
-var promise = node.fs.readdir(fixtures);
-puts("readdir " + fixtures);
+var promise = node.fs.readdir(fixturesDir);
+puts("readdir " + fixturesDir);
 
 promise.addCallback(function (files) {
   p(files);

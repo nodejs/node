@@ -326,3 +326,4 @@ def build(bld):
   """);
   bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1');
   bld.install_files('${PREFIX}/bin/', 'node-repl', chmod=0755);
+  bld.install_files('${PREFIX}/lib/node_libraries/', 'lib/*.js');

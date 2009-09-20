@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var exit_status = -1;
 

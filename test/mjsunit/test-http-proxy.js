@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var PROXY_PORT = 8869;
 var BACKEND_PORT = 8870;

@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var dirname = node.path.dirname(__filename);
 var fixtures = node.path.join(dirname, "fixtures");

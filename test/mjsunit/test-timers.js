@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var WINDOW = 800; // why is does this need to be so big?
 

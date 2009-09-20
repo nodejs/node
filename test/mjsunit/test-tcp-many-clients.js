@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 // settings
 var port = 20743;
 var bytes = 1024*40;

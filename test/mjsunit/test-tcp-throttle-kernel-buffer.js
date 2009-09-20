@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 PORT = 20444;
 N = 30*1024; // 500kb
 

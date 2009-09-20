@@ -1,8 +1,6 @@
-include("mjsunit.js");
+include("common.js");
 
-var dirname = node.path.dirname(__filename);
-var fixtures = node.path.join(dirname, "fixtures");
-var path = node.path.join(fixtures, "write.txt");
+var path = node.path.join(fixturesDir, "write.txt");
 var expected = "hello";
 var found;
 

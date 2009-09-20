@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 PORT = 8888;
 
 var responses_sent = 0;

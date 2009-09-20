@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.

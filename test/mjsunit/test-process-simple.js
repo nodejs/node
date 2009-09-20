@@ -1,4 +1,4 @@
-include("mjsunit.js");
+include("common.js");
 
 var cat = node.createChildProcess("cat");
 
