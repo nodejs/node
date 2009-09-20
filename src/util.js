@@ -99,16 +99,20 @@ puts = function (x) {
   print(x.toString() + "\n");
 };
 
-p = function (x) {
-  if (x === null) {
-    puts("null");
-  } else if (x === NaN) {
-    puts("NaN");
-  } else {
-    puts(JSON.stringify(x) || "undefined");
-  }
-};
-
 node.debug = function (x) {
   node.stdio.writeError("DEBUG: " + x.toString() + "\n");
+};
+
+node.error = function (x) {
+  node.stdio.writeError(x.toString() + "\n");
+};
+
+p = function (x) {
+  if (x === null) {
+    node.error("null");
+  } else if (x === NaN) {
+    node.error("NaN");
+  } else {
+    node.error(JSON.stringify(x) || "undefined");
+  }
 };
