@@ -10,7 +10,9 @@ node.fs.cat = function (path, encoding) {
 
   encoding = encoding || "utf8";
 
-  open_promise.addErrback(function () { cat_promise.emitError(); });
+  open_promise.addErrback(function () {
+    cat_promise.emitError(new Error("Could not open " + path));
+  });
   open_promise.addCallback(function (fd) {
     var content = (encoding === "raw" ? [] : "");
     var pos = 0;
