@@ -179,7 +179,7 @@ node.Module.cache = {};
           if (fullPath) {
             retrieveFromCache(loadPromise, fullPath, parent);
           } else {
-            loadPromise.emitError();
+            loadPromise.emitError(new Error("Cannot find module '" + requestedPath + "'"));
           }
         });
 
@@ -220,8 +220,8 @@ node.Module.prototype.loadObject = function (loadPromise) {
       node.dlopen(self.filename, self.target); // FIXME synchronus
       loadPromise.emitSuccess(self.target);
     } else {
-      node.stdio.writeError("Error reading " + self.filename + "\n");
-      loadPromise.emitError();
+      node.error("Error reading " + self.filename + "\n");
+      loadPromise.emitError(new Error("Error reading " + self.filename));
       node.exit(1);
     }
   });
@@ -232,7 +232,8 @@ node.Module.prototype.loadScript = function (loadPromise) {
   var catPromise = node.cat(self.filename);
 
   catPromise.addErrback(function () {
-    loadPromise.emitError(new Error("Error reading " + self.filename + "\n"));
+    loadPromise.emitError(new Error("Error reading " + self.filename));
+    node.exit(1);
   });
 
   catPromise.addCallback(function (content) {
