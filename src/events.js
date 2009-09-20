@@ -51,7 +51,13 @@ node.Promise.prototype.wait = function () {
       })
       .block();
 
-  if (had_error) throw ret;
+  if (had_error) {
+    if (ret) {
+      throw ret;
+    } else {
+      throw new Error("Promise completed with error (No arguments given.)");
+    }
+  }
   return ret;
 };
 
