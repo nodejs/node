@@ -17,8 +17,7 @@ using namespace v8;
 namespace node {
 
 #define UTF8_SYMBOL           String::NewSymbol("utf8")
-#define RAW_SYMBOL            String::NewSymbol("raw")
-#define RAWS_SYMBOL           String::NewSymbol("raws")
+#define BINARY_SYMBOL         String::NewSymbol("binary")
 #define ASCII_SYMBOL          String::NewSymbol("ascii")
 
 #define SERVER_SYMBOL         String::NewSymbol("server")
@@ -257,8 +256,8 @@ Handle<Value> Connection::SetEncoding(const Arguments& args) {
   assert(connection);
 
   if (!args[0]->IsString()) {
-    connection->encoding_ = RAW;
-    return scope.Close(RAW_SYMBOL);
+    connection->encoding_ = BINARY;
+    return scope.Close(BINARY_SYMBOL);
   }
 
   switch (ParseEncoding(args[0])) {
@@ -270,13 +269,9 @@ Handle<Value> Connection::SetEncoding(const Arguments& args) {
       connection->encoding_ = UTF8;
       return scope.Close(UTF8_SYMBOL);
 
-    case RAW:
-      connection->encoding_ = RAW;
-      return scope.Close(RAW_SYMBOL);
-
-    case RAWS:
-      connection->encoding_ = RAWS;
-      return scope.Close(RAWS_SYMBOL);
+    case BINARY:
+      connection->encoding_ = BINARY;
+      return scope.Close(BINARY_SYMBOL);
   }
   assert(0 && "this shouldn't happen");
   return ThrowException(Exception::Error(

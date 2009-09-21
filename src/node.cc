@@ -30,22 +30,38 @@ namespace node {
 
 static int dash_dash_index = 0;
 
+enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
+  HandleScope scope;
+
+  if (!encoding_v->IsString()) return _default;
+
+  String::Utf8Value encoding(encoding_v->ToString());
+
+  if (strcasecmp(*encoding, "utf8") == 0) {
+    return UTF8;
+  } else if (strcasecmp(*encoding, "ascii") == 0) {
+    return ASCII;
+  } else if (strcasecmp(*encoding, "binary") == 0) {
+    return BINARY;
+  } else if (strcasecmp(*encoding, "raw") == 0) {
+    fprintf(stderr, "'raw' (array of integers) has been removed. "
+                    "Use 'binary'.\n");
+    return BINARY;
+  } else if (strcasecmp(*encoding, "raws") == 0) {
+    fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
+                    "Please update your code.\n");
+    return BINARY;
+  } else {
+    return _default;
+  }
+}
+
 Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
   HandleScope scope;
 
   if (!len) return scope.Close(Null());
 
-  if (encoding == RAW) {
-    // raw encoding
-    Local<Array> array = Array::New(len);
-    for (size_t i = 0; i < len; i++) {
-      unsigned char val = static_cast<const unsigned char*>(buf)[i];
-      array->Set(Integer::New(i), Integer::New(val));
-    }
-    return scope.Close(array);
-  }
-
-  if (encoding == RAWS) {
+  if (encoding == BINARY) {
     const unsigned char *cbuf = static_cast<const unsigned char*>(buf);
     uint16_t * twobytebuf = new uint16_t[len];
     for (size_t i = 0; i < len; i++) {
@@ -53,7 +69,7 @@ Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
       twobytebuf[i] = cbuf[i];
     }
     Local<String> chunk = String::New(twobytebuf, len);
-    delete twobytebuf;
+    delete twobytebuf; // TODO use ExternalTwoByteString?
     return scope.Close(chunk);
   }
 
@@ -67,14 +83,13 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
   HandleScope scope;
 
   if (val->IsArray()) {
-    if (encoding != RAW) return -1;
-    Handle<Array> array = Handle<Array>::Cast(val);
-    return array->Length();
+    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
+                    "Use 'binary'.\n");
+    assert(0);
+    return -1;
   }
 
-  if (!val->IsString()) return -1;
-
-  Handle<String> str = Handle<String>::Cast(val);
+  Local<String> str = val->ToString();
 
   if (encoding == UTF8) return str->Utf8Length();
 
@@ -99,18 +114,13 @@ ssize_t DecodeWrite(char *buf, size_t buflen,
   // http://groups.google.com/group/v8-users/browse_thread/thread/1f83b0ba1f0a611
 
   if (val->IsArray()) {
-    if (encoding != RAW) return -1;
-    Handle<Array> array = Handle<Array>::Cast(val);
-    size_t array_len = array->Length();
-    for (i = 0; i < MIN(buflen, array_len); i++) {
-      Local<Value> int_value = array->Get(Integer::New(i));
-      buf[i] = int_value->IntegerValue();
-    }
-    return i;
+    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
+                    "Use 'binary'.\n");
+    assert(0);
+    return -1;
   }
 
-  assert(val->IsString());
-  Handle<String> str = Handle<String>::Cast(val);
+  Local<String> str = val->ToString();
 
   if (encoding == UTF8) {
     str->WriteUtf8(buf, buflen);
@@ -123,6 +133,8 @@ ssize_t DecodeWrite(char *buf, size_t buflen,
   }
 
   // THIS IS AWFUL!!! FIXME
+
+  assert(encoding == BINARY);
 
   uint16_t * twobytebuf = new uint16_t[buflen];
 
@@ -308,27 +320,6 @@ static void EIOCallback(EV_P_ ev_async *watcher, int revents) {
 
 static void EIOWantPoll(void) {
   ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
-}
-
-enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
-  HandleScope scope;
-
-  if (!encoding_v->IsString())
-    return RAW;
-
-  String::Utf8Value encoding(encoding_v->ToString());
-
-  if (strcasecmp(*encoding, "utf8") == 0) {
-    return UTF8;
-  } else if (strcasecmp(*encoding, "ascii") == 0) {
-    return ASCII;
-  } else if (strcasecmp(*encoding, "raw") == 0) {
-    return RAW;
-  } else if (strcasecmp(*encoding, "raws") == 0) {
-    return RAWS;
-  } else {
-    return _default;
-  }
 }
 
 static void ExecuteNativeJS(const char *filename, const char *data) {

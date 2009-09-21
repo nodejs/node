@@ -55,12 +55,10 @@ Server running at http://127.0.0.1:8000/</tt></pre>
 </div>
 <h2 id="_api">API</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Node supports 4 byte-string encodings. ASCII (<tt>"ascii"</tt>), UTF-8 (<tt>"utf8"</tt>)
-both use the string object, obviously. Then two "raw binary" encodings - one
-uses an array of integers (<tt>"raw"</tt>) and the other uses a string (<tt>"raws"</tt>).
-Neither raw encodings are perfect and their implementations are rather
-inefficient. Hopefully the raw encoding situation will improve in the
-future.</p></div>
+<div class="paragraph"><p>Node supports 3 string encodings. UTF-8 (<tt>"utf8"</tt>), ASCII (<tt>"ascii"</tt>), and
+Binary (<tt>"binary"</tt>). <tt>"ascii"</tt> and <tt>"binary"</tt> only look at the first 8 bits
+of the 16bit javascript string characters. Both are relatively fast&#8212;use
+them if you can. <tt>"utf8"</tt> is slower and should be avoided when possible.</p></div>
 <div class="paragraph"><p>Unless otherwise noted, functions are all asynchronous and do not block
 execution.</p></div>
 <h3 id="_helpers">Helpers</h3><div style="clear:left"></div>
@@ -373,10 +371,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>data</tt></p></td>
 <td align="left" valign="top"><p class="table">Made when stdin has received a chunk of data.
                             Depending on the encoding that stdin was opened
-                            with, <tt>data</tt> will be either an array of integers
-                            (raw encoding) or a string (ascii or utf8
-                            encoding). This event will only be emited after
-                            <tt>node.stdio.open()</tt> has been called.</p></td>
+                            with, <tt>data</tt> will be  a string. This event will
+                            only be emited after <tt>node.stdio.open()</tt> has
+                            been called.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"close"</tt></p></td>
@@ -599,7 +596,8 @@ The PID of the child process.
 <dd>
 <p>
 Write data to the child process&#8217;s <tt>stdin</tt>. The second argument is optional and
-specifies the encoding: possible values are <tt>"utf8"</tt>, <tt>"ascii"</tt>, and <tt>"raw"</tt>.
+specifies the encoding: possible values are <tt>"utf8"</tt>, <tt>"ascii"</tt>, and
+<tt>"binary"</tt>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1050,8 +1048,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>chunk</tt></p></td>
 <td align="left" valign="top"><p class="table">Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is either a String in the case of UTF-8 encoding or
-an array of numbers in the case of raw encoding.  The body encoding is set
+decoded.  The body chunk is a String.  The body encoding is set
 with <tt>request.setBodyEncoding()</tt>.</p></td>
 </tr>
 <tr>
@@ -1123,8 +1120,8 @@ The HTTP protocol version as a string. Read only. Examples:
 </dt>
 <dd>
 <p>
-Set the encoding for the request body. Either <tt>"utf8"</tt> or <tt>"raw"</tt>. Defaults
-to raw.
+Set the encoding for the request body. Either <tt>"utf8"</tt> or <tt>"binary"</tt>. Defaults
+to <tt>"binary"</tt>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1380,9 +1377,8 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>chunk</tt></p></td>
 <td align="left" valign="top"><p class="table">Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is either a String in the case of UTF-8 encoding or
-an array of numbers in the case of raw encoding.  The body encoding is set
-with <tt>response.setBodyEncoding()</tt>.</p></td>
+decoded.  The body chunk a String.  The body encoding is set with
+<tt>response.setBodyEncoding()</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"complete"</tt></p></td>
@@ -1424,8 +1420,8 @@ After emitted no other events will be emitted on the response.</p></td>
 </dt>
 <dd>
 <p>
-  Set the encoding for the response body. Either <tt>"utf8"</tt> or <tt>"raw"</tt>.
-  Defaults to raw.
+  Set the encoding for the response body. Either <tt>"utf8"</tt> or <tt>"binary"</tt>.
+  Defaults to <tt>"binary"</tt>.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1574,11 +1570,9 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>"receive"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>data</tt></p></td>
 <td align="left" valign="top"><p class="table">Called when data is received on the
-                                  connection.  Encoding of data is set
-                                  by <tt>connection.setEncoding()</tt>.  <tt>data</tt>
-                                  will either be a string, in the case of
-                                  utf8, or an array of integer in the case
-                                  of raw encoding.</p></td>
+                                  connection.  <tt>data</tt> will be a string.
+                                  Encoding of data is set by
+                                  <tt>connection.setEncoding()</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"eof"</tt></p></td>
@@ -1658,7 +1652,7 @@ Either <tt>"closed"</tt>, <tt>"open"</tt>, <tt>"opening"</tt>, <tt>"readOnly"</t
 </dt>
 <dd>
 <p>
-Sets the encoding (either <tt>"utf8"</tt> or <tt>"raw"</tt>) for data that is received.
+Sets the encoding (either <tt>"ascii"</tt>, <tt>"utf8"</tt>, or <tt>"binary"</tt>) for data that is received.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -1666,10 +1660,8 @@ Sets the encoding (either <tt>"utf8"</tt> or <tt>"raw"</tt>) for data that is re
 </dt>
 <dd>
 <p>
-Sends data on the connection. The data should be eithre an array
-of integers (for raw binary) or a string (for utf8 or ascii).
-The second parameter specifies the encoding in the case of a
-string&#8212;it defaults to ASCII because encoding to UTF8 is
+Sends data on the connection. The second parameter specifies the encoding
+in the case of a string&#8212;it defaults to ASCII because encoding to UTF8 is
 rather slow.
 </p>
 </dd>
@@ -1930,7 +1922,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.11<br />
-Last updated 2009-09-18 18:31:06 CEST
+Last updated 2009-09-21 12:26:35 CEST
 </div>
 </div>
 </body>

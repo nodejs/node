@@ -38,12 +38,10 @@ Server running at http://127.0.0.1:8000/
 
 == API
 
-Node supports 4 byte-string encodings. ASCII (+"ascii"+), UTF-8 (+"utf8"+)
-both use the string object, obviously. Then two "raw binary" encodings - one
-uses an array of integers (+"raw"+) and the other uses a string (+"raws"+). 
-Neither raw encodings are perfect and their implementations are rather
-inefficient. Hopefully the raw encoding situation will improve in the
-future.
+Node supports 3 string encodings. UTF-8 (+"utf8"+), ASCII (+"ascii"+), and
+Binary (+"binary"+). +"ascii"+ and +"binary"+ only look at the first 8 bits
+of the 16bit javascript string characters. Both are relatively fast--use
+them if you can. +"utf8"+ is slower and should be avoided when possible.
 
 Unless otherwise noted, functions are all asynchronous and do not block
 execution.
@@ -222,10 +220,9 @@ synchronous.
 
 | +"data"+   | +data+     | Made when stdin has received a chunk of data.
                             Depending on the encoding that stdin was opened
-                            with, +data+ will be either an array of integers
-                            (raw encoding) or a string (ascii or utf8
-                            encoding). This event will only be emited after
-                            +node.stdio.open()+ has been called.
+                            with, +data+ will be  a string. This event will
+                            only be emited after +node.stdio.open()+ has
+                            been called.
 | +"close"+  |            | Made when stdin has been closed.
 |=========================================================
 
@@ -394,7 +391,8 @@ The PID of the child process.
 
 +child.write(data, encoding="ascii")+ ::
 Write data to the child process's +stdin+. The second argument is optional and
-specifies the encoding: possible values are +"utf8"+, +"ascii"+, and +"raw"+.
+specifies the encoding: possible values are +"utf8"+, +"ascii"+, and
++"binary"+.
 
 
 +child.close()+ ::
@@ -640,8 +638,7 @@ the user--and passed as the first argument to a +"request"+ listener.
 |+"body"+        | +chunk+ |
 Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is either a String in the case of UTF-8 encoding or
-an array of numbers in the case of raw encoding.  The body encoding is set
+decoded.  The body chunk is a String.  The body encoding is set
 with +request.setBodyEncoding()+.
 
 |+"complete"+    |        |
@@ -692,8 +689,8 @@ The HTTP protocol version as a string. Read only. Examples:
 
 
 +request.setBodyEncoding(encoding)+ ::
-Set the encoding for the request body. Either +"utf8"+ or +"raw"+. Defaults
-to raw.
+Set the encoding for the request body. Either +"utf8"+ or +"binary"+. Defaults
+to +"binary"+.
 
 
 +request.pause()+ ::
@@ -895,9 +892,8 @@ This object is created internally and passed to the +"response"+ event.
 |+"body"+        | +chunk+ |
 Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is either a String in the case of UTF-8 encoding or
-an array of numbers in the case of raw encoding.  The body encoding is set
-with +response.setBodyEncoding()+.
+decoded.  The body chunk a String.  The body encoding is set with
++response.setBodyEncoding()+.
 
 |+"complete"+    |        |
 Emitted exactly once for each message. No arguments.
@@ -916,8 +912,8 @@ After emitted no other events will be emitted on the response.
   The response headers.
 
 +response.setBodyEncoding(encoding)+ ::
-  Set the encoding for the response body. Either +"utf8"+ or +"raw"+.
-  Defaults to raw.
+  Set the encoding for the response body. Either +"utf8"+ or +"binary"+.
+  Defaults to +"binary"+.
 
 +response.pause()+ ::
   Pauses response from emitting events.  Useful to throttle back a download.
@@ -1005,11 +1001,9 @@ socket for +node.tcp.Server+.
                                   after a call to +createConnection()+ or
                                   +connect()+.
 |+"receive"+     | +data+       | Called when data is received on the
-                                  connection.  Encoding of data is set
-                                  by +connection.setEncoding()+.  +data+
-                                  will either be a string, in the case of
-                                  utf8, or an array of integer in the case
-                                  of raw encoding.
+                                  connection.  +data+ will be a string.
+                                  Encoding of data is set by
+                                  +connection.setEncoding()+. 
 |+"eof"+         |              | Called when the other end of the
                                   connection sends a FIN packet.
                                   After this is emitted the +readyState+
@@ -1055,13 +1049,11 @@ Either +"closed"+, +"open"+, +"opening"+, +"readOnly"+, or +"writeOnly"+.
 
 
 +connection.setEncoding(encoding)+::
-Sets the encoding (either +"utf8"+ or +"raw"+) for data that is received.
+Sets the encoding (either +"ascii"+, +"utf8"+, or +"binary"+) for data that is received.
 
 +connection.send(data, encoding="ascii")+::
-Sends data on the connection. The data should be eithre an array
-of integers (for raw binary) or a string (for utf8 or ascii).
-The second parameter specifies the encoding in the case of a
-string--it defaults to ASCII because encoding to UTF8 is
+Sends data on the connection. The second parameter specifies the encoding
+in the case of a string--it defaults to ASCII because encoding to UTF8 is
 rather slow.
 
 

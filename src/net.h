@@ -33,7 +33,7 @@ class Connection : public EventEmitter {
       const v8::AccessorInfo& info);
 
   Connection() : EventEmitter() {
-    encoding_ = RAW;
+    encoding_ = BINARY;
 
     host_ = NULL;
     port_ = NULL;

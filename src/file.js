@@ -14,7 +14,7 @@ node.fs.cat = function (path, encoding) {
     cat_promise.emitError(new Error("Could not open " + path));
   });
   open_promise.addCallback(function (fd) {
-    var content = (encoding === "raw" ? [] : "");
+    var content = "";
     var pos = 0;
 
     function readChunk () {

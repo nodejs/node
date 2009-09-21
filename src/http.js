@@ -178,7 +178,7 @@ OutgoingMessage.prototype.send = function (data, encoding) {
 
   if (length === 0) {
     this.output.push(data);
-    encoding = encoding || (data.constructor === Array ? "raw" : "ascii");
+    encoding = encoding || "ascii";
     this.outputEncodings.push(encoding);
     return;
   }
@@ -197,7 +197,7 @@ OutgoingMessage.prototype.send = function (data, encoding) {
   }
 
   this.output.push(data);
-  encoding = encoding || (data.constructor === Array ? "raw" : "ascii");
+  encoding = encoding || "ascii";
   this.outputEncodings.push(encoding);
 };
 
