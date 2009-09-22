@@ -5,45 +5,41 @@ node.fs.exists = function (path, callback) {
 };
 
 node.fs.cat = function (path, encoding) {
-  var open_promise = node.fs.open(path, node.O_RDONLY, 0666);
-  var cat_promise = new node.Promise();
+  var promise = new node.Promise();
+  
+  encoding = encoding || "utf8"; // default to utf8
 
-  encoding = encoding || "utf8";
-
-  open_promise.addErrback(function () {
-    cat_promise.emitError(new Error("Could not open " + path));
-  });
-  open_promise.addCallback(function (fd) {
-    var content = "";
-    var pos = 0;
+  node.fs.open(path, node.O_RDONLY, 0666).addCallback(function (fd) {
+    var content = "", pos = 0;
 
     function readChunk () {
-      var read_promise = node.fs.read(fd, 16*1024, pos, encoding);
-
-      read_promise.addErrback(function () { cat_promise.emitError(); });
-
-      read_promise.addCallback(function (chunk, bytes_read) {
+      node.fs.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
         if (chunk) {
-          if (chunk.constructor == String)
+          if (chunk.constructor === String) {
             content += chunk;
-          else
+          } else {
             content = content.concat(chunk);
+          }
 
           pos += bytes_read;
           readChunk();
         } else {
-          cat_promise.emitSuccess(content);
+          promise.emitSuccess(content);
           node.fs.close(fd);
         }
+      }).addErrback(function () {
+        promise.emitError();
       });
     }
     readChunk();
+  }).addErrback(function () {
+    promise.emitError(new Error("Could not open " + path));
   });
-  return cat_promise;
+  return promise;
 };
 
 node.fs.Stats.prototype._checkModeProperty = function (property) {
-  return ((this.mode & property) == property);
+  return ((this.mode & property) === property);
 };
 
 node.fs.Stats.prototype.isDirectory = function () {
