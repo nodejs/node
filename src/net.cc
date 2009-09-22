@@ -356,7 +356,7 @@ Handle<Value> Connection::Send(const Arguments& args) {
   ssize_t written = DecodeWrite(buf, len, args[0], enc);
   assert(written == len);
   connection->Send(buf, written);
-  delete buf;
+  delete [] buf;
 
   return scope.Close(Integer::New(written));
 }

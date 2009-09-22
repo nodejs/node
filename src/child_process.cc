@@ -79,7 +79,7 @@ Handle<Value> ChildProcess::Write(const Arguments& args) {
   ssize_t written = DecodeWrite(buf, len, args[0], enc);
   assert(written == len);
   int r = child->Write(buf, len);
-  delete buf;
+  delete [] buf;
 
   return r == 0 ? True() : False();
 }

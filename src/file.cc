@@ -146,7 +146,7 @@ EIOPromise::After (eio_req *req)
       argc = 1;
       argv[0] = Integer::New(req->result);
       assert(req->ptr2);
-      delete req->ptr2;
+      delete [] req->ptr2;
       break;
 
     case EIO_STAT:

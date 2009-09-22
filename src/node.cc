@@ -69,7 +69,7 @@ Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
       twobytebuf[i] = cbuf[i];
     }
     Local<String> chunk = String::New(twobytebuf, len);
-    delete twobytebuf; // TODO use ExternalTwoByteString?
+    delete [] twobytebuf; // TODO use ExternalTwoByteString?
     return scope.Close(chunk);
   }
 
@@ -146,7 +146,7 @@ ssize_t DecodeWrite(char *buf, size_t buflen,
     buf[i] = b[0];
   }
 
-  delete twobytebuf;
+  delete [] twobytebuf;
 
   return buflen;
 }
