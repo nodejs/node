@@ -67,3 +67,34 @@ function generateToc(toclevels) {
   if (entries.length == 0)
     document.getElementById("header").removeChild(toc);
 }
+
+(function() {
+  var includes = ['sh_main.js', 'sh_javascript.min.js', 'sh_vim-dark.css'];
+  var head = document.getElementsByTagName("head")[0];
+
+  for (var i = 0; i < includes.length; i ++) {
+    var ext = includes[i].match(/\.([^.]+)$/);
+    switch (ext[1]) {
+      case 'js':
+        var element = document.createElement('script');
+        element.type = 'text/javascript';
+        element.src = includes[i];
+        break;
+      case 'css':
+        var element = document.createElement('link');
+        element.type = 'text/css';
+        element.rel = 'stylesheet';
+        element.media = 'screen';
+        element.href = includes[i];
+        break;
+    }
+
+    head.appendChild(element);
+  }
+  var i = setInterval(function () {
+    if (window["sh_highlightDocument"]) {
+      sh_highlightDocument();
+      clearInterval(i);
+    }
+  }, 100);
+})();
