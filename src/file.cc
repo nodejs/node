@@ -42,20 +42,24 @@ EIOPromise::Detach (void)
   ev_unref(EV_DEFAULT_UC);
 }
 
-EIOPromise*
-EIOPromise::Create (void)
-{
+Handle<Value> EIOPromise::New (const v8::Arguments& args) {
   HandleScope scope;
 
-  Local<Object> handle =
-    Promise::constructor_template->GetFunction()->NewInstance();
-
   EIOPromise *promise = new EIOPromise();
-  promise->Wrap(handle);
+  promise->Wrap(args.This());
 
   promise->Attach();
 
-  return promise;
+  return args.This();
+}
+
+EIOPromise* EIOPromise::Create() {
+  HandleScope scope;
+
+  Local<Object> handle =
+    EIOPromise::constructor_template->GetFunction()->NewInstance();
+
+  return ObjectWrap::Unwrap<EIOPromise>(handle);
 }
 
 static Persistent<FunctionTemplate> stats_constructor_template;
@@ -377,6 +381,8 @@ Read (const Arguments& args)
   return scope.Close(EIOPromise::Read(fd, len, pos, encoding));
 }
 
+Persistent<FunctionTemplate> EIOPromise::constructor_template;
+
 void
 File::Initialize (Handle<Object> target)
 {
@@ -397,4 +403,14 @@ File::Initialize (Handle<Object> target)
   stats_constructor_template = Persistent<FunctionTemplate>::New(t);
   target->Set(String::NewSymbol("Stats"),
       stats_constructor_template->GetFunction());
+
+
+  Local<FunctionTemplate> t2 = FunctionTemplate::New(EIOPromise::New);
+  EIOPromise::constructor_template = Persistent<FunctionTemplate>::New(t2);
+  EIOPromise::constructor_template->Inherit(
+      Promise::constructor_template);
+  EIOPromise::constructor_template->InstanceTemplate()->
+    SetInternalFieldCount(1);
+  target->Set(String::NewSymbol("EIOPromise"),
+      EIOPromise::constructor_template->GetFunction());
 }

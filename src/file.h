@@ -27,6 +27,10 @@ public:
 
 class EIOPromise : public Promise {
  public:
+  static EIOPromise* Create();
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+
   static v8::Handle<v8::Object>
   Open (const char *path, int flags, mode_t mode)
   {
@@ -111,12 +115,10 @@ class EIOPromise : public Promise {
     return p->handle_;
   }
 
-  static EIOPromise* Create (void);
-
  protected:
 
-  void Attach (void);
-  void Detach (void);
+  void Attach ();
+  void Detach ();
 
   EIOPromise () : Promise() { }
 

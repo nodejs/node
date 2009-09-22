@@ -23,6 +23,7 @@ class EventEmitter : public ObjectWrap {
 class Promise : public EventEmitter {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
+
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static Promise* Create(void);
 

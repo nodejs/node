@@ -221,11 +221,7 @@ Promise* Promise::Create(void) {
   Local<Object> handle =
     Promise::constructor_template->GetFunction()->NewInstance();
 
-  Promise *promise = new Promise();
-  promise->Wrap(handle);
-  promise->Attach();
-
-  return promise;
+  return ObjectWrap::Unwrap<Promise>(handle);
 }
 
 }  // namespace node
