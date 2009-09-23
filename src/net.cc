@@ -521,7 +521,7 @@ Handle<Value> Server::Listen(const Arguments& args) {
 #endif
 
   char host[DNS_MAXNAME+1] = "\0";
-  int backlog = 1024;
+  int backlog = 128;
 
   if (args.Length() == 2) {
     if (args[1]->IsInt32()) {

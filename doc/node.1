@@ -1443,7 +1443,7 @@ argument is automatically set as a listener for the
 event\.
 .RE
 .PP
-server\.listen(port, host=null, backlog=1024)
+server\.listen(port, host=null, backlog=128)
 .RS 4
 Tells the server to listen for TCP connections to
 port
@@ -1456,7 +1456,7 @@ host
 is not specified the server will accept client connections on any network address\.
 .sp
 The third argument,
-backlog, is also optional and defaults to 1024\. The
+backlog, is also optional and defaults to 128\. The
 backlog
 argument defines the maximum length to which the queue of pending connections for the server may grow\.
 .sp

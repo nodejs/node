@@ -985,13 +985,13 @@ The +connection_listener+ argument is automatically set as a listener for
 the +"connection"+ event.
 
 
-+server.listen(port, host=null, backlog=1024)+ ::
++server.listen(port, host=null, backlog=128)+ ::
 Tells the server to listen for TCP connections to +port+ and +host+.
 +
 +host+ is optional. If +host+ is not specified the server will accept client
 connections on any network address.
 +
-The third argument, +backlog+, is also optional and defaults to 1024.  The
+The third argument, +backlog+, is also optional and defaults to 128.  The
 +backlog+ argument defines the maximum length to which the queue of pending
 connections for the server may grow.
 +
