@@ -277,12 +277,6 @@ The module path is relative to the file calling +require()+.  That is,
 +circle.js+ must be in the same directory as +foo.js+ for +require()+ to
 find it.
 
-HTTP URLs can also be used to load modules. For example,
-
-----------------------------------------
-var circle = require("http://tinyclouds.org/node/circle.js");
-----------------------------------------
-
 Like +require()+ the function +include()+ also loads a module. Instead of
 returning a namespace object, +include()+ will add the module's exports into
 the global namespace. For example:
@@ -292,7 +286,30 @@ include("circle.js");
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 
-Functions +require_async()+ and +include_async()+ also exist.
+When an absolute path is given to +require()+ or +include()+, like
++require("/mjsunit.js")+ the module is searched for in the
++node.libraryPaths+ array. +node.libraryPaths+ on my system looks like this: 
+
+----------------------------------------
+[ "/home/ryan/.node_libraries"
+, "/home/ryan/local/node/lib/node_libraries" 
+, "/"
+]
+----------------------------------------
+
+That is, first Node looks for +"/home/ryan/.node_libraries/mjsunit.js"+ and
+then for +"/home/ryan/local/node/lib/node_libraries/mjsunit.js"+. If not
+found, it finally looks for +"/mjsunit.js"+ (in the root directory).
+
++node.libraryPaths+ can be modified at runtime by simply unshifting new
+paths on to it and at startup with the +NODE_LIBRARY_PATHS+ environmental
+variable (which should be a list of paths, colon separated).
+
+Node comes with several libraries which are installed when +"make install"+
+is run. These are currently undocumented, but do look them up in your
+system.
+
+(Functions +require_async()+ and +include_async()+ also exist.)
 
 
 ==== +process.addListener("exit", function () { })+

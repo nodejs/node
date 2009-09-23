@@ -449,11 +449,6 @@ private to <tt>circle.js</tt>.</p></div>
 <div class="paragraph"><p>The module path is relative to the file calling <tt>require()</tt>.  That is,
 <tt>circle.js</tt> must be in the same directory as <tt>foo.js</tt> for <tt>require()</tt> to
 find it.</p></div>
-<div class="paragraph"><p>HTTP URLs can also be used to load modules. For example,</p></div>
-<div class="listingblock">
-<div class="content">
-<pre><tt>var circle = require("http://tinyclouds.org/node/circle.js");</tt></pre>
-</div></div>
 <div class="paragraph"><p>Like <tt>require()</tt> the function <tt>include()</tt> also loads a module. Instead of
 returning a namespace object, <tt>include()</tt> will add the module&#8217;s exports into
 the global namespace. For example:</p></div>
@@ -462,7 +457,26 @@ the global namespace. For example:</p></div>
 <pre><tt>include("circle.js");
 puts("The area of a cirlce of radius 4 is " + area(4));</tt></pre>
 </div></div>
-<div class="paragraph"><p>Functions <tt>require_async()</tt> and <tt>include_async()</tt> also exist.</p></div>
+<div class="paragraph"><p>When an absolute path is given to <tt>require()</tt> or <tt>include()</tt>, like
+<tt>require("/mjsunit.js")</tt> the module is searched for in the
+<tt>node.libraryPaths</tt> array. <tt>node.libraryPaths</tt> on my system looks like this:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>[ "/home/ryan/.node_libraries"
+, "/home/ryan/local/node/lib/node_libraries"
+, "/"
+]</tt></pre>
+</div></div>
+<div class="paragraph"><p>That is, first Node looks for <tt>"/home/ryan/.node_libraries/mjsunit.js"</tt> and
+then for <tt>"/home/ryan/local/node/lib/node_libraries/mjsunit.js"</tt>. If not
+found, it finally looks for <tt>"/mjsunit.js"</tt> (in the root directory).</p></div>
+<div class="paragraph"><p><tt>node.libraryPaths</tt> can be modified at runtime by simply unshifting new
+paths on to it and at startup with the <tt>NODE_LIBRARY_PATHS</tt> environmental
+variable (which should be a list of paths, colon separated).</p></div>
+<div class="paragraph"><p>Node comes with several libraries which are installed when <tt>"make install"</tt>
+is run. These are currently undocumented, but do look them up in your
+system.</p></div>
+<div class="paragraph"><p>(Functions <tt>require_async()</tt> and <tt>include_async()</tt> also exist.)</p></div>
 <h4 id="_tt_process_addlistener_exit_function_tt"><tt>process.addListener("exit", function () { })</tt></h4>
 <div class="paragraph"><p>When the program exits a special object called <tt>process</tt> will emit an
 <tt>"exit"</tt> event.</p></div>
@@ -1932,7 +1946,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.11<br />
-Last updated 2009-09-23 15:35:53 CEST
+Last updated 2009-09-23 16:52:08 CEST
 </div>
 </div>
 </body>
