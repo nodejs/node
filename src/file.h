@@ -1,8 +1,9 @@
-#ifndef node_file_h
-#define node_file_h
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#ifndef SRC_FILE_H_
+#define SRC_FILE_H_
 
-#include "node.h"
-#include "events.h"
+#include <node.h>
+#include <events.h>
 #include <v8.h>
 
 namespace node {
@@ -18,11 +19,11 @@ namespace node {
  */
 
 #define NODE_V8_METHOD_DECLARE(name) \
-  static v8::Handle<v8::Value> name (const v8::Arguments& args)
+  static v8::Handle<v8::Value> name(const v8::Arguments& args)
 
 class File {
-public:
-  static void Initialize (v8::Handle<v8::Object> target);
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
 };
 
 class EIOPromise : public Promise {
@@ -31,33 +32,31 @@ class EIOPromise : public Promise {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
 
-  static v8::Handle<v8::Object>
-  Open (const char *path, int flags, mode_t mode)
-  {
+  static v8::Handle<v8::Object> Open(const char *path, int flags, mode_t mode) {
     EIOPromise *p = Create();
     p->req_ = eio_open(path, flags, mode, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Close (int fd)
-  {
+  static v8::Handle<v8::Object> Close(int fd) {
     EIOPromise *p = Create();
     p->req_ = eio_close(fd, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Write (int fd, void *buf, size_t count, off_t offset)
-  {
+  static v8::Handle<v8::Object> Write(int fd,
+                                      void *buf,
+                                      size_t count,
+                                      off_t offset) {
     EIOPromise *p = Create();
     p->req_ = eio_write(fd, buf, count, offset, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Read (int fd, size_t count, off_t offset, enum encoding encoding)
-  {
+  static v8::Handle<v8::Object> Read(int fd,
+                                     size_t count,
+                                     off_t offset,
+                                     enum encoding encoding) {
     EIOPromise *p = Create();
     p->encoding_ = encoding;
     // NOTE: 2nd param: NULL pointer tells eio to allocate it itself
@@ -65,49 +64,37 @@ class EIOPromise : public Promise {
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Stat (const char *path)
-  {
+  static v8::Handle<v8::Object> Stat(const char *path) {
     EIOPromise *p = Create();
     p->req_ = eio_stat(path, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Rename (const char *path, const char *new_path)
-  {
+  static v8::Handle<v8::Object> Rename(const char *path, const char *new_path) {
     EIOPromise *p = Create();
     p->req_ = eio_rename(path, new_path, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  Unlink (const char *path)
-  {
+  static v8::Handle<v8::Object> Unlink(const char *path) {
     EIOPromise *p = Create();
     p->req_ = eio_unlink(path, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  RMDir (const char *path)
-  {
+  static v8::Handle<v8::Object> RMDir(const char *path) {
     EIOPromise *p = Create();
     p->req_ = eio_rmdir(path, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  MKDir (const char *path, mode_t mode)
-  {
+  static v8::Handle<v8::Object> MKDir(const char *path, mode_t mode) {
     EIOPromise *p = Create();
     p->req_ = eio_mkdir(path, mode, EIO_PRI_DEFAULT, After, p);
     return p->handle_;
   }
 
-  static v8::Handle<v8::Object>
-  ReadDir (const char *path)
-  {
+  static v8::Handle<v8::Object> ReadDir(const char *path) {
     EIOPromise *p = Create();
     // By using EIO_READDIR_DENTS (or other flags), more complex results can
     // be had from eio_readdir. Doesn't seem that we need that though.
@@ -117,18 +104,18 @@ class EIOPromise : public Promise {
 
  protected:
 
-  void Attach ();
-  void Detach ();
+  void Attach();
+  void Detach();
 
-  EIOPromise () : Promise() { }
+  EIOPromise() : Promise() { }
 
  private:
 
-  static int After (eio_req *req);
+  static int After(eio_req *req);
 
   eio_req *req_;
   enum encoding encoding_;
 };
 
-} // namespace node
-#endif // node_file_h
+}  // namespace node
+#endif  // SRC_FILE_H_

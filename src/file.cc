@@ -1,7 +1,5 @@
-#include "node.h"
-#include "file.h"
-#include "events.h"
-#include <string.h>
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <file.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -9,9 +7,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
+
+namespace node {
 
 using namespace v8;
-using namespace node;
 
 #define DEV_SYMBOL         String::NewSymbol("dev")
 #define INO_SYMBOL         String::NewSymbol("ino")
@@ -28,21 +28,17 @@ using namespace node;
 #define CTIME_SYMBOL       String::NewSymbol("ctime")
 #define BAD_ARGUMENTS      Exception::TypeError(String::New("Bad argument"))
 
-void
-EIOPromise::Attach (void)
-{
+void EIOPromise::Attach(void) {
   ev_ref(EV_DEFAULT_UC);
   Promise::Attach();
 }
 
-void
-EIOPromise::Detach (void)
-{
+void EIOPromise::Detach(void) {
   Promise::Detach();
   ev_unref(EV_DEFAULT_UC);
 }
 
-Handle<Value> EIOPromise::New (const v8::Arguments& args) {
+Handle<Value> EIOPromise::New(const v8::Arguments& args) {
   HandleScope scope;
 
   EIOPromise *promise = new EIOPromise();
@@ -64,9 +60,7 @@ EIOPromise* EIOPromise::Create() {
 
 static Persistent<FunctionTemplate> stats_constructor_template;
 
-static Local<Object>
-BuildStatsObject (struct stat * s)
-{
+static Local<Object> BuildStatsObject(struct stat * s) {
   HandleScope scope;
 
   Local<Object> stats =
@@ -114,9 +108,7 @@ BuildStatsObject (struct stat * s)
   return scope.Close(stats);
 }
 
-int
-EIOPromise::After (eio_req *req)
-{
+int EIOPromise::After(eio_req *req) {
   HandleScope scope;
 
   EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
@@ -202,9 +194,7 @@ EIOPromise::After (eio_req *req)
   return 0;
 }
 
-static Handle<Value>
-Close (const Arguments& args)
-{
+static Handle<Value> Close(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
@@ -216,9 +206,7 @@ Close (const Arguments& args)
   return scope.Close(EIOPromise::Close(fd));
 }
 
-static Handle<Value>
-Stat (const Arguments& args)
-{
+static Handle<Value> Stat(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
@@ -230,9 +218,7 @@ Stat (const Arguments& args)
   return scope.Close(EIOPromise::Stat(*path));
 }
 
-static Handle<Value>
-Rename (const Arguments& args)
-{
+static Handle<Value> Rename(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString()) {
@@ -248,8 +234,7 @@ Rename (const Arguments& args)
   return scope.Close(promise->Handle());
 }
 
-static Handle<Value> Unlink (const Arguments& args)
-{
+static Handle<Value> Unlink(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
@@ -260,9 +245,7 @@ static Handle<Value> Unlink (const Arguments& args)
   return scope.Close(EIOPromise::Unlink(*path));
 }
 
-static Handle<Value>
-RMDir (const Arguments& args)
-{
+static Handle<Value> RMDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
@@ -273,9 +256,7 @@ RMDir (const Arguments& args)
   return scope.Close(EIOPromise::RMDir(*path));
 }
 
-static Handle<Value>
-MKDir (const Arguments& args)
-{
+static Handle<Value> MKDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
@@ -288,9 +269,7 @@ MKDir (const Arguments& args)
   return scope.Close(EIOPromise::MKDir(*path, mode));
 }
 
-static Handle<Value>
-ReadDir (const Arguments& args)
-{
+static Handle<Value> ReadDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
@@ -301,9 +280,7 @@ ReadDir (const Arguments& args)
   return scope.Close(EIOPromise::ReadDir(*path));
 }
 
-static Handle<Value>
-Open (const Arguments& args)
-{
+static Handle<Value> Open(const Arguments& args) {
   HandleScope scope;
 
   if ( args.Length() < 3
@@ -328,9 +305,7 @@ Open (const Arguments& args)
  *             if null, write from the current position
  * 3 encoding  
  */
-static Handle<Value>
-Write (const Arguments& args)
-{
+static Handle<Value> Write(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
@@ -363,9 +338,7 @@ Write (const Arguments& args)
  *             if null, read from the current position
  * 3 encoding
  */
-static Handle<Value>
-Read (const Arguments& args)
-{
+static Handle<Value> Read(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsNumber()) {
@@ -383,9 +356,7 @@ Read (const Arguments& args)
 
 Persistent<FunctionTemplate> EIOPromise::constructor_template;
 
-void
-File::Initialize (Handle<Object> target)
-{
+void File::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   NODE_SET_METHOD(target, "close", Close);
@@ -414,3 +385,5 @@ File::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("EIOPromise"),
       EIOPromise::constructor_template->GetFunction());
 }
+
+}  // end namespace node
