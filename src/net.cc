@@ -391,6 +391,18 @@ void Connection::OnClose() {
   Emit("close", 1, argv);
 }
 
+void Connection::OnConnect() {
+  HandleScope scope;
+
+  if (stream_.server) {
+    Server *server = static_cast<Server*>(stream_.server->data);
+    Local<Value> value = Local<Value>::New(handle_);
+    server->Emit("connection", 1, &value);
+  }
+
+  Emit("connect", 0, NULL);
+}
+
 #define DEFINE_SIMPLE_CALLBACK(name, type)                          \
 void name()                                                        \
 {                                                                   \
@@ -398,7 +410,6 @@ void name()                                                        \
   Emit(type, 0, NULL);                                             \
 }
 
-DEFINE_SIMPLE_CALLBACK(Connection::OnConnect, "connect")
 DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "timeout")
 DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "eof")
 
@@ -468,10 +479,6 @@ Connection* Server::OnConnection(struct sockaddr *addr) {
 
   Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
-
-  Handle<Value> argv[1] = { js_connection };
-
-  Emit("connection", 1, argv);
 
   connection->Attach();
 
