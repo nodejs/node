@@ -58,7 +58,7 @@ if code != 0:
 # have any definitely, indirectly, and possibly lost bytes.
 LEAK_RE = r"(?:definitely|indirectly|possibly) lost: "
 LEAK_LINE_MATCHER = re.compile(LEAK_RE)
-LEAK_OKAY_MATCHER = re.compile(r"lost: 0 bytes in 0 blocks.")
+LEAK_OKAY_MATCHER = re.compile(r"lost: 0 bytes in 0 blocks")
 leaks = []
 for line in errors:
   if LEAK_LINE_MATCHER.search(line):

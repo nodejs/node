@@ -155,7 +155,7 @@ class Serializer: public ObjectVisitor {
   friend class ReferenceUpdater;
 
   virtual void VisitPointers(Object** start, Object** end);
-
+  virtual void VisitCodeTarget(RelocInfo* rinfo);
   bool IsVisited(HeapObject* obj);
 
   Address GetSavedAddress(HeapObject* obj);
@@ -289,6 +289,7 @@ class Deserializer: public ObjectVisitor {
 
  private:
   virtual void VisitPointers(Object** start, Object** end);
+  virtual void VisitCodeTarget(RelocInfo* rinfo);
   virtual void VisitExternalReferences(Address* start, Address* end);
   virtual void VisitRuntimeEntry(RelocInfo* rinfo);
 

@@ -221,6 +221,8 @@ class Logger {
   static void HeapSampleItemEvent(const char* type, int number, int bytes);
   static void HeapSampleJSConstructorEvent(const char* constructor,
                                            int number, int bytes);
+  static void HeapSampleJSRetainersEvent(const char* constructor,
+                                         const char* event);
   static void HeapSampleStats(const char* space, const char* kind,
                               int capacity, int used);
 

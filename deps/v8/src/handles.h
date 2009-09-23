@@ -265,9 +265,13 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object);
 v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object);
+
+enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
+
 // Computes the enumerable keys for a JSObject. Used for implementing
 // "for (n in object) { }".
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object);
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
+                                          KeyCollectionType type);
 Handle<JSArray> GetKeysFor(Handle<JSObject> object);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object);
 

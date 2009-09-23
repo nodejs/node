@@ -1238,6 +1238,15 @@ class V8EXPORT Object : public Value {
   bool SetHiddenValue(Handle<String> key, Handle<Value> value);
   Local<Value> GetHiddenValue(Handle<String> key);
   bool DeleteHiddenValue(Handle<String> key);
+  
+  /**
+   * Returns true if this is an instance of an api function (one
+   * created from a function created from a function template) and has
+   * been modified since it was created.  Note that this method is
+   * conservative and may return true for objects that haven't actually
+   * been modified.
+   */
+  bool IsDirty();
 
   /**
    * Clone this object with a fast but shallow copy.  Values will point
@@ -1537,9 +1546,9 @@ enum AccessType {
 
 /**
  * Returns true if cross-context access should be allowed to the named
- * property with the given key on the global object.
+ * property with the given key on the host object.
  */
-typedef bool (*NamedSecurityCallback)(Local<Object> global,
+typedef bool (*NamedSecurityCallback)(Local<Object> host,
                                       Local<Value> key,
                                       AccessType type,
                                       Local<Value> data);
@@ -1547,9 +1556,9 @@ typedef bool (*NamedSecurityCallback)(Local<Object> global,
 
 /**
  * Returns true if cross-context access should be allowed to the indexed
- * property with the given index on the global object.
+ * property with the given index on the host object.
  */
-typedef bool (*IndexedSecurityCallback)(Local<Object> global,
+typedef bool (*IndexedSecurityCallback)(Local<Object> host,
                                         uint32_t index,
                                         AccessType type,
                                         Local<Value> data);

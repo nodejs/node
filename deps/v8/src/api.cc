@@ -1191,6 +1191,7 @@ v8::TryCatch::TryCatch()
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
+      can_continue_(true),
       capture_message_(true),
       js_handler_(NULL) {
   i::Top::RegisterTryCatchHandler(this);
@@ -1988,7 +1989,8 @@ Local<Array> v8::Object::GetPropertyNames() {
   ENTER_V8;
   v8::HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::FixedArray> value = i::GetKeysInFixedArrayFor(self);
+  i::Handle<i::FixedArray> value =
+      i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
@@ -2152,6 +2154,11 @@ void v8::Object::TurnOnAccessCheck() {
     i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
+}
+
+
+bool v8::Object::IsDirty() {
+  return Utils::OpenHandle(this)->IsDirty();
 }
 
 

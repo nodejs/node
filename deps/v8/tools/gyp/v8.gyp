@@ -279,6 +279,8 @@
         '../../src/heap-inl.h',
         '../../src/heap.cc',
         '../../src/heap.h',
+        '../../src/heap-profiler.cc',
+        '../../src/heap-profiler.h',
         '../../src/ic-inl.h',
         '../../src/ic.cc',
         '../../src/ic.h',

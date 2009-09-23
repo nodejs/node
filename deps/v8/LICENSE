@@ -2,10 +2,15 @@ This license applies to all parts of V8 that are not externally
 maintained libraries.  The externally maintained libraries used by V8
 are:
 
-  - PCRE test suite, located in test/mjsunit/regexp-pcre.js.  This is
-    based on the test suite from PCRE-7.3, which is copyrighted by the
-    University of Cambridge and Google, Inc.  The copyright notice and
-    license are embedded in regexp-pcre.js.
+  - PCRE test suite, located in
+    test/mjsunit/third_party/regexp-pcre.js.  This is based on the
+    test suite from PCRE-7.3, which is copyrighted by the University
+    of Cambridge and Google, Inc.  The copyright notice and license
+    are embedded in regexp-pcre.js.
+
+  - Layout tests, located in test/mjsunit/third_party.  These are
+    based on layout tests from webkit.org which are copyrighted by
+    Apple Computer, Inc. and released under a 3-clause BSD license.
 
   - Dtoa, located under third_party/dtoa.  This code is copyrighted by
     David M. Gay and released under an MIT license.

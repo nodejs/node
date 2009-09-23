@@ -200,6 +200,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-heap-profiler.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-lock.cc"
 			>
 		</File>

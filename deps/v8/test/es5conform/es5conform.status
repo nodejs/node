@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2009 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -25,30 +25,44 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix mjsunit
+prefix es5conform
+def UNIMPLEMENTED = PASS || FAIL
+def FAIL_OK = FAIL, OKAY
 
-# All tests in the bug directory are expected to fail.
-bugs: FAIL
+chapter07: UNIMPLEMENTED
+chapter08: UNIMPLEMENTED
+chapter10: UNIMPLEMENTED
+chapter11: UNIMPLEMENTED
+chapter12: UNIMPLEMENTED
+chapter13: UNIMPLEMENTED
+chapter14: UNIMPLEMENTED
+chapter15/15.1: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.1: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.2: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.3: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.4: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.5: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.6: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.7: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.8: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.9: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.10: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.11: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.12: UNIMPLEMENTED
+chapter15/15.2/15.2.3/15.2.3.13: UNIMPLEMENTED
 
-# This one uses a built-in that's only present in debug mode. It takes
-# too long to run in debug mode on ARM.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
+# Object.keys
+chapter15/15.2/15.2.3/15.2.3.14: PASS
 
-big-object-literal: PASS, SKIP if ($arch == arm)
+# We fail this because Object.keys returns numbers for element indices
+# rather than strings.
+chapter15/15.2/15.2.3/15.2.3.14/15.2.3.14-3-3: FAIL_OK
 
-[ $arch == arm ]
-
-# Slow tests which times out in debug mode.
-try: PASS, SKIP if $mode == debug
-debug-scripts-request: PASS, SKIP if $mode == debug
-array-constructor: PASS, SKIP if $mode == debug
-
-# Flaky test that can hit compilation-time stack overflow in debug mode.
-unicode-test: PASS, (PASS || FAIL) if $mode == debug
-
-# Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
-# Fails on real ARM hardware but not on the simulator.
-string-compare-alignment: PASS || FAIL
-
-# Times out often in release mode on ARM.
-array-splice: PASS || TIMEOUT
+chapter15/15.3: UNIMPLEMENTED
+chapter15/15.4: UNIMPLEMENTED
+chapter15/15.5: UNIMPLEMENTED
+chapter15/15.6: UNIMPLEMENTED
+chapter15/15.7: UNIMPLEMENTED
+chapter15/15.9: UNIMPLEMENTED
+chapter15/15.10: UNIMPLEMENTED
+chapter15/15.12: UNIMPLEMENTED

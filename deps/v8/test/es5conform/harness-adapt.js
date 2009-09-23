@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Simple splice tests based on webkit layout tests.
-var arr = ['a','b','c','d'];
-assertArrayEquals(['a','b','c','d'], arr);
-assertArrayEquals(['c','d'], arr.splice(2));
-assertArrayEquals(['a','b'], arr);
-assertArrayEquals(['a','b'], arr.splice(0));
-assertArrayEquals([], arr)
+var global = this;
 
-arr = ['a','b','c','d'];
-assertEquals(undefined, arr.splice())
-assertArrayEquals(['a','b','c','d'], arr);
-assertArrayEquals(['a','b','c','d'], arr.splice(undefined))
-assertArrayEquals([], arr);
+function ES5Error(ut) {
+  this.ut = ut;
+}
 
-arr = ['a','b','c','d'];
-assertArrayEquals(['a','b','c','d'], arr.splice(null))
-assertArrayEquals([], arr);
+ES5Error.prototype.toString = function () {
+  return this.ut.res;
+};
 
-arr = ['a','b','c','d'];
-assertArrayEquals([], arr.splice(100))
-assertArrayEquals(['a','b','c','d'], arr);
-assertArrayEquals(['d'], arr.splice(-1))
-assertArrayEquals(['a','b','c'], arr);
+// The harness uses the IE specific .description property of exceptions but
+// that's nothing we can't hack our way around.
+Error.prototype.__defineGetter__('description', function () {
+  return this.message;
+});
 
-assertArrayEquals([], arr.splice(2, undefined))
-assertArrayEquals([], arr.splice(2, null))
-assertArrayEquals([], arr.splice(2, -1))
-assertArrayEquals([], arr.splice(2, 0))
-assertArrayEquals(['a','b','c'], arr);
-assertArrayEquals(['c'], arr.splice(2, 100))
-assertArrayEquals(['a','b'], arr);
+function TestHarness() {
+  sth.call(this, global);
+  this._testResults = []
+}
 
+// Borrow sth's registerTest method.
+TestHarness.prototype.registerTest = sth.prototype.registerTest;
 
+// Drop the before/after stuff, just run the test.
+TestHarness.prototype.startTesting = function () {
+  sth.prototype.run.call(this);
+  this.report();
+};
+
+TestHarness.prototype.report = function () {
+  for (var i = 0; i < this._testResults.length; i++) {
+    var ut = this._testResults[i];
+    // We don't fail on preconditions.  Yet.
+    if (ut.res == "Precondition failed")
+      continue;
+    if (ut.res != 'pass')
+      throw new ES5Error(ut);
+  }
+};
+
+TestHarness.prototype.startingTest = function (ut) {
+  this.currentTest = ut;
+  this._testResults.push(ut);
+};
+
+var ES5Harness = new TestHarness();

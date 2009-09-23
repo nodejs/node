@@ -45,6 +45,7 @@ SOURCES = {
     'test-func-name-inference.cc',
     'test-hashmap.cc',
     'test-heap.cc',
+    'test-heap-profiler.cc',
     'test-list.cc',
     'test-lock.cc',
     'test-log.cc',

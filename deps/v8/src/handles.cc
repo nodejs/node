@@ -527,55 +527,53 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
+                                          KeyCollectionType type) {
   Handle<FixedArray> content = Factory::empty_fixed_array();
 
-  JSObject* arguments_boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
-  JSFunction* arguments_function =
-      JSFunction::cast(arguments_boilerplate->map()->constructor());
-  bool allow_enumeration = (object->map()->constructor() != arguments_function);
-
   // Only collect keys if access is permitted.
-  if (allow_enumeration) {
-    for (Handle<Object> p = object;
-         *p != Heap::null_value();
-         p = Handle<Object>(p->GetPrototype())) {
-      Handle<JSObject> current(JSObject::cast(*p));
+  for (Handle<Object> p = object;
+       *p != Heap::null_value();
+       p = Handle<Object>(p->GetPrototype())) {
+    Handle<JSObject> current(JSObject::cast(*p));
 
-      // Check access rights if required.
-      if (current->IsAccessCheckNeeded() &&
-        !Top::MayNamedAccess(*current, Heap::undefined_value(),
-                             v8::ACCESS_KEYS)) {
-        Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
-        break;
-      }
-
-      // Compute the element keys.
-      Handle<FixedArray> element_keys =
-          Factory::NewFixedArray(current->NumberOfEnumElements());
-      current->GetEnumElementKeys(*element_keys);
-      content = UnionOfKeys(content, element_keys);
-
-      // Add the element keys from the interceptor.
-      if (current->HasIndexedInterceptor()) {
-        v8::Handle<v8::Array> result =
-            GetKeysForIndexedInterceptor(object, current);
-        if (!result.IsEmpty())
-          content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
-      }
-
-      // Compute the property keys.
-      content = UnionOfKeys(content, GetEnumPropertyKeys(current));
-
-      // Add the property keys from the interceptor.
-      if (current->HasNamedInterceptor()) {
-        v8::Handle<v8::Array> result =
-            GetKeysForNamedInterceptor(object, current);
-        if (!result.IsEmpty())
-          content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
-      }
+    // Check access rights if required.
+    if (current->IsAccessCheckNeeded() &&
+      !Top::MayNamedAccess(*current, Heap::undefined_value(),
+                           v8::ACCESS_KEYS)) {
+      Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+      break;
     }
+
+    // Compute the element keys.
+    Handle<FixedArray> element_keys =
+        Factory::NewFixedArray(current->NumberOfEnumElements());
+    current->GetEnumElementKeys(*element_keys);
+    content = UnionOfKeys(content, element_keys);
+
+    // Add the element keys from the interceptor.
+    if (current->HasIndexedInterceptor()) {
+      v8::Handle<v8::Array> result =
+          GetKeysForIndexedInterceptor(object, current);
+      if (!result.IsEmpty())
+        content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+    }
+
+    // Compute the property keys.
+    content = UnionOfKeys(content, GetEnumPropertyKeys(current));
+
+    // Add the property keys from the interceptor.
+    if (current->HasNamedInterceptor()) {
+      v8::Handle<v8::Array> result =
+          GetKeysForNamedInterceptor(object, current);
+      if (!result.IsEmpty())
+        content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+    }
+
+    // If we only want local properties we bail out after the first
+    // iteration.
+    if (type == LOCAL_ONLY)
+      break;
   }
   return content;
 }
@@ -583,7 +581,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
 
 Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
   Counters::for_in.Increment();
-  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object);
+  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
+                                                       INCLUDE_PROTOS);
   return Factory::NewJSArrayWithElements(elements);
 }
 

@@ -935,6 +935,15 @@ class ReferenceUpdater: public ObjectVisitor {
     }
   }
 
+  virtual void VisitCodeTarget(RelocInfo* rinfo) {
+    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Address encoded_target = serializer_->GetSavedAddress(target);
+    offsets_.Add(rinfo->target_address_address() - obj_address_);
+    addresses_.Add(encoded_target);
+  }
+
+
   virtual void VisitExternalReferences(Address* start, Address* end) {
     for (Address* p = start; p < end; ++p) {
       uint32_t code = reference_encoder_->Encode(*p);
@@ -1090,6 +1099,14 @@ void Serializer::VisitPointers(Object** start, Object** end) {
     }
   }
   root_ = root;
+}
+
+
+void Serializer::VisitCodeTarget(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  bool serialized;
+  Encode(target, &serialized);
 }
 
 
@@ -1255,10 +1272,7 @@ Address Serializer::PutObject(HeapObject* obj) {
   SaveAddress(obj, addr);
 
   if (type == CODE_TYPE) {
-    Code* code = Code::cast(obj);
-    // Ensure Code objects contain Object pointers, not Addresses.
-    code->ConvertICTargetsFromAddressToObject();
-    LOG(CodeMoveEvent(code->address(), addr));
+    LOG(CodeMoveEvent(obj->address(), addr));
   }
 
   // Write out the object prologue: type, size, and simulated address of obj.
@@ -1289,12 +1303,6 @@ Address Serializer::PutObject(HeapObject* obj) {
     writer_->PutC(']');
   }
 #endif
-
-  if (type == CODE_TYPE) {
-    Code* code = Code::cast(obj);
-    // Convert relocations from Object* to Address in Code objects
-    code->ConvertICTargetsFromObjectToAddress();
-  }
 
   objects_++;
   return addr;
@@ -1419,6 +1427,14 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
     }
   }
   root_ = root;
+}
+
+
+void Deserializer::VisitCodeTarget(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Address encoded_address = reinterpret_cast<Address>(rinfo->target_object());
+  Code* target_object = reinterpret_cast<Code*>(Resolve(encoded_address));
+  rinfo->set_target_address(target_object->instruction_start());
 }
 
 
@@ -1617,8 +1633,6 @@ Object* Deserializer::GetObject() {
 
   if (type == CODE_TYPE) {
     Code* code = Code::cast(obj);
-    // Convert relocations from Object* to Address in Code objects
-    code->ConvertICTargetsFromObjectToAddress();
     LOG(CodeMoveEvent(a, code->address()));
   }
   objects_++;

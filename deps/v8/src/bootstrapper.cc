@@ -654,6 +654,8 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         Top::initial_object_prototype(), Builtins::ArrayCode,
                         true);
+    array_function->shared()->set_construct_stub(
+        Builtins::builtin(Builtins::ArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -1471,7 +1473,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
   HandleScope scope;
 
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false, true);
+      ComputeFunctionInstanceDescriptor(false);
   Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);

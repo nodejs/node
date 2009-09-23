@@ -1428,6 +1428,10 @@ class JSObject: public HeapObject {
   // Tells whether this object needs to be loaded.
   inline bool IsLoaded();
 
+  // Returns true if this is an instance of an api function and has
+  // been modified since it was created.  May give false positives.
+  bool IsDirty();
+
   bool HasProperty(String* name) {
     return GetPropertyAttribute(name) != ABSENT;
   }
@@ -2516,13 +2520,6 @@ class Code: public HeapObject {
     NUMBER_OF_KINDS = KEYED_STORE_IC + 1
   };
 
-  // A state indicates that inline cache in this Code object contains
-  // objects or relative instruction addresses.
-  enum ICTargetState {
-    IC_TARGET_IS_ADDRESS,
-    IC_TARGET_IS_OBJECT
-  };
-
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
@@ -2561,12 +2558,6 @@ class Code: public HeapObject {
   inline bool is_store_stub() { return kind() == STORE_IC; }
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
-
-  // [ic_flag]: State of inline cache targets. The flag is set to the
-  // object variant in ConvertICTargetsFromAddressToObject, and set to
-  // the address variant in ConvertICTargetsFromObjectToAddress.
-  inline ICTargetState ic_flag();
-  inline void set_ic_flag(ICTargetState value);
 
   // [major_key]: For kind STUB, the major key.
   inline CodeStub::Major major_key();
@@ -2612,12 +2603,6 @@ class Code: public HeapObject {
 
   // Returns the address of the scope information.
   inline byte* sinfo_start();
-
-  // Convert inline cache target from address to code object before GC.
-  void ConvertICTargetsFromAddressToObject();
-
-  // Convert inline cache target from code object to address after GC
-  void ConvertICTargetsFromObjectToAddress();
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
@@ -2674,7 +2659,6 @@ class Code: public HeapObject {
           ~kCodeAlignmentMask;
 
   // Byte offsets within kKindSpecificFlagsOffset.
-  static const int kICFlagOffset = kKindSpecificFlagsOffset + 0;
   static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset + 1;
 
   // Flags layout.
@@ -4806,9 +4790,6 @@ class ObjectVisitor BASE_EMBEDDED {
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects..
 
-  // Called prior to visiting the body of a Code object.
-  virtual void BeginCodeIteration(Code* code);
-
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(RelocInfo* rinfo);
 
@@ -4817,9 +4798,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);
-
-  // Called after completing  visiting the body of a Code object.
-  virtual void EndCodeIteration(Code* code) {}
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }

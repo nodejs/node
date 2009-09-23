@@ -141,7 +141,7 @@ class StringStream {
   void OutputToStdOut();
   void Log();
   Handle<String> ToString();
-  SmartPointer<const char> ToCString();
+  SmartPointer<const char> ToCString() const;
 
   // Object printing support.
   void PrintName(Object* o);

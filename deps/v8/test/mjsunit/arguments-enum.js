@@ -42,11 +42,11 @@ function setArgumentCount() {
 }
 
 assertEquals(0, countArguments());
-assertEquals(0, countArguments(1));
-assertEquals(0, countArguments(1, 2));
-assertEquals(0, countArguments(1, 2, 3, 4, 5));
+assertEquals(1, countArguments(1));
+assertEquals(2, countArguments(1, 2));
+assertEquals(5, countArguments(1, 2, 3, 4, 5));
 
-assertEquals(0, setArgumentCount());
-assertEquals(0, setArgumentCount(1));
-assertEquals(0, setArgumentCount(1, 2));
-assertEquals(0, setArgumentCount(1, 2, 3, 4, 5));
+assertEquals(2, setArgumentCount());
+assertEquals(3, setArgumentCount(1));
+assertEquals(4, setArgumentCount(1, 2));
+assertEquals(7, setArgumentCount(1, 2, 3, 4, 5));

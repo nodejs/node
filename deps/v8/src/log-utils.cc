@@ -310,6 +310,20 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 }
 
 
+void LogMessageBuilder::AppendStringPart(const char* str, int len) {
+  if (pos_ + len > Log::kMessageBufferSize) {
+    len = Log::kMessageBufferSize - pos_;
+    ASSERT(len >= 0);
+    if (len == 0) return;
+  }
+  Vector<char> buf(Log::message_buffer_ + pos_,
+                   Log::kMessageBufferSize - pos_);
+  OS::StrNCpy(buf, str, len);
+  pos_ += len;
+  ASSERT(pos_ <= Log::kMessageBufferSize);
+}
+
+
 bool LogMessageBuilder::StoreInCompressor(LogRecordCompressor* compressor) {
   return compressor->Store(Vector<const char>(Log::message_buffer_, pos_));
 }

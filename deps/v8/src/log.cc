@@ -889,10 +889,47 @@ void Logger::HeapSampleJSConstructorEvent(const char* constructor,
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-js-cons-item,%s,%d,%d\n",
-             constructor[0] != '\0' ? constructor : "(anonymous)",
-             number, bytes);
+  msg.Append("heap-js-cons-item,%s,%d,%d\n", constructor, number, bytes);
   msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::HeapSampleJSRetainersEvent(
+    const char* constructor, const char* event) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
+  // Event starts with comma, so we don't have it in the format string.
+  static const char* event_text = "heap-js-ret-item,%s";
+  // We take placeholder strings into account, but it's OK to be conservative.
+  static const int event_text_len = strlen(event_text);
+  const int cons_len = strlen(constructor), event_len = strlen(event);
+  int pos = 0;
+  // Retainer lists can be long. We may need to split them into multiple events.
+  do {
+    LogMessageBuilder msg;
+    msg.Append(event_text, constructor);
+    int to_write = event_len - pos;
+    if (to_write > Log::kMessageBufferSize - (cons_len + event_text_len)) {
+      int cut_pos = pos + Log::kMessageBufferSize - (cons_len + event_text_len);
+      ASSERT(cut_pos < event_len);
+      while (cut_pos > pos && event[cut_pos] != ',') --cut_pos;
+      if (event[cut_pos] != ',') {
+        // Crash in debug mode, skip in release mode.
+        ASSERT(false);
+        return;
+      }
+      // Append a piece of event that fits, without trailing comma.
+      msg.AppendStringPart(event + pos, cut_pos - pos);
+      // Start next piece with comma.
+      pos = cut_pos;
+    } else {
+      msg.Append("%s", event + pos);
+      pos += event_len;
+    }
+    msg.Append('\n');
+    msg.WriteToLogFile();
+  } while (pos < event_len);
 #endif
 }
 

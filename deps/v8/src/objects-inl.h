@@ -2538,16 +2538,6 @@ INT_ACCESSORS(Code, relocation_size, kRelocationSizeOffset)
 INT_ACCESSORS(Code, sinfo_size, kSInfoSizeOffset)
 
 
-Code::ICTargetState Code::ic_flag() {
-  return static_cast<ICTargetState>(READ_BYTE_FIELD(this, kICFlagOffset));
-}
-
-
-void Code::set_ic_flag(ICTargetState value) {
-  WRITE_BYTE_FIELD(this, kICFlagOffset, value);
-}
-
-
 byte* Code::instruction_start()  {
   return FIELD_ADDR(this, kHeaderSize);
 }

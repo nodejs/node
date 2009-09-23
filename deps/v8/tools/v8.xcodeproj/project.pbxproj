@@ -207,6 +207,8 @@
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
 		89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89FB0E360F8E531900B04B3C /* d8-posix.cc */; };
+		9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
+		9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
 		9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
@@ -533,6 +535,8 @@
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
+		9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "heap-profiler.cc"; sourceTree = "<group>"; };
+		9F11D99F105AF0A300EBE5B2 /* heap-profiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "heap-profiler.h"; sourceTree = "<group>"; };
 		9F4B7B870FCC877A00DC4117 /* log-utils.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "log-utils.cc"; sourceTree = "<group>"; };
 		9F4B7B880FCC877A00DC4117 /* log-utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-utils.h"; sourceTree = "<group>"; };
 		9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "func-name-inferrer.cc"; sourceTree = "<group>"; };
@@ -626,7 +630,6 @@
 		897FF0D70E719AB300D62E90 /* C++ */ = {
 			isa = PBXGroup;
 			children = (
-				22A76C900FF259E600FDC694 /* log-inl.h */,
 				897FF0F60E719B8F00D62E90 /* accessors.cc */,
 				897FF0F70E719B8F00D62E90 /* accessors.h */,
 				897FF0F80E719B8F00D62E90 /* allocation.cc */,
@@ -725,6 +728,8 @@
 				897FF1460E719B8F00D62E90 /* heap-inl.h */,
 				897FF1470E719B8F00D62E90 /* heap.cc */,
 				897FF1480E719B8F00D62E90 /* heap.h */,
+				9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */,
+				9F11D99F105AF0A300EBE5B2 /* heap-profiler.h */,
 				897FF1490E719B8F00D62E90 /* ic-arm.cc */,
 				897FF14A0E719B8F00D62E90 /* ic-ia32.cc */,
 				897FF14B0E719B8F00D62E90 /* ic-inl.h */,
@@ -742,6 +747,7 @@
 				897FF1510E719B8F00D62E90 /* list.h */,
 				897FF1520E719B8F00D62E90 /* log.cc */,
 				897FF1530E719B8F00D62E90 /* log.h */,
+				22A76C900FF259E600FDC694 /* log-inl.h */,
 				9F4B7B870FCC877A00DC4117 /* log-utils.cc */,
 				9F4B7B880FCC877A00DC4117 /* log-utils.h */,
 				897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */,
@@ -1201,6 +1207,7 @@
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
 				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
 				8981F6001010501900D1520E /* frame-element.cc in Sources */,
+				9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1306,6 +1313,7 @@
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
 				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,
 				8981F6011010502800D1520E /* frame-element.cc in Sources */,
+				9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

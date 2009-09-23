@@ -217,6 +217,8 @@ js1_5/Function/regress-338121-01: FAIL_OK
 js1_5/Function/regress-338121-02: FAIL_OK
 js1_5/Function/regress-338121-03: FAIL_OK
 
+# Expectes 'prototype' property of functions to be enumerable.
+js1_5/Function/10.1.6-01: FAIL_OK
 
 # Length of objects whose prototype chain includes a function
 ecma_3/Function/regress-313570: FAIL_OK
@@ -565,11 +567,6 @@ js1_5/Array/regress-350256-02: FAIL
 # This fails because 'delete arguments[i]' does not disconnect the
 # argument from the arguments array.  See issue #900066.
 ecma_3/Function/regress-137181: FAIL
-
-
-# Tests that rely on specific details of function decompilation or
-# print strings for errors. Non-ECMA behavior.
-js1_4/Regress/function-003: FAIL
 
 
 # 'export' and 'import' are not keywords in V8.

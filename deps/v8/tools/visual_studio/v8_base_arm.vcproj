@@ -497,6 +497,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\heap-profiler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\heap-profiler.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\arm\ic-arm.cc"
 				>
 			</File>

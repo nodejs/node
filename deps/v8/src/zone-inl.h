@@ -276,12 +276,19 @@ void ZoneSplayTree<C>::Splay(const Key& key) {
 }
 
 
-template <typename Node, class Callback>
-static void DoForEach(Node* node, Callback* callback) {
-  if (node == NULL) return;
-  DoForEach<Node, Callback>(node->left(), callback);
-  callback->Call(node->key(), node->value());
-  DoForEach<Node, Callback>(node->right(), callback);
+template <typename Config> template <class Callback>
+void ZoneSplayTree<Config>::ForEach(Callback* callback) {
+  // Pre-allocate some space for tiny trees.
+  ZoneList<Node*> nodes_to_visit(10);
+  nodes_to_visit.Add(root_);
+  int pos = 0;
+  while (pos < nodes_to_visit.length()) {
+    Node* node = nodes_to_visit[pos++];
+    if (node == NULL) continue;
+    callback->Call(node->key(), node->value());
+    nodes_to_visit.Add(node->left());
+    nodes_to_visit.Add(node->right());
+  }
 }
 
 

@@ -112,8 +112,9 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
     regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
+    third_party = [current_path + ['third_party', t] for t in self.Ls(join(self.root, 'third_party'))]
     tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
-    all_tests = mjsunit + regress + bugs + tools
+    all_tests = mjsunit + regress + bugs + third_party + tools
     result = []
     for test in all_tests:
       if self.Contains(path, test):

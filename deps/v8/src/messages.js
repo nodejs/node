@@ -167,7 +167,8 @@ function FormatMessage(message) {
       no_input_to_regexp:           "No input to %0",
       result_not_primitive:         "Result of %0 must be a primitive, was %1",
       invalid_json:                 "String '%0' is not valid JSON",
-      circular_structure:           "Converting circular structure to JSON"
+      circular_structure:           "Converting circular structure to JSON",
+      object_keys_non_object:       "Object.keys called on non-object"
     };
   }
   var format = kMessages[message.type];

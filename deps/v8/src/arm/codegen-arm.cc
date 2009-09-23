@@ -4335,7 +4335,7 @@ static void CountLeadingZeros(
     Register source,
     Register scratch,
     Register zeros) {
-#ifdef __ARM_ARCH_5__
+#ifdef CAN_USE_ARMV5_INSTRUCTIONS
   __ clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
   __ mov(zeros, Operand(0));

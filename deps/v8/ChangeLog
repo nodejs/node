@@ -1,3 +1,27 @@
+2009-09-23: Version 1.3.13
+
+        Fixed uninitialized memory problem.
+
+        Improved heap profiler support.
+
+
+2009-09-22: Version 1.3.12
+
+        Changed behavior of |function|.toString() on built-in functions to
+        be compatible with other implementations.  Patch by Jan de Mooij.
+
+        Added Object::IsDirty in the API.
+
+        Optimized array construction; it is now handled purely in native
+        code.
+
+        [ES5] Made properties of the arguments array enumerable.
+
+        [ES5] Added test suite adapter for the es5conform test suite.
+
+        [ES5] Added Object.keys function.
+
+
 2009-09-15: Version 1.3.11
 
         Fixed crash in error reporting during bootstrapping.

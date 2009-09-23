@@ -51,6 +51,22 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
 }
 
 
+void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
+  // Just jump to the generic array code.
+  Code* code = Builtins::builtin(Builtins::ArrayCodeGeneric);
+  Handle<Code> array_code(code);
+  __ Jump(array_code, RelocInfo::CODE_TARGET);
+}
+
+
+void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
+  // Just jump to the generic construct code.
+  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Handle<Code> generic_construct_stub(code);
+  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+}
+
+
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments

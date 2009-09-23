@@ -43,10 +43,30 @@
 # define USE_THUMB_INTERWORK 1
 #endif
 
+#if defined(__ARM_ARCH_5T__) || \
+    defined(__ARM_ARCH_5TE__) || \
+    defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7__)
+# define CAN_USE_ARMV5_INSTRUCTIONS 1
+# define CAN_USE_THUMB_INSTRUCTIONS 1
+#endif
+
+#if defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7__)
+# define CAN_USE_ARMV6_INSTRUCTIONS 1
+#endif
+
+#if defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7__)
+# define CAN_USE_ARMV7_INSTRUCTIONS 1
+#endif
+
 // Simulator should support ARM5 instructions.
 #if !defined(__arm__)
-# define __ARM_ARCH_5__ 1
-# define __ARM_ARCH_5T__ 1
+# define CAN_USE_ARMV5_INSTRUCTIONS 1
+# define CAN_USE_THUMB_INSTRUCTIONS 1
 #endif
 
 namespace assembler {

@@ -33,6 +33,7 @@
 #include "codegen-inl.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "heap-profiler.h"
 #include "global-handles.h"
 #include "mark-compact.h"
 #include "natives.h"
@@ -636,15 +637,7 @@ static void VerifyNonPointerSpacePointers() {
   HeapObjectIterator code_it(Heap::code_space());
   while (code_it.has_next()) {
     HeapObject* object = code_it.next();
-    if (object->IsCode()) {
-      Code::cast(object)->ConvertICTargetsFromAddressToObject();
-      object->Iterate(&v);
-      Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-    } else {
-      // If we find non-code objects in code space (e.g., free list
-      // nodes) we want to verify them as well.
-      object->Iterate(&v);
-    }
+    object->Iterate(&v);
   }
 
   HeapObjectIterator data_it(Heap::old_data_space());
@@ -1934,7 +1927,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   code->set_relocation_size(desc.reloc_size);
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
-  code->set_ic_flag(Code::IC_TARGET_IS_ADDRESS);
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -3544,164 +3536,6 @@ void HeapIterator::reset() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-namespace {
-
-// JSConstructorProfile is responsible for gathering and logging
-// "constructor profile" of JS object allocated on heap.
-// It is run during garbage collection cycle, thus it doesn't need
-// to use handles.
-class JSConstructorProfile BASE_EMBEDDED {
- public:
-  JSConstructorProfile() : zscope_(DELETE_ON_EXIT) {}
-  void CollectStats(HeapObject* obj);
-  void PrintStats();
-  // Used by ZoneSplayTree::ForEach.
-  void Call(String* name, const NumberAndSizeInfo& number_and_size);
- private:
-  struct TreeConfig {
-    typedef String* Key;
-    typedef NumberAndSizeInfo Value;
-    static const Key kNoKey;
-    static const Value kNoValue;
-    // Strings are unique, so it is sufficient to compare their pointers.
-    static int Compare(const Key& a, const Key& b) {
-      return a == b ? 0 : (a < b ? -1 : 1);
-    }
-  };
-
-  typedef ZoneSplayTree<TreeConfig> JSObjectsInfoTree;
-  static int CalculateJSObjectNetworkSize(JSObject* obj);
-
-  ZoneScope zscope_;
-  JSObjectsInfoTree js_objects_info_tree_;
-};
-
-const JSConstructorProfile::TreeConfig::Key
-    JSConstructorProfile::TreeConfig::kNoKey = NULL;
-const JSConstructorProfile::TreeConfig::Value
-    JSConstructorProfile::TreeConfig::kNoValue;
-
-
-int JSConstructorProfile::CalculateJSObjectNetworkSize(JSObject* obj) {
-  int size = obj->Size();
-  // If 'properties' and 'elements' are non-empty (thus, non-shared),
-  // take their size into account.
-  if (FixedArray::cast(obj->properties())->length() != 0) {
-    size += obj->properties()->Size();
-  }
-  if (FixedArray::cast(obj->elements())->length() != 0) {
-    size += obj->elements()->Size();
-  }
-  return size;
-}
-
-
-void JSConstructorProfile::Call(String* name,
-                                const NumberAndSizeInfo& number_and_size) {
-  ASSERT(name != NULL);
-  SmartPointer<char> s_name(
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-  LOG(HeapSampleJSConstructorEvent(*s_name,
-                                   number_and_size.number(),
-                                   number_and_size.bytes()));
-}
-
-
-void JSConstructorProfile::CollectStats(HeapObject* obj) {
-  String* constructor = NULL;
-  int size;
-  if (obj->IsString()) {
-    constructor = Heap::String_symbol();
-    size = obj->Size();
-  } else if (obj->IsJSObject()) {
-    JSObject* js_obj = JSObject::cast(obj);
-    constructor = js_obj->constructor_name();
-    size = CalculateJSObjectNetworkSize(js_obj);
-  } else {
-    return;
-  }
-
-  JSObjectsInfoTree::Locator loc;
-  if (!js_objects_info_tree_.Find(constructor, &loc)) {
-    js_objects_info_tree_.Insert(constructor, &loc);
-  }
-  NumberAndSizeInfo number_and_size = loc.value();
-  number_and_size.increment_number(1);
-  number_and_size.increment_bytes(size);
-  loc.set_value(number_and_size);
-}
-
-
-void JSConstructorProfile::PrintStats() {
-  js_objects_info_tree_.ForEach(this);
-}
-
-}  // namespace
-#endif
-
-
-//
-// HeapProfiler class implementation.
-//
-#ifdef ENABLE_LOGGING_AND_PROFILING
-void HeapProfiler::CollectStats(HeapObject* obj, HistogramInfo* info) {
-  InstanceType type = obj->map()->instance_type();
-  ASSERT(0 <= type && type <= LAST_TYPE);
-  info[type].increment_number(1);
-  info[type].increment_bytes(obj->Size());
-}
-#endif
-
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-void HeapProfiler::WriteSample() {
-  LOG(HeapSampleBeginEvent("Heap", "allocated"));
-  LOG(HeapSampleStats(
-      "Heap", "allocated", Heap::Capacity(), Heap::SizeOfObjects()));
-
-  HistogramInfo info[LAST_TYPE+1];
-#define DEF_TYPE_NAME(name) info[name].set_name(#name);
-  INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
-#undef DEF_TYPE_NAME
-
-  JSConstructorProfile js_cons_profile;
-  HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    CollectStats(obj, info);
-    js_cons_profile.CollectStats(obj);
-  }
-
-  // Lump all the string types together.
-  int string_number = 0;
-  int string_bytes = 0;
-#define INCREMENT_SIZE(type, size, name, camel_name)   \
-    string_number += info[type].number();              \
-    string_bytes += info[type].bytes();
-  STRING_TYPE_LIST(INCREMENT_SIZE)
-#undef INCREMENT_SIZE
-  if (string_bytes > 0) {
-    LOG(HeapSampleItemEvent("STRING_TYPE", string_number, string_bytes));
-  }
-
-  for (int i = FIRST_NONSTRING_TYPE; i <= LAST_TYPE; ++i) {
-    if (info[i].bytes() > 0) {
-      LOG(HeapSampleItemEvent(info[i].name(), info[i].number(),
-                              info[i].bytes()));
-    }
-  }
-
-  js_cons_profile.PrintStats();
-
-  LOG(HeapSampleEndEvent("Heap", "allocated"));
-}
-
-
-#endif
-
-
-
 #ifdef DEBUG
 
 static bool search_for_any_global;
@@ -3742,10 +3576,6 @@ static void MarkObjectRecursively(Object** p) {
       (!search_for_any_global && (obj == search_target))) {
     found_target = true;
     return;
-  }
-
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromAddressToObject();
   }
 
   // not visited yet
@@ -3803,10 +3633,6 @@ static void UnmarkObjectRecursively(Object** p) {
   obj->IterateBody(Map::cast(map_p)->instance_type(),
                    obj->SizeFromMap(Map::cast(map_p)),
                    &unmark_visitor);
-
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromObjectToAddress();
-  }
 }
 
 

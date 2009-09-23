@@ -265,18 +265,6 @@ class MarkingVisitor : public ObjectVisitor {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
-  void BeginCodeIteration(Code* code) {
-    // When iterating over a code object during marking
-    // ic targets are derived pointers.
-    ASSERT(code->ic_flag() == Code::IC_TARGET_IS_ADDRESS);
-  }
-
-  void EndCodeIteration(Code* code) {
-    // If this is a compacting collection, set ic targets
-    // are pointing to object headers.
-    if (IsCompacting()) code->set_ic_flag(Code::IC_TARGET_IS_OBJECT);
-  }
-
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -286,11 +274,6 @@ class MarkingVisitor : public ObjectVisitor {
       // marked since they are contained in Heap::non_monomorphic_cache().
     } else {
       MarkCompactCollector::MarkObject(code);
-    }
-    if (IsCompacting()) {
-      // When compacting we convert the target to a real object pointer.
-      code = Code::GetCodeFromTargetAddress(rinfo->target_address());
-      rinfo->set_target_object(code);
     }
   }
 
@@ -1187,12 +1170,6 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
       if (object->IsMarked()) {
         object->ClearMark();
         MarkCompactCollector::tracer()->decrement_marked_count();
-        if (MarkCompactCollector::IsCompacting() && object->IsCode()) {
-          // If this is compacting collection marked code objects have had
-          // their IC targets converted to objects.
-          // They need to be converted back to addresses.
-          Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-        }
         if (!is_previous_alive) {  // Transition from free to live.
           dealloc(free_start, current - free_start);
           is_previous_alive = true;
@@ -1396,6 +1373,14 @@ class UpdatingVisitor: public ObjectVisitor {
   void VisitPointers(Object** start, Object** end) {
     // Mark all HeapObject pointers in [start, end)
     for (Object** p = start; p < end; p++) UpdatePointer(p);
+  }
+
+  void VisitCodeTarget(RelocInfo* rinfo) {
+    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VisitPointer(&target);
+    rinfo->set_target_address(
+        reinterpret_cast<Code*>(target)->instruction_start());
   }
 
  private:
@@ -1631,11 +1616,6 @@ void MarkCompactCollector::RelocateObjects() {
   ASSERT(live_cells == live_cell_objects_);
   ASSERT(live_news == live_young_objects_);
 
-  // Notify code object in LO to convert IC target to address
-  // This must happen after lo_space_->Compact
-  LargeObjectIterator it(Heap::lo_space());
-  while (it.has_next()) { ConvertCodeICTargetToAddress(it.next()); }
-
   // Flip from and to spaces
   Heap::new_space()->Flip();
 
@@ -1651,14 +1631,6 @@ void MarkCompactCollector::RelocateObjects() {
 #endif
   PagedSpaces spaces;
   while (PagedSpace* space = spaces.next()) space->MCCommitRelocationInfo();
-}
-
-
-int MarkCompactCollector::ConvertCodeICTargetToAddress(HeapObject* obj) {
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromObjectToAddress();
-  }
-  return obj->Size();
 }
 
 
@@ -1769,11 +1741,6 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
 
   // Reset the map pointer.
   int obj_size = RestoreMap(obj, Heap::code_space(), new_addr, map_addr);
-
-  // Convert inline cache target to address using old address.
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromObjectToAddress();
-  }
 
   Address old_addr = obj->address();
 

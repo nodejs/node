@@ -1443,20 +1443,6 @@ class DisableAssertNoAllocation {
 
 #endif
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-// The HeapProfiler writes data to the log files, which can be postprocessed
-// to generate .hp files for use by the GHC/Valgrind tool hp2ps.
-class HeapProfiler {
- public:
-  // Write a single heap sample to the log file.
-  static void WriteSample();
-
- private:
-  // Update the array info with stats from obj.
-  static void CollectStats(HeapObject* obj, HistogramInfo* info);
-};
-#endif
-
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 
