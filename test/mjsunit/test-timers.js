@@ -1,6 +1,6 @@
 include("common.js");
 
-var WINDOW = 800; // why is does this need to be so big?
+var WINDOW = 200; // why is does this need to be so big?
 
 var interval_count = 0;
 var setTimeout_called = false;
@@ -10,8 +10,11 @@ var starttime = new Date;
 
 setTimeout(function () {
   var endtime = new Date;
+
   var diff = endtime - starttime;
   if (diff < 0) diff = -diff;
+  puts("diff: " + diff);
+
   assertTrue(1000 - WINDOW < diff && diff < 1000 + WINDOW);
   setTimeout_called = true;
 }, 1000);
@@ -23,8 +26,10 @@ clearTimeout(id);
 setInterval(function () {
   interval_count += 1;
   var endtime = new Date;
+
   var diff = endtime - starttime;
   if (diff < 0) diff = -diff;
+  puts("diff: " + diff);
 
   var t = interval_count * 1000;
 
