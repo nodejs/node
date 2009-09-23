@@ -547,6 +547,7 @@ function highlight(prefix, suffix, tag) {
 
 
 function sh_highlightDocument(prefix, suffix) {
+  highlight(prefix, suffix, 'tt');
   highlight(prefix, suffix, 'code');
   highlight(prefix, suffix, 'pre');
 }
