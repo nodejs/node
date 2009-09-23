@@ -64,6 +64,7 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ReadPause);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ReadResume);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
 
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
@@ -329,6 +330,20 @@ Handle<Value> Connection::ForceClose(const Arguments& args) {
 
   connection->ForceClose();
   connection->Detach();
+  return Undefined();
+}
+
+Handle<Value> Connection::SetNoDelay(const Arguments& args) {
+  HandleScope scope;
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
+
+  bool no_delay = true;
+  if (args.Length() > 0) {
+    no_delay = args[0]->IsTrue();
+  }
+
+  connection->SetNoDelay(no_delay);
+
   return Undefined();
 }
 

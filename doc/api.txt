@@ -1081,6 +1081,10 @@ of 60 seconds (60000 ms).
 +
 If +timeout+ is 0, then the idle timeout is disabled.
 
++connection.setNoDelay(noDelay=true)+::
+Disables the Nagle algorithm. By default TCP connections use the Nagle
+algorithm, they buffer data before sending it off. Setting +noDelay+ will
+immediately fire off data each time +connection.send()+ is called.
 
 === DNS
 

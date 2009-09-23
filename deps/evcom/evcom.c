@@ -1206,6 +1206,15 @@ evcom_stream_reset_timeout (evcom_stream *stream, float timeout)
 }
 
 void
+evcom_stream_set_no_delay (evcom_stream *stream, int no_delay)
+{
+  if (DUPLEX(stream)) {
+    int flags = no_delay ? 1 : 0;
+    setsockopt(stream->recvfd, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
+  }
+}
+
+void
 evcom_stream_attach (EV_P_ evcom_stream *stream)
 {
   D_LOOP_SET(stream, EV_A);

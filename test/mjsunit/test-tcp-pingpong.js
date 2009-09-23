@@ -17,9 +17,11 @@ function pingPongTest (port, host, on_complete) {
       assertEquals(socket.remoteAddress, "127.0.0.1");
 
     socket.setEncoding("utf8");
+    socket.setNoDelay();
     socket.timeout = 0;
 
     socket.addListener("receive", function (data) {
+      puts("server got: " + JSON.stringify(data));
       assertEquals("open", socket.readyState);
       assertTrue(count <= N);
       if (/PING/.exec(data)) {

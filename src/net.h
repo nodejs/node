@@ -28,6 +28,7 @@ class Connection : public EventEmitter {
   static v8::Handle<v8::Value> ReadPause(const v8::Arguments& args);
   static v8::Handle<v8::Value> ReadResume(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetTimeout(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetNoDelay(const v8::Arguments& args);
 
   static v8::Handle<v8::Value> ReadyStateGetter(v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
@@ -68,6 +69,10 @@ class Connection : public EventEmitter {
 
   void SetTimeout(float timeout) {
     evcom_stream_reset_timeout(&stream_, timeout);
+  }
+
+  void SetNoDelay(bool no_delay) {
+    evcom_stream_set_no_delay(&stream_, no_delay);
   }
 
   virtual void OnConnect();
