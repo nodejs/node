@@ -13,15 +13,13 @@ node - evented I/O for V8 javascript
 == SYNOPSIS
 
 An example of a web server written with Node which responds with "Hello
-World" after waiting two seconds:
+World": 
 
 ----------------------------------------
 node.http.createServer(function (request, response) {
-  setTimeout(function () {
-    response.sendHeader(200, {"Content-Type": "text/plain"});
-    response.sendBody("Hello World");
-    response.finish();
-  }, 2000);
+  response.sendHeader(200, {"Content-Type": "text/plain"});
+  response.sendBody("Hello World\n");
+  response.finish();
 }).listen(8000);
 puts("Server running at http://127.0.0.1:8000/");
 ----------------------------------------

@@ -13,17 +13,15 @@
 .SH "NAME"
 node - evented I/O for V8 javascript
 .SH "SYNOPSIS"
-An example of a web server written with Node which responds with "Hello World" after waiting two seconds:
+An example of a web server written with Node which responds with "Hello World":
 .sp
 .sp
 .RS 4
 .nf
 node\.http\.createServer(function (request, response) {
-  setTimeout(function () {
-    response\.sendHeader(200, {"Content\-Type": "text/plain"});
-    response\.sendBody("Hello World");
-    response\.finish();
-  }, 2000);
+  response\.sendHeader(200, {"Content\-Type": "text/plain"});
+  response\.sendBody("Hello World\en");
+  response\.finish();
 })\.listen(8000);
 puts("Server running at http://127\.0\.0\.1:8000/");
 .fi
