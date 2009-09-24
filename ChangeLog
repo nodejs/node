@@ -1,4 +1,19 @@
-2009.09.18, Version 0.1.11
+2009.09.24, Version 0.1.12 
+
+  * Feature: System modules, node.libraryPaths
+
+  * API: Remove "raw" encoding, rename "raws" to "binary".
+
+  * API: Added connection.setNoDElay() to disable Nagle algo.
+
+  * Decrease default TCP server backlog to 128
+
+  * Bugfix: memory leak involving node.fs.* methods.
+
+  * Upgrade v8 to 1.3.13
+
+
+2009.09.18, Version 0.1.11, 5ddc4f5d0c002bac0ae3d62fc0dc58f0d2d83ec4
 
   * API: default to utf8 encoding for node.fs.cat()
 
