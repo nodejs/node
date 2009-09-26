@@ -268,7 +268,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
       Exception::Error(String::New("No 'init' symbol found in module."));
     return ThrowException(exception);
   }
-  extInit init = reinterpret_cast<extInit>(init_handle);
+  extInit init = (extInit)(init_handle);
 
   init(target);
 

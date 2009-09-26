@@ -17,7 +17,18 @@ def configure(conf):
   conf.check_cc(header_name="sys/select.h")
   conf.check_cc(header_name="sys/eventfd.h")
   conf.check_cc(header_name="sys/inotify.h", function_name="inotify_init")
-  conf.check_cc(header_name="sys/epoll.h", function_name="epoll_ctl")
+
+  code = """
+      #include <sys/epoll.h>
+
+      int main() {
+      epoll_ctl(0, 0, 0, NULL);
+          return 0;
+      }
+  """
+  conf.check_cc(fragment=code, define_name="HAVE_EPOLL_CTL", msg="Checking for epoll_ctl")
+
+
   conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
   conf.check_cc(header_name="port.h", function_name="port_create")
   conf.check_cc(header_name="poll.h", function_name="poll")
@@ -38,6 +49,7 @@ def configure(conf):
   conf.check_cc(fragment=code, define_name="HAVE_CLOCK_SYSCALL", execute=True,
                 msg="Checking for SYS_clock_gettime")
 
+  conf.check(lib='rt', uselib_store='RT')
   conf.check_cc(lib="rt", header_name="time.h", function_name="clock_gettime")
   conf.check_cc(lib="rt", header_name="time.h", function_name="nanosleep")
   conf.check_cc(lib="m", header_name="math.h", function_name="ceil")
@@ -53,6 +65,7 @@ def build(bld):
   libev.target = 'ev'
   libev.name = 'ev'
   libev.includes = '. ../..'
+  libev.uselib = "RT"
   libev.install_path = None
   if bld.env["USE_DEBUG"]:
     libev.clone("debug");

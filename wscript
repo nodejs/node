@@ -161,7 +161,7 @@ def build_v8(bld):
   scons = os.path.join(cwd, 'tools/scons/scons.py')
 
   v8rule = 'cd %s && ' \
-           'python %s -Q mode=%s %s library=static snapshot=on'
+           'python %s -Q visibility=default mode=%s %s library=static snapshot=on'
 
   arch = ""
   if GuessArchitecture() == "x64":
