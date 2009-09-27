@@ -80,12 +80,31 @@ node.error = function (x) {
   node.stdio.writeError(x.toString() + "\n");
 };
 
-p = function (x) {
-  if (x === null) {
-    node.error("null");
-  } else if (x === NaN) {
-    node.error("NaN");
-  } else {
-    node.error(JSON.stringify(x) || "undefined");
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ * 
+ * @param {Object} value The object to print out
+ */
+node.inspect = function (value) {
+  if (value === 0) return "0";
+  if (value === false) return "false";
+  if (value === "") return '""';
+  if (typeof(value) == "function") return "[Function]";
+  if (value === undefined) return;
+  
+  try {
+    return JSON.stringify(value);
+  } catch (e) {
+    // TODO make this recusrive and do a partial JSON output of object.
+    if (e.message.search("circular")) {
+      return "[Circular Object]";
+    } else {
+      throw e;
+    }
   }
+};
+
+p = function (x) {
+  node.error(node.inspect(x));
 };

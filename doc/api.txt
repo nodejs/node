@@ -62,8 +62,8 @@ A synchronous output function. Will block the process and
 output the string immediately to stdout.
 
 
-+p(object)+ ::
-Print the JSON representation of +object+ to the standard output.
++node.inspect(object)+ ::
+Return a string representation of the +object+. (For debugging.)
 
 
 +print(string)+::

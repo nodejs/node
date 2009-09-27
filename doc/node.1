@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/24/2009
+.\"      Date: 09/27/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/24/2009" "" ""
+.TH "NODE" "1" "09/27/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -65,11 +65,10 @@ node\.debug(string)
 A synchronous output function\. Will block the process and output the string immediately to stdout\.
 .RE
 .PP
-p(object)
+node\.inspect(object)
 .RS 4
-Print the JSON representation of
-object
-to the standard output\.
+Return a string representation of the
+object\. (For debugging\.)
 .RE
 .PP
 print(string)
