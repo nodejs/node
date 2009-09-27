@@ -8,7 +8,9 @@ def configure(conf):
   print "--- libeio ---"
   #conf.check_tool('compiler_cc')
 
+  conf.check(lib='pthread', uselib_store='PTHREAD')
   conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_create", mandatory=True)
+  conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork", mandatory=True)
 
   conf.check_cc(msg="Checking for futimes(2)", define_name="HAVE_FUTIMES", fragment="""
     #include <sys/types.h>
@@ -90,6 +92,7 @@ def configure(conf):
     }
   """)
 
+  conf.env.append_value("CCFLAGS", "-D_GNU_SOURCE")
   conf.check_cc(msg="Checking for sync_file_range(2) ", fragment="""
     #include <fcntl.h>
     int main(void)
@@ -110,6 +113,7 @@ def build(bld):
   libeio.target = 'eio'
   libeio.name = 'eio'
   libeio.includes = '. ../..'
+  libeio.uselib = "PTHREAD"
   libeio.install_path = None
   if bld.env["USE_DEBUG"]:
     libeio.clone("debug");
