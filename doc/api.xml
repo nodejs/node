@@ -1,0 +1,2059 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<refentry lang="en">
+<refmeta>
+<refentrytitle>node</refentrytitle>
+<manvolnum>1</manvolnum>
+</refmeta>
+<refnamediv>
+    <refname>node</refname>
+    <refpurpose>evented I/O for V8 javascript</refpurpose>
+</refnamediv>
+<refsynopsisdiv id="_synopsis">
+<simpara>An example of a web server written with Node which responds with "Hello
+World":</simpara>
+<screen>node.http.createServer(function (request, response) {
+  response.sendHeader(200, {"Content-Type": "text/plain"});
+  response.sendBody("Hello World\n");
+  response.finish();
+}).listen(8000);
+puts("Server running at http://127.0.0.1:8000/");</screen>
+<simpara>To run the server, put the code into a file called <literal>example.js</literal> and execute
+it with the node program</simpara>
+<screen>&gt; node example.js
+Server running at http://127.0.0.1:8000/</screen>
+</refsynopsisdiv>
+<refsect1 id="_api">
+<title>API</title>
+<simpara>Node supports 3 string encodings. UTF-8 (<literal>"utf8"</literal>), ASCII (<literal>"ascii"</literal>), and
+Binary (<literal>"binary"</literal>). <literal>"ascii"</literal> and <literal>"binary"</literal> only look at the first 8 bits
+of the 16bit javascript string characters. Both are relatively fast&#8212;use
+them if you can. <literal>"utf8"</literal> is slower and should be avoided when possible.</simpara>
+<simpara>Unless otherwise noted, functions are all asynchronous and do not block
+execution.</simpara>
+<refsect2 id="_helpers">
+<title>Helpers</title>
+<variablelist>
+<varlistentry>
+<term>
+<literal>puts(string)</literal>
+</term>
+<listitem>
+<simpara>
+Outputs the <literal>string</literal> and a trailing new-line to <literal>stdout</literal>.
+</simpara>
+<simpara>Everything in node is asynchronous; <literal>puts()</literal> is no exception. This might
+seem ridiculous but, if for example, one is piping <literal>stdout</literal> into an NFS
+file, <literal>printf()</literal> will block from network latency.  There is an internal
+queue for <literal>puts()</literal> output, so you can be assured that output will be
+displayed in the order it was called.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.debug(string)</literal>
+</term>
+<listitem>
+<simpara>
+A synchronous output function. Will block the process and
+output the string immediately to stdout.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.inspect(object)</literal> 
+</term>
+<listitem>
+<simpara>
+Return a string representation of the <literal>object</literal>. (For debugging.)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>print(string)</literal>
+</term>
+<listitem>
+<simpara>
+Like <literal>puts()</literal> but without the trailing new-line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.exit(code)</literal>
+</term>
+<listitem>
+<simpara>
+Immediately ends the process with the specified code.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.exec(command)</literal>
+</term>
+<listitem>
+<simpara>
+Executes the command as a child process, buffers the output and returns it
+in a promise callback.
+</simpara>
+<screen>node.exec("ls /").addCallback(function (stdout, stderr) {
+  puts(stdout);
+});</screen>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: stdout buffer, stderr buffer
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: exit code, stdout buffer, stderr buffer
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.cwd()</literal>
+</term>
+<listitem>
+<simpara>
+Returns the current working directory of the process.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_global_variables">
+<title>Global Variables</title>
+<variablelist>
+<varlistentry>
+<term>
+<literal>ARGV</literal> 
+</term>
+<listitem>
+<simpara>
+An array containing the command line arguments.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>ENV</literal> 
+</term>
+<listitem>
+<simpara>
+An object containing the user environment. See environ(7).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>__filename</literal> 
+</term>
+<listitem>
+<simpara>
+The filename of the script being executed.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>process</literal> 
+</term>
+<listitem>
+<simpara>
+A special global object. The <literal>process</literal> object is like the <literal>window</literal> object of
+browser-side javascript.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_events">
+<title>Events</title>
+<simpara>Many objects in Node emit events: a TCP server emits an event each time
+there is a connection, a child process emits an event when it exits. All
+objects which emit events are are instances of <literal>node.EventEmitter</literal>.</simpara>
+<simpara>Events are represented by a snakecased string. Here are some examples:
+<literal>"connection"</literal>, <literal>"receive"</literal>, <literal>"message_begin"</literal>.</simpara>
+<simpara>Functions can be then be attached to objects, to be executed when an event
+is emitted. These functions are called <emphasis>listeners</emphasis>.</simpara>
+<simpara>Some asynchronous file operations return an <literal>EventEmitter</literal> called a
+<emphasis>promise</emphasis>.  A promise emits just a single event when the operation is
+complete.</simpara>
+<refsect3 id="_literal_node_eventemitter_literal">
+<title><literal>node.EventEmitter</literal></title>
+<simpara>All EventEmitters emit the event <literal>"newListener"</literal> when new listeners are
+added.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top"> Event           </entry>
+<entry align="left" valign="top"> Parameters       </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"newListener"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>event, listener</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>This event is made
+                                       any time someone adds
+                                       a new listener.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>emitter.addListener(event, listener)</literal> 
+</term>
+<listitem>
+<simpara>
+Adds a listener to the end of the listeners array for the specified event.
+</simpara>
+<screen>server.addListener("connection", function (socket) {
+  puts("someone connected!");
+});</screen>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>emitter.listeners(event)</literal> 
+</term>
+<listitem>
+<simpara>
+Returns an array of listeners for the specified event. This array can be
+manipulated, e.g. to remove listeners.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>emitter.emit(event, arg1, arg2, &#8230;)</literal> 
+</term>
+<listitem>
+<simpara>
+Execute each of the listeners in order with the supplied arguments.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_promise_literal">
+<title><literal>node.Promise</literal></title>
+<simpara><literal>node.Promise</literal> inherits from <literal>node.eventEmitter</literal>. A promise emits one of two
+events: <literal>"success"</literal> or <literal>"error"</literal>.  After emitting its event, it will not
+emit anymore events.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top"> Event       </entry>
+<entry align="left" valign="top"> Parameters       </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"success"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>(depends)</simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"error"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>(depends)</simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>promise.addCallback(listener)</literal> 
+</term>
+<listitem>
+<simpara>
+Adds a listener for the <literal>"success"</literal> event. Returns the same promise object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>promise.addErrback(listener)</literal> 
+</term>
+<listitem>
+<simpara>
+Adds a listener for the <literal>"error"</literal> event. Returns the same promise object.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>promise.emitSuccess(arg1, arg2, &#8230;)</literal> 
+</term>
+<listitem>
+<simpara>
+If you created the promise (by doing <literal>new node.Promise()</literal>) then call
+<literal>emitSuccess</literal> to emit the <literal>"success"</literal> event with the given arguments.
+</simpara>
+<simpara>(<literal>promise.emit("success", arg1, arg2, &#8230;)</literal> should also work, but doesn&#8217;t at
+the moment due to a bug; use <literal>emitSuccess</literal> instead.)</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>promise.emitError(arg1, arg2, &#8230;)</literal> 
+</term>
+<listitem>
+<simpara>
+Emits the <literal>"error"</literal> event.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>promise.wait()</literal> 
+</term>
+<listitem>
+<simpara>
+Blocks futher execution until the promise emits a success or error event.
+Events setup before the call to <literal>promise.wait()</literal> was made may still be
+emitted and executed while <literal>promise.wait()</literal> is blocking.
+</simpara>
+<simpara>If there was a single argument to the <literal>"success"</literal> event then it is returned.
+If there were multiple arguments to <literal>"success"</literal> then they are returned as an
+array.</simpara>
+<simpara>If <literal>"error"</literal> was emitted instead, <literal>wait()</literal> throws an error.</simpara>
+<simpara><emphasis role="strong">IMPORTANT</emphasis> <literal>promise.wait()</literal> is not a true fiber/coroutine. If any other
+promises are created and made to wait while the first promise waits, the
+first promise&#8217;s wait will not return until all others return. The benefit of
+this is a simple implementation and the event loop does not get blocked.
+Disadvantage is the possibility of situations where the promise stack grows
+infinitely large because promises keep getting created and keep being told
+to wait(). Use <literal>promise.wait()</literal> sparingly&#8212;probably best used only during
+program setup, not during busy server activity.</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id="_standard_i_o">
+<title>Standard I/O</title>
+<simpara>Standard I/O is handled through a special object <literal>node.stdio</literal>. stdout and
+stdin are fully non-blocking (even when piping to files). stderr is
+synchronous.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top"> Event      </entry>
+<entry align="left" valign="top"> Parameters </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"data"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Made when stdin has received a chunk of data.
+                            Depending on the encoding that stdin was opened
+                            with, <literal>data</literal> will be  a string. This event will
+                            only be emited after <literal>node.stdio.open()</literal> has
+                            been called.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Made when stdin has been closed.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.stdio.open(encoding="utf8")</literal>
+</term>
+<listitem>
+<simpara>
+Open stdin. The program will not exit until <literal>node.stdio.close()</literal> has been
+called or the <literal>"close"</literal> event has been emitted.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.stdio.write(data)</literal>
+</term>
+<listitem>
+<simpara>
+Write data to stdout.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.stdio.writeError(data)</literal>
+</term>
+<listitem>
+<simpara>
+Write data to stderr. Synchronous.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.stdio.close()</literal>
+</term>
+<listitem>
+<simpara>
+Close stdin.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_modules">
+<title>Modules</title>
+<simpara>Node has a simple module loading system.  In Node, files and modules are in
+one-to-one correspondence.  As an example, <literal>foo.js</literal> loads the module
+<literal>circle.js</literal>.</simpara>
+<simpara>The contents of <literal>foo.js</literal>:</simpara>
+<screen>var circle = require("circle.js");
+puts("The area of a circle of radius 4 is " + circle.area(4));</screen>
+<simpara>The contents of <literal>circle.js</literal>:</simpara>
+<screen>var PI = 3.14;
+
+exports.area = function (r) {
+  return PI * r * r;
+};
+
+exports.circumference = function (r) {
+  return 2 * PI * r;
+};</screen>
+<simpara>The module <literal>circle.js</literal> has exported the functions <literal>area()</literal> and
+<literal>circumference()</literal>.  To export an object, add to the special <literal>exports</literal>
+object.  (Alternatively, one can use <literal>this</literal> instead of <literal>exports</literal>.) Variables
+local to the module will be private. In this example the variable <literal>PI</literal> is
+private to <literal>circle.js</literal>.</simpara>
+<simpara>The module path is relative to the file calling <literal>require()</literal>.  That is,
+<literal>circle.js</literal> must be in the same directory as <literal>foo.js</literal> for <literal>require()</literal> to
+find it.</simpara>
+<simpara>Like <literal>require()</literal> the function <literal>include()</literal> also loads a module. Instead of
+returning a namespace object, <literal>include()</literal> will add the module&#8217;s exports into
+the global namespace. For example:</simpara>
+<screen>include("circle.js");
+puts("The area of a cirlce of radius 4 is " + area(4));</screen>
+<simpara>When an absolute path is given to <literal>require()</literal> or <literal>include()</literal>, like
+<literal>require("/mjsunit.js")</literal> the module is searched for in the
+<literal>node.libraryPaths</literal> array. <literal>node.libraryPaths</literal> on my system looks like this:</simpara>
+<screen>[ "/home/ryan/.node_libraries"
+, "/home/ryan/local/node/lib/node_libraries"
+, "/"
+]</screen>
+<simpara>That is, first Node looks for <literal>"/home/ryan/.node_libraries/mjsunit.js"</literal> and
+then for <literal>"/home/ryan/local/node/lib/node_libraries/mjsunit.js"</literal>. If not
+found, it finally looks for <literal>"/mjsunit.js"</literal> (in the root directory).</simpara>
+<simpara><literal>node.libraryPaths</literal> can be modified at runtime by simply unshifting new
+paths on to it and at startup with the <literal>NODE_LIBRARY_PATHS</literal> environmental
+variable (which should be a list of paths, colon separated).</simpara>
+<simpara>Node comes with several libraries which are installed when <literal>"make install"</literal>
+is run. These are currently undocumented, but do look them up in your
+system.</simpara>
+<simpara>(Functions <literal>require_async()</literal> and <literal>include_async()</literal> also exist.)</simpara>
+<refsect3 id="_literal_process_addlistener_exit_function_literal">
+<title><literal>process.addListener("exit", function () { })</literal></title>
+<simpara>When the program exits a special object called <literal>process</literal> will emit an
+<literal>"exit"</literal> event.</simpara>
+<simpara>The <literal>"exit"</literal> event cannot perform I/O since the process is going to
+forcibly exit in less than microsecond. However, it is a good hook to
+perform constant time checks of the module&#8217;s state. E.G. for unit tests:</simpara>
+<screen>include("asserts.js");
+
+var timer_executed = false;
+
+setTimeout(function () {
+  timer_executed = true
+}, 1000);
+
+process.addListener("exit", function () {
+  assertTrue(timer_executed);
+});</screen>
+<simpara>Just to reiterate: the <literal>"exit"</literal> event, is not the place to close files or
+shutdown servers. The process will exit before they get performed.</simpara>
+</refsect3>
+</refsect2>
+<refsect2 id="_timers">
+<title>Timers</title>
+<variablelist>
+<varlistentry>
+<term>
+<literal>setTimeout(callback, delay)</literal>
+</term>
+<listitem>
+<simpara>
+To schedule execution of callback after delay milliseconds. Returns a
+<literal>timeoutId</literal> for possible use with <literal>clearTimeout()</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>clearTimeout(timeoutId)</literal>
+</term>
+<listitem>
+<simpara>
+Prevents said timeout from triggering.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>setInterval(callback, delay)</literal>
+</term>
+<listitem>
+<simpara>
+To schedule the repeated execution of callback every <literal>delay</literal> milliseconds. Returns
+a <literal>intervalId</literal> for possible use with <literal>clearInterval()</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>clearInterval(intervalId)</literal>
+</term>
+<listitem>
+<simpara>
+Stops a interval from triggering.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_child_processes">
+<title>Child Processes</title>
+<simpara>Node provides a tridirectional <literal>popen(3)</literal> facility through the class
+<literal>node.ChildProcess</literal>. It is possible to stream data through the child&#8217;s <literal>stdin</literal>,
+<literal>stdout</literal>, and <literal>stderr</literal> in a fully non-blocking way.</simpara>
+<refsect3 id="_literal_node_childprocess_literal">
+<title><literal>node.ChildProcess</literal></title>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event      </entry>
+<entry align="left" valign="top">Parameters </entry>
+<entry align="left" valign="top">Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"output"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Each time the child process sends data to its <literal>stdout</literal>, this event is
+emitted. <literal>data</literal> is a string.<?asciidoc-br?>
+If the child process closes its <literal>stdout</literal> stream (a common thing to do on
+exit), this event will be emitted with <literal>data === null</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"error"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Identical to the <literal>"output"</literal> event except for <literal>stderr</literal> instead of <literal>stdout</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"exit"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>code</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>This event is emitted after the child process ends. <literal>code</literal> is the final exit
+code of the process. One can be assured that after this event is emitted
+that the <literal>"output"</literal> and <literal>"error"</literal> callbacks will no longer be made.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.createChildProcess(command)</literal>
+</term>
+<listitem>
+<simpara>
+Launches a new process with the given <literal>command</literal>. For example:
+</simpara>
+<screen>var ls = node.createChildProcess("ls -lh /usr");
+ls.addListener("output", function (data) {
+  puts(data);
+});</screen>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>child.pid</literal> 
+</term>
+<listitem>
+<simpara>
+The PID of the child process.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>child.write(data, encoding="ascii")</literal> 
+</term>
+<listitem>
+<simpara>
+Write data to the child process&#8217;s <literal>stdin</literal>. The second argument is optional and
+specifies the encoding: possible values are <literal>"utf8"</literal>, <literal>"ascii"</literal>, and
+<literal>"binary"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>child.close()</literal> 
+</term>
+<listitem>
+<simpara>
+Closes the process&#8217;s <literal>stdin</literal> stream.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>child.kill(signal=node.SIGTERM)</literal> 
+</term>
+<listitem>
+<simpara>
+Send a single to the child process.  If no argument is given, the process
+will be sent <literal>node.SIGTERM</literal>.  The standard POSIX signals are defined under
+the <literal>node</literal> namespace (<literal>node.SIGINT</literal>, <literal>node.SIGUSR1</literal>, &#8230;).
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id="_file_i_o">
+<title>File I/O</title>
+<simpara>File I/O is provided by simple wrappers around standard POSIX functions.
+All POSIX wrappers have a similar form.
+They return a promise (<literal>node.Promise</literal>). Example:</simpara>
+<screen>var promise = node.fs.unlink("/tmp/hello");
+promise.addCallback(function () {
+  puts("successfully deleted /tmp/hello");
+});</screen>
+<simpara>There is no guaranteed ordering to the POSIX wrappers. The
+following is very much prone to error</simpara>
+<screen>node.fs.rename("/tmp/hello", "/tmp/world");
+node.fs.stat("/tmp/world").addCallback(function (stats) {
+  puts("stats: " + JSON.stringify(stats));
+});</screen>
+<simpara>It could be that <literal>stat()</literal> is executed before the <literal>rename()</literal>.
+The correct way to do this is to chain the promises.</simpara>
+<screen>node.fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
+  node.fs.stat("/tmp/world").addCallback(function (stats) {
+    puts("stats: " + JSON.stringify(stats));
+  });
+});</screen>
+<simpara>Or use the <literal>promise.wait()</literal> functionality:</simpara>
+<screen>node.fs.rename("/tmp/hello", "/tmp/world").wait();
+node.fs.stat("/tmp/world").addCallback(function (stats) {
+  puts("stats: " + JSON.stringify(stats));
+});</screen>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.fs.rename(path1, path2)</literal> 
+</term>
+<listitem>
+<simpara>
+  See rename(2).
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: no parameters.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.stat(path)</literal> 
+</term>
+<listitem>
+<simpara>
+  See stat(2).
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: Returns <literal>node.fs.Stats</literal> object. It looks like this:
+    <literal>{ dev: 2049, ino: 305352, mode: 16877, nlink: 12, uid: 1000, gid: 1000,
+    rdev: 0, size: 4096, blksize: 4096, blocks: 8, atime:
+    "2009-06-29T11:11:55Z", mtime: "2009-06-29T11:11:40Z", ctime:
+    "2009-06-29T11:11:40Z" }</literal>
+    See the <literal>node.fs.Stats</literal> section below for more information.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.unlink(path)</literal> 
+</term>
+<listitem>
+<simpara>
+  See unlink(2)
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: no parameters.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.rmdir(path)</literal> 
+</term>
+<listitem>
+<simpara>
+  See rmdir(2)
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: no parameters.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.mkdir(path, mode)</literal> 
+</term>
+<listitem>
+<simpara>
+  See mkdir(2)
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: no parameters.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.readdir(path)</literal> 
+</term>
+<listitem>
+<simpara>
+  Reads the contents of a directory.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: One argument, an array containing the names (strings) of the
+    files in the directory (excluding "." and "..").
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.close(fd)</literal> 
+</term>
+<listitem>
+<simpara>
+  See close(2)
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: no parameters.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.open(path, flags, mode)</literal>
+</term>
+<listitem>
+<simpara>
+  See open(2). The constants like <literal>O_CREAT</literal> are defined at <literal>node.O_CREAT</literal>.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: <literal>fd</literal> is given as the parameter.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.write(fd, data, position, encoding)</literal>
+</term>
+<listitem>
+<simpara>
+  Write data to the file specified by <literal>fd</literal>.  <literal>position</literal> refers to the offset
+  from the beginning of the file where this data should be written. If
+  <literal>position</literal> is <literal>null</literal>, the data will be written at the current position.
+  See pwrite(2).
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: returns an integer <literal>written</literal> which specifies how many <emphasis>bytes</emphasis> were written.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.read(fd, length, position, encoding)</literal>
+</term>
+<listitem>
+<simpara>
+Read data from the file specified by <literal>fd</literal>.
+</simpara>
+<simpara><literal>length</literal> is an integer specifying the number of
+bytes to read.</simpara>
+<simpara><literal>position</literal> is an integer specifying where to begin
+reading from in the file.</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: returns <literal>data, bytes_read</literal>, what was read from the file.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.fs.cat(filename, encoding="utf8")</literal>
+</term>
+<listitem>
+<simpara>
+Outputs the entire contents of a file. Example:
+</simpara>
+<screen>node.fs.cat("/etc/passwd").addCallback(function (content) {
+  puts(content);
+});</screen>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: returns <literal>data</literal>, what was read from the file.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+</variablelist>
+<refsect3 id="_literal_node_fs_stats_literal">
+<title><literal>node.fs.Stats</literal></title>
+<simpara>Objects returned from <literal>node.fs.stat()</literal> are of this type.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<literal>stats.isFile()</literal>
+</term>
+<term>
+<literal>stats.isDirectory()</literal>
+</term>
+<term>
+<literal>stats.isBlockDevice()</literal>
+</term>
+<term>
+<literal>stats.isCharacterDevice()</literal>
+</term>
+<term>
+<literal>stats.isSymbolicLink()</literal>
+</term>
+<term>
+<literal>stats.isFIFO()</literal>
+</term>
+<term>
+<literal>stats.isSocket()</literal>
+</term>
+<listitem>
+<simpara>
+&#8230;
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id="_http">
+<title>HTTP</title>
+<simpara>The HTTP interfaces in Node are designed to support many features
+of the protocol which have been traditionally difficult to use.
+In particular, large, possibly chunk-encoded, messages. The interface is
+careful to never buffer entire requests or responses&#8212;the
+user is able to stream data.</simpara>
+<simpara>HTTP message headers are represented by an object like this</simpara>
+<screen>  { "Content-Length": "123"
+  , "Content-Type": "text/plain"
+  , "Connection": "keep-alive"
+  , "Accept": "*/*"
+  }</screen>
+<simpara>In order to support the full spectrum of possible HTTP applications, Node&#8217;s
+HTTP API is very low-level. It deals with connection handling and message
+parsing only. It parses a message into headers and body but it does not
+parse the actual headers or the body.  That means, for example, that Node
+does not, and will never, provide API to access or manipulate Cookies or
+multi-part bodies.  <emphasis>This is left to the user.</emphasis></simpara>
+<refsect3 id="_literal_node_http_server_literal">
+<title><literal>node.http.Server</literal></title>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"request"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>request, response</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>request</literal> is an instance of <literal>node.http.ServerRequest</literal><?asciidoc-br?>
+<literal>response</literal> is an instance of <literal>node.http.ServerResponse</literal></simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"connection"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>connection</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>When a new TCP connection is established.
+<literal>connection</literal> is an object of type <literal>node.http.Connection</literal>. Usually users will not
+want to access this event. The <literal>connection</literal> can also be accessed at
+<literal>request.connection</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>errorno</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when the server closes. <literal>errorno</literal>
+                                  is an integer which indicates what, if any,
+                                  error caused the server to close. If no
+                                  error occured <literal>errorno</literal> will be 0.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.http.createServer(request_listener, options);</literal> 
+</term>
+<listitem>
+<simpara>
+Returns a new web server object.
+</simpara>
+<simpara>The <literal>options</literal> argument is optional. The
+<literal>options</literal> argument accepts the same values as the
+options argument for <literal>node.tcp.Server</literal> does.</simpara>
+<simpara>The <literal>request_listener</literal> is a function which is automatically
+added to the <literal>"request"</literal> event.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>server.listen(port, hostname)</literal> 
+</term>
+<listitem>
+<simpara>
+Begin accepting connections on the specified port and hostname.
+If the hostname is omitted, the server will accept connections
+directed to any address. This function is synchronous.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>server.close()</literal> 
+</term>
+<listitem>
+<simpara>
+Stops the server from accepting new connections.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_http_serverrequest_literal">
+<title><literal>node.http.ServerRequest</literal></title>
+<simpara>This object is created internally by a HTTP server&#8212;not by
+the user&#8212;and passed as the first argument to a <literal>"request"</literal> listener.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"body"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>chunk</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a piece of the message body is received. Example: A chunk of
+the body is given as the single argument. The transfer-encoding has been
+decoded.  The body chunk is a String.  The body encoding is set
+with <literal>request.setBodyEncoding()</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"complete"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted exactly once for each message. No arguments.
+After emitted no other events will be emitted on the request.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>request.method</literal> 
+</term>
+<listitem>
+<simpara>
+The request method as a string. Read only. Example:
+<literal>"GET"</literal>, <literal>"DELETE"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.uri</literal> 
+</term>
+<listitem>
+<simpara>
+Request URI Object. This contains only the parameters that are
+present in the actual HTTP request. That is, if the request is
+</simpara>
+<screen>GET /status?name=ryan HTTP/1.1\r\n
+Accept: */*\r\n
+\r\n</screen>
+<simpara>Then <literal>request.uri</literal> will be</simpara>
+<screen>{ path: "/status",
+  file: "status",
+  directory: "/",
+  params: { "name" : "ryan" }
+}</screen>
+<simpara>In particular, note that <literal>request.uri.protocol</literal> is
+<literal>undefined</literal>. This is because there was no URI protocol given
+in the actual HTTP Request.</simpara>
+<simpara><literal>request.uri.anchor</literal>, <literal>request.uri.query</literal>, <literal>request.uri.file</literal>, <literal>request.uri.directory</literal>, <literal>request.uri.path</literal>, <literal>request.uri.relative</literal>, <literal>request.uri.port</literal>, <literal>request.uri.host</literal>, <literal>request.uri.password</literal>, <literal>request.uri.user</literal>, <literal>request.uri.authority</literal>, <literal>request.uri.protocol</literal>, <literal>request.uri.params</literal>, <literal>request.uri.toString()</literal>, <literal>request.uri.source</literal></simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.headers</literal> 
+</term>
+<listitem>
+<simpara>
+Read only.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.httpVersion</literal> 
+</term>
+<listitem>
+<simpara>
+The HTTP protocol version as a string. Read only. Examples:
+<literal>"1.1"</literal>, <literal>"1.0"</literal>
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.setBodyEncoding(encoding)</literal> 
+</term>
+<listitem>
+<simpara>
+Set the encoding for the request body. Either <literal>"utf8"</literal> or <literal>"binary"</literal>. Defaults
+to <literal>"binary"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.pause()</literal> 
+</term>
+<listitem>
+<simpara>
+Pauses request from emitting events.  Useful to throttle back an upload.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.resume()</literal> 
+</term>
+<listitem>
+<simpara>
+Resumes a paused request.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.connection</literal> 
+</term>
+<listitem>
+<simpara>
+The <literal>node.http.Connection</literal> object.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_http_serverresponse_literal">
+<title><literal>node.http.ServerResponse</literal></title>
+<simpara>This object is created internally by a HTTP server&#8212;not by the user. It is
+passed as the second parameter to the <literal>"request"</literal> event.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<literal>response.sendHeader(statusCode, headers)</literal> 
+</term>
+<listitem>
+<simpara>
+Sends a response header to the request. The status code is a 3-digit HTTP
+status code, like <literal>404</literal>. The second argument, <literal>headers</literal> are the response headers.
+</simpara>
+<simpara>Example:</simpara>
+<screen>var body = "hello world";
+response.sendHeader(200, {
+  "Content-Length": body.length,
+  "Content-Type": "text/plain"
+});</screen>
+<simpara>This method must only be called once on a message and it must
+be called before <literal>response.finish()</literal> is called.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.sendBody(chunk, encoding="ascii")</literal> 
+</term>
+<listitem>
+<simpara>
+This method must be called after <literal>sendHeader</literal> was
+called. It sends a chunk of the response body. This method may
+be called multiple times to provide successive parts of the body.
+</simpara>
+<simpara>If <literal>chunk</literal> is a string, the second parameter
+specifies how to encode it into a byte stream. By default the
+<literal>encoding</literal> is <literal>"ascii"</literal>.</simpara>
+<simpara>Note: This is the raw HTTP body and has nothing to do with
+higher-level multi-part body encodings that may be used.</simpara>
+<simpara>The first time <literal>sendBody</literal> is called, it will send the buffered header
+information and the first body to the client. The second time
+<literal>sendBody</literal> is called, Node assumes you&#8217;re going to be streaming data, and
+sends that seperately. That is, the response is buffered up to the
+first chunk of body.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.finish()</literal> 
+</term>
+<listitem>
+<simpara>
+This method signals to the server that all of the response headers and body
+has been sent; that server should consider this message complete.
+The method, <literal>response.finish()</literal>, MUST be called on each
+response.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_http_client_literal">
+<title><literal>node.http.Client</literal></title>
+<simpara>An HTTP client is constructed with a server address as its
+argument, the returned handle is then used to issue one or more
+requests.  Depending on the server connected to, the client might
+pipeline the requests or reestablish the connection after each
+connection. <emphasis>Currently the implementation does not pipeline requests.</emphasis></simpara>
+<simpara>Example of connecting to <literal>google.com</literal></simpara>
+<screen>var google = node.http.createClient(80, "google.com");
+var request = google.get("/");
+request.finish(function (response) {
+  puts("STATUS: " + response.statusCode);
+  puts("HEADERS: " + JSON.stringify(response.headers));
+  response.setBodyEncoding("utf8");
+  response.addListener("body", function (chunk) {
+    puts("BODY: " + chunk);
+  });
+});</screen>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.http.createClient(port, host)</literal> 
+</term>
+<listitem>
+<simpara>
+Constructs a new HTTP client. <literal>port</literal> and
+<literal>host</literal> refer to the server to be connected to. A
+connection is not established until a request is issued.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>client.get(path, request_headers)</literal>, <literal>client.head(path, request_headers)</literal>, <literal>client.post(path, request_headers)</literal>, <literal>client.del(path, request_headers)</literal>, <literal>client.put(path, request_headers)</literal> 
+</term>
+<listitem>
+<simpara>
+Issues a request; if necessary establishes connection. Returns a <literal>node.http.ClientRequest</literal> instance.
+</simpara>
+<simpara><literal>request_headers</literal> is optional.
+Additional request headers might be added internally
+by Node. Returns a <literal>ClientRequest</literal> object.</simpara>
+<simpara>Do remember to include the <literal>Content-Length</literal> header if you
+plan on sending a body. If you plan on streaming the body, perhaps
+set <literal>Transfer-Encoding: chunked</literal>.</simpara>
+<note><simpara>the request is not complete. This method only sends
+the header of the request. One needs to call
+<literal>request.finish()</literal> to finalize the request and retrieve
+the response.  (This sounds convoluted but it provides a chance
+for the user to stream a body to the server with
+<literal>request.sendBody()</literal>.)</simpara></note>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_http_clientrequest_literal">
+<title><literal>node.http.ClientRequest</literal></title>
+<simpara>This object is created internally and returned from the request methods of a
+<literal>node.http.Client</literal>. It represents an <emphasis>in-progress</emphasis> request whose header has
+already been sent.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"response"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>response</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a response is received to this request. Typically the user will
+set a listener to this via the <literal>request.finish()</literal> method.<?asciidoc-br?>
+This event is emitted only once.<?asciidoc-br?>
+The <literal>response</literal> argument will be an instance of <literal>node.http.ClientResponse</literal>.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>request.sendBody(chunk, encoding="ascii")</literal> 
+</term>
+<listitem>
+<simpara>
+Sends a chunk of the body.  By calling this method
+many times, the user can stream a request body to a
+server&mdash;in that case it is suggested to use the
+<literal>["Transfer-Encoding", "chunked"]</literal> header line when
+creating the request.
+</simpara>
+<simpara>The <literal>chunk</literal> argument should be an array of integers
+or a string.</simpara>
+<simpara>The <literal>encoding</literal> argument is optional and only
+applies when <literal>chunk</literal> is a string. The encoding
+argument should be either <literal>"utf8"</literal> or
+<literal>"ascii"</literal>. By default the body uses ASCII encoding,
+as it is faster.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>request.finish(responseListener)</literal> 
+</term>
+<listitem>
+<simpara>
+Finishes sending the request. If any parts of the body are
+unsent, it will flush them to the socket. If the request is
+chunked, this will send the terminating <literal>"0\r\n\r\n"</literal>.
+</simpara>
+<simpara>The parameter <literal>responseListener</literal> is a callback which
+will be executed when the response headers have been received.
+The <literal>responseListener</literal> callback is executed with one
+argument which is an instance of <literal>node.http.ClientResponse</literal>.</simpara>
+<simpara>In the <literal>responseListener</literal> callback, one can add more listeners to the
+response, in particular listening for the <literal>"body"</literal> event. Note that
+the <literal>responseListener</literal> is called before any part of the body is receieved,
+so there is no need to worry about racing to catch the first part of the
+body. As long as a listener for <literal>"body"</literal> is added during the
+<literal>responseListener</literal> callback, the entire body will be caught.</simpara>
+<screen>// Good
+request.finish(function (response) {
+  response.addListener("body", function (chunk) {
+    puts("BODY: " + chunk);
+  });
+});
+
+// Bad - misses all or part of the body
+request.finish(function (response) {
+  setTimeout(function () {
+    response.addListener("body", function (chunk) {
+      puts("BODY: " + chunk);
+    });
+  }, 10);
+});</screen>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_http_clientresponse_literal">
+<title><literal>node.http.ClientResponse</literal></title>
+<simpara>This object is created internally and passed to the <literal>"response"</literal> event.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"body"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>chunk</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a piece of the message body is received. Example: A chunk of
+the body is given as the single argument. The transfer-encoding has been
+decoded.  The body chunk a String.  The body encoding is set with
+<literal>response.setBodyEncoding()</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"complete"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted exactly once for each message. No arguments.
+After emitted no other events will be emitted on the response.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>response.statusCode</literal> 
+</term>
+<listitem>
+<simpara>
+  The 3-digit HTTP response status code. E.G. <literal>404</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.httpVersion</literal> 
+</term>
+<listitem>
+<simpara>
+  The HTTP version of the connected-to server. Probably either
+  <literal>"1.1"</literal> or <literal>"1.0"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.headers</literal> 
+</term>
+<listitem>
+<simpara>
+  The response headers.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.setBodyEncoding(encoding)</literal> 
+</term>
+<listitem>
+<simpara>
+  Set the encoding for the response body. Either <literal>"utf8"</literal> or <literal>"binary"</literal>.
+  Defaults to <literal>"binary"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.pause()</literal> 
+</term>
+<listitem>
+<simpara>
+  Pauses response from emitting events.  Useful to throttle back a download.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.resume()</literal> 
+</term>
+<listitem>
+<simpara>
+  Resumes a paused response.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>response.client</literal> 
+</term>
+<listitem>
+<simpara>
+  A reference to the <literal>node.http.Client</literal> that this response belongs to.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id="_tcp">
+<title>TCP</title>
+<refsect3 id="_literal_node_tcp_server_literal">
+<title><literal>node.tcp.Server</literal></title>
+<simpara>Here is an example of a echo server which listens for connections
+on port 7000</simpara>
+<screen>function echo (socket) {
+  socket.setEncoding("utf8");
+  socket.addListener("connect", function () {
+    socket.send("hello\r\n");
+  });
+  socket.addListener("receive", function (data) {
+    socket.send(data);
+  });
+  socket.addListener("eof", function () {
+    socket.send("goodbye\r\n");
+    socket.close();
+  });
+}
+var server = node.tcp.createServer(echo);
+server.listen(7000, "localhost");</screen>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"connection"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>connection</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a new connection is made.
+                                  <literal>connection</literal> is an instance of <literal>node.tcp.Connection</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>errorno</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when the server closes. <literal>errorno</literal>
+                                  is an integer which indicates what, if any,
+                                  error caused the server to close. If no
+                                  error occurred <literal>errorno</literal> will be 0.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.tcp.createServer(connection_listener);</literal> 
+</term>
+<listitem>
+<simpara>
+Creates a new TCP server.
+</simpara>
+<simpara>The <literal>connection_listener</literal> argument is automatically set as a listener for
+the <literal>"connection"</literal> event.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>server.listen(port, host=null, backlog=128)</literal> 
+</term>
+<listitem>
+<simpara>
+Tells the server to listen for TCP connections to <literal>port</literal> and <literal>host</literal>.
+</simpara>
+<simpara><literal>host</literal> is optional. If <literal>host</literal> is not specified the server will accept client
+connections on any network address.</simpara>
+<simpara>The third argument, <literal>backlog</literal>, is also optional and defaults to 128.  The
+<literal>backlog</literal> argument defines the maximum length to which the queue of pending
+connections for the server may grow.</simpara>
+<simpara>This function is synchronous.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>server.close()</literal>
+</term>
+<listitem>
+<simpara>
+Stops the server from accepting new connections. This function is
+asynchronous, the server is finally closed when the server emits a <literal>"close"</literal>
+event.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id="_literal_node_tcp_connection_literal">
+<title><literal>node.tcp.Connection</literal></title>
+<simpara>This object is used as a TCP client and also as a server-side
+socket for <literal>node.tcp.Server</literal>.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"connect"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Call once the connection is established
+                                  after a call to <literal>createConnection()</literal> or
+                                  <literal>connect()</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"receive"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Called when data is received on the
+                                  connection.  <literal>data</literal> will be a string.
+                                  Encoding of data is set by
+                                  <literal>connection.setEncoding()</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"eof"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Called when the other end of the
+                                  connection sends a FIN packet.
+                                  After this is emitted the <literal>readyState</literal>
+                                  will be <literal>"writeOnly"</literal>. One should probably
+                                  just call <literal>connection.close()</literal> when this
+                                  event is emitted.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"timeout"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted if the connection times out from
+                                  inactivity. The <literal>"close"</literal> event will be
+                                  emitted immediately following this event.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>had_error</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted once the connection is fully
+                                  closed. The argument <literal>had_error</literal>
+                                  is a boolean which says if the connection
+                                  was closed due to a transmission error.
+                                  (TODO: access error codes.)</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.tcp.createConnection(port, host="127.0.0.1")</literal>
+</term>
+<listitem>
+<simpara>
+Creates a new connection object and opens a connection to the specified
+<literal>port</literal> and <literal>host</literal>. If the second parameter is omitted, localhost is assumed.
+</simpara>
+<simpara>When the connection is established the <literal>"connect"</literal> event will be emitted.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.connect(port, host="127.0.0.1")</literal>
+</term>
+<listitem>
+<simpara>
+Opens a connection to the specified <literal>port</literal> and <literal>host</literal>. <literal>createConnection()</literal>
+also opens a connection; normally this method is not needed. Use this only
+if a connection is closed and you want to reuse the object to connect to
+another server.
+</simpara>
+<simpara>This function is asynchronous. When the <literal>"connect"</literal> event is emitted the
+connection is established. If there is a problem connecting, the <literal>"connect"</literal>
+event will not be emitted, the <literal>"close"</literal> event will be emitted with
+<literal>had_error == true</literal>.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.remoteAddress</literal>
+</term>
+<listitem>
+<simpara>
+The string representation of the remote IP address.  For example,
+<literal>"74.125.127.100"</literal> or <literal>"2001:4860:a005::68"</literal>.
+</simpara>
+<simpara>This member is only present in server-side connections.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.readyState</literal>
+</term>
+<listitem>
+<simpara>
+Either <literal>"closed"</literal>, <literal>"open"</literal>, <literal>"opening"</literal>, <literal>"readOnly"</literal>, or <literal>"writeOnly"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.setEncoding(encoding)</literal>
+</term>
+<listitem>
+<simpara>
+Sets the encoding (either <literal>"ascii"</literal>, <literal>"utf8"</literal>, or <literal>"binary"</literal>) for data that is received.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.send(data, encoding="ascii")</literal>
+</term>
+<listitem>
+<simpara>
+Sends data on the connection. The second parameter specifies the encoding
+in the case of a string&#8212;it defaults to ASCII because encoding to UTF8 is
+rather slow.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.close()</literal>
+</term>
+<listitem>
+<simpara>
+Half-closes the connection. I.E., it sends a FIN packet. It is
+possible the server will still send some data. After calling
+this <literal>readyState</literal> will be <literal>"readOnly"</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.forceClose()</literal>
+</term>
+<listitem>
+<simpara>
+Ensures that no more I/O activity happens on this socket. Only
+necessary in case of errors (parse error or so).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.readPause()</literal>
+</term>
+<listitem>
+<simpara>
+Pauses the reading of data. That is, <literal>"receive"</literal> events will not be emitted.
+Useful to throttle back an upload.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.readResume()</literal>
+</term>
+<listitem>
+<simpara>
+Resumes reading if reading was paused by <literal>readPause()</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.setTimeout(timeout)</literal>
+</term>
+<listitem>
+<simpara>
+Sets the connection to timeout after <literal>timeout</literal> milliseconds of inactivity on
+the connection. By default all <literal>node.tcp.Connection</literal> objects have a timeout
+of 60 seconds (60000 ms).
+</simpara>
+<simpara>If <literal>timeout</literal> is 0, then the idle timeout is disabled.</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>connection.setNoDelay(noDelay=true)</literal>
+</term>
+<listitem>
+<simpara>
+Disables the Nagle algorithm. By default TCP connections use the Nagle
+algorithm, they buffer data before sending it off. Setting <literal>noDelay</literal> will
+immediately fire off data each time <literal>connection.send()</literal> is called.
+</simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id="_dns">
+<title>DNS</title>
+<simpara>Here is an example of which resolves <literal>"www.google.com"</literal> then reverse
+resolves the IP addresses which are returned.</simpara>
+<screen>var resolution = node.dns.resolve4("www.google.com");
+
+resolution.addCallback(function (addresses, ttl, cname) {
+  puts("addresses: " + JSON.stringify(addresses));
+  puts("ttl: " + JSON.stringify(ttl));
+  puts("cname: " + JSON.stringify(cname));
+
+  for (var i = 0; i &lt; addresses.length; i++) {
+    var a = addresses[i];
+    var reversing = node.dns.reverse(a);
+    reversing.addCallback( function (domains, ttl, cname) {
+      puts("reverse for " + a + ": " + JSON.stringify(domains));
+    });
+    reversing.addErrback( function (code, msg) {
+      puts("reverse for " + a + " failed: " + msg);
+    });
+  }
+});
+
+resolution.addErrback(function (code, msg) {
+  puts("error: " + msg);
+});</screen>
+<variablelist>
+<varlistentry>
+<term>
+<literal>node.dns.resolve4(domain)</literal>
+</term>
+<listitem>
+<simpara>
+Resolves a domain (e.g. <literal>"google.com"</literal>) into an array of IPv4 addresses (e.g.
+<literal>["74.125.79.104", "74.125.79.105", "74.125.79.106"]</literal>).
+This function returns a promise.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: returns <literal>addresses, ttl, cname</literal>. <literal>ttl</literal> (time-to-live) is an integer
+  specifying the number of seconds this result is valid for. <literal>cname</literal> is the
+  canonical name for the query.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: returns <literal>code, msg</literal>. <literal>code</literal> is one of the error codes listed
+  below and <literal>msg</literal> is a string describing the error in English.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.dns.resolve6(domain)</literal>
+</term>
+<listitem>
+<simpara>
+The same as <literal>node.dns.resolve4()</literal> except for IPv6 queries (an <literal>AAAA</literal> query).
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.dns.reverse(ip)</literal>
+</term>
+<listitem>
+<simpara>
+Reverse resolves an ip address to an array of domain names.
+</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: returns <literal>domains, ttl, cname</literal>. <literal>ttl</literal> (time-to-live) is an integer
+  specifying the number of seconds this result is valid for. <literal>cname</literal> is the
+  canonical name for the query. <literal>domains</literal> is an array of domains.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: returns <literal>code, msg</literal>. <literal>code</literal> is one of the error codes listed
+  below and <literal>msg</literal> is a string describing the error in English.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+</variablelist>
+<simpara>Each DNS query can return an error code.</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+<literal>node.dns.TEMPFAIL</literal>: timeout, SERVFAIL or similar.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<literal>node.dns.PROTOCOL</literal>: got garbled reply.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<literal>node.dns.NXDOMAIN</literal>: domain does not exists.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<literal>node.dns.NODATA</literal>: domain exists but no data of reqd type.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<literal>node.dns.NOMEM</literal>: out of memory while processing.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+<literal>node.dns.BADQUERY</literal>: the query is malformed.
+</simpara>
+</listitem>
+</itemizedlist>
+</refsect2>
+</refsect1>
+<refsect1 id="_extension_api">
+<title>Extension API</title>
+<simpara>External modules can be compiled and dynamically linked into Node.
+Node is more or less glue between several C and C++ libraries:</simpara>
+<itemizedlist>
+<listitem>
+<simpara>
+V8 Javascript, a C++ library. Used for interfacing with Javascript:
+   creating objects, calling functions, etc.  Documented mostly in the
+   <literal>v8.h</literal> header file (<literal>deps/v8/include/v8.h</literal> in the Node source tree).
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+libev, C event loop library. Anytime one needs to wait for a file
+   descriptor to become readable, wait for a timer, or wait for a signal to
+   received one will need to interface with libev.  That is, if you perform
+   any I/O, libev will need to be used.  Node uses the <literal>EV_DEFAULT</literal> event
+   loop.  Documentation can be found <ulink url="http:/cvs.schmorp.de/libev/ev.html">here</ulink>.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+libeio, C thread pool library. Used to execute blocking POSIX system
+   calls asynchronously. Mostly wrappers already exist for such calls, in
+   <literal>src/file.cc</literal> so you will probably not need to use it. If you do need it,
+   look at the header file <literal>deps/libeio/eio.h</literal>.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+Internal Node libraries. Most importantly is the <literal>node::EventEmitter</literal>
+   class which you will likely want to derive from.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+Others. Look in <literal>deps/</literal> for what else is available.
+</simpara>
+</listitem>
+</itemizedlist>
+<simpara>Node statically compiles all its dependencies into the executable. When
+compiling your module, you don&#8217;t need to worry about linking to any of these
+libraries.</simpara>
+<simpara>Here is a sample Makefile taken from
+<ulink url="http://github.com/ry/node_postgres">node_postgres</ulink>:</simpara>
+<screen>binding.node: binding.o Makefile
+        gcc -shared -o binding.node  binding.o \
+                -L`pg_config --libdir` -lpq
+
+binding.o: binding.cc Makefile
+        gcc `node --cflags` -I`pg_config --includedir` \
+                binding.cc -c -o binding.o
+
+clean:
+        rm -f binding.o binding.node
+.PHONY: clean</screen>
+<simpara>As you can see, the only thing your module needs to know about Node is the
+CFLAGS that node was compiled with which are gotten from <literal>node --cflags</literal>
+If you want to make a debug build, then use <literal>node_g --cflags</literal>. (<literal>node_g</literal> is
+the debug build of node, which can built with <literal>configure --debug; make; make
+install</literal>.)</simpara>
+<simpara>Node extension modules are dynamically linked libraries with a <literal>.node</literal>
+extension. Node opens this file and looks for a function called <literal>init()</literal>
+which must be of the form:</simpara>
+<screen>extern "C" void init (Handle&lt;Object&gt; target)</screen>
+<simpara>In this function you can create new javascript objects and attach them to
+<literal>target</literal>. Here is a very simple module:</simpara>
+<screen>extern "C" void
+init (Handle&lt;Object&gt; target)
+{
+  HandleScope scope;
+  target-&gt;Set(String::New("hello"), String::New("World"));
+}</screen>
+<simpara>Further documentation will come soon. For now see the source code of
+<ulink url="http://github.com/ry/node_postgres">node_postgres</ulink>.</simpara>
+</refsect1>
+</refentry>
