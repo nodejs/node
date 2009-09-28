@@ -1,3 +1,6 @@
+libDir = node.path.join(node.path.dirname(__filename), "../lib");
+node.libraryPaths.unshift(libDir);
+include("/utils.js");
 function next (i) {
   if (i <= 0) return;
 

@@ -1,4 +1,5 @@
 include("common.js");
+http = require("/http.js");
 PORT = 8888;
 
 var responses_sent = 0;
@@ -6,7 +7,7 @@ var responses_recvd = 0;
 var body0 = "";
 var body1 = "";
 
-node.http.createServer(function (req, res) {
+http.createServer(function (req, res) {
   if (responses_sent == 0) {
     assertEquals("GET", req.method);
     assertEquals("/hello", req.uri.path);
@@ -35,7 +36,7 @@ node.http.createServer(function (req, res) {
   //assertEquals("127.0.0.1", res.connection.remoteAddress);
 }).listen(PORT);
 
-var client = node.http.createClient(PORT);
+var client = http.createClient(PORT);
 var req = client.get("/hello", {"Accept": "*/*", "Foo": "bar"});
 req.finish(function (res) {
   assertEquals(200, res.statusCode);

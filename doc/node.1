@@ -19,7 +19,8 @@ An example of a web server written with Node which responds with "Hello World":
 .RS 4
 .nf
 include("/utils\.js");
-node\.http\.createServer(function (request, response) {
+include("/http\.js");
+createServer(function (request, response) {
   response\.sendHeader(200, {"Content\-Type": "text/plain"});
   response\.sendBody("Hello World\en");
   response\.finish();
@@ -819,6 +820,8 @@ stats\.isFile(), stats\.isDirectory(), stats\.isBlockDevice(), stats\.isCharacte
 .RE
 .RE
 .SS "HTTP"
+To use the HTTP server and client one must require("/http\.js") or include("/http\.js")\.
+.sp
 The HTTP interfaces in Node are designed to support many features of the protocol which have been traditionally difficult to use\. In particular, large, possibly chunk\-encoded, messages\. The interface is careful to never buffer entire requests or responses\(emthe user is able to stream data\.
 .sp
 HTTP message headers are represented by an object like this
@@ -826,11 +829,11 @@ HTTP message headers are represented by an object like this
 .sp
 .RS 4
 .nf
-  { "Content\-Length": "123"
-  , "Content\-Type": "text/plain"
-  , "Connection": "keep\-alive"
-  , "Accept": "*/*"
-  }
+{ "Content\-Length": "123"
+, "Content\-Type": "text/plain"
+, "Connection": "keep\-alive"
+, "Accept": "*/*"
+}
 .fi
 .RE
 In order to support the full spectrum of possible HTTP applications, Node\(cqs HTTP API is very low\-level\. It deals with connection handling and message parsing only\. It parses a message into headers and body but it does not parse the actual headers or the body\. That means, for example, that Node does not, and will never, provide API to access or manipulate Cookies or multi\-part bodies\. \fIThis is left to the user\.\fR
@@ -840,7 +843,7 @@ In order to support the full spectrum of possible HTTP applications, Node\(cqs H
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.Server
+http.Server
 .RS
 .TS
 allbox tab(:);
@@ -863,7 +866,7 @@ T}:T{
 request, response
 .sp
 T}:T{
-request is an instance of node\.http\.ServerRequest response is an instance of node\.http\.ServerResponse
+request is an instance of http\.ServerRequest response is an instance of http\.ServerResponse
 .sp
 T}
 T{
@@ -873,7 +876,7 @@ T}:T{
 connection
 .sp
 T}:T{
-When a new TCP connection is established\. connection is an object of type node\.http\.Connection\. Usually users will not want to access this event\. The connection can also be accessed at request\.connection\.
+When a new TCP connection is established\. connection is an object of type http\.Connection\. Usually users will not want to access this event\. The connection can also be accessed at request\.connection\.
 .sp
 T}
 T{
@@ -888,7 +891,7 @@ Emitted when the server closes\. errorno is an integer which indicates what, if 
 T}
 .TE
 .PP
-node\.http\.createServer(request_listener, options);
+http\.createServer(request_listener, options);
 .RS 4
 Returns a new web server object\.
 .sp
@@ -922,7 +925,7 @@ Stops the server from accepting new connections\.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.ServerRequest
+http.ServerRequest
 .RS
 This object is created internally by a HTTP server\(emnot by the user\(emand passed as the first argument to a "request" listener\.
 .sp
@@ -1047,7 +1050,7 @@ Resumes a paused request\.
 request\.connection
 .RS 4
 The
-node\.http\.Connection
+http\.Connection
 object\.
 .RE
 .RE
@@ -1056,7 +1059,7 @@ object\.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.ServerResponse
+http.ServerResponse
 .RS
 This object is created internally by a HTTP server\(emnot by the user\. It is passed as the second parameter to the "request" event\.
 .PP
@@ -1116,7 +1119,7 @@ response\.finish(), MUST be called on each response\.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.Client
+http.Client
 .RS
 An HTTP client is constructed with a server address as its argument, the returned handle is then used to issue one or more requests\. Depending on the server connected to, the client might pipeline the requests or reestablish the connection after each connection\. \fICurrently the implementation does not pipeline requests\.\fR
 .sp
@@ -1125,7 +1128,7 @@ Example of connecting to google\.com
 .sp
 .RS 4
 .nf
-var google = node\.http\.createClient(80, "google\.com");
+var google = http\.createClient(80, "google\.com");
 var request = google\.get("/");
 request\.finish(function (response) {
   puts("STATUS: " + response\.statusCode);
@@ -1138,7 +1141,7 @@ request\.finish(function (response) {
 .fi
 .RE
 .PP
-node\.http\.createClient(port, host)
+http\.createClient(port, host)
 .RS 4
 Constructs a new HTTP client\.
 port
@@ -1150,7 +1153,7 @@ refer to the server to be connected to\. A connection is not established until a
 client\.get(path, request_headers), client\.head(path, request_headers), client\.post(path, request_headers), client\.del(path, request_headers), client\.put(path, request_headers)
 .RS 4
 Issues a request; if necessary establishes connection\. Returns a
-node\.http\.ClientRequest
+http\.ClientRequest
 instance\.
 .sp
 request_headers
@@ -1179,9 +1182,9 @@ request\.sendBody()\.)
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.ClientRequest
+http.ClientRequest
 .RS
-This object is created internally and returned from the request methods of a node\.http\.Client\. It represents an \fIin\-progress\fR request whose header has already been sent\.
+This object is created internally and returned from the request methods of a http\.Client\. It represents an \fIin\-progress\fR request whose header has already been sent\.
 .sp
 .TS
 allbox tab(:);
@@ -1202,7 +1205,7 @@ T}:T{
 response
 .sp
 T}:T{
-Emitted when a response is received to this request\. Typically the user will set a listener to this via the request\.finish() method\. This event is emitted only once\. The response argument will be an instance of node\.http\.ClientResponse\.
+Emitted when a response is received to this request\. Typically the user will set a listener to this via the request\.finish() method\. This event is emitted only once\. The response argument will be an instance of http\.ClientResponse\.
 .sp
 T}
 .TE
@@ -1237,7 +1240,7 @@ responseListener
 is a callback which will be executed when the response headers have been received\. The
 responseListener
 callback is executed with one argument which is an instance of
-node\.http\.ClientResponse\.
+http\.ClientResponse\.
 .sp
 In the
 responseListener
@@ -1277,7 +1280,7 @@ request\.finish(function (response) {
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.http.ClientResponse
+http.ClientResponse
 .RS
 This object is created internally and passed to the "response" event\.
 .sp
@@ -1356,7 +1359,7 @@ Resumes a paused response\.
 response\.client
 .RS 4
 A reference to the
-node\.http\.Client
+http\.Client
 that this response belongs to\.
 .RE
 .RE

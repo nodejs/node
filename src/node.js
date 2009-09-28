@@ -19,6 +19,14 @@ node.exec = function () {
   throw new Error("node.exec() has moved. Use include('/utils.js') to bring it back.");
 }
 
+node.http.createServer = function () {
+  throw new Error("node.http.createServer() has moved. Use require('/http.js') to access it.");
+}
+
+node.http.createClient = function () {
+  throw new Error("node.http.createClient() has moved. Use require('/http.js') to access it.");
+}
+
 node.tcp.createConnection = function (port, host) {
   var connection = new node.tcp.Connection();
   connection.connect(port, host);

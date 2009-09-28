@@ -1,3 +1,6 @@
+libDir = node.path.join(node.path.dirname(__filename), "../lib");
+node.libraryPaths.unshift(libDir);
+include("/utils.js");
 var benchmarks = [ "static_http_server.js" 
                  , "timers.js"
                  , "process_loop.js"

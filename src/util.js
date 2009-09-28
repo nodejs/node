@@ -25,8 +25,12 @@ node.assert = function (x, msg) {
 
 node.cat = function(location, encoding) {
   var url_re = new RegExp("^http:\/\/");
-  var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
-  return f(location, encoding);
+  if (url_re.exec(location)) {
+    throw new Error("node.cat for http urls is temporarally disabled.");
+  }
+  //var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
+  //return f(location, encoding);
+  return node.fs.cat(location, encoding);
 };
 
 node.path = new function () {

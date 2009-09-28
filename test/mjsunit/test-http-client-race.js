@@ -1,10 +1,11 @@
 include("common.js");
+http = require("/http.js");
 PORT = 8888;
 
 var body1_s = "1111111111111111";
 var body2_s = "22222";
 
-var server = node.http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   var body = req.uri.path === "/1" ? body1_s : body2_s;
   res.sendHeader(200, { "Content-Type": "text/plain"
                       , "Content-Length": body.length
@@ -14,7 +15,7 @@ var server = node.http.createServer(function (req, res) {
 });
 server.listen(PORT);
 
-var client = node.http.createClient(PORT);
+var client = http.createClient(PORT);
 
 var body1 = "";
 var body2 = "";

@@ -17,7 +17,8 @@ World":
 
 ----------------------------------------
 include("/utils.js");
-node.http.createServer(function (request, response) {
+include("/http.js");
+createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
   response.finish();
@@ -568,6 +569,9 @@ Objects returned from +node.fs.stat()+ are of this type.
 
 === HTTP
 
+To use the HTTP server and client one must +require("/http.js")+ or
++include("/http.js")+.
+
 The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
@@ -577,11 +581,11 @@ user is able to stream data.
 HTTP message headers are represented by an object like this
 
 ----------------------------------------
-  { "Content-Length": "123"
-  , "Content-Type": "text/plain"
-  , "Connection": "keep-alive"
-  , "Accept": "*/*"
-  }
+{ "Content-Length": "123"
+, "Content-Type": "text/plain"
+, "Connection": "keep-alive"
+, "Accept": "*/*"
+}
 ----------------------------------------
 
 In order to support the full spectrum of possible HTTP applications, Node's
@@ -592,20 +596,20 @@ does not, and will never, provide API to access or manipulate Cookies or
 multi-part bodies.  _This is left to the user._
 
 
-==== +node.http.Server+
+==== +http.Server+
 
 [cols="1,2,10",options="header"]
 |=========================================================
 |Event           | Parameters   | Notes
 
 |+"request"+     | +request, response+ |
-+request+ is an instance of +node.http.ServerRequest+
++request+ is an instance of +http.ServerRequest+
 +
-+response+ is an instance of +node.http.ServerResponse+
++response+ is an instance of +http.ServerResponse+
 
 |+"connection"+  | +connection+ |
 When a new TCP connection is established.
-+connection+ is an object of type +node.http.Connection+. Usually users will not
++connection+ is an object of type +http.Connection+. Usually users will not
 want to access this event. The +connection+ can also be accessed at
 +request.connection+.
 
@@ -616,7 +620,7 @@ want to access this event. The +connection+ can also be accessed at
 
 |=========================================================
 
-+node.http.createServer(request_listener, options);+ ::
++http.createServer(request_listener, options);+ ::
 Returns a new web server object.
 +
 The +options+ argument is optional. The
@@ -636,7 +640,7 @@ Stops the server from accepting new connections.
 
 
 
-==== +node.http.ServerRequest+
+==== +http.ServerRequest+
 
 This object is created internally by a HTTP server--not by
 the user--and passed as the first argument to a +"request"+ listener.
@@ -712,10 +716,10 @@ Resumes a paused request.
 
 
 +request.connection+ ::
-The +node.http.Connection+ object.
+The +http.Connection+ object.
 
 
-==== +node.http.ServerResponse+
+==== +http.ServerResponse+
 
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the +"request"+ event.
@@ -766,7 +770,7 @@ response.
 
 
 
-==== +node.http.Client+
+==== +http.Client+
 
 An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
@@ -777,7 +781,7 @@ connection. _Currently the implementation does not pipeline requests._
 Example of connecting to +google.com+
 
 ----------------------------------------
-var google = node.http.createClient(80, "google.com");
+var google = http.createClient(80, "google.com");
 var request = google.get("/");
 request.finish(function (response) {
   puts("STATUS: " + response.statusCode);
@@ -789,7 +793,7 @@ request.finish(function (response) {
 });
 ----------------------------------------
 
-+node.http.createClient(port, host)+ ::
++http.createClient(port, host)+ ::
 
 Constructs a new HTTP client. +port+ and
 +host+ refer to the server to be connected to. A
@@ -797,7 +801,7 @@ connection is not established until a request is issued.
 
 +client.get(path, request_headers)+, +client.head(path, request_headers)+, +client.post(path, request_headers)+, +client.del(path, request_headers)+, +client.put(path, request_headers)+ ::
 
-Issues a request; if necessary establishes connection. Returns a +node.http.ClientRequest+ instance.
+Issues a request; if necessary establishes connection. Returns a +http.ClientRequest+ instance.
 +
 +request_headers+ is optional.
 Additional request headers might be added internally
@@ -815,10 +819,10 @@ for the user to stream a body to the server with
 +request.sendBody()+.)
 
 
-==== +node.http.ClientRequest+
+==== +http.ClientRequest+
 
 This object is created internally and returned from the request methods of a
-+node.http.Client+. It represents an _in-progress_ request whose header has
++http.Client+. It represents an _in-progress_ request whose header has
 already been sent.
 
 [cols="1,2,10",options="header"]
@@ -830,7 +834,7 @@ set a listener to this via the +request.finish()+ method.
 +
 This event is emitted only once.
 +
-The +response+ argument will be an instance of +node.http.ClientResponse+.
+The +response+ argument will be an instance of +http.ClientResponse+.
 |=========================================================
 
 
@@ -861,7 +865,7 @@ chunked, this will send the terminating +"0\r\n\r\n"+.
 The parameter +responseListener+ is a callback which
 will be executed when the response headers have been received.
 The +responseListener+ callback is executed with one
-argument which is an instance of +node.http.ClientResponse+.
+argument which is an instance of +http.ClientResponse+.
 +
 In the +responseListener+ callback, one can add more listeners to the
 response, in particular listening for the +"body"+ event. Note that
@@ -891,7 +895,7 @@ request.finish(function (response) {
 
 
 
-==== +node.http.ClientResponse+
+==== +http.ClientResponse+
 
 This object is created internally and passed to the +"response"+ event.
 
@@ -932,7 +936,7 @@ After emitted no other events will be emitted on the response.
   Resumes a paused response.
 
 +response.client+ ::
-  A reference to the +node.http.Client+ that this response belongs to.
+  A reference to the +http.Client+ that this response belongs to.
 
 
 

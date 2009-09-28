@@ -402,7 +402,6 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   ExecuteNativeJS("util.js", native_util);
   ExecuteNativeJS("events.js", native_events);
-  ExecuteNativeJS("http.js", native_http);
   ExecuteNativeJS("file.js", native_file);
   ExecuteNativeJS("node.js", native_node);
 

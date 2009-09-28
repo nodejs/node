@@ -1,4 +1,5 @@
 include("common.js");
+http = require("/http.js");
 
 var port = 8222;
 
@@ -7,7 +8,7 @@ var requests_sent = 0;
 var server_response = "";
 var client_got_eof = false;
 
-node.http.createServer(function (req, res) {
+http.createServer(function (req, res) {
   res.id = request_number;
   req.id = request_number++;
 

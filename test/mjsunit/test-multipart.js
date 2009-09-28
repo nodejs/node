@@ -1,4 +1,5 @@
 include("common.js");
+http = require("/http.js");
 
 var multipart = require('/multipart.js');
 var port = 8222;
@@ -6,7 +7,7 @@ var parts_reveived = 0;
 var parts_complete = 0;
 var parts = {};
 
-var server = node.http.createServer(function(req, res) {
+var server = http.createServer(function(req, res) {
   var stream = new multipart.Stream(req);
 
   stream.addListener('part', function(part) {

@@ -37,7 +37,8 @@ World":</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><tt>include("/utils.js");
-node.http.createServer(function (request, response) {
+include("/http.js");
+createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
   response.finish();
@@ -940,6 +941,8 @@ on error: no parameters.
 </dd>
 </dl></div>
 <h3 id="_http">HTTP</h3><div style="clear:left"></div>
+<div class="paragraph"><p>To use the HTTP server and client one must <tt>require("/http.js")</tt> or
+<tt>include("/http.js")</tt>.</p></div>
 <div class="paragraph"><p>The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
@@ -948,11 +951,11 @@ user is able to stream data.</p></div>
 <div class="paragraph"><p>HTTP message headers are represented by an object like this</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><tt>  { "Content-Length": "123"
-  , "Content-Type": "text/plain"
-  , "Connection": "keep-alive"
-  , "Accept": "*/*"
-  }</tt></pre>
+<pre><tt>{ "Content-Length": "123"
+, "Content-Type": "text/plain"
+, "Connection": "keep-alive"
+, "Accept": "*/*"
+}</tt></pre>
 </div></div>
 <div class="paragraph"><p>In order to support the full spectrum of possible HTTP applications, Node&#8217;s
 HTTP API is very low-level. It deals with connection handling and message
@@ -960,7 +963,7 @@ parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.  That means, for example, that Node
 does not, and will never, provide API to access or manipulate Cookies or
 multi-part bodies.  <em>This is left to the user.</em></p></div>
-<h4 id="_tt_node_http_server_tt"><tt>node.http.Server</tt></h4>
+<h4 id="_tt_http_server_tt"><tt>http.Server</tt></h4>
 <div class="tableblock">
 <table rules="all"
 width="100%"
@@ -980,14 +983,14 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"request"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>request, response</tt></p></td>
-<td align="left" valign="top"><p class="table"><tt>request</tt> is an instance of <tt>node.http.ServerRequest</tt><br />
-<tt>response</tt> is an instance of <tt>node.http.ServerResponse</tt></p></td>
+<td align="left" valign="top"><p class="table"><tt>request</tt> is an instance of <tt>http.ServerRequest</tt><br />
+<tt>response</tt> is an instance of <tt>http.ServerResponse</tt></p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"connection"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>connection</tt></p></td>
 <td align="left" valign="top"><p class="table">When a new TCP connection is established.
-<tt>connection</tt> is an object of type <tt>node.http.Connection</tt>. Usually users will not
+<tt>connection</tt> is an object of type <tt>http.Connection</tt>. Usually users will not
 want to access this event. The <tt>connection</tt> can also be accessed at
 <tt>request.connection</tt>.</p></td>
 </tr>
@@ -1004,7 +1007,7 @@ want to access this event. The <tt>connection</tt> can also be accessed at
 </div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>node.http.createServer(request_listener, options);</tt> 
+<tt>http.createServer(request_listener, options);</tt> 
 </dt>
 <dd>
 <p>
@@ -1035,7 +1038,7 @@ Stops the server from accepting new connections.
 </p>
 </dd>
 </dl></div>
-<h4 id="_tt_node_http_serverrequest_tt"><tt>node.http.ServerRequest</tt></h4>
+<h4 id="_tt_http_serverrequest_tt"><tt>http.ServerRequest</tt></h4>
 <div class="paragraph"><p>This object is created internally by a HTTP server&#8212;not by
 the user&#8212;and passed as the first argument to a <tt>"request"</tt> listener.</p></div>
 <div class="tableblock">
@@ -1156,11 +1159,11 @@ Resumes a paused request.
 </dt>
 <dd>
 <p>
-The <tt>node.http.Connection</tt> object.
+The <tt>http.Connection</tt> object.
 </p>
 </dd>
 </dl></div>
-<h4 id="_tt_node_http_serverresponse_tt"><tt>node.http.ServerResponse</tt></h4>
+<h4 id="_tt_http_serverresponse_tt"><tt>http.ServerResponse</tt></h4>
 <div class="paragraph"><p>This object is created internally by a HTTP server&#8212;not by the user. It is
 passed as the second parameter to the <tt>"request"</tt> event.</p></div>
 <div class="dlist"><dl>
@@ -1216,7 +1219,7 @@ response.
 </p>
 </dd>
 </dl></div>
-<h4 id="_tt_node_http_client_tt"><tt>node.http.Client</tt></h4>
+<h4 id="_tt_http_client_tt"><tt>http.Client</tt></h4>
 <div class="paragraph"><p>An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
 requests.  Depending on the server connected to, the client might
@@ -1225,7 +1228,7 @@ connection. <em>Currently the implementation does not pipeline requests.</em></p
 <div class="paragraph"><p>Example of connecting to <tt>google.com</tt></p></div>
 <div class="listingblock">
 <div class="content">
-<pre><tt>var google = node.http.createClient(80, "google.com");
+<pre><tt>var google = http.createClient(80, "google.com");
 var request = google.get("/");
 request.finish(function (response) {
   puts("STATUS: " + response.statusCode);
@@ -1238,7 +1241,7 @@ request.finish(function (response) {
 </div></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>node.http.createClient(port, host)</tt> 
+<tt>http.createClient(port, host)</tt> 
 </dt>
 <dd>
 <p>
@@ -1252,7 +1255,7 @@ connection is not established until a request is issued.
 </dt>
 <dd>
 <p>
-Issues a request; if necessary establishes connection. Returns a <tt>node.http.ClientRequest</tt> instance.
+Issues a request; if necessary establishes connection. Returns a <tt>http.ClientRequest</tt> instance.
 </p>
 <div class="paragraph"><p><tt>request_headers</tt> is optional.
 Additional request headers might be added internally
@@ -1275,9 +1278,9 @@ for the user to stream a body to the server with
 </div>
 </dd>
 </dl></div>
-<h4 id="_tt_node_http_clientrequest_tt"><tt>node.http.ClientRequest</tt></h4>
+<h4 id="_tt_http_clientrequest_tt"><tt>http.ClientRequest</tt></h4>
 <div class="paragraph"><p>This object is created internally and returned from the request methods of a
-<tt>node.http.Client</tt>. It represents an <em>in-progress</em> request whose header has
+<tt>http.Client</tt>. It represents an <em>in-progress</em> request whose header has
 already been sent.</p></div>
 <div class="tableblock">
 <table rules="all"
@@ -1301,7 +1304,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">Emitted when a response is received to this request. Typically the user will
 set a listener to this via the <tt>request.finish()</tt> method.<br />
 This event is emitted only once.<br />
-The <tt>response</tt> argument will be an instance of <tt>node.http.ClientResponse</tt>.</p></td>
+The <tt>response</tt> argument will be an instance of <tt>http.ClientResponse</tt>.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1338,7 +1341,7 @@ chunked, this will send the terminating <tt>"0\r\n\r\n"</tt>.
 <div class="paragraph"><p>The parameter <tt>responseListener</tt> is a callback which
 will be executed when the response headers have been received.
 The <tt>responseListener</tt> callback is executed with one
-argument which is an instance of <tt>node.http.ClientResponse</tt>.</p></div>
+argument which is an instance of <tt>http.ClientResponse</tt>.</p></div>
 <div class="paragraph"><p>In the <tt>responseListener</tt> callback, one can add more listeners to the
 response, in particular listening for the <tt>"body"</tt> event. Note that
 the <tt>responseListener</tt> is called before any part of the body is receieved,
@@ -1365,7 +1368,7 @@ request.finish(function (response) {
 </div></div>
 </dd>
 </dl></div>
-<h4 id="_tt_node_http_clientresponse_tt"><tt>node.http.ClientResponse</tt></h4>
+<h4 id="_tt_http_clientresponse_tt"><tt>http.ClientResponse</tt></h4>
 <div class="paragraph"><p>This object is created internally and passed to the <tt>"response"</tt> event.</p></div>
 <div class="tableblock">
 <table rules="all"
@@ -1456,7 +1459,7 @@ After emitted no other events will be emitted on the response.</p></td>
 </dt>
 <dd>
 <p>
-  A reference to the <tt>node.http.Client</tt> that this response belongs to.
+  A reference to the <tt>http.Client</tt> that this response belongs to.
 </p>
 </dd>
 </dl></div>
@@ -1943,7 +1946,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.12<br />
-Last updated 2009-09-28 12:04:19 CEST
+Last updated 2009-09-28 12:23:06 CEST
 </div>
 </div>
 </body>

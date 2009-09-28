@@ -1,3 +1,6 @@
+libDir = node.path.join(node.path.dirname(__filename), "../lib");
+node.libraryPaths.unshift(libDir);
+http = require("/http.js");
 var concurrency = 30;
 var port = 8000;
 var n = 700;
@@ -11,7 +14,7 @@ for (var i = 0; i < bytes; i++) {
   body += "C";
 }
 
-var server = node.http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   res.sendHeader(200, {
     "Content-Type": "text/plain",
     "Content-Length": body.length
@@ -35,7 +38,7 @@ function responseListener (res) {
 }
 
 for (var i = 0; i < concurrency; i++) {
-  var client = node.http.createClient(port);
+  var client = http.createClient(port);
   client.id = i;
   client.get("/").finish(responseListener);
   requests++;

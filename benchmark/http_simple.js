@@ -1,9 +1,15 @@
+libDir = node.path.join(node.path.dirname(__filename), "../lib");
+node.libraryPaths.unshift(libDir);
+
+include("/utils.js");
+http = require("/http.js");
+
 fixed = ""
 for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
 stored = {};
-node.http.createServer(function (req, res) {
+http.createServer(function (req, res) {
   var commands = req.uri.path.split("/");
   var command = commands[1];
   var body = "";

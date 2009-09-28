@@ -13,7 +13,8 @@
 <simpara>An example of a web server written with Node which responds with "Hello
 World":</simpara>
 <screen>include("/utils.js");
-node.http.createServer(function (request, response) {
+include("/http.js");
+createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
   response.finish();
@@ -988,25 +989,27 @@ on error: no parameters.
 </refsect2>
 <refsect2 id="_http">
 <title>HTTP</title>
+<simpara>To use the HTTP server and client one must <literal>require("/http.js")</literal> or
+<literal>include("/http.js")</literal>.</simpara>
 <simpara>The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
 careful to never buffer entire requests or responses&#8212;the
 user is able to stream data.</simpara>
 <simpara>HTTP message headers are represented by an object like this</simpara>
-<screen>  { "Content-Length": "123"
-  , "Content-Type": "text/plain"
-  , "Connection": "keep-alive"
-  , "Accept": "*/*"
-  }</screen>
+<screen>{ "Content-Length": "123"
+, "Content-Type": "text/plain"
+, "Connection": "keep-alive"
+, "Accept": "*/*"
+}</screen>
 <simpara>In order to support the full spectrum of possible HTTP applications, Node&#8217;s
 HTTP API is very low-level. It deals with connection handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.  That means, for example, that Node
 does not, and will never, provide API to access or manipulate Cookies or
 multi-part bodies.  <emphasis>This is left to the user.</emphasis></simpara>
-<refsect3 id="_literal_node_http_server_literal">
-<title><literal>node.http.Server</literal></title>
+<refsect3 id="_literal_http_server_literal">
+<title><literal>http.Server</literal></title>
 <informaltable
 frame="all"
 rowsep="1" colsep="1"
@@ -1026,14 +1029,14 @@ rowsep="1" colsep="1"
 <row>
 <entry align="left" valign="top"><simpara><literal>"request"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>request, response</literal></simpara></entry>
-<entry align="left" valign="top"><simpara><literal>request</literal> is an instance of <literal>node.http.ServerRequest</literal><?asciidoc-br?>
-<literal>response</literal> is an instance of <literal>node.http.ServerResponse</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>request</literal> is an instance of <literal>http.ServerRequest</literal><?asciidoc-br?>
+<literal>response</literal> is an instance of <literal>http.ServerResponse</literal></simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"connection"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>connection</literal></simpara></entry>
 <entry align="left" valign="top"><simpara>When a new TCP connection is established.
-<literal>connection</literal> is an object of type <literal>node.http.Connection</literal>. Usually users will not
+<literal>connection</literal> is an object of type <literal>http.Connection</literal>. Usually users will not
 want to access this event. The <literal>connection</literal> can also be accessed at
 <literal>request.connection</literal>.</simpara></entry>
 </row>
@@ -1051,7 +1054,7 @@ want to access this event. The <literal>connection</literal> can also be accesse
 <variablelist>
 <varlistentry>
 <term>
-<literal>node.http.createServer(request_listener, options);</literal> 
+<literal>http.createServer(request_listener, options);</literal> 
 </term>
 <listitem>
 <simpara>
@@ -1088,8 +1091,8 @@ Stops the server from accepting new connections.
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_http_serverrequest_literal">
-<title><literal>node.http.ServerRequest</literal></title>
+<refsect3 id="_literal_http_serverrequest_literal">
+<title><literal>http.ServerRequest</literal></title>
 <simpara>This object is created internally by a HTTP server&#8212;not by
 the user&#8212;and passed as the first argument to a <literal>"request"</literal> listener.</simpara>
 <informaltable
@@ -1219,14 +1222,14 @@ Resumes a paused request.
 </term>
 <listitem>
 <simpara>
-The <literal>node.http.Connection</literal> object.
+The <literal>http.Connection</literal> object.
 </simpara>
 </listitem>
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_http_serverresponse_literal">
-<title><literal>node.http.ServerResponse</literal></title>
+<refsect3 id="_literal_http_serverresponse_literal">
+<title><literal>http.ServerResponse</literal></title>
 <simpara>This object is created internally by a HTTP server&#8212;not by the user. It is
 passed as the second parameter to the <literal>"request"</literal> event.</simpara>
 <variablelist>
@@ -1286,15 +1289,15 @@ response.
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_http_client_literal">
-<title><literal>node.http.Client</literal></title>
+<refsect3 id="_literal_http_client_literal">
+<title><literal>http.Client</literal></title>
 <simpara>An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
 requests.  Depending on the server connected to, the client might
 pipeline the requests or reestablish the connection after each
 connection. <emphasis>Currently the implementation does not pipeline requests.</emphasis></simpara>
 <simpara>Example of connecting to <literal>google.com</literal></simpara>
-<screen>var google = node.http.createClient(80, "google.com");
+<screen>var google = http.createClient(80, "google.com");
 var request = google.get("/");
 request.finish(function (response) {
   puts("STATUS: " + response.statusCode);
@@ -1307,7 +1310,7 @@ request.finish(function (response) {
 <variablelist>
 <varlistentry>
 <term>
-<literal>node.http.createClient(port, host)</literal> 
+<literal>http.createClient(port, host)</literal> 
 </term>
 <listitem>
 <simpara>
@@ -1323,7 +1326,7 @@ connection is not established until a request is issued.
 </term>
 <listitem>
 <simpara>
-Issues a request; if necessary establishes connection. Returns a <literal>node.http.ClientRequest</literal> instance.
+Issues a request; if necessary establishes connection. Returns a <literal>http.ClientRequest</literal> instance.
 </simpara>
 <simpara><literal>request_headers</literal> is optional.
 Additional request headers might be added internally
@@ -1341,10 +1344,10 @@ for the user to stream a body to the server with
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_http_clientrequest_literal">
-<title><literal>node.http.ClientRequest</literal></title>
+<refsect3 id="_literal_http_clientrequest_literal">
+<title><literal>http.ClientRequest</literal></title>
 <simpara>This object is created internally and returned from the request methods of a
-<literal>node.http.Client</literal>. It represents an <emphasis>in-progress</emphasis> request whose header has
+<literal>http.Client</literal>. It represents an <emphasis>in-progress</emphasis> request whose header has
 already been sent.</simpara>
 <informaltable
 frame="all"
@@ -1368,7 +1371,7 @@ rowsep="1" colsep="1"
 <entry align="left" valign="top"><simpara>Emitted when a response is received to this request. Typically the user will
 set a listener to this via the <literal>request.finish()</literal> method.<?asciidoc-br?>
 This event is emitted only once.<?asciidoc-br?>
-The <literal>response</literal> argument will be an instance of <literal>node.http.ClientResponse</literal>.</simpara></entry>
+The <literal>response</literal> argument will be an instance of <literal>http.ClientResponse</literal>.</simpara></entry>
 </row>
 </tbody>
 </tgroup>
@@ -1408,7 +1411,7 @@ chunked, this will send the terminating <literal>"0\r\n\r\n"</literal>.
 <simpara>The parameter <literal>responseListener</literal> is a callback which
 will be executed when the response headers have been received.
 The <literal>responseListener</literal> callback is executed with one
-argument which is an instance of <literal>node.http.ClientResponse</literal>.</simpara>
+argument which is an instance of <literal>http.ClientResponse</literal>.</simpara>
 <simpara>In the <literal>responseListener</literal> callback, one can add more listeners to the
 response, in particular listening for the <literal>"body"</literal> event. Note that
 the <literal>responseListener</literal> is called before any part of the body is receieved,
@@ -1434,8 +1437,8 @@ request.finish(function (response) {
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_http_clientresponse_literal">
-<title><literal>node.http.ClientResponse</literal></title>
+<refsect3 id="_literal_http_clientresponse_literal">
+<title><literal>http.ClientResponse</literal></title>
 <simpara>This object is created internally and passed to the <literal>"response"</literal> event.</simpara>
 <informaltable
 frame="all"
@@ -1539,7 +1542,7 @@ After emitted no other events will be emitted on the response.</simpara></entry>
 </term>
 <listitem>
 <simpara>
-  A reference to the <literal>node.http.Client</literal> that this response belongs to.
+  A reference to the <literal>http.Client</literal> that this response belongs to.
 </simpara>
 </listitem>
 </varlistentry>

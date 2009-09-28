@@ -241,7 +241,6 @@ def build(bld):
     source = """
       src/util.js
       src/events.js
-      src/http.js
       src/file.js
       src/node.js
     """,

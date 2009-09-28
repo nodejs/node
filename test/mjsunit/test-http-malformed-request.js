@@ -1,4 +1,5 @@
 include("common.js");
+http = require("/http.js");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.
@@ -7,7 +8,7 @@ port = 9999;
 nrequests_completed = 0;
 nrequests_expected = 1;
 
-var s = node.http.createServer(function (req, res) {
+var s = http.createServer(function (req, res) {
   puts("req: " + JSON.stringify(req.uri));
 
   res.sendHeader(200, {"Content-Type": "text/plain"});

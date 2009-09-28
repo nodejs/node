@@ -1,11 +1,12 @@
 include("common.js");
+http = require("/http.js");
 var PORT = 18032;
 
 var sent_body = "";
 var server_req_complete = false;
 var client_res_complete = false;
 
-var server = node.http.createServer(function(req, res) {
+var server = http.createServer(function(req, res) {
   assertEquals("POST", req.method);
   req.setBodyEncoding("utf8");
 
@@ -24,7 +25,7 @@ var server = node.http.createServer(function(req, res) {
 });
 server.listen(PORT);
 
-var client = node.http.createClient(PORT);
+var client = http.createClient(PORT);
 var req = client.post('/');
 
 req.sendBody('1\n');
