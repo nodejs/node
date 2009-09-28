@@ -37,6 +37,49 @@ def mkdir_p(dir):
   if not os.path.exists (dir):
     os.makedirs (dir)
 
+# Copied from Python 2.6 because 2.4.4 at least is broken by not using
+# mkdirs
+# http://mail.python.org/pipermail/python-bugs-list/2005-January/027118.html
+def copytree(src, dst, symlinks=False, ignore=None):
+    names = os.listdir(src)
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+
+    os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
+        try:
+            if symlinks and os.path.islink(srcname):
+                linkto = os.readlink(srcname)
+                os.symlink(linkto, dstname)
+            elif os.path.isdir(srcname):
+                copytree(srcname, dstname, symlinks, ignore)
+            else:
+                shutil.copy2(srcname, dstname)
+            # XXX What about devices, sockets etc.?
+        except (IOError, os.error), why:
+            errors.append((srcname, dstname, str(why)))
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except Error, err:
+            errors.extend(err.args[0])
+    try:
+        shutil.copystat(src, dst)
+    except OSError, why:
+        if WindowsError is not None and isinstance(why, WindowsError):
+            # Copying file access times may fail on Windows
+            pass
+        else:
+            errors.extend((src, dst, str(why)))
+    if errors:
+        raise Error, errors
+
 def conf_subproject (conf, subdir, command=None):
   print("---- %s ----" % subdir)
   src = join(conf.srcdir, subdir)
@@ -45,7 +88,7 @@ def conf_subproject (conf, subdir, command=None):
   default_tgt = join(conf.blddir, "default", subdir)
 
   if not os.path.exists(default_tgt):
-    shutil.copytree(src, default_tgt)
+    copytree(src, default_tgt, True)
 
   if command:
     if os.system("cd %s && %s" % (default_tgt, command)) != 0:
@@ -54,7 +97,7 @@ def conf_subproject (conf, subdir, command=None):
   debug_tgt = join(conf.blddir, "debug", subdir)
 
   if not os.path.exists(debug_tgt):
-    shutil.copytree(default_tgt, debug_tgt)
+    copytree(default_tgt, debug_tgt, True)
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
