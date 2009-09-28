@@ -28,6 +28,7 @@ Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
 /* Poor Man's coroutines */
 static Promise *coroutine_top;
+static int coroutine_stack_size;
 
 void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   HandleScope scope;
@@ -41,6 +42,7 @@ void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   // All other prototype methods are defined in events.js
 
   coroutine_top = NULL;
+  coroutine_stack_size = 0;
 }
 
 static bool ReallyEmit(Handle<Object> self,
@@ -176,6 +178,10 @@ void Promise::Block(void) {
   assert(prev_ == NULL);
   if (coroutine_top) prev_ = coroutine_top;
   coroutine_top = this;
+  coroutine_stack_size++;
+  if (coroutine_stack_size > 10) {
+    fprintf(stderr, "(node) WARNING: promise.wait() is being called too often.\n");
+  }
 
   ev_loop(EV_DEFAULT_UC_ 0);
 
@@ -187,6 +193,7 @@ void Promise::Destack() {
   ev_unloop(EV_DEFAULT_ EVUNLOOP_ONE);
   coroutine_top = prev_;
   prev_ = NULL;
+  coroutine_stack_size--;
 }
 
 void Promise::Detach(void) {
