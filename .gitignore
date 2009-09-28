@@ -4,6 +4,5 @@ tags
 .lock-wscript
 Makefile
 *.pyc
-doc/api.xml
 node
 node_g
