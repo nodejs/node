@@ -33,20 +33,10 @@ of the 16bit javascript string characters. Both are relatively fast&#8212;use
 them if you can. <literal>"utf8"</literal> is slower and should be avoided when possible.</simpara>
 <simpara>Unless otherwise noted, functions are all asynchronous and do not block
 execution.</simpara>
-<refsect2 id="_helpers_and_global_variables">
-<title>Helpers and Global Variables</title>
+<refsect2 id="_helpers">
+<title>Helpers</title>
 <simpara>These objects are available to all programs.</simpara>
 <variablelist>
-<varlistentry>
-<term>
-<literal>node.exit(code)</literal>
-</term>
-<listitem>
-<simpara>
-Immediately ends the process with the specified code.
-</simpara>
-</listitem>
-</varlistentry>
 <varlistentry>
 <term>
 <literal>node.cwd()</literal>
@@ -54,26 +44,6 @@ Immediately ends the process with the specified code.
 <listitem>
 <simpara>
 Returns the current working directory of the process.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<literal>ARGV</literal> 
-</term>
-<listitem>
-<simpara>
-An array containing the command line arguments.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<literal>ENV</literal> 
-</term>
-<listitem>
-<simpara>
-An object containing the user environment. See environ(7).
 </simpara>
 </listitem>
 </varlistentry>
@@ -87,14 +57,73 @@ The filename of the script being executed.
 </simpara>
 </listitem>
 </varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_the_literal_process_literal_object">
+<title>The <literal>process</literal> Object</title>
+<simpara><literal>process</literal> is the equivalent of <literal>window</literal> in browser-side javascript. It is
+the global scope. <literal>process</literal> is an instance of <literal>node.EventEmitter</literal>.</simpara>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top"> Event    </entry>
+<entry align="left" valign="top"> Parameters </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"exit"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>code</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Made when the process exits.
+                          A listener on this event should not try to perform
+                          I/O since the process will forcibly exit in less
+                          than microsecond. However, it is a good hook to
+                          perform constant time checks of the module&#8217;s
+                          state (like for unit tests).
+                         <?asciidoc-br?>
+                          The parameter <literal>code</literal> is the integer exit code
+                          passed to <literal>process.exit()</literal>.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+<variablelist>
 <varlistentry>
 <term>
-<literal>process</literal> 
+<literal>process.exit(code=0)</literal>
 </term>
 <listitem>
 <simpara>
-A special global object. The <literal>process</literal> object is like the <literal>window</literal> object of
-browser-side javascript.
+Ends the process with the specified code. By default it exits with the
+success code 0.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>process.ARGV</literal> 
+</term>
+<listitem>
+<simpara>
+An array containing the command line arguments.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>process.ENV</literal> 
+</term>
+<listitem>
+<simpara>
+An object containing the user environment. See environ(7).
 </simpara>
 </listitem>
 </varlistentry>
@@ -488,27 +517,6 @@ variable (which should be a list of paths, colon separated).</simpara>
 is run. These are currently undocumented, but do look them up in your
 system.</simpara>
 <simpara>(Functions <literal>require_async()</literal> and <literal>include_async()</literal> also exist.)</simpara>
-<refsect3 id="_literal_process_addlistener_exit_function_literal">
-<title><literal>process.addListener("exit", function () { })</literal></title>
-<simpara>When the program exits a special object called <literal>process</literal> will emit an
-<literal>"exit"</literal> event.</simpara>
-<simpara>The <literal>"exit"</literal> event cannot perform I/O since the process is going to
-forcibly exit in less than microsecond. However, it is a good hook to
-perform constant time checks of the module&#8217;s state. E.G. for unit tests:</simpara>
-<screen>include("asserts.js");
-
-var timer_executed = false;
-
-setTimeout(function () {
-  timer_executed = true
-}, 1000);
-
-process.addListener("exit", function () {
-  assertTrue(timer_executed);
-});</screen>
-<simpara>Just to reiterate: the <literal>"exit"</literal> event, is not the place to close files or
-shutdown servers. The process will exit before they get performed.</simpara>
-</refsect3>
 </refsect2>
 <refsect2 id="_timers">
 <title>Timers</title>

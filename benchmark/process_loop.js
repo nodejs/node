@@ -11,7 +11,7 @@ function next (i) {
   });
 
   child.addListener("exit", function (code) {
-    if (code != 0) node.exit(-1);
+    if (code != 0) process.exit(-1);
     next(i - 1);
   });
 }

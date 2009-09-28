@@ -202,7 +202,7 @@ node.Module.prototype.loadObject = function (loadPromise) {
       loadPromise.emitSuccess(self.target);
     } else {
       loadPromise.emitError(new Error("Error reading " + self.filename));
-      node.exit(1);
+      process.exit(1);
     }
   });
 };
@@ -213,7 +213,7 @@ node.Module.prototype.loadScript = function (loadPromise) {
 
   catPromise.addErrback(function () {
     loadPromise.emitError(new Error("Error reading " + self.filename));
-    node.exit(1);
+    process.exit(1);
   });
 
   catPromise.addCallback(function (content) {
@@ -256,6 +256,16 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
   if (children.length == nloaded && callback) callback();
 };
 
+
+process.exit = function (code) {
+  process.emit("exit");
+  node.reallyExit(code);
+};
+
+node.exit = function (code) {
+  throw new Error("process.exit() has been renamed to process.exit().");
+};
+
 (function () {
   var cwd = node.cwd();
 
@@ -270,9 +280,4 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
 
   // Load the root module--the command line argument.
   node.loadModule(ARGV[1], process);
-
-  node.exit = function (code) {
-    process.emit("exit");
-    node.reallyExit(code);
-  };
 }());

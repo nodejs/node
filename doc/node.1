@@ -42,41 +42,58 @@ Node supports 3 string encodings\. UTF\-8 ("utf8"), ASCII ("ascii"), and Binary 
 .sp
 Unless otherwise noted, functions are all asynchronous and do not block execution\.
 .sp
-.SS "Helpers and Global Variables"
+.SS "Helpers"
 These objects are available to all programs\.
-.PP
-node\.exit(code)
-.RS 4
-Immediately ends the process with the specified code\.
-.RE
 .PP
 node\.cwd()
 .RS 4
 Returns the current working directory of the process\.
 .RE
 .PP
-ARGV
-.RS 4
-An array containing the command line arguments\.
-.RE
-.PP
-ENV
-.RS 4
-An object containing the user environment\. See environ(7)\.
-.RE
-.PP
 __filename
 .RS 4
 The filename of the script being executed\.
 .RE
+.SS "The process Object"
+process is the equivalent of window in browser\-side javascript\. It is the global scope\. process is an instance of node\.EventEmitter\.
+.sp
+.TS
+allbox tab(:);
+ltB ltB ltBx.
+T{
+Event
+T}:T{
+Parameters
+T}:T{
+Notes
+T}
+.T&
+lt lt lt.
+T{
+"exit"
+.sp
+T}:T{
+code
+.sp
+T}:T{
+Made when the process exits\. A listener on this event should not try to perform I/O since the process will forcibly exit in less than microsecond\. However, it is a good hook to perform constant time checks of the module\(cqs state (like for unit tests)\. The parameter code is the integer exit code passed to process\.exit()\.
+.sp
+T}
+.TE
 .PP
-process
+process\.exit(code=0)
 .RS 4
-A special global object\. The
-process
-object is like the
-window
-object of browser\-side javascript\.
+Ends the process with the specified code\. By default it exits with the success code 0\.
+.RE
+.PP
+process\.ARGV
+.RS 4
+An array containing the command line arguments\.
+.RE
+.PP
+process\.ENV
+.RS 4
+An object containing the user environment\. See environ(7)\.
 .RE
 .SS "Utilities"
 These function are in "/utils\.js"\. Use require("/utils\.js") to access them\.
@@ -418,36 +435,6 @@ Node comes with several libraries which are installed when "make install" is run
 .sp
 (Functions require_async() and include_async() also exist\.)
 .sp
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-process.addListener("exit", function () { })
-.RS
-When the program exits a special object called process will emit an "exit" event\.
-.sp
-The "exit" event cannot perform I/O since the process is going to forcibly exit in less than microsecond\. However, it is a good hook to perform constant time checks of the module\(cqs state\. E\.G\. for unit tests:
-.sp
-.sp
-.RS 4
-.nf
-include("asserts\.js");
-
-var timer_executed = false;
-
-setTimeout(function () {
-  timer_executed = true
-}, 1000);
-
-process\.addListener("exit", function () {
-  assertTrue(timer_executed);
-});
-.fi
-.RE
-Just to reiterate: the "exit" event, is not the place to close files or shutdown servers\. The process will exit before they get performed\.
-.sp
-.RE
 .SS "Timers"
 .PP
 setTimeout(callback, delay)

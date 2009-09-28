@@ -408,15 +408,23 @@ static Local<Object> Load(int argc, char *argv[]) {
   return scope.Close(node_obj);
 }
 
-static void CallExitHandler(Handle<Object> node_obj) {
+static void CallExitHandler() {
   HandleScope scope;
-  Local<Value> exit_v = node_obj->Get(String::New("exit"));
-  assert(exit_v->IsFunction());
-  Handle<Function> exit_f = Handle<Function>::Cast(exit_v);
+  Local<Object> process = Context::GetCurrent()->Global();
+  Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
+  if (!emit_v->IsFunction()) {
+    exit(10);  // could not emit exit event so exit with error code 10.
+  }
+  Local<Function> emit = Local<Function>::Cast(emit_v);
+
   TryCatch try_catch;
-  exit_f->Call(Context::GetCurrent()->Global(), 0, NULL);
-  if (try_catch.HasCaught())
+
+  Local<Value> argv[2] = { String::New("exit"), Integer::New(0) };
+  emit->Call(process, 2, argv);
+
+  if (try_catch.HasCaught()) {
     node::FatalException(try_catch);
+  }
 }
 
 static void PrintHelp() {
@@ -494,7 +502,7 @@ int main(int argc, char *argv[]) {
 
   ev_loop(EV_DEFAULT_UC_ 0);  // main event loop
 
-  node::CallExitHandler(node_obj);
+  node::CallExitHandler();
 
   context.Dispose();
   V8::Dispose();

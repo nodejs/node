@@ -47,29 +47,44 @@ Unless otherwise noted, functions are all asynchronous and do not block
 execution.
 
 
-=== Helpers and Global Variables
+=== Helpers
 
 These objects are available to all programs.
-
-+node.exit(code)+::
-Immediately ends the process with the specified code.
 
 +node.cwd()+::
 Returns the current working directory of the process.
 
-+ARGV+ ::
-An array containing the command line arguments.
-
-+ENV+ ::
-An object containing the user environment. See environ(7).
-
 +__filename+ ::
 The filename of the script being executed.
 
-+process+ ::
-A special global object. The +process+ object is like the +window+ object of
-browser-side javascript.
+=== The +process+ Object
 
++process+ is the equivalent of +window+ in browser-side javascript. It is
+the global scope. +process+ is an instance of +node.EventEmitter+.
+
+[cols="1,2,10",options="header"]
+|=========================================================
+| Event    | Parameters | Notes
+| +"exit"+ | +code+     | Made when the process exits.
+                          A listener on this event should not try to perform
+                          I/O since the process will forcibly exit in less
+                          than microsecond. However, it is a good hook to
+                          perform constant time checks of the module's
+                          state (like for unit tests).
+                          +
+                          The parameter +code+ is the integer exit code
+                          passed to +process.exit()+.
+|=========================================================
+
++process.exit(code=0)+::
+Ends the process with the specified code. By default it exits with the
+success code 0.
+
++process.ARGV+ ::
+An array containing the command line arguments.
+
++process.ENV+ ::
+An object containing the user environment. See environ(7).
 
 
 === Utilities
@@ -305,32 +320,6 @@ system.
 
 (Functions +require_async()+ and +include_async()+ also exist.)
 
-
-==== +process.addListener("exit", function () { })+
-
-When the program exits a special object called +process+ will emit an
-+"exit"+ event.
-
-The +"exit"+ event cannot perform I/O since the process is going to
-forcibly exit in less than microsecond. However, it is a good hook to
-perform constant time checks of the module's state. E.G. for unit tests:
-
-----------------------------------------
-include("asserts.js");
-
-var timer_executed = false;
-
-setTimeout(function () {
-  timer_executed = true
-}, 1000);
-
-process.addListener("exit", function () {
-  assertTrue(timer_executed);
-});
-----------------------------------------
-
-Just to reiterate: the +"exit"+ event, is not the place to close files or
-shutdown servers. The process will exit before they get performed.
 
 
 
