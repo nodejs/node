@@ -46,7 +46,6 @@ function setInterval (callback, repeat) {
 
 function clearTimeout (timer) {
   timer.stop();
-  delete timer;
 }
 
 clearInterval = clearTimeout;
