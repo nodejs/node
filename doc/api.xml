@@ -57,6 +57,29 @@ The filename of the script being executed.
 </simpara>
 </listitem>
 </varlistentry>
+<varlistentry>
+<term>
+<literal>require(path)</literal> 
+</term>
+<term>
+<literal>include(path)</literal> 
+</term>
+<listitem>
+<simpara>
+See the modules section.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>node.libraryPaths</literal> 
+</term>
+<listitem>
+<simpara>
+The search path for absolute path arguments to <literal>require()</literal> and <literal>include()</literal>.
+</simpara>
+</listitem>
+</varlistentry>
 </variablelist>
 </refsect2>
 <refsect2 id="_the_literal_process_literal_object">

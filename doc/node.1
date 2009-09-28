@@ -54,6 +54,19 @@ __filename
 .RS 4
 The filename of the script being executed\.
 .RE
+.PP
+require(path), include(path)
+.RS 4
+See the modules section\.
+.RE
+.PP
+node\.libraryPaths
+.RS 4
+The search path for absolute path arguments to
+require()
+and
+include()\.
+.RE
 .SS "The process Object"
 process is the equivalent of window in browser\-side javascript\. It is the global scope\. process is an instance of node\.EventEmitter\.
 .sp

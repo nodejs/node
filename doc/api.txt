@@ -56,6 +56,13 @@ Returns the current working directory of the process.
 +__filename+ ::
 The filename of the script being executed.
 
++require(path)+ ::
++include(path)+ ::
+See the modules section.
+
++node.libraryPaths+ ::
+The search path for absolute path arguments to +require()+ and +include()+.
+
 === The +process+ Object
 
 +process+ is the equivalent of +window+ in browser-side javascript. It is
