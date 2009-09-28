@@ -265,6 +265,7 @@ The contents of +foo.js+:
 
 ----------------------------------------
 var circle = require("circle.js");
+include("/utils.js");
 puts("The area of a circle of radius 4 is " + circle.area(4));
 ----------------------------------------
 
@@ -286,7 +287,9 @@ The module +circle.js+ has exported the functions +area()+ and
 +circumference()+.  To export an object, add to the special +exports+
 object.  (Alternatively, one can use +this+ instead of +exports+.) Variables
 local to the module will be private. In this example the variable +PI+ is
-private to +circle.js+.
+private to +circle.js+. The function +puts()+ comes from the module
++"/utils.js"+. Because +include("/utils.js")+ was called, +puts()+ is in the
+global namespace.
 
 The module path is relative to the file calling +require()+.  That is,
 +circle.js+ must be in the same directory as +foo.js+ for +require()+ to
@@ -298,6 +301,7 @@ the global namespace. For example:
 
 ----------------------------------------
 include("circle.js");
+include("/utils.js");
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 

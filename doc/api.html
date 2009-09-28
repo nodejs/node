@@ -472,6 +472,7 @@ one-to-one correspondence.  As an example, <tt>foo.js</tt> loads the module
 <div class="listingblock">
 <div class="content">
 <pre><tt>var circle = require("circle.js");
+include("/utils.js");
 puts("The area of a circle of radius 4 is " + circle.area(4));</tt></pre>
 </div></div>
 <div class="paragraph"><p>The contents of <tt>circle.js</tt>:</p></div>
@@ -491,7 +492,9 @@ exports.circumference = function (r) {
 <tt>circumference()</tt>.  To export an object, add to the special <tt>exports</tt>
 object.  (Alternatively, one can use <tt>this</tt> instead of <tt>exports</tt>.) Variables
 local to the module will be private. In this example the variable <tt>PI</tt> is
-private to <tt>circle.js</tt>.</p></div>
+private to <tt>circle.js</tt>. The function <tt>puts()</tt> comes from the module
+<tt>"/utils.js"</tt>. Because <tt>include("/utils.js")</tt> was called, <tt>puts()</tt> is in the
+global namespace.</p></div>
 <div class="paragraph"><p>The module path is relative to the file calling <tt>require()</tt>.  That is,
 <tt>circle.js</tt> must be in the same directory as <tt>foo.js</tt> for <tt>require()</tt> to
 find it.</p></div>
@@ -501,6 +504,7 @@ the global namespace. For example:</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><tt>include("circle.js");
+include("/utils.js");
 puts("The area of a cirlce of radius 4 is " + area(4));</tt></pre>
 </div></div>
 <div class="paragraph"><p>When an absolute path is given to <tt>require()</tt> or <tt>include()</tt>, like
@@ -2002,7 +2006,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.12<br />
-Last updated 2009-09-28 18:02:27 CEST
+Last updated 2009-09-28 19:43:15 CEST
 </div>
 </div>
 </body>

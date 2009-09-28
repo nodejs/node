@@ -499,6 +499,7 @@ one-to-one correspondence.  As an example, <literal>foo.js</literal> loads the m
 <literal>circle.js</literal>.</simpara>
 <simpara>The contents of <literal>foo.js</literal>:</simpara>
 <screen>var circle = require("circle.js");
+include("/utils.js");
 puts("The area of a circle of radius 4 is " + circle.area(4));</screen>
 <simpara>The contents of <literal>circle.js</literal>:</simpara>
 <screen>var PI = 3.14;
@@ -514,7 +515,9 @@ exports.circumference = function (r) {
 <literal>circumference()</literal>.  To export an object, add to the special <literal>exports</literal>
 object.  (Alternatively, one can use <literal>this</literal> instead of <literal>exports</literal>.) Variables
 local to the module will be private. In this example the variable <literal>PI</literal> is
-private to <literal>circle.js</literal>.</simpara>
+private to <literal>circle.js</literal>. The function <literal>puts()</literal> comes from the module
+<literal>"/utils.js"</literal>. Because <literal>include("/utils.js")</literal> was called, <literal>puts()</literal> is in the
+global namespace.</simpara>
 <simpara>The module path is relative to the file calling <literal>require()</literal>.  That is,
 <literal>circle.js</literal> must be in the same directory as <literal>foo.js</literal> for <literal>require()</literal> to
 find it.</simpara>
@@ -522,6 +525,7 @@ find it.</simpara>
 returning a namespace object, <literal>include()</literal> will add the module&#8217;s exports into
 the global namespace. For example:</simpara>
 <screen>include("circle.js");
+include("/utils.js");
 puts("The area of a cirlce of radius 4 is " + area(4));</screen>
 <simpara>When an absolute path is given to <literal>require()</literal> or <literal>include()</literal>, like
 <literal>require("/mjsunit.js")</literal> the module is searched for in the
