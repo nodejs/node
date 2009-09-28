@@ -50,6 +50,15 @@ node\.cwd()
 Returns the current working directory of the process\.
 .RE
 .PP
+node\.compile(source, scriptOrigin)
+.RS 4
+Just like
+eval()
+except that you can specify a
+scriptOrigin
+for better error reporting\.
+.RE
+.PP
 __filename
 .RS 4
 The filename of the script being executed\.

@@ -53,6 +53,10 @@ These objects are available to all programs.
 +node.cwd()+::
 Returns the current working directory of the process.
 
++node.compile(source, scriptOrigin)+::
+Just like +eval()+ except that you can specify a +scriptOrigin+ for better
+error reporting.
+
 +__filename+ ::
 The filename of the script being executed.
 

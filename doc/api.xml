@@ -49,6 +49,17 @@ Returns the current working directory of the process.
 </varlistentry>
 <varlistentry>
 <term>
+<literal>node.compile(source, scriptOrigin)</literal>
+</term>
+<listitem>
+<simpara>
+Just like <literal>eval()</literal> except that you can specify a <literal>scriptOrigin</literal> for better
+error reporting.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <literal>__filename</literal> 
 </term>
 <listitem>
