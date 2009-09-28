@@ -12,7 +12,8 @@
 <refsynopsisdiv id="_synopsis">
 <simpara>An example of a web server written with Node which responds with "Hello
 World":</simpara>
-<screen>node.http.createServer(function (request, response) {
+<screen>include("/utils.js");
+node.http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
   response.finish();
@@ -31,55 +32,10 @@ of the 16bit javascript string characters. Both are relatively fast&#8212;use
 them if you can. <literal>"utf8"</literal> is slower and should be avoided when possible.</simpara>
 <simpara>Unless otherwise noted, functions are all asynchronous and do not block
 execution.</simpara>
-<refsect2 id="_helpers">
-<title>Helpers</title>
+<refsect2 id="_helpers_and_global_variables">
+<title>Helpers and Global Variables</title>
+<simpara>These objects are available to all programs.</simpara>
 <variablelist>
-<varlistentry>
-<term>
-<literal>puts(string)</literal>
-</term>
-<listitem>
-<simpara>
-Outputs the <literal>string</literal> and a trailing new-line to <literal>stdout</literal>.
-</simpara>
-<simpara>Everything in node is asynchronous; <literal>puts()</literal> is no exception. This might
-seem ridiculous but, if for example, one is piping <literal>stdout</literal> into an NFS
-file, <literal>printf()</literal> will block from network latency.  There is an internal
-queue for <literal>puts()</literal> output, so you can be assured that output will be
-displayed in the order it was called.</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<literal>node.debug(string)</literal>
-</term>
-<listitem>
-<simpara>
-A synchronous output function. Will block the process and
-output the string immediately to stdout.
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<literal>node.inspect(object)</literal> 
-</term>
-<listitem>
-<simpara>
-Return a string representation of the <literal>object</literal>. (For debugging.)
-</simpara>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
-<literal>print(string)</literal>
-</term>
-<listitem>
-<simpara>
-Like <literal>puts()</literal> but without the trailing new-line.
-</simpara>
-</listitem>
-</varlistentry>
 <varlistentry>
 <term>
 <literal>node.exit(code)</literal>
@@ -92,32 +48,6 @@ Immediately ends the process with the specified code.
 </varlistentry>
 <varlistentry>
 <term>
-<literal>node.exec(command)</literal>
-</term>
-<listitem>
-<simpara>
-Executes the command as a child process, buffers the output and returns it
-in a promise callback.
-</simpara>
-<screen>node.exec("ls /").addCallback(function (stdout, stderr) {
-  puts(stdout);
-});</screen>
-<itemizedlist>
-<listitem>
-<simpara>
-on success: stdout buffer, stderr buffer
-</simpara>
-</listitem>
-<listitem>
-<simpara>
-on error: exit code, stdout buffer, stderr buffer
-</simpara>
-</listitem>
-</itemizedlist>
-</listitem>
-</varlistentry>
-<varlistentry>
-<term>
 <literal>node.cwd()</literal>
 </term>
 <listitem>
@@ -126,11 +56,6 @@ Returns the current working directory of the process.
 </simpara>
 </listitem>
 </varlistentry>
-</variablelist>
-</refsect2>
-<refsect2 id="_global_variables">
-<title>Global Variables</title>
-<variablelist>
 <varlistentry>
 <term>
 <literal>ARGV</literal> 
@@ -170,6 +95,80 @@ The filename of the script being executed.
 A special global object. The <literal>process</literal> object is like the <literal>window</literal> object of
 browser-side javascript.
 </simpara>
+</listitem>
+</varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id="_utilities">
+<title>Utilities</title>
+<simpara>These function are in <literal>"/utils.js"</literal>. Use <literal>require("/utils.js")</literal> to access them.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<literal>puts(string)</literal>
+</term>
+<listitem>
+<simpara>
+Outputs the <literal>string</literal> and a trailing new-line to <literal>stdout</literal>.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>print(string)</literal>
+</term>
+<listitem>
+<simpara>
+Like <literal>puts()</literal> but without the trailing new-line.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>debug(string)</literal>
+</term>
+<listitem>
+<simpara>
+A synchronous output function. Will block the process and
+output the string immediately to stdout.
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>inspect(object)</literal> 
+</term>
+<listitem>
+<simpara>
+Return a string representation of the <literal>object</literal>. (For debugging.)
+</simpara>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<literal>exec(command)</literal>
+</term>
+<listitem>
+<simpara>
+Executes the command as a child process, buffers the output and returns it
+in a promise callback.
+</simpara>
+<screen>include("/utils.js");
+exec("ls /").addCallback(function (stdout, stderr) {
+  puts(stdout);
+});</screen>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: stdout buffer, stderr buffer
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: exit code, stdout buffer, stderr buffer
+</simpara>
+</listitem>
+</itemizedlist>
 </listitem>
 </varlistentry>
 </variablelist>

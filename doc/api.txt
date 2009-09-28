@@ -16,6 +16,7 @@ An example of a web server written with Node which responds with "Hello
 World": 
 
 ----------------------------------------
+include("/utils.js");
 node.http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
@@ -45,55 +46,15 @@ Unless otherwise noted, functions are all asynchronous and do not block
 execution.
 
 
-=== Helpers
+=== Helpers and Global Variables
 
-+puts(string)+::
-Outputs the +string+ and a trailing new-line to +stdout+.
-+
-Everything in node is asynchronous; +puts()+ is no exception. This might
-seem ridiculous but, if for example, one is piping +stdout+ into an NFS
-file, +printf()+ will block from network latency.  There is an internal
-queue for +puts()+ output, so you can be assured that output will be
-displayed in the order it was called.
-
-
-+node.debug(string)+::
-A synchronous output function. Will block the process and
-output the string immediately to stdout.
-
-
-+node.inspect(object)+ ::
-Return a string representation of the +object+. (For debugging.)
-
-
-+print(string)+::
-Like +puts()+ but without the trailing new-line.
-
+These objects are available to all programs.
 
 +node.exit(code)+::
 Immediately ends the process with the specified code.
 
-+node.exec(command)+::
-Executes the command as a child process, buffers the output and returns it
-in a promise callback.
-+
-----------------------------------------
-node.exec("ls /").addCallback(function (stdout, stderr) {
-  puts(stdout);
-});
-----------------------------------------
-+
-- on success: stdout buffer, stderr buffer
-- on error: exit code, stdout buffer, stderr buffer
-
-
 +node.cwd()+::
 Returns the current working directory of the process.
-
-
-=== Global Variables
-
-
 
 +ARGV+ ::
 An array containing the command line arguments.
@@ -107,6 +68,40 @@ The filename of the script being executed.
 +process+ ::
 A special global object. The +process+ object is like the +window+ object of
 browser-side javascript.
+
+
+
+=== Utilities
+
+These function are in +"/utils.js"+. Use +require("/utils.js")+ to access them.
+
++puts(string)+::
+Outputs the +string+ and a trailing new-line to +stdout+.
+
++print(string)+::
+Like +puts()+ but without the trailing new-line.
+
++debug(string)+::
+A synchronous output function. Will block the process and
+output the string immediately to stdout.
+
++inspect(object)+ ::
+Return a string representation of the +object+. (For debugging.)
+
++exec(command)+::
+Executes the command as a child process, buffers the output and returns it
+in a promise callback.
++
+----------------------------------------
+include("/utils.js");
+exec("ls /").addCallback(function (stdout, stderr) {
+  puts(stdout);
+});
+----------------------------------------
++
+- on success: stdout buffer, stderr buffer
+- on error: exit code, stdout buffer, stderr buffer
+
 
 
 === Events

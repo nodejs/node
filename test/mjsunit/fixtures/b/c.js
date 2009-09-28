@@ -1,6 +1,6 @@
-node.debug("load fixtures/b/c.js");
-
 var d = require("d.js");
+
+debug("load fixtures/b/c.js");
 
 var string = "C";
 

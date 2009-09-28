@@ -15,30 +15,9 @@ node.createChildProcess = function (command) {
   return child;
 };
 
-node.exec = function (command) {
-  var child = node.createChildProcess(command);
-  var stdout = "";
-  var stderr = "";
-  var promise = new node.Promise();
-
-  child.addListener("output", function (chunk) {
-    if (chunk) stdout += chunk; 
-  });
-
-  child.addListener("error", function (chunk) {
-    if (chunk) stderr += chunk; 
-  });
-  
-  child.addListener("exit", function (code) {
-    if (code == 0) {
-      promise.emitSuccess(stdout, stderr);
-    } else {
-      promise.emitError(code, stdout, stderr);
-    }
-  });
-
-  return promise;
-};
+node.exec = function () {
+  throw new Error("node.exec() has moved. Use include('/utils.js') to bring it back.");
+}
 
 node.tcp.createConnection = function (port, host) {
   var connection = new node.tcp.Connection();
@@ -220,7 +199,6 @@ node.Module.prototype.loadObject = function (loadPromise) {
       node.dlopen(self.filename, self.target); // FIXME synchronus
       loadPromise.emitSuccess(self.target);
     } else {
-      node.error("Error reading " + self.filename + "\n");
       loadPromise.emitError(new Error("Error reading " + self.filename));
       node.exit(1);
     }

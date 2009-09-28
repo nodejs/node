@@ -1,5 +1,7 @@
-node.debug("load test-module-loading.js");
 include("common.js");
+
+debug("load test-module-loading.js");
+
 var a = require("fixtures/a.js");
 var d = require("fixtures/b/d.js");
 var d2 = require("fixtures/b/d.js");

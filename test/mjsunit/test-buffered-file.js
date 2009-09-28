@@ -15,7 +15,7 @@ setTimeout(function () {
   file.write("hello\n");
   file.write("world\n");
   file.close().addCallback(function () {
-    node.error("file closed...");
+    error("file closed...");
     var out = node.fs.cat(testTxt).wait();
     print("the file contains: ");
     p(out);

@@ -5,8 +5,8 @@ var filename = node.path.join(fixturesDir, "does_not_exist.txt");
 var promise = node.fs.cat(filename, "raw");
 
 promise.addCallback(function (content) {
-  node.debug("cat returned some content: " + content);
-  node.debug("this shouldn't happen as the file doesn't exist...");
+  debug("cat returned some content: " + content);
+  debug("this shouldn't happen as the file doesn't exist...");
   assertTrue(false);
 });
 

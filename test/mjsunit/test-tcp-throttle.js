@@ -63,5 +63,5 @@ client.addListener("eof", function () {
 
 process.addListener("exit", function () {
   assertEquals(N, recv.length);
-  node.debug("Exit");
+  debug("Exit");
 });

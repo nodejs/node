@@ -3,7 +3,7 @@ include("common.js");
 success_count = 0;
 error_count = 0;
 
-node.exec("ls /").addCallback(function (out) {
+exec("ls /").addCallback(function (out) {
   success_count++;
   p(out);
 }).addErrback(function (code, out, err) {
@@ -15,7 +15,7 @@ node.exec("ls /").addCallback(function (out) {
 
 
 
-node.exec("ls /DOES_NOT_EXIST").addCallback(function (out) {
+exec("ls /DOES_NOT_EXIST").addCallback(function (out) {
   success_count++;
   p(out);
   assertTrue(out != "");

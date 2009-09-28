@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/27/2009
+.\"      Date: 09/28/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/27/2009" "" ""
+.TH "NODE" "1" "09/28/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -18,6 +18,7 @@ An example of a web server written with Node which responds with "Hello World":
 .sp
 .RS 4
 .nf
+include("/utils\.js");
 node\.http\.createServer(function (request, response) {
   response\.sendHeader(200, {"Content\-Type": "text/plain"});
   response\.sendBody("Hello World\en");
@@ -40,75 +41,18 @@ Node supports 3 string encodings\. UTF\-8 ("utf8"), ASCII ("ascii"), and Binary 
 .sp
 Unless otherwise noted, functions are all asynchronous and do not block execution\.
 .sp
-.SS "Helpers"
-.PP
-puts(string)
-.RS 4
-Outputs the
-string
-and a trailing new\-line to
-stdout\.
-.sp
-Everything in node is asynchronous;
-puts()
-is no exception\. This might seem ridiculous but, if for example, one is piping
-stdout
-into an NFS file,
-printf()
-will block from network latency\. There is an internal queue for
-puts()
-output, so you can be assured that output will be displayed in the order it was called\.
-.RE
-.PP
-node\.debug(string)
-.RS 4
-A synchronous output function\. Will block the process and output the string immediately to stdout\.
-.RE
-.PP
-node\.inspect(object)
-.RS 4
-Return a string representation of the
-object\. (For debugging\.)
-.RE
-.PP
-print(string)
-.RS 4
-Like
-puts()
-but without the trailing new\-line\.
-.RE
+.SS "Helpers and Global Variables"
+These objects are available to all programs\.
 .PP
 node\.exit(code)
 .RS 4
 Immediately ends the process with the specified code\.
 .RE
 .PP
-node\.exec(command)
-.RS 4
-Executes the command as a child process, buffers the output and returns it in a promise callback\.
-.sp
-.RS 4
-.nf
-node\.exec("ls /")\.addCallback(function (stdout, stderr) {
-  puts(stdout);
-});
-.fi
-.RE
-.sp
-.RS 4
-\h'-04'\(bu\h'+03'on success: stdout buffer, stderr buffer
-.RE
-.sp
-.RS 4
-\h'-04'\(bu\h'+03'on error: exit code, stdout buffer, stderr buffer
-.RE
-.RE
-.PP
 node\.cwd()
 .RS 4
 Returns the current working directory of the process\.
 .RE
-.SS "Global Variables"
 .PP
 ARGV
 .RS 4
@@ -133,6 +77,56 @@ object is like the
 window
 object of browser\-side javascript\.
 .RE
+.SS "Utilities"
+These function are in "/utils\.js"\. Use require("/utils\.js") to access them\.
+.PP
+puts(string)
+.RS 4
+Outputs the
+string
+and a trailing new\-line to
+stdout\.
+.RE
+.PP
+print(string)
+.RS 4
+Like
+puts()
+but without the trailing new\-line\.
+.RE
+.PP
+debug(string)
+.RS 4
+A synchronous output function\. Will block the process and output the string immediately to stdout\.
+.RE
+.PP
+inspect(object)
+.RS 4
+Return a string representation of the
+object\. (For debugging\.)
+.RE
+.PP
+exec(command)
+.RS 4
+Executes the command as a child process, buffers the output and returns it in a promise callback\.
+.sp
+.RS 4
+.nf
+include("/utils\.js");
+exec("ls /")\.addCallback(function (stdout, stderr) {
+  puts(stdout);
+});
+.fi
+.RE
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on success: stdout buffer, stderr buffer
+.RE
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on error: exit code, stdout buffer, stderr buffer
+.RE
+.RE
 .SS "Events"
 Many objects in Node emit events: a TCP server emits an event each time there is a connection, a child process emits an event when it exits\. All objects which emit events are are instances of node\.EventEmitter\.
 .sp
@@ -153,7 +147,7 @@ All EventEmitters emit the event "newListener" when new listeners are added\.
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -209,7 +203,7 @@ node\.Promise inherits from node\.eventEmitter\. A promise emits one of two even
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -308,7 +302,7 @@ Standard I/O is handled through a special object node\.stdio\. stdout and stdin 
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -494,7 +488,7 @@ node.ChildProcess
 .RS
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -850,7 +844,7 @@ node.http.Server
 .RS
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -934,7 +928,7 @@ This object is created internally by a HTTP server\(emnot by the user\(emand pas
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -1191,7 +1185,7 @@ This object is created internally and returned from the request methods of a nod
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -1289,7 +1283,7 @@ This object is created internally and passed to the "response" event\.
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -1398,7 +1392,7 @@ server\.listen(7000, "localhost");
 .RE
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{
@@ -1480,7 +1474,7 @@ This object is used as a TCP client and also as a server\-side socket for node\.
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltB.
+ltB ltB ltBx.
 T{
 Event
 T}:T{

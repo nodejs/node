@@ -44,7 +44,7 @@ var server = node.http.createServer(function(req, res) {
 server.listen(port);
 
 var cmd = 'curl -H "Expect:" -F "test-field=foobar" -F test-file=@'+__filename+' http://localhost:'+port+'/';
-var result = node.exec(cmd).wait();
+var result = exec(cmd).wait();
 
 process.addListener('exit', function() {
   assertEquals(2, parts_complete);

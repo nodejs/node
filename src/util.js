@@ -64,47 +64,23 @@ node.path = new function () {
   };
 };
 
-print = function (x) {
-  node.stdio.write(x);
-};
 
-puts = function (x) {
-  print(x.toString() + "\n");
-};
+puts = function () {
+  throw new Error("puts() has moved. Use include('/utils.js') to bring it back.");
+}
 
-node.debug = function (x) {
-  node.stdio.writeError("DEBUG: " + x.toString() + "\n");
-};
+print = function () {
+  throw new Error("print() has moved. Use include('/utils.js') to bring it back.");
+}
 
-node.error = function (x) {
-  node.stdio.writeError(x.toString() + "\n");
-};
+p = function () {
+  throw new Error("p() has moved. Use include('/utils.js') to bring it back.");
+}
 
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- * 
- * @param {Object} value The object to print out
- */
-node.inspect = function (value) {
-  if (value === 0) return "0";
-  if (value === false) return "false";
-  if (value === "") return '""';
-  if (typeof(value) == "function") return "[Function]";
-  if (value === undefined) return;
-  
-  try {
-    return JSON.stringify(value);
-  } catch (e) {
-    // TODO make this recusrive and do a partial JSON output of object.
-    if (e.message.search("circular")) {
-      return "[Circular Object]";
-    } else {
-      throw e;
-    }
-  }
-};
+node.debug = function () {
+  throw new Error("node.debug() has moved. Use include('/utils.js') to bring it back.");
+}
 
-p = function (x) {
-  node.error(node.inspect(x));
-};
+node.error = function () {
+  throw new Error("node.error() has moved. Use include('/utils.js') to bring it back.");
+}
