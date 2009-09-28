@@ -1062,7 +1062,7 @@ Returns a new web server object.
 </simpara>
 <simpara>The <literal>options</literal> argument is optional. The
 <literal>options</literal> argument accepts the same values as the
-options argument for <literal>node.tcp.Server</literal> does.</simpara>
+options argument for <literal>tcp.Server</literal> does.</simpara>
 <simpara>The <literal>request_listener</literal> is a function which is automatically
 added to the <literal>"request"</literal> event.</simpara>
 </listitem>
@@ -1551,11 +1551,14 @@ After emitted no other events will be emitted on the response.</simpara></entry>
 </refsect2>
 <refsect2 id="_tcp">
 <title>TCP</title>
-<refsect3 id="_literal_node_tcp_server_literal">
-<title><literal>node.tcp.Server</literal></title>
+<simpara>To use the TCP server and client one must <literal>require("/tcp.js")</literal> or
+<literal>include("/tcp.js")</literal>.</simpara>
+<refsect3 id="_literal_tcp_server_literal">
+<title><literal>tcp.Server</literal></title>
 <simpara>Here is an example of a echo server which listens for connections
 on port 7000</simpara>
-<screen>function echo (socket) {
+<screen>include("/tcp.js");
+var server = createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
     socket.send("hello\r\n");
@@ -1567,8 +1570,7 @@ on port 7000</simpara>
     socket.send("goodbye\r\n");
     socket.close();
   });
-}
-var server = node.tcp.createServer(echo);
+});
 server.listen(7000, "localhost");</screen>
 <informaltable
 frame="all"
@@ -1590,7 +1592,7 @@ rowsep="1" colsep="1"
 <entry align="left" valign="top"><simpara><literal>"connection"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>connection</literal></simpara></entry>
 <entry align="left" valign="top"><simpara>Emitted when a new connection is made.
-                                  <literal>connection</literal> is an instance of <literal>node.tcp.Connection</literal>.</simpara></entry>
+                                  <literal>connection</literal> is an instance of <literal>tcp.Connection</literal>.</simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
@@ -1606,7 +1608,7 @@ rowsep="1" colsep="1"
 <variablelist>
 <varlistentry>
 <term>
-<literal>node.tcp.createServer(connection_listener);</literal> 
+<literal>tcp.createServer(connection_listener);</literal> 
 </term>
 <listitem>
 <simpara>
@@ -1646,10 +1648,10 @@ event.
 </varlistentry>
 </variablelist>
 </refsect3>
-<refsect3 id="_literal_node_tcp_connection_literal">
-<title><literal>node.tcp.Connection</literal></title>
+<refsect3 id="_literal_tcp_connection_literal">
+<title><literal>tcp.Connection</literal></title>
 <simpara>This object is used as a TCP client and also as a server-side
-socket for <literal>node.tcp.Server</literal>.</simpara>
+socket for <literal>tcp.Server</literal>.</simpara>
 <informaltable
 frame="all"
 rowsep="1" colsep="1"
@@ -1713,7 +1715,7 @@ rowsep="1" colsep="1"
 <variablelist>
 <varlistentry>
 <term>
-<literal>node.tcp.createConnection(port, host="127.0.0.1")</literal>
+<literal>tcp.createConnection(port, host="127.0.0.1")</literal>
 </term>
 <listitem>
 <simpara>
@@ -1835,7 +1837,7 @@ Resumes reading if reading was paused by <literal>readPause()</literal>.
 <listitem>
 <simpara>
 Sets the connection to timeout after <literal>timeout</literal> milliseconds of inactivity on
-the connection. By default all <literal>node.tcp.Connection</literal> objects have a timeout
+the connection. By default all <literal>tcp.Connection</literal> objects have a timeout
 of 60 seconds (60000 ms).
 </simpara>
 <simpara>If <literal>timeout</literal> is 0, then the idle timeout is disabled.</simpara>

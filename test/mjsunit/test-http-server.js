@@ -1,4 +1,5 @@
 include("common.js");
+tcp = require("/tcp.js");
 http = require("/http.js");
 
 var port = 8222;
@@ -32,7 +33,7 @@ http.createServer(function (req, res) {
 
 }).listen(port);
 
-var c = node.tcp.createConnection(port);
+var c = tcp.createConnection(port);
 
 c.setEncoding("utf8");
 

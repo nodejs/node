@@ -1,8 +1,9 @@
 include("common.js");
+tcp = require("/tcp.js");
 PORT = 20443;
 N = 200;
 
-server = node.tcp.createServer(function (connection) {
+server = tcp.createServer(function (connection) {
   function send (j) {
     if (j >= N) {
       connection.close();
@@ -21,7 +22,7 @@ server.listen(PORT);
 recv = "";
 chars_recved = 0;
 
-client = node.tcp.createConnection(PORT);
+client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("receive", function (d) {
     print(d);

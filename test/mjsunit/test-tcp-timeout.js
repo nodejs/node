@@ -1,11 +1,12 @@
 include("common.js");
+tcp = require("/tcp.js");
 port = 9992;
 exchanges = 0;
 starttime = null;
 timeouttime = null;
 timeout = 1000;
 
-var echo_server = node.tcp.createServer(function (socket) {
+var echo_server = tcp.createServer(function (socket) {
   socket.setTimeout(timeout);
 
   socket.addListener("timeout", function (d) {
@@ -27,7 +28,7 @@ var echo_server = node.tcp.createServer(function (socket) {
 echo_server.listen(port);
 puts("server listening at " + port);
 
-var client = node.tcp.createConnection(port);
+var client = tcp.createConnection(port);
 client.setEncoding("UTF8");
 client.setTimeout(0); // disable the timeout for client
 client.addListener("connect", function () {

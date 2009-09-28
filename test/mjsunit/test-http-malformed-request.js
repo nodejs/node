@@ -1,4 +1,5 @@
 include("common.js");
+tcp = require("/tcp.js");
 http = require("/http.js");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
@@ -19,7 +20,7 @@ var s = http.createServer(function (req, res) {
 });
 s.listen(port);
 
-var c = node.tcp.createConnection(port);
+var c = tcp.createConnection(port);
 c.addListener("connect", function () {
   c.send("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.close();

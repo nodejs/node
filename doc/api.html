@@ -1015,7 +1015,7 @@ Returns a new web server object.
 </p>
 <div class="paragraph"><p>The <tt>options</tt> argument is optional. The
 <tt>options</tt> argument accepts the same values as the
-options argument for <tt>node.tcp.Server</tt> does.</p></div>
+options argument for <tt>tcp.Server</tt> does.</p></div>
 <div class="paragraph"><p>The <tt>request_listener</tt> is a function which is automatically
 added to the <tt>"request"</tt> event.</p></div>
 </dd>
@@ -1464,12 +1464,15 @@ After emitted no other events will be emitted on the response.</p></td>
 </dd>
 </dl></div>
 <h3 id="_tcp">TCP</h3><div style="clear:left"></div>
-<h4 id="_tt_node_tcp_server_tt"><tt>node.tcp.Server</tt></h4>
+<div class="paragraph"><p>To use the TCP server and client one must <tt>require("/tcp.js")</tt> or
+<tt>include("/tcp.js")</tt>.</p></div>
+<h4 id="_tt_tcp_server_tt"><tt>tcp.Server</tt></h4>
 <div class="paragraph"><p>Here is an example of a echo server which listens for connections
 on port 7000</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><tt>function echo (socket) {
+<pre><tt>include("/tcp.js");
+var server = createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
     socket.send("hello\r\n");
@@ -1481,8 +1484,7 @@ on port 7000</p></div>
     socket.send("goodbye\r\n");
     socket.close();
   });
-}
-var server = node.tcp.createServer(echo);
+});
 server.listen(7000, "localhost");</tt></pre>
 </div></div>
 <div class="tableblock">
@@ -1505,7 +1507,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"><tt>"connection"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>connection</tt></p></td>
 <td align="left" valign="top"><p class="table">Emitted when a new connection is made.
-                                  <tt>connection</tt> is an instance of <tt>node.tcp.Connection</tt>.</p></td>
+                                  <tt>connection</tt> is an instance of <tt>tcp.Connection</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"close"</tt></p></td>
@@ -1520,7 +1522,7 @@ cellspacing="0" cellpadding="4">
 </div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>node.tcp.createServer(connection_listener);</tt> 
+<tt>tcp.createServer(connection_listener);</tt> 
 </dt>
 <dd>
 <p>
@@ -1554,9 +1556,9 @@ event.
 </p>
 </dd>
 </dl></div>
-<h4 id="_tt_node_tcp_connection_tt"><tt>node.tcp.Connection</tt></h4>
+<h4 id="_tt_tcp_connection_tt"><tt>tcp.Connection</tt></h4>
 <div class="paragraph"><p>This object is used as a TCP client and also as a server-side
-socket for <tt>node.tcp.Server</tt>.</p></div>
+socket for <tt>tcp.Server</tt>.</p></div>
 <div class="tableblock">
 <table rules="all"
 width="100%"
@@ -1619,7 +1621,7 @@ cellspacing="0" cellpadding="4">
 </div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-<tt>node.tcp.createConnection(port, host="127.0.0.1")</tt>
+<tt>tcp.createConnection(port, host="127.0.0.1")</tt>
 </dt>
 <dd>
 <p>
@@ -1721,7 +1723,7 @@ Resumes reading if reading was paused by <tt>readPause()</tt>.
 <dd>
 <p>
 Sets the connection to timeout after <tt>timeout</tt> milliseconds of inactivity on
-the connection. By default all <tt>node.tcp.Connection</tt> objects have a timeout
+the connection. By default all <tt>tcp.Connection</tt> objects have a timeout
 of 60 seconds (60000 ms).
 </p>
 <div class="paragraph"><p>If <tt>timeout</tt> is 0, then the idle timeout is disabled.</p></div>
@@ -1946,7 +1948,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.12<br />
-Last updated 2009-09-28 12:23:06 CEST
+Last updated 2009-09-28 16:05:24 CEST
 </div>
 </div>
 </body>

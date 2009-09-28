@@ -1,4 +1,5 @@
 include("common.js");
+tcp = require("/tcp.js");
 PORT = 20444;
 N = 30*1024; // 500kb
 
@@ -10,7 +11,7 @@ for (var i = 0; i < N; i++) {
 
 puts("start server on port " + PORT);
 
-server = node.tcp.createServer(function (connection) {
+server = tcp.createServer(function (connection) {
   connection.addListener("connect", function () {
     connection.send(body);
     connection.close();
@@ -24,7 +25,7 @@ npauses = 0;
 
 
 var paused = false;
-client = node.tcp.createConnection(PORT);
+client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("receive", function (d) {
   chars_recved += d.length;

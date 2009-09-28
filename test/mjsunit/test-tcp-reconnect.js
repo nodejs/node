@@ -1,4 +1,5 @@
 include("common.js");
+tcp = require("/tcp.js");
 var N = 50;
 var port = 8921;
 
@@ -6,7 +7,7 @@ var c = 0;
 var client_recv_count = 0;
 var disconnect_count = 0;
 
-var server = node.tcp.createServer(function (socket) {
+var server = tcp.createServer(function (socket) {
   socket.addListener("connect", function () {
     socket.send("hello\r\n");
   });
@@ -22,7 +23,7 @@ var server = node.tcp.createServer(function (socket) {
 });
 server.listen(port);
 
-var client = node.tcp.createConnection(port);
+var client = tcp.createConnection(port);
 
 client.setEncoding("UTF8");
 

@@ -900,7 +900,7 @@ options
 argument is optional\. The
 options
 argument accepts the same values as the options argument for
-node\.tcp\.Server
+tcp\.Server
 does\.
 .sp
 The
@@ -1364,19 +1364,22 @@ that this response belongs to\.
 .RE
 .RE
 .SS "TCP"
+To use the TCP server and client one must require("/tcp\.js") or include("/tcp\.js")\.
+.sp
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.tcp.Server
+tcp.Server
 .RS
 Here is an example of a echo server which listens for connections on port 7000
 .sp
 .sp
 .RS 4
 .nf
-function echo (socket) {
+include("/tcp\.js");
+var server = createServer(function (socket) {
   socket\.setEncoding("utf8");
   socket\.addListener("connect", function () {
     socket\.send("hello\er\en");
@@ -1388,8 +1391,7 @@ function echo (socket) {
     socket\.send("goodbye\er\en");
     socket\.close();
   });
-}
-var server = node\.tcp\.createServer(echo);
+});
 server\.listen(7000, "localhost");
 .fi
 .RE
@@ -1413,7 +1415,7 @@ T}:T{
 connection
 .sp
 T}:T{
-Emitted when a new connection is made\. connection is an instance of node\.tcp\.Connection\.
+Emitted when a new connection is made\. connection is an instance of tcp\.Connection\.
 .sp
 T}
 T{
@@ -1428,7 +1430,7 @@ Emitted when the server closes\. errorno is an integer which indicates what, if 
 T}
 .TE
 .PP
-node\.tcp\.createServer(connection_listener);
+tcp\.createServer(connection_listener);
 .RS 4
 Creates a new TCP server\.
 .sp
@@ -1471,9 +1473,9 @@ event\.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-node.tcp.Connection
+tcp.Connection
 .RS
-This object is used as a TCP client and also as a server\-side socket for node\.tcp\.Server\.
+This object is used as a TCP client and also as a server\-side socket for tcp\.Server\.
 .sp
 .TS
 allbox tab(:);
@@ -1540,7 +1542,7 @@ Emitted once the connection is fully closed\. The argument had_error is a boolea
 T}
 .TE
 .PP
-node\.tcp\.createConnection(port, host="127\.0\.0\.1")
+tcp\.createConnection(port, host="127\.0\.0\.1")
 .RS 4
 Creates a new connection object and opens a connection to the specified
 port
@@ -1635,7 +1637,7 @@ connection\.setTimeout(timeout)
 Sets the connection to timeout after
 timeout
 milliseconds of inactivity on the connection\. By default all
-node\.tcp\.Connection
+tcp\.Connection
 objects have a timeout of 60 seconds (60000 ms)\.
 .sp
 If

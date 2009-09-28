@@ -1,4 +1,5 @@
 include("common.js");
+tcp = require("/tcp.js");
 PORT = 23123;
 
 binaryString = "";
@@ -18,7 +19,7 @@ for (var i = 255; i >= 0; i--) {
   binaryString += S;
 }
 
-var echoServer = node.tcp.createServer(function (connection) {
+var echoServer = tcp.createServer(function (connection) {
   connection.setEncoding("binary");
   connection.addListener("receive", function (chunk) {
     error("recved: " + JSON.stringify(chunk));
@@ -33,7 +34,7 @@ echoServer.listen(PORT);
 var recv = "";
 var j = 0;
 
-var c = node.tcp.createConnection(PORT);
+var c = tcp.createConnection(PORT);
 
 c.setEncoding("binary");
 c.addListener("receive", function (chunk) {

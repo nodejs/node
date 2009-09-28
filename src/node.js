@@ -1,8 +1,5 @@
-node.tcp.createServer = function (on_connection, options) {
-  var server = new node.tcp.Server();
-  server.addListener("connection", on_connection);
-  //server.setOptions(options);
-  return server;
+node.tcp.createServer = function () {
+  throw new Error("node.tcp.createServer() has moved. Use require('/tcp.js') to access it.");
 };
 
 node.createProcess = function () {
@@ -28,9 +25,7 @@ node.http.createClient = function () {
 }
 
 node.tcp.createConnection = function (port, host) {
-  var connection = new node.tcp.Connection();
-  connection.connect(port, host);
-  return connection;
+  throw new Error("node.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
 };
 
 // Timers
