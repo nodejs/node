@@ -12,7 +12,7 @@ are:
   - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
     copyrighted by Douglas Crockford and Baruch Even and has an MIT license.
 
-  - parseUri, a URI parser, is located in src/http.js. This is just a small
+  - parseUri, a URI parser, is located in lib/http.js. This is just a small
     snippit. It is copyrighted 2007 by Steven Levithan and released under an
     MIT license.
 
