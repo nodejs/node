@@ -59,7 +59,7 @@ process is the equivalent of window in browser\-side javascript\. It is the glob
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -165,7 +165,7 @@ All EventEmitters emit the event "newListener" when new listeners are added\.
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -221,7 +221,7 @@ node\.Promise inherits from node\.eventEmitter\. A promise emits one of two even
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -320,7 +320,7 @@ Standard I/O is handled through a special object node\.stdio\. stdout and stdin 
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -476,7 +476,7 @@ node.ChildProcess
 .RS
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -834,7 +834,7 @@ http.Server
 .RS
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -918,7 +918,7 @@ This object is created internally by a HTTP server\(emnot by the user\(emand pas
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -1175,7 +1175,7 @@ This object is created internally and returned from the request methods of a htt
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -1273,7 +1273,7 @@ This object is created internally and passed to the "response" event\.
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -1384,7 +1384,7 @@ server\.listen(7000, "localhost");
 .RE
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -1466,7 +1466,7 @@ This object is used as a TCP client and also as a server\-side socket for tcp\.S
 .sp
 .TS
 allbox tab(:);
-ltB ltB ltBx.
+ltB ltB ltB.
 T{
 Event
 T}:T{
@@ -1761,6 +1761,37 @@ node\.dns\.NOMEM: out of memory while processing\.
 .RS 4
 \h'-04'\(bu\h'+03'
 node\.dns\.BADQUERY: the query is malformed\.
+.RE
+.SH "REPL"
+A Read\-Eval\-Print\-Loop is available both as a standalone program and easily includable in other programs\.
+.sp
+The standalone REPL is called node\-repl and is installed at $PREFIX/bin/node\-repl\. It\(cqs recommended to use it with the program rlwrap for a better user interface\. I set
+.sp
+.sp
+.RS 4
+.nf
+alias node\-repl="rlwrap node\-repl"
+.fi
+.RE
+in my zsh configuration\.
+.sp
+Inside the REPL, Control+D will exit\. The special variable _ (underscore) contains the result of the last expression\.
+.sp
+The library is called /repl\.js and it can be used like this:
+.sp
+.sp
+.RS 4
+.nf
+include("/utils\.js");
+include("/tcp\.js");
+nconnections = 0;
+createServer(function (c) {
+  error("Connection!");
+  nconnections += 1;
+  c\.close();
+})\.listen(5000);
+require("/repl\.js")\.start("simple tcp server> ");
+.fi
 .RE
 .SH "EXTENSION API"
 External modules can be compiled and dynamically linked into Node\. Node is more or less glue between several C and C++ libraries:

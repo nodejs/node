@@ -1991,6 +1991,28 @@ on error: returns <literal>code, msg</literal>. <literal>code</literal> is one o
 </itemizedlist>
 </refsect2>
 </refsect1>
+<refsect1 id="_repl">
+<title>REPL</title>
+<simpara>A Read-Eval-Print-Loop is available both as a standalone program and easily
+includable in other programs.</simpara>
+<simpara>The standalone REPL is called <literal>node-repl</literal> and is installed at
+<literal>$PREFIX/bin/node-repl</literal>. It&#8217;s recommended to use it with the program
+<literal>rlwrap</literal> for a better user interface. I set</simpara>
+<screen>alias node-repl="rlwrap node-repl"</screen>
+<simpara>in my zsh configuration.</simpara>
+<simpara>Inside the REPL, Control+D will exit. The special variable <literal>_</literal> (underscore) contains the
+result of the last expression.</simpara>
+<simpara>The library is called <literal>/repl.js</literal> and it can be used like this:</simpara>
+<screen>include("/utils.js");
+include("/tcp.js");
+nconnections = 0;
+createServer(function (c) {
+  error("Connection!");
+  nconnections += 1;
+  c.close();
+}).listen(5000);
+require("/repl.js").start("simple tcp server&gt; ");</screen>
+</refsect1>
 <refsect1 id="_extension_api">
 <title>Extension API</title>
 <simpara>External modules can be compiled and dynamically linked into Node.

@@ -35,7 +35,6 @@ Server running at http://127.0.0.1:8000/
 ----------------------------------------
 
 
-
 == API
 
 Node supports 3 string encodings. UTF-8 (+"utf8"+), ASCII (+"ascii"+), and
@@ -1157,6 +1156,37 @@ Each DNS query can return an error code.
 - +node.dns.NODATA+: domain exists but no data of reqd type.
 - +node.dns.NOMEM+: out of memory while processing.
 - +node.dns.BADQUERY+: the query is malformed.
+
+
+
+== REPL
+
+A Read-Eval-Print-Loop is available both as a standalone program and easily
+includable in other programs. 
+
+The standalone REPL is called +node-repl+ and is installed at
++$PREFIX/bin/node-repl+. It's recommended to use it with the program
++rlwrap+ for a better user interface. I set 
+------------------------------------
+alias node-repl="rlwrap node-repl"
+------------------------------------
+in my zsh configuration.
+
+Inside the REPL, Control+D will exit. The special variable +_+ (underscore) contains the
+result of the last expression.
+
+The library is called +/repl.js+ and it can be used like this:
+------------------------------------
+include("/utils.js");
+include("/tcp.js");
+nconnections = 0;
+createServer(function (c) {
+  error("Connection!");
+  nconnections += 1;
+  c.close();
+}).listen(5000);
+require("/repl.js").start("simple tcp server> ");
+------------------------------------
 
 
 

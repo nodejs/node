@@ -6,6 +6,6 @@ puts("Enter ECMAScript at the prompt.");
 puts("Tip 1: Use 'rlwrap node-repl' for a better interface");
 puts("Tip 2: Type Control-D to exit.");
 
-include("/repl.js");
+require("/repl.js").start();
 
 // vim:ft=javascript

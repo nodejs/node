@@ -1866,6 +1866,34 @@ on error: returns <tt>code, msg</tt>. <tt>code</tt> is one of the error codes li
 </li>
 </ul></div>
 </div>
+<h2 id="_repl">REPL</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>A Read-Eval-Print-Loop is available both as a standalone program and easily
+includable in other programs.</p></div>
+<div class="paragraph"><p>The standalone REPL is called <tt>node-repl</tt> and is installed at
+<tt>$PREFIX/bin/node-repl</tt>. It&#8217;s recommended to use it with the program
+<tt>rlwrap</tt> for a better user interface. I set</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>alias node-repl="rlwrap node-repl"</tt></pre>
+</div></div>
+<div class="paragraph"><p>in my zsh configuration.</p></div>
+<div class="paragraph"><p>Inside the REPL, Control+D will exit. The special variable <tt>_</tt> (underscore) contains the
+result of the last expression.</p></div>
+<div class="paragraph"><p>The library is called <tt>/repl.js</tt> and it can be used like this:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>include("/utils.js");
+include("/tcp.js");
+nconnections = 0;
+createServer(function (c) {
+  error("Connection!");
+  nconnections += 1;
+  c.close();
+}).listen(5000);
+require("/repl.js").start("simple tcp server&gt; ");</tt></pre>
+</div></div>
+</div>
 <h2 id="_extension_api">Extension API</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>External modules can be compiled and dynamically linked into Node.
@@ -1955,7 +1983,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.12<br />
-Last updated 2009-09-28 16:33:21 CEST
+Last updated 2009-09-28 17:35:44 CEST
 </div>
 </div>
 </body>
