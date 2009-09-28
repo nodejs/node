@@ -148,6 +148,11 @@ node.Module.cache = {};
       }
     });
 
+    loadPromise.addErrback(function (e) {
+      node.stdio.writeError(e.message + "\n");
+      process.exit(1);
+    });
+
     if (!parent) {
       // root module
       node.assert(requestedPath.charAt(0) == "/");
@@ -202,7 +207,6 @@ node.Module.prototype.loadObject = function (loadPromise) {
       loadPromise.emitSuccess(self.target);
     } else {
       loadPromise.emitError(new Error("Error reading " + self.filename));
-      process.exit(1);
     }
   });
 };
@@ -213,7 +217,6 @@ node.Module.prototype.loadScript = function (loadPromise) {
 
   catPromise.addErrback(function () {
     loadPromise.emitError(new Error("Error reading " + self.filename));
-    process.exit(1);
   });
 
   catPromise.addCallback(function (content) {
