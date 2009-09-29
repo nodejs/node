@@ -242,8 +242,8 @@ on error: exit code, stdout buffer, stderr buffer
 <simpara>Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
 objects which emit events are are instances of <literal>node.EventEmitter</literal>.</simpara>
-<simpara>Events are represented by a snakecased string. Here are some examples:
-<literal>"connection"</literal>, <literal>"receive"</literal>, <literal>"message_begin"</literal>.</simpara>
+<simpara>Events are represented by a camel-cased string. Here are some examples:
+<literal>"connection"</literal>, <literal>"receive"</literal>, <literal>"messageBegin"</literal>.</simpara>
 <simpara>Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called <emphasis>listeners</emphasis>.</simpara>
 <simpara>Some asynchronous file operations return an <literal>EventEmitter</literal> called a
@@ -620,8 +620,8 @@ rowsep="1" colsep="1"
 <colspec colname="col_3" colwidth="76*"/>
 <thead>
 <row>
-<entry align="left" valign="top">Event      </entry>
-<entry align="left" valign="top">Parameters </entry>
+<entry align="left" valign="top"> Event      </entry>
+<entry align="left" valign="top"> Parameters </entry>
 <entry align="left" valign="top">Notes</entry>
 </row>
 </thead>
@@ -629,22 +629,27 @@ rowsep="1" colsep="1"
 <row>
 <entry align="left" valign="top"><simpara><literal>"output"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
-<entry align="left" valign="top"><simpara>Each time the child process sends data to its <literal>stdout</literal>, this event is
-emitted. <literal>data</literal> is a string.<?asciidoc-br?>
-If the child process closes its <literal>stdout</literal> stream (a common thing to do on
-exit), this event will be emitted with <literal>data === null</literal>.</simpara></entry>
+<entry align="left" valign="top"><simpara>Each time the child process
+                            sends data to its <literal>stdout</literal>, this event is
+                            emitted. <literal>data</literal> is a string.  + If the child
+                            process closes its <literal>stdout</literal> stream (a common
+                            thing to do on exit), this event will be emitted
+                            with <literal>data === null</literal>.</simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"error"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>data</literal></simpara></entry>
-<entry align="left" valign="top"><simpara>Identical to the <literal>"output"</literal> event except for <literal>stderr</literal> instead of <literal>stdout</literal>.</simpara></entry>
+<entry align="left" valign="top"><simpara>Identical to the <literal>"output"</literal> event except for
+                            <literal>stderr</literal> instead of <literal>stdout</literal>.</simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"exit"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>code</literal></simpara></entry>
-<entry align="left" valign="top"><simpara>This event is emitted after the child process ends. <literal>code</literal> is the final exit
-code of the process. One can be assured that after this event is emitted
-that the <literal>"output"</literal> and <literal>"error"</literal> callbacks will no longer be made.</simpara></entry>
+<entry align="left" valign="top"><simpara>This event is emitted after the child process
+                            ends. <literal>code</literal> is the final exit code of the
+                            process. One can be assured that after this
+                            event is emitted that the <literal>"output"</literal> and
+                            <literal>"error"</literal> callbacks will no longer be made.</simpara></entry>
 </row>
 </tbody>
 </tgroup>
@@ -1051,9 +1056,7 @@ user is able to stream data.</simpara>
 <simpara>In order to support the full spectrum of possible HTTP applications, Node&#8217;s
 HTTP API is very low-level. It deals with connection handling and message
 parsing only. It parses a message into headers and body but it does not
-parse the actual headers or the body.  That means, for example, that Node
-does not, and will never, provide API to access or manipulate Cookies or
-multi-part bodies.  <emphasis>This is left to the user.</emphasis></simpara>
+parse the actual headers or the body.</simpara>
 <refsect3 id="_literal_http_server_literal">
 <title><literal>http.Server</literal></title>
 <informaltable
@@ -1067,7 +1070,7 @@ rowsep="1" colsep="1"
 <thead>
 <row>
 <entry align="left" valign="top">Event           </entry>
-<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Parameters          </entry>
 <entry align="left" valign="top"> Notes</entry>
 </row>
 </thead>
@@ -1075,24 +1078,27 @@ rowsep="1" colsep="1"
 <row>
 <entry align="left" valign="top"><simpara><literal>"request"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>request, response</literal></simpara></entry>
-<entry align="left" valign="top"><simpara><literal>request</literal> is an instance of <literal>http.ServerRequest</literal><?asciidoc-br?>
-<literal>response</literal> is an instance of <literal>http.ServerResponse</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>request</literal> is an instance of <literal>http.ServerRequest</literal>
+                                        <?asciidoc-br?>
+                                         <literal>response</literal> is an instance of <literal>http.ServerResponse</literal></simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"connection"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>connection</literal></simpara></entry>
 <entry align="left" valign="top"><simpara>When a new TCP connection is established.
-<literal>connection</literal> is an object of type <literal>http.Connection</literal>. Usually users will not
-want to access this event. The <literal>connection</literal> can also be accessed at
-<literal>request.connection</literal>.</simpara></entry>
+                                         <literal>connection</literal> is an object of type
+                                         <literal>http.Connection</literal>. Usually users
+                                         will not want to access this event.
+                                         The <literal>connection</literal> can also be
+                                         accessed at <literal>request.connection</literal>.</simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"close"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>errorno</literal></simpara></entry>
 <entry align="left" valign="top"><simpara>Emitted when the server closes. <literal>errorno</literal>
-                                  is an integer which indicates what, if any,
-                                  error caused the server to close. If no
-                                  error occured <literal>errorno</literal> will be 0.</simpara></entry>
+                                         is an integer which indicates what, if any,
+                                         error caused the server to close. If no
+                                         error occured <literal>errorno</literal> will be 0.</simpara></entry>
 </row>
 </tbody>
 </tgroup>
@@ -1160,16 +1166,20 @@ rowsep="1" colsep="1"
 <row>
 <entry align="left" valign="top"><simpara><literal>"body"</literal></simpara></entry>
 <entry align="left" valign="top"><simpara><literal>chunk</literal></simpara></entry>
-<entry align="left" valign="top"><simpara>Emitted when a piece of the message body is received. Example: A chunk of
-the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is a String.  The body encoding is set
-with <literal>request.setBodyEncoding()</literal>.</simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a piece of the
+                                  message body is received. Example: A chunk
+                                  of the body is given as the single
+                                  argument. The transfer-encoding has been
+                                  decoded.  The body chunk is a String.  The
+                                  body encoding is set with
+                                  <literal>request.setBodyEncoding()</literal>.</simpara></entry>
 </row>
 <row>
 <entry align="left" valign="top"><simpara><literal>"complete"</literal></simpara></entry>
-<entry align="left" valign="top"><simpara></simpara></entry>
-<entry align="left" valign="top"><simpara>Emitted exactly once for each message. No arguments.
-After emitted no other events will be emitted on the request.</simpara></entry>
+<entry align="left" valign="top"><simpara>(none)</simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted exactly once for each message.
+                                  No arguments.  After emitted no other
+                                  events will be emitted on the request.</simpara></entry>
 </row>
 </tbody>
 </tgroup>
@@ -1196,7 +1206,7 @@ Request URI Object. This contains only the parameters that are
 present in the actual HTTP request. That is, if the request is
 </simpara>
 <screen>GET /status?name=ryan HTTP/1.1\r\n
-Accept: */*\r\n
+Accept: text/plain\r\n
 \r\n</screen>
 <simpara>Then <literal>request.uri</literal> will be</simpara>
 <screen>{ path: "/status",
@@ -1207,7 +1217,12 @@ Accept: */*\r\n
 <simpara>In particular, note that <literal>request.uri.protocol</literal> is
 <literal>undefined</literal>. This is because there was no URI protocol given
 in the actual HTTP Request.</simpara>
-<simpara><literal>request.uri.anchor</literal>, <literal>request.uri.query</literal>, <literal>request.uri.file</literal>, <literal>request.uri.directory</literal>, <literal>request.uri.path</literal>, <literal>request.uri.relative</literal>, <literal>request.uri.port</literal>, <literal>request.uri.host</literal>, <literal>request.uri.password</literal>, <literal>request.uri.user</literal>, <literal>request.uri.authority</literal>, <literal>request.uri.protocol</literal>, <literal>request.uri.params</literal>, <literal>request.uri.toString()</literal>, <literal>request.uri.source</literal></simpara>
+<simpara>Here is what&#8217;s available: <literal>request.uri.anchor</literal>, <literal>request.uri.query</literal>,
+<literal>request.uri.file</literal>, <literal>request.uri.directory</literal>, <literal>request.uri.path</literal>,
+<literal>request.uri.relative</literal>, <literal>request.uri.port</literal>, <literal>request.uri.host</literal>,
+<literal>request.uri.password</literal>, <literal>request.uri.user</literal>, <literal>request.uri.authority</literal>,
+<literal>request.uri.protocol</literal>, <literal>request.uri.params</literal>, <literal>request.uri.toString()</literal>,
+<literal>request.uri.source</literal></simpara>
 </listitem>
 </varlistentry>
 <varlistentry>

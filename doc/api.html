@@ -240,8 +240,8 @@ on error: exit code, stdout buffer, stderr buffer
 <div class="paragraph"><p>Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
 objects which emit events are are instances of <tt>node.EventEmitter</tt>.</p></div>
-<div class="paragraph"><p>Events are represented by a snakecased string. Here are some examples:
-<tt>"connection"</tt>, <tt>"receive"</tt>, <tt>"message_begin"</tt>.</p></div>
+<div class="paragraph"><p>Events are represented by a camel-cased string. Here are some examples:
+<tt>"connection"</tt>, <tt>"receive"</tt>, <tt>"messageBegin"</tt>.</p></div>
 <div class="paragraph"><p>Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called <em>listeners</em>.</p></div>
 <div class="paragraph"><p>Some asynchronous file operations return an <tt>EventEmitter</tt> called a
@@ -588,8 +588,8 @@ cellspacing="0" cellpadding="4">
 <col width="76%" />
 <thead>
 <tr>
-<th align="left" valign="top">Event      </th>
-<th align="left" valign="top">Parameters </th>
+<th align="left" valign="top"> Event      </th>
+<th align="left" valign="top"> Parameters </th>
 <th align="left" valign="top">Notes</th>
 </tr>
 </thead>
@@ -597,22 +597,27 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"output"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>data</tt></p></td>
-<td align="left" valign="top"><p class="table">Each time the child process sends data to its <tt>stdout</tt>, this event is
-emitted. <tt>data</tt> is a string.<br />
-If the child process closes its <tt>stdout</tt> stream (a common thing to do on
-exit), this event will be emitted with <tt>data === null</tt>.</p></td>
+<td align="left" valign="top"><p class="table">Each time the child process
+                            sends data to its <tt>stdout</tt>, this event is
+                            emitted. <tt>data</tt> is a string.  + If the child
+                            process closes its <tt>stdout</tt> stream (a common
+                            thing to do on exit), this event will be emitted
+                            with <tt>data === null</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"error"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>data</tt></p></td>
-<td align="left" valign="top"><p class="table">Identical to the <tt>"output"</tt> event except for <tt>stderr</tt> instead of <tt>stdout</tt>.</p></td>
+<td align="left" valign="top"><p class="table">Identical to the <tt>"output"</tt> event except for
+                            <tt>stderr</tt> instead of <tt>stdout</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"exit"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>code</tt></p></td>
-<td align="left" valign="top"><p class="table">This event is emitted after the child process ends. <tt>code</tt> is the final exit
-code of the process. One can be assured that after this event is emitted
-that the <tt>"output"</tt> and <tt>"error"</tt> callbacks will no longer be made.</p></td>
+<td align="left" valign="top"><p class="table">This event is emitted after the child process
+                            ends. <tt>code</tt> is the final exit code of the
+                            process. One can be assured that after this
+                            event is emitted that the <tt>"output"</tt> and
+                            <tt>"error"</tt> callbacks will no longer be made.</p></td>
 </tr>
 </tbody>
 </table>
@@ -999,9 +1004,7 @@ user is able to stream data.</p></div>
 <div class="paragraph"><p>In order to support the full spectrum of possible HTTP applications, Node&#8217;s
 HTTP API is very low-level. It deals with connection handling and message
 parsing only. It parses a message into headers and body but it does not
-parse the actual headers or the body.  That means, for example, that Node
-does not, and will never, provide API to access or manipulate Cookies or
-multi-part bodies.  <em>This is left to the user.</em></p></div>
+parse the actual headers or the body.</p></div>
 <h4 id="_tt_http_server_tt"><tt>http.Server</tt></h4>
 <div class="tableblock">
 <table rules="all"
@@ -1014,7 +1017,7 @@ cellspacing="0" cellpadding="4">
 <thead>
 <tr>
 <th align="left" valign="top">Event           </th>
-<th align="left" valign="top"> Parameters   </th>
+<th align="left" valign="top"> Parameters          </th>
 <th align="left" valign="top"> Notes</th>
 </tr>
 </thead>
@@ -1022,24 +1025,27 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"request"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>request, response</tt></p></td>
-<td align="left" valign="top"><p class="table"><tt>request</tt> is an instance of <tt>http.ServerRequest</tt><br />
-<tt>response</tt> is an instance of <tt>http.ServerResponse</tt></p></td>
+<td align="left" valign="top"><p class="table"><tt>request</tt> is an instance of <tt>http.ServerRequest</tt>
+                                        <br />
+                                         <tt>response</tt> is an instance of <tt>http.ServerResponse</tt></p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"connection"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>connection</tt></p></td>
 <td align="left" valign="top"><p class="table">When a new TCP connection is established.
-<tt>connection</tt> is an object of type <tt>http.Connection</tt>. Usually users will not
-want to access this event. The <tt>connection</tt> can also be accessed at
-<tt>request.connection</tt>.</p></td>
+                                         <tt>connection</tt> is an object of type
+                                         <tt>http.Connection</tt>. Usually users
+                                         will not want to access this event.
+                                         The <tt>connection</tt> can also be
+                                         accessed at <tt>request.connection</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"close"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>errorno</tt></p></td>
 <td align="left" valign="top"><p class="table">Emitted when the server closes. <tt>errorno</tt>
-                                  is an integer which indicates what, if any,
-                                  error caused the server to close. If no
-                                  error occured <tt>errorno</tt> will be 0.</p></td>
+                                         is an integer which indicates what, if any,
+                                         error caused the server to close. If no
+                                         error occured <tt>errorno</tt> will be 0.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1099,16 +1105,20 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"body"</tt></p></td>
 <td align="left" valign="top"><p class="table"><tt>chunk</tt></p></td>
-<td align="left" valign="top"><p class="table">Emitted when a piece of the message body is received. Example: A chunk of
-the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is a String.  The body encoding is set
-with <tt>request.setBodyEncoding()</tt>.</p></td>
+<td align="left" valign="top"><p class="table">Emitted when a piece of the
+                                  message body is received. Example: A chunk
+                                  of the body is given as the single
+                                  argument. The transfer-encoding has been
+                                  decoded.  The body chunk is a String.  The
+                                  body encoding is set with
+                                  <tt>request.setBodyEncoding()</tt>.</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table"><tt>"complete"</tt></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">Emitted exactly once for each message. No arguments.
-After emitted no other events will be emitted on the request.</p></td>
+<td align="left" valign="top"><p class="table">(none)</p></td>
+<td align="left" valign="top"><p class="table">Emitted exactly once for each message.
+                                  No arguments.  After emitted no other
+                                  events will be emitted on the request.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1134,7 +1144,7 @@ present in the actual HTTP request. That is, if the request is
 <div class="listingblock">
 <div class="content">
 <pre><tt>GET /status?name=ryan HTTP/1.1\r\n
-Accept: */*\r\n
+Accept: text/plain\r\n
 \r\n</tt></pre>
 </div></div>
 <div class="paragraph"><p>Then <tt>request.uri</tt> will be</p></div>
@@ -1149,7 +1159,12 @@ Accept: */*\r\n
 <div class="paragraph"><p>In particular, note that <tt>request.uri.protocol</tt> is
 <tt>undefined</tt>. This is because there was no URI protocol given
 in the actual HTTP Request.</p></div>
-<div class="paragraph"><p><tt>request.uri.anchor</tt>, <tt>request.uri.query</tt>, <tt>request.uri.file</tt>, <tt>request.uri.directory</tt>, <tt>request.uri.path</tt>, <tt>request.uri.relative</tt>, <tt>request.uri.port</tt>, <tt>request.uri.host</tt>, <tt>request.uri.password</tt>, <tt>request.uri.user</tt>, <tt>request.uri.authority</tt>, <tt>request.uri.protocol</tt>, <tt>request.uri.params</tt>, <tt>request.uri.toString()</tt>, <tt>request.uri.source</tt></p></div>
+<div class="paragraph"><p>Here is what&#8217;s available: <tt>request.uri.anchor</tt>, <tt>request.uri.query</tt>,
+<tt>request.uri.file</tt>, <tt>request.uri.directory</tt>, <tt>request.uri.path</tt>,
+<tt>request.uri.relative</tt>, <tt>request.uri.port</tt>, <tt>request.uri.host</tt>,
+<tt>request.uri.password</tt>, <tt>request.uri.user</tt>, <tt>request.uri.authority</tt>,
+<tt>request.uri.protocol</tt>, <tt>request.uri.params</tt>, <tt>request.uri.toString()</tt>,
+<tt>request.uri.source</tt></p></div>
 </dd>
 <dt class="hdlist1">
 <tt>request.headers</tt> 
@@ -2015,7 +2030,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.12<br />
-Last updated 2009-09-28 21:50:11 CEST
+Last updated 2009-09-29 09:59:52 CEST
 </div>
 </div>
 </body>

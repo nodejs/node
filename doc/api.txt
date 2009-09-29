@@ -136,8 +136,8 @@ Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
 objects which emit events are are instances of +node.EventEmitter+.
 
-Events are represented by a snakecased string. Here are some examples:
-+"connection"+, +"receive"+, +"message_begin"+.
+Events are represented by a camel-cased string. Here are some examples:
++"connection"+, +"receive"+, +"messageBegin"+.
 
 Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_.
@@ -368,24 +368,23 @@ Node provides a tridirectional +popen(3)+ facility through the class
 
 [cols="1,2,10",options="header"]
 |=========================================================
-|Event      |Parameters |Notes
+| Event      | Parameters |Notes
 
-|+"output"+ | +data+   |
-Each time the child process sends data to its +stdout+, this event is
-emitted. +data+ is a string.
-+
-If the child process closes its +stdout+ stream (a common thing to do on
-exit), this event will be emitted with +data === null+.
+| +"output"+ | +data+     | Each time the child process 
+                            sends data to its +stdout+, this event is
+                            emitted. +data+ is a string.  + If the child
+                            process closes its +stdout+ stream (a common
+                            thing to do on exit), this event will be emitted
+                            with +data === null+.
 
+| +"error"+  | +data+     | Identical to the +"output"+ event except for
+                            +stderr+ instead of +stdout+.
 
-|+"error"+  | +data+   |
-Identical to the +"output"+ event except for +stderr+ instead of +stdout+.
-
-|+"exit"+   | +code+   |
-This event is emitted after the child process ends. +code+ is the final exit
-code of the process. One can be assured that after this event is emitted
-that the +"output"+ and +"error"+ callbacks will no longer be made.
-
+| +"exit"+   | +code+     | This event is emitted after the child process
+                            ends. +code+ is the final exit code of the
+                            process. One can be assured that after this
+                            event is emitted that the +"output"+ and
+                            +"error"+ callbacks will no longer be made.
 |=========================================================
 
 +node.createChildProcess(command)+::
@@ -594,32 +593,30 @@ HTTP message headers are represented by an object like this
 In order to support the full spectrum of possible HTTP applications, Node's
 HTTP API is very low-level. It deals with connection handling and message
 parsing only. It parses a message into headers and body but it does not
-parse the actual headers or the body.  That means, for example, that Node
-does not, and will never, provide API to access or manipulate Cookies or
-multi-part bodies.  _This is left to the user._
+parse the actual headers or the body. 
 
 
 ==== +http.Server+
 
 [cols="1,2,10",options="header"]
 |=========================================================
-|Event           | Parameters   | Notes
+|Event           | Parameters          | Notes
 
-|+"request"+     | +request, response+ |
-+request+ is an instance of +http.ServerRequest+
-+
-+response+ is an instance of +http.ServerResponse+
+|+"request"+     | +request, response+ | +request+ is an instance of +http.ServerRequest+
+                                         +
+                                         +response+ is an instance of +http.ServerResponse+
 
-|+"connection"+  | +connection+ |
-When a new TCP connection is established.
-+connection+ is an object of type +http.Connection+. Usually users will not
-want to access this event. The +connection+ can also be accessed at
-+request.connection+.
+|+"connection"+  | +connection+        | When a new TCP connection is established.
+                                         +connection+ is an object of type
+                                         +http.Connection+. Usually users
+                                         will not want to access this event.
+                                         The +connection+ can also be
+                                         accessed at +request.connection+.
 
-|+"close"+       | +errorno+    | Emitted when the server closes. +errorno+
-                                  is an integer which indicates what, if any,
-                                  error caused the server to close. If no
-                                  error occured +errorno+ will be 0.
+|+"close"+       | +errorno+           | Emitted when the server closes. +errorno+
+                                         is an integer which indicates what, if any,
+                                         error caused the server to close. If no
+                                         error occured +errorno+ will be 0.
 
 |=========================================================
 
@@ -652,16 +649,17 @@ the user--and passed as the first argument to a +"request"+ listener.
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"body"+        | +chunk+ |
-Emitted when a piece of the message body is received. Example: A chunk of
-the body is given as the single argument. The transfer-encoding has been
-decoded.  The body chunk is a String.  The body encoding is set
-with +request.setBodyEncoding()+.
+|+"body"+        | +chunk+      | Emitted when a piece of the 
+                                  message body is received. Example: A chunk
+                                  of the body is given as the single
+                                  argument. The transfer-encoding has been
+                                  decoded.  The body chunk is a String.  The
+                                  body encoding is set with
+                                  +request.setBodyEncoding()+.
 
-|+"complete"+    |        |
-Emitted exactly once for each message. No arguments.
-After emitted no other events will be emitted on the request.
-
+|+"complete"+    | (none)       | Emitted exactly once for each message. 
+                                  No arguments.  After emitted no other
+                                  events will be emitted on the request.
 |=========================================================
 
 +request.method+ ::
@@ -675,7 +673,7 @@ present in the actual HTTP request. That is, if the request is
 +
 ----------------------------------------
 GET /status?name=ryan HTTP/1.1\r\n
-Accept: */*\r\n
+Accept: text/plain\r\n
 \r\n
 ----------------------------------------
 +
@@ -693,7 +691,12 @@ In particular, note that +request.uri.protocol+ is
 +undefined+. This is because there was no URI protocol given
 in the actual HTTP Request.
 +
-+request.uri.anchor+, +request.uri.query+, +request.uri.file+, +request.uri.directory+, +request.uri.path+, +request.uri.relative+, +request.uri.port+, +request.uri.host+, +request.uri.password+, +request.uri.user+, +request.uri.authority+, +request.uri.protocol+, +request.uri.params+, +request.uri.toString()+, +request.uri.source+
+Here is what's available: +request.uri.anchor+, +request.uri.query+,
++request.uri.file+, +request.uri.directory+, +request.uri.path+,
++request.uri.relative+, +request.uri.port+, +request.uri.host+,
++request.uri.password+, +request.uri.user+, +request.uri.authority+,
++request.uri.protocol+, +request.uri.params+, +request.uri.toString()+,
++request.uri.source+
 
 
 +request.headers+ ::

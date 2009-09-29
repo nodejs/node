@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/28/2009
+.\"      Date: 09/29/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/28/2009" "" ""
+.TH "NODE" "1" "09/29/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -170,7 +170,7 @@ exec("ls /")\.addCallback(function (stdout, stderr) {
 .SS "Events"
 Many objects in Node emit events: a TCP server emits an event each time there is a connection, a child process emits an event when it exits\. All objects which emit events are are instances of node\.EventEmitter\.
 .sp
-Events are represented by a snakecased string\. Here are some examples: "connection", "receive", "message_begin"\.
+Events are represented by a camel\-cased string\. Here are some examples: "connection", "receive", "messageBegin"\.
 .sp
 Functions can be then be attached to objects, to be executed when an event is emitted\. These functions are called \fIlisteners\fR\.
 .sp
@@ -519,7 +519,7 @@ T}:T{
 data
 .sp
 T}:T{
-Each time the child process sends data to its stdout, this event is emitted\. data is a string\. If the child process closes its stdout stream (a common thing to do on exit), this event will be emitted with data === null\.
+Each time the child process sends data to its stdout, this event is emitted\. data is a string\. + If the child process closes its stdout stream (a common thing to do on exit), this event will be emitted with data === null\.
 .sp
 T}
 T{
@@ -847,7 +847,7 @@ HTTP message headers are represented by an object like this
 }
 .fi
 .RE
-In order to support the full spectrum of possible HTTP applications, Node\(cqs HTTP API is very low\-level\. It deals with connection handling and message parsing only\. It parses a message into headers and body but it does not parse the actual headers or the body\. That means, for example, that Node does not, and will never, provide API to access or manipulate Cookies or multi\-part bodies\. \fIThis is left to the user\.\fR
+In order to support the full spectrum of possible HTTP applications, Node\(cqs HTTP API is very low\-level\. It deals with connection handling and message parsing only\. It parses a message into headers and body but it does not parse the actual headers or the body\.
 .sp
 .sp
 .it 1 an-trap
@@ -967,6 +967,7 @@ T{
 "complete"
 .sp
 T}:T{
+(none)
 .sp
 T}:T{
 Emitted exactly once for each message\. No arguments\. After emitted no other events will be emitted on the request\.
@@ -988,7 +989,7 @@ Request URI Object\. This contains only the parameters that are present in the a
 .RS 4
 .nf
 GET /status?name=ryan HTTP/1\.1\er\en
-Accept: */*\er\en
+Accept: text/plain\er\en
 \er\en
 .fi
 .RE
@@ -1010,6 +1011,7 @@ request\.uri\.protocol
 is
 undefined\. This is because there was no URI protocol given in the actual HTTP Request\.
 .sp
+Here is what\(cqs available:
 request\.uri\.anchor,
 request\.uri\.query,
 request\.uri\.file,
