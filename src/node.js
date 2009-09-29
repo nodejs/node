@@ -62,32 +62,6 @@ if (ENV["NODE_LIBRARY_PATHS"]) {
     ENV["NODE_LIBRARY_PATHS"].split(":").concat(node.libraryPaths);
 }
 
-node.loadingModules = [];
-
-function require_async (url) {
-  var currentModule = node.loadingModules[0];
-  return currentModule.newChild(url, {});
-}
-
-function require (url) {
-  return require_async(url).wait();
-}
-
-function include_async (url) {
-  var promise = require_async(url)
-  promise.addCallback(function (t) {
-    // copy properties into global namespace.
-    for (var prop in t) {
-      if (t.hasOwnProperty(prop)) process[prop] = t[prop];
-    }
-  });
-  return promise;
-}
-
-function include (url) {
-  include_async(url).wait();
-}
-
 node.Module = function (filename, parent) {
   node.assert(filename.charAt(0) == "/");
   this.filename = filename;
@@ -223,12 +197,37 @@ node.Module.prototype.loadScript = function (loadPromise) {
     // remove shebang
     content = content.replace(/^\#\!.*/, '');
 
+    node.loadingModules = [];
+
+    function requireAsync (url) {
+      return self.newChild(url, {});
+    }
+
+    function require (url) {
+      return requireAsync(url).wait();
+    }
+
+    function includeAsync (url) {
+      var promise = requireAsync(url)
+      promise.addCallback(function (t) {
+        // copy properties into global namespace.
+        for (var prop in t) {
+          if (t.hasOwnProperty(prop)) process[prop] = t[prop];
+        }
+      });
+      return promise;
+    }
+
+    function include (url) {
+      includeAsync(url).wait();
+    }
+
     // create wrapper function
-    var wrapper = "function (__filename, exports) { " + content + "\n};";
+    var wrapper = "function (__filename, exports, require, include) { " + content + "\n};";
     var compiled_wrapper = node.compile(wrapper, self.filename);
 
     node.loadingModules.unshift(self);
-    compiled_wrapper.apply(self.target, [self.filename, self.target]);
+    compiled_wrapper.apply(self.target, [self.filename, self.target, require, include]);
     node.loadingModules.shift();
 
     self.waitChildrenLoad(function () {

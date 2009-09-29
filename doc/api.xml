@@ -554,7 +554,6 @@ variable (which should be a list of paths, colon separated).</simpara>
 <simpara>Node comes with several libraries which are installed when <literal>"make install"</literal>
 is run. These are currently undocumented, but do look them up in your
 system.</simpara>
-<simpara>(Functions <literal>require_async()</literal> and <literal>include_async()</literal> also exist.)</simpara>
 </refsect2>
 <refsect2 id="_timers">
 <title>Timers</title>
