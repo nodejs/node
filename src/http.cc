@@ -69,7 +69,7 @@ HTTPConnection::on_message_begin (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
   assert(connection->attached_);
-  connection->Emit("message_begin", 0, NULL);
+  connection->Emit("messageBegin", 0, NULL);
   return 0;
 }
 
@@ -78,7 +78,7 @@ HTTPConnection::on_message_complete (http_parser *parser)
 {
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
   assert(connection->attached_);
-  connection->Emit("message_complete", 0, NULL);
+  connection->Emit("messageComplete", 0, NULL);
   return 0;
 }
 
@@ -100,7 +100,7 @@ HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t le
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("header_field", 1, argv);
+  connection->Emit("headerField", 1, argv);
   return 0;
 }
 
@@ -111,7 +111,7 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("header_value", 1, argv);
+  connection->Emit("headerValue", 1, argv);
   return 0;
 }
 
@@ -173,7 +173,7 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   Local<Value> argv[1] = { message_info };
 
-  connection->Emit("headers_complete", 1, argv);
+  connection->Emit("headerComplete", 1, argv);
 
   return 0;
 }
