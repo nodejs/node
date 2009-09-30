@@ -1,4 +1,31 @@
-2009.09.24, Version 0.1.12 
+2009.09.30, Version 0.1.13
+
+  * Feature: Multipart stream parser (Felix Geisendörfer)
+
+  * API: Move node.puts(), node.exec() and others to /utils.js 
+
+  * API: Move http, tcp libraries to /http.js and /tcp.js
+
+  * API: Rename node.exit() to process.exit()
+
+  * Bugfix: require() and include() should work in callbacks.
+
+  * Pass the Host header in http.cat calls
+
+  * Add warning when coroutine stack size grows too large.
+
+  * Enhance repl library (Ray Morgan)
+
+  * Bugfix: build script for
+      GCC 4.4 (removed -Werror in V8),
+      on Linux 2.4,
+      and with Python 2.4.4.
+
+  * Add read() and write() to /file.js to read and write
+    whole files at once.
+
+
+2009.09.24, Version 0.1.12, 2f56ccb45e87510de712f56705598b3b4e3548ec 
 
   * Feature: System modules, node.libraryPaths
 
