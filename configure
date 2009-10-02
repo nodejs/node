@@ -24,7 +24,7 @@ cd $WORKINGDIR
 WORKINGDIR=`pwd`
 cd $CUR_DIR
 
-WAF="${WORKINGDIR}/tools/waf"
+WAF="${WORKINGDIR}/tools/waf-light"
 
 # Checks for WAF. Honours $WAF if set. Stores path to 'waf' in $WAF.
 # Requires that $PYTHON is set.
