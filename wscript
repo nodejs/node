@@ -203,6 +203,10 @@ def build_v8(bld):
   v8dir_tgt = join(deps_tgt, "v8")
   scons = os.path.join(cwd, 'tools/scons/scons.py')
 
+  # NOTE: We want to compile V8 to export its symbols. I.E. Do not want
+  # -fvisibility=hidden. When using dlopen() it seems that the loaded DSO
+  # cannot see symbols in the executable which are hidden, even if the
+  # executable is statically linked together...
   v8rule = 'cd %s && ' \
            'python %s -Q visibility=default mode=%s %s library=static snapshot=on'
 
