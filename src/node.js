@@ -53,7 +53,7 @@ clearInterval = clearTimeout;
 // Module
 
 node.libraryPaths = [ node.path.join(ENV["HOME"], ".node_libraries")
-                    , node.path.join(node.installPrefix, "lib/node_libraries")
+                    , node.path.join(node.installPrefix, "lib/node/libraries")
                     , "/" 
                     ];
 

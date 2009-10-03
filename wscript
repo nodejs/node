@@ -372,4 +372,9 @@ def build(bld):
   """);
   bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1');
   bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755);
-  bld.install_files('${PREFIX}/lib/node_libraries/', 'lib/*.js');
+
+  # Why am I using two lines? Because WAF SUCKS.
+  bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py');
+  bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py');
+
+  bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js');
