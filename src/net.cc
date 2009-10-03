@@ -403,15 +403,15 @@ void Connection::OnConnect() {
   Emit("connect", 0, NULL);
 }
 
-#define DEFINE_SIMPLE_CALLBACK(name, type)                          \
-void name()                                                        \
-{                                                                   \
-  HandleScope scope;                                                \
-  Emit(type, 0, NULL);                                             \
+void Connection::OnTimeout() {
+  HandleScope scope;
+  Emit("timeout", 0, NULL);
 }
 
-DEFINE_SIMPLE_CALLBACK(Connection::OnTimeout, "timeout")
-DEFINE_SIMPLE_CALLBACK(Connection::OnEOF, "eof")
+void Connection::OnEOF() {
+  HandleScope scope;
+  Emit("eof", 0, NULL);
+}
 
 Persistent<FunctionTemplate> Server::constructor_template;
 
