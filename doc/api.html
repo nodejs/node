@@ -1516,6 +1516,116 @@ After emitted no other events will be emitted on the response.</p></td>
 </p>
 </dd>
 </dl></div>
+<h3 id="_multipart_parsing">Multipart Parsing</h3><div style="clear:left"></div>
+<div class="paragraph"><p>A library to parse HTTP requests with <tt>multipart/form-data</tt> is included with
+Node.  To use it, <tt>require("/multipart.js")</tt>.</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<tt>multipart.parse(options)</tt> 
+</dt>
+<dd>
+<div class="ulist"><ul>
+<li>
+<p>
+on success: Returns an object where each key holds the value of one part of
+                the stream. <tt>options</tt> can either be an instance of
+                <tt>http.ServerRequest</tt> or an object containing a <em>boundary</em> and a
+                <em>data</em> key.
+</p>
+</li>
+<li>
+<p>
+on error: no parameters.
+</p>
+</li>
+</ul></div>
+</dd>
+</dl></div>
+<h4 id="_tt_multipart_stream_tt"><tt>multipart.Stream</tt></h4>
+<div class="paragraph"><p>Here is an example for parsing a <tt>multipart/form-data</tt> request:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>var multipart = require('/multipart.js');
+var stream = new multipart.Stream(options);
+var parts = {};
+
+stream.addListener('part', function (part) {
+  var name = part.headers['Content-Disposition'].name;
+  var buffer = '';
+
+  part.addListener('body', function(chunk) {
+    buffer = buffer + chunk;
+  });
+
+  part.addListener('complete', function() {
+    parts[name] = buffer;
+  });
+});
+
+stream.addListener('complete', function() {
+  // The parts object now contains all parts and data
+});</tt></pre>
+</div></div>
+<div class="tableblock">
+<table rules="all"
+width="100%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="7%" />
+<col width="15%" />
+<col width="76%" />
+<thead>
+<tr>
+<th align="left" valign="top">Event           </th>
+<th align="left" valign="top"> Parameters   </th>
+<th align="left" valign="top"> Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><tt>"part"</tt></p></td>
+<td align="left" valign="top"><p class="table"><tt>part</tt></p></td>
+<td align="left" valign="top"><p class="table">Emitted when a new part is found in the stream.
+                                  <tt>part</tt> is an instance of <tt>multipart.Part</tt>.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><tt>"complete"</tt></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">Emitted when the end of the stream is reached.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h4 id="_tt_multipart_part_tt"><tt>multipart.Part</tt></h4>
+<div class="tableblock">
+<table rules="all"
+width="100%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="7%" />
+<col width="15%" />
+<col width="76%" />
+<thead>
+<tr>
+<th align="left" valign="top">Event           </th>
+<th align="left" valign="top"> Parameters   </th>
+<th align="left" valign="top"> Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><tt>"body"</tt></p></td>
+<td align="left" valign="top"><p class="table"><tt>chunk</tt></p></td>
+<td align="left" valign="top"><p class="table">Emitted when a chunk of body is read.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><tt>"complete"</tt></p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">Emitted when the end of the part is reached.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3 id="_tcp">TCP</h3><div style="clear:left"></div>
 <div class="paragraph"><p>To use the TCP server and client one must <tt>require("/tcp.js")</tt> or
 <tt>include("/tcp.js")</tt>.</p></div>
@@ -2029,7 +2139,7 @@ init (Handle&lt;Object&gt; target)
 <div id="footer">
 <div id="footer-text">
 Version 0.1.13<br />
-Last updated 2009-09-30 23:15:59 CEST
+Last updated 2009-10-03 18:02:36 CEST
 </div>
 </div>
 </body>

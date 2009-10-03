@@ -1,11 +1,11 @@
 .\"     Title: node
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 09/30/2009
+.\"      Date: 10/03/2009
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "NODE" "1" "09/30/2009" "" ""
+.TH "NODE" "1" "10/03/2009" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -1373,6 +1373,139 @@ A reference to the
 http\.Client
 that this response belongs to\.
 .RE
+.RE
+.SS "Multipart Parsing"
+A library to parse HTTP requests with multipart/form\-data is included with Node\. To use it, require("/multipart\.js")\.
+.PP
+multipart\.parse(options)
+.RS 4
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on success: Returns an object where each key holds the value of one part of the stream\.
+options
+can either be an instance of
+http\.ServerRequest
+or an object containing a
+\fIboundary\fR
+and a
+\fIdata\fR
+key\.
+.RE
+.sp
+.RS 4
+\h'-04'\(bu\h'+03'on error: no parameters\.
+.RE
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+multipart.Stream
+.RS
+Here is an example for parsing a multipart/form\-data request:
+.sp
+.sp
+.RS 4
+.nf
+var multipart = require(\'/multipart\.js\');
+var stream = new multipart\.Stream(options);
+var parts = {};
+
+stream\.addListener(\'part\', function (part) {
+  var name = part\.headers[\'Content\-Disposition\']\.name;
+  var buffer = \'\';
+
+  part\.addListener(\'body\', function(chunk) {
+    buffer = buffer + chunk;
+  });
+
+  part\.addListener(\'complete\', function() {
+    parts[name] = buffer;
+  });
+});
+
+stream\.addListener(\'complete\', function() {
+  // The parts object now contains all parts and data
+});
+.fi
+.RE
+.TS
+allbox tab(:);
+ltB ltB ltB.
+T{
+Event
+T}:T{
+Parameters
+T}:T{
+Notes
+T}
+.T&
+lt lt lt
+lt lt lt.
+T{
+"part"
+.sp
+T}:T{
+part
+.sp
+T}:T{
+Emitted when a new part is found in the stream\. part is an instance of multipart\.Part\.
+.sp
+T}
+T{
+"complete"
+.sp
+T}:T{
+.sp
+T}:T{
+Emitted when the end of the stream is reached\.
+.sp
+T}
+.TE
+.sp
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+multipart.Part
+.RS
+.TS
+allbox tab(:);
+ltB ltB ltB.
+T{
+Event
+T}:T{
+Parameters
+T}:T{
+Notes
+T}
+.T&
+lt lt lt
+lt lt lt.
+T{
+"body"
+.sp
+T}:T{
+chunk
+.sp
+T}:T{
+Emitted when a chunk of body is read\.
+.sp
+T}
+T{
+"complete"
+.sp
+T}:T{
+.sp
+T}:T{
+Emitted when the end of the part is reached\.
+.sp
+T}
+.TE
+.sp
 .RE
 .SS "TCP"
 To use the TCP server and client one must require("/tcp\.js") or include("/tcp\.js")\.

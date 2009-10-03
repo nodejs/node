@@ -1609,6 +1609,121 @@ After emitted no other events will be emitted on the response.</simpara></entry>
 </variablelist>
 </refsect3>
 </refsect2>
+<refsect2 id="_multipart_parsing">
+<title>Multipart Parsing</title>
+<simpara>A library to parse HTTP requests with <literal>multipart/form-data</literal> is included with
+Node.  To use it, <literal>require("/multipart.js")</literal>.</simpara>
+<variablelist>
+<varlistentry>
+<term>
+<literal>multipart.parse(options)</literal> 
+</term>
+<listitem>
+<itemizedlist>
+<listitem>
+<simpara>
+on success: Returns an object where each key holds the value of one part of
+                the stream. <literal>options</literal> can either be an instance of
+                <literal>http.ServerRequest</literal> or an object containing a <emphasis>boundary</emphasis> and a
+                <emphasis>data</emphasis> key.
+</simpara>
+</listitem>
+<listitem>
+<simpara>
+on error: no parameters.
+</simpara>
+</listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+</variablelist>
+<refsect3 id="_literal_multipart_stream_literal">
+<title><literal>multipart.Stream</literal></title>
+<simpara>Here is an example for parsing a <literal>multipart/form-data</literal> request:</simpara>
+<screen>var multipart = require('/multipart.js');
+var stream = new multipart.Stream(options);
+var parts = {};
+
+stream.addListener('part', function (part) {
+  var name = part.headers['Content-Disposition'].name;
+  var buffer = '';
+
+  part.addListener('body', function(chunk) {
+    buffer = buffer + chunk;
+  });
+
+  part.addListener('complete', function() {
+    parts[name] = buffer;
+  });
+});
+
+stream.addListener('complete', function() {
+  // The parts object now contains all parts and data
+});</screen>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"part"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>part</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a new part is found in the stream.
+                                  <literal>part</literal> is an instance of <literal>multipart.Part</literal>.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"complete"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when the end of the stream is reached.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+</refsect3>
+<refsect3 id="_literal_multipart_part_literal">
+<title><literal>multipart.Part</literal></title>
+<informaltable
+frame="all"
+rowsep="1" colsep="1"
+>
+<tgroup cols="3">
+<colspec colname="col_1" colwidth="7*"/>
+<colspec colname="col_2" colwidth="15*"/>
+<colspec colname="col_3" colwidth="76*"/>
+<thead>
+<row>
+<entry align="left" valign="top">Event           </entry>
+<entry align="left" valign="top"> Parameters   </entry>
+<entry align="left" valign="top"> Notes</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry align="left" valign="top"><simpara><literal>"body"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara><literal>chunk</literal></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when a chunk of body is read.</simpara></entry>
+</row>
+<row>
+<entry align="left" valign="top"><simpara><literal>"complete"</literal></simpara></entry>
+<entry align="left" valign="top"><simpara></simpara></entry>
+<entry align="left" valign="top"><simpara>Emitted when the end of the part is reached.</simpara></entry>
+</row>
+</tbody>
+</tgroup>
+</informaltable>
+</refsect3>
+</refsect2>
 <refsect2 id="_tcp">
 <title>TCP</title>
 <simpara>To use the TCP server and client one must <literal>require("/tcp.js")</literal> or
