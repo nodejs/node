@@ -180,7 +180,7 @@ def build_udns(bld):
     #debug.target = join(debug_dir, static_lib)
     bld.env_of_name('debug')["STATICLIB_UDNS"] = "udns"
     bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
-  bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h');
+  bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
 # XXX Remove this when v8 defaults x86_64 to native builds
 def GuessArchitecture():
@@ -237,7 +237,7 @@ def build_v8(bld):
     v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug", arch)
     v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
-  bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/v8*');
+  bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/v8*')
 
 def build(bld):
   bld.add_subdirs('deps/libeio deps/libev')
@@ -255,7 +255,7 @@ def build(bld):
   evcom.install_path = None
   if bld.env["USE_DEBUG"]:
     evcom.clone("debug")
-  bld.install_files('${PREFIX}/include/node/', 'deps/evcom/evcom.h');
+  bld.install_files('${PREFIX}/include/node/', 'deps/evcom/evcom.h')
 
   ### http_parser
   http_parser = bld.new_task_gen("cc", "staticlib")
@@ -338,7 +338,7 @@ def build(bld):
         , 'VERSION'   : VERSION
         , 'PREFIX'    : program.env["PREFIX"]
         }
-    return x;
+    return x
 
   # process file.pc.in -> file.pc
   pkgconfig = bld.new_task_gen('subst', before="cxx")
@@ -369,12 +369,17 @@ def build(bld):
     src/object_wrap.h
     src/events.h
     src/net.h
-  """);
-  bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1');
-  bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755);
+  """)
+
+  # Only install the man page if it exists. 
+  # Do 'make doc install' to build and install it.
+  if os.path.exists('doc/node.1'):
+    bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1')
+
+  bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755)
 
   # Why am I using two lines? Because WAF SUCKS.
-  bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py');
-  bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py');
+  bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
+  bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 
-  bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js');
+  bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js')

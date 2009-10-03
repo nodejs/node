@@ -14,10 +14,10 @@ install:
 
 uninstall:
 	@tools/waf-light uninstall
- 
+
 test: all
 	python tools/test.py --mode=release
-  
+
 test-all: all
 	python tools/test.py --mode=debug,release
 
@@ -40,26 +40,34 @@ doc/api.xml: doc/api.txt
 	asciidoc -b docbook -d manpage -o doc/api.xml doc/api.txt
 
 doc/node.1: doc/api.xml
-	xsltproc --output doc/node.1                \
-		--nonet /etc/asciidoc/docbook-xsl/manpage.xsl \
-		doc/api.xml
+	xsltproc --output doc/node.1 --nonet doc/manpage.xsl doc/api.xml
 
 website-upload: doc
 	scp doc/* linode:~/tinyclouds/node/
 
 clean:
+	@-rm doc/node.1 doc/api.xml doc/api.html
 	@tools/waf-light clean
 
 distclean:
 	@tools/waf-light distclean
-	@-rm -rf _build_
-	@-rm -f Makefile
 	@-rm -f *.pyc
 
 check:
 	@tools/waf-light check
 
-dist:
-	@tools/waf-light dist
+VERSION=$(shell git-describe)
+TARNAME=node-$(VERSION)
+
+dist: doc/node.1 doc/api.html
+	git-archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
+	mkdir -p $(TARNAME)/doc
+	cp doc/node.1 $(TARNAME)/doc/node.1
+	cp doc/api.html $(TARNAME)/doc/api.html
+	tar rf $(TARNAME).tar   \
+		$(TARNAME)/doc/node.1 \
+		$(TARNAME)/doc/api.html
+	rm -r $(TARNAME)
+	gzip -f -9 $(TARNAME).tar
 
 .PHONY: benchmark clean dist distclean check uninstall install all test test-all website-upload
