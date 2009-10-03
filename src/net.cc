@@ -55,6 +55,7 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Connection"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
@@ -422,6 +423,7 @@ void Server::Initialize(Handle<Object> target) {
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Server"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", Listen);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);

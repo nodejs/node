@@ -23,6 +23,7 @@ void ChildProcess::Initialize(Handle<Object> target) {
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("ChildProcess"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "spawn", ChildProcess::Spawn);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", ChildProcess::Write);

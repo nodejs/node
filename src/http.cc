@@ -26,12 +26,14 @@ HTTPConnection::Initialize (Handle<Object> target)
   client_constructor_template = Persistent<FunctionTemplate>::New(t);
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  client_constructor_template->SetClassName(String::NewSymbol("Client"));
   target->Set(String::NewSymbol("Client"), client_constructor_template->GetFunction());
 
   t = FunctionTemplate::New(NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
   server_constructor_template->Inherit(Connection::constructor_template);
   server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  server_constructor_template->SetClassName(String::NewSymbol("ServerSideConnection"));
 }
 
 Handle<Value>
@@ -206,6 +208,7 @@ HTTPServer::Initialize (Handle<Object> target)
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(Server::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Server"));
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 

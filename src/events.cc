@@ -38,6 +38,7 @@ void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   Local<FunctionTemplate> __emit = FunctionTemplate::New(Emit);
   constructor_template->PrototypeTemplate()->Set(String::NewSymbol("emit"),
       __emit);
+  constructor_template->SetClassName(String::NewSymbol("EventEmitter"));
 
   // All other prototype methods are defined in events.js
 
@@ -116,6 +117,7 @@ void Promise::Initialize(v8::Handle<v8::Object> target) {
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Promise"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "block", Block);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "emitSuccess", EmitSuccess);

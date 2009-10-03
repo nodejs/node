@@ -382,6 +382,8 @@ void File::Initialize(Handle<Object> target) {
       Promise::constructor_template);
   EIOPromise::constructor_template->InstanceTemplate()->
     SetInternalFieldCount(1);
+  EIOPromise::constructor_template->SetClassName(
+      String::NewSymbol("EIOPromise"));
   target->Set(String::NewSymbol("EIOPromise"),
       EIOPromise::constructor_template->GetFunction());
 }
