@@ -2,7 +2,6 @@ build
 .waf*
 tags
 .lock-wscript
-Makefile
 *.pyc
 node
 node_g
