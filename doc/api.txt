@@ -665,7 +665,7 @@ The request method as a string. Read only. Example:
 
 +request.uri+ ::
 Request URI Object. This contains only the parameters that are
-present in the actual HTTP request. That is, if the request is
+present in the actual HTTP request. If the request is
 +
 ----------------------------------------
 GET /status?name=ryan HTTP/1.1\r\n
@@ -676,23 +676,12 @@ Accept: text/plain\r\n
 Then +request.uri+ will be
 +
 ----------------------------------------
-{ path: "/status",
-  file: "status",
-  directory: "/",
-  params: { "name" : "ryan" }
+{ full: "/status?name=ryan",
+  path: "/status",
+  queryString: "name=ryan",
+  fragment: ""
 }
 ----------------------------------------
-+
-In particular, note that +request.uri.protocol+ is
-+undefined+. This is because there was no URI protocol given
-in the actual HTTP Request.
-+
-Here is what's available: +request.uri.anchor+, +request.uri.query+,
-+request.uri.file+, +request.uri.directory+, +request.uri.path+,
-+request.uri.relative+, +request.uri.port+, +request.uri.host+,
-+request.uri.password+, +request.uri.user+, +request.uri.authority+,
-+request.uri.protocol+, +request.uri.params+, +request.uri.toString()+,
-+request.uri.source+
 
 
 +request.headers+ ::

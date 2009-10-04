@@ -96,6 +96,39 @@ HTTPConnection::on_uri (http_parser *parser, const char *buf, size_t len)
 }
 
 int
+HTTPConnection::on_query_string (http_parser *parser, const char *buf, size_t len)
+{
+  HandleScope scope;
+  HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
+  Local<Value> argv[1] = { String::New(buf, len) };
+  connection->Emit("queryString", 1, argv);
+  return 0;
+}
+
+int
+HTTPConnection::on_path (http_parser *parser, const char *buf, size_t len)
+{
+  HandleScope scope;
+  HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
+  Local<Value> argv[1] = { String::New(buf, len) };
+  connection->Emit("path", 1, argv);
+  return 0;
+}
+
+int
+HTTPConnection::on_fragment (http_parser *parser, const char *buf, size_t len)
+{
+  HandleScope scope;
+  HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
+  assert(connection->attached_);
+  Local<Value> argv[1] = { String::New(buf, len) };
+  connection->Emit("fragment", 1, argv);
+  return 0;
+}
+
+int
 HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t len)
 {
   HandleScope scope;
