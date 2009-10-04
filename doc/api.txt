@@ -1260,10 +1260,11 @@ require("/repl.js").start("simple tcp server> ");
 
 
 
-== Extension API
+== Addons
 
-External modules can be compiled and dynamically linked into Node. 
-Node is more or less glue between several C and C++ libraries:
+Addons are dynamically linked shared objects. They can provide glue to C and
+C++ libraries. The API (at the moment) is rather complex, involving
+knowledge of several libraries:
 
  - V8 Javascript, a C++ library. Used for interfacing with Javascript:
    creating objects, calling functions, etc.  Documented mostly in the
@@ -1289,39 +1290,18 @@ Node statically compiles all its dependencies into the executable. When
 compiling your module, you don't need to worry about linking to any of these
 libraries. 
 
-Here is a sample Makefile taken from 
-http://github.com/ry/node_postgres[node_postgres]:
+To get started let's make a small Addon which does the following except in
+C++:
 -----------------------------------------------------
-binding.node: binding.o Makefile
-	gcc -shared -o binding.node  binding.o \
-		-L`pg_config --libdir` -lpq
-
-binding.o: binding.cc Makefile
-	gcc `node --cflags` -I`pg_config --includedir` \
-		binding.cc -c -o binding.o
-
-clean:
-	rm -f binding.o binding.node
-.PHONY: clean
------------------------------------------------------
-As you can see, the only thing your module needs to know about Node is the
-CFLAGS that node was compiled with which are gotten from +node --cflags+
-If you want to make a debug build, then use +node_g --cflags+. (+node_g+ is
-the debug build of node, which can built with +configure --debug; make; make
-install+.)
-
-Node extension modules are dynamically linked libraries with a +.node+
-extension. Node opens this file and looks for a function called +init()+
-which must be of the form:
-
------------------------------------------------------
-extern "C" void init (Handle<Object> target) 
+exports.hello = "world";
 -----------------------------------------------------
 
-In this function you can create new javascript objects and attach them to
-+target+. Here is a very simple module:
-
+To get started we create a file +hello.cc+:
 -----------------------------------------------------
+#include <v8.h>
+
+using namespace v8;
+
 extern "C" void
 init (Handle<Object> target) 
 {
@@ -1330,7 +1310,39 @@ init (Handle<Object> target)
 }
 -----------------------------------------------------
 
-Further documentation will come soon. For now see the source code of
-http://github.com/ry/node_postgres[node_postgres].
+This source code needs to be built into +hello.node+, the binary Addon. To
+do this we create a file called +wscript+ which is python code and looks
+like this:
+-----------------------------------------------------
+srcdir = '.'
+blddir = 'build'
+VERSION = '0.0.1'
+
+def set_options(opt):
+  opt.tool_options('compiler_cxx')
+
+def configure(conf):
+  conf.check_tool('compiler_cxx')
+  conf.check_tool('node_addon')
+  conf.check_node_headers()
+
+def build(bld):
+  obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+  obj.target = 'hello'
+  obj.source = "hello.cc"
+-----------------------------------------------------
+Running +node-waf configure build+ will create a file
++build/default/hello.node+ which is our Addon.
+
++node-waf+ is just http://code.google.com/p/waf/[WAF], the python-based build system. +node-waf+ is
+provided for the ease of users.
+
+All Node addons must export a function called +init+ with this signature:
+-----------------------------------------------------
+extern "C" void init (Handle<Object> target) 
+-----------------------------------------------------
+
+For the moment, that is all the documentation on addons. Please see
+http://github.com/ry/node_postgres[node_postgres] for a real example.
 
 // vim: set syntax=asciidoc:
