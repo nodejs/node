@@ -5,10 +5,6 @@ exports.libDir = node.path.join(exports.testDir, "../../lib");
 node.libraryPaths.unshift(exports.libDir);
 
 var mjsunit = require("/mjsunit.js");
-include("/utils.js");
-// Copy mjsunit namespace out
-for (var prop in mjsunit) {
-  if (mjsunit.hasOwnProperty(prop)) exports[prop] = mjsunit[prop];
-}
-
+var utils = require("/utils.js");
+node.mixin(exports, mjsunit, utils);
 

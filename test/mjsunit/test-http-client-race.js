@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 http = require("/http.js");
 PORT = 8888;
 

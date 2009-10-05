@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 var WINDOW = 200; // why is does this need to be so big?
 

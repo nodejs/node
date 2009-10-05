@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 var got_error = false;
 
 var filename = node.path.join(fixturesDir, "does_not_exist.txt");

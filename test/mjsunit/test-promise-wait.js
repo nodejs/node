@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 var p1_done = false;
 var p1 = new node.Promise();

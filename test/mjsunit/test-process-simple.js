@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 var cat = node.createChildProcess("cat");
 

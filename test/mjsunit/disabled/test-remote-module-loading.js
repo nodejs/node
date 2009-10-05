@@ -9,7 +9,7 @@ var s = node.http.createServer(function (req, res) {
 });
 s.listen(8000);
 
-include("mjsunit.js");
+node.mixin(require("../common.js"));
 var a = require("http://localhost:8000/")
 
 assertInstanceof(a.A, Function);

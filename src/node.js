@@ -13,7 +13,7 @@ node.createChildProcess = function (command) {
 };
 
 node.exec = function () {
-  throw new Error("node.exec() has moved. Use include('/utils.js') to bring it back.");
+  throw new Error("node.exec() has moved. Use require('/utils.js') to bring it back.");
 }
 
 node.http.createServer = function () {
@@ -26,6 +26,61 @@ node.http.createClient = function () {
 
 node.tcp.createConnection = function (port, host) {
   throw new Error("node.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
+};
+
+/* From jQuery.extend in the jQuery JavaScript Library v1.3.2
+ * Copyright (c) 2009 John Resig
+ * Dual licensed under the MIT and GPL licenses.
+ * http://docs.jquery.com/License
+ */
+node.mixin = function() {
+	// copy reference to target object
+	var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, options;
+
+	// Handle a deep copy situation
+	if ( typeof target === "boolean" ) {
+		deep = target;
+		target = arguments[1] || {};
+		// skip the boolean and the target
+		i = 2;
+	}
+
+	// Handle case when target is a string or something (possible in deep copy)
+	if ( typeof target !== "object" && !node.isFunction(target) )
+		target = {};
+
+	// mixin process itself if only one argument is passed
+	if ( length == i ) {
+		target = process;
+		--i;
+	}
+
+	for ( ; i < length; i++ )
+		// Only deal with non-null/undefined values
+		if ( (options = arguments[ i ]) != null )
+			// Extend the base object
+			for ( var name in options ) {
+				var src = target[ name ], copy = options[ name ];
+
+				// Prevent never-ending loop
+				if ( target === copy )
+					continue;
+
+				// Recurse if we're merging object values
+				if ( deep && copy && typeof copy === "object" && !copy.nodeType )
+					target[ name ] = node.mixin( deep, 
+						// Never move original objects, clone them
+						src || ( copy.length != null ? [ ] : { } )
+					, copy );
+
+				// Don't bring in undefined values
+				else if ( copy !== undefined )
+					target[ name ] = copy;
+
+			}
+
+	// Return the modified object
+	return target;
 };
 
 // Timers
@@ -207,27 +262,12 @@ node.Module.prototype.loadScript = function (loadPromise) {
       return requireAsync(url).wait();
     }
 
-    function includeAsync (url) {
-      var promise = requireAsync(url)
-      promise.addCallback(function (t) {
-        // copy properties into global namespace.
-        for (var prop in t) {
-          if (t.hasOwnProperty(prop)) process[prop] = t[prop];
-        }
-      });
-      return promise;
-    }
-
-    function include (url) {
-      includeAsync(url).wait();
-    }
-
     // create wrapper function
-    var wrapper = "function (__filename, exports, require, include) { " + content + "\n};";
+    var wrapper = "function (__filename, exports, require) { " + content + "\n};";
     var compiled_wrapper = node.compile(wrapper, self.filename);
 
     node.loadingModules.unshift(self);
-    compiled_wrapper.apply(self.target, [self.filename, self.target, require, include]);
+    compiled_wrapper.apply(self.target, [self.filename, self.target, require]);
     node.loadingModules.shift();
 
     self.waitChildrenLoad(function () {

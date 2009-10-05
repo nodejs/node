@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 tcp = require("/tcp.js");
 PORT = 20444;
 N = 30*1024; // 500kb

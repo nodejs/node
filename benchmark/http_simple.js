@@ -1,7 +1,7 @@
 libDir = node.path.join(node.path.dirname(__filename), "../lib");
 node.libraryPaths.unshift(libDir);
 
-include("/utils.js");
+node.mixin(require("/utils.js"));
 http = require("/http.js");
 
 fixed = ""
@@ -16,7 +16,7 @@ http.createServer(function (req, res) {
   var arg = commands[2];
   var status = 200;
 
-  //p(req.headers);
+  p(req.uri.params);
 
   if (command == "bytes") {
     var n = parseInt(arg, 10)

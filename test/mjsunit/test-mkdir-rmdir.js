@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 var dirname = node.path.dirname(__filename);
 var fixtures = node.path.join(dirname, "fixtures");

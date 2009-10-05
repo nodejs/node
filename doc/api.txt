@@ -16,8 +16,8 @@ An example of a web server written with Node which responds with "Hello
 World": 
 
 ----------------------------------------
-include("/utils.js");
-include("/http.js");
+node.mixin(require("/utils.js"));
+node.mixin(require("/http.js"));
 createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
@@ -61,11 +61,23 @@ error reporting.
 The filename of the script being executed.
 
 +require(path)+ ::
-+include(path)+ ::
 See the modules section.
 
 +node.libraryPaths+ ::
-The search path for absolute path arguments to +require()+ and +include()+.
+The search path for absolute path arguments to +require()+.
+
++node.mixin([deep], target, object1, [objectN])+ ::
+Extend one object with one or more others, returning the modified object.
+If no target is specified, the +process+ namespace itself is extended. 
+Keep in mind that the target object will be modified, and will be returned
+from +node.mixin()+.
++
+If a boolean true is specified as the first argument, Node performs a deep
+copy, recursively copying any objects it finds. Otherwise, the copy will
+share structure with the original object(s).
++
+Undefined properties are not copied. However, properties inherited from the
+object's prototype will be copied over.
 
 === The +process+ Object
 
@@ -119,7 +131,7 @@ Executes the command as a child process, buffers the output and returns it
 in a promise callback.
 +
 ----------------------------------------
-include("/utils.js");
+node.mixin(require("/utils.js"));
 exec("ls /").addCallback(function (stdout, stderr) {
   puts(stdout);
 });
@@ -269,7 +281,7 @@ The contents of +foo.js+:
 
 ----------------------------------------
 var circle = require("circle.js");
-include("/utils.js");
+node.mixin(require("/utils.js"));
 puts("The area of a circle of radius 4 is " + circle.area(4));
 ----------------------------------------
 
@@ -292,24 +304,20 @@ The module +circle.js+ has exported the functions +area()+ and
 object.  (Alternatively, one can use +this+ instead of +exports+.) Variables
 local to the module will be private. In this example the variable +PI+ is
 private to +circle.js+. The function +puts()+ comes from the module
-+"/utils.js"+. Because +include("/utils.js")+ was called, +puts()+ is in the
-global namespace.
++"/utils.js"+.
 
 The module path is relative to the file calling +require()+.  That is,
 +circle.js+ must be in the same directory as +foo.js+ for +require()+ to
 find it.
 
-Like +require()+ the function +include()+ also loads a module. Instead of
-returning a namespace object, +include()+ will add the module's exports into
-the global namespace. For example:
+Use +node.mixin()+ to include modules into the global namespace.
 
 ----------------------------------------
-include("circle.js");
-include("/utils.js");
+node.mixin(process, require("circle.js"), require("/utils.js"));
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 
-When an absolute path is given to +require()+ or +include()+, like
+When an absolute path is given to +require()+, like
 +require("/mjsunit.js")+ the module is searched for in the
 +node.libraryPaths+ array. +node.libraryPaths+ on my system looks like this: 
 
@@ -567,8 +575,7 @@ Objects returned from +node.fs.stat()+ are of this type.
 
 === HTTP
 
-To use the HTTP server and client one must +require("/http.js")+ or
-+include("/http.js")+.
+To use the HTTP server and client one must +require("/http.js")+.
 
 The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -990,8 +997,7 @@ stream.addListener('complete', function() {
 
 === TCP
 
-To use the TCP server and client one must +require("/tcp.js")+ or
-+include("/tcp.js")+.
+To use the TCP server and client one must +require("/tcp.js")+.
 
 ==== +tcp.Server+
 
@@ -999,7 +1005,7 @@ Here is an example of a echo server which listens for connections
 on port 7000
 
 ----------------------------------------
-include("/tcp.js");
+node.mixin(require("/tcp.js"));
 var server = createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
@@ -1237,8 +1243,8 @@ result of the last expression.
 
 The library is called +/repl.js+ and it can be used like this:
 ------------------------------------
-include("/utils.js");
-include("/tcp.js");
+node.mixin(require("/utils.js"));
+node.mixin(require("/tcp.js"));
 nconnections = 0;
 createServer(function (c) {
   error("Connection!");

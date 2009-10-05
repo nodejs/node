@@ -1,3 +1,4 @@
+node.mixin(require("../common.js"));
 for (var i = 2; i < ARGV.length; i++) {
   var name = ARGV[i]
   puts("looking up " + name);

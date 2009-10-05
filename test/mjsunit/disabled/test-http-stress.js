@@ -1,4 +1,4 @@
-include('../mjsunit.js');
+node.mixin(require('../common.js'));
 
 var PORT = 8003;
 var request_count = 1000;

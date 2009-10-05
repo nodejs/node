@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 success_count = 0;
 error_count = 0;

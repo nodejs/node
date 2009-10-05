@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 function timer (t) {
   var promise = new node.Promise();

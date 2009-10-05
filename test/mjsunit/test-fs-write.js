@@ -1,4 +1,4 @@
-include("common.js");
+node.mixin(require("common.js"));
 
 var path = node.path.join(fixturesDir, "write.txt");
 var expected = "hello";
