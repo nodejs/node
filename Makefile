@@ -1,5 +1,3 @@
-#!/usr/bin/make -f
-
 all:
 	@tools/waf-light build
 
@@ -50,7 +48,7 @@ clean:
 	@tools/waf-light clean
 
 distclean:
-	@tools/waf-light distclean
+	@-rm -rf build/
 	@-rm -f *.pyc
 
 check:
