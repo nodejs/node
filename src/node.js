@@ -260,6 +260,8 @@ node.Module.prototype.loadScript = function (loadPromise) {
       return requireAsync(url).wait();
     }
 
+    require.async = requireAsync;
+
     // create wrapper function
     var wrapper = "function (__filename, exports, require) { " + content + "\n};";
     var compiled_wrapper = node.compile(wrapper, self.filename);
