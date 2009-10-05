@@ -60,6 +60,11 @@ error reporting.
 +__filename+ ::
 The filename of the script being executed.
 
++__module+ ::
+A reference to the current module (of type +node.Module+). In particular
++__module.exports+ is the same as the +exports+ object. See +src/node.js+ for
+more information.
+
 +require(path)+ ::
 See the modules section.
 
