@@ -41,8 +41,8 @@
       </p>
 
       <pre>
-include("/utils.js");
-include("/http.js");
+node.mixin(require("/utils.js"));
+node.mixin(require("/http.js"));
 createServer(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
