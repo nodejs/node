@@ -341,13 +341,6 @@ def build(bld):
     return x
 
   # process file.pc.in -> file.pc
-  pkgconfig = bld.new_task_gen('subst', before="cxx")
-  pkgconfig.source = 'src/node.pc.in'
-  pkgconfig.target = 'node.pc'
-  pkgconfig.install_path = '${PREFIX}/lib/pkgconfig'
-  pkgconfig.dict = subflags(node)
-
-  # process file.pc.in -> file.pc
   node_version = bld.new_task_gen('subst', before="cxx")
   node_version.source = 'src/node_version.h.in'
   node_version.target = 'src/node_version.h'
