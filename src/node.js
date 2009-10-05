@@ -253,7 +253,7 @@ node.Module.prototype.loadScript = function (loadPromise) {
     content = content.replace(/^\#\!.*/, '');
 
     function requireAsync (url) {
-      return self.newChild(url, {});
+      return self.newChild(url);
     }
 
     function require (url) {
@@ -273,8 +273,8 @@ node.Module.prototype.loadScript = function (loadPromise) {
   });
 };
 
-node.Module.prototype.newChild = function (path, target) {
-  return node.loadModule(path, target, this);
+node.Module.prototype.newChild = function (path) {
+  return node.loadModule(path, {}, this);
 };
 
 node.Module.prototype.waitChildrenLoad = function (callback) {
