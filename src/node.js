@@ -252,8 +252,6 @@ node.Module.prototype.loadScript = function (loadPromise) {
     // remove shebang
     content = content.replace(/^\#\!.*/, '');
 
-    node.loadingModules = [];
-
     function requireAsync (url) {
       return self.newChild(url, {});
     }
@@ -266,9 +264,7 @@ node.Module.prototype.loadScript = function (loadPromise) {
     var wrapper = "function (__filename, exports, require) { " + content + "\n};";
     var compiled_wrapper = node.compile(wrapper, self.filename);
 
-    node.loadingModules.unshift(self);
     compiled_wrapper.apply(self.target, [self.filename, self.target, require]);
-    node.loadingModules.shift();
 
     self.waitChildrenLoad(function () {
       self.loaded = true;
