@@ -411,7 +411,7 @@ Closes the process's +stdin+ stream.
 
 
 +child.kill(signal=node.SIGTERM)+ ::
-Send a single to the child process.  If no argument is given, the process
+Send a signal to the child process.  If no argument is given, the process
 will be sent +node.SIGTERM+.  The standard POSIX signals are defined under
 the +node+ namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
 
