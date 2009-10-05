@@ -679,6 +679,7 @@ Then +request.uri+ will be
 { full: "/status?name=ryan",
   path: "/status",
   queryString: "name=ryan",
+  params: { "name": "ryan" },
   fragment: ""
 }
 ----------------------------------------

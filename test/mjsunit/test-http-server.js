@@ -16,6 +16,8 @@ http.createServer(function (req, res) {
   if (req.id == 0) {
     assertEquals("GET", req.method);
     assertEquals("/hello", req.uri.path);
+    assertEquals("world", req.uri.params["hello"]);
+    assertEquals("b==ar", req.uri.params["foo"]);
   }
 
   if (req.id == 1) {
@@ -38,7 +40,7 @@ var c = tcp.createConnection(port);
 c.setEncoding("utf8");
 
 c.addListener("connect", function () {
-  c.send( "GET /hello HTTP/1.1\r\n\r\n" );
+  c.send( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
   requests_sent += 1;
 });
 
