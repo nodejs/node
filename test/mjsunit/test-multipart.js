@@ -44,7 +44,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(port);
 
-var cmd = 'curl -H "Expect:" -F "test-field=foobar" -F test-file=@'+__filename+' http://localhost:'+port+'/';
+var cmd = 'curl -H Expect: -F test-field=foobar -F test-file=@'+__filename+' http://localhost:'+port+'/';
 var result = exec(cmd).wait();
 
 process.addListener('exit', function() {

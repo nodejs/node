@@ -6,9 +6,20 @@ node.createProcess = function () {
   throw "node.createProcess() has been changed to node.createChildProcess() update your code";
 };
 
-node.createChildProcess = function (command) {
+node.createChildProcess = function (file, args, env) {
   var child = new node.ChildProcess();
-  child.spawn(command);
+  args = args || [];
+  env = env || process.ENV;
+  var envPairs = [];
+  for (var key in env) {
+    if (env.hasOwnProperty(key)) {
+      envPairs.push(key + "=" + env[key]);
+    }
+  }
+  // TODO Note envPairs is not currently used in child_process.cc. The PATH
+  // needs to be searched for the 'file' command if 'file' does not contain
+  // a '/' character.
+  child.spawn(file, args, envPairs);
   return child;
 };
 

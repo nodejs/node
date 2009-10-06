@@ -28,7 +28,7 @@ class ChildProcess : EventEmitter {
   ChildProcess();
   ~ChildProcess();
 
-  int Spawn(const char *command);
+  int Spawn(const char *file, char *const argv[], char *const env[]);
   int Write(const char *str, size_t len);
   int Close(void);
   int Kill(int sig);

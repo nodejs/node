@@ -398,15 +398,19 @@ Node provides a tridirectional +popen(3)+ facility through the class
                             +"error"+ callbacks will no longer be made.
 |=========================================================
 
-+node.createChildProcess(command)+::
-Launches a new process with the given +command+. For example:
++node.createChildProcess(command, args=[], env=ENV)+::
+Launches a new process with the given +command+, command line arguments, and
+environmental variables. For example:
 +
 ----------------------------------------
-var ls = node.createChildProcess("ls -lh /usr");
+var ls = node.createChildProcess("ls", ["-lh", "/usr"]);
 ls.addListener("output", function (data) {
   puts(data);
 });
 ----------------------------------------
++
+Note, if you just want to buffer the output of a command and return it, then
++exec()+ in +/utils.js+ might be better.
 
 
 +child.pid+ ::

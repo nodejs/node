@@ -2,6 +2,7 @@
 #include <child_process.h>
 
 #include <assert.h>
+#include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -43,17 +44,58 @@ Handle<Value> ChildProcess::New(const Arguments& args) {
   return args.This();
 }
 
+// This is an internal function. The third argument should be an array
+// of key value pairs seperated with '='.
 Handle<Value> ChildProcess::Spawn(const Arguments& args) {
-  if (args.Length() == 0 || !args[0]->IsString()) {
+  HandleScope scope;
+
+  if ( args.Length() != 3
+    || !args[0]->IsString()
+    || !args[1]->IsArray()
+    || !args[2]->IsArray()
+     )
+  {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
-  HandleScope scope;
   ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
 
-  String::Utf8Value command(args[0]->ToString());
+  String::Utf8Value file(args[0]->ToString());
 
-  int r = child->Spawn(*command);
+  int i;
+
+  // Copy second argument args[1] into a c-string array called argv.
+  // The array must be null terminated, and the first element must be
+  // the name of the executable -- hence the complication.
+  Local<Array> argv_handle = Local<Array>::Cast(args[1]);
+  int argc = argv_handle->Length();
+  int argv_length = argc + 1 + 1;
+  char **argv = new char*[argv_length]; // heap allocated to detect errors
+  argv[0] = strdup(*file); // + 1 for file
+  argv[argv_length-1] = NULL;  // + 1 for NULL;
+  for (i = 0; i < argc; i++) {
+    String::Utf8Value arg(argv_handle->Get(Integer::New(i))->ToString());
+    argv[i+1] = strdup(*arg);
+  }
+
+  // Copy third argument, args[2], into a c-string array called env.
+  Local<Array> env_handle = Local<Array>::Cast(args[2]);
+  int envc = env_handle->Length();
+  char **env = new char*[envc+1]; // heap allocated to detect errors
+  env[envc] = NULL;
+  for (int i = 0; i < envc; i++) {
+    String::Utf8Value pair(env_handle->Get(Integer::New(i))->ToString());
+    env[i] = strdup(*pair);
+  }
+
+  int r = child->Spawn(argv[0], argv, env);
+
+  for (i = 0; i < argv_length; i++) free(argv[i]);
+  delete [] argv;
+
+  for (i = 0; i < envc; i++) free(env[i]);
+  delete [] env;
+
   if (r != 0) {
     return ThrowException(Exception::Error(String::New("Error spawning")));
   }
@@ -94,8 +136,7 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
   if (args[0]->IsInt32()) sig = args[0]->Int32Value();
 
   if (child->Kill(sig) != 0) {
-    return ThrowException(Exception::Error(
-          String::New("ChildProcess already dead")));
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
 
   return Undefined();
@@ -208,7 +249,9 @@ static inline int SetNonBlocking(int fd) {
   return r;
 }
 
-int ChildProcess::Spawn(const char *command) {
+// Note that args[0] must be the same as the "file" param.  This is an
+// execvp() requirement.
+int ChildProcess::Spawn(const char *file, char *const args[], char *const env[]) {
   assert(pid_ == 0);
   assert(stdout_fd_ == -1);
   assert(stderr_fd_ == -1);
@@ -247,8 +290,11 @@ int ChildProcess::Spawn(const char *command) {
       close(stdin_pipe[1]);  // close write end
       dup2(stdin_pipe[0],  STDIN_FILENO);
 
-      execl("/bin/sh", "sh", "-c", command, NULL);
+      execvp(file, args);
+      perror("execvp()");
       _exit(127);
+
+      // TODO search PATH and use: execve(file, argv, env);
   }
 
   // Parent.
