@@ -311,6 +311,7 @@ def build(bld):
     src/node_stdio.cc
     src/dns.cc
     src/file.cc
+    src/signal_handler.cc
     src/timer.cc
     src/child_process.cc
     src/constants.cc

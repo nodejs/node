@@ -15,6 +15,7 @@
 #include <net.h>
 #include <file.h>
 #include <http.h>
+#include <signal_handler.h>
 #include <timer.h>
 #include <child_process.h>
 #include <constants.h>
@@ -380,6 +381,7 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   Stdio::Initialize(node_obj);
   Timer::Initialize(node_obj);
+  SignalHandler::Initialize(node_obj);
   ChildProcess::Initialize(node_obj);
 
   DefineConstants(node_obj);
