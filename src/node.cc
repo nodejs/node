@@ -39,6 +39,8 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
 
   if (strcasecmp(*encoding, "utf8") == 0) {
     return UTF8;
+  } else if (strcasecmp(*encoding, "utf-8") == 0) {
+    return UTF8;
   } else if (strcasecmp(*encoding, "ascii") == 0) {
     return ASCII;
   } else if (strcasecmp(*encoding, "binary") == 0) {
