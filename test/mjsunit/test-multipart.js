@@ -2,6 +2,8 @@ node.mixin(require("common.js"));
 http = require("/http.js");
 
 var multipart = require('/multipart.js');
+var fixture = require('fixtures/multipart.js');
+
 var port = 8222;
 var parts_reveived = 0;
 var parts_complete = 0;
@@ -13,12 +15,12 @@ var server = http.createServer(function(req, res) {
   stream.addListener('part', function(part) {
     parts_reveived++;
 
-    var name = part.headers['Content-Disposition'].name;
+    var name = part.headers['content-disposition'].name;
 
     if (parts_reveived == 1) {
-      assertEquals('test-field', name);
+      assertEquals('reply', name);
     } else if (parts_reveived == 2) {
-      assertEquals('test-file', name);
+      assertEquals('fileupload', name);
     }
 
     parts[name] = '';
@@ -27,9 +29,9 @@ var server = http.createServer(function(req, res) {
     });
     part.addListener('complete', function(chunk) {
       if (parts_reveived == 1) {
-        assertEquals('foobar', parts[name]);
+        assertEquals('yes', parts[name]);
       } else if (parts_reveived == 2) {
-        assertEquals(node.fs.cat(__filename).wait(), parts[name]);
+        assertEquals('/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg', parts[name]);
       }
       parts_complete++;
     });
@@ -44,9 +46,13 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(port);
 
-var cmd = 'curl -H Expect: -F test-field=foobar -F test-file=@'+__filename+' http://localhost:'+port+'/';
-var result = exec(cmd).wait();
+var client = http.createClient(port);
+var request = client.post('/', {'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
+request.sendBody(fixture.reply, 'binary');
+request.finish();
 
 process.addListener('exit', function() {
+  puts("done");
   assertEquals(2, parts_complete);
+  assertEquals(2, parts_reveived);
 });

@@ -1,0 +1,11 @@
+exports.reply = ["--AaB03x\r",
+"content-disposition: form-data; name=\"reply\"\r",
+"\r",
+"yes\r",
+"--AaB03x\r",
+"content-disposition: form-data; name=\"fileupload\"; filename=\"dj.jpg\"\r",
+"Content-Type: image/jpeg\r",
+"Content-Transfer-Encoding: base64\r",
+"\r",
+"/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg\r",
+"--AaB03x--\r\n"].join("\n");
