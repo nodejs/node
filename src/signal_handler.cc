@@ -33,7 +33,10 @@ void SignalHandler::OnSignal(EV_P_ ev_signal *watcher, int revents) {
 }
 
 SignalHandler::~SignalHandler() {
-  ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
+  if (watcher_.active) {
+    ev_unref(EV_DEFAULT_UC);
+    ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
+  }
 }
 
 Handle<Value> SignalHandler::New(const Arguments& args) {
@@ -51,6 +54,7 @@ Handle<Value> SignalHandler::New(const Arguments& args) {
   ev_signal_init(&handler->watcher_, SignalHandler::OnSignal, sig);
   handler->watcher_.data = handler;
   ev_signal_start(EV_DEFAULT_UC_ &handler->watcher_);
+  ev_unref(EV_DEFAULT_UC);
 
   handler->Attach();
 
@@ -61,6 +65,7 @@ Handle<Value> SignalHandler::Stop(const Arguments& args) {
   HandleScope scope;
 
   SignalHandler *handler = ObjectWrap::Unwrap<SignalHandler>(args.Holder());
+  ev_ref(EV_DEFAULT_UC);
   ev_signal_stop(EV_DEFAULT_UC_ &handler->watcher_);
   handler->Detach();
   return Undefined();
