@@ -463,7 +463,7 @@ static void ParseArgs(int *argc, char **argv) {
 
 int main(int argc, char *argv[]) {
   node::ParseArgs(&argc, argv);
-  V8::SetFlagsFromCommandLine(&argc, argv, false);
+  V8::SetFlagsFromCommandLine(&node::dash_dash_index, argv, false);
 
   evcom_ignore_sigpipe();
   ev_default_loop(EVFLAG_AUTO);  // initialize the default ev loop.
