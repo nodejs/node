@@ -53,7 +53,8 @@ class JSObjectsCluster BASE_EMBEDDED {
   // These special cases are used in retainer profile.
   enum SpecialCase {
     ROOTS = 1,
-    GLOBAL_PROPERTY = 2
+    GLOBAL_PROPERTY = 2,
+    SELF = 3  // This case is used in ClustersCoarser only.
   };
 
   JSObjectsCluster() : constructor_(NULL), instance_(NULL) {}
@@ -77,6 +78,9 @@ class JSObjectsCluster BASE_EMBEDDED {
         (a.instance_ == b.instance_ ? 0 : (a.instance_ < b.instance_ ? -1 : 1))
         : cons_cmp;
   }
+  static int Compare(const JSObjectsCluster* a, const JSObjectsCluster* b) {
+    return Compare(*a, *b);
+  }
 
   bool is_null() const { return constructor_ == NULL; }
   bool can_be_coarsed() const { return instance_ != NULL; }
@@ -93,6 +97,7 @@ class JSObjectsCluster BASE_EMBEDDED {
     switch (special) {
       case ROOTS: return Heap::result_symbol();
       case GLOBAL_PROPERTY: return Heap::code_symbol();
+      case SELF: return Heap::catch_var_symbol();
       default:
         UNREACHABLE();
         return NULL;
@@ -183,6 +188,8 @@ class ClustersCoarser BASE_EMBEDDED {
     ClusterBackRefs& operator=(const ClusterBackRefs& src);
 
     static int Compare(const ClusterBackRefs& a, const ClusterBackRefs& b);
+    void SortRefs() { refs.Sort(JSObjectsCluster::Compare); }
+    static void SortRefsIterator(ClusterBackRefs* ref) { ref->SortRefs(); }
 
     JSObjectsCluster cluster;
     ZoneList<JSObjectsCluster> refs;
@@ -219,6 +226,7 @@ class ClustersCoarser BASE_EMBEDDED {
   EqualityTree eq_tree_;
   ClusterBackRefs* current_pair_;
   JSObjectsRetainerTree* current_set_;
+  const JSObjectsCluster* self_;
 };
 
 
@@ -242,20 +250,9 @@ class RetainerHeapProfile BASE_EMBEDDED {
   void StoreReference(const JSObjectsCluster& cluster, HeapObject* ref);
 
  private:
-  // Limit on the number of retainers to be printed per cluster.
-  static const int kMaxRetainersToPrint = 50;
   ZoneScope zscope_;
   JSObjectsRetainerTree retainers_tree_;
   ClustersCoarser coarser_;
-  // TODO(mnaganov): Use some helper class to hold these state variables.
-  JSObjectsClusterTree* coarse_cluster_tree_;
-  Printer* current_printer_;
-  StringStream* current_stream_;
- public:
-  // Used by JSObjectsRetainerTree::ForEach.
-  void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
-  void Call(const JSObjectsCluster& cluster,
-            const NumberAndSizeInfo& number_and_size);
 };
 
 

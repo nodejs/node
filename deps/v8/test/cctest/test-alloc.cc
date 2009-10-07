@@ -43,7 +43,14 @@ static Object* AllocateAfterFailures() {
   NewSpace* new_space = Heap::new_space();
   static const int kNewSpaceFillerSize = ByteArray::SizeFor(0);
   while (new_space->Available() > kNewSpaceFillerSize) {
+    int available_before = new_space->Available();
     CHECK(!Heap::AllocateByteArray(0)->IsFailure());
+    if (available_before == new_space->Available()) {
+      // It seems that we are avoiding new space allocations when
+      // allocation is forced, so no need to fill up new space
+      // in order to make the test harder.
+      break;
+    }
   }
   CHECK(!Heap::AllocateByteArray(100)->IsFailure());
   CHECK(!Heap::AllocateFixedArray(100, NOT_TENURED)->IsFailure());
@@ -143,4 +150,66 @@ TEST(StressJS) {
       v8::Script::Compile(v8::String::New("(new Foo).get"))->Run();
   CHECK_EQ(42, result->Int32Value());
   env->Exit();
+}
+
+
+// CodeRange test.
+// Tests memory management in a CodeRange by allocating and freeing blocks,
+// using a pseudorandom generator to choose block sizes geometrically
+// distributed between 2 * Page::kPageSize and 2^5 + 1 * Page::kPageSize.
+// Ensure that the freed chunks are collected and reused by allocating (in
+// total) more than the size of the CodeRange.
+
+// This pseudorandom generator does not need to be particularly good.
+// Use the lower half of the V8::Random() generator.
+unsigned int Pseudorandom() {
+  static uint32_t lo = 2345;
+  lo = 18273 * (lo & 0xFFFF) + (lo >> 16);  // Provably not 0.
+  return lo & 0xFFFF;
+}
+
+
+// Plain old data class.  Represents a block of allocated memory.
+class Block {
+ public:
+  Block(void* base_arg, int size_arg)
+      : base(base_arg), size(size_arg) {}
+
+  void *base;
+  int size;
+};
+
+
+TEST(CodeRange) {
+  const int code_range_size = 16*MB;
+  CodeRange::Setup(code_range_size);
+  int current_allocated = 0;
+  int total_allocated = 0;
+  List<Block> blocks(1000);
+
+  while (total_allocated < 5 * code_range_size) {
+    if (current_allocated < code_range_size / 10) {
+      // Allocate a block.
+      // Geometrically distributed sizes, greater than Page::kPageSize.
+      size_t requested = (Page::kPageSize << (Pseudorandom() % 6)) +
+           Pseudorandom() % 5000 + 1;
+      size_t allocated = 0;
+      void* base = CodeRange::AllocateRawMemory(requested, &allocated);
+      blocks.Add(Block(base, allocated));
+      current_allocated += allocated;
+      total_allocated += allocated;
+    } else {
+      // Free a block.
+      int index = Pseudorandom() % blocks.length();
+      CodeRange::FreeRawMemory(blocks[index].base, blocks[index].size);
+      current_allocated -= blocks[index].size;
+      if (index < blocks.length() - 1) {
+        blocks[index] = blocks.RemoveLast();
+      } else {
+        blocks.RemoveLast();
+      }
+    }
+  }
+
+  CodeRange::TearDown();
 }

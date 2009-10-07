@@ -63,6 +63,10 @@ class Memory {
   static Object*& Object_at(Address addr)  {
     return *reinterpret_cast<Object**>(addr);
   }
+
+  static Handle<Object>& Object_Handle_at(Address addr)  {
+    return *reinterpret_cast<Handle<Object>*>(addr);
+  }
 };
 
 } }  // namespace v8::internal

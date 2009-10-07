@@ -554,14 +554,18 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Extracting the sample from the context is extremely machine dependent.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
-#if defined (__arm__) || defined(__thumb__)
-    sample.pc = mcontext.mc_r15;
-    sample.sp = mcontext.mc_r13;
-    sample.fp = mcontext.mc_r11;
-#else
+#if V8_HOST_ARCH_IA32
     sample.pc = mcontext.mc_eip;
     sample.sp = mcontext.mc_esp;
     sample.fp = mcontext.mc_ebp;
+#elif V8_HOST_ARCH_X64
+    sample.pc = mcontext.mc_rip;
+    sample.sp = mcontext.mc_rsp;
+    sample.fp = mcontext.mc_rbp;
+#elif V8_HOST_ARCH_ARM
+    sample.pc = mcontext.mc_r15;
+    sample.sp = mcontext.mc_r13;
+    sample.fp = mcontext.mc_r11;
 #endif
     active_sampler_->SampleStack(&sample);
   }

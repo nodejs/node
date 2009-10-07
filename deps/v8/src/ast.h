@@ -85,7 +85,6 @@ namespace internal {
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
-  V(CallEval)                                   \
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
@@ -116,7 +115,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 class AstNode: public ZoneObject {
  public:
-  AstNode(): statement_pos_(RelocInfo::kNoPosition) { }
   virtual ~AstNode() { }
   virtual void Accept(AstVisitor* v) = 0;
 
@@ -140,21 +138,23 @@ class AstNode: public ZoneObject {
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
+};
+
+
+class Statement: public AstNode {
+ public:
+  Statement() : statement_pos_(RelocInfo::kNoPosition) {}
+
+  virtual Statement* AsStatement()  { return this; }
+  virtual ReturnStatement* AsReturnStatement() { return NULL; }
+
+  bool IsEmpty() { return AsEmptyStatement() != NULL; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
 
  private:
   int statement_pos_;
-};
-
-
-class Statement: public AstNode {
- public:
-  virtual Statement* AsStatement()  { return this; }
-  virtual ReturnStatement* AsReturnStatement() { return NULL; }
-
-  bool IsEmpty() { return AsEmptyStatement() != NULL; }
 };
 
 
@@ -954,12 +954,8 @@ class Property: public Expression {
 
 class Call: public Expression {
  public:
-  Call(Expression* expression,
-       ZoneList<Expression*>* arguments,
-       int pos)
-      : expression_(expression),
-        arguments_(arguments),
-        pos_(pos) { }
+  Call(Expression* expression, ZoneList<Expression*>* arguments, int pos)
+      : expression_(expression), arguments_(arguments), pos_(pos) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -981,30 +977,21 @@ class Call: public Expression {
 };
 
 
-class CallNew: public Call {
+class CallNew: public Expression {
  public:
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, pos) { }
-
-  virtual void Accept(AstVisitor* v);
-};
-
-
-// The CallEval class represents a call of the form 'eval(...)' where eval
-// cannot be seen to be overwritten at compile time. It is potentially a
-// direct (i.e. not aliased) eval call. The real nature of the call is
-// determined at runtime.
-class CallEval: public Call {
- public:
-  CallEval(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, pos) { }
+      : expression_(expression), arguments_(arguments), pos_(pos) { }
 
   virtual void Accept(AstVisitor* v);
 
-  static CallEval* sentinel() { return &sentinel_; }
+  Expression* expression() const { return expression_; }
+  ZoneList<Expression*>* arguments() const { return arguments_; }
+  int position() { return pos_; }
 
  private:
-  static CallEval sentinel_;
+  Expression* expression_;
+  ZoneList<Expression*>* arguments_;
+  int pos_;
 };
 
 

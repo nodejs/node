@@ -98,7 +98,8 @@ void Top::InitializeThreadLocal() {
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
   thread_local_.context_ = NULL;
-  thread_local_.thread_id_ = ThreadManager::kInvalidId;
+  int id = ThreadManager::CurrentId();
+  thread_local_.thread_id_ = (id == 0) ? ThreadManager::kInvalidId : id;
   thread_local_.external_caught_exception_ = false;
   thread_local_.failed_access_check_callback_ = NULL;
   clear_pending_exception();

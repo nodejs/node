@@ -237,18 +237,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\ia32\cfg-ia32.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\cfg.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\cfg.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\char-predicates-inl.h"
 				>
 			</File>

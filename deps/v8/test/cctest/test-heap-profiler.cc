@@ -74,13 +74,12 @@ TEST(ConstructorProfile) {
 }
 
 
-static JSObjectsCluster AddHeapObjectToTree(
-    JSObjectsRetainerTree* tree,
-    i::String* constructor,
-    int instance,
-    JSObjectsCluster* ref1 = NULL,
-    JSObjectsCluster* ref2 = NULL,
-    JSObjectsCluster* ref3 = NULL) {
+static JSObjectsCluster AddHeapObjectToTree(JSObjectsRetainerTree* tree,
+                                            i::String* constructor,
+                                            int instance,
+                                            JSObjectsCluster* ref1 = NULL,
+                                            JSObjectsCluster* ref2 = NULL,
+                                            JSObjectsCluster* ref3 = NULL) {
   JSObjectsCluster o(constructor, reinterpret_cast<i::Object*>(instance));
   JSObjectsClusterTree* o_tree = new JSObjectsClusterTree();
   JSObjectsClusterTree::Locator o_loc;
@@ -91,6 +90,16 @@ static JSObjectsCluster AddHeapObjectToTree(
   tree->Insert(o, &loc);
   loc.set_value(o_tree);
   return o;
+}
+
+
+static void AddSelfReferenceToTree(JSObjectsRetainerTree* tree,
+                                   JSObjectsCluster* self_ref) {
+  JSObjectsRetainerTree::Locator loc;
+  CHECK(tree->Find(*self_ref, &loc));
+  JSObjectsClusterTree::Locator o_loc;
+  CHECK_NE(NULL, loc.value());
+  loc.value()->Insert(*self_ref, &o_loc);
 }
 
 
@@ -121,7 +130,7 @@ static inline void CheckNonEqualsHelper(const char* file, int line,
   if (JSObjectsCluster::Compare(expected, value) == 0) {
     i::HeapStringAllocator allocator;
     i::StringStream stream(&allocator);
-    stream.Add("#  Expected: ");
+    stream.Add("# !Expected: ");
     expected.DebugPrint(&stream);
     stream.Add("\n#  Found: ");
     value.DebugPrint(&stream);
@@ -243,13 +252,63 @@ TEST(ClustersCoarserPathsTraversal) {
   coarser.Process(&tree);
 
   CHECK_EQ(JSObjectsCluster(), coarser.GetCoarseEquivalent(o));
+  CHECK_NE(JSObjectsCluster(), coarser.GetCoarseEquivalent(o11));
   CHECK_EQ(coarser.GetCoarseEquivalent(o11), coarser.GetCoarseEquivalent(o12));
   CHECK_EQ(coarser.GetCoarseEquivalent(o21), coarser.GetCoarseEquivalent(o22));
   CHECK_NE(coarser.GetCoarseEquivalent(o11), coarser.GetCoarseEquivalent(o21));
+  CHECK_NE(JSObjectsCluster(), coarser.GetCoarseEquivalent(p));
   CHECK_EQ(coarser.GetCoarseEquivalent(p), coarser.GetCoarseEquivalent(q));
   CHECK_EQ(coarser.GetCoarseEquivalent(q), coarser.GetCoarseEquivalent(r));
   CHECK_NE(coarser.GetCoarseEquivalent(o11), coarser.GetCoarseEquivalent(p));
   CHECK_NE(coarser.GetCoarseEquivalent(o21), coarser.GetCoarseEquivalent(p));
+}
+
+
+TEST(ClustersCoarserSelf) {
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
+
+  JSObjectsRetainerTree tree;
+
+  // On the following graph:
+  //
+  // p (self-referencing)
+  //          <- o1     <-
+  // q (self-referencing)   o
+  //          <- o2     <-
+  // r (self-referencing)
+  //
+  // we expect that coarser will deduce equivalences: p ~ q ~ r, o1 ~ o2;
+
+  JSObjectsCluster o =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x100);
+  JSObjectsCluster o1 =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x110, &o);
+  JSObjectsCluster o2 =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x120, &o);
+  JSObjectsCluster p =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x300, &o1);
+  AddSelfReferenceToTree(&tree, &p);
+  JSObjectsCluster q =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x310, &o1, &o2);
+  AddSelfReferenceToTree(&tree, &q);
+  JSObjectsCluster r =
+      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x320, &o2);
+  AddSelfReferenceToTree(&tree, &r);
+
+  ClustersCoarser coarser;
+  coarser.Process(&tree);
+
+  CHECK_EQ(JSObjectsCluster(), coarser.GetCoarseEquivalent(o));
+  CHECK_NE(JSObjectsCluster(), coarser.GetCoarseEquivalent(o1));
+  CHECK_EQ(coarser.GetCoarseEquivalent(o1), coarser.GetCoarseEquivalent(o2));
+  CHECK_NE(JSObjectsCluster(), coarser.GetCoarseEquivalent(p));
+  CHECK_EQ(coarser.GetCoarseEquivalent(p), coarser.GetCoarseEquivalent(q));
+  CHECK_EQ(coarser.GetCoarseEquivalent(q), coarser.GetCoarseEquivalent(r));
+  CHECK_NE(coarser.GetCoarseEquivalent(o1), coarser.GetCoarseEquivalent(p));
 }
 
 
@@ -322,7 +381,14 @@ TEST(RetainerProfile) {
   }
   RetainerProfilePrinter printer;
   ret_profile.DebugPrintStats(&printer);
-  CHECK_EQ("(global property);1,B;2,C;2", printer.GetRetainers("A"));
+  const char* retainers_of_a = printer.GetRetainers("A");
+  // The order of retainers is unspecified, so we check string length, and
+  // verify each retainer separately.
+  CHECK_EQ(static_cast<int>(strlen("(global property);1,B;2,C;2")),
+           static_cast<int>(strlen(retainers_of_a)));
+  CHECK(strstr(retainers_of_a, "(global property);1") != NULL);
+  CHECK(strstr(retainers_of_a, "B;2") != NULL);
+  CHECK(strstr(retainers_of_a, "C;2") != NULL);
   CHECK_EQ("(global property);2", printer.GetRetainers("B"));
   CHECK_EQ("(global property);1", printer.GetRetainers("C"));
 }

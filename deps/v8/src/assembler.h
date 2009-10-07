@@ -191,6 +191,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Address target_address());
   INLINE(void set_target_address(Address target));
   INLINE(Object* target_object());
+  INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target));
 

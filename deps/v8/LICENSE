@@ -21,13 +21,6 @@ are:
     This code is copyrighted by Sun Microsystems Inc. and released
     under a 3-clause BSD license.
 
-  - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
-    copyrighted by Douglas Crockford and Baruch Even and released under
-    an MIT license.
-
-  - Valgrind client API header, located at third_party/valgrind/valgrind.h
-    This is release under the BSD license.
-
   - Valgrind client API header, located at third_party/valgrind/valgrind.h
     This is release under the BSD license.
 

@@ -78,6 +78,12 @@ class ThreadLocalTop BASE_EMBEDDED {
 
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
+
+  void Free() {
+    ASSERT(!has_pending_message_);
+    ASSERT(!external_caught_exception_);
+    ASSERT(try_catch_handler_ == NULL);
+  }
 };
 
 #define TOP_ADDRESS_LIST(C) \
@@ -316,6 +322,7 @@ class Top {
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   static char* ArchiveThread(char* to);
   static char* RestoreThread(char* from);
+  static void FreeThreadResources() { thread_local_.Free(); }
 
   static const char* kStackOverflowMessage;
 

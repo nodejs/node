@@ -1,3 +1,46 @@
+2009-10-07: Version 1.3.14
+
+        Added GetRealNamedProperty to the API to lookup real properties
+        located on the object or in the prototype chain skipping any
+        interceptors.
+
+        Fix the stack limits setting API to work correctly with threads. The
+        stack limit now needs to be set to each thread thich is used with V8.
+
+        Remove the high-priority flag from IdleNotification()
+
+        Ensure V8 is initialized before locking and unlocking threads.
+
+        Implemented a new JavaScript minifier for compressing the source of
+        the built-in JavaScript. This Remove non-Open Source code from Douglas
+        Crockford from the project.
+
+        Added a missing optimization in StringCharAt.
+
+        Fixed some flaky socket tests.
+
+        Change by Alexander Botero-Lowry to fix profiler sampling on FreeBSD
+        in 64-bit mode.
+
+        Fixed memory leaks in the thread management code.
+
+        Fixed the result of assignment to a pixel array. The assigned value
+        is now the result.
+
+        Error reporting for invalid left-hand sides in for-in statements, pre-
+        and postfix count expressions, and assignments now matches the JSC
+        behavior in Safari 4.
+
+        Follow the spec in disallowing function declarations without a name.
+
+        Always allocate code objects within a 2 GB range. On x64 architecture
+        this is used to use near calls (32-bit displacement) in Code objects.
+
+        Optimized array construction ported to x64 and ARM architectures.
+
+        [ES5] Changed Object.keys to return strings for element indices.
+
+
 2009-09-23: Version 1.3.13
 
         Fixed uninitialized memory problem.

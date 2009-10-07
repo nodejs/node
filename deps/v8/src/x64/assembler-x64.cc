@@ -264,7 +264,8 @@ static void InitCoverageLog();
 
 byte* Assembler::spare_buffer_ = NULL;
 
-Assembler::Assembler(void* buffer, int buffer_size) {
+Assembler::Assembler(void* buffer, int buffer_size)
+    : code_targets_(100) {
   if (buffer == NULL) {
     // do our own buffer management
     if (buffer_size <= kMinimalBufferSize) {
@@ -762,6 +763,15 @@ void Assembler::call(Label* L) {
 }
 
 
+void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // 1110 1000 #32-bit disp
+  emit(0xE8);
+  emit_code_target(target, rmode);
+}
+
+
 void Assembler::call(Register adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1062,6 +1072,19 @@ void Assembler::j(Condition cc, Label* L) {
 }
 
 
+void Assembler::j(Condition cc,
+                  Handle<Code> target,
+                  RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint4(cc));
+  // 0000 1111 1000 tttn #32-bit disp
+  emit(0x0F);
+  emit(0x80 | cc);
+  emit_code_target(target, rmode);
+}
+
+
 void Assembler::jmp(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1090,6 +1113,15 @@ void Assembler::jmp(Label* L) {
     emitl(current);
     L->link_to(current);
   }
+}
+
+
+void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // 1110 1001 #32-bit disp
+  emit(0xE9);
+  emit_code_target(target, rmode);
 }
 
 
@@ -2387,7 +2419,8 @@ void Assembler::WriteRecordedPositions() {
 }
 
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
-
+const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
+                                  1 << RelocInfo::INTERNAL_REFERENCE |
+                                  1 << RelocInfo::JS_RETURN;
 
 } }  // namespace v8::internal

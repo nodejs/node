@@ -1,218 +1,278 @@
-#!/usr/bin/python
+#!/usr/bin/python2.4
 
-# This code is original from jsmin by Douglas Crockford, it was translated to
-# Python by Baruch Even. The original code had the following copyright and
-# license.
+# Copyright 2009 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 #
-# /* jsmin.c
-#    2007-05-22
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
 #
-# Copyright (c) 2002 Douglas Crockford  (www.crockford.com)
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of
-# this software and associated documentation files (the "Software"), to deal in
-# the Software without restriction, including without limitation the rights to
-# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-# of the Software, and to permit persons to whom the Software is furnished to do
-# so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# The Software shall be used for Good, not Evil.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-# */
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from StringIO import StringIO
+"""A JavaScript minifier.
 
-def jsmin(js):
-    ins = StringIO(js)
-    outs = StringIO()
-    JavascriptMinify().minify(ins, outs)
-    str = outs.getvalue()
-    if len(str) > 0 and str[0] == '\n':
-        str = str[1:]
-    return str
+It is far from being a complete JS parser, so there are many valid
+JavaScript programs that will be ruined by it.  Another strangeness is that
+it accepts $ and % as parts of identifiers.  It doesn't merge lines or strip
+out blank lines in order to ease debugging.  Variables at the top scope are
+properties of the global object so we can't rename them.  It is assumed that
+you introduce variables with var as if JavaScript followed C++ scope rules
+around curly braces, so the declaration must be above the first use.
 
-def isAlphanum(c):
-    """return true if the character is a letter, digit, underscore,
-           dollar sign, or non-ASCII character.
+Use as:
+import jsmin
+minifier = JavaScriptMinifier()
+program1 = minifier.JSMinify(program1)
+program2 = minifier.JSMinify(program2)
+"""
+
+import re
+
+
+class JavaScriptMinifier(object):
+  """An object that you can feed code snippets to to get them minified."""
+
+  def __init__(self):
+    # We prepopulate the list of identifiers that shouldn't be used.  These
+    # short language keywords could otherwise be used by the script as variable
+    # names.
+    self.seen_identifiers = {"do": True, "in": True}
+    self.identifier_counter = 0
+    self.in_comment = False
+    self.map = {}
+    self.nesting = 0
+
+  def LookAtIdentifier(self, m):
+    """Records identifiers or keywords that we see in use.
+
+    (So we can avoid renaming variables to these strings.)
+    Args:
+      m: The match object returned by re.search.
+
+    Returns:
+      Nothing.
     """
-    return ((c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or
-            (c >= 'A' and c <= 'Z') or c == '_' or c == '$' or c == '\\' or (c is not None and ord(c) > 126));
+    identifier = m.group(1)
+    self.seen_identifiers[identifier] = True
 
-class UnterminatedComment(Exception):
-    pass
+  def Push(self):
+    """Called when we encounter a '{'."""
+    self.nesting += 1
 
-class UnterminatedStringLiteral(Exception):
-    pass
+  def Pop(self):
+    """Called when we encounter a '}'."""
+    self.nesting -= 1
+    # We treat each top-level opening brace as a single scope that can span
+    # several sets of nested braces.
+    if self.nesting == 0:
+      self.map = {}
+      self.identifier_counter = 0
 
-class UnterminatedRegularExpression(Exception):
-    pass
+  def Declaration(self, m):
+    """Rewrites bits of the program selected by a regexp.
 
-class JavascriptMinify(object):
+    These can be curly braces, literal strings, function declarations and var
+    declarations.  (These last two must be on one line including the opening
+    curly brace of the function for their variables to be renamed).
 
-    def _outA(self):
-        self.outstream.write(self.theA)
-    def _outB(self):
-        self.outstream.write(self.theB)
+    Args:
+      m: The match object returned by re.search.
 
-    def _get(self):
-        """return the next character from stdin. Watch out for lookahead. If
-           the character is a control character, translate it to a space or
-           linefeed.
-        """
-        c = self.theLookahead
-        self.theLookahead = None
-        if c == None:
-            c = self.instream.read(1)
-        if c >= ' ' or c == '\n':
-            return c
-        if c == '': # EOF
-            return '\000'
-        if c == '\r':
-            return '\n'
-        return ' '
+    Returns:
+      The string that should replace the match in the rewritten program.
+    """
+    matched_text = m.group(0)
+    if matched_text == "{":
+      self.Push()
+      return matched_text
+    if matched_text == "}":
+      self.Pop()
+      return matched_text
+    if re.match("[\"'/]", matched_text):
+      return matched_text
+    m = re.match(r"var ", matched_text)
+    if m:
+      var_names = matched_text[m.end():]
+      var_names = re.split(r",", var_names)
+      return "var " + ",".join(map(self.FindNewName, var_names))
+    m = re.match(r"(function\b[^(]*)\((.*)\)\{$", matched_text)
+    if m:
+      up_to_args = m.group(1)
+      args = m.group(2)
+      args = re.split(r",", args)
+      self.Push()
+      return up_to_args + "(" + ",".join(map(self.FindNewName, args)) + "){"
 
-    def _peek(self):
-        self.theLookahead = self._get()
-        return self.theLookahead
+    if matched_text in self.map:
+      return self.map[matched_text]
 
-    def _next(self):
-        """get the next character, excluding comments. peek() is used to see
-           if an unescaped '/' is followed by a '/' or '*'.
-        """
-        c = self._get()
-        if c == '/' and self.theA != '\\':
-            p = self._peek()
-            if p == '/':
-                c = self._get()
-                while c > '\n':
-                    c = self._get()
-                return c
-            if p == '*':
-                c = self._get()
-                while 1:
-                    c = self._get()
-                    if c == '*':
-                        if self._peek() == '/':
-                            self._get()
-                            return ' '
-                    if c == '\000':
-                        raise UnterminatedComment()
+    return matched_text
 
-        return c
+  def CharFromNumber(self, number):
+    """A single-digit base-52 encoding using a-zA-Z."""
+    if number < 26:
+      return chr(number + 97)
+    number -= 26
+    return chr(number + 65)
 
-    def _action(self, action):
-        """do something! What you do is determined by the argument:
-           1   Output A. Copy B to A. Get the next B.
-           2   Copy B to A. Get the next B. (Delete A).
-           3   Get the next B. (Delete B).
-           action treats a string as a single character. Wow!
-           action recognizes a regular expression if it is preceded by ( or , or =.
-        """
-        if action <= 1:
-            self._outA()
+  def FindNewName(self, var_name):
+    """Finds a new 1-character or 2-character name for a variable.
 
-        if action <= 2:
-            self.theA = self.theB
-            if self.theA == "'" or self.theA == '"':
-                while 1:
-                    self._outA()
-                    self.theA = self._get()
-                    if self.theA == self.theB:
-                        break
-                    if self.theA <= '\n':
-                        raise UnterminatedStringLiteral()
-                    if self.theA == '\\':
-                        self._outA()
-                        self.theA = self._get()
+    Enters it into the mapping table for this scope.
 
+    Args:
+      var_name: The name of the variable before renaming.
 
-        if action <= 3:
-            self.theB = self._next()
-            if self.theB == '/' and (self.theA == '(' or self.theA == ',' or
-                                     self.theA == '=' or self.theA == ':' or
-                                     self.theA == '[' or self.theA == '?' or
-                                     self.theA == '!' or self.theA == '&' or
-                                     self.theA == '|' or self.theA == ';' or
-                                     self.theA == '{' or self.theA == '}' or
-                                     self.theA == '\n'):
-                self._outA()
-                self._outB()
-                while 1:
-                    self.theA = self._get()
-                    if self.theA == '/':
-                        break
-                    elif self.theA == '\\':
-                        self._outA()
-                        self.theA = self._get()
-                    elif self.theA <= '\n':
-                        raise UnterminatedRegularExpression()
-                    self._outA()
-                self.theB = self._next()
+    Returns:
+      The new name of the variable.
+    """
+    new_identifier = ""
+    # Variable names that end in _ are member variables of the global object,
+    # so they can be visible from code in a different scope.  We leave them
+    # alone.
+    if var_name in self.map:
+      return self.map[var_name]
+    if self.nesting == 0:
+      return var_name
+    while True:
+      identifier_first_char = self.identifier_counter % 52
+      identifier_second_char = self.identifier_counter / 52
+      new_identifier = self.CharFromNumber(identifier_first_char)
+      if identifier_second_char != 0:
+        new_identifier = (
+            self.CharFromNumber(identifier_second_char - 1) + new_identifier)
+      self.identifier_counter += 1
+      if not new_identifier in self.seen_identifiers:
+        break
 
+    self.map[var_name] = new_identifier
+    return new_identifier
 
-    def _jsmin(self):
-        """Copy the input to the output, deleting the characters which are
-           insignificant to JavaScript. Comments will be removed. Tabs will be
-           replaced with spaces. Carriage returns will be replaced with linefeeds.
-           Most spaces and linefeeds will be removed.
-        """
-        self.theA = '\n'
-        self._action(3)
+  def RemoveSpaces(self, m):
+    """Returns literal strings unchanged, replaces other inputs with group 2.
 
-        while self.theA != '\000':
-            if self.theA == ' ':
-                if isAlphanum(self.theB):
-                    self._action(1)
-                else:
-                    self._action(2)
-            elif self.theA == '\n':
-                if self.theB in ['{', '[', '(', '+', '-']:
-                    self._action(1)
-                elif self.theB == ' ':
-                    self._action(3)
-                else:
-                    if isAlphanum(self.theB):
-                        self._action(1)
-                    else:
-                        self._action(2)
-            else:
-                if self.theB == ' ':
-                    if isAlphanum(self.theA):
-                        self._action(1)
-                    else:
-                        self._action(3)
-                elif self.theB == '\n':
-                    if self.theA in ['}', ']', ')', '+', '-', '"', '\'']:
-                        self._action(1)
-                    else:
-                        if isAlphanum(self.theA):
-                            self._action(1)
-                        else:
-                            self._action(3)
-                else:
-                    self._action(1)
+    Other inputs are replaced with the contents of capture 1.  This is either
+    a single space or an empty string.
 
-    def minify(self, instream, outstream):
-        self.instream = instream
-        self.outstream = outstream
-        self.theA = '\n'
-        self.theB = None
-        self.theLookahead = None
+    Args:
+      m: The match object returned by re.search.
 
-        self._jsmin()
-        self.instream.close()
+    Returns:
+      The string that should be inserted instead of the matched text.
+    """
+    entire_match = m.group(0)
+    replacement = m.group(1)
+    if re.match(r"'.*'$", entire_match):
+      return entire_match
+    if re.match(r'".*"$', entire_match):
+      return entire_match
+    if re.match(r"/.+/$", entire_match):
+      return entire_match
+    return replacement
 
-if __name__ == '__main__':
-    import sys
-    jsm = JavascriptMinify()
-    jsm.minify(sys.stdin, sys.stdout)
+  def JSMinify(self, text):
+    """The main entry point.  Takes a text and returns a compressed version.
+
+    The compressed version hopefully does the same thing.  Line breaks are
+    preserved.
+
+    Args:
+      text: The text of the code snippet as a multiline string.
+
+    Returns:
+      The compressed text of the code snippet as a multiline string.
+    """
+    new_lines = []
+    for line in re.split(r"\n", text):
+      line = line.replace("\t", " ")
+      if self.in_comment:
+        m = re.search(r"\*/", line)
+        if m:
+          line = line[m.end():]
+          self.in_comment = False
+        else:
+          new_lines.append("")
+          continue
+
+      if not self.in_comment:
+        line = re.sub(r"/\*.*?\*/", " ", line)
+        line = re.sub(r"//.*", "", line)
+        m = re.search(r"/\*", line)
+        if m:
+          line = line[:m.start()]
+          self.in_comment = True
+
+      # Strip leading and trailing spaces.
+      line = re.sub(r"^ +", "", line)
+      line = re.sub(r" +$", "", line)
+      # A regexp that matches a literal string surrounded by "double quotes".
+      # This regexp can handle embedded backslash-escaped characters including
+      # embedded backslash-escaped double quotes.
+      double_quoted_string = r'"(?:[^"\\]|\\.)*"'
+      # A regexp that matches a literal string surrounded by 'double quotes'.
+      single_quoted_string = r"'(?:[^'\\]|\\.)*'"
+      # A regexp that matches a regexp literal surrounded by /slashes/.
+      slash_quoted_regexp = r"/(?:[^/\\]|\\.)+/"
+      # Replace multiple spaces with a single space.
+      line = re.sub("|".join([double_quoted_string,
+                              single_quoted_string,
+                              slash_quoted_regexp,
+                              "( )+"]),
+                    self.RemoveSpaces,
+                    line)
+      # Strip single spaces unless they have an identifier character both before
+      # and after the space.  % and $ are counted as identifier characters.
+      line = re.sub("|".join([double_quoted_string,
+                              single_quoted_string,
+                              slash_quoted_regexp,
+                              r"(?<![a-zA-Z_0-9$%]) | (?![a-zA-Z_0-9$%])()"]),
+                    self.RemoveSpaces,
+                    line)
+      # Collect keywords and identifiers that are already in use.
+      if self.nesting == 0:
+        re.sub(r"([a-zA-Z0-9_$%]+)", self.LookAtIdentifier, line)
+      function_declaration_regexp = (
+          r"\bfunction"              # Function definition keyword...
+          r"( [\w$%]+)?"             # ...optional function name...
+          r"\([\w$%,]+\)\{")         # ...argument declarations.
+      # Unfortunately the keyword-value syntax { key:value } makes the key look
+      # like a variable where in fact it is a literal string.  We use the
+      # presence or absence of a question mark to try to distinguish between
+      # this case and the ternary operator: "condition ? iftrue : iffalse".
+      if re.search(r"\?", line):
+        block_trailing_colon = r""
+      else:
+        block_trailing_colon = r"(?![:\w$%])"
+      # Variable use.  Cannot follow a period precede a colon.
+      variable_use_regexp = r"(?<![.\w$%])[\w$%]+" + block_trailing_colon
+      line = re.sub("|".join([double_quoted_string,
+                              single_quoted_string,
+                              slash_quoted_regexp,
+                              r"\{",                  # Curly braces.
+                              r"\}",
+                              r"\bvar [\w$%,]+",      # var declarations.
+                              function_declaration_regexp,
+                              variable_use_regexp]),
+                    self.Declaration,
+                    line)
+      new_lines.append(line)
+
+    return "\n".join(new_lines) + "\n"

@@ -29,6 +29,7 @@
 
 #include "accessors.h"
 #include "api.h"
+#include "arguments.h"
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"
@@ -46,10 +47,10 @@ v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
 
 
 int HandleScope::NumberOfHandles() {
-  int n = HandleScopeImplementer::instance()->Blocks()->length();
+  int n = HandleScopeImplementer::instance()->blocks()->length();
   if (n == 0) return 0;
   return ((n - 1) * kHandleBlockSize) +
-      (current_.next - HandleScopeImplementer::instance()->Blocks()->last());
+      (current_.next - HandleScopeImplementer::instance()->blocks()->last());
 }
 
 
@@ -67,8 +68,8 @@ Object** HandleScope::Extend() {
   HandleScopeImplementer* impl = HandleScopeImplementer::instance();
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
-  if (!impl->Blocks()->is_empty()) {
-    Object** limit = &impl->Blocks()->last()[kHandleBlockSize];
+  if (!impl->blocks()->is_empty()) {
+    Object** limit = &impl->blocks()->last()[kHandleBlockSize];
     if (current_.limit != limit) {
       current_.limit = limit;
     }
@@ -81,7 +82,7 @@ Object** HandleScope::Extend() {
     result = impl->GetSpareOrNewBlock();
     // Add the extension to the global list of blocks, but count the
     // extension as part of the current scope.
-    impl->Blocks()->Add(result);
+    impl->blocks()->Add(result);
     current_.extensions++;
     current_.limit = &result[kHandleBlockSize];
   }
@@ -479,15 +480,17 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
 }
 
 
+void CustomArguments::IterateInstance(ObjectVisitor* v) {
+  v->VisitPointers(values_, values_ + 4);
+}
+
+
 // Compute the property keys from the interceptor.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  Handle<Object> data(interceptor->data());
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(receiver),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(object));
+  CustomArguments args(interceptor->data(), *receiver, *object);
+  v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::NamedPropertyEnumerator enum_fun =
@@ -507,11 +510,8 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  Handle<Object> data(interceptor->data());
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(receiver),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(object));
+  CustomArguments args(interceptor->data(), *receiver, *object);
+  v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::IndexedPropertyEnumerator enum_fun =

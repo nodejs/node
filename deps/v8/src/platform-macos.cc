@@ -42,6 +42,7 @@
 #include <mach/mach.h>
 #include <mach/semaphore.h>
 #include <mach/task.h>
+#include <mach/vm_statistics.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -123,12 +124,22 @@ size_t OS::AllocateAlignment() {
 }
 
 
+// Constants used for mmap.
+// kMmapFd is used to pass vm_alloc flags to tag the region with the user
+// defined tag 255 This helps identify V8-allocated regions in memory analysis
+// tools like vmmap(1).
+static const int kMmapFd = VM_MAKE_TAG(255);
+static const off_t kMmapFdOffset = 0;
+
+
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* mbase = mmap(NULL, msize, prot,
+                     MAP_PRIVATE | MAP_ANON,
+                     kMmapFd, kMmapFdOffset);
   if (mbase == MAP_FAILED) {
     LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
@@ -280,9 +291,6 @@ int OS::StackWalk(Vector<StackFrame> frames) {
 }
 
 
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
 
 
 VirtualMemory::VirtualMemory(size_t size) {

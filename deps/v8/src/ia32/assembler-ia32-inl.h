@@ -85,19 +85,25 @@ void RelocInfo::set_target_address(Address target) {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return *reinterpret_cast<Object**>(pc_);
+  return Memory::Object_at(pc_);
+}
+
+
+Handle<Object> RelocInfo::target_object_handle(Assembler *origin) {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  return Memory::Object_Handle_at(pc_);
 }
 
 
 Object** RelocInfo::target_object_address() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object**>(pc_);
+  return &Memory::Object_at(pc_);
 }
 
 
 void RelocInfo::set_target_object(Object* target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  *reinterpret_cast<Object**>(pc_) = target;
+  Memory::Object_at(pc_) = target;
 }
 
 

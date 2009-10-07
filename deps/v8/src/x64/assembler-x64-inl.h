@@ -70,6 +70,20 @@ void Assembler::emitw(uint16_t x) {
 }
 
 
+void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  RecordRelocInfo(rmode);
+  int current = code_targets_.length();
+  if (current > 0 && code_targets_.last().is_identical_to(target)) {
+    // Optimization if we keep jumping to the same code target.
+    emitl(current - 1);
+  } else {
+    code_targets_.Add(target);
+    emitl(current);
+  }
+}
+
+
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
@@ -162,15 +176,18 @@ void Assembler::emit_optional_rex_32(const Operand& op) {
 
 
 Address Assembler::target_address_at(Address pc) {
-  return Memory::Address_at(pc);
+  return Memory::int32_at(pc) + pc + 4;
 }
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  Memory::Address_at(pc) = target;
-  CPU::FlushICache(pc, sizeof(intptr_t));
+  Memory::int32_at(pc) = target - pc - 4;
+  CPU::FlushICache(pc, sizeof(int32_t));
 }
 
+Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
+  return code_targets_[Memory::int32_at(pc)];
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
@@ -179,15 +196,24 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
-    *p += delta;  // relocate entry
+    Memory::Address_at(pc_) += delta;
+  } else if (IsCodeTarget(rmode_)) {
+    Memory::int32_at(pc_) -= delta;
+  } else if (rmode_ == JS_RETURN && IsCallInstruction()) {
+    // Special handling of js_return when a break point is set (call
+    // instruction has been inserted).
+    Memory::int32_at(pc_ + 1) -= delta;  // relocate entry
   }
 }
 
 
 Address RelocInfo::target_address() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  return Assembler::target_address_at(pc_);
+  if (IsCodeTarget(rmode_)) {
+    return Assembler::target_address_at(pc_);
+  } else {
+    return Memory::Address_at(pc_);
+  }
 }
 
 
@@ -199,13 +225,27 @@ Address RelocInfo::target_address_address() {
 
 void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  Assembler::set_target_address_at(pc_, target);
+  if (IsCodeTarget(rmode_)) {
+    Assembler::set_target_address_at(pc_, target);
+  } else {
+    Memory::Address_at(pc_) = target;
+  }
 }
 
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return *reinterpret_cast<Object**>(pc_);
+  return Memory::Object_at(pc_);
+}
+
+
+Handle<Object> RelocInfo::target_object_handle(Assembler *origin) {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  if (rmode_ == EMBEDDED_OBJECT) {
+    return Memory::Object_Handle_at(pc_);
+  } else {
+    return origin->code_target_object_handle_at(pc_);
+  }
 }
 
 
@@ -240,16 +280,15 @@ bool RelocInfo::IsCallInstruction() {
 
 Address RelocInfo::call_address() {
   ASSERT(IsCallInstruction());
-  return Assembler::target_address_at(
-      pc_ + Assembler::kPatchReturnSequenceAddressOffset);
+  return Memory::Address_at(
+      pc_ + Assembler::kRealPatchReturnSequenceAddressOffset);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
   ASSERT(IsCallInstruction());
-  Assembler::set_target_address_at(
-      pc_ + Assembler::kPatchReturnSequenceAddressOffset,
-      target);
+  Memory::Address_at(pc_ + Assembler::kRealPatchReturnSequenceAddressOffset) =
+      target;
 }
 
 

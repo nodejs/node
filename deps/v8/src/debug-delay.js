@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// jsminify this file, js2c: jsmin
-
 // Default number of frames to include in the response to backtrace request.
 const kDefaultBacktraceLength = 10;
 
@@ -35,7 +33,7 @@ const Debug = {};
 // Regular expression to skip "crud" at the beginning of a source line which is
 // not really code. Currently the regular expression matches whitespace and
 // comments.
-const sourceLineBeginningSkip = /^(?:[ \v\h]*(?:\/\*.*?\*\/)*)*/;
+const sourceLineBeginningSkip = /^(?:\s*(?:\/\*.*?\*\/)*)*/;
 
 // Debug events which can occour in the V8 JavaScript engine. These originate
 // from the API include file debug.h.
@@ -350,7 +348,7 @@ ScriptBreakPoint.prototype.set = function (script) {
     if (!script.sourceColumnStart_) {
       script.sourceColumnStart_ = new Array(script.lineCount());
     }
-    
+
     // Fill cache if needed and get column where the actual source starts.
     if (IS_UNDEFINED(script.sourceColumnStart_[line])) {
       script.sourceColumnStart_[line] =
@@ -361,11 +359,11 @@ ScriptBreakPoint.prototype.set = function (script) {
 
   // Convert the line and column into an absolute position within the script.
   var pos = Debug.findScriptSourcePosition(script, this.line(), column);
-  
+
   // If the position is not found in the script (the script might be shorter
   // than it used to be) just ignore it.
   if (pos === null) return;
-  
+
   // Create a break point object and set the break point.
   break_point = MakeBreakPoint(pos, this.line(), this.column(), this);
   break_point.setIgnoreCount(this.ignoreCount());
@@ -492,7 +490,7 @@ Debug.findFunctionSourceLocation = function(func, opt_line, opt_column) {
 // Returns the character position in a script based on a line number and an
 // optional position within that line.
 Debug.findScriptSourcePosition = function(script, opt_line, opt_column) {
-  var location = script.locationFromLine(opt_line, opt_column);  
+  var location = script.locationFromLine(opt_line, opt_column);
   return location ? location.position : null;
 }
 
@@ -944,7 +942,7 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
   o.body = { uncaught: this.uncaught_,
              exception: MakeMirror(this.exception_)
            };
-           
+
   // Exceptions might happen whithout any JavaScript frames.
   if (this.exec_state_.frameCount() > 0) {
     o.body.sourceLine = this.sourceLine();
@@ -1097,7 +1095,7 @@ DebugCommandProcessor.prototype.processDebugRequest = function (request) {
 function ProtocolMessage(request) {
   // Update sequence number.
   this.seq = next_response_seq++;
-  
+
   if (request) {
     // If message is based on a request this is a response. Fill the initial
     // response from the request.
@@ -1487,7 +1485,7 @@ DebugCommandProcessor.prototype.clearBreakPointGroupRequest_ = function(request,
     response.failed('Missing argument "groupId"');
     return;
   }
-  
+
   var cleared_break_points = [];
   var new_script_break_points = [];
   for (var i = 0; i < script_break_points.length; i++) {
@@ -1603,7 +1601,7 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
     if (index < 0 || this.exec_state_.frameCount() <= index) {
       return response.failed('Invalid frame number');
     }
-    
+
     this.exec_state_.setSelectedFrame(request.arguments.number);
   }
   response.body = this.exec_state_.frame();
@@ -1633,7 +1631,7 @@ DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
 
   // Get the frame for which the scopes are requested.
   var frame = this.frameForScopeRequest_(request);
-  
+
   // Fill all scopes for this frame.
   var total_scopes = frame.scopeCount();
   var scopes = [];
@@ -1750,7 +1748,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
     includeSource = %ToBoolean(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
-  
+
   // Lookup handles.
   var mirrors = {};
   for (var i = 0; i < handles.length; i++) {

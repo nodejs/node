@@ -2498,6 +2498,11 @@ void Debugger::StopAgent() {
 }
 
 
+void Debugger::WaitForAgent() {
+  if (agent_ != NULL)
+    agent_->WaitUntilListening();
+}
+
 MessageImpl MessageImpl::NewEvent(DebugEvent event,
                                   bool running,
                                   Handle<JSObject> exec_state,

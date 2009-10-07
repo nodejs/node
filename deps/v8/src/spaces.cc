@@ -145,6 +145,128 @@ Page::RSetState Page::rset_state_ = Page::IN_USE;
 #endif
 
 // -----------------------------------------------------------------------------
+// CodeRange
+
+List<CodeRange::FreeBlock> CodeRange::free_list_(0);
+List<CodeRange::FreeBlock> CodeRange::allocation_list_(0);
+int CodeRange::current_allocation_block_index_ = 0;
+VirtualMemory* CodeRange::code_range_ = NULL;
+
+
+bool CodeRange::Setup(const size_t requested) {
+  ASSERT(code_range_ == NULL);
+
+  code_range_ = new VirtualMemory(requested);
+  CHECK(code_range_ != NULL);
+  if (!code_range_->IsReserved()) {
+    delete code_range_;
+    code_range_ = NULL;
+    return false;
+  }
+
+  // We are sure that we have mapped a block of requested addresses.
+  ASSERT(code_range_->size() == requested);
+  LOG(NewEvent("CodeRange", code_range_->address(), requested));
+  allocation_list_.Add(FreeBlock(code_range_->address(), code_range_->size()));
+  current_allocation_block_index_ = 0;
+  return true;
+}
+
+
+int CodeRange::CompareFreeBlockAddress(const FreeBlock* left,
+                                       const FreeBlock* right) {
+  // The entire point of CodeRange is that the difference between two
+  // addresses in the range can be represented as a signed 32-bit int,
+  // so the cast is semantically correct.
+  return static_cast<int>(left->start - right->start);
+}
+
+
+void CodeRange::GetNextAllocationBlock(size_t requested) {
+  for (current_allocation_block_index_++;
+       current_allocation_block_index_ < allocation_list_.length();
+       current_allocation_block_index_++) {
+    if (requested <= allocation_list_[current_allocation_block_index_].size) {
+      return;  // Found a large enough allocation block.
+    }
+  }
+
+  // Sort and merge the free blocks on the free list and the allocation list.
+  free_list_.AddAll(allocation_list_);
+  allocation_list_.Clear();
+  free_list_.Sort(&CompareFreeBlockAddress);
+  for (int i = 0; i < free_list_.length();) {
+    FreeBlock merged = free_list_[i];
+    i++;
+    // Add adjacent free blocks to the current merged block.
+    while (i < free_list_.length() &&
+           free_list_[i].start == merged.start + merged.size) {
+      merged.size += free_list_[i].size;
+      i++;
+    }
+    if (merged.size > 0) {
+      allocation_list_.Add(merged);
+    }
+  }
+  free_list_.Clear();
+
+  for (current_allocation_block_index_ = 0;
+       current_allocation_block_index_ < allocation_list_.length();
+       current_allocation_block_index_++) {
+    if (requested <= allocation_list_[current_allocation_block_index_].size) {
+      return;  // Found a large enough allocation block.
+    }
+  }
+
+  // Code range is full or too fragmented.
+  V8::FatalProcessOutOfMemory("CodeRange::GetNextAllocationBlock");
+}
+
+
+
+void* CodeRange::AllocateRawMemory(const size_t requested, size_t* allocated) {
+  ASSERT(current_allocation_block_index_ < allocation_list_.length());
+  if (requested > allocation_list_[current_allocation_block_index_].size) {
+    // Find an allocation block large enough.  This function call may
+    // call V8::FatalProcessOutOfMemory if it cannot find a large enough block.
+    GetNextAllocationBlock(requested);
+  }
+  // Commit the requested memory at the start of the current allocation block.
+  *allocated = RoundUp(requested, Page::kPageSize);
+  FreeBlock current = allocation_list_[current_allocation_block_index_];
+  if (*allocated >= current.size - Page::kPageSize) {
+    // Don't leave a small free block, useless for a large object or chunk.
+    *allocated = current.size;
+  }
+  ASSERT(*allocated <= current.size);
+  if (!code_range_->Commit(current.start, *allocated, true)) {
+    *allocated = 0;
+    return NULL;
+  }
+  allocation_list_[current_allocation_block_index_].start += *allocated;
+  allocation_list_[current_allocation_block_index_].size -= *allocated;
+  if (*allocated == current.size) {
+    GetNextAllocationBlock(0);  // This block is used up, get the next one.
+  }
+  return current.start;
+}
+
+
+void CodeRange::FreeRawMemory(void* address, size_t length) {
+  free_list_.Add(FreeBlock(address, length));
+  code_range_->Uncommit(address, length);
+}
+
+
+void CodeRange::TearDown() {
+    delete code_range_;  // Frees all memory in the virtual memory range.
+    code_range_ = NULL;
+    free_list_.Free();
+    allocation_list_.Free();
+}
+
+
+// -----------------------------------------------------------------------------
 // MemoryAllocator
 //
 int MemoryAllocator::capacity_   = 0;
@@ -226,8 +348,12 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
                                          size_t* allocated,
                                          Executability executable) {
   if (size_ + static_cast<int>(requested) > capacity_) return NULL;
-
-  void* mem = OS::Allocate(requested, allocated, executable == EXECUTABLE);
+  void* mem;
+  if (executable == EXECUTABLE  && CodeRange::exists()) {
+    mem = CodeRange::AllocateRawMemory(requested, allocated);
+  } else {
+    mem = OS::Allocate(requested, allocated, (executable == EXECUTABLE));
+  }
   int alloced = *allocated;
   size_ += alloced;
   Counters::memory_allocated.Increment(alloced);
@@ -236,7 +362,11 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
 
 
 void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
-  OS::Free(mem, length);
+  if (CodeRange::contains(static_cast<Address>(mem))) {
+    CodeRange::FreeRawMemory(mem, length);
+  } else {
+    OS::Free(mem, length);
+  }
   Counters::memory_allocated.Decrement(length);
   size_ -= length;
   ASSERT(size_ >= 0);

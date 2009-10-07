@@ -286,6 +286,8 @@ class Factory : public AllStatic {
       Handle<Object> value,
       PropertyAttributes attributes);
 
+  static Handle<String> NumberToString(Handle<Object> number);
+
   enum ApiInstanceType {
     JavaScriptObject,
     InnerGlobalObject,

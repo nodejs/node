@@ -469,44 +469,32 @@ bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
 }
 
 
-void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    int pos = fun->start_position();
-    if (pos != RelocInfo::kNoPosition) {
-      masm()->RecordStatementPosition(pos);
-      masm()->RecordPosition(pos);
-    }
+static inline void RecordPositions(CodeGenerator* cgen, int pos) {
+  if (pos != RelocInfo::kNoPosition) {
+    cgen->masm()->RecordStatementPosition(pos);
+    cgen->masm()->RecordPosition(pos);
   }
+}
+
+
+void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
+  if (FLAG_debug_info) RecordPositions(this, fun->start_position());
 }
 
 
 void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    int pos = fun->end_position();
-    if (pos != RelocInfo::kNoPosition) {
-      masm()->RecordStatementPosition(pos);
-      masm()->RecordPosition(pos);
-    }
-  }
+  if (FLAG_debug_info) RecordPositions(this, fun->end_position());
 }
 
 
-void CodeGenerator::CodeForStatementPosition(AstNode* node) {
-  if (FLAG_debug_info) {
-    int pos = node->statement_pos();
-    if (pos != RelocInfo::kNoPosition) {
-      masm()->RecordStatementPosition(pos);
-      masm()->RecordPosition(pos);
-    }
-  }
+void CodeGenerator::CodeForStatementPosition(Statement* stmt) {
+  if (FLAG_debug_info) RecordPositions(this, stmt->statement_pos());
 }
 
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
-  if (FLAG_debug_info) {
-    if (pos != RelocInfo::kNoPosition) {
-      masm()->RecordPosition(pos);
-    }
+  if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
+    masm()->RecordPosition(pos);
   }
 }
 

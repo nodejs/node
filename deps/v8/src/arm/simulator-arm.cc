@@ -409,7 +409,7 @@ void Simulator::Initialize() {
 
 
 Simulator::Simulator() {
-  ASSERT(initialized_);
+  Initialize();
   // Setup simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
@@ -501,6 +501,7 @@ void* Simulator::RedirectExternalReference(void* external_function,
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current() {
+  Initialize();
   Simulator* sim = reinterpret_cast<Simulator*>(
       v8::internal::Thread::GetThreadLocal(simulator_key));
   if (sim == NULL) {

@@ -171,7 +171,7 @@ class Variable: public ZoneObject {
   UseCount* var_uses()  { return &var_uses_; }
   UseCount* obj_uses()  { return &obj_uses_; }
 
-  bool IsVariable(Handle<String> n) {
+  bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
   }
 
@@ -184,6 +184,12 @@ class Variable: public ZoneObject {
   bool is_global() const;
   bool is_this() const { return kind_ == THIS; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
+
+  // True if the variable is named eval and not known to be shadowed.
+  bool is_possibly_eval() const {
+    return IsVariable(Factory::eval_symbol()) &&
+        (mode_ == DYNAMIC || mode_ == DYNAMIC_GLOBAL);
+  }
 
   Variable* local_if_not_shadowed() const {
     ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);

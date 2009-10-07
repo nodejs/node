@@ -50,7 +50,7 @@ enum HandlerType {
 };
 
 
-// Flags used for the AllocateObjectInNewSpace functions.
+// Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
   NO_ALLOCATION_FLAGS = 0,

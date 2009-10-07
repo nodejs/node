@@ -71,6 +71,7 @@ class RegExpStack {
   static size_t ArchiveSpacePerThread() { return sizeof(thread_local_); }
   static char* ArchiveStack(char* to);
   static char* RestoreStack(char* from);
+  static void FreeThreadResources() { thread_local_.Free(); }
 
  private:
   // Artificial limit used when no memory has been allocated.
@@ -92,6 +93,7 @@ class RegExpStack {
     Address memory_;
     size_t memory_size_;
     Address limit_;
+    void Free();
   };
 
   // Resets the buffer if it has grown beyond the default/minimum size.

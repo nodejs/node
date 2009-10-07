@@ -86,6 +86,7 @@ class ThreadManager : public AllStatic {
 
   static void ArchiveThread();
   static bool RestoreThread();
+  static void FreeThreadResources();
   static bool IsArchived();
 
   static void Iterate(ObjectVisitor* v);

@@ -175,30 +175,30 @@ class MacroAssembler: public Assembler {
   // and result_end have not yet been tagged as heap objects. If
   // result_contains_top_on_entry is true the contnt of result is known to be
   // the allocation top on entry (could be result_end from a previous call to
-  // AllocateObjectInNewSpace). If result_contains_top_on_entry is true scratch
+  // AllocateInNewSpace). If result_contains_top_on_entry is true scratch
   // should be no_reg as it is never used.
-  void AllocateObjectInNewSpace(int object_size,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(int object_size,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
-  void AllocateObjectInNewSpace(int header_size,
-                                ScaleFactor element_size,
-                                Register element_count,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(int header_size,
+                          ScaleFactor element_size,
+                          Register element_count,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
-  void AllocateObjectInNewSpace(Register object_size,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(Register object_size,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the
@@ -254,14 +254,14 @@ class MacroAssembler: public Assembler {
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
   // Tail call of a runtime routine (jump).
-  // Like JumpToBuiltin, but also takes care of passing the number
+  // Like JumpToRuntime, but also takes care of passing the number
   // of arguments.
   void TailCallRuntime(const ExternalReference& ext,
                        int num_arguments,
                        int result_size);
 
-  // Jump to the builtin routine.
-  void JumpToBuiltin(const ExternalReference& ext);
+  // Jump to a runtime routine.
+  void JumpToRuntime(const ExternalReference& ext);
 
 
   // ---------------------------------------------------------------------------
@@ -321,8 +321,16 @@ class MacroAssembler: public Assembler {
                       Label* done,
                       InvokeFlag flag);
 
-  // Get the code for the given builtin. Returns if able to resolve
-  // the function in the 'resolved' flag.
+  // Prepares for a call or jump to a builtin by doing two things:
+  // 1. Emits code that fetches the builtin's function object from the context
+  //    at runtime, and puts it in the register rdi.
+  // 2. Fetches the builtin's code object, and returns it in a handle, at
+  //    compile time, so that later code can emit instructions to jump or call
+  //    the builtin directly.  If the code object has not yet been created, it
+  //    returns the builtin code object for IllegalFunction, and sets the
+  //    output parameter "resolved" to false.  Code that uses the return value
+  //    should then add the address and the builtin name to the list of fixups
+  //    called unresolved_, which is fixed up by the bootstrapper.
   Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
   // Activation support.

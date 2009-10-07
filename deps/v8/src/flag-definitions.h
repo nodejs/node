@@ -133,7 +133,6 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "Minimum length for automatic enable preparsing")
-DEFINE_bool(multipass, false, "use the multipass code generator")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -271,7 +270,6 @@ DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_bool(print_scopes, false, "print scopes")
-DEFINE_bool(print_cfg, false, "print control-flow graph")
 
 // contexts.cc
 DEFINE_bool(trace_contexts, false, "trace contexts operations")

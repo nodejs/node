@@ -141,14 +141,13 @@ class Execution : public AllStatic {
 class ExecutionAccess;
 
 
-// Stack guards are used to limit the number of nested invocations of
-// JavaScript and the stack size used in each invocation.
-class StackGuard BASE_EMBEDDED {
+// StackGuard contains the handling of the limits that are used to limit the
+// number of nested invocations of JavaScript and the stack size used in each
+// invocation.
+class StackGuard : public AllStatic {
  public:
-  StackGuard();
-
-  ~StackGuard();
-
+  // Pass the address beyond which the stack should not grow.  The stack
+  // is assumed to grow downwards.
   static void SetStackLimit(uintptr_t limit);
 
   static Address address_of_jslimit() {
@@ -159,6 +158,13 @@ class StackGuard BASE_EMBEDDED {
   static char* ArchiveStackGuard(char* to);
   static char* RestoreStackGuard(char* from);
   static int ArchiveSpacePerThread();
+  static void FreeThreadResources();
+  // Sets up the default stack guard for this thread if it has not
+  // already been set up.
+  static void InitThread(const ExecutionAccess& lock);
+  // Clears the stack guard for this thread so it does not look as if
+  // it has been set up.
+  static void ClearThread(const ExecutionAccess& lock);
 
   static bool IsStackOverflow();
   static bool IsPreempted();
@@ -175,6 +181,13 @@ class StackGuard BASE_EMBEDDED {
 #endif
   static void Continue(InterruptFlag after_what);
 
+  // This provides an asynchronous read of the stack limit for the current
+  // thread.  There are no locks protecting this, but it is assumed that you
+  // have the global V8 lock if you are using multiple V8 threads.
+  static uintptr_t climit() {
+    return thread_local_.climit_;
+  }
+
   static uintptr_t jslimit() {
     return thread_local_.jslimit_;
   }
@@ -182,13 +195,6 @@ class StackGuard BASE_EMBEDDED {
  private:
   // You should hold the ExecutionAccess lock when calling this method.
   static bool IsSet(const ExecutionAccess& lock);
-
-  // This provides an asynchronous read of the stack limit for the current
-  // thread.  There are no locks protecting this, but it is assumed that you
-  // have the global V8 lock if you are using multiple V8 threads.
-  static uintptr_t climit() {
-    return thread_local_.climit_;
-  }
 
   // You should hold the ExecutionAccess lock when calling this method.
   static void set_limits(uintptr_t value, const ExecutionAccess& lock) {
@@ -200,14 +206,9 @@ class StackGuard BASE_EMBEDDED {
   // Reset limits to initial values. For example after handling interrupt.
   // You should hold the ExecutionAccess lock when calling this method.
   static void reset_limits(const ExecutionAccess& lock) {
-    if (thread_local_.nesting_ == 0) {
-      // No limits have been set yet.
-      set_limits(kIllegalLimit, lock);
-    } else {
-      thread_local_.jslimit_ = thread_local_.initial_jslimit_;
-      Heap::SetStackLimit(thread_local_.jslimit_);
-      thread_local_.climit_ = thread_local_.initial_climit_;
-    }
+    thread_local_.jslimit_ = thread_local_.initial_jslimit_;
+    Heap::SetStackLimit(thread_local_.jslimit_);
+    thread_local_.climit_ = thread_local_.initial_climit_;
   }
 
   // Enable or disable interrupts.
@@ -217,24 +218,19 @@ class StackGuard BASE_EMBEDDED {
   static const uintptr_t kLimitSize = kPointerSize * 128 * KB;
 #ifdef V8_TARGET_ARCH_X64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
-  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xffffffffffffffff);
+  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
-  static const uintptr_t kIllegalLimit = 0xffffffff;
+  static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
 
   class ThreadLocal {
    public:
-    ThreadLocal()
-      : initial_jslimit_(kIllegalLimit),
-        jslimit_(kIllegalLimit),
-        initial_climit_(kIllegalLimit),
-        climit_(kIllegalLimit),
-        nesting_(0),
-        postpone_interrupts_nesting_(0),
-        interrupt_flags_(0) {
-      Heap::SetStackLimit(kIllegalLimit);
-    }
+    ThreadLocal() { Clear(); }
+    // You should hold the ExecutionAccess lock when you call Initialize or
+    // Clear.
+    void Initialize();
+    void Clear();
     uintptr_t initial_jslimit_;
     uintptr_t jslimit_;
     uintptr_t initial_climit_;

@@ -922,7 +922,9 @@ class ReferenceUpdater: public ObjectVisitor {
       serializer_(serializer),
       reference_encoder_(serializer->reference_encoder_),
       offsets_(8),
-      addresses_(8) {
+      addresses_(8),
+      offsets_32_bit_(0),
+      data_32_bit_(0) {
   }
 
   virtual void VisitPointers(Object** start, Object** end) {
@@ -939,8 +941,12 @@ class ReferenceUpdater: public ObjectVisitor {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Address encoded_target = serializer_->GetSavedAddress(target);
-    offsets_.Add(rinfo->target_address_address() - obj_address_);
-    addresses_.Add(encoded_target);
+    // All calls and jumps are to code objects that encode into 32 bits.
+    offsets_32_bit_.Add(rinfo->target_address_address() - obj_address_);
+    uint32_t small_target =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(encoded_target));
+    ASSERT(reinterpret_cast<uintptr_t>(encoded_target) == small_target);
+    data_32_bit_.Add(small_target);
   }
 
 
@@ -965,6 +971,10 @@ class ReferenceUpdater: public ObjectVisitor {
     for (int i = 0; i < offsets_.length(); i++) {
       memcpy(start_address + offsets_[i], &addresses_[i], sizeof(Address));
     }
+    for (int i = 0; i < offsets_32_bit_.length(); i++) {
+      memcpy(start_address + offsets_32_bit_[i], &data_32_bit_[i],
+             sizeof(uint32_t));
+    }
   }
 
  private:
@@ -973,6 +983,10 @@ class ReferenceUpdater: public ObjectVisitor {
   ExternalReferenceEncoder* reference_encoder_;
   List<int> offsets_;
   List<Address> addresses_;
+  // Some updates are 32-bit even on a 64-bit platform.
+  // We keep a separate list of them on 64-bit platforms.
+  List<int> offsets_32_bit_;
+  List<uint32_t> data_32_bit_;
 };
 
 
@@ -1062,7 +1076,7 @@ void Serializer::Serialize() {
   // No active threads.
   CHECK_EQ(NULL, ThreadState::FirstInUse());
   // No active or weak handles.
-  CHECK(HandleScopeImplementer::instance()->Blocks()->is_empty());
+  CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
   // We need a counter function during serialization to resolve the
   // references to counters in the code on the heap.
@@ -1395,7 +1409,7 @@ void Deserializer::Deserialize() {
   // No active threads.
   ASSERT_EQ(NULL, ThreadState::FirstInUse());
   // No active handles.
-  ASSERT(HandleScopeImplementer::instance()->Blocks()->is_empty());
+  ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
   reference_decoder_ = new ExternalReferenceDecoder();
   // By setting linear allocation only, we forbid the use of free list
   // allocation which is not predicted by SimulatedAddress.
@@ -1432,7 +1446,9 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 
 void Deserializer::VisitCodeTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-  Address encoded_address = reinterpret_cast<Address>(rinfo->target_object());
+  // On all platforms, the encoded code object address is only 32 bits.
+  Address encoded_address = reinterpret_cast<Address>(Memory::uint32_at(
+      reinterpret_cast<Address>(rinfo->target_object_address())));
   Code* target_object = reinterpret_cast<Code*>(Resolve(encoded_address));
   rinfo->set_target_address(target_object->instruction_start());
 }
@@ -1632,8 +1648,7 @@ Object* Deserializer::GetObject() {
   obj->IterateBody(type, size, this);
 
   if (type == CODE_TYPE) {
-    Code* code = Code::cast(obj);
-    LOG(CodeMoveEvent(a, code->address()));
+    LOG(CodeMoveEvent(a, obj->address()));
   }
   objects_++;
   return o;
@@ -1664,7 +1679,6 @@ Object* Deserializer::Resolve(Address encoded) {
 
   // Encoded addresses of HeapObjects always have 'HeapObject' tags.
   ASSERT(o->IsHeapObject());
-
   switch (GetSpace(encoded)) {
     // For Map space and Old space, we cache the known Pages in map_pages,
     // old_pointer_pages and old_data_pages. Even though MapSpace keeps a list

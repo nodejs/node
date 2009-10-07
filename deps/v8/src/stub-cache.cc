@@ -735,28 +735,17 @@ Handle<Code> ComputeCallMiss(int argc) {
 
 
 Object* LoadCallbackProperty(Arguments args) {
-  Handle<JSObject> recv = args.at<JSObject>(0);
-  Handle<JSObject> holder = args.at<JSObject>(1);
   AccessorInfo* callback = AccessorInfo::cast(args[2]);
-  Handle<Object> data = args.at<Object>(3);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  Handle<String> name = args.at<String>(4);
-  // NOTE: If we can align the structure of an AccessorInfo with the
-  // locations of the arguments to this function maybe we don't have
-  // to explicitly create the structure but can just pass a pointer
-  // into the stack.
-  LOG(ApiNamedPropertyAccess("load", *recv, *name));
-  v8::AccessorInfo info(v8::Utils::ToLocal(recv),
-                        v8::Utils::ToLocal(data),
-                        v8::Utils::ToLocal(holder));
+  v8::AccessorInfo info(args.arguments());
   HandleScope scope;
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
-    result = fun(v8::Utils::ToLocal(name), info);
+    result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
   if (result.IsEmpty()) return Heap::undefined_value();
@@ -765,7 +754,7 @@ Object* LoadCallbackProperty(Arguments args) {
 
 
 Object* StoreCallbackProperty(Arguments args) {
-  Handle<JSObject> recv = args.at<JSObject>(0);
+  JSObject* recv = JSObject::cast(args[0]);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
@@ -773,11 +762,9 @@ Object* StoreCallbackProperty(Arguments args) {
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
   HandleScope scope;
-  Handle<Object> data(callback->data());
-  LOG(ApiNamedPropertyAccess("store", *recv, *name));
-  v8::AccessorInfo info(v8::Utils::ToLocal(recv),
-                        v8::Utils::ToLocal(data),
-                        v8::Utils::ToLocal(recv));
+  LOG(ApiNamedPropertyAccess("store", recv, *name));
+  CustomArguments custom_args(callback->data(), recv, recv);
+  v8::AccessorInfo info(custom_args.end());
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
@@ -795,11 +782,11 @@ Object* StoreCallbackProperty(Arguments args) {
  * provide any value for the given name.
  */
 Object* LoadPropertyWithInterceptorOnly(Arguments args) {
-  Handle<JSObject> receiver_handle = args.at<JSObject>(0);
-  Handle<JSObject> holder_handle = args.at<JSObject>(1);
+  JSObject* receiver_handle = JSObject::cast(args[0]);
+  JSObject* holder_handle = JSObject::cast(args[1]);
   Handle<String> name_handle = args.at<String>(2);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(3);
-  Handle<Object> data_handle = args.at<Object>(4);
+  Object* data_handle = args[4];
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
@@ -808,9 +795,8 @@ Object* LoadPropertyWithInterceptorOnly(Arguments args) {
 
   {
     // Use the interceptor getter.
-    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
-                          v8::Utils::ToLocal(data_handle),
-                          v8::Utils::ToLocal(holder_handle));
+    CustomArguments args(data_handle, receiver_handle, holder_handle);
+    v8::AccessorInfo info(args.end());
     HandleScope scope;
     v8::Handle<v8::Value> r;
     {
@@ -861,9 +847,8 @@ static Object* LoadWithInterceptor(Arguments* args,
 
   {
     // Use the interceptor getter.
-    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
-                          v8::Utils::ToLocal(data_handle),
-                          v8::Utils::ToLocal(holder_handle));
+    CustomArguments args(*data_handle, *receiver_handle, *holder_handle);
+    v8::AccessorInfo info(args.end());
     HandleScope scope;
     v8::Handle<v8::Value> r;
     {

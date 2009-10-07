@@ -798,12 +798,6 @@ class ParserFactory BASE_EMBEDDED {
     return Call::sentinel();
   }
 
-  virtual Expression* NewCallEval(Expression* expression,
-                                  ZoneList<Expression*>* arguments,
-                                  int pos) {
-    return CallEval::sentinel();
-  }
-
   virtual Statement* EmptyStatement() {
     return NULL;
   }
@@ -852,12 +846,6 @@ class AstBuildingParserFactory : public ParserFactory {
                               ZoneList<Expression*>* arguments,
                               int pos) {
     return new Call(expression, arguments, pos);
-  }
-
-  virtual Expression* NewCallEval(Expression* expression,
-                                  ZoneList<Expression*>* arguments,
-                                  int pos) {
-    return new CallEval(expression, arguments, pos);
   }
 
   virtual Statement* EmptyStatement();
@@ -1196,7 +1184,6 @@ Parser::Parser(Handle<Script> script,
 bool Parser::PreParseProgram(Handle<String> source,
                              unibrow::CharacterStream* stream) {
   HistogramTimerScope timer(&Counters::pre_parse);
-  StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
@@ -1937,31 +1924,20 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
 
 Statement* Parser::ParseFunctionDeclaration(bool* ok) {
-  // Parse a function literal. We may or may not have a function name.
-  // If we have a name we use it as the variable name for the function
-  // (a function declaration) and not as the function name of a function
-  // expression.
-
+  // FunctionDeclaration ::
+  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int function_token_position = scanner().location().beg_pos;
-
-  Handle<String> name;
-  if (peek() == Token::IDENTIFIER) name = ParseIdentifier(CHECK_OK);
-  FunctionLiteral* fun = ParseFunctionLiteral(name, function_token_position,
-                                              DECLARATION, CHECK_OK);
-
-  if (name.is_null()) {
-    // We don't have a name - it is always an anonymous function
-    // expression.
-    return NEW(ExpressionStatement(fun));
-  } else {
-    // We have a name so even if we're not at the top-level of the
-    // global or a function scope, we treat is as such and introduce
-    // the function with it's initial value upon entering the
-    // corresponding scope.
-    Declare(name, Variable::VAR, fun, true, CHECK_OK);
-    return factory()->EmptyStatement();
-  }
+  Handle<String> name = ParseIdentifier(CHECK_OK);
+  FunctionLiteral* fun = ParseFunctionLiteral(name,
+                                              function_token_position,
+                                              DECLARATION,
+                                              CHECK_OK);
+  // Even if we're not at the top-level of the global or a function
+  // scope, we treat is as such and introduce the function with it's
+  // initial value upon entering the corresponding scope.
+  Declare(name, Variable::VAR, fun, true, CHECK_OK);
+  return factory()->EmptyStatement();
 }
 
 
@@ -2672,25 +2648,13 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     } else {
       Expression* expression = ParseExpression(false, CHECK_OK);
       if (peek() == Token::IN) {
-        // Report syntax error if the expression is an invalid
-        // left-hand side expression.
+        // Signal a reference error if the expression is an invalid
+        // left-hand side expression.  We could report this as a syntax
+        // error here but for compatibility with JSC we choose to report
+        // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          if (expression != NULL && expression->AsCall() != NULL) {
-            // According to ECMA-262 host function calls are permitted to
-            // return references.  This cannot happen in our system so we
-            // will always get an error.  We could report this as a syntax
-            // error here but for compatibility with KJS and SpiderMonkey we
-            // choose to report the error at runtime.
-            Handle<String> type = Factory::invalid_lhs_in_for_in_symbol();
-            expression = NewThrowReferenceError(type);
-          } else {
-            // Invalid left hand side expressions that are not function
-            // calls are reported as syntax errors at compile time.
-            ReportMessage("invalid_lhs_in_for_in",
-                          Vector<const char*>::empty());
-            *ok = false;
-            return NULL;
-          }
+          Handle<String> type = Factory::invalid_lhs_in_for_in_symbol();
+          expression = NewThrowReferenceError(type);
         }
         ForInStatement* loop = NEW(ForInStatement(labels));
         Target target(this, loop);
@@ -2767,29 +2731,14 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return expression;
   }
 
+  // Signal a reference error if the expression is an invalid left-hand
+  // side expression.  We could report this as a syntax error here but
+  // for compatibility with JSC we choose to report the error at
+  // runtime.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
-    if (expression != NULL && expression->AsCall() != NULL) {
-      // According to ECMA-262 host function calls are permitted to
-      // return references.  This cannot happen in our system so we
-      // will always get an error.  We could report this as a syntax
-      // error here but for compatibility with KJS and SpiderMonkey we
-      // choose to report the error at runtime.
-      Handle<String> type = Factory::invalid_lhs_in_assignment_symbol();
-      expression = NewThrowReferenceError(type);
-    } else {
-      // Invalid left hand side expressions that are not function
-      // calls are reported as syntax errors at compile time.
-      //
-      // NOTE: KJS sometimes delay the error reporting to runtime. If
-      // we want to be completely compatible we should do the same.
-      // For example: "(x++) = 42" gives a reference error at runtime
-      // with KJS whereas we report a syntax error at compile time.
-      ReportMessage("invalid_lhs_in_assignment", Vector<const char*>::empty());
-      *ok = false;
-      return NULL;
-    }
+    Handle<String> type = Factory::invalid_lhs_in_assignment_symbol();
+    expression = NewThrowReferenceError(type);
   }
-
 
   Token::Value op = Next();  // Get assignment operator.
   int pos = scanner().location().beg_pos;
@@ -2963,45 +2912,37 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
     op = Next();
-    Expression* x = ParseUnaryExpression(CHECK_OK);
+    Expression* expression = ParseUnaryExpression(CHECK_OK);
 
     // Compute some expressions involving only number literals.
-    if (x && x->AsLiteral() && x->AsLiteral()->handle()->IsNumber()) {
-      double x_val = x->AsLiteral()->handle()->Number();
+    if (expression != NULL && expression->AsLiteral() &&
+        expression->AsLiteral()->handle()->IsNumber()) {
+      double value = expression->AsLiteral()->handle()->Number();
       switch (op) {
         case Token::ADD:
-          return x;
+          return expression;
         case Token::SUB:
-          return NewNumberLiteral(-x_val);
+          return NewNumberLiteral(-value);
         case Token::BIT_NOT:
-          return NewNumberLiteral(~DoubleToInt32(x_val));
+          return NewNumberLiteral(~DoubleToInt32(value));
         default: break;
       }
     }
 
-    return NEW(UnaryOperation(op, x));
+    return NEW(UnaryOperation(op, expression));
 
   } else if (Token::IsCountOp(op)) {
     op = Next();
-    Expression* x = ParseUnaryExpression(CHECK_OK);
-    if (x == NULL || !x->IsValidLeftHandSide()) {
-      if (x != NULL && x->AsCall() != NULL) {
-        // According to ECMA-262 host function calls are permitted to
-        // return references.  This cannot happen in our system so we
-        // will always get an error.  We could report this as a syntax
-        // error here but for compatibility with KJS and SpiderMonkey we
-        // choose to report the error at runtime.
-        Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
-        x = NewThrowReferenceError(type);
-      } else {
-        // Invalid left hand side expressions that are not function
-        // calls are reported as syntax errors at compile time.
-        ReportMessage("invalid_lhs_in_prefix_op", Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
+    Expression* expression = ParseUnaryExpression(CHECK_OK);
+    // Signal a reference error if the expression is an invalid
+    // left-hand side expression.  We could report this as a syntax
+    // error here but for compatibility with JSC we choose to report the
+    // error at runtime.
+    if (expression == NULL || !expression->IsValidLeftHandSide()) {
+      Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
+      expression = NewThrowReferenceError(type);
     }
-    return NEW(CountOperation(true /* prefix */, op, x));
+    return NEW(CountOperation(true /* prefix */, op, expression));
 
   } else {
     return ParsePostfixExpression(ok);
@@ -3013,30 +2954,20 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
-  Expression* result = ParseLeftHandSideExpression(CHECK_OK);
+  Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner_.has_line_terminator_before_next() && Token::IsCountOp(peek())) {
-    if (result == NULL || !result->IsValidLeftHandSide()) {
-      if (result != NULL && result->AsCall() != NULL) {
-        // According to ECMA-262 host function calls are permitted to
-        // return references.  This cannot happen in our system so we
-        // will always get an error.  We could report this as a syntax
-        // error here but for compatibility with KJS and SpiderMonkey we
-        // choose to report the error at runtime.
-        Handle<String> type = Factory::invalid_lhs_in_postfix_op_symbol();
-        result = NewThrowReferenceError(type);
-      } else {
-        // Invalid left hand side expressions that are not function
-        // calls are reported as syntax errors at compile time.
-        ReportMessage("invalid_lhs_in_postfix_op",
-                      Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
+    // Signal a reference error if the expression is an invalid
+    // left-hand side expression.  We could report this as a syntax
+    // error here but for compatibility with JSC we choose to report the
+    // error at runtime.
+    if (expression == NULL || !expression->IsValidLeftHandSide()) {
+      Handle<String> type = Factory::invalid_lhs_in_postfix_op_symbol();
+      expression = NewThrowReferenceError(type);
     }
     Token::Value next = Next();
-    result = NEW(CountOperation(false /* postfix */, next, result));
+    expression = NEW(CountOperation(false /* postfix */, next, expression));
   }
-  return result;
+  return expression;
 }
 
 
@@ -3074,8 +3005,6 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // declared in the current scope chain. These calls are marked as
         // potentially direct eval calls. Whether they are actually direct calls
         // to eval is determined at run time.
-
-        bool is_potentially_direct_eval = false;
         if (!is_pre_parsing_) {
           VariableProxy* callee = result->AsVariableProxy();
           if (callee != NULL && callee->IsVariable(Factory::eval_symbol())) {
@@ -3083,16 +3012,10 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
             Variable* var = top_scope_->Lookup(name);
             if (var == NULL) {
               top_scope_->RecordEvalCall();
-              is_potentially_direct_eval = true;
             }
           }
         }
-
-        if (is_potentially_direct_eval) {
-          result = factory()->NewCallEval(result, args, pos);
-        } else {
-          result = factory()->NewCall(result, args, pos);
-        }
+        result = factory()->NewCall(result, args, pos);
         break;
       }
 
@@ -4840,8 +4763,6 @@ bool ParseRegExp(FlatStringReader* input,
                  bool multiline,
                  RegExpCompileData* result) {
   ASSERT(result != NULL);
-  // Make sure we have a stack guard.
-  StackGuard guard;
   RegExpParser parser(input, &result->error, multiline);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {

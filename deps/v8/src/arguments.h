@@ -45,6 +45,9 @@ namespace internal {
 
 class Arguments BASE_EMBEDDED {
  public:
+  Arguments(int length, Object** arguments)
+      : length_(length), arguments_(arguments) { }
+
   Object*& operator[] (int index) {
     ASSERT(0 <= index && index < length_);
     return arguments_[-index];
@@ -61,10 +64,33 @@ class Arguments BASE_EMBEDDED {
   // Get the total number of arguments including the receiver.
   int length() const { return length_; }
 
+  Object** arguments() { return arguments_; }
+
  private:
   int length_;
   Object** arguments_;
 };
+
+
+// Cursom arguments replicate a small segment of stack that can be
+// accessed through an Arguments object the same way the actual stack
+// can.
+class CustomArguments : public Relocatable {
+ public:
+  inline CustomArguments(Object *data,
+                         JSObject *self,
+                         JSObject *holder) {
+    values_[3] = self;
+    values_[2] = holder;
+    values_[1] = Smi::FromInt(0);
+    values_[0] = data;
+  }
+  void IterateInstance(ObjectVisitor* v);
+  Object** end() { return values_ + 3; }
+ private:
+  Object* values_[4];
+};
+
 
 } }  // namespace v8::internal
 

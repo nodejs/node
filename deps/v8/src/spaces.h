@@ -315,6 +315,72 @@ class Space : public Malloced {
 
 
 // ----------------------------------------------------------------------------
+// All heap objects containing executable code (code objects) must be allocated
+// from a 2 GB range of memory, so that they can call each other using 32-bit
+// displacements.  This happens automatically on 32-bit platforms, where 32-bit
+// displacements cover the entire 4GB virtual address space.  On 64-bit
+// platforms, we support this using the CodeRange object, which reserves and
+// manages a range of virtual memory.
+class CodeRange : public AllStatic {
+ public:
+  // Reserves a range of virtual memory, but does not commit any of it.
+  // Can only be called once, at heap initialization time.
+  // Returns false on failure.
+  static bool Setup(const size_t requested_size);
+
+  // Frees the range of virtual memory, and frees the data structures used to
+  // manage it.
+  static void TearDown();
+
+  static bool exists() { return code_range_ != NULL; }
+  static bool contains(Address address) {
+    if (code_range_ == NULL) return false;
+    Address start = static_cast<Address>(code_range_->address());
+    return start <= address && address < start + code_range_->size();
+  }
+
+  // Allocates a chunk of memory from the large-object portion of
+  // the code range.  On platforms with no separate code range, should
+  // not be called.
+  static void* AllocateRawMemory(const size_t requested, size_t* allocated);
+  static void FreeRawMemory(void* buf, size_t length);
+
+ private:
+  // The reserved range of virtual memory that all code objects are put in.
+  static VirtualMemory* code_range_;
+  // Plain old data class, just a struct plus a constructor.
+  class FreeBlock {
+   public:
+    FreeBlock(Address start_arg, size_t size_arg)
+        : start(start_arg), size(size_arg) {}
+    FreeBlock(void* start_arg, size_t size_arg)
+        : start(static_cast<Address>(start_arg)), size(size_arg) {}
+
+    Address start;
+    size_t size;
+  };
+
+  // Freed blocks of memory are added to the free list.  When the allocation
+  // list is exhausted, the free list is sorted and merged to make the new
+  // allocation list.
+  static List<FreeBlock> free_list_;
+  // Memory is allocated from the free blocks on the allocation list.
+  // The block at current_allocation_block_index_ is the current block.
+  static List<FreeBlock> allocation_list_;
+  static int current_allocation_block_index_;
+
+  // Finds a block on the allocation list that contains at least the
+  // requested amount of memory.  If none is found, sorts and merges
+  // the existing free memory blocks, and searches again.
+  // If none can be found, terminates V8 with FatalProcessOutOfMemory.
+  static void GetNextAllocationBlock(size_t requested);
+  // Compares the start addresses of two free blocks.
+  static int CompareFreeBlockAddress(const FreeBlock* left,
+                                     const FreeBlock* right);
+};
+
+
+// ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
 // allocator manages chunks for the paged heap spaces (old space and map
 // space).  A paged chunk consists of pages. Pages in a chunk have contiguous
@@ -380,8 +446,9 @@ class MemoryAllocator : public AllStatic {
   // function returns an invalid page pointer (NULL). The caller must check
   // whether the returned page is valid (by calling Page::is_valid()).  It is
   // guaranteed that allocated pages have contiguous addresses.  The actual
-  // number of allocated page is returned in the output parameter
-  // allocated_pages.
+  // number of allocated pages is returned in the output parameter
+  // allocated_pages.  If the PagedSpace owner is executable and there is
+  // a code range, the pages are allocated from the code range.
   static Page* AllocatePages(int requested_pages, int* allocated_pages,
                              PagedSpace* owner);
 
@@ -395,6 +462,9 @@ class MemoryAllocator : public AllStatic {
   // Allocates and frees raw memory of certain size.
   // These are just thin wrappers around OS::Allocate and OS::Free,
   // but keep track of allocated bytes as part of heap.
+  // If the flag is EXECUTABLE and a code range exists, the requested
+  // memory is allocated from the code range.  If a code range exists
+  // and the freed memory is in it, the code range manages the freed memory.
   static void* AllocateRawMemory(const size_t requested,
                                  size_t* allocated,
                                  Executability executable);

@@ -172,7 +172,9 @@ BUILTIN(ArrayCodeGeneric) {
   }
 
   // Optimize the case where there are no parameters passed.
-  if (args.length() == 1) return array->Initialize(4);
+  if (args.length() == 1) {
+    return array->Initialize(JSArray::kPreallocatedArrayElements);
+  }
 
   // Take the arguments as elements.
   int number_of_elements = args.length() - 1;

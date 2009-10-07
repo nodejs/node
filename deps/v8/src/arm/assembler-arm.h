@@ -645,8 +645,8 @@ class Assembler : public Malloced {
     str(src, MemOperand(sp, 4, NegPreIndex), cond);
   }
 
-  void pop(Register dst) {
-    ldr(dst, MemOperand(sp, 4, PostIndex), al);
+  void pop(Register dst, Condition cond = al) {
+    ldr(dst, MemOperand(sp, 4, PostIndex), cond);
   }
 
   void pop() {

@@ -421,21 +421,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ sar(ebx, kSmiTagSize);  // Untag the index.
   __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
+  __ mov(edx, eax);  // Save the value.
   __ sar(eax, kSmiTagSize);  // Untag the value.
   {  // Clamp the value to [0..255].
-    Label done, check_255;
-    __ cmp(eax, 0);
-    __ j(greater_equal, &check_255);
-    __ mov(eax, Immediate(0));
-    __ jmp(&done);
-    __ bind(&check_255);
-    __ cmp(eax, 255);
-    __ j(less_equal, &done);
+    Label done, is_negative;
+    __ test(eax, Immediate(0xFFFFFF00));
+    __ j(zero, &done);
+    __ j(negative, &is_negative);
     __ mov(eax, Immediate(255));
+    __ jmp(&done);
+    __ bind(&is_negative);
+    __ xor_(eax, Operand(eax));  // Clear eax.
     __ bind(&done);
   }
   __ mov(ecx, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
   __ mov_b(Operand(ecx, ebx, times_1, 0), eax);
+  __ mov(eax, edx);  // Return the original value.
   __ ret(0);
 
   // Extra capacity case: Check if there is extra capacity to

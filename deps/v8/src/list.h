@@ -51,6 +51,13 @@ class List {
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
   INLINE(~List()) { DeleteData(data_); }
 
+  // Deallocates memory used by the list and leaves the list in a consistent
+  // empty state.
+  void Free() {
+    DeleteData(data_);
+    Initialize(0);
+  }
+
   INLINE(void* operator new(size_t size)) { return P::New(size); }
   INLINE(void operator delete(void* p, size_t)) { return P::Delete(p); }
 

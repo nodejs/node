@@ -4096,11 +4096,11 @@ v8::Handle<v8::Function> debugger_call_with_data;
 // passed it throws an exception.
 static const char* debugger_call_with_closure_source =
     "var x = 3;"
-    "function (exec_state) {"
+    "(function (exec_state) {"
     "  if (exec_state.y) return x - 1;"
     "  exec_state.y = x;"
     "  return exec_state.y"
-    "}";
+    "})";
 v8::Handle<v8::Function> debugger_call_with_closure;
 
 // Function to retrieve the number of JavaScript frames by calling a JavaScript
@@ -4522,6 +4522,7 @@ TEST(DebuggerAgent) {
   // with the client connected.
   ok = i::Debugger::StartAgent("test", kPort2);
   CHECK(ok);
+  i::Debugger::WaitForAgent();
   i::Socket* client = i::OS::CreateSocket();
   ok = client->Connect("localhost", port2_str);
   CHECK(ok);

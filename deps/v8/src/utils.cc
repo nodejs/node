@@ -239,7 +239,7 @@ int WriteChars(const char* filename,
   FILE* f = OS::FOpen(filename, "wb");
   if (f == NULL) {
     if (verbose) {
-      OS::PrintError("Cannot open file %s for reading.\n", filename);
+      OS::PrintError("Cannot open file %s for writing.\n", filename);
     }
     return 0;
   }

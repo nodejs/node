@@ -35,7 +35,7 @@ var funs = {
   Boolean:  [ Boolean ],
   Number:   [ Number ],
   Date:     [ Date ],
-  RegExp:   [ RegExp ],  
+  RegExp:   [ RegExp ],
   Error:    [ Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError ]
 }
 for (f in funs) {

@@ -401,13 +401,6 @@ class TestSampler : public v8::internal::Sampler {
 }  // namespace
 
 TEST(ProfMultipleThreads) {
-  // V8 needs to be initialized before the first Locker
-  // instantiation. Otherwise, Top::Initialize will reset
-  // thread_id_ in ThreadTopLocal.
-  v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
-
   LoopingJsThread jsThread;
   jsThread.Start();
   LoopingNonJsThread nonJsThread;

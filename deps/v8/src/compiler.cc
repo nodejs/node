@@ -28,7 +28,6 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
-#include "cfg.h"
 #include "codegen-inl.h"
 #include "compilation-cache.h"
 #include "compiler.h"
@@ -79,22 +78,6 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     return Handle<Code>::null();
   }
 
-  if (FLAG_multipass) {
-    CfgGlobals scope(literal);
-    Cfg* cfg = Cfg::Build();
-#ifdef DEBUG
-    if (FLAG_print_cfg && cfg != NULL) {
-      SmartPointer<char> name = literal->name()->ToCString();
-      PrintF("Function \"%s\":\n", *name);
-      cfg->Print();
-      PrintF("\n");
-    }
-#endif
-    if (cfg != NULL) {
-      return cfg->Compile(script);
-    }
-  }
-
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
   return result;
@@ -121,8 +104,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                        ScriptDataImpl* pre_data) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
-  // Make sure we have an initial stack limit.
-  StackGuard guard;
   PostponeInterruptsScope postpone;
 
   ASSERT(!i::Top::global_context().is_null());
@@ -351,8 +332,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  // Make sure we have an initial stack limit.
-  StackGuard guard;
   PostponeInterruptsScope postpone;
 
   // Compute name, source code and script data.

@@ -56,10 +56,20 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
   if (!internal::ThreadManager::IsLockedByCurrentThread()) {
     internal::ThreadManager::Lock();
     has_lock_ = true;
+    // Make sure that V8 is initialized.  Archiving of threads interferes
+    // with deserialization by adding additional root pointers, so we must
+    // initialize here, before anyone can call ~Locker() or Unlocker().
+    if (!internal::V8::IsRunning()) {
+      V8::Initialize();
+    }
     // This may be a locker within an unlocker in which case we have to
     // get the saved state for this thread and restore it.
     if (internal::ThreadManager::RestoreThread()) {
       top_level_ = false;
+    } else {
+      internal::ExecutionAccess access;
+      internal::StackGuard::ClearThread(access);
+      internal::StackGuard::InitThread(access);
     }
   }
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
@@ -77,7 +87,9 @@ bool Locker::IsLocked() {
 Locker::~Locker() {
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
   if (has_lock_) {
-    if (!top_level_) {
+    if (top_level_) {
+      internal::ThreadManager::FreeThreadResources();
+    } else {
       internal::ThreadManager::ArchiveThread();
     }
     internal::ThreadManager::Unlock();
@@ -139,11 +151,14 @@ bool ThreadManager::RestoreThread() {
   ThreadState* state =
       reinterpret_cast<ThreadState*>(Thread::GetThreadLocal(thread_state_key));
   if (state == NULL) {
+    // This is a new thread.
+    StackGuard::InitThread(access);
     return false;
   }
   char* from = state->data();
   from = HandleScopeImplementer::RestoreThread(from);
   from = Top::RestoreThread(from);
+  from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
 #endif
@@ -183,7 +198,8 @@ static int ArchiveSpacePerThread() {
 #endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
-                   Bootstrapper::ArchiveSpacePerThread();
+                   Bootstrapper::ArchiveSpacePerThread() +
+                    Relocatable::ArchiveSpacePerThread();
 }
 
 
@@ -273,6 +289,7 @@ void ThreadManager::EagerlyArchiveThread() {
   // in ThreadManager::Iterate(ObjectVisitor*).
   to = HandleScopeImplementer::ArchiveThread(to);
   to = Top::ArchiveThread(to);
+  to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
 #endif
@@ -281,6 +298,18 @@ void ThreadManager::EagerlyArchiveThread() {
   to = Bootstrapper::ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
+}
+
+
+void ThreadManager::FreeThreadResources() {
+  HandleScopeImplementer::FreeThreadResources();
+  Top::FreeThreadResources();
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug::FreeThreadResources();
+#endif
+  StackGuard::FreeThreadResources();
+  RegExpStack::FreeThreadResources();
+  Bootstrapper::FreeThreadResources();
 }
 
 
@@ -297,6 +326,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
     data = Top::Iterate(v, data);
+    data = Relocatable::Iterate(v, data);
   }
 }
 

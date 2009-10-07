@@ -673,6 +673,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
+Handle<String> Factory::NumberToString(Handle<Object> number) {
+  CALL_HEAP_FUNCTION(Heap::NumberToString(*number), String);
+}
+
+
 Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
     Handle<NumberDictionary> dictionary,
     uint32_t key,

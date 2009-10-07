@@ -52,20 +52,6 @@ def RemoveCommentsAndTrailingWhitespace(lines):
   return lines
 
 
-def CompressScript(lines, do_jsmin):
-  # If we're not expecting this code to be user visible, we can run it through
-  # a more aggressive minifier.
-  if do_jsmin:
-    return jsmin.jsmin(lines)
-
-  # Remove stuff from the source that we don't want to appear when
-  # people print the source code using Function.prototype.toString().
-  # Note that we could easily compress the scripts mode but don't
-  # since we want it to remain readable.
-  lines = RemoveCommentsAndTrailingWhitespace(lines)
-  return lines
-
-
 def ReadFile(filename):
   file = open(filename, "rt")
   try:
@@ -295,16 +281,18 @@ def JS2C(source, target, env):
 
   # Build source code lines
   source_lines = [ ]
+
+  minifier = jsmin.JavaScriptMinifier()
+
   source_lines_empty = []
   for module in modules:
     filename = str(module)
     delay = filename.endswith('-delay.js')
     lines = ReadFile(filename)
-    do_jsmin = lines.find('// jsminify this file, js2c: jsmin') != -1
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
     Validate(lines, filename)
-    lines = CompressScript(lines, do_jsmin)
+    lines = minifier.JSMinify(lines)
     data = ToCArray(lines)
     id = (os.path.split(filename)[1])[:-3]
     if delay: id = id[:-6]

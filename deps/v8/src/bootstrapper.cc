@@ -201,20 +201,13 @@ bool PendingFixups::Process(Handle<JSBuiltinsObject> builtins) {
     }
     Code* code = Code::cast(code_[i]);
     Address pc = code->instruction_start() + pc_[i];
-    bool is_pc_relative = Bootstrapper::FixupFlagsIsPCRelative::decode(flags);
+    RelocInfo target(pc, RelocInfo::CODE_TARGET, 0);
     bool use_code_object = Bootstrapper::FixupFlagsUseCodeObject::decode(flags);
-
     if (use_code_object) {
-      if (is_pc_relative) {
-        Assembler::set_target_address_at(
-            pc, reinterpret_cast<Address>(f->code()));
-      } else {
-        *reinterpret_cast<Object**>(pc) = f->code();
-      }
+      target.set_target_object(f->code());
     } else {
-      Assembler::set_target_address_at(pc, f->code()->instruction_start());
+      target.set_target_address(f->code()->instruction_start());
     }
-
     LOG(StringEvent("resolved", name));
   }
   Clear();
@@ -1583,6 +1576,12 @@ char* Bootstrapper::ArchiveState(char* to) {
 // Restore statics that are thread local.
 char* Bootstrapper::RestoreState(char* from) {
   return Genesis::RestoreState(from);
+}
+
+
+// Called when the top-level V8 mutex is destroyed.
+void Bootstrapper::FreeThreadResources() {
+  ASSERT(Genesis::current() == NULL);
 }
 
 

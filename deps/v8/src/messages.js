@@ -32,6 +32,11 @@
 var kVowelSounds = 0;
 var kCapitalVowelSounds = 0;
 
+// If this object gets passed to an error constructor the error will
+// get an accessor for .message that constructs a descriptive error
+// message on access.
+var kAddMessageAccessorsMarker = { };
+
 
 function GetInstanceName(cons) {
   if (cons.length == 0) {
@@ -565,11 +570,6 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-// If this object gets passed to an error constructor the error will
-// get an accessor for .message that constructs a descriptive error
-// message on access.
-var kAddMessageAccessorsMarker = { };
-
 // Defines accessors for a property that is calculated the first time
 // the property is read.
 function DefineOneShotAccessor(obj, name, fun) {
@@ -781,14 +781,15 @@ function FormatStackTrace(error, frames) {
   }
   for (var i = 0; i < frames.length; i++) {
     var frame = frames[i];
+    var line;
     try {
-      var line = FormatSourcePosition(frame);
+      line = FormatSourcePosition(frame);
     } catch (e) {
       try {
-        var line = "<error: " + e + ">";
+        line = "<error: " + e + ">";
       } catch (ee) {
         // Any code that reaches this point is seriously nasty!
-        var line = "<error>";
+        line = "<error>";
       }
     }
     lines.push("    at " + line);

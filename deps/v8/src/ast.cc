@@ -40,7 +40,6 @@ VariableProxySentinel VariableProxySentinel::identifier_proxy_(false);
 ValidLeftHandSideSentinel ValidLeftHandSideSentinel::instance_;
 Property Property::this_property_(VariableProxySentinel::this_proxy(), NULL, 0);
 Call Call::sentinel_(NULL, NULL, 0);
-CallEval CallEval::sentinel_(NULL, NULL, 0);
 
 
 // ----------------------------------------------------------------------------

@@ -69,6 +69,14 @@ void RegExpStack::Reset() {
 }
 
 
+void RegExpStack::ThreadLocal::Free() {
+  if (thread_local_.memory_size_ > 0) {
+    DeleteArray(thread_local_.memory_);
+    thread_local_ = ThreadLocal();
+  }
+}
+
+
 Address RegExpStack::EnsureCapacity(size_t size) {
   if (size > kMaximumStackSize) return NULL;
   if (size < kMinimumStackSize) size = kMinimumStackSize;

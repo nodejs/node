@@ -42,6 +42,7 @@ void SocketListenerThread::Run() {
 
   // Create the server socket and bind it to the requested port.
   server_ = OS::CreateSocket();
+  server_->SetReuseAddress(true);
   CHECK(server_ != NULL);
   ok = server_->Bind(port_);
   CHECK(ok);

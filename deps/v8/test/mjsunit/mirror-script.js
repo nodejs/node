@@ -85,16 +85,16 @@ function testScriptMirror(f, file_name, file_lines, type, compilation_type,
 // Test the script mirror for different functions.
 testScriptMirror(function(){}, 'mirror-script.js', 100, 2, 0);
 testScriptMirror(Math.sin, 'native math.js', -1, 0, 0);
-testScriptMirror(eval('function(){}'), null, 1, 2, 1, 'function(){}', 87);
-testScriptMirror(eval('function(){\n  }'), null, 2, 2, 1, 'function(){\n  }', 88);
+testScriptMirror(eval('(function(){})'), null, 1, 2, 1, '(function(){})', 87);
+testScriptMirror(eval('(function(){\n  })'), null, 2, 2, 1, '(function(){\n  })', 88);
 testScriptMirror(%CompileString("({a:1,b:2})", true), null, 1, 2, 2, '({a:1,b:2})');
 testScriptMirror(%CompileString("({a:1,\n  b:2})", true), null, 2, 2, 2, '({a:1,\n  b:2})');
 
 // Test taking slices of source.
-var mirror = debug.MakeMirror(eval('function(){\n  1;\n}')).script();
-assertEquals('function(){\n', mirror.sourceSlice(0, 1).sourceText());
+var mirror = debug.MakeMirror(eval('(function(){\n  1;\n})')).script();
+assertEquals('(function(){\n', mirror.sourceSlice(0, 1).sourceText());
 assertEquals('  1;\n', mirror.sourceSlice(1, 2).sourceText());
-assertEquals('}', mirror.sourceSlice(2, 3).sourceText());
-assertEquals('function(){\n  1;\n', mirror.sourceSlice(0, 2).sourceText());
-assertEquals('  1;\n}', mirror.sourceSlice(1, 3).sourceText());
-assertEquals('function(){\n  1;\n}', mirror.sourceSlice(0, 3).sourceText());
+assertEquals('})', mirror.sourceSlice(2, 3).sourceText());
+assertEquals('(function(){\n  1;\n', mirror.sourceSlice(0, 2).sourceText());
+assertEquals('  1;\n})', mirror.sourceSlice(1, 3).sourceText());
+assertEquals('(function(){\n  1;\n})', mirror.sourceSlice(0, 3).sourceText());

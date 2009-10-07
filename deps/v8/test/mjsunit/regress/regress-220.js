@@ -28,4 +28,4 @@
 function foo(f) { eval(f); }
 
 // Ensure that compiling a declaration of a function does not crash.
-foo("function (x) { with ({x: []}) function x(){} }");
+foo("(function (x) { with ({x: []}) function x(){} })");

@@ -383,12 +383,6 @@ void AstOptimizer::VisitCall(Call* node) {
 }
 
 
-void AstOptimizer::VisitCallEval(CallEval* node) {
-  Visit(node->expression());
-  OptimizeArguments(node->arguments());
-}
-
-
 void AstOptimizer::VisitCallNew(CallNew* node) {
   Visit(node->expression());
   OptimizeArguments(node->arguments());
@@ -754,12 +748,6 @@ void Processor::VisitProperty(Property* node) {
 
 
 void Processor::VisitCall(Call* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCallEval(CallEval* node) {
   USE(node);
   UNREACHABLE();
 }

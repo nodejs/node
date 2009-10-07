@@ -882,11 +882,14 @@ class Heap : public AllStatic {
     kRootListLength
   };
 
+  static Object* NumberToString(Object* number);
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
   static int young_generation_size_;
   static int old_generation_size_;
+  static size_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.

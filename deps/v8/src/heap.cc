@@ -77,14 +77,17 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
+size_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::semispace_size_  = 16*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
+size_t Heap::code_range_size_ = 256*MB;
 #else
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
+size_t Heap::code_range_size_ = 0;
 #endif
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
@@ -497,8 +500,8 @@ void Heap::PostGarbageCollectionProcessing() {
     DisableAssertNoAllocation allow_allocation;
     GlobalHandles::PostGarbageCollectionProcessing();
   }
-  // Update flat string readers.
-  FlatStringReader::PostGarbageCollectionProcessing();
+  // Update relocatables.
+  Relocatable::PostGarbageCollectionProcessing();
 }
 
 
@@ -1250,6 +1253,10 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // spaces.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
@@ -1261,7 +1268,8 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 Object* Heap::AllocateHeapNumber(double value) {
   // Use general version, if we're forced to always allocate.
-  if (always_allocate()) return AllocateHeapNumber(value, NOT_TENURED);
+  if (always_allocate()) return AllocateHeapNumber(value, TENURED);
+
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
@@ -1582,6 +1590,31 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 }
 
 
+Object* Heap::NumberToString(Object* number) {
+  Object* cached = GetNumberStringCache(number);
+  if (cached != undefined_value()) {
+    return cached;
+  }
+
+  char arr[100];
+  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  const char* str;
+  if (number->IsSmi()) {
+    int num = Smi::cast(number)->value();
+    str = IntToCString(num, buffer);
+  } else {
+    double num = HeapNumber::cast(number)->value();
+    str = DoubleToCString(num, buffer);
+  }
+  Object* result = AllocateStringFromAscii(CStrVector(str));
+
+  if (!result->IsFailure()) {
+    SetNumberStringCache(number, String::cast(result));
+  }
+  return result;
+}
+
+
 Object* Heap::NewNumberFromDouble(double value, PretenureFlag pretenure) {
   return SmiOrNumberFromDouble(value,
                                true /* number object must be new */,
@@ -1862,6 +1895,9 @@ Object* Heap::AllocateByteArray(int length) {
   AllocationSpace space =
       size > MaxObjectSizeInPagedSpace() ? LO_SPACE : NEW_SPACE;
 
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = LO_SPACE;
+
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
   if (result->IsFailure()) return result;
@@ -1888,6 +1924,9 @@ Object* Heap::AllocatePixelArray(int length,
                                  uint8_t* external_pointer,
                                  PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
 
   Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
 
@@ -1923,6 +1962,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Initialize the object
   HeapObject::cast(result)->set_map(code_map());
   Code* code = Code::cast(result);
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_size(desc.reloc_size);
   code->set_sinfo_size(sinfo_size);
@@ -1967,6 +2007,7 @@ Object* Heap::CopyCode(Code* code) {
             obj_size);
   // Relocate the copy.
   Code* new_code = Code::cast(result);
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
   return new_code;
 }
@@ -2532,13 +2573,17 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   int size = SeqAsciiString::SizeFor(length);
 
   Object* result = Failure::OutOfMemoryException();
   if (space == NEW_SPACE) {
     result = size <= kMaxObjectSizeInNewSpace
         ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRawFixedArray(size);
+        : lo_space_->AllocateRaw(size);
   } else {
     if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
     result = AllocateRaw(size, space, OLD_DATA_SPACE);
@@ -2565,13 +2610,17 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   int size = SeqTwoByteString::SizeFor(length);
 
   Object* result = Failure::OutOfMemoryException();
   if (space == NEW_SPACE) {
     result = size <= kMaxObjectSizeInNewSpace
         ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRawFixedArray(size);
+        : lo_space_->AllocateRaw(size);
   } else {
     if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
     result = AllocateRaw(size, space, OLD_DATA_SPACE);
@@ -2609,7 +2658,7 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 Object* Heap::AllocateRawFixedArray(int length) {
   // Use the general function if we're forced to always allocate.
-  if (always_allocate()) return AllocateFixedArray(length, NOT_TENURED);
+  if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
   return size <= kMaxObjectSizeInNewSpace
@@ -2661,6 +2710,9 @@ Object* Heap::AllocateFixedArray(int length) {
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   ASSERT(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) pretenure = TENURED;
 
   int size = FixedArray::SizeFor(length);
   Object* result = Failure::OutOfMemoryException();
@@ -3088,6 +3140,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   SYNCHRONIZE_TAG("bootstrapper");
   Top::Iterate(v);
   SYNCHRONIZE_TAG("top");
+  Relocatable::Iterate(v);
+  SYNCHRONIZE_TAG("relocatable");
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Iterate(v);
@@ -3212,6 +3266,14 @@ bool Heap::Setup(bool create_heap_objects) {
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
+  // On 64-bit platform(s), we put all code objects in a 2 GB range of
+  // virtual address space, so that they can call each other with near calls.
+  if (code_range_size_ > 0) {
+    if (!CodeRange::Setup(code_range_size_)) {
+      return false;
+    }
+  }
+
   code_space_ =
       new OldSpace(old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;

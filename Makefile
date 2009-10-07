@@ -49,7 +49,7 @@ clean:
 
 distclean:
 	@-rm -rf build/
-	@-rm -f *.pyc
+	@-find tools | egrep --colour=never ".pyc$" | xargs rm
 
 check:
 	@tools/waf-light check

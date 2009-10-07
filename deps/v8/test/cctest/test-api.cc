@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2007-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,6 +31,7 @@
 
 #include "api.h"
 #include "compilation-cache.h"
+#include "execution.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
@@ -7729,6 +7730,42 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(1503, result->Int32Value());
   result = CompileRun("pixels[1]");
   CHECK_EQ(1, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 0;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(0, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 255;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(8 * 255, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 256 + i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(2076, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
   result = CompileRun("var sum = 0;"
                       "for (var i = 0; i < 8; i++) {"
                       "  sum += pixels[i];"
@@ -7839,6 +7876,9 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
   CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
 
+  result = CompileRun("pixels[1] = 23;");
+  CHECK_EQ(23, result->Int32Value());
+
   free(pixel_data);
 }
 
@@ -7873,9 +7913,87 @@ THREADED_TEST(StackTrace) {
 }
 
 
-// Test that idle notification can be handled when V8 has not yet been
-// set up.
+// Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
-  for (int i = 0; i < 100; i++) v8::V8::IdleNotification(true);
-  for (int i = 0; i < 100; i++) v8::V8::IdleNotification(false);
+  bool rv = false;
+  for (int i = 0; i < 100; i++) {
+    rv = v8::V8::IdleNotification();
+    if (rv)
+      break;
+  }
+  CHECK(rv == true);
+}
+
+
+static uint32_t* stack_limit;
+
+static v8::Handle<Value> GetStackLimitCallback(const v8::Arguments& args) {
+  stack_limit = reinterpret_cast<uint32_t*>(i::StackGuard::climit());
+  return v8::Undefined();
+}
+
+
+// Uses the address of a local variable to determine the stack top now.
+// Given a size, returns an address that is that far from the current
+// top of stack.
+static uint32_t* ComputeStackLimit(uint32_t size) {
+  uint32_t* answer = &size - (size / sizeof(size));
+  // If the size is very large and the stack is very near the bottom of
+  // memory then the calculation above may wrap around and give an address
+  // that is above the (downwards-growing) stack.  In that case we return
+  // a very low address.
+  if (answer > &size) return reinterpret_cast<uint32_t*>(sizeof(size));
+  return answer;
+}
+
+
+TEST(SetResourceConstraints) {
+  static const int K = 1024;
+  uint32_t* set_limit = ComputeStackLimit(128 * K);
+
+  // Set stack limit.
+  v8::ResourceConstraints constraints;
+  constraints.set_stack_limit(set_limit);
+  CHECK(v8::SetResourceConstraints(&constraints));
+
+  // Execute a script.
+  v8::HandleScope scope;
+  LocalContext env;
+  Local<v8::FunctionTemplate> fun_templ =
+      v8::FunctionTemplate::New(GetStackLimitCallback);
+  Local<Function> fun = fun_templ->GetFunction();
+  env->Global()->Set(v8_str("get_stack_limit"), fun);
+  CompileRun("get_stack_limit();");
+
+  CHECK(stack_limit == set_limit);
+}
+
+
+TEST(SetResourceConstraintsInThread) {
+  uint32_t* set_limit;
+  {
+    v8::Locker locker;
+    static const int K = 1024;
+    set_limit = ComputeStackLimit(128 * K);
+
+    // Set stack limit.
+    v8::ResourceConstraints constraints;
+    constraints.set_stack_limit(set_limit);
+    CHECK(v8::SetResourceConstraints(&constraints));
+
+    // Execute a script.
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(GetStackLimitCallback);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("get_stack_limit"), fun);
+    CompileRun("get_stack_limit();");
+
+    CHECK(stack_limit == set_limit);
+  }
+  {
+    v8::Locker locker;
+    CHECK(stack_limit == set_limit);
+  }
 }

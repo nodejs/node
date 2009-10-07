@@ -42,10 +42,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   __ mov(Operand::StaticVariable(passed), edi);
 
   // The actual argument count has already been loaded into register
-  // eax, but JumpToBuiltin expects eax to contain the number of
+  // eax, but JumpToRuntime expects eax to contain the number of
   // arguments including the receiver.
   __ inc(eax);
-  __ JumpToBuiltin(ExternalReference(id));
+  __ JumpToRuntime(ExternalReference(id));
 }
 
 
@@ -129,12 +129,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // eax: initial map
     __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
     __ shl(edi, kPointerSizeLog2);
-    __ AllocateObjectInNewSpace(edi,
-                                ebx,
-                                edi,
-                                no_reg,
-                                &rt_call,
-                                NO_ALLOCATION_FLAGS);
+    __ AllocateInNewSpace(edi, ebx, edi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
     // Allocated the JSObject, now initialize the fields.
     // eax: initial map
     // ebx: JSObject
@@ -189,14 +184,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object (will be start of FixedArray)
     // edx: number of elements in properties array
-    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
-                                times_pointer_size,
-                                edx,
-                                edi,
-                                ecx,
-                                no_reg,
-                                &undo_allocation,
-                                RESULT_CONTAINS_TOP);
+    __ AllocateInNewSpace(FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          edx,
+                          edi,
+                          ecx,
+                          no_reg,
+                          &undo_allocation,
+                          RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // ebx: JSObject
@@ -674,18 +669,18 @@ static const int kPreallocatedArrayElements = 4;
 
 
 // Allocate an empty JSArray. The allocated array is put into the result
-// register. If the parameter holes is larger than zero an elements backing
-// store is allocated with this size and filled with the hole values. Otherwise
-// the elements backing store is set to the empty FixedArray.
+// register. If the parameter initial_capacity is larger than zero an elements
+// backing store is allocated with this size and filled with the hole values.
+// Otherwise the elements backing store is set to the empty FixedArray.
 static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register array_function,
                                  Register result,
                                  Register scratch1,
                                  Register scratch2,
                                  Register scratch3,
-                                 int holes,
+                                 int initial_capacity,
                                  Label* gc_required) {
-  ASSERT(holes >= 0);
+  ASSERT(initial_capacity >= 0);
 
   // Load the initial map from the array function.
   __ mov(scratch1, FieldOperand(array_function,
@@ -694,15 +689,15 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
   int size = JSArray::kSize;
-  if (holes > 0) {
-    size += FixedArray::SizeFor(holes);
+  if (initial_capacity > 0) {
+    size += FixedArray::SizeFor(initial_capacity);
   }
-  __ AllocateObjectInNewSpace(size,
-                              result,
-                              scratch2,
-                              scratch3,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size,
+                        result,
+                        scratch2,
+                        scratch3,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -717,7 +712,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 
   // If no storage is requested for the elements array just set the empty
   // fixed array.
-  if (holes == 0) {
+  if (initial_capacity == 0) {
     __ mov(FieldOperand(result, JSArray::kElementsOffset),
            Factory::empty_fixed_array());
     return;
@@ -737,17 +732,18 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ mov(FieldOperand(scratch1, JSObject::kMapOffset),
          Factory::fixed_array_map());
-  __ mov(FieldOperand(scratch1, Array::kLengthOffset), Immediate(holes));
+  __ mov(FieldOperand(scratch1, Array::kLengthOffset),
+         Immediate(initial_capacity));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
   ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
-  if (holes <= kLoopUnfoldLimit) {
+  if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
     __ mov(scratch3, Factory::the_hole_value());
-    for (int i = 0; i < holes; i++) {
+    for (int i = 0; i < initial_capacity; i++) {
       __ mov(FieldOperand(scratch1,
                           FixedArray::kHeaderSize + i * kPointerSize),
              scratch3);
@@ -797,26 +793,26 @@ static void AllocateJSArray(MacroAssembler* masm,
   // If an empty array is requested allocate a small elements array anyway. This
   // keeps the code below free of special casing for the empty array.
   int size = JSArray::kSize + FixedArray::SizeFor(kPreallocatedArrayElements);
-  __ AllocateObjectInNewSpace(size,
-                              result,
-                              elements_array_end,
-                              scratch,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size,
+                        result,
+                        elements_array_end,
+                        scratch,
+                        gc_required,
+                        TAG_OBJECT);
   __ jmp(&allocated);
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
   __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ AllocateObjectInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                              times_half_pointer_size,  // array_size is a smi.
-                              array_size,
-                              result,
-                              elements_array_end,
-                              scratch,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
+                        times_half_pointer_size,  // array_size is a smi.
+                        array_size,
+                        result,
+                        elements_array_end,
+                        scratch,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.

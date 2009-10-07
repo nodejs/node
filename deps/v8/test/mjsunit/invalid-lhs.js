@@ -25,9 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we get exceptions for invalid left-hand sides.  Also
-// tests that if the invalid left-hand side is a function call, the
-// exception is delayed until runtime.
+// Test that we get exceptions for invalid left-hand sides.  The
+// exceptions are delayed until runtime.
 
 // Normal assignments:
 assertThrows("12 = 12");
@@ -57,12 +56,10 @@ assertDoesNotThrow("if (false) for (eval('var x') = 1;;) print(12);");
 
 // Assignments to 'this'.
 assertThrows("this = 42");
-assertThrows("function f() { this = 12; }");
-assertThrows("for (this in Array) ;");
+assertDoesNotThrow("function f() { this = 12; }");
+assertThrows("for (this in {x:3, y:4, z:5}) ;");
 assertThrows("for (this = 0;;) ;");
 assertThrows("this++");
 assertThrows("++this");
 assertThrows("this--");
 assertThrows("--this");
-
-

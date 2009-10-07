@@ -62,7 +62,7 @@ function StringValueOf() {
 
 // ECMA-262, section 15.5.4.4
 function StringCharAt(pos) {
-  var char_code = %_FastCharCodeAt(this, index);
+  var char_code = %_FastCharCodeAt(this, pos);
   if (!%_IsSmi(char_code)) {
     var subject = ToString(this);
     var index = TO_INTEGER(pos);
@@ -184,6 +184,14 @@ function SubString(string, start, end) {
 }
 
 
+// This has the same size as the lastMatchInfo array, and can be used for
+// functions that expect that structure to be returned.  It is used when the
+// needle is a string rather than a regexp.  In this case we can't update
+// lastMatchArray without erroneously affecting the properties on the global
+// RegExp object.
+var reusableMatchInfo = [2, "", "", -1, -1];
+
+
 // ECMA-262, section 15.5.4.11
 function StringReplace(search, replace) {
   var subject = ToString(this);
@@ -222,14 +230,6 @@ function StringReplace(search, replace) {
 
   return builder.generate();
 }
-
-
-// This has the same size as the lastMatchInfo array, and can be used for
-// functions that expect that structure to be returned.  It is used when the
-// needle is a string rather than a regexp.  In this case we can't update
-// lastMatchArray without erroneously affecting the properties on the global
-// RegExp object.
-var reusableMatchInfo = [2, "", "", -1, -1];
 
 
 // Helper function for regular expressions in String.prototype.replace.
@@ -370,8 +370,8 @@ function addCaptureString(builder, matchInfo, index) {
 //     'abcd'.replace(/(.)/g, function() { return RegExp.$1; }
 // should be 'abcd' and not 'dddd' (or anything else).
 function StringReplaceRegExpWithFunction(subject, regexp, replace) {
-  var lastMatchInfo = DoRegExpExec(regexp, subject, 0);
-  if (IS_NULL(lastMatchInfo)) return subject;
+  var matchInfo = DoRegExpExec(regexp, subject, 0);
+  if (IS_NULL(matchInfo)) return subject;
 
   var result = new ReplaceResultBuilder(subject);
   // There's at least one match.  If the regexp is global, we have to loop
@@ -382,11 +382,11 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   if (regexp.global) {
     var previous = 0;
     do {
-      result.addSpecialSlice(previous, lastMatchInfo[CAPTURE0]);
-      var startOfMatch = lastMatchInfo[CAPTURE0];
-      previous = lastMatchInfo[CAPTURE1];
-      result.add(ApplyReplacementFunction(replace, lastMatchInfo, subject));
-      // Can't use lastMatchInfo any more from here, since the function could
+      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
+      var startOfMatch = matchInfo[CAPTURE0];
+      previous = matchInfo[CAPTURE1];
+      result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+      // Can't use matchInfo any more from here, since the function could
       // overwrite it.
       // Continue with the next match.
       // Increment previous if we matched an empty string, as per ECMA-262
@@ -401,20 +401,20 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
 
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match
-      lastMatchInfo = (previous > subject.length)
+      matchInfo = (previous > subject.length)
           ? null
           : DoRegExpExec(regexp, subject, previous);
-    } while (!IS_NULL(lastMatchInfo));
+    } while (!IS_NULL(matchInfo));
 
     // Tack on the final right substring after the last match, if necessary.
     if (previous < subject.length) {
       result.addSpecialSlice(previous, subject.length);
     }
   } else { // Not a global regexp, no need to loop.
-    result.addSpecialSlice(0, lastMatchInfo[CAPTURE0]);
-    var endOfMatch = lastMatchInfo[CAPTURE1];
-    result.add(ApplyReplacementFunction(replace, lastMatchInfo, subject));
-    // Can't use lastMatchInfo any more from here, since the function could
+    result.addSpecialSlice(0, matchInfo[CAPTURE0]);
+    var endOfMatch = matchInfo[CAPTURE1];
+    result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+    // Can't use matchInfo any more from here, since the function could
     // overwrite it.
     result.addSpecialSlice(endOfMatch, subject.length);
   }
@@ -424,20 +424,20 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
 
 
 // Helper function to apply a string replacement function once.
-function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
+function ApplyReplacementFunction(replace, matchInfo, subject) {
   // Compute the parameter list consisting of the match, captures, index,
   // and subject for the replace function invocation.
-  var index = lastMatchInfo[CAPTURE0];
+  var index = matchInfo[CAPTURE0];
   // The number of captures plus one for the match.
-  var m = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
+  var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;
   if (m == 1) {
-    var s = CaptureString(subject, lastMatchInfo, 0);
+    var s = CaptureString(subject, matchInfo, 0);
     // Don't call directly to avoid exposing the built-in global object.
     return replace.call(null, s, index, subject);
   }
   var parameters = $Array(m + 2);
   for (var j = 0; j < m; j++) {
-    parameters[j] = CaptureString(subject, lastMatchInfo, j);
+    parameters[j] = CaptureString(subject, matchInfo, j);
   }
   parameters[j] = index;
   parameters[j + 1] = subject;
@@ -539,14 +539,14 @@ function StringSplit(separator, limit) {
       return result;
     }
 
-    var lastMatchInfo = splitMatch(separator, subject, currentIndex, startIndex);
+    var matchInfo = splitMatch(separator, subject, currentIndex, startIndex);
 
-    if (IS_NULL(lastMatchInfo)) {
+    if (IS_NULL(matchInfo)) {
       result[result.length] = subject.slice(currentIndex, length);
       return result;
     }
 
-    var endIndex = lastMatchInfo[CAPTURE1];
+    var endIndex = matchInfo[CAPTURE1];
 
     // We ignore a zero-length match at the currentIndex.
     if (startIndex === endIndex && endIndex === currentIndex) {
@@ -554,12 +554,12 @@ function StringSplit(separator, limit) {
       continue;
     }
 
-    result[result.length] = SubString(subject, currentIndex, lastMatchInfo[CAPTURE0]);
+    result[result.length] = SubString(subject, currentIndex, matchInfo[CAPTURE0]);
     if (result.length === limit) return result;
 
-    for (var i = 2; i < NUMBER_OF_CAPTURES(lastMatchInfo); i += 2) {
-      var start = lastMatchInfo[CAPTURE(i)];
-      var end = lastMatchInfo[CAPTURE(i + 1)];
+    for (var i = 2; i < NUMBER_OF_CAPTURES(matchInfo); i += 2) {
+      var start = matchInfo[CAPTURE(i)];
+      var end = matchInfo[CAPTURE(i + 1)];
       if (start != -1 && end != -1) {
         result[result.length] = SubString(subject, start, end);
       } else {
@@ -574,16 +574,16 @@ function StringSplit(separator, limit) {
 
 
 // ECMA-262 section 15.5.4.14
-// Helper function used by split.  This version returns the lastMatchInfo
+// Helper function used by split.  This version returns the matchInfo
 // instead of allocating a new array with basically the same information.
 function splitMatch(separator, subject, current_index, start_index) {
   if (IS_REGEXP(separator)) {
-    var lastMatchInfo = DoRegExpExec(separator, subject, start_index);
-    if (lastMatchInfo == null) return null;
+    var matchInfo = DoRegExpExec(separator, subject, start_index);
+    if (matchInfo == null) return null;
     // Section 15.5.4.14 paragraph two says that we do not allow zero length
     // matches at the end of the string.
-    if (lastMatchInfo[CAPTURE0] === subject.length) return null;
-    return lastMatchInfo;
+    if (matchInfo[CAPTURE0] === subject.length) return null;
+    return matchInfo;
   }
 
   var separatorIndex = subject.indexOf(separator, start_index);

@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2007-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -130,6 +130,7 @@ class Data;
 namespace internal {
 
 class Object;
+class Arguments;
 
 }
 
@@ -1205,7 +1206,14 @@ class V8EXPORT Object : public Value {
    * If result.IsEmpty() no real property was located in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
-  Handle<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
+  Local<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
+
+  /**
+   * If result.IsEmpty() no real property was located on the object or
+   * in the prototype chain.
+   * This means interceptors in the prototype chain are not called.
+   */
+  Local<Value> GetRealNamedProperty(Handle<String> key);
 
   /** Tests for a named lookup interceptor.*/
   bool HasNamedLookupInterceptor();
@@ -1401,17 +1409,13 @@ class V8EXPORT Arguments {
  */
 class V8EXPORT AccessorInfo {
  public:
-  inline AccessorInfo(Local<Object> self,
-                      Local<Value> data,
-                      Local<Object> holder)
-      : self_(self), data_(data), holder_(holder) { }
+  inline AccessorInfo(internal::Object** args)
+      : args_(args) { }
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
  private:
-  Local<Object> self_;
-  Local<Value> data_;
-  Local<Object> holder_;
+  internal::Object** args_;
 };
 
 
@@ -1567,7 +1571,10 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 /**
  * A FunctionTemplate is used to create functions at runtime. There
  * can only be one function created from a FunctionTemplate in a
- * context.
+ * context.  The lifetime of the created function is equal to the
+ * lifetime of the context.  So in case the embedder needs to create
+ * temporary functions that can be collected using Scripts is
+ * preferred.
  *
  * A FunctionTemplate can have properties, these properties are added to the
  * function object when it is created.
@@ -1974,8 +1981,13 @@ Handle<Boolean> V8EXPORT False();
 
 
 /**
- * A set of constraints that specifies the limits of the runtime's
- * memory use.
+ * A set of constraints that specifies the limits of the runtime's memory use.
+ * You must set the heap size before initializing the VM - the size cannot be
+ * adjusted after the VM is initialized.
+ *
+ * If you are using threads then you should hold the V8::Locker lock while
+ * setting the stack limit and you must set a non-default stack limit separately
+ * for each thread.
  */
 class V8EXPORT ResourceConstraints {
  public:
@@ -1985,6 +1997,7 @@ class V8EXPORT ResourceConstraints {
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
+  // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
  private:
   int max_young_space_size_;
@@ -2192,7 +2205,8 @@ class V8EXPORT V8 {
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to
-   * initialize from scratch.
+   * initialize from scratch.  This function is called implicitly if
+   * you use the API without calling it first.
    */
   static bool Initialize();
 
@@ -2335,12 +2349,11 @@ class V8EXPORT V8 {
    * Optional notification that the embedder is idle.
    * V8 uses the notification to reduce memory footprint.
    * This call can be used repeatedly if the embedder remains idle.
-   * \param is_high_priority tells whether the embedder is high priority.
    * Returns true if the embedder should stop calling IdleNotification
    * until real work has been done.  This indicates that V8 has done
    * as much cleanup as it will be able to do.
    */
-  static bool IdleNotification(bool is_high_priority);
+  static bool IdleNotification();
 
   /**
    * Optional notification that the system is running low on memory.
@@ -2742,15 +2755,15 @@ class Internals {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
             kHeapObjectTag);
   }
-  
+
   static inline bool HasSmiTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag);
   }
-  
+
   static inline int SmiValue(internal::Object* value) {
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> kSmiTagSize;
   }
-  
+
   static inline bool IsExternalTwoByteString(int instance_type) {
     int representation = (instance_type & kFullStringRepresentationMask);
     return representation == kExternalTwoByteRepresentationTag;
@@ -2860,21 +2873,6 @@ bool Arguments::IsConstructCall() const {
 
 int Arguments::Length() const {
   return length_;
-}
-
-
-Local<Value> AccessorInfo::Data() const {
-  return data_;
-}
-
-
-Local<Object> AccessorInfo::This() const {
-  return self_;
-}
-
-
-Local<Object> AccessorInfo::Holder() const {
-  return holder_;
 }
 
 
@@ -3072,6 +3070,21 @@ External* External::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<External*>(value);
+}
+
+
+Local<Value> AccessorInfo::Data() const {
+  return Local<Value>(reinterpret_cast<Value*>(&args_[-3]));
+}
+
+
+Local<Object> AccessorInfo::This() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[0]));
+}
+
+
+Local<Object> AccessorInfo::Holder() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[-1]));
 }
 
 

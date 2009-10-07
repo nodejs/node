@@ -30,6 +30,11 @@
 
 // Expect $String = global.String;
 
+// Lazily initialized.
+var hexCharArray = 0;
+var hexCharCodeArray = 0;
+
+
 function URIAddEncodedOctetToBuffer(octet, result, index) {
   result[index++] = 37; // Char code of '%'.
   result[index++] = hexCharCodeArray[octet >> 4];
@@ -318,11 +323,6 @@ function URIEncodeComponent(component) {
   var string = ToString(component);
   return Encode(string, unescapePredicate);
 }
-
-
-// Lazily initialized.
-var hexCharArray = 0;
-var hexCharCodeArray = 0;
 
 
 function HexValueOf(c) {

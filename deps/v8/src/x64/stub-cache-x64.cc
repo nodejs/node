@@ -1751,6 +1751,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Load the initial map and verify that it is in fact a map.
   __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
+  ASSERT(kSmiTag == 0);
   __ JumpIfSmi(rbx, &generic_stub_call);
   __ CmpObjectType(rbx, MAP_TYPE, rcx);
   __ j(not_equal, &generic_stub_call);
@@ -1768,12 +1769,12 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // rbx: initial map
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ shl(rcx, Immediate(kPointerSizeLog2));
-  __ AllocateObjectInNewSpace(rcx,
-                              rdx,
-                              rcx,
-                              no_reg,
-                              &generic_stub_call,
-                              NO_ALLOCATION_FLAGS);
+  __ AllocateInNewSpace(rcx,
+                        rdx,
+                        rcx,
+                        no_reg,
+                        &generic_stub_call,
+                        NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // rbx: initial map

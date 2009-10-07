@@ -1390,12 +1390,12 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // r2: initial map
   // r7: undefined
   __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-  __ AllocateObjectInNewSpace(r3,
-                              r4,
-                              r5,
-                              r6,
-                              &generic_stub_call,
-                              NO_ALLOCATION_FLAGS);
+  __ AllocateInNewSpace(r3,
+                        r4,
+                        r5,
+                        r6,
+                        &generic_stub_call,
+                        NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields. Map is set to initial
   // map and properties and elements are set to empty fixed array.

@@ -1783,12 +1783,12 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // ebx: initial map
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ shl(ecx, kPointerSizeLog2);
-  __ AllocateObjectInNewSpace(ecx,
-                              edx,
-                              ecx,
-                              no_reg,
-                              &generic_stub_call,
-                              NO_ALLOCATION_FLAGS);
+  __ AllocateInNewSpace(ecx,
+                        edx,
+                        ecx,
+                        no_reg,
+                        &generic_stub_call,
+                        NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // ebx: initial map

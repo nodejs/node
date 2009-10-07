@@ -163,7 +163,7 @@ void Log::OpenMemoryBuffer() {
 
 void Log::Close() {
   if (Write == WriteToFile) {
-    fclose(output_handle_);
+    if (output_handle_ != NULL) fclose(output_handle_);
     output_handle_ = NULL;
   } else if (Write == WriteToMemory) {
     delete output_buffer_;

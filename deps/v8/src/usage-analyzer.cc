@@ -44,45 +44,12 @@ class UsageComputer: public AstVisitor {
  public:
   static bool Traverse(AstNode* node);
 
-  void VisitBlock(Block* node);
-  void VisitDeclaration(Declaration* node);
-  void VisitExpressionStatement(ExpressionStatement* node);
-  void VisitEmptyStatement(EmptyStatement* node);
-  void VisitIfStatement(IfStatement* node);
-  void VisitContinueStatement(ContinueStatement* node);
-  void VisitBreakStatement(BreakStatement* node);
-  void VisitReturnStatement(ReturnStatement* node);
-  void VisitWithEnterStatement(WithEnterStatement* node);
-  void VisitWithExitStatement(WithExitStatement* node);
-  void VisitSwitchStatement(SwitchStatement* node);
-  void VisitLoopStatement(LoopStatement* node);
-  void VisitForInStatement(ForInStatement* node);
-  void VisitTryCatch(TryCatch* node);
-  void VisitTryFinally(TryFinally* node);
-  void VisitDebuggerStatement(DebuggerStatement* node);
-  void VisitFunctionLiteral(FunctionLiteral* node);
-  void VisitFunctionBoilerplateLiteral(FunctionBoilerplateLiteral* node);
-  void VisitConditional(Conditional* node);
-  void VisitSlot(Slot* node);
-  void VisitVariable(Variable* node);
-  void VisitVariableProxy(VariableProxy* node);
-  void VisitLiteral(Literal* node);
-  void VisitRegExpLiteral(RegExpLiteral* node);
-  void VisitObjectLiteral(ObjectLiteral* node);
-  void VisitArrayLiteral(ArrayLiteral* node);
-  void VisitCatchExtensionObject(CatchExtensionObject* node);
-  void VisitAssignment(Assignment* node);
-  void VisitThrow(Throw* node);
-  void VisitProperty(Property* node);
-  void VisitCall(Call* node);
-  void VisitCallEval(CallEval* node);
-  void VisitCallNew(CallNew* node);
-  void VisitCallRuntime(CallRuntime* node);
-  void VisitUnaryOperation(UnaryOperation* node);
-  void VisitCountOperation(CountOperation* node);
-  void VisitBinaryOperation(BinaryOperation* node);
-  void VisitCompareOperation(CompareOperation* node);
-  void VisitThisFunction(ThisFunction* node);
+  // AST node visit functions.
+#define DECLARE_VISIT(type) void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  void VisitVariable(Variable* var);
 
  private:
   int weight_;
@@ -329,13 +296,9 @@ void UsageComputer::VisitCall(Call* node) {
 }
 
 
-void UsageComputer::VisitCallEval(CallEval* node) {
-  VisitCall(node);
-}
-
-
 void UsageComputer::VisitCallNew(CallNew* node) {
-  VisitCall(node);
+  Read(node->expression());
+  ReadList(node->arguments());
 }
 
 

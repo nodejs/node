@@ -65,6 +65,7 @@ void DebuggerAgent::Run() {
   // Accept connections on the bound port.
   while (!terminate_) {
     bool ok = server_->Listen(1);
+    listening_->Signal();
     if (ok) {
       // Accept the new connection.
       Socket* client = server_->Accept();
@@ -92,6 +93,10 @@ void DebuggerAgent::Shutdown() {
   CloseSession();
 }
 
+
+void DebuggerAgent::WaitUntilListening() {
+  listening_->Wait();
+}
 
 void DebuggerAgent::CreateSession(Socket* client) {
   ScopedLock with(session_access_);

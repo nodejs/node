@@ -291,27 +291,8 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
 
   // Align the stack at this point.  After this point we have 5 pushes,
   // so in fact we have to unalign here!  See also the assert on the
-  // alignment immediately below.
-#if defined(V8_HOST_ARCH_ARM)
-  // Running on the real platform. Use the alignment as mandated by the local
-  // environment.
-  // Note: This will break if we ever start generating snapshots on one ARM
-  // platform for another ARM platform with a different alignment.
-  int activation_frame_alignment = OS::ActivationFrameAlignment();
-#else  // defined(V8_HOST_ARCH_ARM)
-  // If we are using the simulator then we should always align to the expected
-  // alignment. As the simulator is used to generate snapshots we do not know
-  // if the target platform will need alignment, so we will always align at
-  // this point here.
-  int activation_frame_alignment = 2 * kPointerSize;
-#endif  // defined(V8_HOST_ARCH_ARM)
-  if (activation_frame_alignment != kPointerSize) {
-    // This code needs to be made more general if this assert doesn't hold.
-    ASSERT(activation_frame_alignment == 2 * kPointerSize);
-    mov(r7, Operand(Smi::FromInt(0)));
-    tst(sp, Operand(activation_frame_alignment - 1));
-    push(r7, eq);  // Conditional push instruction.
-  }
+  // alignment in AlignStack.
+  AlignStack(1);
 
   // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
@@ -340,6 +321,30 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
     CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
   }
 #endif
+}
+
+
+void MacroAssembler::AlignStack(int offset) {
+#if defined(V8_HOST_ARCH_ARM)
+  // Running on the real platform. Use the alignment as mandated by the local
+  // environment.
+  // Note: This will break if we ever start generating snapshots on one ARM
+  // platform for another ARM platform with a different alignment.
+  int activation_frame_alignment = OS::ActivationFrameAlignment();
+#else  // defined(V8_HOST_ARCH_ARM)
+  // If we are using the simulator then we should always align to the expected
+  // alignment. As the simulator is used to generate snapshots we do not know
+  // if the target platform will need alignment, so we will always align at
+  // this point here.
+  int activation_frame_alignment = 2 * kPointerSize;
+#endif  // defined(V8_HOST_ARCH_ARM)
+  if (activation_frame_alignment != kPointerSize) {
+    // This code needs to be made more general if this assert doesn't hold.
+    ASSERT(activation_frame_alignment == 2 * kPointerSize);
+    mov(r7, Operand(Smi::FromInt(0)));
+    tst(sp, Operand(activation_frame_alignment - offset));
+    push(r7, eq);  // Conditional push instruction.
+  }
 }
 
 
@@ -763,12 +768,12 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(int object_size,
-                                              Register result,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(int object_size,
+                                        Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(scratch1));
   ASSERT(!scratch1.is(scratch2));
 
@@ -813,12 +818,12 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
-                                              Register result,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(Register object_size,
+                                        Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(scratch1));
   ASSERT(!scratch1.is(scratch2));
 
@@ -1001,11 +1006,11 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r0, Operand(num_arguments));
-  JumpToBuiltin(ext);
+  JumpToRuntime(ext);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
+void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
@@ -1046,7 +1051,6 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
     int argc = Builtins::GetArgumentsCount(id);
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);
@@ -1064,7 +1068,6 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
     int argc = Builtins::GetArgumentsCount(id);
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(true);
     Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);

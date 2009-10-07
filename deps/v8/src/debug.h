@@ -354,6 +354,7 @@ class Debug {
   static char* ArchiveDebug(char* to);
   static char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
+  static void FreeThreadResources() { }
 
   // Mirror cache handling.
   static void ClearMirrorCache();
@@ -644,6 +645,9 @@ class Debugger {
 
   // Stop the debugger agent.
   static void StopAgent();
+
+  // Blocks until the agent has started listening for connections
+  static void WaitForAgent();
 
   // Unload the debugger if possible. Only called when no debugger is currently
   // active.

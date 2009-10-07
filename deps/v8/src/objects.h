@@ -211,7 +211,7 @@ enum PropertyNormalizationMode {
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST(V)                   \
+#define INSTANCE_TYPE_LIST_ALL(V)               \
   V(SHORT_SYMBOL_TYPE)                          \
   V(MEDIUM_SYMBOL_TYPE)                         \
   V(LONG_SYMBOL_TYPE)                           \
@@ -282,8 +282,6 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO_TYPE)                  \
   V(SIGNATURE_INFO_TYPE)                        \
   V(TYPE_SWITCH_INFO_TYPE)                      \
-  V(DEBUG_INFO_TYPE)                            \
-  V(BREAK_POINT_INFO_TYPE)                      \
   V(SCRIPT_TYPE)                                \
                                                 \
   V(JS_VALUE_TYPE)                              \
@@ -297,6 +295,17 @@ enum PropertyNormalizationMode {
                                                 \
   V(JS_FUNCTION_TYPE)                           \
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#define INSTANCE_TYPE_LIST_DEBUGGER(V)          \
+  V(DEBUG_INFO_TYPE)                            \
+  V(BREAK_POINT_INFO_TYPE)
+#else
+#define INSTANCE_TYPE_LIST_DEBUGGER(V)
+#endif
+
+#define INSTANCE_TYPE_LIST(V)                   \
+  INSTANCE_TYPE_LIST_ALL(V)                     \
+  INSTANCE_TYPE_LIST_DEBUGGER(V)
 
 
 // Since string types are not consecutive, this macro is used to
@@ -673,8 +682,10 @@ enum InstanceType {
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+#ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
+#endif
   SCRIPT_TYPE,
 
   JS_VALUE_TYPE,
@@ -751,14 +762,17 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSymbol();
+#ifdef DEBUG
+  // See objects-inl.h for more details
   inline bool IsSeqString();
   inline bool IsSlicedString();
   inline bool IsExternalString();
-  inline bool IsConsString();
   inline bool IsExternalTwoByteString();
   inline bool IsExternalAsciiString();
   inline bool IsSeqTwoByteString();
   inline bool IsSeqAsciiString();
+#endif  // DEBUG
+  inline bool IsConsString();
 
   inline bool IsNumber();
   inline bool IsByteArray();
@@ -4205,25 +4219,47 @@ class ExternalTwoByteString: public ExternalString {
 };
 
 
+// Utility superclass for stack-allocated objects that must be updated
+// on gc.  It provides two ways for the gc to update instances, either
+// iterating or updating after gc.
+class Relocatable BASE_EMBEDDED {
+ public:
+  inline Relocatable() : prev_(top_) { top_ = this; }
+  virtual ~Relocatable() {
+    ASSERT_EQ(top_, this);
+    top_ = prev_;
+  }
+  virtual void IterateInstance(ObjectVisitor* v) { }
+  virtual void PostGarbageCollection() { }
+
+  static void PostGarbageCollectionProcessing();
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+  static void Iterate(ObjectVisitor* v);
+  static void Iterate(ObjectVisitor* v, Relocatable* top);
+  static char* Iterate(ObjectVisitor* v, char* t);
+ private:
+  static Relocatable* top_;
+  Relocatable* prev_;
+};
+
+
 // A flat string reader provides random access to the contents of a
 // string independent of the character width of the string.  The handle
 // must be valid as long as the reader is being used.
-class FlatStringReader BASE_EMBEDDED {
+class FlatStringReader : public Relocatable {
  public:
   explicit FlatStringReader(Handle<String> str);
   explicit FlatStringReader(Vector<const char> input);
-  ~FlatStringReader();
-  void RefreshState();
+  void PostGarbageCollection();
   inline uc32 Get(int index);
   int length() { return length_; }
-  static void PostGarbageCollectionProcessing();
  private:
   String** str_;
   bool is_ascii_;
   int length_;
   const void* start_;
-  FlatStringReader* prev_;
-  static FlatStringReader* top_;
 };
 
 
@@ -4388,6 +4424,9 @@ class JSArray: public JSObject {
   void JSArrayPrint();
   void JSArrayVerify();
 #endif
+
+  // Number of element slots to pre-allocate for an empty array.
+  static const int kPreallocatedArrayElements = 4;
 
   // Layout description.
   static const int kLengthOffset = JSObject::kHeaderSize;

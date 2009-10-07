@@ -709,6 +709,8 @@ function ArraySort(comparefn) {
     QuickSort(a, high_start, to);
   }
 
+  var length;
+
   // Copies elements in the range 0..length from obj's prototype chain
   // to obj itself, if obj has holes. Returns one more than the maximal index
   // of a prototype property.
@@ -826,7 +828,7 @@ function ArraySort(comparefn) {
     return first_undefined;
   }
 
-  var length = ToUint32(this.length);
+  length = ToUint32(this.length);
   if (length < 2) return this;
 
   var is_array = IS_ARRAY(this);

@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "arguments.h"
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"
@@ -71,7 +72,7 @@ namespace v8 {
     thread_local.DecrementCallDepth();                                         \
     if (has_pending_exception) {                                               \
       if (thread_local.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
-        if (!thread_local.IgnoreOutOfMemory())                                 \
+        if (!thread_local.ignore_out_of_memory())                              \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
@@ -341,9 +342,12 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
-  bool result = i::Heap::ConfigureHeap(constraints->max_young_space_size(),
-                                       constraints->max_old_space_size());
-  if (!result) return false;
+  int semispace_size = constraints->max_young_space_size();
+  int old_gen_size = constraints->max_old_space_size();
+  if (semispace_size != 0 || old_gen_size != 0) {
+    bool result = i::Heap::ConfigureHeap(semispace_size, old_gen_size);
+    if (!result) return false;
+  }
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     i::StackGuard::SetStackLimit(limit);
@@ -1898,6 +1902,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
                      v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::Set()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
@@ -1918,6 +1923,7 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
                           v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::ForceSet()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
@@ -1936,6 +1942,7 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::ForceDelete()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE();
@@ -2121,7 +2128,7 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 }
 
 
-Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
+Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       Handle<String> key) {
   ON_BAILOUT("v8::Object::GetRealNamedPropertyInPrototypeChain()",
              return Local<Value>());
@@ -2142,12 +2149,32 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
 }
 
 
+Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
+  ON_BAILOUT("v8::Object::GetRealNamedProperty()", return Local<Value>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  i::LookupResult lookup;
+  self_obj->LookupRealNamedProperty(*key_obj, &lookup);
+  if (lookup.IsValid()) {
+    PropertyAttributes attributes;
+    i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
+                                                      &lookup,
+                                                      *key_obj,
+                                                      &attributes));
+    return Utils::ToLocal(result);
+  }
+  return Local<Value>();  // No real property was found in prototype chain.
+}
+
+
 // Turns on access checks by copying the map and setting the check flag.
 // Because the object gets a new map, existing inline cache caching
 // the old map of this object will fail.
 void v8::Object::TurnOnAccessCheck() {
   ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
 
   i::Handle<i::Map> new_map =
@@ -2177,6 +2204,7 @@ Local<v8::Object> v8::Object::Clone() {
 int v8::Object::GetIdentityHash() {
   ON_BAILOUT("v8::Object::GetIdentityHash()", return 0);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
   i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
@@ -2206,6 +2234,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
   ON_BAILOUT("v8::Object::SetHiddenValue()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -2245,6 +2274,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
 bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   ON_BAILOUT("v8::DeleteHiddenValue()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
   if (hidden_props->IsUndefined()) {
@@ -2259,6 +2289,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ON_BAILOUT("v8::SetElementsToPixelData()", return);
   ENTER_V8;
+  HandleScope scope;
   if (!ApiCheck(i::Smi::IsValid(length),
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
@@ -2419,20 +2450,14 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  // Flatten the string for efficiency.  This applies whether we are
-  // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
   if (end < 0) return 0;
-  write_input_buffer.Reset(start, *str);
-  int i;
-  for (i = 0; i < end; i++)
-    buffer[i] = write_input_buffer.GetNext();
-  if (length == -1 || i < length)
-    buffer[i] = '\0';
-  return i;
+  i::String::WriteToFlat(*str, buffer, start, end);
+  if (length == -1 || end < length)
+    buffer[end] = '\0';
+  return end;
 }
 
 
@@ -2577,9 +2602,11 @@ bool v8::V8::Dispose() {
 }
 
 
-bool v8::V8::IdleNotification(bool is_high_priority) {
-  if (!i::V8::IsRunning()) return false;
-  return i::V8::IdleNotification(is_high_priority);
+bool v8::V8::IdleNotification() {
+  // Returning true tells the caller that it need not
+  // continue to call IdleNotification.
+  if (!i::V8::IsRunning()) return true;
+  return i::V8::IdleNotification();
 }
 
 
@@ -2740,7 +2767,9 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 v8::Local<v8::Context> Context::GetCalling() {
   if (IsDeadCheck("v8::Context::GetCalling()")) return Local<Context>();
-  i::Handle<i::Context> context(i::Top::GetCallingGlobalContext());
+  i::Handle<i::Object> calling = i::Top::GetCallingGlobalContext();
+  if (calling.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);
 }
 
@@ -3187,7 +3216,7 @@ Local<Integer> v8::Integer::New(int32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  thread_local.SetIgnoreOutOfMemory(true);
+  thread_local.set_ignore_out_of_memory(true);
 }
 
 
@@ -3669,6 +3698,11 @@ HandleScopeImplementer* HandleScopeImplementer::instance() {
 }
 
 
+void HandleScopeImplementer::FreeThreadResources() {
+  thread_local.Free();
+}
+
+
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
   return thread_local.ArchiveThreadHelper(storage);
 }
@@ -3680,7 +3714,7 @@ char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
-  Initialize();
+  ResetAfterArchive();
   current->Initialize();
 
   return storage + ArchiveSpacePerThread();
@@ -3706,14 +3740,14 @@ char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
 
 void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   // Iterate over all handles in the blocks except for the last.
-  for (int i = Blocks()->length() - 2; i >= 0; --i) {
-    Object** block = Blocks()->at(i);
+  for (int i = blocks()->length() - 2; i >= 0; --i) {
+    Object** block = blocks()->at(i);
     v->VisitPointers(block, &block[kHandleBlockSize]);
   }
 
   // Iterate over live handles in the last block (if any).
-  if (!Blocks()->is_empty()) {
-    v->VisitPointers(Blocks()->last(), handle_scope_data_.next);
+  if (!blocks()->is_empty()) {
+    v->VisitPointers(blocks()->last(), handle_scope_data_.next);
   }
 
   if (!saved_contexts_.is_empty()) {

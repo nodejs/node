@@ -63,6 +63,13 @@ void MacroAssembler::CompareRoot(Register with,
 }
 
 
+void MacroAssembler::CompareRoot(Operand with,
+                                 Heap::RootListIndex index) {
+  LoadRoot(kScratchRegister, index);
+  cmpq(with, kScratchRegister);
+}
+
+
 static void RecordWriteHelper(MacroAssembler* masm,
                               Register object,
                               Register addr,
@@ -332,17 +339,16 @@ void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   movq(rax, Immediate(num_arguments));
-  JumpToBuiltin(ext, result_size);
+  JumpToRuntime(ext, result_size);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& ext,
+void MacroAssembler::JumpToRuntime(const ExternalReference& ext,
                                    int result_size) {
   // Set the entry point and jump to the C entry runtime stub.
   movq(rbx, ext);
   CEntryStub ces(result_size);
-  movq(kScratchRegister, ces.GetCode(), RelocInfo::CODE_TARGET);
-  jmp(kScratchRegister);
+  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -357,7 +363,6 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(true);
     Unresolved entry = { pc_offset() - sizeof(intptr_t), flags, name };
     unresolved_.Add(entry);
@@ -519,6 +524,18 @@ void MacroAssembler::JumpIfSmiEqualsConstant(Register src,
 }
 
 
+void MacroAssembler::JumpIfSmiGreaterEqualsConstant(Register src,
+                                                    int constant,
+                                                    Label* on_greater_equals) {
+  if (Smi::IsValid(constant)) {
+    Condition are_greater_equal = CheckSmiGreaterEqualsConstant(src, constant);
+    j(are_greater_equal, on_greater_equals);
+  } else if (constant < Smi::kMinValue) {
+    jmp(on_greater_equals);
+  }
+}
+
+
 void MacroAssembler::JumpIfNotValidSmiValue(Register src, Label* on_invalid) {
   Condition is_valid = CheckInteger32ValidSmiValue(src);
   j(ReverseCondition(is_valid), on_invalid);
@@ -595,6 +612,22 @@ Condition MacroAssembler::CheckSmiEqualsConstant(Register src, int constant) {
   if (Smi::IsValid(constant)) {
     cmpl(src, Immediate(Smi::FromInt(constant)));
     return zero;
+  }
+  // Can't be equal.
+  UNREACHABLE();
+  return no_condition;
+}
+
+
+Condition MacroAssembler::CheckSmiGreaterEqualsConstant(Register src,
+                                                        int constant) {
+  if (constant == 0) {
+    testl(src, Immediate(static_cast<uint32_t>(0x80000000u)));
+    return positive;
+  }
+  if (Smi::IsValid(constant)) {
+    cmpl(src, Immediate(Smi::FromInt(constant)));
+    return greater_equal;
   }
   // Can't be equal.
   UNREACHABLE();
@@ -1235,17 +1268,8 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
-  movq(kScratchRegister, code_object, rmode);
-#ifdef DEBUG
-  Label target;
-  bind(&target);
-#endif
-  jmp(kScratchRegister);
-#ifdef DEBUG
-  ASSERT_EQ(kCallTargetAddressOffset,
-            SizeOfCodeGeneratedSince(&target) + kPointerSize);
-#endif
+  // TODO(X64): Inline this
+  jmp(code_object, rmode);
 }
 
 
@@ -1264,17 +1288,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   WriteRecordedPositions();
-  movq(kScratchRegister, code_object, rmode);
-#ifdef DEBUG
-  // Patch target is kPointer size bytes *before* target label.
-  Label target;
-  bind(&target);
-#endif
-  call(kScratchRegister);
-#ifdef DEBUG
-  ASSERT_EQ(kCallTargetAddressOffset,
-            SizeOfCodeGeneratedSince(&target) + kPointerSize);
-#endif
+  call(code_object, rmode);
 }
 
 
@@ -1541,7 +1555,6 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
         { pc_offset() - kCallTargetAddressOffset, flags, name };
@@ -2024,12 +2037,12 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(int object_size,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(int object_size,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -2053,14 +2066,14 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(int header_size,
-                                              ScaleFactor element_size,
-                                              Register element_count,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(int header_size,
+                                        ScaleFactor element_size,
+                                        Register element_count,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -2084,12 +2097,12 @@ void MacroAssembler::AllocateObjectInNewSpace(int header_size,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(Register object_size,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   // Load address of new object into result.
   LoadAllocationTopHelper(result, result_end, scratch, flags);
 

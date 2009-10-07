@@ -36,18 +36,23 @@
 #ifndef V8_ARM_SIMULATOR_ARM_H_
 #define V8_ARM_SIMULATOR_ARM_H_
 
+#include "allocation.h"
+
 #if defined(__arm__)
 
 // When running without a simulator we call the entry directly.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
-// Calculated the stack limit beyond which we will throw stack overflow errors.
-// This macro must be called from a C++ method. It relies on being able to take
-// the address of "this" to get a value on the current execution stack and then
-// calculates the stack limit based on that value.
-#define GENERATED_CODE_STACK_LIMIT(limit) \
-  (reinterpret_cast<uintptr_t>(this) - limit)
+// The stack limit beyond which we will throw stack overflow errors in
+// generated code. Because generated code on arm uses the C stack, we
+// just use the C stack limit.
+class SimulatorStack : public v8::internal::AllStatic {
+ public:
+  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
+    return c_limit;
+  }
+};
 
 
 // Call the generated regexp code directly. The entry function pointer should
@@ -63,12 +68,6 @@
   reinterpret_cast<Object*>( \
       assembler::arm::Simulator::current()->Call(FUNCTION_ADDR(entry), 5, \
                                                  p0, p1, p2, p3, p4))
-
-// The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.
-#define GENERATED_CODE_STACK_LIMIT(limit) \
-  (assembler::arm::Simulator::current()->StackLimit())
-
 
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
   assembler::arm::Simulator::current()->Call( \
@@ -218,6 +217,20 @@ class Simulator {
 };
 
 } }  // namespace assembler::arm
+
+
+// The simulator has its own stack. Thus it has a different stack limit from
+// the C-based native code.  Setting the c_limit to indicate a very small
+// stack cause stack overflow errors, since the simulator ignores the input.
+// This is unlikely to be an issue in practice, though it might cause testing
+// trouble down the line.
+class SimulatorStack : public v8::internal::AllStatic {
+ public:
+  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
+    return assembler::arm::Simulator::current()->StackLimit();
+  }
+};
+
 
 #endif  // defined(__arm__)
 

@@ -664,12 +664,12 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(int object_size,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(int object_size,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -692,14 +692,14 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(int header_size,
-                                              ScaleFactor element_size,
-                                              Register element_count,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(int header_size,
+                                        ScaleFactor element_size,
+                                        Register element_count,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -722,12 +722,12 @@ void MacroAssembler::AllocateObjectInNewSpace(int header_size,
 }
 
 
-void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
-                                              Register result,
-                                              Register result_end,
-                                              Register scratch,
-                                              Label* gc_required,
-                                              AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(Register object_size,
+                                        Register result,
+                                        Register result_end,
+                                        Register scratch,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -903,11 +903,11 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  JumpToBuiltin(ext);
+  JumpToRuntime(ext);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
+void MacroAssembler::JumpToRuntime(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
@@ -1049,7 +1049,6 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
     unresolved_.Add(entry);
@@ -1068,7 +1067,6 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(true);
     Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
     unresolved_.Add(entry);
