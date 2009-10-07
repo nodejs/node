@@ -457,6 +457,7 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = reinterpret_cast<const char*>("--help");
+      dash_dash_index = i+1;
     }
   }
 }
