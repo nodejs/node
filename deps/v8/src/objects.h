@@ -2998,6 +2998,10 @@ class Script: public Struct {
 
   static inline Script* cast(Object* obj);
 
+  // If script source is an external string, check that the underlying
+  // resource is accessible. Otherwise, always return true.
+  inline bool HasValidSource();
+
 #ifdef DEBUG
   void ScriptPrint();
   void ScriptVerify();

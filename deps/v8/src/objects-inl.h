@@ -2361,6 +2361,20 @@ INT_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 
 
+bool Script::HasValidSource() {
+  Object* src = this->source();
+  if (!src->IsString()) return true;
+  String* src_str = String::cast(src);
+  if (!StringShape(src_str).IsExternal()) return true;
+  if (src_str->IsAsciiRepresentation()) {
+    return ExternalAsciiString::cast(src)->resource() != NULL;
+  } else if (src_str->IsTwoByteRepresentation()) {
+    return ExternalTwoByteString::cast(src)->resource() != NULL;
+  }
+  return true;
+}
+
+
 void SharedFunctionInfo::DontAdaptArguments() {
   ASSERT(code()->kind() == Code::BUILTIN);
   set_formal_parameter_count(kDontAdaptArgumentsSentinel);

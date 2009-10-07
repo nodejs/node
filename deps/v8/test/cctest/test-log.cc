@@ -430,6 +430,50 @@ TEST(ProfMultipleThreads) {
 #endif  // __linux__
 
 
+// Test for issue http://crbug.com/23768 in Chromium.
+// Heap can contain scripts with already disposed external sources.
+// We need to verify that LogCompiledFunctions doesn't crash on them.
+namespace {
+
+class SimpleExternalString : public v8::String::ExternalStringResource {
+ public:
+  explicit SimpleExternalString(const char* source)
+      : utf_source_(strlen(source)) {
+    for (int i = 0; i < utf_source_.length(); ++i)
+      utf_source_[i] = source[i];
+  }
+  virtual ~SimpleExternalString() {}
+  virtual size_t length() const { return utf_source_.length(); }
+  virtual const uint16_t* data() const { return utf_source_.start(); }
+ private:
+  i::ScopedVector<uint16_t> utf_source_;
+};
+
+}  // namespace
+
+TEST(Issue23768) {
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  SimpleExternalString source_ext_str("(function ext() {})();");
+  v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
+  // Script needs to have a name in order to trigger InitLineEnds execution.
+  v8::Handle<v8::String> origin = v8::String::New("issue-23768-test");
+  v8::Handle<v8::Script> evil_script = v8::Script::Compile(source, origin);
+  CHECK(!evil_script.IsEmpty());
+  CHECK(!evil_script->Run().IsEmpty());
+  i::Handle<i::ExternalTwoByteString> i_source(
+      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
+  // This situation can happen if source was an external string disposed
+  // by its owner.
+  i_source->set_resource(NULL);
+
+  // Must not crash.
+  i::Logger::LogCompiledFunctions();
+}
+
+
 static inline bool IsStringEqualTo(const char* r, const char* s) {
   return strncmp(r, s, strlen(r)) == 0;
 }

@@ -1,3 +1,11 @@
+2009-10-07: Version 1.3.15
+
+        Expand the maximum size of the code space to 512MB for 64-bit mode.
+
+        Fixed a crash bug happening when starting profiling (issue
+        http://crbug.com/23768).
+
+
 2009-10-07: Version 1.3.14
 
         Added GetRealNamedProperty to the API to lookup real properties

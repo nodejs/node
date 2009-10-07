@@ -82,7 +82,7 @@ size_t Heap::code_range_size_ = 0;
 int Heap::semispace_size_  = 16*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
-size_t Heap::code_range_size_ = 256*MB;
+size_t Heap::code_range_size_ = 512*MB;
 #else
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;

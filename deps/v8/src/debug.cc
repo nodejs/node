@@ -1677,22 +1677,6 @@ void Debug::ClearMirrorCache() {
 }
 
 
-// If an object given is an external string, check that the underlying
-// resource is accessible. For other kinds of objects, always return true.
-static bool IsExternalStringValid(Object* str) {
-  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
-    return true;
-  }
-  if (String::cast(str)->IsAsciiRepresentation()) {
-    return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (String::cast(str)->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(str)->resource() != NULL;
-  } else {
-    return true;
-  }
-}
-
-
 void Debug::CreateScriptCache() {
   HandleScope scope;
 
@@ -1711,7 +1695,7 @@ void Debug::CreateScriptCache() {
   while (iterator.has_next()) {
     HeapObject* obj = iterator.next();
     ASSERT(obj != NULL);
-    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
+    if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {
       script_cache_->Add(Handle<Script>(Script::cast(obj)));
       count++;
     }
