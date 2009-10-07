@@ -44,7 +44,7 @@ website-upload: doc
 	scp doc/* linode:~/tinyclouds/node/
 
 clean:
-	@-rm doc/node.1 doc/api.xml doc/api.html
+	@-rm -f doc/node.1 doc/api.xml doc/api.html
 	@tools/waf-light clean
 
 distclean: clean
