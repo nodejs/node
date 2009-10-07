@@ -128,12 +128,28 @@ HTTPConnection::on_fragment (http_parser *parser, const char *buf, size_t len)
   return 0;
 }
 
+const static char normalizer[] =
+  "\0------------------------------"
+  "-----------------0123456789-----"
+  "--abcdefghijklmnopqrstuvwxyz----"
+  "--abcdefghijklmnopqrstuvwxyz----"
+  "--------------------------------"
+  "--------------------------------"
+  "--------------------------------"
+  "--------------------------------";
+
 int
 HTTPConnection::on_header_field (http_parser *parser, const char *buf, size_t len)
 {
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   assert(connection->attached_);
+
+  // NORMALIZE
+  size_t i;
+  char *nonconstbuf = (char*)buf; // FIXME
+  for (i = 0; i < len; i++) { nonconstbuf[i] = normalizer[buf[i]]; }
+
   Local<Value> argv[1] = { String::New(buf, len) };
   connection->Emit("headerField", 1, argv);
   return 0;
@@ -145,6 +161,7 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   assert(connection->attached_);
+
   Local<Value> argv[1] = { String::New(buf, len) };
   connection->Emit("headerValue", 1, argv);
   return 0;

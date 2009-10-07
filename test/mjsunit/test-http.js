@@ -13,11 +13,11 @@ http.createServer(function (req, res) {
     assertEquals("/hello", req.uri.path);
 
     p(req.headers);
-    assertTrue("Accept" in req.headers);
-    assertEquals("*/*", req.headers["Accept"]);
+    assertTrue("accept" in req.headers);
+    assertEquals("*/*", req.headers["accept"]);
 
-    assertTrue("Foo" in req.headers);
-    assertEquals("bar", req.headers["Foo"]);
+    assertTrue("foo" in req.headers);
+    assertEquals("bar", req.headers["foo"]);
   }
 
   if (responses_sent == 1) {
