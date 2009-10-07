@@ -9,9 +9,8 @@ var benchmarks = [ "static_http_server.js"
 var benchmark_dir = node.path.dirname(__filename);
 
 function exec (script, callback) {
-  var command = ARGV[0] + " " + node.path.join(benchmark_dir, script);
   var start = new Date();
-  var child = node.createChildProcess(command);
+  var child = node.createChildProcess(ARGV[0], [node.path.join(benchmark_dir, script)]);
   child.addListener("exit", function (code) {
     var elapsed = new Date() - start;
     callback(elapsed, code);

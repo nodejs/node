@@ -4,7 +4,7 @@ node.mixin(require("/utils.js"));
 function next (i) {
   if (i <= 0) return;
 
-  var child = node.createChildProcess("echo hello");
+  var child = node.createChildProcess("echo", ["hello"]);
 
   child.addListener("output", function (chunk) {
     if (chunk) print(chunk);
