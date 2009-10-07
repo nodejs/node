@@ -5,7 +5,10 @@ if (process.ARGV[2] === "-child") {
   var handler = new node.SignalHandler(node.SIGUSR1);
   handler.addListener("signal", function() {
     node.stdio.write("handled SIGUSR1");
-    process.exit(0);
+    setTimeout(function () {
+      // Allow some time for the write to go through the pipez
+      process.exit(0);
+    }, 50);
   });
   debug("CHILD!!!");
   
