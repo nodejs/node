@@ -199,14 +199,19 @@ def v8_cmd(bld, variant):
   deps_src = join(bld.path.abspath(),"deps")
   v8dir_src = join(deps_src,"v8")
 
-
   # NOTE: We want to compile V8 to export its symbols. I.E. Do not want
   # -fvisibility=hidden. When using dlopen() it seems that the loaded DSO
   # cannot see symbols in the executable which are hidden, even if the
   # executable is statically linked together...
 
-  arch = "arch=x64" if GuessArchitecture() == "x64" else ""
-  mode = "release" if variant == "default" else "debug"
+  arch = ""
+  if GuessArchitecture() == "x64":
+    arch = "arch=x64"
+
+  if variant == "default":
+    mode = "release"
+  else:
+    mode = "debug"
 
   cmd_R = 'python %s -C %s -Y %s visibility=default mode=%s %s library=static snapshot=on'
 
