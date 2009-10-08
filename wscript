@@ -52,8 +52,8 @@ def copytree(src, dst, symlinks=False, ignore=None):
     for name in names:
         if name in ignored_names:
             continue
-        srcname = os.path.join(src, name)
-        dstname = os.path.join(dst, name)
+        srcname = join(src, name)
+        dstname = join(dst, name)
         try:
             if symlinks and os.path.islink(srcname):
                 linkto = os.readlink(srcname)
@@ -123,7 +123,6 @@ def configure(conf):
   conf.sub_config('deps/libev')
 
   conf_subproject(conf, 'deps/udns', './configure')
-  conf_subproject(conf, 'deps/v8')
 
   # Not using TLS yet
   # if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
@@ -195,49 +194,51 @@ def GuessArchitecture():
   else:
     return None
 
-
-def build_v8(bld):
+def v8_cmd(bld, variant):
+  scons = join(cwd, 'tools/scons/scons.py')
   deps_src = join(bld.path.abspath(),"deps")
-  deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("default")),"deps")
   v8dir_src = join(deps_src,"v8")
-  v8dir_tgt = join(deps_tgt, "v8")
-  scons = os.path.join(cwd, 'tools/scons/scons.py')
+
 
   # NOTE: We want to compile V8 to export its symbols. I.E. Do not want
   # -fvisibility=hidden. When using dlopen() it seems that the loaded DSO
   # cannot see symbols in the executable which are hidden, even if the
   # executable is statically linked together...
-  v8rule = 'cd %s && ' \
-           'python %s -Q visibility=default mode=%s %s library=static snapshot=on'
 
-  arch = ""
-  if GuessArchitecture() == "x64":
-    arch = "arch=x64"
+  arch = "arch=x64" if GuessArchitecture() == "x64" else ""
+  mode = "release" if variant == "default" else "debug"
 
+  cmd_R = 'python %s -C %s -Y %s visibility=default mode=%s %s library=static snapshot=on'
+
+  cmd = cmd_R % ( scons
+                , bld.srcnode.abspath(bld.env_of_name(variant))
+                , v8dir_src
+                , mode
+                , arch
+                )
+  return cmd
+
+
+def build_v8(bld):
   v8 = bld.new_task_gen(
-    target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8"),
-    rule=v8rule % (v8dir_tgt, scons, "release", arch),
-    before="cxx",
-    install_path = None
+    target        = bld.env["staticlib_PATTERN"] % "v8",
+    rule          = v8_cmd(bld, "default"),
+    before        = "cxx",
+    install_path  = None
   )
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
-  bld.env_of_name('default')["LIBPATH_V8"] = v8dir_tgt
   bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
-    deps_tgt = join(bld.srcnode.abspath(bld.env_of_name("debug")),"deps")
-    v8dir_tgt = join(deps_tgt, "v8")
-
     v8_debug = v8.clone("debug")
+    v8_debug.rule   = v8_cmd(bld, "debug")
+    v8_debug.target = bld.env["staticlib_PATTERN"] % "v8_g"
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
-    bld.env_of_name('debug')["LIBPATH_V8"] = v8dir_tgt
     bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
-    v8_debug.rule = v8rule % (v8dir_tgt, scons, "debug", arch)
-    v8_debug.target = join("deps/v8", bld.env["staticlib_PATTERN"] % "v8_g")
 
-  bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/v8*')
+  bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
   bld.add_subdirs('deps/libeio deps/libev')
@@ -291,7 +292,7 @@ def build(bld):
       src/file.js
       src/node.js
     """,
-    target="src/natives.h",
+    target="src/node_natives.h",
     rule=javascript_in_c,
     before="cxx"
   )

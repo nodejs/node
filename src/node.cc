@@ -20,7 +20,7 @@
 #include <child_process.h>
 #include <constants.h>
 #include <node_stdio.h>
-#include <natives.h>
+#include <node_natives.h>
 #include <v8-debug.h>
 
 using namespace v8;
