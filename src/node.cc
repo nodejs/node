@@ -251,29 +251,39 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 
 typedef void (*extInit)(Handle<Object> exports);
 
+// DLOpen is node.dlopen(). Used to load 'module.node' dynamically shared
+// objects.
 Handle<Value> DLOpen(const v8::Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2) return Undefined();
 
-  String::Utf8Value filename(args[0]->ToString());
-  Local<Object> target = args[1]->ToObject();
+  String::Utf8Value filename(args[0]->ToString()); // Cast
+  Local<Object> target = args[1]->ToObject(); // Cast
 
+  // Actually call dlopen().
+  // FIXME: This is a blocking function and should be called asynchronously!
+  // This function should be moved to file.cc and use libeio to make this
+  // system call.
   void *handle = dlopen(*filename, RTLD_LAZY);
 
+  // Handle errors.
   if (handle == NULL) {
     Local<Value> exception = Exception::Error(String::New(dlerror()));
     return ThrowException(exception);
   }
 
+  // Get the init() function from the dynamically shared object.
   void *init_handle = dlsym(handle, "init");
+  // Error out if not found.
   if (init_handle == NULL) {
     Local<Value> exception =
       Exception::Error(String::New("No 'init' symbol found in module."));
     return ThrowException(exception);
   }
-  extInit init = (extInit)(init_handle);
+  extInit init = (extInit)(init_handle); // Cast
 
+  // Execute the C++ module
   init(target);
 
   return Undefined();
@@ -316,14 +326,22 @@ void FatalException(TryCatch &try_catch) {
 
 static ev_async eio_watcher;
 
+// Called from the main thread.
 static void EIOCallback(EV_P_ ev_async *watcher, int revents) {
   assert(watcher == &eio_watcher);
   assert(revents == EV_ASYNC);
+  // Give control to EIO to process responses. In nearly every case
+  // EIOPromise::After() (file.cc) is called once EIO receives the response.
   eio_poll();
 }
 
+// EIOWantPoll() is called from the EIO thread pool each time an EIO
+// request (that is, one of the node.fs.* functions) has completed.
 static void EIOWantPoll(void) {
+  // Signal the main thread that EIO callbacks need to be processed.
   ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
+  // EIOCallback() will be called from the main thread in the next event
+  // loop.
 }
 
 static ev_async debug_watcher;
@@ -337,6 +355,11 @@ static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
 }
 
 static void DebugMessageDispatch(void) {
+  // This function is called from V8's debug thread when a debug TCP client
+  // has sent a message.
+
+  // Send a signal to our main thread saying that it should enter V8 to
+  // handle the message.
   ev_async_send(EV_DEFAULT_UC_ &debug_watcher);
 }
 
@@ -345,6 +368,8 @@ static void ExecuteNativeJS(const char *filename, const char *data) {
   HandleScope scope;
   TryCatch try_catch;
   ExecuteString(String::New(data), String::New(filename));
+  // There should not be any syntax errors in these file!
+  // If there are exit the process.
   if (try_catch.HasCaught())  {
     puts("There is an error in Node's built-in javascript");
     puts("This should be reported as a bug!");
@@ -356,90 +381,113 @@ static void ExecuteNativeJS(const char *filename, const char *data) {
 static Local<Object> Load(int argc, char *argv[]) {
   HandleScope scope;
 
-  Local<Object> global_obj = Context::GetCurrent()->Global();
-  Local<Object> node_obj = Object::New();
+  // Reference to 'process'
+  Local<Object> process = Context::GetCurrent()->Global();
 
-  global_obj->Set(String::NewSymbol("node"), node_obj);
+  Local<Object> node_obj = Object::New(); // Create the 'process.node' object
+  process->Set(String::NewSymbol("node"), node_obj); // and assign it.
 
+  // node.version
   node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+  // node.installPrefix
   node_obj->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
 
+  // process.ARGV
   int i, j;
   Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
-  
   arguments->Set(Integer::New(0), String::New(argv[0]));
   for (j = 1, i = dash_dash_index + 1; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(j), arg);
   }
-  global_obj->Set(String::NewSymbol("ARGV"), arguments);
+  // assign it
+  process->Set(String::NewSymbol("ARGV"), arguments);
 
+  // create process.ENV
   Local<Object> env = Object::New();
   for (i = 0; environ[i]; i++) {
+    // skip entries without a '=' character
     for (j = 0; environ[i][j] && environ[i][j] != '='; j++) { ; }
+    // create the v8 objects
     Local<String> field = String::New(environ[i], j);
     Local<String> value = Local<String>();
     if (environ[i][j] == '=') {
       value = String::New(environ[i]+j+1);
     }
+    // assign them
     env->Set(field, value);
   }
-  global_obj->Set(String::NewSymbol("ENV"), env);
+  // assign process.ENV
+  process->Set(String::NewSymbol("ENV"), env);
 
+  // define various internal methods
   NODE_SET_METHOD(node_obj, "compile", Compile);
   NODE_SET_METHOD(node_obj, "reallyExit", Exit);
   NODE_SET_METHOD(node_obj, "cwd", Cwd);
   NODE_SET_METHOD(node_obj, "dlopen", DLOpen);
 
+  // Assign the EventEmitter. It was created in main().
   node_obj->Set(String::NewSymbol("EventEmitter"),
               EventEmitter::constructor_template->GetFunction());
-  Promise::Initialize(node_obj);
 
-  Stdio::Initialize(node_obj);
-  Timer::Initialize(node_obj);
-  SignalHandler::Initialize(node_obj);
-  ChildProcess::Initialize(node_obj);
-
-  DefineConstants(node_obj);
-
+  // Initialize the C++ modules..................filename of module
+  Promise::Initialize(node_obj);                // events.cc
+  Stdio::Initialize(node_obj);                  // stdio.cc
+  Timer::Initialize(node_obj);                  // timer.cc
+  SignalHandler::Initialize(node_obj);          // signal_handler.cc
+  ChildProcess::Initialize(node_obj);           // child_process.cc
+  DefineConstants(node_obj);                    // constants.cc
+  // Create node.dns
   Local<Object> dns = Object::New();
   node_obj->Set(String::NewSymbol("dns"), dns);
-  DNS::Initialize(dns);
-
+  DNS::Initialize(dns);                         // dns.cc
   Local<Object> fs = Object::New();
   node_obj->Set(String::NewSymbol("fs"), fs);
-  File::Initialize(fs);
-
+  File::Initialize(fs);                         // file.cc
+  // Create node.tcp. Note this separate from lib/tcp.js which is the public
+  // frontend.
   Local<Object> tcp = Object::New();
   node_obj->Set(String::New("tcp"), tcp);
-  Server::Initialize(tcp);
-  Connection::Initialize(tcp);
-
+  Server::Initialize(tcp);                      // tcp.cc
+  Connection::Initialize(tcp);                  // tcp.cc
+  // Create node.http.  Note this separate from lib/http.js which is the
+  // public frontend.
   Local<Object> http = Object::New();
   node_obj->Set(String::New("http"), http);
-  HTTPServer::Initialize(http);
-  HTTPConnection::Initialize(http);
+  HTTPServer::Initialize(http);                 // http.cc
+  HTTPConnection::Initialize(http);             // http.cc
 
+  // Compile, execute the src/*.js files. (Which were included a static C
+  // strings in node_natives.h)
   ExecuteNativeJS("util.js", native_util);
   ExecuteNativeJS("events.js", native_events);
   ExecuteNativeJS("file.js", native_file);
+  // In node.js we actually load the file specified in ARGV[1]
+  // so your next reading stop should be node.js!
   ExecuteNativeJS("node.js", native_node);
 
   return scope.Close(node_obj);
 }
 
-static void CallExitHandler() {
+static void EmitExitEvent() {
   HandleScope scope;
+
+  // Get reference to 'process' object.
   Local<Object> process = Context::GetCurrent()->Global();
+  // Get the 'emit' function from it.
   Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
   if (!emit_v->IsFunction()) {
-    exit(10);  // could not emit exit event so exit with error code 10.
+    // could not emit exit event so exit
+    exit(10);
   }
+  // Cast
   Local<Function> emit = Local<Function>::Cast(emit_v);
 
   TryCatch try_catch;
 
+  // Arguments for the emit('exit')
   Local<Value> argv[2] = { String::New("exit"), Integer::New(0) };
+  // Emit!
   emit->Call(process, 2, argv);
 
   if (try_catch.HasCaught()) {
@@ -457,6 +505,7 @@ static void PrintHelp() {
          " or with 'man node'\n");
 }
 
+// Parse node command line arguments.
 static void ParseArgs(int *argc, char **argv) {
   // TODO use parse opts
   for (int i = 1; i < *argc; i++) {
@@ -486,68 +535,111 @@ static void ParseArgs(int *argc, char **argv) {
 
 }  // namespace node
 
+
 int main(int argc, char *argv[]) {
+  // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);
+  // Parse the rest of the args (up to the 'dash_dash_index' (where '--' was
+  // in the command line))
   V8::SetFlagsFromCommandLine(&node::dash_dash_index, argv, false);
 
-  evcom_ignore_sigpipe();
-  ev_default_loop(EVFLAG_AUTO);  // initialize the default ev loop.
-
-  // start eio thread pool
-  ev_async_init(&node::eio_watcher, node::EIOCallback);
-  eio_init(node::EIOWantPoll, NULL);
-  ev_async_start(EV_DEFAULT_UC_ &node::eio_watcher);
-  ev_unref(EV_DEFAULT_UC);
-
-  V8::Initialize();
-  V8::SetFatalErrorHandler(node::OnFatalError);
-
-  if (argc < 2)  {
+  // Error out if we don't have a script argument.
+  if (argc < 2) {
     fprintf(stderr, "No script was specified.\n");
     node::PrintHelp();
     return 1;
   }
 
+  // Ignore the SIGPIPE
+  evcom_ignore_sigpipe();
+
+  // Initialize the default ev loop.
+  ev_default_loop(EVFLAG_AUTO);
+
+  // Start the EIO thread pool:
+  // 1. Initialize the ev_async watcher which allows for notification from
+  // the thread pool (in node::EIOWantPoll) to poll for updates (in
+  // node::EIOCallback).
+  ev_async_init(&node::eio_watcher, node::EIOCallback);
+  // 2. Actaully start the thread pool.
+  eio_init(node::EIOWantPoll, NULL);
+  // 3. Start watcher.
+  ev_async_start(EV_DEFAULT_UC_ &node::eio_watcher);
+  // 4. Remove a reference to the async watcher. This means we'll drop out
+  // of the ev_loop even though eio_watcher is active.
+  ev_unref(EV_DEFAULT_UC);
+
+  V8::Initialize();
   HandleScope handle_scope;
 
+  V8::SetFatalErrorHandler(node::OnFatalError);
+
 #define AUTO_BREAK_FLAG "--debugger_auto_break"
+  // If the --debug flag was specified then initialize the debug thread.
   if (node::use_debug_agent) {
+    // First apply --debugger_auto_break setting to V8. This is so we can
+    // enter V8 by just executing any bit of javascript
     V8::SetFlagsFromString(AUTO_BREAK_FLAG, sizeof(AUTO_BREAK_FLAG));
+    // Initialize the async watcher for receiving messages from the debug
+    // thread and marshal it into the main thread. DebugMessageCallback()
+    // is called from the main thread to execute a random bit of javascript
+    // - which will give V8 control so it can handle whatever new message
+    // had been received on the debug thread.
     ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
+    // Set the callback DebugMessageDispatch which is called from the debug
+    // thread.
     Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
+    // Start the async watcher.
     ev_async_start(EV_DEFAULT_UC_ &node::debug_watcher);
+    // unref it so that we exit the event loop despite it being active.
     ev_unref(EV_DEFAULT_UC);
 
+    // Start the debug thread and it's associated TCP server on port 5858.
     bool r = Debug::EnableAgent("node " NODE_VERSION, 5858);
+    // Crappy check that everything went well. FIXME
     assert(r);
+    // Print out some information. REMOVEME
     printf("debugger listening on port 5858\n"
            "Use 'd8 --remote_debugger' to access it.\n");
   }
 
+  // Create the global 'process' object's FunctionTemplate.
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
 
-  // The global object / "process" is an instance of EventEmitter.  For
-  // strange reasons we must initialize EventEmitter now!  it will be assign
-  // to it's namespace node.EventEmitter in Load() bellow.
+  // The global object (process) is an instance of EventEmitter. For some
+  // strange and forgotten reasons we must initialize EventEmitter now
+  // before creating the Context. EventEmitter will be assigned to it's
+  // namespace node.EventEmitter in Load() bellow.
   node::EventEmitter::Initialize(process_template);
 
+  // Create the one and only Context.
   Persistent<Context> context = Context::New(NULL,
       process_template->InstanceTemplate());
   Context::Scope context_scope(context);
 
-
-
+  // Actually assign the global object to it's place as 'process'
   context->Global()->Set(String::NewSymbol("process"), context->Global());
 
+  // Create all the objects, load modules, do everything.
+  // so your next reading stop should be node::Load()!
   Local<Object> node_obj = node::Load(argc, argv);
 
+  // All our arguments are loaded. We've evaluated all of the scripts. We
+  // might even have created TCP servers. Now we enter the main event loop.
+  // If there are no watchers on the loop (except for the ones that were
+  // ev_unref'd) then this function exits. As long as there are active
+  // watchers, it blocks.
   ev_loop(EV_DEFAULT_UC_ 0);  // main event loop
 
-  node::CallExitHandler();
+  // Once we've dropped out, emit the 'exit' event from 'process'
+  node::EmitExitEvent();
 
+#ifndef NDEBUG
+  printf("clean up\n");
+  // Clean up.
   context.Dispose();
   V8::Dispose();
-
+#endif  // NDEBUG
   return 0;
 }
 
