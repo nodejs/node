@@ -3642,6 +3642,14 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
 }
 
 
+void Debug::SetDebugMessageDispatchHandler(
+    DebugMessageDispatchHandler handler) {
+  EnsureInitialized("v8::Debug::SetDebugMessageDispatchHandler");
+  ENTER_V8;
+  i::Debugger::SetDebugMessageDispatchHandler(handler);
+}
+
+
 Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
                          v8::Handle<v8::Value> data) {
   if (!i::V8::IsRunning()) return Local<Value>();

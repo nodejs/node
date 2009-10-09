@@ -625,6 +625,8 @@ class Debugger {
   static void SetMessageHandler(v8::Debug::MessageHandler2 handler);
   static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
                                      int period);
+  static void SetDebugMessageDispatchHandler(
+      v8::Debug::DebugMessageDispatchHandler handler);
 
   // Invoke the message handler function.
   static void InvokeMessageHandler(MessageImpl message);
@@ -685,6 +687,7 @@ class Debugger {
   static v8::Debug::MessageHandler2 message_handler_;
   static bool debugger_unload_pending_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
+  static v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   static int host_dispatch_micros_;
 
   static DebuggerAgent* agent_;

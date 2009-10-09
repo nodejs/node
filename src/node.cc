@@ -30,6 +30,7 @@ extern char **environ;
 namespace node {
 
 static int dash_dash_index = 0;
+static bool use_debug_agent = false;
 
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope;
@@ -325,6 +326,21 @@ static void EIOWantPoll(void) {
   ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
 }
 
+static ev_async debug_watcher;
+
+static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
+  HandleScope scope;
+  assert(watcher == &debug_watcher);
+  assert(revents == EV_ASYNC);
+  ExecuteString(String::New("1+1;"),
+                String::New("debug_poll"));
+}
+
+static void DebugMessageDispatch(void) {
+  ev_async_send(EV_DEFAULT_UC_ &debug_watcher);
+}
+
+
 static void ExecuteNativeJS(const char *filename, const char *data) {
   HandleScope scope;
   TryCatch try_catch;
@@ -434,6 +450,7 @@ static void CallExitHandler() {
 static void PrintHelp() {
   printf("Usage: node [options] [--] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
+         "  --debug          enable remote debugging\n" // TODO specify port
          "  --cflags         print pre-processor and compiler flags\n"
          "  --v8-options     print v8 command line options\n\n"
          "Documentation can be found at http://tinyclouds.org/node/api.html"
@@ -441,11 +458,16 @@ static void PrintHelp() {
 }
 
 static void ParseArgs(int *argc, char **argv) {
+  // TODO use parse opts
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
     if (strcmp(arg, "--") == 0) {
       dash_dash_index = i;
       break;
+    } else if (strcmp(arg, "--debug") == 0) {
+      argv[i] = reinterpret_cast<const char*>("");
+      use_debug_agent = true;
+      dash_dash_index = i;
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -487,6 +509,20 @@ int main(int argc, char *argv[]) {
   }
 
   HandleScope handle_scope;
+
+#define AUTO_BREAK_FLAG "--debugger_auto_break"
+  if (node::use_debug_agent) {
+    V8::SetFlagsFromString(AUTO_BREAK_FLAG, sizeof(AUTO_BREAK_FLAG));
+    ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
+    Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
+    ev_async_start(EV_DEFAULT_UC_ &node::debug_watcher);
+    ev_unref(EV_DEFAULT_UC);
+
+    bool r = Debug::EnableAgent("node " NODE_VERSION, 5858);
+    assert(r);
+    printf("debugger listening on port 5858\n"
+           "Use 'd8 --remote_debugger' to access it.\n");
+  }
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
 
