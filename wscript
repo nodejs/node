@@ -344,7 +344,7 @@ def build(bld):
 
   def subflags(program):
     if os.path.exists(join(cwd, ".git")):
-      actual_version=cmd_output("git-describe").strip()
+      actual_version=cmd_output("git describe").strip()
     else:
       actual_version=VERSION
 
