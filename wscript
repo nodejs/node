@@ -226,6 +226,9 @@ def v8_cmd(bld, variant):
 
 def build_v8(bld):
   v8 = bld.new_task_gen(
+    source        = 'deps/v8/SConstruct ' 
+                  + bld.path.ant_glob('v8/include/*') 
+                  + bld.path.ant_glob('v8/src/*'),
     target        = bld.env["staticlib_PATTERN"] % "v8",
     rule          = v8_cmd(bld, "default"),
     before        = "cxx",
