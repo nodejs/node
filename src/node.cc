@@ -22,6 +22,7 @@
 #include <node_stdio.h>
 #include <node_natives.h>
 #include <v8-debug.h>
+#include <node_version.h>
 
 using namespace v8;
 
