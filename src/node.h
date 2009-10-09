@@ -8,7 +8,6 @@
 #include <evcom.h>
 
 #include <object_wrap.h>
-#include <node_version.h>
 
 namespace node {
 
