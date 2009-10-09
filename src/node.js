@@ -39,6 +39,10 @@ node.tcp.createConnection = function (port, host) {
   throw new Error("node.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
 };
 
+include = function () {
+  throw new Error("include() has been removed. Use node.mixin(process, require(file)) to get the same effect.");
+}
+
 /* From jQuery.extend in the jQuery JavaScript Library v1.3.2
  * Copyright (c) 2009 John Resig
  * Dual licensed under the MIT and GPL licenses.
