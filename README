@@ -1,15 +1,25 @@
-Purely evented I/O for V8 javascript.
+Evented I/O for V8 javascript.
 
-See http://tinyclouds.org/node for more information.
+To build:
 
-For help and discussion subscribe to the mailing list at 
-http://groups.google.com/group/nodejs or send an email to 
+  ./configure
+  make 
+  make install
+
+To run the tests:
+  
+  make test
+
+To build the documentation and install it, you will need asciidoc and
+xsltproc:
+
+  make doc install
+ 
+To read the documentation:
+
+  man doc/node.1
+
+See http://nodejs.org/ for more information. For help and discussion
+subscribe to the mailing list by visiting
+http://groups.google.com/group/nodejs or by sending an email to
 nodejs+subscribe@googlegroups.com.
-
-A list of projects using Node can be found at
-http://wiki.github.com/ry/node
-
-To build
-./configure
-make 
-make install
