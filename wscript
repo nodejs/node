@@ -8,7 +8,7 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.13"
+VERSION="0.1.14"
 APPNAME="node.js"
 
 import js2c

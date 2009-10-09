@@ -1,4 +1,31 @@
-2009.09.30, Version 0.1.13
+2009.10.09, Version 0.1.14
+
+  * Feature: Improved addon builds with node-waf
+
+	* Feature: node.SignalHandler (Brandon Beacher)
+
+	* Feature: Enable V8 debugging (but still need to make a debugger)
+
+	* API: Rename library /utils.js to /sys.js
+
+  * Clean up Node's build system
+
+  * Don't use parseUri for HTTP server
+
+  * Remove node.pc
+
+  * Don't use /bin/sh to create child process except with exec()
+
+  * API: Add __module to reference current module
+
+  * API: Remove include() add node.mixin()
+
+	* Normalize http headers; "Content-Length" becomes "content-length"
+
+  * Upgrade V8 to 1.3.15
+
+
+2009.09.30, Version 0.1.13, 58493bb05b3da3dc8051fabc0bdea9e575c1a107
 
   * Feature: Multipart stream parser (Felix Geisendörfer)
 
