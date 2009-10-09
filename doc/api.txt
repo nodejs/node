@@ -16,14 +16,14 @@ An example of a web server written with Node which responds with "Hello
 World": 
 
 ----------------------------------------
-node.mixin(require("/utils.js"));
-node.mixin(require("/http.js"));
-createServer(function (request, response) {
+var sys = require("/sys.js"), 
+   http = require("/http.js");
+http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
   response.finish();
 }).listen(8000);
-puts("Server running at http://127.0.0.1:8000/");
+sys.puts("Server running at http://127.0.0.1:8000/");
 ----------------------------------------
 
 To run the server, put the code into a file called +example.js+ and execute
@@ -114,9 +114,9 @@ An array containing the command line arguments.
 An object containing the user environment. See environ(7).
 
 
-=== Utilities
+=== System module
 
-These function are in +"/utils.js"+. Use +require("/utils.js")+ to access them.
+These function are in +"/sys.js"+. Use +require("/sys.js")+ to access them.
 
 +puts(string)+::
 Outputs the +string+ and a trailing new-line to +stdout+.
@@ -136,8 +136,8 @@ Executes the command as a child process, buffers the output and returns it
 in a promise callback.
 +
 ----------------------------------------
-node.mixin(require("/utils.js"));
-exec("ls /").addCallback(function (stdout, stderr) {
+var sys = require("/sys.js");
+sys.exec("ls /").addCallback(function (stdout, stderr) {
   puts(stdout);
 });
 ----------------------------------------
@@ -285,9 +285,9 @@ one-to-one correspondence.  As an example, +foo.js+ loads the module
 The contents of +foo.js+:
 
 ----------------------------------------
-var circle = require("circle.js");
-node.mixin(require("/utils.js"));
-puts("The area of a circle of radius 4 is " + circle.area(4));
+var circle = require("circle.js"),
+       sys = require("/sys.js");
+sys.puts("The area of a circle of radius 4 is " + circle.area(4));
 ----------------------------------------
 
 The contents of +circle.js+:
@@ -309,7 +309,7 @@ The module +circle.js+ has exported the functions +area()+ and
 object.  (Alternatively, one can use +this+ instead of +exports+.) Variables
 local to the module will be private. In this example the variable +PI+ is
 private to +circle.js+. The function +puts()+ comes from the module
-+"/utils.js"+.
++"/sys.js"+.
 
 The module path is relative to the file calling +require()+.  That is,
 +circle.js+ must be in the same directory as +foo.js+ for +require()+ to
@@ -318,7 +318,7 @@ find it.
 Use +node.mixin()+ to include modules into the global namespace.
 
 ----------------------------------------
-node.mixin(process, require("circle.js"), require("/utils.js"));
+node.mixin(process, require("circle.js"), require("/sys.js"));
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 
@@ -410,7 +410,7 @@ ls.addListener("output", function (data) {
 ----------------------------------------
 +
 Note, if you just want to buffer the output of a command and return it, then
-+exec()+ in +/utils.js+ might be better.
++exec()+ in +/sys.js+ might be better.
 
 
 +child.pid+ ::
@@ -1014,8 +1014,8 @@ Here is an example of a echo server which listens for connections
 on port 7000
 
 ----------------------------------------
-node.mixin(require("/tcp.js"));
-var server = createServer(function (socket) {
+var tcp = require("/tcp.js");
+var server = tcp.createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
     socket.send("hello\r\n");
@@ -1252,15 +1252,16 @@ result of the last expression.
 
 The library is called +/repl.js+ and it can be used like this:
 ------------------------------------
-node.mixin(require("/utils.js"));
-node.mixin(require("/tcp.js"));
+var sys = require("/sys.js"),
+    tcp = require("/tcp.js"),
+   repl = require("/repl.js");
 nconnections = 0;
-createServer(function (c) {
-  error("Connection!");
+tcp.createServer(function (c) {
+  sys.error("Connection!");
   nconnections += 1;
   c.close();
 }).listen(5000);
-require("/repl.js").start("simple tcp server> ");
+repl.start("simple tcp server> ");
 ------------------------------------
 
 
