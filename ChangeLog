@@ -2,11 +2,11 @@
 
   * Feature: Improved addon builds with node-waf
 
-	* Feature: node.SignalHandler (Brandon Beacher)
+  * Feature: node.SignalHandler (Brandon Beacher)
 
-	* Feature: Enable V8 debugging (but still need to make a debugger)
+  * Feature: Enable V8 debugging (but still need to make a debugger)
 
-	* API: Rename library /utils.js to /sys.js
+  * API: Rename library /utils.js to /sys.js
 
   * Clean up Node's build system
 
@@ -20,7 +20,7 @@
 
   * API: Remove include() add node.mixin()
 
-	* Normalize http headers; "Content-Length" becomes "content-length"
+  * Normalize http headers; "Content-Length" becomes "content-length"
 
   * Upgrade V8 to 1.3.15
 

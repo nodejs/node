@@ -116,8 +116,8 @@ def configure(conf):
   #if Options.options.efence:
   #  conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
-  if sys.platform.startswith("freebsd"):
-    if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
+  if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
+    if sys.platform.startswith("freebsd"):
       fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
   conf.sub_config('deps/libeio')
@@ -235,6 +235,7 @@ def build_v8(bld):
     before        = "cxx",
     install_path  = None
   )
+  v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
   bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
@@ -244,6 +245,7 @@ def build_v8(bld):
     v8_debug = v8.clone("debug")
     v8_debug.rule   = v8_cmd(bld, "debug")
     v8_debug.target = bld.env["staticlib_PATTERN"] % "v8_g"
+    v8_debug.uselib = "EXECINFO"
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
 
