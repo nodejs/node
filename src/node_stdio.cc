@@ -27,10 +27,7 @@ EmitInput (Local<Value> input)
 {
   HandleScope scope;
 
-  Local<Array> args = Array::New(1);
-  args->Set(Integer::New(0), input);
-
-  Local<Value> argv[2] = { String::NewSymbol("data"), args };
+  Local<Value> argv[2] = { String::NewSymbol("data"), input };
 
   emit->Call(stdio, 2, argv);
 }
