@@ -320,7 +320,7 @@ process.exit = function (code) {
 };
 
 node.exit = function (code) {
-  throw new Error("process.exit() has been renamed to process.exit().");
+  throw new Error("node.exit() has been renamed to process.exit().");
 };
 
 (function () {
