@@ -47,14 +47,18 @@ static const struct addrinfo client_tcp_hints =
 
 Persistent<FunctionTemplate> Connection::constructor_template;
 
+// Initialize the tcp.Connection object.
 void Connection::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
   constructor_template = Persistent<FunctionTemplate>::New(t);
+  // Inherits from node.EventEmitter
   constructor_template->Inherit(EventEmitter::constructor_template);
+  // All native node objects have 1 internal field (required by ObjectWrap)
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  // Set class name for debugging output
   constructor_template->SetClassName(String::NewSymbol("Connection"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
@@ -67,16 +71,19 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
 
+  // Getter for connection.readyState 
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
       ReadyStateGetter);
 
+  // Assign class to its place as tcp.Connection
   target->Set(String::NewSymbol("Connection"),
       constructor_template->GetFunction());
 }
 
 Handle<Value> Connection::ReadyStateGetter(Local<String> property,
                                            const AccessorInfo& info) {
+  // Unwrap the javascript object to get the C++ object
   Connection *connection = ObjectWrap::Unwrap<Connection>(info.This());
   assert(connection);
 
@@ -84,8 +91,12 @@ Handle<Value> Connection::ReadyStateGetter(Local<String> property,
 
   assert(property == READY_STATE_SYMBOL);
 
+  // Resolving is not done in evcom, it's done in this file. Thus we add
+  // this "opening" symbol to the native EVCOM ready states. "opening"
+  // really means "resolving". 
   if (connection->resolving_) return scope.Close(OPENING_SYMBOL);
 
+  // Map between the evcom enum and V8 strings:
   switch (evcom_stream_state(&connection->stream_)) {
     case EVCOM_INITIALIZED:  return scope.Close(CLOSED_SYMBOL);
     case EVCOM_CONNECTING:   return scope.Close(OPENING_SYMBOL);
@@ -101,6 +112,9 @@ Handle<Value> Connection::ReadyStateGetter(Local<String> property,
         String::New("This shouldn't happen.")));
 }
 
+// Constructor - these actions are not taken in the normal constructor
+// (Connection::Connection) because sometimes the Connection needs to be
+// reinitialized without destroying the object.
 void Connection::Init() {
   resolving_ = false;
   evcom_stream_init(&stream_);
@@ -116,27 +130,39 @@ Connection::~Connection() {
   assert(stream_.sendfd < 0 && "garbage collecting open Connection");
 }
 
+// V8 contstructor
 Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope;
 
+  // All constructors in node look similar to this.
+
+  // allocate the C++ object
   Connection *connection = new Connection();
+
+  // Use ObjectWrap::Wrap to assign it to the internal field in the V8
+  // object.
   connection->Wrap(args.This());
 
   return args.This();
 }
 
+// Open a connection. Starts resolving the hostname in the libeio
+// thread pool, when that completes in Connection::AfterResolve, actually
+// open the connection.
 Handle<Value> Connection::Connect(const Arguments& args) {
+  // Unwrap V8 object into C++ object
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
-
   assert(connection);
 
   HandleScope scope;
 
+  // If the connection is closed, reinitialize it.
   if (connection->ReadyState() == EVCOM_CLOSED) {
     connection->Init();  // in case we're reusing the socket
     assert(connection->ReadyState() == EVCOM_INITIALIZED);
   }
 
+  // If connect() is called on an open connection, raise an error.
   if (connection->ReadyState() != EVCOM_INITIALIZED) {
     Local<Value> exception = Exception::Error(
         String::New("Socket is not in CLOSED state."));
@@ -146,39 +172,51 @@ Handle<Value> Connection::Connect(const Arguments& args) {
   assert(connection->stream_.recvfd < 0);
   assert(connection->stream_.sendfd < 0);
 
+  // Make sure we have at least one argument (a port)
   if (args.Length() == 0) {
     Local<Value> exception = Exception::TypeError(
         String::New("First argument must be a port number"));
     return ThrowException(exception);
   }
 
+  // We need the port as a string for getaddrinfo().
+  // Thus cast it to a string. The strdup()'d value will be freed in
+  // Resolve().
   String::AsciiValue port_sv(args[0]->ToString());
   assert(connection->port_ == NULL);
   connection->port_ = strdup(*port_sv);
 
+  // Get the host, if any is present.
   assert(connection->host_ == NULL);
   if (args.Length() > 1 && args[1]->IsString()) {
     String::Utf8Value host_sv(args[1]->ToString());
     connection->host_ = strdup(*host_sv);
   }
 
-  connection->resolving_ = true;
+  connection->resolving_ = true; // This is done so that readyState can return
+                                 // "opening" while getaddinfo() runs.
 
+  // There will not be any active watchers from this object on the event
+  // loop while getaddrinfo() runs. If the only thing happening in the
+  // script was this hostname resolution, then the event loop would drop
+  // out. Thus we need to add ev_ref() until AfterResolve().
   ev_ref(EV_DEFAULT_UC);
 
+  // Attach the object so it doesn't get garbage collected.
   connection->Attach();
 
-  /* For the moment I will do DNS lookups in the eio thread pool. This is
-   * sub-optimal and cannot handle massive numbers of requests.
-   * In the future I will move to a system using adns or udns:
-   * http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
-   */
+  // For the moment I will do DNS lookups in the eio thread pool. This is
+  // sub-optimal and cannot handle massive numbers of requests.
+  // In the future I will move to a system using adns or udns:
+  // http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
   eio_custom(Connection::Resolve, EIO_PRI_DEFAULT, Connection::AfterResolve,
       connection);
 
   return Undefined();
 }
 
+// This function is executed in the thread pool. It cannot modify any
+// members of the connection object. 
 int Connection::Resolve(eio_req *req) {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
