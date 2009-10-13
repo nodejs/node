@@ -22,6 +22,7 @@
         <li><a href="#build">Build</a></li>
         <li><a href="#demo">Demo</a></li>
         <li><a href="#community">Community</a></li>
+        <li><a href="#contribute">Contribute</a></li>
         <li><a href="#benchmarks">Benchmarks</a></li>
         <li><a href="api.html">Documentation</a></li>
       </ol>
@@ -199,6 +200,28 @@ make install</pre>
 
       <p>
         <a href="http://wiki.github.com/ry/node">Projects/libraries which are using/for Node.js</a>
+      </p>
+      <h2 id="community">Contribute</h2>
+      <p>
+        Patches are always welcome. The process is simple:
+      </p>
+
+      <pre class="sh_none">
+git clone git://github.com/ry/node.git
+cd node
+# edit/compile/test
+git commit -m "Good description of what your patch does"
+git format-patch HEAD^
+</pre>
+
+      <p>
+        The best way for your patch to get noticed is to submit it to the
+       <a href="http://groups.google.com/group/nodejs">mailing list</a> in form
+       of a <a href="http://gist.github.com/">gists</a> or file attachement.
+      </p>
+
+      <p>
+        Feature patches should usually be discussed before putting in the work.
       </p>
 
       <h2 id="benchmarks">Benchmarks</h2>
