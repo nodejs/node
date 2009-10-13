@@ -70,21 +70,21 @@ node.path = new function () {
 
 
 puts = function () {
-  throw new Error("puts() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("puts() has moved. Use require('/sys.js') to bring it back.");
 }
 
 print = function () {
-  throw new Error("print() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("print() has moved. Use require('/sys.js') to bring it back.");
 }
 
 p = function () {
-  throw new Error("p() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("p() has moved. Use require('/sys.js') to bring it back.");
 }
 
 node.debug = function () {
-  throw new Error("node.debug() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("node.debug() has moved. Use require('/sys.js') to bring it back.");
 }
 
 node.error = function () {
-  throw new Error("node.error() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("node.error() has moved. Use require('/sys.js') to bring it back.");
 }

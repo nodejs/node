@@ -24,7 +24,7 @@ node.createChildProcess = function (file, args, env) {
 };
 
 node.exec = function () {
-  throw new Error("node.exec() has moved. Use require('/utils.js') to bring it back.");
+  throw new Error("node.exec() has moved. Use require('/sys.js') to bring it back.");
 }
 
 node.http.createServer = function () {
