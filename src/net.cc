@@ -23,6 +23,8 @@ namespace node {
 #define SERVER_SYMBOL         String::NewSymbol("server")
 #define REMOTE_ADDRESS_SYMBOL String::NewSymbol("remoteAddress")
 
+#define FD_SYMBOL             String::NewSymbol("fd")
+
 #define READY_STATE_SYMBOL  String::NewSymbol("readyState")
 #define OPEN_SYMBOL         String::NewSymbol("open")
 #define OPENING_SYMBOL      String::NewSymbol("opening")
@@ -71,10 +73,15 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
 
-  // Getter for connection.readyState 
+  // Getter for connection.readyState
   constructor_template->PrototypeTemplate()->SetAccessor(
       READY_STATE_SYMBOL,
       ReadyStateGetter);
+
+  // Getter for connection.readyState
+  constructor_template->PrototypeTemplate()->SetAccessor(
+      FD_SYMBOL,
+      FDGetter);
 
   // Assign class to its place as tcp.Connection
   target->Set(String::NewSymbol("Connection"),
@@ -110,6 +117,21 @@ Handle<Value> Connection::ReadyStateGetter(Local<String> property,
   assert(0 && "This shouldnt happen");
   return ThrowException(Exception::Error(
         String::New("This shouldn't happen.")));
+}
+
+Handle<Value> Connection::FDGetter(Local<String> property,
+                                   const AccessorInfo& info) {
+  // Unwrap the javascript object to get the C++ object
+  Connection *connection = ObjectWrap::Unwrap<Connection>(info.This());
+  assert(connection);
+
+  HandleScope scope;
+
+  assert(property == FD_SYMBOL);
+
+  Local<Integer> fd = Integer::New(connection->stream_.recvfd);
+
+  return scope.Close(fd);
 }
 
 // Constructor - these actions are not taken in the normal constructor

@@ -32,6 +32,8 @@ class Connection : public EventEmitter {
 
   static v8::Handle<v8::Value> ReadyStateGetter(v8::Local<v8::String> _,
       const v8::AccessorInfo& info);
+  static v8::Handle<v8::Value> FDGetter(v8::Local<v8::String> _,
+      const v8::AccessorInfo& info);
 
   Connection() : EventEmitter() {
     encoding_ = BINARY;
