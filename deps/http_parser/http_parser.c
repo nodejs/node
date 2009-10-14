@@ -3033,15 +3033,13 @@ case 106:
 #line 3034 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr124;
+		case 35: goto st0;
 		case 37: goto tr125;
 		case 60: goto st0;
 		case 62: goto st0;
 		case 127: goto st0;
 	}
-	if ( (*p) > 31 ) {
-		if ( 34 <= (*p) && (*p) <= 35 )
-			goto st0;
-	} else if ( (*p) >= 0 )
+	if ( 0 <= (*p) && (*p) <= 31 )
 		goto st0;
 	goto tr123;
 tr123:
@@ -3055,18 +3053,16 @@ st107:
 	if ( ++p == pe )
 		goto _test_eof107;
 case 107:
-#line 3059 "http_parser.c"
+#line 3057 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr127;
+		case 35: goto st0;
 		case 37: goto st108;
 		case 60: goto st0;
 		case 62: goto st0;
 		case 127: goto st0;
 	}
-	if ( (*p) > 31 ) {
-		if ( 34 <= (*p) && (*p) <= 35 )
-			goto st0;
-	} else if ( (*p) >= 0 )
+	if ( 0 <= (*p) && (*p) <= 31 )
 		goto st0;
 	goto st107;
 tr125:
@@ -3080,7 +3076,7 @@ st108:
 	if ( ++p == pe )
 		goto _test_eof108;
 case 108:
-#line 3084 "http_parser.c"
+#line 3080 "http_parser.c"
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
 			goto st109;
@@ -3114,7 +3110,7 @@ st110:
 	if ( ++p == pe )
 		goto _test_eof110;
 case 110:
-#line 3118 "http_parser.c"
+#line 3114 "http_parser.c"
 	switch( (*p) ) {
 		case 43: goto st110;
 		case 58: goto st111;
@@ -3142,10 +3138,9 @@ st111:
 	if ( ++p == pe )
 		goto _test_eof111;
 case 111:
-#line 3146 "http_parser.c"
+#line 3142 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr29;
-		case 34: goto st0;
 		case 35: goto tr30;
 		case 37: goto st112;
 		case 60: goto st0;
@@ -3197,10 +3192,9 @@ st114:
 	if ( ++p == pe )
 		goto _test_eof114;
 case 114:
-#line 3201 "http_parser.c"
+#line 3196 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr135;
-		case 34: goto st0;
 		case 35: goto tr136;
 		case 37: goto st115;
 		case 60: goto st0;
@@ -3253,10 +3247,9 @@ st117:
 	if ( ++p == pe )
 		goto _test_eof117;
 case 117:
-#line 3257 "http_parser.c"
+#line 3251 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr141;
-		case 34: goto st0;
 		case 35: goto tr142;
 		case 37: goto tr143;
 		case 60: goto st0;
@@ -3277,10 +3270,9 @@ st118:
 	if ( ++p == pe )
 		goto _test_eof118;
 case 118:
-#line 3281 "http_parser.c"
+#line 3274 "http_parser.c"
 	switch( (*p) ) {
 		case 32: goto tr145;
-		case 34: goto st0;
 		case 35: goto tr146;
 		case 37: goto st119;
 		case 60: goto st0;
@@ -3301,7 +3293,7 @@ st119:
 	if ( ++p == pe )
 		goto _test_eof119;
 case 119:
-#line 3305 "http_parser.c"
+#line 3297 "http_parser.c"
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
 			goto st120;
@@ -3340,7 +3332,7 @@ st121:
 	if ( ++p == pe )
 		goto _test_eof121;
 case 121:
-#line 3344 "http_parser.c"
+#line 3336 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st122;
 	goto st0;
@@ -3395,7 +3387,7 @@ st127:
 	if ( ++p == pe )
 		goto _test_eof127;
 case 127:
-#line 3399 "http_parser.c"
+#line 3391 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st128;
 	goto st0;
@@ -3429,7 +3421,7 @@ st130:
 	if ( ++p == pe )
 		goto _test_eof130;
 case 130:
-#line 3433 "http_parser.c"
+#line 3425 "http_parser.c"
 	if ( (*p) == 69 )
 		goto st131;
 	goto st0;
@@ -3470,7 +3462,7 @@ st134:
 	if ( ++p == pe )
 		goto _test_eof134;
 case 134:
-#line 3474 "http_parser.c"
+#line 3466 "http_parser.c"
 	if ( (*p) == 79 )
 		goto st135;
 	goto st0;
@@ -3511,7 +3503,7 @@ st138:
 	if ( ++p == pe )
 		goto _test_eof138;
 case 138:
-#line 3515 "http_parser.c"
+#line 3507 "http_parser.c"
 	switch( (*p) ) {
 		case 75: goto st139;
 		case 79: goto st143;
@@ -3582,7 +3574,7 @@ st146:
 	if ( ++p == pe )
 		goto _test_eof146;
 case 146:
-#line 3586 "http_parser.c"
+#line 3578 "http_parser.c"
 	if ( (*p) == 80 )
 		goto st147;
 	goto st0;
@@ -3644,7 +3636,7 @@ st153:
 	if ( ++p == pe )
 		goto _test_eof153;
 case 153:
-#line 3648 "http_parser.c"
+#line 3640 "http_parser.c"
 	switch( (*p) ) {
 		case 79: goto st154;
 		case 82: goto st157;
@@ -3788,7 +3780,7 @@ st171:
 	if ( ++p == pe )
 		goto _test_eof171;
 case 171:
-#line 3792 "http_parser.c"
+#line 3784 "http_parser.c"
 	if ( (*p) == 82 )
 		goto st172;
 	goto st0;
@@ -3836,7 +3828,7 @@ st176:
 	if ( ++p == pe )
 		goto _test_eof176;
 case 176:
-#line 3840 "http_parser.c"
+#line 3832 "http_parser.c"
 	if ( (*p) == 78 )
 		goto st177;
 	goto st0;
@@ -3914,7 +3906,7 @@ st269:
 	if ( ++p == pe )
 		goto _test_eof269;
 case 269:
-#line 3918 "http_parser.c"
+#line 3910 "http_parser.c"
 	if ( (*p) == 72 )
 		goto tr320;
 	goto st0;
@@ -3934,7 +3926,7 @@ st182:
 	if ( ++p == pe )
 		goto _test_eof182;
 case 182:
-#line 3938 "http_parser.c"
+#line 3930 "http_parser.c"
 	if ( (*p) == 84 )
 		goto st183;
 	goto st0;
@@ -3977,7 +3969,7 @@ st187:
 	if ( ++p == pe )
 		goto _test_eof187;
 case 187:
-#line 3981 "http_parser.c"
+#line 3973 "http_parser.c"
 	if ( (*p) == 46 )
 		goto st188;
 	goto st0;
@@ -3999,7 +3991,7 @@ st189:
 	if ( ++p == pe )
 		goto _test_eof189;
 case 189:
-#line 4003 "http_parser.c"
+#line 3995 "http_parser.c"
 	if ( (*p) == 32 )
 		goto st190;
 	goto st0;
@@ -4021,7 +4013,7 @@ st191:
 	if ( ++p == pe )
 		goto _test_eof191;
 case 191:
-#line 4025 "http_parser.c"
+#line 4017 "http_parser.c"
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr223;
 	goto st0;
@@ -4036,7 +4028,7 @@ st192:
 	if ( ++p == pe )
 		goto _test_eof192;
 case 192:
-#line 4040 "http_parser.c"
+#line 4032 "http_parser.c"
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr224;
 	goto st0;
@@ -4051,7 +4043,7 @@ st193:
 	if ( ++p == pe )
 		goto _test_eof193;
 case 193:
-#line 4055 "http_parser.c"
+#line 4047 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto st194;
 		case 32: goto st265;
@@ -4132,7 +4124,7 @@ st194:
 	if ( ++p == pe )
 		goto _test_eof194;
 case 194:
-#line 4136 "http_parser.c"
+#line 4128 "http_parser.c"
 	if ( (*p) == 10 )
 		goto st195;
 	goto st0;
@@ -4186,7 +4178,7 @@ st197:
 	if ( ++p == pe )
 		goto _test_eof197;
 case 197:
-#line 4190 "http_parser.c"
+#line 4182 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st197;
 		case 58: goto tr234;
@@ -4227,7 +4219,7 @@ st198:
 	if ( ++p == pe )
 		goto _test_eof198;
 case 198:
-#line 4231 "http_parser.c"
+#line 4223 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr236;
 		case 32: goto st198;
@@ -4244,7 +4236,7 @@ st199:
 	if ( ++p == pe )
 		goto _test_eof199;
 case 199:
-#line 4248 "http_parser.c"
+#line 4240 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr239;
 	goto st199;
@@ -4259,7 +4251,7 @@ st200:
 	if ( ++p == pe )
 		goto _test_eof200;
 case 200:
-#line 4263 "http_parser.c"
+#line 4255 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st197;
 		case 58: goto tr234;
@@ -4572,7 +4564,7 @@ st210:
 	if ( ++p == pe )
 		goto _test_eof210;
 case 210:
-#line 4576 "http_parser.c"
+#line 4568 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr236;
 		case 32: goto st210;
@@ -4593,7 +4585,7 @@ st211:
 	if ( ++p == pe )
 		goto _test_eof211;
 case 211:
-#line 4597 "http_parser.c"
+#line 4589 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr239;
 		case 76: goto st212;
@@ -4648,7 +4640,7 @@ st216:
 	if ( ++p == pe )
 		goto _test_eof216;
 case 216:
-#line 4652 "http_parser.c"
+#line 4644 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr239;
 		case 69: goto st217;
@@ -5082,7 +5074,7 @@ st237:
 	if ( ++p == pe )
 		goto _test_eof237;
 case 237:
-#line 5086 "http_parser.c"
+#line 5078 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr236;
 		case 32: goto st237;
@@ -5121,7 +5113,7 @@ st238:
 	if ( ++p == pe )
 		goto _test_eof238;
 case 238:
-#line 5125 "http_parser.c"
+#line 5117 "http_parser.c"
 	if ( (*p) == 13 )
 		goto tr239;
 	if ( 48 <= (*p) && (*p) <= 57 )
@@ -5138,7 +5130,7 @@ st239:
 	if ( ++p == pe )
 		goto _test_eof239;
 case 239:
-#line 5142 "http_parser.c"
+#line 5134 "http_parser.c"
 	switch( (*p) ) {
 		case 33: goto st197;
 		case 58: goto tr234;
@@ -5658,7 +5650,7 @@ st256:
 	if ( ++p == pe )
 		goto _test_eof256;
 case 256:
-#line 5662 "http_parser.c"
+#line 5654 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr236;
 		case 32: goto st256;
@@ -5676,7 +5668,7 @@ st257:
 	if ( ++p == pe )
 		goto _test_eof257;
 case 257:
-#line 5680 "http_parser.c"
+#line 5672 "http_parser.c"
 	switch( (*p) ) {
 		case 13: goto tr239;
 		case 100: goto st258;

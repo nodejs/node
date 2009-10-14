@@ -302,6 +302,21 @@ const struct message requests[] =
   ,.body= "hello world"
   }
 
+#define WITH_QUOTES 12
+, {.name= "with quotes"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\r\n"
+  ,.should_keep_alive= TRUE
+  ,.method= HTTP_GET
+  ,.query_string= "foo=\"bar\""
+  ,.fragment= ""
+  ,.request_path= "/with_\"stupid\"_quotes"
+  ,.request_uri= "/with_\"stupid\"_quotes?foo=\"bar\""
+  ,.num_headers= 0
+  ,.headers= { }
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
