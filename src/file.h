@@ -102,6 +102,12 @@ class EIOPromise : public Promise {
     return p->handle_;
   }
 
+  static v8::Handle<v8::Object> SendFile(int out_fd, int in_fd, off_t in_offset, size_t length) {
+    EIOPromise *p = Create();
+    p->req_ = eio_sendfile(out_fd, in_fd, in_offset, length, EIO_PRI_DEFAULT, After, p);
+    return p->handle_;
+  }
+
  protected:
 
   void Attach();

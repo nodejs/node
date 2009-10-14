@@ -134,6 +134,7 @@ int EIOPromise::After(eio_req *req) {
       break;
 
     case EIO_OPEN:
+    case EIO_SENDFILE:
       argc = 1;
       argv[0] = Integer::New(req->result);
       break;
@@ -269,6 +270,21 @@ static Handle<Value> MKDir(const Arguments& args) {
   return scope.Close(EIOPromise::MKDir(*path, mode));
 }
 
+static Handle<Value> SendFile(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 4 || !args[0]->IsInt32() || !args[1]->IsInt32() || !args[3]->IsNumber()) {
+    return ThrowException(BAD_ARGUMENTS);
+  }
+
+  int out_fd = args[0]->Int32Value();
+  int in_fd = args[1]->Int32Value();
+  off_t in_offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
+  size_t length = args[3]->IntegerValue();
+
+  return scope.Close(EIOPromise::SendFile(out_fd, in_fd, in_offset, length));
+}
+
 static Handle<Value> ReadDir(const Arguments& args) {
   HandleScope scope;
 
@@ -365,6 +381,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "rename", Rename);
   NODE_SET_METHOD(target, "rmdir", RMDir);
   NODE_SET_METHOD(target, "mkdir", MKDir);
+  NODE_SET_METHOD(target, "sendfile", SendFile);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
