@@ -1,38 +1,34 @@
 node.mixin(require("common.js"));
 
-if (process.ARGV[2] === "-child") {
-  node.stdio.open();
-  var handler = new node.SignalHandler(node.SIGUSR1);
-  handler.addListener("signal", function() {
-    node.stdio.write("handled SIGUSR1");
-    setTimeout(function () {
-      // Allow some time for the write to go through the pipez
-      process.exit(0);
-    }, 50);
-  });
-  debug("CHILD!!!");
-  
-} else {
+puts("process.pid: " + process.pid);
 
-  var child = node.createChildProcess(ARGV[0], ['--', ARGV[1], '-child']);
+var first = 0,
+    second = 0;
 
-  var output = "";
-  
-  child.addListener('output', function (chunk) {
-    puts("Child (stdout) said: " + JSON.stringify(chunk));
-    if (chunk) { output += chunk };
-  });
+process.addListener('SIGUSR1', function () {
+  puts("Interrupted by SIGUSR1");
+  first += 1;
+});
 
-  child.addListener('error', function (chunk) {
-    if (/CHILD!!!/.exec(chunk)) {
-      puts("Sending SIGUSR1 to " + child.pid);
-      child.kill(node.SIGUSR1)
-    }
-    puts("Child (stderr) said: " + JSON.stringify(chunk));
-  });
+process.addListener('SIGUSR1', function () {
+  second += 1;
+  setTimeout(function () {
+    puts("End.");
+    process.exit(0);
+  }, 5);
+});
 
-  process.addListener("exit", function () {
-    assertEquals("handled SIGUSR1", output);
-  });
-  
-}
+i = 0;
+setInterval(function () {
+  puts("running process..." + ++i);
+
+  if (i == 5) {
+    node.kill(process.pid, node.SIGUSR1);
+  }
+}, 1);
+
+
+process.addListener("exit", function () {
+  assertEquals(1, first);
+  assertEquals(1, second);
+});

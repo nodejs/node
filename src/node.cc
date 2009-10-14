@@ -250,6 +250,25 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   return Undefined();
 }
 
+v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
+  HandleScope scope;
+  
+  if (args.Length() != 2 || !args[0]->IsNumber() || !args[1]->IsInt32()) {
+    return ThrowException(Exception::Error(String::New("Bad argument.")));
+  }
+  
+  pid_t pid = args[0]->IntegerValue();
+  int sig = args[1]->Int32Value();
+  
+  int r = kill(pid, sig);
+
+  if (r != 0) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+
+  return Undefined();
+}
+
 typedef void (*extInit)(Handle<Object> exports);
 
 // DLOpen is node.dlopen(). Used to load 'module.node' dynamically shared
@@ -420,12 +439,14 @@ static Local<Object> Load(int argc, char *argv[]) {
   }
   // assign process.ENV
   process->Set(String::NewSymbol("ENV"), env);
+  process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
   // define various internal methods
   NODE_SET_METHOD(node_obj, "compile", Compile);
   NODE_SET_METHOD(node_obj, "reallyExit", Exit);
   NODE_SET_METHOD(node_obj, "cwd", Cwd);
   NODE_SET_METHOD(node_obj, "dlopen", DLOpen);
+  NODE_SET_METHOD(node_obj, "kill", Kill);
 
   // Assign the EventEmitter. It was created in main().
   node_obj->Set(String::NewSymbol("EventEmitter"),

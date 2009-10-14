@@ -53,6 +53,10 @@ These objects are available to all programs.
 +node.cwd()+::
 Returns the current working directory of the process.
 
++node.kill(pid, signal)+ ::
+See kill(2).  The standard POSIX signals are defined under the +node+
+namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
+
 +node.compile(source, scriptOrigin)+::
 Just like +eval()+ except that you can specify a +scriptOrigin+ for better
 error reporting.
@@ -101,6 +105,9 @@ the global scope. +process+ is an instance of +node.EventEmitter+.
                           +
                           The parameter +code+ is the integer exit code
                           passed to +process.exit()+.
+| +"SIGINT"+, +"SIGUSR1"+, ... | (none) | Emitted when the processes receives a signal.
+                                          See sigaction(2) for a list of standard POSIX
+                                          signal names such as SIGINT, SIGUSR1, etc.
 |=========================================================
 
 +process.exit(code=0)+::
@@ -113,6 +120,8 @@ An array containing the command line arguments.
 +process.ENV+ ::
 An object containing the user environment. See environ(7).
 
++process.pid+ ::
+The PID of the process.
 
 === System module
 

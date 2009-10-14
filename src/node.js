@@ -98,6 +98,25 @@ node.mixin = function() {
 	return target;
 };
 
+// Signal Handlers
+
+(function () { // anonymous namespace
+
+  function isSignal (event) {
+    return event.slice(0, 3) === 'SIG' && node.hasOwnProperty(event);
+  };
+
+  process.addListener("newListener", function (event) {
+    if (isSignal(event) && process.listeners(event).length === 0) {
+      var handler = new node.SignalHandler(node[event]);
+      handler.addListener("signal", function () {
+        process.emit(event);
+      });
+    }
+  });
+
+})(); // anonymous namespace
+
 // Timers
 
 function setTimeout (callback, after) {
