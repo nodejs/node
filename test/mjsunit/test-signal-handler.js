@@ -23,7 +23,7 @@ setInterval(function () {
   puts("running process..." + ++i);
 
   if (i == 5) {
-    node.kill(process.pid, node.SIGUSR1);
+    node.kill(process.pid, "SIGUSR1");
   }
 }, 1);
 

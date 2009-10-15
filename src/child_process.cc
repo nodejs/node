@@ -133,7 +133,22 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
   assert(child);
 
   int sig = SIGTERM;
-  if (args[0]->IsInt32()) sig = args[0]->Int32Value();
+
+  if (args.Length() > 0) {
+    if (args[0]->IsNumber()) {
+      sig = args[0]->Int32Value();
+    } else if (args[0]->IsString()) {
+      Local<String> signame = args[0]->ToString();
+      Local<Object> process = Context::GetCurrent()->Global();
+      Local<Object> node_obj = process->Get(String::NewSymbol("node"))->ToObject();
+
+      Local<Value> sig_v = node_obj->Get(signame);
+      if (!sig_v->IsNumber()) {
+        return ThrowException(Exception::Error(String::New("Unknown signal")));
+      }
+      sig = sig_v->Int32Value();
+    }
+  }
 
   if (child->Kill(sig) != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));

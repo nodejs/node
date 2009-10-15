@@ -53,9 +53,10 @@ These objects are available to all programs.
 +node.cwd()+::
 Returns the current working directory of the process.
 
-+node.kill(pid, signal)+ ::
-See kill(2).  The standard POSIX signals are defined under the +node+
-namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
++node.kill(pid, signal="SIGTERM")+ ::
+Send a signal to a process. +pid+ is the process id and +signal+ is the
+signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
+information.
 
 +node.compile(source, scriptOrigin)+::
 Just like +eval()+ except that you can specify a +scriptOrigin+ for better
@@ -471,10 +472,9 @@ specifies the encoding: possible values are +"utf8"+, +"ascii"+, and
 Closes the process's +stdin+ stream.
 
 
-+child.kill(signal=node.SIGTERM)+ ::
++child.kill(signal="SIGTERM")+ ::
 Send a signal to the child process.  If no argument is given, the process
-will be sent +node.SIGTERM+.  The standard POSIX signals are defined under
-the +node+ namespace (+node.SIGINT+, +node.SIGUSR1+, ...).
+will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
 
 
 
