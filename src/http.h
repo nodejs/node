@@ -36,6 +36,7 @@ protected:
   }
 
   void OnReceive (const void *buf, size_t len);
+  void OnEOF ();
 
   static int on_message_begin (http_parser *parser);
   static int on_uri (http_parser *parser, const char *at, size_t length);

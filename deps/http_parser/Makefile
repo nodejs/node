@@ -1,8 +1,8 @@
 #OPT=-O0 -g -Wall -Wextra -Werror
 OPT=-O2
 
-test: http_parser.o test.c 
-	gcc $(OPT) http_parser.o test.c -o $@ 
+test: http_parser.o test.c
+	gcc $(OPT) http_parser.o test.c -o $@
 
 http_parser.o: http_parser.c http_parser.h Makefile
 	gcc $(OPT) -c http_parser.c

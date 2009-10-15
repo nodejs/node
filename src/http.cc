@@ -66,6 +66,21 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
   if (http_parser_has_error(&parser_)) ForceClose();
 }
 
+void
+HTTPConnection::OnEOF ()
+{
+  HandleScope scope;
+
+  assert(attached_);
+  http_parser_execute(&parser_, NULL, 0);
+
+  if (http_parser_has_error(&parser_)) {
+    ForceClose();
+  } else {
+    Emit("eof", 0, NULL);
+  }
+}
+
 int
 HTTPConnection::on_message_begin (http_parser *parser)
 {
@@ -211,14 +226,25 @@ HTTPConnection::on_headers_complete (http_parser *parser)
         Integer::New(connection->parser_.status_code));
 
   // VERSION
-  char version[10];
-  snprintf( version
-          , 10
-          , "%d.%d"
-          , connection->parser_.version_major
-          , connection->parser_.version_minor
-          );
-  message_info->Set(HTTP_VERSION_SYMBOL, String::New(version));
+  Local<String> version;
+  switch (connection->parser_.version) {
+    case HTTP_VERSION_OTHER:
+      version = String::NewSymbol("Other");
+      break;
+
+    case HTTP_VERSION_09:
+      version = String::NewSymbol("0.9");
+      break;
+
+    case HTTP_VERSION_10:
+      version = String::NewSymbol("1.0");
+      break;
+
+    case HTTP_VERSION_11:
+      version = String::NewSymbol("1.1");
+      break;
+  }
+  message_info->Set(HTTP_VERSION_SYMBOL, version);
 
   message_info->Set(SHOULD_KEEP_ALIVE_SYMBOL,
       http_parser_should_keep_alive(&connection->parser_) ? True() : False());

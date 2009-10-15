@@ -2,7 +2,7 @@
  * Based on Zed Shaw's Mongrel, copyright (c) Zed A. Shaw
  *
  * All rights reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -10,31 +10,34 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #ifndef http_parser_h
 #define http_parser_h
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
-#include <sys/types.h> 
+#ifdef _MSC_VER
+#  include <stddef.h>
+#endif
+#include <sys/types.h>
 
 typedef struct http_parser http_parser;
 
 /* Callbacks should return non-zero to indicate an error. The parse will
- * then halt execution. 
- * 
+ * then halt execution.
+ *
  * http_data_cb does not return data chunks. It will be call arbitrarally
  * many times for each string. E.G. you might get 10 callbacks for "on_path"
  * each providing just a few characters more data.
@@ -58,11 +61,12 @@ typedef int (*http_cb) (http_parser*);
 #define HTTP_TRACE      0x1000
 #define HTTP_UNLOCK     0x2000
 
-/* Transfer Encodings */
-#define HTTP_IDENTITY   0x01
-#define HTTP_CHUNKED    0x02
-
 enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE };
+
+#define HTTP_VERSION_OTHER 0x00
+#define HTTP_VERSION_11    0x01
+#define HTTP_VERSION_10    0x02
+#define HTTP_VERSION_09    0x04
 
 struct http_parser {
   /** PRIVATE **/
@@ -70,48 +74,29 @@ struct http_parser {
   enum http_parser_type type;
 
   size_t chunk_size;
-
-  /**
-    XXX
-    do this so no other code has to change, but make the field only 1 byte wide
-    instead of 2 (on x86/x86_64).
-
-    doing this not only shrinks the sizeof this struct by a byte but it ALSO
-    makes wrapping this in FFI way easier.
-   */
-  union {
-    struct {
-      unsigned eating:1;
-      unsigned error:1;
-    };
-    struct {
-      unsigned char _flags;
-    };
-  };
+  char flags;
 
   size_t body_read;
 
-  const char *header_field_mark; 
-  size_t      header_field_size; 
-  const char *header_value_mark; 
-  size_t      header_value_size; 
-  const char *query_string_mark; 
-  size_t      query_string_size; 
-  const char *path_mark; 
-  size_t      path_size; 
-  const char *uri_mark; 
-  size_t      uri_size; 
-  const char *fragment_mark; 
-  size_t      fragment_size; 
+  const char *header_field_mark;
+  size_t      header_field_size;
+  const char *header_value_mark;
+  size_t      header_value_size;
+  const char *query_string_mark;
+  size_t      query_string_size;
+  const char *path_mark;
+  size_t      path_size;
+  const char *uri_mark;
+  size_t      uri_size;
+  const char *fragment_mark;
+  size_t      fragment_size;
 
   /** READ-ONLY **/
   unsigned short status_code; /* responses only */
   unsigned short method;      /* requests only */
-  short transfer_encoding;
-  unsigned short version_major;
-  unsigned short version_minor;
+  short version;
   short keep_alive;
-  size_t content_length;
+  ssize_t content_length;
 
   /** PUBLIC **/
   void *data; /* A pointer to get hook to the "connection" or "socket" object */
@@ -134,17 +119,23 @@ struct http_parser {
 };
 
 /* Initializes an http_parser structure.  The second argument specifies if
- * it will be parsing requests or responses. 
+ * it will be parsing requests or responses.
  */
 void http_parser_init (http_parser *parser, enum http_parser_type);
 
-size_t http_parser_execute (http_parser *parser, const char *data, size_t len);
+void http_parser_execute (http_parser *parser, const char *data, size_t len);
 
 int http_parser_has_error (http_parser *parser);
 
-int http_parser_should_keep_alive (http_parser *parser);
+static inline int
+http_parser_should_keep_alive (http_parser *parser)
+{
+  if (parser->keep_alive == -1) return (parser->version == HTTP_VERSION_11);
+  return parser->keep_alive;
+}
+
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
 #endif

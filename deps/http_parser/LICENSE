@@ -1,4 +1,5 @@
 Copyright 2009, Ryan Lienhart Dahl. All rights reserved.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
 deal in the Software without restriction, including without limitation the
@@ -15,16 +16,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE. 
-
-
-
+IN THE SOFTWARE.
 
 http_parser is based on Zed Shaw's Mongrel. Mongrel's license is as follows.
 
--- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT --
+---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ----
 Mongrel Web Server (Mongrel) is copyrighted free software by Zed A. Shaw
-<zedshaw at zedshaw dot com> and contributors. You can redistribute it 
+<zedshaw at zedshaw dot com> and contributors. You can redistribute it
 and/or modify it under either the terms of the GPL2 or the conditions below:
 
 1. You may make and give away verbatim copies of the source form of the
@@ -66,9 +64,9 @@ and/or modify it under either the terms of the GPL2 or the conditions below:
    software (possibly commercial).  But some files in the distribution
    are not written by the author, so that they are not under this terms.
 
-5. The scripts and library files supplied as input to or produced as 
+5. The scripts and library files supplied as input to or produced as
    output from the software do not automatically fall under the
-   copyright of the software, but belong to whomever generated them, 
+   copyright of the software, but belong to whomever generated them,
    and may be sold commercially, and may be aggregated with this
    software.
 
@@ -76,4 +74,4 @@ and/or modify it under either the terms of the GPL2 or the conditions below:
    IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
    PURPOSE.
--- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT ---- CUT --
+---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ---- 8< ----
