@@ -699,7 +699,7 @@ void MacroAssembler::SmiTryAddConstant(Register dst,
                                        Smi* constant,
                                        Label* on_not_smi_result) {
   // Does not assume that src is a smi.
-  ASSERT_EQ(static_cast<intptr_t>(1), kSmiTagMask);
+  ASSERT_EQ(static_cast<int>(1), static_cast<int>(kSmiTagMask));
   ASSERT_EQ(0, kSmiTag);
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src.is(kScratchRegister));
