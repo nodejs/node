@@ -17,9 +17,9 @@
   <body onload="sh_highlightDocument();">
     <div id="toc">
       <ol>
-        <li><a href="#about">About</a></li>
         <li><a href="#download">Download</a></li>
         <li><a href="#build">Build</a></li>
+        <li><a href="#about">About</a></li>
         <li><a href="#demo">Demo</a></li>
         <li><a href="#community">Community</a></li>
         <li><a href="#contribute">Contribute</a></li>
@@ -60,13 +60,69 @@ sys.puts("Server running at http://127.0.0.1:8000/");</pre>
         program
       </p>
       <pre class="sh_none">
-% /usr/local/bin/node example.js
+% node example.js
 Server running at http://127.0.0.1:8000/</pre>
+
+      <p>
+        Here is an example of a simple TCP server which listens on port 7000
+        and echos whatever you send it:
+      </p>
+
+      <pre>
+var tcp = require("/tcp.js");
+var server = tcp.createServer(function (socket) {
+  socket.setEncoding("utf8");
+  socket.addListener("connect", function () {
+    socket.send("hello\r\n");
+  });
+  socket.addListener("receive", function (data) {
+    socket.send(data);
+  });
+  socket.addListener("eof", function () {
+    socket.send("goodbye\r\n");
+    socket.close();
+  });
+});
+server.listen(7000, "localhost");</pre>
 
       <p>
         See the <a href="api.html">API documentation</a> for more
         examples.
       </p>
+
+      <h2 id="download">Download</h2>
+
+      <p>
+        <a href="http://github.com/ry/node/tree/master">git repo</a>
+      </p>
+      <p>
+        2009.10.09
+        <a href="http://s3.amazonaws.com/four.livejournal/20091009/node-v0.1.14.tar.gz">node-v0.1.14.tar.gz</a>
+      </p>
+
+      <h2 id="build">Build</h2>
+
+      <p>
+        Node eventually wants to support all POSIX operating systems
+        (including Windows with MinGW) but at the moment it is only being
+        tested on <b>Linux</b>, <b>Macintosh</b>, and <b>FreeBSD</b>. The
+        build system requires Python 2.4 or better.  V8, on which Node is
+        built, supports only IA-32 and ARM processors. V8 is included in the
+        Node distribution. There are no other dependencies.
+      </p>
+
+      <pre class="sh_none">
+./configure
+make
+make install</pre>
+
+      <p>
+        Then have a look at the <a href="api.html">API documentation</a>.
+      </p>
+
+      <p>To run the tests</p>
+
+      <pre class="sh_none">make test</pre>
 
       <h2 id="about">About</h2>
 
@@ -144,39 +200,6 @@ Server running at http://127.0.0.1:8000/</pre>
         current design.
       </p>
 
-      <h2 id="download">Download</h2>
-
-      <p>
-        <a href="http://github.com/ry/node/tree/master">git repo</a>
-      </p>
-      <p>
-        2009.10.09
-        <a href="http://s3.amazonaws.com/four.livejournal/20091009/node-v0.1.14.tar.gz">node-v0.1.14.tar.gz</a>
-      </p>
-
-      <h2 id="build">Build</h2>
-
-      <p>
-        Node eventually wants to support all POSIX operating systems
-        (including Windows with MinGW) but at the moment it is only being
-        tested on <b>Linux</b>, <b>Macintosh</b>, and <b>FreeBSD</b>. The
-        build system requires Python 2.4 or better.  V8, on which Node is
-        built, supports only IA-32 and ARM processors. V8 is included in the
-        Node distribution. There are no other dependencies.
-      </p>
-
-      <pre class="sh_none">
-./configure
-make
-make install</pre>
-
-      <p>
-        Then have a look at the <a href="api.html">API documentation</a>.
-      </p>
-
-      <p>To run the tests</p>
-
-      <pre class="sh_none">make test</pre>
 
       <h2 id="demo">Demo</h2>
       <p>
@@ -229,5 +252,17 @@ git format-patch HEAD^
         2009.09.06 <a href="http://four.livejournal.com/1019177.html">narwhal, node, v8cgi, thin/eventmachine</a>
       </p>
     </div>
+    <script type="text/javascript">
+      var gaJsHost = (("https:" == document.location.protocol) ?
+      "https://ssl." : "http://www.");
+      document.write(unescape("%3Cscript src='" + gaJsHost +
+      "google-analytics.com/ga.js'
+      type='text/javascript'%3E%3C/script%3E"));
+    </script>
+    <script type="text/javascript">
+      try {
+        var pageTracker = _gat._getTracker("UA-10874194-2");
+        pageTracker._trackPageview();
+        } catch(err) {}</script>
   </body>
 </html>
