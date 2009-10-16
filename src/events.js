@@ -20,24 +20,6 @@ node.EventEmitter.prototype.listeners = function (type) {
   return this._events[type];
 };
 
-// node.Promise is defined in src/events.cc
-node.Promise.prototype.cancel = function() {
-  this._events['success'] = [];
-  this._events['error'] = [];
-
-  this.emitSuccess = function() {};
-  this.emitError = function() {};
-
-  this.emitCancel();
-};
-
-node.Promise.prototype.emitCancel = function() {
-  var args = Array.prototype.slice.call(arguments);
-  args.unshift('cancel');
-
-  this.emit.apply(this, args);
-};
-
 node.Promise.prototype.timeout = function(timeout) {
   if (timeout === undefined) {
     return this._timeoutDuration;
@@ -51,7 +33,6 @@ node.Promise.prototype.timeout = function(timeout) {
   var self = this
   this._timer = setTimeout(function() {
     self.emitError(new Error('timeout'));
-    self.cancel();
   }, this._timeoutDuration);
 
   return this;
@@ -64,11 +45,6 @@ node.Promise.prototype.addCallback = function (listener) {
 
 node.Promise.prototype.addErrback = function (listener) {
   this.addListener("error", listener);
-  return this;
-};
-
-node.Promise.prototype.addCancelback = function (listener) {
-  this.addListener("cancel", listener);
   return this;
 };
 

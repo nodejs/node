@@ -43,12 +43,14 @@ class Promise : public EventEmitter {
 
   virtual void Detach(void);
 
+  bool has_fired_;
   bool blocking_;
   Promise *prev_; /* for the prev in the Poor Man's coroutine stack */
 
   void Destack();
 
   Promise() : EventEmitter() {
+    has_fired_ = false;
     blocking_ = false;
     prev_ = NULL;
   }
