@@ -147,46 +147,42 @@ void PrettyPrinter::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void PrettyPrinter::VisitLoopStatement(LoopStatement* node) {
+void PrettyPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   PrintLabels(node->labels());
-  switch (node->type()) {
-    case LoopStatement::DO_LOOP:
-      ASSERT(node->init() == NULL);
-      ASSERT(node->next() == NULL);
-      Print("do ");
-      Visit(node->body());
-      Print(" while (");
-      Visit(node->cond());
-      Print(");");
-      break;
+  Print("do ");
+  Visit(node->body());
+  Print(" while (");
+  Visit(node->cond());
+  Print(");");
+}
 
-    case LoopStatement::FOR_LOOP:
-      Print("for (");
-      if (node->init() != NULL) {
-        Visit(node->init());
-        Print(" ");
-      } else {
-        Print("; ");
-      }
-      if (node->cond() != NULL)
-        Visit(node->cond());
-      Print("; ");
-      if (node->next() != NULL)
-        Visit(node->next());  // prints extra ';', unfortunately
-      // to fix: should use Expression for next
-      Print(") ");
-      Visit(node->body());
-      break;
 
-    case LoopStatement::WHILE_LOOP:
-      ASSERT(node->init() == NULL);
-      ASSERT(node->next() == NULL);
-      Print("while (");
-      Visit(node->cond());
-      Print(") ");
-      Visit(node->body());
-      break;
+void PrettyPrinter::VisitWhileStatement(WhileStatement* node) {
+  PrintLabels(node->labels());
+  Print("while (");
+  Visit(node->cond());
+  Print(") ");
+  Visit(node->body());
+}
+
+
+void PrettyPrinter::VisitForStatement(ForStatement* node) {
+  PrintLabels(node->labels());
+  Print("for (");
+  if (node->init() != NULL) {
+    Visit(node->init());
+    Print(" ");
+  } else {
+    Print("; ");
   }
+  if (node->cond() != NULL) Visit(node->cond());
+  Print("; ");
+  if (node->next() != NULL) {
+    Visit(node->next());  // prints extra ';', unfortunately
+    // to fix: should use Expression for next
+  }
+  Print(") ");
+  Visit(node->body());
 }
 
 
@@ -201,7 +197,7 @@ void PrettyPrinter::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void PrettyPrinter::VisitTryCatch(TryCatch* node) {
+void PrettyPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   Print("try ");
   Visit(node->try_block());
   Print(" catch (");
@@ -211,7 +207,7 @@ void PrettyPrinter::VisitTryCatch(TryCatch* node) {
 }
 
 
-void PrettyPrinter::VisitTryFinally(TryFinally* node) {
+void PrettyPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   Print("try ");
   Visit(node->try_block());
   Print(" finally ");
@@ -841,12 +837,28 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void AstPrinter::VisitLoopStatement(LoopStatement* node) {
-  IndentedScope indent(node->OperatorString());
+void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
+  IndentedScope indent("DO");
+  PrintLabelsIndented(NULL, node->labels());
+  PrintIndentedVisit("BODY", node->body());
+  PrintIndentedVisit("COND", node->cond());
+}
+
+
+void AstPrinter::VisitWhileStatement(WhileStatement* node) {
+  IndentedScope indent("WHILE");
+  PrintLabelsIndented(NULL, node->labels());
+  PrintIndentedVisit("COND", node->cond());
+  PrintIndentedVisit("BODY", node->body());
+}
+
+
+void AstPrinter::VisitForStatement(ForStatement* node) {
+  IndentedScope indent("FOR");
   PrintLabelsIndented(NULL, node->labels());
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
-  if (node->body()) PrintIndentedVisit("BODY", node->body());
+  PrintIndentedVisit("BODY", node->body());
   if (node->next()) PrintIndentedVisit("NEXT", node->next());
 }
 
@@ -859,7 +871,7 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void AstPrinter::VisitTryCatch(TryCatch* node) {
+void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent("TRY CATCH");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("CATCHVAR", node->catch_var());
@@ -867,7 +879,7 @@ void AstPrinter::VisitTryCatch(TryCatch* node) {
 }
 
 
-void AstPrinter::VisitTryFinally(TryFinally* node) {
+void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IndentedScope indent("TRY FINALLY");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("FINALLY", node->finally_block());
@@ -1087,6 +1099,414 @@ void AstPrinter::VisitThisFunction(ThisFunction* node) {
   IndentedScope indent("THIS-FUNCTION");
 }
 
+
+TagScope::TagScope(JsonAstBuilder* builder, const char* name)
+    : builder_(builder), next_(builder->tag()), has_body_(false) {
+  if (next_ != NULL) {
+    next_->use();
+    builder->Print(",\n");
+  }
+  builder->set_tag(this);
+  builder->PrintIndented("[");
+  builder->Print("\"%s\"", name);
+  builder->increase_indent(JsonAstBuilder::kTagIndentSize);
+}
+
+
+TagScope::~TagScope() {
+  builder_->decrease_indent(JsonAstBuilder::kTagIndentSize);
+  if (has_body_) {
+    builder_->Print("\n");
+    builder_->PrintIndented("]");
+  } else {
+    builder_->Print("]");
+  }
+  builder_->set_tag(next_);
+}
+
+
+AttributesScope::AttributesScope(JsonAstBuilder* builder)
+    : builder_(builder), attribute_count_(0) {
+  builder->set_attributes(this);
+  builder->tag()->use();
+  builder->Print(",\n");
+  builder->PrintIndented("{");
+  builder->increase_indent(JsonAstBuilder::kAttributesIndentSize);
+}
+
+
+AttributesScope::~AttributesScope() {
+  builder_->decrease_indent(JsonAstBuilder::kAttributesIndentSize);
+  if (attribute_count_ > 1) {
+    builder_->Print("\n");
+    builder_->PrintIndented("}");
+  } else {
+    builder_->Print("}");
+  }
+  builder_->set_attributes(NULL);
+}
+
+
+const char* JsonAstBuilder::BuildProgram(FunctionLiteral* program) {
+  Init();
+  Visit(program);
+  Print("\n");
+  return Output();
+}
+
+
+void JsonAstBuilder::AddAttributePrefix(const char* name) {
+  if (attributes()->is_used()) {
+    Print(",\n");
+    PrintIndented("\"");
+  } else {
+    Print("\"");
+  }
+  Print("%s\":", name);
+  attributes()->use();
+}
+
+
+void JsonAstBuilder::AddAttribute(const char* name, Handle<String> value) {
+  SmartPointer<char> value_string = value->ToCString();
+  AddAttributePrefix(name);
+  Print("\"%s\"", *value_string);
+}
+
+
+void JsonAstBuilder::AddAttribute(const char* name, const char* value) {
+  AddAttributePrefix(name);
+  Print("\"%s\"", value);
+}
+
+
+void JsonAstBuilder::AddAttribute(const char* name, int value) {
+  AddAttributePrefix(name);
+  Print("%d", value);
+}
+
+
+void JsonAstBuilder::AddAttribute(const char* name, bool value) {
+  AddAttributePrefix(name);
+  Print(value ? "true" : "false");
+}
+
+
+void JsonAstBuilder::VisitBlock(Block* stmt) {
+  TagScope tag(this, "Block");
+  VisitStatements(stmt->statements());
+}
+
+
+void JsonAstBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
+  TagScope tag(this, "ExpressionStatement");
+  Visit(stmt->expression());
+}
+
+
+void JsonAstBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
+  TagScope tag(this, "EmptyStatement");
+}
+
+
+void JsonAstBuilder::VisitIfStatement(IfStatement* stmt) {
+  TagScope tag(this, "IfStatement");
+  Visit(stmt->condition());
+  Visit(stmt->then_statement());
+  Visit(stmt->else_statement());
+}
+
+
+void JsonAstBuilder::VisitContinueStatement(ContinueStatement* stmt) {
+  TagScope tag(this, "ContinueStatement");
+}
+
+
+void JsonAstBuilder::VisitBreakStatement(BreakStatement* stmt) {
+  TagScope tag(this, "BreakStatement");
+}
+
+
+void JsonAstBuilder::VisitReturnStatement(ReturnStatement* stmt) {
+  TagScope tag(this, "ReturnStatement");
+  Visit(stmt->expression());
+}
+
+
+void JsonAstBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
+  TagScope tag(this, "WithEnterStatement");
+  Visit(stmt->expression());
+}
+
+
+void JsonAstBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
+  TagScope tag(this, "WithExitStatement");
+}
+
+
+void JsonAstBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
+  TagScope tag(this, "SwitchStatement");
+}
+
+
+void JsonAstBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  TagScope tag(this, "DoWhileStatement");
+  Visit(stmt->body());
+  Visit(stmt->cond());
+}
+
+
+void JsonAstBuilder::VisitWhileStatement(WhileStatement* stmt) {
+  TagScope tag(this, "WhileStatement");
+  Visit(stmt->cond());
+  Visit(stmt->body());
+}
+
+
+void JsonAstBuilder::VisitForStatement(ForStatement* stmt) {
+  TagScope tag(this, "ForStatement");
+  if (stmt->init() != NULL) Visit(stmt->init());
+  if (stmt->cond() != NULL) Visit(stmt->cond());
+  Visit(stmt->body());
+  if (stmt->next() != NULL) Visit(stmt->next());
+}
+
+
+void JsonAstBuilder::VisitForInStatement(ForInStatement* stmt) {
+  TagScope tag(this, "ForInStatement");
+  Visit(stmt->each());
+  Visit(stmt->enumerable());
+  Visit(stmt->body());
+}
+
+
+void JsonAstBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  TagScope tag(this, "TryCatchStatement");
+  Visit(stmt->try_block());
+  Visit(stmt->catch_var());
+  Visit(stmt->catch_block());
+}
+
+
+void JsonAstBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  TagScope tag(this, "TryFinallyStatement");
+  Visit(stmt->try_block());
+  Visit(stmt->finally_block());
+}
+
+
+void JsonAstBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
+  TagScope tag(this, "DebuggerStatement");
+}
+
+
+void JsonAstBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
+  TagScope tag(this, "FunctionLiteral");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("name", expr->name());
+  }
+  VisitDeclarations(expr->scope()->declarations());
+  VisitStatements(expr->body());
+}
+
+
+void JsonAstBuilder::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* expr) {
+  TagScope tag(this, "FunctionBoilerplateLiteral");
+}
+
+
+void JsonAstBuilder::VisitConditional(Conditional* expr) {
+  TagScope tag(this, "Conditional");
+}
+
+
+void JsonAstBuilder::VisitSlot(Slot* expr) {
+  TagScope tag(this, "Slot");
+  {
+    AttributesScope attributes(this);
+    switch (expr->type()) {
+      case Slot::PARAMETER:
+        AddAttribute("type", "PARAMETER");
+        break;
+      case Slot::LOCAL:
+        AddAttribute("type", "LOCAL");
+        break;
+      case Slot::CONTEXT:
+        AddAttribute("type", "CONTEXT");
+        break;
+      case Slot::LOOKUP:
+        AddAttribute("type", "LOOKUP");
+        break;
+      case Slot::GLOBAL:
+        AddAttribute("type", "GLOBAL");
+        break;
+    }
+    AddAttribute("index", expr->index());
+  }
+}
+
+
+void JsonAstBuilder::VisitVariableProxy(VariableProxy* expr) {
+  if (expr->var()->rewrite() == NULL) {
+    TagScope tag(this, "VariableProxy");
+    {
+      AttributesScope attributes(this);
+      AddAttribute("name", expr->name());
+      AddAttribute("mode", Variable::Mode2String(expr->var()->mode()));
+    }
+  } else {
+    Visit(expr->var()->rewrite());
+  }
+}
+
+
+void JsonAstBuilder::VisitLiteral(Literal* expr) {
+  TagScope tag(this, "Literal");
+  {
+    AttributesScope attributes(this);
+    Handle<Object> handle = expr->handle();
+    if (handle->IsString()) {
+      AddAttribute("handle", Handle<String>(String::cast(*handle)));
+    } else if (handle->IsSmi()) {
+      AddAttribute("handle", Smi::cast(*handle)->value());
+    }
+  }
+}
+
+
+void JsonAstBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
+  TagScope tag(this, "RegExpLiteral");
+}
+
+
+void JsonAstBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
+  TagScope tag(this, "ObjectLiteral");
+}
+
+
+void JsonAstBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
+  TagScope tag(this, "ArrayLiteral");
+}
+
+
+void JsonAstBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
+  TagScope tag(this, "CatchExtensionObject");
+  Visit(expr->key());
+  Visit(expr->value());
+}
+
+
+void JsonAstBuilder::VisitAssignment(Assignment* expr) {
+  TagScope tag(this, "Assignment");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("op", Token::Name(expr->op()));
+  }
+  Visit(expr->target());
+  Visit(expr->value());
+}
+
+
+void JsonAstBuilder::VisitThrow(Throw* expr) {
+  TagScope tag(this, "Throw");
+  Visit(expr->exception());
+}
+
+
+void JsonAstBuilder::VisitProperty(Property* expr) {
+  TagScope tag(this, "Property");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("type", expr->is_synthetic() ? "SYNTHETIC" : "NORMAL");
+  }
+  Visit(expr->obj());
+  Visit(expr->key());
+}
+
+
+void JsonAstBuilder::VisitCall(Call* expr) {
+  TagScope tag(this, "Call");
+  Visit(expr->expression());
+  VisitExpressions(expr->arguments());
+}
+
+
+void JsonAstBuilder::VisitCallNew(CallNew* expr) {
+  TagScope tag(this, "CallNew");
+  Visit(expr->expression());
+  VisitExpressions(expr->arguments());
+}
+
+
+void JsonAstBuilder::VisitCallRuntime(CallRuntime* expr) {
+  TagScope tag(this, "CallRuntime");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("name", expr->name());
+  }
+  VisitExpressions(expr->arguments());
+}
+
+
+void JsonAstBuilder::VisitUnaryOperation(UnaryOperation* expr) {
+  TagScope tag(this, "UnaryOperation");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("op", Token::Name(expr->op()));
+  }
+  Visit(expr->expression());
+}
+
+
+void JsonAstBuilder::VisitCountOperation(CountOperation* expr) {
+  TagScope tag(this, "CountOperation");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("is_prefix", expr->is_prefix());
+    AddAttribute("op", Token::Name(expr->op()));
+  }
+  Visit(expr->expression());
+}
+
+
+void JsonAstBuilder::VisitBinaryOperation(BinaryOperation* expr) {
+  TagScope tag(this, "BinaryOperation");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("op", Token::Name(expr->op()));
+  }
+  Visit(expr->left());
+  Visit(expr->right());
+}
+
+
+void JsonAstBuilder::VisitCompareOperation(CompareOperation* expr) {
+  TagScope tag(this, "CompareOperation");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("op", Token::Name(expr->op()));
+  }
+  Visit(expr->left());
+  Visit(expr->right());
+}
+
+
+void JsonAstBuilder::VisitThisFunction(ThisFunction* expr) {
+  TagScope tag(this, "ThisFunction");
+}
+
+
+void JsonAstBuilder::VisitDeclaration(Declaration* decl) {
+  TagScope tag(this, "Declaration");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("mode", Variable::Mode2String(decl->mode()));
+  }
+  Visit(decl->proxy());
+  if (decl->fun() != NULL) Visit(decl->fun());
+}
 
 
 #endif  // DEBUG

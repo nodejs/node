@@ -32,6 +32,9 @@
 #include "code-stubs.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
+#if V8_TARGET_ARCH_ARM
+#include "arm/constants-arm.h"
+#endif
 
 //
 // All object types in the V8 JavaScript are described in this file.
@@ -904,10 +907,10 @@ class Object BASE_EMBEDDED {
 
 // Smi represents integer Numbers that can be stored in 31 bits.
 // Smis are immediate which means they are NOT allocated in the heap.
-// Smi stands for small integer.
 // The this pointer has the following format: [31 bit signed int] 0
-// On 64-bit, the top 32 bits of the pointer is allowed to have any
-// value.
+// For long smis it has the following format:
+//     [32 bit signed int] [31 bits zero padding] 0
+// Smi stands for small integer.
 class Smi: public Object {
  public:
   // Returns the integer value.
@@ -921,8 +924,6 @@ class Smi: public Object {
   // Returns whether value can be represented in a Smi.
   static inline bool IsValid(intptr_t value);
 
-  static inline bool IsIntptrValid(intptr_t);
-
   // Casting.
   static inline Smi* cast(Object* object);
 
@@ -933,10 +934,8 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
-  static const int kSmiNumBits = 31;
-  // Min and max limits for Smi values.
-  static const int kMinValue = -(1 << (kSmiNumBits - 1));
-  static const int kMaxValue = (1 << (kSmiNumBits - 1)) - 1;
+  static const int kMinValue = (-1 << (kSmiValueSize - 1));
+  static const int kMaxValue = -(kMinValue + 1);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
@@ -949,10 +948,10 @@ class Smi: public Object {
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
-// |rrrrrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
+// |...rrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
 // +-------------------------+---+--+--+
-//  3                       7 6 4 32 10
-//  1
+//                          7 6 4 32 10
+//
 //
 // The low two bits, 0-1, are the failure tag, 11.  The next two bits,
 // 2-3, are a failure type tag 'tt' with possible values:
@@ -1014,8 +1013,8 @@ class Failure: public Object {
 #endif
 
  private:
-  inline int value() const;
-  static inline Failure* Construct(Type type, int value = 0);
+  inline intptr_t value() const;
+  static inline Failure* Construct(Type type, intptr_t value = 0);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Failure);
 };
@@ -1291,7 +1290,7 @@ class HeapNumber: public HeapObject {
   // is a mixture of sign, exponent and mantissa.  Our current platforms are all
   // little endian apart from non-EABI arm which is little endian with big
   // endian floating point word ordering!
-#if !defined(V8_HOST_ARCH_ARM) || __ARM_EABI__
+#if !defined(V8_HOST_ARCH_ARM) || defined(USE_ARM_EABI)
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
 #else
@@ -2036,33 +2035,33 @@ class DescriptorArray: public FixedArray {
 //     // The Element size indicates number of elements per entry.
 //     static const int kEntrySize = ..;
 //   };
-// table.  The prefix size indicates an amount of memory in the
+// The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
-  // Returns the number of elements in the dictionary.
+  // Returns the number of elements in the hash table.
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
 
-  // Returns the capacity of the dictionary.
+  // Returns the capacity of the hash table.
   int Capacity() {
     return Smi::cast(get(kCapacityIndex))->value();
   }
 
   // ElementAdded should be called whenever an element is added to a
-  // dictionary.
+  // hash table.
   void ElementAdded() { SetNumberOfElements(NumberOfElements() + 1); }
 
   // ElementRemoved should be called whenever an element is removed from
-  // a dictionary.
+  // a hash table.
   void ElementRemoved() { SetNumberOfElements(NumberOfElements() - 1); }
   void ElementsRemoved(int n) { SetNumberOfElements(NumberOfElements() - n); }
 
-  // Returns a new array for dictionary usage. Might return Failure.
+  // Returns a new HashTable object. Might return Failure.
   static Object* Allocate(int at_least_space_for);
 
   // Returns the key at entry.
@@ -2112,7 +2111,7 @@ class HashTable: public FixedArray {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
-  // Update the number of elements in the dictionary.
+  // Update the number of elements in the hash table.
   void SetNumberOfElements(int nof) {
     fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
   }
@@ -2148,7 +2147,7 @@ class HashTableKey {
   virtual uint32_t Hash() = 0;
   // Returns the hash value for object.
   virtual uint32_t HashForObject(Object* key) = 0;
-  // Returns the key object for storing into the dictionary.
+  // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
   virtual Object* AsObject() = 0;
   // Required.
@@ -2494,6 +2493,9 @@ class PixelArray: public Array {
   void PixelArrayPrint();
   void PixelArrayVerify();
 #endif  // DEBUG
+
+  // Maximal acceptable length for a pixel array.
+  static const int kMaxLength = 0x3fffffff;
 
   // PixelArray headers are not quadword aligned.
   static const int kExternalPointerOffset = Array::kAlignedSize;
@@ -3576,6 +3578,7 @@ class CompilationCacheShape {
   static const int kEntrySize = 2;
 };
 
+
 class CompilationCacheTable: public HashTable<CompilationCacheShape,
                                               HashTableKey*> {
  public:
@@ -3849,6 +3852,8 @@ class String: public HeapObject {
   static const int kShortLengthShift = kHashShift + kShortStringTag;
   static const int kMediumLengthShift = kHashShift + kMediumStringTag;
   static const int kLongLengthShift = kHashShift + kLongStringTag;
+  // Maximal string length that can be stored in the hash/length field.
+  static const int kMaxLength = (1 << (32 - kLongLengthShift)) - 1;
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;

@@ -63,14 +63,16 @@ void VirtualFrame::Enter() {
   Comment cmnt(masm(), "[ Enter JS frame");
 
 #ifdef DEBUG
-  // Verify that rdi contains a JS function.  The following code
-  // relies on rax being available for use.
-  Condition not_smi = masm()->CheckNotSmi(rdi);
-  __ Check(not_smi,
-           "VirtualFrame::Enter - rdi is not a function (smi check).");
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
-  __ Check(equal,
-           "VirtualFrame::Enter - rdi is not a function (map check).");
+  if (FLAG_debug_code) {
+    // Verify that rdi contains a JS function.  The following code
+    // relies on rax being available for use.
+    Condition not_smi = NegateCondition(masm()->CheckSmi(rdi));
+    __ Check(not_smi,
+             "VirtualFrame::Enter - rdi is not a function (smi check).");
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
+    __ Check(equal,
+             "VirtualFrame::Enter - rdi is not a function (map check).");
+  }
 #endif
 
   EmitPush(rbp);
@@ -194,6 +196,14 @@ void VirtualFrame::EmitPush(Immediate immediate) {
   elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(immediate);
+}
+
+
+void VirtualFrame::EmitPush(Smi* smi_value) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ Push(smi_value);
 }
 
 
@@ -841,7 +851,7 @@ void VirtualFrame::SyncElementByPushing(int index) {
 
   switch (element.type()) {
     case FrameElement::INVALID:
-      __ push(Immediate(Smi::FromInt(0)));
+      __ Push(Smi::FromInt(0));
       break;
 
     case FrameElement::MEMORY:
@@ -883,15 +893,16 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
 
-  // If positive we have to adjust the stack pointer.
-  int delta = end - stack_pointer_;
-  if (delta > 0) {
-    stack_pointer_ = end;
-    __ subq(rsp, Immediate(delta * kPointerSize));
-  }
-
+  // Emit normal 'push' instructions for elements above stack pointer
+  // and use mov instructions if we are below stack pointer.
   for (int i = start; i <= end; i++) {
-    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+    if (!elements_[i].is_synced()) {
+      if (i <= stack_pointer_) {
+        SyncElementBelowStackPointer(i);
+      } else {
+        SyncElementByPushing(i);
+      }
+    }
   }
 }
 
@@ -1004,7 +1015,7 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   function.ToRegister(rdi);
 
   // Constructors are called with the number of arguments in register
-  // eax for now. Another option would be to have separate construct
+  // rax for now. Another option would be to have separate construct
   // call trampolines per different arguments counts encountered.
   Result num_args = cgen()->allocator()->Allocate(rax);
   ASSERT(num_args.is_valid());

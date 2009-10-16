@@ -100,7 +100,21 @@ void AstOptimizer::VisitIfStatement(IfStatement* node) {
 }
 
 
-void AstOptimizer::VisitLoopStatement(LoopStatement* node) {
+void AstOptimizer::VisitDoWhileStatement(DoWhileStatement* node) {
+  Visit(node->cond());
+  Visit(node->body());
+}
+
+
+void AstOptimizer::VisitWhileStatement(WhileStatement* node) {
+  has_function_literal_ = false;
+  Visit(node->cond());
+  node->may_have_function_literal_ = has_function_literal_;
+  Visit(node->body());
+}
+
+
+void AstOptimizer::VisitForStatement(ForStatement* node) {
   if (node->init() != NULL) {
     Visit(node->init());
   }
@@ -109,9 +123,7 @@ void AstOptimizer::VisitLoopStatement(LoopStatement* node) {
     Visit(node->cond());
     node->may_have_function_literal_ = has_function_literal_;
   }
-  if (node->body() != NULL) {
-    Visit(node->body());
-  }
+  Visit(node->body());
   if (node->next() != NULL) {
     Visit(node->next());
   }
@@ -125,14 +137,14 @@ void AstOptimizer::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void AstOptimizer::VisitTryCatch(TryCatch* node) {
+void AstOptimizer::VisitTryCatchStatement(TryCatchStatement* node) {
   Visit(node->try_block());
   Visit(node->catch_var());
   Visit(node->catch_block());
 }
 
 
-void AstOptimizer::VisitTryFinally(TryFinally* node) {
+void AstOptimizer::VisitTryFinallyStatement(TryFinallyStatement* node) {
   Visit(node->try_block());
   Visit(node->finally_block());
 }
@@ -553,6 +565,8 @@ class Processor: public AstVisitor {
   virtual void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
+
+  void VisitIterationStatement(IterationStatement* stmt);
 };
 
 
@@ -596,25 +610,35 @@ void Processor::VisitIfStatement(IfStatement* node) {
 }
 
 
-
-
-void Processor::VisitLoopStatement(LoopStatement* node) {
-  // Rewrite loop body statement.
+void Processor::VisitIterationStatement(IterationStatement* node) {
+  // Rewrite the body.
   bool set_after_loop = is_set_;
   Visit(node->body());
   is_set_ = is_set_ && set_after_loop;
 }
 
 
-void Processor::VisitForInStatement(ForInStatement* node) {
-  // Rewrite for-in body statement.
-  bool set_after_for = is_set_;
-  Visit(node->body());
-  is_set_ = is_set_ && set_after_for;
+void Processor::VisitDoWhileStatement(DoWhileStatement* node) {
+  VisitIterationStatement(node);
 }
 
 
-void Processor::VisitTryCatch(TryCatch* node) {
+void Processor::VisitWhileStatement(WhileStatement* node) {
+  VisitIterationStatement(node);
+}
+
+
+void Processor::VisitForStatement(ForStatement* node) {
+  VisitIterationStatement(node);
+}
+
+
+void Processor::VisitForInStatement(ForInStatement* node) {
+  VisitIterationStatement(node);
+}
+
+
+void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch blocks (reversed order).
   bool set_after_catch = is_set_;
   Visit(node->catch_block());
@@ -626,7 +650,7 @@ void Processor::VisitTryCatch(TryCatch* node) {
 }
 
 
-void Processor::VisitTryFinally(TryFinally* node) {
+void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // Rewrite both try and finally block (reversed order).
   Visit(node->finally_block());
   bool save = in_try_;

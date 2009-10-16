@@ -69,7 +69,7 @@ function listener(event, exec_state, event_data, data) {
     // 0: [anonymous]
     
     // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
+    var dcp = exec_state.debugCommandProcessor(false);
 
     // Get the backtrace.
     var json;
@@ -105,6 +105,6 @@ try {
   // Ignore the exception "Cannot call method 'x' of undefined"
 }
 
+assertFalse(exception, "exception in listener", exception)
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerCalled, "listener not called");
-assertFalse(exception, "exception in listener", exception)

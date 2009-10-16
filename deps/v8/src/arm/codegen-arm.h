@@ -147,6 +147,15 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+  // Printing of AST, etc. as requested by flags.
+  static void MakeCodePrologue(FunctionLiteral* fun);
+
+  // Allocate and install the code.
+  static Handle<Code> MakeCodeEpilogue(FunctionLiteral* fun,
+                                       MacroAssembler* masm,
+                                       Code::Flags flags,
+                                       Handle<Script> script);
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
@@ -155,6 +164,8 @@ class CodeGenerator: public AstVisitor {
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);
+
+  static void RecordPositions(MacroAssembler* masm, int pos);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
@@ -364,6 +375,14 @@ class CodeGenerator: public AstVisitor {
   void GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args);
   inline void GenerateMathSin(ZoneList<Expression*>* args);
   inline void GenerateMathCos(ZoneList<Expression*>* args);
+
+  // Simple condition analysis.
+  enum ConditionAnalysis {
+    ALWAYS_TRUE,
+    ALWAYS_FALSE,
+    DONT_KNOW
+  };
+  ConditionAnalysis AnalyzeCondition(Expression* cond);
 
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation

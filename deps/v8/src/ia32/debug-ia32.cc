@@ -63,7 +63,7 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 // having been patched with a call instruction.
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
-  return rinfo->IsCallInstruction();
+  return rinfo->IsPatchedReturnSequence();
 }
 
 

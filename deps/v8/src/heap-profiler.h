@@ -256,6 +256,14 @@ class RetainerHeapProfile BASE_EMBEDDED {
 };
 
 
+class ProducerHeapProfile : public AllStatic {
+ public:
+  static void Setup();
+  static void RecordJSObjectAllocation(Object* obj);
+ private:
+  static bool can_log_;
+};
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

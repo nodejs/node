@@ -67,7 +67,9 @@ SOURCES = {
     'test-disasm-ia32.cc',
     'test-log-stack-tracer.cc'
   ],
-  'arch:x64': ['test-assembler-x64.cc', 'test-log-stack-tracer.cc'],
+  'arch:x64': ['test-assembler-x64.cc',
+               'test-macro-assembler-x64.cc',
+               'test-log-stack-tracer.cc'],
   'os:linux':  ['test-platform-linux.cc'],
   'os:macos':  ['test-platform-macos.cc'],
   'os:nullos': ['test-platform-nullos.cc'],

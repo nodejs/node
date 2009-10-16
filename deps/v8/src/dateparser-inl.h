@@ -28,6 +28,8 @@
 #ifndef V8_DATEPARSER_INL_H_
 #define V8_DATEPARSER_INL_H_
 
+#include "dateparser.h"
+
 namespace v8 {
 namespace internal {
 

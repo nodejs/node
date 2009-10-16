@@ -70,16 +70,9 @@ class FunctionEntry BASE_EMBEDDED {
   int property_count() { return backing_[kPropertyCountOffset]; }
   void set_property_count(int value) { backing_[kPropertyCountOffset] = value; }
 
-  bool contains_array_literal() {
-    return backing_[kContainsArrayLiteralOffset] != 0;
-  }
-  void set_contains_array_literal(bool value) {
-    backing_[kContainsArrayLiteralOffset] = value ? 1 : 0;
-  }
-
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 5;
+  static const int kSize = 4;
 
  private:
   Vector<unsigned> backing_;
@@ -87,7 +80,6 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kEndPosOffset = 1;
   static const int kLiteralCountOffset = 2;
   static const int kPropertyCountOffset = 3;
-  static const int kContainsArrayLiteralOffset = 4;
 };
 
 

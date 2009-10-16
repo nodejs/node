@@ -54,6 +54,8 @@ class ObjectGroup : public Malloced {
 };
 
 
+typedef void (*WeakReferenceGuest)(Object* object, void* parameter);
+
 class GlobalHandles : public AllStatic {
  public:
   // Creates a new global handle that is alive until Destroy is called.
@@ -98,6 +100,10 @@ class GlobalHandles : public AllStatic {
 
   // Iterates over all weak roots in heap.
   static void IterateWeakRoots(ObjectVisitor* v);
+
+  // Iterates over weak roots that are bound to a given callback.
+  static void IterateWeakRoots(WeakReferenceGuest f,
+                               WeakReferenceCallback callback);
 
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.

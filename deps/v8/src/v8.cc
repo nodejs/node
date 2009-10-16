@@ -178,11 +178,14 @@ bool V8::IdleNotification() {
   return Heap::IdleNotification();
 }
 
+static const uint32_t kRandomPositiveSmiMax = 0x3fffffff;
 
 Smi* V8::RandomPositiveSmi() {
   uint32_t random = Random();
-  ASSERT(IsPowerOf2(Smi::kMaxValue + 1));
-  return Smi::FromInt(random & Smi::kMaxValue);
+  ASSERT(static_cast<uint32_t>(Smi::kMaxValue) >= kRandomPositiveSmiMax);
+  // kRandomPositiveSmiMax must match the value being divided
+  // by in math.js.
+  return Smi::FromInt(random & kRandomPositiveSmiMax);
 }
 
 } }  // namespace v8::internal

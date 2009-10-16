@@ -75,7 +75,18 @@ function TickProcessor(
       'tick': { parsers: [this.createAddressParser('code'),
           this.createAddressParser('stack'), parseInt, 'var-args'],
           processor: this.processTick, backrefs: true },
+      'heap-sample-begin': { parsers: [null, null, parseInt],
+          processor: this.processHeapSampleBegin },
+      'heap-sample-end': { parsers: [null, null],
+          processor: this.processHeapSampleEnd },
+      'heap-js-prod-item': { parsers: [null, 'var-args'],
+          processor: this.processJSProducer, backrefs: true },
+      // Ignored events.
       'profiler': null,
+      'heap-sample-stats': null,
+      'heap-sample-item': null,
+      'heap-js-cons-item': null,
+      'heap-js-ret-item': null,
       // Obsolete row types.
       'code-allocate': null,
       'begin-code-region': null,
@@ -113,6 +124,9 @@ function TickProcessor(
   // Count each tick as a time unit.
   this.viewBuilder_ = new devtools.profiler.ViewBuilder(1);
   this.lastLogFileName_ = null;
+
+  this.generation_ = 1;
+  this.currentProducerProfile_ = null;
 };
 inherits(TickProcessor, devtools.profiler.LogReader);
 
@@ -217,6 +231,41 @@ TickProcessor.prototype.processTick = function(pc, sp, vmState, stack) {
   }
 
   this.profile_.recordTick(this.processStack(pc, stack));
+};
+
+
+TickProcessor.prototype.processHeapSampleBegin = function(space, state, ticks) {
+  if (space != 'Heap') return;
+  this.currentProducerProfile_ = new devtools.profiler.CallTree();
+};
+
+
+TickProcessor.prototype.processHeapSampleEnd = function(space, state) {
+  if (space != 'Heap' || !this.currentProducerProfile_) return;
+
+  print('Generation ' + this.generation_ + ':');
+  var tree = this.currentProducerProfile_;
+  tree.computeTotalWeights();
+  var producersView = this.viewBuilder_.buildView(tree);
+  // Sort by total time, desc, then by name, desc.
+  producersView.sort(function(rec1, rec2) {
+      return rec2.totalTime - rec1.totalTime ||
+          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
+  this.printHeavyProfile(producersView.head.children);
+
+  this.currentProducerProfile_ = null;
+  this.generation_++;
+};
+
+
+TickProcessor.prototype.processJSProducer = function(constructor, stack) {
+  if (!this.currentProducerProfile_) return;
+  if (stack.length == 0) return;
+  var first = stack.shift();
+  var processedStack =
+      this.profile_.resolveAndFilterFuncs_(this.processStack(first, stack));
+  processedStack.unshift(constructor);
+  this.currentProducerProfile_.addPath(processedStack);
 };
 
 

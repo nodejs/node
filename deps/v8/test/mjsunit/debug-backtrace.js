@@ -69,6 +69,11 @@ ParsedResponse.prototype.body = function() {
 }
 
 
+ParsedResponse.prototype.running = function() {
+  return this.response_.running;
+}
+
+
 ParsedResponse.prototype.lookup = function(handle) {
   return this.refs_[handle];
 }
@@ -88,8 +93,9 @@ function listener(event, exec_state, event_data, data) {
       var frame;
       var source;
 
-      // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor();
+      var dcp;
+      // New copy of debug command processor paused state.
+      dcp = exec_state.debugCommandProcessor(false);
 
       // Get the backtrace.
       var json;
@@ -114,6 +120,7 @@ function listener(event, exec_state, event_data, data) {
       assertEquals("g", response.lookup(frames[2].func.ref).name);
       assertEquals(3, frames[3].index);
       assertEquals("", response.lookup(frames[3].func.ref).name);
+      assertFalse(response.running(), "expected not running");
 
       // Get backtrace with two frames.
       json = '{"seq":0,"type":"request","command":"backtrace","arguments":{"fromFrame":1,"toFrame":3}}'
@@ -233,6 +240,17 @@ function listener(event, exec_state, event_data, data) {
       response = new ParsedResponse(dcp.processDebugJSONRequest(json));
       source = response.body();
       assertEquals(Debug.findScript(f).source, source.source);
+
+      // New copy of debug command processor in running state.
+      dcp = exec_state.debugCommandProcessor(true);
+      // Get the backtrace.
+      json = '{"seq":0,"type":"request","command":"backtrace"}'
+      resp = dcp.processDebugJSONRequest(json);
+      response = new ParsedResponse(resp);
+      // It might be argueable, but we expect response to have body when
+      // not suspended
+      assertTrue(!!response.body(), "response should be null");
+      assertTrue(response.running(), "expected running");
 
       listenerCalled = true;
     }

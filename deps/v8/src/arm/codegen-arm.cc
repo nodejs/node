@@ -1539,191 +1539,200 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ LoopStatement");
+  Comment cmnt(masm_, "[ DoWhileStatement");
   CodeForStatementPosition(node);
   node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  JumpTarget body(JumpTarget::BIDIRECTIONAL);
 
-  // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
-  // known result for the test expression, with no side effects.
-  enum { ALWAYS_TRUE, ALWAYS_FALSE, DONT_KNOW } info = DONT_KNOW;
-  if (node->cond() == NULL) {
-    ASSERT(node->type() == LoopStatement::FOR_LOOP);
-    info = ALWAYS_TRUE;
-  } else {
-    Literal* lit = node->cond()->AsLiteral();
-    if (lit != NULL) {
-      if (lit->IsTrue()) {
-        info = ALWAYS_TRUE;
-      } else if (lit->IsFalse()) {
-        info = ALWAYS_FALSE;
-      }
-    }
-  }
-
-  switch (node->type()) {
-    case LoopStatement::DO_LOOP: {
-      JumpTarget body(JumpTarget::BIDIRECTIONAL);
-
-      // Label the top of the loop for the backward CFG edge.  If the test
-      // is always true we can use the continue target, and if the test is
-      // always false there is no need.
-      if (info == ALWAYS_TRUE) {
-        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
-        node->continue_target()->Bind();
-      } else if (info == ALWAYS_FALSE) {
-        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
-      } else {
-        ASSERT(info == DONT_KNOW);
-        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
-        body.Bind();
-      }
-
-      CheckStack();  // TODO(1222600): ignore if body contains calls.
-      VisitAndSpill(node->body());
-
-      // Compile the test.
-      if (info == ALWAYS_TRUE) {
-        if (has_valid_frame()) {
-          // If control can fall off the end of the body, jump back to the
-          // top.
-          node->continue_target()->Jump();
-        }
-      } else if (info == ALWAYS_FALSE) {
-        // If we have a continue in the body, we only have to bind its jump
-        // target.
-        if (node->continue_target()->is_linked()) {
-          node->continue_target()->Bind();
-        }
-      } else {
-        ASSERT(info == DONT_KNOW);
-        // We have to compile the test expression if it can be reached by
-        // control flow falling out of the body or via continue.
-        if (node->continue_target()->is_linked()) {
-          node->continue_target()->Bind();
-        }
-        if (has_valid_frame()) {
-          LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                                &body, node->break_target(), true);
-          if (has_valid_frame()) {
-            // A invalid frame here indicates that control did not
-            // fall out of the test expression.
-            Branch(true, &body);
-          }
-        }
-      }
-      break;
-    }
-
-    case LoopStatement::WHILE_LOOP: {
-      // If the test is never true and has no side effects there is no need
-      // to compile the test or body.
-      if (info == ALWAYS_FALSE) break;
-
-      // Label the top of the loop with the continue target for the backward
-      // CFG edge.
+  // Label the top of the loop for the backward CFG edge.  If the test
+  // is always true we can use the continue target, and if the test is
+  // always false there is no need.
+  ConditionAnalysis info = AnalyzeCondition(node->cond());
+  switch (info) {
+    case ALWAYS_TRUE:
       node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
       node->continue_target()->Bind();
+      break;
+    case ALWAYS_FALSE:
+      node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+      break;
+    case DONT_KNOW:
+      node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+      body.Bind();
+      break;
+  }
 
-      if (info == DONT_KNOW) {
-        JumpTarget body;
-        LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                              &body, node->break_target(), true);
-        if (has_valid_frame()) {
-          // A NULL frame indicates that control did not fall out of the
-          // test expression.
-          Branch(false, node->break_target());
-        }
-        if (has_valid_frame() || body.is_linked()) {
-          body.Bind();
-        }
-      }
+  CheckStack();  // TODO(1222600): ignore if body contains calls.
+  VisitAndSpill(node->body());
 
+      // Compile the test.
+  switch (info) {
+    case ALWAYS_TRUE:
+      // If control can fall off the end of the body, jump back to the
+      // top.
       if (has_valid_frame()) {
-        CheckStack();  // TODO(1222600): ignore if body contains calls.
-        VisitAndSpill(node->body());
-
-        // If control flow can fall out of the body, jump back to the top.
-        if (has_valid_frame()) {
-          node->continue_target()->Jump();
-        }
+        node->continue_target()->Jump();
       }
       break;
-    }
-
-    case LoopStatement::FOR_LOOP: {
-      JumpTarget loop(JumpTarget::BIDIRECTIONAL);
-
-      if (node->init() != NULL) {
-        VisitAndSpill(node->init());
-      }
-
-      // There is no need to compile the test or body.
-      if (info == ALWAYS_FALSE) break;
-
-      // If there is no update statement, label the top of the loop with the
-      // continue target, otherwise with the loop target.
-      if (node->next() == NULL) {
-        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+    case ALWAYS_FALSE:
+      // If we have a continue in the body, we only have to bind its
+      // jump target.
+      if (node->continue_target()->is_linked()) {
         node->continue_target()->Bind();
-      } else {
-        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
-        loop.Bind();
       }
-
-      // If the test is always true, there is no need to compile it.
-      if (info == DONT_KNOW) {
-        JumpTarget body;
+      break;
+    case DONT_KNOW:
+      // We have to compile the test expression if it can be reached by
+      // control flow falling out of the body or via continue.
+      if (node->continue_target()->is_linked()) {
+        node->continue_target()->Bind();
+      }
+      if (has_valid_frame()) {
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
         if (has_valid_frame()) {
-          Branch(false, node->break_target());
-        }
-        if (has_valid_frame() || body.is_linked()) {
-          body.Bind();
-        }
-      }
-
-      if (has_valid_frame()) {
-        CheckStack();  // TODO(1222600): ignore if body contains calls.
-        VisitAndSpill(node->body());
-
-        if (node->next() == NULL) {
-          // If there is no update statement and control flow can fall out
-          // of the loop, jump directly to the continue label.
-          if (has_valid_frame()) {
-            node->continue_target()->Jump();
-          }
-        } else {
-          // If there is an update statement and control flow can reach it
-          // via falling out of the body of the loop or continuing, we
-          // compile the update statement.
-          if (node->continue_target()->is_linked()) {
-            node->continue_target()->Bind();
-          }
-          if (has_valid_frame()) {
-            // Record source position of the statement as this code which is
-            // after the code for the body actually belongs to the loop
-            // statement and not the body.
-            CodeForStatementPosition(node);
-            VisitAndSpill(node->next());
-            loop.Jump();
-          }
+          // A invalid frame here indicates that control did not
+          // fall out of the test expression.
+          Branch(true, &body);
         }
       }
       break;
-    }
   }
 
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
-  node->continue_target()->Unuse();
-  node->break_target()->Unuse();
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
+}
+
+
+void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope;
+  Comment cmnt(masm_, "[ WhileStatement");
+  CodeForStatementPosition(node);
+
+  // If the test is never true and has no side effects there is no need
+  // to compile the test or body.
+  ConditionAnalysis info = AnalyzeCondition(node->cond());
+  if (info == ALWAYS_FALSE) return;
+
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+
+  // Label the top of the loop with the continue target for the backward
+  // CFG edge.
+  node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+  node->continue_target()->Bind();
+
+  if (info == DONT_KNOW) {
+    JumpTarget body;
+    LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
+                          &body, node->break_target(), true);
+    if (has_valid_frame()) {
+      // A NULL frame indicates that control did not fall out of the
+      // test expression.
+      Branch(false, node->break_target());
+    }
+    if (has_valid_frame() || body.is_linked()) {
+      body.Bind();
+    }
+  }
+
+  if (has_valid_frame()) {
+    CheckStack();  // TODO(1222600): ignore if body contains calls.
+    VisitAndSpill(node->body());
+
+    // If control flow can fall out of the body, jump back to the top.
+    if (has_valid_frame()) {
+      node->continue_target()->Jump();
+    }
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
+}
+
+
+void CodeGenerator::VisitForStatement(ForStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope;
+  Comment cmnt(masm_, "[ ForStatement");
+  CodeForStatementPosition(node);
+  if (node->init() != NULL) {
+    VisitAndSpill(node->init());
+  }
+
+  // If the test is never true there is no need to compile the test or
+  // body.
+  ConditionAnalysis info = AnalyzeCondition(node->cond());
+  if (info == ALWAYS_FALSE) return;
+
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+
+  // If there is no update statement, label the top of the loop with the
+  // continue target, otherwise with the loop target.
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  if (node->next() == NULL) {
+    node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+    node->continue_target()->Bind();
+  } else {
+    node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+    loop.Bind();
+  }
+
+  // If the test is always true, there is no need to compile it.
+  if (info == DONT_KNOW) {
+    JumpTarget body;
+    LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
+                          &body, node->break_target(), true);
+    if (has_valid_frame()) {
+      Branch(false, node->break_target());
+    }
+    if (has_valid_frame() || body.is_linked()) {
+      body.Bind();
+    }
+  }
+
+  if (has_valid_frame()) {
+    CheckStack();  // TODO(1222600): ignore if body contains calls.
+    VisitAndSpill(node->body());
+
+    if (node->next() == NULL) {
+      // If there is no update statement and control flow can fall out
+      // of the loop, jump directly to the continue label.
+      if (has_valid_frame()) {
+        node->continue_target()->Jump();
+      }
+    } else {
+      // If there is an update statement and control flow can reach it
+      // via falling out of the body of the loop or continuing, we
+      // compile the update statement.
+      if (node->continue_target()->is_linked()) {
+        node->continue_target()->Bind();
+      }
+      if (has_valid_frame()) {
+        // Record source position of the statement as this code which is
+        // after the code for the body actually belongs to the loop
+        // statement and not the body.
+        CodeForStatementPosition(node);
+        VisitAndSpill(node->next());
+        loop.Jump();
+      }
+    }
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -1918,12 +1927,12 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void CodeGenerator::VisitTryCatch(TryCatch* node) {
+void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ TryCatch");
+  Comment cmnt(masm_, "[ TryCatchStatement");
   CodeForStatementPosition(node);
 
   JumpTarget try_block;
@@ -2043,12 +2052,12 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 }
 
 
-void CodeGenerator::VisitTryFinally(TryFinally* node) {
+void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ TryFinally");
+  Comment cmnt(masm_, "[ TryFinallyStatement");
   CodeForStatementPosition(node);
 
   // State: Used to keep track of reason for entering the finally

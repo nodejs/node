@@ -264,6 +264,16 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
 }
 
 
+void GlobalHandles::IterateWeakRoots(WeakReferenceGuest f,
+                                     WeakReferenceCallback callback) {
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    if (current->IsWeak() && current->callback() == callback) {
+      f(current->object_, current->parameter());
+    }
+  }
+}
+
+
 void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
   for (Node* current = head_; current != NULL; current = current->next()) {
     if (current->state_ == Node::WEAK) {

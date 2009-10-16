@@ -59,7 +59,7 @@ function listener(event, exec_state, event_data, data) {
   try {
   if (event == Debug.DebugEvent.Break) {
     // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
+    var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
 
     // Test some illegal clearbreakpoint requests.
     var request = '{' + base_request + '}'

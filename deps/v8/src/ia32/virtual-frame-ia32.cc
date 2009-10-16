@@ -161,15 +161,16 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
 
-  // If positive we have to adjust the stack pointer.
-  int delta = end - stack_pointer_;
-  if (delta > 0) {
-    stack_pointer_ = end;
-    __ sub(Operand(esp), Immediate(delta * kPointerSize));
-  }
-
+  // Emit normal 'push' instructions for elements above stack pointer
+  // and use mov instructions if we are below stack pointer.
   for (int i = start; i <= end; i++) {
-    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+    if (!elements_[i].is_synced()) {
+      if (i <= stack_pointer_) {
+        SyncElementBelowStackPointer(i);
+      } else {
+        SyncElementByPushing(i);
+      }
+    }
   }
 }
 
@@ -454,14 +455,16 @@ void VirtualFrame::Enter() {
   Comment cmnt(masm(), "[ Enter JS frame");
 
 #ifdef DEBUG
-  // Verify that edi contains a JS function.  The following code
-  // relies on eax being available for use.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ Check(not_zero,
-           "VirtualFrame::Enter - edi is not a function (smi check).");
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
-  __ Check(equal,
-           "VirtualFrame::Enter - edi is not a function (map check).");
+  if (FLAG_debug_code) {
+    // Verify that edi contains a JS function.  The following code
+    // relies on eax being available for use.
+    __ test(edi, Immediate(kSmiTagMask));
+    __ Check(not_zero,
+             "VirtualFrame::Enter - edi is not a function (smi check).");
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
+    __ Check(equal,
+             "VirtualFrame::Enter - edi is not a function (map check).");
+  }
 #endif
 
   EmitPush(ebp);

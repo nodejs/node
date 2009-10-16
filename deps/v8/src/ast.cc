@@ -91,20 +91,6 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-#ifdef DEBUG
-
-const char* LoopStatement::OperatorString() const {
-  switch (type()) {
-    case DO_LOOP: return "DO";
-    case FOR_LOOP: return "FOR";
-    case WHILE_LOOP: return "WHILE";
-  }
-  return NULL;
-}
-
-#endif  // DEBUG
-
-
 Token::Value Assignment::binary_op() const {
   switch (op_) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
@@ -185,6 +171,13 @@ void TargetCollector::AddTarget(BreakTarget* target) {
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
+
+
+void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
+  for (int i = 0; i < declarations->length(); i++) {
+    Visit(declarations->at(i));
+  }
+}
 
 
 void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {

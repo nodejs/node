@@ -44,7 +44,10 @@ function safeEval(code) {
   }
 }
 
-function testArguments(dcp, arguments, success) {
+function testArguments(exec_state, arguments, success) {
+  // Get the debug command processor in paused state.
+  var dcp = exec_state.debugCommandProcessor(false);
+
   // Generate request with the supplied arguments
   var request;
   if (arguments) {
@@ -65,25 +68,23 @@ function testArguments(dcp, arguments, success) {
 function listener(event, exec_state, event_data, data) {
   try {
   if (event == Debug.DebugEvent.Break) {
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
 
     // Test simple continue request.
-    testArguments(dcp, void 0, true);
+    testArguments(exec_state, void 0, true);
 
     // Test some illegal continue requests.
-    testArguments(dcp, '{"stepaction":"maybe"}', false);
-    testArguments(dcp, '{"stepcount":-1}', false);
+    testArguments(exec_state, '{"stepaction":"maybe"}', false);
+    testArguments(exec_state, '{"stepcount":-1}', false);
 
     // Test some legal continue requests.
-    testArguments(dcp, '{"stepaction":"in"}', true);
-    testArguments(dcp, '{"stepaction":"min"}', true);
-    testArguments(dcp, '{"stepaction":"next"}', true);
-    testArguments(dcp, '{"stepaction":"out"}', true);
-    testArguments(dcp, '{"stepcount":1}', true);
-    testArguments(dcp, '{"stepcount":10}', true);
-    testArguments(dcp, '{"stepcount":"10"}', true);
-    testArguments(dcp, '{"stepaction":"next","stepcount":10}', true);
+    testArguments(exec_state, '{"stepaction":"in"}', true);
+    testArguments(exec_state, '{"stepaction":"min"}', true);
+    testArguments(exec_state, '{"stepaction":"next"}', true);
+    testArguments(exec_state, '{"stepaction":"out"}', true);
+    testArguments(exec_state, '{"stepcount":1}', true);
+    testArguments(exec_state, '{"stepcount":10}', true);
+    testArguments(exec_state, '{"stepcount":"10"}', true);
+    testArguments(exec_state, '{"stepaction":"next","stepcount":10}', true);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -108,6 +109,6 @@ function g() {
 Debug.setBreakPoint(g, 0, 0);
 g();
 
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete, "listener did not run to completion");
-assertFalse(exception, "exception in listener")

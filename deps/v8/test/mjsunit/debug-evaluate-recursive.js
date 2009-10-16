@@ -44,7 +44,10 @@ function safeEval(code) {
   }
 }
 
-function testRequest(dcp, arguments, success, result) {
+function testRequest(exec_state, arguments, success, result) {
+  // Get the debug command processor in paused state.
+  var dcp = exec_state.debugCommandProcessor(false);
+
   // Generate request with the supplied arguments.
   var request;
   if (arguments) {
@@ -74,23 +77,20 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(1, exec_state.frame(0).evaluate('f()', true).value());
       assertEquals(2, exec_state.frame(0).evaluate('g()', true).value());
 
-      // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor();
-
       // Call functions with break using the JSON protocol. Tests that argument
       // disable_break is default true.
-      testRequest(dcp, '{"expression":"f()"}', true, 1);
-      testRequest(dcp, '{"expression":"f()","frame":0}',  true, 1);
-      testRequest(dcp, '{"expression":"g()"}', true, 2);
-      testRequest(dcp, '{"expression":"g()","frame":0}',  true, 2);
+      testRequest(exec_state, '{"expression":"f()"}', true, 1);
+      testRequest(exec_state, '{"expression":"f()","frame":0}',  true, 1);
+      testRequest(exec_state, '{"expression":"g()"}', true, 2);
+      testRequest(exec_state, '{"expression":"g()","frame":0}',  true, 2);
 
       // Call functions with break using the JSON protocol. Tests passing
       // argument disable_break is default true.
-      testRequest(dcp, '{"expression":"f()","disable_break":true}', true, 1);
-      testRequest(dcp, '{"expression":"f()","frame":0,"disable_break":true}',
+      testRequest(exec_state, '{"expression":"f()","disable_break":true}', true, 1);
+      testRequest(exec_state, '{"expression":"f()","frame":0,"disable_break":true}',
                   true, 1);
-      testRequest(dcp, '{"expression":"g()","disable_break":true}', true, 2);
-      testRequest(dcp, '{"expression":"g()","frame":0,"disable_break":true}',
+      testRequest(exec_state, '{"expression":"g()","disable_break":true}', true, 2);
+      testRequest(exec_state, '{"expression":"g()","frame":0,"disable_break":true}',
                   true, 2);
 
       // Indicate that all was processed.
@@ -146,9 +146,9 @@ Debug.setBreakPoint(f, 2, 0);
 // Cause a debug break event.
 debugger;
 
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete);
-assertFalse(exception, "exception in listener")
 
 // Remove the debug event listener.
 Debug.setListener(null);
@@ -161,7 +161,7 @@ Debug.setBreakPoint(f, 2, 0);
 
 debugger;
 
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete);
-assertFalse(exception, "exception in listener")
 assertEquals(2, break_count);

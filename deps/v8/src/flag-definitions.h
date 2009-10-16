@@ -96,7 +96,7 @@ private:
 //
 #define FLAG FLAG_FULL
 
-// assembler-ia32.cc / assembler-arm.cc
+// assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
             "generate extra code (comments, assertions) for debugging")
 DEFINE_bool(emit_branch_hints, false, "emit branch hints")
@@ -104,6 +104,16 @@ DEFINE_bool(push_pop_elimination, true,
             "eliminate redundant push/pops in assembly code")
 DEFINE_bool(print_push_pop_elimination, false,
             "print elimination of redundant push/pops in assembly code")
+DEFINE_bool(enable_sse2, true,
+            "enable use of SSE2 instructions if available")
+DEFINE_bool(enable_sse3, true,
+            "enable use of SSE3 instructions if available")
+DEFINE_bool(enable_cmov, true,
+            "enable use of CMOV instruction if available")
+DEFINE_bool(enable_rdtsc, true,
+            "enable use of RDTSC instruction if available")
+DEFINE_bool(enable_sahf, true,
+            "enable use of SAHF instruction if available (X64 only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
@@ -132,7 +142,11 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 // compiler.cc
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
-           "Minimum length for automatic enable preparsing")
+           "minimum length for automatic enable preparsing")
+DEFINE_bool(fast_compiler, true,
+            "use the fast-mode compiler for some top-level code")
+DEFINE_bool(trace_bailout, false,
+            "print reasons for failing to use fast compilation")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -263,6 +277,9 @@ DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
+DEFINE_bool(print_json_ast, false, "print source AST as JSON")
+DEFINE_bool(print_builtin_json_ast, false,
+            "print source AST for builtins as JSON")
 DEFINE_bool(trace_calls, false, "trace calls")
 DEFINE_bool(trace_builtin_calls, false, "trace builtins calls")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
@@ -333,6 +350,7 @@ DEFINE_bool(log_gc, false,
 DEFINE_bool(log_handles, false, "Log global handle events.")
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
+DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")
 DEFINE_bool(compress_log, false,
             "Compress log to save space (makes log less human-readable).")
 DEFINE_bool(prof, false,

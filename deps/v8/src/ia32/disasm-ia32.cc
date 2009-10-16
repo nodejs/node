@@ -124,6 +124,14 @@ static const char* set_conditional_mnem[] = {
 };
 
 
+static const char* conditional_move_mnem[] = {
+  /*0*/ "cmovo", "cmovno", "cmovc", "cmovnc",
+  /*4*/ "cmovz", "cmovnz", "cmovna", "cmova",
+  /*8*/ "cmovs", "cmovns", "cmovpe", "cmovpo",
+  /*12*/ "cmovl", "cmovnl", "cmovng", "cmovg"
+};
+
+
 enum InstructionType {
   NO_INSTR,
   ZERO_OPERANDS_INSTR,
@@ -311,6 +319,7 @@ class DisassemblerIA32 {
   int JumpConditional(byte* data, const char* comment);
   int JumpConditionalShort(byte* data, const char* comment);
   int SetCC(byte* data);
+  int CMov(byte* data);
   int FPUInstruction(byte* data);
   void AppendToBuffer(const char* format, ...);
 
@@ -615,6 +624,16 @@ int DisassemblerIA32::SetCC(byte* data) {
 
 
 // Returns number of bytes used, including *data.
+int DisassemblerIA32::CMov(byte* data) {
+  assert(*data == 0x0F);
+  byte cond = *(data + 1) & 0x0F;
+  const char* mnem = conditional_move_mnem[cond];
+  int op_size = PrintOperands(mnem, REG_OPER_OP_ORDER, data + 2);
+  return 2 + op_size;  // includes 0x0F
+}
+
+
+// Returns number of bytes used, including *data.
 int DisassemblerIA32::FPUInstruction(byte* data) {
   byte b1 = *data;
   byte b2 = *(data + 1);
@@ -861,6 +880,8 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += PrintOperands(f0mnem, REG_OPER_OP_ORDER, data);
           } else if ((f0byte & 0xF0) == 0x90) {
             data += SetCC(data);
+          } else if ((f0byte & 0xF0) == 0x40) {
+            data += CMov(data);
           } else {
             data += 2;
             if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
@@ -956,6 +977,19 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("mov_w ");
           data += PrintRightOperand(data);
           AppendToBuffer(",%s", NameOfCPURegister(regop));
+        } else if (*data == 0x0F) {
+          data++;
+          if (*data == 0x2F) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("comisd %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
+          } else {
+            UnimplementedInstruction();
+          }
         } else {
           UnimplementedInstruction();
         }

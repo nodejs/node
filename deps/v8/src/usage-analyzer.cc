@@ -159,14 +159,25 @@ void UsageComputer::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void UsageComputer::VisitLoopStatement(LoopStatement* node) {
-  if (node->init() != NULL)
-    Visit(node->init());
+void UsageComputer::VisitDoWhileStatement(DoWhileStatement* node) {
+  WeightScaler ws(this, 10.0);
+  Read(node->cond());
+  Visit(node->body());
+}
+
+
+void UsageComputer::VisitWhileStatement(WhileStatement* node) {
+  WeightScaler ws(this, 10.0);
+  Read(node->cond());
+  Visit(node->body());
+}
+
+
+void UsageComputer::VisitForStatement(ForStatement* node) {
+  if (node->init() != NULL) Visit(node->init());
   { WeightScaler ws(this, 10.0);  // executed in each iteration
-    if (node->cond() != NULL)
-      Read(node->cond());
-    if (node->next() != NULL)
-      Visit(node->next());
+    if (node->cond() != NULL) Read(node->cond());
+    if (node->next() != NULL) Visit(node->next());
     Visit(node->body());
   }
 }
@@ -180,7 +191,7 @@ void UsageComputer::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void UsageComputer::VisitTryCatch(TryCatch* node) {
+void UsageComputer::VisitTryCatchStatement(TryCatchStatement* node) {
   Visit(node->try_block());
   { WeightScaler ws(this, 0.25);
     Write(node->catch_var());
@@ -189,7 +200,7 @@ void UsageComputer::VisitTryCatch(TryCatch* node) {
 }
 
 
-void UsageComputer::VisitTryFinally(TryFinally* node) {
+void UsageComputer::VisitTryFinallyStatement(TryFinallyStatement* node) {
   Visit(node->try_block());
   Visit(node->finally_block());
 }

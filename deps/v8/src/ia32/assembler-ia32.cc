@@ -1166,6 +1166,19 @@ void Assembler::shr_cl(Register dst) {
 }
 
 
+void Assembler::subb(const Operand& op, int8_t imm8) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (op.is_reg(eax)) {
+    EMIT(0x2c);
+  } else {
+    EMIT(0x80);
+    emit_operand(ebp, op);  // ebp == 5
+  }
+  EMIT(imm8);
+}
+
+
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

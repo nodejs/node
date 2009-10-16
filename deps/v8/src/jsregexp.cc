@@ -45,13 +45,10 @@
 
 #ifdef V8_NATIVE_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/macro-assembler-x64.h"
 #include "x64/regexp-macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/macro-assembler-arm.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #else
 #error Unsupported target architecture.

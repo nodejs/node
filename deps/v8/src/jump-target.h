@@ -28,6 +28,8 @@
 #ifndef V8_JUMP_TARGET_H_
 #define V8_JUMP_TARGET_H_
 
+#include "macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 

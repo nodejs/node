@@ -38,6 +38,7 @@
 #include "serialize.h"
 #include "stub-cache.h"
 #include "v8threads.h"
+#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -612,12 +613,23 @@ void ExternalReferenceTable::PopulateTable() {
   }
 
   // Top addresses
-  const char* top_address_format = "Top::get_address_from_id(%i)";
-  size_t top_format_length = strlen(top_address_format);
+  const char* top_address_format = "Top::%s";
+
+  const char* AddressNames[] = {
+#define C(name) #name,
+    TOP_ADDRESS_LIST(C)
+    TOP_ADDRESS_LIST_PROF(C)
+    NULL
+#undef C
+  };
+
+  size_t top_format_length = strlen(top_address_format) - 2;
   for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
-    Vector<char> name = Vector<char>::New(top_format_length + 1);
+    const char* address_name = AddressNames[i];
+    Vector<char> name =
+        Vector<char>::New(top_format_length + strlen(address_name) + 1);
     const char* chars = name.start();
-    OS::SNPrintF(name, top_address_format, i);
+    OS::SNPrintF(name, top_address_format, address_name);
     Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
   }
 

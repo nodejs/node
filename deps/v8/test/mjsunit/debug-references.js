@@ -66,14 +66,14 @@ function testRequest(dcp, arguments, success, count) {
   } else {
     assertFalse(response.success, request + ' -> ' + response.message);
   }
-  assertFalse(response.running, request + ' -> expected not running');
+  assertEquals(response.running, dcp.isRunning(), request + ' -> expected not running');
 }
 
 function listener(event, exec_state, event_data, data) {
   try {
   if (event == Debug.DebugEvent.Break) {
     // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
+    var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
 
     // Test some illegal references requests.
     testRequest(dcp, void 0, false);

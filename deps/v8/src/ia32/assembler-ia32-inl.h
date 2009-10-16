@@ -52,7 +52,7 @@ void RelocInfo::apply(intptr_t delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // relocate entry
-  } else if (rmode_ == JS_RETURN && IsCallInstruction()) {
+  } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
@@ -114,36 +114,36 @@ Address* RelocInfo::target_reference_address() {
 
 
 Address RelocInfo::call_address() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return Assembler::target_address_at(pc_ + 1);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   Assembler::set_target_address_at(pc_ + 1, target);
 }
 
 
 Object* RelocInfo::call_object() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return *call_object_address();
 }
 
 
 Object** RelocInfo::call_object_address() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return reinterpret_cast<Object**>(pc_ + 1);
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   *call_object_address() = target;
 }
 
 
-bool RelocInfo::IsCallInstruction() {
+bool RelocInfo::IsPatchedReturnSequence() {
   return *pc_ == 0xE8;
 }
 

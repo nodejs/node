@@ -132,15 +132,19 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
+#ifndef V8_TARGET_ARCH_X64
+  // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = Heap::NumberFromInt32(Smi::kMinValue - 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
+#endif
 
-  value = Heap::NumberFromInt32(Smi::kMaxValue + 1);
+  value = Heap::NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
-  CHECK_EQ(static_cast<double>(Smi::kMaxValue + 1), value->Number());
+  CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
+           value->Number());
 
   // nan oddball checks
   CHECK(Heap::nan_value()->IsNumber());
@@ -640,8 +644,9 @@ TEST(JSArray) {
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(0), name);
 
-  // Set array length with larger than smi value.
-  Object* length = Heap::NumberFromInt32(Smi::kMaxValue + 1);
+// Set array length with larger than smi value.
+  Object* length =
+      Heap::NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   array->SetElementsLength(length);
 
   uint32_t int_length = 0;

@@ -41,7 +41,7 @@ function g() {
 Debug = debug.Debug
 
 listenerCallCount = 0;
-listenerExceptionCount = 0;
+listenerExceptions = [];
 
 
 function listener(event, exec_state, event_data, data) {
@@ -54,8 +54,8 @@ function listener(event, exec_state, event_data, data) {
     assertEquals(0, debug.next_handle_, "Mirror cache not cleared");
     assertEquals(0, debug.mirror_cache_.length, "Mirror cache not cleared");
 
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
+    // Get the debug command processor in paused state.
+    var dcp = exec_state.debugCommandProcessor(false);
 
     // Make a backtrace request to create some mirrors.
     var json;
@@ -68,7 +68,7 @@ function listener(event, exec_state, event_data, data) {
   }
   } catch (e) {
     print(e);
-    listenerExceptionCount++;
+    listenerExceptions.push(e);
   };
 };
 
@@ -79,7 +79,7 @@ Debug.setListener(listener);
 debugger;
 debugger;
 
+assertEquals([], listenerExceptions, "Exception in listener");
 // Make sure that the debug event listener vas invoked.
 assertEquals(2, listenerCallCount, "Listener not called");
-assertEquals(0, listenerExceptionCount, "Exception in listener");
 

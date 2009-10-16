@@ -38,11 +38,6 @@ Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 
-// -----------------------------------------------------------------------------
-
-Immediate::Immediate(Smi* value) {
-  value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
-}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -199,7 +194,7 @@ void RelocInfo::apply(intptr_t delta) {
     Memory::Address_at(pc_) += delta;
   } else if (IsCodeTarget(rmode_)) {
     Memory::int32_at(pc_) -= delta;
-  } else if (rmode_ == JS_RETURN && IsCallInstruction()) {
+  } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     Memory::int32_at(pc_ + 1) -= delta;  // relocate entry
@@ -267,45 +262,49 @@ void RelocInfo::set_target_object(Object* target) {
 }
 
 
-bool RelocInfo::IsCallInstruction() {
+bool RelocInfo::IsPatchedReturnSequence() {
   // The recognized call sequence is:
   //  movq(kScratchRegister, immediate64); call(kScratchRegister);
   // It only needs to be distinguished from a return sequence
   //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
+#ifdef ENABLE_DEBUGGER_SUPPORT
   return pc_[10] != 0xCC;
+#else
+  return false;
+#endif
 }
 
 
 Address RelocInfo::call_address() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return Memory::Address_at(
       pc_ + Assembler::kRealPatchReturnSequenceAddressOffset);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   Memory::Address_at(pc_ + Assembler::kRealPatchReturnSequenceAddressOffset) =
       target;
 }
 
 
 Object* RelocInfo::call_object() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return *call_object_address();
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   *call_object_address() = target;
 }
 
 
 Object** RelocInfo::call_object_address() {
-  ASSERT(IsCallInstruction());
+  ASSERT(IsPatchedReturnSequence());
   return reinterpret_cast<Object**>(
       pc_ + Assembler::kPatchReturnSequenceAddressOffset);
 }

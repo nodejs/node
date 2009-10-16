@@ -80,6 +80,27 @@ static inline void CheckEqualsHelper(const char* file, int line,
   }
 }
 
+// Helper function used by the CHECK_EQ function when given int64_t
+// arguments.  Should not be called directly.
+static inline void CheckEqualsHelper(const char* file, int line,
+                                     const char* expected_source,
+                                     int64_t expected,
+                                     const char* value_source,
+                                     int64_t value) {
+  if (expected != value) {
+    // Print int64_t values in hex, as two int32s,
+    // to avoid platform-dependencies.
+    V8_Fatal(file, line,
+             "CHECK_EQ(%s, %s) failed\n#"
+             "   Expected: 0x%08x%08x\n#   Found: 0x%08x%08x",
+             expected_source, value_source,
+             static_cast<uint32_t>(expected >> 32),
+             static_cast<uint32_t>(expected),
+             static_cast<uint32_t>(value >> 32),
+             static_cast<uint32_t>(value));
+  }
+}
+
 
 // Helper function used by the CHECK_NE function when given int
 // arguments.  Should not be called directly.

@@ -114,7 +114,8 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
     third_party = [current_path + ['third_party', t] for t in self.Ls(join(self.root, 'third_party'))]
     tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
-    all_tests = mjsunit + regress + bugs + third_party + tools
+    compiler = [current_path + ['compiler', t] for t in self.Ls(join(self.root, 'compiler'))]
+    all_tests = mjsunit + regress + bugs + third_party + tools + compiler
     result = []
     for test in all_tests:
       if self.Contains(path, test):

@@ -59,14 +59,15 @@ function testRequest(dcp, arguments, success, result) {
   } else {
     assertFalse(response.success, request + ' -> ' + response.message);
   }
-  assertFalse(response.running, request + ' -> expected not running');
+  assertEquals(response.running, "unspecified_running_state",
+               request + ' -> expected not running');
 }
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       // Get the debug command processor.
-      var dcp = exec_state.debugCommandProcessor();
+      var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
 
       // Test some illegal evaluate requests.
       testRequest(dcp, void 0, false);
@@ -112,6 +113,6 @@ a = 1;
 Debug.setBreakPoint(f, 2, 0);
 g();
 
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete, "listener did not run to completion");
-assertFalse(exception, "exception in listener")

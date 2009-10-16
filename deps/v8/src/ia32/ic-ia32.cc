@@ -298,7 +298,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ shl(eax, kSmiTagSize);
   __ ret(0);
 
-
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
@@ -424,14 +423,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edx, eax);  // Save the value.
   __ sar(eax, kSmiTagSize);  // Untag the value.
   {  // Clamp the value to [0..255].
-    Label done, is_negative;
+    Label done;
     __ test(eax, Immediate(0xFFFFFF00));
     __ j(zero, &done);
-    __ j(negative, &is_negative);
-    __ mov(eax, Immediate(255));
-    __ jmp(&done);
-    __ bind(&is_negative);
-    __ xor_(eax, Operand(eax));  // Clear eax.
+    __ setcc(negative, eax);  // 1 if negative, 0 if positive.
+    __ dec_b(eax);  // 0 if negative, 255 if positive.
     __ bind(&done);
   }
   __ mov(ecx, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
@@ -457,7 +453,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(FieldOperand(edx, JSArray::kLengthOffset), ebx);
   __ sub(Operand(ebx), Immediate(1 << kSmiTagSize));  // decrement ebx again
   __ jmp(&fast);
-
 
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode; if it is the

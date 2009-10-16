@@ -708,7 +708,7 @@ void Assembler::shift_32(Register dst, int subcode) {
 void Assembler::shift_32(Register dst, Immediate shift_amount, int subcode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  ASSERT(is_uint5(shift_amount.value_));  // illegal shift count
   if (shift_amount.value_ == 1) {
     emit_optional_rex_32(dst);
     emit(0xD1);
@@ -794,6 +794,12 @@ void Assembler::call(const Operand& op) {
 }
 
 
+void Assembler::clc() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF8);
+}
+
 void Assembler::cdq() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -802,6 +808,11 @@ void Assembler::cdq() {
 
 
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
+  if (cc == always) {
+    movq(dst, src);
+  } else if (cc == never) {
+    return;
+  }
   // No need to check CpuInfo for CMOV support, it's a required part of the
   // 64-bit architecture.
   ASSERT(cc >= 0);  // Use mov for unconditional moves.
@@ -816,6 +827,11 @@ void Assembler::cmovq(Condition cc, Register dst, Register src) {
 
 
 void Assembler::cmovq(Condition cc, Register dst, const Operand& src) {
+  if (cc == always) {
+    movq(dst, src);
+  } else if (cc == never) {
+    return;
+  }
   ASSERT(cc >= 0);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -828,6 +844,11 @@ void Assembler::cmovq(Condition cc, Register dst, const Operand& src) {
 
 
 void Assembler::cmovl(Condition cc, Register dst, Register src) {
+  if (cc == always) {
+    movl(dst, src);
+  } else if (cc == never) {
+    return;
+  }
   ASSERT(cc >= 0);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -840,6 +861,11 @@ void Assembler::cmovl(Condition cc, Register dst, Register src) {
 
 
 void Assembler::cmovl(Condition cc, Register dst, const Operand& src) {
+  if (cc == always) {
+    movl(dst, src);
+  } else if (cc == never) {
+    return;
+  }
   ASSERT(cc >= 0);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -909,6 +935,27 @@ void Assembler::decl(const Operand& dst) {
   last_pc_ = pc_;
   emit_optional_rex_32(dst);
   emit(0xFF);
+  emit_operand(1, dst);
+}
+
+
+void Assembler::decb(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst);
+  }
+  emit(0xFE);
+  emit_modrm(0x1, dst);
+}
+
+
+void Assembler::decb(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFE);
   emit_operand(1, dst);
 }
 
@@ -1037,6 +1084,12 @@ void Assembler::int3() {
 
 
 void Assembler::j(Condition cc, Label* L) {
+  if (cc == always) {
+    jmp(L);
+    return;
+  } else if (cc == never) {
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(is_uint4(cc));
@@ -1373,10 +1426,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
     // There is no possible reason to store a heap pointer without relocation
     // info, so it must be a smi.
     ASSERT(value->IsSmi());
-    // Smis never have more than 32 significant bits, but they might
-    // have garbage in the high bits.
-    movq(dst,
-         Immediate(static_cast<int32_t>(reinterpret_cast<intptr_t>(*value))));
+    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE);
   } else {
     EnsureSpace ensure_space(this);
     last_pc_ = pc_;
@@ -1650,22 +1700,6 @@ void Assembler::pushfq() {
 }
 
 
-void Assembler::rcl(Register dst, uint8_t imm8) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  ASSERT(is_uint6(imm8));  // illegal shift count
-  if (imm8 == 1) {
-    emit_rex_64(dst);
-    emit(0xD1);
-    emit_modrm(0x2, dst);
-  } else {
-    emit_rex_64(dst);
-    emit(0xC1);
-    emit_modrm(0x2, dst);
-    emit(imm8);
-  }
-}
-
 void Assembler::rdtsc() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1689,6 +1723,10 @@ void Assembler::ret(int imm16) {
 
 
 void Assembler::setcc(Condition cc, Register reg) {
+  if (cc > last_condition) {
+    movb(reg, Immediate(cc == always ? 1 : 0));
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(is_uint4(cc));
@@ -1747,6 +1785,18 @@ void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
 
 void Assembler::store_rax(ExternalReference ref) {
   store_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
+void Assembler::testb(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() > 3 || src.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  }
+  emit(0x84);
+  emit_modrm(dst, src);
 }
 
 

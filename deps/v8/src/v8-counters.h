@@ -52,8 +52,8 @@ namespace internal {
   HT(variable_allocation, V8.VariableAllocation)                      \
   HT(ast_optimization, V8.ASTOptimization)                            \
   HT(code_generation, V8.CodeGeneration)                              \
-  HT(deferred_code_generation, V8.DeferredCodeGeneration)             \
-  HT(code_creation, V8.CodeCreation)
+  HT(deferred_code_generation, V8.DeferredCodeGeneration)
+
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
@@ -150,7 +150,9 @@ namespace internal {
   SC(reloc_info_count, V8.RelocInfoCount)                           \
   SC(reloc_info_size, V8.RelocInfoSize)                             \
   SC(zone_segment_bytes, V8.ZoneSegmentBytes)                       \
-  SC(compute_entry_frame, V8.ComputeEntryFrame)
+  SC(compute_entry_frame, V8.ComputeEntryFrame)                     \
+  SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)          \
+  SC(generic_binary_stub_calls_regs, V8.GenericBinaryStubCallsRegs)
 
 
 // This file contains all the v8 counters that are in use.

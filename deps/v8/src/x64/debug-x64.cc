@@ -39,10 +39,7 @@ namespace internal {
 
 bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
-  // 11th byte of patch is 0x49 (REX.WB byte of computed jump/call to r10),
-  // 11th byte of JS return is 0xCC (int3).
-  ASSERT(*(rinfo->pc() + 10) == 0x49 || *(rinfo->pc() + 10) == 0xCC);
-  return (*(rinfo->pc() + 10) != 0xCC);
+  return rinfo->IsPatchedReturnSequence();
 }
 
 #define __ ACCESS_MASM(masm)

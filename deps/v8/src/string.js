@@ -680,6 +680,18 @@ function StringToLocaleUpperCase() {
   return %StringToUpperCase(ToString(this));
 }
 
+// ES5, 15.5.4.20
+function StringTrim() {
+  return %StringTrim(ToString(this), true, true);
+}
+
+function StringTrimLeft() {
+  return %StringTrim(ToString(this), true, false);
+}
+
+function StringTrimRight() {
+  return %StringTrim(ToString(this), false, true);
+}
 
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
@@ -855,6 +867,9 @@ function SetupString() {
     "toLocaleLowerCase", StringToLocaleLowerCase,
     "toUpperCase", StringToUpperCase,
     "toLocaleUpperCase", StringToLocaleUpperCase,
+    "trim", StringTrim,
+    "trimLeft", StringTrimLeft,
+    "trimRight", StringTrimRight,
     "link", StringLink,
     "anchor", StringAnchor,
     "fontcolor", StringFontcolor,

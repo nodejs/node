@@ -1794,7 +1794,6 @@ class Sampler::PlatformData : public Malloced {
         context.ContextFlags = CONTEXT_FULL;
         if (GetThreadContext(profiled_thread_, &context) != 0) {
 #if V8_HOST_ARCH_X64
-          UNIMPLEMENTED();
           sample.pc = context.Rip;
           sample.sp = context.Rsp;
           sample.fp = context.Rbp;

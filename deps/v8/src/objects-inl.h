@@ -744,15 +744,17 @@ int Smi::value() {
 
 Smi* Smi::FromInt(int value) {
   ASSERT(Smi::IsValid(value));
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
   intptr_t tagged_value =
-      (static_cast<intptr_t>(value) << kSmiTagSize) | kSmiTag;
+      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
   return reinterpret_cast<Smi*>(tagged_value);
 }
 
 
 Smi* Smi::FromIntptr(intptr_t value) {
   ASSERT(Smi::IsValid(value));
-  return reinterpret_cast<Smi*>((value << kSmiTagSize) | kSmiTag);
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
+  return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
 }
 
 
@@ -776,7 +778,7 @@ int Failure::requested() const {
       kFailureTypeTagSize + kSpaceTagSize - kObjectAlignmentBits;
   STATIC_ASSERT(kShiftBits >= 0);
   ASSERT(type() == RETRY_AFTER_GC);
-  return value() >> kShiftBits;
+  return static_cast<int>(value() >> kShiftBits);
 }
 
 
@@ -802,29 +804,31 @@ Failure* Failure::OutOfMemoryException() {
 }
 
 
-int Failure::value() const {
-  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kFailureTagSize);
+intptr_t Failure::value() const {
+  return reinterpret_cast<intptr_t>(this) >> kFailureTagSize;
 }
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
   // Assert that the space encoding fits in the three bytes allotted for it.
   ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  int requested = requested_bytes >> kObjectAlignmentBits;
+  intptr_t requested = requested_bytes >> kObjectAlignmentBits;
+  int tag_bits = kSpaceTagSize + kFailureTypeTagSize;
+  if (((requested << tag_bits) >> tag_bits) != requested) {
+    // No room for entire requested size in the bits. Round down to
+    // maximally representable size.
+    requested = static_cast<intptr_t>(
+                    (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
+  }
   int value = (requested << kSpaceTagSize) | NEW_SPACE;
-  ASSERT(value >> kSpaceTagSize == requested);
-  ASSERT(Smi::IsValid(value));
-  ASSERT(value == ((value << kFailureTypeTagSize) >> kFailureTypeTagSize));
-  ASSERT(Smi::IsValid(value << kFailureTypeTagSize));
   return Construct(RETRY_AFTER_GC, value);
 }
 
 
-Failure* Failure::Construct(Type type, int value) {
-  int info = (value << kFailureTypeTagSize) | type;
+Failure* Failure::Construct(Type type, intptr_t value) {
+  intptr_t info = (static_cast<intptr_t>(value) << kFailureTypeTagSize) | type;
   ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
-  return reinterpret_cast<Failure*>(
-      (static_cast<intptr_t>(info) << kFailureTagSize) | kFailureTag);
+  return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
 }
 
 
@@ -832,6 +836,11 @@ bool Smi::IsValid(intptr_t value) {
 #ifdef DEBUG
   bool in_range = (value >= kMinValue) && (value <= kMaxValue);
 #endif
+
+#ifdef V8_TARGET_ARCH_X64
+  // To be representable as a long smi, the value must be a 32-bit integer.
+  bool result = (value == static_cast<int32_t>(value));
+#else
   // To be representable as an tagged small integer, the two
   // most-significant bits of 'value' must be either 00 or 11 due to
   // sign-extension. To check this we add 01 to the two
@@ -843,20 +852,8 @@ bool Smi::IsValid(intptr_t value) {
   // in fact doesn't work correctly with gcc4.1.1 in some cases: The
   // compiler may produce undefined results in case of signed integer
   // overflow. The computation must be done w/ unsigned ints.
-  bool result =
-      ((static_cast<unsigned int>(value) + 0x40000000U) & 0x80000000U) == 0;
-  ASSERT(result == in_range);
-  return result;
-}
-
-
-bool Smi::IsIntptrValid(intptr_t value) {
-#ifdef DEBUG
-  bool in_range = (value >= kMinValue) && (value <= kMaxValue);
+  bool result = (static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U);
 #endif
-  // See Smi::IsValid(int) for description.
-  bool result =
-      ((static_cast<uintptr_t>(value) + 0x40000000U) < 0x80000000U);
   ASSERT(result == in_range);
   return result;
 }

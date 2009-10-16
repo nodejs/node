@@ -28,6 +28,8 @@
 #include "v8.h"
 
 #include "heap-profiler.h"
+#include "frames-inl.h"
+#include "global-handles.h"
 #include "string-stream.h"
 
 namespace v8 {
@@ -327,6 +329,11 @@ void ConstructorHeapProfile::PrintStats() {
 }
 
 
+static const char* GetConstructorName(const char* name) {
+  return name[0] != '\0' ? name : "(anonymous)";
+}
+
+
 void JSObjectsCluster::Print(StringStream* accumulator) const {
   ASSERT(!is_null());
   if (constructor_ == FromSpecialCase(ROOTS)) {
@@ -338,7 +345,7 @@ void JSObjectsCluster::Print(StringStream* accumulator) const {
   } else {
     SmartPointer<char> s_name(
         constructor_->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-    accumulator->Add("%s", (*s_name)[0] != '\0' ? *s_name : "(anonymous)");
+    accumulator->Add("%s", GetConstructorName(*s_name));
     if (instance_ != NULL) {
       accumulator->Add(":%p", static_cast<void*>(instance_));
     }
@@ -574,6 +581,23 @@ void HeapProfiler::CollectStats(HeapObject* obj, HistogramInfo* info) {
 }
 
 
+static void StackWeakReferenceCallback(Persistent<Value> object,
+                                       void* trace) {
+  DeleteArray(static_cast<Address*>(trace));
+  object.Dispose();
+}
+
+
+static void PrintProducerStackTrace(Object* obj, void* trace) {
+  if (!obj->IsJSObject()) return;
+  String* constructor = JSObject::cast(obj)->constructor_name();
+  SmartPointer<char> s_name(
+      constructor->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
+  LOG(HeapSampleJSProducerEvent(GetConstructorName(*s_name),
+                                reinterpret_cast<Address*>(trace)));
+}
+
+
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
   LOG(HeapSampleStats(
@@ -616,7 +640,37 @@ void HeapProfiler::WriteSample() {
   js_cons_profile.PrintStats();
   js_retainer_profile.PrintStats();
 
+  GlobalHandles::IterateWeakRoots(PrintProducerStackTrace,
+                                  StackWeakReferenceCallback);
+
   LOG(HeapSampleEndEvent("Heap", "allocated"));
+}
+
+
+bool ProducerHeapProfile::can_log_ = false;
+
+void ProducerHeapProfile::Setup() {
+  can_log_ = true;
+}
+
+void ProducerHeapProfile::RecordJSObjectAllocation(Object* obj) {
+  if (!can_log_ || !FLAG_log_producers) return;
+  int framesCount = 0;
+  for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
+    ++framesCount;
+  }
+  if (framesCount == 0) return;
+  ++framesCount;  // Reserve place for the terminator item.
+  Vector<Address> stack(NewArray<Address>(framesCount), framesCount);
+  int i = 0;
+  for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
+    stack[i++] = it.frame()->pc();
+  }
+  stack[i] = NULL;
+  Handle<Object> handle = GlobalHandles::Create(obj);
+  GlobalHandles::MakeWeak(handle.location(),
+                          static_cast<void*>(stack.start()),
+                          StackWeakReferenceCallback);
 }
 
 

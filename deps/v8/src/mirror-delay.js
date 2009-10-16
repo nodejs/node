@@ -764,7 +764,7 @@ ObjectMirror.prototype.referencedBy = function(opt_max_objects) {
 ObjectMirror.prototype.toText = function() {
   var name;
   var ctor = this.constructorFunction();
-  if (ctor.isUndefined()) {
+  if (!ctor.isFunction()) {
     name = this.className();
   } else {
     name = ctor.name();

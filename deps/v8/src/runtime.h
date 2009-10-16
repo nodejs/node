@@ -152,6 +152,7 @@ namespace internal {
   F(StringSlice, 3, 1) \
   F(StringReplaceRegExpWithString, 4, 1) \
   F(StringMatch, 3, 1) \
+  F(StringTrim, 3, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \

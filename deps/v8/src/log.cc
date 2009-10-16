@@ -934,6 +934,21 @@ void Logger::HeapSampleJSRetainersEvent(
 }
 
 
+void Logger::HeapSampleJSProducerEvent(const char* constructor,
+                                       Address* stack) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
+  LogMessageBuilder msg;
+  msg.Append("heap-js-prod-item,%s", constructor);
+  while (*stack != NULL) {
+    msg.Append(",0x%" V8PRIxPTR, *stack++);
+  }
+  msg.Append("\n");
+  msg.WriteToLogFile();
+#endif
+}
+
+
 void Logger::DebugTag(const char* call_site_tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log) return;

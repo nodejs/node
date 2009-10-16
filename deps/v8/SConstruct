@@ -372,7 +372,8 @@ CCTEST_EXTRA_FLAGS = {
       'CPPDEFINES': ['V8_TARGET_ARCH_IA32']
     },
     'arch:x64': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_X64']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
+      'LINKFLAGS': ['/STACK:2091752']
     },
   }
 }
@@ -473,7 +474,7 @@ SAMPLE_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES': ['V8_TARGET_ARCH_X64'],
-      'LINKFLAGS': ['/MACHINE:X64']
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
     },
     'mode:debug': {
       'CCFLAGS':   ['/Od'],

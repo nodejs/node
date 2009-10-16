@@ -43,20 +43,22 @@ static const int kEvalGlobalGenerations = 1;
 static const int kEvalContextualGenerations = 1;
 static const int kRegExpGenerations = 1;
 #else
+// The number of ScriptGenerations is carefully chosen based on histograms.
+// See issue 458: http://code.google.com/p/v8/issues/detail?id=458
 static const int kScriptGenerations = 5;
 static const int kEvalGlobalGenerations = 2;
 static const int kEvalContextualGenerations = 2;
 static const int kRegExpGenerations = 2;
 #endif
 
-// Initial of each compilation cache table allocated.
+// Initial size of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
-// for each generation of the sub-cache. As the same source code string has
-// different compiled code for scripts and evals. Internally, we use separate
-// sub-caches to avoid getting the wrong kind of result when looking up.
+// for each generation of the sub-cache. Since the same source code string has
+// different compiled code for scripts and evals, we use separate sub-caches
+// for different compilation modes, to avoid retrieving the wrong result.
 class CompilationSubCache {
  public:
   explicit CompilationSubCache(int generations): generations_(generations) {

@@ -618,12 +618,12 @@ void Smi::SmiPrint(StringStream* accumulator) {
 
 
 void Failure::FailurePrint(StringStream* accumulator) {
-  accumulator->Add("Failure(%d)", value());
+  accumulator->Add("Failure(%p)", reinterpret_cast<void*>(value()));
 }
 
 
 void Failure::FailurePrint() {
-  PrintF("Failure(%d)", value());
+  PrintF("Failure(%p)", reinterpret_cast<void*>(value()));
 }
 
 
@@ -4983,7 +4983,8 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->IsCallInstruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
+         rinfo->IsPatchedReturnSequence());
   Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
   Object* old_target = target;
   VisitPointer(&target);
@@ -5009,7 +5010,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
-               it.rinfo()->IsCallInstruction()) {
+               it.rinfo()->IsPatchedReturnSequence()) {
       v->VisitDebugTarget(it.rinfo());
 #endif
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
@@ -5047,7 +5048,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
           desc.reloc_size);
 
   // unbox handles and relocate
-  int delta = instruction_start() - desc.buffer;
+  intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
@@ -6562,6 +6563,10 @@ class RegExpKey : public HashTableKey {
       : string_(string),
         flags_(Smi::FromInt(flags.value())) { }
 
+  // Rather than storing the key in the hash table, a pointer to the
+  // stored value is stored where the key should be.  IsMatch then
+  // compares the search key to the found object, rather than comparing
+  // a key to a key.
   bool IsMatch(Object* obj) {
     FixedArray* val = FixedArray::cast(obj);
     return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
@@ -7221,6 +7226,8 @@ Object* CompilationCacheTable::PutRegExp(String* src,
   CompilationCacheTable* cache =
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(key.Hash());
+  // We store the value in the key slot, and compare the search key
+  // to the stored value with a custon IsMatch function during lookups.
   cache->set(EntryToIndex(entry), value);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();

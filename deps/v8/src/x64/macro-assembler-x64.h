@@ -72,6 +72,18 @@ class MacroAssembler: public Assembler {
                    Register value,
                    Register scratch);
 
+  // Set the remembered set bit for [object+offset].
+  // The value is known to not be a smi.
+  // object is the object being stored into, value is the object being stored.
+  // If offset is zero, then the scratch register contains the array index into
+  // the elements array represented as a Smi.
+  // All registers are clobbered by the operation.
+  void RecordWriteNonSmi(Register object,
+                         int offset,
+                         Register value,
+                         Register scratch);
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
@@ -146,11 +158,12 @@ class MacroAssembler: public Assembler {
 
   // Tag an integer value if possible, or jump the integer value cannot be
   // represented as a smi. Only uses the low 32 bit of the src registers.
+  // NOTICE: Destroys the dst register even if unsuccessful!
   void Integer32ToSmi(Register dst, Register src, Label* on_overflow);
 
   // Adds constant to src and tags the result as a smi.
   // Result must be a valid smi.
-  void Integer64AddToSmi(Register dst, Register src, int constant);
+  void Integer64PlusConstantToSmi(Register dst, Register src, int constant);
 
   // Convert smi to 32-bit integer. I.e., not sign extended into
   // high 32 bits of destination.
@@ -165,37 +178,30 @@ class MacroAssembler: public Assembler {
                                              Register src,
                                              int power);
 
+  // Simple comparison of smis.
+  void SmiCompare(Register dst, Register src);
+  void SmiCompare(Register dst, Smi* src);
+  void SmiCompare(const Operand& dst, Register src);
+  void SmiCompare(const Operand& dst, Smi* src);
+  // Sets sign and zero flags depending on value of smi in register.
+  void SmiTest(Register src);
+
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
 
   // Is the value a tagged smi.
   Condition CheckSmi(Register src);
 
-  // Is the value not a tagged smi.
-  Condition CheckNotSmi(Register src);
-
   // Is the value a positive tagged smi.
   Condition CheckPositiveSmi(Register src);
 
-  // Is the value not a positive tagged smi.
-  Condition CheckNotPositiveSmi(Register src);
-
   // Are both values are tagged smis.
   Condition CheckBothSmi(Register first, Register second);
-
-  // Is one of the values not a tagged smi.
-  Condition CheckNotBothSmi(Register first, Register second);
 
   // Is the value the minimum smi value (since we are using
   // two's complement numbers, negating the value is known to yield
   // a non-smi value).
   Condition CheckIsMinSmi(Register src);
-
-  // Check whether a tagged smi is equal to a constant.
-  Condition CheckSmiEqualsConstant(Register src, int constant);
-
-  // Check whether a tagged smi is greater than or equal to a constant.
-  Condition CheckSmiGreaterEqualsConstant(Register src, int constant);
 
   // Checks whether an 32-bit integer value is a valid for conversion
   // to a smi.
@@ -216,15 +222,9 @@ class MacroAssembler: public Assembler {
   // Jump to label if the value is not a positive tagged smi.
   void JumpIfNotPositiveSmi(Register src, Label* on_not_smi);
 
-  // Jump to label if the value is a tagged smi with value equal
+  // Jump to label if the value, which must be a tagged smi, has value equal
   // to the constant.
-  void JumpIfSmiEqualsConstant(Register src, int constant, Label* on_equals);
-
-  // Jump to label if the value is a tagged smi with value greater than or equal
-  // to the constant.
-  void JumpIfSmiGreaterEqualsConstant(Register src,
-                                      int constant,
-                                      Label* on_equals);
+  void JumpIfSmiEqualsConstant(Register src,  Smi* constant, Label* on_equals);
 
   // Jump if either or both register are not smi values.
   void JumpIfNotBothSmi(Register src1, Register src2, Label* on_not_both_smi);
@@ -239,29 +239,36 @@ class MacroAssembler: public Assembler {
   // the label.
   void SmiTryAddConstant(Register dst,
                          Register src,
-                         int32_t constant,
+                         Smi* constant,
                          Label* on_not_smi_result);
+
+  // Add an integer constant to a tagged smi, giving a tagged smi as result.
+  // No overflow testing on the result is done.
+  void SmiAddConstant(Register dst, Register src, Smi* constant);
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result,
   // or jumping to a label if the result cannot be represented by a smi.
-  // If the label is NULL, no testing on the result is done.
   void SmiAddConstant(Register dst,
                       Register src,
-                      int32_t constant,
+                      Smi* constant,
                       Label* on_not_smi_result);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
+  // result. No testing on the result is done.
+  void SmiSubConstant(Register dst, Register src, Smi* constant);
+
+  // Subtract an integer constant from a tagged smi, giving a tagged smi as
   // result, or jumping to a label if the result cannot be represented by a smi.
-  // If the label is NULL, no testing on the result is done.
   void SmiSubConstant(Register dst,
                       Register src,
-                      int32_t constant,
+                      Smi* constant,
                       Label* on_not_smi_result);
 
   // Negating a smi can give a negative zero or too large positive value.
+  // NOTICE: This operation jumps on success, not failure!
   void SmiNeg(Register dst,
               Register src,
-              Label* on_not_smi_result);
+              Label* on_smi_result);
 
   // Adds smi values and return the result as a smi.
   // If dst is src1, then src1 will be destroyed, even if
@@ -307,9 +314,9 @@ class MacroAssembler: public Assembler {
   void SmiAnd(Register dst, Register src1, Register src2);
   void SmiOr(Register dst, Register src1, Register src2);
   void SmiXor(Register dst, Register src1, Register src2);
-  void SmiAndConstant(Register dst, Register src1, int constant);
-  void SmiOrConstant(Register dst, Register src1, int constant);
-  void SmiXorConstant(Register dst, Register src1, int constant);
+  void SmiAndConstant(Register dst, Register src1, Smi* constant);
+  void SmiOrConstant(Register dst, Register src1, Smi* constant);
+  void SmiXorConstant(Register dst, Register src1, Smi* constant);
 
   void SmiShiftLeftConstant(Register dst,
                             Register src,
@@ -367,20 +374,27 @@ class MacroAssembler: public Assembler {
   // Converts a positive smi to a negative index.
   SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
 
+  bool IsUnsafeSmi(Smi* value);
+  void LoadUnsafeSmi(Register dst, Smi* source);
+
+  // Basic Smi operations.
+  void Move(Register dst, Smi* source);
+  void Move(const Operand& dst, Smi* source);
+  void Push(Smi* smi);
+  void Test(const Operand& dst, Smi* source);
+
   // ---------------------------------------------------------------------------
   // Macro instructions
 
-  // Expression support
+  // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
 
   // Handle support
-  bool IsUnsafeSmi(Smi* value);
   bool IsUnsafeSmi(Handle<Object> value) {
     return IsUnsafeSmi(Smi::cast(*value));
   }
 
-  void LoadUnsafeSmi(Register dst, Smi* source);
   void LoadUnsafeSmi(Register dst, Handle<Object> source) {
     LoadUnsafeSmi(dst, Smi::cast(*source));
   }
@@ -390,7 +404,6 @@ class MacroAssembler: public Assembler {
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Push(Handle<Object> source);
-  void Push(Smi* smi);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

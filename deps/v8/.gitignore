@@ -10,6 +10,10 @@
 *.suo
 *.user
 *.xcodeproj
+*.idb
+*.pdb
+#*#
+*~
 d8
 d8_g
 shell

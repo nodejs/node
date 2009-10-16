@@ -68,7 +68,7 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 // A debug break in the exit code is identified by a call.
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
-  return rinfo->IsCallInstruction();
+  return rinfo->IsPatchedReturnSequence();
 }
 
 

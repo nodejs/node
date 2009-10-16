@@ -396,6 +396,18 @@
 				RelativePath="..\..\src\factory.h"
 				>
 			</File>
+                        <File
+                                RelativePath="..\..\src\arm\fast-codegen-arm.cc"
+                                >
+                        </File>
+                        <File
+                                RelativePath="..\..\src\fast-codegen.cc"
+                                >
+                        </File>
+                        <File
+                                RelativePath="..\..\src\fast-codegen.h"
+                                >
+                        </File>
 			<File
 				RelativePath="..\..\src\flags.cc"
 				>
@@ -546,6 +558,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\list.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\location.h"
 				>
 			</File>
 			<File
@@ -957,7 +973,7 @@
 			Name="include"
 			>
 			<File
-				RelativePath="..\..\include\debug.h"
+				RelativePath="..\..\include\v8-debug.h"
 				>
 			</File>
 			<File

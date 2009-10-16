@@ -43,7 +43,10 @@ function safeEval(code) {
 
 
 // Send an evaluation request and return the handle of the result.
-function evaluateRequest(dcp, arguments) {
+function evaluateRequest(exec_state, arguments) {
+  // Get the debug command processor.
+  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
+
   // The base part of all evaluate requests.
   var base_request = '"seq":0,"type":"request","command":"evaluate"'
 
@@ -63,7 +66,10 @@ function evaluateRequest(dcp, arguments) {
 
 
 // Send a lookup request and return the evaluated JSON response.
-function lookupRequest(dcp, arguments, success) {
+function lookupRequest(exec_state, arguments, success) {
+  // Get the debug command processor.
+  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
+
   // The base part of all lookup requests.
   var base_request = '"seq":0,"type":"request","command":"lookup"'
   
@@ -81,7 +87,7 @@ function lookupRequest(dcp, arguments, success) {
   } else {
     assertFalse(response.success, request + ' -> ' + response.message);
   }
-  assertFalse(response.running, request + ' -> expected not running');
+  assertEquals(response.running, dcp.isRunning(), request + ' -> expected not running');
 
   return response;
 }
@@ -90,26 +96,23 @@ function lookupRequest(dcp, arguments, success) {
 function listener(event, exec_state, event_data, data) {
   try {
   if (event == Debug.DebugEvent.Break) {
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
-
     // Test some illegal lookup requests.
-    lookupRequest(dcp, void 0, false);
-    lookupRequest(dcp, '{"handles":["a"]}', false);
-    lookupRequest(dcp, '{"handles":[-1]}', false);
+    lookupRequest(exec_state, void 0, false);
+    lookupRequest(exec_state, '{"handles":["a"]}', false);
+    lookupRequest(exec_state, '{"handles":[-1]}', false);
 
     // Evaluate and get some handles.
-    var handle_o = evaluateRequest(dcp, '{"expression":"o"}');
-    var handle_p = evaluateRequest(dcp, '{"expression":"p"}');
-    var handle_b = evaluateRequest(dcp, '{"expression":"a"}');
-    var handle_a = evaluateRequest(dcp, '{"expression":"b","frame":1}');
+    var handle_o = evaluateRequest(exec_state, '{"expression":"o"}');
+    var handle_p = evaluateRequest(exec_state, '{"expression":"p"}');
+    var handle_b = evaluateRequest(exec_state, '{"expression":"a"}');
+    var handle_a = evaluateRequest(exec_state, '{"expression":"b","frame":1}');
     assertEquals(handle_o, handle_a);
     assertEquals(handle_a, handle_b);
     assertFalse(handle_o == handle_p, "o and p have he same handle");
 
     var response;
     var count;
-    response = lookupRequest(dcp, '{"handles":[' + handle_o + ']}', true);
+    response = lookupRequest(exec_state, '{"handles":[' + handle_o + ']}', true);
     var obj = response.body[handle_o];
     assertTrue(!!obj, 'Object not found: ' + handle_o);
     assertEquals(handle_o, obj.handle);
@@ -127,20 +130,20 @@ function listener(event, exec_state, event_data, data) {
       }
     }
     assertEquals(2, count, 'Either "o" or "p" not found');
-    response = lookupRequest(dcp, '{"handles":[' + handle_p + ']}', true);
+    response = lookupRequest(exec_state, '{"handles":[' + handle_p + ']}', true);
     obj = response.body[handle_p];
     assertTrue(!!obj, 'Object not found: ' + handle_p);
     assertEquals(handle_p, obj.handle);
 
     // Check handles for functions on the stack.
-    var handle_f = evaluateRequest(dcp, '{"expression":"f"}');
-    var handle_g = evaluateRequest(dcp, '{"expression":"g"}');
-    var handle_caller = evaluateRequest(dcp, '{"expression":"f.caller"}');
+    var handle_f = evaluateRequest(exec_state, '{"expression":"f"}');
+    var handle_g = evaluateRequest(exec_state, '{"expression":"g"}');
+    var handle_caller = evaluateRequest(exec_state, '{"expression":"f.caller"}');
 
     assertFalse(handle_f == handle_g, "f and g have he same handle");
     assertEquals(handle_g, handle_caller, "caller for f should be g");
 
-    response = lookupRequest(dcp, '{"handles":[' + handle_f + ']}', true);
+    response = lookupRequest(exec_state, '{"handles":[' + handle_f + ']}', true);
     obj = response.body[handle_f];
     assertEquals(handle_f, obj.handle);
 
@@ -151,14 +154,14 @@ function listener(event, exec_state, event_data, data) {
       switch (obj.properties[i].name) {
         case 'name':
           var response_name;
-          response_name = lookupRequest(dcp, arguments, true);
+          response_name = lookupRequest(exec_state, arguments, true);
           assertEquals('string', response_name.body[ref].type);
           assertEquals("f", response_name.body[ref].value);
           count++;
           break;
         case 'length':
           var response_length;
-          response_length = lookupRequest(dcp, arguments, true);
+          response_length = lookupRequest(exec_state, arguments, true);
           assertEquals('number', response_length.body[ref].type);
           assertEquals(1, response_length.body[ref].value);
           count++;
@@ -179,7 +182,7 @@ function listener(event, exec_state, event_data, data) {
     }
 
     var arguments = '{"handles":[' + refs.join(',') + ']}';
-    response = lookupRequest(dcp, arguments, true);
+    response = lookupRequest(exec_state, arguments, true);
     count = 0;
     for (i in obj.properties) {
       var ref = obj.properties[i].ref;
@@ -244,6 +247,6 @@ p.o = o;
 p.p = p;
 g(o);
 
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete, "listener did not run to completion: " + exception);
-assertFalse(exception, "exception in listener")

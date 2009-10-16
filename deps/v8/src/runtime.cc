@@ -34,18 +34,17 @@
 #include "arguments.h"
 #include "compiler.h"
 #include "cpu.h"
-#include "dateparser.h"
 #include "dateparser-inl.h"
 #include "debug.h"
 #include "execution.h"
 #include "jsregexp.h"
+#include "parser.h"
 #include "platform.h"
 #include "runtime.h"
 #include "scopeinfo.h"
-#include "v8threads.h"
 #include "smart-pointer.h"
-#include "parser.h"
 #include "stub-cache.h"
+#include "v8threads.h"
 
 namespace v8 {
 namespace internal {
@@ -522,7 +521,7 @@ static Object* Runtime_GetTemplateField(Arguments args) {
   RUNTIME_ASSERT(type ==  FUNCTION_TEMPLATE_INFO_TYPE ||
                  type ==  OBJECT_TEMPLATE_INFO_TYPE);
   RUNTIME_ASSERT(offset > 0);
-  if (type ==  FUNCTION_TEMPLATE_INFO_TYPE) {
+  if (type == FUNCTION_TEMPLATE_INFO_TYPE) {
     RUNTIME_ASSERT(offset < FunctionTemplateInfo::kSize);
   } else {
     RUNTIME_ASSERT(offset < ObjectTemplateInfo::kSize);
@@ -3252,8 +3251,8 @@ static Object* Runtime_URIEscape(Arguments args) {
       } else {
         escaped_length += 3;
       }
-      // We don't allow strings that are longer than Smi range.
-      if (!Smi::IsValid(escaped_length)) {
+      // We don't allow strings that are longer than a maximal length.
+      if (escaped_length > String::kMaxLength) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
@@ -3584,6 +3583,36 @@ static Object* Runtime_StringToUpperCase(Arguments args) {
   return ConvertCase<unibrow::ToUppercase>(args, &to_upper_mapping);
 }
 
+static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
+  return unibrow::WhiteSpace::Is(c) || c == 0x200b;
+}
+
+static Object* Runtime_StringTrim(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_CHECKED(String, s, args[0]);
+  CONVERT_BOOLEAN_CHECKED(trimLeft, args[1]);
+  CONVERT_BOOLEAN_CHECKED(trimRight, args[2]);
+
+  s->TryFlattenIfNotFlat();
+  int length = s->length();
+
+  int left = 0;
+  if (trimLeft) {
+    while (left < length && IsTrimWhiteSpace(s->Get(left))) {
+      left++;
+    }
+  }
+
+  int right = length;
+  if (trimRight) {
+    while (right > left && IsTrimWhiteSpace(s->Get(right - 1))) {
+      right--;
+    }
+  }
+  return s->Slice(left, right);
+}
 
 bool Runtime::IsUpperCaseChar(uint16_t ch) {
   unibrow::uchar chars[unibrow::ToUppercase::kMaxWidth];
@@ -3804,16 +3833,16 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
-      if (!Smi::IsValid(element_length + position)) {
-        Top::context()->mark_out_of_memory();
-        return Failure::OutOfMemoryException();
-      }
       position += element_length;
       if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
+    }
+    if (position > String::kMaxLength) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
     }
   }
 

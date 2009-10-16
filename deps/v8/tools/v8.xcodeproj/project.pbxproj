@@ -56,6 +56,7 @@
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8956B6CD0F5D86570033B5A2 /* debug-agent.cc */; };
+		895FA753107FFED3006F39D4 /* constants-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 895FA748107FFE73006F39D4 /* constants-arm.cc */; };
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
@@ -309,6 +310,14 @@
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
 		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
 		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
+		895FA720107FFB15006F39D4 /* jump-target-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-inl.h"; sourceTree = "<group>"; };
+		895FA725107FFB57006F39D4 /* codegen-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32-inl.h"; path = "ia32/codegen-ia32-inl.h"; sourceTree = "<group>"; };
+		895FA72A107FFB85006F39D4 /* register-allocator-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32-inl.h"; path = "ia32/register-allocator-ia32-inl.h"; sourceTree = "<group>"; };
+		895FA72B107FFB85006F39D4 /* register-allocator-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32.h"; path = "ia32/register-allocator-ia32.h"; sourceTree = "<group>"; };
+		895FA748107FFE73006F39D4 /* constants-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "constants-arm.cc"; path = "arm/constants-arm.cc"; sourceTree = "<group>"; };
+		895FA74B107FFE82006F39D4 /* codegen-arm-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-arm-inl.h"; path = "arm/codegen-arm-inl.h"; sourceTree = "<group>"; };
+		895FA750107FFEAE006F39D4 /* register-allocator-arm-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-arm-inl.h"; path = "arm/register-allocator-arm-inl.h"; sourceTree = "<group>"; };
+		895FA751107FFEAE006F39D4 /* register-allocator-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-arm.h"; path = "arm/register-allocator-arm.h"; sourceTree = "<group>"; };
 		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32.h"; path = "ia32/codegen-ia32.h"; sourceTree = "<group>"; };
 		896448BC0E9D530500E7C516 /* codegen-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-arm.h"; path = "arm/codegen-arm.h"; sourceTree = "<group>"; };
 		8970F2F00E719FB2006AE7B5 /* libv8.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libv8.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -662,8 +671,10 @@
 				897FF1110E719B8F00D62E90 /* code-stubs.cc */,
 				897FF1120E719B8F00D62E90 /* code-stubs.h */,
 				897FF1130E719B8F00D62E90 /* code.h */,
+				895FA74B107FFE82006F39D4 /* codegen-arm-inl.h */,
 				897FF1140E719B8F00D62E90 /* codegen-arm.cc */,
 				896448BC0E9D530500E7C516 /* codegen-arm.h */,
+				895FA725107FFB57006F39D4 /* codegen-ia32-inl.h */,
 				897FF1150E719B8F00D62E90 /* codegen-ia32.cc */,
 				8964482B0E9C00F700E7C516 /* codegen-ia32.h */,
 				897FF1160E719B8F00D62E90 /* codegen-inl.h */,
@@ -673,6 +684,7 @@
 				89495E470E79FC23001F68C3 /* compilation-cache.h */,
 				897FF1190E719B8F00D62E90 /* compiler.cc */,
 				897FF11A0E719B8F00D62E90 /* compiler.h */,
+				895FA748107FFE73006F39D4 /* constants-arm.cc */,
 				897FF11B0E719B8F00D62E90 /* constants-arm.h */,
 				897FF11C0E719B8F00D62E90 /* contexts.cc */,
 				897FF11D0E719B8F00D62E90 /* contexts.h */,
@@ -739,6 +751,7 @@
 				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
+				895FA720107FFB15006F39D4 /* jump-target-inl.h */,
 				58950D4E0F55514900F3E8BA /* jump-target-arm.cc */,
 				58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */,
 				58950D500F55514900F3E8BA /* jump-target.cc */,
@@ -794,8 +807,12 @@
 				89A15C7A0EE466D000B48DEB /* regexp-macro-assembler.h */,
 				8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */,
 				8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */,
+				895FA750107FFEAE006F39D4 /* register-allocator-arm-inl.h */,
 				58950D520F55514900F3E8BA /* register-allocator-arm.cc */,
+				895FA751107FFEAE006F39D4 /* register-allocator-arm.h */,
+				895FA72A107FFB85006F39D4 /* register-allocator-ia32-inl.h */,
 				58950D530F55514900F3E8BA /* register-allocator-ia32.cc */,
+				895FA72B107FFB85006F39D4 /* register-allocator-ia32.h */,
 				893A722D0F7B4A7100303DD2 /* register-allocator-inl.h */,
 				58950D540F55514900F3E8BA /* register-allocator.cc */,
 				58950D550F55514900F3E8BA /* register-allocator.h */,
@@ -1238,6 +1255,7 @@
 				89F23C4B0E78D5B2006B2466 /* codegen.cc in Sources */,
 				89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */,
 				89F23C4C0E78D5B2006B2466 /* compiler.cc in Sources */,
+				895FA753107FFED3006F39D4 /* constants-arm.cc in Sources */,
 				89F23C4D0E78D5B2006B2466 /* contexts.cc in Sources */,
 				89F23C4E0E78D5B2006B2466 /* conversions.cc in Sources */,
 				89F23C4F0E78D5B2006B2466 /* counters.cc in Sources */,
@@ -1467,6 +1485,7 @@
 					V8_NATIVE_REGEXP,
 					DEBUG,
 					V8_ENABLE_CHECKS,
+					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
@@ -1481,6 +1500,7 @@
 					V8_TARGET_ARCH_IA32,
 					V8_NATIVE_REGEXP,
 					NDEBUG,
+					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
@@ -1514,6 +1534,7 @@
 					V8_TARGET_ARCH_IA32,
 					V8_NATIVE_REGEXP,
 					NDEBUG,
+					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8;
@@ -1524,6 +1545,10 @@
 		897F767C0E71B4CC007ACF34 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_IA32,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1532,6 +1557,10 @@
 		897F767D0E71B4CC007ACF34 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_IA32,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1571,6 +1600,10 @@
 		89F23C930E78D5B6006B2466 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_ARM,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = "v8_shell-arm";
 			};
@@ -1579,6 +1612,10 @@
 		89F23C940E78D5B6006B2466 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_TARGET_ARCH_ARM,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = "v8_shell-arm";
 			};

@@ -177,8 +177,8 @@ class Parser {
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
-  LoopStatement* ParseDoStatement(ZoneStringList* labels, bool* ok);
-  LoopStatement* ParseWhileStatement(ZoneStringList* labels, bool* ok);
+  DoWhileStatement* ParseDoWhileStatement(ZoneStringList* labels, bool* ok);
+  WhileStatement* ParseWhileStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseForStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
@@ -675,9 +675,6 @@ class TemporaryScope BASE_EMBEDDED {
   }
   int materialized_literal_count() { return materialized_literal_count_; }
 
-  void set_contains_array_literal() { contains_array_literal_ = true; }
-  bool contains_array_literal() { return contains_array_literal_; }
-
   void SetThisPropertyAssignmentInfo(
       bool only_this_property_assignments,
       bool only_simple_this_property_assignments,
@@ -700,16 +697,10 @@ class TemporaryScope BASE_EMBEDDED {
   void AddProperty() { expected_property_count_++; }
   int expected_property_count() { return expected_property_count_; }
  private:
-  // Captures the number of nodes that need materialization in the
-  // function.  regexp literals, and boilerplate for object literals.
+  // Captures the number of literals that need materialization in the
+  // function.  Includes regexp literals, and boilerplate for object
+  // and array literals.
   int materialized_literal_count_;
-
-  // Captures whether or not the function contains array literals.  If
-  // the function contains array literals, we have to allocate space
-  // for the array constructor in the literals array of the function.
-  // This array constructor is used when creating the actual array
-  // literals.
-  bool contains_array_literal_;
 
   // Properties count estimation.
   int expected_property_count_;
@@ -728,7 +719,6 @@ class TemporaryScope BASE_EMBEDDED {
 
 TemporaryScope::TemporaryScope(Parser* parser)
   : materialized_literal_count_(0),
-    contains_array_literal_(false),
     expected_property_count_(0),
     only_this_property_assignments_(false),
     only_simple_this_property_assignments_(false),
@@ -1236,7 +1226,6 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           top_scope_,
           body.elements(),
           temp_scope.materialized_literal_count(),
-          temp_scope.contains_array_literal(),
           temp_scope.expected_property_count(),
           temp_scope.only_this_property_assignments(),
           temp_scope.only_simple_this_property_assignments(),
@@ -1692,7 +1681,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       break;
 
     case Token::DO:
-      stmt = ParseDoStatement(labels, ok);
+      stmt = ParseDoWhileStatement(labels, ok);
       break;
 
     case Token::WHILE:
@@ -1903,7 +1892,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<JSFunction> boilerplate =
-      Factory::NewFunctionBoilerplate(name, literals, false, code);
+      Factory::NewFunctionBoilerplate(name, literals, code);
 
   // Copy the function data to the boilerplate. Used by
   // builtins.cc:HandleApiCall to perform argument type checks and to
@@ -2361,7 +2350,7 @@ Block* Parser::WithHelper(Expression* obj,
     exit->AddStatement(NEW(WithExitStatement()));
 
     // Return a try-finally statement.
-    TryFinally* wrapper = NEW(TryFinally(body, exit));
+    TryFinallyStatement* wrapper = NEW(TryFinallyStatement(body, exit));
     wrapper->set_escaping_targets(collector.targets());
     result->AddStatement(wrapper);
   }
@@ -2537,7 +2526,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   //   'try { try { } catch { } } finally { }'
 
   if (!is_pre_parsing_ && catch_block != NULL && finally_block != NULL) {
-    TryCatch* statement = NEW(TryCatch(try_block, catch_var, catch_block));
+    TryCatchStatement* statement =
+        NEW(TryCatchStatement(try_block, catch_var, catch_block));
     statement->set_escaping_targets(collector.targets());
     try_block = NEW(Block(NULL, 1, false));
     try_block->AddStatement(statement);
@@ -2548,11 +2538,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (!is_pre_parsing_) {
     if (catch_block != NULL) {
       ASSERT(finally_block == NULL);
-      result = NEW(TryCatch(try_block, catch_var, catch_block));
+      result = NEW(TryCatchStatement(try_block, catch_var, catch_block));
       result->set_escaping_targets(collector.targets());
     } else {
       ASSERT(finally_block != NULL);
-      result = NEW(TryFinally(try_block, finally_block));
+      result = NEW(TryFinallyStatement(try_block, finally_block));
       // Add the jump targets of the try block and the catch block.
       for (int i = 0; i < collector.targets()->length(); i++) {
         catch_collector.AddTarget(collector.targets()->at(i));
@@ -2565,11 +2555,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 }
 
 
-LoopStatement* Parser::ParseDoStatement(ZoneStringList* labels, bool* ok) {
+DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
+                                                bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::DO_LOOP));
+  DoWhileStatement* loop = NEW(DoWhileStatement(labels));
   Target target(this, loop);
 
   Expect(Token::DO, CHECK_OK);
@@ -2585,16 +2576,16 @@ LoopStatement* Parser::ParseDoStatement(ZoneStringList* labels, bool* ok) {
   // ExpectSemicolon() functionality here.
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
 
-  if (loop) loop->Initialize(NULL, cond, NULL, body);
+  if (loop != NULL) loop->Initialize(cond, body);
   return loop;
 }
 
 
-LoopStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
+WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::WHILE_LOOP));
+  WhileStatement* loop = NEW(WhileStatement(labels));
   Target target(this, loop);
 
   Expect(Token::WHILE, CHECK_OK);
@@ -2603,7 +2594,7 @@ LoopStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
-  if (loop) loop->Initialize(NULL, cond, NULL, body);
+  if (loop != NULL) loop->Initialize(cond, body);
   return loop;
 }
 
@@ -2676,7 +2667,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   }
 
   // Standard 'for' loop
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::FOR_LOOP));
+  ForStatement* loop = NEW(ForStatement(labels));
   Target target(this, loop);
 
   // Parsed initializer at this point.
@@ -3304,7 +3295,6 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   Expect(Token::RBRACK, CHECK_OK);
 
   // Update the scope information before the pre-parsing bailout.
-  temp_scope_->set_contains_array_literal();
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
   if (is_pre_parsing_) return NULL;
@@ -3634,7 +3624,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     int materialized_literal_count;
     int expected_property_count;
-    bool contains_array_literal;
     bool only_this_property_assignments;
     bool only_simple_this_property_assignments;
     Handle<FixedArray> this_property_assignments;
@@ -3648,12 +3637,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       only_this_property_assignments = false;
       only_simple_this_property_assignments = false;
       this_property_assignments = Factory::empty_fixed_array();
-      contains_array_literal = entry.contains_array_literal();
     } else {
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
-      contains_array_literal = temp_scope.contains_array_literal();
       only_this_property_assignments =
           temp_scope.only_this_property_assignments();
       only_simple_this_property_assignments =
@@ -3669,7 +3656,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       entry.set_end_pos(end_pos);
       entry.set_literal_count(materialized_literal_count);
       entry.set_property_count(expected_property_count);
-      entry.set_contains_array_literal(contains_array_literal);
     }
 
     FunctionLiteral* function_literal =
@@ -3677,7 +3663,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                             top_scope_,
                             body.elements(),
                             materialized_literal_count,
-                            contains_array_literal,
                             expected_property_count,
                             only_this_property_assignments,
                             only_simple_this_property_assignments,

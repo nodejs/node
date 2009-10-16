@@ -311,7 +311,7 @@ static Handle<Value> GetStdout(int child_fd,
                                int read_timeout,
                                int total_timeout) {
   Handle<String> accumulator = String::Empty();
-  const char* source = "function(a, b) { return a + b; }";
+  const char* source = "(function(a, b) { return a + b; })";
   Handle<Value> cons_as_obj(Script::Compile(String::New(source))->Run());
   Handle<Function> cons_function(Function::Cast(*cons_as_obj));
   Handle<Value> cons_args[2];

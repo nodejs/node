@@ -130,7 +130,7 @@ function DebugMessageDetails(message) {
 }
 
 function DebugEventDetails(response) {
-  details = {text:'', running:false};
+  details = {text:'', running:false}
 
   // Get the running state.
   details.running = response.running();

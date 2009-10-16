@@ -92,7 +92,7 @@ function CheckScopeChain(scopes, exec_state) {
   }
   
   // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor();
+  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
   
   // Send a scopes request and check the result.
   var json;
@@ -155,7 +155,7 @@ function CheckScopeContent(content, number, exec_state) {
   assertEquals(count, scope_size);
 
   // Get the debug command processor.
-  var dcp = exec_state.debugCommandProcessor();
+  var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
   
   // Send a scope request for information on a single scope and check the
   // result.

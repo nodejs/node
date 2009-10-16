@@ -118,9 +118,7 @@ macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 # a type error is thrown.
 macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
 
-# Last input and last subject are after the captures so we can omit them on
-# results returned from global searches.  Beware - these evaluate their
-# arguments twice.
+# Last input and last subject of regexp matches.
 macro LAST_SUBJECT(array) = ((array)[1]);
 macro LAST_INPUT(array) = ((array)[2]);
 

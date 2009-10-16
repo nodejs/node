@@ -1679,8 +1679,8 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       && second->IsAsciiRepresentation();
 
   // Make sure that an out of memory exception is thrown if the length
-  // of the new cons string is too large to fit in a Smi.
-  if (length > Smi::kMaxValue || length < -0) {
+  // of the new cons string is too large.
+  if (length > String::kMaxLength || length < 0) {
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
@@ -2021,6 +2021,7 @@ Object* Heap::Allocate(Map* map, AllocationSpace space) {
                                TargetSpaceId(map->instance_type()));
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
+  ProducerHeapProfile::RecordJSObjectAllocation(result);
   return result;
 }
 
@@ -2342,6 +2343,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
   }
   // Return the new clone.
+  ProducerHeapProfile::RecordJSObjectAllocation(clone);
   return clone;
 }
 
@@ -3307,6 +3309,9 @@ bool Heap::Setup(bool create_heap_objects) {
 
   LOG(IntEvent("heap-capacity", Capacity()));
   LOG(IntEvent("heap-available", Available()));
+
+  // This should be called only after initial objects have been created.
+  ProducerHeapProfile::Setup();
 
   return true;
 }

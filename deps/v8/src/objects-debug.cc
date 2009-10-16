@@ -29,7 +29,6 @@
 
 #include "disassembler.h"
 #include "disasm.h"
-#include "macro-assembler.h"
 #include "jsregexp.h"
 
 namespace v8 {

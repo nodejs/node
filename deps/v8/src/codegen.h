@@ -36,6 +36,8 @@
 // The contract  to the shared code is that the the CodeGenerator is a subclass
 // of Visitor and that the following methods are available publicly:
 //   MakeCode
+//   MakeCodePrologue
+//   MakeCodeEpilogue
 //   SetFunctionInfo
 //   masm
 //   frame
@@ -46,6 +48,7 @@
 //   AddDeferred
 //   in_spilled_code
 //   set_in_spilled_code
+//   RecordPositions
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:
@@ -61,6 +64,7 @@
 //   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
 //   PatchInlineRuntimeEntry
+//   AnalyzeCondition
 //   CodeForFunctionPosition
 //   CodeForReturnPosition
 //   CodeForStatementPosition

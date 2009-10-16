@@ -132,8 +132,6 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "SetProperty";
     case InvokeBuiltin:
       return "InvokeBuiltin";
-    case JSExit:
-      return "JSExit";
     case ConvertToDouble:
       return "ConvertToDouble";
     case WriteInt32ToHeapNumber:

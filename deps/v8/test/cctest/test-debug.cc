@@ -3539,6 +3539,52 @@ bool IsBreakEventMessage(char *message) {
 }
 
 
+// We match parts of the message to decide if it is a exception message.
+bool IsExceptionEventMessage(char *message) {
+  const char* type_event = "\"type\":\"event\"";
+  const char* event_exception = "\"event\":\"exception\"";
+  // Does the message contain both type:event and event:exception?
+  return strstr(message, type_event) != NULL &&
+      strstr(message, event_exception) != NULL;
+}
+
+
+// We match the message wether it is an evaluate response message.
+bool IsEvaluateResponseMessage(char* message) {
+  const char* type_response = "\"type\":\"response\"";
+  const char* command_evaluate = "\"command\":\"evaluate\"";
+  // Does the message contain both type:response and command:evaluate?
+  return strstr(message, type_response) != NULL &&
+         strstr(message, command_evaluate) != NULL;
+}
+
+
+// We match parts of the message to get evaluate result int value.
+int GetEvaluateIntResult(char *message) {
+  const char* value = "\"value\":";
+  char* pos = strstr(message, value);
+  if (pos == NULL) {
+    return -1;
+  }
+  int res = -1;
+  res = atoi(pos + strlen(value));
+  return res;
+}
+
+
+// We match parts of the message to get hit breakpoint id.
+int GetBreakpointIdFromBreakEventMessage(char *message) {
+  const char* breakpoints = "\"breakpoints\":[";
+  char* pos = strstr(message, breakpoints);
+  if (pos == NULL) {
+    return -1;
+  }
+  int res = -1;
+  res = atoi(pos + strlen(breakpoints));
+  return res;
+}
+
+
 /* Test MessageQueues */
 /* Tests the message queues that hold debugger commands and
  * response messages to the debugger.  Fills queues and makes
@@ -3566,8 +3612,6 @@ static void MessageHandler(const uint16_t* message, int length,
   // Allow message handler to block on a semaphore, to test queueing of
   // messages while blocked.
   message_queue_barriers.semaphore_1->Wait();
-  printf("%s\n", print_buffer);
-  fflush(stdout);
 }
 
 void MessageQueueDebuggerThread::Run() {
@@ -3822,8 +3866,6 @@ static void ThreadedMessageHandler(const v8::Debug::Message& message) {
   if (IsBreakEventMessage(print_buffer)) {
     threaded_debugging_barriers.barrier_2.Wait();
   }
-  printf("%s\n", print_buffer);
-  fflush(stdout);
 }
 
 
@@ -3911,16 +3953,20 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
 
 
 Barriers* breakpoints_barriers;
+int break_event_breakpoint_id;
+int evaluate_int_result;
 
 static void BreakpointsMessageHandler(const v8::Debug::Message& message) {
   static char print_buffer[1000];
   v8::String::Value json(message.GetJSON());
   Utf16ToAscii(*json, json.length(), print_buffer);
-  printf("%s\n", print_buffer);
-  fflush(stdout);
 
-  // Is break_template a prefix of the message?
   if (IsBreakEventMessage(print_buffer)) {
+    break_event_breakpoint_id =
+        GetBreakpointIdFromBreakEventMessage(print_buffer);
+    breakpoints_barriers->semaphore_1->Signal();
+  } else if (IsEvaluateResponseMessage(print_buffer)) {
+    evaluate_int_result = GetEvaluateIntResult(print_buffer);
     breakpoints_barriers->semaphore_1->Signal();
   }
 }
@@ -3930,9 +3976,9 @@ void BreakpointsV8Thread::Run() {
   const char* source_1 = "var y_global = 3;\n"
     "function cat( new_value ) {\n"
     "  var x = new_value;\n"
-    "  y_global = 4;\n"
+    "  y_global = y_global + 4;\n"
     "  x = 3 * x + 1;\n"
-    "  y_global = 5;\n"
+    "  y_global = y_global + 5;\n"
     "  return x;\n"
     "}\n"
     "\n"
@@ -3970,59 +4016,76 @@ void BreakpointsDebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"setbreakpoint\","
       "\"arguments\":{\"type\":\"function\",\"target\":\"dog\",\"line\":3}}";
-  const char* command_3 = "{\"seq\":104,"
+  const char* command_3 = "{\"seq\":103,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false}}";
-  const char* command_4 = "{\"seq\":105,"
+  const char* command_4 = "{\"seq\":104,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
-      "\"arguments\":{\"expression\":\"x\",\"disable_break\":true}}";
-  const char* command_5 = "{\"seq\":106,"
+      "\"arguments\":{\"expression\":\"x + 1\",\"disable_break\":true}}";
+  const char* command_5 = "{\"seq\":105,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_6 = "{\"seq\":107,"
+  const char* command_6 = "{\"seq\":106,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_7 = "{\"seq\":108,"
+  const char* command_7 = "{\"seq\":107,"
      "\"type\":\"request\","
      "\"command\":\"evaluate\","
      "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true}}";
-  const char* command_8 = "{\"seq\":109,"
+  const char* command_8 = "{\"seq\":108,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
 
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
-  // 1:Set breakpoint in cat().
+  // 1:Set breakpoint in cat() (will get id 1).
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
-  // 2:Set breakpoint in dog()
+  // 2:Set breakpoint in dog() (will get id 2).
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
   breakpoints_barriers->barrier_2.Wait();
-  // v8 thread starts compiling source_2.
+  // V8 thread starts compiling source_2.
   // Automatic break happens, to run queued commands
   // breakpoints_barriers->semaphore_1->Wait();
   // Commands 1 through 3 run, thread continues.
   // v8 thread runs source_2 to breakpoint in cat().
   // message callback receives break event.
   breakpoints_barriers->semaphore_1->Wait();
+  // Must have hit breakpoint #1.
+  CHECK_EQ(1, break_event_breakpoint_id);
   // 4:Evaluate dog() (which has a breakpoint).
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
-  // v8 thread hits breakpoint in dog()
+  // V8 thread hits breakpoint in dog().
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
-  // 5:Evaluate x
+  // Must have hit breakpoint #2.
+  CHECK_EQ(2, break_event_breakpoint_id);
+  // 5:Evaluate (x + 1).
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_4, buffer));
-  // 6:Continue evaluation of dog()
+  // Evaluate (x + 1) finishes.
+  breakpoints_barriers->semaphore_1->Wait();
+  // Must have result 108.
+  CHECK_EQ(108, evaluate_int_result);
+  // 6:Continue evaluation of dog().
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_5, buffer));
-  // dog() finishes.
+  // Evaluate dog() finishes.
+  breakpoints_barriers->semaphore_1->Wait();
+  // Must have result 107.
+  CHECK_EQ(107, evaluate_int_result);
   // 7:Continue evaluation of source_2, finish cat(17), hit breakpoint
   // in cat(19).
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_6, buffer));
-  // message callback gets break event
+  // Message callback gets break event.
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
-  // 8: Evaluate dog() with breaks disabled
+  // Must have hit breakpoint #1.
+  CHECK_EQ(1, break_event_breakpoint_id);
+  // 8: Evaluate dog() with breaks disabled.
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_7, buffer));
+  // Evaluate dog() finishes.
+  breakpoints_barriers->semaphore_1->Wait();
+  // Must have result 116.
+  CHECK_EQ(116, evaluate_int_result);
   // 9: Continue evaluation of source2, reach end.
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
@@ -4325,7 +4388,13 @@ static int message_handler_hit_count = 0;
 static void MessageHandlerHitCount(const v8::Debug::Message& message) {
   message_handler_hit_count++;
 
-  SendContinueCommand();
+  static char print_buffer[1000];
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
+  if (IsExceptionEventMessage(print_buffer)) {
+    // Send a continue command for exception events.
+    SendContinueCommand();
+  }
 }
 
 
@@ -4415,8 +4484,6 @@ static void HostDispatchMessageHandler(const v8::Debug::Message& message) {
   static char print_buffer[1000];
   v8::String::Value json(message.GetJSON());
   Utf16ToAscii(*json, json.length(), print_buffer);
-  printf("%s\n", print_buffer);
-  fflush(stdout);
 }
 
 
@@ -4776,8 +4843,12 @@ static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
       expected_context_data));
   message_handler_hit_count++;
 
+  static char print_buffer[1000];
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
+
   // Send a continue command for break events.
-  if (message.GetEvent() == v8::Break) {
+  if (IsBreakEventMessage(print_buffer)) {
     SendContinueCommand();
   }
 }
@@ -5016,7 +5087,11 @@ static void DebugEvalContextCheckMessageHandler(
       expected_context_data));
   message_handler_hit_count++;
 
-  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+  static char print_buffer[1000];
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
+
+  if (IsBreakEventMessage(print_buffer)) {
     break_count++;
     if (!sent_eval) {
       sent_eval = true;
@@ -5038,7 +5113,8 @@ static void DebugEvalContextCheckMessageHandler(
       SendContinueCommand();
       continue_command_send_count++;
     }
-  } else if (message.IsResponse() && continue_command_send_count < 2) {
+  } else if (IsEvaluateResponseMessage(print_buffer) &&
+      continue_command_send_count < 2) {
     // Response to the evaluation request. We're still on the breakpoint so
     // send continue.
     SendContinueCommand();

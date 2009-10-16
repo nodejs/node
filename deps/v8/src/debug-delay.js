@@ -795,8 +795,8 @@ ExecutionState.prototype.selectedFrame = function() {
   return this.selected_frame;
 };
 
-ExecutionState.prototype.debugCommandProcessor = function(protocol) {
-  return new DebugCommandProcessor(this, protocol);
+ExecutionState.prototype.debugCommandProcessor = function(opt_is_running) {
+  return new DebugCommandProcessor(this, opt_is_running);
 };
 
 
@@ -1081,9 +1081,9 @@ function MakeScriptObject_(script, include_source) {
 };
 
 
-function DebugCommandProcessor(exec_state) {
+function DebugCommandProcessor(exec_state, opt_is_running) {
   this.exec_state_ = exec_state;
-  this.running_ = false;
+  this.running_ = opt_is_running || false;
 };
 
 
@@ -1107,7 +1107,8 @@ function ProtocolMessage(request) {
     this.type = 'event';
   }
   this.success = true;
-  this.running = false;
+  // Handler may set this field to control debugger state.
+  this.running = undefined;
 }
 
 
@@ -1168,11 +1169,7 @@ ProtocolMessage.prototype.toJSONProtocol = function() {
   if (this.message) {
     json.message = this.message;
   }
-  if (this.running) {
-    json.running = true;
-  } else {
-    json.running = false;
-  }
+  json.running = this.running;
   return JSON.stringify(json);
 }
 
@@ -1244,6 +1241,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.scriptsRequest_(request, response);
       } else if (request.command == 'threads') {
         this.threadsRequest_(request, response);
+      } else if (request.command == 'suspend') {
+        this.suspendRequest_(request, response);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -1258,7 +1257,11 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
 
     // Return the response as a JSON encoded string.
     try {
-      this.running_ = response.running;  // Store the running state.
+      if (!IS_UNDEFINED(response.running)) {
+        // Response controls running state.
+        this.running_ = response.running;
+      }
+      response.running = this.running_; 
       return response.toJSONProtocol();
     } catch (e) {
       // Failed to generate response - return generic error.
@@ -1904,6 +1907,12 @@ DebugCommandProcessor.prototype.threadsRequest_ = function(request, response) {
     totalThreads: total_threads,
     threads: threads
   }
+};
+
+
+DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
+  // TODO(peter.rybin): probably we need some body field here.
+  response.running = false;
 };
 
 

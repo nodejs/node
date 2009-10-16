@@ -1058,6 +1058,10 @@ function ArrayReduceRight(callback, current) {
   return current;
 }
 
+// ES5, 15.4.3.2
+function ArrayIsArray(obj) {
+  return IS_ARRAY(obj);
+}
 
 // -------------------------------------------------------------------
 
@@ -1074,6 +1078,11 @@ function SetupArray() {
   // Setup non-enumerable constructor property on the Array.prototype
   // object.
   %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+
+  // Setup non-enumerable functions on the Array object.
+  InstallFunctions($Array, DONT_ENUM, $Array(
+    "isArray", ArrayIsArray
+  ));
 
   // Setup non-enumerable functions of the Array.prototype object and
   // set their names.
@@ -1098,8 +1107,9 @@ function SetupArray() {
     "indexOf", ArrayIndexOf,
     "lastIndexOf", ArrayLastIndexOf,
     "reduce", ArrayReduce,
-    "reduceRight", ArrayReduceRight));
-
+    "reduceRight", ArrayReduceRight
+  ));
+    
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
   UpdateFunctionLengths({

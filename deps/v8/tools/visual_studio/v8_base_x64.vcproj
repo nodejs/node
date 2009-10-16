@@ -945,7 +945,7 @@
 			Name="include"
 			>
 			<File
-				RelativePath="..\..\include\debug.h"
+				RelativePath="..\..\include\v8-debug.h"
 				>
 			</File>
 			<File

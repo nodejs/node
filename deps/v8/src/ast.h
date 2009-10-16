@@ -28,14 +28,14 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
+#include "location.h"
 #include "execution.h"
 #include "factory.h"
+#include "jsregexp.h"
+#include "jump-target.h"
 #include "runtime.h"
 #include "token.h"
 #include "variables.h"
-#include "macro-assembler.h"
-#include "jsregexp.h"
-#include "jump-target.h"
 
 namespace v8 {
 namespace internal {
@@ -64,10 +64,12 @@ namespace internal {
   V(WithEnterStatement)                         \
   V(WithExitStatement)                          \
   V(SwitchStatement)                            \
-  V(LoopStatement)                              \
+  V(DoWhileStatement)                           \
+  V(WhileStatement)                             \
+  V(ForStatement)                               \
   V(ForInStatement)                             \
-  V(TryCatch)                                   \
-  V(TryFinally)                                 \
+  V(TryCatchStatement)                          \
+  V(TryFinallyStatement)                        \
   V(DebuggerStatement)
 
 #define EXPRESSION_NODE_LIST(V)                 \
@@ -160,6 +162,8 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
+  Expression() : location_(Location::Temporary()) {}
+
   virtual Expression* AsExpression()  { return this; }
 
   virtual bool IsValidJSON() { return false; }
@@ -173,8 +177,12 @@ class Expression: public AstNode {
   // Static type information for this expression.
   SmiAnalysis* type() { return &type_; }
 
+  Location location() { return location_; }
+  void set_location(Location loc) { location_ = loc; }
+
  private:
   SmiAnalysis type_;
+  Location location_;
 };
 
 
@@ -294,13 +302,59 @@ class IterationStatement: public BreakableStatement {
 };
 
 
-class LoopStatement: public IterationStatement {
+class DoWhileStatement: public IterationStatement {
  public:
-  enum Type { DO_LOOP, FOR_LOOP, WHILE_LOOP };
+  explicit DoWhileStatement(ZoneStringList* labels)
+      : IterationStatement(labels), cond_(NULL) {
+  }
 
-  LoopStatement(ZoneStringList* labels, Type type)
+  void Initialize(Expression* cond, Statement* body) {
+    IterationStatement::Initialize(body);
+    cond_ = cond;
+  }
+
+  virtual void Accept(AstVisitor* v);
+
+  Expression* cond() const { return cond_; }
+
+ private:
+  Expression* cond_;
+};
+
+
+class WhileStatement: public IterationStatement {
+ public:
+  explicit WhileStatement(ZoneStringList* labels)
       : IterationStatement(labels),
-        type_(type),
+        cond_(NULL),
+        may_have_function_literal_(true) {
+  }
+
+  void Initialize(Expression* cond, Statement* body) {
+    IterationStatement::Initialize(body);
+    cond_ = cond;
+  }
+
+  virtual void Accept(AstVisitor* v);
+
+  Expression* cond() const { return cond_; }
+  bool may_have_function_literal() const {
+    return may_have_function_literal_;
+  }
+
+ private:
+  Expression* cond_;
+  // True if there is a function literal subexpression in the condition.
+  bool may_have_function_literal_;
+
+  friend class AstOptimizer;
+};
+
+
+class ForStatement: public IterationStatement {
+ public:
+  explicit ForStatement(ZoneStringList* labels)
+      : IterationStatement(labels),
         init_(NULL),
         cond_(NULL),
         next_(NULL),
@@ -311,8 +365,6 @@ class LoopStatement: public IterationStatement {
                   Expression* cond,
                   Statement* next,
                   Statement* body) {
-    ASSERT(init == NULL || type_ == FOR_LOOP);
-    ASSERT(next == NULL || type_ == FOR_LOOP);
     IterationStatement::Initialize(body);
     init_ = init;
     cond_ = cond;
@@ -321,7 +373,6 @@ class LoopStatement: public IterationStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  Type type() const  { return type_; }
   Statement* init() const  { return init_; }
   Expression* cond() const  { return cond_; }
   Statement* next() const  { return next_; }
@@ -329,12 +380,7 @@ class LoopStatement: public IterationStatement {
     return may_have_function_literal_;
   }
 
-#ifdef DEBUG
-  const char* OperatorString() const;
-#endif
-
  private:
-  Type type_;
   Statement* init_;
   Expression* cond_;
   Statement* next_;
@@ -569,9 +615,11 @@ class TryStatement: public Statement {
 };
 
 
-class TryCatch: public TryStatement {
+class TryCatchStatement: public TryStatement {
  public:
-  TryCatch(Block* try_block, Expression* catch_var, Block* catch_block)
+  TryCatchStatement(Block* try_block,
+                    Expression* catch_var,
+                    Block* catch_block)
       : TryStatement(try_block),
         catch_var_(catch_var),
         catch_block_(catch_block) {
@@ -589,9 +637,9 @@ class TryCatch: public TryStatement {
 };
 
 
-class TryFinally: public TryStatement {
+class TryFinallyStatement: public TryStatement {
  public:
-  TryFinally(Block* try_block, Block* finally_block)
+  TryFinallyStatement(Block* try_block, Block* finally_block)
       : TryStatement(try_block),
         finally_block_(finally_block) { }
 
@@ -1212,7 +1260,6 @@ class FunctionLiteral: public Expression {
                   Scope* scope,
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
-                  bool contains_array_literal,
                   int expected_property_count,
                   bool has_only_this_property_assignments,
                   bool has_only_simple_this_property_assignments,
@@ -1225,7 +1272,6 @@ class FunctionLiteral: public Expression {
         scope_(scope),
         body_(body),
         materialized_literal_count_(materialized_literal_count),
-        contains_array_literal_(contains_array_literal),
         expected_property_count_(expected_property_count),
         has_only_this_property_assignments_(has_only_this_property_assignments),
         has_only_simple_this_property_assignments_(
@@ -1258,7 +1304,6 @@ class FunctionLiteral: public Expression {
   bool is_expression() const { return is_expression_; }
 
   int materialized_literal_count() { return materialized_literal_count_; }
-  bool contains_array_literal() { return contains_array_literal_; }
   int expected_property_count() { return expected_property_count_; }
   bool has_only_this_property_assignments() {
       return has_only_this_property_assignments_;
@@ -1293,7 +1338,6 @@ class FunctionLiteral: public Expression {
   Scope* scope_;
   ZoneList<Statement*>* body_;
   int materialized_literal_count_;
-  bool contains_array_literal_;
   int expected_property_count_;
   bool has_only_this_property_assignments_;
   bool has_only_simple_this_property_assignments_;
@@ -1690,6 +1734,7 @@ class AstVisitor BASE_EMBEDDED {
   void Visit(AstNode* node) { node->Accept(this); }
 
   // Iteration
+  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 

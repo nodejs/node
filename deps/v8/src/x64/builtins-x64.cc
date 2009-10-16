@@ -53,7 +53,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ movq(rbp, rsp);
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Push(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
 
   // Push the function on the stack.
   __ push(rdi);
@@ -75,14 +75,9 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pop(rbp);
 
   // Remove caller arguments from the stack.
-  // rbx holds a Smi, so we convery to dword offset by multiplying by 4.
-  // TODO(smi): Find a way to abstract indexing by a smi.
-  ASSERT_EQ(kSmiTagSize, 1 && kSmiTag == 0);
-  ASSERT_EQ(kPointerSize, (1 << kSmiTagSize) * 4);
-  // TODO(smi): Find way to abstract indexing by a smi.
   __ pop(rcx);
-  // 1 * kPointerSize is offset of receiver.
-  __ lea(rsp, Operand(rsp, rbx, times_half_pointer_size, 1 * kPointerSize));
+  SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
+  __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
   __ push(rcx);
 }
 
@@ -342,7 +337,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Because runtime functions always remove the receiver from the stack, we
     // have to fake one to avoid underflowing the stack.
     __ push(rax);
-    __ push(Immediate(Smi::FromInt(0)));
+    __ Push(Smi::FromInt(0));
 
     // Do call to runtime routine.
     __ CallRuntime(Runtime::kStackGuard, 1);
@@ -434,7 +429,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Update the index on the stack and in register rax.
   __ movq(rax, Operand(rbp, kIndexOffset));
-  __ addq(rax, Immediate(Smi::FromInt(1)));
+  __ SmiAddConstant(rax, rax, Smi::FromInt(1));
   __ movq(Operand(rbp, kIndexOffset), rax);
 
   __ bind(&entry);
@@ -507,7 +502,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ Move(FieldOperand(result, JSArray::kPropertiesOffset),
           Factory::empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
-  __ movq(FieldOperand(result, JSArray::kLengthOffset), Immediate(0));
+  __ Move(FieldOperand(result, JSArray::kLengthOffset), Smi::FromInt(0));
 
   // If no storage is requested for the elements array just set the empty
   // fixed array.
@@ -718,14 +713,12 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ cmpq(rax, Immediate(1));
   __ j(not_equal, &argc_two_or_more);
   __ movq(rdx, Operand(rsp, kPointerSize));  // Get the argument from the stack.
-  Condition not_positive_smi = __ CheckNotPositiveSmi(rdx);
-  __ j(not_positive_smi, call_generic_code);
+  __ JumpIfNotPositiveSmi(rdx, call_generic_code);
 
   // Handle construction of an empty array of a certain size. Bail out if size
   // is to large to actually allocate an elements array.
-  __ JumpIfSmiGreaterEqualsConstant(rdx,
-                                    JSObject::kInitialMaxFastElementArray,
-                                    call_generic_code);
+  __ SmiCompare(rdx, Smi::FromInt(JSObject::kInitialMaxFastElementArray));
+  __ j(greater_equal, call_generic_code);
 
   // rax: argc
   // rdx: array_size (smi)
@@ -825,10 +818,10 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     ASSERT(kSmiTag == 0);
-    Condition not_smi = __ CheckNotSmi(rbx);
-    __ Assert(not_smi, "Unexpected initial map for Array function");
+    Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
+    __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Assert(equal, "Unexpected initial map for Array function");
+    __ Check(equal, "Unexpected initial map for Array function");
   }
 
   // Run the native code for the Array function called as a normal function.
@@ -857,15 +850,15 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     // does always have a map.
     GenerateLoadArrayFunction(masm, rbx);
     __ cmpq(rdi, rbx);
-    __ Assert(equal, "Unexpected Array function");
+    __ Check(equal, "Unexpected Array function");
     // Initial map for the builtin Array function should be a map.
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     ASSERT(kSmiTag == 0);
-    Condition not_smi = __ CheckNotSmi(rbx);
-    __ Assert(not_smi, "Unexpected initial map for Array function");
+    Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
+    __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Assert(equal, "Unexpected initial map for Array function");
+    __ Check(equal, "Unexpected initial map for Array function");
   }
 
   // Run the native code for the Array function called as constructor.
@@ -902,7 +895,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // edi: called object
   // eax: number of arguments
   __ bind(&non_function_call);
-
   // Set expected number of arguments to zero (not changing eax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
@@ -1143,11 +1135,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveConstructFrame();
 
   // Remove caller arguments from the stack and return.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  // TODO(smi): Find a way to abstract indexing by a smi.
   __ pop(rcx);
-  // 1 * kPointerSize is offset of receiver.
-  __ lea(rsp, Operand(rsp, rbx, times_half_pointer_size, 1 * kPointerSize));
+  SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
+  __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
   __ push(rcx);
   __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);

@@ -34,51 +34,129 @@ Import('context')
 
 
 SOURCES = {
-  'all': [
-    'accessors.cc', 'allocation.cc', 'api.cc', 'assembler.cc', 'ast.cc',
-    'bootstrapper.cc', 'builtins.cc', 'checks.cc', 'code-stubs.cc',
-    'codegen.cc', 'compilation-cache.cc', 'compiler.cc', 'contexts.cc',
-    'conversions.cc', 'counters.cc', 'dateparser.cc', 'debug.cc',
-    'debug-agent.cc', 'disassembler.cc', 'execution.cc', 'factory.cc',
-    'flags.cc', 'frame-element.cc', 'frames.cc', 'func-name-inferrer.cc',
-    'global-handles.cc', 'handles.cc', 'hashmap.cc', 'heap.cc',
-    'heap-profiler.cc', 'ic.cc', 'interpreter-irregexp.cc', 'jsregexp.cc',
-    'jump-target.cc', 'log.cc', 'log-utils.cc', 'mark-compact.cc',
-    'messages.cc', 'objects.cc', 'oprofile-agent.cc', 'parser.cc',
-    'property.cc', 'regexp-macro-assembler.cc',
-    'regexp-macro-assembler-irregexp.cc', 'regexp-stack.cc',
-    'register-allocator.cc', 'rewriter.cc', 'runtime.cc', 'scanner.cc',
-    'scopeinfo.cc', 'scopes.cc', 'serialize.cc', 'snapshot-common.cc',
-    'spaces.cc', 'string-stream.cc', 'stub-cache.cc', 'token.cc', 'top.cc',
-    'unicode.cc', 'usage-analyzer.cc', 'utils.cc', 'v8-counters.cc',
-    'v8.cc', 'v8threads.cc', 'variables.cc', 'version.cc',
-    'virtual-frame.cc', 'zone.cc'
-  ],
-  'arch:arm': [
-    'arm/assembler-arm.cc', 'arm/builtins-arm.cc', 'arm/codegen-arm.cc',
-    'arm/constants-arm.cc', 'arm/cpu-arm.cc', 'arm/disasm-arm.cc',
-    'arm/debug-arm.cc', 'arm/frames-arm.cc', 'arm/ic-arm.cc',
-    'arm/jump-target-arm.cc', 'arm/macro-assembler-arm.cc',
-    'arm/regexp-macro-assembler-arm.cc', 'arm/register-allocator-arm.cc',
-    'arm/stub-cache-arm.cc', 'arm/virtual-frame-arm.cc'
-  ],
-  'arch:ia32': [
-    'ia32/assembler-ia32.cc', 'ia32/builtins-ia32.cc',
-    'ia32/codegen-ia32.cc', 'ia32/cpu-ia32.cc', 'ia32/disasm-ia32.cc',
-    'ia32/debug-ia32.cc', 'ia32/frames-ia32.cc', 'ia32/ic-ia32.cc',
-    'ia32/jump-target-ia32.cc', 'ia32/macro-assembler-ia32.cc',
-    'ia32/regexp-macro-assembler-ia32.cc',
-    'ia32/register-allocator-ia32.cc', 'ia32/stub-cache-ia32.cc',
-    'ia32/virtual-frame-ia32.cc'
-  ],
-  'arch:x64': [
-    'x64/assembler-x64.cc', 'x64/builtins-x64.cc', 'x64/codegen-x64.cc',
-    'x64/cpu-x64.cc', 'x64/disasm-x64.cc', 'x64/debug-x64.cc',
-    'x64/frames-x64.cc', 'x64/ic-x64.cc', 'x64/jump-target-x64.cc',
-    'x64/macro-assembler-x64.cc', 'x64/regexp-macro-assembler-x64.cc',
-    'x64/register-allocator-x64.cc', 'x64/stub-cache-x64.cc',
-    'x64/virtual-frame-x64.cc'
-  ],
+  'all': Split("""
+    accessors.cc
+    allocation.cc
+    api.cc
+    assembler.cc
+    ast.cc
+    bootstrapper.cc
+    builtins.cc
+    checks.cc
+    code-stubs.cc
+    codegen.cc
+    compilation-cache.cc
+    compiler.cc
+    contexts.cc
+    conversions.cc
+    counters.cc
+    dateparser.cc
+    debug-agent.cc
+    debug.cc
+    disassembler.cc
+    execution.cc
+    factory.cc
+    fast-codegen.cc
+    flags.cc
+    frame-element.cc
+    frames.cc
+    func-name-inferrer.cc
+    global-handles.cc
+    handles.cc
+    hashmap.cc
+    heap-profiler.cc
+    heap.cc
+    ic.cc
+    interpreter-irregexp.cc
+    jsregexp.cc
+    jump-target.cc
+    log-utils.cc
+    log.cc
+    mark-compact.cc
+    messages.cc
+    objects.cc
+    oprofile-agent.cc
+    parser.cc
+    property.cc
+    regexp-macro-assembler-irregexp.cc
+    regexp-macro-assembler.cc
+    regexp-stack.cc
+    register-allocator.cc
+    rewriter.cc
+    runtime.cc
+    scanner.cc
+    scopeinfo.cc
+    scopes.cc
+    serialize.cc
+    snapshot-common.cc
+    spaces.cc
+    string-stream.cc
+    stub-cache.cc
+    token.cc
+    top.cc
+    unicode.cc
+    usage-analyzer.cc
+    utils.cc
+    v8-counters.cc
+    v8.cc
+    v8threads.cc
+    variables.cc
+    version.cc
+    virtual-frame.cc
+    zone.cc
+    """),
+  'arch:arm': Split("""
+    arm/assembler-arm.cc
+    arm/builtins-arm.cc
+    arm/codegen-arm.cc
+    arm/constants-arm.cc
+    arm/cpu-arm.cc
+    arm/debug-arm.cc
+    arm/disasm-arm.cc
+    arm/fast-codegen-arm.cc
+    arm/frames-arm.cc
+    arm/ic-arm.cc
+    arm/jump-target-arm.cc
+    arm/macro-assembler-arm.cc
+    arm/regexp-macro-assembler-arm.cc
+    arm/register-allocator-arm.cc
+    arm/stub-cache-arm.cc
+    arm/virtual-frame-arm.cc
+    """),
+  'arch:ia32': Split("""
+    ia32/assembler-ia32.cc
+    ia32/builtins-ia32.cc
+    ia32/codegen-ia32.cc
+    ia32/cpu-ia32.cc
+    ia32/debug-ia32.cc
+    ia32/disasm-ia32.cc
+    ia32/fast-codegen-ia32.cc
+    ia32/frames-ia32.cc
+    ia32/ic-ia32.cc
+    ia32/jump-target-ia32.cc
+    ia32/macro-assembler-ia32.cc
+    ia32/regexp-macro-assembler-ia32.cc
+    ia32/register-allocator-ia32.cc
+    ia32/stub-cache-ia32.cc
+    ia32/virtual-frame-ia32.cc
+    """),
+  'arch:x64': Split("""
+    x64/assembler-x64.cc
+    x64/builtins-x64.cc
+    x64/codegen-x64.cc
+    x64/cpu-x64.cc
+    x64/debug-x64.cc
+    x64/disasm-x64.cc
+    x64/fast-codegen-x64.cc
+    x64/frames-x64.cc
+    x64/ic-x64.cc
+    x64/jump-target-x64.cc
+    x64/macro-assembler-x64.cc
+    x64/regexp-macro-assembler-x64.cc
+    x64/register-allocator-x64.cc
+    x64/stub-cache-x64.cc
+    x64/virtual-frame-x64.cc
+    """),
   'simulator:arm': ['arm/simulator-arm.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
   'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],

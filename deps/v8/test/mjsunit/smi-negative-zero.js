@@ -37,64 +37,64 @@ var minus_four = -4;
 
 // variable op variable
 
-assertEquals(one / (-zero), -Infinity, "one / -0 I");
+assertEquals(-Infinity, one / (-zero), "one / -0 I");
 
-assertEquals(one / (zero * minus_one), -Infinity, "one / -1");
-assertEquals(one / (minus_one * zero), -Infinity, "one / -0 II");
-assertEquals(one / (zero * zero), Infinity, "one / 0 I");
-assertEquals(one / (minus_one * minus_one), 1, "one / 1");
+assertEquals(-Infinity, one / (zero * minus_one), "one / -1");
+assertEquals(-Infinity, one / (minus_one * zero), "one / -0 II");
+assertEquals(Infinity, one / (zero * zero), "one / 0 I");
+assertEquals(1, one / (minus_one * minus_one), "one / 1");
 
-assertEquals(one / (zero / minus_one), -Infinity, "one / -0 III");
-assertEquals(one / (zero / one), Infinity, "one / 0 II");
+assertEquals(-Infinity, one / (zero / minus_one), "one / -0 III");
+assertEquals(Infinity, one / (zero / one), "one / 0 II");
 
-assertEquals(one / (minus_four % two), -Infinity, "foo1");
-assertEquals(one / (minus_four % minus_two), -Infinity, "foo2");
-assertEquals(one / (four % two), Infinity, "foo3");
-assertEquals(one / (four % minus_two), Infinity, "foo4");
+assertEquals(-Infinity, one / (minus_four % two), "foo1");
+assertEquals(-Infinity, one / (minus_four % minus_two), "foo2");
+assertEquals(Infinity, one / (four % two), "foo3");
+assertEquals(Infinity, one / (four % minus_two), "foo4");
 
 // literal op variable
 
-assertEquals(one / (0 * minus_one), -Infinity, "bar1");
-assertEquals(one / (-1 * zero), -Infinity, "bar2");
-assertEquals(one / (0 * zero), Infinity, "bar3");
-assertEquals(one / (-1 * minus_one), 1, "bar4");
+assertEquals(-Infinity, one / (0 * minus_one), "bar1");
+assertEquals(-Infinity, one / (-1 * zero), "bar2");
+assertEquals(Infinity, one / (0 * zero), "bar3");
+assertEquals(1, one / (-1 * minus_one), "bar4");
 
-assertEquals(one / (0 / minus_one), -Infinity, "baz1");
-assertEquals(one / (0 / one), Infinity, "baz2");
+assertEquals(-Infinity, one / (0 / minus_one), "baz1");
+assertEquals(Infinity, one / (0 / one), "baz2");
 
-assertEquals(one / (-4 % two), -Infinity, "baz3");
-assertEquals(one / (-4 % minus_two), -Infinity, "baz4");
-assertEquals(one / (4 % two), Infinity, "baz5");
-assertEquals(one / (4 % minus_two), Infinity, "baz6");
+assertEquals(-Infinity, one / (-4 % two), "baz3");
+assertEquals(-Infinity, one / (-4 % minus_two), "baz4");
+assertEquals(Infinity, one / (4 % two), "baz5");
+assertEquals(Infinity, one / (4 % minus_two), "baz6");
 
 // variable op literal
 
-assertEquals(one / (zero * -1), -Infinity, "fizz1");
-assertEquals(one / (minus_one * 0), -Infinity, "fizz2");
-assertEquals(one / (zero * 0), Infinity, "fizz3");
-assertEquals(one / (minus_one * -1), 1, "fizz4");
+assertEquals(-Infinity, one / (zero * -1), "fizz1");
+assertEquals(-Infinity, one / (minus_one * 0), "fizz2");
+assertEquals(Infinity, one / (zero * 0), "fizz3");
+assertEquals(1, one / (minus_one * -1), "fizz4");
 
-assertEquals(one / (zero / -1), -Infinity, "buzz1");
-assertEquals(one / (zero / 1), Infinity, "buzz2");
+assertEquals(-Infinity, one / (zero / -1), "buzz1");
+assertEquals(Infinity, one / (zero / 1), "buzz2");
 
-assertEquals(one / (minus_four % 2), -Infinity, "buzz3");
-assertEquals(one / (minus_four % -2), -Infinity, "buzz4");
-assertEquals(one / (four % 2), Infinity, "buzz5");
-assertEquals(one / (four % -2), Infinity, "buzz6");
+assertEquals(-Infinity, one / (minus_four % 2), "buzz3");
+assertEquals(-Infinity, one / (minus_four % -2), "buzz4");
+assertEquals(Infinity, one / (four % 2), "buzz5");
+assertEquals(Infinity, one / (four % -2), "buzz6");
 
 // literal op literal
 
-assertEquals(one / (-0), -Infinity, "fisk1");
+assertEquals(-Infinity, one / (-0), "fisk1");
 
-assertEquals(one / (0 * -1), -Infinity, "fisk2");
-assertEquals(one / (-1 * 0), -Infinity, "fisk3");
-assertEquals(one / (0 * 0), Infinity, "fisk4");
-assertEquals(one / (-1 * -1), 1, "fisk5");
+assertEquals(-Infinity, one / (0 * -1), "fisk2");
+assertEquals(-Infinity, one / (-1 * 0), "fisk3");
+assertEquals(Infinity, one / (0 * 0), "fisk4");
+assertEquals(1, one / (-1 * -1), "fisk5");
 
-assertEquals(one / (0 / -1), -Infinity, "hest1");
-assertEquals(one / (0 / 1), Infinity, "hest2");
+assertEquals(-Infinity, one / (0 / -1), "hest1");
+assertEquals(Infinity, one / (0 / 1), "hest2");
 
-assertEquals(one / (-4 % 2), -Infinity, "fiskhest1");
-assertEquals(one / (-4 % -2), -Infinity, "fiskhest2");
-assertEquals(one / (4 % 2), Infinity, "fiskhest3");
-assertEquals(one / (4 % -2), Infinity, "fiskhest4");
+assertEquals(-Infinity, one / (-4 % 2), "fiskhest1");
+assertEquals(-Infinity, one / (-4 % -2), "fiskhest2");
+assertEquals(Infinity, one / (4 % 2), "fiskhest3");
+assertEquals(Infinity, one / (4 % -2), "fiskhest4");

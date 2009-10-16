@@ -44,6 +44,7 @@ using v8::internal::Label;
 using v8::internal::rax;
 using v8::internal::rsi;
 using v8::internal::rdi;
+using v8::internal::rcx;
 using v8::internal::rdx;
 using v8::internal::rbp;
 using v8::internal::rsp;
@@ -53,19 +54,27 @@ using v8::internal::less_equal;
 using v8::internal::not_equal;
 using v8::internal::greater;
 
-
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
-// The AMD64 calling convention is used, with the first five arguments
-// in RSI, RDI, RDX, RCX, R8, and R9, and floating point arguments in
+// The AMD64 calling convention is used, with the first six arguments
+// in RDI, RSI, RDX, RCX, R8, and R9, and floating point arguments in
 // the XMM registers.  The return value is in RAX.
 // This calling convention is used on Linux, with GCC, and on Mac OS,
-// with GCC.  A different convention is used on 64-bit windows.
+// with GCC.  A different convention is used on 64-bit windows,
+// where the first four integer arguments are passed in RCX, RDX, R8 and R9.
 
 typedef int (*F0)();
 typedef int (*F1)(int64_t x);
 typedef int (*F2)(int64_t x, int64_t y);
+
+#ifdef _WIN64
+static const v8::internal::Register arg1 = rcx;
+static const v8::internal::Register arg2 = rdx;
+#else
+static const v8::internal::Register arg1 = rdi;
+static const v8::internal::Register arg2 = rsi;
+#endif
 
 #define __ assm.
 
@@ -80,7 +89,7 @@ TEST(AssemblerX64ReturnOperation) {
   Assembler assm(buffer, actual_size);
 
   // Assemble a simple function that copies argument 2 and returns it.
-  __ movq(rax, rsi);
+  __ movq(rax, arg2);
   __ nop();
   __ ret(0);
 
@@ -105,9 +114,9 @@ TEST(AssemblerX64StackOperations) {
   // incorrect stack frames when debugging this function (which has them).
   __ push(rbp);
   __ movq(rbp, rsp);
-  __ push(rsi);  // Value at (rbp - 8)
-  __ push(rsi);  // Value at (rbp - 16)
-  __ push(rdi);  // Value at (rbp - 24)
+  __ push(arg2);  // Value at (rbp - 8)
+  __ push(arg2);  // Value at (rbp - 16)
+  __ push(arg1);  // Value at (rbp - 24)
   __ pop(rax);
   __ pop(rax);
   __ pop(rax);
@@ -132,8 +141,8 @@ TEST(AssemblerX64ArithmeticOperations) {
   Assembler assm(buffer, actual_size);
 
   // Assemble a simple function that adds arguments returning the sum.
-  __ movq(rax, rsi);
-  __ addq(rax, rdi);
+  __ movq(rax, arg2);
+  __ addq(rax, arg1);
   __ ret(0);
 
   CodeDesc desc;
@@ -154,8 +163,8 @@ TEST(AssemblerX64ImulOperation) {
 
   // Assemble a simple function that multiplies arguments returning the high
   // word.
-  __ movq(rax, rsi);
-  __ imul(rdi);
+  __ movq(rax, arg2);
+  __ imul(arg1);
   __ movq(rax, rdx);
   __ ret(0);
 
@@ -182,14 +191,16 @@ TEST(AssemblerX64MemoryOperands) {
   // Assemble a simple function that copies argument 2 and returns it.
   __ push(rbp);
   __ movq(rbp, rsp);
-  __ push(rsi);  // Value at (rbp - 8)
-  __ push(rsi);  // Value at (rbp - 16)
-  __ push(rdi);  // Value at (rbp - 24)
+
+  __ push(arg2);  // Value at (rbp - 8)
+  __ push(arg2);  // Value at (rbp - 16)
+  __ push(arg1);  // Value at (rbp - 24)
+
   const int kStackElementSize = 8;
   __ movq(rax, Operand(rbp, -3 * kStackElementSize));
-  __ pop(rsi);
-  __ pop(rsi);
-  __ pop(rsi);
+  __ pop(arg2);
+  __ pop(arg2);
+  __ pop(arg2);
   __ pop(rbp);
   __ nop();
   __ ret(0);
@@ -210,13 +221,14 @@ TEST(AssemblerX64ControlFlow) {
   CHECK(buffer);
   Assembler assm(buffer, actual_size);
 
-  // Assemble a simple function that copies argument 2 and returns it.
+  // Assemble a simple function that copies argument 1 and returns it.
   __ push(rbp);
+
   __ movq(rbp, rsp);
-  __ movq(rax, rdi);
+  __ movq(rax, arg1);
   Label target;
   __ jmp(&target);
-  __ movq(rax, rsi);
+  __ movq(rax, arg2);
   __ bind(&target);
   __ pop(rbp);
   __ ret(0);

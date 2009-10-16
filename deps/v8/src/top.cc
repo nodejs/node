@@ -54,6 +54,7 @@ Address Top::get_address_from_id(Top::AddressId id) {
   return top_addresses[id];
 }
 
+
 char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
@@ -493,11 +494,17 @@ static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
 
 bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
+
+  // The callers of this method are not expecting a GC.
+  AssertNoAllocation no_gc;
+
+  // Skip checks for hidden properties access.  Note, we do not
+  // require existence of a context in this case.
+  if (key == Heap::hidden_symbol()) return true;
+
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
   ASSERT(Top::context());
-  // The callers of this method are not expecting a GC.
-  AssertNoAllocation no_gc;
 
   MayAccessDecision decision = MayAccessPreCheck(receiver, type);
   if (decision != UNKNOWN) return decision == YES;
