@@ -304,12 +304,18 @@ def build(bld):
       src/node.js
     """,
     target="src/node_natives.h",
-    rule=javascript_in_c,
     before="cxx"
   )
   native_cc.install_path = None
+
+  # Add the rule /after/ cloning the debug
+  # This is a work around for an error had in python 2.4.3 (I'll paste the
+  # error that was had into the git commit meessage. git-blame to find out
+  # where.)
   if bld.env["USE_DEBUG"]:
-    native_cc.clone("debug")
+    native_cc_debug = native_cc.clone("debug")
+    native_cc_debug.rule = javascript_in_c
+  native_cc.rule = javascript_in_c
 
   ### node lib
   node = bld.new_task_gen("cxx", "program")
