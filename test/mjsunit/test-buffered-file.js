@@ -3,7 +3,7 @@ node.mixin(require("common.js"));
 var testTxt = node.path.join(fixturesDir, "test.txt");
 
 var libDir = node.path.join(testDir, "../../lib");
-node.libraryPaths.unshift(libDir);
+require.paths.unshift(libDir);
 node.mixin(require("/file.js"));
 
 var fileUnlinked = false;

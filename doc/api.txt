@@ -73,7 +73,7 @@ more information.
 +require(path)+ ::
 See the modules section.
 
-+node.libraryPaths+ ::
++require.paths+ ::
 The search path for absolute path arguments to +require()+.
 
 +node.mixin([deep], target, object1, [objectN])+ ::
@@ -369,7 +369,7 @@ puts("The area of a cirlce of radius 4 is " + area(4));
 
 When an absolute path is given to +require()+, like
 +require("/mjsunit.js")+ the module is searched for in the
-+node.libraryPaths+ array. +node.libraryPaths+ on my system looks like this: 
++require.paths+ array. +require.paths+ on my system looks like this: 
 
 ----------------------------------------
 [ "/home/ryan/.node_libraries"
@@ -382,7 +382,7 @@ That is, first Node looks for +"/home/ryan/.node_libraries/mjsunit.js"+ and
 then for +"/home/ryan/local/node/lib/node_libraries/mjsunit.js"+. If not
 found, it finally looks for +"/mjsunit.js"+ (in the root directory).
 
-+node.libraryPaths+ can be modified at runtime by simply unshifting new
++require.paths+ can be modified at runtime by simply unshifting new
 paths on to it and at startup with the +NODE_LIBRARY_PATHS+ environmental
 variable (which should be a list of paths, colon separated).
 

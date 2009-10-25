@@ -1,5 +1,5 @@
 libDir = node.path.join(node.path.dirname(__filename), "../lib");
-node.libraryPaths.unshift(libDir);
+require.paths.unshift(libDir);
 
 node.mixin(require("/utils.js"));
 http = require("/http.js");

@@ -294,6 +294,7 @@ node.Module.prototype.loadScript = function (loadPromise) {
       return requireAsync(url).wait();
     }
 
+    require.paths = node.libraryPaths;
     require.async = requireAsync;
 
     // create wrapper function
