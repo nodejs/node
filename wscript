@@ -1,5 +1,4 @@
 # /usr/bin/env python
-import platform
 import re
 import Options
 import sys, os, shutil
@@ -182,19 +181,6 @@ def build_udns(bld):
     bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
   bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
-# XXX Remove this when v8 defaults x86_64 to native builds
-def GuessArchitecture():
-  id = platform.machine()
-  arch = platform.architecture()[0]
-  if id.startswith('arm'):
-    return 'arm'
-  elif ('64' in id) or ('64' in arch):
-    return 'x64'
-  elif (not id) or (not re.match('(x|i[3-6])86', id) is None):
-    return 'ia32'
-  else:
-    return None
-
 def v8_cmd(bld, variant):
   scons = join(cwd, 'tools/scons/scons.py')
   deps_src = join(bld.path.abspath(),"deps")
@@ -205,8 +191,9 @@ def v8_cmd(bld, variant):
   # cannot see symbols in the executable which are hidden, even if the
   # executable is statically linked together...
 
+  # XXX Remove this when v8 defaults x86_64 to native builds
   arch = ""
-  if GuessArchitecture() == "x64":
+  if bld.env['DEST_CPU'] == 'x86_64':
     arch = "arch=x64"
 
   if variant == "default":
