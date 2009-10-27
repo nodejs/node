@@ -337,7 +337,8 @@ def build(bld):
     deps/http_parser
     deps/coupling
   """
-  node.uselib_local = "evcom ev eio http_parser coupling"
+  node.add_objects = 'ev eio'
+  node.uselib_local = "evcom http_parser coupling"
   node.uselib = "UDNS V8 EXECINFO DL"
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'

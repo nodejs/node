@@ -60,7 +60,7 @@ def configure(conf):
   conf.env.append_value('CXXFLAGS', ['-DEV_MULTIPLICITY=0'])
 
 def build(bld):
-  libev = bld.new_task_gen("cc", "staticlib")
+  libev = bld.new_task_gen("cc")
   libev.source = 'ev.c'
   libev.target = 'ev'
   libev.name = 'ev'

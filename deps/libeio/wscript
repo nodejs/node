@@ -108,7 +108,7 @@ def configure(conf):
   """, define_name="HAVE_SYNC_FILE_RANGE")
 
 def build(bld):
-  libeio = bld.new_task_gen("cc", "staticlib")
+  libeio = bld.new_task_gen("cc")
   libeio.source = "eio.c"
   libeio.target = 'eio'
   libeio.name = 'eio'
