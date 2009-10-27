@@ -18,10 +18,6 @@
 
 namespace node {
 
-#ifndef RAMP
-# define RAMP(x) ((x) > 0 ? (x) : 0)
-#endif
-
 using namespace v8;
 
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
