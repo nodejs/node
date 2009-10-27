@@ -394,3 +394,16 @@ def build(bld):
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 
   bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js')
+
+def shutdown():
+  Options.options.debug
+  # HACK to get binding.node out of build directory.
+  # better way to do this?
+  if not Options.commands['clean']:
+    if os.path.exists('build/default/node') and not os.path.exists('node'):
+      os.symlink('build/default/node', 'node')
+    if os.path.exists('build/debug/node_g') and not os.path.exists('node_g'):
+      os.symlink('build/debug/node_g', 'node_g')
+  else:
+    if os.path.exists('node'): os.unlink('node')
+    if os.path.exists('node_g'): os.unlink('node_g')
