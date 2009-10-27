@@ -172,19 +172,16 @@ def build_udns(bld):
   )
 
   bld.env["CPPPATH_UDNS"] = "deps/udns"
-  bld.env["STATICLIB_UDNS"] = "udns"
-
-  bld.env_of_name('default')["STATICLIB_UDNS"] = "udns"
-  bld.env_of_name('default')["LIBPATH_UDNS"] = default_dir
+  t = join(bld.srcnode.abspath(bld.env_of_name("default")), default.target)
+  bld.env_of_name('default')["LINKFLAGS_UDNS"] = [t]
 
   if bld.env["USE_DEBUG"]:
     debug_build_dir = bld.srcnode.abspath(bld.env_of_name("debug"))
     debug_dir = join(debug_build_dir, "deps/udns")
     debug = default.clone("debug")
     debug.rule = rule % debug_dir
-    #debug.target = join(debug_dir, static_lib)
-    bld.env_of_name('debug')["STATICLIB_UDNS"] = "udns"
-    bld.env_of_name('debug')["LIBPATH_UDNS"] = debug_dir
+    t = join(bld.srcnode.abspath(bld.env_of_name("debug")), debug.target)
+    bld.env_of_name('debug')["LINKFLAGS_UDNS"] = [t]
   bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
 def v8_cmd(bld, variant):
@@ -230,9 +227,8 @@ def build_v8(bld):
   )
   v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
-  bld.env_of_name('default')["STATICLIB_V8"] = "v8"
-  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
-  bld.env_of_name('default')["LIBPATH_V8"] = bld.srcnode.abspath(bld.env_of_name("default"))
+  t = join(bld.srcnode.abspath(bld.env_of_name("default")), v8.target)
+  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", t]
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -240,9 +236,8 @@ def build_v8(bld):
     v8_debug.rule   = v8_cmd(bld, "debug")
     v8_debug.target = bld.env["staticlib_PATTERN"] % "v8_g"
     v8_debug.uselib = "EXECINFO"
-    bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
-    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
-    bld.env_of_name('debug')["LIBPATH_V8"] = bld.srcnode.abspath(bld.env_of_name("debug"))
+    t = join(bld.srcnode.abspath(bld.env_of_name("debug")), v8_debug.target)
+    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", t]
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
