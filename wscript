@@ -132,6 +132,12 @@ def configure(conf):
 
   conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
 
+  # LFS
+  conf.env.append_value('CCFLAGS',  '-D_LARGEFILE_SOURCE')
+  conf.env.append_value('CXXFLAGS', '-D_LARGEFILE_SOURCE')
+  conf.env.append_value('CCFLAGS',  '-D_FILE_OFFSET_BITS=64')
+  conf.env.append_value('CXXFLAGS', '-D_FILE_OFFSET_BITS=64')
+
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
   conf.set_env_name('debug', debug_env)
