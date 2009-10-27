@@ -1,5 +1,5 @@
-#include "node.h"
-#include "timer.h"
+#include <node.h>
+#include <node_timer.h>
 #include <assert.h>
 
 using namespace v8;

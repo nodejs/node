@@ -10,19 +10,20 @@
 #include <errno.h>
 #include <dlfcn.h> /* dlopen(), dlsym() */
 
-#include <events.h>
-#include <dns.h>
-#include <net.h>
-#include <file.h>
-#include <http.h>
-#include <signal_handler.h>
-#include <timer.h>
-#include <child_process.h>
-#include <constants.h>
+#include <node_events.h>
+#include <node_dns.h>
+#include <node_net.h>
+#include <node_file.h>
+#include <node_http.h>
+#include <node_signal_handler.h>
+#include <node_timer.h>
+#include <node_child_process.h>
+#include <node_constants.h>
 #include <node_stdio.h>
 #include <node_natives.h>
-#include <v8-debug.h>
 #include <node_version.h>
+
+#include <v8-debug.h>
 
 using namespace v8;
 

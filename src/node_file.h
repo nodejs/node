@@ -3,7 +3,7 @@
 #define SRC_FILE_H_
 
 #include <node.h>
-#include <events.h>
+#include <node_events.h>
 #include <v8.h>
 
 namespace node {

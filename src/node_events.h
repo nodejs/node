@@ -2,7 +2,7 @@
 #ifndef SRC_EVENTS_H_
 #define SRC_EVENTS_H_
 
-#include <object_wrap.h>
+#include <node_object_wrap.h>
 #include <v8.h>
 
 namespace node {

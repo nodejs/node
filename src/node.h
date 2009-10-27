@@ -7,7 +7,7 @@
 #include <v8.h>
 #include <evcom.h>
 
-#include <object_wrap.h>
+#include <node_object_wrap.h>
 
 namespace node {
 

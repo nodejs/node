@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <file.h>
+#include <node_file.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -310,16 +310,16 @@ def build(bld):
   node.target       = "node"
   node.source = """
     src/node.cc
-    src/events.cc
-    src/http.cc
-    src/net.cc
+    src/node_child_process.cc
+    src/node_constants.cc
+    src/node_dns.cc
+    src/node_events.cc
+    src/node_file.cc
+    src/node_http.cc
+    src/node_net.cc
+    src/node_signal_handler.cc
     src/node_stdio.cc
-    src/dns.cc
-    src/file.cc
-    src/signal_handler.cc
-    src/timer.cc
-    src/child_process.cc
-    src/constants.cc
+    src/node_timer.cc
   """
   node.includes = """
     src/ 

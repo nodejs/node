@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <constants.h>
+#include <node_constants.h>
 
 #include <errno.h>
 #include <unistd.h>

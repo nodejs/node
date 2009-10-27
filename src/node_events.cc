@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <events.h>
+#include <node_events.h>
 
 #include <assert.h>
 #include <stdlib.h>

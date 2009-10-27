@@ -1,8 +1,8 @@
 #ifndef node_http_h
 #define node_http_h
 
+#include <node_net.h>
 #include <v8.h>
-#include "net.h"
 #include <http_parser.h>
 
 namespace node {

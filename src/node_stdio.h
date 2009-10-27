@@ -1,7 +1,7 @@
 #ifndef node_stdio_h
 #define node_stdio_h
 
-#include "node.h"
+#include <node.h>
 
 #include <v8.h>
 #include <evcom.h>

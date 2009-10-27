@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <net.h>
+#include <node_net.h>
 
 #include <assert.h>
 #include <stdlib.h>

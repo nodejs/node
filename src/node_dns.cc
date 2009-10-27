@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <dns.h>
+#include <node_dns.h>
 
 #include <stdlib.h> /* exit() */
 #include <sys/types.h>
@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
-#include <events.h>
+#include <node_events.h>
 
 #include <v8.h>
 #include <ev.h>

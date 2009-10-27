@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <child_process.h>
+#include <node_child_process.h>
 
 #include <assert.h>
 #include <string.h>

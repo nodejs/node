@@ -1,6 +1,4 @@
-#include "node.h"
-#include "http.h"
-#include <http_parser.h>
+#include <node_http.h>
 
 #include <assert.h>
 #include <stdio.h>

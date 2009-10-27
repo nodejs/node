@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <signal_handler.h>
+#include <node_signal_handler.h>
 #include <assert.h>
 
 namespace node {

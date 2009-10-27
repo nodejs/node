@@ -1,8 +1,8 @@
 #ifndef node_timer_h
 #define node_timer_h
 
-#include "node.h"
-#include "events.h"
+#include <node.h>
+#include <node_events.h>
 #include <v8.h>
 #include <ev.h>
 
