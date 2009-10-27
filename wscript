@@ -378,9 +378,9 @@ def build(bld):
   bld.install_files('${PREFIX}/include/node/', """
     config.h
     src/node.h
-    src/object_wrap.h
-    src/events.h
-    src/net.h
+    src/node_object_wrap.h
+    src/node_events.h
+    src/node_net.h
   """)
 
   # Only install the man page if it exists. 
