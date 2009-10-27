@@ -232,6 +232,7 @@ def build_v8(bld):
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   bld.env_of_name('default')["STATICLIB_V8"] = "v8"
   bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread"]
+  bld.env_of_name('default')["LIBPATH_V8"] = bld.srcnode.abspath(bld.env_of_name("default"))
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -241,6 +242,7 @@ def build_v8(bld):
     v8_debug.uselib = "EXECINFO"
     bld.env_of_name('debug')["STATICLIB_V8"] = "v8_g"
     bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread"]
+    bld.env_of_name('debug')["LIBPATH_V8"] = bld.srcnode.abspath(bld.env_of_name("debug"))
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
@@ -251,7 +253,7 @@ def build(bld):
   build_v8(bld)
 
   ### evcom
-  evcom = bld.new_task_gen("cc", "staticlib")
+  evcom = bld.new_task_gen("cc")
   evcom.source = "deps/evcom/evcom.c"
   evcom.includes = "deps/evcom/ deps/libev/"
   evcom.name = "evcom"
@@ -263,7 +265,7 @@ def build(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/evcom/evcom.h')
 
   ### http_parser
-  http_parser = bld.new_task_gen("cc", "staticlib")
+  http_parser = bld.new_task_gen("cc")
   http_parser.source = "deps/http_parser/http_parser.c"
   http_parser.includes = "deps/http_parser/"
   http_parser.name = "http_parser"
@@ -273,7 +275,7 @@ def build(bld):
     http_parser.clone("debug")
 
   ### coupling
-  coupling = bld.new_task_gen("cc", "staticlib")
+  coupling = bld.new_task_gen("cc")
   coupling.source = "deps/coupling/coupling.c"
   coupling.includes = "deps/coupling/"
   coupling.name = "coupling"
@@ -337,9 +339,9 @@ def build(bld):
     deps/http_parser
     deps/coupling
   """
-  node.add_objects = 'ev eio'
-  node.uselib_local = "evcom http_parser coupling"
-  node.uselib = "UDNS V8 EXECINFO DL"
+  node.add_objects = 'ev eio evcom http_parser coupling'
+  node.uselib_local = ''
+  node.uselib = 'UDNS V8 EXECINFO DL'
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
