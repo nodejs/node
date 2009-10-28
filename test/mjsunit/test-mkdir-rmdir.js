@@ -7,10 +7,10 @@ var d = node.path.join(fixtures, "dir");
 var mkdir_error = false;
 var rmdir_error = false;
 
-node.fs.mkdir(d, 0x666).addCallback(function () {
+posix.mkdir(d, 0x666).addCallback(function () {
   puts("mkdir okay!");
 
-  node.fs.rmdir(d).addCallback(function () {
+  posix.rmdir(d).addCallback(function () {
     puts("rmdir okay!");
 
   }).addErrback(function (e) {

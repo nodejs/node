@@ -464,14 +464,17 @@ will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
 
 
 
-=== File I/O
+=== POSIX module
 
-File I/O is provided by simple wrappers around standard POSIX functions.
-All POSIX wrappers have a similar form.
-They return a promise (+node.Promise+). Example:
+File I/O is provided by simple wrappers around standard POSIX functions.  To
+use this module do +require("/posix.js")+. 
+
+All POSIX wrappers have a similar form.  They return a promise
+(+node.Promise+). Example:
 
 ------------------------------------------------------------------------------
-var promise = node.fs.unlink("/tmp/hello");
+var posix = require("/posix.js");
+var promise = posix.unlink("/tmp/hello");
 promise.addCallback(function () {
   puts("successfully deleted /tmp/hello");
 });
@@ -481,8 +484,8 @@ There is no guaranteed ordering to the POSIX wrappers. The
 following is very much prone to error
 
 ------------------------------------------------------------------------------
-node.fs.rename("/tmp/hello", "/tmp/world");
-node.fs.stat("/tmp/world").addCallback(function (stats) {
+posix.rename("/tmp/hello", "/tmp/world");
+posix.stat("/tmp/world").addCallback(function (stats) {
   puts("stats: " + JSON.stringify(stats));
 });
 ------------------------------------------------------------------------------
@@ -491,8 +494,8 @@ It could be that +stat()+ is executed before the +rename()+.
 The correct way to do this is to chain the promises.
 
 ------------------------------------------------------------------------------
-node.fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
-  node.fs.stat("/tmp/world").addCallback(function (stats) {
+posix.rename("/tmp/hello", "/tmp/world").addCallback(function () {
+  posix.stat("/tmp/world").addCallback(function (stats) {
     puts("stats: " + JSON.stringify(stats));
   });
 });
@@ -501,65 +504,65 @@ node.fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
 Or use the +promise.wait()+ functionality:
 
 ------------------------------------------------------------------------------
-node.fs.rename("/tmp/hello", "/tmp/world").wait();
-node.fs.stat("/tmp/world").addCallback(function (stats) {
+posix.rename("/tmp/hello", "/tmp/world").wait();
+posix.stat("/tmp/world").addCallback(function (stats) {
   puts("stats: " + JSON.stringify(stats));
 });
 ------------------------------------------------------------------------------
 
-+node.fs.rename(path1, path2)+ ::
++posix.rename(path1, path2)+ ::
   See rename(2).
   - on success: no parameters.
   - on error: no parameters.
 
 
 
-+node.fs.stat(path)+ ::
++posix.stat(path)+ ::
   See stat(2).
-  - on success: Returns +node.fs.Stats+ object. It looks like this:
+  - on success: Returns +posix.Stats+ object. It looks like this:
     +{ dev: 2049, ino: 305352, mode: 16877, nlink: 12, uid: 1000, gid: 1000,
     rdev: 0, size: 4096, blksize: 4096, blocks: 8, atime:
     "2009-06-29T11:11:55Z", mtime: "2009-06-29T11:11:40Z", ctime:
     "2009-06-29T11:11:40Z" }+
-    See the +node.fs.Stats+ section below for more information.
+    See the +posix.Stats+ section below for more information.
   - on error: no parameters.
 
-+node.fs.unlink(path)+ ::
++posix.unlink(path)+ ::
   See unlink(2)
   - on success: no parameters.
   - on error: no parameters.
 
 
-+node.fs.rmdir(path)+ ::
++posix.rmdir(path)+ ::
   See rmdir(2)
   - on success: no parameters.
   - on error: no parameters.
 
-+node.fs.mkdir(path, mode)+ ::
++posix.mkdir(path, mode)+ ::
   See mkdir(2)
   - on success: no parameters.
   - on error: no parameters.
 
-+node.fs.readdir(path)+ ::
++posix.readdir(path)+ ::
   Reads the contents of a directory.
   - on success: One argument, an array containing the names (strings) of the
     files in the directory (excluding "." and "..").
   - on error: no parameters.
 
 
-+node.fs.close(fd)+ ::
++posix.close(fd)+ ::
   See close(2)
   - on success: no parameters.
   - on error: no parameters.
 
 
-+node.fs.open(path, flags, mode)+::
++posix.open(path, flags, mode)+::
   See open(2). The constants like +O_CREAT+ are defined at +node.O_CREAT+.
   - on success: +fd+ is given as the parameter.
   - on error: no parameters.
 
 
-+node.fs.write(fd, data, position, encoding)+::
++posix.write(fd, data, position, encoding)+::
   Write data to the file specified by +fd+.  +position+ refers to the offset
   from the beginning of the file where this data should be written. If
   +position+ is +null+, the data will be written at the current position.
@@ -568,7 +571,7 @@ node.fs.stat("/tmp/world").addCallback(function (stats) {
   - on error: no parameters.
 
 
-+node.fs.read(fd, length, position, encoding)+::
++posix.read(fd, length, position, encoding)+::
 
 Read data from the file specified by +fd+.
 +
@@ -581,12 +584,12 @@ reading from in the file.
 - on success: returns +data, bytes_read+, what was read from the file.
 - on error: no parameters.
 
-+node.fs.cat(filename, encoding="utf8")+::
++posix.cat(filename, encoding="utf8")+::
 
 Outputs the entire contents of a file. Example:
 +
 --------------------------------
-node.fs.cat("/etc/passwd").addCallback(function (content) {
+posix.cat("/etc/passwd").addCallback(function (content) {
   puts(content);
 });
 --------------------------------
@@ -594,9 +597,9 @@ node.fs.cat("/etc/passwd").addCallback(function (content) {
 - on success: returns +data+, what was read from the file.
 - on error: no parameters.
 
-==== +node.fs.Stats+
+==== +posix.Stats+
 
-Objects returned from +node.fs.stat()+ are of this type.
+Objects returned from +posix.stat()+ are of this type.
 
 +stats.isFile()+::
 
