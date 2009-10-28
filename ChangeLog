@@ -1,4 +1,23 @@
-2009.10.09, Version 0.1.14
+2009.10.28, Version 0.1.15
+
+  * Many build system fixes (esp. for OSX users)
+
+  * Feature: promise.timeout() (Felix Geisendörfer)
+
+  * Feature: Added external interface for signal handlers, process.pid, and
+    process.kill() (Brandon Beacher)
+
+  * API: Rename node.libraryPaths to require.paths
+
+  * Bugfix: 'data' event for stdio should emit a string
+
+  * Large file support
+
+  * Upgrade http_parser
+
+  * Upgrade v8 to 1.3.16
+
+2009.10.09, Version 0.1.14, b12c809bb84d1265b6a4d970a5b54ee8a4890513
 
   * Feature: Improved addon builds with node-waf
 
