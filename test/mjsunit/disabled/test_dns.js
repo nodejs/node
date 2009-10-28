@@ -1,8 +1,10 @@
 node.mixin(require("../common.js"));
+var dns = require("/dns.js");
+
 for (var i = 2; i < ARGV.length; i++) {
   var name = ARGV[i]
   puts("looking up " + name);
-  var resolution = node.dns.resolve4(name);
+  var resolution = dns.resolve4(name);
 
   resolution.addCallback(function (addresses, ttl, cname) {
     puts("addresses: " + JSON.stringify(addresses));
@@ -11,7 +13,7 @@ for (var i = 2; i < ARGV.length; i++) {
 
     for (var i = 0; i < addresses.length; i++) {
       var a = addresses[i];
-      var reversing = node.dns.reverse(a);
+      var reversing = dns.reverse(a);
       reversing.addCallback( function (domains, ttl, cname) {
         puts("reverse for " + a + ": " + JSON.stringify(domains));
       });
