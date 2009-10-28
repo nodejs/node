@@ -36,10 +36,27 @@ namespace v8 {
 namespace internal {
 
 Handle<Code> CodeStub::GetCode() {
-  uint32_t key = GetKey();
-  int index = Heap::code_stubs()->FindEntry(key);
-  if (index == NumberDictionary::kNotFound) {
-    HandleScope scope;
+  bool custom_cache = has_custom_cache();
+
+  int index = 0;
+  uint32_t key = 0;
+  if (custom_cache) {
+    Code* cached;
+    if (GetCustomCache(&cached)) {
+      return Handle<Code>(cached);
+    } else {
+      index = NumberDictionary::kNotFound;
+    }
+  } else {
+    key = GetKey();
+    index = Heap::code_stubs()->FindEntry(key);
+    if (index != NumberDictionary::kNotFound)
+      return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
+  }
+
+  Code* result;
+  {
+    v8::HandleScope scope;
 
     // Update the static counter each time a new code stub is generated.
     Counters::code_stubs.Increment();
@@ -79,63 +96,29 @@ Handle<Code> CodeStub::GetCode() {
     }
 #endif
 
-    // Update the dictionary and the root in Heap.
-    Handle<NumberDictionary> dict =
-        Factory::DictionaryAtNumberPut(
-            Handle<NumberDictionary>(Heap::code_stubs()),
-            key,
-            code);
-    Heap::public_set_code_stubs(*dict);
-    index = Heap::code_stubs()->FindEntry(key);
+    if (custom_cache) {
+      SetCustomCache(*code);
+    } else {
+      // Update the dictionary and the root in Heap.
+      Handle<NumberDictionary> dict =
+          Factory::DictionaryAtNumberPut(
+              Handle<NumberDictionary>(Heap::code_stubs()),
+              key,
+              code);
+      Heap::public_set_code_stubs(*dict);
+    }
+    result = *code;
   }
-  ASSERT(index != NumberDictionary::kNotFound);
 
-  return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
+  return Handle<Code>(result);
 }
 
 
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
-    case CallFunction:
-      return "CallFunction";
-    case GenericBinaryOp:
-      return "GenericBinaryOp";
-    case SmiOp:
-      return "SmiOp";
-    case Compare:
-      return "Compare";
-    case RecordWrite:
-      return "RecordWrite";
-    case StackCheck:
-      return "StackCheck";
-    case UnarySub:
-      return "UnarySub";
-    case RevertToNumber:
-      return "RevertToNumber";
-    case ToBoolean:
-      return "ToBoolean";
-    case Instanceof:
-      return "Instanceof";
-    case CounterOp:
-      return "CounterOp";
-    case ArgumentsAccess:
-      return "ArgumentsAccess";
-    case Runtime:
-      return "Runtime";
-    case CEntry:
-      return "CEntry";
-    case JSEntry:
-      return "JSEntry";
-    case GetProperty:
-      return "GetProperty";
-    case SetProperty:
-      return "SetProperty";
-    case InvokeBuiltin:
-      return "InvokeBuiltin";
-    case ConvertToDouble:
-      return "ConvertToDouble";
-    case WriteInt32ToHeapNumber:
-      return "WriteInt32ToHeapNumber";
+#define DEF_CASE(name) case name: return #name;
+    CODE_STUB_LIST_ALL(DEF_CASE)
+#undef DEF_CASE
     default:
       UNREACHABLE();
       return NULL;

@@ -71,10 +71,6 @@ TEST(MarkingStack) {
 
 
 TEST(Promotion) {
-  // Test the situation that some objects in new space are promoted to the
-  // old space
-  if (Snapshot::IsEnabled()) return;
-
   // Ensure that we get a compacting collection so that objects are promoted
   // from new space.
   FLAG_gc_global = true;
@@ -106,7 +102,6 @@ TEST(Promotion) {
 
 
 TEST(NoPromotion) {
-  if (Snapshot::IsEnabled()) return;
   Heap::ConfigureHeap(2*256*KB, 4*MB);
 
   // Test the situation that some objects in new space are promoted to

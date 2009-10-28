@@ -462,6 +462,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalIndex));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, kGlobalIndex));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
@@ -520,48 +522,48 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  if (FLAG_check_stack) {
-    // We need to catch preemptions right here, otherwise an unlucky preemption
-    // could show up as a failed apply.
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    Label retry_preemption;
-    Label no_preemption;
-    __ bind(&retry_preemption);
-    __ mov(edi, Operand::StaticVariable(stack_guard_limit));
-    __ cmp(esp, Operand(edi));
-    __ j(above, &no_preemption, taken);
+  // Check the stack for overflow or a break request.
+  // We need to catch preemptions right here, otherwise an unlucky preemption
+  // could show up as a failed apply.
+  ExternalReference stack_guard_limit =
+      ExternalReference::address_of_stack_guard_limit();
+  Label retry_preemption;
+  Label no_preemption;
+  __ bind(&retry_preemption);
+  __ mov(edi, Operand::StaticVariable(stack_guard_limit));
+  __ cmp(esp, Operand(edi));
+  __ j(above, &no_preemption, taken);
 
-    // Preemption!
-    // Because builtins always remove the receiver from the stack, we
-    // have to fake one to avoid underflowing the stack.
-    __ push(eax);
-    __ push(Immediate(Smi::FromInt(0)));
+  // Preemption!
+  // Because builtins always remove the receiver from the stack, we
+  // have to fake one to avoid underflowing the stack.
+  __ push(eax);
+  __ push(Immediate(Smi::FromInt(0)));
 
-    // Do call to runtime routine.
-    __ CallRuntime(Runtime::kStackGuard, 1);
-    __ pop(eax);
-    __ jmp(&retry_preemption);
+  // Do call to runtime routine.
+  __ CallRuntime(Runtime::kStackGuard, 1);
+  __ pop(eax);
+  __ jmp(&retry_preemption);
 
-    __ bind(&no_preemption);
+  __ bind(&no_preemption);
 
-    Label okay;
-    // Make ecx the space we have left.
-    __ mov(ecx, Operand(esp));
-    __ sub(ecx, Operand(edi));
-    // Make edx the space we need for the array when it is unrolled onto the
-    // stack.
-    __ mov(edx, Operand(eax));
-    __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-    __ cmp(ecx, Operand(edx));
-    __ j(greater, &okay, taken);
+  Label okay;
+  // Make ecx the space we have left.
+  __ mov(ecx, Operand(esp));
+  __ sub(ecx, Operand(edi));
+  // Make edx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ mov(edx, Operand(eax));
+  __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
+  __ cmp(ecx, Operand(edx));
+  __ j(greater, &okay, taken);
 
-    // Too bad: Out of stack space.
-    __ push(Operand(ebp, 4 * kPointerSize));  // push this
-    __ push(eax);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
-    __ bind(&okay);
-  }
+  // Too bad: Out of stack space.
+  __ push(Operand(ebp, 4 * kPointerSize));  // push this
+  __ push(eax);
+  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+  __ bind(&okay);
+  // End of stack check.
 
   // Push current index and limit.
   const int kLimitOffset =
@@ -606,6 +608,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   const int kGlobalOffset =
       Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   __ mov(ebx, FieldOperand(esi, kGlobalOffset));
+  __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+  __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
   __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
   // Push the receiver.

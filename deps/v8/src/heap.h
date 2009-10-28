@@ -38,7 +38,13 @@ namespace internal {
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
-  /* Cluster the most popular ones in a few cache lines here at the top. */    \
+  /* Put the byte array map early.  We need it to be in place by the time   */ \
+  /* the deserializer hits the next page, since it wants to put a byte      */ \
+  /* array in the unused space at the end of the page.                      */ \
+  V(Map, byte_array_map, ByteArrayMap)                                         \
+  V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
+  V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
+  /* Cluster the most popular ones in a few cache lines here at the top.    */ \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, the_hole_value, TheHoleValue)                                      \
@@ -109,8 +115,14 @@ namespace internal {
     undetectable_medium_ascii_string_map,                                      \
     UndetectableMediumAsciiStringMap)                                          \
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
-  V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, pixel_array_map, PixelArrayMap)                                       \
+  V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
+  V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
+  V(Map, external_short_array_map, ExternalShortArrayMap)                      \
+  V(Map, external_unsigned_short_array_map, ExternalUnsignedShortArrayMap)     \
+  V(Map, external_int_array_map, ExternalIntArrayMap)                          \
+  V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
+  V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, code_map, CodeMap)                                                    \
@@ -119,8 +131,6 @@ namespace internal {
   V(Map, boilerplate_function_map, BoilerplateFunctionMap)                     \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, proxy_map, ProxyMap)                                                  \
-  V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
-  V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(String, empty_string, EmptyString)                                         \
@@ -214,7 +224,8 @@ namespace internal {
   V(exec_symbol, "exec")                                                 \
   V(zero_symbol, "0")                                                    \
   V(global_eval_symbol, "GlobalEval")                                    \
-  V(identity_hash_symbol, "v8::IdentityHash")
+  V(identity_hash_symbol, "v8::IdentityHash")                            \
+  V(closure_symbol, "(closure)")
 
 
 // Forward declaration of the GCTracer class.
@@ -228,7 +239,7 @@ class Heap : public AllStatic {
  public:
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
-  static bool ConfigureHeap(int semispace_size, int old_gen_size);
+  static bool ConfigureHeap(int max_semispace_size, int max_old_gen_size);
   static bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
@@ -247,18 +258,25 @@ class Heap : public AllStatic {
   // Returns whether Setup has been called.
   static bool HasBeenSetup();
 
-  // Returns the maximum heap capacity.
-  static int MaxCapacity() {
-    return young_generation_size_ + old_generation_size_;
+  // Returns the maximum amount of memory reserved for the heap.  For
+  // the young generation, we reserve 4 times the amount needed for a
+  // semi space.  The young generation consists of two semi spaces and
+  // we reserve twice the amount needed for those in order to ensure
+  // that new space can be aligned to its size.
+  static int MaxReserved() {
+    return 4 * reserved_semispace_size_ + max_old_generation_size_;
   }
-  static int SemiSpaceSize() { return semispace_size_; }
+  static int MaxSemiSpaceSize() { return max_semispace_size_; }
+  static int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   static int InitialSemiSpaceSize() { return initial_semispace_size_; }
-  static int YoungGenerationSize() { return young_generation_size_; }
-  static int OldGenerationSize() { return old_generation_size_; }
+  static int MaxOldGenerationSize() { return max_old_generation_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
   static int Capacity();
+
+  // Returns the amount of memory currently committed for the heap.
+  static int CommittedMemory();
 
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
@@ -289,6 +307,9 @@ class Heap : public AllStatic {
   static bool always_allocate() { return always_allocate_scope_depth_ != 0; }
   static Address always_allocate_scope_depth_address() {
     return reinterpret_cast<Address>(&always_allocate_scope_depth_);
+  }
+  static bool linear_allocation() {
+      return linear_allocation_scope_depth_ != 0;
   }
 
   static Address* NewSpaceAllocationTopAddress() {
@@ -448,6 +469,15 @@ class Heap : public AllStatic {
   static Object* AllocatePixelArray(int length,
                                     uint8_t* external_pointer,
                                     PretenureFlag pretenure);
+
+  // Allocates an external array of the specified length and type.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateExternalArray(int length,
+                                       ExternalArrayType array_type,
+                                       void* external_pointer,
+                                       PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -637,9 +667,6 @@ class Heap : public AllStatic {
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
 
-  // Code that should be executed after the garbage collection proper.
-  static void PostGarbageCollectionProcessing();
-
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);
@@ -729,7 +756,7 @@ class Heap : public AllStatic {
   static bool Contains(HeapObject* value);
 
   // Checks whether an address/object in a space.
-  // Currently used by tests and heap verification only.
+  // Currently used by tests, serialization and heap verification only.
   static bool InSpace(Address addr, AllocationSpace space);
   static bool InSpace(HeapObject* value, AllocationSpace space);
 
@@ -884,11 +911,15 @@ class Heap : public AllStatic {
 
   static Object* NumberToString(Object* number);
 
+  static Map* MapForExternalArrayType(ExternalArrayType array_type);
+  static RootListIndex RootIndexForExternalArrayType(
+      ExternalArrayType array_type);
+
  private:
-  static int semispace_size_;
+  static int reserved_semispace_size_;
+  static int max_semispace_size_;
   static int initial_semispace_size_;
-  static int young_generation_size_;
-  static int old_generation_size_;
+  static int max_old_generation_size_;
   static size_t code_range_size_;
 
   // For keeping track of how much data has survived
@@ -896,6 +927,7 @@ class Heap : public AllStatic {
   static int survived_since_last_expansion_;
 
   static int always_allocate_scope_depth_;
+  static int linear_allocation_scope_depth_;
   static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
@@ -1111,6 +1143,7 @@ class Heap : public AllStatic {
   friend class Factory;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
+  friend class LinearAllocationScope;
 };
 
 
@@ -1128,6 +1161,19 @@ class AlwaysAllocateScope {
   ~AlwaysAllocateScope() {
     Heap::always_allocate_scope_depth_--;
     ASSERT(Heap::always_allocate_scope_depth_ == 0);
+  }
+};
+
+
+class LinearAllocationScope {
+ public:
+  LinearAllocationScope() {
+    Heap::linear_allocation_scope_depth_++;
+  }
+
+  ~LinearAllocationScope() {
+    Heap::linear_allocation_scope_depth_--;
+    ASSERT(Heap::linear_allocation_scope_depth_ >= 0);
   }
 };
 

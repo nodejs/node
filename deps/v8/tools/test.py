@@ -326,6 +326,7 @@ class CommandOutput(object):
     self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
+    self.failed = None
 
 
 class TestCase(object):
@@ -333,7 +334,6 @@ class TestCase(object):
   def __init__(self, context, path):
     self.path = path
     self.context = context
-    self.failed = None
     self.duration = None
 
   def IsNegative(self):
@@ -343,9 +343,9 @@ class TestCase(object):
     return cmp(other.duration, self.duration)
 
   def DidFail(self, output):
-    if self.failed is None:
-      self.failed = self.IsFailureOutput(output)
-    return self.failed
+    if output.failed is None:
+      output.failed = self.IsFailureOutput(output)
+    return output.failed
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
@@ -1094,6 +1094,8 @@ def BuildOptions():
       default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
       default='none')
+  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
+      default=False, action="store_true")
   result.add_option("--simulator", help="Run tests with architecture simulator",
       default='none')
   result.add_option("--special-command", default=None)
@@ -1139,6 +1141,8 @@ def ProcessOptions(options):
     if options.arch == 'none':
       options.arch = ARCH_GUESS
     options.scons_flags.append("arch=" + options.arch)
+  if options.snapshot:
+    options.scons_flags.append("snapshot=on")
   return True
 
 

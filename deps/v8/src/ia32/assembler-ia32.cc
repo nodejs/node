@@ -1850,6 +1850,22 @@ void Assembler::fucompp() {
 }
 
 
+void Assembler::fucomi(int i) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDB);
+  EMIT(0xE8 + i);
+}
+
+
+void Assembler::fucomip() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDF);
+  EMIT(0xE9);
+}
+
+
 void Assembler::fcompp() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2109,7 +2125,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > Heap::OldGenerationSize())) {
+      (desc.buffer_size > Heap::MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 

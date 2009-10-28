@@ -240,13 +240,6 @@ class FloatingPointHelper : public AllStatic {
   // operands, jumps to the non_float label otherwise.
   static void CheckNumberOperands(MacroAssembler* masm,
                                   Label* non_float);
-
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch,
-                                 Register result);
 };
 
 
@@ -277,8 +270,8 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->SyncRange(0, frame_->element_count() - 1);
 
   __ movq(kScratchRegister, pairs, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(rsi);  // The context is the first argument.
   frame_->EmitPush(kScratchRegister);
-  frame_->EmitPush(rsi);  // The context is the second argument.
   frame_->EmitPush(Smi::FromInt(is_eval() ? 1 : 0));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -859,12 +852,10 @@ void DeferredStackCheck::Generate() {
 
 
 void CodeGenerator::CheckStack() {
-  if (FLAG_check_stack) {
-    DeferredStackCheck* deferred = new DeferredStackCheck;
-    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-    deferred->Branch(below);
-    deferred->BindExit();
-  }
+  DeferredStackCheck* deferred = new DeferredStackCheck;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  deferred->Branch(below);
+  deferred->BindExit();
 }
 
 
@@ -2184,12 +2175,10 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
   frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Push the boilerplate on the stack.
-  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
-  frame_->EmitPush(kScratchRegister);
-
   // Create a new closure.
   frame_->EmitPush(rsi);
+  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(kScratchRegister);
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }
@@ -3975,10 +3964,9 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   // Allocate heap number for result if possible.
   Result scratch = allocator()->Allocate();
   Result heap_number = allocator()->Allocate();
-  FloatingPointHelper::AllocateHeapNumber(masm_,
-                                          call_runtime.entry_label(),
-                                          scratch.reg(),
-                                          heap_number.reg());
+  __ AllocateHeapNumber(heap_number.reg(),
+                        scratch.reg(),
+                        call_runtime.entry_label());
   scratch.Unuse();
 
   // Store the result in the allocated heap number.
@@ -4247,18 +4235,6 @@ void CodeGenerator::LoadCondition(Expression* x,
   ASSERT(!(force_control && !dest->is_used()));
   ASSERT(dest->is_used() || frame_->height() == original_height + 1);
 }
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
-};
 
 
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
@@ -5079,10 +5055,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void DeferredInlineBinaryOperation::Generate() {
-  __ push(left_);
-  __ push(right_);
-  GenericBinaryOpStub stub(op_, mode_, SMI_CODE_INLINED);
-  __ CallStub(&stub);
+  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -5111,16 +5085,16 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       // Bit operations always assume they likely operate on Smis. Still only
       // generate the inline Smi check code if this operation is part of a loop.
       flags = (loop_nesting() > 0)
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
 
     default:
       // By default only inline the Smi check code for likely smis if this
       // operation is part of a loop.
       flags = ((loop_nesting() > 0) && type->IsLikelySmi())
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
   }
 
@@ -5179,7 +5153,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
+  if ((flags & NO_SMI_CODE_IN_STUB) != 0 && !generate_no_smi_code) {
     LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
   } else {
     frame_->Push(&left);
@@ -5188,7 +5162,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // that does not check for the fast smi case.
     // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
     if (generate_no_smi_code) {
-      flags = SMI_CODE_INLINED;
+      flags = NO_SMI_CODE_IN_STUB;
     }
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
     Result answer = frame_->CallStub(&stub, 2);
@@ -5243,41 +5217,33 @@ void DeferredReferenceGetNamedValue::Generate() {
 
 
 void DeferredInlineSmiAdd::Generate() {
-  __ push(dst_);
-  __ Push(value_);
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  __ Push(value_);
-  __ push(dst_);
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, value_, dst_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
 void DeferredInlineSmiSub::Generate() {
-  __ push(dst_);
-  __ Push(value_);
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
 void DeferredInlineSmiOperation::Generate() {
-  __ push(src_);
-  __ Push(value_);
   // For mod we don't generate all the Smi code inline.
   GenericBinaryOpStub stub(
       op_,
       overwrite_mode_,
-      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
-  __ CallStub(&stub);
+      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, src_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -6214,16 +6180,11 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // These three cases set C3 when compared to zero in the FPU.
   __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &true_result);
-  // TODO(x64): Don't use fp stack, use MMX registers?
   __ fldz();  // Load zero onto fp stack
   // Load heap-number double value onto fp stack
   __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ fucompp();  // Compare and pop both values.
-  __ movq(kScratchRegister, rax);
-  __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
-  __ testl(rax, Immediate(0x4000));  // Test FP condition flag C3, bit 16.
-  __ movq(rax, kScratchRegister);
-  __ j(not_zero, &false_result);
+  __ FCmp();
+  __ j(zero, &false_result);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -6363,7 +6324,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   if (overwrite_) {
     __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
   } else {
-    FloatingPointHelper::AllocateHeapNumber(masm, &slow, rbx, rcx);
+    __ AllocateHeapNumber(rcx, rbx, &slow);
     // rcx: allocated 'empty' number
     __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
     __ movq(rax, rcx);
@@ -6406,19 +6367,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // not NaN.
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
-      // Read double representation into rax.
-      __ movq(rbx, V8_UINT64_C(0x7ff0000000000000), RelocInfo::NONE);
-      __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
-      // Test that exponent bits are all set.
-      __ or_(rbx, rax);
-      __ cmpq(rbx, rax);
-      __ j(not_equal, &return_equal);
-      // Shift out flag and all exponent bits, retaining only mantissa.
-      __ shl(rax, Immediate(12));
-      // If all bits in the mantissa are zero the number is Infinity, and
-      // we return zero.  Otherwise it is a NaN, and we return non-zero.
-      // We cannot just return rax because only eax is tested on return.
-      __ setcc(not_zero, rax);
+      // We only allow QNaNs, which have bit 51 set (which also rules out
+      // the value being Infinity).
+
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+      __ xorl(rax, rax);
+      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
+      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+      __ setcc(above_equal, rax);
       __ ret(0);
 
       __ bind(&not_identical);
@@ -6811,7 +6771,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
+                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate_scope) {
   // rax: result parameter for PerformGC, if any.
@@ -6877,13 +6837,24 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Check for failure result.
   Label failure_returned;
   ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+#ifdef _WIN64
+  // If return value is on the stack, pop it to registers.
+  if (result_size_ > 1) {
+    ASSERT_EQ(2, result_size_);
+    // Read result values stored on stack. Result is stored
+    // above the four argument mirror slots and the two
+    // Arguments object slots.
+    __ movq(rax, Operand(rsp, 6 * kPointerSize));
+    __ movq(rdx, Operand(rsp, 7 * kPointerSize));
+  }
+#endif
   __ lea(rcx, Operand(rax, 1));
   // Lower 2 bits of rcx are 0 iff rax has failure tag.
   __ testl(rcx, Immediate(kFailureTagMask));
   __ j(zero, &failure_returned);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(frame_type, result_size_);
+  __ LeaveExitFrame(mode, result_size_);
   __ ret(0);
 
   // Handling of failure.
@@ -7013,12 +6984,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  StackFrame::Type frame_type = is_debug_break ?
-      StackFrame::EXIT_DEBUG :
-      StackFrame::EXIT;
+  ExitFrame::Mode mode = is_debug_break ?
+      ExitFrame::MODE_DEBUG :
+      ExitFrame::MODE_NORMAL;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type, result_size_);
+  __ EnterExitFrame(mode, result_size_);
 
   // rax: Holds the context at this point, but should not be used.
   //      On entry to code generated by GenerateCore, it must hold
@@ -7041,7 +7012,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                false,
                false);
 
@@ -7050,7 +7021,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                false);
 
@@ -7061,7 +7032,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                true);
 
@@ -7073,6 +7044,11 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
   __ bind(&throw_normal_exception);
   GenerateThrowTOS(masm);
+}
+
+
+void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
+  UNREACHABLE();
 }
 
 
@@ -7207,24 +7183,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   // Do tail-call to runtime routine.
   Runtime::Function* f = Runtime::FunctionForId(Runtime::kStackGuard);
   __ TailCallRuntime(ExternalReference(f), 1, f->result_size);
-}
-
-
-void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
-                                             Label* need_gc,
-                                             Register scratch,
-                                             Register result) {
-  // Allocate heap number in new space.
-  __ AllocateInNewSpace(HeapNumber::kSize,
-                        result,
-                        scratch,
-                        no_reg,
-                        need_gc,
-                        TAG_OBJECT);
-
-  // Set the map and tag the result.
-  __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
-  __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
 
@@ -7376,6 +7334,127 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Register right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ push(left);
+    __ push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (!(left.is(left_arg) && right.is(right_arg))) {
+      if (left.is(right_arg) && right.is(left_arg)) {
+        if (IsOperationCommutative()) {
+          SetArgsReversed();
+        } else {
+          __ xchg(left, right);
+        }
+      } else if (left.is(left_arg)) {
+        __ movq(right_arg, right);
+      } else if (left.is(right_arg)) {
+        if (IsOperationCommutative()) {
+          __ movq(left_arg, right);
+          SetArgsReversed();
+        } else {
+          // Order of moves important to avoid destroying left argument.
+          __ movq(left_arg, left);
+          __ movq(right_arg, right);
+        }
+      } else if (right.is(left_arg)) {
+        if (IsOperationCommutative()) {
+          __ movq(right_arg, left);
+          SetArgsReversed();
+        } else {
+          // Order of moves important to avoid destroying right argument.
+          __ movq(right_arg, right);
+          __ movq(left_arg, left);
+        }
+      } else if (right.is(right_arg)) {
+        __ movq(left_arg, left);
+      } else {
+        // Order of moves is not important.
+        __ movq(left_arg, left);
+        __ movq(right_arg, right);
+      }
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Smi* right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ push(left);
+    __ Push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (left.is(left_arg)) {
+      __ Move(right_arg, right);
+    } else if (left.is(right_arg) && IsOperationCommutative()) {
+      __ Move(left_arg, right);
+      SetArgsReversed();
+    } else {
+      __ movq(left_arg, left);
+      __ Move(right_arg, right);
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Smi* left,
+    Register right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ Push(left);
+    __ push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (right.is(right_arg)) {
+      __ Move(left_arg, left);
+    } else if (right.is(left_arg) && IsOperationCommutative()) {
+      __ Move(right_arg, left);
+      SetArgsReversed();
+    } else {
+      __ Move(left_arg, left);
+      __ movq(right_arg, right);
+    }
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
   // leave result in register rax.
@@ -7448,22 +7527,21 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-  if (flags_ == SMI_CODE_IN_STUB) {
+  if (HasSmiCodeInStub()) {
     // The fast case smi code wasn't inlined in the stub caller
     // code. Generate it here to speed up common operations.
     Label slow;
     __ movq(rbx, Operand(rsp, 1 * kPointerSize));  // get y
     __ movq(rax, Operand(rsp, 2 * kPointerSize));  // get x
     GenerateSmiCode(masm, &slow);
-    __ ret(2 * kPointerSize);  // remove both operands
+    GenerateReturn(masm);
 
     // Too bad. The fast case smi code didn't succeed.
     __ bind(&slow);
   }
 
-  // Setup registers.
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));  // get y
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // get x
+  // Make sure the arguments are in rdx and rax.
+  GenerateLoadArguments(masm);
 
   // Floating point case.
   switch (op_) {
@@ -7487,10 +7565,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           __ JumpIfNotSmi(rax, &skip_allocation);
           // Fall through!
         case NO_OVERWRITE:
-          FloatingPointHelper::AllocateHeapNumber(masm,
-                                                  &call_runtime,
-                                                  rcx,
-                                                  rax);
+          // Allocate a heap number for the result. Keep rax and rdx intact
+          // for the possible runtime call.
+          __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+          __ movq(rax, rbx);
           __ bind(&skip_allocation);
           break;
         default: UNREACHABLE();
@@ -7506,7 +7584,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         default: UNREACHABLE();
       }
       __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm4);
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
     }
     case Token::MOD: {
       // For MOD we go directly to runtime in the non-smi case.
@@ -7541,31 +7619,16 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-          __ sahf();
-          __ j(not_zero, &operand_conversion_failure);
-          __ j(parity_even, &operand_conversion_failure);
-        } else {
-          __ and_(rax, Immediate(0x4400));
-          __ cmpl(rax, Immediate(0x4000));
-          __ j(not_zero, &operand_conversion_failure);
-        }
+        __ FCmp();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+
         // Check if left operand is int32.
         __ fist_s(Operand(rsp, 1 * kPointerSize));
         __ fild_s(Operand(rsp, 1 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-          __ sahf();
-          __ j(not_zero, &operand_conversion_failure);
-          __ j(parity_even, &operand_conversion_failure);
-        } else {
-          __ and_(rax, Immediate(0x4400));
-          __ cmpl(rax, Immediate(0x4000));
-          __ j(not_zero, &operand_conversion_failure);
-        }
+        __ FCmp();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
       }
 
       // Get int32 operands and perform bitop.
@@ -7589,7 +7652,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ JumpIfNotValidSmiValue(rax, &non_smi_result);
       // Tag smi result, if possible, and return.
       __ Integer32ToSmi(rax, rax);
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
       if (op_ != Token::SHR && non_smi_result.is_linked()) {
@@ -7606,8 +7669,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ JumpIfNotSmi(rax, &skip_allocation);
             // Fall through!
           case NO_OVERWRITE:
-            FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
-                                                    rcx, rax);
+            __ AllocateHeapNumber(rax, rcx, &call_runtime);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
@@ -7616,7 +7678,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ movq(Operand(rsp, 1 * kPointerSize), rbx);
         __ fild_s(Operand(rsp, 1 * kPointerSize));
         __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-        __ ret(2 * kPointerSize);
+        GenerateReturn(masm);
       }
 
       // Clear the FPU exception flag and reset the stack before calling
@@ -7647,8 +7709,20 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   }
 
   // If all else fails, use the runtime system to get the correct
-  // result.
+  // result. If arguments was passed in registers now place them on the
+  // stack in the correct order below the return address.
   __ bind(&call_runtime);
+  if (HasArgumentsInRegisters()) {
+    __ pop(rcx);
+    if (HasArgumentsReversed()) {
+      __ push(rax);
+      __ push(rdx);
+    } else {
+      __ push(rdx);
+      __ push(rax);
+    }
+    __ push(rcx);
+  }
   switch (op_) {
     case Token::ADD:
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
@@ -7689,12 +7763,124 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
+void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
+  // If arguments are not passed in registers read them from the stack.
+  if (!HasArgumentsInRegisters()) {
+    __ movq(rax, Operand(rsp, 1 * kPointerSize));
+    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
+  // If arguments are not passed in registers remove them from the stack before
+  // returning.
+  if (!HasArgumentsInRegisters()) {
+    __ ret(2 * kPointerSize);  // Remove both operands
+  } else {
+    __ ret(0);
+  }
+}
+
+
 int CompareStub::MinorKey() {
   // Encode the two parameters in a unique 16 bit value.
   ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
   return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
 
+#undef __
+
+#define __ masm.
+
+#ifdef _WIN64
+typedef double (*ModuloFunction)(double, double);
+// Define custom fmod implementation.
+ModuloFunction CreateModuloFunction() {
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler masm(buffer, actual_size);
+  // Generated code is put into a fixed, unmovable, buffer, and not into
+  // the V8 heap. We can't, and don't, refer to any relocatable addresses
+  // (e.g. the JavaScript nan-object).
+
+  // Windows 64 ABI passes double arguments in xmm0, xmm1 and
+  // returns result in xmm0.
+  // Argument backing space is allocated on the stack above
+  // the return address.
+
+  // Compute x mod y.
+  // Load y and x (use argument backing store as temporary storage).
+  __ movsd(Operand(rsp, kPointerSize * 2), xmm1);
+  __ movsd(Operand(rsp, kPointerSize), xmm0);
+  __ fld_d(Operand(rsp, kPointerSize * 2));
+  __ fld_d(Operand(rsp, kPointerSize));
+
+  // Clear exception flags before operation.
+  {
+    Label no_exceptions;
+    __ fwait();
+    __ fnstsw_ax();
+    // Clear if Illegal Operand or Zero Division exceptions are set.
+    __ testb(rax, Immediate(5));
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+
+  // Compute st(0) % st(1)
+  {
+    Label partial_remainder_loop;
+    __ bind(&partial_remainder_loop);
+    __ fprem();
+    __ fwait();
+    __ fnstsw_ax();
+    __ testl(rax, Immediate(0x400 /* C2 */));
+    // If C2 is set, computation only has partial result. Loop to
+    // continue computation.
+    __ j(not_zero, &partial_remainder_loop);
+  }
+
+  Label valid_result;
+  Label return_result;
+  // If Invalid Operand or Zero Division exceptions are set,
+  // return NaN.
+  __ testb(rax, Immediate(5));
+  __ j(zero, &valid_result);
+  __ fstp(0);  // Drop result in st(0).
+  int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
+  __ movq(rcx, kNaNValue, RelocInfo::NONE);
+  __ movq(Operand(rsp, kPointerSize), rcx);
+  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ jmp(&return_result);
+
+  // If result is valid, return that.
+  __ bind(&valid_result);
+  __ fstp_d(Operand(rsp, kPointerSize));
+  __ movsd(xmm0, Operand(rsp, kPointerSize));
+
+  // Clean up FPU stack and exceptions and return xmm0
+  __ bind(&return_result);
+  __ fstp(0);  // Unload y.
+
+  Label clear_exceptions;
+  __ testb(rax, Immediate(0x3f /* Any Exception*/));
+  __ j(not_zero, &clear_exceptions);
+  __ ret(0);
+  __ bind(&clear_exceptions);
+  __ fnclex();
+  __ ret(0);
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  // Call the function from C++.
+  return FUNCTION_CAST<ModuloFunction>(buffer);
+}
+
+#endif
 
 #undef __
 

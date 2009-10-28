@@ -84,7 +84,7 @@ int32_t DoubleToInt32(double x) {
   static const double two32 = 4294967296.0;
   static const double two31 = 2147483648.0;
   if (!isfinite(x) || x == 0) return 0;
-  if (x < 0 || x >= two32) x = fmod(x, two32);
+  if (x < 0 || x >= two32) x = modulo(x, two32);
   x = (x >= 0) ? floor(x) : ceil(x) + two32;
   return (int32_t) ((x >= two31) ? x - two32 : x);
 }

@@ -218,7 +218,7 @@ void InstructionTable::CopyTable(ByteMnemonic bm[], InstructionType type) {
     OperandType op_order = bm[i].op_order_;
     id->op_order_ =
         static_cast<OperandType>(op_order & ~BYTE_SIZE_OPERAND_FLAG);
-    assert(id->type == NO_INSTR);  // Information not already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
     id->type = type;
     id->byte_size_operation = ((op_order & BYTE_SIZE_OPERAND_FLAG) != 0);
   }
@@ -232,7 +232,7 @@ void InstructionTable::SetTableRange(InstructionType type,
                                      const char* mnem) {
   for (byte b = start; b <= end; b++) {
     InstructionDesc* id = &instructions_[b];
-    assert(id->type == NO_INSTR);  // Information already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
     id->mnem = mnem;
     id->type = type;
     id->byte_size_operation = byte_size;
@@ -243,7 +243,7 @@ void InstructionTable::SetTableRange(InstructionType type,
 void InstructionTable::AddJumpConditionalShort() {
   for (byte b = 0x70; b <= 0x7F; b++) {
     InstructionDesc* id = &instructions_[b];
-    assert(id->type == NO_INSTR);  // Information already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered
     id->mnem = NULL;  // Computed depending on condition code.
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
   }
@@ -393,6 +393,7 @@ class DisassemblerX64 {
                               RegisterNameMapping register_name);
   int PrintRightOperand(byte* modrmp);
   int PrintRightByteOperand(byte* modrmp);
+  int PrintRightXMMOperand(byte* modrmp);
   int PrintOperands(const char* mnem,
                     OperandType op_order,
                     byte* data);
@@ -400,13 +401,15 @@ class DisassemblerX64 {
   int PrintImmediateOp(byte* data);
   const char* TwoByteMnemonic(byte opcode);
   int TwoByteOpcodeInstruction(byte* data);
-  int F7Instruction(byte* data);
+  int F6F7Instruction(byte* data);
   int ShiftInstruction(byte* data);
   int JumpShort(byte* data);
   int JumpConditional(byte* data);
   int JumpConditionalShort(byte* data);
   int SetCC(byte* data);
   int FPUInstruction(byte* data);
+  int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
+  int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
   void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
@@ -568,6 +571,12 @@ int DisassemblerX64::PrintRightByteOperand(byte* modrmp) {
 }
 
 
+int DisassemblerX64::PrintRightXMMOperand(byte* modrmp) {
+  return PrintRightOperandHelper(modrmp,
+                                 &DisassemblerX64::NameOfXMMRegister);
+}
+
+
 // Returns number of bytes used including the current *data.
 // Writes instruction's mnemonic, left and right operands to 'tmp_buffer_'.
 int DisassemblerX64::PrintOperands(const char* mnem,
@@ -648,8 +657,8 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
 
 
 // Returns number of bytes used, including *data.
-int DisassemblerX64::F7Instruction(byte* data) {
-  assert(*data == 0xF7);
+int DisassemblerX64::F6F7Instruction(byte* data) {
+  ASSERT(*data == 0xF7 || *data == 0xF6);
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -676,19 +685,12 @@ int DisassemblerX64::F7Instruction(byte* data) {
                    operand_size_code(),
                    NameOfCPURegister(rm));
     return 2;
-  } else if (mod == 3 && regop == 0) {
-    int32_t imm = *reinterpret_cast<int32_t*>(data + 2);
-    AppendToBuffer("test%c %s,0x%x",
-                   operand_size_code(),
-                   NameOfCPURegister(rm),
-                   imm);
-    return 6;
   } else if (regop == 0) {
     AppendToBuffer("test%c ", operand_size_code());
-    int count = PrintRightOperand(data + 1);
-    int32_t imm = *reinterpret_cast<int32_t*>(data + 1 + count);
-    AppendToBuffer(",0x%x", imm);
-    return 1 + count + 4 /*int32_t*/;
+    int count = PrintRightOperand(data + 1);  // Use name of 64-bit register.
+    AppendToBuffer(",0x");
+    count += PrintImmediate(data + 1 + count, operand_size());
+    return 1 + count;
   } else {
     UnimplementedInstruction();
     return 2;
@@ -739,7 +741,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
       UnimplementedInstruction();
       return num_bytes;
   }
-  assert(mnem != NULL);
+  ASSERT_NE(NULL, mnem);
   if (op == 0xD0) {
     imm8 = 1;
   } else if (op == 0xC0) {
@@ -762,7 +764,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::JumpShort(byte* data) {
-  assert(*data == 0xEB);
+  ASSERT_EQ(0xEB, *data);
   byte b = *(data + 1);
   byte* dest = data + static_cast<int8_t>(b) + 2;
   AppendToBuffer("jmp %s", NameOfAddress(dest));
@@ -772,7 +774,7 @@ int DisassemblerX64::JumpShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::JumpConditional(byte* data) {
-  assert(*data == 0x0F);
+  ASSERT_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   byte* dest = data + *reinterpret_cast<int32_t*>(data + 2) + 6;
   const char* mnem = conditional_code_suffix[cond];
@@ -794,7 +796,7 @@ int DisassemblerX64::JumpConditionalShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::SetCC(byte* data) {
-  assert(*data == 0x0F);
+  ASSERT_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   const char* mnem = conditional_code_suffix[cond];
   AppendToBuffer("set%s%c ", mnem, operand_size_code());
@@ -805,156 +807,168 @@ int DisassemblerX64::SetCC(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX64::FPUInstruction(byte* data) {
-  byte b1 = *data;
-  byte b2 = *(data + 1);
-  if (b1 == 0xD9) {
-    const char* mnem = NULL;
-    switch (b2) {
-      case 0xE0:
-        mnem = "fchs";
-        break;
-      case 0xE1:
-        mnem = "fabs";
-        break;
-      case 0xE4:
-        mnem = "ftst";
-        break;
-      case 0xF5:
-        mnem = "fprem1";
-        break;
-      case 0xF7:
-        mnem = "fincstp";
-        break;
-      case 0xE8:
-        mnem = "fld1";
-        break;
-      case 0xEE:
-        mnem = "fldz";
-        break;
-      case 0xF8:
-        mnem = "fprem";
-        break;
-    }
-    if (mnem != NULL) {
-      AppendToBuffer("%s", mnem);
-      return 2;
-    } else if ((b2 & 0xF8) == 0xC8) {
-      AppendToBuffer("fxch st%d", b2 & 0x7);
-      return 2;
-    } else {
-      int mod, regop, rm;
-      get_modrm(*(data + 1), &mod, &regop, &rm);
-      const char* mnem = "?";
-      switch (regop) {
-        case 0:
-          mnem = "fld_s";
-          break;
-        case 3:
-          mnem = "fstp_s";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      AppendToBuffer("%s ", mnem);
-      int count = PrintRightOperand(data + 1);
-      return count + 1;
-    }
-  } else if (b1 == 0xDD) {
-    if ((b2 & 0xF8) == 0xC0) {
-      AppendToBuffer("ffree st%d", b2 & 0x7);
-      return 2;
-    } else {
-      int mod, regop, rm;
-      get_modrm(*(data + 1), &mod, &regop, &rm);
-      const char* mnem = "?";
-      switch (regop) {
-        case 0:
-          mnem = "fld_d";
-          break;
-        case 3:
-          mnem = "fstp_d";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      AppendToBuffer("%s ", mnem);
-      int count = PrintRightOperand(data + 1);
-      return count + 1;
-    }
-  } else if (b1 == 0xDB) {
-    int mod, regop, rm;
-    get_modrm(*(data + 1), &mod, &regop, &rm);
-    const char* mnem = "?";
-    switch (regop) {
-      case 0:
-        mnem = "fild_s";
-        break;
-      case 2:
-        mnem = "fist_s";
-        break;
-      case 3:
-        mnem = "fistp_s";
-        break;
-      default:
-        UnimplementedInstruction();
-    }
-    AppendToBuffer("%s ", mnem);
-    int count = PrintRightOperand(data + 1);
-    return count + 1;
-  } else if (b1 == 0xDF) {
-    if (b2 == 0xE0) {
-      AppendToBuffer("fnstsw_ax");
-      return 2;
-    }
-    int mod, regop, rm;
-    get_modrm(*(data + 1), &mod, &regop, &rm);
-    const char* mnem = "?";
-    switch (regop) {
-      case 5:
-        mnem = "fild_d";
-        break;
-      case 7:
-        mnem = "fistp_d";
-        break;
-      default:
-        UnimplementedInstruction();
-    }
-    AppendToBuffer("%s ", mnem);
-    int count = PrintRightOperand(data + 1);
-    return count + 1;
-  } else if (b1 == 0xDC || b1 == 0xDE) {
-    bool is_pop = (b1 == 0xDE);
-    if (is_pop && b2 == 0xD9) {
-      AppendToBuffer("fcompp");
-      return 2;
-    }
-    const char* mnem = "FP0xDC";
-    switch (b2 & 0xF8) {
-      case 0xC0:
-        mnem = "fadd";
-        break;
-      case 0xE8:
-        mnem = "fsub";
-        break;
-      case 0xC8:
-        mnem = "fmul";
-        break;
-      case 0xF8:
-        mnem = "fdiv";
-        break;
-      default:
-        UnimplementedInstruction();
-    }
-    AppendToBuffer("%s%s st%d", mnem, is_pop ? "p" : "", b2 & 0x7);
-    return 2;
-  } else if (b1 == 0xDA && b2 == 0xE9) {
-    const char* mnem = "fucompp";
-    AppendToBuffer("%s", mnem);
-    return 2;
+  byte escape_opcode = *data;
+  ASSERT_EQ(0xD8, escape_opcode & 0xF8);
+  byte modrm_byte = *(data+1);
+
+  if (modrm_byte >= 0xC0) {
+    return RegisterFPUInstruction(escape_opcode, modrm_byte);
+  } else {
+    return MemoryFPUInstruction(escape_opcode, modrm_byte, data+1);
   }
-  AppendToBuffer("Unknown FP instruction");
+}
+
+int DisassemblerX64::MemoryFPUInstruction(int escape_opcode,
+                                           int modrm_byte,
+                                           byte* modrm_start) {
+  const char* mnem = "?";
+  int regop = (modrm_byte >> 3) & 0x7;  // reg/op field of modrm byte.
+  switch (escape_opcode) {
+    case 0xD9: switch (regop) {
+        case 0: mnem = "fld_s"; break;
+        case 3: mnem = "fstp_s"; break;
+        case 7: mnem = "fstcw"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDB: switch (regop) {
+        case 0: mnem = "fild_s"; break;
+        case 1: mnem = "fisttp_s"; break;
+        case 2: mnem = "fist_s"; break;
+        case 3: mnem = "fistp_s"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDD: switch (regop) {
+        case 0: mnem = "fld_d"; break;
+        case 3: mnem = "fstp_d"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDF: switch (regop) {
+        case 5: mnem = "fild_d"; break;
+        case 7: mnem = "fistp_d"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    default: UnimplementedInstruction();
+  }
+  AppendToBuffer("%s ", mnem);
+  int count = PrintRightOperand(modrm_start);
+  return count + 1;
+}
+
+int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
+                                             byte modrm_byte) {
+  bool has_register = false;  // Is the FPU register encoded in modrm_byte?
+  const char* mnem = "?";
+
+  switch (escape_opcode) {
+    case 0xD8:
+      UnimplementedInstruction();
+      break;
+
+    case 0xD9:
+      switch (modrm_byte & 0xF8) {
+        case 0xC8:
+          mnem = "fxch";
+          has_register = true;
+          break;
+        default:
+          switch (modrm_byte) {
+            case 0xE0: mnem = "fchs"; break;
+            case 0xE1: mnem = "fabs"; break;
+            case 0xE4: mnem = "ftst"; break;
+            case 0xE8: mnem = "fld1"; break;
+            case 0xEE: mnem = "fldz"; break;
+            case 0xF5: mnem = "fprem1"; break;
+            case 0xF7: mnem = "fincstp"; break;
+            case 0xF8: mnem = "fprem"; break;
+            case 0xFE: mnem = "fsin"; break;
+            case 0xFF: mnem = "fcos"; break;
+            default: UnimplementedInstruction();
+          }
+      }
+      break;
+
+    case 0xDA:
+      if (modrm_byte == 0xE9) {
+        mnem = "fucompp";
+      } else {
+        UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDB:
+      if ((modrm_byte & 0xF8) == 0xE8) {
+        mnem = "fucomi";
+        has_register = true;
+      } else if (modrm_byte  == 0xE2) {
+        mnem = "fclex";
+      } else {
+        UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDC:
+      has_register = true;
+      switch (modrm_byte & 0xF8) {
+        case 0xC0: mnem = "fadd"; break;
+        case 0xE8: mnem = "fsub"; break;
+        case 0xC8: mnem = "fmul"; break;
+        case 0xF8: mnem = "fdiv"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDD:
+      has_register = true;
+      switch (modrm_byte & 0xF8) {
+        case 0xC0: mnem = "ffree"; break;
+        case 0xD8: mnem = "fstp"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDE:
+      if (modrm_byte  == 0xD9) {
+        mnem = "fcompp";
+      } else {
+        has_register = true;
+        switch (modrm_byte & 0xF8) {
+          case 0xC0: mnem = "faddp"; break;
+          case 0xE8: mnem = "fsubp"; break;
+          case 0xC8: mnem = "fmulp"; break;
+          case 0xF8: mnem = "fdivp"; break;
+          default: UnimplementedInstruction();
+        }
+      }
+      break;
+
+    case 0xDF:
+      if (modrm_byte == 0xE0) {
+        mnem = "fnstsw_ax";
+      } else if ((modrm_byte & 0xF8) == 0xE8) {
+        mnem = "fucomip";
+        has_register = true;
+      }
+      break;
+
+    default: UnimplementedInstruction();
+  }
+
+  if (has_register) {
+    AppendToBuffer("%s st%d", mnem, modrm_byte & 0x7);
+  } else {
+    AppendToBuffer("%s", mnem);
+  }
   return 2;
 }
+
 
 
 // Handle all two-byte opcodes, which start with 0x0F.
@@ -1035,13 +1049,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
-      data += PrintRightOperand(data);
+      current += PrintRightOperand(current);
     } else if ((opcode & 0xF8) == 0x58) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%s %s,%s", mnemonic, NameOfXMMRegister(regop),
-                     NameOfXMMRegister(rm));
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
     } else {
       UnimplementedInstruction();
     }
@@ -1050,7 +1064,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
 
     // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
     // Assert that mod is not 3, so source is memory, not an XMM register.
-    ASSERT((*current & 0xC0) != 0xC0);
+    ASSERT_NE(0xC0, *current & 0xC0);
     current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
   } else {
     UnimplementedInstruction();
@@ -1226,18 +1240,6 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
       }
 
-      case 0xF6: {
-        int mod, regop, rm;
-        get_modrm(*(data + 1), &mod, &regop, &rm);
-        if (mod == 3 && regop == 0) {
-          AppendToBuffer("testb %s,%d", NameOfCPURegister(rm), *(data + 2));
-        } else {
-          UnimplementedInstruction();
-        }
-        data += 3;
-        break;
-      }
-
       case 0x81:  // fall through
       case 0x83:  // 0x81 with sign extension bit set
         data += PrintImmediateOp(data);
@@ -1334,7 +1336,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0x95:
       case 0x96:
       case 0x97: {
-        int reg = (current & 0x7) | (rex_b() ? 8 : 0);
+        int reg = (*data & 0x7) | (rex_b() ? 8 : 0);
         if (reg == 0) {
           AppendToBuffer("nop");  // Common name for xchg rax,rax.
         } else {
@@ -1342,8 +1344,9 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
                          operand_size_code(),
                          NameOfCPURegister(reg));
         }
+        data++;
       }
-
+        break;
 
       case 0xFE: {
         data++;
@@ -1455,8 +1458,10 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += JumpShort(data);
         break;
 
+      case 0xF6:
+        byte_size_operand_ = true;  // fall through
       case 0xF7:
-        data += F7Instruction(data);
+        data += F6F7Instruction(data);
         break;
 
       default:

@@ -86,3 +86,72 @@ var divisors = [
 for (var i = 0; i < divisors.length; i++) {
   run_tests_for(divisors[i]);
 }
+
+// Test extreme corner cases of modulo.
+
+// Computes the modulo by slow but lossless operations.
+function compute_mod(dividend, divisor) {
+  // Return NaN if either operand is NaN, if divisor is 0 or
+  // dividend is an infinity. Return dividend if divisor is an infinity.
+  if (isNaN(dividend) || isNaN(divisor) || divisor == 0) { return NaN; }
+  var sign = 1;
+  if (dividend < 0) { dividend = -dividend; sign = -1; }
+  if (dividend == Infinity) { return NaN; }
+  if (divisor < 0) { divisor = -divisor; }
+  if (divisor == Infinity) { return sign * dividend; }
+  function rec_mod(a, b) {
+    // Subtracts maximal possible multiplum of b from a.
+    if (a >= b) {
+      a = rec_mod(a, 2 * b);
+      if (a >= b) { a -= b; }
+    }
+    return a;
+  }
+  return sign * rec_mod(dividend, divisor);
+}
+
+(function () {
+  var large_non_smi = 1234567891234.12245;
+  var small_non_smi = 43.2367243;
+  var repeating_decimal = 0.3;
+  var finite_decimal = 0.5;
+  var smi = 43;
+  var power_of_two = 64;
+  var min_normal = Number.MIN_VALUE * Math.pow(2, 52);
+  var max_denormal = Number.MIN_VALUE * (Math.pow(2, 52) - 1);
+
+  // All combinations of NaN, Infinity, normal, denormal and zero.
+  var example_numbers = [
+    NaN,
+    0,
+    Number.MIN_VALUE,
+    3 * Number.MIN_VALUE,
+    max_denormal,
+    min_normal,
+    repeating_decimal,
+    finite_decimal,
+    smi,
+    power_of_two,
+    small_non_smi,
+    large_non_smi,
+    Number.MAX_VALUE,
+    Infinity
+  ];
+
+  function doTest(a, b) {
+    var exp = compute_mod(a, b);
+    var act = a % b;
+    assertEquals(exp, act, a + " % " + b);
+  }
+
+  for (var i = 0; i < example_numbers.length; i++) {
+    for (var j = 0; j < example_numbers.length; j++) {
+      var a = example_numbers[i];
+      var b = example_numbers[j];
+      doTest(a,b);
+      doTest(-a,b);
+      doTest(a,-b);
+      doTest(-a,-b);
+    }
+  }
+})()

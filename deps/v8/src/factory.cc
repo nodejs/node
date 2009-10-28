@@ -222,6 +222,18 @@ Handle<PixelArray> Factory::NewPixelArray(int length,
 }
 
 
+Handle<ExternalArray> Factory::NewExternalArray(int length,
+                                                ExternalArrayType array_type,
+                                                void* external_pointer,
+                                                PretenureFlag pretenure) {
+  ASSERT(0 <= length);
+  CALL_HEAP_FUNCTION(Heap::AllocateExternalArray(length,
+                                                 array_type,
+                                                 external_pointer,
+                                                 pretenure), ExternalArray);
+}
+
+
 Handle<Map> Factory::NewMap(InstanceType type, int instance_size) {
   CALL_HEAP_FUNCTION(Heap::AllocateMap(type, instance_size), Map);
 }

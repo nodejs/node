@@ -747,6 +747,8 @@ class ObjectLiteral: public MaterializedLiteral {
     Expression* value() { return value_; }
     Kind kind() { return kind_; }
 
+    bool IsCompileTimeValue();
+
    private:
     Literal* key_;
     Expression* value_;

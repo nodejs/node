@@ -111,6 +111,7 @@ namespace internal {
 class Semaphore;
 
 double ceiling(double x);
+double modulo(double x, double y);
 
 // Forward declarations.
 class Socket;

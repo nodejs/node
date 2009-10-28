@@ -1122,22 +1122,20 @@ void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
 
 void CodeGenerator::CheckStack() {
   VirtualFrame::SpilledScope spilled_scope;
-  if (FLAG_check_stack) {
-    Comment cmnt(masm_, "[ check stack");
-    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-    // Put the lr setup instruction in the delay slot.  kInstrSize is added to
-    // the implicit 8 byte offset that always applies to operations with pc and
-    // gives a return address 12 bytes down.
-    masm_->add(lr, pc, Operand(Assembler::kInstrSize));
-    masm_->cmp(sp, Operand(ip));
-    StackCheckStub stub;
-    // Call the stub if lower.
-    masm_->mov(pc,
-               Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
-                       RelocInfo::CODE_TARGET),
-               LeaveCC,
-               lo);
-  }
+  Comment cmnt(masm_, "[ check stack");
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  // Put the lr setup instruction in the delay slot.  kInstrSize is added to
+  // the implicit 8 byte offset that always applies to operations with pc and
+  // gives a return address 12 bytes down.
+  masm_->add(lr, pc, Operand(Assembler::kInstrSize));
+  masm_->cmp(sp, Operand(ip));
+  StackCheckStub stub;
+  // Call the stub if lower.
+  masm_->mov(pc,
+             Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
+                     RelocInfo::CODE_TARGET),
+             LeaveCC,
+             lo);
 }
 
 
@@ -1172,9 +1170,9 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   VirtualFrame::SpilledScope spilled_scope;
+  frame_->EmitPush(cp);
   __ mov(r0, Operand(pairs));
   frame_->EmitPush(r0);
-  frame_->EmitPush(cp);
   __ mov(r0, Operand(Smi::FromInt(is_eval() ? 1 : 0)));
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
@@ -2255,12 +2253,10 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(boilerplate->IsBoilerplate());
 
-  // Push the boilerplate on the stack.
-  __ mov(r0, Operand(boilerplate));
-  frame_->EmitPush(r0);
-
   // Create a new closure.
   frame_->EmitPush(cp);
+  __ mov(r0, Operand(boilerplate));
+  frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->EmitPush(r0);
 }
@@ -5799,7 +5795,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
+                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate) {
   // r0: result parameter for PerformGC, if any
@@ -5859,7 +5855,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  __ LeaveExitFrame(frame_type);
+  __ LeaveExitFrame(mode);
 
   // check if we should retry or throw exception
   Label retry;
@@ -5905,12 +5901,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  StackFrame::Type frame_type = is_debug_break
-      ? StackFrame::EXIT_DEBUG
-      : StackFrame::EXIT;
+  ExitFrame::Mode mode = is_debug_break
+      ? ExitFrame::MODE_DEBUG
+      : ExitFrame::MODE_NORMAL;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type);
+  __ EnterExitFrame(mode);
 
   // r4: number of arguments (C callee-saved)
   // r5: pointer to builtin function (C callee-saved)
@@ -5925,7 +5921,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                false,
                false);
 
@@ -5934,7 +5930,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                false);
 
@@ -5945,7 +5941,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                true);
 

@@ -751,10 +751,11 @@ Object* String::TryFlatten() {
 
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #ifdef DEBUG
-  {  // NOLINT (presubmit.py gets confused about if and braces)
+  if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
-    SmartPointer<uc16> smart_chars = this->ToWideCString();
+    SmartPointer<uc16> smart_chars(NewArray<uc16>(this->length()));
+    String::WriteToFlat(this, *smart_chars, 0, this->length());
     ASSERT(memcmp(*smart_chars,
                   resource->data(),
                   resource->length() * sizeof(**smart_chars)) == 0);
@@ -794,10 +795,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 #ifdef DEBUG
-  {  // NOLINT (presubmit.py gets confused about if and braces)
+  if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
-    SmartPointer<char> smart_chars = this->ToCString();
+    SmartPointer<char> smart_chars(NewArray<char>(this->length()));
+    String::WriteToFlat(this, *smart_chars, 0, this->length());
     ASSERT(memcmp(*smart_chars,
                   resource->data(),
                   resource->length()*sizeof(**smart_chars)) == 0);
@@ -837,7 +839,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 
 void String::StringShortPrint(StringStream* accumulator) {
   int len = length();
-  if (len > kMaxMediumStringSize) {
+  if (len > kMaxMediumSize) {
     accumulator->Add("<Very long string[%u]>", len);
     return;
   }
@@ -1005,6 +1007,34 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case PIXEL_ARRAY_TYPE:
       accumulator->Add("<PixelArray[%u]>", PixelArray::cast(this)->length());
       break;
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      accumulator->Add("<ExternalByteArray[%u]>",
+                       ExternalByteArray::cast(this)->length());
+      break;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      accumulator->Add("<ExternalUnsignedByteArray[%u]>",
+                       ExternalUnsignedByteArray::cast(this)->length());
+      break;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      accumulator->Add("<ExternalShortArray[%u]>",
+                       ExternalShortArray::cast(this)->length());
+      break;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      accumulator->Add("<ExternalUnsignedShortArray[%u]>",
+                       ExternalUnsignedShortArray::cast(this)->length());
+      break;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      accumulator->Add("<ExternalIntArray[%u]>",
+                       ExternalIntArray::cast(this)->length());
+      break;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      accumulator->Add("<ExternalUnsignedIntArray[%u]>",
+                       ExternalUnsignedIntArray::cast(this)->length());
+      break;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      accumulator->Add("<ExternalFloatArray[%u]>",
+                       ExternalFloatArray::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE:
       accumulator->Add("<SharedFunctionInfo>");
       break;
@@ -1147,6 +1177,13 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case PIXEL_ARRAY_TYPE:
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+    case EXTERNAL_INT_ARRAY_TYPE:
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(this);
@@ -1214,7 +1251,8 @@ String* JSObject::class_name() {
 
 String* JSObject::constructor_name() {
   if (IsJSFunction()) {
-    return Heap::function_class_symbol();
+    return JSFunction::cast(this)->IsBoilerplate() ?
+      Heap::function_class_symbol() : Heap::closure_symbol();
   }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
@@ -2237,7 +2275,7 @@ Object* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 
 Object* JSObject::NormalizeElements() {
-  ASSERT(!HasPixelElements());
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
   if (HasDictionaryElements()) return this;
 
   // Get number of entries.
@@ -2322,7 +2360,7 @@ Object* JSObject::DeletePropertyWithInterceptor(String* name) {
 
 Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
                                                DeleteMode mode) {
-  ASSERT(!HasPixelElements());
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
@@ -2413,10 +2451,17 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      // Pixel elements cannot be deleted. Just silently ignore here.
+    case PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+      // Pixel and external array elements cannot be deleted. Just
+      // silently ignore here.
       break;
-    }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
@@ -2507,7 +2552,15 @@ bool JSObject::ReferencesObject(Object* obj) {
   // Check if the object is among the indexed properties.
   switch (GetElementsKind()) {
     case PIXEL_ELEMENTS:
-      // Raw pixels do not reference other objects.
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+      // Raw pixels and external arrays do not reference other
+      // objects.
       break;
     case FAST_ELEMENTS: {
       int length = IsJSArray() ?
@@ -2752,7 +2805,15 @@ Object* JSObject::DefineGetterSetter(String* name,
       case FAST_ELEMENTS:
         break;
       case PIXEL_ELEMENTS:
-        // Ignore getters and setters on pixel elements.
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+        // Ignore getters and setters on pixel and external array
+        // elements.
         return Heap::undefined_value();
       case DICTIONARY_ELEMENTS: {
         // Lookup the index.
@@ -3087,7 +3148,7 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  ASSERT(!array->HasPixelElements());
+  ASSERT(!array->HasPixelElements() && !array->HasExternalArrayElements());
   switch (array->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS:
       return UnionOfKeys(FixedArray::cast(array->elements()));
@@ -4599,7 +4660,7 @@ static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
 
 uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
-  if (length_ <= String::kMaxShortStringSize) {
+  if (length_ <= String::kMaxShortSize) {
     uint32_t payload;
     if (is_array_index()) {
       payload = v8::internal::HashField(array_index(), true);
@@ -4608,7 +4669,7 @@ uint32_t StringHasher::GetHashField() {
     }
     return (payload & ((1 << String::kShortLengthShift) - 1)) |
            (length_ << String::kShortLengthShift);
-  } else if (length_ <= String::kMaxMediumStringSize) {
+  } else if (length_ <= String::kMaxMediumSize) {
     uint32_t payload = v8::internal::HashField(GetHash(), false);
     return (payload & ((1 << String::kMediumLengthShift) - 1)) |
            (length_ << String::kMediumLengthShift);
@@ -5201,8 +5262,8 @@ void Code::Disassemble(const char* name) {
 
 
 void JSObject::SetFastElements(FixedArray* elems) {
-  // We should never end in here with a pixel array.
-  ASSERT(!HasPixelElements());
+  // We should never end in here with a pixel or external array.
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
 #ifdef DEBUG
   // Check the provided array is filled with the_hole.
   uint32_t len = static_cast<uint32_t>(elems->length());
@@ -5239,8 +5300,8 @@ void JSObject::SetFastElements(FixedArray* elems) {
 
 
 Object* JSObject::SetSlowElements(Object* len) {
-  // We should never end in here with a pixel array.
-  ASSERT(!HasPixelElements());
+  // We should never end in here with a pixel or external array.
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
 
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
@@ -5318,8 +5379,8 @@ static Object* ArrayLengthRangeError() {
 
 
 Object* JSObject::SetElementsLength(Object* len) {
-  // We should never end in here with a pixel array.
-  ASSERT(!HasPixelElements());
+  // We should never end in here with a pixel or external array.
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
 
   Object* smi_length = len->ToSmi();
   if (smi_length->IsSmi()) {
@@ -5420,6 +5481,20 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       }
       break;
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      // TODO(kbr): Add testcase.
+      ExternalArray* array = ExternalArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        return true;
+      }
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound) {
@@ -5507,6 +5582,16 @@ bool JSObject::HasLocalElement(uint32_t index) {
       PixelArray* pixels = PixelArray::cast(elements());
       return (index < static_cast<uint32_t>(pixels->length()));
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalArray* array = ExternalArray::cast(elements());
+      return (index < static_cast<uint32_t>(array->length()));
+    }
     case DICTIONARY_ELEMENTS: {
       return element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound;
@@ -5546,6 +5631,19 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
+        return true;
+      }
+      break;
+    }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalArray* array = ExternalArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
         return true;
       }
       break;
@@ -5690,6 +5788,37 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
       PixelArray* pixels = PixelArray::cast(elements());
       return pixels->SetValue(index, value);
     }
+    case EXTERNAL_BYTE_ELEMENTS: {
+      ExternalByteArray* array = ExternalByteArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+      ExternalUnsignedByteArray* array =
+          ExternalUnsignedByteArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_SHORT_ELEMENTS: {
+      ExternalShortArray* array = ExternalShortArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+      ExternalUnsignedShortArray* array =
+          ExternalUnsignedShortArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_INT_ELEMENTS: {
+      ExternalIntArray* array = ExternalIntArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+      ExternalUnsignedIntArray* array =
+          ExternalUnsignedIntArray::cast(elements());
+      return array->SetValue(index, value);
+    }
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalFloatArray* array = ExternalFloatArray::cast(elements());
+      return array->SetValue(index, value);
+    }
     case DICTIONARY_ELEMENTS: {
       // Insert element in the dictionary.
       FixedArray* elms = FixedArray::cast(elements());
@@ -5807,6 +5936,17 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
       UNIMPLEMENTED();
       break;
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      // TODO(kbr): Add testcase and implement.
+      UNIMPLEMENTED();
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
@@ -5905,6 +6045,65 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
       }
       break;
     }
+    case EXTERNAL_BYTE_ELEMENTS: {
+      ExternalByteArray* array = ExternalByteArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        int8_t value = array->get(index);
+        return Smi::FromInt(value);
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+      ExternalUnsignedByteArray* array =
+          ExternalUnsignedByteArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        uint8_t value = array->get(index);
+        return Smi::FromInt(value);
+      }
+      break;
+    }
+    case EXTERNAL_SHORT_ELEMENTS: {
+      ExternalShortArray* array = ExternalShortArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        int16_t value = array->get(index);
+        return Smi::FromInt(value);
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+      ExternalUnsignedShortArray* array =
+          ExternalUnsignedShortArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        uint16_t value = array->get(index);
+        return Smi::FromInt(value);
+      }
+      break;
+    }
+    case EXTERNAL_INT_ELEMENTS: {
+      ExternalIntArray* array = ExternalIntArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        int32_t value = array->get(index);
+        return Heap::NumberFromInt32(value);
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+      ExternalUnsignedIntArray* array =
+          ExternalUnsignedIntArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        uint32_t value = array->get(index);
+        return Heap::NumberFromUint32(value);
+      }
+      break;
+    }
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalFloatArray* array = ExternalFloatArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        float value = array->get(index);
+        return Heap::AllocateHeapNumber(value);
+      }
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
@@ -5948,7 +6147,14 @@ bool JSObject::HasDenseElements() {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
+    case PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
       return true;
     }
     case DICTIONARY_ELEMENTS: {
@@ -6172,6 +6378,16 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       PixelArray* pixels = PixelArray::cast(elements());
       return index < static_cast<uint32_t>(pixels->length());
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalArray* array = ExternalArray::cast(elements());
+      return index < static_cast<uint32_t>(array->length());
+    }
     case DICTIONARY_ELEMENTS: {
       return element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound;
@@ -6383,6 +6599,23 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     }
     case PIXEL_ELEMENTS: {
       int length = PixelArray::cast(elements())->length();
+      while (counter < length) {
+        if (storage != NULL) {
+          storage->set(counter, Smi::FromInt(counter), SKIP_WRITE_BARRIER);
+        }
+        counter++;
+      }
+      ASSERT(!storage || storage->length() >= counter);
+      break;
+    }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      int length = ExternalArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter), SKIP_WRITE_BARRIER);
@@ -6938,7 +7171,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 Object* JSObject::PrepareElementsForSort(uint32_t limit) {
-  ASSERT(!HasPixelElements());
+  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
 
   if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
@@ -7067,6 +7300,99 @@ Object* PixelArray::SetValue(uint32_t index, Object* value) {
     set(index, clamped_value);
   }
   return Smi::FromInt(clamped_value);
+}
+
+
+template<typename ExternalArrayClass, typename ValueType>
+static Object* ExternalArrayIntSetter(ExternalArrayClass* receiver,
+                                      uint32_t index,
+                                      Object* value) {
+  ValueType cast_value = 0;
+  if (index < static_cast<uint32_t>(receiver->length())) {
+    if (value->IsSmi()) {
+      int int_value = Smi::cast(value)->value();
+      cast_value = static_cast<ValueType>(int_value);
+    } else if (value->IsHeapNumber()) {
+      double double_value = HeapNumber::cast(value)->value();
+      cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
+    } else {
+      // Clamp undefined to zero (default). All other types have been
+      // converted to a number type further up in the call chain.
+      ASSERT(value->IsUndefined());
+    }
+    receiver->set(index, cast_value);
+  }
+  return Heap::NumberFromInt32(cast_value);
+}
+
+
+Object* ExternalByteArray::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalByteArray, int8_t>
+      (this, index, value);
+}
+
+
+Object* ExternalUnsignedByteArray::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalUnsignedByteArray, uint8_t>
+      (this, index, value);
+}
+
+
+Object* ExternalShortArray::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalShortArray, int16_t>
+      (this, index, value);
+}
+
+
+Object* ExternalUnsignedShortArray::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalUnsignedShortArray, uint16_t>
+      (this, index, value);
+}
+
+
+Object* ExternalIntArray::SetValue(uint32_t index, Object* value) {
+  return ExternalArrayIntSetter<ExternalIntArray, int32_t>
+      (this, index, value);
+}
+
+
+Object* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
+  uint32_t cast_value = 0;
+  if (index < static_cast<uint32_t>(length())) {
+    if (value->IsSmi()) {
+      int int_value = Smi::cast(value)->value();
+      cast_value = static_cast<uint32_t>(int_value);
+    } else if (value->IsHeapNumber()) {
+      double double_value = HeapNumber::cast(value)->value();
+      cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
+    } else {
+      // Clamp undefined to zero (default). All other types have been
+      // converted to a number type further up in the call chain.
+      ASSERT(value->IsUndefined());
+    }
+    set(index, cast_value);
+  }
+  return Heap::NumberFromUint32(cast_value);
+}
+
+
+Object* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
+  float cast_value = 0;
+  if (index < static_cast<uint32_t>(length())) {
+    if (value->IsSmi()) {
+      int int_value = Smi::cast(value)->value();
+      cast_value = static_cast<float>(int_value);
+    } else if (value->IsHeapNumber()) {
+      double double_value = HeapNumber::cast(value)->value();
+      cast_value = static_cast<float>(double_value);
+    } else {
+      // Clamp undefined to zero (default). All other types have been
+      // converted to a number type further up in the call chain.
+      ASSERT(value->IsUndefined());
+    }
+    set(index, cast_value);
+  }
+  return Heap::AllocateHeapNumber(cast_value);
 }
 
 

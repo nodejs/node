@@ -342,10 +342,10 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
-  int semispace_size = constraints->max_young_space_size();
+  int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
-  if (semispace_size != 0 || old_gen_size != 0) {
-    bool result = i::Heap::ConfigureHeap(semispace_size, old_gen_size);
+  if (young_space_size != 0 || old_gen_size != 0) {
+    bool result = i::Heap::ConfigureHeap(young_space_size / 2, old_gen_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
@@ -2306,6 +2306,30 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
 }
 
 
+void v8::Object::SetIndexedPropertiesToExternalArrayData(
+    void* data,
+    ExternalArrayType array_type,
+    int length) {
+  ON_BAILOUT("v8::SetIndexedPropertiesToExternalArrayData()", return);
+  ENTER_V8;
+  HandleScope scope;
+  if (!ApiCheck(length <= i::ExternalArray::kMaxLength,
+                "v8::Object::SetIndexedPropertiesToExternalArrayData()",
+                "length exceeds max acceptable value")) {
+    return;
+  }
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (!ApiCheck(!self->IsJSArray(),
+                "v8::Object::SetIndexedPropertiesToExternalArrayData()",
+                "JSArray is not supported")) {
+    return;
+  }
+  i::Handle<i::ExternalArray> array =
+      i::Factory::NewExternalArray(length, array_type, data);
+  self->set_elements(*array);
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -2611,6 +2635,15 @@ bool v8::V8::Dispose() {
 }
 
 
+HeapStatistics::HeapStatistics(): total_heap_size_(0), used_heap_size_(0) { }
+
+
+void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
+  heap_statistics->set_total_heap_size(i::Heap::CommittedMemory());
+  heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
+}
+
+
 bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
@@ -2620,10 +2653,8 @@ bool v8::V8::IdleNotification() {
 
 
 void v8::V8::LowMemoryNotification() {
-#if defined(ANDROID)
   if (!i::V8::IsRunning()) return;
   i::Heap::CollectAllGarbage(true);
-#endif
 }
 
 
@@ -3152,6 +3183,10 @@ Local<v8::Object> v8::Object::New() {
 Local<v8::Value> v8::Date::New(double time) {
   EnsureInitialized("v8::Date::New()");
   LOG_API("Date::New");
+  if (isnan(time)) {
+    // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
+    time = i::OS::nan_value();
+  }
   ENTER_V8;
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> obj =
@@ -3224,6 +3259,10 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
 
 Local<Number> v8::Number::New(double value) {
   EnsureInitialized("v8::Number::New()");
+  if (isnan(value)) {
+    // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
+    value = i::OS::nan_value();
+  }
   ENTER_V8;
   i::Handle<i::Object> result = i::Factory::NewNumber(value);
   return Utils::NumberToLocal(result);
@@ -3234,6 +3273,17 @@ Local<Integer> v8::Integer::New(int32_t value) {
   EnsureInitialized("v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value)));
+  }
+  ENTER_V8;
+  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  return Utils::IntegerToLocal(result);
+}
+
+
+Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
+  bool fits_into_int32_t = (value & (1 << 31)) == 0;
+  if (fits_into_int32_t) {
+    return Integer::New(static_cast<int32_t>(value));
   }
   ENTER_V8;
   i::Handle<i::Object> result = i::Factory::NewNumber(value);

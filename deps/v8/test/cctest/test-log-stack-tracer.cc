@@ -163,11 +163,6 @@ v8::Handle<v8::Value> TraceExtension::JSEntrySP(const v8::Arguments& args) {
 }
 
 
-static void CompileRun(const char* source) {
-  Script::Compile(String::New(source))->Run();
-}
-
-
 v8::Handle<v8::Value> TraceExtension::JSEntrySPLevel2(
     const v8::Arguments& args) {
   v8::HandleScope scope;
@@ -329,17 +324,16 @@ TEST(PureJSStackTrace) {
 }
 
 
-static void CFuncDoTrace() {
+static void CFuncDoTrace(byte dummy_parameter) {
   Address fp;
 #ifdef __GNUC__
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
-#elif defined _MSC_VER && defined V8_TARGET_ARCH_IA32
-  __asm mov [fp], ebp  // NOLINT
-#elif defined _MSC_VER && defined V8_TARGET_ARCH_X64
-  // TODO(X64): __asm extension is not supported by the Microsoft Visual C++
-  // 64-bit compiler.
-  fp = 0;
-  UNIMPLEMENTED();
+#elif defined _MSC_VER
+  // Approximate a frame pointer address. We compile without base pointers,
+  // so we can't trust ebp/rbp.
+  fp = &dummy_parameter - 2 * sizeof(void*);  // NOLINT
+#else
+#error Unexpected platform.
 #endif
   DoTrace(fp);
 }
@@ -347,7 +341,7 @@ static void CFuncDoTrace() {
 
 static int CFunc(int depth) {
   if (depth <= 0) {
-    CFuncDoTrace();
+    CFuncDoTrace(0);
     return 0;
   } else {
     return CFunc(depth - 1) + 1;

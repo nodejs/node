@@ -29,16 +29,19 @@
 
 #include "codegen-inl.h"
 #include "fast-codegen.h"
+#include "stub-cache.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
 
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
-                                         Handle<Script> script) {
+                                         Handle<Script> script,
+                                         bool is_eval) {
   CodeGenerator::MakeCodePrologue(fun);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
-  FastCodeGenerator cgen(&masm);
+  FastCodeGenerator cgen(&masm, script, is_eval);
   cgen.Generate(fun);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
@@ -50,6 +53,7 @@ Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
 
 
 int FastCodeGenerator::SlotOffset(Slot* slot) {
+  ASSERT(slot != NULL);
   // Offset is negative because higher indexes are at lower addresses.
   int offset = -slot->index() * kPointerSize;
   // Adjust by a (parameter or local) base offset.
@@ -65,6 +69,137 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
   }
   return offset;
 }
+
+
+void FastCodeGenerator::Move(Location destination, Location source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+
+    case Location::TEMP:
+      switch (source.type()) {
+        case Location::NOWHERE:
+          UNREACHABLE();
+        case Location::TEMP:
+          break;
+      }
+      break;
+  }
+}
+
+
+// All platform macro assemblers in {ia32,x64,arm} have a push(Register)
+// function.
+void FastCodeGenerator::Move(Location destination, Register source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      masm_->push(source);
+      break;
+  }
+}
+
+
+// All platform macro assemblers in {ia32,x64,arm} have a pop(Register)
+// function.
+void FastCodeGenerator::Move(Register destination, Location source) {
+  switch (source.type()) {
+    case Location::NOWHERE:
+      UNREACHABLE();
+    case Location::TEMP:
+      masm_->pop(destination);
+  }
+}
+
+
+void FastCodeGenerator::VisitDeclarations(
+    ZoneList<Declaration*>* declarations) {
+  int length = declarations->length();
+  int globals = 0;
+  for (int i = 0; i < length; i++) {
+    Declaration* node = declarations->at(i);
+    Variable* var = node->proxy()->var();
+    Slot* slot = var->slot();
+
+    // If it was not possible to allocate the variable at compile
+    // time, we need to "declare" it at runtime to make sure it
+    // actually exists in the local context.
+    if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
+      UNREACHABLE();
+    } else {
+      // Count global variables and functions for later processing
+      globals++;
+    }
+  }
+
+  // Return in case of no declared global functions or variables.
+  if (globals == 0) return;
+
+  // Compute array of global variable and function declarations.
+  Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+  for (int j = 0, i = 0; i < length; i++) {
+    Declaration* node = declarations->at(i);
+    Variable* var = node->proxy()->var();
+    Slot* slot = var->slot();
+
+    if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
+      array->set(j++, *(var->name()));
+      if (node->fun() == NULL) {
+        if (var->mode() == Variable::CONST) {
+          // In case this is const property use the hole.
+          array->set_the_hole(j++);
+        } else {
+          array->set_undefined(j++);
+        }
+      } else {
+        Handle<JSFunction> function = BuildBoilerplate(node->fun());
+        // Check for stack-overflow exception.
+        if (HasStackOverflow()) return;
+        array->set(j++, *function);
+      }
+    }
+  }
+
+  // Invoke the platform-dependent code generator to do the actual
+  // declaration the global variables and functions.
+  DeclareGlobals(array);
+}
+
+Handle<JSFunction> FastCodeGenerator::BuildBoilerplate(FunctionLiteral* fun) {
+#ifdef DEBUG
+  // We should not try to compile the same function literal more than
+  // once.
+  fun->mark_as_compiled();
+#endif
+
+  // Generate code
+  Handle<Code> code = CodeGenerator::ComputeLazyCompile(fun->num_parameters());
+  // Check for stack-overflow exception.
+  if (code.is_null()) {
+    SetStackOverflow();
+    return Handle<JSFunction>::null();
+  }
+
+  // Create a boilerplate function.
+  Handle<JSFunction> function =
+      Factory::NewFunctionBoilerplate(fun->name(),
+                                      fun->materialized_literal_count(),
+                                      code);
+  CodeGenerator::SetFunctionInfo(function, fun, false, script_);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Notify debugger that a new function has been added.
+  Debugger::OnNewFunction(function);
+#endif
+
+  // Set the expected number of properties for instances and return
+  // the resulting function.
+  SetExpectedNofPropertiesFromEstimate(function,
+                                       fun->expected_property_count());
+  return function;
+}
+
 
 void FastCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
   if (FLAG_debug_info) {
@@ -100,12 +235,22 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
 
 
 void FastCodeGenerator::VisitBlock(Block* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ Block");
+  SetStatementPosition(stmt);
+  VisitStatements(stmt->statements());
+}
+
+
+void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
+  Comment cmnt(masm_, "[ ExpressionStatement");
+  SetStatementPosition(stmt);
+  Visit(stmt->expression());
 }
 
 
 void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ EmptyStatement");
+  SetStatementPosition(stmt);
 }
 
 
@@ -174,11 +319,6 @@ void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* expr) {
   UNREACHABLE();
@@ -196,18 +336,8 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 }
 
 
-void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  UNREACHABLE();
+void FastCodeGenerator::VisitLiteral(Literal* expr) {
+  Move(expr->location(), expr);
 }
 
 
@@ -221,37 +351,12 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitProperty(Property* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitCall(Call* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitCallNew(CallNew* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   UNREACHABLE();
 }
 

@@ -47,6 +47,13 @@ double ceiling(double x) {
 }
 
 
+// Give V8 the opportunity to override the default fmod behavior.
+double modulo(double x, double y) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
 // Initialize OS class early in the V8 startup.
 void OS::Setup() {
   // Seed the random number generator.

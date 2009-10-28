@@ -175,6 +175,7 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 2, 1) \
+  F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \
   F(SetCode, 2, 1) \
@@ -233,6 +234,7 @@ namespace internal {
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
   F(StackGuard, 1, 1) \
+  F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
   F(NewContext, 1, 1) \
@@ -262,6 +264,8 @@ namespace internal {
   F(Log, 2, 1) \
   /* ES5 */ \
   F(LocalKeys, 1, 1) \
+  /* Handle scopes */ \
+  F(DeleteHandleScopeExtensions, 0, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1, 1)

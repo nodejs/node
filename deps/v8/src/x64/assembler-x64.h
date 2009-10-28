@@ -458,7 +458,14 @@ class Assembler : public Malloced {
   // the relative displacements stored in the code.
   static inline Address target_address_at(Address pc);
   static inline void set_target_address_at(Address pc, Address target);
+  // This sets the branch destination (which is in the instruction on x64).
+  inline static void set_target_at(Address instruction_payload,
+                                   Address target) {
+    set_target_address_at(instruction_payload, target);
+  }
   inline Handle<Object> code_target_object_handle_at(Address pc);
+  // Number of bytes taken up by the branch target in the code.
+  static const int kCallTargetSize = 4;  // Use 32-bit displacement.
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
   static const int kCallTargetAddressOffset = 4;  // Use 32-bit displacement.
@@ -513,6 +520,10 @@ class Assembler : public Malloced {
   void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
 
+  // Move the low 16 bits of a 64-bit register value to a 16-bit
+  // memory location.
+  void movw(const Operand& dst, Register src);
+
   void movl(Register dst, Register src);
   void movl(Register dst, const Operand& src);
   void movl(const Operand& dst, Register src);
@@ -542,10 +553,13 @@ class Assembler : public Malloced {
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
+  void movsxbq(Register dst, const Operand& src);
+  void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);
   void movzxbq(Register dst, const Operand& src);
   void movzxbl(Register dst, const Operand& src);
+  void movzxwq(Register dst, const Operand& src);
   void movzxwl(Register dst, const Operand& src);
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
@@ -913,7 +927,11 @@ class Assembler : public Malloced {
   void testq(Register dst, Immediate mask);
 
   void xor_(Register dst, Register src) {
-    arithmetic_op(0x33, dst, src);
+    if (dst.code() == src.code()) {
+      arithmetic_op_32(0x33, dst, src);
+    } else {
+      arithmetic_op(0x33, dst, src);
+    }
   }
 
   void xorl(Register dst, Register src) {
@@ -1006,6 +1024,7 @@ class Assembler : public Malloced {
 
   void fstp_s(const Operand& adr);
   void fstp_d(const Operand& adr);
+  void fstp(int index);
 
   void fild_s(const Operand& adr);
   void fild_d(const Operand& adr);
@@ -1042,6 +1061,9 @@ class Assembler : public Malloced {
   void ftst();
   void fucomp(int i);
   void fucompp();
+  void fucomi(int i);
+  void fucomip();
+
   void fcompp();
   void fnstsw_ax();
   void fwait();
@@ -1056,8 +1078,7 @@ class Assembler : public Malloced {
 
   // SSE2 instructions
   void movsd(const Operand& dst, XMMRegister src);
-  void movsd(Register src, XMMRegister dst);
-  void movsd(XMMRegister dst, Register src);
+  void movsd(XMMRegister src, XMMRegister dst);
   void movsd(XMMRegister src, const Operand& dst);
 
   void cvttss2si(Register dst, const Operand& src);

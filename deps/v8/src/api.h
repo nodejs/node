@@ -125,6 +125,15 @@ static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
 }
 
 
+class ApiFunction {
+ public:
+  explicit ApiFunction(v8::internal::Address addr) : addr_(addr) { }
+  v8::internal::Address address() { return addr_; }
+ private:
+  v8::internal::Address addr_;
+};
+
+
 v8::Arguments::Arguments(v8::Local<v8::Value> data,
                          v8::Local<v8::Object> holder,
                          v8::Local<v8::Function> callee,

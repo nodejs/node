@@ -54,7 +54,8 @@ class JSObjectsCluster BASE_EMBEDDED {
   enum SpecialCase {
     ROOTS = 1,
     GLOBAL_PROPERTY = 2,
-    SELF = 3  // This case is used in ClustersCoarser only.
+    CODE = 3,
+    SELF = 100  // This case is used in ClustersCoarser only.
   };
 
   JSObjectsCluster() : constructor_(NULL), instance_(NULL) {}
@@ -97,6 +98,7 @@ class JSObjectsCluster BASE_EMBEDDED {
     switch (special) {
       case ROOTS: return Heap::result_symbol();
       case GLOBAL_PROPERTY: return Heap::code_symbol();
+      case CODE: return Heap::arguments_shadow_symbol();
       case SELF: return Heap::catch_var_symbol();
       default:
         UNREACHABLE();

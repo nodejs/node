@@ -260,6 +260,21 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 };
 
 
+// Enter C code from generated RegExp code in a way that allows
+// the C code to fix the return address in case of a GC.
+// Currently only needed on ARM.
+class RegExpCEntryStub: public CodeStub {
+ public:
+  RegExpCEntryStub() {}
+  virtual ~RegExpCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return RegExpCEntry; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "RegExpCEntryStub"; }
+};
+
 #endif  // V8_NATIVE_REGEXP
 
 

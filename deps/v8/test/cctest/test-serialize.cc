@@ -185,6 +185,18 @@ static void Serialize() {
 }
 
 
+static void Serialize2() {
+  Serializer::Enable();
+  // We have to create one context.  One reason for this is so that the builtins
+  // can be loaded from v8natives.js and their addresses can be processed.  This
+  // will clear the pending fixups array, which would otherwise contain GC roots
+  // that would confuse the serialization/deserialization process.
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env.Dispose();
+  Snapshot::WriteToFile2(FLAG_testing_serialization_file);
+}
+
+
 // Test that the whole heap can be serialized when running from the
 // internal snapshot.
 // (Smoke test.)
@@ -200,6 +212,13 @@ TEST(SerializeInternal) {
 TEST(Serialize) {
   if (Snapshot::IsEnabled()) return;
   Serialize();
+}
+
+
+// Test that the whole heap can be serialized.
+TEST(Serialize2) {
+  v8::V8::Initialize();
+  Serialize2();
 }
 
 
@@ -230,6 +249,11 @@ static void Deserialize() {
 }
 
 
+static void Deserialize2() {
+  CHECK(Snapshot::Initialize2(FLAG_testing_serialization_file));
+}
+
+
 static void SanityCheck() {
   v8::HandleScope scope;
 #ifdef DEBUG
@@ -251,10 +275,40 @@ DEPENDENT_TEST(Deserialize, Serialize) {
   SanityCheck();
 }
 
+
+DEPENDENT_TEST(Deserialize2, Serialize2) {
+  v8::HandleScope scope;
+
+  Deserialize2();
+
+  fflush(stdout);
+
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  SanityCheck();
+}
+
+
 DEPENDENT_TEST(DeserializeAndRunScript, Serialize) {
   v8::HandleScope scope;
 
   Deserialize();
+
+  const char* c_source = "\"1234\".length";
+  v8::Local<v8::String> source = v8::String::New(c_source);
+  v8::Local<v8::Script> script = v8::Script::Compile(source);
+  CHECK_EQ(4, script->Run()->Int32Value());
+}
+
+
+DEPENDENT_TEST(DeserializeAndRunScript2, Serialize2) {
+  v8::HandleScope scope;
+
+  Deserialize2();
+
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env->Enter();
 
   const char* c_source = "\"1234\".length";
   v8::Local<v8::String> source = v8::String::New(c_source);
@@ -285,4 +339,20 @@ DEPENDENT_TEST(DeserializeExtensions, Serialize) {
   v8::Local<v8::Script> script = v8::Script::Compile(source);
   v8::Local<v8::Value> value = script->Run();
   CHECK(value->IsUndefined());
+}
+
+
+TEST(TestThatAlwaysSucceeds) {
+}
+
+
+TEST(TestThatAlwaysFails) {
+  bool ArtificialFailure = false;
+  CHECK(ArtificialFailure);
+}
+
+
+DEPENDENT_TEST(DependentTestThatAlwaysFails, TestThatAlwaysSucceeds) {
+  bool ArtificialFailure2 = false;
+  CHECK(ArtificialFailure2);
 }

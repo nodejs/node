@@ -127,8 +127,11 @@ var knownProblems = {
   "IS_VAR": true,
   "ResolvePossiblyDirectEval": true,
   "Log": true,
+  "DeclareGlobals": true,
 
-  "CollectStackTrace": true
+  "CollectStackTrace": true,
+  "PromoteScheduledException": true,
+  "DeleteHandleScopeExtensions": true
 };
 
 var currentlyUncallable = {

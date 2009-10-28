@@ -615,6 +615,13 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
+                                        ExternalArrayType array_type) {
+  // TODO(476): port specialized code.
+  GenerateGeneric(masm);
+}
+
+
 void KeyedStoreIC::Generate(MacroAssembler* masm,
                             const ExternalReference& f) {
   // ---------- S t a t e --------------
@@ -745,6 +752,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   __ bind(&exit);
   __ Ret();
+}
+
+
+void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
+                                         ExternalArrayType array_type) {
+  // TODO(476): port specialized code.
+  GenerateGeneric(masm);
 }
 
 

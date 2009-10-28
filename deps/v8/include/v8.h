@@ -452,8 +452,8 @@ class V8EXPORT HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  // This Data class is accessible internally through a typedef in the
-  // ImplementationUtilities class.
+  // This Data class is accessible internally as HandleScopeData through a
+  // typedef in the ImplementationUtilities class.
   class V8EXPORT Data {
    public:
     int extensions;
@@ -1069,7 +1069,7 @@ class V8EXPORT Number : public Primitive {
 class V8EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
-  static inline Local<Integer> NewFromUnsigned(uint32_t value);
+  static Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   static inline Integer* Cast(v8::Value* obj);
  private:
@@ -1124,6 +1124,16 @@ enum PropertyAttribute {
   ReadOnly   = 1 << 0,
   DontEnum   = 1 << 1,
   DontDelete = 1 << 2
+};
+
+enum ExternalArrayType {
+  kExternalByteArray = 1,
+  kExternalUnsignedByteArray,
+  kExternalShortArray,
+  kExternalUnsignedShortArray,
+  kExternalIntArray,
+  kExternalUnsignedIntArray,
+  kExternalFloatArray
 };
 
 /**
@@ -1277,6 +1287,17 @@ class V8EXPORT Object : public Value {
    *       the backing store is preserved while V8 has a reference.
    */
   void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
+
+  /**
+   * Set the backing store of the indexed properties to be managed by the
+   * embedding layer. Access to the indexed properties will follow the rules
+   * spelled out for the CanvasArray subtypes in the WebGL specification.
+   * Note: The embedding program still owns the data and needs to ensure that
+   *       the backing store is preserved while V8 has a reference.
+   */
+  void SetIndexedPropertiesToExternalArrayData(void* data,
+                                               ExternalArrayType array_type,
+                                               int number_of_elements);
 
   static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -2103,6 +2124,29 @@ enum ProfilerModules {
 
 
 /**
+ * Collection of V8 heap information.
+ *
+ * Instances of this class can be passed to v8::V8::HeapStatistics to
+ * get heap statistics from V8.
+ */
+class V8EXPORT HeapStatistics {
+ public:
+  HeapStatistics();
+  size_t total_heap_size() { return total_heap_size_; }
+  size_t used_heap_size() { return used_heap_size_; }
+
+ private:
+  void set_total_heap_size(size_t size) { total_heap_size_ = size; }
+  void set_used_heap_size(size_t size) { used_heap_size_ = size; }
+
+  size_t total_heap_size_;
+  size_t used_heap_size_;
+
+  friend class V8;
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -2352,6 +2396,10 @@ class V8EXPORT V8 {
    */
   static bool Dispose();
 
+  /**
+   * Get statistics about the heap memory usage.
+   */
+  static void GetHeapStatistics(HeapStatistics* heap_statistics);
 
   /**
    * Optional notification that the embedder is idle.
@@ -3066,15 +3114,6 @@ Number* Number::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Number*>(value);
-}
-
-
-Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
-  bool fits_into_int32_t = (value & (1 << 31)) == 0;
-  if (fits_into_int32_t) {
-    return Integer::New(static_cast<int32_t>(value));
-  }
-  return Local<Integer>::Cast(Number::New(value));
 }
 
 

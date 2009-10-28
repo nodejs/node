@@ -1,3 +1,22 @@
+2009-10-28: Version 1.3.17
+
+        Added API method to get simple heap statistics.
+
+        Improved heap profiler support.
+
+        Fixed the implementation of the resource constraint API so it
+        works when using snapshots.
+
+        Fixed a number of issues in the Windows 64-bit version.
+
+        Optimized calls to API getters.
+
+        Added valgrind notification on code modification to the 64-bit version.
+
+        Fixed issue where we logged shared library addresses on Windows at
+        startup and never used them.
+
+
 2009-10-16: Version 1.3.16
         
         X64: Convert smis to holding 32 bits of payload.
@@ -41,7 +60,7 @@
         Ensure V8 is initialized before locking and unlocking threads.
 
         Implemented a new JavaScript minifier for compressing the source of
-        the built-in JavaScript. This Remove non-Open Source code from Douglas
+        the built-in JavaScript. This removes non-Open Source code from Douglas
         Crockford from the project.
 
         Added a missing optimization in StringCharAt.

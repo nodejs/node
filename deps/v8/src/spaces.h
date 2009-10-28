@@ -862,6 +862,10 @@ class PagedSpace : public Space {
   // Current capacity without growing (Size() + Available() + Waste()).
   int Capacity() { return accounting_stats_.Capacity(); }
 
+  // Total amount of memory committed for this space.  For paged
+  // spaces this equals the capacity.
+  int CommittedMemory() { return Capacity(); }
+
   // Available bytes without growing.
   int Available() { return accounting_stats_.Available(); }
 
@@ -1252,11 +1256,19 @@ class NewSpace : public Space {
 
   // Return the allocated bytes in the active semispace.
   virtual int Size() { return top() - bottom(); }
+
   // Return the current capacity of a semispace.
   int Capacity() {
     ASSERT(to_space_.Capacity() == from_space_.Capacity());
     return to_space_.Capacity();
   }
+
+  // Return the total amount of memory committed for new space.
+  int CommittedMemory() {
+    if (from_space_.is_committed()) return 2 * Capacity();
+    return Capacity();
+  }
+
   // Return the available bytes without growing in the active semispace.
   int Available() { return Capacity() - Size(); }
 
@@ -1422,6 +1434,8 @@ class FreeListNode: public HeapObject {
   static FreeListNode* FromAddress(Address address) {
     return reinterpret_cast<FreeListNode*>(HeapObject::FromAddress(address));
   }
+
+  static inline bool IsFreeListNode(HeapObject* object);
 
   // Set the size in bytes, which can be read with HeapObject::Size().  This
   // function also writes a map to the first word of the block so that it

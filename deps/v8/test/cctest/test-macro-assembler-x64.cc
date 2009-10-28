@@ -57,7 +57,7 @@ using v8::internal::rsp;
 using v8::internal::r8;
 using v8::internal::r9;
 using v8::internal::r11;
-using v8::internal::r12;
+using v8::internal::r12;  // Remember: r12..r15 are callee save!
 using v8::internal::r13;
 using v8::internal::r14;
 using v8::internal::r15;
@@ -1144,6 +1144,8 @@ TEST(SmiDiv) {
   masm->set_allow_stub_calls(false);
   Label exit;
 
+  __ push(r12);
+  __ push(r15);
   TestSmiDiv(masm, &exit, 0x10, 1, 1);
   TestSmiDiv(masm, &exit, 0x20, 1, 0);
   TestSmiDiv(masm, &exit, 0x30, -1, 0);
@@ -1168,6 +1170,8 @@ TEST(SmiDiv) {
   __ xor_(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
+  __ pop(r15);
+  __ pop(r12);
   __ ret(0);
 
   CodeDesc desc;
@@ -1247,6 +1251,8 @@ TEST(SmiMod) {
   masm->set_allow_stub_calls(false);
   Label exit;
 
+  __ push(r12);
+  __ push(r15);
   TestSmiMod(masm, &exit, 0x10, 1, 1);
   TestSmiMod(masm, &exit, 0x20, 1, 0);
   TestSmiMod(masm, &exit, 0x30, -1, 0);
@@ -1271,6 +1277,8 @@ TEST(SmiMod) {
   __ xor_(r15, r15);  // Success.
   __ bind(&exit);
   __ movq(rax, r15);
+  __ pop(r15);
+  __ pop(r12);
   __ ret(0);
 
   CodeDesc desc;

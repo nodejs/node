@@ -1209,18 +1209,16 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
 
 
 void RegExpMacroAssemblerX64::CheckStackLimit() {
-  if (FLAG_check_stack) {
-    Label no_stack_overflow;
-    ExternalReference stack_limit =
-        ExternalReference::address_of_regexp_stack_limit();
-    __ load_rax(stack_limit);
-    __ cmpq(backtrack_stackpointer(), rax);
-    __ j(above, &no_stack_overflow);
+  Label no_stack_overflow;
+  ExternalReference stack_limit =
+      ExternalReference::address_of_regexp_stack_limit();
+  __ load_rax(stack_limit);
+  __ cmpq(backtrack_stackpointer(), rax);
+  __ j(above, &no_stack_overflow);
 
-    SafeCall(&stack_overflow_label_);
+  SafeCall(&stack_overflow_label_);
 
-    __ bind(&no_stack_overflow);
-  }
+  __ bind(&no_stack_overflow);
 }
 
 
@@ -1285,11 +1283,6 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
                  Operand(rsi, rdi, times_1, cp_offset * sizeof(uc16)));
     }
   }
-}
-
-
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  __ int3();  // Unused on x64.
 }
 
 #undef __

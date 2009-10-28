@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
 
@@ -135,6 +136,13 @@ ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
   key_ = new Literal(value->name());
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
+}
+
+
+bool ObjectLiteral::Property::IsCompileTimeValue() {
+  return kind_ == CONSTANT ||
+      (kind_ == MATERIALIZED_LITERAL &&
+       CompileTimeValue::IsCompileTimeValue(value_));
 }
 
 

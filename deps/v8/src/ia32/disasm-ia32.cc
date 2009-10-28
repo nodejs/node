@@ -204,7 +204,7 @@ void InstructionTable::CopyTable(ByteMnemonic bm[], InstructionType type) {
     InstructionDesc* id = &instructions_[bm[i].b];
     id->mnem = bm[i].mnem;
     id->op_order_ = bm[i].op_order_;
-    assert(id->type == NO_INSTR);  // Information already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->type = type;
   }
 }
@@ -216,7 +216,7 @@ void InstructionTable::SetTableRange(InstructionType type,
                                      const char* mnem) {
   for (byte b = start; b <= end; b++) {
     InstructionDesc* id = &instructions_[b];
-    assert(id->type == NO_INSTR);  // Information already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = mnem;
     id->type = type;
   }
@@ -226,7 +226,7 @@ void InstructionTable::SetTableRange(InstructionType type,
 void InstructionTable::AddJumpConditionalShort() {
   for (byte b = 0x70; b <= 0x7F; b++) {
     InstructionDesc* id = &instructions_[b];
-    assert(id->type == NO_INSTR);  // Information already entered
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = jump_conditional_mnem[b & 0x0F];
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
   }
@@ -321,6 +321,8 @@ class DisassemblerIA32 {
   int SetCC(byte* data);
   int CMov(byte* data);
   int FPUInstruction(byte* data);
+  int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
+  int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
   void AppendToBuffer(const char* format, ...);
 
 
@@ -493,7 +495,7 @@ int DisassemblerIA32::PrintImmediateOp(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::F7Instruction(byte* data) {
-  assert(*data == 0xF7);
+  ASSERT_EQ(0xF7, *data);
   byte modrm = *(data+1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -526,7 +528,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
 
 int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   byte op = *data;
-  assert(op == 0xD1 || op == 0xD3 || op == 0xC1);
+  ASSERT(op == 0xD1 || op == 0xD3 || op == 0xC1);
   byte modrm = *(data+1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -560,7 +562,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
         default: UnimplementedInstruction();
       }
     }
-    assert(mnem != NULL);
+    ASSERT_NE(NULL, mnem);
     AppendToBuffer("%s %s,", mnem, NameOfCPURegister(rm));
     if (imm8 > 0) {
       AppendToBuffer("%d", imm8);
@@ -576,7 +578,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::JumpShort(byte* data) {
-  assert(*data == 0xEB);
+  ASSERT_EQ(0xEB, *data);
   byte b = *(data+1);
   byte* dest = data + static_cast<int8_t>(b) + 2;
   AppendToBuffer("jmp %s", NameOfAddress(dest));
@@ -586,7 +588,7 @@ int DisassemblerIA32::JumpShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::JumpConditional(byte* data, const char* comment) {
-  assert(*data == 0x0F);
+  ASSERT_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
   byte* dest = data + *reinterpret_cast<int32_t*>(data+2) + 6;
   const char* mnem = jump_conditional_mnem[cond];
@@ -614,18 +616,18 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::SetCC(byte* data) {
-  assert(*data == 0x0F);
+  ASSERT_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
   const char* mnem = set_conditional_mnem[cond];
   AppendToBuffer("%s ", mnem);
   PrintRightByteOperand(data+2);
-  return 3;  // includes 0x0F
+  return 3;  // Includes 0x0F.
 }
 
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::CMov(byte* data) {
-  assert(*data == 0x0F);
+  ASSERT_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   const char* mnem = conditional_move_mnem[cond];
   int op_size = PrintOperands(mnem, REG_OPER_OP_ORDER, data + 2);
@@ -635,107 +637,165 @@ int DisassemblerIA32::CMov(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerIA32::FPUInstruction(byte* data) {
-  byte b1 = *data;
-  byte b2 = *(data + 1);
-  if (b1 == 0xD9) {
-    const char* mnem = NULL;
-    switch (b2) {
-      case 0xE8: mnem = "fld1"; break;
-      case 0xEE: mnem = "fldz"; break;
-      case 0xE1: mnem = "fabs"; break;
-      case 0xE0: mnem = "fchs"; break;
-      case 0xF8: mnem = "fprem"; break;
-      case 0xF5: mnem = "fprem1"; break;
-      case 0xF7: mnem = "fincstp"; break;
-      case 0xE4: mnem = "ftst"; break;
-    }
-    if (mnem != NULL) {
-      AppendToBuffer("%s", mnem);
-      return 2;
-    } else if ((b2 & 0xF8) == 0xC8) {
-      AppendToBuffer("fxch st%d", b2 & 0x7);
-      return 2;
-    } else {
-      int mod, regop, rm;
-      get_modrm(*(data+1), &mod, &regop, &rm);
-      const char* mnem = "?";
-      switch (regop) {
-        case eax: mnem = "fld_s"; break;
-        case ebx: mnem = "fstp_s"; break;
-        default: UnimplementedInstruction();
-      }
-      AppendToBuffer("%s ", mnem);
-      int count = PrintRightOperand(data + 1);
-      return count + 1;
-    }
-  } else if (b1 == 0xDD) {
-    if ((b2 & 0xF8) == 0xC0) {
-      AppendToBuffer("ffree st%d", b2 & 0x7);
-      return 2;
-    } else {
-      int mod, regop, rm;
-      get_modrm(*(data+1), &mod, &regop, &rm);
-      const char* mnem = "?";
-      switch (regop) {
-        case eax: mnem = "fld_d"; break;
-        case ebx: mnem = "fstp_d"; break;
-        default: UnimplementedInstruction();
-      }
-      AppendToBuffer("%s ", mnem);
-      int count = PrintRightOperand(data + 1);
-      return count + 1;
-    }
-  } else if (b1 == 0xDB) {
-    int mod, regop, rm;
-    get_modrm(*(data+1), &mod, &regop, &rm);
-    const char* mnem = "?";
-    switch (regop) {
-      case eax: mnem = "fild_s"; break;
-      case edx: mnem = "fist_s"; break;
-      case ebx: mnem = "fistp_s"; break;
-      default: UnimplementedInstruction();
-    }
-    AppendToBuffer("%s ", mnem);
-    int count = PrintRightOperand(data + 1);
-    return count + 1;
-  } else if (b1 == 0xDF) {
-    if (b2 == 0xE0) {
-      AppendToBuffer("fnstsw_ax");
-      return 2;
-    }
-    int mod, regop, rm;
-    get_modrm(*(data+1), &mod, &regop, &rm);
-    const char* mnem = "?";
-    switch (regop) {
-      case ebp: mnem = "fild_d"; break;
-      case edi: mnem = "fistp_d"; break;
-      default: UnimplementedInstruction();
-    }
-    AppendToBuffer("%s ", mnem);
-    int count = PrintRightOperand(data + 1);
-    return count + 1;
-  } else if (b1 == 0xDC || b1 == 0xDE) {
-    bool is_pop = (b1 == 0xDE);
-    if (is_pop && b2 == 0xD9) {
-      AppendToBuffer("fcompp");
-      return 2;
-    }
-    const char* mnem = "FP0xDC";
-    switch (b2 & 0xF8) {
-      case 0xC0: mnem = "fadd"; break;
-      case 0xE8: mnem = "fsub"; break;
-      case 0xC8: mnem = "fmul"; break;
-      case 0xF8: mnem = "fdiv"; break;
-      default: UnimplementedInstruction();
-    }
-    AppendToBuffer("%s%s st%d", mnem, is_pop ? "p" : "", b2 & 0x7);
-    return 2;
-  } else if (b1 == 0xDA && b2 == 0xE9) {
-    const char* mnem = "fucompp";
-    AppendToBuffer("%s", mnem);
-    return 2;
+  byte escape_opcode = *data;
+  ASSERT_EQ(0xD8, escape_opcode & 0xF8);
+  byte modrm_byte = *(data+1);
+
+  if (modrm_byte >= 0xC0) {
+    return RegisterFPUInstruction(escape_opcode, modrm_byte);
+  } else {
+    return MemoryFPUInstruction(escape_opcode, modrm_byte, data+1);
   }
-  AppendToBuffer("Unknown FP instruction");
+}
+
+int DisassemblerIA32::MemoryFPUInstruction(int escape_opcode,
+                                           int modrm_byte,
+                                           byte* modrm_start) {
+  const char* mnem = "?";
+  int regop = (modrm_byte >> 3) & 0x7;  // reg/op field of modrm byte.
+  switch (escape_opcode) {
+    case 0xD9: switch (regop) {
+        case 0: mnem = "fld_s"; break;
+        case 3: mnem = "fstp_s"; break;
+        case 7: mnem = "fstcw"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDB: switch (regop) {
+        case 0: mnem = "fild_s"; break;
+        case 1: mnem = "fisttp_s"; break;
+        case 2: mnem = "fist_s"; break;
+        case 3: mnem = "fistp_s"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDD: switch (regop) {
+        case 0: mnem = "fld_d"; break;
+        case 3: mnem = "fstp_d"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDF: switch (regop) {
+        case 5: mnem = "fild_d"; break;
+        case 7: mnem = "fistp_d"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    default: UnimplementedInstruction();
+  }
+  AppendToBuffer("%s ", mnem);
+  int count = PrintRightOperand(modrm_start);
+  return count + 1;
+}
+
+int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
+                                             byte modrm_byte) {
+  bool has_register = false;  // Is the FPU register encoded in modrm_byte?
+  const char* mnem = "?";
+
+  switch (escape_opcode) {
+    case 0xD8:
+      UnimplementedInstruction();
+      break;
+
+    case 0xD9:
+      switch (modrm_byte & 0xF8) {
+        case 0xC8:
+          mnem = "fxch";
+          has_register = true;
+          break;
+        default:
+          switch (modrm_byte) {
+            case 0xE0: mnem = "fchs"; break;
+            case 0xE1: mnem = "fabs"; break;
+            case 0xE4: mnem = "ftst"; break;
+            case 0xE8: mnem = "fld1"; break;
+            case 0xEE: mnem = "fldz"; break;
+            case 0xF5: mnem = "fprem1"; break;
+            case 0xF7: mnem = "fincstp"; break;
+            case 0xF8: mnem = "fprem"; break;
+            case 0xFE: mnem = "fsin"; break;
+            case 0xFF: mnem = "fcos"; break;
+            default: UnimplementedInstruction();
+          }
+      }
+      break;
+
+    case 0xDA:
+      if (modrm_byte == 0xE9) {
+        mnem = "fucompp";
+      } else {
+        UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDB:
+      if ((modrm_byte & 0xF8) == 0xE8) {
+        mnem = "fucomi";
+        has_register = true;
+      } else if (modrm_byte  == 0xE2) {
+        mnem = "fclex";
+      } else {
+        UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDC:
+      has_register = true;
+      switch (modrm_byte & 0xF8) {
+        case 0xC0: mnem = "fadd"; break;
+        case 0xE8: mnem = "fsub"; break;
+        case 0xC8: mnem = "fmul"; break;
+        case 0xF8: mnem = "fdiv"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDD:
+      has_register = true;
+      switch (modrm_byte & 0xF8) {
+        case 0xC0: mnem = "ffree"; break;
+        case 0xD8: mnem = "fstp"; break;
+        default: UnimplementedInstruction();
+      }
+      break;
+
+    case 0xDE:
+      if (modrm_byte  == 0xD9) {
+        mnem = "fcompp";
+      } else {
+        has_register = true;
+        switch (modrm_byte & 0xF8) {
+          case 0xC0: mnem = "faddp"; break;
+          case 0xE8: mnem = "fsubp"; break;
+          case 0xC8: mnem = "fmulp"; break;
+          case 0xF8: mnem = "fdivp"; break;
+          default: UnimplementedInstruction();
+        }
+      }
+      break;
+
+    case 0xDF:
+      if (modrm_byte == 0xE0) {
+        mnem = "fnstsw_ax";
+      } else if ((modrm_byte & 0xF8) == 0xE8) {
+        mnem = "fucomip";
+        has_register = true;
+      }
+      break;
+
+    default: UnimplementedInstruction();
+  }
+
+  if (has_register) {
+    AppendToBuffer("%s st%d", mnem, modrm_byte & 0x7);
+  } else {
+    AppendToBuffer("%s", mnem);
+  }
   return 2;
 }
 

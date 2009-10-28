@@ -106,16 +106,16 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either EXIT or
-  // EXIT_DEBUG. Expects the number of arguments in register rax and
+  // Enter specific kind of exit frame; either in normal or
+  // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
   // to the first argument in register rsi.
-  void EnterExitFrame(StackFrame::Type type, int result_size = 1);
+  void EnterExitFrame(ExitFrame::Mode mode, int result_size = 1);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi.
-  void LeaveExitFrame(StackFrame::Type type, int result_size = 1);
+  void LeaveExitFrame(ExitFrame::Mode mode, int result_size = 1);
 
 
   // ---------------------------------------------------------------------------
@@ -207,11 +207,18 @@ class MacroAssembler: public Assembler {
   // to a smi.
   Condition CheckInteger32ValidSmiValue(Register src);
 
+  // Checks whether an 32-bit unsigned integer value is a valid for
+  // conversion to a smi.
+  Condition CheckUInteger32ValidSmiValue(Register src);
+
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
   // Jump if the value cannot be represented by a smi.
   void JumpIfNotValidSmiValue(Register src, Label* on_invalid);
+
+  // Jump if the unsigned integer value cannot be represented by a smi.
+  void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid);
 
   // Jump to label if the value is a tagged smi.
   void JumpIfSmi(Register src, Label* on_smi);
@@ -374,12 +381,15 @@ class MacroAssembler: public Assembler {
   // Converts a positive smi to a negative index.
   SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
 
-  bool IsUnsafeSmi(Smi* value);
-  void LoadUnsafeSmi(Register dst, Smi* source);
-
   // Basic Smi operations.
-  void Move(Register dst, Smi* source);
-  void Move(const Operand& dst, Smi* source);
+  void Move(Register dst, Smi* source) {
+    Set(dst, reinterpret_cast<int64_t>(source));
+  }
+
+  void Move(const Operand& dst, Smi* source) {
+    Set(dst, reinterpret_cast<int64_t>(source));
+  }
+
   void Push(Smi* smi);
   void Test(const Operand& dst, Smi* source);
 
@@ -391,14 +401,6 @@ class MacroAssembler: public Assembler {
   void Set(const Operand& dst, int64_t x);
 
   // Handle support
-  bool IsUnsafeSmi(Handle<Object> value) {
-    return IsUnsafeSmi(Smi::cast(*value));
-  }
-
-  void LoadUnsafeSmi(Register dst, Handle<Object> source) {
-    LoadUnsafeSmi(dst, Smi::cast(*source));
-  }
-
   void Move(Register dst, Handle<Object> source);
   void Move(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Handle<Object> source);
@@ -502,6 +504,13 @@ class MacroAssembler: public Assembler {
   // object(s) no longer allocated as they would be invalid when allocation is
   // un-done.
   void UndoAllocationInNewSpace(Register object);
+
+  // Allocate a heap number in new space with undefined value. Returns
+  // tagged pointer in result register, or jumps to gc_required if new
+  // space is full.
+  void AllocateHeapNumber(Register result,
+                          Register scratch,
+                          Label* gc_required);
 
   // ---------------------------------------------------------------------------
   // Support functions.

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <limits.h>
+
 #include "v8.h"
 
 #include "api.h"
@@ -33,7 +35,10 @@
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
+#include "utils.h"
 #include "cctest.h"
+
+static const bool kLogThreading = false;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
@@ -54,131 +59,6 @@ using ::v8::AccessorInfo;
 using ::v8::Extension;
 
 namespace i = ::v8::internal;
-
-static Local<Value> v8_num(double x) {
-  return v8::Number::New(x);
-}
-
-
-static Local<String> v8_str(const char* x) {
-  return String::New(x);
-}
-
-
-static Local<Script> v8_compile(const char* x) {
-  return Script::Compile(v8_str(x));
-}
-
-
-// A LocalContext holds a reference to a v8::Context.
-class LocalContext {
- public:
-  LocalContext(v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<ObjectTemplate> global_template =
-                   v8::Handle<ObjectTemplate>(),
-               v8::Handle<Value> global_object = v8::Handle<Value>())
-    : context_(Context::New(extensions, global_template, global_object)) {
-    context_->Enter();
-  }
-
-  virtual ~LocalContext() {
-    context_->Exit();
-    context_.Dispose();
-  }
-
-  Context* operator->() { return *context_; }
-  Context* operator*() { return *context_; }
-  Local<Context> local() { return Local<Context>::New(context_); }
-  bool IsReady() { return !context_.IsEmpty(); }
-
- private:
-  v8::Persistent<Context> context_;
-};
-
-
-// Switches between all the Api tests using the threading support.
-// In order to get a surprising but repeatable pattern of thread
-// switching it has extra semaphores to control the order in which
-// the tests alternate, not relying solely on the big V8 lock.
-//
-// A test is augmented with calls to ApiTestFuzzer::Fuzz() in its
-// callbacks.  This will have no effect when we are not running the
-// thread fuzzing test.  In the thread fuzzing test it will
-// pseudorandomly select a successor thread and switch execution
-// to that thread, suspending the current test.
-class ApiTestFuzzer: public v8::internal::Thread {
- public:
-  void CallTest();
-  explicit ApiTestFuzzer(int num)
-      : test_number_(num),
-        gate_(v8::internal::OS::CreateSemaphore(0)),
-        active_(true) {
-  }
-  ~ApiTestFuzzer() { delete gate_; }
-
-  // The ApiTestFuzzer is also a Thread, so it has a Run method.
-  virtual void Run();
-
-  enum PartOfTest { FIRST_PART, SECOND_PART };
-
-  static void Setup(PartOfTest part);
-  static void RunAllTests();
-  static void TearDown();
-  // This method switches threads if we are running the Threading test.
-  // Otherwise it does nothing.
-  static void Fuzz();
- private:
-  static bool fuzzing_;
-  static int tests_being_run_;
-  static int current_;
-  static int active_tests_;
-  static bool NextThread();
-  int test_number_;
-  v8::internal::Semaphore* gate_;
-  bool active_;
-  void ContextSwitch();
-  static int GetNextTestNumber();
-  static v8::internal::Semaphore* all_tests_done_;
-};
-
-
-#define THREADED_TEST(Name)                                          \
-  static void Test##Name();                                          \
-  RegisterThreadedTest register_##Name(Test##Name);                  \
-  /* */ TEST(Name)
-
-
-class RegisterThreadedTest {
- public:
-  explicit RegisterThreadedTest(CcTest::TestFunction* callback)
-      : fuzzer_(NULL), callback_(callback) {
-    prev_ = first_;
-    first_ = this;
-    count_++;
-  }
-  static int count() { return count_; }
-  static RegisterThreadedTest* nth(int i) {
-    CHECK(i < count());
-    RegisterThreadedTest* current = first_;
-    while (i > 0) {
-      i--;
-      current = current->prev_;
-    }
-    return current;
-  }
-  CcTest::TestFunction* callback() { return callback_; }
-  ApiTestFuzzer* fuzzer_;
-
- private:
-  static RegisterThreadedTest* first_;
-  static int count_;
-  CcTest::TestFunction* callback_;
-  RegisterThreadedTest* prev_;
-};
-
-
-RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
-int RegisterThreadedTest::count_ = 0;
 
 
 static int signature_callback_count;
@@ -227,11 +107,6 @@ THREADED_TEST(Handles) {
   local_env->Exit();
 }
 
-
-// Helper function that compiles and runs the source.
-static Local<Value> CompileRun(const char* source) {
-  return Script::Compile(String::New(source))->Run();
-}
 
 THREADED_TEST(ReceiverSignature) {
   v8::HandleScope scope;
@@ -717,27 +592,6 @@ THREADED_TEST(FindInstanceInPrototypeChain) {
 }
 
 
-static v8::Handle<Value> handle_property(Local<String> name,
-                                         const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  return v8_num(900);
-}
-
-
-THREADED_TEST(PropertyHandler) {
-  v8::HandleScope scope;
-  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-  fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
-  LocalContext env;
-  Local<Function> fun = fun_templ->GetFunction();
-  env->Global()->Set(v8_str("Fun"), fun);
-  Local<Script> getter = v8_compile("var obj = new Fun(); obj.foo;");
-  CHECK_EQ(900, getter->Run()->Int32Value());
-  Local<Script> setter = v8_compile("obj.foo = 901;");
-  CHECK_EQ(901, setter->Run()->Int32Value());
-}
-
-
 THREADED_TEST(TinyInteger) {
   v8::HandleScope scope;
   LocalContext env;
@@ -901,49 +755,6 @@ THREADED_TEST(GlobalPrototype) {
   CHECK_EQ(13.4, result->NumberValue());
   CHECK_EQ(200, v8_compile("x")->Run()->Int32Value());
   CHECK_EQ(876, v8_compile("m")->Run()->Int32Value());
-}
-
-
-static v8::Handle<Value> GetIntValue(Local<String> property,
-                                     const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  int* value =
-      static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-  return v8_num(*value);
-}
-
-static void SetIntValue(Local<String> property,
-                        Local<Value> value,
-                        const AccessorInfo& info) {
-  int* field =
-      static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-  *field = value->Int32Value();
-}
-
-int foo, bar, baz;
-
-THREADED_TEST(GlobalVariableAccess) {
-  foo = 0;
-  bar = -4;
-  baz = 10;
-  v8::HandleScope scope;
-  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  templ->InstanceTemplate()->SetAccessor(v8_str("foo"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&foo));
-  templ->InstanceTemplate()->SetAccessor(v8_str("bar"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&bar));
-  templ->InstanceTemplate()->SetAccessor(v8_str("baz"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&baz));
-  LocalContext env(0, templ->InstanceTemplate());
-  v8_compile("foo = (++bar) + baz")->Run();
-  CHECK_EQ(bar, -3);
-  CHECK_EQ(foo, 7);
 }
 
 
@@ -1359,50 +1170,6 @@ THREADED_TEST(CallbackExceptionRegression) {
   v8::Handle<Value> netto = Script::Compile(v8_str(
       "try { with (obj) { netto = 4; } } catch (e) { e; }"))->Run();
   CHECK_EQ(v8_str("netto"), netto);
-}
-
-
-static v8::Handle<Value> ThrowingGetAccessor(Local<String> name,
-                                             const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  return v8::ThrowException(v8_str("g"));
-}
-
-
-static void ThrowingSetAccessor(Local<String> name,
-                                Local<Value> value,
-                                const AccessorInfo& info) {
-  v8::ThrowException(value);
-}
-
-
-THREADED_TEST(Regress1054726) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("x"),
-                   ThrowingGetAccessor,
-                   ThrowingSetAccessor,
-                   Local<Value>());
-
-  LocalContext env;
-  env->Global()->Set(v8_str("obj"), obj->NewInstance());
-
-  // Use the throwing property setter/getter in a loop to force
-  // the accessor ICs to be initialized.
-  v8::Handle<Value> result;
-  result = Script::Compile(v8_str(
-      "var result = '';"
-      "for (var i = 0; i < 5; i++) {"
-      "  try { obj.x; } catch (e) { result += e; }"
-      "}; result"))->Run();
-  CHECK_EQ(v8_str("ggggg"), result);
-
-  result = Script::Compile(String::New(
-      "var result = '';"
-      "for (var i = 0; i < 5; i++) {"
-      "  try { obj.x = i; } catch (e) { result += e; }"
-      "}; result"))->Run();
-  CHECK_EQ(v8_str("01234"), result);
 }
 
 
@@ -3178,53 +2945,6 @@ THREADED_TEST(Arguments) {
   LocalContext context(NULL, global);
   args_fun = v8::Handle<Function>::Cast(context->Global()->Get(v8_str("f")));
   v8_compile("f(1, 2, 3)")->Run();
-}
-
-
-static int x_register = 0;
-static v8::Handle<v8::Object> x_receiver;
-static v8::Handle<v8::Object> x_holder;
-
-
-static v8::Handle<Value> XGetter(Local<String> name, const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK_EQ(x_receiver, info.This());
-  CHECK_EQ(x_holder, info.Holder());
-  return v8_num(x_register);
-}
-
-
-static void XSetter(Local<String> name,
-                    Local<Value> value,
-                    const AccessorInfo& info) {
-  CHECK_EQ(x_holder, info.This());
-  CHECK_EQ(x_holder, info.Holder());
-  x_register = value->Int32Value();
-}
-
-
-THREADED_TEST(AccessorIC) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("x"), XGetter, XSetter);
-  LocalContext context;
-  x_holder = obj->NewInstance();
-  context->Global()->Set(v8_str("holder"), x_holder);
-  x_receiver = v8::Object::New();
-  context->Global()->Set(v8_str("obj"), x_receiver);
-  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
-    "obj.__proto__ = holder;"
-    "var result = [];"
-    "for (var i = 0; i < 10; i++) {"
-    "  holder.x = i;"
-    "  result.push(obj.x);"
-    "}"
-    "result"));
-  CHECK_EQ(10, array->Length());
-  for (int i = 0; i < 10; i++) {
-    v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i), entry);
-  }
 }
 
 
@@ -6091,13 +5811,17 @@ void ApiTestFuzzer::Fuzz() {
 // not start immediately.
 bool ApiTestFuzzer::NextThread() {
   int test_position = GetNextTestNumber();
-  int test_number = RegisterThreadedTest::nth(current_)->fuzzer_->test_number_;
+  const char* test_name = RegisterThreadedTest::nth(current_)->name();
   if (test_position == current_) {
-    printf("Stay with %d\n", test_number);
+    if (kLogThreading)
+      printf("Stay with %s\n", test_name);
     return false;
   }
-  printf("Switch from %d to %d\n",
-         current_ < 0 ? 0 : test_number, test_position < 0 ? 0 : test_number);
+  if (kLogThreading) {
+    printf("Switch from %s to %s\n",
+           test_name,
+           RegisterThreadedTest::nth(test_position)->name());
+  }
   current_ = test_position;
   RegisterThreadedTest::nth(current_)->fuzzer_->gate_->Signal();
   return true;
@@ -6206,9 +5930,11 @@ TEST(Threading2) {
 
 
 void ApiTestFuzzer::CallTest() {
-  printf("Start test %d\n", test_number_);
+  if (kLogThreading)
+    printf("Start test %d\n", test_number_);
   CallTestNumber(test_number_);
-  printf("End test %d\n", test_number_);
+  if (kLogThreading)
+    printf("End test %d\n", test_number_);
 }
 
 
@@ -6693,53 +6419,6 @@ THREADED_TEST(PropertyEnumeration) {
   int elmc3 = 4;
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
-}
-
-
-static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
-    Local<String> name,
-    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  return v8::True();
-}
-
-
-THREADED_TEST(AccessorProhibitsOverwriting) {
-  v8::HandleScope scope;
-  LocalContext context;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("x"),
-                     AccessorProhibitsOverwritingGetter,
-                     0,
-                     v8::Handle<Value>(),
-                     v8::PROHIBITS_OVERWRITING,
-                     v8::ReadOnly);
-  Local<v8::Object> instance = templ->NewInstance();
-  context->Global()->Set(v8_str("obj"), instance);
-  Local<Value> value = CompileRun(
-      "obj.__defineGetter__('x', function() { return false; });"
-      "obj.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj.__defineSetter__('x', function() { setter_called = true; });"
-      "obj.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
-  value = CompileRun(
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineGetter__('x', function() { return false; });"
-      "obj2.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineSetter__('x', function() { setter_called = true; });"
-      "obj2.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
 }
 
 
@@ -7279,7 +6958,7 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
           string->map() == i::Heap::medium_external_ascii_string_map());
     // Morph external string to be TwoByte string.
-    if (string->length() <= i::String::kMaxShortStringSize) {
+    if (string->length() <= i::String::kMaxShortSize) {
       string->set_map(i::Heap::short_external_string_map());
     } else {
       string->set_map(i::Heap::medium_external_string_map());
@@ -7292,7 +6971,7 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == i::Heap::short_external_string_map() ||
           string->map() == i::Heap::medium_external_string_map());
     // Morph external string to be ASCII string.
-    if (string->length() <= i::String::kMaxShortStringSize) {
+    if (string->length() <= i::String::kMaxShortSize) {
       string->set_map(i::Heap::short_external_ascii_string_map());
     } else {
       string->set_map(i::Heap::medium_external_ascii_string_map());
@@ -8039,6 +7718,333 @@ THREADED_TEST(PixelArray) {
 }
 
 
+template <class ExternalArrayClass, class ElementType>
+static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
+                                    int64_t low,
+                                    int64_t high) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 40;
+  int element_size = 0;
+  switch (array_type) {
+    case v8::kExternalByteArray:
+    case v8::kExternalUnsignedByteArray:
+      element_size = 1;
+      break;
+    case v8::kExternalShortArray:
+    case v8::kExternalUnsignedShortArray:
+      element_size = 2;
+      break;
+    case v8::kExternalIntArray:
+    case v8::kExternalUnsignedIntArray:
+    case v8::kExternalFloatArray:
+      element_size = 4;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  ElementType* array_data =
+      static_cast<ElementType*>(malloc(kElementCount * element_size));
+  i::Handle<ExternalArrayClass> array =
+      i::Handle<ExternalArrayClass>::cast(
+          i::Factory::NewExternalArray(kElementCount, array_type, array_data));
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array->get(i)));
+    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
+  }
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // Set the elements to be the external array.
+  obj->SetIndexedPropertiesToExternalArrayData(array_data,
+                                               array_type,
+                                               kElementCount);
+  CHECK_EQ(1, static_cast<int>(jsobj->GetElement(1)->Number()));
+  obj->Set(v8_str("field"), v8::Int32::New(1503));
+  context->Global()->Set(v8_str("ext_array"), obj);
+  v8::Handle<v8::Value> result = CompileRun("ext_array.field");
+  CHECK_EQ(1503, result->Int32Value());
+  result = CompileRun("ext_array[1]");
+  CHECK_EQ(1, result->Int32Value());
+
+  // Check pass through of assigned smis
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i] = ext_array[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  // Check assigned smis
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[i] = i;"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check assigned smis in reverse order
+  result = CompileRun("for (var i = 8; --i >= 0; ) {"
+                      "  ext_array[i] = i;"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check pass through of assigned HeapNumbers
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i] = ext_array[i] = (-i * 0.5);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  // Check assigned HeapNumbers
+  result = CompileRun("for (var i = 0; i < 16; i+=2) {"
+                      "  ext_array[i] = (i * 0.5);"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check assigned HeapNumbers in reverse order
+  result = CompileRun("for (var i = 14; i >= 0; i-=2) {"
+                      "  ext_array[i] = (i * 0.5);"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  i::ScopedVector<char> test_buf(1024);
+
+  // Check legal boundary conditions.
+  // The repeated loads and stores ensure the ICs are exercised.
+  const char* boundary_program =
+      "var res = 0;"
+      "for (var i = 0; i < 16; i++) {"
+      "  ext_array[i] = %lld;"
+      "  if (i > 8) {"
+      "    res = ext_array[i];"
+      "  }"
+      "}"
+      "res;";
+  i::OS::SNPrintF(test_buf,
+                  boundary_program,
+                  low);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(low, result->IntegerValue());
+
+  i::OS::SNPrintF(test_buf,
+                  boundary_program,
+                  high);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(high, result->IntegerValue());
+
+  // Check misprediction of type in IC.
+  result = CompileRun("var tmp_array = ext_array;"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  tmp_array[i] = i;"
+                      "  sum += tmp_array[i];"
+                      "  if (i == 4) {"
+                      "    tmp_array = {};"
+                      "  }"
+                      "}"
+                      "sum;");
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  CHECK_EQ(28, result->Int32Value());
+
+  // Make sure out-of-range loads do not throw.
+  i::OS::SNPrintF(test_buf,
+                  "var caught_exception = false;"
+                  "try {"
+                  "  ext_array[%d];"
+                  "} catch (e) {"
+                  "  caught_exception = true;"
+                  "}"
+                  "caught_exception;",
+                  kElementCount);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(false, result->BooleanValue());
+
+  // Make sure out-of-range stores do not throw.
+  i::OS::SNPrintF(test_buf,
+                  "var caught_exception = false;"
+                  "try {"
+                  "  ext_array[%d] = 1;"
+                  "} catch (e) {"
+                  "  caught_exception = true;"
+                  "}"
+                  "caught_exception;",
+                  kElementCount);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(false, result->BooleanValue());
+
+  // Check other boundary conditions, values and operations.
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[7] = undefined;"
+                      "}"
+                      "ext_array[7];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, static_cast<int>(jsobj->GetElement(7)->Number()));
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[6] = '2.3';"
+                      "}"
+                      "ext_array[6];");
+  CHECK_EQ(2, result->Int32Value());
+  CHECK_EQ(2, static_cast<int>(jsobj->GetElement(6)->Number()));
+
+  if (array_type != v8::kExternalFloatArray) {
+    // Though the specification doesn't state it, be explicit about
+    // converting NaNs and +/-Infinity to zero.
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = NaN;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = Infinity;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = -Infinity;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+  }
+
+  result = CompileRun("ext_array[3] = 33;"
+                      "delete ext_array[3];"
+                      "ext_array[3];");
+  CHECK_EQ(33, result->Int32Value());
+
+  result = CompileRun("ext_array[0] = 10; ext_array[1] = 11;"
+                      "ext_array[2] = 12; ext_array[3] = 13;"
+                      "ext_array.__defineGetter__('2',"
+                      "function() { return 120; });"
+                      "ext_array[2];");
+  CHECK_EQ(12, result->Int32Value());
+
+  result = CompileRun("var js_array = new Array(40);"
+                      "js_array[0] = 77;"
+                      "js_array;");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+
+  result = CompileRun("ext_array[1] = 23;"
+                      "ext_array.__proto__ = [];"
+                      "js_array.__proto__ = ext_array;"
+                      "js_array.concat(ext_array);");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+  CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
+
+  result = CompileRun("ext_array[1] = 23;");
+  CHECK_EQ(23, result->Int32Value());
+
+  free(array_data);
+}
+
+
+THREADED_TEST(ExternalByteArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalByteArray, int8_t>(
+      v8::kExternalByteArray,
+      -128,
+      127);
+}
+
+
+THREADED_TEST(ExternalUnsignedByteArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedByteArray, uint8_t>(
+      v8::kExternalUnsignedByteArray,
+      0,
+      255);
+}
+
+
+THREADED_TEST(ExternalShortArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalShortArray, int16_t>(
+      v8::kExternalShortArray,
+      -32768,
+      32767);
+}
+
+
+THREADED_TEST(ExternalUnsignedShortArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedShortArray, uint16_t>(
+      v8::kExternalUnsignedShortArray,
+      0,
+      65535);
+}
+
+
+THREADED_TEST(ExternalIntArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalIntArray, int32_t>(
+      v8::kExternalIntArray,
+      INT_MIN,   // -2147483648
+      INT_MAX);  //  2147483647
+}
+
+
+THREADED_TEST(ExternalUnsignedIntArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedIntArray, uint32_t>(
+      v8::kExternalUnsignedIntArray,
+      0,
+      UINT_MAX);  // 4294967295
+}
+
+
+THREADED_TEST(ExternalFloatArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalFloatArray, float>(
+      v8::kExternalFloatArray,
+      -500,
+      500);
+}
+
+
+THREADED_TEST(ExternalArrays) {
+  TestExternalByteArray();
+  TestExternalUnsignedByteArray();
+  TestExternalShortArray();
+  TestExternalUnsignedShortArray();
+  TestExternalIntArray();
+  TestExternalUnsignedIntArray();
+  TestExternalFloatArray();
+}
+
+
 THREADED_TEST(ScriptContextDependence) {
   v8::HandleScope scope;
   LocalContext c1;
@@ -8151,5 +8157,132 @@ TEST(SetResourceConstraintsInThread) {
   {
     v8::Locker locker;
     CHECK(stack_limit == set_limit);
+  }
+}
+
+
+THREADED_TEST(GetHeapStatistics) {
+  v8::HandleScope scope;
+  LocalContext c1;
+  v8::HeapStatistics heap_statistics;
+  CHECK_EQ(heap_statistics.total_heap_size(), 0);
+  CHECK_EQ(heap_statistics.used_heap_size(), 0);
+  v8::V8::GetHeapStatistics(&heap_statistics);
+  CHECK_NE(heap_statistics.total_heap_size(), 0);
+  CHECK_NE(heap_statistics.used_heap_size(), 0);
+}
+
+
+static double DoubleFromBits(uint64_t value) {
+  double target;
+#ifdef BIG_ENDIAN_FLOATING_POINT
+  const int kIntSize = 4;
+  // Somebody swapped the lower and higher half of doubles.
+  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
+  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
+#else
+  memcpy(&target, &value, sizeof(target));
+#endif
+  return target;
+}
+
+
+static uint64_t DoubleToBits(double value) {
+  uint64_t target;
+#ifdef BIG_ENDIAN_FLOATING_POINT
+  const int kIntSize = 4;
+  // Somebody swapped the lower and higher half of doubles.
+  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
+  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
+#else
+  memcpy(&target, &value, sizeof(target));
+#endif
+  return target;
+}
+
+
+static double DoubleToDateTime(double input) {
+  double date_limit = 864e13;
+  if (IsNaN(input) || input < -date_limit || input > date_limit) {
+    return i::OS::nan_value();
+  }
+  return (input < 0) ? -(floor(-input)) : floor(input);
+}
+
+// We don't have a consistent way to write 64-bit constants syntactically, so we
+// split them into two 32-bit constants and combine them programmatically.
+static double DoubleFromBits(uint32_t high_bits, uint32_t low_bits) {
+  return DoubleFromBits((static_cast<uint64_t>(high_bits) << 32) | low_bits);
+}
+
+
+THREADED_TEST(QuietSignalingNaNs) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+
+  // Special double values.
+  double snan = DoubleFromBits(0x7ff00000, 0x00000001);
+  double qnan = DoubleFromBits(0x7ff80000, 0x00000000);
+  double infinity = DoubleFromBits(0x7ff00000, 0x00000000);
+  double max_normal = DoubleFromBits(0x7fefffff, 0xffffffffu);
+  double min_normal = DoubleFromBits(0x00100000, 0x00000000);
+  double max_denormal = DoubleFromBits(0x000fffff, 0xffffffffu);
+  double min_denormal = DoubleFromBits(0x00000000, 0x00000001);
+
+  // Date values are capped at +/-100000000 days (times 864e5 ms per day)
+  // on either side of the epoch.
+  double date_limit = 864e13;
+
+  double test_values[] = {
+      snan,
+      qnan,
+      infinity,
+      max_normal,
+      date_limit + 1,
+      date_limit,
+      min_normal,
+      max_denormal,
+      min_denormal,
+      0,
+      -0,
+      -min_denormal,
+      -max_denormal,
+      -min_normal,
+      -date_limit,
+      -date_limit - 1,
+      -max_normal,
+      -infinity,
+      -qnan,
+      -snan
+  };
+  int num_test_values = 20;
+
+  for (int i = 0; i < num_test_values; i++) {
+    double test_value = test_values[i];
+
+    // Check that Number::New preserves non-NaNs and quiets SNaNs.
+    v8::Handle<v8::Value> number = v8::Number::New(test_value);
+    double stored_number = number->NumberValue();
+    if (!IsNaN(test_value)) {
+      CHECK_EQ(test_value, stored_number);
+    } else {
+      uint64_t stored_bits = DoubleToBits(stored_number);
+      // Check if quiet nan (bits 51..62 all set).
+      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+    }
+
+    // Check that Date::New preserves non-NaNs in the date range and
+    // quiets SNaNs.
+    v8::Handle<v8::Value> date = v8::Date::New(test_value);
+    double expected_stored_date = DoubleToDateTime(test_value);
+    double stored_date = date->NumberValue();
+    if (!IsNaN(expected_stored_date)) {
+      CHECK_EQ(expected_stored_date, stored_date);
+    } else {
+      uint64_t stored_bits = DoubleToBits(stored_date);
+      // Check if quiet nan (bits 51..62 all set).
+      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+    }
   }
 }

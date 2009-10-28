@@ -32,6 +32,7 @@
 #include "api.h"
 #include "serialize.h"
 #include "snapshot.h"
+#include "platform.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +41,13 @@ bool Snapshot::Deserialize(const byte* content, int len) {
   Deserializer des(content, len);
   des.GetFlags();
   return V8::Initialize(&des);
+}
+
+
+bool Snapshot::Deserialize2(const byte* content, int len) {
+  SnapshotByteSource source(content, len);
+  Deserializer2 deserializer(&source);
+  return V8::Initialize(&deserializer);
 }
 
 
@@ -58,6 +66,20 @@ bool Snapshot::Initialize(const char* snapshot_file) {
 }
 
 
+bool Snapshot::Initialize2(const char* snapshot_file) {
+  if (snapshot_file) {
+    int len;
+    byte* str = ReadBytes(snapshot_file, &len);
+    if (!str) return false;
+    Deserialize2(str, len);
+    DeleteArray(str);
+  } else if (size_ > 0) {
+    Deserialize2(data_, size_);
+  }
+  return true;
+}
+
+
 bool Snapshot::WriteToFile(const char* snapshot_file) {
   Serializer ser;
   ser.Serialize();
@@ -70,6 +92,40 @@ bool Snapshot::WriteToFile(const char* snapshot_file) {
   DeleteArray(str);
   return written == len;
 }
+
+
+class FileByteSink : public SnapshotByteSink {
+ public:
+  explicit FileByteSink(const char* snapshot_file) {
+    fp_ = OS::FOpen(snapshot_file, "wb");
+    if (fp_ == NULL) {
+      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
+      exit(1);
+    }
+  }
+  virtual ~FileByteSink() {
+    if (fp_ != NULL) {
+      fclose(fp_);
+    }
+  }
+  virtual void Put(int byte, const char* description) {
+    if (fp_ != NULL) {
+      fputc(byte, fp_);
+    }
+  }
+
+ private:
+  FILE* fp_;
+};
+
+
+bool Snapshot::WriteToFile2(const char* snapshot_file) {
+  FileByteSink file(snapshot_file);
+  Serializer2 ser(&file);
+  ser.Serialize();
+  return true;
+}
+
 
 
 } }  // namespace v8::internal

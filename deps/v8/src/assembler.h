@@ -373,6 +373,8 @@ class ExternalReference BASE_EMBEDDED {
  public:
   explicit ExternalReference(Builtins::CFunctionId id);
 
+  explicit ExternalReference(ApiFunction* ptr);
+
   explicit ExternalReference(Builtins::Name name);
 
   explicit ExternalReference(Runtime::FunctionId id);
@@ -421,6 +423,12 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference double_fp_operation(Token::Value operation);
   static ExternalReference compare_doubles();
+
+  static ExternalReference handle_scope_extensions_address();
+  static ExternalReference handle_scope_next_address();
+  static ExternalReference handle_scope_limit_address();
+
+  static ExternalReference scheduled_exception_address();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

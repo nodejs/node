@@ -25,28 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test simple literals.
-assertEquals(8, eval("8"));
+// Test for property access
 
-assertEquals(null, eval("null"));
+var a;
+var b;
 
-assertEquals("abc", eval("'abc'"));
+code = "a = {x:8, y:9}; a.x";
 
-assertEquals(8, eval("6;'abc';8"));
+assertEquals(8, eval(code));
 
-// Test some materialized array literals.
-assertEquals([1,2,3,4], eval('[1,2,3,4]'));
-assertEquals([[1,2],3,4], eval('[[1,2],3,4]'));
-assertEquals([1,[2,3,4]], eval('[1,[2,3,4]]'));
+code = "b = {z:a}; b.z.y";
 
-assertEquals([1,2,3,4], eval('var a=1, b=2; [a,b,3,4]'))
-assertEquals([1,2,3,4], eval('var a=1, b=2, c = [a,b,3,4]; c'));
-
-function double(x) { return x + x; }
-var s = 'var a = 1, b = 2; [double(a), double(b), double(3), double(4)]';
-assertEquals([2,4,6,8], eval(s));
-
-// Test array literals in effect context.
-assertEquals(17, eval('[1,2,3,4]; 17'));
-assertEquals(19, eval('var a=1, b=2; [a,b,3,4]; 19'));
-assertEquals(23, eval('var a=1, b=2; c=23; [a,b,3,4]; c'));
+assertEquals(9, eval(code));

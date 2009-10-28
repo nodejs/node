@@ -121,3 +121,6 @@ int main(int argc, char* argv[]) {
   v8::V8::Dispose();
   return 0;
 }
+
+RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
+int RegisterThreadedTest::count_ = 0;

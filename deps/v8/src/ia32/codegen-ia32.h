@@ -396,7 +396,7 @@ class CodeGenerator: public AstVisitor {
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
 
-  Operand ContextOperand(Register context, int index) const {
+  static Operand ContextOperand(Register context, int index) {
     return Operand(context, Context::SlotOffset(index));
   }
 
@@ -407,7 +407,7 @@ class CodeGenerator: public AstVisitor {
                                             JumpTarget* slow);
 
   // Expressions
-  Operand GlobalObject() const {
+  static Operand GlobalObject() {
     return ContextOperand(esi, Context::GLOBAL_INDEX);
   }
 
@@ -511,10 +511,11 @@ class CodeGenerator: public AstVisitor {
                                       const InlineRuntimeLUT& new_entry,
                                       InlineRuntimeLUT* old_entry);
 
+  static Handle<Code> ComputeLazyCompile(int argc);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
+  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.
@@ -616,6 +617,8 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
+  friend class FastCodeGenerator;
+  friend class CodeGenSelector;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
@@ -623,7 +626,19 @@ class CodeGenerator: public AstVisitor {
 };
 
 
-// Flag that indicates whether how to generate code for the stub.
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
+// Flag that indicates how to generate code for the stub GenericBinaryOpStub.
 enum GenericBinaryFlags {
   NO_GENERIC_BINARY_FLAGS = 0,
   NO_SMI_CODE_IN_STUB = 1 << 0  // Omit smi code in stub.
@@ -632,10 +647,10 @@ enum GenericBinaryFlags {
 
 class GenericBinaryOpStub: public CodeStub {
  public:
-  GenericBinaryOpStub(Token::Value operation,
+  GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags)
-      : op_(operation),
+      : op_(op),
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),

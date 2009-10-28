@@ -77,16 +77,18 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either EXIT or
-  // EXIT_DEBUG. Expects the number of arguments in register eax and
+  // Enter specific kind of exit frame; either in normal or debug mode.
+  // Expects the number of arguments in register eax and
   // sets up the number of arguments in register edi and the pointer
   // to the first argument in register esi.
-  void EnterExitFrame(StackFrame::Type type);
+  void EnterExitFrame(ExitFrame::Mode mode);
+
+  void EnterApiExitFrame(ExitFrame::Mode mode, int stack_space, int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
-  void LeaveExitFrame(StackFrame::Type type);
+  void LeaveExitFrame(ExitFrame::Mode mode);
 
 
   // ---------------------------------------------------------------------------
@@ -206,6 +208,15 @@ class MacroAssembler: public Assembler {
   // un-done.
   void UndoAllocationInNewSpace(Register object);
 
+  // Allocate a heap number in new space with undefined value. The
+  // register scratch2 can be passed as no_reg; the others must be
+  // valid registers. Returns tagged pointer in result register, or
+  // jumps to gc_required if new space is full.
+  void AllocateHeapNumber(Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -259,6 +270,9 @@ class MacroAssembler: public Assembler {
   void TailCallRuntime(const ExternalReference& ext,
                        int num_arguments,
                        int result_size);
+
+  void PushHandleScope(Register scratch);
+  void PopHandleScope(Register scratch);
 
   // Jump to a runtime routine.
   void JumpToRuntime(const ExternalReference& ext);
@@ -336,6 +350,9 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  void EnterExitFramePrologue(ExitFrame::Mode mode);
+  void EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc);
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

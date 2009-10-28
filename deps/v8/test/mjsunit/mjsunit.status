@@ -36,6 +36,9 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 big-object-literal: PASS, SKIP if ($arch == arm)
 
+# Issue 488: this test sometimes times out.
+array-constructor: PASS || TIMEOUT
+
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

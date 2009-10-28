@@ -393,7 +393,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > Heap::OldGenerationSize())) {
+      (desc.buffer_size > Heap::MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -574,11 +574,11 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
     emit(src.value_);
   } else if (dst.is(rax)) {
     emit(0x05 | (subcode << 3));
-    emitl(src.value_);
+    emitw(src.value_);
   } else {
     emit(0x81);
     emit_modrm(subcode, dst);
-    emitl(src.value_);
+    emitw(src.value_);
   }
 }
 
@@ -597,7 +597,7 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
   } else {
     emit(0x81);
     emit_operand(subcode, dst);
-    emitl(src.value_);
+    emitw(src.value_);
   }
 }
 
@@ -1255,6 +1255,15 @@ void Assembler::movb(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::movw(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
+}
+
 void Assembler::movl(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1439,6 +1448,26 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
 }
 
 
+void Assembler::movsxbq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movsxwq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBF);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movsxlq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1473,6 +1502,16 @@ void Assembler::movzxbl(Register dst, const Operand& src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xB6);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movzxwq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xB7);
   emit_operand(dst, src);
 }
 
@@ -1970,6 +2009,14 @@ void Assembler::fstp_d(const Operand& adr) {
 }
 
 
+void Assembler::fstp(int index) {
+  ASSERT(is_uint3(index));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_farith(0xDD, 0xD8, index);
+}
+
+
 void Assembler::fild_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2021,7 +2068,7 @@ void Assembler::fistp_d(const Operand& adr) {
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
   emit(0xDF);
-  emit_operand(8, adr);
+  emit_operand(7, adr);
 }
 
 
@@ -2190,6 +2237,22 @@ void Assembler::fucompp() {
 }
 
 
+void Assembler::fucomi(int i) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xDB);
+  emit(0xE8 + i);
+}
+
+
+void Assembler::fucomip() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xDF);
+  emit(0xE9);
+}
+
+
 void Assembler::fcompp() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2258,18 +2321,7 @@ void Assembler::movsd(const Operand& dst, XMMRegister src) {
 }
 
 
-void Assembler::movsd(Register dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit(0xF2);  // double
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x11);  // store
-  emit_sse_operand(src, dst);
-}
-
-
-void Assembler::movsd(XMMRegister dst, Register src) {
+void Assembler::movsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0xF2);  // double

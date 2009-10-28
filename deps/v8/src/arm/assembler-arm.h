@@ -437,6 +437,14 @@ class Assembler : public Malloced {
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));
 
+  // Modify the code target address in a constant pool entry.
+  inline static void set_target_at(Address constant_pool_entry, Address target);
+
+  // Here we are patching the address in the constant pool, not the actual call
+  // instruction.  The address in the constant pool is the same size as a
+  // pointer.
+  static const int kCallTargetSize = kPointerSize;
+
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 

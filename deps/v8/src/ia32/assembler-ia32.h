@@ -439,6 +439,14 @@ class Assembler : public Malloced {
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
 
+  // This sets the branch destination (which is in the instruction on x86).
+  inline static void set_target_at(Address instruction_payload,
+                                   Address target) {
+    set_target_address_at(instruction_payload, target);
+  }
+
+  static const int kCallTargetSize = kPointerSize;
+
   // Distance between the address of the code target in the call instruction
   // and the return address
   static const int kCallTargetAddressOffset = kPointerSize;
@@ -702,6 +710,8 @@ class Assembler : public Malloced {
   void ftst();
   void fucomp(int i);
   void fucompp();
+  void fucomi(int i);
+  void fucomip();
   void fcompp();
   void fnstsw_ax();
   void fwait();

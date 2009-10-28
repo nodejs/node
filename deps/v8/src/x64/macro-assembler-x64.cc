@@ -580,6 +580,14 @@ Condition MacroAssembler::CheckInteger32ValidSmiValue(Register src) {
 }
 
 
+Condition MacroAssembler::CheckUInteger32ValidSmiValue(Register src) {
+  // An unsigned 32-bit integer value is valid as long as the high bit
+  // is not set.
+  testq(src, Immediate(0x80000000));
+  return zero;
+}
+
+
 void MacroAssembler::SmiNeg(Register dst, Register src, Label* on_smi_result) {
   if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
@@ -1243,38 +1251,17 @@ void MacroAssembler::JumpIfNotValidSmiValue(Register src, Label* on_invalid) {
 }
 
 
+void MacroAssembler::JumpIfUIntNotValidSmiValue(Register src,
+                                                Label* on_invalid) {
+  Condition is_valid = CheckUInteger32ValidSmiValue(src);
+  j(NegateCondition(is_valid), on_invalid);
+}
+
+
 void MacroAssembler::JumpIfNotBothSmi(Register src1, Register src2,
                                       Label* on_not_both_smi) {
   Condition both_smi = CheckBothSmi(src1, src2);
   j(NegateCondition(both_smi), on_not_both_smi);
-}
-
-bool MacroAssembler::IsUnsafeSmi(Smi* value) {
-  return false;
-}
-
-
-void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
-  UNIMPLEMENTED();
-}
-
-
-void MacroAssembler::Move(Register dst, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(dst, source);
-  } else {
-    Set(dst, reinterpret_cast<int64_t>(source));
-  }
-}
-
-
-void MacroAssembler::Move(const Operand& dst, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    movq(dst, kScratchRegister);
-  } else {
-    Set(dst, reinterpret_cast<int64_t>(source));
-  }
 }
 
 
@@ -1332,33 +1319,23 @@ void MacroAssembler::Push(Handle<Object> source) {
 
 
 void MacroAssembler::Push(Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    push(kScratchRegister);
+  intptr_t smi = reinterpret_cast<intptr_t>(source);
+  if (is_int32(smi)) {
+    push(Immediate(static_cast<int32_t>(smi)));
   } else {
-    intptr_t smi = reinterpret_cast<intptr_t>(source);
-    if (is_int32(smi)) {
-      push(Immediate(static_cast<int32_t>(smi)));
-    } else {
-      Set(kScratchRegister, smi);
-      push(kScratchRegister);
-    }
+    Set(kScratchRegister, smi);
+    push(kScratchRegister);
   }
 }
 
 
 void MacroAssembler::Test(const Operand& src, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    testq(src, kScratchRegister);
+  intptr_t smi = reinterpret_cast<intptr_t>(source);
+  if (is_int32(smi)) {
+    testl(src, Immediate(static_cast<int32_t>(smi)));
   } else {
-    intptr_t smi = reinterpret_cast<intptr_t>(source);
-    if (is_int32(smi)) {
-      testl(src, Immediate(static_cast<int32_t>(smi)));
-    } else {
-      Move(kScratchRegister, source);
-      testq(src, kScratchRegister);
-    }
+    Move(kScratchRegister, source);
+    testq(src, kScratchRegister);
   }
 }
 
@@ -1444,18 +1421,9 @@ void MacroAssembler::Ret() {
 
 
 void MacroAssembler::FCmp() {
-  fucompp();
-  push(rax);
-  fnstsw_ax();
-  if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-    sahf();
-  } else {
-    shrl(rax, Immediate(8));
-    and_(rax, Immediate(0xFF));
-    push(rax);
-    popfq();
-  }
-  pop(rax);
+  fucomip();
+  ffree(0);
+  fincstp();
 }
 
 
@@ -1819,9 +1787,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
-  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
-
+void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode, int result_size) {
   // Setup the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
@@ -1833,7 +1799,12 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
   // Reserve room for entry stack pointer and push the debug marker.
   ASSERT(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
   push(Immediate(0));  // saved entry sp, patched before call
-  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+  if (mode == ExitFrame::MODE_DEBUG) {
+    push(Immediate(0));
+  } else {
+    movq(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+    push(kScratchRegister);
+  }
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
@@ -1853,7 +1824,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
-  if (type == StackFrame::EXIT_DEBUG) {
+  if (mode == ExitFrame::MODE_DEBUG) {
     // TODO(1243899): This should be symmetric to
     // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
     // correct here, but computed for the other call. Very error
@@ -1892,17 +1863,17 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(StackFrame::Type type, int result_size) {
+void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode, int result_size) {
   // Registers:
   // r15 : argv
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
-  if (type == StackFrame::EXIT_DEBUG) {
+  if (mode == ExitFrame::MODE_DEBUG) {
     // It's okay to clobber register rbx below because we don't need
     // the function pointer after this.
     const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
     lea(rbx, Operand(rbp, kOffset));
     CopyRegistersFromStackToMemory(rbx, rcx, kJSCallerSaved);
   }
@@ -1911,16 +1882,6 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type, int result_size) {
   // Get the return address from the stack and restore the frame pointer.
   movq(rcx, Operand(rbp, 1 * kPointerSize));
   movq(rbp, Operand(rbp, 0 * kPointerSize));
-
-#ifdef _WIN64
-  // If return value is on the stack, pop it to registers.
-  if (result_size > 1) {
-    ASSERT_EQ(2, result_size);
-    // Position above 4 argument mirrors and arguments object.
-    movq(rax, Operand(rsp, 6 * kPointerSize));
-    movq(rdx, Operand(rsp, 7 * kPointerSize));
-  }
-#endif
 
   // Pop everything up to and including the arguments and the receiver
   // from the caller stack.
@@ -2248,6 +2209,23 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
   Check(below, "Undo allocation of non allocated memory");
 #endif
   movq(Operand(kScratchRegister, 0), object);
+}
+
+
+void MacroAssembler::AllocateHeapNumber(Register result,
+                                        Register scratch,
+                                        Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(HeapNumber::kSize,
+                     result,
+                     scratch,
+                     no_reg,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map.
+  LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
 

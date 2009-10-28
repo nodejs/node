@@ -360,6 +360,13 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
   return obj;
 }
 
+
+bool FreeListNode::IsFreeListNode(HeapObject* object) {
+  return object->map() == Heap::raw_unchecked_byte_array_map()
+      || object->map() == Heap::raw_unchecked_one_pointer_filler_map()
+      || object->map() == Heap::raw_unchecked_two_pointer_filler_map();
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_SPACES_INL_H_

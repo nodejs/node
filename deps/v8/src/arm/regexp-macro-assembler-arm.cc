@@ -29,6 +29,7 @@
 #include "unicode.h"
 #include "log.h"
 #include "ast.h"
+#include "code-stubs.h"
 #include "regexp-stack.h"
 #include "macro-assembler.h"
 #include "regexp-macro-assembler.h"
@@ -1099,14 +1100,12 @@ void RegExpMacroAssemblerARM::CheckPreemption() {
 
 
 void RegExpMacroAssemblerARM::CheckStackLimit() {
-  if (FLAG_check_stack) {
-    ExternalReference stack_limit =
-        ExternalReference::address_of_regexp_stack_limit();
-    __ mov(r0, Operand(stack_limit));
-    __ ldr(r0, MemOperand(r0));
-    __ cmp(backtrack_stackpointer(), Operand(r0));
-    SafeCall(&stack_overflow_label_, ls);
-  }
+  ExternalReference stack_limit =
+      ExternalReference::address_of_regexp_stack_limit();
+  __ mov(r0, Operand(stack_limit));
+  __ ldr(r0, MemOperand(r0));
+  __ cmp(backtrack_stackpointer(), Operand(r0));
+  SafeCall(&stack_overflow_label_, ls);
 }
 
 

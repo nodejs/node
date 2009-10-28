@@ -949,6 +949,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
+    __ ldr(r2, FieldMemOperand(r2, kGlobalIndex));
     __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
@@ -1107,6 +1109,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   const int kGlobalOffset =
       Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   __ ldr(r0, FieldMemOperand(cp, kGlobalOffset));
+  __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalContextOffset));
+  __ ldr(r0, FieldMemOperand(r0, kGlobalOffset));
   __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
 
   // Push the receiver.

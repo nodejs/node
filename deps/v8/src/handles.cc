@@ -105,6 +105,21 @@ void HandleScope::ZapRange(Object** start, Object** end) {
 }
 
 
+Address HandleScope::current_extensions_address() {
+  return reinterpret_cast<Address>(&current_.extensions);
+}
+
+
+Address HandleScope::current_next_address() {
+  return reinterpret_cast<Address>(&current_.next);
+}
+
+
+Address HandleScope::current_limit_address() {
+  return reinterpret_cast<Address>(&current_.limit);
+}
+
+
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
                                       Handle<JSArray> array) {
   CALL_HEAP_FUNCTION(content->AddKeysFromJSArray(*array), FixedArray);
@@ -345,7 +360,7 @@ Handle<String> SubString(Handle<String> str, int start, int end) {
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
                           Handle<Object> value) {
-  if (object->HasPixelElements()) {
+  if (object->HasPixelElements() || object->HasExternalArrayElements()) {
     if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number = Execution::ToNumber(value, &has_exception);

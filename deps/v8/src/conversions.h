@@ -31,6 +31,7 @@
 namespace v8 {
 namespace internal {
 
+
 // The fast double-to-int conversion routine does not guarantee
 // rounding towards zero.
 // The result is unspecified if x is infinite or NaN, or if the rounded

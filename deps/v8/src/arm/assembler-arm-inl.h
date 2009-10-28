@@ -245,6 +245,12 @@ Address Assembler::target_address_at(Address pc) {
 }
 
 
+void Assembler::set_target_at(Address constant_pool_entry,
+                              Address target) {
+  Memory::Address_at(constant_pool_entry) = target;
+}
+
+
 void Assembler::set_target_address_at(Address pc, Address target) {
   Memory::Address_at(target_address_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to flush the instruction cache

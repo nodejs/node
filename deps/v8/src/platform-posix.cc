@@ -54,6 +54,12 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// Math functions
+
+double modulo(double x, double y) {
+  return fmod(x, y);
+}
 
 // ----------------------------------------------------------------------------
 // POSIX date/time support.

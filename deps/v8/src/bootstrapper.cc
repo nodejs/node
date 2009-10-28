@@ -316,8 +316,11 @@ Genesis* Genesis::current_ = NULL;
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
   natives_cache.Iterate(v);
+  v->Synchronize("NativesCache");
   extensions_cache.Iterate(v);
+  v->Synchronize("Extensions");
   PendingFixups::Iterate(v);
+  v->Synchronize("PendingFixups");
 }
 
 

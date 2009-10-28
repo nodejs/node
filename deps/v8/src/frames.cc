@@ -393,8 +393,19 @@ Code* EntryConstructFrame::code() const {
 }
 
 
+Object*& ExitFrame::code_slot() const {
+  const int offset = ExitFrameConstants::kCodeOffset;
+  return Memory::Object_at(fp() + offset);
+}
+
+
 Code* ExitFrame::code() const {
-  return Heap::c_entry_code();
+  Object* code = code_slot();
+  if (code->IsSmi()) {
+    return Heap::c_entry_debug_break_code();
+  } else {
+    return Code::cast(code);
+  }
 }
 
 
@@ -409,11 +420,6 @@ void ExitFrame::ComputeCallerState(State* state) const {
 
 Address ExitFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPDisplacement;
-}
-
-
-Code* ExitDebugFrame::code() const {
-  return Heap::c_entry_debug_break_code();
 }
 
 

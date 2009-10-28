@@ -274,7 +274,7 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
 }
 
 
-static Handle<Code> ComputeLazyCompile(int argc) {
+Handle<Code> CodeGenerator::ComputeLazyCompile(int argc) {
   CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
@@ -548,6 +548,22 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     case READ_ELEMENT: GenerateReadElement(masm); break;
     case NEW_OBJECT: GenerateNewObject(masm); break;
   }
+}
+
+
+bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
+  Object* cache = info()->load_stub_cache();
+  if (cache->IsUndefined()) {
+    return false;
+  } else {
+    *code_out = Code::cast(cache);
+    return true;
+  }
+}
+
+
+void ApiGetterEntryStub::SetCustomCache(Code* value) {
+  info()->set_load_stub_cache(value);
 }
 
 

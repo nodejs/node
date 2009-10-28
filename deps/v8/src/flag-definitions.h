@@ -132,8 +132,6 @@ DEFINE_bool(stack_trace_on_abort, true,
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(defer_negation, true, "defer negation operation")
-DEFINE_bool(check_stack, true,
-            "check stack for overflow, interrupt, breakpoint")
 
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")
@@ -163,8 +161,8 @@ DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
 
 // heap.cc
-DEFINE_int(new_space_size, 0, "size of (each semispace in) the new generation")
-DEFINE_int(old_space_size, 0, "size of the old generation")
+DEFINE_int(max_new_space_size, 0, "max size of the new generation")
+DEFINE_int(max_old_space_size, 0, "max size of the old generation")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,

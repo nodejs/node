@@ -69,3 +69,36 @@ code = "(function() {\
          })()";
 assertEquals(8, eval(code));
 
+// Test object literals.
+var a, b;
+code = "a = {x:8}";
+eval(code);
+assertEquals(8, a.x);
+
+code = "b = {x:a, y:'abc'}";
+eval(code);
+assertEquals(a, b.x);
+assertEquals(8, b.x.x);
+assertEquals("abc", b.y);
+
+code = "({x:8, y:9}); 10";
+assertEquals(10, eval(code));
+
+code = "({x:8, y:9})";
+eval(code);
+assertEquals(9, eval(code+".y"));
+
+code = "a = {2:8, x:9}";
+eval(code);
+assertEquals(8, a[2]);
+assertEquals(8, a["2"]);
+assertEquals(9, a["x"]);
+
+// Test regexp literals.
+
+a = /abc/;
+
+assertEquals(/abc/, a);
+
+code = "/abc/; 8";
+assertEquals(8, eval(code));

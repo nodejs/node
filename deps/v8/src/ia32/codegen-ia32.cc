@@ -697,18 +697,6 @@ void CodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
-};
-
-
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
 // convert it to a boolean in the condition code register or jump to
 // 'false_target'/'true_target' as appropriate.
@@ -773,13 +761,6 @@ class FloatingPointHelper : public AllStatic {
   // either operand is not a number.  Operands are in edx and eax.
   // Leaves operands unchanged.
   static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in eax, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Register result);
 };
 
 
@@ -2222,14 +2203,12 @@ void DeferredStackCheck::Generate() {
 
 
 void CodeGenerator::CheckStack() {
-  if (FLAG_check_stack) {
-    DeferredStackCheck* deferred = new DeferredStackCheck;
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    deferred->Branch(below);
-    deferred->BindExit();
-  }
+  DeferredStackCheck* deferred = new DeferredStackCheck;
+  ExternalReference stack_guard_limit =
+      ExternalReference::address_of_stack_guard_limit();
+  __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
+  deferred->Branch(below);
+  deferred->BindExit();
 }
 
 
@@ -2282,8 +2261,8 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // allow us to push the arguments directly into place.
   frame_->SyncRange(0, frame_->element_count() - 1);
 
+  frame_->EmitPush(esi);  // The context is the first argument.
   frame_->EmitPush(Immediate(pairs));
-  frame_->EmitPush(esi);  // The context is the second argument.
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -3583,11 +3562,9 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
   frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Push the boilerplate on the stack.
-  frame_->EmitPush(Immediate(boilerplate));
-
   // Create a new closure.
   frame_->EmitPush(esi);
+  frame_->EmitPush(Immediate(boilerplate));
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }
@@ -5175,11 +5152,10 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   Result scratch1 = allocator()->Allocate();
   Result scratch2 = allocator()->Allocate();
   Result heap_number = allocator()->Allocate();
-  FloatingPointHelper::AllocateHeapNumber(masm_,
-                                          call_runtime.entry_label(),
-                                          scratch1.reg(),
-                                          scratch2.reg(),
-                                          heap_number.reg());
+  __ AllocateHeapNumber(heap_number.reg(),
+                        scratch1.reg(),
+                        scratch2.reg(),
+                        call_runtime.entry_label());
   scratch1.Unuse();
   scratch2.Unuse();
 
@@ -6508,11 +6484,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &true_result);
   __ fldz();
   __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-  __ fucompp();
-  __ push(eax);
-  __ fnstsw_ax();
-  __ sahf();
-  __ pop(eax);
+  __ FCmp();
   __ j(zero, &false_result);
   // Fall through to |true_result|.
 
@@ -6531,47 +6503,52 @@ void GenericBinaryOpStub::GenerateCall(
     Register left,
     Register right) {
   if (!ArgsInRegistersSupported()) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+    // Pass arguments on the stack.
     __ push(left);
     __ push(right);
   } else {
     // The calling convention with registers is left in edx and right in eax.
-    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
-    if (!(left.is(edx) && right.is(eax))) {
-      if (left.is(eax) && right.is(edx)) {
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (!(left.is(left_arg) && right.is(right_arg))) {
+      if (left.is(right_arg) && right.is(left_arg)) {
         if (IsOperationCommutative()) {
           SetArgsReversed();
         } else {
           __ xchg(left, right);
         }
-      } else if (left.is(edx)) {
-        __ mov(eax, right);
-      } else if (left.is(eax)) {
+      } else if (left.is(left_arg)) {
+        __ mov(right_arg, right);
+      } else if (left.is(right_arg)) {
         if (IsOperationCommutative()) {
-          __ mov(edx, right);
+          __ mov(left_arg, right);
           SetArgsReversed();
         } else {
-          __ mov(edx, left);
-          __ mov(eax, right);
+          // Order of moves important to avoid destroying left argument.
+          __ mov(left_arg, left);
+          __ mov(right_arg, right);
         }
-      } else if (right.is(edx)) {
+      } else if (right.is(left_arg)) {
         if (IsOperationCommutative()) {
-          __ mov(eax, left);
+          __ mov(right_arg, left);
           SetArgsReversed();
         } else {
-          __ mov(eax, right);
-          __ mov(edx, left);
+          // Order of moves important to avoid destroying right argument.
+          __ mov(right_arg, right);
+          __ mov(left_arg, left);
         }
-      } else if (right.is(eax)) {
-        __ mov(edx, left);
+      } else if (right.is(right_arg)) {
+        __ mov(left_arg, left);
       } else {
-        __ mov(edx, left);
-        __ mov(eax, right);
+        // Order of moves is not important.
+        __ mov(left_arg, left);
+        __ mov(right_arg, right);
       }
     }
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6584,23 +6561,26 @@ void GenericBinaryOpStub::GenerateCall(
     Register left,
     Smi* right) {
   if (!ArgsInRegistersSupported()) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+    // Pass arguments on the stack.
     __ push(left);
     __ push(Immediate(right));
   } else {
-    // Adapt arguments to the calling convention left in edx and right in eax.
-    if (left.is(edx)) {
-      __ mov(eax, Immediate(right));
-    } else if (left.is(eax) && IsOperationCommutative()) {
-      __ mov(edx, Immediate(right));
+    // The calling convention with registers is left in edx and right in eax.
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (left.is(left_arg)) {
+      __ mov(right_arg, Immediate(right));
+    } else if (left.is(right_arg) && IsOperationCommutative()) {
+      __ mov(left_arg, Immediate(right));
       SetArgsReversed();
     } else {
-      __ mov(edx, left);
-      __ mov(eax, Immediate(right));
+      __ mov(left_arg, left);
+      __ mov(right_arg, Immediate(right));
     }
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6612,23 +6592,26 @@ void GenericBinaryOpStub::GenerateCall(
     MacroAssembler* masm,
     Smi* left,
     Register right) {
-  if (flags_ != NO_SMI_CODE_IN_STUB) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
     __ push(Immediate(left));
     __ push(right);
   } else {
-    // Adapt arguments to the calling convention left in edx and right in eax.
-    bool is_commutative = (op_ == (Token::ADD) || (op_ == Token::MUL));
-    if (right.is(eax)) {
-      __ mov(edx, Immediate(left));
-    } else if (right.is(edx) && is_commutative) {
-        __ mov(eax, Immediate(left));
+    // The calling convention with registers is left in edx and right in eax.
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (right.is(right_arg)) {
+      __ mov(left_arg, Immediate(left));
+    } else if (right.is(left_arg) && IsOperationCommutative()) {
+      __ mov(right_arg, Immediate(left));
+      SetArgsReversed();
     } else {
-      __ mov(edx, Immediate(left));
-      __ mov(eax, right);
+      __ mov(left_arg, Immediate(left));
+      __ mov(right_arg, right);
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6836,11 +6819,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case NO_OVERWRITE: {
             // Allocate a heap number for the result. Keep eax and edx intact
             // for the possible runtime call.
-            FloatingPointHelper::AllocateHeapNumber(masm,
-                                                    &call_runtime,
-                                                    ecx,
-                                                    no_reg,
-                                                    ebx);
+            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
             // Now eax can be overwritten losing one of the arguments as we are
             // now done and will not need it any more.
             __ mov(eax, ebx);
@@ -6868,11 +6847,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case NO_OVERWRITE:
             // Allocate a heap number for the result. Keep eax and edx intact
             // for the possible runtime call.
-            FloatingPointHelper::AllocateHeapNumber(masm,
-                                                    &call_runtime,
-                                                    ecx,
-                                                    no_reg,
-                                                    ebx);
+            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
             // Now eax can be overwritten losing one of the arguments as we are
             // now done and will not need it any more.
             __ mov(eax, ebx);
@@ -6924,18 +6899,14 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // Check if right operand is int32.
         __ fist_s(Operand(esp, 0 * kPointerSize));
         __ fild_s(Operand(esp, 0 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        __ sahf();
+        __ FCmp();
         __ j(not_zero, &operand_conversion_failure);
         __ j(parity_even, &operand_conversion_failure);
 
         // Check if left operand is int32.
         __ fist_s(Operand(esp, 1 * kPointerSize));
         __ fild_s(Operand(esp, 1 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        __ sahf();
+        __ FCmp();
         __ j(not_zero, &operand_conversion_failure);
         __ j(parity_even, &operand_conversion_failure);
       }
@@ -6964,7 +6935,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
       if (op_ != Token::SHR) {
@@ -6982,8 +6953,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ j(not_zero, &skip_allocation, not_taken);
             // Fall through!
           case NO_OVERWRITE:
-            FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
-                                                    ecx, edx, eax);
+            __ AllocateHeapNumber(eax, ecx, edx, &call_runtime);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
@@ -6992,7 +6962,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ mov(Operand(esp, 1 * kPointerSize), ebx);
         __ fild_s(Operand(esp, 1 * kPointerSize));
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-        __ ret(2 * kPointerSize);
+        GenerateReturn(masm);
       }
 
       // Clear the FPU exception flag and reset the stack before calling
@@ -7024,7 +6994,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
   // If all else fails, use the runtime system to get the correct
   // result. If arguments was passed in registers now place them on the
-  // stack in the correct order.
+  // stack in the correct order below the return address.
   __ bind(&call_runtime);
   if (HasArgumentsInRegisters()) {
     __ pop(ecx);
@@ -7130,25 +7100,6 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
   } else {
     __ ret(0);
   }
-}
-
-
-void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
-                                             Label* need_gc,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Register result) {
-  // Allocate heap number in new space.
-  __ AllocateInNewSpace(HeapNumber::kSize,
-                        result,
-                        scratch1,
-                        scratch2,
-                        need_gc,
-                        TAG_OBJECT);
-
-  // Set the map.
-  __ mov(FieldOperand(result, HeapObject::kMapOffset),
-         Immediate(Factory::heap_number_map()));
 }
 
 
@@ -7308,7 +7259,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   } else {
     __ mov(edx, Operand(eax));
     // edx: operand
-    FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx, eax);
+    __ AllocateHeapNumber(eax, ebx, ecx, &undo);
     // eax: allocated 'empty' number
     __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
     __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
@@ -7458,20 +7409,19 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // not NaN.
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
+      // We only accept QNaNs, which have bit 51 set.
       // Read top bits of double representation (second word of value).
-      __ mov(eax, FieldOperand(edx, HeapNumber::kExponentOffset));
-      // Test that exponent bits are all set.
-      __ not_(eax);
-      __ test(eax, Immediate(0x7ff00000));
-      __ j(not_zero, &return_equal);
-      __ not_(eax);
 
-      // Shift out flag and all exponent bits, retaining only mantissa.
-      __ shl(eax, 12);
-      // Or with all low-bits of mantissa.
-      __ or_(eax, FieldOperand(edx, HeapNumber::kMantissaOffset));
-      // Return zero equal if all bits in mantissa is zero (it's an Infinity)
-      // and non-zero if not (it's a NaN).
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
+      __ xor_(eax, Operand(eax));
+      // Shift value and mask so kQuietNaNHighBitsMask applies to topmost bits.
+      __ add(edx, Operand(edx));
+      __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      __ setcc(above_equal, eax);
       __ ret(0);
 
       __ bind(&not_identical);
@@ -7757,11 +7707,84 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
+// If true, a Handle<T> passed by value is passed and returned by
+// using the location_ field directly.  If false, it is passed and
+// returned as a pointer to a handle.
+#ifdef USING_MAC_ABI
+static const bool kPassHandlesDirectly = true;
+#else
+static const bool kPassHandlesDirectly = false;
+#endif
+
+
+void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
+  Label get_result;
+  Label prologue;
+  Label promote_scheduled_exception;
+  __ EnterApiExitFrame(ExitFrame::MODE_NORMAL, kStackSpace, kArgc);
+  ASSERT_EQ(kArgc, 4);
+  if (kPassHandlesDirectly) {
+    // When handles as passed directly we don't have to allocate extra
+    // space for and pass an out parameter.
+    __ mov(Operand(esp, 0 * kPointerSize), ebx);  // name.
+    __ mov(Operand(esp, 1 * kPointerSize), eax);  // arguments pointer.
+  } else {
+    // The function expects three arguments to be passed but we allocate
+    // four to get space for the output cell.  The argument slots are filled
+    // as follows:
+    //
+    //   3: output cell
+    //   2: arguments pointer
+    //   1: name
+    //   0: pointer to the output cell
+    //
+    // Note that this is one more "argument" than the function expects
+    // so the out cell will have to be popped explicitly after returning
+    // from the function.
+    __ mov(Operand(esp, 1 * kPointerSize), ebx);  // name.
+    __ mov(Operand(esp, 2 * kPointerSize), eax);  // arguments pointer.
+    __ mov(ebx, esp);
+    __ add(Operand(ebx), Immediate(3 * kPointerSize));
+    __ mov(Operand(esp, 0 * kPointerSize), ebx);  // output
+    __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));  // out cell.
+  }
+  // Call the api function!
+  __ call(fun()->address(), RelocInfo::RUNTIME_ENTRY);
+  // Check if the function scheduled an exception.
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address();
+  __ cmp(Operand::StaticVariable(scheduled_exception_address),
+         Immediate(Factory::the_hole_value()));
+  __ j(not_equal, &promote_scheduled_exception, not_taken);
+  if (!kPassHandlesDirectly) {
+    // The returned value is a pointer to the handle holding the result.
+    // Dereference this to get to the location.
+    __ mov(eax, Operand(eax, 0));
+  }
+  // Check if the result handle holds 0
+  __ test(eax, Operand(eax));
+  __ j(not_zero, &get_result, taken);
+  // It was zero; the result is undefined.
+  __ mov(eax, Factory::undefined_value());
+  __ jmp(&prologue);
+  // It was non-zero.  Dereference to get the result value.
+  __ bind(&get_result);
+  __ mov(eax, Operand(eax, 0));
+  __ bind(&prologue);
+  __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
+  __ ret(0);
+  __ bind(&promote_scheduled_exception);
+  __ TailCallRuntime(ExternalReference(Runtime::kPromoteScheduledException),
+                     0,
+                     1);
+}
+
+
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
+                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
@@ -7811,7 +7834,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(frame_type);
+  __ LeaveExitFrame(mode);
   __ ret(0);
 
   // Handling of failure.
@@ -7910,12 +7933,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // of a proper result. The builtin entry handles this by performing
   // a garbage collection and retrying the builtin (twice).
 
-  StackFrame::Type frame_type = is_debug_break ?
-      StackFrame::EXIT_DEBUG :
-      StackFrame::EXIT;
+  ExitFrame::Mode mode = is_debug_break
+      ? ExitFrame::MODE_DEBUG
+      : ExitFrame::MODE_NORMAL;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type);
+  __ EnterExitFrame(mode);
 
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)
@@ -7933,7 +7956,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                false,
                false);
 
@@ -7942,7 +7965,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                false);
 
@@ -7953,7 +7976,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                true);
 

@@ -256,11 +256,10 @@ TEST(ProfLazyMode) {
   // No sampling should happen prior to resuming profiler.
   CHECK(!LoggerTestHelper::IsSamplerActive());
 
-  // Read initial logged data (static libs map).
   EmbeddedVector<char, 102400> buffer;
+  // Nothing must be logged until profiling is resumed.
   int log_pos = GetLogLines(0, &buffer);
-  CHECK_GT(log_pos, 0);
-  CHECK_GT(buffer.length(), log_pos);
+  CHECK_EQ(0, log_pos);
 
   CompileAndRunScript("var a = (function(x) { return x + 1; })(10);");
 

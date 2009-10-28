@@ -125,6 +125,9 @@ class Profiler: public Thread {
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   Semaphore* buffer_semaphore_;  // Sempahore used for buffer synchronization.
 
+  // Tells whether profiler is engaged, that is, processing thread is stated.
+  bool engaged_;
+
   // Tells whether worker thread should continue running.
   bool running_;
 
@@ -243,17 +246,25 @@ void SlidingStateWindow::AddState(StateTag state) {
 //
 // Profiler implementation.
 //
-Profiler::Profiler() {
-  buffer_semaphore_ = OS::CreateSemaphore(0);
-  head_ = 0;
-  tail_ = 0;
-  overflow_ = false;
-  running_ = false;
+Profiler::Profiler()
+    : head_(0),
+      tail_(0),
+      overflow_(false),
+      buffer_semaphore_(OS::CreateSemaphore(0)),
+      engaged_(false),
+      running_(false) {
 }
 
 
 void Profiler::Engage() {
-  OS::LogSharedLibraryAddresses();
+  if (engaged_) return;
+  engaged_ = true;
+
+  // TODO(mnaganov): This is actually "Chromium" mode. Flags need to be revised.
+  // http://code.google.com/p/v8/issues/detail?id=487
+  if (!FLAG_prof_lazy) {
+    OS::LogSharedLibraryAddresses();
+  }
 
   // Start thread processing the profiler buffer.
   running_ = true;
@@ -268,6 +279,8 @@ void Profiler::Engage() {
 
 
 void Profiler::Disengage() {
+  if (!engaged_) return;
+
   // Stop receiving ticks.
   Logger::ticker_->ClearProfiler();
 
@@ -1053,6 +1066,7 @@ void Logger::ResumeProfiler(int flags) {
   }
   if (modules_to_enable & PROFILER_MODULE_CPU) {
     if (FLAG_prof_lazy) {
+      profiler_->Engage();
       LOG(UncheckedStringEvent("profiler", "resume"));
       FLAG_log_code = true;
       LogCompiledFunctions();
@@ -1245,7 +1259,9 @@ bool Logger::Setup() {
     } else {
       is_logging_ = true;
     }
-    profiler_->Engage();
+    if (!FLAG_prof_lazy) {
+      profiler_->Engage();
+    }
   }
 
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);

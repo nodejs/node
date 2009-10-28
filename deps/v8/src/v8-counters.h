@@ -118,6 +118,7 @@ namespace internal {
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)          \
   SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)              \
+  SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow) \
   /* Count how much the monomorphic keyed-load stubs are hit. */    \
   SC(keyed_load_function_prototype, V8.KeyedLoadFunctionPrototype)  \
   SC(keyed_load_string_length, V8.KeyedLoadStringLength)            \

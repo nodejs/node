@@ -1243,6 +1243,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.threadsRequest_(request, response);
       } else if (request.command == 'suspend') {
         this.suspendRequest_(request, response);
+      } else if (request.command == 'version') {
+        this.versionRequest_(request, response);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -1911,8 +1913,14 @@ DebugCommandProcessor.prototype.threadsRequest_ = function(request, response) {
 
 
 DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
-  // TODO(peter.rybin): probably we need some body field here.
   response.running = false;
+};
+
+
+DebugCommandProcessor.prototype.versionRequest_ = function(request, response) {
+  response.body = {
+    V8Version: %GetV8Version()
+  }
 };
 
 

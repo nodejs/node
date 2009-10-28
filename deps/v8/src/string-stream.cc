@@ -188,7 +188,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
 void StringStream::PrintObject(Object* o) {
   o->ShortPrint(this);
   if (o->IsString()) {
-    if (String::cast(o)->length() <= String::kMaxMediumStringSize) {
+    if (String::cast(o)->length() <= String::kMaxMediumSize) {
       return;
     }
   } else if (o->IsNumber() || o->IsOddball()) {

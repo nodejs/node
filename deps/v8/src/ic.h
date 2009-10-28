@@ -269,6 +269,13 @@ class KeyedLoadIC: public IC {
   static void GeneratePreMonomorphic(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
 
+  // Generators for external array types. See objects.h.
+  // These are similar to the generic IC; they optimize the case of
+  // operating upon external array types but fall back to the runtime
+  // for all other types.
+  static void GenerateExternalArray(MacroAssembler* masm,
+                                    ExternalArrayType array_type);
+
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
 
@@ -294,6 +301,7 @@ class KeyedLoadIC: public IC {
   static Code* pre_monomorphic_stub() {
     return Builtins::builtin(Builtins::KeyedLoadIC_PreMonomorphic);
   }
+  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static void Clear(Address address, Code* target);
 
@@ -358,6 +366,13 @@ class KeyedStoreIC: public IC {
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateExtendStorage(MacroAssembler* masm);
 
+  // Generators for external array types. See objects.h.
+  // These are similar to the generic IC; they optimize the case of
+  // operating upon external array types but fall back to the runtime
+  // for all other types.
+  static void GenerateExternalArray(MacroAssembler* masm,
+                                    ExternalArrayType array_type);
+
   // Clear the inlined version so the IC is always hit.
   static void ClearInlinedVersion(Address address);
 
@@ -384,6 +399,7 @@ class KeyedStoreIC: public IC {
   static Code* generic_stub() {
     return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
   }
+  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static void Clear(Address address, Code* target);
 

@@ -262,7 +262,18 @@ class SnapshotReader {
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 
-class Deserializer: public ObjectVisitor {
+
+// TODO(erikcorry): Get rid of this superclass when we are using the new
+// snapshot code exclusively.
+class GenericDeserializer: public ObjectVisitor {
+ public:
+  virtual void GetLog() = 0;
+  virtual void Deserialize() = 0;
+};
+
+
+// TODO(erikcorry): Get rid of this class.
+class Deserializer: public GenericDeserializer {
  public:
   // Create a deserializer. The snapshot is held in str and has size len.
   Deserializer(const byte* str, int len);
@@ -337,6 +348,223 @@ class Deserializer: public ObjectVisitor {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
+};
+
+
+class SnapshotByteSource {
+ public:
+  SnapshotByteSource(const byte* array, int length)
+    : data_(array), length_(length), position_(0) { }
+
+  bool HasMore() { return position_ < length_; }
+
+  int Get() {
+    ASSERT(position_ < length_);
+    return data_[position_++];
+  }
+
+  int GetInt() {
+    // A little unwind to catch the really small ints.
+    int snapshot_byte = Get();
+    if ((snapshot_byte & 0x80) == 0) {
+      return snapshot_byte;
+    }
+    uintptr_t accumulator = (snapshot_byte & 0x7f) << 7;
+    while (true) {
+      snapshot_byte = Get();
+      if ((snapshot_byte & 0x80) == 0) {
+        return accumulator | snapshot_byte;
+      }
+      accumulator = (accumulator | (snapshot_byte & 0x7f)) << 7;
+    }
+    UNREACHABLE();
+    return accumulator;
+  }
+
+  bool AtEOF() {
+    return position_ == length_;
+  }
+
+ private:
+  const byte* data_;
+  int length_;
+  int position_;
+};
+
+
+// The SerDes class is a common superclass for Serializer2 and Deserializer2
+// which is used to store common constants and methods used by both.
+// TODO(erikcorry): This should inherit from ObjectVisitor.
+class SerDes: public GenericDeserializer {
+ protected:
+  enum DataType {
+    SMI_SERIALIZATION,
+    RAW_DATA_SERIALIZATION,
+    OBJECT_SERIALIZATION,
+    CODE_OBJECT_SERIALIZATION,
+    BACKREF_SERIALIZATION,
+    CODE_BACKREF_SERIALIZATION,
+    EXTERNAL_REFERENCE_SERIALIZATION,
+    SYNCHRONIZE
+  };
+  // Our Smi encoding is much more efficient for small positive integers than it
+  // is for negative numbers so we add a bias before encoding and subtract it
+  // after encoding so that popular small negative Smis are efficiently encoded.
+  static const int kSmiBias = 16;
+  static const int kLargeData = LAST_SPACE;
+  static const int kLargeCode = kLargeData + 1;
+  static const int kLargeFixedArray = kLargeCode + 1;
+  static const int kNumberOfSpaces = kLargeFixedArray + 1;
+
+  static inline bool SpaceIsLarge(int space) { return space >= kLargeData; }
+  static inline bool SpaceIsPaged(int space) {
+    return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
+  }
+};
+
+
+
+// A Deserializer reads a snapshot and reconstructs the Object graph it defines.
+class Deserializer2: public SerDes {
+ public:
+  // Create a deserializer from a snapshot byte source.
+  explicit Deserializer2(SnapshotByteSource* source);
+
+  virtual ~Deserializer2() { }
+
+  // Deserialize the snapshot into an empty heap.
+  void Deserialize();
+  void GetLog() { }   // TODO(erikcorry): Get rid of this.
+#ifdef DEBUG
+  virtual void Synchronize(const char* tag);
+#endif
+
+ private:
+  virtual void VisitPointers(Object** start, Object** end);
+
+  virtual void VisitExternalReferences(Address* start, Address* end) {
+    UNREACHABLE();
+  }
+
+  virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
+    UNREACHABLE();
+  }
+
+  int CurrentAllocationAddress(int space) {
+    // The three different kinds of large objects have different tags in the
+    // snapshot so the deserializer knows which kind of object to allocate,
+    // but they share a fullness_ entry.
+    if (SpaceIsLarge(space)) space = LO_SPACE;
+    return fullness_[space];
+  }
+
+  HeapObject* GetAddress(int space);
+  Address Allocate(int space, int size);
+  bool ReadObject(Object** write_back);
+
+  // Keep track of the pages in the paged spaces.
+  // (In large object space we are keeping track of individual objects
+  // rather than pages.)  In new space we just need the address of the
+  // first object and the others will flow from that.
+  List<Address> pages_[SerDes::kNumberOfSpaces];
+
+  SnapshotByteSource* source_;
+  ExternalReferenceDecoder* external_reference_decoder_;
+  // Keep track of the fullness of each space in order to generate
+  // relative addresses for back references.  Large objects are
+  // just numbered sequentially since relative addresses make no
+  // sense in large object space.
+  int fullness_[LAST_SPACE + 1];
+
+  DISALLOW_COPY_AND_ASSIGN(Deserializer2);
+};
+
+
+class SnapshotByteSink {
+ public:
+  virtual ~SnapshotByteSink() { }
+  virtual void Put(int byte, const char* description) = 0;
+  void PutInt(uintptr_t integer, const char* description);
+};
+
+
+class Serializer2 : public SerDes {
+ public:
+  explicit Serializer2(SnapshotByteSink* sink);
+  // Serialize the current state of the heap. This operation destroys the
+  // heap contents.
+  void Serialize();
+  void VisitPointers(Object** start, Object** end);
+  void GetLog() { }       // TODO(erikcorry): Get rid of this.
+  void Deserialize() { }  // TODO(erikcorry): Get rid of this.
+#ifdef DEBUG
+  virtual void Synchronize(const char* tag);
+#endif
+
+ private:
+  enum ReferenceRepresentation {
+    TAGGED_REPRESENTATION,      // A tagged object reference.
+    CODE_TARGET_REPRESENTATION  // A reference to first instruction in target.
+  };
+  class ObjectSerializer : public ObjectVisitor {
+   public:
+    ObjectSerializer(Serializer2* serializer,
+                     Object* o,
+                     SnapshotByteSink* sink,
+                     ReferenceRepresentation representation)
+      : serializer_(serializer),
+        object_(HeapObject::cast(o)),
+        sink_(sink),
+        reference_representation_(representation),
+        bytes_processed_so_far_(0) { }
+    void Serialize();
+    void VisitPointers(Object** start, Object** end);
+    void VisitExternalReferences(Address* start, Address* end);
+    void VisitCodeTarget(RelocInfo* target);
+
+   private:
+    void OutputRawData(Address up_to);
+
+    Serializer2* serializer_;
+    HeapObject* object_;
+    SnapshotByteSink* sink_;
+    ReferenceRepresentation reference_representation_;
+    int bytes_processed_so_far_;
+  };
+
+  void SerializeObject(Object* o, ReferenceRepresentation representation);
+  void InitializeAllocators();
+  // This will return the space for an object.  If the object is in large
+  // object space it may return kLargeCode or kLargeFixedArray in order
+  // to indicate to the deserializer what kind of large object allocation
+  // to make.
+  static int SpaceOfObject(HeapObject* object);
+  // This just returns the space of the object.  It will return LO_SPACE
+  // for all large objects since you can't check the type of the object
+  // once the map has been used for the serialization address.
+  static int SpaceOfAlreadySerializedObject(HeapObject* object);
+  int Allocate(int space, int size);
+  int CurrentAllocationAddress(int space) {
+    if (SpaceIsLarge(space)) space = LO_SPACE;
+    return fullness_[space];
+  }
+  int EncodeExternalReference(Address addr) {
+    return external_reference_encoder_->Encode(addr);
+  }
+
+  // Keep track of the fullness of each space in order to generate
+  // relative addresses for back references.  Large objects are
+  // just numbered sequentially since relative addresses make no
+  // sense in large object space.
+  int fullness_[LAST_SPACE + 1];
+  SnapshotByteSink* sink_;
+  int current_root_index_;
+  ExternalReferenceEncoder* external_reference_encoder_;
+
+  friend class ObjectSerializer;
+  friend class Deserializer2;
+
+  DISALLOW_COPY_AND_ASSIGN(Serializer2);
 };
 
 } }  // namespace v8::internal

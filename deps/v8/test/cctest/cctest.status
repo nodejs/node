@@ -33,8 +33,23 @@ test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# This is about to go away anyway since new snapshot code is on the way.
+test-serialize/Deserialize: FAIL
+test-serialize/DeserializeAndRunScript: FAIL
+test-serialize/DeserializeNatives: FAIL
+test-serialize/DeserializeExtensions: FAIL
+
+# These tests always fail.  They are here to test test.py.  If
+# they don't fail then test.py has failed.
+test-serialize/TestThatAlwaysFails: FAIL
+test-serialize/DependentTestThatAlwaysFails: FAIL
+
 
 [ $arch == arm ]
+
+# New serialization doesn't work on ARM yet.
+test-serialize/Deserialize2: SKIP
+test-serialize/DeserializeAndRunScript2: SKIP
 
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL

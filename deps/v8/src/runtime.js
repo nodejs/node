@@ -128,7 +128,10 @@ function COMPARE(x, ncr) {
   if (IS_STRING(a) && IS_STRING(b)) {
     return %StringCompare(a, b);
   } else {
-    return %NumberCompare(%ToNumber(a), %ToNumber(b), ncr);
+    var a_number = %ToNumber(a);
+    var b_number = %ToNumber(b);
+    if (NUMBER_IS_NAN(a_number) || NUMBER_IS_NAN(b_number)) return ncr;
+    return %NumberCompare(a_number, b_number, ncr);
   }
 }
 
