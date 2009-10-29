@@ -470,13 +470,16 @@ File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do +require("/posix.js")+. 
 
 All POSIX wrappers have a similar form.  They return a promise
-(+node.Promise+). Example:
+(+node.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
-var posix = require("/posix.js");
+var posix = require("/posix.js"),
+      sys = require("/sys.js");
+
 var promise = posix.unlink("/tmp/hello");
+
 promise.addCallback(function () {
-  puts("successfully deleted /tmp/hello");
+  sys.puts("successfully deleted /tmp/hello");
 });
 ------------------------------------------------------------------------------
 
@@ -486,7 +489,7 @@ following is very much prone to error
 ------------------------------------------------------------------------------
 posix.rename("/tmp/hello", "/tmp/world");
 posix.stat("/tmp/world").addCallback(function (stats) {
-  puts("stats: " + JSON.stringify(stats));
+  sys.puts("stats: " + JSON.stringify(stats));
 });
 ------------------------------------------------------------------------------
 
@@ -496,7 +499,7 @@ The correct way to do this is to chain the promises.
 ------------------------------------------------------------------------------
 posix.rename("/tmp/hello", "/tmp/world").addCallback(function () {
   posix.stat("/tmp/world").addCallback(function (stats) {
-    puts("stats: " + JSON.stringify(stats));
+    sys.puts("stats: " + JSON.stringify(stats));
   });
 });
 ------------------------------------------------------------------------------
@@ -505,9 +508,8 @@ Or use the +promise.wait()+ functionality:
 
 ------------------------------------------------------------------------------
 posix.rename("/tmp/hello", "/tmp/world").wait();
-posix.stat("/tmp/world").addCallback(function (stats) {
-  puts("stats: " + JSON.stringify(stats));
-});
+var stats = posix.stat("/tmp/world").wait();
+sys.puts("stats: " + JSON.stringify(stats));
 ------------------------------------------------------------------------------
 
 +posix.rename(path1, path2)+ ::
