@@ -100,7 +100,7 @@ class ExitFrameConstants : public AllStatic {
   static const int kSPDisplacement = -1 * kPointerSize;
 
   // The debug marker is just above the frame pointer.
-  static const int kCodeOffset = -1 * kPointerSize;
+  static const int kDebugMarkOffset = -1 * kPointerSize;
 
   static const int kSavedRegistersOffset = 0 * kPointerSize;
 

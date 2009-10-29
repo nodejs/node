@@ -979,7 +979,6 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(data());
   VerifyPointer(flag());
-  VerifyPointer(load_stub_cache());
 }
 
 void AccessorInfo::AccessorInfoPrint() {

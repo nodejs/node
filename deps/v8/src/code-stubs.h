@@ -75,7 +75,6 @@ class CodeStub BASE_EMBEDDED {
 #define DEF_ENUM(name) name,
     CODE_STUB_LIST(DEF_ENUM)
 #undef DEF_ENUM
-    NoCache,  // marker for stubs that do custom caching
     NUMBER_OF_IDS
   };
 
@@ -91,12 +90,6 @@ class CodeStub BASE_EMBEDDED {
   static const char* MajorName(Major major_key);
 
   virtual ~CodeStub() {}
-
-  // Override these methods to provide a custom caching mechanism for
-  // an individual type of code stub.
-  virtual bool GetCustomCache(Code** code_out) { return false; }
-  virtual void SetCustomCache(Code* value) { }
-  virtual bool has_custom_cache() { return false; }
 
  protected:
   static const int kMajorBits = 5;

@@ -48,7 +48,7 @@ class CodeGenSelector: public AstVisitor {
 
   CodeGenSelector()
       : has_supported_syntax_(true),
-        location_(Location::Nowhere()) {
+        location_(Location::Uninitialized()) {
   }
 
   CodeGenTag Select(FunctionLiteral* fun);
@@ -514,11 +514,11 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 void CodeGenSelector::VisitAsEffect(Expression* expr) {
-  if (location_.is_nowhere()) {
+  if (location_.is_effect()) {
     Visit(expr);
   } else {
     Location saved = location_;
-    location_ = Location::Nowhere();
+    location_ = Location::Effect();
     Visit(expr);
     location_ = saved;
   }
@@ -526,11 +526,11 @@ void CodeGenSelector::VisitAsEffect(Expression* expr) {
 
 
 void CodeGenSelector::VisitAsValue(Expression* expr) {
-  if (location_.is_temporary()) {
+  if (location_.is_value()) {
     Visit(expr);
   } else {
     Location saved = location_;
-    location_ = Location::Temporary();
+    location_ = Location::Value();
     Visit(expr);
     location_ = saved;
   }
@@ -849,12 +849,34 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
 
 void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
+    case Token::COMMA:
+      VisitAsEffect(expr->left());
+      CHECK_BAILOUT;
+      Visit(expr->right());  // Location is the same as the parent location.
+      break;
+
     case Token::OR:
       VisitAsValue(expr->left());
       CHECK_BAILOUT;
       // The location for the right subexpression is the same as for the
       // whole expression so we call Visit directly.
       Visit(expr->right());
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      VisitAsValue(expr->left());
+      CHECK_BAILOUT;
+      VisitAsValue(expr->right());
       break;
 
     default:

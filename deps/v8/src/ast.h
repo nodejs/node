@@ -162,7 +162,7 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
-  Expression() : location_(Location::Temporary()) {}
+  Expression() : location_(Location::Uninitialized()) {}
 
   virtual Expression* AsExpression()  { return this; }
 

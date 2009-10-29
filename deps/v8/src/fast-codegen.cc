@@ -71,30 +71,15 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
-void FastCodeGenerator::Move(Location destination, Location source) {
-  switch (destination.type()) {
-    case Location::NOWHERE:
-      break;
-
-    case Location::TEMP:
-      switch (source.type()) {
-        case Location::NOWHERE:
-          UNREACHABLE();
-        case Location::TEMP:
-          break;
-      }
-      break;
-  }
-}
-
-
 // All platform macro assemblers in {ia32,x64,arm} have a push(Register)
 // function.
 void FastCodeGenerator::Move(Location destination, Register source) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       break;
-    case Location::TEMP:
+    case Location::kValue:
       masm_->push(source);
       break;
   }
@@ -105,9 +90,10 @@ void FastCodeGenerator::Move(Location destination, Register source) {
 // function.
 void FastCodeGenerator::Move(Register destination, Location source) {
   switch (source.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:  // Fall through.
+    case Location::kEffect:
       UNREACHABLE();
-    case Location::TEMP:
+    case Location::kValue:
       masm_->pop(destination);
   }
 }

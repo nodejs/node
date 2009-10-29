@@ -522,10 +522,6 @@ ExternalReference::ExternalReference(Builtins::CFunctionId id)
   : address_(Redirect(Builtins::c_function_address(id))) {}
 
 
-ExternalReference::ExternalReference(ApiFunction* fun)
-  : address_(Redirect(fun->address())) {}
-
-
 ExternalReference::ExternalReference(Builtins::Name name)
   : address_(Builtins::builtin_address(name)) {}
 
@@ -611,27 +607,6 @@ ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
   return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
 }
-
-
-ExternalReference ExternalReference::handle_scope_extensions_address() {
-  return ExternalReference(HandleScope::current_extensions_address());
-}
-
-
-ExternalReference ExternalReference::handle_scope_next_address() {
-  return ExternalReference(HandleScope::current_next_address());
-}
-
-
-ExternalReference ExternalReference::handle_scope_limit_address() {
-  return ExternalReference(HandleScope::current_limit_address());
-}
-
-
-ExternalReference ExternalReference::scheduled_exception_address() {
-  return ExternalReference(Top::scheduled_exception_address());
-}
-
 
 #ifdef V8_NATIVE_REGEXP
 

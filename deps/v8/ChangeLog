@@ -1,3 +1,10 @@
+2009-10-29: Version 1.3.18
+
+        Reverted a change which caused crashes in RegExp replace.
+
+	Reverted a change which caused Chromium ui_tests failure.
+
+
 2009-10-28: Version 1.3.17
 
         Added API method to get simple heap statistics.

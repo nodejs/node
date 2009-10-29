@@ -57,7 +57,11 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   state->sp = sp;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
   // Determine frame type.
-  return EXIT;
+  if (Memory::Address_at(fp + ExitFrameConstants::kDebugMarkOffset) != 0) {
+    return EXIT_DEBUG;
+  } else {
+    return EXIT;
+  }
 }
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
@@ -65,10 +69,10 @@ int JavaScriptFrame::GetProvidedParametersCount() const {
 }
 
 
-void ExitFrame::Iterate(ObjectVisitor* v) const {
-  v->VisitPointer(&code_slot());
-  // The arguments are traversed as part of the expression stack of
-  // the calling frame.
+void ExitFrame::Iterate(ObjectVisitor* a) const {
+  // Exit frames on X64 do not contain any pointers. The arguments
+  // are traversed as part of the expression stack of the calling
+  // frame.
 }
 
 byte* InternalFrame::GetCallerStackPointer() const {

@@ -163,6 +163,11 @@ v8::Handle<v8::Value> TraceExtension::JSEntrySP(const v8::Arguments& args) {
 }
 
 
+static void CompileRun(const char* source) {
+  Script::Compile(String::New(source))->Run();
+}
+
+
 v8::Handle<v8::Value> TraceExtension::JSEntrySPLevel2(
     const v8::Arguments& args) {
   v8::HandleScope scope;

@@ -776,39 +776,20 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
       CheckPrototypes(object, receiver, holder,
                       scratch1, scratch2, name, miss);
 
-  Handle<AccessorInfo> callback_handle(callback);
-
-  Register other = reg.is(scratch1) ? scratch2 : scratch1;
-  __ EnterInternalFrame();
-  __ PushHandleScope(other);
-  // Push the stack address where the list of arguments ends
-  __ mov(other, esp);
-  __ sub(Operand(other), Immediate(2 * kPointerSize));
-  __ push(other);
+  // Push the arguments on the JS stack of the caller.
+  __ pop(scratch2);  // remove return address
   __ push(receiver);  // receiver
   __ push(reg);  // holder
-  __ mov(other, Immediate(callback_handle));
-  __ push(other);
-  __ push(FieldOperand(other, AccessorInfo::kDataOffset));  // data
+  __ mov(reg, Immediate(Handle<AccessorInfo>(callback)));  // callback data
+  __ push(reg);
+  __ push(FieldOperand(reg, AccessorInfo::kDataOffset));
   __ push(name_reg);  // name
-  // Save a pointer to where we pushed the arguments pointer.
-  // This will be passed as the const Arguments& to the C++ callback.
-  __ mov(eax, esp);
-  __ add(Operand(eax), Immediate(5 * kPointerSize));
-  __ mov(ebx, esp);
+  __ push(scratch2);  // restore return address
 
-  // Do call through the api.
-  ASSERT_EQ(6, ApiGetterEntryStub::kStackSpace);
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  ApiFunction fun(getter_address);
-  ApiGetterEntryStub stub(callback_handle, &fun);
-  __ CallStub(&stub);
-
-  Register tmp = other.is(eax) ? reg : other;
-  __ PopHandleScope(tmp);
-  __ LeaveInternalFrame();
-
-  __ ret(0);
+  // Do tail-call to the runtime system.
+  ExternalReference load_callback_property =
+      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+  __ TailCallRuntime(load_callback_property, 5, 1);
 }
 
 

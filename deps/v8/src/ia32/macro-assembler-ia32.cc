@@ -355,7 +355,10 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   leave();
 }
 
-void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
   // Setup the frame structure on the stack.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
@@ -366,24 +369,23 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   // Reserve room for entry stack pointer and push the debug marker.
   ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
   push(Immediate(0));  // saved entry sp, patched before call
-  if (mode == ExitFrame::MODE_DEBUG) {
-    push(Immediate(0));
-  } else {
-    push(Immediate(CodeObject()));
-  }
+  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   ExternalReference context_address(Top::k_context_address);
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
-}
 
-void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
+  // Setup argc and argv in callee-saved registers.
+  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  mov(edi, Operand(eax));
+  lea(esi, Operand(ebp, eax, times_4, offset));
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
+  if (type == StackFrame::EXIT_DEBUG) {
     // TODO(1243899): This should be symmetric to
     // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
     // correct here, but computed for the other call. Very error
@@ -394,8 +396,8 @@ void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
   }
 #endif
 
-  // Reserve space for arguments.
-  sub(Operand(esp), Immediate(argc * kPointerSize));
+  // Reserve space for two arguments: argc and argv.
+  sub(Operand(esp), Immediate(2 * kPointerSize));
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -409,39 +411,15 @@ void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
 }
 
 
-void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
-  EnterExitFramePrologue(mode);
-
-  // Setup argc and argv in callee-saved registers.
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  mov(edi, Operand(eax));
-  lea(esi, Operand(ebp, eax, times_4, offset));
-
-  EnterExitFrameEpilogue(mode, 2);
-}
-
-
-void MacroAssembler::EnterApiExitFrame(ExitFrame::Mode mode,
-                                       int stack_space,
-                                       int argc) {
-  EnterExitFramePrologue(mode);
-
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(esi, Operand(ebp, (stack_space * kPointerSize) + offset));
-
-  EnterExitFrameEpilogue(mode, argc);
-}
-
-
-void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
+  if (type == StackFrame::EXIT_DEBUG) {
     // It's okay to clobber register ebx below because we don't need
     // the function pointer after this.
     const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
+    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
     lea(ebx, Operand(ebp, kOffset));
     CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
   }
@@ -950,48 +928,6 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // smarter.
   Set(eax, Immediate(num_arguments));
   JumpToRuntime(ext);
-}
-
-
-void MacroAssembler::PushHandleScope(Register scratch) {
-  // Push the number of extensions, smi-tagged so the gc will ignore it.
-  ExternalReference extensions_address =
-      ExternalReference::handle_scope_extensions_address();
-  mov(scratch, Operand::StaticVariable(extensions_address));
-  ASSERT_EQ(0, kSmiTag);
-  shl(scratch, kSmiTagSize);
-  push(scratch);
-  mov(Operand::StaticVariable(extensions_address), Immediate(0));
-  // Push next and limit pointers which will be wordsize aligned and
-  // hence automatically smi tagged.
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address();
-  push(Operand::StaticVariable(next_address));
-  ExternalReference limit_address =
-      ExternalReference::handle_scope_limit_address();
-  push(Operand::StaticVariable(limit_address));
-}
-
-
-void MacroAssembler::PopHandleScope(Register scratch) {
-  ExternalReference extensions_address =
-        ExternalReference::handle_scope_extensions_address();
-  Label write_back;
-  mov(scratch, Operand::StaticVariable(extensions_address));
-  cmp(Operand(scratch), Immediate(0));
-  j(equal, &write_back);
-  CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
-
-  bind(&write_back);
-  ExternalReference limit_address =
-        ExternalReference::handle_scope_limit_address();
-  pop(Operand::StaticVariable(limit_address));
-  ExternalReference next_address =
-        ExternalReference::handle_scope_next_address();
-  pop(Operand::StaticVariable(next_address));
-  pop(scratch);
-  shr(scratch, kSmiTagSize);
-  mov(Operand::StaticVariable(extensions_address), scratch);
 }
 
 

@@ -51,8 +51,6 @@ class FastCodeGenerator: public AstVisitor {
  private:
   int SlotOffset(Slot* slot);
 
-  void Move(Location destination, Location source);
-
   void Move(Location destination, Register source);
   void Move(Location destination, Slot* source);
   void Move(Location destination, Literal* source);
@@ -77,6 +75,9 @@ class FastCodeGenerator: public AstVisitor {
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
+
+  // Handles the shortcutted logical binary operations in VisitBinaryOperation.
+  void EmitLogicalOperation(BinaryOperation* expr);
 
   MacroAssembler* masm_;
   FunctionLiteral* function_;

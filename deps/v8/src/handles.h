@@ -133,13 +133,6 @@ class HandleScope {
     return result;
   }
 
-  // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions();
-
-  static Address current_extensions_address();
-  static Address current_next_address();
-  static Address current_limit_address();
-
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);
@@ -172,6 +165,9 @@ class HandleScope {
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();
+
+  // Deallocates any extensions used by the current scope.
+  static void DeleteExtensions();
 
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(internal::Object** start, internal::Object** end);

@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -810,13 +810,10 @@ ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
   var len = end - start;
   if (len == 0) return;
   var elements = this.elements;
-  if (start < 0x80000 && len < 0x800) {
+  if (start >= 0 && len >= 0 && start < 0x80000 && len < 0x800) {
     elements[elements.length] = (start << 11) + len;
   } else {
-    // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
-    // so -len is a smi.
-    elements[elements.length] = -len;
-    elements[elements.length] = start;
+    elements[elements.length] = SubString(this.special_string, start, end);
   }
 }
 

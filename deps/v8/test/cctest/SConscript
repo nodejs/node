@@ -34,7 +34,6 @@ Import('context object_files')
 
 SOURCES = {
   'all': [
-    'test-accessors.cc',
     'test-alloc.cc',
     'test-api.cc',
     'test-ast.cc',

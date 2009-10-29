@@ -178,6 +178,12 @@ static v8::Local<v8::Function> CompileFunction(const char* source,
 }
 
 
+// Helper function that compiles and runs the source.
+static v8::Local<v8::Value> CompileRun(const char* source) {
+  return v8::Script::Compile(v8::String::New(source))->Run();
+}
+
+
 // Is there any debug info for the function?
 static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f = v8::Utils::OpenHandle(*fun);

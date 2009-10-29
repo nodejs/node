@@ -274,7 +274,9 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
   // Compute the argv pointer and keep it in a callee-saved register.
   // r0 is argc.
   add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -296,11 +298,8 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
   mov(fp, Operand(sp));  // setup new frame pointer
 
-  if (mode == ExitFrame::MODE_DEBUG) {
-    mov(ip, Operand(Smi::FromInt(0)));
-  } else {
-    mov(ip, Operand(CodeObject()));
-  }
+  // Push debug marker.
+  mov(ip, Operand(type == StackFrame::EXIT_DEBUG ? 1 : 0));
   push(ip);
 
   // Save the frame pointer and the context in top.
@@ -317,7 +316,7 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
+  if (type == StackFrame::EXIT_DEBUG) {
     // Use sp as base to push.
     CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
   }
@@ -349,14 +348,14 @@ void MacroAssembler::AlignStack(int offset) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
+  if (type == StackFrame::EXIT_DEBUG) {
     // This code intentionally clobbers r2 and r3.
     const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    const int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
+    const int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
     add(r3, fp, Operand(kOffset));
     CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
   }

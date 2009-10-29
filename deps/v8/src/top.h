@@ -170,10 +170,6 @@ class Top {
     return &thread_local_.external_caught_exception_;
   }
 
-  static Object** scheduled_exception_address() {
-    return &thread_local_.scheduled_exception_;
-  }
-
   static Object* scheduled_exception() {
     ASSERT(has_scheduled_exception());
     return thread_local_.scheduled_exception_;

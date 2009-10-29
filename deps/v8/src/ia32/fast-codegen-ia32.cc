@@ -110,9 +110,11 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::Move(Location destination, Slot* source) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       break;
-    case Location::TEMP:
+    case Location::kValue:
       __ push(Operand(ebp, SlotOffset(source)));
       break;
   }
@@ -121,9 +123,11 @@ void FastCodeGenerator::Move(Location destination, Slot* source) {
 
 void FastCodeGenerator::Move(Location destination, Literal* expr) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       break;
-    case Location::TEMP:
+    case Location::kValue:
       __ push(Immediate(expr->handle()));
       break;
   }
@@ -132,9 +136,10 @@ void FastCodeGenerator::Move(Location destination, Literal* expr) {
 
 void FastCodeGenerator::Move(Slot* destination, Location source) {
   switch (source.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:  // Fall through.
+    case Location::kEffect:
       UNREACHABLE();
-    case Location::TEMP:
+    case Location::kValue:
       __ pop(Operand(ebp, SlotOffset(destination)));
       break;
   }
@@ -143,10 +148,12 @@ void FastCodeGenerator::Move(Slot* destination, Location source) {
 
 void FastCodeGenerator::DropAndMove(Location destination, Register source) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::TEMP:
+    case Location::kValue:
       __ mov(Operand(esp, 0), source);
       break;
   }
@@ -231,6 +238,33 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+  Comment cmnt(masm_, "[ RegExp Literal");
+  Label done;
+  // Registers will be used as follows:
+  // edi = JS function.
+  // ebx = literals array.
+  // eax = regexp literal.
+  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(ebx, FieldOperand(edi, JSFunction::kLiteralsOffset));
+  int literal_offset =
+    FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  __ mov(eax, FieldOperand(ebx, literal_offset));
+  __ cmp(eax, Factory::undefined_value());
+  __ j(not_equal, &done);
+  // Create regexp literal using runtime function
+  // Result will be in eax.
+  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(expr->literal_index())));
+  __ push(Immediate(expr->pattern()));
+  __ push(Immediate(expr->flags()));
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  // Label done:
+  __ bind(&done);
+  Move(expr->location(), eax);
+}
+
+
 void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   Label exists;
@@ -295,9 +329,9 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::PROTOTYPE:
         __ push(eax);
         Visit(key);
-        ASSERT(key->location().is_temporary());
+        ASSERT(key->location().is_value());
         Visit(value);
-        ASSERT(value->location().is_temporary());
+        ASSERT(value->location().is_value());
         __ CallRuntime(Runtime::kSetProperty, 3);
         __ mov(eax, Operand(esp, 0));  // Restore result into eax.
         break;
@@ -305,12 +339,12 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:
         __ push(eax);
         Visit(key);
-        ASSERT(key->location().is_temporary());
+        ASSERT(key->location().is_value());
         __ push(Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
                           Smi::FromInt(1) :
                           Smi::FromInt(0)));
         Visit(value);
-        ASSERT(value->location().is_temporary());
+        ASSERT(value->location().is_value());
         __ CallRuntime(Runtime::kDefineAccessor, 4);
         __ mov(eax, Operand(esp, 0));  // Restore result into eax.
         break;
@@ -318,40 +352,15 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
   switch (expr->location().type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       if (result_saved) __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::TEMP:
+    case Location::kValue:
       if (!result_saved) __ push(eax);
       break;
   }
-}
-
-
-void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  Comment cmnt(masm_, "[ RegExp Literal");
-  Label done;
-  // Registers will be used as follows:
-  // edi = JS function.
-  // ebx = literals array.
-  // eax = regexp literal.
-  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ mov(ebx, FieldOperand(edi, JSFunction::kLiteralsOffset));
-  int literal_offset =
-    FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
-  __ mov(eax, FieldOperand(ebx, literal_offset));
-  __ cmp(eax, Factory::undefined_value());
-  __ j(not_equal, &done);
-  // Create regexp literal using runtime function
-  // Result will be in eax.
-  __ push(ebx);
-  __ push(Immediate(Smi::FromInt(expr->literal_index())));
-  __ push(Immediate(expr->pattern()));
-  __ push(Immediate(expr->flags()));
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  // Label done:
-  __ bind(&done);
-  Move(expr->location(), eax);
 }
 
 
@@ -403,7 +412,7 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       result_saved = true;
     }
     Visit(subexpr);
-    ASSERT(subexpr->location().is_temporary());
+    ASSERT(subexpr->location().is_value());
 
     // Store the subexpression value in the array's elements.
     __ pop(eax);  // Subexpression value.
@@ -417,10 +426,12 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   switch (expr->location().type()) {
-    case Location::NOWHERE:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kEffect:
       if (result_saved) __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::TEMP:
+    case Location::kValue:
       if (!result_saved) __ push(eax);
       break;
   }
@@ -446,7 +457,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     if (rhs->AsLiteral() != NULL) {
       __ mov(eax, rhs->AsLiteral()->handle());
     } else {
-      ASSERT(rhs->location().is_temporary());
+      ASSERT(rhs->location().is_value());
       Visit(rhs);
       __ pop(eax);
     }
@@ -467,14 +478,16 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
       Move(expr->location(), eax);
     } else {
-      ASSERT(rhs->location().is_temporary());
+      ASSERT(rhs->location().is_value());
       Visit(rhs);
       switch (expr->location().type()) {
-        case Location::NOWHERE:
+        case Location::kUninitialized:
+          UNREACHABLE();
+        case Location::kEffect:
           // Case 'var = temp'.  Discard right-hand-side temporary.
           Move(var->slot(), rhs->location());
           break;
-        case Location::TEMP:
+        case Location::kValue:
           // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
           // temporary on the stack.
           __ mov(eax, Operand(esp, 0));
@@ -519,10 +532,12 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     __ add(Operand(esp), Immediate(kPointerSize));
   }
   switch (expr->location().type()) {
-    case Location::TEMP:
+    case Location::kUninitialized:
+      UNREACHABLE();
+    case Location::kValue:
       __ mov(Operand(esp, 0), eax);
       break;
-    case Location::NOWHERE:
+    case Location::kEffect:
       __ add(Operand(esp), Immediate(kPointerSize));
       break;
   }
@@ -542,7 +557,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
-    ASSERT(args->at(i)->location().is_temporary());
+    ASSERT(args->at(i)->location().is_value());
   }
   // Record source position for debugger
   SetSourcePosition(expr->position());
@@ -564,7 +579,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   // arguments.
   // Push function on the stack.
   Visit(node->expression());
-  ASSERT(node->expression()->location().is_temporary());
+  ASSERT(node->expression()->location().is_value());
 
   // Push global object (receiver).
   __ push(CodeGenerator::GlobalObject());
@@ -574,8 +589,8 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
-    ASSERT(args->at(i)->location().is_temporary());
-    // If location is temporary, it is already on the stack,
+    ASSERT(args->at(i)->location().is_value());
+    // If location is value, it is already on the stack,
     // so nothing to do here.
   }
 
@@ -607,7 +622,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
-    ASSERT(args->at(i)->location().is_temporary());
+    ASSERT(args->at(i)->location().is_value());
   }
 
   __ CallRuntime(function, arg_count);
@@ -616,13 +631,64 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  // Compile a short-circuited boolean or operation in a non-test
-  // context.
-  ASSERT(expr->op() == Token::OR);
-  // Compile (e0 || e1) as if it were
-  // (let (temp = e0) temp ? temp : e1).
+  switch (expr->op()) {
+    case Token::COMMA:
+      ASSERT(expr->left()->location().is_effect());
+      ASSERT_EQ(expr->right()->location().type(), expr->location().type());
+      Visit(expr->left());
+      Visit(expr->right());
+      break;
+
+    case Token::OR:
+    case Token::AND:
+      EmitLogicalOperation(expr);
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      ASSERT(expr->left()->location().is_value());
+      ASSERT(expr->right()->location().is_value());
+
+      Visit(expr->left());
+      Visit(expr->right());
+      GenericBinaryOpStub stub(expr->op(),
+                               NO_OVERWRITE,
+                               NO_GENERIC_BINARY_FLAGS);
+      __ CallStub(&stub);
+      Move(expr->location(), eax);
+
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean operation in a non-test context.
+
+  // Compile (e0 || e1) or (e0 && e1) as if it were
+  // (let (temp = e0) temp [or !temp, for &&] ? temp : e1).
 
   Label eval_right, done;
+  Label *left_true, *left_false;  // Where to branch to if lhs has that value.
+  if (expr->op() == Token::OR) {
+    left_true = &done;
+    left_false = &eval_right;
+  } else {
+    left_true = &eval_right;
+    left_false = &done;
+  }
   Location destination = expr->location();
   Expression* left = expr->left();
   Expression* right = expr->right();
@@ -635,17 +701,19 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   // need it as the value of the whole expression.
   if (left->AsLiteral() != NULL) {
     __ mov(eax, left->AsLiteral()->handle());
-    if (destination.is_temporary()) __ push(eax);
+    if (destination.is_value()) __ push(eax);
   } else {
     Visit(left);
-    ASSERT(left->location().is_temporary());
+    ASSERT(left->location().is_value());
     switch (destination.type()) {
-      case Location::NOWHERE:
+      case Location::kUninitialized:
+        UNREACHABLE();
+      case Location::kEffect:
         // Pop the left-hand value into eax because we will not need it as the
         // final result.
         __ pop(eax);
         break;
-      case Location::TEMP:
+      case Location::kValue:
         // Copy the left-hand value into eax because we may need it as the
         // final result.
         __ mov(eax, Operand(esp, 0));
@@ -653,40 +721,40 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     }
   }
   // The left-hand value is in eax.  It is also on the stack iff the
-  // destination location is temporary.
+  // destination location is value.
 
   // Perform fast checks assumed by the stub.
   __ cmp(eax, Factory::undefined_value());  // The undefined value is false.
-  __ j(equal, &eval_right);
+  __ j(equal, left_false);
   __ cmp(eax, Factory::true_value());  // True is true.
-  __ j(equal, &done);
+  __ j(equal, left_true);
   __ cmp(eax, Factory::false_value());  // False is false.
-  __ j(equal, &eval_right);
+  __ j(equal, left_false);
   ASSERT(kSmiTag == 0);
   __ test(eax, Operand(eax));  // The smi zero is false.
-  __ j(zero, &eval_right);
+  __ j(zero, left_false);
   __ test(eax, Immediate(kSmiTagMask));  // All other smis are true.
-  __ j(zero, &done);
+  __ j(zero, left_true);
 
   // Call the stub for all other cases.
   __ push(eax);
   ToBooleanStub stub;
   __ CallStub(&stub);
   __ test(eax, Operand(eax));  // The stub returns nonzero for true.
-  __ j(not_zero, &done);
+  if (expr->op() == Token::OR) {
+    __ j(not_zero, &done);
+  } else {
+    __ j(zero, &done);
+  }
 
   __ bind(&eval_right);
   // Discard the left-hand value if present on the stack.
-  if (destination.is_temporary()) {
+  if (destination.is_value()) {
     __ add(Operand(esp), Immediate(kPointerSize));
   }
   // Save or discard the right-hand value as needed.
-  if (right->AsLiteral() != NULL) {
-    Move(destination, right->AsLiteral());
-  } else {
-    Visit(right);
-    Move(destination, right->location());
-  }
+  Visit(right);
+  ASSERT_EQ(destination.type(), right->location().type());
 
   __ bind(&done);
 }

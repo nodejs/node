@@ -551,20 +551,4 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
-bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
-  Object* cache = info()->load_stub_cache();
-  if (cache->IsUndefined()) {
-    return false;
-  } else {
-    *code_out = Code::cast(cache);
-    return true;
-  }
-}
-
-
-void ApiGetterEntryStub::SetCustomCache(Code* value) {
-  info()->set_load_stub_cache(value);
-}
-
-
 } }  // namespace v8::internal

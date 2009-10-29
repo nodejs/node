@@ -103,10 +103,6 @@ typedef byte* Address;
 #define V8PRIxPTR "lx"
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__)
-#define USING_MAC_ABI
-#endif
-
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
 typedef int32_t uc32;
