@@ -1,8 +1,8 @@
-node.mixin(require("../common.js"));
+process.mixin(require("../common.js"));
 var dns = require("/dns.js");
 
-for (var i = 2; i < ARGV.length; i++) {
-  var name = ARGV[i]
+for (var i = 2; i < process.ARGV.length; i++) {
+  var name = process.ARGV[i]
   puts("looking up " + name);
   var resolution = dns.resolve4(name);
 

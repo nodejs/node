@@ -1,10 +1,10 @@
-node.mixin(require('../common.js'));
+process.mixin(require('../common.js'));
 
 var PORT = 8003;
 var request_count = 1000;
 var response_body = '{"ok": true}';
 
-var server = node.http.createServer(function(req, res) {
+var server = process.http.createServer(function(req, res) {
  res.sendHeader(200, {'Content-Type': 'text/javascript'});
  res.sendBody(response_body);
  res.finish();
@@ -16,7 +16,7 @@ var requests_complete = 0;
 
 function onLoad () {
  for (var i = 0; i < request_count; i++) {
-   node.http.cat('http://localhost:'+PORT+'/', 'utf8')
+   process.http.cat('http://localhost:'+PORT+'/', 'utf8')
      .addCallback(function (content) {
        assertEquals(response_body, content)
        print(".");
@@ -30,12 +30,12 @@ function onLoad () {
      .addErrback(function() {
        print("-");
        requests_complete++;
-       //node.debug("error " + i);
+       //process.debug("error " + i);
      });
  }
 }
 
-function onExit () {
+process.addListener("exit", function () {
   assertEquals(request_count, requests_complete); 
   assertEquals(request_count, requests_ok); 
-}
+});

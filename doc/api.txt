@@ -73,9 +73,6 @@ more information.
 
 === The +process+ Object
 
-+process+ is the equivalent of +window+ in browser-side javascript. It is
-the global scope. +process+ is an instance of +process.EventEmitter+.
-
 [cols="1,2,10",options="header"]
 |=========================================================
 | Event    | Parameters | Notes

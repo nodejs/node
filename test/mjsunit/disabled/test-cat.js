@@ -1,4 +1,4 @@
-node.mixin(require("../common.js"));
+process.mixin(require("../common.js"));
 http = require("/http.js");
 PORT = 8888;
 
@@ -19,7 +19,7 @@ server.listen(PORT);
 var errors = 0;
 var successes = 0;
 
-var promise = node.cat("http://localhost:"+PORT, "utf8");
+var promise = process.cat("http://localhost:"+PORT, "utf8");
 
 promise.addCallback(function (content) {
   assertEquals(body, content);
@@ -31,11 +31,11 @@ promise.addErrback(function () {
   errors += 1;
 });
 
-var dirname = node.path.dirname(__filename);
-var fixtures = node.path.join(dirname, "fixtures");
-var x = node.path.join(fixtures, "x.txt");
+var dirname = process.path.dirname(__filename);
+var fixtures = process.path.join(dirname, "fixtures");
+var x = process.path.join(fixtures, "x.txt");
 
-promise = node.cat(x, "utf8");
+promise = process.cat(x, "utf8");
 
 promise.addCallback(function (content) {
   assertEquals("xyz", content.replace(/[\r\n]/, ''));
