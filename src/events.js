@@ -30,12 +30,40 @@ node.Promise.prototype.timeout = function(timeout) {
     clearTimeout(this._timer);
   }
 
+  var promiseComplete = false;
+  var onComplete = function() {
+    promiseComplete = true;
+  };
+
+  this
+    .addCallback(onComplete)
+    .addCancelback(onComplete)
+    .addErrback(onComplete);
+
   var self = this
   this._timer = setTimeout(function() {
+    if (promiseComplete) {
+      return;
+    }
+
     self.emitError(new Error('timeout'));
   }, this._timeoutDuration);
 
   return this;
+};
+
+node.Promise.prototype.cancel = function() {
+  this._events['success'] = [];
+  this._events['error'] = [];
+
+  this.emitCancel();
+};
+
+node.Promise.prototype.emitCancel = function() {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift('cancel');
+
+  this.emit.apply(this, args);
 };
 
 node.Promise.prototype.addCallback = function (listener) {
@@ -45,6 +73,11 @@ node.Promise.prototype.addCallback = function (listener) {
 
 node.Promise.prototype.addErrback = function (listener) {
   this.addListener("error", listener);
+  return this;
+};
+
+node.Promise.prototype.addCancelback = function (listener) {
+  this.addListener("cancel", listener);
   return this;
 };
 
