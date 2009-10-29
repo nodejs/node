@@ -1,7 +1,7 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 function timer (t) {
-  var promise = new node.Promise();
+  var promise = new process.Promise();
   setTimeout(function () {
     promise.emitSuccess();
   }, t);

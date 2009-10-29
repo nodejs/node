@@ -1,4 +1,4 @@
-libDir = node.path.join(node.path.dirname(__filename), "../lib");
+libDir = process.path.join(process.path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
 http = require("/http.js");
 var concurrency = 30;

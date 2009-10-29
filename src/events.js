@@ -1,8 +1,8 @@
 (function () {
 
-// node.EventEmitter is defined in src/events.cc
-// node.EventEmitter.prototype.emit() is also defined there.
-node.EventEmitter.prototype.addListener = function (type, listener) {
+// process.EventEmitter is defined in src/events.cc
+// process.EventEmitter.prototype.emit() is also defined there.
+process.EventEmitter.prototype.addListener = function (type, listener) {
   if (listener instanceof Function) {
     if (!this._events) this._events = {};
     if (!this._events.hasOwnProperty(type)) this._events[type] = [];
@@ -14,13 +14,13 @@ node.EventEmitter.prototype.addListener = function (type, listener) {
   return this;
 };
 
-node.EventEmitter.prototype.listeners = function (type) {
+process.EventEmitter.prototype.listeners = function (type) {
   if (!this._events) this._events = {};
   if (!this._events.hasOwnProperty(type)) this._events[type] = [];
   return this._events[type];
 };
 
-node.Promise.prototype.timeout = function(timeout) {
+process.Promise.prototype.timeout = function(timeout) {
   if (timeout === undefined) {
     return this._timeoutDuration;
   }
@@ -52,36 +52,36 @@ node.Promise.prototype.timeout = function(timeout) {
   return this;
 };
 
-node.Promise.prototype.cancel = function() {
+process.Promise.prototype.cancel = function() {
   this._events['success'] = [];
   this._events['error'] = [];
 
   this.emitCancel();
 };
 
-node.Promise.prototype.emitCancel = function() {
+process.Promise.prototype.emitCancel = function() {
   var args = Array.prototype.slice.call(arguments);
   args.unshift('cancel');
 
   this.emit.apply(this, args);
 };
 
-node.Promise.prototype.addCallback = function (listener) {
+process.Promise.prototype.addCallback = function (listener) {
   this.addListener("success", listener);
   return this;
 };
 
-node.Promise.prototype.addErrback = function (listener) {
+process.Promise.prototype.addErrback = function (listener) {
   this.addListener("error", listener);
   return this;
 };
 
-node.Promise.prototype.addCancelback = function (listener) {
+process.Promise.prototype.addCancelback = function (listener) {
   this.addListener("cancel", listener);
   return this;
 };
 
-node.Promise.prototype.wait = function () {
+process.Promise.prototype.wait = function () {
   var ret;
   var had_error = false;
   this.addCallback(function () {

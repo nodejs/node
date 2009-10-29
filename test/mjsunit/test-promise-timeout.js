@@ -1,8 +1,8 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 var timeouts = 0;
 
-var promise = new node.Promise();
+var promise = new process.Promise();
 promise.timeout(250);
 assertEquals(250, promise.timeout());
 
@@ -20,7 +20,7 @@ setTimeout(function() {
   promise.emitSuccess('Am I too late?');
 }, 500);
 
-var waitPromise = new node.Promise();
+var waitPromise = new process.Promise();
 try {
   waitPromise.timeout(250).wait()
 } catch (e) {
@@ -29,7 +29,7 @@ try {
   timeouts++;
 }
 
-var successPromise = new node.Promise();
+var successPromise = new process.Promise();
 successPromise.timeout(500);
 setTimeout(function() {
   successPromise.emitSuccess();
@@ -39,7 +39,7 @@ successPromise.addErrback(function() {
   assertUnreachable('addErrback should not fire if there is no timeout');
 });
 
-var errorPromise = new node.Promise();
+var errorPromise = new process.Promise();
 errorPromise.timeout(500);
 setTimeout(function() {
   errorPromise.emitError(new Error('intentional'));
@@ -50,7 +50,7 @@ errorPromise.addErrback(function(e) {
   assertEquals('intentional', e.message);
 });
 
-var cancelPromise = new node.Promise();
+var cancelPromise = new process.Promise();
 cancelPromise.timeout(500);
 setTimeout(function() {
   cancelPromise.cancel();
@@ -68,7 +68,7 @@ cancelPromise.addErrback(function(e) {
   assertUnreachable('addErrback should not fire if the promise is canceled');
 });
 
-var cancelTimeoutPromise = new node.Promise();
+var cancelTimeoutPromise = new process.Promise();
 cancelTimeoutPromise.timeout(500);
 setTimeout(function() {
   cancelPromise.emitCancel();

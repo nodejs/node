@@ -46,29 +46,14 @@ Unless otherwise noted, functions are all asynchronous and do not block
 execution.
 
 
-=== Helpers
+=== Global Objects
 
-These objects are available to all programs.
++GLOBAL+ ::
+The global namespace object.
 
-+node.cwd()+::
-Returns the current working directory of the process.
-
-+node.kill(pid, signal="SIGTERM")+ ::
-Send a signal to a process. +pid+ is the process id and +signal+ is the
-signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
-information.
-
-+node.compile(source, scriptOrigin)+::
-Just like +eval()+ except that you can specify a +scriptOrigin+ for better
-error reporting.
-
-+__filename+ ::
-The filename of the script being executed.
-
-+__module+ ::
-A reference to the current module (of type +node.Module+). In particular
-+__module.exports+ is the same as the +exports+ object. See +src/node.js+ for
-more information.
++process+ ::
+The process object. Most stuff lives in here. See the "process object"
+section.
 
 +require(path)+ ::
 See the modules section.
@@ -76,23 +61,20 @@ See the modules section.
 +require.paths+ ::
 The search path for absolute path arguments to +require()+.
 
-+node.mixin([deep], target, object1, [objectN])+ ::
-Extend one object with one or more others, returning the modified object.
-If no target is specified, the +process+ namespace itself is extended. 
-Keep in mind that the target object will be modified, and will be returned
-from +node.mixin()+.
-+
-If a boolean true is specified as the first argument, Node performs a deep
-copy, recursively copying any objects it finds. Otherwise, the copy will
-share structure with the original object(s).
-+
-Undefined properties are not copied. However, properties inherited from the
-object's prototype will be copied over.
++__filename+ ::
+The filename of the script being executed.
+
++__module+ ::
+A reference to the current module (of type +process.Module+). In particular
++__module.exports+ is the same as the +exports+ object. See +src/process.js+ for
+more information.
+
+
 
 === The +process+ Object
 
 +process+ is the equivalent of +window+ in browser-side javascript. It is
-the global scope. +process+ is an instance of +node.EventEmitter+.
+the global scope. +process+ is an instance of +process.EventEmitter+.
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -111,10 +93,6 @@ the global scope. +process+ is an instance of +node.EventEmitter+.
                                           signal names such as SIGINT, SIGUSR1, etc.
 |=========================================================
 
-+process.exit(code=0)+::
-Ends the process with the specified code. By default it exits with the
-success code 0.
-
 +process.ARGV+ ::
 An array containing the command line arguments.
 
@@ -123,6 +101,35 @@ An object containing the user environment. See environ(7).
 
 +process.pid+ ::
 The PID of the process.
+
++process.exit(code=0)+::
+Ends the process with the specified code. By default it exits with the
+success code 0.
+
++process.cwd()+::
+Returns the current working directory of the process.
+
++process.kill(pid, signal="SIGTERM")+ ::
+Send a signal to a process. +pid+ is the process id and +signal+ is the
+signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
+information.
+
++process.compile(source, scriptOrigin)+::
+Just like +eval()+ except that you can specify a +scriptOrigin+ for better
+error reporting.
+
++process.mixin([deep], target, object1, [objectN])+ ::
+Extend one object with one or more others, returning the modified object.
+If no target is specified, the +GLOBAL+ namespace itself is extended. 
+Keep in mind that the target object will be modified, and will be returned
+from +process.mixin()+.
++
+If a boolean true is specified as the first argument, Node performs a deep
+copy, recursively copying any objects it finds. Otherwise, the copy will
+share structure with the original object(s).
++
+Undefined properties are not copied. However, properties inherited from the
+object's prototype will be copied over.
 
 === System module
 
@@ -161,7 +168,7 @@ sys.exec("ls /").addCallback(function (stdout, stderr) {
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
-objects which emit events are are instances of +node.EventEmitter+.
+objects which emit events are are instances of +process.EventEmitter+.
 
 Events are represented by a camel-cased string. Here are some examples:
 +"connection"+, +"receive"+, +"messageBegin"+.
@@ -173,7 +180,7 @@ Some asynchronous file operations return an +EventEmitter+ called a
 _promise_.  A promise emits just a single event when the operation is
 complete.
 
-==== +node.EventEmitter+
+==== +process.EventEmitter+
 
 All EventEmitters emit the event +"newListener"+ when new listeners are
 added.
@@ -204,9 +211,9 @@ manipulated, e.g. to remove listeners.
 +emitter.emit(event, arg1, arg2, ...)+ ::
 Execute each of the listeners in order with the supplied arguments.
 
-==== +node.Promise+
+==== +process.Promise+
 
-+node.Promise+ inherits from +node.eventEmitter+. A promise emits one of two
++process.Promise+ inherits from +process.eventEmitter+. A promise emits one of two
 events: +"success"+ or +"error"+.  After emitting its event, it will not
 emit anymore events.
 
@@ -228,7 +235,7 @@ Adds a listener for the +"error"+ event. Returns the same promise object.
 Adds a listener for the +"cancel"+ event. Returns the same promise object.
 
 +promise.emitSuccess(arg1, arg2, ...)+ ::
-If you created the promise (by doing +new node.Promise()+) then call
+If you created the promise (by doing +new process.Promise()+) then call
 +emitSuccess+ to emit the +"success"+ event with the given arguments. 
 +
 (+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
@@ -292,7 +299,7 @@ program setup, not during busy server activity.
 
 === Standard I/O
 
-Standard I/O is handled through a special object +node.stdio+. stdout and
+Standard I/O is handled through a special object +process.stdio+. stdout and
 stdin are fully non-blocking (even when piping to files). stderr is
 synchronous.
 
@@ -303,22 +310,22 @@ synchronous.
 | +"data"+   | +data+     | Made when stdin has received a chunk of data.
                             Depending on the encoding that stdin was opened
                             with, +data+ will be  a string. This event will
-                            only be emited after +node.stdio.open()+ has
+                            only be emited after +process.stdio.open()+ has
                             been called.
 | +"close"+  |            | Made when stdin has been closed.
 |=========================================================
 
-+node.stdio.open(encoding="utf8")+::
-Open stdin. The program will not exit until +node.stdio.close()+ has been
++process.stdio.open(encoding="utf8")+::
+Open stdin. The program will not exit until +process.stdio.close()+ has been
 called or the +"close"+ event has been emitted.
 
-+node.stdio.write(data)+::
++process.stdio.write(data)+::
 Write data to stdout.
 
-+node.stdio.writeError(data)+::
++process.stdio.writeError(data)+::
 Write data to stderr. Synchronous.
 
-+node.stdio.close()+::
++process.stdio.close()+::
 Close stdin.
 
 
@@ -361,10 +368,10 @@ The module path is relative to the file calling +require()+.  That is,
 +circle.js+ must be in the same directory as +foo.js+ for +require()+ to
 find it.
 
-Use +node.mixin()+ to include modules into the global namespace.
+Use +process.mixin()+ to include modules into the global namespace.
 
 ----------------------------------------
-node.mixin(process, require("circle.js"), require("/sys.js"));
+process.mixin(process, require("circle.js"), require("/sys.js"));
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
 
@@ -418,10 +425,10 @@ Stops a interval from triggering.
 === Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
-+node.ChildProcess+. It is possible to stream data through the child's +stdin+,
++process.ChildProcess+. It is possible to stream data through the child's +stdin+,
 +stdout+, and +stderr+ in a fully non-blocking way.
 
-==== +node.ChildProcess+
+==== +process.ChildProcess+
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -444,12 +451,12 @@ Node provides a tridirectional +popen(3)+ facility through the class
                             +"error"+ callbacks will no longer be made.
 |=========================================================
 
-+node.createChildProcess(command, args=[], env=ENV)+::
++process.createChildProcess(command, args=[], env=ENV)+::
 Launches a new process with the given +command+, command line arguments, and
 environmental variables. For example:
 +
 ----------------------------------------
-var ls = node.createChildProcess("ls", ["-lh", "/usr"]);
+var ls = process.createChildProcess("ls", ["-lh", "/usr"]);
 ls.addListener("output", function (data) {
   puts(data);
 });
@@ -485,7 +492,7 @@ File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do +require("/posix.js")+. 
 
 All POSIX wrappers have a similar form.  They return a promise
-(+node.Promise+). Example of deleting a file:
+(+process.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
 var posix = require("/posix.js"),
@@ -574,7 +581,7 @@ sys.puts("stats: " + JSON.stringify(stats));
 
 
 +posix.open(path, flags, mode)+::
-  See open(2). The constants like +O_CREAT+ are defined at +node.O_CREAT+.
+  See open(2). The constants like +O_CREAT+ are defined at +process.O_CREAT+.
   - on success: +fd+ is given as the parameter.
   - on error: no parameters.
 

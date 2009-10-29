@@ -1,10 +1,10 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 var N = 40;
 var finished = false;
 
 function spawn (i) {
-  var child = node.createChildProcess( 'python'
+  var child = process.createChildProcess( 'python'
                                      , ['-c', 'print 500 * 1024 * "C"']
                                      );
   var output = "";

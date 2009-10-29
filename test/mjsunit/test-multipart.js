@@ -1,4 +1,4 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 http = require("/http.js");
 
 var multipart = require('/multipart.js');

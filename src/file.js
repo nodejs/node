@@ -1,19 +1,19 @@
-node.fs.exists = function (path, callback) {
-  var p = node.fs.stat(path);
+process.fs.exists = function (path, callback) {
+  var p = process.fs.stat(path);
   p.addCallback(function () { callback(true); });
   p.addErrback(function () { callback(false); });
 };
 
-node.fs.cat = function (path, encoding) {
-  var promise = new node.Promise();
+process.fs.cat = function (path, encoding) {
+  var promise = new process.Promise();
   
   encoding = encoding || "utf8"; // default to utf8
 
-  node.fs.open(path, node.O_RDONLY, 0666).addCallback(function (fd) {
+  process.fs.open(path, process.O_RDONLY, 0666).addCallback(function (fd) {
     var content = "", pos = 0;
 
     function readChunk () {
-      node.fs.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
+      process.fs.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
         if (chunk) {
           if (chunk.constructor === String) {
             content += chunk;
@@ -25,7 +25,7 @@ node.fs.cat = function (path, encoding) {
           readChunk();
         } else {
           promise.emitSuccess(content);
-          node.fs.close(fd);
+          process.fs.close(fd);
         }
       }).addErrback(function () {
         promise.emitError();

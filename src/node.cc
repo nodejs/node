@@ -31,6 +31,8 @@ extern char **environ;
 
 namespace node {
 
+static Persistent<Object> process;
+
 static int dash_dash_index = 0;
 static bool use_debug_agent = false;
 
@@ -267,10 +269,8 @@ v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
       sig = args[1]->Int32Value();
     } else if (args[1]->IsString()) {
       Local<String> signame = args[1]->ToString();
-      Local<Object> process = Context::GetCurrent()->Global();
-      Local<Object> node_obj = process->Get(String::NewSymbol("node"))->ToObject();
 
-      Local<Value> sig_v = node_obj->Get(signame);
+      Local<Value> sig_v = process->Get(signame);
       if (!sig_v->IsNumber()) {
         return ThrowException(Exception::Error(String::New("Unknown signal")));
       }
@@ -419,16 +419,19 @@ static void ExecuteNativeJS(const char *filename, const char *data) {
 static Local<Object> Load(int argc, char *argv[]) {
   HandleScope scope;
 
-  // Reference to 'process'
-  Local<Object> process = Context::GetCurrent()->Global();
+  Local<FunctionTemplate> process_template = FunctionTemplate::New();
+  node::EventEmitter::Initialize(process_template);
 
-  Local<Object> node_obj = Object::New(); // Create the 'process.node' object
-  process->Set(String::NewSymbol("node"), node_obj); // and assign it.
+  process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
+
+  // Assign the process object to its place.
+  Local<Object> global = Context::GetCurrent()->Global();
+  global->Set(String::NewSymbol("process"), process);
 
   // node.version
-  node_obj->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+  process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
   // node.installPrefix
-  node_obj->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
+  process->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
 
   // process.ARGV
   int i, j;
@@ -460,40 +463,40 @@ static Local<Object> Load(int argc, char *argv[]) {
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
   // define various internal methods
-  NODE_SET_METHOD(node_obj, "compile", Compile);
-  NODE_SET_METHOD(node_obj, "reallyExit", Exit);
-  NODE_SET_METHOD(node_obj, "cwd", Cwd);
-  NODE_SET_METHOD(node_obj, "dlopen", DLOpen);
-  NODE_SET_METHOD(node_obj, "kill", Kill);
+  NODE_SET_METHOD(process, "compile", Compile);
+  NODE_SET_METHOD(process, "reallyExit", Exit);
+  NODE_SET_METHOD(process, "cwd", Cwd);
+  NODE_SET_METHOD(process, "dlopen", DLOpen);
+  NODE_SET_METHOD(process, "kill", Kill);
 
   // Assign the EventEmitter. It was created in main().
-  node_obj->Set(String::NewSymbol("EventEmitter"),
-              EventEmitter::constructor_template->GetFunction());
+  process->Set(String::NewSymbol("EventEmitter"),
+               EventEmitter::constructor_template->GetFunction());
 
   // Initialize the C++ modules..................filename of module
-  Promise::Initialize(node_obj);                // events.cc
-  Stdio::Initialize(node_obj);                  // stdio.cc
-  Timer::Initialize(node_obj);                  // timer.cc
-  SignalHandler::Initialize(node_obj);          // signal_handler.cc
-  ChildProcess::Initialize(node_obj);           // child_process.cc
-  DefineConstants(node_obj);                    // constants.cc
+  Promise::Initialize(process);                // events.cc
+  Stdio::Initialize(process);                  // stdio.cc
+  Timer::Initialize(process);                  // timer.cc
+  SignalHandler::Initialize(process);          // signal_handler.cc
+  ChildProcess::Initialize(process);           // child_process.cc
+  DefineConstants(process);                    // constants.cc
   // Create node.dns
   Local<Object> dns = Object::New();
-  node_obj->Set(String::NewSymbol("dns"), dns);
+  process->Set(String::NewSymbol("dns"), dns);
   DNS::Initialize(dns);                         // dns.cc
   Local<Object> fs = Object::New();
-  node_obj->Set(String::NewSymbol("fs"), fs);
+  process->Set(String::NewSymbol("fs"), fs);
   File::Initialize(fs);                         // file.cc
   // Create node.tcp. Note this separate from lib/tcp.js which is the public
   // frontend.
   Local<Object> tcp = Object::New();
-  node_obj->Set(String::New("tcp"), tcp);
+  process->Set(String::New("tcp"), tcp);
   Server::Initialize(tcp);                      // tcp.cc
   Connection::Initialize(tcp);                  // tcp.cc
   // Create node.http.  Note this separate from lib/http.js which is the
   // public frontend.
   Local<Object> http = Object::New();
-  node_obj->Set(String::New("http"), http);
+  process->Set(String::New("http"), http);
   HTTPServer::Initialize(http);                 // http.cc
   HTTPConnection::Initialize(http);             // http.cc
 
@@ -505,16 +508,12 @@ static Local<Object> Load(int argc, char *argv[]) {
   // In node.js we actually load the file specified in ARGV[1]
   // so your next reading stop should be node.js!
   ExecuteNativeJS("node.js", native_node);
-
-  return scope.Close(node_obj);
 }
 
 static void EmitExitEvent() {
   HandleScope scope;
 
-  // Get reference to 'process' object.
-  Local<Object> process = Context::GetCurrent()->Global();
-  // Get the 'emit' function from it.
+  // Get the 'emit' function from 'process'
   Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
   if (!emit_v->IsFunction()) {
     // could not emit exit event so exit
@@ -643,26 +642,20 @@ int main(int argc, char *argv[]) {
            "Use 'd8 --remote_debugger' to access it.\n");
   }
 
-  // Create the global 'process' object's FunctionTemplate.
-  Local<FunctionTemplate> process_template = FunctionTemplate::New();
-
-  // The global object (process) is an instance of EventEmitter. For some
-  // strange and forgotten reasons we must initialize EventEmitter now
-  // before creating the Context. EventEmitter will be assigned to it's
-  // namespace node.EventEmitter in Load() bellow.
-  node::EventEmitter::Initialize(process_template);
+  // Create the 'GLOBAL' object's FunctionTemplate.
+  Local<FunctionTemplate> global_template = FunctionTemplate::New();
 
   // Create the one and only Context.
   Persistent<Context> context = Context::New(NULL,
-      process_template->InstanceTemplate());
+      global_template->InstanceTemplate());
   Context::Scope context_scope(context);
 
-  // Actually assign the global object to it's place as 'process'
-  context->Global()->Set(String::NewSymbol("process"), context->Global());
+  // Actually assign the global object to it's place as 'GLOBAL'
+  context->Global()->Set(String::NewSymbol("GLOBAL"), context->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
-  Local<Object> node_obj = node::Load(argc, argv);
+  node::Load(argc, argv);
 
   // All our arguments are loaded. We've evaluated all of the scripts. We
   // might even have created TCP servers. Now we enter the main event loop.

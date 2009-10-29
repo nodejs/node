@@ -1,13 +1,13 @@
-node.tcp.createServer = function () {
-  throw new Error("node.tcp.createServer() has moved. Use require('/tcp.js') to access it.");
+process.tcp.createServer = function () {
+  throw new Error("process.tcp.createServer() has moved. Use require('/tcp.js') to access it.");
 };
 
-node.createProcess = function () {
-  throw "node.createProcess() has been changed to node.createChildProcess() update your code";
+process.createProcess = function () {
+  throw "process.createProcess() has been changed to process.createChildProcess() update your code";
 };
 
-node.createChildProcess = function (file, args, env) {
-  var child = new node.ChildProcess();
+process.createChildProcess = function (file, args, env) {
+  var child = new process.ChildProcess();
   args = args || [];
   env = env || process.ENV;
   var envPairs = [];
@@ -23,24 +23,24 @@ node.createChildProcess = function (file, args, env) {
   return child;
 };
 
-node.exec = function () {
-  throw new Error("node.exec() has moved. Use require('/sys.js') to bring it back.");
+process.exec = function () {
+  throw new Error("process.exec() has moved. Use require('/sys.js') to bring it back.");
 }
 
-node.http.createServer = function () {
-  throw new Error("node.http.createServer() has moved. Use require('/http.js') to access it.");
+process.http.createServer = function () {
+  throw new Error("process.http.createServer() has moved. Use require('/http.js') to access it.");
 }
 
-node.http.createClient = function () {
-  throw new Error("node.http.createClient() has moved. Use require('/http.js') to access it.");
+process.http.createClient = function () {
+  throw new Error("process.http.createClient() has moved. Use require('/http.js') to access it.");
 }
 
-node.tcp.createConnection = function (port, host) {
-  throw new Error("node.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
+process.tcp.createConnection = function (port, host) {
+  throw new Error("process.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
 };
 
 include = function () {
-  throw new Error("include() has been removed. Use node.mixin(process, require(file)) to get the same effect.");
+  throw new Error("include() has been removed. Use process.mixin(process, require(file)) to get the same effect.");
 }
 
 /* From jQuery.extend in the jQuery JavaScript Library v1.3.2
@@ -48,7 +48,7 @@ include = function () {
  * Dual licensed under the MIT and GPL licenses.
  * http://docs.jquery.com/License
  */
-node.mixin = function() {
+process.mixin = function() {
 	// copy reference to target object
 	var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, options;
 
@@ -61,12 +61,12 @@ node.mixin = function() {
 	}
 
 	// Handle case when target is a string or something (possible in deep copy)
-	if ( typeof target !== "object" && !node.isFunction(target) )
+	if ( typeof target !== "object" && !process.isFunction(target) )
 		target = {};
 
 	// mixin process itself if only one argument is passed
 	if ( length == i ) {
-		target = process;
+		target = GLOBAL;
 		--i;
 	}
 
@@ -83,7 +83,7 @@ node.mixin = function() {
 
 				// Recurse if we're merging object values
 				if ( deep && copy && typeof copy === "object" && !copy.nodeType )
-					target[ name ] = node.mixin( deep, 
+					target[ name ] = process.mixin( deep, 
 						// Never move original objects, clone them
 						src || ( copy.length != null ? [ ] : { } )
 					, copy );
@@ -103,12 +103,12 @@ node.mixin = function() {
 (function () { // anonymous namespace
 
   function isSignal (event) {
-    return event.slice(0, 3) === 'SIG' && node.hasOwnProperty(event);
+    return event.slice(0, 3) === 'SIG' && process.hasOwnProperty(event);
   };
 
   process.addListener("newListener", function (event) {
     if (isSignal(event) && process.listeners(event).length === 0) {
-      var handler = new node.SignalHandler(node[event]);
+      var handler = new process.SignalHandler(process[event]);
       handler.addListener("signal", function () {
         process.emit(event);
       });
@@ -120,14 +120,14 @@ node.mixin = function() {
 // Timers
 
 function setTimeout (callback, after) {
-  var timer = new node.Timer();
+  var timer = new process.Timer();
   timer.addListener("timeout", callback);
   timer.start(after, 0);
   return timer;
 }
 
 function setInterval (callback, repeat) {
-  var timer = new node.Timer();
+  var timer = new process.Timer();
   timer.addListener("timeout", callback);
   timer.start(repeat, repeat);
   return timer;
@@ -141,18 +141,18 @@ clearInterval = clearTimeout;
 
 // Module
 
-node.libraryPaths = [ node.path.join(ENV["HOME"], ".node_libraries")
-                    , node.path.join(node.installPrefix, "lib/node/libraries")
-                    , "/" 
-                    ];
+process.libraryPaths = [ process.path.join(process.ENV["HOME"], ".node_libraries")
+                       , process.path.join(process.installPrefix, "lib/node/libraries")
+                       , "/" 
+                       ];
 
-if (ENV["NODE_LIBRARY_PATHS"]) {
-  node.libraryPaths =
-    ENV["NODE_LIBRARY_PATHS"].split(":").concat(node.libraryPaths);
+if (process.ENV["NODE_LIBRARY_PATHS"]) {
+  process.libraryPaths =
+    process.ENV["NODE_LIBRARY_PATHS"].split(":").concat(process.libraryPaths);
 }
 
-node.Module = function (filename, parent) {
-  node.assert(filename.charAt(0) == "/");
+process.Module = function (filename, parent) {
+  process.assert(filename.charAt(0) == "/");
   this.filename = filename;
   this.exports = {};
   this.parent = parent;
@@ -163,26 +163,26 @@ node.Module = function (filename, parent) {
   this.children = [];
 };
 
-node.Module.cache = {};
+process.Module.cache = {};
 
 (function () {
   function retrieveFromCache (loadPromise, fullPath, parent) {
     var module;
-    if (fullPath in node.Module.cache) {
-      module = node.Module.cache[fullPath];
+    if (fullPath in process.Module.cache) {
+      module = process.Module.cache[fullPath];
       setTimeout(function () {
         loadPromise.emitSuccess(module.exports);
       }, 0);
     } else {
-      module = new node.Module(fullPath, parent);
-      node.Module.cache[fullPath] = module;
+      module = new process.Module(fullPath, parent);
+      process.Module.cache[fullPath] = module;
       module.load(loadPromise);
     }
   }
 
   function findPath (path, dirs, callback) {
-    node.assert(path.charAt(0) == "/");
-    node.assert(dirs.constructor == Array);
+    process.assert(path.charAt(0) == "/");
+    process.assert(dirs.constructor == Array);
 
     if (dirs.length == 0) {
       callback();
@@ -190,8 +190,8 @@ node.Module.cache = {};
       var dir = dirs[0];
       var rest = dirs.slice(1, dirs.length);
 
-      var fullPath = node.path.join(dir, path);
-      node.fs.exists(fullPath, function (doesExist) {
+      var fullPath = process.path.join(dir, path);
+      process.fs.exists(fullPath, function (doesExist) {
         if (doesExist) {
           callback(fullPath);
         } else {
@@ -201,8 +201,8 @@ node.Module.cache = {};
     }
   }
 
-  node.loadModule = function (requestedPath, exports, parent) {
-    var loadPromise = new node.Promise();
+  process.loadModule = function (requestedPath, exports, parent) {
+    var loadPromise = new process.Promise();
 
     // On success copy the loaded properties into the exports
     loadPromise.addCallback(function (t) {
@@ -212,19 +212,19 @@ node.Module.cache = {};
     });
 
     loadPromise.addErrback(function (e) {
-      node.stdio.writeError(e.message + "\n");
+      process.stdio.writeError(e.message + "\n");
       process.exit(1);
     });
 
     if (!parent) {
       // root module
-      node.assert(requestedPath.charAt(0) == "/");
+      process.assert(requestedPath.charAt(0) == "/");
       retrieveFromCache(loadPromise, requestedPath);
 
     } else {
       if (requestedPath.charAt(0) == "/") {
-        // Need to find the module in node.libraryPaths
-        findPath(requestedPath, node.libraryPaths, function (fullPath) {
+        // Need to find the module in process.libraryPaths
+        findPath(requestedPath, process.libraryPaths, function (fullPath) {
           if (fullPath) {
             retrieveFromCache(loadPromise, fullPath, parent);
           } else {
@@ -234,7 +234,7 @@ node.Module.cache = {};
 
       } else {
         // Relative file load
-        var fullPath = node.path.join(node.path.dirname(parent.filename),
+        var fullPath = process.path.join(process.path.dirname(parent.filename),
             requestedPath);
         retrieveFromCache(loadPromise, fullPath, parent);
       }
@@ -244,12 +244,12 @@ node.Module.cache = {};
   };
 }());
 
-node.Module.prototype.load = function (loadPromise) {
+process.Module.prototype.load = function (loadPromise) {
   if (this.loaded) {
     loadPromise.emitError(new Error("Module '" + self.filename + "' is already loaded."));
     return;
   }
-  node.assert(!node.loadPromise);
+  process.assert(!process.loadPromise);
   this.loadPromise = loadPromise;
 
   if (this.filename.match(/\.node$/)) {
@@ -259,14 +259,14 @@ node.Module.prototype.load = function (loadPromise) {
   }
 };
 
-node.Module.prototype.loadObject = function (loadPromise) {
+process.Module.prototype.loadObject = function (loadPromise) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
   // file, store it to tmp then run dlopen on it. 
-  node.fs.exists(self.filename, function (does_exist) {
+  process.fs.exists(self.filename, function (does_exist) {
     if (does_exist) {
       self.loaded = true;
-      node.dlopen(self.filename, self.exports); // FIXME synchronus
+      process.dlopen(self.filename, self.exports); // FIXME synchronus
       loadPromise.emitSuccess(self.exports);
     } else {
       loadPromise.emitError(new Error("Error reading " + self.filename));
@@ -274,9 +274,9 @@ node.Module.prototype.loadObject = function (loadPromise) {
   });
 };
 
-node.Module.prototype.loadScript = function (loadPromise) {
+process.Module.prototype.loadScript = function (loadPromise) {
   var self = this;
-  var catPromise = node.cat(self.filename);
+  var catPromise = process.cat(self.filename);
 
   catPromise.addErrback(function () {
     loadPromise.emitError(new Error("Error reading " + self.filename));
@@ -294,14 +294,14 @@ node.Module.prototype.loadScript = function (loadPromise) {
       return requireAsync(url).wait();
     }
 
-    require.paths = node.libraryPaths;
+    require.paths = process.libraryPaths;
     require.async = requireAsync;
 
     // create wrapper function
     var wrapper = "var __wrap__ = function (__module, __filename, exports, require) { " 
                 + content 
                 + "\n}; __wrap__;";
-    var compiled_wrapper = node.compile(wrapper, self.filename);
+    var compiled_wrapper = process.compile(wrapper, self.filename);
 
     compiled_wrapper.apply(self.exports, [self, self.filename, self.exports, require]);
 
@@ -312,11 +312,11 @@ node.Module.prototype.loadScript = function (loadPromise) {
   });
 };
 
-node.Module.prototype.newChild = function (path) {
-  return node.loadModule(path, {}, this);
+process.Module.prototype.newChild = function (path) {
+  return process.loadModule(path, {}, this);
 };
 
-node.Module.prototype.waitChildrenLoad = function (callback) {
+process.Module.prototype.waitChildrenLoad = function (callback) {
   var nloaded = 0;
   var children = this.children;
   for (var i = 0; i < children.length; i++) {
@@ -336,25 +336,21 @@ node.Module.prototype.waitChildrenLoad = function (callback) {
 
 process.exit = function (code) {
   process.emit("exit");
-  node.reallyExit(code);
-};
-
-node.exit = function (code) {
-  throw new Error("node.exit() has been renamed to process.exit().");
+  process.reallyExit(code);
 };
 
 (function () {
-  var cwd = node.cwd();
+  var cwd = process.cwd();
 
-  // Make ARGV[0] and ARGV[1] into full paths.
-  if (ARGV[0].charAt(0) != "/") {
-    ARGV[0] = node.path.join(cwd, ARGV[0]);
+  // Make process.ARGV[0] and process.ARGV[1] into full paths.
+  if (process.ARGV[0].charAt(0) != "/") {
+    process.ARGV[0] = process.path.join(cwd, process.ARGV[0]);
   }
 
-  if (ARGV[1].charAt(0) != "/") {
-    ARGV[1] = node.path.join(cwd, ARGV[1]);
+  if (process.ARGV[1].charAt(0) != "/") {
+    process.ARGV[1] = process.path.join(cwd, process.ARGV[1]);
   }
 
   // Load the root module--the command line argument.
-  node.loadModule(ARGV[1], process);
+  process.loadModule(process.ARGV[1], process);
 }());

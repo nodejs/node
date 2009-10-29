@@ -1,4 +1,4 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 setTimeout(function () {
   a = require("fixtures/a.js");

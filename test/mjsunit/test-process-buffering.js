@@ -1,10 +1,10 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 var pwd_called = false;
 
 function pwd (callback) {
   var output = "";
-  var child = node.createChildProcess("pwd");
+  var child = process.createChildProcess("pwd");
   child.addListener("output", function (s) {
     puts("stdout: " + JSON.stringify(s));
     if (s) output += s;

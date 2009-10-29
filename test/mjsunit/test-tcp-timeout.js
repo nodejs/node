@@ -1,4 +1,4 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 tcp = require("/tcp.js");
 port = 9992;
 exchanges = 0;

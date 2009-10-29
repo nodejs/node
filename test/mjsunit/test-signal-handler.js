@@ -1,4 +1,4 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 puts("process.pid: " + process.pid);
 
@@ -23,7 +23,7 @@ setInterval(function () {
   puts("running process..." + ++i);
 
   if (i == 5) {
-    node.kill(process.pid, "SIGUSR1");
+    process.kill(process.pid, "SIGUSR1");
   }
 }, 1);
 

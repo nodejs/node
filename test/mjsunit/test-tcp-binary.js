@@ -1,4 +1,4 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 tcp = require("/tcp.js");
 PORT = 23123;
 
@@ -14,8 +14,8 @@ for (var i = 255; i >= 0; i--) {
        + " "
        + S.charCodeAt(0)
        );
-  node.assert(S.charCodeAt(0) == i);
-  node.assert(S == String.fromCharCode(i));
+  process.assert(S.charCodeAt(0) == i);
+  process.assert(S == String.fromCharCode(i));
   binaryString += S;
 }
 

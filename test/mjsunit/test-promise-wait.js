@@ -1,7 +1,7 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 var p1_done = false;
-var p1 = new node.Promise();
+var p1 = new process.Promise();
 p1.addCallback(function () {
   assertEquals(1, arguments.length);
   assertEquals("single arg", arguments[0]);
@@ -9,7 +9,7 @@ p1.addCallback(function () {
 });
 
 var p2_done = false;
-var p2 = new node.Promise();
+var p2 = new process.Promise();
 p2.addCallback(function () {
   p2_done = true;
   setTimeout(function () {
@@ -18,7 +18,7 @@ p2.addCallback(function () {
 });
 
 var p3_done = false;
-var p3 = new node.Promise();
+var p3 = new process.Promise();
 p3.addCallback(function () {
   p3_done = true;
 });
@@ -26,7 +26,7 @@ p3.addCallback(function () {
 
 
 var p4_done = false;
-var p4 = new node.Promise();
+var p4 = new process.Promise();
 p4.addCallback(function () {
   assertEquals(3, arguments.length);
   assertEquals("a", arguments[0]);
@@ -36,7 +36,7 @@ p4.addCallback(function () {
 });
 
 var p5_done = false;
-var p5 = new node.Promise();
+var p5 = new process.Promise();
 p5.addCallback(function () {
   p5_done = true;
   setTimeout(function () {

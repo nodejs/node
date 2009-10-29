@@ -1,10 +1,10 @@
-libDir = node.path.join(node.path.dirname(__filename), "../lib");
+libDir = process.path.join(process.path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
-node.mixin(require("/utils.js"));
+process.mixin(require("/utils.js"));
 function next (i) {
   if (i <= 0) return;
 
-  var child = node.createChildProcess("echo", ["hello"]);
+  var child = process.createChildProcess("echo", ["hello"]);
 
   child.addListener("output", function (chunk) {
     if (chunk) print(chunk);

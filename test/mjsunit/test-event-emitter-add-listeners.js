@@ -1,6 +1,6 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
-var e = new node.EventEmitter();
+var e = new process.EventEmitter();
 
 var events_new_listener_emited = [];
 var times_hello_emited = 0;

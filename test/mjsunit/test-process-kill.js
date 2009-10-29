@@ -1,8 +1,8 @@
-node.mixin(require("common.js"));
+process.mixin(require("common.js"));
 
 var exit_status = -1;
 
-var cat = node.createChildProcess("cat");
+var cat = process.createChildProcess("cat");
 
 cat.addListener("output", function (chunk) { assertEquals(null, chunk); });
 cat.addListener("error", function (chunk) { assertEquals(null, chunk); });

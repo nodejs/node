@@ -11,7 +11,7 @@
  *     prototype
  * @param {function} superCtor Constructor function to inherit prototype from
  */
-node.inherits = function (ctor, superCtor) {
+process.inherits = function (ctor, superCtor) {
   var tempCtor = function(){};
   tempCtor.prototype = superCtor.prototype;
   ctor.super_ = superCtor.prototype;
@@ -19,21 +19,21 @@ node.inherits = function (ctor, superCtor) {
   ctor.prototype.constructor = ctor;
 };
 
-node.assert = function (x, msg) {
+process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
 
-node.cat = function(location, encoding) {
+process.cat = function(location, encoding) {
   var url_re = new RegExp("^http:\/\/");
   if (url_re.exec(location)) {
-    throw new Error("node.cat for http urls is temporarally disabled.");
+    throw new Error("process.cat for http urls is temporarally disabled.");
   }
-  //var f = url_re.exec(location) ? node.http.cat : node.fs.cat;
+  //var f = url_re.exec(location) ? process.http.cat : process.fs.cat;
   //return f(location, encoding);
-  return node.fs.cat(location, encoding);
+  return process.fs.cat(location, encoding);
 };
 
-node.path = new function () {
+process.path = new function () {
   this.join = function () {
     var joined = "";
     for (var i = 0; i < arguments.length; i++) {
@@ -81,10 +81,10 @@ p = function () {
   throw new Error("p() has moved. Use require('/sys.js') to bring it back.");
 }
 
-node.debug = function () {
-  throw new Error("node.debug() has moved. Use require('/sys.js') to bring it back.");
+process.debug = function () {
+  throw new Error("process.debug() has moved. Use require('/sys.js') to bring it back.");
 }
 
-node.error = function () {
-  throw new Error("node.error() has moved. Use require('/sys.js') to bring it back.");
+process.error = function () {
+  throw new Error("process.error() has moved. Use require('/sys.js') to bring it back.");
 }
