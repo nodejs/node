@@ -69,7 +69,7 @@ Server running at http://127.0.0.1:8000/</pre>
       </p>
 
       <pre>
-var tcp = require("/tcp.js");
+var tcp = require('tcp');
 var server = tcp.createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
