@@ -1,4 +1,4 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 var exit_status = -1;
 

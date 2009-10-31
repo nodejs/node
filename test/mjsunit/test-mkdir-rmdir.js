@@ -1,8 +1,8 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
-var dirname = process.path.dirname(__filename);
-var fixtures = process.path.join(dirname, "fixtures");
-var d = process.path.join(fixtures, "dir");
+var dirname = path.dirname(__filename);
+var fixtures = path.join(dirname, "fixtures");
+var d = path.join(fixtures, "dir");
 
 var mkdir_error = false;
 var rmdir_error = false;

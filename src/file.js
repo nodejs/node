@@ -1,8 +1,3 @@
-process.fs.exists = function (path, callback) {
-  var p = process.fs.stat(path);
-  p.addCallback(function () { callback(true); });
-  p.addErrback(function () { callback(false); });
-};
 
 process.fs.cat = function (path, encoding) {
   var promise = new process.Promise();

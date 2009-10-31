@@ -1,10 +1,10 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
-var testTxt = process.path.join(fixturesDir, "test.txt");
+var testTxt = path.join(fixturesDir, "test.txt");
 
-var libDir = process.path.join(testDir, "../../lib");
+var libDir = path.join(testDir, "../../lib");
 require.paths.unshift(libDir);
-process.mixin(require("/file.js"));
+process.mixin(require("file"));
 
 var fileUnlinked = false;
 

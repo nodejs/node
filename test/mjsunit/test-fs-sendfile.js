@@ -1,9 +1,9 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
-tcp = require("/tcp.js");
-sys = require("/sys.js");
+tcp = require("tcp");
+sys = require("sys");
 PORT = 23123;
-var x = process.path.join(fixturesDir, "x.txt");
+var x = path.join(fixturesDir, "x.txt");
 var expected = "xyz";
 
 var server = tcp.createServer(function (socket) {

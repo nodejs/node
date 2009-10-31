@@ -1,5 +1,5 @@
-process.mixin(require("common.js"));
-tcp = require("/tcp.js");
+process.mixin(require("./common"));
+tcp = require("tcp");
 
 
 var tests_run = 0;

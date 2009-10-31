@@ -1,5 +1,5 @@
-process.mixin(require("common.js"));
-tcp = require("/tcp.js");
+process.mixin(require("./common"));
+tcp = require("tcp");
 PORT = 20443;
 N = 200;
 

@@ -1,6 +1,6 @@
-process.mixin(require("common.js"));
-tcp = require("/tcp.js");
-http = require("/http.js");
+process.mixin(require("./common"));
+tcp = require("tcp");
+http = require("http");
 
 var port = 8222;
 

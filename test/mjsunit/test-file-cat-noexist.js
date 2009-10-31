@@ -1,7 +1,7 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 var got_error = false;
 
-var filename = process.path.join(fixturesDir, "does_not_exist.txt");
+var filename = path.join(fixturesDir, "does_not_exist.txt");
 var promise = posix.cat(filename, "raw");
 
 promise.addCallback(function (content) {

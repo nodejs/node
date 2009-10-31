@@ -1,5 +1,5 @@
-process.mixin(require("common.js"));
-http = require("/http.js");
+process.mixin(require("./common"));
+http = require("http");
 
 var PROXY_PORT = 8869;
 var BACKEND_PORT = 8870;

@@ -1,10 +1,10 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 debug("load test-module-loading.js");
 
-var a = require("fixtures/a.js");
-var d = require("fixtures/b/d.js");
-var d2 = require("fixtures/b/d.js");
+var a = require("./fixtures/a");
+var d = require("./fixtures/b/d");
+var d2 = require("./fixtures/b/d");
 
 assertFalse(false, "testing the test program.");
 

@@ -16,8 +16,8 @@ An example of a web server written with Node which responds with "Hello
 World": 
 
 ----------------------------------------
-var sys = require("/sys.js"), 
-   http = require("/http.js");
+var sys = require("sys"), 
+   http = require("http");
 http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.sendBody("Hello World\n");
@@ -80,7 +80,7 @@ more information.
                           A listener on this event should not try to perform
                           I/O since the process will forcibly exit in less
                           than microsecond. However, it is a good hook to
-                          perform constant time checks of the module's
+                          perform constant time checks of the module"s
                           state (like for unit tests).
                           +
                           The parameter +code+ is the integer exit code
@@ -126,11 +126,12 @@ copy, recursively copying any objects it finds. Otherwise, the copy will
 share structure with the original object(s).
 +
 Undefined properties are not copied. However, properties inherited from the
-object's prototype will be copied over.
+object"s prototype will be copied over.
 
 === System module
 
-These function are in +"/sys.js"+. Use +require("/sys.js")+ to access them.
+These function are in the module +"sys"+. Use +require("sys")+ to access
+them.
 
 +puts(string)+::
 Outputs the +string+ and a trailing new-line to +stdout+.
@@ -150,7 +151,7 @@ Executes the command as a child process, buffers the output and returns it
 in a promise callback.
 +
 ----------------------------------------
-var sys = require("/sys.js");
+var sys = require("sys");
 sys.exec("ls /").addCallback(function (stdout, stderr) {
   puts(stdout);
 });
@@ -235,7 +236,7 @@ Adds a listener for the +"cancel"+ event. Returns the same promise object.
 If you created the promise (by doing +new process.Promise()+) then call
 +emitSuccess+ to emit the +"success"+ event with the given arguments. 
 +
-(+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
+(+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn"t at
 the moment due to a bug; use +emitSuccess+ instead.)
 
 +promise.emitError(arg1, arg2, ...)+ ::
@@ -261,7 +262,7 @@ To tell apart a timeout from a regular "error" event, use the following test:
 +
 ----------------------------------------
 promise.addErrback(function(e) {
-  if (e instanceof Error && e.message === 'timeout') {
+  if (e instanceof Error && e.message === "timeout") {
     // handle timeout
   } else {
     // handle regular error
@@ -286,7 +287,7 @@ If +"error"+ was emitted instead, +wait()+ throws an error.
 +
 *IMPORTANT* +promise.wait()+ is not a true fiber/coroutine. If any other
 promises are created and made to wait while the first promise waits, the
-first promise's wait will not return until all others return. The benefit of
+first promise"s wait will not return until all others return. The benefit of
 this is a simple implementation and the event loop does not get blocked.
 Disadvantage is the possibility of situations where the promise stack grows
 infinitely large because promises keep getting created and keep being told
@@ -328,15 +329,17 @@ Close stdin.
 
 === Modules
 
+Node uses the CommonJS module system
+
 Node has a simple module loading system.  In Node, files and modules are in
 one-to-one correspondence.  As an example, +foo.js+ loads the module
-+circle.js+.
++circle.js+ in the same directory.
 
 The contents of +foo.js+:
 
 ----------------------------------------
-var circle = require("circle.js"),
-       sys = require("/sys.js");
+var circle = require("./circle"),
+var sys = require("sys");
 sys.puts("The area of a circle of radius 4 is " + circle.area(4));
 ----------------------------------------
 
@@ -358,42 +361,56 @@ The module +circle.js+ has exported the functions +area()+ and
 +circumference()+.  To export an object, add to the special +exports+
 object.  (Alternatively, one can use +this+ instead of +exports+.) Variables
 local to the module will be private. In this example the variable +PI+ is
-private to +circle.js+. The function +puts()+ comes from the module
-+"/sys.js"+.
+private to +circle.js+. The function +puts()+ comes from the module +"sys"+,
+which is a built-in module. Modules which are not prefixed by +"./"+ are
+built-in module--more about this later.
 
-The module path is relative to the file calling +require()+.  That is,
-+circle.js+ must be in the same directory as +foo.js+ for +require()+ to
-find it.
+A module prefixed with +"./"+ is relative to the file calling +require()+.
+That is, +circle.js+ must be in the same directory as +foo.js+ for
++require("./circle")+ to find it.
+
+Without the leading +"./"+, like +require("mjsunit")+ the module is searched
+for in the +require.paths+ array. +require.paths+ on my system looks like
+this: 
+
+----------------------------------------
+[ "/home/ryan/.node_libraries"
+, "/usr/local/lib/node/libraries" 
+]
+----------------------------------------
+
+That is, when +require("mjsunit")+ is called Node looks for 
+
+  1. +"/home/ryan/.node_libraries/mjsunit.js"+ 
+
+  2. +"/home/ryan/.node_libraries/mjsunit.node"+ 
+
+  3. +"/home/ryan/.node_libraries/mjsunit/index.js"+ 
+
+  4. +"/home/ryan/.node_libraries/mjsunit/index.node"+ 
+
+  5. +"/usr/local/lib/node/libraries/mjsunit.js"+ 
+
+  6. +"/usr/local/lib/node/libraries/mjsunit.node"+ 
+
+  7. +"/usr/local/lib/node/libraries/mjsunit/index.js"+ 
+
+  8. +"/usr/local/lib/node/libraries/mjsunit/index.node"+ 
+
+interrupting once a file is found. Files ending in +".node"+ are binary Addon
+Modules; see the section below about addons. +"index.js"+ allows one to
+package a module as a directory.
+
++require.paths+ can be modified at runtime by simply unshifting new
+paths on to it and at startup with the +NODE_PATH+ environmental
+variable (which should be a list of paths, colon separated).
 
 Use +process.mixin()+ to include modules into the global namespace.
 
 ----------------------------------------
-process.mixin(process, require("circle.js"), require("/sys.js"));
+process.mixin(GLOBAL, require("./circle"), require("sys"));
 puts("The area of a cirlce of radius 4 is " + area(4));
 ----------------------------------------
-
-When an absolute path is given to +require()+, like
-+require("/mjsunit.js")+ the module is searched for in the
-+require.paths+ array. +require.paths+ on my system looks like this: 
-
-----------------------------------------
-[ "/home/ryan/.node_libraries"
-, "/home/ryan/local/node/lib/node_libraries" 
-, "/"
-]
-----------------------------------------
-
-That is, first Node looks for +"/home/ryan/.node_libraries/mjsunit.js"+ and
-then for +"/home/ryan/local/node/lib/node_libraries/mjsunit.js"+. If not
-found, it finally looks for +"/mjsunit.js"+ (in the root directory).
-
-+require.paths+ can be modified at runtime by simply unshifting new
-paths on to it and at startup with the +NODE_LIBRARY_PATHS+ environmental
-variable (which should be a list of paths, colon separated).
-
-Node comes with several libraries which are installed when +"make install"+
-is run. These are currently undocumented, but do look them up in your
-system.
 
 
 
@@ -422,7 +439,7 @@ Stops a interval from triggering.
 === Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
-+process.ChildProcess+. It is possible to stream data through the child's +stdin+,
++process.ChildProcess+. It is possible to stream data through the child"s +stdin+,
 +stdout+, and +stderr+ in a fully non-blocking way.
 
 ==== +process.ChildProcess+
@@ -468,13 +485,13 @@ The PID of the child process.
 
 
 +child.write(data, encoding="ascii")+ ::
-Write data to the child process's +stdin+. The second argument is optional and
+Write data to the child process"s +stdin+. The second argument is optional and
 specifies the encoding: possible values are +"utf8"+, +"ascii"+, and
 +"binary"+.
 
 
 +child.close()+ ::
-Closes the process's +stdin+ stream.
+Closes the process"s +stdin+ stream.
 
 
 +child.kill(signal="SIGTERM")+ ::
@@ -486,14 +503,14 @@ will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
 === POSIX module
 
 File I/O is provided by simple wrappers around standard POSIX functions.  To
-use this module do +require("/posix.js")+. 
+use this module do +require("posix")+. 
 
 All POSIX wrappers have a similar form.  They return a promise
 (+process.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
-var posix = require("/posix.js"),
-      sys = require("/sys.js");
+var posix = require("posix"),
+      sys = require("sys");
 
 var promise = posix.unlink("/tmp/hello");
 
@@ -638,7 +655,7 @@ Objects returned from +posix.stat()+ are of this type.
 
 === HTTP
 
-To use the HTTP server and client one must +require("/http.js")+.
+To use the HTTP server and client one must +require("http")+.
 
 The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -656,7 +673,7 @@ HTTP message headers are represented by an object like this
 }
 ----------------------------------------
 
-In order to support the full spectrum of possible HTTP applications, Node's
+In order to support the full spectrum of possible HTTP applications, Node"s
 HTTP API is very low-level. It deals with connection handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body. 
@@ -819,7 +836,7 @@ higher-level multi-part body encodings that may be used.
 +
 The first time +sendBody+ is called, it will send the buffered header
 information and the first body to the client. The second time
-+sendBody+ is called, Node assumes you're going to be streaming data, and
++sendBody+ is called, Node assumes you"re going to be streaming data, and
 sends that seperately. That is, the response is buffered up to the
 first chunk of body.
 
@@ -1003,13 +1020,13 @@ After emitted no other events will be emitted on the response.
 === Multipart Parsing
 
 A library to parse HTTP requests with +multipart/form-data+ is included with
-Node.  To use it, +require("/multipart.js")+.
+Node.  To use it, +require("multipart")+.
 
 +multipart.parse(options)+ ::
   - on success: Returns an object where each key holds the value of one part of
                 the stream. +options+ can either be an instance of
-                +http.ServerRequest+ or an object containing a 'boundary' and a
-                'data' key.
+                +http.ServerRequest+ or an object containing a "boundary" and a
+                "data" key.
   - on error: no parameters.
 
 ==== +multipart.Stream+
@@ -1017,24 +1034,24 @@ Node.  To use it, +require("/multipart.js")+.
 Here is an example for parsing a +multipart/form-data+ request:
 
 ----------------------------------------
-var multipart = require('/multipart.js');
+var multipart = require("multipart");
 var stream = new multipart.Stream(options);
 var parts = {};
 
-stream.addListener('part', function (part) {
-  var name = part.headers['Content-Disposition'].name;
-  var buffer = '';
+stream.addListener("part", function (part) {
+  var name = part.headers["Content-Disposition"].name;
+  var buffer = "";
 
-  part.addListener('body', function(chunk) {
+  part.addListener("body", function(chunk) {
     buffer = buffer + chunk;
   });
 
-  part.addListener('complete', function() {
+  part.addListener("complete", function() {
     parts[name] = buffer;
   });
 });
 
-stream.addListener('complete', function() {
+stream.addListener("complete", function() {
   // The parts object now contains all parts and data
 });
 ----------------------------------------
@@ -1060,7 +1077,7 @@ stream.addListener('complete', function() {
 
 === TCP
 
-To use the TCP server and client one must +require("/tcp.js")+.
+To use the TCP server and client one must +require("tcp")+.
 
 ==== +tcp.Server+
 
@@ -1068,7 +1085,7 @@ Here is an example of a echo server which listens for connections
 on port 7000
 
 ----------------------------------------
-var tcp = require("/tcp.js");
+var tcp = require("tcp");
 var server = tcp.createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
@@ -1222,13 +1239,13 @@ immediately fire off data each time +connection.send()+ is called.
 
 === DNS module
 
-Use +require("/dns.js")+ to access this module
+Use +require("dns")+ to access this module
 
 Here is an example of which resolves +"www.google.com"+ then reverse
 resolves the IP addresses which are returned.
 
 -------------------------------------------------------------------------
-var dns = require("/dns.js");
+var dns = require("dns");
 
 var resolution = dns.resolve4("www.google.com");
 
@@ -1298,7 +1315,7 @@ A Read-Eval-Print-Loop is available both as a standalone program and easily
 includable in other programs. 
 
 The standalone REPL is called +node-repl+ and is installed at
-+$PREFIX/bin/node-repl+. It's recommended to use it with the program
++$PREFIX/bin/node-repl+. It"s recommended to use it with the program
 +rlwrap+ for a better user interface. I set 
 ------------------------------------
 alias node-repl="rlwrap node-repl"
@@ -1310,9 +1327,9 @@ result of the last expression.
 
 The library is called +/repl.js+ and it can be used like this:
 ------------------------------------
-var sys = require("/sys.js"),
-    tcp = require("/tcp.js"),
-   repl = require("/repl.js");
+var sys = require("sys"),
+    tcp = require("tcp"),
+   repl = require("repl");
 nconnections = 0;
 tcp.createServer(function (c) {
   sys.error("Connection!");
@@ -1351,10 +1368,10 @@ knowledge of several libraries:
  - Others. Look in +deps/+ for what else is available. 
 
 Node statically compiles all its dependencies into the executable. When
-compiling your module, you don't need to worry about linking to any of these
+compiling your module, you don"t need to worry about linking to any of these
 libraries. 
 
-To get started let's make a small Addon which does the following except in
+To get started let"s make a small Addon which does the following except in
 C++:
 -----------------------------------------------------
 exports.hello = "world";
@@ -1378,20 +1395,20 @@ This source code needs to be built into +hello.node+, the binary Addon. To
 do this we create a file called +wscript+ which is python code and looks
 like this:
 -----------------------------------------------------
-srcdir = '.'
-blddir = 'build'
-VERSION = '0.0.1'
+srcdir = "."
+blddir = "build"
+VERSION = "0.0.1"
 
 def set_options(opt):
-  opt.tool_options('compiler_cxx')
+  opt.tool_options("compiler_cxx")
 
 def configure(conf):
-  conf.check_tool('compiler_cxx')
-  conf.check_tool('node_addon')
+  conf.check_tool("compiler_cxx")
+  conf.check_tool("node_addon")
 
 def build(bld):
-  obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
-  obj.target = 'hello'
+  obj = bld.new_task_gen("cxx", "shlib", "node_addon")
+  obj.target = "hello"
   obj.source = "hello.cc"
 -----------------------------------------------------
 Running +node-waf configure build+ will create a file

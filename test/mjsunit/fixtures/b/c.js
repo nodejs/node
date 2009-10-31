@@ -1,4 +1,10 @@
-var d = require("d.js");
+var d = require("./d");
+
+var mjsunit = require("mjsunit");
+
+var package = require("./package");
+
+mjsunit.assertEquals("world", package.hello);
 
 debug("load fixtures/b/c.js");
 

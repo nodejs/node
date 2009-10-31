@@ -1,4 +1,4 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 puts("process.pid: " + process.pid);
 

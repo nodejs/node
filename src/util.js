@@ -33,58 +33,5 @@ process.cat = function(location, encoding) {
   return process.fs.cat(location, encoding);
 };
 
-process.path = new function () {
-  this.join = function () {
-    var joined = "";
-    for (var i = 0; i < arguments.length; i++) {
-      var part = arguments[i].toString();
-
-      /* Some logic to shorten paths */
-      if (part === ".") continue;
-      while (/^\.\//.exec(part)) part = part.replace(/^\.\//, "");
-
-      if (i === 0) {
-        part = part.replace(/\/*$/, "/");
-      } else if (i === arguments.length - 1) {
-        part = part.replace(/^\/*/, "");
-      } else {
-        part = part.replace(/^\/*/, "").replace(/\/*$/, "/");
-      }
-      joined += part;
-    }
-    return joined;
-  };
-
-  this.dirname = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts.slice(0, parts.length-1).join("/");
-  };
-
-  this.filename = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts[parts.length-1];
-  };
-};
 
 
-puts = function () {
-  throw new Error("puts() has moved. Use require('/sys.js') to bring it back.");
-}
-
-print = function () {
-  throw new Error("print() has moved. Use require('/sys.js') to bring it back.");
-}
-
-p = function () {
-  throw new Error("p() has moved. Use require('/sys.js') to bring it back.");
-}
-
-process.debug = function () {
-  throw new Error("process.debug() has moved. Use require('/sys.js') to bring it back.");
-}
-
-process.error = function () {
-  throw new Error("process.error() has moved. Use require('/sys.js') to bring it back.");
-}

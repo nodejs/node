@@ -1,4 +1,4 @@
-var c = require("b/c.js");
+var c = require("./b/c");
 
 debug("load fixtures/a.js");
 

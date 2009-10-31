@@ -1,7 +1,7 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 setTimeout(function () {
-  a = require("fixtures/a.js");
+  a = require("./fixtures/a");
 }, 50);
 
 process.addListener("exit", function () {

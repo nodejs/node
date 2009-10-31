@@ -1,5 +1,5 @@
-process.mixin(require("common.js"));
-http = require("/http.js");
+process.mixin(require("./common"));
+http = require("http");
 PORT = 8888;
 
 var responses_sent = 0;

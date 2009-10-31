@@ -1,4 +1,4 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 function timer (t) {
   var promise = new process.Promise();

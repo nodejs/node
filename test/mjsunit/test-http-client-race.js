@@ -1,5 +1,5 @@
-process.mixin(require("common.js"));
-http = require("/http.js");
+process.mixin(require("./common"));
+http = require("http");
 PORT = 8888;
 
 var body1_s = "1111111111111111";

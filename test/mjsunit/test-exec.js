@@ -1,4 +1,4 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 success_count = 0;
 error_count = 0;

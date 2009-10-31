@@ -1,4 +1,4 @@
-process.mixin(require("common.js"));
+process.mixin(require("./common"));
 
 var p1_done = false;
 var p1 = new process.Promise();

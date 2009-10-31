@@ -1,8 +1,8 @@
-process.mixin(require("common.js"));
-http = require("/http.js");
+process.mixin(require("./common"));
+http = require("http");
 
-var multipart = require('/multipart.js');
-var fixture = require('fixtures/multipart.js');
+var multipart = require('multipart');
+var fixture = require('./fixtures/multipart');
 
 var port = 8222;
 var parts_reveived = 0;
