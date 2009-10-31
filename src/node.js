@@ -2,52 +2,68 @@
 
 // deprecation errors
 
+GLOBAL.__module = function () {
+  throw new Error("'__module' has been renamed to 'module'");
+};
+
 GLOBAL.include = function () {
-  throw new Error("include() has been removed. Use process.mixin(process, require(file)) to get the same effect.");
+  throw new Error("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
 };
 
 GLOBAL.puts = function () {
-  throw new Error("puts() has moved. Use require('/sys.js') to bring it back.");
+  throw new Error("puts() has moved. Use require('sys') to bring it back.");
 }
 
 GLOBAL.print = function () {
-  throw new Error("print() has moved. Use require('/sys.js') to bring it back.");
+  throw new Error("print() has moved. Use require('sys') to bring it back.");
 }
 
 GLOBAL.p = function () {
-  throw new Error("p() has moved. Use require('/sys.js') to bring it back.");
+  throw new Error("p() has moved. Use require('sys') to bring it back.");
 }
 
 process.debug = function () {
-  throw new Error("process.debug() has moved. Use require('/sys.js') to bring it back.");
+  throw new Error("process.debug() has moved. Use require('sys') to bring it back.");
 }
 
 process.error = function () {
-  throw new Error("process.error() has moved. Use require('/sys.js') to bring it back.");
+  throw new Error("process.error() has moved. Use require('sys') to bring it back.");
 }
 
-process.tcp.createServer = function () {
-  throw new Error("process.tcp.createServer() has moved. Use require('/tcp.js') to access it.");
+GLOBAL.node = {};
+
+node.createProcess = function () {
+  throw new Error("node.createProcess() has been changed to process.createChildProcess() update your code");
 };
 
-process.createProcess = function () {
-  throw new Error("process.createProcess() has been changed to process.createChildProcess() update your code");
+node.exec = function () {
+  throw new Error("process.exec() has moved. Use require('sys') to bring it back.");
 };
 
-process.exec = function () {
-  throw new Error("process.exec() has moved. Use require('/sys.js') to bring it back.");
-}
+node.http = {};
 
-process.http.createServer = function () {
-  throw new Error("process.http.createServer() has moved. Use require('/http.js') to access it.");
-}
+node.http.createServer = function () {
+  throw new Error("node.http.createServer() has moved. Use require('http') to access it.");
+};
 
-process.http.createClient = function () {
-  throw new Error("process.http.createClient() has moved. Use require('/http.js') to access it.");
-}
+node.http.createClient = function () {
+  throw new Error("node.http.createClient() has moved. Use require('http') to access it.");
+};
 
-process.tcp.createConnection = function (port, host) {
-  throw new Error("process.tcp.createConnection() has moved. Use require('/tcp.js') to access it.");
+node.tcp = {};
+
+node.tcp.createServer = function () {
+  throw new Error("node.tcp.createServer() has moved. Use require('tcp') to access it.");
+};
+
+node.tcp.createConnection = function () {
+  throw new Error("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
+};
+
+node.dns = {};
+
+node.dns.createConnection = function () {
+  throw new Error("node.dns.createConnection() has moved. Use require('dns') to access it.");
 };
 
 
