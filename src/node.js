@@ -323,11 +323,6 @@ function loadModule (request, parent) {
   // This is the promise which is actually returned from require.async()
   var loadPromise = new process.Promise();
 
-  loadPromise.addErrback(function (e) {
-    process.stdio.writeError(e.message + "\n");
-    process.exit(1);
-  });
-
   debug("loadModule REQUEST  " + JSON.stringify(request) + " parent: " + JSON.stringify(parent));
 
   var id, paths;
