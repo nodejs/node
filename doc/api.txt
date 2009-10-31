@@ -80,7 +80,7 @@ more information.
                           A listener on this event should not try to perform
                           I/O since the process will forcibly exit in less
                           than microsecond. However, it is a good hook to
-                          perform constant time checks of the module"s
+                          perform constant time checks of the module's
                           state (like for unit tests).
                           +
                           The parameter +code+ is the integer exit code
@@ -126,7 +126,7 @@ copy, recursively copying any objects it finds. Otherwise, the copy will
 share structure with the original object(s).
 +
 Undefined properties are not copied. However, properties inherited from the
-object"s prototype will be copied over.
+object's prototype will be copied over.
 
 === System module
 
@@ -236,7 +236,7 @@ Adds a listener for the +"cancel"+ event. Returns the same promise object.
 If you created the promise (by doing +new process.Promise()+) then call
 +emitSuccess+ to emit the +"success"+ event with the given arguments. 
 +
-(+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn"t at
+(+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
 the moment due to a bug; use +emitSuccess+ instead.)
 
 +promise.emitError(arg1, arg2, ...)+ ::
@@ -287,7 +287,7 @@ If +"error"+ was emitted instead, +wait()+ throws an error.
 +
 *IMPORTANT* +promise.wait()+ is not a true fiber/coroutine. If any other
 promises are created and made to wait while the first promise waits, the
-first promise"s wait will not return until all others return. The benefit of
+first promise's wait will not return until all others return. The benefit of
 this is a simple implementation and the event loop does not get blocked.
 Disadvantage is the possibility of situations where the promise stack grows
 infinitely large because promises keep getting created and keep being told
@@ -439,7 +439,7 @@ Stops a interval from triggering.
 === Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
-+process.ChildProcess+. It is possible to stream data through the child"s +stdin+,
++process.ChildProcess+. It is possible to stream data through the child's +stdin+,
 +stdout+, and +stderr+ in a fully non-blocking way.
 
 ==== +process.ChildProcess+
@@ -485,13 +485,13 @@ The PID of the child process.
 
 
 +child.write(data, encoding="ascii")+ ::
-Write data to the child process"s +stdin+. The second argument is optional and
+Write data to the child process's +stdin+. The second argument is optional and
 specifies the encoding: possible values are +"utf8"+, +"ascii"+, and
 +"binary"+.
 
 
 +child.close()+ ::
-Closes the process"s +stdin+ stream.
+Closes the process's +stdin+ stream.
 
 
 +child.kill(signal="SIGTERM")+ ::
@@ -836,7 +836,7 @@ higher-level multi-part body encodings that may be used.
 +
 The first time +sendBody+ is called, it will send the buffered header
 information and the first body to the client. The second time
-+sendBody+ is called, Node assumes you"re going to be streaming data, and
++sendBody+ is called, Node assumes you're going to be streaming data, and
 sends that seperately. That is, the response is buffered up to the
 first chunk of body.
 
@@ -1315,7 +1315,7 @@ A Read-Eval-Print-Loop is available both as a standalone program and easily
 includable in other programs. 
 
 The standalone REPL is called +node-repl+ and is installed at
-+$PREFIX/bin/node-repl+. It"s recommended to use it with the program
++$PREFIX/bin/node-repl+. It's recommended to use it with the program
 +rlwrap+ for a better user interface. I set 
 ------------------------------------
 alias node-repl="rlwrap node-repl"
@@ -1368,10 +1368,10 @@ knowledge of several libraries:
  - Others. Look in +deps/+ for what else is available. 
 
 Node statically compiles all its dependencies into the executable. When
-compiling your module, you don"t need to worry about linking to any of these
+compiling your module, you don't need to worry about linking to any of these
 libraries. 
 
-To get started let"s make a small Addon which does the following except in
+To get started let's make a small Addon which does the following except in
 C++:
 -----------------------------------------------------
 exports.hello = "world";
