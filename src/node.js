@@ -181,8 +181,8 @@ function debug (x) {
 
 
 // private constructor
-function Module (name, parent) {
-  this.name = name;
+function Module (id, parent) {
+  this.id = id;
   this.exports = {};
   this.parent = parent;
 
@@ -195,19 +195,19 @@ function Module (name, parent) {
 
 var moduleCache = {};
 
-function createModule (name, parent) {
-  if (name in moduleCache) {
-    debug("found " + JSON.stringify(name) + " in cache");
-    return moduleCache[name];
+function createModule (id, parent) {
+  if (id in moduleCache) {
+    debug("found " + JSON.stringify(id) + " in cache");
+    return moduleCache[id];
   }
-  debug("didn't found " + JSON.stringify(name) + " in cache. creating new module");
-  var m = new Module(name, parent);
-  moduleCache[name] = m;
+  debug("didn't found " + JSON.stringify(id) + " in cache. creating new module");
+  var m = new Module(id, parent);
+  moduleCache[id] = m;
   return m;
 };
 
-function createInternalModule (name, constructor) {
-  var m = createModule(name);
+function createInternalModule (id, constructor) {
+  var m = createModule(id);
   constructor(m.exports);
   m.loaded = true;
   return m;
@@ -270,10 +270,10 @@ if (process.ENV["NODE_PATH"]) {
 }
 
 
-function findModulePath (name, dirs, callback) {
+function findModulePath (id, dirs, callback) {
   process.assert(dirs.constructor == Array);
 
-  if (/.(js|node)$/.exec(name)) {
+  if (/.(js|node)$/.exec(id)) {
     throw new Error("No longer accepting filename extension in module names");
   }
 
@@ -285,10 +285,10 @@ function findModulePath (name, dirs, callback) {
   var dir = dirs[0];
   var rest = dirs.slice(1, dirs.length);
 
-  var js         = path.join(dir, name + ".js");
-  var addon      = path.join(dir, name + ".node");
-  var indexJs    = path.join(dir, name, "index.js");
-  var indexAddon = path.join(dir, name, "index.addon");
+  var js         = path.join(dir, id + ".js");
+  var addon      = path.join(dir, id + ".node");
+  var indexJs    = path.join(dir, id, "index.js");
+  var indexAddon = path.join(dir, id, "index.addon");
 
   // TODO clean up the following atrocity!
  
@@ -312,7 +312,7 @@ function findModulePath (name, dirs, callback) {
             callback(indexAddon);
             return;
           }
-          findModulePath(name, rest, callback);  
+          findModulePath(id, rest, callback);
         });
       });
     });
@@ -330,31 +330,31 @@ function loadModule (request, parent) {
 
   debug("loadModule REQUEST  " + JSON.stringify(request) + " parent: " + JSON.stringify(parent));
 
-  var name, paths;
+  var id, paths;
   if (request.charAt(0) == "." && request.charAt(1) == "/") {
     // Relative request
-    name = path.join(path.dirname(parent.name), request);
+    id = path.join(path.dirname(parent.id), request);
     paths = [path.dirname(parent.filename)];
   } else {
-    name = request;
+    id = request;
     paths = modulePaths;
   }
 
-  if (name in moduleCache) {
-    debug("found  " + JSON.stringify(name) + " in cache");
+  if (id in moduleCache) {
+    debug("found  " + JSON.stringify(id) + " in cache");
     // In cache
-    var module = moduleCache[name];
+    var module = moduleCache[id];
     setTimeout(function () {
       loadPromise.emitSuccess(module.exports);
     }, 0);
   } else {
-    debug("looking for " + JSON.stringify(name) + " in " + JSON.stringify(paths));
+    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
     // Not in cache
     findModulePath(request, paths, function (filename) {
       if (!filename) {
         loadPromise.emitError(new Error("Cannot find module '" + request + "'"));
       } else {
-        var module = createModule(name, parent); 
+        var module = createModule(id, parent);
         module.load(filename, loadPromise);
       }
     });
@@ -364,7 +364,7 @@ function loadModule (request, parent) {
 };
 
 Module.prototype.load = function (filename, loadPromise) {
-  debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.name));
+  debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
   process.assert(!this.loaded);
   process.assert(!this.loadPromise);

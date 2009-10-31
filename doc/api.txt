@@ -64,9 +64,9 @@ The search path for absolute path arguments to +require()+.
 +__filename+ ::
 The filename of the script being executed.
 
-+__module+ ::
++module+ ::
 A reference to the current module (of type +process.Module+). In particular
-+__module.exports+ is the same as the +exports+ object. See +src/process.js+ for
++module.exports+ is the same as the +exports+ object. See +src/process.js+ for
 more information.
 
 
