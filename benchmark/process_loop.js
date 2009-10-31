@@ -1,6 +1,7 @@
-libDir = process.path.join(process.path.dirname(__filename), "../lib");
+var path = require("path");
+libDir = path.join(path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
-process.mixin(require("/utils.js"));
+process.mixin(require("sys"));
 function next (i) {
   if (i <= 0) return;
 

@@ -1,6 +1,7 @@
-libDir = process.path.join(process.path.dirname(__filename), "../lib");
+var path = require("path");
+libDir = path.join(path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
-http = require("/http.js");
+http = require("http");
 var concurrency = 30;
 var port = 8000;
 var n = 700;
