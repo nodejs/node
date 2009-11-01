@@ -288,6 +288,11 @@ if (process.ENV["NODE_PATH"]) {
 function findModulePath (id, dirs, callback) {
   process.assert(dirs.constructor == Array);
 
+  if (/^https?:\/\//.exec(id)) {
+    callback(id);
+    return;
+  }
+
   if (/.(js|node)$/.exec(id)) {
     throw new Error("No longer accepting filename extension in module names");
   }
@@ -402,7 +407,24 @@ Module.prototype.loadObject = function (filename, loadPromise) {
 
 Module.prototype.loadScript = function (filename, loadPromise) {
   var self = this;
-  var catPromise = process.cat(filename);
+  if (filename.match(/^http:\/\//)) {
+    var catPromise = new process.Promise();
+    loadModule('http', this)
+      .addCallback(function(http) {
+        http.cat(filename)
+          .addCallback(function(content) {
+            catPromise.emitSuccess(content);
+          })
+          .addErrback(function() {
+            catPromise.emitError.apply(null, arguments);
+          });
+      })
+      .addErrback(function() {
+        loadPromise.emitError(new Error("could not load core module \"http\""));
+      });
+  } else {
+    var catPromise = process.cat(filename);
+  }
 
   catPromise.addErrback(function () {
     loadPromise.emitError(new Error("Error reading " + filename));
@@ -468,7 +490,7 @@ if (process.ARGV[0].charAt(0) != "/") {
   process.ARGV[0] = path.join(cwd, process.ARGV[0]);
 }
 
-if (process.ARGV[1].charAt(0) != "/") {
+if (process.ARGV[1].charAt(0) != "/" && !/^http:\/\//.exec(process.ARGV[1])) {
   process.ARGV[1] = path.join(cwd, process.ARGV[1]);
 }
 
