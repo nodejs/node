@@ -305,38 +305,34 @@ function findModulePath (id, dirs, callback) {
   var dir = dirs[0];
   var rest = dirs.slice(1, dirs.length);
 
-  var js         = path.join(dir, id + ".js");
-  var addon      = path.join(dir, id + ".node");
-  var indexJs    = path.join(dir, id, "index.js");
-  var indexAddon = path.join(dir, id, "index.addon");
+  if (id.charAt(0) == '/') {
+    dir = '';
+    rest = [];
+  }
 
-  // TODO clean up the following atrocity!
- 
-  path.exists(js, function (found) {
-    if (found) {
-      callback(js);
+  var locations = [
+    path.join(dir, id + ".js"),
+    path.join(dir, id + ".node"),
+    path.join(dir, id, "index.js"),
+    path.join(dir, id, "index.addon"),
+  ];
+
+  var searchLocations = function() {
+    var location = locations.shift();
+    if (location === undefined) {
+      findModulePath(id, rest, callback);
       return;
     }
-    path.exists(addon, function (found) {
+
+    path.exists(location, function (found) {
       if (found) {
-        callback(addon);
+        callback(location);
         return;
       }
-      path.exists(indexJs, function (found) {
-        if (found) {
-          callback(indexJs);
-          return;
-        }
-        path.exists(indexAddon, function (found) {
-          if (found) {
-            callback(indexAddon);
-            return;
-          }
-          findModulePath(id, rest, callback);
-        });
-      });
-    });
-  });
+      searchLocations();
+    })
+  };
+  searchLocations();
 }
 
 function loadModule (request, parent) {

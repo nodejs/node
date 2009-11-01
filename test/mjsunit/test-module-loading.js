@@ -5,6 +5,7 @@ debug("load test-module-loading.js");
 var a = require("./fixtures/a");
 var d = require("./fixtures/b/d");
 var d2 = require("./fixtures/b/d");
+var d3 = require(require('path').dirname(__filename)+"/fixtures/b/d");
 
 assertFalse(false, "testing the test program.");
 
@@ -22,6 +23,9 @@ assertEquals("D", d.D());
 
 assertInstanceof(d2.D, Function);
 assertEquals("D", d2.D());
+
+assertInstanceof(d3.D, Function);
+assertEquals("D", d3.D());
 
 process.addListener("exit", function () {
   assertInstanceof(a.A, Function);
