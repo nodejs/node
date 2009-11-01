@@ -273,16 +273,15 @@ var pathModule = createInternalModule("path", function (exports) {
 var path = pathModule.exports;
 
 
-
-var modulePaths = [ path.join(process.installPrefix, "lib/node/libraries")
-                  ];
+process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
+               ];
  
 if (process.ENV["HOME"]) {
-  modulePaths.unshift(path.join(process.ENV["HOME"], ".node_libraries"));
+  process.paths.unshift(path.join(process.ENV["HOME"], ".node_libraries"));
 }
 
 if (process.ENV["NODE_PATH"]) {
-  modulePaths = process.ENV["NODE_PATH"].split(":").concat(modulePaths);
+  process.paths = process.ENV["NODE_PATH"].split(":").concat(process.paths);
 }
 
 
@@ -348,7 +347,7 @@ function loadModule (request, parent) {
     paths = [path.dirname(parent.filename)];
   } else {
     id = request;
-    paths = modulePaths;
+    paths = process.paths;
   }
 
   if (id in moduleCache) {
@@ -421,7 +420,7 @@ Module.prototype.loadScript = function (filename, loadPromise) {
       return requireAsync(url).wait();
     }
 
-    require.paths = modulePaths;
+    require.paths = process.paths;
     require.async = requireAsync;
 
     // create wrapper function
