@@ -860,14 +860,16 @@ connection. _Currently the implementation does not pipeline requests._
 Example of connecting to +google.com+
 
 ----------------------------------------
-var google = http.createClient(80, "google.com");
-var request = google.get("/");
+var sys = require("sys"),
+   http = require("http");
+var google = http.createClient(80, "www.google.com");
+var request = google.get("/", {"host": "www.google.com"});
 request.finish(function (response) {
-  puts("STATUS: " + response.statusCode);
-  puts("HEADERS: " + JSON.stringify(response.headers));
+  sys.puts("STATUS: " + response.statusCode);
+  sys.puts("HEADERS: " + JSON.stringify(response.headers));
   response.setBodyEncoding("utf8");
   response.addListener("body", function (chunk) {
-    puts("BODY: " + chunk);
+    sys.puts("BODY: " + chunk);
   });
 });
 ----------------------------------------
