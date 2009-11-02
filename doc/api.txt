@@ -99,6 +99,9 @@ An object containing the user environment. See environ(7).
 +process.pid+ ::
 The PID of the process.
 
++process.platform+ ::
+What platform you're running on. +"linux2"+, +"darwin"+, etc.
+
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
 success code 0.

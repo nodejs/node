@@ -428,10 +428,15 @@ static Local<Object> Load(int argc, char *argv[]) {
   Local<Object> global = Context::GetCurrent()->Global();
   global->Set(String::NewSymbol("process"), process);
 
-  // node.version
+  // process.version
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
-  // node.installPrefix
+  // process.installPrefix
   process->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
+
+  // process.platform
+#define xstr(s) str(s)
+#define str(s) #s
+  process->Set(String::NewSymbol("platform"), String::New(xstr(PLATFORM)));
 
   // process.ARGV
   int i, j;
