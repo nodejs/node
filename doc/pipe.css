@@ -7,6 +7,9 @@ body {
   max-width: 30em;
   margin: 0 0 5em 9em;
 }
+img {
+  padding: 5em 0;
+}
 #toc {
   position: fixed;
   top: 2em;
