@@ -342,7 +342,7 @@ function loadModule (request, parent) {
   debug("loadModule REQUEST  " + JSON.stringify(request) + " parent: " + JSON.stringify(parent));
 
   var id, paths;
-  if (request.charAt(0) == "." && request.charAt(1) == "/") {
+  if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
     id = path.join(path.dirname(parent.id), request);
     paths = [path.dirname(parent.filename)];
