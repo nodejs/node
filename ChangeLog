@@ -1,4 +1,29 @@
-2009.10.28, Version 0.1.15
+2009.11.03, Version 0.1.16 
+
+  * API: Use CommonJS-style module requiring
+    - require("/sys.js") becomes require("sys")
+    - require("circle.js") becomes require("./circle")
+    - process.path.join() becomes require("path").join()
+    - __module becomes module
+
+  * API: Many namespacing changes
+    - Move node.* into process.* 
+    - Move node.dns into module "dns"
+    - Move node.fs into module "posix"
+    - process is no longer the global object. GLOBAL is.
+
+	For more information on the API changes see: 
+		http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
+		http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14
+
+  * Feature: process.platform, process.memoryUsage()
+
+  * Feature: promise.cancel() (Felix Geisendörfer)
+
+  * Upgrade V8 to 1.3.18
+
+
+2009.10.28, Version 0.1.15, eca2de73ed786b935507fd1c6faccd8df9938fd3
 
   * Many build system fixes (esp. for OSX users)
 
@@ -16,6 +41,7 @@
   * Upgrade http_parser
 
   * Upgrade v8 to 1.3.16
+
 
 2009.10.09, Version 0.1.14, b12c809bb84d1265b6a4d970a5b54ee8a4890513
 
