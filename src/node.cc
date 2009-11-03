@@ -254,17 +254,15 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 }
 
 #ifdef __APPLE__
+#define HAVE_GETMEM 1
 /* Researched by Tim Becker and Michael Knight
- * http://blog.kuriositaet.de/?p=257
  * http://blog.kuriositaet.de/?p=257
  */
 
 #include <mach/task.h>
 #include <mach/mach_init.h>
 
-v8::Handle<v8::Value> MacGetMemory(const v8::Arguments& args) {
-  HandleScope scope;
-
+int getmem(size_t *rss, size_t *vsize) {
   task_t task = MACH_PORT_NULL;
   struct task_basic_info t_info;
   mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
@@ -274,21 +272,123 @@ v8::Handle<v8::Value> MacGetMemory(const v8::Arguments& args) {
                     (task_info_t)&t_info,
                     &t_info_count);
 
-  if (KERN_SUCCESS != r) {
+  if (r != KERN_SUCCESS) return -1;
+
+  *rss = t_info.resident_size;
+  *vsize  = t_info.virtual_size;
+
+  return 0;
+}
+#endif  // __APPLE__
+
+#ifdef __linux__
+# define HAVE_GETMEM 1
+# include <sys/param.h> /* for MAXPATHLEN */
+# include <sys/user.h> /* for PAGE_SIZE */
+
+int getmem(size_t *rss, size_t *vsize) {
+  FILE *f = fopen("/proc/self/stat", "r");
+  if (!f) return -1;
+
+  int itmp;
+  char ctmp;
+  char buffer[MAXPATHLEN];
+
+  /* PID */
+  if (fscanf(f, "%d ", &itmp) == 0) goto error;
+  /* Exec file */
+  if (fscanf (f, "%s ", &buffer[0]) == 0) goto error;
+  /* State */
+  if (fscanf (f, "%c ", &ctmp) == 0) goto error;
+  /* Parent process */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* Process group */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* Session id */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* TTY */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* TTY owner process group */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* Flags */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Minor faults (no memory page) */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Minor faults, children */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Major faults (memory page faults) */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Major faults, children */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* utime */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* stime */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* utime, children */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* stime, children */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* jiffies remaining in current time slice */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* 'nice' value */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+  /* jiffies until next timeout */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* jiffies until next SIGALRM */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* start time (jiffies since system boot) */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error;
+
+  /* Virtual memory size */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  *vsize = (size_t) itmp;
+
+  /* Resident set size */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  *rss = (size_t) itmp * PAGE_SIZE;
+
+  /* rlim */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Start of text */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* End of text */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+  /* Start of stack */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error;
+
+  fclose (f);
+
+  return 0;
+
+error:
+  fclose (f);
+  return -1;
+}
+#endif  // __linux__
+
+v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
+  HandleScope scope;
+
+#ifndef HAVE_GETMEM
+  return ThrowException(Exception::Error(String::New("Not support on your platform. (Talk to Ryan.)")));
+#else
+  size_t rss, vsize;
+
+  int r = getmem(&rss, &vsize);
+
+  if (r != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
-
-  size_t rss = t_info.resident_size;
-  size_t vs  = t_info.virtual_size;
 
   Local<Object> info = Object::New();
 
   info->Set(String::NewSymbol("rss"), Integer::NewFromUnsigned(rss));
-  info->Set(String::NewSymbol("vsize"), Integer::NewFromUnsigned(vs));
+  info->Set(String::NewSymbol("vsize"), Integer::NewFromUnsigned(vsize));
 
   return scope.Close(info);
+#endif
 }
-#endif  // __APPLE__
+
 
 v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
   HandleScope scope;
@@ -510,9 +610,7 @@ static Local<Object> Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "cwd", Cwd);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
-#ifdef __APPLE__
-  NODE_SET_METHOD(process, "macGetMemory", MacGetMemory);
-#endif
+  NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
