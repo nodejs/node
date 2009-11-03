@@ -102,6 +102,9 @@ The PID of the process.
 +process.platform+ ::
 What platform you're running on. +"linux2"+, +"darwin"+, etc.
 
++process.memoryUsage()+ ::
+Returns the memory usage of the Node process: e.g. +{"rss":5828608,"vsize":3112529920}+
+
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
 success code 0.

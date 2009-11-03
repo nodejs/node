@@ -253,6 +253,43 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   return Undefined();
 }
 
+#ifdef __APPLE__
+/* Researched by Tim Becker and Michael Knight
+ * http://blog.kuriositaet.de/?p=257
+ * http://blog.kuriositaet.de/?p=257
+ */
+
+#include <mach/task.h>
+#include <mach/mach_init.h>
+
+v8::Handle<v8::Value> MacGetMemory(const v8::Arguments& args) {
+  HandleScope scope;
+
+  task_t task = MACH_PORT_NULL;
+  struct task_basic_info t_info;
+  mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+
+  int r = task_info(mach_task_self(),
+                    TASK_BASIC_INFO,
+                    (task_info_t)&t_info,
+                    &t_info_count);
+
+  if (KERN_SUCCESS != r) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+
+  size_t rss = t_info.resident_size;
+  size_t vs  = t_info.virtual_size;
+
+  Local<Object> info = Object::New();
+
+  info->Set(String::NewSymbol("rss"), Integer::NewFromUnsigned(rss));
+  info->Set(String::NewSymbol("vsize"), Integer::NewFromUnsigned(vs));
+
+  return scope.Close(info);
+}
+#endif  // __APPLE__
+
 v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
   HandleScope scope;
   
@@ -473,6 +510,9 @@ static Local<Object> Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "cwd", Cwd);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
+#ifdef __APPLE__
+  NODE_SET_METHOD(process, "macGetMemory", MacGetMemory);
+#endif
 
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
