@@ -293,7 +293,7 @@ function findModulePath (id, dirs, callback) {
     return;
   }
 
-  if (/.(js|node)$/.exec(id)) {
+  if (/\.(js|node)$/.exec(id)) {
     throw new Error("No longer accepting filename extension in module names");
   }
 
