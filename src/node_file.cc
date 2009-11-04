@@ -230,9 +230,6 @@ static Handle<Value> Rename(const Arguments& args) {
   String::Utf8Value new_path(args[1]->ToString());
 
   return scope.Close(EIOPromise::Rename(*path, *new_path));
-  Promise *promise = EIOPromise::Create();
-
-  return scope.Close(promise->Handle());
 }
 
 static Handle<Value> Unlink(const Arguments& args) {
