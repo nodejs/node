@@ -1,22 +1,24 @@
-libDir = process.path.join(process.path.dirname(__filename), "../lib");
+path = require("path");
+
+libDir = path.join(path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
 
 process.mixin(require("sys"));
-http = require("sys");
+http = require("http");
 
 fixed = ""
 for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
+
 stored = {};
+
 http.createServer(function (req, res) {
   var commands = req.uri.path.split("/");
   var command = commands[1];
   var body = "";
   var arg = commands[2];
   var status = 200;
-
-  p(req.uri.params);
 
   if (command == "bytes") {
     var n = parseInt(arg, 10)
