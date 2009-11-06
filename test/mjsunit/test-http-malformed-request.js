@@ -7,30 +7,26 @@ http = require("http");
 port = 9999;
 
 nrequests_completed = 0;
-nrequests_expected = 2;
+nrequests_expected = 1;
 
-var server = http.createServer(function (req, res) {
+var s = http.createServer(function (req, res) {
   puts("req: " + JSON.stringify(req.uri));
 
   res.sendHeader(200, {"Content-Type": "text/plain"});
   res.sendBody("Hello World");
   res.finish();
 
-  if (++nrequests_completed == nrequests_expected) server.close();
-
-  puts("nrequests_completed: " + nrequests_completed);
+  if (++nrequests_completed == nrequests_expected) s.close();
 });
-server.listen(port);
+s.listen(port);
 
-tcp.createConnection(port).addListener("connect", function () {
-  this.send("GET /hello?foo=%99bar HTTP/1.1\r\nConnection: close\r\n\r\n");
-  this.close();
+var c = tcp.createConnection(port);
+c.addListener("connect", function () {
+  c.send("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
+  c.close();
 });
 
-tcp.createConnection(port).addListener("connect", function () {
-  this.send("GET /with_\"stupid\"_quotes?in_the=\"uri\" HTTP/1.1\r\nConnection: close\r\n\r\n");
-  this.close();
-});
+//  TODO add more!
 
 process.addListener("exit", function () {
   assertEquals(nrequests_expected, nrequests_completed);
