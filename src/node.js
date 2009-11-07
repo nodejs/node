@@ -66,6 +66,11 @@ node.dns.createConnection = function () {
   throw new Error("node.dns.createConnection() has moved. Use require('dns') to access it.");
 };
 
+node.inherits = function () {
+  throw new Error("node.inherits() has moved. Use require('sys') to access it.");
+};
+
+process.inherits = node.inherits;
 
 
 
