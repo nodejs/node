@@ -29,8 +29,8 @@ sys
     modulesLoaded++;
     server.close();
   })
-  .addErrback(function() {
-    assertUnreachable('node binary could not load module from url');
+  .addErrback(function(code, stdout, stderr) {
+    assertUnreachable('node binary could not load module from url: ' + stderr);
   });
 
 process.addListener('exit', function() {
