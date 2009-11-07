@@ -124,16 +124,6 @@ process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
 
-process.cat = function(location, encoding) {
-  var url_re = new RegExp("^http:\/\/");
-  if (url_re.exec(location)) {
-    throw new Error("process.cat for http urls is temporarally disabled.");
-  }
-  //var f = url_re.exec(location) ? process.http.cat : process.fs.cat;
-  //return f(location, encoding);
-  return process.fs.cat(location, encoding);
-};
-
 // From jQuery.extend in the jQuery JavaScript Library v1.3.2
 // Copyright (c) 2009 John Resig
 // Dual licensed under the MIT and GPL licenses.
@@ -562,26 +552,34 @@ Module.prototype.loadObject = function (filename, loadPromise) {
   }, 0);
 };
 
-Module.prototype.loadScript = function (filename, loadPromise) {
-  var self = this;
-  if (filename.match(/^http:\/\//)) {
-    var catPromise = new process.Promise();
-    loadModule('http', this)
+function cat (id, loadPromise) {
+  var promise;
+
+  if (id.match(/^http:\/\//)) {
+    promise = new process.Promise();
+    loadModule('http', process.mainModule)
       .addCallback(function(http) {
-        http.cat(filename)
+        http.cat(id)
           .addCallback(function(content) {
-            catPromise.emitSuccess(content);
+            promise.emitSuccess(content);
           })
           .addErrback(function() {
-            catPromise.emitError.apply(null, arguments);
+            promise.emitError.apply(null, arguments);
           });
       })
       .addErrback(function() {
         loadPromise.emitError(new Error("could not load core module \"http\""));
       });
   } else {
-    var catPromise = process.cat(filename);
+    promise = process.fs.cat(id);
   }
+
+  return promise;
+}
+
+Module.prototype.loadScript = function (filename, loadPromise) {
+  var self = this;
+  var catPromise = cat(filename, loadPromise);
 
   catPromise.addErrback(function () {
     loadPromise.emitError(new Error("Error reading " + filename));
@@ -601,6 +599,7 @@ Module.prototype.loadScript = function (filename, loadPromise) {
 
     require.paths = process.paths;
     require.async = requireAsync;
+    require.main = process.mainModule;
 
     // create wrapper function
     var wrapper = "var __wrap__ = function (exports, require, module, __filename) { " 
@@ -651,10 +650,10 @@ if (process.ARGV[1].charAt(0) != "/" && !/^http:\/\//.exec(process.ARGV[1])) {
   process.ARGV[1] = path.join(cwd, process.ARGV[1]);
 }
 
-// Load the root module--the command line argument.
-var m = createModule("."); 
+// Load the main module--the command line argument.
+process.mainModule = createModule(".");
 var loadPromise = new process.Promise();
-m.load(process.ARGV[1], loadPromise);
+process.mainModule.load(process.ARGV[1], loadPromise);
 loadPromise.wait();
 
 }()); // end annonymous namespace
