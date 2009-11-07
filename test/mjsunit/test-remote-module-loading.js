@@ -21,7 +21,7 @@ assertEquals('/moduleA.js', httpModule.httpPath());
 modulesLoaded++;
 
 var nodeBinary = process.ARGV[0];
-var cmd = nodeBinary+' http://localhost:'+PORT+'/moduleB.js';
+var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+PORT+'/moduleB.js';
 
 sys
   .exec(cmd)
