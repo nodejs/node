@@ -144,6 +144,7 @@ typedef struct evcom_stream {
   void (*on_connect) (struct evcom_stream *);
   void (*on_timeout) (struct evcom_stream *);
   void (*on_read)    (struct evcom_stream *, const void* buf, size_t len);
+  void (*on_drain)   (struct evcom_stream *);
   void (*on_close)   (struct evcom_stream *);
   void *data;
 } evcom_stream;

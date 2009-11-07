@@ -144,6 +144,7 @@ void Connection::Init() {
   stream_.on_read    = Connection::on_read;
   stream_.on_close   = Connection::on_close;
   stream_.on_timeout = Connection::on_timeout;
+  stream_.on_drain   = Connection::on_drain;
   stream_.data = this;
 }
 
@@ -467,6 +468,11 @@ void Connection::OnConnect() {
 void Connection::OnTimeout() {
   HandleScope scope;
   Emit("timeout", 0, NULL);
+}
+
+void Connection::OnDrain() {
+  HandleScope scope;
+  Emit("drain", 0, NULL);
 }
 
 void Connection::OnEOF() {

@@ -1172,6 +1172,8 @@ socket for +tcp.Server+.
 |+"timeout"+     |              | Emitted if the connection times out from
                                   inactivity. The +"close"+ event will be 
                                   emitted immediately following this event. 
+|+"drain"+       |              | Emitted when the write buffer becomes
+                                  empty. Can be used to throttle uploads.
 |+"close"+       | +had_error+  | Emitted once the connection is fully
                                   closed. The argument +had_error+
                                   is a boolean which says if the connection

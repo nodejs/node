@@ -306,6 +306,10 @@ stream_recv__close (evcom_stream *stream)
 static int
 stream_send__drain (evcom_stream *stream)
 {
+  if (stream->on_drain) {
+    stream->on_drain(stream);
+  }
+
   if (!GOT_CLOSE(stream)) {
     stream->send_action = stream_send__wait_for_buf;
     return OKAY;
@@ -1094,6 +1098,7 @@ evcom_stream_init (evcom_stream *stream)
   stream->on_connect = NULL;
   stream->on_timeout = NULL;
   stream->on_read = NULL;
+  stream->on_drain = NULL;
   stream->on_close = NULL;
 }
 

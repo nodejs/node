@@ -82,6 +82,7 @@ class Connection : public EventEmitter {
   virtual void OnEOF();
   virtual void OnClose();
   virtual void OnTimeout();
+  virtual void OnDrain();
 
   v8::Local<v8::Object> GetProtocol();
 
@@ -127,6 +128,11 @@ class Connection : public EventEmitter {
   static void on_timeout(evcom_stream *s) {
     Connection *connection = static_cast<Connection*>(s->data);
     connection->OnTimeout();
+  }
+
+  static void on_drain(evcom_stream *s) {
+    Connection *connection = static_cast<Connection*>(s->data);
+    connection->OnDrain();
   }
 
   void Init();  // constructor helper.
