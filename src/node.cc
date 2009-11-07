@@ -664,9 +664,6 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   // Compile, execute the src/*.js files. (Which were included a static C
   // strings in node_natives.h)
-  ExecuteNativeJS("util.js", native_util);
-  ExecuteNativeJS("events.js", native_events);
-  ExecuteNativeJS("file.js", native_file);
   // In node.js we actually load the file specified in ARGV[1]
   // so your next reading stop should be node.js!
   ExecuteNativeJS("node.js", native_node);

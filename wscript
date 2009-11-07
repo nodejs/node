@@ -292,12 +292,7 @@ def build(bld):
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
-    source = """
-      src/util.js
-      src/events.js
-      src/file.js
-      src/node.js
-    """,
+    source='src/node.js',
     target="src/node_natives.h",
     before="cxx"
   )
