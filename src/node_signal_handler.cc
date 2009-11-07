@@ -34,7 +34,7 @@ void SignalHandler::OnSignal(EV_P_ ev_signal *watcher, int revents) {
 
 SignalHandler::~SignalHandler() {
   if (watcher_.active) {
-    ev_unref(EV_DEFAULT_UC);
+    ev_ref(EV_DEFAULT_UC);
     ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
   }
 }
