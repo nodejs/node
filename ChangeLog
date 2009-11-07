@@ -1,4 +1,14 @@
-2009.11.03, Version 0.1.16 
+2009.11.07, Version 0.1.17
+
+  * Feature: process.chdir() (Brandon Beacher)
+
+  * Revert http parser upgrade. (b893859c34f05db5c45f416949ebc0eee665cca6)
+    Broke keep-alive.
+
+  * API: rename process.inherits to sys.inherits
+
+
+2009.11.03, Version 0.1.16, 726865af7bbafe58435986f4a193ff11c84e4bfe
 
   * API: Use CommonJS-style module requiring
     - require("/sys.js") becomes require("sys")
