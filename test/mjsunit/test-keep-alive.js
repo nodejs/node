@@ -23,7 +23,7 @@ function error (msg) {
 }
 
 function runAb(opts, callback) {
-  sys.exec("ab " + opts + " http://localhost:" + PORT + "/")
+  sys.exec("ab " + opts + " http://127.0.0.1:" + PORT + "/")
     .addErrback(error)
     .addCallback(function (out) {
       var matches = /Requests per second:\s*(\d+)\./mi.exec(out);
