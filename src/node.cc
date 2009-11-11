@@ -231,6 +231,18 @@ Handle<Value> ExecuteString(v8::Handle<v8::String> source,
   return scope.Close(result);
 }
 
+static Handle<Value> ByteLength(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::Error(String::New("Bad argument.")));
+  }
+
+  Local<Integer> length = Integer::New(DecodeBytes(args[0], ParseEncoding(args[1], UTF8)));
+
+  return scope.Close(length);
+}
+
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
   
@@ -624,6 +636,7 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   // define various internal methods
   NODE_SET_METHOD(process, "compile", Compile);
+  NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
