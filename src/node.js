@@ -70,8 +70,9 @@ node.inherits = function () {
   throw new Error("node.inherits() has moved. Use require('sys') to access it.");
 };
 
-process.inherits = node.inherits;
-
+process.inherits = function () {
+  throw new Error("process.inherits() has moved. Use require('sys') to access it.");
+};
 
 
 process.createChildProcess = function (file, args, env) {
