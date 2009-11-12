@@ -840,7 +840,6 @@ int main(int argc, char *argv[]) {
   node::EmitExitEvent();
 
 #ifndef NDEBUG
-  printf("clean up\n");
   // Clean up.
   context.Dispose();
   V8::Dispose();
