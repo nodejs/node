@@ -215,11 +215,16 @@ process.Promise.prototype.timeout = function(timeout) {
   this._timeoutDuration = timeout;
   if (this._timer) {
     clearTimeout(this._timer);
+    this._timer = null;
   }
 
   var promiseComplete = false;
   var onComplete = function() {
     promiseComplete = true;
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = null;
+    }
   };
 
   this
@@ -227,8 +232,9 @@ process.Promise.prototype.timeout = function(timeout) {
     .addCancelback(onComplete)
     .addErrback(onComplete);
 
-  var self = this
+  var self = this;
   this._timer = setTimeout(function() {
+    self._timer = null;
     if (promiseComplete) {
       return;
     }
