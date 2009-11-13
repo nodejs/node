@@ -447,10 +447,12 @@ void Connection::OnReceive(const void *buf, size_t len) {
 void Connection::OnClose() {
   HandleScope scope;
 
-  Handle<Value> argv[1];
-  argv[0] = stream_.errorno == 0 ? False() : True();
+  Handle<Value> argv[2] = {
+    stream_.errorno == 0 ? False() : True(),
+    String::New(strerror(stream_.errorno))
+  };
 
-  Emit("close", 1, argv);
+  Emit("close", 2, argv);
 }
 
 void Connection::OnConnect() {
