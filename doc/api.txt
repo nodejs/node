@@ -207,6 +207,9 @@ server.addListener("connection", function (socket) {
 });
 ----------------------------------------
 
++emitter.removeListener(event, listener)+ ::
+Remove a listener from the listener array for the specified event.
+*Caution*: changes array indices in the listener array behind the listener.
 
 +emitter.listeners(event)+ ::
 Returns an array of listeners for the specified event. This array can be

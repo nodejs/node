@@ -201,6 +201,17 @@ process.EventEmitter.prototype.addListener = function (type, listener) {
   return this;
 };
 
+process.EventEmitter.prototype.removeListener = function (type, listener) {
+  if (listener instanceof Function) {
+    // does not use listeners(), so no side effect of creating _events[type]
+    if (!this._events || !this._events.hasOwnProperty(type)) return;
+    var list = this._events[type];
+    if (list.indexOf(listener) < 0) return;
+    list.splice(list.indexOf(listener), 1);
+  }
+  return this;
+};
+
 process.EventEmitter.prototype.listeners = function (type) {
   if (!this._events) this._events = {};
   if (!this._events.hasOwnProperty(type)) this._events[type] = [];
