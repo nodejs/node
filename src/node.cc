@@ -524,9 +524,51 @@ static void OnFatalError(const char* location, const char* message) {
   exit(1);
 }
 
+static int uncaught_exception_counter = 0;
+
 void FatalException(TryCatch &try_catch) {
-  ReportException(&try_catch);
-  exit(1);
+  HandleScope scope;
+
+  // Check if uncaught_exception_counter indicates a recursion
+  if (uncaught_exception_counter > 0) {
+    ReportException(&try_catch);
+    exit(1);
+  }
+
+  Local<Value> listeners_v = process->Get(String::NewSymbol("listeners"));
+  assert(listeners_v->IsFunction());
+
+  Local<Function> listeners = Local<Function>::Cast(listeners_v);
+
+  Local<String> uncaught_exception = String::NewSymbol("uncaughtException");
+
+  Local<Value> argv[1] = { uncaught_exception };
+  Local<Value> ret = listeners->Call(process, 1, argv);
+
+  assert(ret->IsArray());
+
+  Local<Array> listener_array = Local<Array>::Cast(ret);
+
+  uint32_t length = listener_array->Length();
+  // Report and exit if process has no "uncaughtException" listener
+  if (length == 0) {
+    ReportException(&try_catch);
+    exit(1);
+  }
+
+  // Otherwise fire the process "uncaughtException" event
+  Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
+  assert(emit_v->IsFunction());
+
+  Local<Function> emit = Local<Function>::Cast(emit_v);
+
+  Local<Value> error = try_catch.Exception();
+  Local<Value> event_argv[2] = { uncaught_exception, error };
+
+  uncaught_exception_counter++;
+  emit->Call(process, 2, event_argv);
+  // Decrement so we know if the next exception is a recursion or not
+  uncaught_exception_counter--;
 }
 
 static ev_async eio_watcher;

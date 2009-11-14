@@ -677,6 +677,5 @@ if (process.ARGV[1].charAt(0) != "/" && !/^http:\/\//.exec(process.ARGV[1])) {
 process.mainModule = createModule(".");
 var loadPromise = new process.Promise();
 process.mainModule.load(process.ARGV[1], loadPromise);
-loadPromise.wait();
 
 }()); // end annonymous namespace
