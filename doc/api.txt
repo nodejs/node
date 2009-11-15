@@ -85,9 +85,16 @@ more information.
                           +
                           The parameter +code+ is the integer exit code
                           passed to +process.exit()+.
-| +"SIGINT"+, +"SIGUSR1"+, ... | (none) | Emitted when the processes receives a signal.
-                                          See sigaction(2) for a list of standard POSIX
-                                          signal names such as SIGINT, SIGUSR1, etc.
+| +"uncaughtException"+        | +exception+ | Emitted when an exception 
+                                               bubbles all the way down to 
+                                               the event loop. If a listener
+                                               is added for this exception,
+                                               the default action (which is
+                                               to print a stack trace and
+                                               exit) will not occur. 
+| +"SIGINT"+, +"SIGUSR1"+, ... | (none)      | Emitted when the processes receives a signal.
+                                               See sigaction(2) for a list of standard POSIX
+                                               signal names such as SIGINT, SIGUSR1, etc.
 |=========================================================
 
 +process.ARGV+ ::
