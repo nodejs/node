@@ -1,23 +1,25 @@
 process.mixin(require("./common"));
 
-var posix = require("posix");
 var path = require("path");
 
 var f = path.join(fixturesDir, "x.txt");
 var f2 = path.join(fixturesDir, "x2.txt");
 
+puts("watching for changes of " + f);
+
 var changes = 0;
 process.watchFile(f, function () {
   puts(f + " change");
   changes++;
+  process.unwatchFile(f);
 });
 
 
-setTimeout(function () {
-  posix.rename(f, f2).wait();
-  posix.rename(f2, f).wait();
-  process.unwatchFile(f);
-}, 10);
+var File = require("file").File;
+
+var file = new File(f, 'w+');
+file.write('xyz\n');
+file.close().wait();
 
 
 process.addListener("exit", function () {
