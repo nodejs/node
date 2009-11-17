@@ -350,8 +350,7 @@ process.watchFile = function (filename) {
   }
     
   if (options.persistent === undefined) options.persistent = true;
-  if (options.interval === undefined) options.persistent = 0;
-
+  if (options.interval === undefined) options.interval = 0;
 
   if (filename in statWatchers) {
     stat = statWatchers[filename];
