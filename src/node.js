@@ -336,14 +336,29 @@ process.addListener("newListener", function (event) {
 
 var statWatchers = {};
 
-process.watchFile = function (filename, listener) {
+process.watchFile = function (filename) {
   var stat;
+  var options;
+  var listener;
+
+  if ("object" == typeof arguments[1]) {
+    options = arguments[1];
+    listener = arguments[2];
+  } else {
+    options = {};
+    listener = arguments[1];
+  }
+    
+  if (options.persistent === undefined) options.persistent = true;
+  if (options.interval === undefined) options.persistent = 0;
+
+
   if (filename in statWatchers) {
     stat = statWatchers[filename];
   } else {
     statWatchers[filename] = new process.Stat();
     stat = statWatchers[filename];
-    stat.start(filename, true);
+    stat.start(filename, options.persistent, options.interval);
   }
   stat.addListener("change", listener);
   return stat;

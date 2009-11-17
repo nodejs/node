@@ -57,7 +57,12 @@ Handle<Value> Stat::Start(const Arguments& args) {
   assert(handler->path_ == NULL);
   handler->path_ = strdup(*path);
 
-  ev_stat_set(&handler->watcher_, handler->path_, 0.);
+  ev_tstamp interval = 0.;
+  if (args[2]->IsInt32()) {
+    interval = NODE_V8_UNIXTIME(args[2]);
+  }
+
+  ev_stat_set(&handler->watcher_, handler->path_, interval);
   ev_stat_start(EV_DEFAULT_UC_ &handler->watcher_);
 
   handler->persistent_ = args[1]->IsTrue();

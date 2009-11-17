@@ -124,9 +124,14 @@ Send a signal to a process. +pid+ is the process id and +signal+ is the
 signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
 information.
 
-+process.watchFile(filename, listener)+::
++process.watchFile(filename, [options,] listener)+::
 Watch for changes on +filename+. The callback +listener+ will be called each
 time the file changes.
++
+The second argument is optional. The +options+ if provided should be an
+object containing two members a boolean, +persistent+, and +interval+, a
+polling value in milliseconds. The default is +{persistent: true, interval:
+0}+.
 
 +process.unwatchFile(filename)+::
 Stop watching for changes on +filename+.
