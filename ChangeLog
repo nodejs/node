@@ -1,4 +1,29 @@
-2009.11.07, Version 0.1.17
+2009.11.17, Version 0.1.18
+
+  * Feature: process.watchFile() process.unwatchFile()
+
+  * Feature: "uncaughtException" event on process
+    (Felix Geisendörfer)
+
+  * Feature: 'drain' event to tcp.Connection
+
+  * Bugfix: Promise.timeout() blocked the event loop
+    (Felix Geisendörfer)
+
+  * Bugfix: sendBody() and chunked utf8 strings
+    (Felix Geisendörfer)
+
+  * Supply the strerror as a second arg to the tcp.Connection close
+    event (Johan Sørensen)
+
+  * Add EventEmitter.removeListener (frodenius@gmail.com)
+
+  * Format JSON for inspecting objects (Felix Geisendörfer)
+
+  * Upgrade libev to latest CVS
+
+
+2009.11.07, Version 0.1.17, d1f69ef35dac810530df8249d523add168e09f03
 
   * Feature: process.chdir() (Brandon Beacher)
 
@@ -22,9 +47,9 @@
     - Move node.fs into module "posix"
     - process is no longer the global object. GLOBAL is.
 
-	For more information on the API changes see: 
-		http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
-		http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14
+  For more information on the API changes see: 
+    http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
+    http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14
 
   * Feature: process.platform, process.memoryUsage()
 
