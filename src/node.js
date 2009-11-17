@@ -332,6 +332,32 @@ process.addListener("newListener", function (event) {
 });
 
 
+// Stat Change Watchers
+
+var statWatchers = {};
+
+process.watchFile = function (filename, listener) {
+  var stat;
+  if (filename in statWatchers) {
+    stat = statWatchers[filename];
+  } else {
+    statWatchers[filename] = new process.Stat();
+    stat = statWatchers[filename];
+    stat.start(filename, true);
+  }
+  stat.addListener("change", listener);
+  return stat;
+};
+
+process.unwatchFile = function (filename) {
+  if (filename in statWatchers) {
+    stat = statWatchers[filename];
+    stat.stop();
+    statWatchers[filename] = undefined;
+  }
+};
+
+
 
 // Timers
 

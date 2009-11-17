@@ -16,6 +16,7 @@
 #include <node_file.h>
 #include <node_http.h>
 #include <node_signal_handler.h>
+#include <node_stat.h>
 #include <node_timer.h>
 #include <node_child_process.h>
 #include <node_constants.h>
@@ -695,6 +696,7 @@ static Local<Object> Load(int argc, char *argv[]) {
   Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
   SignalHandler::Initialize(process);          // signal_handler.cc
+  Stat::Initialize(process);                   // stat.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
   // Create node.dns

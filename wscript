@@ -321,6 +321,7 @@ def build(bld):
     src/node_http.cc
     src/node_net.cc
     src/node_signal_handler.cc
+    src/node_stat.cc
     src/node_stdio.cc
     src/node_timer.cc
   """
