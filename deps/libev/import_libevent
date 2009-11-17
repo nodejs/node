@@ -1,0 +1,131 @@
+#!/bin/sh
+
+LE=../libevent-1.4.3-stable
+
+if ! [ -e evbuffer.c ]; then
+   echo do not run this programm unless you know what you are doing
+   exit 1
+fi
+
+# this program combines libev and libevent into a single package
+
+cvs update -AdP libev
+rsync -avP libev/. . --exclude CVS
+
+rm -f configure.ac
+
+cp $LE/evdns.h .
+
+perl -i -pe 's%^/.libevent-include./%#include "event_compat.h"%' event.h
+
+perl -ne '
+   s/\s+char buf\[64\];/\tchar buf[96];/;
+   if (/#include "event.h"/) {
+      print "#ifndef EV_STANDALONE\n$_#endif\n";
+      next;
+   }
+   if (/#include "misc.h"/) {
+      print "#ifndef EV_STANDALONE\n$_#endif\n";
+      next;
+   }
+   if (/#include "(unistd.h|sys\/time.h)"/) {
+      print "#ifndef WIN32\n$_#endif\n";
+      next;
+   }
+   next if /#include "log.h"/;
+
+   print;
+' <$LE/evdns.c >evdns.c
+
+cp $LE/autogen.sh .
+cp $LE/epoll_sub.c .
+cp $LE/evbuffer.c .
+cp $LE/buffer.c .
+cp $LE/evhttp.h .
+cp $LE/evutil.h .
+cp $LE/evutil.c .
+cp $LE/event-config.h .
+cp $LE/event-internal.h .
+cp $LE/evrpc.h .
+cp $LE/evrpc.c .
+cp $LE/evrpc-internal.h .
+cp $LE/http.c .
+cp $LE/event_tagging.c .
+cp $LE/http-internal.h .
+cp $LE/strlcpy-internal.h .
+cp $LE/log.c .
+cp $LE/log.h .
+cp $LE/strlcpy.c .
+rsync -a $LE/WIN32* $LE/sample $LE/test $LE/compat . --del
+#rename 's/libevent/libev/' WIN32-Prj/lib*
+cp $LE/aclocal.m4 .
+#cp $LE/acconfig.h .
+cp $LE/config.h.in .
+cp $LE/event_rpcgen.py .
+cp $LE/*.3 .
+
+#perl -i -pe 's/libevent/libev/g' sample/Makefile.am
+#perl -i -pe 's/libevent/libev/g' test/Makefile.am
+
+perl -i -pe 's/#include <event.h>$/#include "event.h"/' test/*.c
+
+perl -i -ne '
+   next if /"event-internal.h"/;
+   s/base\d?->sig.ev_signal_added/0/;
+   s/base\d?->sig.ev_signal_pair\[0\]/-1/;
+   s/base->sig.evsignal_caught/0/;
+   next if /^\ttest_signal_(dealloc|pipeloss|switchbase|assert|restore)\(\)/;
+   next if /^\ttest_simplesignal\(\)/; # non-default-loop
+   next if /^\ttest_immediatesignal\(\)/; # non-default-loop
+   next if /test_priorities\(\d\)/;
+   print;
+' test/regress.c
+
+perl -ne '
+   s/\bmin_heap.h\b//g;
+   s/\bsignal.c\b//g;
+   s/\bevport.c\b//g;
+   s/\bkqueue.c\b//g;
+   s/\bdevpoll.c\b//g;
+   s/\brtsig.c\b//g;
+   s/\bselect.c\b//g;
+   s/\bpoll.c\b//g;
+   s/\bepoll.c\b//g;
+   s/\bepoll_sub.c\b//g;
+   s/\bevent-internal.h\b//g;
+   s/\bevsignal.h\b//g;
+   s/^(man_MANS\s*=)/$1 ev.3 /;
+   s/^(EXTRA_DIST\s*=)/$1 libev.m4 ev.h ev_vars.h ev_wrap.h event_compat.h ev++.h ev_epoll.c ev_select.c ev_poll.c ev_kqueue.c ev_port.c ev_win32.c ev.3 ev.pod /;
+   s/^(include_HEADERS\s*=)/$1 ev.h event_compat.h ev++.h /;
+   s/^(CORE_SRC\s*=)/$1 ev.c /;
+   s/^(SYS_LIBS\s*=)/$1 -lm /;
+   #s/libevent/libev/g;
+   print;
+' <$LE/Makefile.am >Makefile.am
+
+perl -ne '
+   #s/-Wall/-Wall -Wno-comment -Wunused-function -Wno-unused-value/;
+   s/-Wall//g;
+   #s/libevent/libev/g;
+   #VERSION
+   s/AM_INIT_AUTOMAKE\s*\(.*,(.*)\)/AM_INIT_AUTOMAKE(libevent-$1+libev,3.1)/;
+   s/AC_LIBOBJ\(select\)/: ;/g;
+   s/AC_LIBOBJ\(poll\)/: ;/g;
+   s/AC_LIBOBJ\(kqueue\)/: ;/g;
+   s/AC_LIBOBJ\(epoll\)/: ;/g;
+   s/AC_LIBOBJ\(devpoll\)/: ;/g;
+   s/AC_LIBOBJ\(evport\)/: ;/g;
+   s/AC_LIBOBJ\(signal\)/: ;/g;
+   s/AC_LIBOBJ\(rtsig\)/: ;/g;
+   print "m4_include([libev.m4])\n" if /^AC_OUTPUT/;
+   print;
+' <$LE/configure.in >configure.in
+
+aclocal-1.7
+automake-1.7 --add-missing
+autoconf
+autoheader
+libtoolize
+CC="ccache gcc" ./configure --prefix=/opt/libev --disable-shared "$@"
+
+

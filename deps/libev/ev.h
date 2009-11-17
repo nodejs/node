@@ -365,7 +365,7 @@ typedef struct ev_async
   EV_ATOMIC_T sent; /* private */
 } ev_async;
 
-# define ev_async_pending(w) ((w)->sent + 0)
+# define ev_async_pending(w) (+(w)->sent)
 #endif
 
 /* the presence of this union forces similar struct layout */
@@ -414,6 +414,7 @@ union ev_any_watcher
 #define EVBACKEND_KQUEUE  0x00000008U /* bsd */
 #define EVBACKEND_DEVPOLL 0x00000010U /* solaris 8 */ /* NYI */
 #define EVBACKEND_PORT    0x00000020U /* solaris 10 */
+#define EVBACKEND_ALL     0x0000003FU
 
 #if EV_PROTOTYPES
 int ev_version_major (void);
@@ -612,11 +613,11 @@ void ev_resume  (EV_P);
 # define ev_priority(ev)                     ((ev), EV_MINPRI)
 # define ev_set_priority(ev,pri)             ((ev), (pri))
 #else
-# define ev_priority(ev)                     ((((ev_watcher *)(void *)(ev))->priority) + 0)
+# define ev_priority(ev)                     (+(((ev_watcher *)(void *)(ev))->priority))
 # define ev_set_priority(ev,pri)             (  (ev_watcher *)(void *)(ev))->priority = (pri)
 #endif
 
-#define ev_periodic_at(ev)                   (((ev_watcher_time *)(ev))->at + 0.)
+#define ev_periodic_at(ev)                   (+((ev_watcher_time *)(ev))->at)
 
 #ifndef ev_set_cb
 # define ev_set_cb(ev,cb_)                   ev_cb (ev) = (cb_)

@@ -1,5 +1,23 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+TODO: somehow unblock procmask?
+	- backport inotify code to C89.
+        - inotify file descriptors could leak into child processes.
+        - ev_stat watchers could keep an errornous extra ref on the loop,
+          preventing exit when unregistering all watchers (testcases
+          provided by ry@tinyclouds.org).
+        - implement EV_WIN32_HANDLE_TO_FD and EV_WIN32_CLOSE_FD configuration
+          symbols to make it easier for apps to do their own fd management.
+        - support EV_IDLE_ENABLE being disabled in ev++.h
+          (patch by Didier Spezia).
+        - point out the unspecified signal mask in the documentation.
+        - take advantage of inotify_init1, if available, to set cloexec/nonblock
+          on fd creation, to avoid races.
+        - the signal handling pipe wasn't always initialised under windows
+          (analysed by lekma).
+        - changed minimum glibc requirement from glibc 2.9 to 2.7, for
+          signalfd.
+
 3.8  Sun Aug  9 14:30:45 CEST 2009
 	- incompatible change: do not necessarily reset signal handler
           to SIG_DFL when a sighandler is stopped.

@@ -94,7 +94,7 @@ port_poll (EV_P_ ev_tstamp timeout)
   if (res == -1)
     { 
       if (errno != EINTR && errno != ETIME)
-        ev_syserr ("(libev) port_getn");
+        ev_syserr ("(libev) port_getn (see http://bugs.opensolaris.org/view_bug.do?bug_id=6268715, try LIBEV_FLAGS=3 env variable)");
 
       return;
     } 

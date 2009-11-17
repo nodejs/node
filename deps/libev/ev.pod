@@ -372,7 +372,7 @@ I<inotify> API for it's C<ev_stat> watchers. Apart from debugging and
 testing, this flag can be useful to conserve inotify file descriptors, as
 otherwise each loop using C<ev_stat> watchers consumes one inotify handle.
 
-=item C<EVFLAG_NOSIGNALFD>
+=item C<EVFLAG_NOSIGFD>
 
 When this flag is specified, then libev will not attempt to use the
 I<signalfd> API for it's C<ev_signal> (and C<ev_child>) watchers. This is
@@ -592,7 +592,7 @@ as signal and child watchers) would need to be stopped manually.
 In general it is not advisable to call this function except in the
 rare occasion where you really need to free e.g. the signal handling
 pipe fds. If you need dynamically allocated loops it is better to use
-C<ev_loop_new> and C<ev_loop_destroy>).
+C<ev_loop_new> and C<ev_loop_destroy>.
 
 =item ev_loop_destroy (loop)
 
@@ -706,8 +706,8 @@ event loop time (see C<ev_now_update>).
 =item ev_loop (loop, int flags)
 
 Finally, this is it, the event handler. This function usually is called
-after you initialised all your watchers and you want to start handling
-events.
+after you have initialised all your watchers and you want to start
+handling events.
 
 If the flags argument is specified as C<0>, it will not return until
 either no event watchers are active anymore or C<ev_unloop> was called.
@@ -2110,16 +2110,36 @@ When the first watcher gets started will libev actually register something
 with the kernel (thus it coexists with your own signal handlers as long as
 you don't register any with libev for the same signal).
 
-Both the signal mask state (C<sigprocmask>) and the signal handler state
-(C<sigaction>) are unspecified after starting a signal watcher (and after
-sotpping it again), that is, libev might or might not block the signal,
-and might or might not set or restore the installed signal handler.
-
 If possible and supported, libev will install its handlers with
 C<SA_RESTART> (or equivalent) behaviour enabled, so system calls should
 not be unduly interrupted. If you have a problem with system calls getting
 interrupted by signals you can block all signals in an C<ev_check> watcher
 and unblock them in an C<ev_prepare> watcher.
+
+=head3 The special problem of inheritance over execve
+
+Both the signal mask (C<sigprocmask>) and the signal disposition
+(C<sigaction>) are unspecified after starting a signal watcher (and after
+stopping it again), that is, libev might or might not block the signal,
+and might or might not set or restore the installed signal handler.
+
+While this does not matter for the signal disposition (libev never
+sets signals to C<SIG_IGN>, so handlers will be reset to C<SIG_DFL> on
+C<execve>), this matters for the signal mask: many programs do not expect
+certain signals to be blocked.
+
+This means that before calling C<exec> (from the child) you should reset
+the signal mask to whatever "default" you expect (all clear is a good
+choice usually).
+
+The simplest way to ensure that the signal mask is reset in the child is
+to install a fork handler with C<pthread_atfork> that resets it. That will
+catch fork calls done by libraries (such as the libc) as well.
+
+In current versions of libev, you can also ensure that the signal mask is
+not blocking any signals (except temporarily, so thread users watch out)
+by specifying the C<EVFLAG_NOSIGFD> when creating the event loop. This
+is not guaranteed for future versions, however.
 
 =head3 Watcher-Specific Functions and Data Members
 
@@ -3665,13 +3685,27 @@ C<_get_osfhandle> on the fd to convert it to an OS handle. Otherwise,
 it is assumed that all these functions actually work on fds, even
 on win32. Should not be defined on non-win32 platforms.
 
-=item EV_FD_TO_WIN32_HANDLE
+=item EV_FD_TO_WIN32_HANDLE(fd)
 
 If C<EV_SELECT_IS_WINSOCKET> is enabled, then libev needs a way to map
 file descriptors to socket handles. When not defining this symbol (the
 default), then libev will call C<_get_osfhandle>, which is usually
 correct. In some cases, programs use their own file descriptor management,
 in which case they can provide this function to map fds to socket handles.
+
+=item EV_WIN32_HANDLE_TO_FD(handle)
+
+If C<EV_SELECT_IS_WINSOCKET> then libev maps handles to file descriptors
+using the standard C<_open_osfhandle> function. For programs implementing
+their own fd to handle mapping, overwriting this function makes it easier
+to do so. This can be done by defining this macro to an appropriate value.
+
+=item EV_WIN32_CLOSE_FD(fd)
+
+If programs implement their own fd to handle mapping on win32, then this
+macro can be used to override the C<close> function, useful to unregister
+file descriptors again. Note that the replacement function has to close
+the underlying OS handle.
 
 =item EV_USE_POLL
 

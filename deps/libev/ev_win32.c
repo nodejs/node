@@ -111,8 +111,8 @@ ev_pipe (int filedes [2])
   closesocket (listener);
 
 #if EV_SELECT_IS_WINSOCKET
-  filedes [0] = _open_osfhandle (sock [0], 0);
-  filedes [1] = _open_osfhandle (sock [1], 0);
+  filedes [0] = EV_WIN32_HANDLE_TO_FD (sock [0]);
+  filedes [1] = EV_WIN32_HANDLE_TO_FD (sock [1]);
 #else
   /* when select isn't winsocket, we also expect socket, connect, accept etc.
    * to work on fds */

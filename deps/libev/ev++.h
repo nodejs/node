@@ -725,9 +725,11 @@ namespace ev {
   EV_END_WATCHER (stat, stat)
   #endif
 
+#if EV_IDLE_ENABLE
   EV_BEGIN_WATCHER (idle, idle)
     void set () throw () { }
   EV_END_WATCHER (idle, idle)
+#endif
 
   EV_BEGIN_WATCHER (prepare, prepare)
     void set () throw () { }
