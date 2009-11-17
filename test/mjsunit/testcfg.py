@@ -75,7 +75,7 @@ class MjsunitTestConfiguration(test.TestConfiguration):
 
   def Ls(self, path):
     def SelectTest(name):
-      return name.endswith('.js') and name != 'mjsunit.js'
+      return name.startswith('test-') and name.endswith('.js')
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
   def ListTests(self, current_path, path, mode):
