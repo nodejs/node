@@ -11,6 +11,7 @@ function timer (t) {
 order = 0;
 var a = new Date();
 function test_timeout_order(delay, desired_order) {
+  delay *= 10;
   timer(0).addCallback(function() {
     timer(delay).wait()
     var b = new Date();
@@ -22,9 +23,9 @@ function test_timeout_order(delay, desired_order) {
     // assertEquals(desired_order, order);
   });
 }
-test_timeout_order(10000, 6); // Why does this have the proper order??
-test_timeout_order(5000, 5);
-test_timeout_order(4000, 4);
-test_timeout_order(3000, 3);
-test_timeout_order(2000, 2);
-test_timeout_order(1000, 1);
+test_timeout_order(10, 6); // Why does this have the proper order??
+test_timeout_order(5, 5);
+test_timeout_order(4, 4);
+test_timeout_order(3, 3);
+test_timeout_order(2, 2);
+test_timeout_order(1, 1);
