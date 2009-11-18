@@ -86,7 +86,7 @@ TEST(AssemblerX64ReturnOperation) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ movq(rax, arg2);
@@ -107,7 +107,7 @@ TEST(AssemblerX64StackOperations) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   // We compile without stack frame pointers, so the gdb debugger shows
@@ -138,7 +138,7 @@ TEST(AssemblerX64ArithmeticOperations) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that adds arguments returning the sum.
   __ movq(rax, arg2);
@@ -159,7 +159,7 @@ TEST(AssemblerX64ImulOperation) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that multiplies arguments returning the high
   // word.
@@ -186,7 +186,7 @@ TEST(AssemblerX64MemoryOperands) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ push(rbp);
@@ -219,7 +219,7 @@ TEST(AssemblerX64ControlFlow) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 1 and returns it.
   __ push(rbp);
@@ -247,7 +247,7 @@ TEST(AssemblerX64LoopImmediates) {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler assm(buffer, actual_size);
+  Assembler assm(buffer, static_cast<int>(actual_size));
   // Assemble two loops using rax as counter, and verify the ending counts.
   Label Fail;
   __ movq(rax, Immediate(-3));

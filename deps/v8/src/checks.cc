@@ -36,6 +36,8 @@ static int fatal_error_handler_nesting_depth = 0;
 
 // Contains protection against recursive calls (faults while handling faults).
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
+  fflush(stdout);
+  fflush(stderr);
   fatal_error_handler_nesting_depth++;
   // First time we try to print an error message
   if (fatal_error_handler_nesting_depth < 2) {

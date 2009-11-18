@@ -50,7 +50,7 @@ int HexValue(uc32 c) {
 // Provide a common interface to getting a character at a certain
 // index from a char* or a String object.
 static inline int GetChar(const char* str, int index) {
-  ASSERT(index >= 0 && index < static_cast<int>(strlen(str)));
+  ASSERT(index >= 0 && index < StrLength(str));
   return str[index];
 }
 
@@ -61,7 +61,7 @@ static inline int GetChar(String* str, int index) {
 
 
 static inline int GetLength(const char* str) {
-  return strlen(str);
+  return StrLength(str);
 }
 
 
@@ -101,7 +101,7 @@ static inline void ReleaseCString(String* original, const char* str) {
 
 
 static inline bool IsSpace(const char* str, int index) {
-  ASSERT(index >= 0 && index < static_cast<int>(strlen(str)));
+  ASSERT(index >= 0 && index < StrLength(str));
   return Scanner::kIsWhiteSpace.get(str[index]);
 }
 
@@ -121,13 +121,13 @@ static inline bool SubStringEquals(const char* str,
 static inline bool SubStringEquals(String* str, int index, const char* other) {
   HandleScope scope;
   int str_length = str->length();
-  int other_length = strlen(other);
+  int other_length = StrLength(other);
   int end = index + other_length < str_length ?
             index + other_length :
             str_length;
-  Handle<String> slice =
-      Factory::NewStringSlice(Handle<String>(str), index, end);
-  return slice->IsEqualTo(Vector<const char>(other, other_length));
+  Handle<String> substring =
+      Factory::NewSubString(Handle<String>(str), index, end);
+  return substring->IsEqualTo(Vector<const char>(other, other_length));
 }
 
 
@@ -319,7 +319,7 @@ static double InternalStringToDouble(S* str,
     ReleaseCString(str, cstr);
     if (result != 0.0 || end != cstr) {
       // It appears that strtod worked
-      index += end - cstr;
+      index += static_cast<int>(end - cstr);
     } else {
       // Check for {+,-,}Infinity
       bool is_negative = (GetChar(str, index) == '-');
@@ -383,7 +383,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int sign;
 
       char* decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-      int length = strlen(decimal_rep);
+      int length = StrLength(decimal_rep);
 
       if (sign) builder.AddCharacter('-');
 
@@ -465,7 +465,7 @@ char* DoubleToFixedCString(double value, int f) {
   int decimal_point;
   int sign;
   char* decimal_rep = dtoa(abs_value, 3, f, &decimal_point, &sign, NULL);
-  int decimal_rep_length = strlen(decimal_rep);
+  int decimal_rep_length = StrLength(decimal_rep);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -526,7 +526,8 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
   if (significant_digits != 1) {
     builder.AddCharacter('.');
     builder.AddString(decimal_rep + 1);
-    builder.AddPadding('0', significant_digits - strlen(decimal_rep));
+    int rep_length = StrLength(decimal_rep);
+    builder.AddPadding('0', significant_digits - rep_length);
   }
 
   builder.AddCharacter('e');
@@ -553,11 +554,11 @@ char* DoubleToExponentialCString(double value, int f) {
   char* decimal_rep = NULL;
   if (f == -1) {
     decimal_rep = dtoa(value, 0, 0, &decimal_point, &sign, NULL);
-    f = strlen(decimal_rep) - 1;
+    f = StrLength(decimal_rep) - 1;
   } else {
     decimal_rep = dtoa(value, 2, f + 1, &decimal_point, &sign, NULL);
   }
-  int decimal_rep_length = strlen(decimal_rep);
+  int decimal_rep_length = StrLength(decimal_rep);
   ASSERT(decimal_rep_length > 0);
   ASSERT(decimal_rep_length <= f + 1);
   USE(decimal_rep_length);
@@ -585,7 +586,7 @@ char* DoubleToPrecisionCString(double value, int p) {
   int decimal_point;
   int sign;
   char* decimal_rep = dtoa(value, 2, p, &decimal_point, &sign, NULL);
-  int decimal_rep_length = strlen(decimal_rep);
+  int decimal_rep_length = StrLength(decimal_rep);
   ASSERT(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -619,7 +620,7 @@ char* DoubleToPrecisionCString(double value, int p) {
         builder.AddCharacter('.');
         const int extra = negative ? 2 : 1;
         if (decimal_rep_length > decimal_point) {
-          const int len = strlen(decimal_rep + decimal_point);
+          const int len = StrLength(decimal_rep + decimal_point);
           const int n = Min(len, p - (builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }

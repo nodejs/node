@@ -163,11 +163,6 @@ bool Object::IsConsString() {
 }
 
 
-#ifdef DEBUG
-// These are for cast checks.  If you need one of these in release
-// mode you should consider using a StringShape before moving it out
-// of the ifdef
-
 bool Object::IsSeqString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential();
@@ -208,15 +203,6 @@ bool Object::IsExternalTwoByteString() {
 }
 
 
-bool Object::IsSlicedString() {
-  if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSliced();
-}
-
-
-#endif  // DEBUG
-
-
 StringShape::StringShape(String* str)
   : type_(str->map()->instance_type()) {
   set_valid();
@@ -246,9 +232,6 @@ bool StringShape::IsSymbol() {
 
 bool String::IsAsciiRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
-    return SlicedString::cast(this)->buffer()->IsAsciiRepresentation();
-  }
   if ((type & kStringRepresentationMask) == kConsStringTag &&
       ConsString::cast(this)->second()->length() == 0) {
     return ConsString::cast(this)->first()->IsAsciiRepresentation();
@@ -259,9 +242,7 @@ bool String::IsAsciiRepresentation() {
 
 bool String::IsTwoByteRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
-    return SlicedString::cast(this)->buffer()->IsTwoByteRepresentation();
-  } else if ((type & kStringRepresentationMask) == kConsStringTag &&
+  if ((type & kStringRepresentationMask) == kConsStringTag &&
              ConsString::cast(this)->second()->length() == 0) {
     return ConsString::cast(this)->first()->IsTwoByteRepresentation();
   }
@@ -271,11 +252,6 @@ bool String::IsTwoByteRepresentation() {
 
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
-}
-
-
-bool StringShape::IsSliced() {
-  return (type_ & kStringRepresentationMask) == kSlicedStringTag;
 }
 
 
@@ -879,7 +855,7 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
     requested = static_cast<intptr_t>(
                     (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
   }
-  int value = (requested << kSpaceTagSize) | NEW_SPACE;
+  int value = static_cast<int>(requested << kSpaceTagSize) | NEW_SPACE;
   return Construct(RETRY_AFTER_GC, value);
 }
 
@@ -1033,9 +1009,9 @@ Address MapWord::DecodeMapAddress(MapSpace* map_space) {
 int MapWord::DecodeOffset() {
   // The offset field is represented in the kForwardingOffsetBits
   // most-significant bits.
-  int offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
-  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
-  return offset;
+  uintptr_t offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
+  ASSERT(offset < static_cast<uintptr_t>(Page::kObjectAreaSize));
+  return static_cast<int>(offset);
 }
 
 
@@ -1610,7 +1586,6 @@ CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqAsciiString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(ConsString)
-CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
@@ -1721,9 +1696,6 @@ uint16_t String::Get(int index) {
     case kConsStringTag | kAsciiStringTag:
     case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
-    case kSlicedStringTag | kAsciiStringTag:
-    case kSlicedStringTag | kTwoByteStringTag:
-      return SlicedString::cast(this)->SlicedStringGet(index);
     case kExternalStringTag | kAsciiStringTag:
       return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
     case kExternalStringTag | kTwoByteStringTag:
@@ -1753,11 +1725,6 @@ bool String::IsFlat() {
       String* second = ConsString::cast(this)->second();
       // Only flattened strings have second part empty.
       return second->length() == 0;
-    }
-    case kSlicedStringTag: {
-      StringRepresentationTag tag =
-          StringShape(SlicedString::cast(this)->buffer()).representation_tag();
-      return tag == kSeqStringTag || tag == kExternalStringTag;
     }
     default:
       return true;
@@ -1869,27 +1836,6 @@ Object* ConsString::unchecked_second() {
 void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
-}
-
-
-String* SlicedString::buffer() {
-  return String::cast(READ_FIELD(this, kBufferOffset));
-}
-
-
-void SlicedString::set_buffer(String* buffer) {
-  WRITE_FIELD(this, kBufferOffset, buffer);
-  WRITE_BARRIER(this, kBufferOffset);
-}
-
-
-int SlicedString::start() {
-  return READ_INT_FIELD(this, kStartOffset);
-}
-
-
-void SlicedString::set_start(int start) {
-  WRITE_INT_FIELD(this, kStartOffset, start);
 }
 
 
@@ -2436,6 +2382,7 @@ ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS(AccessorInfo, flag, Smi, kFlagOffset)
+ACCESSORS(AccessorInfo, load_stub_cache, Object, kLoadStubCacheOffset)
 
 ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
 ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)
@@ -2494,7 +2441,8 @@ ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
-ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
+ACCESSORS(Script, line_ends_fixed_array, Object, kLineEndsFixedArrayOffset)
+ACCESSORS(Script, line_ends_js_array, Object, kLineEndsJSArrayOffset)
 ACCESSORS(Script, eval_from_function, Object, kEvalFromFunctionOffset)
 ACCESSORS(Script, eval_from_instructions_offset, Smi,
           kEvalFrominstructionsOffsetOffset)
@@ -2533,12 +2481,12 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
 BOOL_GETTER(SharedFunctionInfo, compiler_hints,
-            has_only_this_property_assignments,
-            kHasOnlyThisPropertyAssignments)
-BOOL_GETTER(SharedFunctionInfo, compiler_hints,
             has_only_simple_this_property_assignments,
             kHasOnlySimpleThisPropertyAssignments)
-
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               try_fast_codegen,
+               kTryFastCodegen)
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
@@ -3044,6 +2992,43 @@ Object* JSObject::GetPrototype() {
 
 PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
+}
+
+// TODO(504): this may be useful in other places too where JSGlobalProxy
+// is used.
+Object* JSObject::BypassGlobalProxy() {
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return Heap::undefined_value();
+    ASSERT(proto->IsJSGlobalObject());
+    return proto;
+  }
+  return this;
+}
+
+
+bool JSObject::HasHiddenPropertiesObject() {
+  ASSERT(!IsJSGlobalProxy());
+  return GetPropertyAttributePostInterceptor(this,
+                                             Heap::hidden_symbol(),
+                                             false) != ABSENT;
+}
+
+
+Object* JSObject::GetHiddenPropertiesObject() {
+  ASSERT(!IsJSGlobalProxy());
+  PropertyAttributes attributes;
+  return GetLocalPropertyPostInterceptor(this,
+                                         Heap::hidden_symbol(),
+                                         &attributes);
+}
+
+
+Object* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
+  ASSERT(!IsJSGlobalProxy());
+  return SetPropertyPostInterceptor(Heap::hidden_symbol(),
+                                    hidden_obj,
+                                    DONT_ENUM);
 }
 
 

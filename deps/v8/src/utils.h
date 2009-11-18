@@ -66,7 +66,7 @@ static inline intptr_t OffsetFrom(T x) {
 // integral types.
 template <typename T>
 static inline T AddressFrom(intptr_t x) {
-  return static_cast<T>(0) + x;
+  return static_cast<T>(static_cast<T>(0) + x);
 }
 
 
@@ -134,6 +134,13 @@ static T Max(T a, T b) {
 template <typename T>
 static T Min(T a, T b) {
   return a < b ? a : b;
+}
+
+
+inline int StrLength(const char* string) {
+  size_t length = strlen(string);
+  ASSERT(length == static_cast<size_t>(static_cast<int>(length)));
+  return static_cast<int>(length);
 }
 
 
@@ -449,15 +456,15 @@ class ScopedVector : public Vector<T> {
 
 
 inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, static_cast<int>(strlen(data)));
+  return Vector<const char>(data, StrLength(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, static_cast<int>(strlen(data)));
+  return Vector<char>(data, StrLength(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data, int max) {
-  int length = static_cast<int>(strlen(data));
+  int length = StrLength(data);
   return Vector<char>(data, (length < max) ? length : max);
 }
 

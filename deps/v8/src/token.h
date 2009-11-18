@@ -260,15 +260,6 @@ class Token {
     return precedence_[tok];
   }
 
-  // Returns the keyword value if str is a keyword;
-  // returns IDENTIFIER otherwise. The class must
-  // have been initialized.
-  static Value Lookup(const char* str);
-
-  // Must be called once to initialize the class.
-  // Multiple calls are ignored.
-  static void Initialize();
-
  private:
 #ifdef DEBUG
   static const char* name_[NUM_TOKENS];

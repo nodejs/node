@@ -75,7 +75,7 @@ TEST(Flags2b) {
       " -notesting-bool-flag notaflag   --testing_int_flag=77 "
       "-testing_float_flag=.25  "
       "--testing_string_flag   no_way!  ";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK(!FLAG_testing_bool_flag);
   CHECK_EQ(77, FLAG_testing_int_flag);
   CHECK_EQ(.25, FLAG_testing_float_flag);
@@ -107,7 +107,7 @@ TEST(Flags3b) {
       "--testing_bool_flag notaflag --testing_int_flag -666 "
       "--testing_float_flag -12E10 "
       "-testing-string-flag=foo-bar";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK(FLAG_testing_bool_flag);
   CHECK_EQ(-666, FLAG_testing_int_flag);
   CHECK_EQ(-12E10, FLAG_testing_float_flag);
@@ -129,7 +129,7 @@ TEST(Flags4) {
 TEST(Flags4b) {
   SetFlagsToDefault();
   const char* str = "--testing_bool_flag --foo";
-  CHECK_EQ(2, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(2, FlagList::SetFlagsFromString(str, StrLength(str)));
 }
 
 
@@ -147,7 +147,7 @@ TEST(Flags5) {
 TEST(Flags5b) {
   SetFlagsToDefault();
   const char* str = "                     --testing_int_flag=\"foobar\"";
-  CHECK_EQ(1, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(1, FlagList::SetFlagsFromString(str, StrLength(str)));
 }
 
 
@@ -166,7 +166,7 @@ TEST(Flags6) {
 TEST(Flags6b) {
   SetFlagsToDefault();
   const char* str = "       --testing-int-flag 0      --testing_float_flag    ";
-  CHECK_EQ(3, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(3, FlagList::SetFlagsFromString(str, StrLength(str)));
 }
 
 
@@ -191,7 +191,7 @@ TEST(FlagsJSArguments1) {
 TEST(FlagsJSArguments1b) {
   SetFlagsToDefault();
   const char* str = "--testing-int-flag 42 -- testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK_EQ(42, FLAG_testing_int_flag);
   CHECK_EQ(2.5, FLAG_testing_float_flag);
   CHECK_EQ(2, FLAG_js_arguments.argc());
@@ -203,7 +203,7 @@ TEST(FlagsJSArguments1b) {
 TEST(FlagsJSArguments2) {
   SetFlagsToDefault();
   const char* str = "--testing-int-flag 42 --js-arguments testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK_EQ(42, FLAG_testing_int_flag);
   CHECK_EQ(2.5, FLAG_testing_float_flag);
   CHECK_EQ(2, FLAG_js_arguments.argc());
@@ -215,7 +215,7 @@ TEST(FlagsJSArguments2) {
 TEST(FlagsJSArguments3) {
   SetFlagsToDefault();
   const char* str = "--testing-int-flag 42 --js-arguments=testing-float-flag 7";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK_EQ(42, FLAG_testing_int_flag);
   CHECK_EQ(2.5, FLAG_testing_float_flag);
   CHECK_EQ(2, FLAG_js_arguments.argc());
@@ -227,7 +227,7 @@ TEST(FlagsJSArguments3) {
 TEST(FlagsJSArguments4) {
   SetFlagsToDefault();
   const char* str = "--testing-int-flag 42 --";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
   CHECK_EQ(42, FLAG_testing_int_flag);
   CHECK_EQ(0, FLAG_js_arguments.argc());
 }

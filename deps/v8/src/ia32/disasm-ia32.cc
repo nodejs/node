@@ -272,6 +272,17 @@ class DisassemblerIA32 {
   };
 
 
+  enum ShiftOpcodeExtension {
+    kROL = 0,
+    kROR = 1,
+    kRCL = 2,
+    kRCR = 3,
+    kSHL = 4,
+    KSHR = 5,
+    kSAR = 7
+  };
+
+
   const char* NameOfCPURegister(int reg) const {
     return converter_.NameOfCPURegister(reg);
   }
@@ -536,31 +547,22 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   int num_bytes = 2;
   if (mod == 3) {
     const char* mnem = NULL;
+    switch (regop) {
+      case kROL: mnem = "rol"; break;
+      case kROR: mnem = "ror"; break;
+      case kRCL: mnem = "rcl"; break;
+      case kSHL: mnem = "shl"; break;
+      case KSHR: mnem = "shr"; break;
+      case kSAR: mnem = "sar"; break;
+      default: UnimplementedInstruction();
+    }
     if (op == 0xD1) {
       imm8 = 1;
-      switch (regop) {
-        case edx: mnem = "rcl"; break;
-        case edi: mnem = "sar"; break;
-        case esp: mnem = "shl"; break;
-        default: UnimplementedInstruction();
-      }
     } else if (op == 0xC1) {
       imm8 = *(data+2);
       num_bytes = 3;
-      switch (regop) {
-        case edx: mnem = "rcl"; break;
-        case esp: mnem = "shl"; break;
-        case ebp: mnem = "shr"; break;
-        case edi: mnem = "sar"; break;
-        default: UnimplementedInstruction();
-      }
     } else if (op == 0xD3) {
-      switch (regop) {
-        case esp: mnem = "shl"; break;
-        case ebp: mnem = "shr"; break;
-        case edi: mnem = "sar"; break;
-        default: UnimplementedInstruction();
-      }
+      // Shift/rotate by cl.
     }
     ASSERT_NE(NULL, mnem);
     AppendToBuffer("%s %s,", mnem, NameOfCPURegister(rm));

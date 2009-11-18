@@ -53,7 +53,7 @@ using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
 using ::v8::internal::StepOut;  // From StepAction enum
 using ::v8::internal::Vector;
-
+using ::v8::internal::StrLength;
 
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
@@ -175,12 +175,6 @@ static v8::Local<v8::Function> CompileFunction(const char* source,
   v8::Script::Compile(v8::String::New(source))->Run();
   return v8::Local<v8::Function>::Cast(
     v8::Context::GetCurrent()->Global()->Get(v8::String::New(function_name)));
-}
-
-
-// Helper function that compiles and runs the source.
-static v8::Local<v8::Value> CompileRun(const char* source) {
-  return v8::Script::Compile(v8::String::New(source))->Run();
 }
 
 
@@ -806,14 +800,14 @@ static void DebugEventStepSequence(v8::DebugEvent event,
   if (event == v8::Break || event == v8::Exception) {
     // Check that the current function is the expected.
     CHECK(break_point_hit_count <
-          static_cast<int>(strlen(expected_step_sequence)));
+          StrLength(expected_step_sequence));
     const int argc = 1;
     v8::Handle<v8::Value> argv[argc] = { exec_state };
     v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                              argc, argv);
     CHECK(result->IsString());
     v8::String::AsciiValue function_name(result->ToString());
-    CHECK_EQ(1, strlen(*function_name));
+    CHECK_EQ(1, StrLength(*function_name));
     CHECK_EQ((*function_name)[0],
               expected_step_sequence[break_point_hit_count]);
 
@@ -865,6 +859,26 @@ static void DebugEventBreak(v8::DebugEvent event,
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
     Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+
+    // Set the break flag again to come back here as soon as possible.
+    v8::Debug::DebugBreak();
+  }
+}
+
+
+// Debug event handler which re-issues a debug break until a limit has been
+// reached.
+int max_break_point_hit_count = 0;
+static void DebugEventBreakMax(v8::DebugEvent event,
+                               v8::Handle<v8::Object> exec_state,
+                               v8::Handle<v8::Object> event_data,
+                               v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
+
+  if (event == v8::Break && break_point_hit_count < max_break_point_hit_count) {
+    // Count the number of breaks.
+    break_point_hit_count++;
 
     // Set the break flag again to come back here as soon as possible.
     v8::Debug::DebugBreak();
@@ -1917,7 +1931,7 @@ TEST(ScriptBreakPointLine) {
 
   // Chesk that a break point was hit when the script was run.
   CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Call f and check that the script break point.
   f->Call(env->Global(), 0, NULL);
@@ -1953,7 +1967,7 @@ TEST(ScriptBreakPointLine) {
   break_point_hit_count = 0;
   v8::Script::Compile(script, &origin)->Run();
   CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Set a break point in the code after the last function decleration.
   int sbp6 = SetScriptBreakPointByNameFromJS("test.html", 12, -1);
@@ -1962,7 +1976,7 @@ TEST(ScriptBreakPointLine) {
   break_point_hit_count = 0;
   v8::Script::Compile(script, &origin)->Run();
   CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Clear the last break points, and reload the script which should not hit any
   // break points.
@@ -2478,21 +2492,24 @@ TEST(StepInOutSimple) {
   break_point_hit_count = 0;
   expected_step_sequence = "abcbaca";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step next.
   step_action = StepNext;
   break_point_hit_count = 0;
   expected_step_sequence = "aaa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step out.
   step_action = StepOut;
   break_point_hit_count = 0;
   expected_step_sequence = "a";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2525,21 +2542,24 @@ TEST(StepInOutTree) {
   break_point_hit_count = 0;
   expected_step_sequence = "adacadabcbadacada";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step next.
   step_action = StepNext;
   break_point_hit_count = 0;
   expected_step_sequence = "aaaa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step out.
   step_action = StepOut;
   break_point_hit_count = 0;
   expected_step_sequence = "a";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2571,7 +2591,8 @@ TEST(StepInOutBranch) {
   break_point_hit_count = 0;
   expected_step_sequence = "abaca";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2702,6 +2723,37 @@ TEST(DebugStepFunctionCall) {
   // Without stepping only the debugger statement is hit.
   CHECK_EQ(1, break_point_hit_count);
 
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Tests that breakpoint will be hit if it's set in script.
+TEST(PauseInScript) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Register a debug event listener which counts.
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+
+  // Create a script that returns a function.
+  const char* src = "(function (evt) {})";
+  const char* script_name = "StepInHandlerTest";
+
+  // Set breakpoint in the script.
+  SetScriptBreakPointByNameFromJS(script_name, 0, -1);
+  break_point_hit_count = 0;
+
+  v8::ScriptOrigin origin(v8::String::New(script_name), v8::Integer::New(0));
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(src),
+                                                      &origin);
+  v8::Local<v8::Value> r = script->Run();
+
+  CHECK(r->IsFunction());
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
 }
@@ -2938,7 +2990,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "aa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of b + c.
   v8::Local<v8::Function> b = CompileFunction(&env, src, "b");
@@ -2947,7 +3000,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "bcc";
   b->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of d + e.
   v8::Local<v8::Function> d = CompileFunction(&env, src, "d");
@@ -2957,7 +3011,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "dded";
   d->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of d + e now with break on caught exceptions.
   ChangeBreakOnException(true, true);
@@ -2965,7 +3020,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ddeed";
   d->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of f + g + h.
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
@@ -2975,7 +3031,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ffghf";
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of f + g + h now with break on caught exceptions.
   ChangeBreakOnException(true, true);
@@ -2983,7 +3040,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ffghhf";
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -3424,6 +3482,75 @@ TEST(NativeGetterThrowingErrorPropertyMirror) {
           BooleanValue());
 }
 
+
+// Test that hidden properties object is not returned as an unnamed property
+// among regular properties.
+// See http://crbug.com/26491
+TEST(NoHiddenProperties) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Create an object in the global scope.
+  const char* source = "var obj = {a: 1};";
+  v8::Script::Compile(v8::String::New(source))->Run();
+  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
+      env->Global()->Get(v8::String::New("obj")));
+  // Set a hidden property on the object.
+  obj->SetHiddenValue(v8::String::New("v8::test-debug::a"),
+                      v8::Int32::New(11));
+
+  // Get mirror for the object with property getter.
+  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
+  CHECK(CompileRun(
+      "obj_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("var named_names = obj_mirror.propertyNames();");
+  // There should be exactly one property. But there is also an unnamed
+  // property whose value is hidden properties dictionary. The latter
+  // property should not be in the list of reguar properties.
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'a'")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('a').value().value() == 1")->BooleanValue());
+
+  // Object created by t0 will become hidden prototype of object 'obj'.
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
+  t0->InstanceTemplate()->Set(v8::String::New("b"), v8::Number::New(2));
+  t0->SetHiddenPrototype(true);
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->InstanceTemplate()->Set(v8::String::New("c"), v8::Number::New(3));
+
+  // Create proto objects, add hidden properties to them and set them on
+  // the global object.
+  v8::Handle<v8::Object> protoObj = t0->GetFunction()->NewInstance();
+  protoObj->SetHiddenValue(v8::String::New("v8::test-debug::b"),
+                           v8::Int32::New(12));
+  env->Global()->Set(v8::String::New("protoObj"), protoObj);
+  v8::Handle<v8::Object> grandProtoObj = t1->GetFunction()->NewInstance();
+  grandProtoObj->SetHiddenValue(v8::String::New("v8::test-debug::c"),
+                                v8::Int32::New(13));
+  env->Global()->Set(v8::String::New("grandProtoObj"), grandProtoObj);
+
+  // Setting prototypes: obj->protoObj->grandProtoObj
+  protoObj->Set(v8::String::New("__proto__"), grandProtoObj);
+  obj->Set(v8::String::New("__proto__"), protoObj);
+
+  // Get mirror for the object with property getter.
+  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
+  CHECK(CompileRun(
+      "obj_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("var named_names = obj_mirror.propertyNames();");
+  // There should be exactly two properties - one from the object itself and
+  // another from its hidden prototype.
+  CHECK_EQ(2, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names.sort(); named_names[0] == 'a' &&"
+                   "named_names[1] == 'b'")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('a').value().value() == 1")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('b').value().value() == 2")->BooleanValue());
+}
 
 
 // Multithreaded tests of JSON debugger protocol
@@ -4564,6 +4691,71 @@ TEST(DebuggerHostDispatch) {
 }
 
 
+/* Test DebugMessageDispatch */
+/* In this test, the V8 thread waits for a message from the debug thread.
+ * The DebugMessageDispatchHandler is executed from the debugger thread
+ * which signals the V8 thread to wake up.
+ */
+
+class DebugMessageDispatchV8Thread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+Barriers* debug_message_dispatch_barriers;
+
+
+static void DebugMessageHandler() {
+  debug_message_dispatch_barriers->semaphore_1->Signal();
+}
+
+
+void DebugMessageDispatchV8Thread::Run() {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Setup debug message dispatch handler.
+  v8::Debug::SetDebugMessageDispatchHandler(DebugMessageHandler);
+
+  CompileRun("var y = 1 + 2;\n");
+  debug_message_dispatch_barriers->barrier_1.Wait();
+  debug_message_dispatch_barriers->semaphore_1->Wait();
+  debug_message_dispatch_barriers->barrier_2.Wait();
+}
+
+
+void DebugMessageDispatchDebuggerThread::Run() {
+  debug_message_dispatch_barriers->barrier_1.Wait();
+  SendContinueCommand();
+  debug_message_dispatch_barriers->barrier_2.Wait();
+}
+
+DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
+DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
+
+
+TEST(DebuggerDebugMessageDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
+  // Create a V8 environment
+  Barriers stack_allocated_debug_message_dispatch_barriers;
+  stack_allocated_debug_message_dispatch_barriers.Initialize();
+  debug_message_dispatch_barriers =
+      &stack_allocated_debug_message_dispatch_barriers;
+
+  debug_message_dispatch_v8_thread.Start();
+  debug_message_dispatch_debugger_thread.Start();
+
+  debug_message_dispatch_v8_thread.Join();
+  debug_message_dispatch_debugger_thread.Join();
+}
+
+
 TEST(DebuggerAgent) {
   // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.
@@ -4709,7 +4901,8 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
 
   // Add empty body to request.
   const char* content_length_zero_header = "Content-Length:0\r\n";
-  client->Send(content_length_zero_header, strlen(content_length_zero_header));
+  client->Send(content_length_zero_header,
+               StrLength(content_length_zero_header));
   client->Send("\r\n", 2);
 
   // Wait until data is received.
@@ -5443,4 +5636,120 @@ TEST(GetMirror) {
               "runTest;"))->Run());
   v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
   CHECK(result->IsTrue());
+}
+
+
+// Test that the debug break flag works with function.apply.
+TEST(DebugBreakFunctionApply) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Create a function for testing breaking in apply.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function baz(x) { }"
+      "function bar(x) { baz(); }"
+      "function foo(){ bar.apply(this, [1]); }",
+      "foo");
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventBreakMax);
+
+  // Set the debug break flag before calling the code using function.apply.
+  v8::Debug::DebugBreak();
+
+  // Limit the number of debug breaks. This is a regression test for issue 493
+  // where this test would enter an infinite loop.
+  break_point_hit_count = 0;
+  max_break_point_hit_count = 10000;  // 10000 => infinite loop.
+  foo->Call(env->Global(), 0, NULL);
+
+  // When keeping the debug break several break will happen.
+  CHECK_EQ(3, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+v8::Handle<v8::Context> debugee_context;
+v8::Handle<v8::Context> debugger_context;
+
+
+// Property getter that checks that current and calling contexts
+// are both the debugee contexts.
+static v8::Handle<v8::Value> NamedGetterWithCallingContextCheck(
+    v8::Local<v8::String> name,
+    const v8::AccessorInfo& info) {
+  CHECK_EQ(0, strcmp(*v8::String::AsciiValue(name), "a"));
+  v8::Handle<v8::Context> current = v8::Context::GetCurrent();
+  CHECK(current == debugee_context);
+  CHECK(current != debugger_context);
+  v8::Handle<v8::Context> calling = v8::Context::GetCalling();
+  CHECK(calling == debugee_context);
+  CHECK(calling != debugger_context);
+  return v8::Int32::New(1);
+}
+
+
+// Debug event listener that checks if the first argument of a function is
+// an object with property 'a' == 1. If the property has custom accessor
+// this handler will eventually invoke it.
+static void DebugEventGetAtgumentPropertyValue(
+    v8::DebugEvent event,
+    v8::Handle<v8::Object> exec_state,
+    v8::Handle<v8::Object> event_data,
+    v8::Handle<v8::Value> data) {
+  if (event == v8::Break) {
+    break_point_hit_count++;
+    CHECK(debugger_context == v8::Context::GetCurrent());
+    v8::Handle<v8::Function> func(v8::Function::Cast(*CompileRun(
+        "(function(exec_state) {\n"
+        "    return (exec_state.frame(0).argumentValue(0).property('a').\n"
+        "            value().value() == 1);\n"
+        "})")));
+    const int argc = 1;
+    v8::Handle<v8::Value> argv[argc] = { exec_state };
+    v8::Handle<v8::Value> result = func->Call(exec_state, argc, argv);
+    CHECK(result->IsTrue());
+  }
+}
+
+
+TEST(CallingContextIsNotDebugContext) {
+  // Create and enter a debugee context.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Save handles to the debugger and debugee contexts to be used in
+  // NamedGetterWithCallingContextCheck.
+  debugee_context = v8::Local<v8::Context>(*env);
+  debugger_context = v8::Utils::ToLocal(Debug::debug_context());
+
+  // Create object with 'a' property accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(v8::String::New("a"),
+                     NamedGetterWithCallingContextCheck);
+  env->Global()->Set(v8::String::New("obj"),
+                     named->NewInstance());
+
+  // Register the debug event listener
+  v8::Debug::SetDebugEventListener(DebugEventGetAtgumentPropertyValue);
+
+  // Create a function that invokes debugger.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function bar(x) { debugger; }"
+      "function foo(){ bar(obj); }",
+      "foo");
+
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  debugee_context = v8::Handle<v8::Context>();
+  debugger_context = v8::Handle<v8::Context>();
+  CheckDebuggerUnloaded();
 }

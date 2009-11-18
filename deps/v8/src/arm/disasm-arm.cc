@@ -97,6 +97,10 @@ class Decoder {
 
   // Printing of common values.
   void PrintRegister(int reg);
+  void PrintSRegister(int reg);
+  void PrintDRegister(int reg);
+  int FormatVFPRegister(Instr* instr, const char* format);
+  int FormatVFPinstruction(Instr* instr, const char* format);
   void PrintCondition(Instr* instr);
   void PrintShiftRm(Instr* instr);
   void PrintShiftImm(Instr* instr);
@@ -121,6 +125,10 @@ class Decoder {
   void DecodeType6(Instr* instr);
   void DecodeType7(Instr* instr);
   void DecodeUnconditional(Instr* instr);
+  // For VFP support.
+  void DecodeTypeVFP(Instr* instr);
+  void DecodeType6CoprocessorIns(Instr* instr);
+
 
   const disasm::NameConverter& converter_;
   v8::internal::Vector<char> out_buffer_;
@@ -169,6 +177,16 @@ void Decoder::PrintCondition(Instr* instr) {
 // Print the register name according to the active name converter.
 void Decoder::PrintRegister(int reg) {
   Print(converter_.NameOfCPURegister(reg));
+}
+
+// Print the VFP S register name according to the active name converter.
+void Decoder::PrintSRegister(int reg) {
+  Print(assembler::arm::VFPRegisters::Name(reg));
+}
+
+// Print the  VFP D register name according to the active name converter.
+void Decoder::PrintDRegister(int reg) {
+  Print(assembler::arm::VFPRegisters::Name(reg + 32));
 }
 
 
@@ -290,6 +308,10 @@ int Decoder::FormatRegister(Instr* instr, const char* format) {
     int reg = instr->RmField();
     PrintRegister(reg);
     return 2;
+  } else if (format[1] == 't') {  // 'rt: Rt register
+    int reg = instr->RtField();
+    PrintRegister(reg);
+    return 2;
   } else if (format[1] == 'l') {
     // 'rlist: register list for load and store multiple instructions
     ASSERT(STRING_STARTS_WITH(format, "rlist"));
@@ -312,6 +334,39 @@ int Decoder::FormatRegister(Instr* instr, const char* format) {
   }
   UNREACHABLE();
   return -1;
+}
+
+
+// Handle all VFP register based formatting in this function to reduce the
+// complexity of FormatOption.
+int Decoder::FormatVFPRegister(Instr* instr, const char* format) {
+  ASSERT((format[0] == 'S') || (format[0] == 'D'));
+
+  if (format[1] == 'n') {
+    int reg = instr->VnField();
+    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->NField()));
+    if (format[0] == 'D') PrintDRegister(reg);
+    return 2;
+  } else if (format[1] == 'm') {
+    int reg = instr->VmField();
+    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->MField()));
+    if (format[0] == 'D') PrintDRegister(reg);
+    return 2;
+  } else if (format[1] == 'd') {
+    int reg = instr->VdField();
+    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->DField()));
+    if (format[0] == 'D') PrintDRegister(reg);
+    return 2;
+  }
+
+  UNREACHABLE();
+  return -1;
+}
+
+
+int Decoder::FormatVFPinstruction(Instr* instr, const char* format) {
+    Print(format);
+    return 0;
 }
 
 
@@ -458,6 +513,13 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         Print("s");
       }
       return 1;
+    }
+    case 'v': {
+      return FormatVFPinstruction(instr, format);
+    }
+    case 'S':
+    case 'D': {
+      return FormatVFPRegister(instr, format);
     }
     case 'w': {  // 'w: W field of load and store instructions
       if (instr->HasW()) {
@@ -761,8 +823,7 @@ void Decoder::DecodeType5(Instr* instr) {
 
 
 void Decoder::DecodeType6(Instr* instr) {
-  // Coprocessor instructions currently not supported.
-  Unknown(instr);
+  DecodeType6CoprocessorIns(instr);
 }
 
 
@@ -770,11 +831,9 @@ void Decoder::DecodeType7(Instr* instr) {
   if (instr->Bit(24) == 1) {
     Format(instr, "swi'cond 'swi");
   } else {
-    // Coprocessor instructions currently not supported.
-    Unknown(instr);
+    DecodeTypeVFP(instr);
   }
 }
-
 
 void Decoder::DecodeUnconditional(Instr* instr) {
   if (instr->Bits(7, 4) == 0xB && instr->Bits(27, 25) == 0 && instr->HasL()) {
@@ -834,6 +893,136 @@ void Decoder::DecodeUnconditional(Instr* instr) {
     return;
   }
   Format(instr, "break 'msg");
+}
+
+
+// void Decoder::DecodeTypeVFP(Instr* instr)
+// Implements the following VFP instructions:
+// fmsr: Sn = Rt
+// fmrs: Rt = Sn
+// fsitod: Dd = Sm
+// ftosid: Sd = Dm
+// Dd = faddd(Dn, Dm)
+// Dd = fsubd(Dn, Dm)
+// Dd = fmuld(Dn, Dm)
+// Dd = fdivd(Dn, Dm)
+// vcmp(Dd, Dm)
+// VMRS
+void Decoder::DecodeTypeVFP(Instr* instr) {
+  ASSERT((instr->TypeField() == 7) && (instr->Bit(24) == 0x0) );
+
+  if (instr->Bit(23) == 1) {
+    if ((instr->Bits(21, 19) == 0x7) &&
+        (instr->Bits(18, 16) == 0x5) &&
+        (instr->Bits(11, 9) == 0x5) &&
+        (instr->Bit(8) == 1) &&
+        (instr->Bit(6) == 1) &&
+        (instr->Bit(4) == 0)) {
+      Format(instr, "vcvt.s32.f64'cond 'Sd, 'Dm");
+    } else if ((instr->Bits(21, 19) == 0x7) &&
+               (instr->Bits(18, 16) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 1) &&
+               (instr->Bit(7) == 1) &&
+               (instr->Bit(6) == 1) &&
+               (instr->Bit(4) == 0)) {
+      Format(instr, "vcvt.f64.s32'cond 'Dd, 'Sm");
+    } else if ((instr->Bit(21) == 0x0) &&
+               (instr->Bit(20) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 1) &&
+               (instr->Bit(6) == 0) &&
+               (instr->Bit(4) == 0)) {
+        Format(instr, "vdiv.f64'cond 'Dd, 'Dn, 'Dm");
+    } else if ((instr->Bits(21, 20) == 0x3) &&
+               (instr->Bits(19, 16) == 0x4) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 0x1) &&
+               (instr->Bit(4) == 0x0)) {
+      Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
+    } else if ((instr->Bits(23, 20) == 0xF) &&
+               (instr->Bits(19, 16) == 0x1) &&
+               (instr->Bits(11, 8) == 0xA) &&
+               (instr->Bits(7, 5) == 0x0) &&
+               (instr->Bit(4) == 0x1)    &&
+               (instr->Bits(3, 0) == 0x0)) {
+        if (instr->Bits(15, 12) == 0xF)
+          Format(instr, "vmrs'cond APSR, FPSCR");
+        else
+          Unknown(instr);  // Not used by V8.
+    } else {
+      Unknown(instr);  // Not used by V8.
+    }
+  } else if (instr->Bit(21) == 1) {
+    if ((instr->Bit(20) == 0x1) &&
+        (instr->Bits(11, 9) == 0x5) &&
+        (instr->Bit(8) == 0x1) &&
+        (instr->Bit(6) == 0) &&
+        (instr->Bit(4) == 0)) {
+      Format(instr, "vadd.f64'cond 'Dd, 'Dn, 'Dm");
+    } else if ((instr->Bit(20) == 0x1) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 1) &&
+               (instr->Bit(4) == 0)) {
+      Format(instr, "vsub.f64'cond 'Dd, 'Dn, 'Dm");
+    } else if ((instr->Bit(20) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 0) &&
+               (instr->Bit(4) == 0)) {
+      Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
+    } else {
+      Unknown(instr);  // Not used by V8.
+    }
+  } else {
+    if ((instr->Bit(20) == 0x0) &&
+        (instr->Bits(11, 8) == 0xA) &&
+        (instr->Bits(6, 5) == 0x0) &&
+        (instr->Bit(4) == 1) &&
+        (instr->Bits(3, 0) == 0x0)) {
+      Format(instr, "vmov'cond 'Sn, 'rt");
+    } else if ((instr->Bit(20) == 0x1) &&
+               (instr->Bits(11, 8) == 0xA) &&
+               (instr->Bits(6, 5) == 0x0) &&
+               (instr->Bit(4) == 1) &&
+               (instr->Bits(3, 0) == 0x0)) {
+      Format(instr, "vmov'cond 'rt, 'Sn");
+    } else {
+      Unknown(instr);  // Not used by V8.
+    }
+  }
+}
+
+
+// Decode Type 6 coprocessor instructions.
+// Dm = fmdrr(Rt, Rt2)
+// <Rt, Rt2> = fmrrd(Dm)
+void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
+  ASSERT((instr->TypeField() == 6));
+
+  if (instr->Bit(23) == 1) {
+     Unknown(instr);  // Not used by V8.
+  } else if (instr->Bit(22) == 1) {
+    if ((instr->Bits(27, 24) == 0xC) &&
+        (instr->Bit(22) == 1) &&
+        (instr->Bits(11, 8) == 0xB) &&
+        (instr->Bits(7, 6) == 0x0) &&
+        (instr->Bit(4) == 1)) {
+      if (instr->Bit(20) == 0) {
+        Format(instr, "vmov'cond 'Dm, 'rt, 'rn");
+      } else if (instr->Bit(20) == 1) {
+        Format(instr, "vmov'cond 'rt, 'rn, 'Dm");
+      }
+    } else {
+      Unknown(instr);  // Not used by V8.
+    }
+  } else if (instr->Bit(21) == 1) {
+    Unknown(instr);  // Not used by V8.
+  } else {
+    Unknown(instr);  // Not used by V8.
+  }
 }
 
 

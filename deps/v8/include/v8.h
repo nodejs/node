@@ -129,8 +129,9 @@ class Data;
 
 namespace internal {
 
-class Object;
 class Arguments;
+class Object;
+class Top;
 
 }
 
@@ -2473,6 +2474,15 @@ class V8EXPORT TryCatch {
   bool CanContinue() const;
 
   /**
+   * Throws the exception caught by this TryCatch in a way that avoids
+   * it being caught again by this same TryCatch.  As with ThrowException
+   * it is illegal to execute any JavaScript operations after calling
+   * ReThrow; the caller must return immediately to where the exception
+   * is caught.
+   */
+  Handle<Value> ReThrow();
+
+  /**
    * Returns the exception caught by this try/catch block.  If no exception has
    * been caught an empty handle is returned.
    *
@@ -2523,14 +2533,16 @@ class V8EXPORT TryCatch {
    */
   void SetCaptureMessage(bool value);
 
- public:
-  TryCatch* next_;
+ private:
+  void* next_;
   void* exception_;
   void* message_;
-  bool is_verbose_;
-  bool can_continue_;
-  bool capture_message_;
-  void* js_handler_;
+  bool is_verbose_ : 1;
+  bool can_continue_ : 1;
+  bool capture_message_ : 1;
+  bool rethrow_ : 1;
+
+  friend class v8::internal::Top;
 };
 
 

@@ -893,16 +893,15 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
 
-  // Emit normal 'push' instructions for elements above stack pointer
-  // and use mov instructions if we are below stack pointer.
+  // If positive we have to adjust the stack pointer.
+  int delta = end - stack_pointer_;
+  if (delta > 0) {
+    stack_pointer_ = end;
+    __ subq(rsp, Immediate(delta * kPointerSize));
+  }
+
   for (int i = start; i <= end; i++) {
-    if (!elements_[i].is_synced()) {
-      if (i <= stack_pointer_) {
-        SyncElementBelowStackPointer(i);
-      } else {
-        SyncElementByPushing(i);
-      }
-    }
+    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
   }
 }
 

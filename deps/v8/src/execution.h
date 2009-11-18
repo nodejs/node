@@ -150,10 +150,6 @@ class StackGuard : public AllStatic {
   // is assumed to grow downwards.
   static void SetStackLimit(uintptr_t limit);
 
-  static Address address_of_jslimit() {
-    return reinterpret_cast<Address>(&thread_local_.jslimit_);
-  }
-
   // Threading support.
   static char* ArchiveStackGuard(char* to);
   static char* RestoreStackGuard(char* from);
@@ -181,15 +177,23 @@ class StackGuard : public AllStatic {
 #endif
   static void Continue(InterruptFlag after_what);
 
-  // This provides an asynchronous read of the stack limit for the current
+  // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
   // have the global V8 lock if you are using multiple V8 threads.
   static uintptr_t climit() {
     return thread_local_.climit_;
   }
-
   static uintptr_t jslimit() {
     return thread_local_.jslimit_;
+  }
+  static uintptr_t real_jslimit() {
+    return thread_local_.real_jslimit_;
+  }
+  static Address address_of_jslimit() {
+    return reinterpret_cast<Address>(&thread_local_.jslimit_);
+  }
+  static Address address_of_real_jslimit() {
+    return reinterpret_cast<Address>(&thread_local_.real_jslimit_);
   }
 
  private:
@@ -198,17 +202,17 @@ class StackGuard : public AllStatic {
 
   // You should hold the ExecutionAccess lock when calling this method.
   static void set_limits(uintptr_t value, const ExecutionAccess& lock) {
-    Heap::SetStackLimit(value);
     thread_local_.jslimit_ = value;
     thread_local_.climit_ = value;
+    Heap::SetStackLimits();
   }
 
-  // Reset limits to initial values. For example after handling interrupt.
+  // Reset limits to actual values. For example after handling interrupt.
   // You should hold the ExecutionAccess lock when calling this method.
   static void reset_limits(const ExecutionAccess& lock) {
-    thread_local_.jslimit_ = thread_local_.initial_jslimit_;
-    Heap::SetStackLimit(thread_local_.jslimit_);
-    thread_local_.climit_ = thread_local_.initial_climit_;
+    thread_local_.jslimit_ = thread_local_.real_jslimit_;
+    thread_local_.climit_ = thread_local_.real_climit_;
+    Heap::SetStackLimits();
   }
 
   // Enable or disable interrupts.
@@ -232,10 +236,21 @@ class StackGuard : public AllStatic {
     // Clear.
     void Initialize();
     void Clear();
-    uintptr_t initial_jslimit_;
+
+    // The stack limit is split into a JavaScript and a C++ stack limit. These
+    // two are the same except when running on a simulator where the C++ and
+    // JavaScript stacks are separate. Each of the two stack limits have two
+    // values. The one eith the real_ prefix is the actual stack limit
+    // set for the VM. The one without the real_ prefix has the same value as
+    // the actual stack limit except when there is an interruption (e.g. debug
+    // break or preemption) in which case it is lowered to make stack checks
+    // fail. Both the generated code and the runtime system check against the
+    // one without the real_ prefix.
+    uintptr_t real_jslimit_;  // Actual JavaScript stack limit set for the VM.
     uintptr_t jslimit_;
-    uintptr_t initial_climit_;
+    uintptr_t real_climit_;  // Actual C++ stack limit set for the VM.
     uintptr_t climit_;
+
     int nesting_;
     int postpone_interrupts_nesting_;
     int interrupt_flags_;

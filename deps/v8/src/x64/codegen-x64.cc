@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
 #include "parser.h"
@@ -74,7 +75,6 @@ void DeferredCode::RestoreRegisters() {
 
 CodeGenState::CodeGenState(CodeGenerator* owner)
     : owner_(owner),
-      typeof_state_(NOT_INSIDE_TYPEOF),
       destination_(NULL),
       previous_(NULL) {
   owner_->set_state(this);
@@ -82,10 +82,8 @@ CodeGenState::CodeGenState(CodeGenerator* owner)
 
 
 CodeGenState::CodeGenState(CodeGenerator* owner,
-                           TypeofState typeof_state,
                            ControlDestination* destination)
     : owner_(owner),
-      typeof_state_(typeof_state),
       destination_(destination),
       previous_(owner->state()) {
   owner_->set_state(this);
@@ -643,27 +641,6 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
 void CodeGenerator::CallApplyLazy(Property* apply,
                                   Expression* receiver,
                                   VariableProxy* arguments,
@@ -676,7 +653,7 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   // Load the apply function onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
   Reference ref(this, apply);
-  ref.GetValue(NOT_INSIDE_TYPEOF);
+  ref.GetValue();
   ASSERT(ref.type() == Reference::NAMED);
 
   // Load the receiver and the existing arguments object onto the
@@ -1001,7 +978,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     JumpTarget then;
     JumpTarget else_;
     ControlDestination dest(&then, &else_, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.false_was_fall_through()) {
       // The else target was bound, so we compile the else part first.
@@ -1028,7 +1005,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     JumpTarget then;
     ControlDestination dest(&then, &exit, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.false_was_fall_through()) {
       // The exit label was bound.  We may have dangling jumps to the
@@ -1048,7 +1025,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     JumpTarget else_;
     ControlDestination dest(&exit, &else_, false);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.true_was_fall_through()) {
       // The exit label was bound.  We may have dangling jumps to the
@@ -1070,7 +1047,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // or control flow effect).  LoadCondition is called without
     // forcing control flow.
     ControlDestination dest(&exit, &exit, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->condition(), &dest, false);
     if (!dest.is_used()) {
       // We got a value on the frame rather than (or in addition to)
       // control flow.
@@ -1341,8 +1318,10 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
         node->continue_target()->Bind();
       }
       if (has_valid_frame()) {
+        Comment cmnt(masm_, "[ DoWhileCondition");
+        CodeForDoWhileConditionPosition(node);
         ControlDestination dest(&body, node->break_target(), false);
-        LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+        LoadCondition(node->cond(), &dest, true);
       }
       if (node->break_target()->is_linked()) {
         node->break_target()->Bind();
@@ -1399,7 +1378,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
       // Compile the test with the body as the true target and preferred
       // fall-through and with the break target as the false target.
       ControlDestination dest(&body, node->break_target(), true);
-      LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+      LoadCondition(node->cond(), &dest, true);
 
       if (dest.false_was_fall_through()) {
         // If we got the break target as fall-through, the test may have
@@ -1446,7 +1425,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
           // The break target is the fall-through (body is a backward
           // jump from here and thus an invalid fall-through).
           ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          LoadCondition(node->cond(), &dest, true);
         }
       } else {
         // If we have chosen not to recompile the test at the
@@ -1538,7 +1517,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       // Compile the test with the body as the true target and preferred
       // fall-through and with the break target as the false target.
       ControlDestination dest(&body, node->break_target(), true);
-      LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+      LoadCondition(node->cond(), &dest, true);
 
       if (dest.false_was_fall_through()) {
         // If we got the break target as fall-through, the test may have
@@ -1608,7 +1587,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
           // The break target is the fall-through (body is a backward
           // jump from here).
           ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          LoadCondition(node->cond(), &dest, true);
         }
       } else {
         // Otherwise, jump back to the test at the top.
@@ -2188,7 +2167,8 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate = BuildBoilerplate(node);
+  Handle<JSFunction> boilerplate =
+      Compiler::BuildBoilerplate(node, script_, this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
   InstantiateBoilerplate(boilerplate);
@@ -2208,25 +2188,25 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   JumpTarget else_;
   JumpTarget exit;
   ControlDestination dest(&then, &else_, true);
-  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+  LoadCondition(node->condition(), &dest, true);
 
   if (dest.false_was_fall_through()) {
     // The else target was bound, so we compile the else part first.
-    Load(node->else_expression(), typeof_state());
+    Load(node->else_expression());
 
     if (then.is_linked()) {
       exit.Jump();
       then.Bind();
-      Load(node->then_expression(), typeof_state());
+      Load(node->then_expression());
     }
   } else {
     // The then target was bound, so we compile the then part first.
-    Load(node->then_expression(), typeof_state());
+    Load(node->then_expression());
 
     if (else_.is_linked()) {
       exit.Jump();
       else_.Bind();
-      Load(node->else_expression(), typeof_state());
+      Load(node->else_expression());
     }
   }
 
@@ -2236,7 +2216,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlotCheckForArguments(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
 }
 
 
@@ -2249,7 +2229,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    ref.GetValue(typeof_state());
+    ref.GetValue();
   }
 }
 
@@ -2640,9 +2620,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // the target, with an implicit promise that it will be written to again
       // before it is read.
       if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue(NOT_INSIDE_TYPEOF);
+        target.TakeValue();
       } else {
-        target.GetValue(NOT_INSIDE_TYPEOF);
+        target.GetValue();
       }
       Load(node->value());
       GenericBinaryOperation(node->binary_op(),
@@ -2690,7 +2670,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
 void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
   Reference property(this, node);
-  property.GetValue(typeof_state());
+  property.GetValue();
 }
 
 
@@ -2876,7 +2856,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      ref.GetValue(NOT_INSIDE_TYPEOF);
+      ref.GetValue();
 
       // Pass receiver to called function.
       if (property->is_synthetic()) {
@@ -2982,9 +2962,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
-  // Note that because of NOT and an optimization in comparison of a typeof
-  // expression to a literal string, this function can fail to leave a value
-  // on top of the frame or in the cc register.
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
@@ -2993,7 +2970,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     // Swap the true and false targets but keep the same actual label
     // as the fall through.
     destination()->Invert();
-    LoadCondition(node->expression(), NOT_INSIDE_TYPEOF, destination(), true);
+    LoadCondition(node->expression(), destination(), true);
     // Swap the labels back.
     destination()->Invert();
 
@@ -3233,7 +3210,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       if (!is_postfix) frame_->Push(Smi::FromInt(0));
       return;
     }
-    target.TakeValue(NOT_INSIDE_TYPEOF);
+    target.TakeValue();
 
     Result new_value = frame_->Pop();
     new_value.ToRegister();
@@ -3291,9 +3268,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // TODO(X64): This code was copied verbatim from codegen-ia32.
   //     Either find a reason to change it or move it to a shared location.
 
-  // Note that due to an optimization in comparison operations (typeof
-  // compared to a string literal), we can evaluate a binary expression such
-  // as AND or OR and not leave a value on the frame or in the cc register.
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3309,7 +3283,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   if (op == Token::AND) {
     JumpTarget is_true;
     ControlDestination dest(&is_true, destination()->false_target(), true);
-    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->left(), &dest, false);
 
     if (dest.false_was_fall_through()) {
       // The current false target was used as the fall-through.  If
@@ -3328,7 +3302,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
         is_true.Bind();
         // The left subexpression compiled to control flow, so the
         // right one is free to do so as well.
-        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+        LoadCondition(node->right(), destination(), false);
       } else {
         // We have actually just jumped to or bound the current false
         // target but the current control destination is not marked as
@@ -3339,7 +3313,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else if (dest.is_used()) {
       // The left subexpression compiled to control flow (and is_true
       // was just bound), so the right is free to do so as well.
-      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      LoadCondition(node->right(), destination(), false);
 
     } else {
       // We have a materialized value on the frame, so we exit with
@@ -3372,7 +3346,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   } else if (op == Token::OR) {
     JumpTarget is_false;
     ControlDestination dest(destination()->true_target(), &is_false, false);
-    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->left(), &dest, false);
 
     if (dest.true_was_fall_through()) {
       // The current true target was used as the fall-through.  If
@@ -3391,7 +3365,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
         is_false.Bind();
         // The left subexpression compiled to control flow, so the
         // right one is free to do so as well.
-        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+        LoadCondition(node->right(), destination(), false);
       } else {
         // We have just jumped to or bound the current true target but
         // the current control destination is not marked as used.
@@ -3401,7 +3375,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else if (dest.is_used()) {
       // The left subexpression compiled to control flow (and is_false
       // was just bound), so the right is free to do so as well.
-      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      LoadCondition(node->right(), destination(), false);
 
     } else {
       // We have a materialized value on the frame, so we exit with
@@ -3523,6 +3497,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->false_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
       __ CmpObjectType(answer.reg(), JS_FUNCTION_TYPE, answer.reg());
+      destination()->true_target()->Branch(equal);
+      // Regular expressions are callable so typeof == 'function'.
+      __ CmpInstanceType(answer.reg(), JS_REGEXP_TYPE);
       answer.Unuse();
       destination()->Split(equal);
 
@@ -3532,9 +3509,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ CompareRoot(answer.reg(), Heap::kNullValueRootIndex);
       destination()->true_target()->Branch(equal);
 
+      // Regular expressions are typeof == 'function', not 'object'.
+      __ CmpObjectType(answer.reg(), JS_REGEXP_TYPE, kScratchRegister);
+      destination()->false_target()->Branch(equal);
+
       // It can be an undetectable object.
-      __ movq(kScratchRegister,
-              FieldOperand(answer.reg(), HeapObject::kMapOffset));
       __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
                Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
@@ -3679,7 +3658,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Label slow_case;
   Label end;
   Label not_a_flat_string;
-  Label a_cons_string;
   Label try_again_with_new_string;
   Label ascii_string;
   Label got_char_code;
@@ -3758,7 +3736,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ addq(rcx, Immediate(String::kLongLengthShift));
   // Fetch the length field into the temporary register.
   __ movl(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  __ shrl(temp.reg());  // The shift amount in ecx is implicit operand.
+  __ shrl_cl(temp.reg());
   // Check for index out of range.
   __ cmpl(index.reg(), temp.reg());
   __ j(greater_equal, &slow_case);
@@ -3767,10 +3745,11 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ movzxbl(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
 
   // We need special handling for non-flat strings.
-  ASSERT(kSeqStringTag == 0);
+  ASSERT_EQ(0, kSeqStringTag);
   __ testb(temp.reg(), Immediate(kStringRepresentationMask));
   __ j(not_zero, &not_a_flat_string);
   // Check for 1-byte or 2-byte string.
+  ASSERT_EQ(0, kTwoByteStringTag);
   __ testb(temp.reg(), Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
@@ -3797,21 +3776,16 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ bind(&not_a_flat_string);
   __ and_(temp.reg(), Immediate(kStringRepresentationMask));
   __ cmpb(temp.reg(), Immediate(kConsStringTag));
-  __ j(equal, &a_cons_string);
-  __ cmpb(temp.reg(), Immediate(kSlicedStringTag));
   __ j(not_equal, &slow_case);
 
-  // SlicedString.
-  // Add the offset to the index and trigger the slow case on overflow.
-  __ addl(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
-  __ j(overflow, &slow_case);
-  // Getting the underlying string is done by running the cons string code.
-
   // ConsString.
-  __ bind(&a_cons_string);
-  // Get the first of the two strings.  Both sliced and cons strings
-  // store their source string at the same offset.
-  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  // Check that the right hand side is the empty string (ie if this is really a
+  // flat string in a cons string).  If that is not the case we would rather go
+  // to the runtime system now, to flatten the string.
+  __ movq(temp.reg(), FieldOperand(object.reg(), ConsString::kSecondOffset));
+  __ CompareRoot(temp.reg(), Heap::kEmptyStringRootIndex);
+  __ j(not_equal, &slow_case);
+  // Get the first of the two strings.
   __ movq(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
   __ jmp(&try_again_with_new_string);
 
@@ -4122,18 +4096,17 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation of Expressions
 
-void CodeGenerator::LoadAndSpill(Expression* expression,
-                                 TypeofState typeof_state) {
+void CodeGenerator::LoadAndSpill(Expression* expression) {
   // TODO(x64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
-  Load(expression, typeof_state);
+  Load(expression);
   frame_->SpillAll();
   set_in_spilled_code(true);
 }
 
 
-void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+void CodeGenerator::Load(Expression* expr) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
@@ -4141,7 +4114,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   JumpTarget true_target;
   JumpTarget false_target;
   ControlDestination dest(&true_target, &false_target, true);
-  LoadCondition(x, typeof_state, &dest, false);
+  LoadCondition(expr, &dest, false);
 
   if (dest.false_was_fall_through()) {
     // The false target was just bound.
@@ -4201,13 +4174,12 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 // partially compiled) into control flow to the control destination.
 // If force_control is true, control flow is forced.
 void CodeGenerator::LoadCondition(Expression* x,
-                                  TypeofState typeof_state,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
   int original_height = frame_->height();
 
-  { CodeGenState new_state(this, typeof_state, dest);
+  { CodeGenState new_state(this, dest);
     Visit(x);
 
     // If we hit a stack overflow, we may not have actually visited
@@ -4835,23 +4807,25 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
 }
 
 
-// TODO(1241834): Get rid of this function in favor of just using Load, now
-// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
-// variables w/o reference errors elsewhere.
-void CodeGenerator::LoadTypeofExpression(Expression* x) {
-  Variable* variable = x->AsVariableProxy()->AsVariable();
+void CodeGenerator::LoadTypeofExpression(Expression* expr) {
+  // Special handling of identifiers as subexpressions of typeof.
+  Variable* variable = expr->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
-    // NOTE: This is somewhat nasty. We force the compiler to load
-    // the variable as if through '<global>.<variable>' to make sure we
-    // do not get reference errors.
+    // For a global variable we build the property reference
+    // <global>.<variable> and perform a (regular non-contextual) property
+    // load to make sure we do not get reference errors.
     Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
     Literal key(variable->name());
-    // TODO(1241834): Fetch the position from the variable instead of using
-    // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
-    Load(&property);
+    Reference ref(this, &property);
+    ref.GetValue();
+  } else if (variable != NULL && variable->slot() != NULL) {
+    // For a variable that rewrites to a slot, we signal it is the immediate
+    // subexpression of a typeof.
+    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
   } else {
-    Load(x, INSIDE_TYPEOF);
+    // Anything else can be handled normally.
+    Load(expr);
   }
 }
 
@@ -5746,7 +5720,7 @@ Handle<String> Reference::GetName() {
 }
 
 
-void Reference::GetValue(TypeofState typeof_state) {
+void Reference::GetValue() {
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
@@ -5763,17 +5737,11 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
       break;
     }
 
     case NAMED: {
-      // TODO(1241834): Make sure that it is safe to ignore the
-      // distinction between expressions in a typeof and not in a
-      // typeof. If there is a chance that reference errors can be
-      // thrown below, we must distinguish between the two kinds of
-      // loads (typeof expression loads must not throw a reference
-      // error).
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
@@ -5855,8 +5823,6 @@ void Reference::GetValue(TypeofState typeof_state) {
     }
 
     case KEYED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof.
       Comment cmnt(masm, "[ Load from keyed Property");
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
@@ -5978,7 +5944,7 @@ void Reference::GetValue(TypeofState typeof_state) {
 }
 
 
-void Reference::TakeValue(TypeofState typeof_state) {
+void Reference::TakeValue() {
   // TODO(X64): This function is completely architecture independent. Move
   // it somewhere shared.
 
@@ -5987,7 +5953,7 @@ void Reference::TakeValue(TypeofState typeof_state) {
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(!is_illegal());
   if (type_ != SLOT) {
-    GetValue(typeof_state);
+    GetValue();
     return;
   }
 
@@ -5997,7 +5963,7 @@ void Reference::TakeValue(TypeofState typeof_state) {
       slot->type() == Slot::CONTEXT ||
       slot->var()->mode() == Variable::CONST ||
       slot->is_arguments()) {
-    GetValue(typeof_state);
+    GetValue();
     return;
   }
 
@@ -6601,11 +6567,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ jmp(&loop);
 
   __ bind(&is_instance);
-  __ xor_(rax, rax);
+  __ xorl(rax, rax);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ Move(rax, Smi::FromInt(1));
+  __ movl(rax, Immediate(1));
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
@@ -6771,7 +6737,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
+                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate_scope) {
   // rax: result parameter for PerformGC, if any.
@@ -6854,7 +6820,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(frame_type, result_size_);
+  __ LeaveExitFrame(mode, result_size_);
   __ ret(0);
 
   // Handling of failure.
@@ -6984,12 +6950,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  StackFrame::Type frame_type = is_debug_break ?
-      StackFrame::EXIT_DEBUG :
-      StackFrame::EXIT;
+  ExitFrame::Mode mode = is_debug_break ?
+      ExitFrame::MODE_DEBUG :
+      ExitFrame::MODE_NORMAL;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type, result_size_);
+  __ EnterExitFrame(mode, result_size_);
 
   // rax: Holds the context at this point, but should not be used.
   //      On entry to code generated by GenerateCore, it must hold
@@ -7012,7 +6978,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                false,
                false);
 
@@ -7021,7 +6987,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                false);
 
@@ -7032,7 +6998,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                true);
 
@@ -7044,6 +7010,11 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
   __ bind(&throw_normal_exception);
   GenerateThrowTOS(masm);
+}
+
+
+void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
+  UNREACHABLE();
 }
 
 
@@ -7604,7 +7575,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-        CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(SSE3);
         __ fisttp_s(Operand(rsp, 0 * kPointerSize));
         __ fisttp_s(Operand(rsp, 1 * kPointerSize));
         __ fnstsw_ax();
@@ -7633,9 +7604,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ orl(rax, rcx); break;
         case Token::BIT_AND: __ andl(rax, rcx); break;
         case Token::BIT_XOR: __ xorl(rax, rcx); break;
-        case Token::SAR: __ sarl(rax); break;
-        case Token::SHL: __ shll(rax); break;
-        case Token::SHR: __ shrl(rax); break;
+        case Token::SAR: __ sarl_cl(rax); break;
+        case Token::SHL: __ shll_cl(rax); break;
+        case Token::SHR: __ shrl_cl(rax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {
@@ -7797,7 +7768,7 @@ ModuloFunction CreateModuloFunction() {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler masm(buffer, actual_size);
+  Assembler masm(buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).

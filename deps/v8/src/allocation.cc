@@ -80,7 +80,7 @@ void AllStatic::operator delete(void* p) {
 
 
 char* StrDup(const char* str) {
-  int length = strlen(str);
+  int length = StrLength(str);
   char* result = NewArray<char>(length + 1);
   memcpy(result, str, length * kCharSize);
   result[length] = '\0';
@@ -88,8 +88,8 @@ char* StrDup(const char* str) {
 }
 
 
-char* StrNDup(const char* str, size_t n) {
-  size_t length = strlen(str);
+char* StrNDup(const char* str, int n) {
+  int length = StrLength(str);
   if (n < length) length = n;
   char* result = NewArray<char>(length + 1);
   memcpy(result, str, length * kCharSize);

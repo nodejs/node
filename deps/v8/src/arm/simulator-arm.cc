@@ -342,6 +342,11 @@ void Debugger::Debug() {
         PrintF("Z flag: %d; ", sim_->z_flag_);
         PrintF("C flag: %d; ", sim_->c_flag_);
         PrintF("V flag: %d\n", sim_->v_flag_);
+        PrintF("INVALID OP flag: %d; ", sim_->inv_op_vfp_flag_);
+        PrintF("DIV BY ZERO flag: %d; ", sim_->div_zero_vfp_flag_);
+        PrintF("OVERFLOW flag: %d; ", sim_->overflow_vfp_flag_);
+        PrintF("UNDERFLOW flag: %d; ", sim_->underflow_vfp_flag_);
+        PrintF("INEXACT flag: %d; ", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "unstop") == 0) {
         intptr_t stop_pc = sim_->get_pc() - Instr::kInstrSize;
         Instr* stop_instr = reinterpret_cast<Instr*>(stop_pc);
@@ -428,6 +433,24 @@ Simulator::Simulator() {
   z_flag_ = false;
   c_flag_ = false;
   v_flag_ = false;
+
+  // Initializing VFP registers.
+  // All registers are initialized to zero to start with
+  // even though s_registers_ & d_registers_ share the same
+  // physical registers in the target.
+  for (int i = 0; i < num_s_registers; i++) {
+    vfp_register[i] = 0;
+  }
+  n_flag_FPSCR_ = false;
+  z_flag_FPSCR_ = false;
+  c_flag_FPSCR_ = false;
+  v_flag_FPSCR_ = false;
+
+  inv_op_vfp_flag_ = false;
+  div_zero_vfp_flag_ = false;
+  overflow_vfp_flag_ = false;
+  underflow_vfp_flag_ = false;
+  inexact_vfp_flag_ = false;
 
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
@@ -542,6 +565,99 @@ void Simulator::set_pc(int32_t value) {
 // Raw access to the PC register without the special adjustment when reading.
 int32_t Simulator::get_pc() const {
   return registers_[pc];
+}
+
+
+// Getting from and setting into VFP registers.
+void Simulator::set_s_register(int sreg, unsigned int value) {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+  vfp_register[sreg] = value;
+}
+
+
+unsigned int Simulator::get_s_register(int sreg) const {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+  return vfp_register[sreg];
+}
+
+
+void Simulator::set_s_register_from_float(int sreg, const float flt) {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+  // Read the bits from the single precision floating point value
+  // into the unsigned integer element of vfp_register[] given by index=sreg.
+  char buffer[sizeof(vfp_register[0])];
+  memcpy(buffer, &flt, sizeof(vfp_register[0]));
+  memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
+}
+
+
+void Simulator::set_s_register_from_sinteger(int sreg, const int sint) {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+  // Read the bits from the integer value into the unsigned integer element of
+  // vfp_register[] given by index=sreg.
+  char buffer[sizeof(vfp_register[0])];
+  memcpy(buffer, &sint, sizeof(vfp_register[0]));
+  memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
+}
+
+
+void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
+  ASSERT((dreg >= 0) && (dreg < num_d_registers));
+  // Read the bits from the double precision floating point value into the two
+  // consecutive unsigned integer elements of vfp_register[] given by index
+  // 2*sreg and 2*sreg+1.
+  char buffer[2 * sizeof(vfp_register[0])];
+  memcpy(buffer, &dbl, 2 * sizeof(vfp_register[0]));
+#ifndef BIG_ENDIAN_FLOATING_POINT
+  memcpy(&vfp_register[dreg * 2], buffer, 2 * sizeof(vfp_register[0]));
+#else
+  memcpy(&vfp_register[dreg * 2], &buffer[4], sizeof(vfp_register[0]));
+  memcpy(&vfp_register[dreg * 2 + 1], &buffer[0], sizeof(vfp_register[0]));
+#endif
+}
+
+
+float Simulator::get_float_from_s_register(int sreg) {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+
+  float sm_val = 0.0;
+  // Read the bits from the unsigned integer vfp_register[] array
+  // into the single precision floating point value and return it.
+  char buffer[sizeof(vfp_register[0])];
+  memcpy(buffer, &vfp_register[sreg], sizeof(vfp_register[0]));
+  memcpy(&sm_val, buffer, sizeof(vfp_register[0]));
+  return(sm_val);
+}
+
+
+int Simulator::get_sinteger_from_s_register(int sreg) {
+  ASSERT((sreg >= 0) && (sreg < num_s_registers));
+
+  int sm_val = 0;
+  // Read the bits from the unsigned integer vfp_register[] array
+  // into the single precision floating point value and return it.
+  char buffer[sizeof(vfp_register[0])];
+  memcpy(buffer, &vfp_register[sreg], sizeof(vfp_register[0]));
+  memcpy(&sm_val, buffer, sizeof(vfp_register[0]));
+  return(sm_val);
+}
+
+
+double Simulator::get_double_from_d_register(int dreg) {
+  ASSERT((dreg >= 0) && (dreg < num_d_registers));
+
+  double dm_val = 0.0;
+  // Read the bits from the unsigned integer vfp_register[] array
+  // into the double precision floating point value and return it.
+  char buffer[2 * sizeof(vfp_register[0])];
+#ifdef BIG_ENDIAN_FLOATING_POINT
+  memcpy(&buffer[0], &vfp_register[2 * dreg + 1], sizeof(vfp_register[0]));
+  memcpy(&buffer[4], &vfp_register[2 * dreg], sizeof(vfp_register[0]));
+#else
+  memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
+#endif
+  memcpy(&dm_val, buffer, 2 * sizeof(vfp_register[0]));
+  return(dm_val);
 }
 
 
@@ -769,6 +885,37 @@ bool Simulator::OverflowFrom(int32_t alu_out,
                && ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));
   }
   return overflow;
+}
+
+
+// Support for VFP comparisons.
+void Simulator::Compute_FPSCR_Flags(double val1, double val2) {
+  // All non-NaN cases.
+  if (val1 == val2) {
+    n_flag_FPSCR_ = false;
+    z_flag_FPSCR_ = true;
+    c_flag_FPSCR_ = true;
+    v_flag_FPSCR_ = false;
+  } else if (val1 < val2) {
+    n_flag_FPSCR_ = true;
+    z_flag_FPSCR_ = false;
+    c_flag_FPSCR_ = false;
+    v_flag_FPSCR_ = false;
+  } else {
+    // Case when (val1 > val2).
+    n_flag_FPSCR_ = false;
+    z_flag_FPSCR_ = false;
+    c_flag_FPSCR_ = true;
+    v_flag_FPSCR_ = false;
+  }
+}
+
+
+void Simulator::Copy_FPSCR_to_APSR() {
+  n_flag_ = n_flag_FPSCR_;
+  z_flag_ = z_flag_FPSCR_;
+  c_flag_ = c_flag_FPSCR_;
+  v_flag_ = v_flag_FPSCR_;
 }
 
 
@@ -1154,7 +1301,7 @@ void Simulator::DecodeType01(Instr* instr) {
           }
         }
       } else {
-        UNIMPLEMENTED();  // not used by V8
+        UNIMPLEMENTED();  // Not used by V8.
       }
     } else {
       // extra load/store instructions
@@ -1664,16 +1811,15 @@ void Simulator::DecodeType5(Instr* instr) {
 
 
 void Simulator::DecodeType6(Instr* instr) {
-  UNIMPLEMENTED();
+  DecodeType6CoprocessorIns(instr);
 }
 
 
 void Simulator::DecodeType7(Instr* instr) {
   if (instr->Bit(24) == 1) {
-    // Format(instr, "swi 'swi");
     SoftwareInterrupt(instr);
   } else {
-    UNIMPLEMENTED();
+    DecodeTypeVFP(instr);
   }
 }
 
@@ -1745,6 +1891,177 @@ void Simulator::DecodeUnconditional(Instr* instr) {
 }
 
 
+// void Simulator::DecodeTypeVFP(Instr* instr)
+// The Following ARMv7 VFPv instructions are currently supported.
+// fmsr :Sn = Rt
+// fmrs :Rt = Sn
+// fsitod: Dd = Sm
+// ftosid: Sd = Dm
+// Dd = faddd(Dn, Dm)
+// Dd = fsubd(Dn, Dm)
+// Dd = fmuld(Dn, Dm)
+// Dd = fdivd(Dn, Dm)
+// vcmp(Dd, Dm)
+// VMRS
+void Simulator::DecodeTypeVFP(Instr* instr) {
+  ASSERT((instr->TypeField() == 7) && (instr->Bit(24) == 0x0) );
+
+  int rt = instr->RtField();
+  int vm = instr->VmField();
+  int vn = instr->VnField();
+  int vd = instr->VdField();
+
+  if (instr->Bit(23) == 1) {
+    if ((instr->Bits(21, 19) == 0x7) &&
+        (instr->Bits(18, 16) == 0x5) &&
+        (instr->Bits(11, 9) == 0x5) &&
+        (instr->Bit(8) == 1) &&
+        (instr->Bit(6) == 1) &&
+        (instr->Bit(4) == 0)) {
+      double dm_val = get_double_from_d_register(vm);
+      int32_t int_value = static_cast<int32_t>(dm_val);
+      set_s_register_from_sinteger(((vd<<1) | instr->DField()), int_value);
+    } else if ((instr->Bits(21, 19) == 0x7) &&
+               (instr->Bits(18, 16) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 1) &&
+               (instr->Bit(7) == 1) &&
+               (instr->Bit(6) == 1) &&
+               (instr->Bit(4) == 0)) {
+      int32_t int_value = get_sinteger_from_s_register(((vm<<1) |
+                                                       instr->MField()));
+      double dbl_value = static_cast<double>(int_value);
+      set_d_register_from_double(vd, dbl_value);
+    } else if ((instr->Bit(21) == 0x0) &&
+               (instr->Bit(20) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 1) &&
+               (instr->Bit(6) == 0) &&
+               (instr->Bit(4) == 0)) {
+      double dn_value = get_double_from_d_register(vn);
+      double dm_value = get_double_from_d_register(vm);
+      double dd_value = dn_value / dm_value;
+      set_d_register_from_double(vd, dd_value);
+    } else if ((instr->Bits(21, 20) == 0x3) &&
+               (instr->Bits(19, 16) == 0x4) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 0x1) &&
+               (instr->Bit(4) == 0x0)) {
+      double dd_value = get_double_from_d_register(vd);
+      double dm_value = get_double_from_d_register(vm);
+      Compute_FPSCR_Flags(dd_value, dm_value);
+    } else if ((instr->Bits(23, 20) == 0xF) &&
+               (instr->Bits(19, 16) == 0x1) &&
+               (instr->Bits(11, 8) == 0xA) &&
+               (instr->Bits(7, 5) == 0x0) &&
+               (instr->Bit(4) == 0x1)    &&
+               (instr->Bits(3, 0) == 0x0)) {
+      if (instr->Bits(15, 12) == 0xF)
+        Copy_FPSCR_to_APSR();
+      else
+        UNIMPLEMENTED();  // Not used by V8.
+    } else {
+      UNIMPLEMENTED();  // Not used by V8.
+    }
+  } else if (instr->Bit(21) == 1) {
+    if ((instr->Bit(20) == 0x1) &&
+        (instr->Bits(11, 9) == 0x5) &&
+        (instr->Bit(8) == 0x1) &&
+        (instr->Bit(6) == 0) &&
+        (instr->Bit(4) == 0)) {
+      double dn_value = get_double_from_d_register(vn);
+      double dm_value = get_double_from_d_register(vm);
+      double dd_value = dn_value + dm_value;
+      set_d_register_from_double(vd, dd_value);
+    } else if ((instr->Bit(20) == 0x1) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 1) &&
+               (instr->Bit(4) == 0)) {
+      double dn_value = get_double_from_d_register(vn);
+      double dm_value = get_double_from_d_register(vm);
+      double dd_value = dn_value - dm_value;
+      set_d_register_from_double(vd, dd_value);
+    } else if ((instr->Bit(20) == 0x0) &&
+               (instr->Bits(11, 9) == 0x5) &&
+               (instr->Bit(8) == 0x1) &&
+               (instr->Bit(6) == 0) &&
+               (instr->Bit(4) == 0)) {
+      double dn_value = get_double_from_d_register(vn);
+      double dm_value = get_double_from_d_register(vm);
+      double dd_value = dn_value * dm_value;
+      set_d_register_from_double(vd, dd_value);
+    } else {
+      UNIMPLEMENTED();  // Not used by V8.
+    }
+  } else {
+    if ((instr->Bit(20) == 0x0) &&
+        (instr->Bits(11, 8) == 0xA) &&
+        (instr->Bits(6, 5) == 0x0) &&
+        (instr->Bit(4) == 1) &&
+        (instr->Bits(3, 0) == 0x0)) {
+      int32_t rs_val = get_register(rt);
+      set_s_register_from_sinteger(((vn<<1) | instr->NField()), rs_val);
+    } else if ((instr->Bit(20) == 0x1) &&
+               (instr->Bits(11, 8) == 0xA) &&
+               (instr->Bits(6, 5) == 0x0) &&
+               (instr->Bit(4) == 1) &&
+               (instr->Bits(3, 0) == 0x0)) {
+      int32_t int_value = get_sinteger_from_s_register(((vn<<1) |
+                                                       instr->NField()));
+      set_register(rt, int_value);
+    } else {
+      UNIMPLEMENTED();  // Not used by V8.
+    }
+  }
+}
+
+
+// void Simulator::DecodeType6CoprocessorIns(Instr* instr)
+// Decode Type 6 coprocessor instructions.
+// Dm = fmdrr(Rt, Rt2)
+// <Rt, Rt2> = fmrrd(Dm)
+void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
+  ASSERT((instr->TypeField() == 6));
+
+  int rt = instr->RtField();
+  int rn = instr->RnField();
+  int vm = instr->VmField();
+
+  if (instr->Bit(23) == 1) {
+    UNIMPLEMENTED();
+  } else if (instr->Bit(22) == 1) {
+    if ((instr->Bits(27, 24) == 0xC) &&
+        (instr->Bit(22) == 1) &&
+        (instr->Bits(11, 8) == 0xB) &&
+        (instr->Bits(7, 6) == 0x0) &&
+        (instr->Bit(4) == 1)) {
+      if (instr->Bit(20) == 0) {
+        int32_t rs_val = get_register(rt);
+        int32_t rn_val = get_register(rn);
+
+        set_s_register_from_sinteger(2*vm, rs_val);
+        set_s_register_from_sinteger((2*vm+1), rn_val);
+
+      } else if (instr->Bit(20) == 1) {
+        int32_t rt_int_value = get_sinteger_from_s_register(2*vm);
+        int32_t rn_int_value = get_sinteger_from_s_register(2*vm+1);
+
+        set_register(rt, rt_int_value);
+        set_register(rn, rn_int_value);
+      }
+    } else {
+      UNIMPLEMENTED();
+    }
+  } else if (instr->Bit(21) == 1) {
+    UNIMPLEMENTED();
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instr* instr) {
   pc_modified_ = false;
@@ -1802,7 +2119,6 @@ void Simulator::InstructionDecode(Instr* instr) {
 }
 
 
-//
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
@@ -1923,6 +2239,25 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   int32_t result = get_register(r0);
   return result;
 }
+
+
+uintptr_t Simulator::PushAddress(uintptr_t address) {
+  int new_sp = get_register(sp) - sizeof(uintptr_t);
+  uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
+  *stack_slot = address;
+  set_register(sp, new_sp);
+  return new_sp;
+}
+
+
+uintptr_t Simulator::PopAddress() {
+  int current_sp = get_register(sp);
+  uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(current_sp);
+  uintptr_t address = *stack_slot;
+  set_register(sp, current_sp + sizeof(uintptr_t));
+  return address;
+}
+
 
 } }  // namespace assembler::arm
 

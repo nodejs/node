@@ -129,9 +129,10 @@ class Log : public AllStatic {
   // Implementation of writing to a log file.
   static int WriteToFile(const char* msg, int length) {
     ASSERT(output_handle_ != NULL);
-    int rv = fwrite(msg, 1, length, output_handle_);
-    ASSERT(length == rv);
-    return rv;
+    size_t rv = fwrite(msg, 1, length, output_handle_);
+    ASSERT(static_cast<size_t>(length) == rv);
+    USE(rv);
+    return length;
   }
 
   // Implementation of writing to a memory buffer.

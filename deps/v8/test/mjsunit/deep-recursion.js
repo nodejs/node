@@ -30,9 +30,7 @@
  * cause stack overflows.
  */
 
-var depth = 110000;
-
-function newdeep(start) {
+function newdeep(start, depth) {
   var d = start;
   for (var i = 0; i < depth; i++) {
     d = d + "f";
@@ -40,23 +38,27 @@ function newdeep(start) {
   return d;
 }
 
-var deep = newdeep("foo");
+var default_depth = 110000;
+
+var deep = newdeep("foo", default_depth);
 assertEquals('f', deep[0]);
 
-var cmp1 = newdeep("a");
-var cmp2 = newdeep("b");
+var cmp1 = newdeep("a", default_depth);
+var cmp2 = newdeep("b", default_depth);
 
 assertEquals(-1, cmp1.localeCompare(cmp2), "ab");
 
-var cmp2empty = newdeep("c");
+var cmp2empty = newdeep("c", default_depth);
 assertTrue(cmp2empty.localeCompare("") > 0, "c");
 
-var cmp3empty = newdeep("d");
+var cmp3empty = newdeep("d", default_depth);
 assertTrue("".localeCompare(cmp3empty) < 0), "d";
 
-var slicer = newdeep("slice");
+var slicer_depth = 1100;
 
-for (i = 0; i < depth + 4; i += 2) {
+var slicer = newdeep("slice", slicer_depth);
+
+for (i = 0; i < slicer_depth + 4; i += 2) {
   slicer =  slicer.slice(1, -1);
 }
 

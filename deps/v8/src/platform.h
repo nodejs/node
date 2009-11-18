@@ -247,8 +247,19 @@ class OS {
   // for.
   static void LogSharedLibraryAddresses();
 
+  // The return value indicates the CPU features we are sure of because of the
+  // OS.  For example MacOSX doesn't run on any x86 CPUs that don't have SSE2
+  // instructions.
+  // This is a little messy because the interpretation is subject to the cross
+  // of the CPU and the OS.  The bits in the answer correspond to the bit
+  // positions indicated by the members of the CpuFeature enum from globals.h
+  static uint64_t CpuFeaturesImpliedByPlatform();
+
   // Returns the double constant NAN
   static double nan_value();
+
+  // Support runtime detection of VFP3 on ARM CPUs.
+  static bool ArmCpuHasFeature(CpuFeature feature);
 
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.

@@ -849,6 +849,33 @@ FunctionMirror.prototype.script = function() {
 
 
 /**
+ * Returns the script source position for the function. Only makes sense
+ * for functions which has a script defined.
+ * @return {Number or undefined} in-script position for the function
+ */
+FunctionMirror.prototype.sourcePosition_ = function() {
+  // Return script if function is resolved. Otherwise just fall through
+  // to return undefined.
+  if (this.resolved()) {
+    return %FunctionGetScriptSourcePosition(this.value_);
+  }
+};
+
+
+/**
+ * Returns the script source location object for the function. Only makes sense
+ * for functions which has a script defined.
+ * @return {Location or undefined} in-script location for the function begin
+ */
+FunctionMirror.prototype.sourceLocation = function() {
+  if (this.resolved() && this.script()) {
+    return this.script().locationFromPosition(this.sourcePosition_(),
+                                              true);
+  }
+};
+
+
+/**
  * Returns objects constructed by this function.
  * @param {number} opt_max_instances Optional parameter specifying the maximum
  *     number of instances to return.
@@ -2119,6 +2146,9 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     }
     if (mirror.script()) {
       content.script = this.serializeReference(mirror.script());
+      content.scriptId = mirror.script().id();
+      
+      serializeLocationFields(mirror.sourceLocation(), content);
     }
   }
 
@@ -2147,6 +2177,31 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     }
   }
   content.properties = p;
+}
+
+
+/**
+ * Serialize location information to the following JSON format:
+ *
+ *   "position":"<position>",
+ *   "line":"<line>",
+ *   "column":"<column>",
+ * 
+ * @param {SourceLocation} location The location to serialize, may be undefined.
+ */
+function serializeLocationFields (location, content) {
+  if (!location) {
+    return;
+  }                                                                     
+  content.position = location.position;
+  var line = location.line;
+  if (!IS_UNDEFINED(line)) {
+    content.line = line;
+  }
+  var column = location.column;
+  if (!IS_UNDEFINED(column)) {
+    content.column = column;
+  }
 }
 
 
@@ -2218,15 +2273,7 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
     x[i] = local;
   }
   content.locals = x;
-  content.position = mirror.sourcePosition();
-  var line = mirror.sourceLine();
-  if (!IS_UNDEFINED(line)) {
-    content.line = line;
-  }
-  var column = mirror.sourceColumn();
-  if (!IS_UNDEFINED(column)) {
-    content.column = column;
-  }
+  serializeLocationFields(mirror.sourceLocation(), content);
   var source_line_text = mirror.sourceLineText();
   if (!IS_UNDEFINED(source_line_text)) {
     content.sourceLineText = source_line_text;

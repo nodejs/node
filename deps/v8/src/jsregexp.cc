@@ -2432,16 +2432,19 @@ void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
 }
 
 
-void TextNode::MakeCaseIndependent() {
+void TextNode::MakeCaseIndependent(bool is_ascii) {
   int element_count = elms_->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elms_->at(i);
     if (elm.type == TextElement::CHAR_CLASS) {
       RegExpCharacterClass* cc = elm.data.u_char_class;
+      // None of the standard character classses is different in the case
+      // independent case and it slows us down if we don't know that.
+      if (cc->is_standard()) continue;
       ZoneList<CharacterRange>* ranges = cc->ranges();
       int range_count = ranges->length();
-      for (int i = 0; i < range_count; i++) {
-        ranges->at(i).AddCaseEquivalents(ranges);
+      for (int j = 0; j < range_count; j++) {
+        ranges->at(j).AddCaseEquivalents(ranges, is_ascii);
       }
     }
   }
@@ -3912,19 +3915,31 @@ void CharacterRange::Split(ZoneList<CharacterRange>* base,
 }
 
 
-void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
+static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
+                            int bottom,
+                            int top);
+
+
+void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
+                                        bool is_ascii) {
+  uc16 bottom = from();
+  uc16 top = to();
+  if (is_ascii) {
+    if (bottom > String::kMaxAsciiCharCode) return;
+    if (top > String::kMaxAsciiCharCode) top = String::kMaxAsciiCharCode;
+  }
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  if (IsSingleton()) {
+  if (top == bottom) {
     // If this is a singleton we just expand the one character.
-    int length = uncanonicalize.get(from(), '\0', chars);
+    int length = uncanonicalize.get(bottom, '\0', chars);
     for (int i = 0; i < length; i++) {
       uc32 chr = chars[i];
-      if (chr != from()) {
+      if (chr != bottom) {
         ranges->Add(CharacterRange::Singleton(chars[i]));
       }
     }
-  } else if (from() <= kRangeCanonicalizeMax &&
-             to() <= kRangeCanonicalizeMax) {
+  } else if (bottom <= kRangeCanonicalizeMax &&
+             top <= kRangeCanonicalizeMax) {
     // If this is a range we expand the characters block by block,
     // expanding contiguous subranges (blocks) one at a time.
     // The approach is as follows.  For a given start character we
@@ -3943,14 +3958,14 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
     // completely contained in a block we do this for all the blocks
     // covered by the range.
     unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-    // First, look up the block that contains the 'from' character.
-    int length = canonrange.get(from(), '\0', range);
+    // First, look up the block that contains the 'bottom' character.
+    int length = canonrange.get(bottom, '\0', range);
     if (length == 0) {
-      range[0] = from();
+      range[0] = bottom;
     } else {
       ASSERT_EQ(1, length);
     }
-    int pos = from();
+    int pos = bottom;
     // The start of the current block.  Note that except for the first
     // iteration 'start' is always equal to 'pos'.
     int start;
@@ -3961,10 +3976,10 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
     } else {
       start = pos;
     }
-    // Then we add the ranges on at a time, incrementing the current
+    // Then we add the ranges one at a time, incrementing the current
     // position to be after the last block each time.  The position
     // always points to the start of a block.
-    while (pos < to()) {
+    while (pos < top) {
       length = canonrange.get(start, '\0', range);
       if (length == 0) {
         range[0] = start;
@@ -3975,20 +3990,122 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
       // The start point of a block contains the distance to the end
       // of the range.
       int block_end = start + (range[0] & kPayloadMask) - 1;
-      int end = (block_end > to()) ? to() : block_end;
+      int end = (block_end > top) ? top : block_end;
       length = uncanonicalize.get(start, '\0', range);
       for (int i = 0; i < length; i++) {
         uc32 c = range[i];
         uc16 range_from = c + (pos - start);
         uc16 range_to = c + (end - start);
-        if (!(from() <= range_from && range_to <= to())) {
+        if (!(bottom <= range_from && range_to <= top)) {
           ranges->Add(CharacterRange(range_from, range_to));
         }
       }
       start = pos = block_end + 1;
     }
   } else {
-    // TODO(plesner) when we've fixed the 2^11 bug in unibrow.
+    // Unibrow ranges don't work for high characters due to the "2^11 bug".
+    // Therefore we do something dumber for these ranges.
+    AddUncanonicals(ranges, bottom, top);
+  }
+}
+
+
+static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
+                            int bottom,
+                            int top) {
+  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+  // Zones with no case mappings.  There is a DEBUG-mode loop to assert that
+  // this table is correct.
+  // 0x0600 - 0x0fff
+  // 0x1100 - 0x1cff
+  // 0x2000 - 0x20ff
+  // 0x2200 - 0x23ff
+  // 0x2500 - 0x2bff
+  // 0x2e00 - 0xa5ff
+  // 0xa800 - 0xfaff
+  // 0xfc00 - 0xfeff
+  const int boundary_count = 18;
+  // The ASCII boundary and the kRangeCanonicalizeMax boundary are also in this
+  // array.  This is to split up big ranges and not because they actually denote
+  // a case-mapping-free-zone.
+  ASSERT(CharacterRange::kRangeCanonicalizeMax < 0x600);
+  const int kFirstRealCaselessZoneIndex = 2;
+  int boundaries[] = {0x80, CharacterRange::kRangeCanonicalizeMax,
+      0x600, 0x1000, 0x1100, 0x1d00, 0x2000, 0x2100, 0x2200, 0x2400, 0x2500,
+      0x2c00, 0x2e00, 0xa600, 0xa800, 0xfb00, 0xfc00, 0xff00};
+
+  // Special ASCII rule from spec can save us some work here.
+  if (bottom == 0x80 && top == 0xffff) return;
+
+  // We have optimized support for this range.
+  if (top <= CharacterRange::kRangeCanonicalizeMax) {
+    CharacterRange range(bottom, top);
+    range.AddCaseEquivalents(ranges, false);
+    return;
+  }
+
+  // Split up very large ranges.  This helps remove ranges where there are no
+  // case mappings.
+  for (int i = 0; i < boundary_count; i++) {
+    if (bottom < boundaries[i] && top >= boundaries[i]) {
+      AddUncanonicals(ranges, bottom, boundaries[i] - 1);
+      AddUncanonicals(ranges, boundaries[i], top);
+      return;
+    }
+  }
+
+  // If we are completely in a zone with no case mappings then we are done.
+  // We start at 2 so as not to except the ASCII range from mappings.
+  for (int i = kFirstRealCaselessZoneIndex; i < boundary_count; i += 2) {
+    if (bottom >= boundaries[i] && top < boundaries[i + 1]) {
+#ifdef DEBUG
+      for (int j = bottom; j <= top; j++) {
+        unsigned current_char = j;
+        int length = uncanonicalize.get(current_char, '\0', chars);
+        for (int k = 0; k < length; k++) {
+          ASSERT(chars[k] == current_char);
+        }
+      }
+#endif
+      return;
+    }
+  }
+
+  // Step through the range finding equivalent characters.
+  ZoneList<unibrow::uchar> *characters = new ZoneList<unibrow::uchar>(100);
+  for (int i = bottom; i <= top; i++) {
+    int length = uncanonicalize.get(i, '\0', chars);
+    for (int j = 0; j < length; j++) {
+      uc32 chr = chars[j];
+      if (chr != i && (chr < bottom || chr > top)) {
+        characters->Add(chr);
+      }
+    }
+  }
+
+  // Step through the equivalent characters finding simple ranges and
+  // adding ranges to the character class.
+  if (characters->length() > 0) {
+    int new_from = characters->at(0);
+    int new_to = new_from;
+    for (int i = 1; i < characters->length(); i++) {
+      int chr = characters->at(i);
+      if (chr == new_to + 1) {
+        new_to++;
+      } else {
+        if (new_to == new_from) {
+          ranges->Add(CharacterRange::Singleton(new_from));
+        } else {
+          ranges->Add(CharacterRange(new_from, new_to));
+        }
+        new_from = new_to = chr;
+      }
+    }
+    if (new_to == new_from) {
+      ranges->Add(CharacterRange::Singleton(new_from));
+    } else {
+      ranges->Add(CharacterRange(new_from, new_to));
+    }
   }
 }
 
@@ -4234,7 +4351,7 @@ void TextNode::CalculateOffsets() {
 
 void Analysis::VisitText(TextNode* that) {
   if (ignore_case_) {
-    that->MakeCaseIndependent();
+    that->MakeCaseIndependent(is_ascii_);
   }
   EnsureAnalyzed(that->on_success());
   if (!has_failed()) {
@@ -4452,7 +4569,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
     }
   }
   data->node = node;
-  Analysis analysis(ignore_case);
+  Analysis analysis(ignore_case, is_ascii);
   analysis.EnsureAnalyzed(node);
   if (analysis.has_failed()) {
     const char* error_message = analysis.error_message();

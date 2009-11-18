@@ -384,8 +384,8 @@ TEST(RetainerProfile) {
   const char* retainers_of_a = printer.GetRetainers("A");
   // The order of retainers is unspecified, so we check string length, and
   // verify each retainer separately.
-  CHECK_EQ(static_cast<int>(strlen("(global property);1,B;2,C;2")),
-           static_cast<int>(strlen(retainers_of_a)));
+  CHECK_EQ(i::StrLength("(global property);1,B;2,C;2"),
+           i::StrLength(retainers_of_a));
   CHECK(strstr(retainers_of_a, "(global property);1") != NULL);
   CHECK(strstr(retainers_of_a, "B;2") != NULL);
   CHECK(strstr(retainers_of_a, "C;2") != NULL);

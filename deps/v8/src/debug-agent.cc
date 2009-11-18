@@ -105,7 +105,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
   if (session_ != NULL) {
     static const char* message = "Remote debugging session already active\r\n";
 
-    client->Send(message, strlen(message));
+    client->Send(message, StrLength(message));
     delete client;
     return;
   }
@@ -172,14 +172,15 @@ void DebuggerAgentSession::Run() {
     }
 
     // Convert UTF-8 to UTF-16.
-    unibrow::Utf8InputBuffer<> buf(*message, strlen(*message));
+    unibrow::Utf8InputBuffer<> buf(*message,
+                                   StrLength(*message));
     int len = 0;
     while (buf.has_more()) {
       buf.GetNext();
       len++;
     }
     int16_t* temp = NewArray<int16_t>(len + 1);
-    buf.Reset(*message, strlen(*message));
+    buf.Reset(*message, StrLength(*message));
     for (int i = 0; i < len; i++) {
       temp[i] = buf.GetNext();
     }
@@ -203,7 +204,8 @@ void DebuggerAgentSession::Shutdown() {
 
 
 const char* DebuggerAgentUtil::kContentLength = "Content-Length";
-int DebuggerAgentUtil::kContentLengthSize = strlen(kContentLength);
+int DebuggerAgentUtil::kContentLengthSize =
+    StrLength(kContentLength);
 
 
 SmartPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {

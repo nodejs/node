@@ -42,6 +42,34 @@
 namespace v8 {
 namespace internal {
 
+// Safe default is no features.
+unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::enabled_ = 0;
+unsigned CpuFeatures::found_by_runtime_probing_ = 0;
+
+void CpuFeatures::Probe() {
+  // If the compiler is allowed to use vfp then we can use vfp too in our
+  // code generation.
+#if !defined(__arm__)
+  // For the simulator=arm build, always use VFP since the arm simulator has
+  // VFP support.
+  supported_ |= 1u << VFP3;
+#else
+  if (Serializer::enabled()) {
+    supported_ |= OS::CpuFeaturesImpliedByPlatform();
+    return;  // No features if we might serialize.
+  }
+
+  if (OS::ArmCpuHasFeature(VFP3)) {
+    // This implementation also sets the VFP flags if
+    // runtime detection of VFP returns true.
+    supported_ |= 1u << VFP3;
+    found_by_runtime_probing_ |= 1u << VFP3;
+  }
+#endif
+}
+
+
 // -----------------------------------------------------------------------------
 // Implementation of Register and CRegister
 
@@ -84,6 +112,57 @@ CRegister cr13 = { 13 };
 CRegister cr14 = { 14 };
 CRegister cr15 = { 15 };
 
+// Support for the VFP registers s0 to s31 (d0 to d15).
+// Note that "sN:sM" is the same as "dN/2".
+Register s0  = {  0 };
+Register s1  = {  1 };
+Register s2  = {  2 };
+Register s3  = {  3 };
+Register s4  = {  4 };
+Register s5  = {  5 };
+Register s6  = {  6 };
+Register s7  = {  7 };
+Register s8  = {  8 };
+Register s9  = {  9 };
+Register s10 = { 10 };
+Register s11 = { 11 };
+Register s12 = { 12 };
+Register s13 = { 13 };
+Register s14 = { 14 };
+Register s15 = { 15 };
+Register s16 = { 16 };
+Register s17 = { 17 };
+Register s18 = { 18 };
+Register s19 = { 19 };
+Register s20 = { 20 };
+Register s21 = { 21 };
+Register s22 = { 22 };
+Register s23 = { 23 };
+Register s24 = { 24 };
+Register s25 = { 25 };
+Register s26 = { 26 };
+Register s27 = { 27 };
+Register s28 = { 28 };
+Register s29 = { 29 };
+Register s30 = { 30 };
+Register s31 = { 31 };
+
+Register d0  = {  0 };
+Register d1  = {  1 };
+Register d2  = {  2 };
+Register d3  = {  3 };
+Register d4  = {  4 };
+Register d5  = {  5 };
+Register d6  = {  6 };
+Register d7  = {  7 };
+Register d8  = {  8 };
+Register d9  = {  9 };
+Register d10 = { 10 };
+Register d11 = { 11 };
+Register d12 = { 12 };
+Register d13 = { 13 };
+Register d14 = { 14 };
+Register d15 = { 15 };
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
@@ -203,10 +282,14 @@ enum {
 
   B4  = 1 << 4,
   B5  = 1 << 5,
+  B6  = 1 << 6,
   B7  = 1 << 7,
   B8  = 1 << 8,
+  B9  = 1 << 9,
   B12 = 1 << 12,
   B16 = 1 << 16,
+  B18 = 1 << 18,
+  B19 = 1 << 19,
   B20 = 1 << 20,
   B21 = 1 << 21,
   B22 = 1 << 22,
@@ -523,6 +606,11 @@ static bool fits_shifter(uint32_t imm32,
 // encoded.
 static bool MustUseIp(RelocInfo::Mode rmode) {
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+    if (!Serializer::enabled()) {
+      Serializer::TooLateToEnableNow();
+    }
+#endif
     return Serializer::enabled();
   } else if (rmode == RelocInfo::NONE) {
     return false;
@@ -1282,6 +1370,187 @@ void Assembler::stc2(Coprocessor coproc,
 }
 
 
+// Support for VFP.
+void Assembler::fmdrr(const Register dst,
+                      const Register src1,
+                      const Register src2,
+                      const SBit s,
+                      const Condition cond) {
+  // Dm = <Rt,Rt2>.
+  // Instruction details available in ARM DDI 0406A, A8-646.
+  // cond(31-28) | 1100(27-24)| 010(23-21) | op=0(20) | Rt2(19-16) |
+  // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(!src1.is(pc) && !src2.is(pc));
+  emit(cond | 0xC*B24 | B22 | src2.code()*B16 |
+       src1.code()*B12 | 0xB*B8 | B4 | dst.code());
+}
+
+
+void Assembler::fmrrd(const Register dst1,
+                      const Register dst2,
+                      const Register src,
+                      const SBit s,
+                      const Condition cond) {
+  // <Rt,Rt2> = Dm.
+  // Instruction details available in ARM DDI 0406A, A8-646.
+  // cond(31-28) | 1100(27-24)| 010(23-21) | op=1(20) | Rt2(19-16) |
+  // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(!dst1.is(pc) && !dst2.is(pc));
+  emit(cond | 0xC*B24 | B22 | B20 | dst2.code()*B16 |
+       dst1.code()*B12 | 0xB*B8 | B4 | src.code());
+}
+
+
+void Assembler::fmsr(const Register dst,
+                     const Register src,
+                     const SBit s,
+                     const Condition cond) {
+  // Sn = Rt.
+  // Instruction details available in ARM DDI 0406A, A8-642.
+  // cond(31-28) | 1110(27-24)| 000(23-21) | op=0(20) | Vn(19-16) |
+  // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(!src.is(pc));
+  emit(cond | 0xE*B24 | (dst.code() >> 1)*B16 |
+       src.code()*B12 | 0xA*B8 | (0x1 & dst.code())*B7 | B4);
+}
+
+
+void Assembler::fmrs(const Register dst,
+                     const Register src,
+                     const SBit s,
+                     const Condition cond) {
+  // Rt = Sn.
+  // Instruction details available in ARM DDI 0406A, A8-642.
+  // cond(31-28) | 1110(27-24)| 000(23-21) | op=1(20) | Vn(19-16) |
+  // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(!dst.is(pc));
+  emit(cond | 0xE*B24 | B20 | (src.code() >> 1)*B16 |
+       dst.code()*B12 | 0xA*B8 | (0x1 & src.code())*B7 | B4);
+}
+
+
+void Assembler::fsitod(const Register dst,
+                       const Register src,
+                       const SBit s,
+                       const Condition cond) {
+  // Dd = Sm (integer in Sm converted to IEEE 64-bit doubles in Dd).
+  // Instruction details available in ARM DDI 0406A, A8-576.
+  // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) |opc2=000(18-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | op(7)=1 | 1(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | B23 | 0x3*B20 | B19 |
+       dst.code()*B12 | 0x5*B9 | B8 | B7 | B6 |
+       (0x1 & src.code())*B5 | (src.code() >> 1));
+}
+
+
+void Assembler::ftosid(const Register dst,
+                       const Register src,
+                       const SBit s,
+                       const Condition cond) {
+  // Sd = Dm (IEEE 64-bit doubles in Dm converted to 32 bit integer in Sd).
+  // Instruction details available in ARM DDI 0406A, A8-576.
+  // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) | opc2=101(18-16)|
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | op(7)=? | 1(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | B23 |(0x1 & dst.code())*B22 |
+       0x3*B20 | B19 | 0x5*B16 | (dst.code() >> 1)*B12 |
+       0x5*B9 | B8 | B7 | B6 | src.code());
+}
+
+
+void Assembler::faddd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = faddd(Dn, Dm) double precision floating point addition.
+  // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
+  // Instruction details available in ARM DDI 0406A, A8-536.
+  // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
+       dst.code()*B12 | 0x5*B9 | B8 | src2.code());
+}
+
+
+void Assembler::fsubd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fsubd(Dn, Dm) double precision floating point subtraction.
+  // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 1(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
+       dst.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
+}
+
+
+void Assembler::fmuld(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fmuld(Dn, Dm) double precision floating point multiplication.
+  // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 11100(27-23)| D=?(22) | 10(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0x2*B20 | src1.code()*B16 |
+       dst.code()*B12 | 0x5*B9 | B8 | src2.code());
+}
+
+
+void Assembler::fdivd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fdivd(Dn, Dm) double precision floating point division.
+  // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
+  // Instruction details available in ARM DDI 0406A, A8-584.
+  // cond(31-28) | 11101(27-23)| D=?(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=? | 0(6) | M=?(5) | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | B23 | src1.code()*B16 |
+       dst.code()*B12 | 0x5*B9 | B8 | src2.code());
+}
+
+
+void Assembler::fcmp(const Register src1,
+                     const Register src2,
+                     const SBit s,
+                     const Condition cond) {
+  // vcmp(Dd, Dm) double precision floating point comparison.
+  // Instruction details available in ARM DDI 0406A, A8-570.
+  // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0100 (19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=? | 1(6) | M(5)=? | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 |
+       src1.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
+}
+
+
+void Assembler::vmrs(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
+       dst.code()*B12 | 0xA*B8 | B4);
+}
+
+
 // Pseudo instructions
 void Assembler::lea(Register dst,
                     const MemOperand& x,
@@ -1308,6 +1577,18 @@ void Assembler::lea(Register dst,
     else
       add(dst, x.rn_, Operand(x.rm_, x.shift_op_, x.shift_imm_), s, cond);
   }
+}
+
+
+bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
+  uint32_t dummy1;
+  uint32_t dummy2;
+  return fits_shifter(imm32, &dummy1, &dummy2, NULL);
+}
+
+
+void Assembler::BlockConstPoolFor(int instructions) {
+  BlockConstPoolBefore(pc_offset() + instructions * kInstrSize);
 }
 
 
@@ -1429,10 +1710,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   if (rinfo.rmode() != RelocInfo::NONE) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !Serializer::enabled() &&
-        !FLAG_debug_code) {
-      return;
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+      if (!Serializer::enabled()) {
+        Serializer::TooLateToEnableNow();
+      }
+#endif
+      if (!Serializer::enabled() && !FLAG_debug_code) {
+        return;
+      }
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     reloc_info_writer.Write(&rinfo);

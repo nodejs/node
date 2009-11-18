@@ -1069,7 +1069,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   } else {
     UnimplementedInstruction();
   }
-  return current - data;
+  return static_cast<int>(current - data);
 }
 
 
@@ -1474,7 +1474,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
     tmp_buffer_[tmp_buffer_pos_] = '\0';
   }
 
-  int instr_len = data - instr;
+  int instr_len = static_cast<int>(data - instr);
   ASSERT(instr_len > 0);  // Ensure progress.
 
   int outp = 0;
@@ -1586,7 +1586,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     for (byte* bp = prev_pc; bp < pc; bp++) {
       fprintf(f, "%02x", *bp);
     }
-    for (int i = 6 - (pc - prev_pc); i >= 0; i--) {
+    for (int i = 6 - static_cast<int>(pc - prev_pc); i >= 0; i--) {
       fprintf(f, "  ");
     }
     fprintf(f, "  %s\n", buffer.start());

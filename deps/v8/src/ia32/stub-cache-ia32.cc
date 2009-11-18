@@ -240,7 +240,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
   // ecx is also the receiver.
   __ lea(ecx, Operand(scratch, String::kLongLengthShift));
-  __ shr(eax);  // ecx is implicit shift register.
+  __ shr_cl(eax);
   __ shl(eax, kSmiTagSize);
   __ ret(0);
 
@@ -776,20 +776,40 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
       CheckPrototypes(object, receiver, holder,
                       scratch1, scratch2, name, miss);
 
-  // Push the arguments on the JS stack of the caller.
-  __ pop(scratch2);  // remove return address
+  Handle<AccessorInfo> callback_handle(callback);
+
+  Register other = reg.is(scratch1) ? scratch2 : scratch1;
+  __ EnterInternalFrame();
+  __ PushHandleScope(other);
+  // Push the stack address where the list of arguments ends
+  __ mov(other, esp);
+  __ sub(Operand(other), Immediate(2 * kPointerSize));
+  __ push(other);
   __ push(receiver);  // receiver
   __ push(reg);  // holder
-  __ mov(reg, Immediate(Handle<AccessorInfo>(callback)));  // callback data
-  __ push(reg);
-  __ push(FieldOperand(reg, AccessorInfo::kDataOffset));
+  __ mov(other, Immediate(callback_handle));
+  __ push(other);
+  __ push(FieldOperand(other, AccessorInfo::kDataOffset));  // data
   __ push(name_reg);  // name
-  __ push(scratch2);  // restore return address
+  // Save a pointer to where we pushed the arguments pointer.
+  // This will be passed as the const Arguments& to the C++ callback.
+  __ mov(eax, esp);
+  __ add(Operand(eax), Immediate(5 * kPointerSize));
+  __ mov(ebx, esp);
 
-  // Do tail-call to the runtime system.
-  ExternalReference load_callback_property =
-      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 5, 1);
+  // Do call through the api.
+  ASSERT_EQ(6, ApiGetterEntryStub::kStackSpace);
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  ApiFunction fun(getter_address);
+  ApiGetterEntryStub stub(callback_handle, &fun);
+  __ CallStub(&stub);
+
+  // We need to avoid using eax since that now holds the result.
+  Register tmp = other.is(eax) ? reg : other;
+  __ PopHandleScope(eax, tmp);
+  __ LeaveInternalFrame();
+
+  __ ret(0);
 }
 
 

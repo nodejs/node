@@ -103,6 +103,10 @@ typedef byte* Address;
 #define V8PRIxPTR "lx"
 #endif
 
+#if defined(__APPLE__) && defined(__MACH__)
+#define USING_MAC_ABI
+#endif
+
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
 typedef int32_t uc32;
@@ -248,7 +252,6 @@ class Variable;
 class VariableProxy;
 class RelocInfo;
 class Deserializer;
-class GenericDeserializer;  // TODO(erikcorry): Get rid of this.
 class MessageLocation;
 class ObjectGroup;
 class TickSample;
@@ -290,6 +293,8 @@ enum PretenureFlag { NOT_TENURED, TENURED };
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
+
+enum VisitMode { VISIT_ALL, VISIT_ONLY_STRONG };
 
 
 // A CodeDesc describes a buffer holding instructions and relocation
@@ -569,6 +574,17 @@ inline Dest bit_cast(const Source& source) {
   return dest;
 }
 
+
+// Feature flags bit positions. They are mostly based on the CPUID spec.
+// (We assign CPUID itself to one of the currently reserved bits --
+// feel free to change this if needed.)
+enum CpuFeature { SSE3 = 32,   // x86
+                  SSE2 = 26,   // x86
+                  CMOV = 15,   // x86
+                  RDTSC = 4,   // x86
+                  CPUID = 10,  // x86
+                  VFP3 = 1,    // ARM
+                  SAHF = 0};   // x86
 
 } }  // namespace v8::internal
 

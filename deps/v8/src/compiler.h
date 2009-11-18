@@ -71,6 +71,19 @@ class Compiler : public AllStatic {
   // true on success and false if the compilation resulted in a stack
   // overflow.
   static bool CompileLazy(Handle<SharedFunctionInfo> shared, int loop_nesting);
+
+  // Compile a function boilerplate object (the function is possibly
+  // lazily compiled). Called recursively from a backend code
+  // generator 'caller' to build the boilerplate.
+  static Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node,
+                                             Handle<Script> script,
+                                             AstVisitor* caller);
+
+  // Set the function info for a newly compiled function.
+  static void SetFunctionInfo(Handle<JSFunction> fun,
+                              FunctionLiteral* lit,
+                              bool is_toplevel,
+                              Handle<Script> script);
 };
 
 

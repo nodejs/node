@@ -37,7 +37,6 @@ class Snapshot {
   // NULL, use the internal snapshot instead. Returns false if no snapshot
   // could be found.
   static bool Initialize(const char* snapshot_file = NULL);
-  static bool Initialize2(const char* snapshot_file = NULL);
 
   // Returns whether or not the snapshot is enabled.
   static bool IsEnabled() { return size_ != 0; }
@@ -45,14 +44,12 @@ class Snapshot {
   // Write snapshot to the given file. Returns true if snapshot was written
   // successfully.
   static bool WriteToFile(const char* snapshot_file);
-  static bool WriteToFile2(const char* snapshot_file);
 
  private:
   static const byte data_[];
   static int size_;
 
   static bool Deserialize(const byte* content, int len);
-  static bool Deserialize2(const byte* content, int len);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };

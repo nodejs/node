@@ -264,7 +264,6 @@ def ConfigureObjectFiles():
     else:
       snapshot_cc = Command('snapshot.cc', [], [])
     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
-    libraries_obj = context.ConfigureObject(env, libraries_empty_src, CPPPATH=['.'])
   else:
     snapshot_obj = empty_snapshot_obj
   library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]

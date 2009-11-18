@@ -126,7 +126,8 @@ Address IC::OriginalCodeAddress() {
   // Return the address in the original code. This is the place where
   // the call which has been overwritten by the DebugBreakXXX resides
   // and the place where the inline cache system should look.
-  int delta = original_code->instruction_start() - code->instruction_start();
+  intptr_t delta =
+      original_code->instruction_start() - code->instruction_start();
   return addr + delta;
 }
 #endif

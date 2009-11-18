@@ -37,6 +37,7 @@
 #include "global-handles.h"
 #include "natives.h"
 #include "runtime.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -49,8 +50,8 @@ v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
 int HandleScope::NumberOfHandles() {
   int n = HandleScopeImplementer::instance()->blocks()->length();
   if (n == 0) return 0;
-  return ((n - 1) * kHandleBlockSize) +
-      (current_.next - HandleScopeImplementer::instance()->blocks()->last());
+  return ((n - 1) * kHandleBlockSize) + static_cast<int>(
+      (current_.next - HandleScopeImplementer::instance()->blocks()->last()));
 }
 
 
@@ -102,6 +103,21 @@ void HandleScope::ZapRange(Object** start, Object** end) {
   for (Object** p = start; p < end; p++) {
     *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
   }
+}
+
+
+Address HandleScope::current_extensions_address() {
+  return reinterpret_cast<Address>(&current_.extensions);
+}
+
+
+Address HandleScope::current_next_address() {
+  return reinterpret_cast<Address>(&current_.next);
+}
+
+
+Address HandleScope::current_limit_address() {
+  return reinterpret_cast<Address>(&current_.limit);
 }
 
 
@@ -285,7 +301,9 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
-  Handle<String> key = Factory::hidden_symbol();
+  Object* holder = obj->BypassGlobalProxy();
+  if (holder->IsUndefined()) return Factory::undefined_value();
+  obj = Handle<JSObject>(JSObject::cast(holder));
 
   if (obj->HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
@@ -294,7 +312,7 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = obj->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == *key) &&
+        (descriptors->GetKey(0) == Heap::hidden_symbol()) &&
         descriptors->IsProperty(0)) {
       ASSERT(descriptors->GetType(0) == FIELD);
       return Handle<Object>(obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
@@ -304,17 +322,17 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
   // Only attempt to find the hidden properties in the local object and not
   // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
   // the general case in the presence of interceptors.
-  if (!obj->HasLocalProperty(*key)) {
+  if (!obj->HasHiddenPropertiesObject()) {
     // Hidden properties object not found. Allocate a new hidden properties
     // object if requested. Otherwise return the undefined value.
     if (create_if_needed) {
       Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
-      return SetProperty(obj, key, hidden_obj, DONT_ENUM);
+      CALL_HEAP_FUNCTION(obj->SetHiddenPropertiesObject(*hidden_obj), Object);
     } else {
       return Factory::undefined_value();
     }
   }
-  return GetProperty(obj, key);
+  return Handle<Object>(obj->GetHiddenPropertiesObject());
 }
 
 
@@ -338,7 +356,7 @@ Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
 
 
 Handle<String> SubString(Handle<String> str, int start, int end) {
-  CALL_HEAP_FUNCTION(str->Slice(start, end), String);
+  CALL_HEAP_FUNCTION(str->SubString(start, end), String);
 }
 
 
@@ -411,12 +429,12 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 // Init line_ends array with code positions of line ends inside script
 // source.
 void InitScriptLineEnds(Handle<Script> script) {
-  if (!script->line_ends()->IsUndefined()) return;
+  if (!script->line_ends_fixed_array()->IsUndefined()) return;
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends(*(Factory::NewJSArray(0)));
-    ASSERT(script->line_ends()->IsJSArray());
+    script->set_line_ends_fixed_array(*(Factory::NewFixedArray(0)));
+    ASSERT(script->line_ends_fixed_array()->IsFixedArray());
     return;
   }
 
@@ -449,9 +467,8 @@ void InitScriptLineEnds(Handle<Script> script) {
   }
   ASSERT(array_index == line_count);
 
-  Handle<JSArray> object = Factory::NewJSArrayWithElements(array);
-  script->set_line_ends(*object);
-  ASSERT(script->line_ends()->IsJSArray());
+  script->set_line_ends_fixed_array(*array);
+  ASSERT(script->line_ends_fixed_array()->IsFixedArray());
 }
 
 
@@ -459,17 +476,18 @@ void InitScriptLineEnds(Handle<Script> script) {
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
-  JSArray* line_ends_array = JSArray::cast(script->line_ends());
-  const int line_ends_len = (Smi::cast(line_ends_array->length()))->value();
+  FixedArray* line_ends_array =
+      FixedArray::cast(script->line_ends_fixed_array());
+  const int line_ends_len = line_ends_array->length();
 
   int line = -1;
   if (line_ends_len > 0 &&
-      code_pos <= (Smi::cast(line_ends_array->GetElement(0)))->value()) {
+      code_pos <= (Smi::cast(line_ends_array->get(0)))->value()) {
     line = 0;
   } else {
     for (int i = 1; i < line_ends_len; ++i) {
-      if ((Smi::cast(line_ends_array->GetElement(i - 1)))->value() < code_pos &&
-          code_pos <= (Smi::cast(line_ends_array->GetElement(i)))->value()) {
+      if ((Smi::cast(line_ends_array->get(i - 1)))->value() < code_pos &&
+          code_pos <= (Smi::cast(line_ends_array->get(i)))->value()) {
         line = i;
         break;
       }
@@ -669,6 +687,11 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
   } else {
     has_been_transformed_ = false;
   }
+}
+
+
+Handle<Code> ComputeLazyCompile(int argc) {
+  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
 

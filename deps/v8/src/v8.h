@@ -72,6 +72,8 @@
 namespace v8 {
 namespace internal {
 
+class Deserializer;
+
 class V8 : public AllStatic {
  public:
   // Global actions.
@@ -80,7 +82,7 @@ class V8 : public AllStatic {
   // created from scratch. If a non-null Deserializer is given, the
   // initial state is created by reading the deserialized data into an
   // empty heap.
-  static bool Initialize(GenericDeserializer* des);
+  static bool Initialize(Deserializer* des);
   static void TearDown();
   static bool IsRunning() { return is_running_; }
   // To be dead you have to have lived

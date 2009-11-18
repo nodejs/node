@@ -108,12 +108,13 @@ void BreakLocationIterator::Next() {
     // current value of these.
     if (RelocInfo::IsPosition(rmode())) {
       if (RelocInfo::IsStatementPosition(rmode())) {
-        statement_position_ =
-            rinfo()->data() - debug_info_->shared()->start_position();
+        statement_position_ = static_cast<int>(
+            rinfo()->data() - debug_info_->shared()->start_position());
       }
       // Always update the position as we don't want that to be before the
       // statement position.
-      position_ = rinfo()->data() - debug_info_->shared()->start_position();
+      position_ = static_cast<int>(
+          rinfo()->data() - debug_info_->shared()->start_position());
       ASSERT(position_ >= 0);
       ASSERT(statement_position_ >= 0);
     }
@@ -182,7 +183,7 @@ void BreakLocationIterator::FindBreakLocationFromAddress(Address pc) {
     // Check if this break point is closer that what was previously found.
     if (this->pc() < pc && pc - this->pc() < distance) {
       closest_break_point = break_point();
-      distance = pc - this->pc();
+      distance = static_cast<int>(pc - this->pc());
       // Check whether we can't get any closer.
       if (distance == 0) break;
     }

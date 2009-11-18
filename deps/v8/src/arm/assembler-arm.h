@@ -41,6 +41,7 @@
 #define V8_ARM_ASSEMBLER_ARM_H_
 #include <stdio.h>
 #include "assembler.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -102,6 +103,57 @@ extern Register sp;
 extern Register lr;
 extern Register pc;
 
+// Support for VFP registers s0 to s32 (d0 to d16).
+// Note that "sN:sM" is the same as "dN/2".
+extern Register s0;
+extern Register s1;
+extern Register s2;
+extern Register s3;
+extern Register s4;
+extern Register s5;
+extern Register s6;
+extern Register s7;
+extern Register s8;
+extern Register s9;
+extern Register s10;
+extern Register s11;
+extern Register s12;
+extern Register s13;
+extern Register s14;
+extern Register s15;
+extern Register s16;
+extern Register s17;
+extern Register s18;
+extern Register s19;
+extern Register s20;
+extern Register s21;
+extern Register s22;
+extern Register s23;
+extern Register s24;
+extern Register s25;
+extern Register s26;
+extern Register s27;
+extern Register s28;
+extern Register s29;
+extern Register s30;
+extern Register s31;
+
+extern Register d0;
+extern Register d1;
+extern Register d2;
+extern Register d3;
+extern Register d4;
+extern Register d5;
+extern Register d6;
+extern Register d7;
+extern Register d8;
+extern Register d9;
+extern Register d10;
+extern Register d11;
+extern Register d12;
+extern Register d13;
+extern Register d14;
+extern Register d15;
 
 // Coprocessor register
 struct CRegister {
@@ -372,6 +424,51 @@ class MemOperand BASE_EMBEDDED {
   friend class Assembler;
 };
 
+// CpuFeatures keeps track of which features are supported by the target CPU.
+// Supported features must be enabled by a Scope before use.
+class CpuFeatures : public AllStatic {
+ public:
+  // Detect features of the target CPU. Set safe defaults if the serializer
+  // is enabled (snapshots must be portable).
+  static void Probe();
+
+  // Check whether a feature is supported by the target CPU.
+  static bool IsSupported(CpuFeature f) {
+    if (f == VFP3 && !FLAG_enable_vfp3) return false;
+    return (supported_ & (1u << f)) != 0;
+  }
+
+  // Check whether a feature is currently enabled.
+  static bool IsEnabled(CpuFeature f) {
+    return (enabled_ & (1u << f)) != 0;
+  }
+
+  // Enable a specified feature within a scope.
+  class Scope BASE_EMBEDDED {
+#ifdef DEBUG
+   public:
+    explicit Scope(CpuFeature f) {
+      ASSERT(CpuFeatures::IsSupported(f));
+      ASSERT(!Serializer::enabled() ||
+             (found_by_runtime_probing_ & (1u << f)) == 0);
+      old_enabled_ = CpuFeatures::enabled_;
+      CpuFeatures::enabled_ |= 1u << f;
+    }
+    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+   private:
+    unsigned old_enabled_;
+#else
+   public:
+    explicit Scope(CpuFeature f) {}
+#endif
+  };
+
+ private:
+  static unsigned supported_;
+  static unsigned enabled_;
+  static unsigned found_by_runtime_probing_;
+};
+
 
 typedef int32_t Instr;
 
@@ -437,13 +534,22 @@ class Assembler : public Malloced {
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));
 
-  // Modify the code target address in a constant pool entry.
+  // This sets the branch destination (which is in the constant pool on ARM).
+  // This is for calls and branches within generated code.
   inline static void set_target_at(Address constant_pool_entry, Address target);
+
+  // This sets the branch destination (which is in the constant pool on ARM).
+  // This is for calls and branches to runtime code.
+  inline static void set_external_target_at(Address constant_pool_entry,
+                                            Address target) {
+    set_target_at(constant_pool_entry, target);
+  }
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a
   // pointer.
   static const int kCallTargetSize = kPointerSize;
+  static const int kExternalTargetSize = kPointerSize;
 
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
@@ -646,6 +752,66 @@ class Assembler : public Malloced {
   void stc2(Coprocessor coproc, CRegister crd, Register base, int option,
             LFlag l = Short);  // v5 and above
 
+  // Support for VFP.
+  // All these APIs support S0 to S31 and D0 to D15.
+  // Currently these APIs do not support extended D registers, i.e, D16 to D31.
+  // However, some simple modifications can allow
+  // these APIs to support D16 to D31.
+
+  void fmdrr(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmrrd(const Register dst1,
+             const Register dst2,
+             const Register src,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmsr(const Register dst,
+            const Register src,
+            const SBit s = LeaveCC,
+            const Condition cond = al);
+  void fmrs(const Register dst,
+            const Register src,
+            const SBit s = LeaveCC,
+            const Condition cond = al);
+  void fsitod(const Register dst,
+              const Register src,
+              const SBit s = LeaveCC,
+              const Condition cond = al);
+  void ftosid(const Register dst,
+              const Register src,
+              const SBit s = LeaveCC,
+              const Condition cond = al);
+
+  void faddd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fsubd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmuld(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fdivd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fcmp(const Register src1,
+            const Register src2,
+            const SBit s = LeaveCC,
+            const Condition cond = al);
+  void vmrs(const Register dst,
+            const Condition cond = al);
+
   // Pseudo instructions
   void nop()  { mov(r0, Operand(r0)); }
 
@@ -672,6 +838,13 @@ class Assembler : public Malloced {
   int InstructionsGeneratedSince(Label* l) {
     return (pc_offset() - l->pos()) / kInstrSize;
   }
+
+  // Check whether an immediate fits an addressing mode 1 instruction.
+  bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
+
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
 
   // Debugging
 

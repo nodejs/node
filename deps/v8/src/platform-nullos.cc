@@ -150,10 +150,21 @@ int OS::VSNPrintF(char* str, size_t size, const char* format, va_list args) {
 }
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+  return 0;
+}
+
+
 double OS::nan_value() {
   UNIMPLEMENTED();
   return 0;
 }
+
+
+bool OS::ArmCpuHasFeature(CpuFeature feature) {
+  UNIMPLEMENTED();
+}
+
 
 bool OS::IsOutsideAllocatedSpace(void* address) {
   UNIMPLEMENTED();

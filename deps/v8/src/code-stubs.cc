@@ -36,10 +36,27 @@ namespace v8 {
 namespace internal {
 
 Handle<Code> CodeStub::GetCode() {
-  uint32_t key = GetKey();
-  int index = Heap::code_stubs()->FindEntry(key);
-  if (index == NumberDictionary::kNotFound) {
-    HandleScope scope;
+  bool custom_cache = has_custom_cache();
+
+  int index = 0;
+  uint32_t key = 0;
+  if (custom_cache) {
+    Code* cached;
+    if (GetCustomCache(&cached)) {
+      return Handle<Code>(cached);
+    } else {
+      index = NumberDictionary::kNotFound;
+    }
+  } else {
+    key = GetKey();
+    index = Heap::code_stubs()->FindEntry(key);
+    if (index != NumberDictionary::kNotFound)
+      return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
+  }
+
+  Code* result;
+  {
+    v8::HandleScope scope;
 
     // Update the static counter each time a new code stub is generated.
     Counters::code_stubs.Increment();
@@ -79,25 +96,28 @@ Handle<Code> CodeStub::GetCode() {
     }
 #endif
 
-    // Update the dictionary and the root in Heap.
-    Handle<NumberDictionary> dict =
-        Factory::DictionaryAtNumberPut(
-            Handle<NumberDictionary>(Heap::code_stubs()),
-            key,
-            code);
-    Heap::public_set_code_stubs(*dict);
-    index = Heap::code_stubs()->FindEntry(key);
+    if (custom_cache) {
+      SetCustomCache(*code);
+    } else {
+      // Update the dictionary and the root in Heap.
+      Handle<NumberDictionary> dict =
+          Factory::DictionaryAtNumberPut(
+              Handle<NumberDictionary>(Heap::code_stubs()),
+              key,
+              code);
+      Heap::public_set_code_stubs(*dict);
+    }
+    result = *code;
   }
-  ASSERT(index != NumberDictionary::kNotFound);
 
-  return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
+  return Handle<Code>(result);
 }
 
 
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
 #define DEF_CASE(name) case name: return #name;
-    CODE_STUB_LIST_ALL(DEF_CASE)
+    CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     default:
       UNREACHABLE();

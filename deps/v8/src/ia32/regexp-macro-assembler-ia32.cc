@@ -598,10 +598,10 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   Label stack_limit_hit;
   Label stack_ok;
 
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
   __ mov(ecx, esp);
-  __ sub(ecx, Operand::StaticVariable(stack_guard_limit));
+  __ sub(ecx, Operand::StaticVariable(stack_limit));
   // Handle it if the stack pointer is already below the stack limit.
   __ j(below_equal, &stack_limit_hit, not_taken);
   // Check if there is room for the variable number of registers above
@@ -1081,9 +1081,9 @@ void RegExpMacroAssemblerIA32::Pop(Register target) {
 void RegExpMacroAssemblerIA32::CheckPreemption() {
   // Check for preemption.
   Label no_preempt;
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
   __ j(above, &no_preempt, taken);
 
   SafeCall(&check_preempt_label_);

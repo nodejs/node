@@ -77,12 +77,6 @@ namespace internal {
   V(Map, short_cons_ascii_symbol_map, ShortConsAsciiSymbolMap)                 \
   V(Map, medium_cons_ascii_symbol_map, MediumConsAsciiSymbolMap)               \
   V(Map, long_cons_ascii_symbol_map, LongConsAsciiSymbolMap)                   \
-  V(Map, short_sliced_symbol_map, ShortSlicedSymbolMap)                        \
-  V(Map, medium_sliced_symbol_map, MediumSlicedSymbolMap)                      \
-  V(Map, long_sliced_symbol_map, LongSlicedSymbolMap)                          \
-  V(Map, short_sliced_ascii_symbol_map, ShortSlicedAsciiSymbolMap)             \
-  V(Map, medium_sliced_ascii_symbol_map, MediumSlicedAsciiSymbolMap)           \
-  V(Map, long_sliced_ascii_symbol_map, LongSlicedAsciiSymbolMap)               \
   V(Map, short_external_symbol_map, ShortExternalSymbolMap)                    \
   V(Map, medium_external_symbol_map, MediumExternalSymbolMap)                  \
   V(Map, long_external_symbol_map, LongExternalSymbolMap)                      \
@@ -95,12 +89,6 @@ namespace internal {
   V(Map, short_cons_ascii_string_map, ShortConsAsciiStringMap)                 \
   V(Map, medium_cons_ascii_string_map, MediumConsAsciiStringMap)               \
   V(Map, long_cons_ascii_string_map, LongConsAsciiStringMap)                   \
-  V(Map, short_sliced_string_map, ShortSlicedStringMap)                        \
-  V(Map, medium_sliced_string_map, MediumSlicedStringMap)                      \
-  V(Map, long_sliced_string_map, LongSlicedStringMap)                          \
-  V(Map, short_sliced_ascii_string_map, ShortSlicedAsciiStringMap)             \
-  V(Map, medium_sliced_ascii_string_map, MediumSlicedAsciiStringMap)           \
-  V(Map, long_sliced_ascii_string_map, LongSlicedAsciiStringMap)               \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map, medium_external_string_map, MediumExternalStringMap)                  \
   V(Map, long_external_string_map, LongExternalStringMap)                      \
@@ -148,6 +136,7 @@ namespace internal {
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
+  V(Smi, real_stack_limit, RealStackLimit)                                     \
 
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
@@ -250,10 +239,10 @@ class Heap : public AllStatic {
   // Destroys all memory allocated by the heap.
   static void TearDown();
 
-  // Sets the stack limit in the roots_ array.  Some architectures generate code
-  // that looks here, because it is faster than loading from the static jslimit_
-  // variable.
-  static void SetStackLimit(intptr_t limit);
+  // Set the stack limit in the roots_ array.  Some architectures generate
+  // code that looks here, because it is faster than loading from the static
+  // jslimit_/real_jslimit_ variable in the StackGuard.
+  static void SetStackLimits();
 
   // Returns whether Setup has been called.
   static bool HasBeenSetup();
@@ -586,16 +575,6 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateConsString(String* first, String* second);
 
-  // Allocates a new sliced string object which is a slice of an underlying
-  // string buffer stretching from the index start (inclusive) to the index
-  // end (exclusive).
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  static Object* AllocateSlicedString(String* buffer,
-                                      int start,
-                                      int end);
-
   // Allocates a new sub string object which is a substring of an underlying
   // string buffer stretching from the index start (inclusive) to the index
   // end (exclusive).
@@ -729,9 +708,9 @@ class Heap : public AllStatic {
   static String* hidden_symbol() { return hidden_symbol_; }
 
   // Iterates over all roots in the heap.
-  static void IterateRoots(ObjectVisitor* v);
+  static void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
-  static void IterateStrongRoots(ObjectVisitor* v);
+  static void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
 
   // Iterates remembered set of an old space.
   static void IterateRSet(PagedSpace* space, ObjectSlotCallback callback);

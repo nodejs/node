@@ -38,9 +38,9 @@
 //   MakeCode
 //   MakeCodePrologue
 //   MakeCodeEpilogue
-//   SetFunctionInfo
 //   masm
 //   frame
+//   script
 //   has_valid_frame
 //   SetFrame
 //   DeleteFrame
@@ -69,6 +69,7 @@
 //   CodeForFunctionPosition
 //   CodeForReturnPosition
 //   CodeForStatementPosition
+//   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
 
 
@@ -301,7 +302,7 @@ class CEntryStub : public CodeStub {
                     Label* throw_normal_exception,
                     Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
-                    StackFrame::Type frame_type,
+                    ExitFrame::Mode mode,
                     bool do_gc,
                     bool always_allocate_scope);
   void GenerateThrowTOS(MacroAssembler* masm);
@@ -317,6 +318,32 @@ class CEntryStub : public CodeStub {
   int MinorKey();
 
   const char* GetName() { return "CEntryStub"; }
+};
+
+
+class ApiGetterEntryStub : public CodeStub {
+ public:
+  ApiGetterEntryStub(Handle<AccessorInfo> info,
+                     ApiFunction* fun)
+      : info_(info),
+        fun_(fun) { }
+  void Generate(MacroAssembler* masm);
+  virtual bool has_custom_cache() { return true; }
+  virtual bool GetCustomCache(Code** code_out);
+  virtual void SetCustomCache(Code* value);
+
+  static const int kStackSpace = 6;
+  static const int kArgc = 4;
+ private:
+  Handle<AccessorInfo> info() { return info_; }
+  ApiFunction* fun() { return fun_; }
+  Major MajorKey() { return NoCache; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "ApiEntryStub"; }
+  // The accessor info associated with the function.
+  Handle<AccessorInfo> info_;
+  // The function to be called.
+  ApiFunction* fun_;
 };
 
 

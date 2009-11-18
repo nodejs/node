@@ -129,7 +129,7 @@ char* ReadLine(const char* prompt) {
       }
       return NULL;
     }
-    int len = strlen(line_buf);
+    int len = StrLength(line_buf);
     if (len > 1 &&
         line_buf[len - 2] == '\\' &&
         line_buf[len - 1] == '\n') {
@@ -184,7 +184,7 @@ char* ReadCharsFromFile(const char* filename,
 
   char* result = NewArray<char>(*size + extra_space);
   for (int i = 0; i < *size;) {
-    int read = fread(&result[i], 1, *size - i, file);
+    int read = static_cast<int>(fread(&result[i], 1, *size - i, file));
     if (read <= 0) {
       fclose(file);
       DeleteArray(result);
@@ -221,7 +221,7 @@ Vector<const char> ReadFile(const char* filename,
 int WriteCharsToFile(const char* str, int size, FILE* f) {
   int total = 0;
   while (total < size) {
-    int write = fwrite(str, 1, size - total, f);
+    int write = static_cast<int>(fwrite(str, 1, size - total, f));
     if (write == 0) {
       return total;
     }
@@ -265,7 +265,7 @@ StringBuilder::StringBuilder(int size) {
 
 
 void StringBuilder::AddString(const char* s) {
-  AddSubstring(s, strlen(s));
+  AddSubstring(s, StrLength(s));
 }
 
 

@@ -588,9 +588,9 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   Label stack_limit_hit;
   Label stack_ok;
 
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  __ mov(r0, Operand(stack_guard_limit));
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ sub(r0, sp, r0, SetCC);
   // Handle it if the stack pointer is already below the stack limit.
@@ -1090,9 +1090,9 @@ void RegExpMacroAssemblerARM::Pop(Register target) {
 
 void RegExpMacroAssemblerARM::CheckPreemption() {
   // Check for preemption.
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  __ mov(r0, Operand(stack_guard_limit));
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmp(sp, r0);
   SafeCall(&check_preempt_label_, ls);

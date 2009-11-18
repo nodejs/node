@@ -59,7 +59,9 @@ class List {
     Initialize(0);
   }
 
-  INLINE(void* operator new(size_t size)) { return P::New(size); }
+  INLINE(void* operator new(size_t size)) {
+      return P::New(static_cast<int>(size));
+  }
   INLINE(void operator delete(void* p, size_t)) { return P::Delete(p); }
 
   // Returns a reference to the element at index i.  This reference is

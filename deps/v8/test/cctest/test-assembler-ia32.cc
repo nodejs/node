@@ -173,8 +173,8 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
-  { CpuFeatures::Scope fscope(CpuFeatures::SSE2);
+  CHECK(CpuFeatures::IsSupported(SSE2));
+  { CpuFeatures::Scope fscope(SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
     __ ret(0);
   }
@@ -207,8 +207,8 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
-  CpuFeatures::Scope fscope(CpuFeatures::SSE2);
+  CHECK(CpuFeatures::IsSupported(SSE2));
+  CpuFeatures::Scope fscope(SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
@@ -260,8 +260,8 @@ typedef double (*F5)(double x, double y);
 TEST(AssemblerIa326) {
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
-  CpuFeatures::Scope fscope(CpuFeatures::SSE2);
+  CHECK(CpuFeatures::IsSupported(SSE2));
+  CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
@@ -305,8 +305,8 @@ typedef double (*F6)(int x);
 TEST(AssemblerIa328) {
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
-  CpuFeatures::Scope fscope(CpuFeatures::SSE2);
+  CHECK(CpuFeatures::IsSupported(SSE2));
+  CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
   __ mov(eax, Operand(esp, 4));

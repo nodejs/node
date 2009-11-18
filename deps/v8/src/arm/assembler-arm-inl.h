@@ -85,7 +85,7 @@ Object* RelocInfo::target_object() {
 }
 
 
-Handle<Object> RelocInfo::target_object_handle(Assembler *origin) {
+Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Memory::Object_Handle_at(Assembler::target_address_address_at(pc_));
 }

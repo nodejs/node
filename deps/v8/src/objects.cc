@@ -683,23 +683,6 @@ Object* String::TryFlatten() {
 #endif
 
   switch (StringShape(this).representation_tag()) {
-    case kSlicedStringTag: {
-      SlicedString* ss = SlicedString::cast(this);
-      // The SlicedString constructor should ensure that there are no
-      // SlicedStrings that are constructed directly on top of other
-      // SlicedStrings.
-      String* buf = ss->buffer();
-      ASSERT(!buf->IsSlicedString());
-      Object* ok = buf->TryFlatten();
-      if (ok->IsFailure()) return ok;
-      // Under certain circumstances (TryFlattenIfNotFlat fails in
-      // String::Slice) we can have a cons string under a slice.
-      // In this case we need to get the flat string out of the cons!
-      if (StringShape(String::cast(ok)).IsCons()) {
-        ss->set_buffer(ConsString::cast(ok)->first());
-      }
-      return this;
-    }
     case kConsStringTag: {
       ConsString* cs = ConsString::cast(this);
       if (cs->second()->length() == 0) {
@@ -1135,8 +1118,14 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       case kConsStringTag:
         reinterpret_cast<ConsString*>(this)->ConsStringIterateBody(v);
         break;
-      case kSlicedStringTag:
-        reinterpret_cast<SlicedString*>(this)->SlicedStringIterateBody(v);
+      case kExternalStringTag:
+        if ((type & kStringEncodingMask) == kAsciiStringTag) {
+          reinterpret_cast<ExternalAsciiString*>(this)->
+              ExternalAsciiStringIterateBody(v);
+        } else {
+          reinterpret_cast<ExternalTwoByteString*>(this)->
+              ExternalTwoByteStringIterateBody(v);
+        }
         break;
     }
     return;
@@ -3562,12 +3551,7 @@ Vector<const char> String::ToAsciiVector() {
   int length = this->length();
   StringRepresentationTag string_tag = StringShape(this).representation_tag();
   String* string = this;
-  if (string_tag == kSlicedStringTag) {
-    SlicedString* sliced = SlicedString::cast(string);
-    offset += sliced->start();
-    string = sliced->buffer();
-    string_tag = StringShape(string).representation_tag();
-  } else if (string_tag == kConsStringTag) {
+  if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
     ASSERT(cons->second()->length() == 0);
     string = cons->first();
@@ -3593,12 +3577,7 @@ Vector<const uc16> String::ToUC16Vector() {
   int length = this->length();
   StringRepresentationTag string_tag = StringShape(this).representation_tag();
   String* string = this;
-  if (string_tag == kSlicedStringTag) {
-    SlicedString* sliced = SlicedString::cast(string);
-    offset += sliced->start();
-    string = String::cast(sliced->buffer());
-    string_tag = StringShape(string).representation_tag();
-  } else if (string_tag == kConsStringTag) {
+  if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
     ASSERT(cons->second()->length() == 0);
     string = cons->first();
@@ -3689,17 +3668,6 @@ const uc16* String::GetTwoByteData(unsigned start) {
     case kExternalStringTag:
       return ExternalTwoByteString::cast(this)->
         ExternalTwoByteStringGetData(start);
-    case kSlicedStringTag: {
-      SlicedString* sliced_string = SlicedString::cast(this);
-      String* buffer = sliced_string->buffer();
-      if (StringShape(buffer).IsCons()) {
-        ConsString* cs = ConsString::cast(buffer);
-        // Flattened string.
-        ASSERT(cs->second()->length() == 0);
-        buffer = cs->first();
-      }
-      return buffer->GetTwoByteData(start + sliced_string->start());
-    }
     case kConsStringTag:
       UNREACHABLE();
       return NULL;
@@ -3854,22 +3822,6 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
 }
 
 
-const unibrow::byte* SlicedString::SlicedStringReadBlock(ReadBlockBuffer* rbb,
-                                                         unsigned* offset_ptr,
-                                                         unsigned max_chars) {
-  String* backing = buffer();
-  unsigned offset = start() + *offset_ptr;
-  unsigned length = backing->length();
-  if (max_chars > length - offset) {
-    max_chars = length - offset;
-  }
-  const unibrow::byte* answer =
-      String::ReadBlock(backing, rbb, &offset, max_chars);
-  *offset_ptr = offset - start();
-  return answer;
-}
-
-
 uint16_t ExternalAsciiString::ExternalAsciiStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return resource()->data()[index];
@@ -3993,10 +3945,6 @@ const unibrow::byte* String::ReadBlock(String* input,
       return ConsString::cast(input)->ConsStringReadBlock(rbb,
                                                           offset_ptr,
                                                           max_chars);
-    case kSlicedStringTag:
-      return SlicedString::cast(input)->SlicedStringReadBlock(rbb,
-                                                              offset_ptr,
-                                                              max_chars);
     case kExternalStringTag:
       if (input->IsAsciiRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
@@ -4139,20 +4087,15 @@ void String::ReadBlockIntoBuffer(String* input,
                                                              offset_ptr,
                                                              max_chars);
       return;
-    case kSlicedStringTag:
-      SlicedString::cast(input)->SlicedStringReadBlockIntoBuffer(rbb,
-                                                                 offset_ptr,
-                                                                 max_chars);
-      return;
     case kExternalStringTag:
       if (input->IsAsciiRepresentation()) {
-         ExternalAsciiString::cast(input)->
-             ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
-       } else {
-         ExternalTwoByteString::cast(input)->
-             ExternalTwoByteStringReadBlockIntoBuffer(rbb,
-                                                      offset_ptr,
-                                                      max_chars);
+        ExternalAsciiString::cast(input)->
+            ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
+      } else {
+        ExternalTwoByteString::cast(input)->
+            ExternalTwoByteStringReadBlockIntoBuffer(rbb,
+                                                     offset_ptr,
+                                                     max_chars);
        }
        return;
     default:
@@ -4258,20 +4201,6 @@ void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 }
 
 
-void SlicedString::SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                                   unsigned* offset_ptr,
-                                                   unsigned max_chars) {
-  String* backing = buffer();
-  unsigned offset = start() + *offset_ptr;
-  unsigned length = backing->length();
-  if (max_chars > length - offset) {
-    max_chars = length - offset;
-  }
-  String::ReadBlockIntoBuffer(backing, rbb, &offset, max_chars);
-  *offset_ptr = offset - start();
-}
-
-
 void ConsString::ConsStringIterateBody(ObjectVisitor* v) {
   IteratePointers(v, kFirstOffset, kSecondOffset + kPointerSize);
 }
@@ -4350,15 +4279,6 @@ void String::WriteToFlat(String* src,
                   to - from);
         return;
       }
-      case kAsciiStringTag | kSlicedStringTag:
-      case kTwoByteStringTag | kSlicedStringTag: {
-        SlicedString* sliced_string = SlicedString::cast(source);
-        int start = sliced_string->start();
-        from += start;
-        to += start;
-        source = String::cast(sliced_string->buffer());
-        break;
-      }
       case kAsciiStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
         ConsString* cons_string = ConsString::cast(source);
@@ -4394,18 +4314,23 @@ void String::WriteToFlat(String* src,
 }
 
 
-void SlicedString::SlicedStringIterateBody(ObjectVisitor* v) {
-  IteratePointer(v, kBufferOffset);
+#define FIELD_ADDR(p, offset) \
+  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
+
+void ExternalAsciiString::ExternalAsciiStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalAsciiStringResource Resource;
+  v->VisitExternalAsciiString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 
 
-uint16_t SlicedString::SlicedStringGet(int index) {
-  ASSERT(index >= 0 && index < this->length());
-  // Delegate to the buffer string.
-  String* underlying = buffer();
-  return underlying->Get(start() + index);
+void ExternalTwoByteString::ExternalTwoByteStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalStringResource Resource;
+  v->VisitExternalTwoByteString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 
+#undef FIELD_ADDR
 
 template <typename IteratorA, typename IteratorB>
 static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
@@ -4705,43 +4630,10 @@ uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
 }
 
 
-Object* String::Slice(int start, int end) {
+Object* String::SubString(int start, int end) {
   if (start == 0 && end == length()) return this;
-  if (StringShape(this).representation_tag() == kSlicedStringTag) {
-    // Translate slices of a SlicedString into slices of the
-    // underlying string buffer.
-    SlicedString* str = SlicedString::cast(this);
-    String* buf = str->buffer();
-    return Heap::AllocateSlicedString(buf,
-                                      str->start() + start,
-                                      str->start() + end);
-  }
-  Object* result = Heap::AllocateSlicedString(this, start, end);
-  if (result->IsFailure()) {
-    return result;
-  }
-  // Due to the way we retry after GC on allocation failure we are not allowed
-  // to fail on allocation after this point.  This is the one-allocation rule.
-
-  // Try to flatten a cons string that is under the sliced string.
-  // This is to avoid memory leaks and possible stack overflows caused by
-  // building 'towers' of sliced strings on cons strings.
-  // This may fail due to an allocation failure (when a GC is needed), but it
-  // will succeed often enough to avoid the problem.  We only have to do this
-  // if Heap::AllocateSlicedString actually returned a SlicedString.  It will
-  // return flat strings for small slices for efficiency reasons.
-  String* answer = String::cast(result);
-  if (StringShape(answer).IsSliced() &&
-      StringShape(this).representation_tag() == kConsStringTag) {
-    TryFlatten();
-    // If the flatten succeeded we might as well make the sliced string point
-    // to the flat string rather than the cons string.
-    String* second = ConsString::cast(this)->second();
-    if (second->length() == 0) {
-      SlicedString::cast(answer)->set_buffer(ConsString::cast(this)->first());
-    }
-  }
-  return answer;
+  Object* result = Heap::AllocateSubString(this, start, end);
+  return result;
 }
 
 
@@ -4921,12 +4813,8 @@ int SharedFunctionInfo::CalculateInObjectProperties() {
 
 
 void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
-    bool only_this_property_assignments,
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kHasOnlyThisPropertyAssignments,
-                                     only_this_property_assignments));
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlySimpleThisPropertyAssignments,
                                      only_simple_this_property_assignments));
@@ -4936,9 +4824,6 @@ void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
 
 
 void SharedFunctionInfo::ClearThisPropertyAssignmentsInfo() {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kHasOnlyThisPropertyAssignments,
-                                     false));
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlySimpleThisPropertyAssignments,
                                      false));
@@ -4994,7 +4879,7 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
     return;
   }
 
-  // Get the slice of the source for this function.
+  // Get the source for the script which this function came from.
   // Don't use String::cast because we don't want more assertion errors while
   // we are already creating a stack dump.
   String* script_source =
@@ -5083,7 +4968,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
 }
 
 
-void Code::Relocate(int delta) {
+void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
@@ -5149,8 +5034,9 @@ int Code::SourcePosition(Address pc) {
     // Only look at positions after the current pc.
     if (it.rinfo()->pc() < pc) {
       // Get position and distance.
-      int dist = pc - it.rinfo()->pc();
-      int pos = it.rinfo()->data();
+
+      int dist = static_cast<int>(pc - it.rinfo()->pc());
+      int pos = static_cast<int>(it.rinfo()->data());
       // If this position is closer than the current candidate or if it has the
       // same distance as the current candidate and the position is higher then
       // this position is the new candidate.
@@ -5177,7 +5063,7 @@ int Code::SourceStatementPosition(Address pc) {
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
     if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
-      int p = it.rinfo()->data();
+      int p = static_cast<int>(it.rinfo()->data());
       if (statement_position < p && p <= position) {
         statement_position = p;
       }
@@ -6282,6 +6168,17 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
   *attributes = ABSENT;
   if (pt == Heap::null_value()) return Heap::undefined_value();
   return pt->GetPropertyWithReceiver(receiver, name, attributes);
+}
+
+Object* JSObject::GetLocalPropertyPostInterceptor(
+    JSObject* receiver,
+    String* name,
+    PropertyAttributes* attributes) {
+  // Check local property in holder, ignore interceptor.
+  LookupResult result;
+  LocalLookupRealNamedProperty(name, &result);
+  if (!result.IsValid()) return Heap::undefined_value();
+  return GetProperty(receiver, &result, name, attributes);
 }
 
 

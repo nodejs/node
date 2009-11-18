@@ -133,6 +133,13 @@ class HandleScope {
     return result;
   }
 
+  // Deallocates any extensions used by the current scope.
+  static void DeleteExtensions();
+
+  static Address current_extensions_address();
+  static Address current_next_address();
+  static Address current_limit_address();
+
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);
@@ -165,9 +172,6 @@ class HandleScope {
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();
-
-  // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions();
 
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(internal::Object** start, internal::Object** end);
@@ -304,8 +308,8 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype);
 
 
-// Do lazy compilation of the given function. Returns true on success
-// and false if the compilation resulted in a stack overflow.
+// Does lazy compilation of the given function. Returns true on success and
+// false if the compilation resulted in a stack overflow.
 enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
@@ -314,6 +318,9 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 
 bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
+
+// Returns the lazy compilation stub for argc arguments.
+Handle<Code> ComputeLazyCompile(int argc);
 
 // These deal with lazily loaded properties.
 void SetupLazy(Handle<JSObject> obj,

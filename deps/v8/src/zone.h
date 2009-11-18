@@ -118,7 +118,7 @@ class Zone {
 class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
-  void* operator new(size_t size) { return Zone::New(size); }
+  void* operator new(size_t size) { return Zone::New(static_cast<int>(size)); }
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes

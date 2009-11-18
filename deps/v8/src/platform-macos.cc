@@ -244,6 +244,14 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+  // MacOSX requires all these to install so we can assume they are present.
+  // These constants are defined by the CPUid instructions.
+  const uint64_t one = 1;
+  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
+}
+
+
 double OS::nan_value() {
   return NAN;
 }

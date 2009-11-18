@@ -74,7 +74,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
   }
 
   if (code_ != NULL) {
-    int offs = pc - code_->instruction_start();
+    int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
       OS::SNPrintF(buffer, "%d  (%p)", offs, pc);
@@ -289,7 +289,7 @@ static int DecodeIt(FILE* f,
   }
 
   delete it;
-  return pc - begin;
+  return static_cast<int>(pc - begin);
 }
 
 

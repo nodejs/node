@@ -77,12 +77,13 @@ const kMonthShift         = 5;
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
 macro IS_UNDEFINED(arg)         = (typeof(arg) === 'undefined');
-macro IS_FUNCTION(arg)          = (typeof(arg) === 'function');
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
-macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
+macro IS_OBJECT(arg)            = (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
+# IS_FUNCTION uses %_ClassOf rather than typeof so as to exclude regexps.
+macro IS_FUNCTION(arg)          = (%_ClassOf(arg) === 'Function');
 macro IS_REGEXP(arg)            = (%_ClassOf(arg) === 'RegExp');
 macro IS_DATE(arg)              = (%_ClassOf(arg) === 'Date');
 macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');

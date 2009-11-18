@@ -87,14 +87,14 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either EXIT or
-  // EXIT_DEBUG. Expects the number of arguments in register r0 and
+  // Enter specific kind of exit frame; either normal or debug mode.
+  // Expects the number of arguments in register r0 and
   // the builtin function to call in register r1. Exits with argc in
   // r4, argv in r6, and and the builtin function to call in r5.
-  void EnterExitFrame(StackFrame::Type type);
+  void EnterExitFrame(ExitFrame::Mode mode);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(StackFrame::Type type);
+  void LeaveExitFrame(ExitFrame::Mode mode);
 
   // Align the stack by optionally pushing a Smi zero.
   void AlignStack(int offset);
@@ -239,6 +239,11 @@ class MacroAssembler: public Assembler {
   // Generates code for reporting that an illegal operation has
   // occurred.
   void IllegalOperation(int num_arguments);
+
+  // Uses VFP instructions to Convert a Smi to a double.
+  void IntegerToDoubleConversionWithVFP3(Register inReg,
+                                         Register outHighReg,
+                                         Register outLowReg);
 
 
   // ---------------------------------------------------------------------------

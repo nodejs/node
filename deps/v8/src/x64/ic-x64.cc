@@ -313,7 +313,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmpl(rax, FieldOperand(rcx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   __ movq(rcx, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
-  __ movb(rax, Operand(rcx, rax, times_1, 0));
+  __ movzxbq(rax, Operand(rcx, rax, times_1, 0));
   __ Integer32ToSmi(rax, rax);
   __ ret(0);
 
@@ -790,6 +790,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // top of FPU stack: value
   if (array_type == kExternalFloatArray) {
     __ fstp_s(Operand(rcx, rbx, times_4, 0));
+    __ movq(rax, rdx);  // Return the original value.
+    __ ret(0);
   } else {
     // Need to perform float-to-int conversion.
     // Test the top of the FP stack for NaN.

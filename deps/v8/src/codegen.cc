@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "debug.h"
 #include "oprofile-agent.h"
 #include "prettyprinter.h"
@@ -250,98 +251,6 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
 #endif
 
 
-// Sets the function info on a function.
-// The start_position points to the first '(' character after the function name
-// in the full script source. When counting characters in the script source the
-// the first character is number 0 (not 1).
-void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
-                                    FunctionLiteral* lit,
-                                    bool is_toplevel,
-                                    Handle<Script> script) {
-  fun->shared()->set_length(lit->num_parameters());
-  fun->shared()->set_formal_parameter_count(lit->num_parameters());
-  fun->shared()->set_script(*script);
-  fun->shared()->set_function_token_position(lit->function_token_position());
-  fun->shared()->set_start_position(lit->start_position());
-  fun->shared()->set_end_position(lit->end_position());
-  fun->shared()->set_is_expression(lit->is_expression());
-  fun->shared()->set_is_toplevel(is_toplevel);
-  fun->shared()->set_inferred_name(*lit->inferred_name());
-  fun->shared()->SetThisPropertyAssignmentsInfo(
-      lit->has_only_this_property_assignments(),
-      lit->has_only_simple_this_property_assignments(),
-      *lit->this_property_assignments());
-}
-
-
-Handle<Code> CodeGenerator::ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
-}
-
-
-Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
-#ifdef DEBUG
-  // We should not try to compile the same function literal more than
-  // once.
-  node->mark_as_compiled();
-#endif
-
-  // Determine if the function can be lazily compiled. This is
-  // necessary to allow some of our builtin JS files to be lazily
-  // compiled. These builtins cannot be handled lazily by the parser,
-  // since we have to know if a function uses the special natives
-  // syntax, which is something the parser records.
-  bool allow_lazy = node->AllowsLazyCompilation();
-
-  // Generate code
-  Handle<Code> code;
-  if (FLAG_lazy && allow_lazy) {
-    code = ComputeLazyCompile(node->num_parameters());
-  } else {
-    // The bodies of function literals have not yet been visited by
-    // the AST optimizer/analyzer.
-    if (!Rewriter::Optimize(node)) {
-      return Handle<JSFunction>::null();
-    }
-
-    code = MakeCode(node, script_, false);
-
-    // Check for stack-overflow exception.
-    if (code.is_null()) {
-      SetStackOverflow();
-      return Handle<JSFunction>::null();
-    }
-
-    // Function compilation complete.
-    LOG(CodeCreateEvent(Logger::FUNCTION_TAG, *code, *node->name()));
-
-#ifdef ENABLE_OPROFILE_AGENT
-    OProfileAgent::CreateNativeCodeRegion(*node->name(),
-                                          code->instruction_start(),
-                                          code->instruction_size());
-#endif
-  }
-
-  // Create a boilerplate function.
-  Handle<JSFunction> function =
-      Factory::NewFunctionBoilerplate(node->name(),
-                                      node->materialized_literal_count(),
-                                      code);
-  CodeGenerator::SetFunctionInfo(function, node, false, script_);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Notify debugger that a new function has been added.
-  Debugger::OnNewFunction(function);
-#endif
-
-  // Set the expected number of properties for instances and return
-  // the resulting function.
-  SetExpectedNofPropertiesFromEstimate(function,
-                                       node->expected_property_count());
-  return function;
-}
-
-
 Handle<Code> CodeGenerator::ComputeCallInitialize(
     int argc,
     InLoopFlag in_loop) {
@@ -398,7 +307,8 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
           array->set_undefined(j++);
         }
       } else {
-        Handle<JSFunction> function = BuildBoilerplate(node->fun());
+        Handle<JSFunction> function =
+            Compiler::BuildBoilerplate(node->fun(), script(), this);
         // Check for stack-overflow exception.
         if (HasStackOverflow()) return;
         array->set(j++, *function);
@@ -521,6 +431,9 @@ void CodeGenerator::CodeForStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) RecordPositions(masm(), stmt->statement_pos());
 }
 
+void CodeGenerator::CodeForDoWhileConditionPosition(DoWhileStatement* stmt) {
+  if (FLAG_debug_info) RecordPositions(masm(), stmt->condition_position());
+}
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
@@ -548,6 +461,22 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     case READ_ELEMENT: GenerateReadElement(masm); break;
     case NEW_OBJECT: GenerateNewObject(masm); break;
   }
+}
+
+
+bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
+  Object* cache = info()->load_stub_cache();
+  if (cache->IsUndefined()) {
+    return false;
+  } else {
+    *code_out = Code::cast(cache);
+    return true;
+  }
+}
+
+
+void ApiGetterEntryStub::SetCustomCache(Code* value) {
+  info()->set_load_stub_cache(value);
 }
 
 

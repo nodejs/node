@@ -78,7 +78,6 @@
 //           - SeqAsciiString
 //           - SeqTwoByteString
 //         - ConsString
-//         - SlicedString
 //         - ExternalString
 //           - ExternalAsciiString
 //           - ExternalTwoByteString
@@ -210,7 +209,7 @@ enum PropertyNormalizationMode {
 // considered TWO_BYTE.  It is not mentioned in the name.  ASCII encoding is
 // mentioned explicitly in the name.  Likewise, the default representation is
 // considered sequential.  It is not mentioned in the name.  The other
-// representations (eg, CONS, SLICED, EXTERNAL) are explicitly mentioned.
+// representations (eg, CONS, EXTERNAL) are explicitly mentioned.
 // Finally, the string is either a SYMBOL_TYPE (if it is a symbol) or a
 // STRING_TYPE (if it is not a symbol).
 //
@@ -235,12 +234,6 @@ enum PropertyNormalizationMode {
   V(SHORT_CONS_ASCII_SYMBOL_TYPE)               \
   V(MEDIUM_CONS_ASCII_SYMBOL_TYPE)              \
   V(LONG_CONS_ASCII_SYMBOL_TYPE)                \
-  V(SHORT_SLICED_SYMBOL_TYPE)                   \
-  V(MEDIUM_SLICED_SYMBOL_TYPE)                  \
-  V(LONG_SLICED_SYMBOL_TYPE)                    \
-  V(SHORT_SLICED_ASCII_SYMBOL_TYPE)             \
-  V(MEDIUM_SLICED_ASCII_SYMBOL_TYPE)            \
-  V(LONG_SLICED_ASCII_SYMBOL_TYPE)              \
   V(SHORT_EXTERNAL_SYMBOL_TYPE)                 \
   V(MEDIUM_EXTERNAL_SYMBOL_TYPE)                \
   V(LONG_EXTERNAL_SYMBOL_TYPE)                  \
@@ -259,12 +252,6 @@ enum PropertyNormalizationMode {
   V(SHORT_CONS_ASCII_STRING_TYPE)               \
   V(MEDIUM_CONS_ASCII_STRING_TYPE)              \
   V(LONG_CONS_ASCII_STRING_TYPE)                \
-  V(SHORT_SLICED_STRING_TYPE)                   \
-  V(MEDIUM_SLICED_STRING_TYPE)                  \
-  V(LONG_SLICED_STRING_TYPE)                    \
-  V(SHORT_SLICED_ASCII_STRING_TYPE)             \
-  V(MEDIUM_SLICED_ASCII_STRING_TYPE)            \
-  V(LONG_SLICED_ASCII_STRING_TYPE)              \
   V(SHORT_EXTERNAL_STRING_TYPE)                 \
   V(MEDIUM_EXTERNAL_STRING_TYPE)                \
   V(LONG_EXTERNAL_STRING_TYPE)                  \
@@ -380,30 +367,6 @@ enum PropertyNormalizationMode {
     ConsString::kSize,                                                         \
     long_cons_ascii_symbol,                                                    \
     LongConsAsciiSymbol)                                                       \
-  V(SHORT_SLICED_SYMBOL_TYPE,                                                  \
-    SlicedString::kSize,                                                       \
-    short_sliced_symbol,                                                       \
-    ShortSlicedSymbol)                                                         \
-  V(MEDIUM_SLICED_SYMBOL_TYPE,                                                 \
-    SlicedString::kSize,                                                       \
-    medium_sliced_symbol,                                                      \
-    MediumSlicedSymbol)                                                        \
-  V(LONG_SLICED_SYMBOL_TYPE,                                                   \
-    SlicedString::kSize,                                                       \
-    long_sliced_symbol,                                                        \
-    LongSlicedSymbol)                                                          \
-  V(SHORT_SLICED_ASCII_SYMBOL_TYPE,                                            \
-    SlicedString::kSize,                                                       \
-    short_sliced_ascii_symbol,                                                 \
-    ShortSlicedAsciiSymbol)                                                    \
-  V(MEDIUM_SLICED_ASCII_SYMBOL_TYPE,                                           \
-    SlicedString::kSize,                                                       \
-    medium_sliced_ascii_symbol,                                                \
-    MediumSlicedAsciiSymbol)                                                   \
-  V(LONG_SLICED_ASCII_SYMBOL_TYPE,                                             \
-    SlicedString::kSize,                                                       \
-    long_sliced_ascii_symbol,                                                  \
-    LongSlicedAsciiSymbol)                                                     \
   V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
     ExternalTwoByteString::kSize,                                              \
     short_external_symbol,                                                     \
@@ -476,30 +439,6 @@ enum PropertyNormalizationMode {
     ConsString::kSize,                                                         \
     long_cons_ascii_string,                                                    \
     LongConsAsciiString)                                                       \
-  V(SHORT_SLICED_STRING_TYPE,                                                  \
-    SlicedString::kSize,                                                       \
-    short_sliced_string,                                                       \
-    ShortSlicedString)                                                         \
-  V(MEDIUM_SLICED_STRING_TYPE,                                                 \
-    SlicedString::kSize,                                                       \
-    medium_sliced_string,                                                      \
-    MediumSlicedString)                                                        \
-  V(LONG_SLICED_STRING_TYPE,                                                   \
-    SlicedString::kSize,                                                       \
-    long_sliced_string,                                                        \
-    LongSlicedString)                                                          \
-  V(SHORT_SLICED_ASCII_STRING_TYPE,                                            \
-    SlicedString::kSize,                                                       \
-    short_sliced_ascii_string,                                                 \
-    ShortSlicedAsciiString)                                                    \
-  V(MEDIUM_SLICED_ASCII_STRING_TYPE,                                           \
-    SlicedString::kSize,                                                       \
-    medium_sliced_ascii_string,                                                \
-    MediumSlicedAsciiString)                                                   \
-  V(LONG_SLICED_ASCII_STRING_TYPE,                                             \
-    SlicedString::kSize,                                                       \
-    long_sliced_ascii_string,                                                  \
-    LongSlicedAsciiString)                                                     \
   V(SHORT_EXTERNAL_STRING_TYPE,                                                \
     ExternalTwoByteString::kSize,                                              \
     short_external_string,                                                     \
@@ -591,7 +530,6 @@ const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
-  kSlicedStringTag = 0x2,
   kExternalStringTag = 0x3
 };
 
@@ -627,15 +565,6 @@ enum InstanceType {
       kMediumStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
   LONG_CONS_ASCII_SYMBOL_TYPE =
       kLongStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
-  SHORT_SLICED_SYMBOL_TYPE = kShortStringTag | kSymbolTag | kSlicedStringTag,
-  MEDIUM_SLICED_SYMBOL_TYPE = kMediumStringTag | kSymbolTag | kSlicedStringTag,
-  LONG_SLICED_SYMBOL_TYPE = kLongStringTag | kSymbolTag | kSlicedStringTag,
-  SHORT_SLICED_ASCII_SYMBOL_TYPE =
-      kShortStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
-  MEDIUM_SLICED_ASCII_SYMBOL_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
-  LONG_SLICED_ASCII_SYMBOL_TYPE =
-      kLongStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
   SHORT_EXTERNAL_SYMBOL_TYPE =
       kShortStringTag | kSymbolTag | kExternalStringTag,
   MEDIUM_EXTERNAL_SYMBOL_TYPE =
@@ -662,15 +591,6 @@ enum InstanceType {
       kMediumStringTag | kAsciiStringTag | kConsStringTag,
   LONG_CONS_ASCII_STRING_TYPE =
       kLongStringTag | kAsciiStringTag | kConsStringTag,
-  SHORT_SLICED_STRING_TYPE = kShortStringTag | kSlicedStringTag,
-  MEDIUM_SLICED_STRING_TYPE = kMediumStringTag | kSlicedStringTag,
-  LONG_SLICED_STRING_TYPE = kLongStringTag | kSlicedStringTag,
-  SHORT_SLICED_ASCII_STRING_TYPE =
-      kShortStringTag | kAsciiStringTag | kSlicedStringTag,
-  MEDIUM_SLICED_ASCII_STRING_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSlicedStringTag,
-  LONG_SLICED_ASCII_STRING_TYPE =
-      kLongStringTag | kAsciiStringTag | kSlicedStringTag,
   SHORT_EXTERNAL_STRING_TYPE = kShortStringTag | kExternalStringTag,
   MEDIUM_EXTERNAL_STRING_TYPE = kMediumStringTag | kExternalStringTag,
   LONG_EXTERNAL_STRING_TYPE = kLongStringTag | kExternalStringTag,
@@ -790,16 +710,13 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSymbol();
-#ifdef DEBUG
   // See objects-inl.h for more details
   inline bool IsSeqString();
-  inline bool IsSlicedString();
   inline bool IsExternalString();
   inline bool IsExternalTwoByteString();
   inline bool IsExternalAsciiString();
   inline bool IsSeqTwoByteString();
   inline bool IsSeqAsciiString();
-#endif  // DEBUG
   inline bool IsConsString();
 
   inline bool IsNumber();
@@ -1490,6 +1407,9 @@ class JSObject: public HeapObject {
   Object* GetPropertyPostInterceptor(JSObject* receiver,
                                      String* name,
                                      PropertyAttributes* attributes);
+  Object* GetLocalPropertyPostInterceptor(JSObject* receiver,
+                                          String* name,
+                                          PropertyAttributes* attributes);
   Object* GetLazyProperty(Object* receiver,
                           LookupResult* result,
                           String* name,
@@ -1510,6 +1430,27 @@ class JSObject: public HeapObject {
   bool HasLocalProperty(String* name) {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
+
+  // If the receiver is a JSGlobalProxy this method will return its prototype,
+  // otherwise the result is the receiver itself.
+  inline Object* BypassGlobalProxy();
+
+  // Accessors for hidden properties object.
+  //
+  // Hidden properties are not local properties of the object itself.
+  // Instead they are stored on an auxiliary JSObject stored as a local
+  // property with a special name Heap::hidden_symbol(). But if the
+  // receiver is a JSGlobalProxy then the auxiliary object is a property
+  // of its prototype.
+  //
+  // Has/Get/SetHiddenPropertiesObject methods don't allow the holder to be
+  // a JSGlobalProxy. Use BypassGlobalProxy method above to get to the real
+  // holder.
+  //
+  // These accessors do not touch interceptors or accessors.
+  inline bool HasHiddenPropertiesObject();
+  inline Object* GetHiddenPropertiesObject();
+  inline Object* SetHiddenPropertiesObject(Object* hidden_obj);
 
   Object* DeleteProperty(String* name, DeleteMode mode);
   Object* DeleteElement(uint32_t index, DeleteMode mode);
@@ -2873,7 +2814,7 @@ class Code: public HeapObject {
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
-  void Relocate(int delta);
+  void Relocate(intptr_t delta);
 
   // Migrate code described by desc.
   void CopyFrom(const CodeDesc& desc);
@@ -2910,7 +2851,8 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
   // Code entry points are aligned to 32 bytes.
-  static const int kCodeAlignment = 32;
+  static const int kCodeAlignmentBits = 5;
+  static const int kCodeAlignment = 1 << kCodeAlignmentBits;
   static const int kCodeAlignmentMask = kCodeAlignment - 1;
 
   // Layout description.
@@ -3238,8 +3180,11 @@ class Script: public Struct {
   // [compilation]: how the the script was compiled.
   DECL_ACCESSORS(compilation_type, Smi)
 
-  // [line_ends]: array of line ends positions.
-  DECL_ACCESSORS(line_ends, Object)
+  // [line_ends]: FixedArray of line ends positions.
+  DECL_ACCESSORS(line_ends_fixed_array, Object)
+
+  // [line_ends]: JSArray of line ends positions.
+  DECL_ACCESSORS(line_ends_js_array, Object)
 
   // [eval_from_function]: for eval scripts the funcion from which eval was
   // called.
@@ -3269,8 +3214,16 @@ class Script: public Struct {
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsOffset + kPointerSize;
+  // We have the line ends array both in FixedArray form and in JSArray form.
+  // The FixedArray form is useful when we don't have a context and so can't
+  // create a JSArray.  The JSArray form is useful when we want to see the
+  // array from JS code (e.g. debug-delay.js) which cannot handle unboxed
+  // FixedArray objects.
+  static const int kLineEndsFixedArrayOffset =
+      kCompilationTypeOffset + kPointerSize;
+  static const int kLineEndsJSArrayOffset =
+      kLineEndsFixedArrayOffset + kPointerSize;
+  static const int kIdOffset = kLineEndsJSArrayOffset + kPointerSize;
   static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
       kEvalFromFunctionOffset + kPointerSize;
@@ -3371,7 +3324,6 @@ class SharedFunctionInfo: public HeapObject {
 
   // Add information on assignments of the form this.x = ...;
   void SetThisPropertyAssignmentsInfo(
-      bool has_only_this_property_assignments,
       bool has_only_simple_this_property_assignments,
       FixedArray* this_property_assignments);
 
@@ -3379,12 +3331,11 @@ class SharedFunctionInfo: public HeapObject {
   void ClearThisPropertyAssignmentsInfo();
 
   // Indicate that this function only consists of assignments of the form
-  // this.x = ...;.
-  inline bool has_only_this_property_assignments();
-
-  // Indicate that this function only consists of assignments of the form
   // this.x = y; where y is either a constant or refers to an argument.
   inline bool has_only_simple_this_property_assignments();
+
+  inline bool try_fast_codegen();
+  inline void set_try_fast_codegen(bool flag);
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.
@@ -3464,8 +3415,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
-  static const int kHasOnlyThisPropertyAssignments = 0;
-  static const int kHasOnlySimpleThisPropertyAssignments = 1;
+  static const int kHasOnlySimpleThisPropertyAssignments = 0;
+  static const int kTryFastCodegen = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -3917,7 +3868,6 @@ class StringShape BASE_EMBEDDED {
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
-  inline bool IsSliced();
   inline bool IsExternalAscii();
   inline bool IsExternalTwoByte();
   inline bool IsSequentialAscii();
@@ -3975,9 +3925,8 @@ class String: public HeapObject {
   inline uint16_t Get(int index);
 
   // Try to flatten the top level ConsString that is hiding behind this
-  // string.  This is a no-op unless the string is a ConsString or a
-  // SlicedString.  Flatten mutates the ConsString and might return a
-  // failure.
+  // string.  This is a no-op unless the string is a ConsString.  Flatten
+  // mutates the ConsString and might return a failure.
   Object* TryFlatten();
 
   // Try to flatten the string.  Checks first inline to see if it is necessary.
@@ -3993,8 +3942,8 @@ class String: public HeapObject {
   // ascii and two byte string types.
   bool MarkAsUndetectable();
 
-  // Slice the string and return a substring.
-  Object* Slice(int from, int to);
+  // Return a substring.
+  Object* SubString(int from, int to);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -4079,7 +4028,7 @@ class String: public HeapObject {
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
   static const int kMaxUC16CharCode = 0xffff;
 
-  // Minimum length for a cons or sliced string.
+  // Minimum length for a cons string.
   static const int kMinNonFlatLength = 13;
 
   // Mask constant for checking if a string has a computed hash code
@@ -4151,12 +4100,6 @@ class String: public HeapObject {
     unsigned       capacity;
     unsigned       remaining;
   };
-
-  // NOTE: If you call StringInputBuffer routines on strings that are
-  // too deeply nested trees of cons and slice strings, then this
-  // routine will overflow the stack. Strings that are merely deeply
-  // nested trees of cons strings do not have a problem apart from
-  // performance.
 
   static inline const unibrow::byte* ReadBlock(String* input,
                                                ReadBlockBuffer* buffer,
@@ -4342,56 +4285,6 @@ class ConsString: public String {
 };
 
 
-// The SlicedString class describes string values that are slices of
-// some other string.  SlicedStrings consist of a reference to an
-// underlying heap-allocated string value, a start index, and the
-// length field common to all strings.
-class SlicedString: public String {
- public:
-  // The underlying string buffer.
-  inline String* buffer();
-  inline void set_buffer(String* buffer);
-
-  // The start index of the slice.
-  inline int start();
-  inline void set_start(int start);
-
-  // Dispatched behavior.
-  uint16_t SlicedStringGet(int index);
-
-  // Casting.
-  static inline SlicedString* cast(Object* obj);
-
-  // Garbage collection support.
-  void SlicedStringIterateBody(ObjectVisitor* v);
-
-  // Layout description
-#if V8_HOST_ARCH_64_BIT
-  // Optimizations expect buffer to be located at same offset as a ConsString's
-  // first substring. In 64 bit mode we have room for the start offset before
-  // the buffer.
-  static const int kStartOffset = String::kSize;
-  static const int kBufferOffset = kStartOffset + kIntSize;
-  static const int kSize = kBufferOffset + kPointerSize;
-#else
-  static const int kBufferOffset = String::kSize;
-  static const int kStartOffset = kBufferOffset + kPointerSize;
-  static const int kSize = kStartOffset + kIntSize;
-#endif
-
-  // Support for StringInputBuffer.
-  inline const unibrow::byte* SlicedStringReadBlock(ReadBlockBuffer* buffer,
-                                                    unsigned* offset_ptr,
-                                                    unsigned chars);
-  inline void SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                              unsigned* offset_ptr,
-                                              unsigned chars);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);
-};
-
-
 // The ExternalString class describes string values that are backed by
 // a string resource that lies outside the V8 heap.  ExternalStrings
 // consist of the length field common to all strings, a pointer to the
@@ -4433,6 +4326,9 @@ class ExternalAsciiString: public ExternalString {
   // Casting.
   static inline ExternalAsciiString* cast(Object* obj);
 
+  // Garbage collection support.
+  void ExternalAsciiStringIterateBody(ObjectVisitor* v);
+
   // Support for StringInputBuffer.
   const unibrow::byte* ExternalAsciiStringReadBlock(unsigned* remaining,
                                                     unsigned* offset,
@@ -4467,6 +4363,9 @@ class ExternalTwoByteString: public ExternalString {
 
   // Casting.
   static inline ExternalTwoByteString* cast(Object* obj);
+
+  // Garbage collection support.
+  void ExternalTwoByteStringIterateBody(ObjectVisitor* v);
 
   // Support for StringInputBuffer.
   void ExternalTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
@@ -4719,6 +4618,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(name, Object)
   DECL_ACCESSORS(flag, Smi)
+  DECL_ACCESSORS(load_stub_cache, Object)
 
   inline bool all_can_read();
   inline void set_all_can_read(bool value);
@@ -4744,7 +4644,8 @@ class AccessorInfo: public Struct {
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kNameOffset = kDataOffset + kPointerSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kLoadStubCacheOffset = kFlagOffset + kPointerSize;
+  static const int kSize = kLoadStubCacheOffset + kPointerSize;
 
  private:
   // Bit positions in flag.
@@ -5096,6 +4997,12 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}
+
+  // Visits the resource of an ASCII or two-byte string.
+  virtual void VisitExternalAsciiString(
+      v8::String::ExternalAsciiStringResource** resource) {}
+  virtual void VisitExternalTwoByteString(
+      v8::String::ExternalStringResource** resource) {}
 
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);

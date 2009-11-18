@@ -218,7 +218,7 @@ class EXPORT Debug {
 
   /**
    * Register a callback function to be called when a debug message has been
-   * received and is ready to be precessed. For the debug messages to be
+   * received and is ready to be processed. For the debug messages to be
    * processed V8 needs to be entered, and in certain embedding scenarios this
    * callback can be used to make sure V8 is entered for the debug message to
    * be processed. Note that debug messages will only be processed if there is

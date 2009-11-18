@@ -174,14 +174,14 @@ void RelocInfoWriter::WriteTaggedPC(uint32_t pc_delta, int tag) {
 
 
 void RelocInfoWriter::WriteTaggedData(intptr_t data_delta, int tag) {
-  *--pos_ = data_delta << kPositionTypeTagBits | tag;
+  *--pos_ = static_cast<byte>(data_delta << kPositionTypeTagBits | tag);
 }
 
 
 void RelocInfoWriter::WriteExtraTag(int extra_tag, int top_tag) {
-  *--pos_ = top_tag << (kTagBits + kExtraTagBits) |
-            extra_tag << kTagBits |
-            kDefaultTag;
+  *--pos_ = static_cast<int>(top_tag << (kTagBits + kExtraTagBits) |
+                             extra_tag << kTagBits |
+                             kDefaultTag);
 }
 
 
@@ -196,7 +196,7 @@ void RelocInfoWriter::WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag) {
 void RelocInfoWriter::WriteExtraTaggedData(intptr_t data_delta, int top_tag) {
   WriteExtraTag(kDataJumpTag, top_tag);
   for (int i = 0; i < kIntptrSize; i++) {
-    *--pos_ = data_delta;
+    *--pos_ = static_cast<byte>(data_delta);
   // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
     data_delta = data_delta >> kBitsPerByte;
   }
@@ -211,7 +211,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::NUMBER_OF_MODES < kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
-  uint32_t pc_delta = rinfo->pc() - last_pc_;
+  uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
   RelocInfo::Mode rmode = rinfo->rmode();
 
   // The two most common modes are given small tags, and usually fit in a byte.
@@ -522,6 +522,10 @@ ExternalReference::ExternalReference(Builtins::CFunctionId id)
   : address_(Redirect(Builtins::c_function_address(id))) {}
 
 
+ExternalReference::ExternalReference(ApiFunction* fun)
+  : address_(Redirect(fun->address())) {}
+
+
 ExternalReference::ExternalReference(Builtins::Name name)
   : address_(Builtins::builtin_address(name)) {}
 
@@ -579,8 +583,13 @@ ExternalReference ExternalReference::roots_address() {
 }
 
 
-ExternalReference ExternalReference::address_of_stack_guard_limit() {
+ExternalReference ExternalReference::address_of_stack_limit() {
   return ExternalReference(StackGuard::address_of_jslimit());
+}
+
+
+ExternalReference ExternalReference::address_of_real_stack_limit() {
+  return ExternalReference(StackGuard::address_of_real_jslimit());
 }
 
 
@@ -607,6 +616,27 @@ ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
   return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
 }
+
+
+ExternalReference ExternalReference::handle_scope_extensions_address() {
+  return ExternalReference(HandleScope::current_extensions_address());
+}
+
+
+ExternalReference ExternalReference::handle_scope_next_address() {
+  return ExternalReference(HandleScope::current_next_address());
+}
+
+
+ExternalReference ExternalReference::handle_scope_limit_address() {
+  return ExternalReference(HandleScope::current_limit_address());
+}
+
+
+ExternalReference ExternalReference::scheduled_exception_address() {
+  return ExternalReference(Top::scheduled_exception_address());
+}
+
 
 #ifdef V8_NATIVE_REGEXP
 

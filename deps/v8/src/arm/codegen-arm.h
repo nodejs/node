@@ -77,12 +77,12 @@ class Reference BASE_EMBEDDED {
   // Generate code to push the value of the reference on top of the
   // expression stack.  The reference is expected to be already on top of
   // the expression stack, and it is left in place with its value above it.
-  void GetValue(TypeofState typeof_state);
+  void GetValue();
 
   // Generate code to push the value of a reference on top of the expression
   // stack and then spill the stack frame.  This function is used temporarily
   // while the code generator is being transformed.
-  inline void GetValueAndSpill(TypeofState typeof_state);
+  inline void GetValueAndSpill();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
@@ -112,10 +112,8 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state has its own typeof state and pair of branch
-  // labels.
+  // state.  The new state has its own pair of branch labels.
   CodeGenState(CodeGenerator* owner,
-               TypeofState typeof_state,
                JumpTarget* true_target,
                JumpTarget* false_target);
 
@@ -123,13 +121,11 @@ class CodeGenState BASE_EMBEDDED {
   // previous state.
   ~CodeGenState();
 
-  TypeofState typeof_state() const { return typeof_state_; }
   JumpTarget* true_target() const { return true_target_; }
   JumpTarget* false_target() const { return false_target_; }
 
  private:
   CodeGenerator* owner_;
-  TypeofState typeof_state_;
   JumpTarget* true_target_;
   JumpTarget* false_target_;
   CodeGenState* previous_;
@@ -169,8 +165,8 @@ class CodeGenerator: public AstVisitor {
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
-
   VirtualFrame* frame() const { return frame_; }
+  Handle<Script> script() { return script_; }
 
   bool has_valid_frame() const { return frame_ != NULL; }
 
@@ -191,10 +187,6 @@ class CodeGenerator: public AstVisitor {
 
   static const int kUnknownIntValue = -1;
 
-  // Number of instructions used for the JS return sequence. The constant is
-  // used by the debugger to patch the JS return sequence.
-  static const int kJSReturnSequenceLength = 4;
-
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);
@@ -210,7 +202,6 @@ class CodeGenerator: public AstVisitor {
 
   // State
   bool has_cc() const  { return cc_reg_ != al; }
-  TypeofState typeof_state() const { return state_->typeof_state(); }
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
 
@@ -259,25 +250,22 @@ class CodeGenerator: public AstVisitor {
   }
 
   void LoadCondition(Expression* x,
-                     TypeofState typeof_state,
                      JumpTarget* true_target,
                      JumpTarget* false_target,
                      bool force_cc);
-  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
 
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  inline void LoadAndSpill(Expression* expression,
-                           TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  inline void LoadAndSpill(Expression* expression);
 
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
   // unconditional jumps to the control targets).
   inline void LoadConditionAndSpill(Expression* expression,
-                                    TypeofState typeof_state,
                                     JumpTarget* true_target,
                                     JumpTarget* false_target,
                                     bool force_control);
@@ -331,7 +319,6 @@ class CodeGenerator: public AstVisitor {
                                       InlineRuntimeLUT* old_entry);
 
   static Handle<Code> ComputeLazyCompile(int argc);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
@@ -391,6 +378,7 @@ class CodeGenerator: public AstVisitor {
   void CodeForFunctionPosition(FunctionLiteral* fun);
   void CodeForReturnPosition(FunctionLiteral* fun);
   void CodeForStatementPosition(Statement* node);
+  void CodeForDoWhileConditionPosition(DoWhileStatement* stmt);
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
@@ -430,6 +418,27 @@ class CodeGenerator: public AstVisitor {
   friend class CodeGenSelector;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) {}
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#if defined(DEBUG)
+  void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
+#endif  // defined(DEBUG)
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
 };
 
 

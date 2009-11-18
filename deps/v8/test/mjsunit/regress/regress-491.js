@@ -25,38 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_LOCATION_H_
-#define V8_LOCATION_H_
+// See: http://code.google.com/p/v8/issues/detail?id=491
+// This should not hit any asserts in debug mode on ARM.
 
-#include "utils.h"
+function function_with_n_strings(n) {
+  var source = '(function f(){';
+  for (var i = 0; i < n; i++) {
+    if (i != 0) source += ';';
+    source += '"x"';
+  }
+  source += '})()';
+  eval(source);
+}
 
-namespace v8 {
-namespace internal {
-
-class Location BASE_EMBEDDED {
- public:
-  enum Type {
-    kUninitialized,
-    kEffect,
-    kValue
-  };
-
-  static Location Uninitialized() { return Location(kUninitialized); }
-  static Location Effect() { return Location(kEffect); }
-  static Location Value() { return Location(kValue); }
-
-  bool is_effect() { return type_ == kEffect; }
-  bool is_value() { return type_ == kValue; }
-
-  Type type() { return type_; }
-
- private:
-  explicit Location(Type type) : type_(type) {}
-
-  Type type_;
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_LOCATION_H_
+var i;
+for (i = 500; i < 600; i++) {
+  function_with_n_strings(i);
+}
+for (i = 1100; i < 1200; i++) {
+  function_with_n_strings(i);
+}

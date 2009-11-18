@@ -284,7 +284,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // Both registers are preserved by this code so no need to differentiate between
 // construct call and normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
-                            Label *call_generic_code) {
+                            Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more;
 
   // Check for array construction with zero arguments or one.
@@ -1029,44 +1029,24 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(r0);
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_JS);
 
-  Label no_preemption, retry_preemption;
-  __ bind(&retry_preemption);
-  ExternalReference stack_guard_limit_address =
-      ExternalReference::address_of_stack_guard_limit();
-  __ mov(r2, Operand(stack_guard_limit_address));
-  __ ldr(r2, MemOperand(r2));
-  __ cmp(sp, r2);
-  __ b(hi, &no_preemption);
-
-  // We have encountered a preemption or stack overflow already before we push
-  // the array contents.  Save r0 which is the Smi-tagged length of the array.
-  __ push(r0);
-
-  // Runtime routines expect at least one argument, so give it a Smi.
-  __ mov(r0, Operand(Smi::FromInt(0)));
-  __ push(r0);
-  __ CallRuntime(Runtime::kStackGuard, 1);
-
-  // Since we returned, it wasn't a stack overflow.  Restore r0 and try again.
-  __ pop(r0);
-  __ b(&retry_preemption);
-
-  __ bind(&no_preemption);
-
-  // Eagerly check for stack-overflow before starting to push the arguments.
-  // r0: number of arguments.
-  // r2: stack limit.
+  // Check the stack for overflow. We are not trying need to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
   Label okay;
+  __ LoadRoot(r2, Heap::kRealStackLimitRootIndex);
+  // Make r2 the space we have left. The stack might already be overflowed
+  // here which will cause r2 to become negative.
   __ sub(r2, sp, r2);
-
+  // Check if the arguments will overflow the stack.
   __ cmp(r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ b(hi, &okay);
+  __ b(gt, &okay);  // Signed comparison.
 
   // Out of stack space.
   __ ldr(r1, MemOperand(fp, kFunctionOffset));
   __ push(r1);
   __ push(r0);
   __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_JS);
+  // End of stack check.
 
   // Push current limit and index.
   __ bind(&okay);

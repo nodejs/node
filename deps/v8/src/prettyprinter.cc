@@ -1339,9 +1339,6 @@ void JsonAstBuilder::VisitSlot(Slot* expr) {
       case Slot::LOOKUP:
         AddAttribute("type", "LOOKUP");
         break;
-      case Slot::GLOBAL:
-        AddAttribute("type", "GLOBAL");
-        break;
     }
     AddAttribute("index", expr->index());
   }

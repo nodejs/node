@@ -84,9 +84,71 @@ void OS::Setup() {
 }
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
+  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
+  // have VFP3 instructions.  If gcc can assume it then so can we.
+  return 1u << VFP3;
+#else
+  return 0;  // Linux runs on anything.
+#endif
+}
+
+
 double OS::nan_value() {
   return NAN;
 }
+
+
+#ifdef __arm__
+bool OS::ArmCpuHasFeature(CpuFeature feature) {
+  const char* search_string = NULL;
+  const char* file_name = "/proc/cpuinfo";
+  // Simple detection of VFP at runtime for Linux.
+  // It is based on /proc/cpuinfo, which reveals hardware configuration
+  // to user-space applications.  According to ARM (mid 2009), no similar
+  // facility is universally available on the ARM architectures,
+  // so it's up to individual OSes to provide such.
+  //
+  // This is written as a straight shot one pass parser
+  // and not using STL string and ifstream because,
+  // on Linux, it's reading from a (non-mmap-able)
+  // character special device.
+  switch (feature) {
+    case VFP3:
+      search_string = "vfp";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  FILE* f = NULL;
+  const char* what = search_string;
+
+  if (NULL == (f = fopen(file_name, "r")))
+    return false;
+
+  int k;
+  while (EOF != (k = fgetc(f))) {
+    if (k == *what) {
+      ++what;
+      while ((*what != '\0') && (*what == fgetc(f))) {
+        ++what;
+      }
+      if (*what == '\0') {
+        fclose(f);
+        return true;
+      } else {
+        what = search_string;
+      }
+    }
+  }
+  fclose(f);
+
+  // Did not find string in the proc file.
+  return false;
+}
+#endif  // def __arm__
 
 
 int OS::ActivationFrameAlignment() {
@@ -232,7 +294,7 @@ void OS::LogSharedLibraryAddresses() {
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
-  FILE *fp = fopen("/proc/self/maps", "r");
+  FILE* fp = fopen("/proc/self/maps", "r");
   if (fp == NULL) return;
 
   // Allocate enough room to be able to store a full file name.
@@ -603,7 +665,7 @@ typedef uint32_t __sigset_t;
 typedef struct sigcontext mcontext_t;
 typedef struct ucontext {
   uint32_t uc_flags;
-  struct ucontext *uc_link;
+  struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   __sigset_t uc_sigmask;

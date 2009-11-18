@@ -1,0 +1,6 @@
+To run the sputniktests you must check out the test suite from
+googlecode.com.  The test expectations are currently relative to
+version 28.  To get the tests run the following command within
+v8/tests/sputnik/
+
+  svn co http://sputniktests.googlecode.com/svn/trunk/ -r28 sputniktests

@@ -19,6 +19,7 @@
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
+using v8::internal::StrLength;
 
 namespace i = v8::internal;
 
@@ -55,7 +56,7 @@ TEST(GetMessages) {
   CHECK_EQ(0, Logger::GetLogLines(0, log_lines, 3));
   // See Logger::StringEvent.
   const char* line_1 = "aaa,\"bbb\"\n";
-  const int line_1_len = strlen(line_1);
+  const int line_1_len = StrLength(line_1);
   // Still smaller than log message length.
   CHECK_EQ(0, Logger::GetLogLines(0, log_lines, line_1_len - 1));
   // The exact size.
@@ -68,7 +69,7 @@ TEST(GetMessages) {
   CHECK_EQ(line_1, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   const char* line_2 = "cccc,\"dddd\"\n";
-  const int line_2_len = strlen(line_2);
+  const int line_2_len = StrLength(line_2);
   // Now start with line_2 beginning.
   CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, 0));
   CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, 3));
@@ -82,7 +83,7 @@ TEST(GetMessages) {
   memset(log_lines, 0, sizeof(log_lines));
   // Now get entire buffer contents.
   const char* all_lines = "aaa,\"bbb\"\ncccc,\"dddd\"\n";
-  const int all_lines_len = strlen(all_lines);
+  const int all_lines_len = StrLength(all_lines);
   CHECK_EQ(all_lines_len, Logger::GetLogLines(0, log_lines, all_lines_len));
   CHECK_EQ(all_lines, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
@@ -104,7 +105,7 @@ TEST(BeyondWritePosition) {
   Logger::StringEvent("cccc", "dddd");
   // See Logger::StringEvent.
   const char* all_lines = "aaa,\"bbb\"\ncccc,\"dddd\"\n";
-  const int all_lines_len = strlen(all_lines);
+  const int all_lines_len = StrLength(all_lines);
   EmbeddedVector<char, 100> buffer;
   const int beyond_write_pos = all_lines_len;
   CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos, buffer.start(), 1));
@@ -437,7 +438,7 @@ namespace {
 class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
   explicit SimpleExternalString(const char* source)
-      : utf_source_(strlen(source)) {
+      : utf_source_(StrLength(source)) {
     for (int i = 0; i < utf_source_.length(); ++i)
       utf_source_[i] = source[i];
   }
@@ -592,7 +593,7 @@ class ParseLogResult {
       entities[i] = NULL;
     }
     const size_t map_length = bounds.Length();
-    entities_map = i::NewArray<int>(map_length);
+    entities_map = i::NewArray<int>(static_cast<int>(map_length));
     for (size_t i = 0; i < map_length; ++i) {
       entities_map[i] = -1;
     }
@@ -768,7 +769,7 @@ static inline void PrintCodeEntityInfo(CodeEntityInfo entity) {
   const int max_len = 50;
   if (entity != NULL) {
     char* eol = strchr(entity, '\n');
-    int len = eol - entity;
+    int len = static_cast<int>(eol - entity);
     len = len <= max_len ? len : max_len;
     printf("%-*.*s ", max_len, len, entity);
   } else {
@@ -788,7 +789,7 @@ static void PrintCodeEntitiesInfo(
 
 
 static inline int StrChrLen(const char* s, char c) {
-  return strchr(s, c) - s;
+  return static_cast<int>(strchr(s, c) - s);
 }
 
 

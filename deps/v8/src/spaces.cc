@@ -354,7 +354,7 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   } else {
     mem = OS::Allocate(requested, allocated, (executable == EXECUTABLE));
   }
-  int alloced = *allocated;
+  int alloced = static_cast<int>(*allocated);
   size_ += alloced;
   Counters::memory_allocated.Increment(alloced);
   return mem;
@@ -367,8 +367,8 @@ void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
   } else {
     OS::Free(mem, length);
   }
-  Counters::memory_allocated.Decrement(length);
-  size_ -= length;
+  Counters::memory_allocated.Decrement(static_cast<int>(length));
+  size_ -= static_cast<int>(length);
   ASSERT(size_ >= 0);
 }
 
@@ -387,7 +387,7 @@ void* MemoryAllocator::ReserveInitialChunk(const size_t requested) {
   // We are sure that we have mapped a block of requested addresses.
   ASSERT(initial_chunk_->size() == requested);
   LOG(NewEvent("InitialChunk", initial_chunk_->address(), requested));
-  size_ += requested;
+  size_ += static_cast<int>(requested);
   return initial_chunk_->address();
 }
 
@@ -397,8 +397,8 @@ static int PagesInChunk(Address start, size_t size) {
   // and the last page ends on the last page-aligned address before
   // start+size.  Page::kPageSize is a power of two so we can divide by
   // shifting.
-  return (RoundDown(start + size, Page::kPageSize)
-          - RoundUp(start, Page::kPageSize)) >> Page::kPageSizeBits;
+  return static_cast<int>((RoundDown(start + size, Page::kPageSize)
+      - RoundUp(start, Page::kPageSize)) >> Page::kPageSizeBits);
 }
 
 
@@ -412,7 +412,7 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
   if (size_ + static_cast<int>(chunk_size) > capacity_) {
     // Request as many pages as we can.
     chunk_size = capacity_ - size_;
-    requested_pages = chunk_size >> Page::kPageSizeBits;
+    requested_pages = static_cast<int>(chunk_size >> Page::kPageSizeBits);
 
     if (requested_pages <= 0) return Page::FromAddress(NULL);
   }
@@ -445,7 +445,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
   if (!initial_chunk_->Commit(start, size, owner->executable() == EXECUTABLE)) {
     return Page::FromAddress(NULL);
   }
-  Counters::memory_allocated.Increment(size);
+  Counters::memory_allocated.Increment(static_cast<int>(size));
 
   // So long as we correctly overestimated the number of chunks we should not
   // run out of chunk ids.
@@ -466,7 +466,7 @@ bool MemoryAllocator::CommitBlock(Address start,
   ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Commit(start, size, executable)) return false;
-  Counters::memory_allocated.Increment(size);
+  Counters::memory_allocated.Increment(static_cast<int>(size));
   return true;
 }
 
@@ -478,7 +478,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Uncommit(start, size)) return false;
-  Counters::memory_allocated.Decrement(size);
+  Counters::memory_allocated.Decrement(static_cast<int>(size));
   return true;
 }
 
@@ -558,7 +558,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     // TODO(1240712): VirtualMemory::Uncommit has a return value which
     // is ignored here.
     initial_chunk_->Uncommit(c.address(), c.size());
-    Counters::memory_allocated.Decrement(c.size());
+    Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
     FreeRawMemory(c.address(), c.size());
@@ -1096,7 +1096,8 @@ void NewSpace::Grow() {
 
 void NewSpace::Shrink() {
   int new_capacity = Max(InitialCapacity(), 2 * Size());
-  int rounded_new_capacity = RoundUp(new_capacity, OS::AllocateAlignment());
+  int rounded_new_capacity =
+      RoundUp(new_capacity, static_cast<int>(OS::AllocateAlignment()));
   if (rounded_new_capacity < Capacity() &&
       to_space_.ShrinkTo(rounded_new_capacity))  {
     // Only shrink from space if we managed to shrink to space.
@@ -1234,7 +1235,7 @@ void SemiSpace::TearDown() {
 bool SemiSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
   int maximum_extra = maximum_capacity_ - capacity_;
-  int extra = Min(RoundUp(capacity_, OS::AllocateAlignment()),
+  int extra = Min(RoundUp(capacity_, static_cast<int>(OS::AllocateAlignment())),
                   maximum_extra);
   if (!MemoryAllocator::CommitBlock(high(), extra, executable())) {
     return false;
@@ -1797,12 +1798,14 @@ void OldSpace::MCCommitRelocationInfo() {
   while (it.has_next()) {
     Page* p = it.next();
     // Space below the relocation pointer is allocated.
-    computed_size += p->mc_relocation_top - p->ObjectAreaStart();
+    computed_size +=
+        static_cast<int>(p->mc_relocation_top - p->ObjectAreaStart());
     if (it.has_next()) {
       // Free the space at the top of the page.  We cannot use
       // p->mc_relocation_top after the call to Free (because Free will clear
       // remembered set bits).
-      int extra_size = p->ObjectAreaEnd() - p->mc_relocation_top;
+      int extra_size =
+          static_cast<int>(p->ObjectAreaEnd() - p->mc_relocation_top);
       if (extra_size > 0) {
         int wasted_bytes = free_list_.Free(p->mc_relocation_top, extra_size);
         // The bytes we have just "freed" to add to the free list were
@@ -1868,7 +1871,8 @@ HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
                                          int size_in_bytes) {
   ASSERT(current_page->next_page()->is_valid());
   // Add the block at the top of this page to the free list.
-  int free_size = current_page->ObjectAreaEnd() - allocation_info_.top;
+  int free_size =
+      static_cast<int>(current_page->ObjectAreaEnd() - allocation_info_.top);
   if (free_size > 0) {
     int wasted_bytes = free_list_.Free(allocation_info_.top, free_size);
     accounting_stats_.WasteBytes(wasted_bytes);
@@ -1968,7 +1972,7 @@ static void CollectCommentStatistics(RelocIterator* it) {
     if (it->rinfo()->rmode() == RelocInfo::COMMENT) {
       const char* const txt =
           reinterpret_cast<const char*>(it->rinfo()->data());
-      flat_delta += it->rinfo()->pc() - prev_pc;
+      flat_delta += static_cast<int>(it->rinfo()->pc() - prev_pc);
       if (txt[0] == ']') break;  // End of nested  comment
       // A new comment
       CollectCommentStatistics(it);
@@ -1996,7 +2000,7 @@ void PagedSpace::CollectCodeStatistics() {
       const byte* prev_pc = code->instruction_start();
       while (!it.done()) {
         if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
-          delta += it.rinfo()->pc() - prev_pc;
+          delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
           CollectCommentStatistics(&it);
           prev_pc = it.rinfo()->pc();
         }
@@ -2005,7 +2009,7 @@ void PagedSpace::CollectCodeStatistics() {
 
       ASSERT(code->instruction_start() <= prev_pc &&
              prev_pc <= code->relocation_start());
-      delta += code->relocation_start() - prev_pc;
+      delta += static_cast<int>(code->relocation_start() - prev_pc);
       EnterComment("NoComment", delta);
     }
   }
@@ -2034,7 +2038,8 @@ void OldSpace::ReportStatistics() {
       int rset = Memory::int_at(rset_addr);
       if (rset != 0) {
         // Bits were set
-        int intoff = rset_addr - p->address() - Page::kRSetOffset;
+        int intoff =
+            static_cast<int>(rset_addr - p->address() - Page::kRSetOffset);
         int bitoff = 0;
         for (; bitoff < kBitsPerInt; ++bitoff) {
           if ((rset & (1 << bitoff)) != 0) {
@@ -2211,9 +2216,10 @@ void FixedSpace::MCCommitRelocationInfo() {
   while (it.has_next()) {
     Page* page = it.next();
     Address page_top = page->AllocationTop();
-    computed_size += page_top - page->ObjectAreaStart();
+    computed_size += static_cast<int>(page_top - page->ObjectAreaStart());
     if (it.has_next()) {
-      accounting_stats_.WasteBytes(page->ObjectAreaEnd() - page_top);
+      accounting_stats_.WasteBytes(
+          static_cast<int>(page->ObjectAreaEnd() - page_top));
     }
   }
 
@@ -2299,7 +2305,8 @@ void FixedSpace::ReportStatistics() {
       int rset = Memory::int_at(rset_addr);
       if (rset != 0) {
         // Bits were set
-        int intoff = rset_addr - p->address() - Page::kRSetOffset;
+        int intoff =
+            static_cast<int>(rset_addr - p->address() - Page::kRSetOffset);
         int bitoff = 0;
         for (; bitoff < kBitsPerInt; ++bitoff) {
           if ((rset & (1 << bitoff)) != 0) {
@@ -2420,7 +2427,7 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
 
 
 int LargeObjectChunk::ChunkSizeFor(int size_in_bytes) {
-  int os_alignment = OS::AllocateAlignment();
+  int os_alignment = static_cast<int>(OS::AllocateAlignment());
   if (os_alignment < Page::kPageSize)
     size_in_bytes += (Page::kPageSize - os_alignment);
   return size_in_bytes + Page::kObjectStartOffset;
@@ -2499,7 +2506,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
     return Failure::RetryAfterGC(requested_size, identity());
   }
 
-  size_ += chunk_size;
+  size_ += static_cast<int>(chunk_size);
   page_count_++;
   chunk->set_next(first_chunk_);
   chunk->set_size(chunk_size);
@@ -2650,7 +2657,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       if (object->IsCode()) {
         LOG(CodeDeleteEvent(object->address()));
       }
-      size_ -= chunk_size;
+      size_ -= static_cast<int>(chunk_size);
       page_count_--;
       MemoryAllocator::FreeRawMemory(chunk_address, chunk_size);
       LOG(DeleteEvent("LargeObjectChunk", chunk_address));

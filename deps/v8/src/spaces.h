@@ -172,7 +172,7 @@ class Page {
 
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {
-    int offset = a - address();
+    int offset = static_cast<int>(a - address());
     ASSERT_PAGE_OFFSET(offset);
     return offset;
   }
@@ -1116,7 +1116,9 @@ class SemiSpace : public Space {
   }
 
   // The offset of an address from the beginning of the space.
-  int SpaceOffsetForAddress(Address addr) { return addr - low(); }
+  int SpaceOffsetForAddress(Address addr) {
+    return static_cast<int>(addr - low());
+  }
 
   // If we don't have this here then SemiSpace will be abstract.  However
   // it should never be called.
@@ -1255,7 +1257,7 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  virtual int Size() { return top() - bottom(); }
+  virtual int Size() { return static_cast<int>(top() - bottom()); }
 
   // Return the current capacity of a semispace.
   int Capacity() {

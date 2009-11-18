@@ -36,9 +36,12 @@ assertEquals(-63, parseInt('  -077'));
 
 assertEquals(3, parseInt('11', 2));
 assertEquals(4, parseInt('11', 3));
+assertEquals(4, parseInt('11', 3.8));
 
 assertEquals(0x12, parseInt('0x12'));
 assertEquals(0x12, parseInt('0x12', 16));
+assertEquals(0x12, parseInt('0x12', 16.1));
+assertEquals(0x12, parseInt('0x12', NaN));
 
 assertEquals(12, parseInt('12aaa'));
 

@@ -28,7 +28,6 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "location.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
@@ -162,7 +161,25 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
-  Expression() : location_(Location::Uninitialized()) {}
+  enum Context {
+    // Not assigned a context yet, or else will not be visited during
+    // code generation.
+    kUninitialized,
+    // Evaluated for its side effects.
+    kEffect,
+    // Evaluated for its value (and side effects).
+    kValue,
+    // Evaluated for control flow (and side effects).
+    kTest,
+    // Evaluated for control flow and side effects.  Value is also
+    // needed if true.
+    kValueTest,
+    // Evaluated for control flow and side effects.  Value is also
+    // needed if false.
+    kTestValue
+  };
+
+  Expression() : context_(kUninitialized) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -177,12 +194,12 @@ class Expression: public AstNode {
   // Static type information for this expression.
   SmiAnalysis* type() { return &type_; }
 
-  Location location() { return location_; }
-  void set_location(Location loc) { location_ = loc; }
+  Context context() { return context_; }
+  void set_context(Context context) { context_ = context; }
 
  private:
   SmiAnalysis type_;
-  Location location_;
+  Context context_;
 };
 
 
@@ -305,7 +322,7 @@ class IterationStatement: public BreakableStatement {
 class DoWhileStatement: public IterationStatement {
  public:
   explicit DoWhileStatement(ZoneStringList* labels)
-      : IterationStatement(labels), cond_(NULL) {
+      : IterationStatement(labels), cond_(NULL), condition_position_(-1) {
   }
 
   void Initialize(Expression* cond, Statement* body) {
@@ -317,8 +334,14 @@ class DoWhileStatement: public IterationStatement {
 
   Expression* cond() const { return cond_; }
 
+  // Position where condition expression starts. We need it to make
+  // the loop's condition a breakable location.
+  int condition_position() { return condition_position_; }
+  void set_condition_position(int pos) { condition_position_ = pos; }
+
  private:
   Expression* cond_;
+  int condition_position_;
 };
 
 
@@ -935,11 +958,7 @@ class Slot: public Expression {
     // variable name in the context object on the heap,
     // with lookup starting at the current context. index()
     // is invalid.
-    LOOKUP,
-
-    // A property in the global object. var()->name() is
-    // the property name.
-    GLOBAL
+    LOOKUP
   };
 
   Slot(Variable* var, Type type, int index)
@@ -1263,7 +1282,6 @@ class FunctionLiteral: public Expression {
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
                   int expected_property_count,
-                  bool has_only_this_property_assignments,
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
                   int num_parameters,
@@ -1275,7 +1293,6 @@ class FunctionLiteral: public Expression {
         body_(body),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
-        has_only_this_property_assignments_(has_only_this_property_assignments),
         has_only_simple_this_property_assignments_(
             has_only_simple_this_property_assignments),
         this_property_assignments_(this_property_assignments),
@@ -1285,7 +1302,8 @@ class FunctionLiteral: public Expression {
         is_expression_(is_expression),
         loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition),
-        inferred_name_(Heap::empty_string()) {
+        inferred_name_(Heap::empty_string()),
+        try_fast_codegen_(false) {
 #ifdef DEBUG
     already_compiled_ = false;
 #endif
@@ -1307,9 +1325,6 @@ class FunctionLiteral: public Expression {
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
-  bool has_only_this_property_assignments() {
-      return has_only_this_property_assignments_;
-  }
   bool has_only_simple_this_property_assignments() {
       return has_only_simple_this_property_assignments_;
   }
@@ -1328,6 +1343,9 @@ class FunctionLiteral: public Expression {
     inferred_name_ = inferred_name;
   }
 
+  bool try_fast_codegen() { return try_fast_codegen_; }
+  void set_try_fast_codegen(bool flag) { try_fast_codegen_ = flag; }
+
 #ifdef DEBUG
   void mark_as_compiled() {
     ASSERT(!already_compiled_);
@@ -1341,7 +1359,6 @@ class FunctionLiteral: public Expression {
   ZoneList<Statement*>* body_;
   int materialized_literal_count_;
   int expected_property_count_;
-  bool has_only_this_property_assignments_;
   bool has_only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
   int num_parameters_;
@@ -1351,6 +1368,7 @@ class FunctionLiteral: public Expression {
   int loop_nesting_;
   int function_token_position_;
   Handle<String> inferred_name_;
+  bool try_fast_codegen_;
 #ifdef DEBUG
   bool already_compiled_;
 #endif

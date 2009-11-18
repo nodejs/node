@@ -53,3 +53,13 @@ assertEquals("2", eval('g'));
 // Test a second load.
 g = 3;
 assertEquals(3, eval('g'));
+
+// Test postfix count operation
+var t;
+t = g++;
+assertEquals(3, t);
+assertEquals(4, g);
+
+code = "g--; 1";
+assertEquals(1, eval(code));
+assertEquals(3, g);

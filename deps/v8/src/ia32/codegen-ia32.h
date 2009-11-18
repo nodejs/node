@@ -77,12 +77,12 @@ class Reference BASE_EMBEDDED {
   // Generate code to push the value of the reference on top of the
   // expression stack.  The reference is expected to be already on top of
   // the expression stack, and it is left in place with its value above it.
-  void GetValue(TypeofState typeof_state);
+  void GetValue();
 
   // Like GetValue except that the slot is expected to be written to before
   // being read from again.  Thae value of the reference may be invalidated,
   // causing subsequent attempts to read it to fail.
-  void TakeValue(TypeofState typeof_state);
+  void TakeValue();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
@@ -241,27 +241,19 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state may or may not be inside a typeof, and has its
-  // own control destination.
-  CodeGenState(CodeGenerator* owner,
-               TypeofState typeof_state,
-               ControlDestination* destination);
+  // state.  The new state has its own control destination.
+  CodeGenState(CodeGenerator* owner, ControlDestination* destination);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
   // Accessors for the state.
-  TypeofState typeof_state() const { return typeof_state_; }
   ControlDestination* destination() const { return destination_; }
 
  private:
   // The owning code generator.
   CodeGenerator* owner_;
-
-  // A flag indicating whether we are compiling the immediate subexpression
-  // of a typeof expression.
-  TypeofState typeof_state_;
 
   // A control destination in case the expression has a control-flow
   // effect.
@@ -307,17 +299,12 @@ class CodeGenerator: public AstVisitor {
   static bool ShouldGenerateLog(Expression* type);
 #endif
 
-  static void SetFunctionInfo(Handle<JSFunction> fun,
-                              FunctionLiteral* lit,
-                              bool is_toplevel,
-                              Handle<Script> script);
-
   static void RecordPositions(MacroAssembler* masm, int pos);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
-
   VirtualFrame* frame() const { return frame_; }
+  Handle<Script> script() { return script_; }
 
   bool has_valid_frame() const { return frame_ != NULL; }
 
@@ -352,7 +339,6 @@ class CodeGenerator: public AstVisitor {
   void ProcessDeferred();
 
   // State
-  TypeofState typeof_state() const { return state_->typeof_state(); }
   ControlDestination* destination() const { return state_->destination(); }
 
   // Track loop nesting level.
@@ -412,18 +398,16 @@ class CodeGenerator: public AstVisitor {
   }
 
   void LoadCondition(Expression* x,
-                     TypeofState typeof_state,
                      ControlDestination* destination,
                      bool force_control);
-  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver();
 
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  void LoadAndSpill(Expression* expression,
-                    TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void LoadAndSpill(Expression* expression);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -484,9 +468,11 @@ class CodeGenerator: public AstVisitor {
   // than 16 bits.
   static const int kMaxSmiInlinedBits = 16;
   bool IsUnsafeSmi(Handle<Object> value);
-  // Load an integer constant x into a register target using
+  // Load an integer constant x into a register target or into the stack using
   // at most 16 bits of user-controlled data per assembly operation.
-  void LoadUnsafeSmi(Register target, Handle<Object> value);
+  void MoveUnsafeSmi(Register target, Handle<Object> value);
+  void StoreUnsafeSmiToLocal(int offset, Handle<Object> value);
+  void PushUnsafeSmi(Handle<Object> value);
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
@@ -511,8 +497,6 @@ class CodeGenerator: public AstVisitor {
                                       const InlineRuntimeLUT& new_entry,
                                       InlineRuntimeLUT* old_entry);
 
-  static Handle<Code> ComputeLazyCompile(int argc);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
@@ -574,6 +558,7 @@ class CodeGenerator: public AstVisitor {
   void CodeForFunctionPosition(FunctionLiteral* fun);
   void CodeForReturnPosition(FunctionLiteral* fun);
   void CodeForStatementPosition(Statement* stmt);
+  void CodeForDoWhileConditionPosition(DoWhileStatement* stmt);
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
@@ -626,6 +611,27 @@ class CodeGenerator: public AstVisitor {
 };
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
 class ToBooleanStub: public CodeStub {
  public:
   ToBooleanStub() { }
@@ -655,7 +661,7 @@ class GenericBinaryOpStub: public CodeStub {
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false) {
-    use_sse3_ = CpuFeatures::IsSupported(CpuFeatures::SSE3);
+    use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 

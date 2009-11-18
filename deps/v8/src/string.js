@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -180,7 +180,7 @@ function SubString(string, start, end) {
     }
     return %CharFromCode(char_code);
   }
-  return %StringSlice(string, start, end);
+  return %SubString(string, start, end);
 }
 
 
@@ -380,12 +380,19 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   // Unfortunately, that means this code is nearly duplicated, here and in
   // jsregexp.cc.
   if (regexp.global) {
+    var numberOfCaptures = NUMBER_OF_CAPTURES(matchInfo) >> 1;
     var previous = 0;
     do {
-      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
       var startOfMatch = matchInfo[CAPTURE0];
+      result.addSpecialSlice(previous, startOfMatch);
       previous = matchInfo[CAPTURE1];
-      result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+      if (numberOfCaptures == 1) {
+        var match = SubString(subject, startOfMatch, previous);
+        // Don't call directly to avoid exposing the built-in global object.
+        result.add(replace.call(null, match, startOfMatch, subject));
+      } else {
+        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+      }
       // Can't use matchInfo any more from here, since the function could
       // overwrite it.
       // Continue with the next match.
@@ -810,10 +817,13 @@ ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
   var len = end - start;
   if (len == 0) return;
   var elements = this.elements;
-  if (start >= 0 && len >= 0 && start < 0x80000 && len < 0x800) {
+  if (start < 0x80000 && len < 0x800) {
     elements[elements.length] = (start << 11) + len;
   } else {
-    elements[elements.length] = SubString(this.special_string, start, end);
+    // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
+    // so -len is a smi.
+    elements[elements.length] = -len;
+    elements[elements.length] = start;
   }
 }
 

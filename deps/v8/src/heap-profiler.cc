@@ -536,7 +536,7 @@ RetainerHeapProfile::RetainerHeapProfile()
     : zscope_(DELETE_ON_EXIT) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(roots, this);
-  Heap::IterateRoots(&extractor);
+  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
 }
 
 

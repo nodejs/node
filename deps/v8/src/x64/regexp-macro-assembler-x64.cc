@@ -643,10 +643,10 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Label stack_limit_hit;
   Label stack_ok;
 
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
   __ movq(rcx, rsp);
-  __ movq(kScratchRegister, stack_guard_limit);
+  __ movq(kScratchRegister, stack_limit);
   __ subq(rcx, Operand(kScratchRegister, 0));
   // Handle it if the stack pointer is already below the stack limit.
   __ j(below_equal, &stack_limit_hit);
@@ -1079,7 +1079,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
     // If there is a difference, update the object pointer and start and end
     // addresses in the RegExp stack frame to match the new value.
     const byte* end_address = frame_entry<const byte* >(re_frame, kInputEnd);
-    int byte_length = end_address - start_address;
+    int byte_length = static_cast<int>(end_address - start_address);
     frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;
@@ -1196,9 +1196,9 @@ void RegExpMacroAssemblerX64::Drop() {
 void RegExpMacroAssemblerX64::CheckPreemption() {
   // Check for preemption.
   Label no_preempt;
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  __ load_rax(stack_guard_limit);
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
   __ j(above, &no_preempt);
 

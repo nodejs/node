@@ -28,12 +28,15 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "fast-codegen.h"
 #include "stub-cache.h"
 #include "debug.h"
 
 namespace v8 {
 namespace internal {
+
+#define __ ACCESS_MASM(masm_)
 
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
@@ -71,119 +74,57 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
-// All platform macro assemblers in {ia32,x64,arm} have a push(Register)
-// function.
-void FastCodeGenerator::Move(Location destination, Register source) {
-  switch (destination.type()) {
-    case Location::kUninitialized:
-      UNREACHABLE();
-    case Location::kEffect:
-      break;
-    case Location::kValue:
-      masm_->push(source);
-      break;
-  }
-}
-
-
-// All platform macro assemblers in {ia32,x64,arm} have a pop(Register)
-// function.
-void FastCodeGenerator::Move(Register destination, Location source) {
-  switch (source.type()) {
-    case Location::kUninitialized:  // Fall through.
-    case Location::kEffect:
-      UNREACHABLE();
-    case Location::kValue:
-      masm_->pop(destination);
-  }
-}
-
-
 void FastCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int globals = 0;
   for (int i = 0; i < length; i++) {
-    Declaration* node = declarations->at(i);
-    Variable* var = node->proxy()->var();
+    Declaration* decl = declarations->at(i);
+    Variable* var = decl->proxy()->var();
     Slot* slot = var->slot();
 
     // If it was not possible to allocate the variable at compile
     // time, we need to "declare" it at runtime to make sure it
     // actually exists in the local context.
     if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
-      UNREACHABLE();
+      VisitDeclaration(decl);
     } else {
       // Count global variables and functions for later processing
       globals++;
     }
   }
 
-  // Return in case of no declared global functions or variables.
-  if (globals == 0) return;
-
   // Compute array of global variable and function declarations.
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
-  for (int j = 0, i = 0; i < length; i++) {
-    Declaration* node = declarations->at(i);
-    Variable* var = node->proxy()->var();
-    Slot* slot = var->slot();
+  // Do nothing in case of no declared global functions or variables.
+  if (globals > 0) {
+    Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+    for (int j = 0, i = 0; i < length; i++) {
+      Declaration* decl = declarations->at(i);
+      Variable* var = decl->proxy()->var();
+      Slot* slot = var->slot();
 
-    if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
-      array->set(j++, *(var->name()));
-      if (node->fun() == NULL) {
-        if (var->mode() == Variable::CONST) {
-          // In case this is const property use the hole.
-          array->set_the_hole(j++);
+      if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
+        array->set(j++, *(var->name()));
+        if (decl->fun() == NULL) {
+          if (var->mode() == Variable::CONST) {
+            // In case this is const property use the hole.
+            array->set_the_hole(j++);
+          } else {
+            array->set_undefined(j++);
+          }
         } else {
-          array->set_undefined(j++);
+          Handle<JSFunction> function =
+              Compiler::BuildBoilerplate(decl->fun(), script_, this);
+          // Check for stack-overflow exception.
+          if (HasStackOverflow()) return;
+          array->set(j++, *function);
         }
-      } else {
-        Handle<JSFunction> function = BuildBoilerplate(node->fun());
-        // Check for stack-overflow exception.
-        if (HasStackOverflow()) return;
-        array->set(j++, *function);
       }
     }
+    // Invoke the platform-dependent code generator to do the actual
+    // declaration the global variables and functions.
+    DeclareGlobals(array);
   }
-
-  // Invoke the platform-dependent code generator to do the actual
-  // declaration the global variables and functions.
-  DeclareGlobals(array);
-}
-
-Handle<JSFunction> FastCodeGenerator::BuildBoilerplate(FunctionLiteral* fun) {
-#ifdef DEBUG
-  // We should not try to compile the same function literal more than
-  // once.
-  fun->mark_as_compiled();
-#endif
-
-  // Generate code
-  Handle<Code> code = CodeGenerator::ComputeLazyCompile(fun->num_parameters());
-  // Check for stack-overflow exception.
-  if (code.is_null()) {
-    SetStackOverflow();
-    return Handle<JSFunction>::null();
-  }
-
-  // Create a boilerplate function.
-  Handle<JSFunction> function =
-      Factory::NewFunctionBoilerplate(fun->name(),
-                                      fun->materialized_literal_count(),
-                                      code);
-  CodeGenerator::SetFunctionInfo(function, fun, false, script_);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Notify debugger that a new function has been added.
-  Debugger::OnNewFunction(function);
-#endif
-
-  // Set the expected number of properties for instances and return
-  // the resulting function.
-  SetExpectedNofPropertiesFromEstimate(function,
-                                       fun->expected_property_count());
-  return function;
 }
 
 
@@ -215,8 +156,77 @@ void FastCodeGenerator::SetSourcePosition(int pos) {
 }
 
 
-void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
-  UNREACHABLE();
+void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+#ifdef DEBUG
+  Expression::Context expected = Expression::kUninitialized;
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:  // Fall through.
+    case Expression::kTest:
+      // The value of the left subexpression is not needed.
+      expected = Expression::kTest;
+      break;
+    case Expression::kValue:
+      // The value of the left subexpression is needed and its specific
+      // context depends on the operator.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kValueTest
+          : Expression::kTestValue;
+      break;
+    case Expression::kValueTest:
+      // The value of the left subexpression is needed for OR.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kValueTest
+          : Expression::kTest;
+      break;
+    case Expression::kTestValue:
+      // The value of the left subexpression is needed for AND.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kTest
+          : Expression::kTestValue;
+      break;
+  }
+  ASSERT_EQ(expected, expr->left()->context());
+  ASSERT_EQ(expr->context(), expr->right()->context());
+#endif
+
+  Label eval_right, done;
+  Label* saved_true = true_label_;
+  Label* saved_false = false_label_;
+
+  // Set up the appropriate context for the left subexpression based on the
+  // operation and our own context.
+  if (expr->op() == Token::OR) {
+    // If there is no usable true label in the OR expression's context, use
+    // the end of this expression, otherwise inherit the same true label.
+    if (expr->context() == Expression::kEffect ||
+        expr->context() == Expression::kValue) {
+      true_label_ = &done;
+    }
+    // The false label is the label of the second subexpression.
+    false_label_ = &eval_right;
+  } else {
+    ASSERT_EQ(Token::AND, expr->op());
+    // The true label is the label of the second subexpression.
+    true_label_ = &eval_right;
+    // If there is no usable false label in the AND expression's context,
+    // use the end of the expression, otherwise inherit the same false
+    // label.
+    if (expr->context() == Expression::kEffect ||
+        expr->context() == Expression::kValue) {
+      false_label_ = &done;
+    }
+  }
+
+  Visit(expr->left());
+  true_label_ = saved_true;
+  false_label_ = saved_false;
+
+  __ bind(&eval_right);
+  Visit(expr->right());
+
+  __ bind(&done);
 }
 
 
@@ -241,7 +251,29 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ IfStatement");
+  // Expressions cannot recursively enter statements, there are no labels in
+  // the state.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  Label then_part, else_part, done;
+
+  // Do not worry about optimizing for empty then or else bodies.
+  true_label_ = &then_part;
+  false_label_ = &else_part;
+  ASSERT(stmt->condition()->context() == Expression::kTest);
+  Visit(stmt->condition());
+  true_label_ = NULL;
+  false_label_ = NULL;
+
+  __ bind(&then_part);
+  Visit(stmt->then_statement());
+  __ jmp(&done);
+
+  __ bind(&else_part);
+  Visit(stmt->else_statement());
+
+  __ bind(&done);
 }
 
 
@@ -271,17 +303,91 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ DoWhileStatement");
+  increment_loop_depth();
+  Label body, exit;
+
+  // Emit the test at the bottom of the loop.
+  __ bind(&body);
+  Visit(stmt->body());
+
+  // We are not in an expression context because we have been compiling
+  // statements.  Set up a test expression context for the condition.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  true_label_ = &body;
+  false_label_ = &exit;
+  ASSERT(stmt->cond()->context() == Expression::kTest);
+  Visit(stmt->cond());
+  true_label_ = NULL;
+  false_label_ = NULL;
+
+  __ bind(&exit);
+
+  decrement_loop_depth();
 }
 
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WhileStatement");
+  increment_loop_depth();
+  Label test, body, exit;
+
+  // Emit the test at the bottom of the loop.
+  __ jmp(&test);
+
+  __ bind(&body);
+  Visit(stmt->body());
+
+  __ bind(&test);
+  // We are not in an expression context because we have been compiling
+  // statements.  Set up a test expression context for the condition.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  true_label_ = &body;
+  false_label_ = &exit;
+  ASSERT(stmt->cond()->context() == Expression::kTest);
+  Visit(stmt->cond());
+  true_label_ = NULL;
+  false_label_ = NULL;
+
+  __ bind(&exit);
+
+  decrement_loop_depth();
 }
 
 
 void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ ForStatement");
+  Label test, body, exit;
+  if (stmt->init() != NULL) Visit(stmt->init());
+
+  increment_loop_depth();
+  // Emit the test at the bottom of the loop (even if empty).
+  __ jmp(&test);
+  __ bind(&body);
+  Visit(stmt->body());
+  if (stmt->next() != NULL) Visit(stmt->next());
+
+  __ bind(&test);
+  if (stmt->cond() == NULL) {
+    // For an empty test jump to the top of the loop.
+    __ jmp(&body);
+  } else {
+    // We are not in an expression context because we have been compiling
+    // statements.  Set up a test expression context for the condition.
+    ASSERT_EQ(NULL, true_label_);
+    ASSERT_EQ(NULL, false_label_);
+    true_label_ = &body;
+    false_label_ = &exit;
+    ASSERT(stmt->cond()->context() == Expression::kTest);
+    Visit(stmt->cond());
+    true_label_ = NULL;
+    false_label_ = NULL;
+  }
+
+  __ bind(&exit);
+  decrement_loop_depth();
 }
 
 
@@ -301,7 +407,12 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  UNREACHABLE();
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Comment cmnt(masm_, "[ DebuggerStatement");
+  SetStatementPosition(stmt);
+  __ CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
+#endif
 }
 
 
@@ -312,7 +423,37 @@ void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
 
 
 void FastCodeGenerator::VisitConditional(Conditional* expr) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ Conditional");
+  ASSERT_EQ(Expression::kTest, expr->condition()->context());
+  ASSERT_EQ(expr->context(), expr->then_expression()->context());
+  ASSERT_EQ(expr->context(), expr->else_expression()->context());
+
+
+  Label true_case, false_case, done;
+  Label* saved_true = true_label_;
+  Label* saved_false = false_label_;
+
+  true_label_ = &true_case;
+  false_label_ = &false_case;
+  Visit(expr->condition());
+  true_label_ = saved_true;
+  false_label_ = saved_false;
+
+  __ bind(&true_case);
+  Visit(expr->then_expression());
+  // If control flow falls through Visit, jump to done.
+  if (expr->context() == Expression::kEffect ||
+      expr->context() == Expression::kValue) {
+    __ jmp(&done);
+  }
+
+  __ bind(&false_case);
+  Visit(expr->else_expression());
+  // If control flow falls through Visit, merge it with true case here.
+  if (expr->context() == Expression::kEffect ||
+      expr->context() == Expression::kValue) {
+    __ bind(&done);
+  }
 }
 
 
@@ -323,7 +464,48 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  Move(expr->location(), expr);
+  Comment cmnt(masm_, "[ Literal");
+  Move(expr->context(), expr);
+}
+
+
+void FastCodeGenerator::VisitAssignment(Assignment* expr) {
+  Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
+
+  // Record source code position of the (possible) IC call.
+  SetSourcePosition(expr->position());
+
+  Expression* rhs = expr->value();
+  // Left-hand side can only be a property, a global or a (parameter or
+  // local) slot.
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  Property* prop = expr->target()->AsProperty();
+  if (var != NULL) {
+    Visit(rhs);
+    ASSERT_EQ(Expression::kValue, rhs->context());
+    EmitVariableAssignment(expr);
+  } else if (prop != NULL) {
+    // Assignment to a property.
+    Visit(prop->obj());
+    ASSERT_EQ(Expression::kValue, prop->obj()->context());
+    // Use the expression context of the key subexpression to detect whether
+    // we have decided to us a named or keyed IC.
+    if (prop->key()->context() == Expression::kUninitialized) {
+      ASSERT(prop->key()->AsLiteral() != NULL);
+      Visit(rhs);
+      ASSERT_EQ(Expression::kValue, rhs->context());
+      EmitNamedPropertyAssignment(expr);
+    } else {
+      Visit(prop->key());
+      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      Visit(rhs);
+      ASSERT_EQ(Expression::kValue, rhs->context());
+      EmitKeyedPropertyAssignment(expr);
+    }
+  } else {
+    UNREACHABLE();
+  }
 }
 
 
@@ -337,24 +519,12 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
-  UNREACHABLE();
-}
-
-
-void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   UNREACHABLE();
 }
+
+
+#undef __
 
 
 } }  // namespace v8::internal

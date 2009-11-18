@@ -36,6 +36,7 @@
 #include "global-handles.h"
 #include "macro-assembler.h"
 #include "natives.h"
+#include "snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -92,14 +93,39 @@ class SourceCodeCache BASE_EMBEDDED {
 
 static SourceCodeCache natives_cache(Script::TYPE_NATIVE);
 static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
+// This is for delete, not delete[].
+static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
+
+
+NativesExternalStringResource::NativesExternalStringResource(const char* source)
+    : data_(source), length_(StrLength(source)) {
+  if (delete_these_non_arrays_on_tear_down == NULL) {
+    delete_these_non_arrays_on_tear_down = new List<char*>(2);
+  }
+  // The resources are small objects and we only make a fixed number of
+  // them, but let's clean them up on exit for neatness.
+  delete_these_non_arrays_on_tear_down->
+      Add(reinterpret_cast<char*>(this));
+}
 
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
   if (Heap::natives_source_cache()->get(index)->IsUndefined()) {
-    Handle<String> source_code =
-      Factory::NewStringFromAscii(Natives::GetScriptSource(index));
-    Heap::natives_source_cache()->set(index, *source_code);
+    if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
+      // We can use external strings for the natives.
+      NativesExternalStringResource* resource =
+          new NativesExternalStringResource(
+              Natives::GetScriptSource(index).start());
+      Handle<String> source_code =
+          Factory::NewExternalStringFromAscii(resource);
+      Heap::natives_source_cache()->set(index, *source_code);
+    } else {
+      // Old snapshot code can't cope with external strings at all.
+      Handle<String> source_code =
+        Factory::NewStringFromAscii(Natives::GetScriptSource(index));
+      Heap::natives_source_cache()->set(index, *source_code);
+    }
   }
   Handle<Object> cached_source(Heap::natives_source_cache()->get(index));
   return Handle<String>::cast(cached_source);
@@ -125,6 +151,16 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 
 
 void Bootstrapper::TearDown() {
+  if (delete_these_non_arrays_on_tear_down != NULL) {
+    int len = delete_these_non_arrays_on_tear_down->length();
+    ASSERT(len < 20);  // Don't use this mechanism for unbounded allocations.
+    for (int i = 0; i < len; i++) {
+      delete delete_these_non_arrays_on_tear_down->at(i);
+    }
+    delete delete_these_non_arrays_on_tear_down;
+    delete_these_non_arrays_on_tear_down = NULL;
+  }
+
   natives_cache.Initialize(false);  // Yes, symmetrical
   extensions_cache.Initialize(false);
 }

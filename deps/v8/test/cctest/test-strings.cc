@@ -241,17 +241,6 @@ TEST(Traverse) {
   printf("6\n");
   TraverseFirst(left_asymmetric, right_deep_asymmetric, 65536);
   printf("7\n");
-  Handle<String> right_deep_slice =
-      Factory::NewStringSlice(left_deep_asymmetric,
-                              left_deep_asymmetric->length() - 1050,
-                              left_deep_asymmetric->length() - 50);
-  Handle<String> left_deep_slice =
-      Factory::NewStringSlice(right_deep_asymmetric,
-                              right_deep_asymmetric->length() - 1050,
-                              right_deep_asymmetric->length() - 50);
-  printf("8\n");
-  Traverse(right_deep_slice, left_deep_slice);
-  printf("9\n");
   FlattenString(left_asymmetric);
   printf("10\n");
   Traverse(flat, left_asymmetric);
@@ -268,60 +257,6 @@ TEST(Traverse) {
   printf("18\n");
 }
 
-
-static Handle<String> SliceOf(Handle<String> underlying) {
-  int start = gen() % underlying->length();
-  int end = start + gen() % (underlying->length() - start);
-  return Factory::NewStringSlice(underlying,
-                                 start,
-                                 end);
-}
-
-
-static Handle<String> ConstructSliceTree(
-    Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
-    int from,
-    int to) {
-  CHECK(to > from);
-  if (to - from <= 1)
-    return SliceOf(building_blocks[from % NUMBER_OF_BUILDING_BLOCKS]);
-  if (to - from == 2) {
-    Handle<String> lhs = building_blocks[from % NUMBER_OF_BUILDING_BLOCKS];
-    if (gen() % 2 == 0)
-      lhs = SliceOf(lhs);
-    Handle<String> rhs = building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS];
-    if (gen() % 2 == 0)
-      rhs = SliceOf(rhs);
-    return Factory::NewConsString(lhs, rhs);
-  }
-  Handle<String> part1 =
-    ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
-  Handle<String> part2 =
-    ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
-  Handle<String> branch = Factory::NewConsString(part1, part2);
-  if (gen() % 2 == 0)
-    return branch;
-  return(SliceOf(branch));
-}
-
-
-TEST(Slice) {
-  printf("TestSlice\n");
-  InitializeVM();
-  v8::HandleScope scope;
-  Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
-  ZoneScope zone(DELETE_ON_EXIT);
-  InitializeBuildingBlocks(building_blocks);
-
-  seed = 42;
-  Handle<String> slice_tree =
-      ConstructSliceTree(building_blocks, 0, DEEP_DEPTH);
-  seed = 42;
-  Handle<String> flat_slice_tree =
-      ConstructSliceTree(building_blocks, 0, DEEP_DEPTH);
-  FlattenString(flat_slice_tree);
-  Traverse(flat_slice_tree, slice_tree);
-}
 
 static const int DEEP_ASCII_DEPTH = 100000;
 
@@ -357,8 +292,10 @@ TEST(Utf8Conversion) {
   v8::HandleScope handle_scope;
   // A simple ascii string
   const char* ascii_string = "abcdef12345";
-  int len = v8::String::New(ascii_string, strlen(ascii_string))->Utf8Length();
-  CHECK_EQ(strlen(ascii_string), len);
+  int len =
+      v8::String::New(ascii_string,
+                      StrLength(ascii_string))->Utf8Length();
+  CHECK_EQ(StrLength(ascii_string), len);
   // A mixed ascii and non-ascii string
   // U+02E4 -> CB A4
   // U+0064 -> 64
@@ -414,105 +351,3 @@ class TwoByteResource: public v8::String::ExternalStringResource {
   size_t length_;
   bool* destructed_;
 };
-
-
-// Regression test case for http://crbug.com/9746. The problem was
-// that when we marked objects reachable only through weak pointers,
-// we ended up keeping a sliced symbol alive, even though we already
-// invoked the weak callback on the underlying external string thus
-// deleting its resource.
-TEST(Regress9746) {
-  InitializeVM();
-
-  // Setup lengths that guarantee we'll get slices instead of simple
-  // flat strings.
-  static const int kFullStringLength = String::kMinNonFlatLength * 2;
-  static const int kSliceStringLength = String::kMinNonFlatLength + 1;
-
-  uint16_t* source = new uint16_t[kFullStringLength];
-  for (int i = 0; i < kFullStringLength; i++) source[i] = '1';
-  char* key = new char[kSliceStringLength];
-  for (int i = 0; i < kSliceStringLength; i++) key[i] = '1';
-  Vector<const char> key_vector(key, kSliceStringLength);
-
-  // Allocate an external string resource that keeps track of when it
-  // is destructed.
-  bool resource_destructed = false;
-  TwoByteResource* resource =
-      new TwoByteResource(source, kFullStringLength, &resource_destructed);
-
-  {
-    v8::HandleScope scope;
-
-    // Allocate an external string resource and external string. We
-    // have to go through the API to get the weak handle and the
-    // automatic destruction going.
-    Handle<String> string =
-        v8::Utils::OpenHandle(*v8::String::NewExternal(resource));
-
-    // Create a slice of the external string.
-    Handle<String> slice =
-        Factory::NewStringSlice(string, 0, kSliceStringLength);
-    CHECK_EQ(kSliceStringLength, slice->length());
-    CHECK(StringShape(*slice).IsSliced());
-
-    // Make sure the slice ends up in old space so we can morph it
-    // into a symbol.
-    while (Heap::InNewSpace(*slice)) {
-      Heap::PerformScavenge();
-    }
-
-    // Force the slice into the symbol table.
-    slice = Factory::SymbolFromString(slice);
-    CHECK(slice->IsSymbol());
-    CHECK(StringShape(*slice).IsSliced());
-
-    Handle<String> buffer(Handle<SlicedString>::cast(slice)->buffer());
-    CHECK(StringShape(*buffer).IsExternal());
-    CHECK(buffer->IsTwoByteRepresentation());
-
-    // Finally, base a script on the slice of the external string and
-    // get its wrapper. This allocates yet another weak handle that
-    // indirectly refers to the external string.
-    Handle<Script> script = Factory::NewScript(slice);
-    Handle<JSObject> wrapper = GetScriptWrapper(script);
-  }
-
-  // When we collect all garbage, we cannot get rid of the sliced
-  // symbol entry in the symbol table because it is used by the script
-  // kept alive by the weak wrapper. Make sure we don't destruct the
-  // external string.
-  Heap::CollectAllGarbage(false);
-  CHECK(!resource_destructed);
-
-  {
-    v8::HandleScope scope;
-
-    // Make sure the sliced symbol is still in the table.
-    Handle<String> symbol = Factory::LookupSymbol(key_vector);
-    CHECK(StringShape(*symbol).IsSliced());
-
-    // Make sure the buffer is still a two-byte external string.
-    Handle<String> buffer(Handle<SlicedString>::cast(symbol)->buffer());
-    CHECK(StringShape(*buffer).IsExternal());
-    CHECK(buffer->IsTwoByteRepresentation());
-  }
-
-  // Forcing another garbage collection should let us get rid of the
-  // slice from the symbol table. The external string remains in the
-  // heap until the next GC.
-  Heap::CollectAllGarbage(false);
-  CHECK(!resource_destructed);
-  v8::HandleScope scope;
-  Handle<String> key_string = Factory::NewStringFromAscii(key_vector);
-  String* out;
-  CHECK(!Heap::LookupSymbolIfExists(*key_string, &out));
-
-  // Forcing yet another garbage collection must allow us to finally
-  // get rid of the external string.
-  Heap::CollectAllGarbage(false);
-  CHECK(resource_destructed);
-
-  delete[] source;
-  delete[] key;
-}

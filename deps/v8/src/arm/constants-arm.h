@@ -75,6 +75,9 @@ namespace arm {
 // Number of registers in normal ARM mode.
 static const int kNumRegisters = 16;
 
+// VFP support.
+static const int kNumVFPRegisters = 48;
+
 // PC is register 15.
 static const int kPCRegister = 15;
 static const int kNoRegister = -1;
@@ -231,6 +234,16 @@ class Instr {
   inline int RnField() const { return Bits(19, 16); }
   inline int RdField() const { return Bits(15, 12); }
 
+  // Support for VFP.
+  // Vn(19-16) | Vd(15-12) |  Vm(3-0)
+  inline int VnField() const { return Bits(19, 16); }
+  inline int VmField() const { return Bits(3, 0); }
+  inline int VdField() const { return Bits(15, 12); }
+  inline int NField() const { return Bit(7); }
+  inline int MField() const { return Bit(5); }
+  inline int DField() const { return Bit(22); }
+  inline int RtField() const { return Bits(15, 12); }
+
   // Fields used in Data processing instructions
   inline Opcode OpcodeField() const {
     return static_cast<Opcode>(Bits(24, 21));
@@ -307,7 +320,7 @@ class Registers {
 
   struct RegisterAlias {
     int reg;
-    const char *name;
+    const char* name;
   };
 
  private:
@@ -315,6 +328,15 @@ class Registers {
   static const RegisterAlias aliases_[];
 };
 
+// Helper functions for converting between VFP register numbers and names.
+class VFPRegisters {
+ public:
+  // Return the name of the register.
+  static const char* Name(int reg);
+
+ private:
+  static const char* names_[kNumVFPRegisters];
+};
 
 
 } }  // namespace assembler::arm

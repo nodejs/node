@@ -1274,7 +1274,9 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlattenIfNotFlat();
+  Object* flat = subject->TryFlatten();
+  if (flat->IsFailure()) return flat;
+  subject = String::cast(flat);
   if (i >= static_cast<uint32_t>(subject->length())) {
     return Heap::nan_value();
   }
@@ -1357,8 +1359,9 @@ class ReplacementStringBuilder {
           StringBuilderSubstringPosition::encode(from);
       AddElement(Smi::FromInt(encoded_slice));
     } else {
-      Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
-      AddElement(*slice);
+      // Otherwise encode as two smis.
+      AddElement(Smi::FromInt(-length));
+      AddElement(Smi::FromInt(from));
     }
     IncrementCharacterCount(length);
   }
@@ -1642,16 +1645,14 @@ void CompiledReplacement::Compile(Handle<String> replacement,
                             capture_count,
                             subject_length);
   }
-  // Find substrings of replacement string and create them as String objects..
+  // Find substrings of replacement string and create them as String objects.
   int substring_index = 0;
   for (int i = 0, n = parts_.length(); i < n; i++) {
     int tag = parts_[i].tag;
     if (tag <= 0) {  // A replacement string slice.
       int from = -tag;
       int to = parts_[i].data;
-      replacement_substrings_.Add(Factory::NewStringSlice(replacement,
-                                                          from,
-                                                          to));
+      replacement_substrings_.Add(Factory::NewSubString(replacement, from, to));
       parts_[i].tag = REPLACEMENT_SUBSTRING;
       parts_[i].data = substring_index;
       substring_index++;
@@ -1750,8 +1751,9 @@ static Object* StringReplaceRegExpWithString(String* subject,
   int prev = 0;
 
   // Number of parts added by compiled replacement plus preceeding string
-  // and possibly suffix after last match.
-  const int parts_added_per_loop = compiled_replacement.parts() + 2;
+  // and possibly suffix after last match. It is possible for compiled
+  // replacements to use two elements when encoded as two smis.
+  const int parts_added_per_loop = compiled_replacement.parts() * 2 + 2;
   bool matched = true;
   do {
     ASSERT(last_match_info_handle->HasFastElements());
@@ -2223,8 +2225,8 @@ int Runtime::StringMatch(Handle<String> sub,
       if (pos == NULL) {
         return -1;
       }
-      return reinterpret_cast<const char*>(pos) - ascii_vector.start()
-          + start_index;
+      return static_cast<int>(reinterpret_cast<const char*>(pos)
+          - ascii_vector.start() + start_index);
     }
     return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
   }
@@ -2349,7 +2351,7 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
 }
 
 
-static Object* Runtime_StringSlice(Arguments args) {
+static Object* Runtime_SubString(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
@@ -2363,7 +2365,7 @@ static Object* Runtime_StringSlice(Arguments args) {
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
-  return value->Slice(start, end);
+  return value->SubString(start, end);
 }
 
 
@@ -2410,7 +2412,7 @@ static Object* Runtime_StringMatch(Arguments args) {
   for (int i = 0; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    elements->set(i, *Factory::NewStringSlice(subject, from, to));
+    elements->set(i, *Factory::NewSubString(subject, from, to));
   }
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3385,8 +3387,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  CONVERT_DOUBLE_CHECKED(n, args[1]);
-  int radix = FastD2I(n);
+  CONVERT_SMI_CHECKED(radix, args[1]);
 
   s->TryFlattenIfNotFlat();
 
@@ -3611,7 +3612,7 @@ static Object* Runtime_StringTrim(Arguments args) {
       right--;
     }
   }
-  return s->Slice(left, right);
+  return s->SubString(left, right);
 }
 
 bool Runtime::IsUpperCaseChar(uint16_t ch) {
@@ -3766,9 +3767,21 @@ static inline void StringBuilderConcatHelper(String* special,
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
+      // Smi encoding of position and length.
       int encoded_slice = Smi::cast(element)->value();
-      int pos = StringBuilderSubstringPosition::decode(encoded_slice);
-      int len = StringBuilderSubstringLength::decode(encoded_slice);
+      int pos;
+      int len;
+      if (encoded_slice > 0) {
+        // Position and length encoded in one smi.
+        pos = StringBuilderSubstringPosition::decode(encoded_slice);
+        len = StringBuilderSubstringLength::decode(encoded_slice);
+      } else {
+        // Position and length encoded in two smis.
+        Object* obj = fixed_array->get(++i);
+        ASSERT(obj->IsSmi());
+        pos = Smi::cast(obj)->value();
+        len = -encoded_slice;
+      }
       String::WriteToFlat(special,
                           sink + position,
                           pos,
@@ -3789,6 +3802,10 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(String, special, args[1]);
+
+  // This assumption is used by the slice encoding in one or two smis.
+  ASSERT(Smi::kMaxValue >= String::kMaxLength);
+
   int special_length = special->length();
   Object* smi_array_length = array->length();
   if (!smi_array_length->IsSmi()) {
@@ -3816,13 +3833,29 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
+      // Smi encoding of position and length.
       int len = Smi::cast(elt)->value();
-      int pos = len >> 11;
-      len &= 0x7ff;
-      if (pos + len > special_length) {
-        return Top::Throw(Heap::illegal_argument_symbol());
+      if (len > 0) {
+        // Position and length encoded in one smi.
+        int pos = len >> 11;
+        len &= 0x7ff;
+        if (pos + len > special_length) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        position += len;
+      } else {
+        // Position and length encoded in two smis.
+        position += (-len);
+        // Get the position and check that it is also a smi.
+        i++;
+        if (i >= array_length) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        Object* pos = fixed_array->get(i);
+        if (!pos->IsSmi()) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
       }
-      position += len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
@@ -4336,8 +4369,6 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  ASSERT(Heap::InNewSpace(result));
-
   // Allocate the elements if needed.
   if (length > 0) {
     // Allocate the fixed array.
@@ -4350,8 +4381,7 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
     for (int i = 0; i < length; i++) {
       array->set(i, *--parameters, mode);
     }
-    JSObject::cast(result)->set_elements(FixedArray::cast(obj),
-                                         SKIP_WRITE_BARRIER);
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj));
   }
   return result;
 }
@@ -4794,6 +4824,12 @@ static Object* Runtime_ReThrow(Arguments args) {
   ASSERT(args.length() == 1);
 
   return Top::ReThrow(args[0]);
+}
+
+
+static Object* Runtime_PromoteScheduledException(Arguments args) {
+  ASSERT_EQ(0, args.length());
+  return Top::PromoteScheduledException();
 }
 
 
@@ -5964,11 +6000,30 @@ static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
 
   // Get the property names.
   jsproto = obj;
+  int proto_with_hidden_properties = 0;
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names,
                                    i == 0 ? 0 : local_property_count[i - 1]);
+    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
+      proto_with_hidden_properties++;
+    }
     if (i < length - 1) {
       jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Filter out name of hidden propeties object.
+  if (proto_with_hidden_properties > 0) {
+    Handle<FixedArray> old_names = names;
+    names = Factory::NewFixedArray(
+        names->length() - proto_with_hidden_properties);
+    int dest_pos = 0;
+    for (int i = 0; i < total_property_count; i++) {
+      Object* name = old_names->get(i);
+      if (name == Heap::hidden_symbol()) {
+        continue;
+      }
+      names->set(dest_pos++, name);
     }
   }
 
@@ -6778,8 +6833,9 @@ static Object* Runtime_GetCFrames(Arguments args) {
 
     // Get the stack walk text for this frame.
     Handle<String> frame_text;
-    if (strlen(frames[i].text) > 0) {
-      Vector<const char> str(frames[i].text, strlen(frames[i].text));
+    int frame_text_length = StrLength(frames[i].text);
+    if (frame_text_length > 0) {
+      Vector<const char> str(frames[i].text, frame_text_length);
       frame_text = Factory::NewStringFromAscii(str);
     }
 
@@ -7246,7 +7302,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // function(arguments,__source__) {return eval(__source__);}
   static const char* source_str =
       "(function(arguments,__source__){return eval(__source__);})";
-  static const int source_str_length = strlen(source_str);
+  static const int source_str_length = StrLength(source_str);
   Handle<String> function_source =
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
@@ -7711,7 +7767,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
       Object* fun = frame->function();
       Address pc = frame->pc();
       Address start = frame->code()->address();
-      Smi* offset = Smi::FromInt(pc - start);
+      Smi* offset = Smi::FromInt(static_cast<int>(pc - start));
       FixedArray* elements = FixedArray::cast(result->elements());
       if (cursor + 2 < elements->length()) {
         elements->set(cursor++, recv);
@@ -7758,6 +7814,13 @@ static Object* Runtime_Abort(Arguments args) {
 }
 
 
+static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
+  ASSERT(args.length() == 0);
+  HandleScope::DeleteExtensions();
+  return Heap::undefined_value();
+}
+
+
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode
 // Exclude the code in release mode.
@@ -7770,7 +7833,8 @@ static Object* Runtime_ListNatives(Arguments args) {
   {                                                                          \
     HandleScope inner;                                                       \
     Handle<String> name =                                                    \
-      Factory::NewStringFromAscii(Vector<const char>(#Name, strlen(#Name))); \
+      Factory::NewStringFromAscii(                                           \
+          Vector<const char>(#Name, StrLength(#Name)));       \
     Handle<JSArray> pair = Factory::NewJSArray(0);                           \
     SetElement(pair, 0, name);                                               \
     SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \

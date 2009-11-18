@@ -200,7 +200,7 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges);
+  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_ascii);
   static void Split(ZoneList<CharacterRange>* base,
                     Vector<const uc16> overlay,
                     ZoneList<CharacterRange>** included,
@@ -703,7 +703,7 @@ class TextNode: public SeqRegExpNode {
                                     int characters_filled_in,
                                     bool not_at_start);
   ZoneList<TextElement>* elements() { return elms_; }
-  void MakeCaseIndependent();
+  void MakeCaseIndependent(bool is_ascii);
   virtual int GreedyLoopTextLength();
   virtual TextNode* Clone() {
     TextNode* result = new TextNode(*this);
@@ -1212,8 +1212,10 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+        +------------+
 class Analysis: public NodeVisitor {
  public:
-  explicit Analysis(bool ignore_case)
-      : ignore_case_(ignore_case), error_message_(NULL) { }
+  Analysis(bool ignore_case, bool is_ascii)
+      : ignore_case_(ignore_case),
+        is_ascii_(is_ascii),
+        error_message_(NULL) { }
   void EnsureAnalyzed(RegExpNode* node);
 
 #define DECLARE_VISIT(Type)                                          \
@@ -1232,6 +1234,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   }
  private:
   bool ignore_case_;
+  bool is_ascii_;
   const char* error_message_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);

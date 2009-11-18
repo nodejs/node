@@ -166,7 +166,7 @@ TEST(SNPrintF) {
   // Make sure that strings that are truncated because of too small
   // buffers are zero-terminated anyway.
   const char* s = "the quick lazy .... oh forget it!";
-  int length = strlen(s);
+  int length = StrLength(s);
   for (int i = 1; i < length * 2; i++) {
     static const char kMarker = static_cast<char>(42);
     Vector<char> buffer = Vector<char>::New(i + 1);
@@ -177,9 +177,9 @@ TEST(SNPrintF) {
     CHECK_EQ(0, strncmp(buffer.start(), s, i - 1));
     CHECK_EQ(kMarker, buffer[i]);
     if (i <= length) {
-      CHECK_EQ(i - 1, strlen(buffer.start()));
+      CHECK_EQ(i - 1, StrLength(buffer.start()));
     } else {
-      CHECK_EQ(length, strlen(buffer.start()));
+      CHECK_EQ(length, StrLength(buffer.start()));
     }
     buffer.Dispose();
   }

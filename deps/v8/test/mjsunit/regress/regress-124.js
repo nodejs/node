@@ -48,9 +48,9 @@ function F(f) {
   assertEquals("[object global]", eval("f()"));
 
   // Receiver should be the arguments object here.
-  assertEquals("[object Object]", eval("arguments[0]()"));
+  assertEquals("[object Arguments]", eval("arguments[0]()"));
   with (arguments) {
-    assertEquals("[object Object]", toString());
+    assertEquals("[object Arguments]", toString());
   }
 }
 

@@ -74,7 +74,7 @@ static SmartPointer<const char> Parse(const char* input) {
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
@@ -92,7 +92,7 @@ struct MinMaxPair {
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
@@ -1466,7 +1466,7 @@ static void TestRangeCaseIndependence(CharacterRange input,
   ZoneScope zone_scope(DELETE_ON_EXIT);
   int count = expected.length();
   ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(count);
-  input.AddCaseEquivalents(list);
+  input.AddCaseEquivalents(list, false);
   CHECK_EQ(count, list->length());
   for (int i = 0; i < list->length(); i++) {
     CHECK_EQ(expected[i].from(), list->at(i).from());

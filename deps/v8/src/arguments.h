@@ -77,9 +77,9 @@ class Arguments BASE_EMBEDDED {
 // can.
 class CustomArguments : public Relocatable {
  public:
-  inline CustomArguments(Object *data,
-                         JSObject *self,
-                         JSObject *holder) {
+  inline CustomArguments(Object* data,
+                         JSObject* self,
+                         JSObject* holder) {
     values_[3] = self;
     values_[2] = holder;
     values_[1] = Smi::FromInt(0);

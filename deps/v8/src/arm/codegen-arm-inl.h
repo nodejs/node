@@ -35,18 +35,15 @@ namespace internal {
 #define __ ACCESS_MASM(masm_)
 
 void CodeGenerator::LoadConditionAndSpill(Expression* expression,
-                                          TypeofState typeof_state,
                                           JumpTarget* true_target,
                                           JumpTarget* false_target,
                                           bool force_control) {
-  LoadCondition(expression, typeof_state, true_target, false_target,
-                force_control);
+  LoadCondition(expression, true_target, false_target, force_control);
 }
 
 
-void CodeGenerator::LoadAndSpill(Expression* expression,
-                                 TypeofState typeof_state) {
-  Load(expression, typeof_state);
+void CodeGenerator::LoadAndSpill(Expression* expression) {
+  Load(expression);
 }
 
 
@@ -60,8 +57,8 @@ void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
 }
 
 
-void Reference::GetValueAndSpill(TypeofState typeof_state) {
-  GetValue(typeof_state);
+void Reference::GetValueAndSpill() {
+  GetValue();
 }
 
 

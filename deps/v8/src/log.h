@@ -265,6 +265,8 @@ class Logger {
 
   // Logs all compiled functions found in the heap.
   static void LogCompiledFunctions();
+  // Used for logging stubs found in the snapshot.
+  static void LogCodeObject(Object* code_object);
 
  private:
 

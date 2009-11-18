@@ -103,6 +103,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
         for excluded in EXCLUDED:
           if excluded in dirs:
             dirs.remove(excluded)
+        dirs.sort()
         root_path = root[len(self.root):].split(os.path.sep)
         root_path = current_path + [x for x in root_path if x]
         framework = []
@@ -113,6 +114,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
           if exists(script):
             framework.append(script)
         framework.reverse()
+        files.sort()
         for file in files:
           if (not file in FRAMEWORK) and file.endswith('.js'):
             full_path = root_path + [file[:-3]]

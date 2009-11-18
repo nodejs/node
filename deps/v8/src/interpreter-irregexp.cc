@@ -117,17 +117,17 @@ static void TraceInterpreter(const byte* code_base,
 }
 
 
-#define BYTECODE(name)                                    \
-  case BC_##name:                                         \
-    TraceInterpreter(code_base,                           \
-                     pc,                                  \
-                     backtrack_sp - backtrack_stack_base, \
-                     current,                             \
-                     current_char,                        \
-                     BC_##name##_LENGTH,                  \
+#define BYTECODE(name)                                                      \
+  case BC_##name:                                                           \
+    TraceInterpreter(code_base,                                             \
+                     pc,                                                    \
+                     static_cast<int>(backtrack_sp - backtrack_stack_base), \
+                     current,                                               \
+                     current_char,                                          \
+                     BC_##name##_LENGTH,                                    \
                      #name);
 #else
-#define BYTECODE(name)                                    \
+#define BYTECODE(name)                                                      \
   case BC_##name:
 #endif
 
@@ -250,13 +250,14 @@ static bool RawMatch(const byte* code_base,
         pc += BC_SET_CP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER_TO_SP)
-        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack_base;
+        registers[insn >> BYTECODE_SHIFT] =
+            static_cast<int>(backtrack_sp - backtrack_stack_base);
         pc += BC_SET_REGISTER_TO_SP_LENGTH;
         break;
       BYTECODE(SET_SP_TO_REGISTER)
         backtrack_sp = backtrack_stack_base + registers[insn >> BYTECODE_SHIFT];
         backtrack_stack_space = backtrack_stack.max_size() -
-                                (backtrack_sp - backtrack_stack_base);
+            static_cast<int>(backtrack_sp - backtrack_stack_base);
         pc += BC_SET_SP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(POP_CP)

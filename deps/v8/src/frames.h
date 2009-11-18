@@ -93,7 +93,6 @@ class StackHandler BASE_EMBEDDED {
   V(ENTRY,             EntryFrame)            \
   V(ENTRY_CONSTRUCT,   EntryConstructFrame)   \
   V(EXIT,              ExitFrame)             \
-  V(EXIT_DEBUG,        ExitDebugFrame)        \
   V(JAVA_SCRIPT,       JavaScriptFrame)       \
   V(INTERNAL,          InternalFrame)         \
   V(CONSTRUCT,         ConstructFrame)        \
@@ -119,7 +118,6 @@ class StackFrame BASE_EMBEDDED {
   bool is_entry() const { return type() == ENTRY; }
   bool is_entry_construct() const { return type() == ENTRY_CONSTRUCT; }
   bool is_exit() const { return type() == EXIT; }
-  bool is_exit_debug() const { return type() == EXIT_DEBUG; }
   bool is_java_script() const { return type() == JAVA_SCRIPT; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
@@ -260,9 +258,12 @@ class EntryConstructFrame: public EntryFrame {
 // Exit frames are used to exit JavaScript execution and go to C.
 class ExitFrame: public StackFrame {
  public:
+  enum Mode { MODE_NORMAL, MODE_DEBUG };
   virtual Type type() const { return EXIT; }
 
   virtual Code* code() const;
+
+  Object*& code_slot() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
@@ -285,26 +286,6 @@ class ExitFrame: public StackFrame {
  private:
   virtual void ComputeCallerState(State* state) const;
 
-  friend class StackFrameIterator;
-};
-
-
-class ExitDebugFrame: public ExitFrame {
- public:
-  virtual Type type() const { return EXIT_DEBUG; }
-
-  virtual Code* code() const;
-
-  static ExitDebugFrame* cast(StackFrame* frame) {
-    ASSERT(frame->is_exit_debug());
-    return static_cast<ExitDebugFrame*>(frame);
-  }
-
- protected:
-  explicit ExitDebugFrame(StackFrameIterator* iterator)
-      : ExitFrame(iterator) { }
-
- private:
   friend class StackFrameIterator;
 };
 

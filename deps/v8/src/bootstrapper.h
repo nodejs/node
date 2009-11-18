@@ -76,6 +76,24 @@ class Bootstrapper : public AllStatic {
   static void FreeThreadResources();
 };
 
+
+class NativesExternalStringResource
+    : public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit NativesExternalStringResource(const char* source);
+
+  const char* data() const {
+    return data_;
+  }
+
+  size_t length() const {
+    return length_;
+  }
+ private:
+  const char* data_;
+  size_t length_;
+};
+
 }}  // namespace v8::internal
 
 #endif  // V8_BOOTSTRAPPER_H_

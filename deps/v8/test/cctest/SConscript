@@ -34,6 +34,7 @@ Import('context object_files')
 
 SOURCES = {
   'all': [
+    'test-accessors.cc',
     'test-alloc.cc',
     'test-api.cc',
     'test-ast.cc',
@@ -51,6 +52,7 @@ SOURCES = {
     'test-log.cc',
     'test-log-utils.cc',
     'test-mark-compact.cc',
+    'test-parsing.cc',
     'test-regexp.cc',
     'test-serialize.cc',
     'test-sockets.cc',

@@ -327,7 +327,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   __ movl(rax, FieldOperand(receiver, String::kLengthOffset));
   // rcx is also the receiver.
   __ lea(rcx, Operand(scratch, String::kLongLengthShift));
-  __ shr(rax);  // rcx is implicit shift register.
+  __ shr_cl(rax);
   __ Integer32ToSmi(rax, rax);
   __ ret(0);
 

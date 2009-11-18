@@ -48,7 +48,8 @@ namespace internal {
 class ObjectGroup : public Malloced {
  public:
   ObjectGroup() : objects_(4) {}
-  explicit ObjectGroup(size_t capacity) : objects_(capacity) {}
+  explicit ObjectGroup(size_t capacity)
+      : objects_(static_cast<int>(capacity)) { }
 
   List<Object**> objects_;
 };
@@ -95,8 +96,11 @@ class GlobalHandles : public AllStatic {
   // Process pending weak handles.
   static void PostGarbageCollectionProcessing();
 
+  // Iterates over all strong handles.
+  static void IterateStrongRoots(ObjectVisitor* v);
+
   // Iterates over all handles.
-  static void IterateRoots(ObjectVisitor* v);
+  static void IterateAllRoots(ObjectVisitor* v);
 
   // Iterates over all weak roots in heap.
   static void IterateWeakRoots(ObjectVisitor* v);

@@ -38,6 +38,8 @@
 #include "utils.h"
 #include "cctest.h"
 
+static const bool kLogThreading = false;
+
 static bool IsNaN(double x) {
 #ifdef WIN32
   return _isnan(x);
@@ -57,131 +59,6 @@ using ::v8::AccessorInfo;
 using ::v8::Extension;
 
 namespace i = ::v8::internal;
-
-static Local<Value> v8_num(double x) {
-  return v8::Number::New(x);
-}
-
-
-static Local<String> v8_str(const char* x) {
-  return String::New(x);
-}
-
-
-static Local<Script> v8_compile(const char* x) {
-  return Script::Compile(v8_str(x));
-}
-
-
-// A LocalContext holds a reference to a v8::Context.
-class LocalContext {
- public:
-  LocalContext(v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<ObjectTemplate> global_template =
-                   v8::Handle<ObjectTemplate>(),
-               v8::Handle<Value> global_object = v8::Handle<Value>())
-    : context_(Context::New(extensions, global_template, global_object)) {
-    context_->Enter();
-  }
-
-  virtual ~LocalContext() {
-    context_->Exit();
-    context_.Dispose();
-  }
-
-  Context* operator->() { return *context_; }
-  Context* operator*() { return *context_; }
-  Local<Context> local() { return Local<Context>::New(context_); }
-  bool IsReady() { return !context_.IsEmpty(); }
-
- private:
-  v8::Persistent<Context> context_;
-};
-
-
-// Switches between all the Api tests using the threading support.
-// In order to get a surprising but repeatable pattern of thread
-// switching it has extra semaphores to control the order in which
-// the tests alternate, not relying solely on the big V8 lock.
-//
-// A test is augmented with calls to ApiTestFuzzer::Fuzz() in its
-// callbacks.  This will have no effect when we are not running the
-// thread fuzzing test.  In the thread fuzzing test it will
-// pseudorandomly select a successor thread and switch execution
-// to that thread, suspending the current test.
-class ApiTestFuzzer: public v8::internal::Thread {
- public:
-  void CallTest();
-  explicit ApiTestFuzzer(int num)
-      : test_number_(num),
-        gate_(v8::internal::OS::CreateSemaphore(0)),
-        active_(true) {
-  }
-  ~ApiTestFuzzer() { delete gate_; }
-
-  // The ApiTestFuzzer is also a Thread, so it has a Run method.
-  virtual void Run();
-
-  enum PartOfTest { FIRST_PART, SECOND_PART };
-
-  static void Setup(PartOfTest part);
-  static void RunAllTests();
-  static void TearDown();
-  // This method switches threads if we are running the Threading test.
-  // Otherwise it does nothing.
-  static void Fuzz();
- private:
-  static bool fuzzing_;
-  static int tests_being_run_;
-  static int current_;
-  static int active_tests_;
-  static bool NextThread();
-  int test_number_;
-  v8::internal::Semaphore* gate_;
-  bool active_;
-  void ContextSwitch();
-  static int GetNextTestNumber();
-  static v8::internal::Semaphore* all_tests_done_;
-};
-
-
-#define THREADED_TEST(Name)                                          \
-  static void Test##Name();                                          \
-  RegisterThreadedTest register_##Name(Test##Name);                  \
-  /* */ TEST(Name)
-
-
-class RegisterThreadedTest {
- public:
-  explicit RegisterThreadedTest(CcTest::TestFunction* callback)
-      : fuzzer_(NULL), callback_(callback) {
-    prev_ = first_;
-    first_ = this;
-    count_++;
-  }
-  static int count() { return count_; }
-  static RegisterThreadedTest* nth(int i) {
-    CHECK(i < count());
-    RegisterThreadedTest* current = first_;
-    while (i > 0) {
-      i--;
-      current = current->prev_;
-    }
-    return current;
-  }
-  CcTest::TestFunction* callback() { return callback_; }
-  ApiTestFuzzer* fuzzer_;
-
- private:
-  static RegisterThreadedTest* first_;
-  static int count_;
-  CcTest::TestFunction* callback_;
-  RegisterThreadedTest* prev_;
-};
-
-
-RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
-int RegisterThreadedTest::count_ = 0;
 
 
 static int signature_callback_count;
@@ -230,11 +107,6 @@ THREADED_TEST(Handles) {
   local_env->Exit();
 }
 
-
-// Helper function that compiles and runs the source.
-static Local<Value> CompileRun(const char* source) {
-  return Script::Compile(String::New(source))->Run();
-}
 
 THREADED_TEST(ReceiverSignature) {
   v8::HandleScope scope;
@@ -382,9 +254,9 @@ THREADED_TEST(Script) {
 
 
 static uint16_t* AsciiToTwoByteString(const char* source) {
-  size_t array_length = strlen(source) + 1;
+  int array_length = i::StrLength(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  for (int i = 0; i < array_length; i++) converted[i] = source[i];
   return converted;
 }
 
@@ -720,27 +592,6 @@ THREADED_TEST(FindInstanceInPrototypeChain) {
 }
 
 
-static v8::Handle<Value> handle_property(Local<String> name,
-                                         const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  return v8_num(900);
-}
-
-
-THREADED_TEST(PropertyHandler) {
-  v8::HandleScope scope;
-  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-  fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
-  LocalContext env;
-  Local<Function> fun = fun_templ->GetFunction();
-  env->Global()->Set(v8_str("Fun"), fun);
-  Local<Script> getter = v8_compile("var obj = new Fun(); obj.foo;");
-  CHECK_EQ(900, getter->Run()->Int32Value());
-  Local<Script> setter = v8_compile("obj.foo = 901;");
-  CHECK_EQ(901, setter->Run()->Int32Value());
-}
-
-
 THREADED_TEST(TinyInteger) {
   v8::HandleScope scope;
   LocalContext env;
@@ -904,49 +755,6 @@ THREADED_TEST(GlobalPrototype) {
   CHECK_EQ(13.4, result->NumberValue());
   CHECK_EQ(200, v8_compile("x")->Run()->Int32Value());
   CHECK_EQ(876, v8_compile("m")->Run()->Int32Value());
-}
-
-
-static v8::Handle<Value> GetIntValue(Local<String> property,
-                                     const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  int* value =
-      static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-  return v8_num(*value);
-}
-
-static void SetIntValue(Local<String> property,
-                        Local<Value> value,
-                        const AccessorInfo& info) {
-  int* field =
-      static_cast<int*>(v8::Handle<v8::External>::Cast(info.Data())->Value());
-  *field = value->Int32Value();
-}
-
-int foo, bar, baz;
-
-THREADED_TEST(GlobalVariableAccess) {
-  foo = 0;
-  bar = -4;
-  baz = 10;
-  v8::HandleScope scope;
-  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  templ->InstanceTemplate()->SetAccessor(v8_str("foo"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&foo));
-  templ->InstanceTemplate()->SetAccessor(v8_str("bar"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&bar));
-  templ->InstanceTemplate()->SetAccessor(v8_str("baz"),
-                                         GetIntValue,
-                                         SetIntValue,
-                                         v8::External::New(&baz));
-  LocalContext env(0, templ->InstanceTemplate());
-  v8_compile("foo = (++bar) + baz")->Run();
-  CHECK_EQ(bar, -3);
-  CHECK_EQ(foo, 7);
 }
 
 
@@ -1365,50 +1173,6 @@ THREADED_TEST(CallbackExceptionRegression) {
 }
 
 
-static v8::Handle<Value> ThrowingGetAccessor(Local<String> name,
-                                             const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  return v8::ThrowException(v8_str("g"));
-}
-
-
-static void ThrowingSetAccessor(Local<String> name,
-                                Local<Value> value,
-                                const AccessorInfo& info) {
-  v8::ThrowException(value);
-}
-
-
-THREADED_TEST(Regress1054726) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("x"),
-                   ThrowingGetAccessor,
-                   ThrowingSetAccessor,
-                   Local<Value>());
-
-  LocalContext env;
-  env->Global()->Set(v8_str("obj"), obj->NewInstance());
-
-  // Use the throwing property setter/getter in a loop to force
-  // the accessor ICs to be initialized.
-  v8::Handle<Value> result;
-  result = Script::Compile(v8_str(
-      "var result = '';"
-      "for (var i = 0; i < 5; i++) {"
-      "  try { obj.x; } catch (e) { result += e; }"
-      "}; result"))->Run();
-  CHECK_EQ(v8_str("ggggg"), result);
-
-  result = Script::Compile(String::New(
-      "var result = '';"
-      "for (var i = 0; i < 5; i++) {"
-      "  try { obj.x = i; } catch (e) { result += e; }"
-      "}; result"))->Run();
-  CHECK_EQ(v8_str("01234"), result);
-}
-
-
 THREADED_TEST(FunctionPrototype) {
   v8::HandleScope scope;
   Local<v8::FunctionTemplate> Foo = v8::FunctionTemplate::New();
@@ -1580,17 +1344,10 @@ THREADED_TEST(HiddenProperties) {
 }
 
 
+static bool interceptor_for_hidden_properties_called;
 static v8::Handle<Value> InterceptorForHiddenProperties(
     Local<String> name, const AccessorInfo& info) {
-  // Make sure objects move.
-  bool saved_always_compact = i::FLAG_always_compact;
-  if (!i::FLAG_never_compact) {
-    i::FLAG_always_compact = true;
-  }
-  // The whole goal of this interceptor is to cause a GC during local property
-  // lookup.
-  i::Heap::CollectAllGarbage(false);
-  i::FLAG_always_compact = saved_always_compact;
+  interceptor_for_hidden_properties_called = true;
   return v8::Handle<Value>();
 }
 
@@ -1598,6 +1355,8 @@ static v8::Handle<Value> InterceptorForHiddenProperties(
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   v8::HandleScope scope;
   LocalContext context;
+
+  interceptor_for_hidden_properties_called = false;
 
   v8::Local<v8::String> key = v8_str("api-test::hidden-key");
 
@@ -1609,6 +1368,7 @@ THREADED_TEST(HiddenPropertiesWithInterceptors) {
   Local<v8::Object> obj = function->NewInstance();
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(2302)));
   CHECK_EQ(2302, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(!interceptor_for_hidden_properties_called);
 }
 
 
@@ -3157,6 +2917,58 @@ THREADED_TEST(WeakReference) {
 }
 
 
+static bool in_scavenge = false;
+static int last = -1;
+
+static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
+  CHECK_EQ(-1, last);
+  last = 0;
+  obj.Dispose();
+  obj.Clear();
+  in_scavenge = true;
+  i::Heap::PerformScavenge();
+  in_scavenge = false;
+  *(reinterpret_cast<bool*>(data)) = true;
+}
+
+static void CheckIsNotInvokedInScavenge(v8::Persistent<v8::Value> obj,
+                                        void* data) {
+  CHECK_EQ(0, last);
+  last = 1;
+  *(reinterpret_cast<bool*>(data)) = in_scavenge;
+  obj.Dispose();
+  obj.Clear();
+}
+
+THREADED_TEST(NoWeakRefCallbacksInScavenge) {
+  // Test verifies that scavenge cannot invoke WeakReferenceCallbacks.
+  // Calling callbacks from scavenges is unsafe as objects held by those
+  // handlers might have become strongly reachable, but scavenge doesn't
+  // check that.
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  v8::Persistent<v8::Object> object_a;
+  v8::Persistent<v8::Object> object_b;
+
+  {
+    v8::HandleScope handle_scope;
+    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+
+  bool object_a_disposed = false;
+  object_a.MakeWeak(&object_a_disposed, &ForceScavenge);
+  bool released_in_scavenge = false;
+  object_b.MakeWeak(&released_in_scavenge, &CheckIsNotInvokedInScavenge);
+
+  while (!object_a_disposed) {
+    i::Heap::CollectAllGarbage(false);
+  }
+  CHECK(!released_in_scavenge);
+}
+
+
 v8::Handle<Function> args_fun;
 
 
@@ -3181,53 +2993,6 @@ THREADED_TEST(Arguments) {
   LocalContext context(NULL, global);
   args_fun = v8::Handle<Function>::Cast(context->Global()->Get(v8_str("f")));
   v8_compile("f(1, 2, 3)")->Run();
-}
-
-
-static int x_register = 0;
-static v8::Handle<v8::Object> x_receiver;
-static v8::Handle<v8::Object> x_holder;
-
-
-static v8::Handle<Value> XGetter(Local<String> name, const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK_EQ(x_receiver, info.This());
-  CHECK_EQ(x_holder, info.Holder());
-  return v8_num(x_register);
-}
-
-
-static void XSetter(Local<String> name,
-                    Local<Value> value,
-                    const AccessorInfo& info) {
-  CHECK_EQ(x_holder, info.This());
-  CHECK_EQ(x_holder, info.Holder());
-  x_register = value->Int32Value();
-}
-
-
-THREADED_TEST(AccessorIC) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  obj->SetAccessor(v8_str("x"), XGetter, XSetter);
-  LocalContext context;
-  x_holder = obj->NewInstance();
-  context->Global()->Set(v8_str("holder"), x_holder);
-  x_receiver = v8::Object::New();
-  context->Global()->Set(v8_str("obj"), x_receiver);
-  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(CompileRun(
-    "obj.__proto__ = holder;"
-    "var result = [];"
-    "for (var i = 0; i < 10; i++) {"
-    "  holder.x = i;"
-    "  result.push(obj.x);"
-    "}"
-    "result"));
-  CHECK_EQ(10, array->Length());
-  for (int i = 0; i < 10; i++) {
-    v8::Handle<Value> entry = array->Get(v8::Integer::New(i));
-    CHECK_EQ(v8::Integer::New(i), entry);
-  }
 }
 
 
@@ -6094,13 +5859,17 @@ void ApiTestFuzzer::Fuzz() {
 // not start immediately.
 bool ApiTestFuzzer::NextThread() {
   int test_position = GetNextTestNumber();
-  int test_number = RegisterThreadedTest::nth(current_)->fuzzer_->test_number_;
+  const char* test_name = RegisterThreadedTest::nth(current_)->name();
   if (test_position == current_) {
-    printf("Stay with %d\n", test_number);
+    if (kLogThreading)
+      printf("Stay with %s\n", test_name);
     return false;
   }
-  printf("Switch from %d to %d\n",
-         current_ < 0 ? 0 : test_number, test_position < 0 ? 0 : test_number);
+  if (kLogThreading) {
+    printf("Switch from %s to %s\n",
+           test_name,
+           RegisterThreadedTest::nth(test_position)->name());
+  }
   current_ = test_position;
   RegisterThreadedTest::nth(current_)->fuzzer_->gate_->Signal();
   return true;
@@ -6209,9 +5978,11 @@ TEST(Threading2) {
 
 
 void ApiTestFuzzer::CallTest() {
-  printf("Start test %d\n", test_number_);
+  if (kLogThreading)
+    printf("Start test %d\n", test_number_);
   CallTestNumber(test_number_);
-  printf("End test %d\n", test_number_);
+  if (kLogThreading)
+    printf("End test %d\n", test_number_);
 }
 
 
@@ -6452,6 +6223,31 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   }
   handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
   to_be_disposed = handle2;
+  i::Heap::CollectAllGarbage(false);
+}
+
+void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
+  handle.Dispose();
+}
+
+void HandleCreatingCallback(v8::Persistent<v8::Value> handle, void*) {
+  v8::HandleScope scope;
+  v8::Persistent<v8::Object>::New(v8::Object::New());
+}
+
+
+THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2, handle3;
+  {
+    v8::HandleScope scope;
+    handle3 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  handle2.MakeWeak(NULL, DisposingCallback);
+  handle3.MakeWeak(NULL, HandleCreatingCallback);
   i::Heap::CollectAllGarbage(false);
 }
 
@@ -6699,53 +6495,6 @@ THREADED_TEST(PropertyEnumeration) {
 }
 
 
-static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
-    Local<String> name,
-    const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  return v8::True();
-}
-
-
-THREADED_TEST(AccessorProhibitsOverwriting) {
-  v8::HandleScope scope;
-  LocalContext context;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("x"),
-                     AccessorProhibitsOverwritingGetter,
-                     0,
-                     v8::Handle<Value>(),
-                     v8::PROHIBITS_OVERWRITING,
-                     v8::ReadOnly);
-  Local<v8::Object> instance = templ->NewInstance();
-  context->Global()->Set(v8_str("obj"), instance);
-  Local<Value> value = CompileRun(
-      "obj.__defineGetter__('x', function() { return false; });"
-      "obj.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj.__defineSetter__('x', function() { setter_called = true; });"
-      "obj.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
-  value = CompileRun(
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineGetter__('x', function() { return false; });"
-      "obj2.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineSetter__('x', function() { setter_called = true; });"
-      "obj2.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
-}
-
-
 static bool NamedSetAccessBlocker(Local<v8::Object> obj,
                                   Local<Value> name,
                                   v8::AccessType type,
@@ -6921,7 +6670,8 @@ TEST(PreCompile) {
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
   const char *script = "function foo(a) { return a+1; }";
-  v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
+  v8::ScriptData *sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
   delete sd;
@@ -7317,9 +7067,10 @@ THREADED_TEST(MorphCompositeStringTest) {
     v8::HandleScope scope;
     LocalContext env;
     AsciiVectorResource ascii_resource(
-        i::Vector<const char>(c_string, strlen(c_string)));
+        i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+        i::Vector<const uint16_t>(two_byte_string,
+                                  i::StrLength(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
         i::Factory::NewExternalStringFromAscii(&ascii_resource)));
@@ -7377,7 +7128,8 @@ TEST(CompileExternalTwoByteSource) {
   for (int i = 0; ascii_sources[i] != NULL; i++) {
     uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(ascii_sources[i])));
+        i::Vector<const uint16_t>(two_byte_string,
+                                  i::StrLength(ascii_sources[i])));
     v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
     v8::Script::Compile(source);
   }
@@ -7863,18 +7615,18 @@ THREADED_TEST(Regress16276) {
 THREADED_TEST(PixelArray) {
   v8::HandleScope scope;
   LocalContext context;
-  const int kElementCount = 40;
+  const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
                                                               pixel_data);
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
-    pixels->set(i, i);
+    pixels->set(i, i % 256);
   }
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(i, pixels->get(i));
-    CHECK_EQ(i, pixel_data[i]);
+    CHECK_EQ(i % 256, pixels->get(i));
+    CHECK_EQ(i % 256, pixel_data[i]);
   }
 
   v8::Handle<v8::Object> obj = v8::Object::New();
@@ -8037,6 +7789,15 @@ THREADED_TEST(PixelArray) {
 
   result = CompileRun("pixels[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+
+  // Test for index greater than 255.  Regression test for:
+  // http://code.google.com/p/chromium/issues/detail?id=26337.
+  result = CompileRun("pixels[256] = 255;");
+  CHECK_EQ(255, result->Int32Value());
+  result = CompileRun("var i = 0;"
+                      "for (var j = 0; j < 8; j++) { i = pixels[256]; }"
+                      "i");
+  CHECK_EQ(255, result->Int32Value());
 
   free(pixel_data);
 }
@@ -8489,11 +8250,11 @@ THREADED_TEST(GetHeapStatistics) {
   v8::HandleScope scope;
   LocalContext c1;
   v8::HeapStatistics heap_statistics;
-  CHECK_EQ(heap_statistics.total_heap_size(), 0);
-  CHECK_EQ(heap_statistics.used_heap_size(), 0);
+  CHECK_EQ(static_cast<int>(heap_statistics.total_heap_size()), 0);
+  CHECK_EQ(static_cast<int>(heap_statistics.used_heap_size()), 0);
   v8::V8::GetHeapStatistics(&heap_statistics);
-  CHECK_NE(heap_statistics.total_heap_size(), 0);
-  CHECK_NE(heap_statistics.used_heap_size(), 0);
+  CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
+  CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }
 
 
@@ -8609,4 +8370,42 @@ THREADED_TEST(QuietSignalingNaNs) {
       CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
     }
   }
+}
+
+
+static v8::Handle<Value> SpaghettiIncident(const v8::Arguments& args) {
+  v8::HandleScope scope;
+  v8::TryCatch tc;
+  v8::Handle<v8::String> str = args[0]->ToString();
+  if (tc.HasCaught())
+    return tc.ReThrow();
+  return v8::Undefined();
+}
+
+
+// Test that an exception can be propagated down through a spaghetti
+// stack using ReThrow.
+THREADED_TEST(SpaghettiStackReThrow) {
+  v8::HandleScope scope;
+  LocalContext context;
+  context->Global()->Set(
+      v8::String::New("s"),
+      v8::FunctionTemplate::New(SpaghettiIncident)->GetFunction());
+  v8::TryCatch try_catch;
+  CompileRun(
+      "var i = 0;"
+      "var o = {"
+      "  toString: function () {"
+      "    if (i == 10) {"
+      "      throw 'Hey!';"
+      "    } else {"
+      "      i++;"
+      "      return s(o);"
+      "    }"
+      "  }"
+      "};"
+      "s(o);");
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value value(try_catch.Exception());
+  CHECK_EQ(0, strcmp(*value, "Hey!"));
 }

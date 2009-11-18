@@ -359,8 +359,19 @@ class TestCase(object):
     self.Cleanup()
     return TestOutput(self, full_command, output)
 
+  def BeforeRun(self):
+    pass
+
+  def AfterRun(self):
+    pass
+
   def Run(self):
-    return self.RunCommand(self.GetCommand())
+    self.BeforeRun()
+    try:
+      result = self.RunCommand(self.GetCommand())
+    finally:
+      self.AfterRun()
+    return result
 
   def Cleanup(self):
     return

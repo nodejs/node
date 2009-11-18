@@ -676,16 +676,11 @@ class TemporaryScope BASE_EMBEDDED {
   int materialized_literal_count() { return materialized_literal_count_; }
 
   void SetThisPropertyAssignmentInfo(
-      bool only_this_property_assignments,
       bool only_simple_this_property_assignments,
       Handle<FixedArray> this_property_assignments) {
-    only_this_property_assignments_ = only_this_property_assignments;
     only_simple_this_property_assignments_ =
         only_simple_this_property_assignments;
     this_property_assignments_ = this_property_assignments;
-  }
-  bool only_this_property_assignments() {
-    return only_this_property_assignments_;
   }
   bool only_simple_this_property_assignments() {
     return only_simple_this_property_assignments_;
@@ -705,7 +700,6 @@ class TemporaryScope BASE_EMBEDDED {
   // Properties count estimation.
   int expected_property_count_;
 
-  bool only_this_property_assignments_;
   bool only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
 
@@ -720,7 +714,6 @@ class TemporaryScope BASE_EMBEDDED {
 TemporaryScope::TemporaryScope(Parser* parser)
   : materialized_literal_count_(0),
     expected_property_count_(0),
-    only_this_property_assignments_(false),
     only_simple_this_property_assignments_(false),
     this_property_assignments_(Factory::empty_fixed_array()),
     parser_(parser),
@@ -1227,7 +1220,6 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           body.elements(),
           temp_scope.materialized_literal_count(),
           temp_scope.expected_property_count(),
-          temp_scope.only_this_property_assignments(),
           temp_scope.only_simple_this_property_assignments(),
           temp_scope.this_property_assignments(),
           0,
@@ -1339,7 +1331,7 @@ class ParserFinder {
 
 
 // An InitializationBlockFinder finds and marks sequences of statements of the
-// form x.y.z.a = ...; x.y.z.b = ...; etc.
+// form expr.a = ...; expr.b = ...; etc.
 class InitializationBlockFinder : public ParserFinder {
  public:
   InitializationBlockFinder()
@@ -1367,7 +1359,7 @@ class InitializationBlockFinder : public ParserFinder {
  private:
   // Returns true if the expressions appear to denote the same object.
   // In the context of initialization blocks, we only consider expressions
-  // of the form 'x.y.z'.
+  // of the form 'expr.x' or expr["x"].
   static bool SameObject(Expression* e1, Expression* e2) {
     VariableProxy* v1 = e1->AsVariableProxy();
     VariableProxy* v2 = e2->AsVariableProxy();
@@ -1441,16 +1433,15 @@ class InitializationBlockFinder : public ParserFinder {
 class ThisNamedPropertyAssigmentFinder : public ParserFinder {
  public:
   ThisNamedPropertyAssigmentFinder()
-      : only_this_property_assignments_(true),
-        only_simple_this_property_assignments_(true),
+      : only_simple_this_property_assignments_(true),
         names_(NULL),
         assigned_arguments_(NULL),
         assigned_constants_(NULL) {}
 
   void Update(Scope* scope, Statement* stat) {
-    // Bail out if function already has non this property assignment
-    // statements.
-    if (!only_this_property_assignments_) {
+    // Bail out if function already has property assignment that are
+    // not simple this property assignments.
+    if (!only_simple_this_property_assignments_) {
       return;
     }
 
@@ -1459,14 +1450,8 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     if (IsThisPropertyAssignment(assignment)) {
       HandleThisPropertyAssignment(scope, assignment);
     } else {
-      only_this_property_assignments_ = false;
       only_simple_this_property_assignments_ = false;
     }
-  }
-
-  // Returns whether only statements of the form this.x = ...; was encountered.
-  bool only_this_property_assignments() {
-    return only_this_property_assignments_;
   }
 
   // Returns whether only statements of the form this.x = y; where y is either a
@@ -1524,28 +1509,24 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
         // Constant assigned.
         Literal* literal = assignment->value()->AsLiteral();
         AssignmentFromConstant(key, literal->handle());
+        return;
       } else if (assignment->value()->AsVariableProxy() != NULL) {
         // Variable assigned.
         Handle<String> name =
             assignment->value()->AsVariableProxy()->name();
         // Check whether the variable assigned matches an argument name.
-        int index = -1;
         for (int i = 0; i < scope->num_parameters(); i++) {
           if (*scope->parameter(i)->name() == *name) {
             // Assigned from function argument.
-            index = i;
-            break;
+            AssignmentFromParameter(key, i);
+            return;
           }
         }
-        if (index != -1) {
-          AssignmentFromParameter(key, index);
-        } else {
-          AssignmentFromSomethingElse(key);
-        }
-      } else {
-        AssignmentFromSomethingElse(key);
       }
     }
+    // It is not a simple "this.x = value;" assignment with a constant
+    // or parameter value.
+    AssignmentFromSomethingElse();
   }
 
   void AssignmentFromParameter(Handle<String> name, int index) {
@@ -1562,12 +1543,7 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     assigned_constants_->Add(value);
   }
 
-  void AssignmentFromSomethingElse(Handle<String> name) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(-1);
-    assigned_constants_->Add(Factory::undefined_value());
-
+  void AssignmentFromSomethingElse() {
     // The this assignment is not a simple one.
     only_simple_this_property_assignments_ = false;
   }
@@ -1582,7 +1558,6 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     }
   }
 
-  bool only_this_property_assignments_;
   bool only_simple_this_property_assignments_;
   ZoneStringList* names_;
   ZoneList<int>* assigned_arguments_;
@@ -1623,11 +1598,11 @@ void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
 
   // Propagate the collected information on this property assignments.
   if (top_scope_->is_function_scope()) {
-    if (this_property_assignment_finder.only_this_property_assignments()) {
+    bool only_simple_this_property_assignments =
+        this_property_assignment_finder.only_simple_this_property_assignments();
+    if (only_simple_this_property_assignments) {
       temp_scope_->SetThisPropertyAssignmentInfo(
-          this_property_assignment_finder.only_this_property_assignments(),
-          this_property_assignment_finder.
-              only_simple_this_property_assignments(),
+          only_simple_this_property_assignments,
           this_property_assignment_finder.GetThisPropertyAssignments());
     }
   }
@@ -2567,6 +2542,12 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   Statement* body = ParseStatement(NULL, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
+
+  if (loop != NULL) {
+    int position = scanner().location().beg_pos;
+    loop->set_condition_position(position);
+  }
+
   Expression* cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -3624,7 +3605,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     int materialized_literal_count;
     int expected_property_count;
-    bool only_this_property_assignments;
     bool only_simple_this_property_assignments;
     Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
@@ -3634,15 +3614,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
-      only_this_property_assignments = false;
       only_simple_this_property_assignments = false;
       this_property_assignments = Factory::empty_fixed_array();
     } else {
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
-      only_this_property_assignments =
-          temp_scope.only_this_property_assignments();
       only_simple_this_property_assignments =
           temp_scope.only_simple_this_property_assignments();
       this_property_assignments = temp_scope.this_property_assignments();
@@ -3664,7 +3641,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                             body.elements(),
                             materialized_literal_count,
                             expected_property_count,
-                            only_this_property_assignments,
                             only_simple_this_property_assignments,
                             this_property_assignments,
                             num_parameters,

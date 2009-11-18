@@ -303,8 +303,8 @@ static void SplitArgument(const char* arg,
     // get the value if any
     if (*arg == '=') {
       // make a copy so we can NUL-terminate flag name
-      int n = arg - *name;
-      CHECK(n < buffer_size);  // buffer is too small
+      size_t n = arg - *name;
+      CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
       memcpy(buffer, *name, n);
       buffer[n] = '\0';
       *name = buffer;

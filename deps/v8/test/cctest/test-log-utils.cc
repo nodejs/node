@@ -16,6 +16,7 @@ using v8::internal::LogRecordCompressor;
 using v8::internal::MutableCStrVector;
 using v8::internal::ScopedVector;
 using v8::internal::Vector;
+using v8::internal::StrLength;
 
 // Fills 'ref_buffer' with test data: a sequence of two-digit
 // hex numbers: '0001020304...'. Then writes 'ref_buffer' contents to 'dynabuf'.
@@ -118,7 +119,7 @@ TEST(DynaBufReadTruncation) {
 
 TEST(DynaBufSealing) {
   const char* seal = "Sealed";
-  const int seal_size = strlen(seal);
+  const int seal_size = StrLength(seal);
   LogDynamicBuffer dynabuf(32, 128, seal, seal_size);
   EmbeddedVector<char, 100> ref_buf;
   WriteData(&dynabuf, &ref_buf);

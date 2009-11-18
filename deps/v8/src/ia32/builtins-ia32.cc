@@ -522,43 +522,26 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Check the stack for overflow or a break request.
-  // We need to catch preemptions right here, otherwise an unlucky preemption
-  // could show up as a failed apply.
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  Label retry_preemption;
-  Label no_preemption;
-  __ bind(&retry_preemption);
-  __ mov(edi, Operand::StaticVariable(stack_guard_limit));
-  __ cmp(esp, Operand(edi));
-  __ j(above, &no_preemption, taken);
-
-  // Preemption!
-  // Because builtins always remove the receiver from the stack, we
-  // have to fake one to avoid underflowing the stack.
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(0)));
-
-  // Do call to runtime routine.
-  __ CallRuntime(Runtime::kStackGuard, 1);
-  __ pop(eax);
-  __ jmp(&retry_preemption);
-
-  __ bind(&no_preemption);
-
+  // Check the stack for overflow. We are not trying need to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
   Label okay;
-  // Make ecx the space we have left.
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit();
+  __ mov(edi, Operand::StaticVariable(real_stack_limit));
+  // Make ecx the space we have left. The stack might already be overflowed
+  // here which will cause ecx to become negative.
   __ mov(ecx, Operand(esp));
   __ sub(ecx, Operand(edi));
   // Make edx the space we need for the array when it is unrolled onto the
   // stack.
   __ mov(edx, Operand(eax));
   __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
+  // Check if the arguments will overflow the stack.
   __ cmp(ecx, Operand(edx));
-  __ j(greater, &okay, taken);
+  __ j(greater, &okay, taken);  // Signed comparison.
 
-  // Too bad: Out of stack space.
+  // Out of stack space.
   __ push(Operand(ebp, 4 * kPointerSize));  // push this
   __ push(eax);
   __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
@@ -898,7 +881,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // be preserved.
 static void ArrayNativeCode(MacroAssembler* masm,
                             bool construct_call,
-                            Label *call_generic_code) {
+                            Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more, prepare_generic_code_call;
 
   // Push the constructor and argc. No need to tag argc as a smi, as there will

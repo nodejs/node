@@ -301,7 +301,7 @@ def JS2C(source, target, env):
     else:
       ids.append((id, len(lines)))
     source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
-    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': 0 })
+    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
 
   # Build delay support functions
   get_index_cases = [ ]

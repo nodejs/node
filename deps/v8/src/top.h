@@ -43,6 +43,41 @@ class SaveContext;  // Forward declaration.
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
+  // Initialize the thread data.
+  void Initialize();
+
+  // Get the top C++ try catch handler or NULL if none are registered.
+  //
+  // This method is not guarenteed to return an address that can be
+  // used for comparison with addresses into the JS stack.  If such an
+  // address is needed, use try_catch_handler_address.
+  v8::TryCatch* TryCatchHandler();
+
+  // Get the address of the top C++ try catch handler or NULL if
+  // none are registered.
+  //
+  // This method always returns an address that can be compared to
+  // pointers into the JavaScript stack.  When running on actual
+  // hardware, try_catch_handler_address and TryCatchHandler return
+  // the same pointer.  When running on a simulator with a separate JS
+  // stack, try_catch_handler_address returns a JS stack address that
+  // corresponds to the place on the JS stack where the C++ handler
+  // would have been if the stack were not separate.
+  inline Address try_catch_handler_address() {
+    return try_catch_handler_address_;
+  }
+
+  // Set the address of the top C++ try catch handler.
+  inline void set_try_catch_handler_address(Address address) {
+    try_catch_handler_address_ = address;
+  }
+
+  void Free() {
+    ASSERT(!has_pending_message_);
+    ASSERT(!external_caught_exception_);
+    ASSERT(try_catch_handler_address_ == NULL);
+  }
+
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
@@ -59,7 +94,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   // unify them later.
   Object* scheduled_exception_;
   bool external_caught_exception_;
-  v8::TryCatch* try_catch_handler_;
   SaveContext* save_context_;
   v8::TryCatch* catcher_;
 
@@ -79,14 +113,11 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
-  void Free() {
-    ASSERT(!has_pending_message_);
-    ASSERT(!external_caught_exception_);
-    ASSERT(try_catch_handler_ == NULL);
-  }
+ private:
+  Address try_catch_handler_address_;
 };
 
-#define TOP_ADDRESS_LIST(C) \
+#define TOP_ADDRESS_LIST(C)            \
   C(handler_address)                   \
   C(c_entry_fp_address)                \
   C(context_address)                   \
@@ -157,7 +188,10 @@ class Top {
     thread_local_.pending_message_script_ = NULL;
   }
   static v8::TryCatch* try_catch_handler() {
-    return thread_local_.try_catch_handler_;
+    return thread_local_.TryCatchHandler();
+  }
+  static Address try_catch_handler_address() {
+    return thread_local_.try_catch_handler_address();
   }
   // This method is called by the api after operations that may throw
   // exceptions.  If an exception was thrown and not handled by an external
@@ -168,6 +202,10 @@ class Top {
 
   static bool* external_caught_exception_address() {
     return &thread_local_.external_caught_exception_;
+  }
+
+  static Object** scheduled_exception_address() {
+    return &thread_local_.scheduled_exception_;
   }
 
   static Object* scheduled_exception() {
@@ -185,7 +223,7 @@ class Top {
     thread_local_.external_caught_exception_ =
         has_pending_exception() &&
         (thread_local_.catcher_ != NULL) &&
-        (thread_local_.try_catch_handler_ == thread_local_.catcher_);
+        (try_catch_handler() == thread_local_.catcher_);
   }
 
   // Tells whether the current context has experienced an out of memory

@@ -68,7 +68,9 @@ class RegExpStack {
   static Address EnsureCapacity(size_t size);
 
   // Thread local archiving.
-  static size_t ArchiveSpacePerThread() { return sizeof(thread_local_); }
+  static int ArchiveSpacePerThread() {
+    return static_cast<int>(sizeof(thread_local_));
+  }
   static char* ArchiveStack(char* to);
   static char* RestoreStack(char* from);
   static void FreeThreadResources() { thread_local_.Free(); }

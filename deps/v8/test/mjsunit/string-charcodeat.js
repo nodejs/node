@@ -30,7 +30,7 @@
  */
 
 function Cons() {
-  return "Te" + "st";
+  return "Te" + "st testing 123";
 }
 
 
@@ -38,22 +38,22 @@ function Deep() {
   var a = "T";
   a += "e";
   a += "s";
-  a += "t";
+  a += "ting testing 123";
   return a;
 }
 
 
 function Slice() {
-  return "testing Testing".substring(8, 12);
+  return "testing Testing testing 123456789012345".substring(8, 22);
 }
 
 
 function Flat() {
-  return "Test";
+  return "Testing testing 123";
 }
 
 function Cons16() {
-  return "Te" + "\u1234t";
+  return "Te" + "\u1234t testing 123";
 }
 
 
@@ -61,18 +61,18 @@ function Deep16() {
   var a = "T";
   a += "e";
   a += "\u1234";
-  a += "t";
+  a += "ting testing 123";
   return a;
 }
 
 
 function Slice16Beginning() {
-  return "Te\u1234t test".substring(0, 4);
+  return "Te\u1234t testing testing 123".substring(0, 14);
 }
 
 
 function Slice16Middle() {
-  return "test Te\u1234t test".substring(5, 9);
+  return "test Te\u1234t testing testing 123".substring(5, 19);
 }
 
 
@@ -82,7 +82,7 @@ function Slice16End() {
 
 
 function Flat16() {
-  return "Te\u1234t";
+  return "Te\u1234ting testing 123";
 }
 
 
@@ -108,32 +108,35 @@ function NotAString16() {
 
 function TestStringType(generator, sixteen) {
   var g = generator;
-  assertTrue(isNaN(g().charCodeAt(-1e19)));
-  assertTrue(isNaN(g().charCodeAt(-0x80000001)));
-  assertTrue(isNaN(g().charCodeAt(-0x80000000)));
-  assertTrue(isNaN(g().charCodeAt(-0x40000000)));
-  assertTrue(isNaN(g().charCodeAt(-1)));
-  assertTrue(isNaN(g().charCodeAt(4)));
-  assertTrue(isNaN(g().charCodeAt(5)));
-  assertTrue(isNaN(g().charCodeAt(0x3fffffff)));
-  assertTrue(isNaN(g().charCodeAt(0x7fffffff)));
-  assertTrue(isNaN(g().charCodeAt(0x80000000)));
-  assertTrue(isNaN(g().charCodeAt(1e9)));
-  assertEquals(84, g().charCodeAt(0));
-  assertEquals(84, g().charCodeAt("test"));
-  assertEquals(84, g().charCodeAt(""));
-  assertEquals(84, g().charCodeAt(null));
-  assertEquals(84, g().charCodeAt(undefined));
-  assertEquals(84, g().charCodeAt());
-  assertEquals(84, g().charCodeAt(void 0));
-  assertEquals(84, g().charCodeAt(false));
-  assertEquals(101, g().charCodeAt(true));
-  assertEquals(101, g().charCodeAt(1));
-  assertEquals(sixteen ? 0x1234 : 115, g().charCodeAt(2));
-  assertEquals(116, g().charCodeAt(3));
-  assertEquals(101, g().charCodeAt(1.1));
-  assertEquals(sixteen ? 0x1234 : 115, g().charCodeAt(2.1718));
-  assertEquals(116, g().charCodeAt(3.14159));
+  var len = g().toString().length;
+  var t = sixteen ? "t" : "f"
+  t += generator.name;
+  assertTrue(isNaN(g().charCodeAt(-1e19)), 1 + t);
+  assertTrue(isNaN(g().charCodeAt(-0x80000001)), 2 + t);
+  assertTrue(isNaN(g().charCodeAt(-0x80000000)), 3 + t);
+  assertTrue(isNaN(g().charCodeAt(-0x40000000)), 4 + t);
+  assertTrue(isNaN(g().charCodeAt(-1)), 5 + t);
+  assertTrue(isNaN(g().charCodeAt(len)), 6 + t);
+  assertTrue(isNaN(g().charCodeAt(len + 1)), 7 + t);
+  assertTrue(isNaN(g().charCodeAt(0x3fffffff)), 8 + t);
+  assertTrue(isNaN(g().charCodeAt(0x7fffffff)), 9 + t);
+  assertTrue(isNaN(g().charCodeAt(0x80000000)), 10 + t);
+  assertTrue(isNaN(g().charCodeAt(1e9)), 11 + t);
+  assertEquals(84, g().charCodeAt(0), 12 + t);
+  assertEquals(84, g().charCodeAt("test"), 13 + t);
+  assertEquals(84, g().charCodeAt(""), 14 + t);
+  assertEquals(84, g().charCodeAt(null), 15 + t);
+  assertEquals(84, g().charCodeAt(undefined), 16 + t);
+  assertEquals(84, g().charCodeAt(), 17 + t);
+  assertEquals(84, g().charCodeAt(void 0), 18 + t);
+  assertEquals(84, g().charCodeAt(false), 19 + t);
+  assertEquals(101, g().charCodeAt(true), 20 + t);
+  assertEquals(101, g().charCodeAt(1), 21 + t);
+  assertEquals(sixteen ? 0x1234 : 115, g().charCodeAt(2), 22 + t);
+  assertEquals(116, g().charCodeAt(3), 23 + t);
+  assertEquals(101, g().charCodeAt(1.1), 24 + t);
+  assertEquals(sixteen ? 0x1234 : 115, g().charCodeAt(2.1718), 25 + t);
+  assertEquals(116, g().charCodeAt(3.14159), 26 + t);
 }
 
 
@@ -157,10 +160,10 @@ function StupidThing() {
   this.charCodeAt = String.prototype.charCodeAt;
 }
 
-assertEquals(52, new StupidThing().charCodeAt(0));
-assertEquals(50, new StupidThing().charCodeAt(1));
-assertTrue(isNaN(new StupidThing().charCodeAt(2)));
-assertTrue(isNaN(new StupidThing().charCodeAt(-1)));
+assertEquals(52, new StupidThing().charCodeAt(0), 27);
+assertEquals(50, new StupidThing().charCodeAt(1), 28);
+assertTrue(isNaN(new StupidThing().charCodeAt(2)), 29);
+assertTrue(isNaN(new StupidThing().charCodeAt(-1)), 30);
 
 
 // Medium (>255) and long (>65535) strings.
@@ -178,12 +181,12 @@ long += long + long + long;     // 4096.
 long += long + long + long;     // 16384.
 long += long + long + long;     // 65536.
 
-assertTrue(isNaN(medium.charCodeAt(-1)));
-assertEquals(49, medium.charCodeAt(0));
-assertEquals(56, medium.charCodeAt(255));
-assertTrue(isNaN(medium.charCodeAt(256)));
+assertTrue(isNaN(medium.charCodeAt(-1)), 31);
+assertEquals(49, medium.charCodeAt(0), 32);
+assertEquals(56, medium.charCodeAt(255), 33);
+assertTrue(isNaN(medium.charCodeAt(256)), 34);
 
-assertTrue(isNaN(long.charCodeAt(-1)));
-assertEquals(49, long.charCodeAt(0));
-assertEquals(56, long.charCodeAt(65535));
-assertTrue(isNaN(long.charCodeAt(65536)));
+assertTrue(isNaN(long.charCodeAt(-1)), 35);
+assertEquals(49, long.charCodeAt(0), 36);
+assertEquals(56, long.charCodeAt(65535), 37);
+assertTrue(isNaN(long.charCodeAt(65536)), 38);

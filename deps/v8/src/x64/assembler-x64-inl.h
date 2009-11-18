@@ -176,7 +176,7 @@ Address Assembler::target_address_at(Address pc) {
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  Memory::int32_at(pc) = target - pc - 4;
+  Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   CPU::FlushICache(pc, sizeof(int32_t));
 }
 
@@ -191,13 +191,13 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
 void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
-    Memory::Address_at(pc_) += delta;
+    Memory::Address_at(pc_) += static_cast<int32_t>(delta);
   } else if (IsCodeTarget(rmode_)) {
-    Memory::int32_at(pc_) -= delta;
+    Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
   } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
-    Memory::int32_at(pc_ + 1) -= delta;  // relocate entry
+    Memory::int32_at(pc_ + 1) -= static_cast<int32_t>(delta);  // relocate entry
   }
 }
 

@@ -39,7 +39,13 @@ namespace internal {
 class FastCodeGenerator: public AstVisitor {
  public:
   FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
-    : masm_(masm), function_(NULL), script_(script), is_eval_(is_eval) {
+      : masm_(masm),
+        function_(NULL),
+        script_(script),
+        is_eval_(is_eval),
+        loop_depth_(0),
+        true_label_(NULL),
+        false_label_(NULL) {
   }
 
   static Handle<Code> MakeCode(FunctionLiteral* fun,
@@ -51,25 +57,53 @@ class FastCodeGenerator: public AstVisitor {
  private:
   int SlotOffset(Slot* slot);
 
-  void Move(Location destination, Register source);
-  void Move(Location destination, Slot* source);
-  void Move(Location destination, Literal* source);
-
-  void Move(Register destination, Location source);
-  void Move(Slot* destination, Location source);
+  void Move(Expression::Context destination, Register source);
+  void Move(Expression::Context destination, Slot* source);
+  void Move(Expression::Context destination, Literal* source);
 
   // Drop the TOS, and store source to destination.
   // If destination is TOS, just overwrite TOS with source.
-  void DropAndMove(Location destination, Register source);
+  void DropAndMove(Expression::Context destination, Register source);
+
+  // Test the JavaScript value in source as if in a test context, compile
+  // control flow to a pair of labels.
+  void TestAndBranch(Register source, Label* true_label, Label* false_label);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);
+
+  // Platform-specific return sequence
+  void EmitReturnSequence(int position);
+
+  // Platform-specific code sequences for calls
+  void EmitCallWithStub(Call* expr);
+  void EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info);
+
+  // Platform-specific support for compiling assignments.
+
+  // Complete a variable assignment.  The right-hand-side value is expected
+  // on top of the stack.
+  void EmitVariableAssignment(Assignment* expr);
+
+  // Complete a named property assignment.  The receiver and right-hand-side
+  // value are expected on top of the stack.
+  void EmitNamedPropertyAssignment(Assignment* expr);
+
+  // Complete a keyed property assignment.  The reciever, key, and
+  // right-hand-side value are expected on top of the stack.
+  void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
   void SetSourcePosition(int pos);
+
+  int loop_depth() { return loop_depth_; }
+  void increment_loop_depth() { loop_depth_++; }
+  void decrement_loop_depth() {
+    ASSERT(loop_depth_ > 0);
+    loop_depth_--;
+  }
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
@@ -83,6 +117,11 @@ class FastCodeGenerator: public AstVisitor {
   FunctionLiteral* function_;
   Handle<Script> script_;
   bool is_eval_;
+  Label return_label_;
+  int loop_depth_;
+
+  Label* true_label_;
+  Label* false_label_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

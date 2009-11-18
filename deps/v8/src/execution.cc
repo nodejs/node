@@ -31,18 +31,8 @@
 
 #include "api.h"
 #include "codegen-inl.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#else
-#error Unsupported target architecture.
-#endif
-
 #include "debug.h"
+#include "simulator.h"
 #include "v8threads.h"
 
 namespace v8 {
@@ -237,15 +227,14 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   // If the current limits are special (eg due to a pending interrupt) then
   // leave them alone.
   uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(limit);
-  if (thread_local_.jslimit_ == thread_local_.initial_jslimit_) {
+  if (thread_local_.jslimit_ == thread_local_.real_jslimit_) {
     thread_local_.jslimit_ = jslimit;
-    Heap::SetStackLimit(jslimit);
   }
-  if (thread_local_.climit_ == thread_local_.initial_climit_) {
+  if (thread_local_.climit_ == thread_local_.real_climit_) {
     thread_local_.climit_ = limit;
   }
-  thread_local_.initial_climit_ = limit;
-  thread_local_.initial_jslimit_ = jslimit;
+  thread_local_.real_climit_ = limit;
+  thread_local_.real_jslimit_ = jslimit;
 }
 
 
@@ -354,7 +343,7 @@ char* StackGuard::ArchiveStackGuard(char* to) {
 char* StackGuard::RestoreStackGuard(char* from) {
   ExecutionAccess access;
   memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  Heap::SetStackLimit(thread_local_.jslimit_);
+  Heap::SetStackLimits();
   return from + sizeof(ThreadLocal);
 }
 
@@ -366,33 +355,33 @@ static internal::Thread::LocalStorageKey stack_limit_key =
 void StackGuard::FreeThreadResources() {
   Thread::SetThreadLocal(
       stack_limit_key,
-      reinterpret_cast<void*>(thread_local_.initial_climit_));
+      reinterpret_cast<void*>(thread_local_.real_climit_));
 }
 
 
 void StackGuard::ThreadLocal::Clear() {
-  initial_jslimit_ = kIllegalLimit;
+  real_jslimit_ = kIllegalLimit;
   jslimit_ = kIllegalLimit;
-  initial_climit_ = kIllegalLimit;
+  real_climit_ = kIllegalLimit;
   climit_ = kIllegalLimit;
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
-  Heap::SetStackLimit(kIllegalLimit);
+  Heap::SetStackLimits();
 }
 
 
 void StackGuard::ThreadLocal::Initialize() {
-  if (initial_climit_ == kIllegalLimit) {
+  if (real_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
     // the top of stack is right now.
     uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
     ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
-    initial_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
+    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
     jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
-    initial_climit_ = limit;
+    real_climit_ = limit;
     climit_ = limit;
-    Heap::SetStackLimit(SimulatorStack::JsLimitFromCLimit(limit));
+    Heap::SetStackLimits();
   }
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
