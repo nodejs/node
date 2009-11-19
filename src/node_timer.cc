@@ -108,7 +108,9 @@ Handle<Value>
 Timer::Stop (const Arguments& args)
 {
   Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
-  ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
-  timer->Detach();
+  if (ev_is_active(&timer->watcher_)) {
+    ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
+    timer->Detach();
+  }
   return Undefined();
 }
