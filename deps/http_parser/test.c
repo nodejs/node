@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h> /* rand */
 #include <string.h>
 #include <stdarg.h>
 
@@ -35,7 +36,8 @@
 
 enum message_type { REQUEST, RESPONSE };
 
-static http_parser parser;
+static http_parser *parser;
+
 struct message {
   const char *name; // for debugging purposes
   const char *raw;
@@ -67,8 +69,8 @@ inline size_t parse (enum message_type t, const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
-  nparsed = (t == REQUEST ? http_parse_requests(&parser, buf, len) 
-                          : http_parse_responses(&parser, buf, len));
+  nparsed = (t == REQUEST ? http_parse_requests(parser, buf, len) 
+                          : http_parse_responses(parser, buf, len));
   return nparsed;
 }
 
@@ -581,47 +583,47 @@ const struct message responses[] =
 };
 
 int
-request_path_cb (http_parser *parser, const char *p, size_t len)
+request_path_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
-  strncat(messages[num_messages].request_path, p, len);
+  assert(p == parser);
+  strncat(messages[num_messages].request_path, buf, len);
   return 0;
 }
 
 int
-request_url_cb (http_parser *parser, const char *p, size_t len)
+request_url_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
-  strncat(messages[num_messages].request_url, p, len);
+  assert(p == parser);
+  strncat(messages[num_messages].request_url, buf, len);
   return 0;
 }
 
 int
-query_string_cb (http_parser *parser, const char *p, size_t len)
+query_string_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
-  strncat(messages[num_messages].query_string, p, len);
+  assert(p == parser);
+  strncat(messages[num_messages].query_string, buf, len);
   return 0;
 }
 
 int
-fragment_cb (http_parser *parser, const char *p, size_t len)
+fragment_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
-  strncat(messages[num_messages].fragment, p, len);
+  assert(p == parser);
+  strncat(messages[num_messages].fragment, buf, len);
   return 0;
 }
 
 int
-header_field_cb (http_parser *parser, const char *p, size_t len)
+header_field_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
+  assert(p == parser);
   struct message *m = &messages[num_messages];
 
   if (m->last_header_element != FIELD)
     m->num_headers++;
 
-  strncat(m->headers[m->num_headers-1][0], p, len);
+  strncat(m->headers[m->num_headers-1][0], buf, len);
 
   m->last_header_element = FIELD;
 
@@ -629,12 +631,12 @@ header_field_cb (http_parser *parser, const char *p, size_t len)
 }
 
 int
-header_value_cb (http_parser *parser, const char *p, size_t len)
+header_value_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
+  assert(p == parser);
   struct message *m = &messages[num_messages];
 
-  strncat(m->headers[m->num_headers-1][1], p, len);
+  strncat(m->headers[m->num_headers-1][1], buf, len);
 
   m->last_header_element = VALUE;
 
@@ -642,25 +644,26 @@ header_value_cb (http_parser *parser, const char *p, size_t len)
 }
 
 int
-body_cb (http_parser *parser, const char *p, size_t len)
+body_cb (http_parser *p, const char *buf, size_t len)
 {
-  assert(parser);
-  strncat(messages[num_messages].body, p, len);
+  assert(p == parser);
+  strncat(messages[num_messages].body, buf, len);
  // printf("body_cb: '%s'\n", requests[num_messages].body);
   return 0;
 }
 
 int
-message_begin_cb (http_parser *parser)
+message_begin_cb (http_parser *p)
 {
-  assert(parser);
+  assert(p == parser);
   messages[num_messages].message_begin_cb_called = TRUE;
   return 0;
 }
 
 int
-headers_complete_cb (http_parser *parser)
+headers_complete_cb (http_parser *p)
 {
+  assert(p == parser);
   messages[num_messages].method = parser->method;
   messages[num_messages].status_code = parser->status_code;
   messages[num_messages].http_major = parser->http_major;
@@ -671,9 +674,9 @@ headers_complete_cb (http_parser *parser)
 }
 
 int
-message_complete_cb (http_parser *parser)
+message_complete_cb (http_parser *p)
 {
-  assert(parser);
+  assert(p == parser);
   if (messages[num_messages].should_keep_alive != http_should_keep_alive(parser))
   {
     fprintf(stderr, "\n\n *** Error http_should_keep_alive() should have same "
@@ -695,20 +698,32 @@ parser_init ()
 {
   num_messages = 0;
 
-  http_parser_init(&parser);
+  assert(parser == NULL);
+
+  parser = malloc(sizeof(http_parser));
+
+  http_parser_init(parser);
 
   memset(&messages, 0, sizeof messages);
 
-  parser.on_message_begin     = message_begin_cb;
-  parser.on_header_field      = header_field_cb;
-  parser.on_header_value      = header_value_cb;
-  parser.on_path              = request_path_cb;
-  parser.on_url               = request_url_cb;
-  parser.on_fragment          = fragment_cb;
-  parser.on_query_string      = query_string_cb;
-  parser.on_body              = body_cb;
-  parser.on_headers_complete  = headers_complete_cb;
-  parser.on_message_complete  = message_complete_cb;
+  parser->on_message_begin     = message_begin_cb;
+  parser->on_header_field      = header_field_cb;
+  parser->on_header_value      = header_value_cb;
+  parser->on_path              = request_path_cb;
+  parser->on_url               = request_url_cb;
+  parser->on_fragment          = fragment_cb;
+  parser->on_query_string      = query_string_cb;
+  parser->on_body              = body_cb;
+  parser->on_headers_complete  = headers_complete_cb;
+  parser->on_message_complete  = message_complete_cb;
+}
+
+void
+parser_free ()
+{
+  assert(parser);
+  free(parser);
+  parser = NULL;
 }
 
 static inline int
@@ -855,9 +870,11 @@ test_message (const struct message *message)
   }
 
   if(!message_eq(0, message)) exit(1);
+
+  parser_free();
 }
 
-int
+void
 test_error (const char *buf)
 {
   parser_init();
@@ -865,14 +882,16 @@ test_error (const char *buf)
   size_t parsed;
 
   parsed = parse(REQUEST, buf, strlen(buf));
-  if (parsed != strlen(buf)) return 1;
+  if (parsed != strlen(buf)) goto out;
   parsed = parse(REQUEST, NULL, 0);
-  if (parsed != 0) return 1;
+  if (parsed != 0) goto out;
 
   fprintf(stderr, "\n*** Error expected but none found ***\n\n%s", buf);
   exit(1);
+  return;
 
-  return 0;
+out:
+  parser_free();
 }
 
 void
@@ -913,6 +932,8 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   if (!message_eq(0, r1)) exit(1);
   if (!message_eq(1, r2)) exit(1);
   if (!message_eq(2, r3)) exit(1);
+
+  parser_free();
 }
 
 /* SCAN through every possible breaking to make sure the
@@ -1003,6 +1024,8 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
         fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
         goto error;
       }
+
+      parser_free();
     }
   }
   puts("\b\b\b\b100%");
@@ -1019,6 +1042,7 @@ error:
 int
 main (void)
 {
+  parser = NULL;
   int i, j, k;
   int request_count;
   int response_count;
@@ -1028,7 +1052,7 @@ main (void)
   for (request_count = 0; requests[request_count].name; request_count++);
   for (response_count = 0; responses[response_count].name; response_count++);
 
-
+#if 0
   //// RESPONSES
 
   for (i = 0; i < response_count; i++) {
@@ -1052,6 +1076,7 @@ main (void)
            );
 
   puts("responses okay");
+#endif
 
 
   /// REQUESTS

@@ -11,7 +11,7 @@ Features:
 
   * No dependencies
   * Parses both requests and responses.
-  * Handles perstent streams.
+  * Handles persistent streams.
   * Decodes chunked encoding.
   * Extracts the following data from a message
     * header fields and values

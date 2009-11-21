@@ -258,8 +258,10 @@ enum flags
 
 #if HTTP_PARSER_STRICT
 # define STRICT_CHECK(cond) if (cond) return ERROR
+# define NEW_MESSAGE() (http_should_keep_alive(parser) ? start_state : s_dead)
 #else 
 # define STRICT_CHECK(cond) 
+# define NEW_MESSAGE() start_state
 #endif
 
 static inline
@@ -295,7 +297,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         /* this state is used after a 'Connection: close' message
          * the parser will error out if it reads another message
          */
-        return 0;
+        return ERROR;
 
       case s_start_res:
       {
@@ -1249,7 +1251,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         if (parser->flags & F_TRAILING) {
           /* End of a chunked request */
           CALLBACK2(message_complete);
-          state = http_should_keep_alive(parser) ? start_state : s_dead;
+          state = NEW_MESSAGE();
           break;
         }
 
@@ -1264,7 +1266,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
           if (parser->content_length == 0) {
             /* Content-Length header given but zero: Content-Length: 0\r\n */
             CALLBACK2(message_complete);
-            state = http_should_keep_alive(parser) ? start_state : s_dead;
+            state = NEW_MESSAGE();
           } else if (parser->content_length > 0) {
             /* Content-Length header given and non-zero */
             state = s_body_identity;
@@ -1272,7 +1274,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
             if (start_state == s_start_req || http_should_keep_alive(parser)) {
               /* Assume content-length 0 - read the next */
               CALLBACK2(message_complete);
-              state = http_should_keep_alive(parser) ? start_state : s_dead;
+              state = NEW_MESSAGE();
             } else {
               /* Read body until EOF */
               state = s_body_identity_eof;
@@ -1291,7 +1293,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
           parser->body_read += to_read;
           if (parser->body_read == parser->content_length) {
             CALLBACK2(message_complete);
-            state = http_should_keep_alive(parser) ? start_state : s_dead;
+            state = NEW_MESSAGE();
           }
         }
         break;
@@ -1469,5 +1471,12 @@ http_parser_init (http_parser *parser)
   parser->on_headers_complete = NULL;
   parser->on_body = NULL;
   parser->on_message_complete = NULL;
+
+  parser->header_field_mark = NULL;
+  parser->header_value_mark = NULL;
+  parser->query_string_mark = NULL;
+  parser->path_mark = NULL;
+  parser->url_mark = NULL;
+  parser->fragment_mark = NULL;
 }
 
