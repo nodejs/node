@@ -25,12 +25,14 @@ HTTPConnection::Initialize (Handle<Object> target)
   client_constructor_template->Inherit(Connection::constructor_template);
   client_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   client_constructor_template->SetClassName(String::NewSymbol("Client"));
+  NODE_SET_PROTOTYPE_METHOD(client_constructor_template, "resetParser", ResetParser);
   target->Set(String::NewSymbol("Client"), client_constructor_template->GetFunction());
 
   t = FunctionTemplate::New(NewServer);
   server_constructor_template = Persistent<FunctionTemplate>::New(t);
   server_constructor_template->Inherit(Connection::constructor_template);
   server_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  NODE_SET_PROTOTYPE_METHOD(server_constructor_template, "resetParser", ResetParser);
   server_constructor_template->SetClassName(String::NewSymbol("ServerSideConnection"));
 }
 
@@ -56,12 +58,46 @@ HTTPConnection::NewServer (const Arguments& args)
   return args.This();
 }
 
+
+Handle<Value> HTTPConnection::ResetParser(const Arguments& args) {
+  HandleScope scope;
+  HTTPConnection *connection = ObjectWrap::Unwrap<HTTPConnection>(args.Holder());
+  connection->ResetParser();
+  return Undefined();
+}
+
+
 void
 HTTPConnection::OnReceive (const void *buf, size_t len)
 {
+  HandleScope scope;
+
   assert(attached_);
-  http_parser_execute(&parser_, static_cast<const char*>(buf), len);
-  if (http_parser_has_error(&parser_)) ForceClose();
+  size_t nparsed; 
+
+  if (type_ == HTTP_REQUEST) {
+    nparsed = http_parse_requests(&parser_, static_cast<const char*>(buf), len);
+  } else {
+    nparsed = http_parse_responses(&parser_, static_cast<const char*>(buf), len);
+  }
+
+  if (nparsed != len) {
+    ForceClose();
+  }
+}
+
+void
+HTTPConnection::OnEOF ()
+{
+  HandleScope scope;
+  assert(attached_);
+  printf("(node) HTTP EOF!\n");
+  if (type_ == HTTP_REQUEST) {
+    http_parse_requests(&parser_, NULL, 0);
+  } else {
+    http_parse_responses(&parser_, NULL, 0);
+  }
+  Emit("eof", 0, NULL);
 }
 
 int
@@ -83,13 +119,13 @@ HTTPConnection::on_message_complete (http_parser *parser)
 }
 
 int
-HTTPConnection::on_uri (http_parser *parser, const char *buf, size_t len)
+HTTPConnection::on_url (http_parser *parser, const char *buf, size_t len)
 {
   HandleScope scope;
   HTTPConnection *connection = static_cast<HTTPConnection*>(parser->data);
   assert(connection->attached_);
   Local<Value> argv[1] = { String::New(buf, len) };
-  connection->Emit("uri", 1, argv);
+  connection->Emit("url", 1, argv);
   return 0;
 }
 
@@ -170,20 +206,11 @@ GetMethod (int method)
 {
   const char *s;
   switch (method) {
-    case HTTP_COPY:       s = "COPY"; break;
     case HTTP_DELETE:     s = "DELETE"; break;
     case HTTP_GET:        s = "GET"; break;
     case HTTP_HEAD:       s = "HEAD"; break;
-    case HTTP_LOCK:       s = "LOCK"; break;
-    case HTTP_MKCOL:      s = "MKCOL"; break;
-    case HTTP_MOVE:       s = "MOVE"; break;
-    case HTTP_OPTIONS:    s = "OPTIONS"; break;
     case HTTP_POST:       s = "POST"; break;
-    case HTTP_PROPFIND:   s = "PROPFIND"; break;
-    case HTTP_PROPPATCH:  s = "PROPPATCH"; break;
     case HTTP_PUT:        s = "PUT"; break;
-    case HTTP_TRACE:      s = "TRACE"; break;
-    case HTTP_UNLOCK:     s = "UNLOCK"; break;
   }
   HandleScope scope;
   Local<String> method = String::NewSymbol(s);
@@ -200,26 +227,28 @@ HTTPConnection::on_headers_complete (http_parser *parser)
   Local<Object> message_info = Object::New();
 
   // METHOD
-  if (connection->parser_.type == HTTP_REQUEST)
+  if (connection->type_ == HTTP_REQUEST) {
     message_info->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
+  }
 
   // STATUS
-  if (connection->parser_.type == HTTP_RESPONSE)
+  if (connection->type_ == HTTP_RESPONSE) {
     message_info->Set(STATUS_CODE_SYMBOL,
         Integer::New(connection->parser_.status_code));
+  }
 
   // VERSION
   char version[10];
   snprintf( version
           , 10
           , "%d.%d"
-          , connection->parser_.version_major
-          , connection->parser_.version_minor
+          , connection->parser_.http_major
+          , connection->parser_.http_minor
           );
   message_info->Set(HTTP_VERSION_SYMBOL, String::New(version));
 
   message_info->Set(SHOULD_KEEP_ALIVE_SYMBOL,
-      http_parser_should_keep_alive(&connection->parser_) ? True() : False());
+      http_should_keep_alive(&connection->parser_) ? True() : False());
 
   Local<Value> argv[1] = { message_info };
 

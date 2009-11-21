@@ -26,9 +26,7 @@ are:
     Michael Tokarev <mjt@corpit.ru>. Released under the GNU Lesser General
     Public License version 2.1.
 
-Additionally deps/http_parser is based on Zed Shaw's Mongrel.  Mongrel is
-copyrighted by Zed Shaw and distributed under GPL2 or a permissive open
-licence. See deps/http_parser/LICENCE for more information.
+Other external libraries are my own and all use the same license as Node.
 
 Node's license follows:
 
