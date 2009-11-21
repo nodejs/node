@@ -91,7 +91,6 @@ HTTPConnection::OnEOF ()
 {
   HandleScope scope;
   assert(attached_);
-  printf("(node) HTTP EOF!\n");
   if (type_ == HTTP_REQUEST) {
     http_parse_requests(&parser_, NULL, 0);
   } else {
