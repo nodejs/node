@@ -118,6 +118,10 @@ int EIOPromise::After(eio_req *req) {
     Local<Value> exception = Exception::Error(
         String::NewSymbol(strerror(req->errorno)));
     promise->EmitError(1, &exception);
+    if (req->type == EIO_WRITE) {
+      assert(req->ptr2);
+      delete [] req->ptr2;
+    }
     return 0;
   }
 
