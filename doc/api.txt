@@ -1069,7 +1069,6 @@ var stream = new multipart.Stream(options);
 var parts = {};
 
 stream.addListener("part", function (part) {
-  var name = part.headers["Content-Disposition"].name;
   var buffer = "";
 
   part.addListener("body", function(chunk) {
@@ -1077,7 +1076,7 @@ stream.addListener("part", function (part) {
   });
 
   part.addListener("complete", function() {
-    parts[name] = buffer;
+    parts[part.name] = buffer;
   });
 });
 
@@ -1095,6 +1094,12 @@ stream.addListener("complete", function() {
 |+"complete"+    |              | Emitted when the end of the stream is reached.
 |=========================================================
 
++stream.bytesTotal+::
+The amount of bytes this stream is expected to have.
+
++stream.bytesReceived+::
+The amount of bytes received by this stream so far.
+
 ==== +multipart.Part+
 
 [cols="1,2,10",options="header"]
@@ -1104,6 +1109,11 @@ stream.addListener("complete", function() {
 |+"complete"+    |              | Emitted when the end of the part is reached.
 |=========================================================
 
++part.name+::
+The field name of this part.
+
++part.filename+::
+The filename of this part. Only set for file uploads.
 
 === TCP
 

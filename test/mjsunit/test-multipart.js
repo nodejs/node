@@ -15,7 +15,7 @@ var server = http.createServer(function(req, res) {
   stream.addListener('part', function(part) {
     parts_reveived++;
 
-    var name = part.headers['content-disposition'].name;
+    var name = part.name;
 
     if (parts_reveived == 1) {
       assertEquals('reply', name);
