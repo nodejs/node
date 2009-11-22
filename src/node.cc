@@ -244,6 +244,25 @@ static Handle<Value> ByteLength(const Arguments& args) {
   return scope.Close(length);
 }
 
+static Handle<Value> Loop(const Arguments& args) {
+  HandleScope scope;
+  ev_loop(EV_DEFAULT_UC_ 0);
+  return Undefined();
+}
+
+static Handle<Value> Unloop(const Arguments& args) {
+  HandleScope scope;
+  int how = EVUNLOOP_ONE;
+  if (args[0]->IsString()) {
+    String::Utf8Value how_s(args[0]->ToString());
+    if (0 == strcmp(*how_s, "all")) {
+      how = EVUNLOOP_ALL;
+    }
+  }
+  ev_unloop(EV_DEFAULT_ how);
+  return Undefined();
+}
+
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
   
@@ -691,6 +710,8 @@ static Local<Object> Load(int argc, char *argv[]) {
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
   // define various internal methods
+  NODE_SET_METHOD(process, "loop", Loop);
+  NODE_SET_METHOD(process, "unloop", Unloop);
   NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "reallyExit", Exit);
@@ -738,30 +759,6 @@ static Local<Object> Load(int argc, char *argv[]) {
   // In node.js we actually load the file specified in ARGV[1]
   // so your next reading stop should be node.js!
   ExecuteNativeJS("node.js", native_node);
-}
-
-static void EmitExitEvent() {
-  HandleScope scope;
-
-  // Get the 'emit' function from 'process'
-  Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
-  if (!emit_v->IsFunction()) {
-    // could not emit exit event so exit
-    exit(10);
-  }
-  // Cast
-  Local<Function> emit = Local<Function>::Cast(emit_v);
-
-  TryCatch try_catch;
-
-  // Arguments for the emit('exit')
-  Local<Value> argv[2] = { String::New("exit"), Integer::New(0) };
-  // Emit!
-  emit->Call(process, 2, argv);
-
-  if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
-  }
 }
 
 static void PrintHelp() {
@@ -886,16 +883,6 @@ int main(int argc, char *argv[]) {
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
   node::Load(argc, argv);
-
-  // All our arguments are loaded. We've evaluated all of the scripts. We
-  // might even have created TCP servers. Now we enter the main event loop.
-  // If there are no watchers on the loop (except for the ones that were
-  // ev_unref'd) then this function exits. As long as there are active
-  // watchers, it blocks.
-  ev_loop(EV_DEFAULT_UC_ 0);  // main event loop
-
-  // Once we've dropped out, emit the 'exit' event from 'process'
-  node::EmitExitEvent();
 
 #ifndef NDEBUG
   // Clean up.
