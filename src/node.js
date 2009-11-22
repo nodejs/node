@@ -257,6 +257,9 @@ process.Promise.prototype.timeout = function(timeout) {
 };
 
 process.Promise.prototype.cancel = function() {
+  if(this._cancelled) return;
+  this._cancelled = true;
+
   this._events['success'] = [];
   this._events['error'] = [];
 
