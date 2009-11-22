@@ -1,5 +1,12 @@
 #! /bin/sh
 
+# v8 doesn't like ccache
+if [ ! -z "`echo $CC | grep ccache`" ]; then
+  echo "Error: V8 doesn't like cache. Please set your CC env var to 'gcc'"
+  echo "  (ba)sh: export CC=gcc"
+  exit 1
+fi
+
 CUR_DIR=$PWD
 
 #possible relative path
