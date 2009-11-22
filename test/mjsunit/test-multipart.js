@@ -28,6 +28,7 @@ var server = http.createServer(function(req, res) {
       parts[name] += chunk;
     });
     part.addListener('complete', function(chunk) {
+      assertEquals(0, part.buffer.length);
       if (parts_reveived == 1) {
         assertEquals('yes', parts[name]);
       } else if (parts_reveived == 2) {
