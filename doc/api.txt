@@ -119,6 +119,11 @@ success code 0.
 +process.cwd()+::
 Returns the current working directory of the process.
 
++process.umask(mask)+ ::
+Sets the process's file mode creation mask. Child processes inherit the mask 
+from the parent process.
+  - returns the old mask.
+
 +process.kill(pid, signal="SIGTERM")+ ::
 Send a signal to a process. +pid+ is the process id and +signal+ is the
 signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
@@ -635,7 +640,6 @@ sys.puts("stats: " + JSON.stringify(stats));
   See pwrite(2).
   - on success: returns an integer +written+ which specifies how many _bytes_ were written.
   - on error: no parameters.
-
 
 +posix.read(fd, length, position, encoding)+::
 

@@ -275,6 +275,19 @@ static Handle<Value> Cwd(const Arguments& args) {
   return scope.Close(cwd);
 }
 
+static Handle<Value> Umask(const Arguments& args){
+  HandleScope scope;
+
+  if(args.Length() < 1 || !args[0]->IsInt32()) {		
+    return ThrowException(Exception::TypeError(
+          String::New("argument must be an integer.")));
+  }
+  unsigned int mask = args[0]->Uint32Value();
+  unsigned int old = umask((mode_t)mask);
+  
+  return scope.Close(Uint32::New(old));
+}
+
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   int r = 0;
   if (args.Length() > 0)
@@ -683,6 +696,7 @@ static Local<Object> Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
+  NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
