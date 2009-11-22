@@ -119,14 +119,20 @@ def configure(conf):
     if sys.platform.startswith("freebsd"):
       fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
+  if conf.check_cfg(package='gnutls',
+                    args='--cflags --libs',
+                    #libpath=['/usr/lib', '/usr/local/lib'],
+                    uselib_store='GNUTLS'):
+    if conf.check(lib='gpg-error',
+                  #libpath=['/usr/lib', '/usr/local/lib'],
+                  uselib_store='GPGERROR'):
+      conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
+      conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
+
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
 
   conf_subproject(conf, 'deps/udns', './configure')
-
-  # Not using TLS yet
-  # if conf.check_cfg(package='gnutls', args='--cflags --libs', uselib_store="GNUTLS"):
-  #   conf.define("HAVE_GNUTLS", 1)
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -258,7 +264,7 @@ def build(bld):
   evcom.includes = "deps/evcom/ deps/libev/"
   evcom.name = "evcom"
   evcom.target = "evcom"
-  # evcom.uselib = "GNUTLS"
+  evcom.uselib = "GPGERROR GNUTLS"
   evcom.install_path = None
   if bld.env["USE_DEBUG"]:
     evcom.clone("debug")
@@ -337,7 +343,8 @@ def build(bld):
   """
   node.add_objects = 'ev eio evcom http_parser coupling'
   node.uselib_local = ''
-  node.uselib = 'UDNS V8 EXECINFO DL'
+  node.uselib = 'UDNS V8 EXECINFO DL GPGERROR GNUTLS'
+
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755

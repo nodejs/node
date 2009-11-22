@@ -72,6 +72,13 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ReadResume);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
+  #if EVCOM_HAVE_GNUTLS
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setSecure", SetSecure);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "verifyPeer", VerifyPeer);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "getPeerCertificate",
+                            GetPeerCertificate);
+  gnutls_global_init();
+  #endif
 
   // Getter for connection.readyState
   constructor_template->PrototypeTemplate()->SetAccessor(
@@ -139,6 +146,7 @@ Handle<Value> Connection::FDGetter(Local<String> property,
 // reinitialized without destroying the object.
 void Connection::Init() {
   resolving_ = false;
+  secure_ = false;
   evcom_stream_init(&stream_);
   stream_.on_connect = Connection::on_connect;
   stream_.on_read    = Connection::on_read;
@@ -251,9 +259,6 @@ int Connection::Resolve(eio_req *req) {
                             &client_tcp_hints, &address);
   req->ptr2 = address;
 
-  free(connection->host_);
-  connection->host_ = NULL;
-
   free(connection->port_);
   connection->port_ = NULL;
 
@@ -341,6 +346,141 @@ Handle<Value> Connection::SetEncoding(const Arguments& args) {
         String::New("Could not parse encoding. This is a Node bug.")));
 }
 
+#if EVCOM_HAVE_GNUTLS
+
+Handle<Value> Connection::SetSecure(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+  int r;
+
+  connection->secure_ = true;
+
+  // Create credentials
+
+  gnutls_certificate_allocate_credentials(&connection->credentials);
+
+  if (args[1]->IsString()) {
+    String::Utf8Value caString(args[1]->ToString());
+    gnutls_datum_t datum = { reinterpret_cast<unsigned char*>(*caString)
+                           , caString.length() 
+                           };
+    r = gnutls_certificate_set_x509_trust_mem(connection->credentials,
+                                              &datum, GNUTLS_X509_FMT_PEM);
+  }
+
+  if (args[2]->IsString()) {
+    String::Utf8Value crlString(args[2]->ToString());
+    gnutls_datum_t datum = { reinterpret_cast<unsigned char*>(*crlString)
+                           , crlString.length()
+                           };
+    r = gnutls_certificate_set_x509_crl_mem(connection->credentials,
+                                            &datum, GNUTLS_X509_FMT_PEM);
+  }
+
+  if (args[3]->IsString() && args[4]->IsString()) {
+    String::Utf8Value keyString(args[3]->ToString());
+    String::Utf8Value certString(args[4]->ToString());
+    gnutls_datum_t datum_key = { reinterpret_cast<unsigned char*>(*keyString)
+                               , keyString.length() 
+                               };
+    gnutls_datum_t datum_cert = { reinterpret_cast<unsigned char*>(*certString)
+                                , certString.length()
+                                };
+    r = gnutls_certificate_set_x509_key_mem(connection->credentials,
+                                            &datum_cert, &datum_key,
+                                            GNUTLS_X509_FMT_PEM);
+  }
+
+  // Create the session object
+
+  init_tls_session(&connection->stream_,
+                   connection->credentials,
+                   GNUTLS_CLIENT);
+
+  return Undefined();
+}
+
+
+Handle<Value> Connection::VerifyPeer(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+
+  const gnutls_datum_t * cert_chain;
+  uint cert_chain_length;
+  gnutls_x509_crl_t *crl_list;
+  uint crl_list_size;
+  gnutls_x509_crt_t *ca_list;
+  uint ca_list_size;
+  int r;
+
+  if (!connection->secure_) {
+    return Undefined();
+  }
+
+  cert_chain = gnutls_certificate_get_peers(connection->stream_.session,
+                                            &cert_chain_length);
+
+  gnutls_certificate_get_x509_crls(connection->credentials,
+                                   &crl_list,
+                                   &crl_list_size);
+
+  gnutls_certificate_get_x509_cas(connection->credentials,
+                                  &ca_list,
+                                  &ca_list_size);
+
+  r = verify_certificate_chain(connection->stream_.session,
+                               connection->host_,
+                               cert_chain,
+                               cert_chain_length,
+                               crl_list,
+                               crl_list_size,
+                               ca_list,
+                               ca_list_size);
+
+  return scope.Close(Integer::New(r));
+}
+
+Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
+  assert(connection);
+
+  if (!connection->secure_) {
+    return Undefined();
+  }
+
+  const gnutls_datum_t * cert_chain;
+  uint cert_chain_length;
+  char *name;
+  size_t name_size;
+  gnutls_x509_crt_t cert;
+  cert_chain = gnutls_certificate_get_peers(connection->stream_.session,
+                                            &cert_chain_length);
+
+  if ( (cert_chain_length == 0) || (cert_chain == NULL) ) {
+    return Undefined();
+  }
+
+  gnutls_x509_crt_init(&cert);
+  gnutls_x509_crt_import(cert, &cert_chain[0], GNUTLS_X509_FMT_DER);
+
+
+  gnutls_x509_crt_get_dn(cert, NULL, &name_size);
+  name = (char *)malloc(name_size);
+  gnutls_x509_crt_get_dn(cert, name, &name_size);
+
+  Local<String> dnString = String::New(name);
+  free(name);
+  gnutls_x509_crt_deinit(cert);
+  return scope.Close(dnString);
+}
+#endif
+
 Handle<Value> Connection::ReadPause(const Arguments& args) {
   HandleScope scope;
 
@@ -382,6 +522,12 @@ Handle<Value> Connection::Close(const Arguments& args) {
   assert(connection);
 
   connection->Close();
+
+  if (connection->host_ != NULL) {
+    free(connection->host_);
+    connection->host_ = NULL;
+  }
+
   return Undefined();
 }
 
@@ -453,6 +599,19 @@ void Connection::OnClose() {
   };
 
   Emit("close", 2, argv);
+
+  #if EVCOM_HAVE_GNUTLS
+  if (secure_) {
+    if (stream_.session) {
+      gnutls_deinit(stream_.session);
+      stream_.session = NULL;
+    }
+    if (!stream_.server && credentials) {
+      gnutls_certificate_free_credentials(credentials);
+      credentials = NULL;
+    }
+  }
+  #endif
 }
 
 void Connection::OnConnect() {
@@ -495,6 +654,9 @@ void Server::Initialize(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", Listen);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
+  #if EVCOM_HAVE_GNUTLS
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setSecure", SetSecure);
+  #endif
 
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
@@ -550,6 +712,16 @@ Connection* Server::OnConnection(struct sockaddr *addr) {
   Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
 
+  #if EVCOM_HAVE_GNUTLS
+  if (secure_) {
+    connection->secure_ = true;
+    connection->credentials = credentials;
+    init_tls_session(&connection->stream_,
+                     connection->credentials,
+                     GNUTLS_SERVER);
+  }
+  #endif
+
   connection->Attach();
 
   return connection;
@@ -568,7 +740,6 @@ Handle<Value> Server::New(const Arguments& args) {
 
   Server *server = new Server();
   server->Wrap(args.This());
-
   return args.This();
 }
 
@@ -635,6 +806,56 @@ Handle<Value> Server::Listen(const Arguments& args) {
   return Undefined();
 }
 
+#if EVCOM_HAVE_GNUTLS
+
+Handle<Value> Server::SetSecure(const Arguments& args) {
+  Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
+  assert(server);
+
+  int r;
+
+  server->secure_ = true;
+  gnutls_certificate_allocate_credentials(&server->credentials);
+
+
+  if (args[1]->IsString()) {
+    String::Utf8Value caString(args[1]->ToString());
+    gnutls_datum_t datum = { reinterpret_cast<unsigned char*>(*caString)
+                           , caString.length()
+                           };
+    r = gnutls_certificate_set_x509_trust_mem(server->credentials,
+                                              &datum, GNUTLS_X509_FMT_PEM);
+  }
+
+
+  if (args[2]->IsString()) {
+    String::Utf8Value crlString(args[2]->ToString());
+    gnutls_datum_t datum = { reinterpret_cast<unsigned char*>(*crlString)
+                           , crlString.length()
+                           };
+    r = gnutls_certificate_set_x509_crl_mem(server->credentials,
+                                            &datum, GNUTLS_X509_FMT_PEM);
+  }
+
+  if (args[3]->IsString() && args[4]->IsString()) {
+    String::Utf8Value keyString(args[3]->ToString());
+    String::Utf8Value certString(args[4]->ToString());
+    gnutls_datum_t datum_key  = { reinterpret_cast<unsigned char*>(*keyString)
+                                , keyString.length() 
+                                };
+    gnutls_datum_t datum_cert = { reinterpret_cast<unsigned char*>(*certString)
+                                , certString.length()
+                                };
+    r = gnutls_certificate_set_x509_key_mem(server->credentials,
+                                              &datum_cert, &datum_key,
+                                              GNUTLS_X509_FMT_PEM);
+  }
+
+  return Undefined();
+}
+
+#endif
+
 Handle<Value> Server::Close(const Arguments& args) {
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   assert(server);
@@ -644,3 +865,206 @@ Handle<Value> Server::Close(const Arguments& args) {
 }
 
 }  // namespace node
+
+
+
+
+#if EVCOM_HAVE_GNUTLS
+void init_tls_session(evcom_stream* stream_,
+                      gnutls_certificate_credentials_t credentials,
+                      gnutls_connection_end_t session_type) {
+  gnutls_init(&stream_->session,
+              session_type);
+  if (session_type == GNUTLS_SERVER) {
+    gnutls_certificate_server_set_request(stream_->session,
+                                          GNUTLS_CERT_REQUEST);
+  }
+  gnutls_set_default_priority(stream_->session);
+  const int cert_type_priority[] = { GNUTLS_CRT_X509, 0 };
+  const int proto_type_priority[] = { GNUTLS_TLS1_0,
+                                      GNUTLS_TLS1_1,
+                                      GNUTLS_SSL3,
+                                      0};
+  gnutls_certificate_type_set_priority(stream_->session,
+                                       cert_type_priority);
+  gnutls_protocol_set_priority(stream_->session,
+                               proto_type_priority);
+  gnutls_credentials_set(stream_->session,
+                         GNUTLS_CRD_CERTIFICATE,
+                         credentials);
+  evcom_stream_set_secure_session(stream_,
+                                  stream_->session);
+}
+
+
+/* This function will try to verify the peer's certificate chain, and
+ * also check if the hostname matches, and the activation, expiration dates.
+ */
+int verify_certificate_chain(gnutls_session_t session,
+                             const char *hostname,
+                             const gnutls_datum_t * cert_chain,
+                             int cert_chain_length,
+                             gnutls_x509_crl_t *crl_list,
+                             int crl_list_size,
+                             gnutls_x509_crt_t *ca_list,
+                             int ca_list_size) {
+  int r = 0;
+  int i;
+  int ss = 0;
+  gnutls_x509_crt_t *cert;
+
+  if ((cert_chain_length == 0) || (cert_chain == NULL)) {
+    return JS_GNUTLS_CERT_UNDEFINED;
+  }
+  cert = (gnutls_x509_crt_t *)malloc(sizeof(*cert) * cert_chain_length);
+
+  /* Import all the certificates in the chain to
+   * native certificate format.
+   */
+  for (i = 0; i < cert_chain_length; i++) {
+    gnutls_x509_crt_init(&cert[i]);
+    gnutls_x509_crt_import(cert[i], &cert_chain[i], GNUTLS_X509_FMT_DER);
+  }
+
+  /* If the last certificate in the chain is self signed ignore it.
+   * That is because we want to check against our trusted certificate
+   * list.
+   */
+
+  if (gnutls_x509_crt_check_issuer(cert[cert_chain_length - 1],
+                                    cert[cert_chain_length - 1]) > 0
+                                    && cert_chain_length > 0) {
+    cert_chain_length--;
+    ss = 1;
+  }
+
+  /* Now verify the certificates against their issuers
+   * in the chain.
+   */
+  for (i = 1; i < cert_chain_length; i++) {
+    r = verify_cert2(cert[i - 1], cert[i], crl_list, crl_list_size);
+    if (r < 0) goto out;
+  }
+
+  /* Here we must verify the last certificate in the chain against
+   * our trusted CA list.
+   */
+
+  if (cert_chain_length>0) {
+    r = verify_last_cert(cert[cert_chain_length - 1], ca_list, ca_list_size,
+                       crl_list, crl_list_size);
+    if (r < 0) goto out;
+  } else {
+    r = verify_last_cert(cert[0], ca_list, ca_list_size,
+                          crl_list, crl_list_size);
+    if (r < 0) goto out;
+  }
+
+  /* Check if the name in the first certificate matches our destination!
+   */
+  if (hostname != NULL) {
+    if (!gnutls_x509_crt_check_hostname(cert[0], hostname)) {
+      r = JS_GNUTLS_CERT_DOES_NOT_MATCH_HOSTNAME;
+    }
+  }
+
+ out:
+
+  for (i = 0; i < cert_chain_length+ss; i++) {
+    gnutls_x509_crt_deinit(cert[i]);
+  }
+
+  return r;
+}
+
+
+/* Verifies a certificate against an other certificate
+ * which is supposed to be it's issuer. Also checks the
+ * crl_list if the certificate is revoked.
+ */
+int verify_cert2(gnutls_x509_crt_t crt,
+                 gnutls_x509_crt_t issuer,
+                 gnutls_x509_crl_t * crl_list,
+                 int crl_list_size) {
+  unsigned int output;
+  int ret;
+  time_t now = time(0);
+
+  gnutls_x509_crt_verify(crt, &issuer, 1, 0, &output);
+
+  if (output & GNUTLS_CERT_INVALID) {
+    if (output & GNUTLS_CERT_SIGNER_NOT_FOUND) {
+      return JS_GNUTLS_CERT_SIGNER_NOT_FOUND;
+    }
+    if (output & GNUTLS_CERT_SIGNER_NOT_CA) {
+      return JS_GNUTLS_CERT_SIGNER_NOT_CA;
+    }
+    return JS_GNUTLS_CERT_SIGNER_NOT_CA;
+  }
+
+
+  /* Now check the expiration dates.
+   */
+  if (gnutls_x509_crt_get_activation_time(crt) > now) {
+    return JS_GNUTLS_CERT_NOT_ACTIVATED;
+  }
+
+  if (gnutls_x509_crt_get_expiration_time(crt) < now) {
+    return JS_GNUTLS_CERT_EXPIRED;
+  }
+
+  /* Check if the certificate is revoked.
+   */
+  ret = gnutls_x509_crt_check_revocation(crt, crl_list, crl_list_size);
+  if (ret == 1) {
+    return JS_GNUTLS_CERT_REVOKED;
+  }
+
+  return JS_GNUTLS_CERT_VALIDATED;
+}
+
+
+/* Verifies a certificate against our trusted CA list.
+ * Also checks the crl_list if the certificate is revoked.
+ */
+int verify_last_cert(gnutls_x509_crt_t crt,
+                     gnutls_x509_crt_t * ca_list,
+                     int ca_list_size,
+                     gnutls_x509_crl_t * crl_list,
+                     int crl_list_size) {
+  unsigned int output;
+  int ret;
+  time_t now = time(0);
+
+  gnutls_x509_crt_verify(crt, ca_list, ca_list_size,
+                         GNUTLS_VERIFY_ALLOW_X509_V1_CA_CRT, &output);
+
+  if (output & GNUTLS_CERT_INVALID) {
+    if (output & GNUTLS_CERT_SIGNER_NOT_CA) {
+      return JS_GNUTLS_CERT_SIGNER_NOT_CA;
+    }
+    return JS_GNUTLS_CERT_INVALID;
+  }
+
+
+  /* Now check the expiration dates.
+   */
+  if (gnutls_x509_crt_get_activation_time(crt) > now) {
+    return JS_GNUTLS_CERT_NOT_ACTIVATED;
+  }
+
+  if (gnutls_x509_crt_get_expiration_time(crt) < now) {
+    return JS_GNUTLS_CERT_EXPIRED;
+  }
+
+  /* Check if the certificate is revoked.
+   */
+  ret = gnutls_x509_crt_check_revocation(crt, crl_list, crl_list_size);
+  if (ret == 1) {
+    return JS_GNUTLS_CERT_REVOKED;
+  }
+
+  return JS_GNUTLS_CERT_VALIDATED;
+}
+#endif  // EVCOM_HAVE_GNUTLS
+

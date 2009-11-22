@@ -741,6 +741,16 @@ options argument for +tcp.Server+ does.
 The +request_listener+ is a function which is automatically
 added to the +"request"+ event.
 
++server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)+ ::
+Enable TLS for all incoming connections, with the specified credentials.
++
+format_type currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings. 
++
+The ca_certs is a string that holds a number of CA certificates for use in accepting
+client connections that authenticate themselves with a client certificate. 
+The private_key is a PEM string of the unencrypted key for the server.
+
 +server.listen(port, hostname)+ ::
 Begin accepting connections on the specified port and hostname.
 If the hostname is omitted, the server will accept connections
@@ -926,6 +936,17 @@ the header of the request. One needs to call
 the response.  (This sounds convoluted but it provides a chance
 for the user to stream a body to the server with
 +request.sendBody()+.)
+
++client.setSecure(format_type, ca_certs, crl_list, private_key, certificate)+ ::
+Enable TLS for the client connection, with the specified credentials.
++
+format_type currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings, and optional.
++
+The ca_certs is a string that holds a number of CA certificates for use in deciding the
+authenticity of the remote server. The private_key is a PEM string of the unencrypted
+key for the client, which together with the certificate allows the client to authenticate
+itself to the server.
 
 
 ==== +http.ClientRequest+
@@ -1160,6 +1181,15 @@ Creates a new TCP server.
 The +connection_listener+ argument is automatically set as a listener for
 the +"connection"+ event.
 
++server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)+ ::
+Enable TLS for all incoming connections, with the specified credentials.
++
+format_type currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings. 
++
+The ca_certs is a string that holds a number of CA certificates for use in accepting
+client connections that authenticate themselves with a client certificate. 
+The private_key is a PEM string of the unencrypted key for the server.
 
 +server.listen(port, host=null, backlog=128)+ ::
 Tells the server to listen for TCP connections to +port+ and +host+.
@@ -1172,7 +1202,6 @@ The third argument, +backlog+, is also optional and defaults to 128.  The
 connections for the server may grow.
 +
 This function is synchronous.
-
 
 +server.close()+::
 Stops the server from accepting new connections. This function is
@@ -1278,6 +1307,25 @@ If +timeout+ is 0, then the idle timeout is disabled.
 Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting +noDelay+ will
 immediately fire off data each time +connection.send()+ is called.
+
++connection.verifyPeer()+::
+Returns an integer indicating the trusted status of the peer in a TLS
+connection. 
++
+Returns 1 if the peer's certificate is issued by one of the trusted CAs,
+the certificate has not been revoked, is in the issued date range,
+and if the peer is the server, matches the hostname.
++
+Returns 0 if no certificate was presented by the peer, or negative result
+if the verification fails (with a given reason code). This function is synchronous.
+
++connection.getPeerCertificate(format)+::
+For a TLS connection, returns the peer's certificate information, as defined 
+by the given format.
++
+A format of "DNstring" gives a single string with the combined Distinguished
+Name (DN) from the certificate, as comma delimited name=value pairs as defined
+in RFC2253. This function is synchronous.
 
 === DNS module
 
