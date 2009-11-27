@@ -82,14 +82,30 @@ v8::Handle<v8::Value> DoLoop(const v8::Arguments& args) {
 }
 
 
+v8::Handle<v8::Value> DoLoopNoCall(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  v8::Script::Compile(v8::String::New("var term = true;"
+                                      "while(true) {"
+                                      "  if (term) terminate();"
+                                      "  term = false;"
+                                      "}"))->Run();
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->IsNull());
+  CHECK(try_catch.Message().IsEmpty());
+  CHECK(!try_catch.CanContinue());
+  return v8::Undefined();
+}
+
+
 v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
-    v8::InvocationCallback terminate) {
+    v8::InvocationCallback terminate,
+    v8::InvocationCallback doloop) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   global->Set(v8::String::New("terminate"),
               v8::FunctionTemplate::New(terminate));
   global->Set(v8::String::New("fail"), v8::FunctionTemplate::New(Fail));
   global->Set(v8::String::New("loop"), v8::FunctionTemplate::New(Loop));
-  global->Set(v8::String::New("doloop"), v8::FunctionTemplate::New(DoLoop));
+  global->Set(v8::String::New("doloop"), v8::FunctionTemplate::New(doloop));
   return global;
 }
 
@@ -99,7 +115,25 @@ v8::Handle<v8::ObjectTemplate> CreateGlobalTemplate(
 TEST(TerminateOnlyV8ThreadFromThreadItself) {
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> global =
-      CreateGlobalTemplate(TerminateCurrentThread);
+      CreateGlobalTemplate(TerminateCurrentThread, DoLoop);
+  v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Context::Scope context_scope(context);
+  // Run a loop that will be infinite if thread termination does not work.
+  v8::Handle<v8::String> source =
+      v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
+  v8::Script::Compile(source)->Run();
+  // Test that we can run the code again after thread termination.
+  v8::Script::Compile(source)->Run();
+  context.Dispose();
+}
+
+
+// Test that a single thread of JavaScript execution can terminate
+// itself in a loop that performs no calls.
+TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(TerminateCurrentThread, DoLoopNoCall);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
   // Run a loop that will be infinite if thread termination does not work.
@@ -128,7 +162,7 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   thread.Start();
 
   v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal);
+  v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal, DoLoop);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
   // Run a loop that will be infinite if thread termination does not work.
@@ -149,7 +183,8 @@ class LoopingThread : public v8::internal::Thread {
     v8::Locker locker;
     v8::HandleScope scope;
     v8_thread_id_ = v8::V8::GetCurrentThreadId();
-    v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal);
+    v8::Handle<v8::ObjectTemplate> global =
+        CreateGlobalTemplate(Signal, DoLoop);
     v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
     v8::Context::Scope context_scope(context);
     // Run a loop that will be infinite if thread termination does not work.

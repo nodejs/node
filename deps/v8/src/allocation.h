@@ -124,7 +124,7 @@ static void DeleteArray(T* array) {
 // and StrNDup uses new and calls the FatalProcessOutOfMemory handler
 // if allocation fails.
 char* StrDup(const char* str);
-char* StrNDup(const char* str, size_t n);
+char* StrNDup(const char* str, int n);
 
 
 // Allocation policy for allocating in the C free store using malloc

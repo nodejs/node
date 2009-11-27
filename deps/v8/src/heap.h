@@ -631,6 +631,7 @@ class Heap : public AllStatic {
   }
   static Object* LookupSymbol(String* str);
   static bool LookupSymbolIfExists(String* str, String** symbol);
+  static bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
 
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.

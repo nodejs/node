@@ -81,6 +81,7 @@
           ['OS=="linux"', {
             'cflags!': [
               '-O2',
+              '-Os',
             ],
             'cflags': [
               '-fomit-frame-pointer',

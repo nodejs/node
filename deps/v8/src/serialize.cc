@@ -668,7 +668,7 @@ void Deserializer::ReadChunk(Object** current,
         break;
       case OBJECT_SERIALIZATION + CODE_SPACE:
         ReadObject(CODE_SPACE, Heap::code_space(), current++);
-        Logger::LogCodeObject(current[-1]);
+        LOG(LogCodeObject(current[-1]));
         break;
       case OBJECT_SERIALIZATION + CELL_SPACE:
         ReadObject(CELL_SPACE, Heap::cell_space(), current++);
@@ -678,7 +678,7 @@ void Deserializer::ReadChunk(Object** current,
         break;
       case OBJECT_SERIALIZATION + kLargeCode:
         ReadObject(kLargeCode, Heap::lo_space(), current++);
-        Logger::LogCodeObject(current[-1]);
+        LOG(LogCodeObject(current[-1]));
         break;
       case OBJECT_SERIALIZATION + kLargeFixedArray:
         ReadObject(kLargeFixedArray, Heap::lo_space(), current++);
@@ -687,7 +687,7 @@ void Deserializer::ReadChunk(Object** current,
         Object* new_code_object = NULL;
         ReadObject(kLargeCode, Heap::lo_space(), &new_code_object);
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
-        Logger::LogCodeObject(code_object);
+        LOG(LogCodeObject(code_object));
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
         Assembler::set_target_at(location_of_branch_data,
@@ -700,7 +700,7 @@ void Deserializer::ReadChunk(Object** current,
         Object* new_code_object = NULL;
         ReadObject(CODE_SPACE, Heap::code_space(), &new_code_object);
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
-        Logger::LogCodeObject(code_object);
+        LOG(LogCodeObject(code_object));
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
         Assembler::set_target_at(location_of_branch_data,

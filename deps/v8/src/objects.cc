@@ -1463,8 +1463,8 @@ Object* JSObject::SetPropertyPostInterceptor(String* name,
 
 
 Object* JSObject::ReplaceSlowProperty(String* name,
-                                       Object* value,
-                                       PropertyAttributes attributes) {
+                                      Object* value,
+                                      PropertyAttributes attributes) {
   StringDictionary* dictionary = property_dictionary();
   int old_index = dictionary->FindEntry(name);
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
@@ -1477,6 +1477,7 @@ Object* JSObject::ReplaceSlowProperty(String* name,
   PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
   return SetNormalizedProperty(name, value, new_details);
 }
+
 
 Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
     String* name,
@@ -1868,6 +1869,14 @@ Object* JSObject::SetProperty(LookupResult* result,
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
+
+  // Optimization for 2-byte strings often used as keys in a decompression
+  // dictionary.  We make these short keys into symbols to avoid constantly
+  // reallocating them.
+  if (!name->IsSymbol() && name->length() <= 2) {
+    Object* symbol_version = Heap::LookupSymbol(name);
+    if (!symbol_version->IsFailure()) name = String::cast(symbol_version);
+  }
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
@@ -5240,9 +5249,7 @@ void JSArray::Expand(int required_size) {
   Handle<JSArray> self(this);
   Handle<FixedArray> old_backing(FixedArray::cast(elements()));
   int old_size = old_backing->length();
-  // Doubling in size would be overkill, but leave some slack to avoid
-  // constantly growing.
-  int new_size = required_size + (required_size >> 3);
+  int new_size = required_size > old_size ? required_size : old_size;
   Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
   // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
@@ -7327,8 +7334,85 @@ Object* SymbolTable::LookupString(String* string, Object** s) {
 }
 
 
+// This class is used for looking up two character strings in the symbol table.
+// If we don't have a hit we don't want to waste much time so we unroll the
+// string hash calculation loop here for speed.  Doesn't work if the two
+// characters form a decimal integer, since such strings have a different hash
+// algorithm.
+class TwoCharHashTableKey : public HashTableKey {
+ public:
+  TwoCharHashTableKey(uint32_t c1, uint32_t c2)
+    : c1_(c1), c2_(c2) {
+    // Char 1.
+    uint32_t hash = c1 + (c1 << 10);
+    hash ^= hash >> 6;
+    // Char 2.
+    hash += c2;
+    hash += hash << 10;
+    hash ^= hash >> 6;
+    // GetHash.
+    hash += hash << 3;
+    hash ^= hash >> 11;
+    hash += hash << 15;
+    if (hash == 0) hash = 27;
+#ifdef DEBUG
+    StringHasher hasher(2);
+    hasher.AddCharacter(c1);
+    hasher.AddCharacter(c2);
+    // If this assert fails then we failed to reproduce the two-character
+    // version of the string hashing algorithm above.  One reason could be
+    // that we were passed two digits as characters, since the hash
+    // algorithm is different in that case.
+    ASSERT_EQ(static_cast<int>(hasher.GetHash()), static_cast<int>(hash));
+#endif
+    hash_ = hash;
+  }
+
+  bool IsMatch(Object* o) {
+    if (!o->IsString()) return false;
+    String* other = String::cast(o);
+    if (other->length() != 2) return false;
+    if (other->Get(0) != c1_) return false;
+    return other->Get(1) == c2_;
+  }
+
+  uint32_t Hash() { return hash_; }
+  uint32_t HashForObject(Object* key) {
+    if (!key->IsString()) return 0;
+    return String::cast(key)->Hash();
+  }
+
+  Object* AsObject() {
+    // The TwoCharHashTableKey is only used for looking in the symbol
+    // table, not for adding to it.
+    UNREACHABLE();
+    return NULL;
+  }
+ private:
+  uint32_t c1_;
+  uint32_t c2_;
+  uint32_t hash_;
+};
+
+
 bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
   SymbolKey key(string);
+  int entry = FindEntry(&key);
+  if (entry == kNotFound) {
+    return false;
+  } else {
+    String* result = String::cast(KeyAt(entry));
+    ASSERT(StringShape(result).IsSymbol());
+    *symbol = result;
+    return true;
+  }
+}
+
+
+bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
+                                               uint32_t c2,
+                                               String** symbol) {
+  TwoCharHashTableKey key(c1, c2);
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;

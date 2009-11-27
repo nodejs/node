@@ -2188,6 +2188,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // true if it is found, assigning the symbol to the given output
   // parameter.
   bool LookupSymbolIfExists(String* str, String** symbol);
+  bool LookupTwoCharsSymbolIfExists(uint32_t c1, uint32_t c2, String** symbol);
 
   // Casting.
   static inline SymbolTable* cast(Object* obj);
@@ -3846,6 +3847,7 @@ class StringHasher {
   bool is_array_index_;
   bool is_first_char_;
   bool is_valid_;
+  friend class TwoCharHashTableKey;
 };
 
 

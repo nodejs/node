@@ -55,7 +55,7 @@ inline const char* StateToString(StateTag state) {
   }
 }
 
-VMState::VMState(StateTag state) : disabled_(true) {
+VMState::VMState(StateTag state) : disabled_(true), external_callback_(NULL) {
   if (!Logger::is_logging()) {
     return;
   }

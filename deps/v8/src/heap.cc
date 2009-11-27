@@ -1762,6 +1762,41 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 }
 
 
+// Returns true for a character in a range.  Both limits are inclusive.
+static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
+  // This makes uses of the the unsigned wraparound.
+  return character - from <= to - from;
+}
+
+
+static inline Object* MakeOrFindTwoCharacterString(uint32_t c1, uint32_t c2) {
+  String* symbol;
+  // Numeric strings have a different hash algorithm not known by
+  // LookupTwoCharsSymbolIfExists, so we skip this step for such strings.
+  if ((!Between(c1, '0', '9') || !Between(c2, '0', '9')) &&
+      Heap::symbol_table()->LookupTwoCharsSymbolIfExists(c1, c2, &symbol)) {
+    return symbol;
+  // Now we know the length is 2, we might as well make use of that fact
+  // when building the new string.
+  } else if ((c1 | c2) <= String::kMaxAsciiCharCodeU) {  // We can do this
+    ASSERT(IsPowerOf2(String::kMaxAsciiCharCodeU + 1));  // because of this.
+    Object* result = Heap::AllocateRawAsciiString(2);
+    if (result->IsFailure()) return result;
+    char* dest = SeqAsciiString::cast(result)->GetChars();
+    dest[0] = c1;
+    dest[1] = c2;
+    return result;
+  } else {
+    Object* result = Heap::AllocateRawTwoByteString(2);
+    if (result->IsFailure()) return result;
+    uc16* dest = SeqTwoByteString::cast(result)->GetChars();
+    dest[0] = c1;
+    dest[1] = c2;
+    return result;
+  }
+}
+
+
 Object* Heap::AllocateConsString(String* first, String* second) {
   int first_length = first->length();
   if (first_length == 0) {
@@ -1774,6 +1809,16 @@ Object* Heap::AllocateConsString(String* first, String* second) {
   }
 
   int length = first_length + second_length;
+
+  // Optimization for 2-byte strings often used as keys in a decompression
+  // dictionary.  Check whether we already have the string in the symbol
+  // table to prevent creation of many unneccesary strings.
+  if (length == 2) {
+    unsigned c1 = first->Get(0);
+    unsigned c2 = second->Get(0);
+    return MakeOrFindTwoCharacterString(c1, c2);
+  }
+
   bool is_ascii = first->IsAsciiRepresentation()
       && second->IsAsciiRepresentation();
 
@@ -1843,6 +1888,13 @@ Object* Heap::AllocateSubString(String* buffer,
   if (length == 1) {
     return Heap::LookupSingleCharacterStringFromCode(
         buffer->Get(start));
+  } else if (length == 2) {
+    // Optimization for 2-byte strings often used as keys in a decompression
+    // dictionary.  Check whether we already have the string in the symbol
+    // table to prevent creation of many unneccesary strings.
+    unsigned c1 = buffer->Get(start);
+    unsigned c2 = buffer->Get(start + 1);
+    return MakeOrFindTwoCharacterString(c1, c2);
   }
 
   // Make an attempt to flatten the buffer to reduce access time.

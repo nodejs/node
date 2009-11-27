@@ -91,15 +91,20 @@ class CompressionHelper;
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
-  inline explicit VMState(StateTag state);
+  inline VMState(StateTag state);
   inline ~VMState();
 
   StateTag state() { return state_; }
+  Address external_callback() { return external_callback_; }
+  void set_external_callback(Address external_callback) {
+    external_callback_ = external_callback;
+  }
 
  private:
   bool disabled_;
   StateTag state_;
   VMState* previous_;
+  Address external_callback_;
 #else
  public:
   explicit VMState(StateTag state) {}
@@ -122,6 +127,7 @@ class VMState BASE_EMBEDDED {
   V(CALL_MISS_TAG,                  "CallMiss",               "cm")       \
   V(CALL_NORMAL_TAG,                "CallNormal",             "cn")       \
   V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic",     "cpm")      \
+  V(CALLBACK_TAG,                   "Callback",               "cb")       \
   V(EVAL_TAG,                       "Eval",                   "e")        \
   V(FUNCTION_TAG,                   "Function",               "f")        \
   V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC",            "klic")     \
@@ -200,6 +206,8 @@ class Logger {
 
 
   // ==== Events logged by --log-code. ====
+  // Emits a code event for a callback function.
+  static void CallbackEvent(String* name, Address entry_point);
   // Emits a code create event.
   static void CodeCreateEvent(LogEventsAndTags tag,
                               Code* code, const char* source);
@@ -330,6 +338,7 @@ class Logger {
   friend class TimeLog;
   friend class Profiler;
   friend class SlidingStateWindow;
+  friend class StackTracer;
   friend class VMState;
 
   friend class LoggerTestHelper;

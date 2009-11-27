@@ -3616,6 +3616,48 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+
+  __ Move(kScratchRegister, Factory::null_value());
+  __ cmpq(obj.reg(), kScratchRegister);
+  destination()->true_target()->Branch(equal);
+
+  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined when tested with typeof.
+  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+          Immediate(1 << Map::kIsUndetectable));
+  destination()->false_target()->Branch(not_zero);
+  __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
+  destination()->false_target()->Branch(less);
+  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  obj.Unuse();
+  destination()->Split(less_equal);
+}
+
+
+void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (%_ClassOf(arg) === 'Function')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  obj.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 

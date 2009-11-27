@@ -380,6 +380,9 @@ BUILTIN(HandleApiCall) {
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+      state.set_external_callback(v8::ToCData<Address>(callback_obj));
+#endif
       value = callback(new_args);
     }
     if (value.IsEmpty()) {
@@ -446,6 +449,9 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+      state.set_external_callback(v8::ToCData<Address>(callback_obj));
+#endif
       value = callback(new_args);
     }
     if (value.IsEmpty()) {

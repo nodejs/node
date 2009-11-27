@@ -116,7 +116,7 @@ bool V8::Initialize(Deserializer *des) {
 
   if (FLAG_log_code) {
     HandleScope scope;
-    Logger::LogCompiledFunctions();
+    LOG(LogCompiledFunctions());
   }
 
   return true;

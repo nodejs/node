@@ -247,7 +247,7 @@ TEST(ProfLazyMode) {
   i::FLAG_logfile = "*";
 
   // If tests are being run manually, V8 will be already initialized
-  // by the test below.
+  // by the bottom test.
   const bool need_to_set_up_logger = i::V8::IsRunning();
   v8::HandleScope scope;
   v8::Handle<v8::Context> env = v8::Context::New();
@@ -471,6 +471,70 @@ TEST(Issue23768) {
 
   // Must not crash.
   i::Logger::LogCompiledFunctions();
+}
+
+
+static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
+  return v8::Handle<v8::Value>();
+}
+
+TEST(LogCallbacks) {
+  const bool saved_prof_lazy = i::FLAG_prof_lazy;
+  const bool saved_prof = i::FLAG_prof;
+  const bool saved_prof_auto = i::FLAG_prof_auto;
+  i::FLAG_prof = true;
+  i::FLAG_prof_lazy = false;
+  i::FLAG_prof_auto = false;
+  i::FLAG_logfile = "*";
+
+  // If tests are being run manually, V8 will be already initialized
+  // by the bottom test.
+  const bool need_to_set_up_logger = i::V8::IsRunning();
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  if (need_to_set_up_logger) Logger::Setup();
+  env->Enter();
+
+  // Skip all initially logged stuff.
+  EmbeddedVector<char, 102400> buffer;
+  int log_pos = GetLogLines(0, &buffer);
+
+  v8::Persistent<v8::FunctionTemplate> obj =
+      v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
+  obj->SetClassName(v8::String::New("Obj"));
+  v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
+  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
+  proto->Set(v8::String::New("method1"),
+             v8::FunctionTemplate::New(ObjMethod1,
+                                       v8::Handle<v8::Value>(),
+                                       signature),
+             static_cast<v8::PropertyAttribute>(v8::DontDelete));
+
+  env->Global()->Set(v8_str("Obj"), obj->GetFunction());
+  CompileAndRunScript("Obj.prototype.method1.toString();");
+
+  i::Logger::LogCompiledFunctions();
+  log_pos = GetLogLines(log_pos, &buffer);
+  CHECK_GT(log_pos, 0);
+  buffer[log_pos] = 0;
+
+  const char* callback_rec = "code-creation,Callback,";
+  char* pos = strstr(buffer.start(), callback_rec);
+  CHECK_NE(NULL, pos);
+  pos += strlen(callback_rec);
+  EmbeddedVector<char, 100> ref_data;
+  i::OS::SNPrintF(ref_data,
+                  "0x%" V8PRIxPTR ",1,\"method1\"", ObjMethod1);
+  *(pos + strlen(ref_data.start())) = '\0';
+  CHECK_EQ(ref_data.start(), pos);
+
+  obj.Dispose();
+
+  env->Exit();
+  Logger::TearDown();
+  i::FLAG_prof_lazy = saved_prof_lazy;
+  i::FLAG_prof = saved_prof;
+  i::FLAG_prof_auto = saved_prof_auto;
 }
 
 

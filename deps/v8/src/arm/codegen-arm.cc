@@ -3385,6 +3385,51 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r1);
+  __ tst(r1, Operand(kSmiTagMask));
+  false_target()->Branch(eq);
+
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r1, ip);
+  true_target()->Branch(eq);
+
+  Register map_reg = r2;
+  __ ldr(map_reg, FieldMemOperand(r1, HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined when tested with typeof.
+  __ ldrb(r1, FieldMemOperand(map_reg, Map::kBitFieldOffset));
+  __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
+  __ cmp(r1, Operand(1 << Map::kIsUndetectable));
+  false_target()->Branch(eq);
+
+  __ ldrb(r1, FieldMemOperand(map_reg, Map::kInstanceTypeOffset));
+  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
+  false_target()->Branch(lt);
+  __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
+  cc_reg_ = le;
+}
+
+
+void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (%_ClassOf(arg) === 'Function')
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
+  __ tst(r0, Operand(kSmiTagMask));
+  false_target()->Branch(eq);
+  Register map_reg = r2;
+  __ CompareObjectType(r0, map_reg, r1, JS_FUNCTION_TYPE);
+  cc_reg_ = eq;
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);

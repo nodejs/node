@@ -3103,8 +3103,19 @@ void Map::ClearCodeCache() {
 
 void JSArray::EnsureSize(int required_size) {
   ASSERT(HasFastElements());
-  if (elements()->length() >= required_size) return;
-  Expand(required_size);
+  Array* elts = elements();
+  const int kArraySizeThatFitsComfortablyInNewSpace = 128;
+  if (elts->length() < required_size) {
+    // Doubling in size would be overkill, but leave some slack to avoid
+    // constantly growing.
+    Expand(required_size + (required_size >> 3));
+    // It's a performance benefit to keep a frequently used array in new-space.
+  } else if (!Heap::new_space()->Contains(elts) &&
+             required_size < kArraySizeThatFitsComfortablyInNewSpace) {
+    // Expand will allocate a new backing store in new space even if the size
+    // we asked for isn't larger than what we had before.
+    Expand(required_size);
+  }
 }
 
 

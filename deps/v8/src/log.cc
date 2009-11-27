@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
+#include "global-handles.h"
 #include "log.h"
 #include "macro-assembler.h"
 #include "serialize.h"
@@ -154,12 +155,18 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
+  int i = 0;
+  const Address callback = Logger::current_state_ != NULL ?
+      Logger::current_state_->external_callback() : NULL;
+  if (callback != NULL) {
+    sample->stack[i++] = callback;
+  }
+
   SafeStackTraceFrameIterator it(
       reinterpret_cast<Address>(sample->fp),
       reinterpret_cast<Address>(sample->sp),
       reinterpret_cast<Address>(sample->sp),
       js_entry_sp);
-  int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     sample->stack[i++] = it.frame()->pc();
     it.Advance();
@@ -671,6 +678,26 @@ class CompressionHelper {
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+void Logger::CallbackEvent(String* name, Address entry_point) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%s,",
+             log_events_[CODE_CREATION_EVENT], log_events_[CALLBACK_TAG]);
+  msg.AppendAddress(entry_point);
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  msg.Append(",1,\"%s\"", *str);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
 
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
@@ -1191,11 +1218,25 @@ void Logger::LogCompiledFunctions() {
           LOG(CodeCreateEvent(Logger::SCRIPT_TAG,
                               shared->code(), *script_name));
         }
-        continue;
+      } else {
+        LOG(CodeCreateEvent(
+            Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
       }
+    } else if (shared->function_data()->IsFunctionTemplateInfo()) {
+      // API function.
+      FunctionTemplateInfo* fun_data =
+          FunctionTemplateInfo::cast(shared->function_data());
+      Object* raw_call_data = fun_data->call_code();
+      if (!raw_call_data->IsUndefined()) {
+        CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+        Object* callback_obj = call_data->callback();
+        Address entry_point = v8::ToCData<Address>(callback_obj);
+        LOG(CallbackEvent(*func_name, entry_point));
+      }
+    } else {
+      LOG(CodeCreateEvent(
+          Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
     }
-    // If no script or script has no name.
-    LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
   }
 
   DeleteArray(sfis);

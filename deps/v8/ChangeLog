@@ -1,3 +1,18 @@
+2009-11-24: Version 2.0.2
+
+        Improved profiler support.
+
+        Fixed bug that broke compilation of d8 with readline support.
+
+
+2009-11-20: Version 2.0.1
+
+        Fixed crash bug in String.prototype.replace.
+
+        Reverted a change which caused Chromium interactive ui test
+        failures.
+
+        
 2009-11-18: Version 2.0.0
 
         Added support for VFP on ARM.

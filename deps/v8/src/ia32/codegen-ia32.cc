@@ -4870,6 +4870,55 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+
+  __ test(obj.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(zero);
+  __ cmp(obj.reg(), Factory::null_value());
+  destination()->true_target()->Branch(equal);
+
+  Result map = allocator()->Allocate();
+  ASSERT(map.is_valid());
+  __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined when tested with typeof.
+  __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
+  __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+  destination()->false_target()->Branch(not_zero);
+  __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
+  __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
+  destination()->false_target()->Branch(less);
+  __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+  obj.Unuse();
+  map.Unuse();
+  destination()->Split(less_equal);
+}
+
+
+void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (%_ClassOf(arg) === 'Function')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  __ test(obj.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(zero);
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, temp.reg());
+  obj.Unuse();
+  temp.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 

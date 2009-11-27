@@ -334,6 +334,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSmi(ZoneList<Expression*>* args);
   void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   void GenerateIsArray(ZoneList<Expression*>* args);
+  void GenerateIsObject(ZoneList<Expression*>* args);
+  void GenerateIsFunction(ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);
