@@ -513,6 +513,14 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   info->Set(String::NewSymbol("rss"), Integer::NewFromUnsigned(rss));
   info->Set(String::NewSymbol("vsize"), Integer::NewFromUnsigned(vsize));
 
+  // V8 memory usage
+  HeapStatistics v8_heap_stats;
+  V8::GetHeapStatistics(&v8_heap_stats);
+  info->Set(String::NewSymbol("heapTotal"),
+            Integer::NewFromUnsigned(v8_heap_stats.total_heap_size()));
+  info->Set(String::NewSymbol("heapUsed"),
+            Integer::NewFromUnsigned(v8_heap_stats.used_heap_size()));
+
   return scope.Close(info);
 #endif
 }

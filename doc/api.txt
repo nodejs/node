@@ -110,7 +110,18 @@ The PID of the process.
 What platform you're running on. +"linux2"+, +"darwin"+, etc.
 
 +process.memoryUsage()+ ::
-Returns the memory usage of the Node process: e.g. +{"rss":5828608,"vsize":3112529920}+
+Returns the memory usage of the Node process. It looks like this
++
+----------------------
+{
+ "rss": 4935680,
+ "vsize": 41893888,
+ "heapTotal": 1826816,
+ "heapUsed": 650472
+}
+----------------------
++
++heapTotal+ and +heapUsed+ refer to V8's memory usage.
 
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
