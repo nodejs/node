@@ -12,7 +12,7 @@ var server = tcp.createServer(function (socket) {
     client.close();
     socket.close();
     server.close();
-    assertEquals(expected, found);
+    assert.equal(expected, found);
   });
 });
 server.listen(PORT);
@@ -21,7 +21,7 @@ var client = tcp.createConnection(PORT);
 client.addListener("connect", function () {
   posix.open(x,process.O_RDONLY, 0666).addCallback(function (fd) {
     posix.sendfile(client.fd, fd, 0, expected.length).addCallback(function (size) {
-      assertEquals(expected.length, size);
+      assert.equal(expected.length, size);
     });
   });
 });

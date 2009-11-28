@@ -15,30 +15,30 @@ function pingPongTest (port, host, on_complete) {
 
     socket.addListener("receive", function (data) {
       puts(data);
-      assertEquals("PING", data);
-      assertEquals("open", socket.readyState);
-      assertTrue(count <= N);
+      assert.equal("PING", data);
+      assert.equal("open", socket.readyState);
+      assert.equal(true, count <= N);
       setTimeout(function () {
-        assertEquals("open", socket.readyState);
+        assert.equal("open", socket.readyState);
         socket.send("PONG");
       }, DELAY);
     });
 
     socket.addListener("timeout", function () {
       debug("server-side timeout!!");
-      assertFalse(true);
+      assert.equal(false, true);
     });
 
     socket.addListener("eof", function () {
       puts("server-side socket EOF");
-      assertEquals("writeOnly", socket.readyState);
+      assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
 
     socket.addListener("close", function (had_error) {
       puts("server-side socket close");
-      assertFalse(had_error);
-      assertEquals("closed", socket.readyState);
+      assert.equal(false, had_error);
+      assert.equal("closed", socket.readyState);
       socket.server.close();
     });
   });
@@ -49,17 +49,17 @@ function pingPongTest (port, host, on_complete) {
   client.setEncoding("utf8");
 
   client.addListener("connect", function () {
-    assertEquals("open", client.readyState);
+    assert.equal("open", client.readyState);
     client.send("PING");
   });
 
   client.addListener("receive", function (data) {
     puts(data);
-    assertEquals("PONG", data);
-    assertEquals("open", client.readyState);
+    assert.equal("PONG", data);
+    assert.equal("open", client.readyState);
 
     setTimeout(function () {
-      assertEquals("open", client.readyState);
+      assert.equal("open", client.readyState);
       if (count++ < N) {
         client.send("PING");
       } else {
@@ -72,13 +72,13 @@ function pingPongTest (port, host, on_complete) {
 
   client.addListener("timeout", function () {
     debug("client-side timeout!!");
-    assertFalse(true);
+    assert.equal(false, true);
   });
 
   client.addListener("close", function () {
     puts("client close");
-    assertEquals(N+1, count);
-    assertTrue(client_closed);
+    assert.equal(N+1, count);
+    assert.equal(true, client_closed);
     if (on_complete) on_complete();
     tests_run += 1;
   });
@@ -87,5 +87,5 @@ function pingPongTest (port, host, on_complete) {
 pingPongTest(21988);
 
 process.addListener("exit", function () {
-  assertEquals(1, tests_run);
+  assert.equal(1, tests_run);
 });

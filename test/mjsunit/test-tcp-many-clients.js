@@ -45,8 +45,8 @@ function runClient (callback) {
 
   client.addListener("close", function (had_error) {
     print(".");
-    assertFalse(had_error);
-    assertEquals(bytes, client.recved.length);
+    assert.equal(false, had_error);
+    assert.equal(bytes, client.recved.length);
     if (this.connections < connections_per_client) {
       this.connect(port);
     } else {
@@ -64,6 +64,6 @@ for (var i = 0; i < concurrency; i++) {
 }
 
 process.addListener("exit", function () {
-  assertEquals(connections_per_client * concurrency, total_connections);
+  assert.equal(connections_per_client * concurrency, total_connections);
   puts("\nokay!");
 });

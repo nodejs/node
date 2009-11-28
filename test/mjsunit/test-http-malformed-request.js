@@ -29,5 +29,5 @@ c.addListener("connect", function () {
 //  TODO add more!
 
 process.addListener("exit", function () {
-  assertEquals(nrequests_expected, nrequests_completed);
+  assert.equal(nrequests_expected, nrequests_completed);
 });

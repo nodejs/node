@@ -11,7 +11,7 @@ function pwd (callback) {
   });
   child.addListener("exit", function (c) {
     puts("exit: " + c);
-    assertEquals(0, c);
+    assert.equal(0, c);
     callback(output);
     pwd_called = true;
   });
@@ -20,10 +20,10 @@ function pwd (callback) {
 
 pwd(function (result) {
   p(result);
-  assertTrue(result.length > 1);
-  assertEquals("\n", result[result.length-1]);
+  assert.equal(true, result.length > 1);
+  assert.equal("\n", result[result.length-1]);
 });
 
 process.addListener("exit", function () {
-  assertTrue(pwd_called);
+  assert.equal(true, pwd_called);
 });

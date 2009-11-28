@@ -37,7 +37,7 @@ client.addListener("receive", function (d) {
     puts("pause");
     x = chars_recved;
     setTimeout(function () {
-      assertEquals(chars_recved, x);
+      assert.equal(chars_recved, x);
       client.readResume();
       puts("resume");
       paused = false;
@@ -51,6 +51,6 @@ client.addListener("eof", function () {
 });
 
 process.addListener("exit", function () {
-  assertEquals(N, chars_recved);
-  assertTrue(npauses > 2);
+  assert.equal(N, chars_recved);
+  assert.equal(true, npauses > 2);
 });

@@ -16,6 +16,6 @@ posix.open(fn, process.O_WRONLY | process.O_TRUNC | process.O_CREAT, 0644).addCa
 });
 
 process.addListener("exit", function () {
-  assertEquals(expected, found);
+  assert.equal(expected, found);
 });
 

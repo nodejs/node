@@ -60,7 +60,7 @@ c.addListener("close", function () {
 process.addListener("exit", function () {
   puts("recv: " + JSON.stringify(recv));
 
-  assertEquals(2*256, recv.length);
+  assert.equal(2*256, recv.length);
 
   var a = recv.split("");
 
@@ -70,5 +70,5 @@ process.addListener("exit", function () {
   var second = a.slice(256,2*256).join("");
   puts("second: " + JSON.stringify(second));
 
-  assertEquals(first, second);
+  assert.equal(first, second);
 });

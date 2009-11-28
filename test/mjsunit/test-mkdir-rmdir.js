@@ -24,7 +24,7 @@ posix.mkdir(d, 0x666).addCallback(function () {
 });
 
 process.addListener("exit", function () {
-  assertFalse(mkdir_error);
-  assertFalse(rmdir_error);
+  assert.equal(false, mkdir_error);
+  assert.equal(false, rmdir_error);
   puts("exit");
 });

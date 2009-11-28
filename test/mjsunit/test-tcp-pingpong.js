@@ -10,12 +10,12 @@ function pingPongTest (port, host, on_complete) {
   var sent_final_ping = false;
 
   var server = tcp.createServer(function (socket) {
-    assertTrue(socket.remoteAddress !== null);
-    assertTrue(socket.remoteAddress !== undefined);
+    assert.equal(true, socket.remoteAddress !== null);
+    assert.equal(true, socket.remoteAddress !== undefined);
     if (host === "127.0.0.1")
-      assertEquals(socket.remoteAddress, "127.0.0.1");
+      assert.equal(socket.remoteAddress, "127.0.0.1");
     else if (host == null)
-      assertEquals(socket.remoteAddress, "127.0.0.1");
+      assert.equal(socket.remoteAddress, "127.0.0.1");
 
     socket.setEncoding("utf8");
     socket.setNoDelay();
@@ -23,21 +23,21 @@ function pingPongTest (port, host, on_complete) {
 
     socket.addListener("receive", function (data) {
       puts("server got: " + JSON.stringify(data));
-      assertEquals("open", socket.readyState);
-      assertTrue(count <= N);
+      assert.equal("open", socket.readyState);
+      assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
         socket.send("PONG");
       }
     });
 
     socket.addListener("eof", function () {
-      assertEquals("writeOnly", socket.readyState);
+      assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
 
     socket.addListener("close", function (had_error) {
-      assertFalse(had_error);
-      assertEquals("closed", socket.readyState);
+      assert.equal(false, had_error);
+      assert.equal("closed", socket.readyState);
       socket.server.close();
     });
   });
@@ -48,19 +48,19 @@ function pingPongTest (port, host, on_complete) {
   client.setEncoding("utf8");
 
   client.addListener("connect", function () {
-    assertEquals("open", client.readyState);
+    assert.equal("open", client.readyState);
     client.send("PING");
   });
 
   client.addListener("receive", function (data) {
-    assertEquals("PONG", data);
+    assert.equal("PONG", data);
     count += 1;
 
     if (sent_final_ping) {
-      assertEquals("readOnly", client.readyState);
+      assert.equal("readOnly", client.readyState);
       return;
     } else {
-      assertEquals("open", client.readyState);
+      assert.equal("open", client.readyState);
     }
 
     if (count < N) {
@@ -73,8 +73,8 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("close", function () {
-    assertEquals(N+1, count);
-    assertTrue(sent_final_ping);
+    assert.equal(N+1, count);
+    assert.equal(true, sent_final_ping);
     if (on_complete) on_complete();
     tests_run += 1;
   });
@@ -86,5 +86,5 @@ pingPongTest(20988, null);
 pingPongTest(20997, "::1");
 
 process.addListener("exit", function () {
-  assertEquals(3, tests_run);
+  assert.equal(3, tests_run);
 });

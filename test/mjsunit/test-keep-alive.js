@@ -43,19 +43,19 @@ function runAb(opts, callback) {
 
 runAb("-k -c 100 -t 2", function (reqSec, keepAliveRequests) {
   keepAliveReqSec = reqSec;
-  assertTrue(keepAliveRequests > 0);
+  assert.equal(true, keepAliveRequests > 0);
   puts("keep-alive: " + keepAliveReqSec + " req/sec");
 
   runAb("-c 100 -t 2", function (reqSec, keepAliveRequests) {
     normalReqSec = reqSec;
-    assertEquals(0, keepAliveRequests);
+    assert.equal(0, keepAliveRequests);
     puts("normal: " + normalReqSec + " req/sec");
     server.close();
   });
 });
 
 process.addListener("exit", function () {
-  assertTrue(normalReqSec > 50);
-  assertTrue(keepAliveReqSec > 50);
-  assertTrue(normalReqSec < keepAliveReqSec);
+  assert.equal(true, normalReqSec > 50);
+  assert.equal(true, keepAliveReqSec > 50);
+  assert.equal(true, normalReqSec < keepAliveReqSec);
 });

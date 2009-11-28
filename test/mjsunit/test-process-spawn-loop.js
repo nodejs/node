@@ -29,5 +29,5 @@ function spawn (i) {
 spawn(0);
 
 process.addListener("exit", function () {
-  assertTrue(finished);
+  assert.equal(true, finished);
 });

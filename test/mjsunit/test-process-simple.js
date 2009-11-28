@@ -17,7 +17,7 @@ cat.addListener("output", function (chunk) {
 });
 cat.addListener("error", function (chunk) {
   puts("stderr: " + JSON.stringify(chunk));
-  assertEquals(null, chunk);
+  assert.equal(null, chunk);
 });
 cat.addListener("exit", function (status) {
   puts("exit event");
@@ -29,6 +29,6 @@ cat.write(" ");
 cat.write("world");
 
 process.addListener("exit", function () {
-  assertEquals(0, exit_status);
-  assertEquals("hello world", response);
+  assert.equal(0, exit_status);
+  assert.equal("hello world", response);
 });

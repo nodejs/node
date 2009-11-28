@@ -19,11 +19,11 @@ setTimeout(function () {
     var out = posix.cat(testTxt).wait();
     print("the file contains: ");
     p(out);
-    assertEquals("hello\nworld\nhello\nworld\n", out);
+    assert.equal("hello\nworld\nhello\nworld\n", out);
     var file2 = new File(testTxt, "r");
     file2.read(5).addCallback(function (data) {
       puts("read(5): " + JSON.stringify(data));
-      assertEquals("hello", data);
+      assert.equal("hello", data);
       posix.unlink(testTxt).addCallback(function () {
         fileUnlinked = true;
       });
@@ -33,6 +33,6 @@ setTimeout(function () {
 }, 10);
 
 process.addListener("exit", function () {
-  assertTrue(fileUnlinked);
+  assert.equal(true, fileUnlinked);
   puts("done");
 });

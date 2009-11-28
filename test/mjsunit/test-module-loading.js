@@ -10,44 +10,44 @@ var d3 = require(require('path').dirname(__filename)+"/fixtures/b/d");
 // Relative
 var d4 = require("../mjsunit/fixtures/b/d");
 
-assertFalse(false, "testing the test program.");
+assert.equal(false, false, "testing the test program.");
 
-assertInstanceof(a.A, Function);
-assertEquals("A", a.A());
+assert.equal(true, a.A instanceof Function);
+assert.equal("A", a.A());
 
-assertInstanceof(a.C, Function);
-assertEquals("C", a.C());
+assert.equal(true, a.C instanceof Function);
+assert.equal("C", a.C());
 
-assertInstanceof(a.D, Function);
-assertEquals("D", a.D());
+assert.equal(true, a.D instanceof Function);
+assert.equal("D", a.D());
 
-assertInstanceof(d.D, Function);
-assertEquals("D", d.D());
+assert.equal(true, d.D instanceof Function);
+assert.equal("D", d.D());
 
-assertInstanceof(d2.D, Function);
-assertEquals("D", d2.D());
+assert.equal(true, d2.D instanceof Function);
+assert.equal("D", d2.D());
 
-assertInstanceof(d3.D, Function);
-assertEquals("D", d3.D());
+assert.equal(true, d3.D instanceof Function);
+assert.equal("D", d3.D());
 
-assertInstanceof(d4.D, Function);
-assertEquals("D", d4.D());
+assert.equal(true, d4.D instanceof Function);
+assert.equal("D", d4.D());
 
 process.addListener("exit", function () {
-  assertInstanceof(a.A, Function);
-  assertEquals("A done", a.A());
+  assert.equal(true, a.A instanceof Function);
+  assert.equal("A done", a.A());
 
-  assertInstanceof(a.C, Function);
-  assertEquals("C done", a.C());
+  assert.equal(true, a.C instanceof Function);
+  assert.equal("C done", a.C());
 
-  assertInstanceof(a.D, Function);
-  assertEquals("D done", a.D());
+  assert.equal(true, a.D instanceof Function);
+  assert.equal("D done", a.D());
 
-  assertInstanceof(d.D, Function);
-  assertEquals("D done", d.D());
+  assert.equal(true, d.D instanceof Function);
+  assert.equal("D done", d.D());
 
-  assertInstanceof(d2.D, Function);
-  assertEquals("D done", d2.D());
+  assert.equal(true, d2.D instanceof Function);
+  assert.equal("D done", d2.D());
 
   puts("exit");
 });

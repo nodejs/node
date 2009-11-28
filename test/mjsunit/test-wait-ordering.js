@@ -15,12 +15,12 @@ function test_timeout_order(delay, desired_order) {
   timer(0).addCallback(function() {
     timer(delay).wait()
     var b = new Date();
-    assertTrue(b - a >= delay);
+    assert.equal(true, b - a >= delay);
     order++;
     // A stronger assertion would be that the ordering is correct.
     // With Poor Man's coroutines we cannot guarentee that.
     // Replacing wait() with actual coroutines would solve that issue.
-    // assertEquals(desired_order, order);
+    // assert.equal(desired_order, order);
   });
 }
 test_timeout_order(10, 6); // Why does this have the proper order??

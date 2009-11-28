@@ -18,7 +18,7 @@ function onLoad () {
  for (var i = 0; i < request_count; i++) {
    process.http.cat('http://localhost:'+PORT+'/', 'utf8')
      .addCallback(function (content) {
-       assertEquals(response_body, content)
+       assert.equal(response_body, content)
        print(".");
        requests_ok++;
        requests_complete++;
@@ -36,6 +36,6 @@ function onLoad () {
 }
 
 process.addListener("exit", function () {
-  assertEquals(request_count, requests_complete); 
-  assertEquals(request_count, requests_ok); 
+  assert.equal(request_count, requests_complete); 
+  assert.equal(request_count, requests_ok); 
 });

@@ -37,7 +37,7 @@ client.addListener("connect", function () {
 });
 
 client.addListener("receive", function (chunk) {
-  assertEquals("hello\r\n", chunk);
+  assert.equal("hello\r\n", chunk);
   if (exchanges++ < 5) {
     setTimeout(function () {
       puts("client send 'hello'");
@@ -54,7 +54,7 @@ client.addListener("receive", function (chunk) {
 
 client.addListener("timeout", function () {
   puts("client timeout - this shouldn't happen");
-  assertFalse(true);
+  assert.equal(false, true);
 });
 
 client.addListener("eof", function () {
@@ -65,16 +65,16 @@ client.addListener("eof", function () {
 client.addListener("close", function (had_error) {
   puts("client disconnect");
   echo_server.close();
-  assertFalse(had_error);
+  assert.equal(false, had_error);
 });
 
 process.addListener("exit", function () {
-  assertTrue(starttime != null);
-  assertTrue(timeouttime != null);
+  assert.equal(true, starttime != null);
+  assert.equal(true, timeouttime != null);
 
   diff = timeouttime - starttime;
   puts("diff = " + diff);
-  assertTrue(timeout < diff);
+  assert.equal(true, timeout < diff);
   // Allow for 800 milliseconds more
-  assertTrue(diff < timeout + 800);
+  assert.equal(true, diff < timeout + 800);
 });

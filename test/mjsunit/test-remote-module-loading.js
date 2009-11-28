@@ -17,7 +17,7 @@ var server = http.createServer(function(req, res) {
 server.listen(PORT);
 
 var httpModule = require('http://localhost:'+PORT+'/moduleA.js');
-assertEquals('/moduleA.js', httpModule.httpPath());
+assert.equal('/moduleA.js', httpModule.httpPath());
 modulesLoaded++;
 
 var nodeBinary = process.ARGV[0];
@@ -34,5 +34,5 @@ sys
   });
 
 process.addListener('exit', function() {
-  assertEquals(2, modulesLoaded);
+  assert.equal(2, modulesLoaded);
 });

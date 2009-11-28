@@ -4,5 +4,5 @@ process.mixin(require("./common"));
 
 puts("Σὲ γνωρίζω ἀπὸ τὴν κόψη");
 
-assertTrue( /Hellö Wörld/.test("Hellö Wörld") );
+assert.equal(true,  /Hellö Wörld/.test("Hellö Wörld") );
 

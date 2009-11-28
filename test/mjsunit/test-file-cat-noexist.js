@@ -7,7 +7,7 @@ var promise = posix.cat(filename, "raw");
 promise.addCallback(function (content) {
   debug("cat returned some content: " + content);
   debug("this shouldn't happen as the file doesn't exist...");
-  assertTrue(false);
+  assert.equal(true, false);
 });
 
 promise.addErrback(function () {
@@ -16,5 +16,5 @@ promise.addErrback(function () {
 
 process.addListener("exit", function () {
   puts("done");
-  assertTrue(got_error);
+  assert.equal(true, got_error);
 });

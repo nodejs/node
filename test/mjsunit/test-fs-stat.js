@@ -22,33 +22,33 @@ posix.stat(__filename).addCallback(function (s) {
   success_count++;
 
   puts("isDirectory: " + JSON.stringify( s.isDirectory() ) );
-  assertFalse(s.isDirectory());
+  assert.equal(false, s.isDirectory());
 
   puts("isFile: " + JSON.stringify( s.isFile() ) );
-  assertTrue(s.isFile());
+  assert.equal(true, s.isFile());
 
   puts("isSocket: " + JSON.stringify( s.isSocket() ) );
-  assertFalse(s.isSocket());
+  assert.equal(false, s.isSocket());
 
   puts("isBlockDevice: " + JSON.stringify( s.isBlockDevice() ) );
-  assertFalse(s.isBlockDevice());
+  assert.equal(false, s.isBlockDevice());
 
   puts("isCharacterDevice: " + JSON.stringify( s.isCharacterDevice() ) );
-  assertFalse(s.isCharacterDevice());
+  assert.equal(false, s.isCharacterDevice());
 
   puts("isFIFO: " + JSON.stringify( s.isFIFO() ) );
-  assertFalse(s.isFIFO());
+  assert.equal(false, s.isFIFO());
 
   puts("isSymbolicLink: " + JSON.stringify( s.isSymbolicLink() ) );
-  assertFalse(s.isSymbolicLink());
+  assert.equal(false, s.isSymbolicLink());
 }).addErrback(function () {
   got_error = true;
 });
 
 
 process.addListener("exit", function () {
-  assertEquals(2, success_count);
-  assertFalse(got_error);
-  assertTrue(stats.mtime instanceof Date);
+  assert.equal(2, success_count);
+  assert.equal(false, got_error);
+  assert.equal(true, stats.mtime instanceof Date);
 });
 

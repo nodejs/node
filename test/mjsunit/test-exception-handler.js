@@ -5,13 +5,13 @@ var caughtException = false;
 
 process.addListener('uncaughtException', function (e) {
   puts("uncaught exception! 1");
-  assertEquals(MESSAGE, e.message);
+  assert.equal(MESSAGE, e.message);
   caughtException = true;
 });
 
 process.addListener('uncaughtException', function (e) {
   puts("uncaught exception! 2");
-  assertEquals(MESSAGE, e.message);
+  assert.equal(MESSAGE, e.message);
   caughtException = true;
 });
 
@@ -21,5 +21,5 @@ setTimeout(function() {
 
 process.addListener("exit", function () {
   puts("exit");
-  assertTrue(caughtException);
+  assert.equal(true, caughtException);
 });

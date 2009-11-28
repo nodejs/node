@@ -38,7 +38,7 @@ var req = client.get("/test");
 // debug("client req")
 req.finish(function (res) {
   // debug("got res");
-  assertEquals(200, res.statusCode);
+  assert.equal(200, res.statusCode);
   res.setBodyEncoding("utf8");
   res.addListener("body", function (chunk) { body += chunk; });
   res.addListener("complete", function () {
@@ -49,5 +49,5 @@ req.finish(function (res) {
 });
 
 process.addListener("exit", function () {
-  assertEquals(body, "hello world\n");
+  assert.equal(body, "hello world\n");
 });

@@ -13,10 +13,10 @@ server.listen(PORT);
 
 http.cat("http://localhost:"+PORT+"/", "utf8")
   .addCallback(function (data) {
-    assertEquals(UTF8_STRING, data);
+    assert.equal(UTF8_STRING, data);
     server.close();
   })
   .addErrback(function() {
-    assertUnreachable('http.cat should succeed in < 1000ms');
+    assert.ok(false, 'http.cat should succeed in < 1000ms');
   })
   .timeout(1000);

@@ -32,11 +32,11 @@ client.addListener("receive", function (d) {
 setTimeout(function () {
   chars_recved = recv.length;
   puts("pause at: " + chars_recved);
-  assertTrue(chars_recved > 1);
+  assert.equal(true, chars_recved > 1);
   client.readPause();
   setTimeout(function () {
     puts("resume at: " + chars_recved);
-    assertEquals(chars_recved, recv.length);
+    assert.equal(chars_recved, recv.length);
     client.readResume();
 
     setTimeout(function () {
@@ -46,7 +46,7 @@ setTimeout(function () {
 
       setTimeout(function () {
         puts("resume at: " + chars_recved);
-        assertEquals(chars_recved, recv.length);
+        assert.equal(chars_recved, recv.length);
         client.readResume();
 
       }, 500);
@@ -63,6 +63,6 @@ client.addListener("eof", function () {
 });
 
 process.addListener("exit", function () {
-  assertEquals(N, recv.length);
+  assert.equal(N, recv.length);
   debug("Exit");
 });

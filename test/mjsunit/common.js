@@ -6,10 +6,11 @@ exports.libDir = path.join(exports.testDir, "../../lib");
 
 require.paths.unshift(exports.libDir);
 
-var mjsunit = require("mjsunit");
+var assert = require('assert');
 var sys = require("sys");
 
-process.mixin(exports, mjsunit, sys);
+process.mixin(exports, sys);
+exports.assert = require('assert');
 exports.posix = require("posix");
 exports.path = path;
 

@@ -10,12 +10,12 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
   var sent_final_ping = false;
 
   var server = tcp.createServer(function (socket) {
-    assertTrue(socket.remoteAddress !== null);
-    assertTrue(socket.remoteAddress !== undefined);
+    assert.equal(true, socket.remoteAddress !== null);
+    assert.equal(true, socket.remoteAddress !== undefined);
     if (host === "127.0.0.1")
-      assertEquals(socket.remoteAddress, "127.0.0.1");
+      assert.equal(socket.remoteAddress, "127.0.0.1");
     else if (host == null)
-      assertEquals(socket.remoteAddress, "127.0.0.1");
+      assert.equal(socket.remoteAddress, "127.0.0.1");
 
     socket.setEncoding("utf8");
     socket.setNoDelay();
@@ -24,25 +24,25 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     socket.addListener("receive", function (data) {
       var verified = socket.verifyPeer();
       var peerDN = socket.getPeerCertificate("DNstring");
-      assertEquals(verified, 1);
-      assertEquals(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
+      assert.equal(verified, 1);
+      assert.equal(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
                            + "OU=Test TLS Certificate,CN=localhost");
       puts("server got: " + JSON.stringify(data));
-      assertEquals("open", socket.readyState);
-      assertTrue(count <= N);
+      assert.equal("open", socket.readyState);
+      assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
         socket.send("PONG");
       }
     });
 
     socket.addListener("eof", function () {
-      assertEquals("writeOnly", socket.readyState);
+      assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
 
     socket.addListener("close", function (had_error) {
-      assertFalse(had_error);
-      assertEquals("closed", socket.readyState);
+      assert.equal(false, had_error);
+      assert.equal("closed", socket.readyState);
       socket.server.close();
     });
   });
@@ -56,26 +56,26 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
   client.setSecure('X509_PEM', caPem, 0, keyPem, caPem);
 
   client.addListener("connect", function () {
-    assertEquals("open", client.readyState);
+    assert.equal("open", client.readyState);
     var verified = client.verifyPeer();
     var peerDN = client.getPeerCertificate("DNstring");
-    assertEquals(verified, 1);
-    assertEquals(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
+    assert.equal(verified, 1);
+    assert.equal(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
 			 + "OU=Test TLS Certificate,CN=localhost");
     client.send("PING");
   });
 
   client.addListener("receive", function (data) {
-    assertEquals("PONG", data);
+    assert.equal("PONG", data);
     count += 1;
 
     puts("client got PONG");
 
     if (sent_final_ping) {
-      assertEquals("readOnly", client.readyState);
+      assert.equal("readOnly", client.readyState);
       return;
     } else {
-      assertEquals("open", client.readyState);
+      assert.equal("open", client.readyState);
     }
 
     if (count < N) {
@@ -88,8 +88,8 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
   });
 
   client.addListener("close", function () {
-    assertEquals(N+1, count);
-    assertTrue(sent_final_ping);
+    assert.equal(N+1, count);
+    assert.equal(true, sent_final_ping);
     tests_run += 1;
   });
 }
@@ -114,7 +114,7 @@ if (have_tls) {
   tlsTest(21443, null, caPem, keyPem, certPem);
 
   process.addListener("exit", function () {
-    assertEquals(2, tests_run);
+    assert.equal(2, tests_run);
   });
 } else {
   puts("Not compiled with TLS support.");

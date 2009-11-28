@@ -18,9 +18,9 @@ var server = http.createServer(function(req, res) {
     var name = part.name;
 
     if (parts_reveived == 1) {
-      assertEquals('reply', name);
+      assert.equal('reply', name);
     } else if (parts_reveived == 2) {
-      assertEquals('fileupload', name);
+      assert.equal('fileupload', name);
     }
 
     parts[name] = '';
@@ -28,11 +28,11 @@ var server = http.createServer(function(req, res) {
       parts[name] += chunk;
     });
     part.addListener('complete', function(chunk) {
-      assertEquals(0, part.buffer.length);
+      assert.equal(0, part.buffer.length);
       if (parts_reveived == 1) {
-        assertEquals('yes', parts[name]);
+        assert.equal('yes', parts[name]);
       } else if (parts_reveived == 2) {
-        assertEquals('/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg', parts[name]);
+        assert.equal('/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg', parts[name]);
       }
       parts_complete++;
     });
@@ -54,6 +54,6 @@ request.finish();
 
 process.addListener('exit', function() {
   puts("done");
-  assertEquals(2, parts_complete);
-  assertEquals(2, parts_reveived);
+  assert.equal(2, parts_complete);
+  assert.equal(2, parts_reveived);
 });

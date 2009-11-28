@@ -1,10 +1,10 @@
 var d = require("./d");
 
-var mjsunit = require("mjsunit");
+var assert = require("assert");
 
 var package = require("./package");
 
-mjsunit.assertEquals("world", package.hello);
+assert.equal("world", package.hello);
 
 debug("load fixtures/b/c.js");
 

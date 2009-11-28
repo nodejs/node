@@ -3,8 +3,8 @@ process.mixin(require("./common"));
 var p1_done = false;
 var p1 = new process.Promise();
 p1.addCallback(function () {
-  assertEquals(1, arguments.length);
-  assertEquals("single arg", arguments[0]);
+  assert.equal(1, arguments.length);
+  assert.equal("single arg", arguments[0]);
   p1_done = true;
 });
 
@@ -28,10 +28,10 @@ p3.addCallback(function () {
 var p4_done = false;
 var p4 = new process.Promise();
 p4.addCallback(function () {
-  assertEquals(3, arguments.length);
-  assertEquals("a", arguments[0]);
-  assertEquals("b", arguments[1]);
-  assertEquals("c", arguments[2]);
+  assert.equal(3, arguments.length);
+  assert.equal("a", arguments[0]);
+  assert.equal("b", arguments[1]);
+  assert.equal("c", arguments[2]);
   p4_done = true;
 });
 
@@ -47,36 +47,36 @@ p5.addCallback(function () {
 
 p2.emitSuccess();
 
-assertFalse(p1_done);
-assertTrue(p2_done);
-assertFalse(p3_done);
+assert.equal(false, p1_done);
+assert.equal(true, p2_done);
+assert.equal(false, p3_done);
 
 var ret1 = p1.wait()
-assertEquals("single arg", ret1);
+assert.equal("single arg", ret1);
 
-assertTrue(p1_done);
-assertTrue(p2_done);
-assertFalse(p3_done);
+assert.equal(true, p1_done);
+assert.equal(true, p2_done);
+assert.equal(false, p3_done);
 
 p3.emitSuccess();
 
-assertFalse(p4_done);
-assertFalse(p5_done);
+assert.equal(false, p4_done);
+assert.equal(false, p5_done);
 
 p5.emitSuccess();
 
-assertFalse(p4_done);
-assertTrue(p5_done);
+assert.equal(false, p4_done);
+assert.equal(true, p5_done);
 
 var ret4 = p4.wait();
-assertArrayEquals(["a","b","c"], ret4);
+assert.deepEqual(["a","b","c"], ret4);
 
-assertTrue(p4_done);
+assert.equal(true, p4_done);
 
 process.addListener("exit", function () {
-  assertTrue(p1_done);
-  assertTrue(p2_done);
-  assertTrue(p3_done);
-  assertTrue(p4_done);
-  assertTrue(p5_done);
+  assert.equal(true, p1_done);
+  assert.equal(true, p2_done);
+  assert.equal(true, p3_done);
+  assert.equal(true, p4_done);
+  assert.equal(true, p5_done);
 });

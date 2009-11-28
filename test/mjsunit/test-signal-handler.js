@@ -29,6 +29,6 @@ setInterval(function () {
 
 
 process.addListener("exit", function () {
-  assertEquals(1, first);
-  assertEquals(1, second);
+  assert.equal(1, first);
+  assert.equal(1, second);
 });

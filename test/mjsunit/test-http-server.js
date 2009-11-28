@@ -14,23 +14,23 @@ http.createServer(function (req, res) {
   req.id = request_number++;
 
   if (req.id == 0) {
-    assertEquals("GET", req.method);
-    assertEquals("/hello", req.uri.path);
-    assertEquals("world", req.uri.params["hello"]);
-    assertEquals("b==ar", req.uri.params["foo"]);
+    assert.equal("GET", req.method);
+    assert.equal("/hello", req.uri.path);
+    assert.equal("world", req.uri.params["hello"]);
+    assert.equal("b==ar", req.uri.params["foo"]);
   }
 
   if (req.id == 1) {
-    assertEquals("POST", req.method);
-    assertEquals("/quit", req.uri.path);
+    assert.equal("POST", req.method);
+    assert.equal("/quit", req.uri.path);
   }
 
   if (req.id == 2) {
-    assertEquals("foo", req.headers['x-x']);
+    assert.equal("foo", req.headers['x-x']);
   }
 
   if (req.id == 3) {
-    assertEquals("bar", req.headers['x-x']);
+    assert.equal("bar", req.headers['x-x']);
     this.close();
     //puts("server closed");
   }
@@ -64,7 +64,7 @@ c.addListener("receive", function (chunk) {
     c.send("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
           +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
     c.close();
-    assertEquals(c.readyState, "readOnly");
+    assert.equal(c.readyState, "readOnly");
     requests_sent += 2;
   }
 
@@ -75,18 +75,18 @@ c.addListener("eof", function () {
 });
 
 c.addListener("close", function () {
-  assertEquals(c.readyState, "closed");
+  assert.equal(c.readyState, "closed");
 });
 
 process.addListener("exit", function () {
-  assertEquals(4, request_number);
-  assertEquals(4, requests_sent);
+  assert.equal(4, request_number);
+  assert.equal(4, requests_sent);
 
   var hello = new RegExp("/hello");
-  assertTrue(hello.exec(server_response) != null);
+  assert.equal(true, hello.exec(server_response) != null);
 
   var quit = new RegExp("/quit");
-  assertTrue(quit.exec(server_response) != null);
+  assert.equal(true, quit.exec(server_response) != null);
 
-  assertTrue(client_got_eof);
+  assert.equal(true, client_got_eof);
 });

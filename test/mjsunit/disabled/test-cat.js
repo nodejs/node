@@ -22,7 +22,7 @@ var successes = 0;
 var promise = process.cat("http://localhost:"+PORT, "utf8");
 
 promise.addCallback(function (content) {
-  assertEquals(body, content);
+  assert.equal(body, content);
   server.close();
   successes += 1;
 });
@@ -38,7 +38,7 @@ var x = process.path.join(fixtures, "x.txt");
 promise = process.cat(x, "utf8");
 
 promise.addCallback(function (content) {
-  assertEquals("xyz", content.replace(/[\r\n]/, ''));
+  assert.equal("xyz", content.replace(/[\r\n]/, ''));
   successes += 1;
 });
 
@@ -47,6 +47,6 @@ promise.addErrback(function () {
 });
 
 process.addListener("exit", function () {
-  assertEquals(2, successes);
-  assertEquals(0, errors);
+  assert.equal(2, successes);
+  assert.equal(0, errors);
 });
