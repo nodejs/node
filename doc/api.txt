@@ -137,6 +137,18 @@ The second argument is optional. The +options+ if provided should be an
 object containing two members a boolean, +persistent+, and +interval+, a
 polling value in milliseconds. The default is +{persistent: true, interval:
 0}+.
++
+The +listener+ gets two arguments the current stat object and the previous
+stat object:
++
+-------------------------
+process.watchFile(f, function (curr, prev) {
+  sys.puts("the current mtime is: " + curr.mtime);
+  sys.puts("the previous mtime was: " + prev.mtime);
+});
+-------------------------
++
+These stat objects are instances of +posix.Stat+. 
 
 +process.unwatchFile(filename)+::
 Stop watching for changes on +filename+.

@@ -160,6 +160,71 @@ ssize_t DecodeWrite(char *buf, size_t buflen,
   return buflen;
 }
 
+#define DEV_SYMBOL         String::NewSymbol("dev")
+#define INO_SYMBOL         String::NewSymbol("ino")
+#define MODE_SYMBOL        String::NewSymbol("mode")
+#define NLINK_SYMBOL       String::NewSymbol("nlink")
+#define UID_SYMBOL         String::NewSymbol("uid")
+#define GID_SYMBOL         String::NewSymbol("gid")
+#define RDEV_SYMBOL        String::NewSymbol("rdev")
+#define SIZE_SYMBOL        String::NewSymbol("size")
+#define BLKSIZE_SYMBOL     String::NewSymbol("blksize")
+#define BLOCKS_SYMBOL      String::NewSymbol("blocks")
+#define ATIME_SYMBOL       String::NewSymbol("atime")
+#define MTIME_SYMBOL       String::NewSymbol("mtime")
+#define CTIME_SYMBOL       String::NewSymbol("ctime")
+
+static Persistent<FunctionTemplate> stats_constructor_template;
+
+Local<Object> BuildStatsObject(struct stat * s) {
+  HandleScope scope;
+
+  Local<Object> stats =
+    stats_constructor_template->GetFunction()->NewInstance();
+
+  /* ID of device containing file */
+  stats->Set(DEV_SYMBOL, Integer::New(s->st_dev));
+
+  /* inode number */
+  stats->Set(INO_SYMBOL, Integer::New(s->st_ino));
+
+  /* protection */
+  stats->Set(MODE_SYMBOL, Integer::New(s->st_mode));
+
+  /* number of hard links */
+  stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink));
+
+  /* user ID of owner */
+  stats->Set(UID_SYMBOL, Integer::New(s->st_uid));
+
+  /* group ID of owner */
+  stats->Set(GID_SYMBOL, Integer::New(s->st_gid));
+
+  /* device ID (if special file) */
+  stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev));
+
+  /* total size, in bytes */
+  stats->Set(SIZE_SYMBOL, Integer::New(s->st_size));
+
+  /* blocksize for filesystem I/O */
+  stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize));
+
+  /* number of blocks allocated */
+  stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks));
+
+  /* time of last access */
+  stats->Set(ATIME_SYMBOL, NODE_UNIXTIME_V8(s->st_atime));
+
+  /* time of last modification */
+  stats->Set(MTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_mtime));
+
+  /* time of last status change */
+  stats->Set(CTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_ctime));
+
+  return scope.Close(stats);
+}
+
+
 // Extracts a C str from a V8 Utf8Value.
 const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
@@ -725,6 +790,13 @@ static Local<Object> Load(int argc, char *argv[]) {
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
                EventEmitter::constructor_template->GetFunction());
+
+  // Initialize the stats object
+  Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
+  stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
+  process->Set(String::NewSymbol("Stats"),
+      stats_constructor_template->GetFunction());
+
 
   // Initialize the C++ modules..................filename of module
   Promise::Initialize(process);                // events.cc

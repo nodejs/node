@@ -32,7 +32,10 @@ void Stat::Callback(EV_P_ ev_stat *watcher, int revents) {
   Stat *handler = static_cast<Stat*>(watcher->data);
   assert(watcher == &handler->watcher_);
   HandleScope scope;
-  handler->Emit("change", 0, NULL);
+  Handle<Value> argv[2];
+  argv[0] = Handle<Value>(BuildStatsObject(&watcher->attr));
+  argv[1] = Handle<Value>(BuildStatsObject(&watcher->prev));
+  handler->Emit("change", 2, argv);
 }
 
 

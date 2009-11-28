@@ -8,9 +8,10 @@ var f2 = path.join(fixturesDir, "x2.txt");
 puts("watching for changes of " + f);
 
 var changes = 0;
-process.watchFile(f, function () {
+process.watchFile(f, function (curr, prev) {
   puts(f + " change");
   changes++;
+  assertTrue(curr.mtime != prev.mtime);
   process.unwatchFile(f);
 });
 
