@@ -121,6 +121,7 @@ def configure(conf):
 
   if conf.check_cfg(package='gnutls',
                     args='--cflags --libs',
+                    atleast_version='2.5.0',
                     #libpath=['/usr/lib', '/usr/local/lib'],
                     uselib_store='GNUTLS'):
     if conf.check(lib='gpg-error',
