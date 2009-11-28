@@ -1,4 +1,14 @@
-2009.11.28, Version 0.1.19
+2009.11.28, Version 0.1.20
+
+  * Add gnutls version to configure script
+
+  * Add V8 heap info to process.memoryUsage()
+
+  * process.watchFile callback has 2 arguments with the stat object
+    (choonkeat@gmail.com)
+
+
+2009.11.28, Version 0.1.19, 633d6be328708055897b72327b88ac88e158935f
 
   * Feature: Initial TLS support for TCP servers and clients.
     (Rhys Jones)
