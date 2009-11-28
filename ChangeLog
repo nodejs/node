@@ -1,4 +1,31 @@
-2009.11.17, Version 0.1.18
+2009.11.28, Version 0.1.19
+
+  * Feature: Initial TLS support for TCP servers and clients.
+    (Rhys Jones)
+
+  * Add options to process.watchFile()
+
+  * Add process.umask() (Friedemann Altrock)
+
+  * Bugfix: only detach timers when active.
+
+  * Bugfix: lib/file.js write(), shouldn't always emit errors or success
+    (onne@onnlucky.com)
+
+  * Bugfix: Memory leak in fs.write
+    (Reported by onne@onnlucky.com)
+
+  * Bugfix: Fix regular expressions detecting outgoing message headers.
+    (Reported by Elliott Cable)
+
+  * Improvements to Multipart parser (Felix Geisendörfer)
+
+  * New HTTP parser
+
+  * Upgrade v8 to 2.0.2
+
+
+2009.11.17, Version 0.1.18, 027829d2853a14490e6de9fc5f7094652d045ab8
 
   * Feature: process.watchFile() process.unwatchFile()
 
