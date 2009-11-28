@@ -544,7 +544,7 @@ def GuessToolchain(os):
 
 OS_GUESS = utils.GuessOS()
 TOOLCHAIN_GUESS = GuessToolchain(OS_GUESS)
-ARCH_GUESS = utils.GuessArchitecture()
+ARCH_GUESS = utils.GuessArchitecture() or ""
 
 
 SIMPLE_OPTIONS = {
