@@ -599,19 +599,6 @@ void Connection::OnClose() {
   };
 
   Emit("close", 2, argv);
-
-  #if EVCOM_HAVE_GNUTLS
-  if (secure_) {
-    if (stream_.session) {
-      gnutls_deinit(stream_.session);
-      stream_.session = NULL;
-    }
-    if (!stream_.server && credentials) {
-      gnutls_certificate_free_credentials(credentials);
-      credentials = NULL;
-    }
-  }
-  #endif
 }
 
 void Connection::OnConnect() {

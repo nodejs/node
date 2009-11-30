@@ -134,6 +134,19 @@ class Connection : public EventEmitter {
     assert(connection->stream_.recvfd < 0);
     assert(connection->stream_.sendfd < 0);
 
+    #if EVCOM_HAVE_GNUTLS
+    if (connection->secure_) {
+      if (connection->stream_.session) {
+        gnutls_deinit(connection->stream_.session);
+        connection->stream_.session = NULL;
+      }
+      if (!connection->stream_.server && connection->credentials) {
+        gnutls_certificate_free_credentials(connection->credentials);
+        connection->credentials = NULL;
+      }
+    }
+    #endif
+
     connection->OnClose();
 
     assert(connection->attached_);
