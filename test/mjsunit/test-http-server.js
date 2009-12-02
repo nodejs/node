@@ -23,6 +23,14 @@ http.createServer(function (req, res) {
   if (req.id == 1) {
     assertEquals("POST", req.method);
     assertEquals("/quit", req.uri.path);
+  }
+
+  if (req.id == 2) {
+    assertEquals("foo", req.headers['x-x']);
+  }
+
+  if (req.id == 3) {
+    assertEquals("bar", req.headers['x-x']);
     this.close();
     //puts("server closed");
   }
@@ -49,10 +57,17 @@ c.addListener("receive", function (chunk) {
 
   if (requests_sent == 1) {
     c.send("POST /quit HTTP/1.1\r\n\r\n");
-    c.close();
-    assertEquals(c.readyState, "readOnly");
     requests_sent += 1;
   }
+
+  if (requests_sent == 2) {
+    c.send("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
+          +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
+    c.close();
+    assertEquals(c.readyState, "readOnly");
+    requests_sent += 2;
+  }
+
 });
 
 c.addListener("eof", function () {
@@ -64,8 +79,8 @@ c.addListener("close", function () {
 });
 
 process.addListener("exit", function () {
-  assertEquals(2, request_number);
-  assertEquals(2, requests_sent);
+  assertEquals(4, request_number);
+  assertEquals(4, requests_sent);
 
   var hello = new RegExp("/hello");
   assertTrue(hello.exec(server_response) != null);
