@@ -37,7 +37,7 @@ http.createServer(function (req, res) {
 }).listen(PORT);
 
 var client = http.createClient(PORT);
-var req = client.get("/hello", {"Accept": "*/*", "Foo": "bar"});
+var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
 req.finish(function (res) {
   assert.equal(200, res.statusCode);
   responses_recvd += 1;
@@ -47,7 +47,7 @@ req.finish(function (res) {
 });
 
 setTimeout(function () {
-  req = client.post("/world");
+  req = client.request("POST", "/world");
   req.finish(function (res) {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;

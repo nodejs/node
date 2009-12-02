@@ -928,7 +928,7 @@ Example of connecting to +google.com+
 var sys = require("sys"),
    http = require("http");
 var google = http.createClient(80, "www.google.com");
-var request = google.get("/", {"host": "www.google.com"});
+var request = google.request("GET", "/", {"host": "www.google.com"});
 request.finish(function (response) {
   sys.puts("STATUS: " + response.statusCode);
   sys.puts("HEADERS: " + JSON.stringify(response.headers));
@@ -945,9 +945,12 @@ Constructs a new HTTP client. +port+ and
 +host+ refer to the server to be connected to. A
 connection is not established until a request is issued.
 
-+client.get(path, request_headers)+, +client.head(path, request_headers)+, +client.post(path, request_headers)+, +client.del(path, request_headers)+, +client.put(path, request_headers)+ ::
++client.request([method], path, [request_headers])+ ::
 
 Issues a request; if necessary establishes connection. Returns a +http.ClientRequest+ instance.
+
++
++method+ is optional and defaults to "GET" if omitted.
 +
 +request_headers+ is optional.
 Additional request headers might be added internally

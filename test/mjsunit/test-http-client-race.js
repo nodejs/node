@@ -20,7 +20,7 @@ var client = http.createClient(PORT);
 var body1 = "";
 var body2 = "";
 
-client.get("/1").finish(function (res1) {
+client.request("/1").finish(function (res1) {
   res1.setBodyEncoding("utf8");
 
   res1.addListener("body", function (chunk) {
@@ -28,7 +28,7 @@ client.get("/1").finish(function (res1) {
   });
 
   res1.addListener("complete", function () {
-    client.get("/2").finish(function (res2) {
+    client.request("/2").finish(function (res2) {
       res2.setBodyEncoding("utf8");
       res2.addListener("body", function (chunk) { body2 += chunk; });
       res2.addListener("complete", function () { server.close(); });

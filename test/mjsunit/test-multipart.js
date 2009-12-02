@@ -48,7 +48,7 @@ var server = http.createServer(function(req, res) {
 server.listen(port);
 
 var client = http.createClient(port);
-var request = client.post('/', {'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
+var request = client.request('POST', '/', {'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
 request.sendBody(fixture.reply, 'binary');
 request.finish();
 

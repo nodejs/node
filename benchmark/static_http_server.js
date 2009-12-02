@@ -28,7 +28,7 @@ server.listen(port);
 function responseListener (res) {
   res.addListener("complete", function () {
     if (requests < n) {
-      res.client.get("/").finish(responseListener);
+      res.client.request("/").finish(responseListener);
       requests++;
     }
 
@@ -41,6 +41,6 @@ function responseListener (res) {
 for (var i = 0; i < concurrency; i++) {
   var client = http.createClient(port);
   client.id = i;
-  client.get("/").finish(responseListener);
+  client.request("/").finish(responseListener);
   requests++;
 }

@@ -26,7 +26,7 @@ var server = http.createServer(function(req, res) {
 server.listen(PORT);
 
 var client = http.createClient(PORT);
-var req = client.post('/');
+var req = client.request('POST', '/');
 
 req.sendBody('1\n');
 req.sendBody('2\n');

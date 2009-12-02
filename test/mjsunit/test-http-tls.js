@@ -64,7 +64,7 @@ http_server.listen(PORT);
 
 var client = http.createClient(PORT, HOST);
 client.setSecure("x509_PEM", caPem, 0, keyPem, certPem);
-var req = client.get("/hello", {"Accept": "*/*", "Foo": "bar"});
+var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
 req.finish(function (res) {
   var verified = res.connection.verifyPeer();
   var peerDN = res.connection.getPeerCertificate("DNstring");
@@ -79,7 +79,7 @@ req.finish(function (res) {
 });
 
 setTimeout(function () {
-  req = client.post("/world");
+  req = client.request("POST", "/world");
   req.finish(function (res) {
     var verified = res.connection.verifyPeer();
     var peerDN = res.connection.getPeerCertificate("DNstring");
