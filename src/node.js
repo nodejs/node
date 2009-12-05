@@ -183,7 +183,7 @@ process.EventEmitter.prototype.listeners = function (type) {
 process.inherits = function (ctor, superCtor) {
   var tempCtor = function(){};
   tempCtor.prototype = superCtor.prototype;
-  ctor.super_ = superCtor.prototype;
+  ctor.super_ = superCtor;
   ctor.prototype = new tempCtor();
   ctor.prototype.constructor = ctor;
 };
