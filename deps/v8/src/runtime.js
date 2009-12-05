@@ -146,16 +146,16 @@ function COMPARE(x, ncr) {
 function ADD(x) {
   // Fast case: Check for number operands and do the addition.
   if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
-  if (IS_STRING(this) && IS_STRING(x)) return %StringAdd(this, x);
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
 
   // Default implementation.
   var a = %ToPrimitive(this, NO_HINT);
   var b = %ToPrimitive(x, NO_HINT);
 
   if (IS_STRING(a)) {
-    return %StringAdd(a, %ToString(b));
+    return %_StringAdd(a, %ToString(b));
   } else if (IS_STRING(b)) {
-    return %StringAdd(%ToString(a), b);
+    return %_StringAdd(%ToString(a), b);
   } else {
     return %NumberAdd(%ToNumber(a), %ToNumber(b));
   }
@@ -173,7 +173,7 @@ function STRING_ADD_LEFT(y) {
           : %ToString(%ToPrimitive(y, NO_HINT));
     }
   }
-  return %StringAdd(this, y);
+  return %_StringAdd(this, y);
 }
 
 
@@ -189,7 +189,7 @@ function STRING_ADD_RIGHT(y) {
           : %ToString(%ToPrimitive(x, NO_HINT));
     }
   }
-  return %StringAdd(x, y);
+  return %_StringAdd(x, y);
 }
 
 

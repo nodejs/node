@@ -43,24 +43,27 @@
 # define USE_THUMB_INTERWORK 1
 #endif
 
-#if defined(__ARM_ARCH_5T__) || \
-    defined(__ARM_ARCH_5TE__) || \
-    defined(__ARM_ARCH_6__) || \
-    defined(__ARM_ARCH_7A__) || \
+#if defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
-# define CAN_USE_ARMV5_INSTRUCTIONS 1
-# define CAN_USE_THUMB_INSTRUCTIONS 1
+# define CAN_USE_ARMV7_INSTRUCTIONS 1
 #endif
 
-#if defined(__ARM_ARCH_6__) || \
-    defined(__ARM_ARCH_7A__) || \
-    defined(__ARM_ARCH_7__)
+#if defined(__ARM_ARCH_6__) ||   \
+    defined(__ARM_ARCH_6J__) ||  \
+    defined(__ARM_ARCH_6K__) ||  \
+    defined(__ARM_ARCH_6Z__) ||  \
+    defined(__ARM_ARCH_6ZK__) || \
+    defined(__ARM_ARCH_6T2__) || \
+    defined(CAN_USE_ARMV7_INSTRUCTIONS)
 # define CAN_USE_ARMV6_INSTRUCTIONS 1
 #endif
 
-#if defined(__ARM_ARCH_7A__) || \
-    defined(__ARM_ARCH_7__)
-# define CAN_USE_ARMV7_INSTRUCTIONS 1
+#if defined(__ARM_ARCH_5T__)            || \
+    defined(__ARM_ARCH_5TE__)           || \
+    defined(CAN_USE_ARMV6_INSTRUCTIONS)
+# define CAN_USE_ARMV5_INSTRUCTIONS 1
+# define CAN_USE_THUMB_INSTRUCTIONS 1
 #endif
 
 // Simulator should support ARM5 instructions.

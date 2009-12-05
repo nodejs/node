@@ -244,7 +244,7 @@ devtools.profiler.CodeMap.CodeEntry.prototype.toString = function() {
 
 
 devtools.profiler.CodeMap.NameGenerator = function() {
-  this.knownNames_ = [];
+  this.knownNames_ = {};
 };
 
 

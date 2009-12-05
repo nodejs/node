@@ -173,3 +173,23 @@ assertEquals(0, null + null, "uu");
   assertEquals("42strz", reswz, "swwz");
   assertEquals(84, resww, "swww");
 })(1);
+
+// Generate ascii and non ascii strings from length 0 to 20.
+var ascii = 'aaaaaaaaaaaaaaaaaaaa';
+var non_ascii = '\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234';
+assertEquals(20, ascii.length);
+assertEquals(20, non_ascii.length);
+var a = Array(21);
+var b = Array(21);
+for (var i = 0; i <= 20; i++) {
+  a[i] = ascii.substring(0, i);
+  b[i] = non_ascii.substring(0, i);
+}
+
+// Add ascii and non-ascii strings generating strings with length from 0 to 20.
+for (var i = 0; i <= 20; i++) {
+  for (var j = 0; j < i; j++) {
+    assertEquals(a[i], a[j] + a[i - j])
+    assertEquals(b[i], b[j] + b[i - j])
+  }
+}

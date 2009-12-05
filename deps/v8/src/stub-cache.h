@@ -226,9 +226,9 @@ class StubCache : public AllStatic {
     // hash code would effectively throw away two bits of the hash
     // code.
     ASSERT(kHeapObjectTagSize == String::kHashShift);
-    // Compute the hash of the name (use entire length field).
+    // Compute the hash of the name (use entire hash field).
     ASSERT(name->HasHashCode());
-    uint32_t field = name->length_field();
+    uint32_t field = name->hash_field();
     // Using only the low bits in 64-bit mode is unlikely to increase the
     // risk of collision even if the heap is spread over an area larger than
     // 4Gb (and not at all if it isn't).

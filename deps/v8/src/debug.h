@@ -370,17 +370,6 @@ class Debug {
   // Garbage collection notifications.
   static void AfterGarbageCollection();
 
-  // Code generation assumptions.
-  static const int kIa32CallInstructionLength = 5;
-  static const int kIa32JSReturnSequenceLength = 6;
-
-  // The x64 JS return sequence is padded with int3 to make it large
-  // enough to hold a call instruction when the debugger patches it.
-  static const int kX64CallInstructionLength = 13;
-  static const int kX64JSReturnSequenceLength = 13;
-
-  static const int kARMJSReturnSequenceLength = 4;
-
   // Code generator routines.
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);

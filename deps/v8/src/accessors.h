@@ -51,8 +51,9 @@ namespace internal {
   V(ScriptCompilationType)          \
   V(ScriptLineEnds)                 \
   V(ScriptContextData)              \
-  V(ScriptEvalFromFunction)         \
-  V(ScriptEvalFromPosition)         \
+  V(ScriptEvalFromScript)           \
+  V(ScriptEvalFromScriptPosition)   \
+  V(ScriptEvalFromFunctionName)     \
   V(ObjectPrototype)
 
 // Accessors contains all predefined proxy accessors.
@@ -95,8 +96,9 @@ class Accessors : public AllStatic {
   static Object* ScriptGetCompilationType(Object* object, void*);
   static Object* ScriptGetLineEnds(Object* object, void*);
   static Object* ScriptGetContextData(Object* object, void*);
-  static Object* ScriptGetEvalFromFunction(Object* object, void*);
-  static Object* ScriptGetEvalFromPosition(Object* object, void*);
+  static Object* ScriptGetEvalFromScript(Object* object, void*);
+  static Object* ScriptGetEvalFromScriptPosition(Object* object, void*);
+  static Object* ScriptGetEvalFromFunctionName(Object* object, void*);
   static Object* ObjectGetPrototype(Object* receiver, void*);
   static Object* ObjectSetPrototype(JSObject* receiver, Object* value, void*);
 

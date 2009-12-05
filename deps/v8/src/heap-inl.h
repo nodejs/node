@@ -41,10 +41,10 @@ int Heap::MaxObjectSizeInPagedSpace() {
 
 Object* Heap::AllocateSymbol(Vector<const char> str,
                              int chars,
-                             uint32_t length_field) {
+                             uint32_t hash_field) {
   unibrow::Utf8InputBuffer<> buffer(str.start(),
                                     static_cast<unsigned>(str.length()));
-  return AllocateInternalSymbol(&buffer, chars, length_field);
+  return AllocateInternalSymbol(&buffer, chars, hash_field);
 }
 
 

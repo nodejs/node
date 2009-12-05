@@ -309,4 +309,13 @@ char* StringBuilder::Finalize() {
   return buffer_.start();
 }
 
+
+int TenToThe(int exponent) {
+  ASSERT(exponent <= 9);
+  ASSERT(exponent >= 1);
+  int answer = 10;
+  for (int i = 1; i < exponent; i++) answer *= 10;
+  return answer;
+}
+
 } }  // namespace v8::internal

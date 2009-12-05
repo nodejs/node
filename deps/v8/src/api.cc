@@ -126,6 +126,48 @@ static FatalErrorCallback& GetFatalErrorHandler() {
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
 // The default fatal error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(const char* location) {
+  i::HeapStats heap_stats;
+  int start_marker;
+  heap_stats.start_marker = &start_marker;
+  int new_space_size;
+  heap_stats.new_space_size = &new_space_size;
+  int new_space_capacity;
+  heap_stats.new_space_capacity = &new_space_capacity;
+  int old_pointer_space_size;
+  heap_stats.old_pointer_space_size = &old_pointer_space_size;
+  int old_pointer_space_capacity;
+  heap_stats.old_pointer_space_capacity = &old_pointer_space_capacity;
+  int old_data_space_size;
+  heap_stats.old_data_space_size = &old_data_space_size;
+  int old_data_space_capacity;
+  heap_stats.old_data_space_capacity = &old_data_space_capacity;
+  int code_space_size;
+  heap_stats.code_space_size = &code_space_size;
+  int code_space_capacity;
+  heap_stats.code_space_capacity = &code_space_capacity;
+  int map_space_size;
+  heap_stats.map_space_size = &map_space_size;
+  int map_space_capacity;
+  heap_stats.map_space_capacity = &map_space_capacity;
+  int cell_space_size;
+  heap_stats.cell_space_size = &cell_space_size;
+  int cell_space_capacity;
+  heap_stats.cell_space_capacity = &cell_space_capacity;
+  int lo_space_size;
+  heap_stats.lo_space_size = &lo_space_size;
+  int global_handle_count;
+  heap_stats.global_handle_count = &global_handle_count;
+  int weak_global_handle_count;
+  heap_stats.weak_global_handle_count = &weak_global_handle_count;
+  int pending_global_handle_count;
+  heap_stats.pending_global_handle_count = &pending_global_handle_count;
+  int near_death_global_handle_count;
+  heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
+  int destroyed_global_handle_count;
+  heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
+  int end_marker;
+  heap_stats.end_marker = &end_marker;
+  i::Heap::RecordStats(&heap_stats);
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
@@ -451,7 +493,7 @@ void Context::Exit() {
 }
 
 
-void Context::SetData(v8::Handle<Value> data) {
+void Context::SetData(v8::Handle<String> data) {
   if (IsDeadCheck("v8::Context::SetData()")) return;
   ENTER_V8;
   {
@@ -1175,7 +1217,7 @@ Local<Value> Script::Id() {
 }
 
 
-void Script::SetData(v8::Handle<Value> data) {
+void Script::SetData(v8::Handle<String> data) {
   ON_BAILOUT("v8::Script::SetData()", return);
   LOG_API("Script::SetData");
   {

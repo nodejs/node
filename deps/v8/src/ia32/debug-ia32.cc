@@ -45,17 +45,17 @@ bool BreakLocationIterator::IsDebugBreakAtReturn() {
 // CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-ia32.cc
 // for the precise return instructions sequence.
 void BreakLocationIterator::SetDebugBreakAtReturn() {
-  ASSERT(Debug::kIa32JSReturnSequenceLength >=
-         Debug::kIa32CallInstructionLength);
+  ASSERT(Assembler::kJSReturnSequenceLength >=
+         Assembler::kCallInstructionLength);
   rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
-      Debug::kIa32JSReturnSequenceLength - Debug::kIa32CallInstructionLength);
+      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
 
 // Restore the JS frame exit code.
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
   rinfo()->PatchCode(original_rinfo()->pc(),
-                     Debug::kIa32JSReturnSequenceLength);
+                     Assembler::kJSReturnSequenceLength);
 }
 
 

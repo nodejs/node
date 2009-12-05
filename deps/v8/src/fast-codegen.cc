@@ -305,11 +305,14 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   increment_loop_depth();
-  Label body, exit;
+  Label body, exit, stack_limit_hit, stack_check_success;
 
-  // Emit the test at the bottom of the loop.
   __ bind(&body);
   Visit(stmt->body());
+
+  // Check stack before looping.
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
 
   // We are not in an expression context because we have been compiling
   // statements.  Set up a test expression context for the condition.
@@ -321,6 +324,11 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Visit(stmt->cond());
   true_label_ = NULL;
   false_label_ = NULL;
+
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
 
   __ bind(&exit);
 
@@ -331,7 +339,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
   increment_loop_depth();
-  Label test, body, exit;
+  Label test, body, exit, stack_limit_hit, stack_check_success;
 
   // Emit the test at the bottom of the loop.
   __ jmp(&test);
@@ -340,6 +348,10 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Visit(stmt->body());
 
   __ bind(&test);
+  // Check stack before looping.
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
+
   // We are not in an expression context because we have been compiling
   // statements.  Set up a test expression context for the condition.
   ASSERT_EQ(NULL, true_label_);
@@ -351,6 +363,11 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   true_label_ = NULL;
   false_label_ = NULL;
 
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
   __ bind(&exit);
 
   decrement_loop_depth();
@@ -359,7 +376,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Comment cmnt(masm_, "[ ForStatement");
-  Label test, body, exit;
+  Label test, body, exit, stack_limit_hit, stack_check_success;
   if (stmt->init() != NULL) Visit(stmt->init());
 
   increment_loop_depth();
@@ -367,9 +384,15 @@ void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
   __ jmp(&test);
   __ bind(&body);
   Visit(stmt->body());
+
+  // Check stack before looping.
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
+
   if (stmt->next() != NULL) Visit(stmt->next());
 
   __ bind(&test);
+
   if (stmt->cond() == NULL) {
     // For an empty test jump to the top of the loop.
     __ jmp(&body);
@@ -378,6 +401,7 @@ void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
     // statements.  Set up a test expression context for the condition.
     ASSERT_EQ(NULL, true_label_);
     ASSERT_EQ(NULL, false_label_);
+
     true_label_ = &body;
     false_label_ = &exit;
     ASSERT(stmt->cond()->context() == Expression::kTest);
@@ -385,6 +409,11 @@ void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
     true_label_ = NULL;
     false_label_ = NULL;
   }
+
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
 
   __ bind(&exit);
   decrement_loop_depth();

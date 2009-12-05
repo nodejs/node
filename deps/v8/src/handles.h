@@ -277,7 +277,8 @@ enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
                                           KeyCollectionType type);
 Handle<JSArray> GetKeysFor(Handle<JSObject> object);
-Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object);
+Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
+                                       bool cache_result);
 
 // Computes the union of keys and return the result.
 // Used for implementing "for (n in object) { }"

@@ -77,7 +77,8 @@ function SparseJoin(array, len, convert) {
     var key = keys[i];
     if (key != last_key) {
       var e = array[key];
-      builder.add(convert(e));
+      if (typeof(e) !== 'string') e = convert(e);
+      builder.add(e);
       last_key = key;
     }
   }
@@ -114,17 +115,36 @@ function Join(array, length, separator, convert) {
     if (length == 1) {
       var e = array[0];
       if (!IS_UNDEFINED(e) || (0 in array)) {
+        if (typeof(e) === 'string') return e;
         return convert(e);
       }
     }
 
     var builder = new StringBuilder();
 
-    for (var i = 0; i < length; i++) {
-      var e = array[i];
-      if (i != 0) builder.add(separator);
-      if (!IS_UNDEFINED(e) || (i in array)) {
-        builder.add(convert(e));
+    // We pull the empty separator check outside the loop for speed!
+    if (separator.length == 0) {
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (!IS_UNDEFINED(e) || (i in array)) {
+          if (typeof(e) !== 'string') e = convert(e);
+          if (e.length > 0) {
+            var elements = builder.elements;
+            elements[elements.length] = e;
+          }
+        }
+      }
+    } else {
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (i != 0) builder.add(separator);
+        if (!IS_UNDEFINED(e) || (i in array)) {
+          if (typeof(e) !== 'string') e = convert(e);
+          if (e.length > 0) {
+            var elements = builder.elements;
+            elements[elements.length] = e;
+          }
+        }
       }
     }
     return builder.generate();
@@ -136,12 +156,14 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(e) {
+  if (typeof(e) === 'string') return e;
   if (e == null) return '';
   else return ToString(e);
 }
 
 
 function ConvertToLocaleString(e) {
+  if (typeof(e) === 'string') return e;
   if (e == null) return '';
   else {
     // e_obj's toLocaleString might be overwritten, check if it is a function.
@@ -149,7 +171,7 @@ function ConvertToLocaleString(e) {
     // See issue 877615.
     var e_obj = ToObject(e);
     if (IS_FUNCTION(e_obj.toLocaleString))
-      return e_obj.toLocaleString();
+      return ToString(e_obj.toLocaleString());
     else
       return ToString(e);
   }

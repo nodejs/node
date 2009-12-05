@@ -546,6 +546,9 @@ class CodeGenerator: public AstVisitor {
   inline void GenerateMathSin(ZoneList<Expression*>* args);
   inline void GenerateMathCos(ZoneList<Expression*>* args);
 
+  // Fast support for StringAdd.
+  void GenerateStringAdd(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
@@ -734,6 +737,37 @@ class GenericBinaryOpStub: public CodeStub {
   bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
   bool HasArgumentsInRegisters() { return args_in_registers_; }
   bool HasArgumentsReversed() { return args_reversed_; }
+};
+
+
+// Flag that indicates how to generate code for the stub StringAddStub.
+enum StringAddFlags {
+  NO_STRING_ADD_FLAGS = 0,
+  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
+};
+
+
+class StringAddStub: public CodeStub {
+ public:
+  explicit StringAddStub(StringAddFlags flags) {
+    string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
+  }
+
+ private:
+  Major MajorKey() { return StringAdd; }
+  int MinorKey() { return string_check_ ? 0 : 1; }
+
+  void Generate(MacroAssembler* masm);
+
+  void GenerateCopyCharacters(MacroAssembler* masm,
+                                   Register desc,
+                                   Register src,
+                                   Register count,
+                                   Register scratch,
+                                   bool ascii);
+
+  // Should the stub check whether arguments are strings?
+  bool string_check_;
 };
 
 

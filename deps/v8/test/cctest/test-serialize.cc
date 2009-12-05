@@ -192,6 +192,15 @@ TEST(Serialize) {
 }
 
 
+// Test that heap serialization is non-destructive.
+TEST(SerializeTwice) {
+  Serializer::Enable();
+  v8::V8::Initialize();
+  Serialize();
+  Serialize();
+}
+
+
 //----------------------------------------------------------------------------
 // Tests that the heap can be deserialized.
 
@@ -218,7 +227,17 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
   Deserialize();
 
-  fflush(stdout);
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  SanityCheck();
+}
+
+
+DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
+  v8::HandleScope scope;
+
+  Deserialize();
 
   v8::Persistent<v8::Context> env = v8::Context::New();
   env->Enter();
@@ -228,6 +247,22 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
+  v8::HandleScope scope;
+
+  Deserialize();
+
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  const char* c_source = "\"1234\".length";
+  v8::Local<v8::String> source = v8::String::New(c_source);
+  v8::Local<v8::Script> script = v8::Script::Compile(source);
+  CHECK_EQ(4, script->Run()->Int32Value());
+}
+
+
+DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
+               SerializeTwice) {
   v8::HandleScope scope;
 
   Deserialize();

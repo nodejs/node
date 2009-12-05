@@ -79,6 +79,11 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object, Register offset, Register scratch);
 
   // ---------------------------------------------------------------------------
+  // Stack limit support
+
+  void StackLimitCheck(Label* on_stack_limit_hit);
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
@@ -98,6 +103,8 @@ class MacroAssembler: public Assembler {
 
   // Align the stack by optionally pushing a Smi zero.
   void AlignStack(int offset);
+
+  void LoadContext(Register dst, int context_chain_length);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

@@ -238,14 +238,15 @@ function MakeError(type, args) {
 Script.prototype.lineFromPosition = function(position) {
   var lower = 0;
   var upper = this.lineCount() - 1;
+  var line_ends = this.line_ends;
 
   // We'll never find invalid positions so bail right away.
-  if (position > this.line_ends[upper]) {
+  if (position > line_ends[upper]) {
     return -1;
   }
 
   // This means we don't have to safe-guard indexing line_ends[i - 1].
-  if (position <= this.line_ends[0]) {
+  if (position <= line_ends[0]) {
     return 0;
   }
 
@@ -253,9 +254,9 @@ Script.prototype.lineFromPosition = function(position) {
   while (upper >= 1) {
     var i = (lower + upper) >> 1;
 
-    if (position > this.line_ends[i]) {
+    if (position > line_ends[i]) {
       lower = i + 1;
-    } else if (position <= this.line_ends[i - 1]) {
+    } else if (position <= line_ends[i - 1]) {
       upper = i - 1;
     } else {
       return i;
@@ -278,8 +279,9 @@ Script.prototype.locationFromPosition = function (position,
   if (line == -1) return null;
 
   // Determine start, end and column.
-  var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
-  var end = this.line_ends[line];
+  var line_ends = this.line_ends;
+  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
+  var end = line_ends[line];
   if (end > 0 && StringCharAt.call(this.source, end - 1) == '\r') end--;
   var column = position - start;
 
@@ -368,8 +370,9 @@ Script.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
     return null;
   }
 
-  var from_position = from_line == 0 ? 0 : this.line_ends[from_line - 1] + 1;
-  var to_position = to_line == 0 ? 0 : this.line_ends[to_line - 1] + 1;
+  var line_ends = this.line_ends;
+  var from_position = from_line == 0 ? 0 : line_ends[from_line - 1] + 1;
+  var to_position = to_line == 0 ? 0 : line_ends[to_line - 1] + 1;
 
   // Return a source slice with line numbers re-adjusted to the resource.
   return new SourceSlice(this, from_line + this.line_offset, to_line + this.line_offset,
@@ -391,8 +394,9 @@ Script.prototype.sourceLine = function (opt_line) {
   }
 
   // Return the source line.
-  var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
-  var end = this.line_ends[line];
+  var line_ends = this.line_ends;
+  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
+  var end = line_ends[line];
   return StringSubstring.call(this.source, start, end);
 }
 
@@ -625,10 +629,7 @@ CallSite.prototype.isEval = function () {
 
 CallSite.prototype.getEvalOrigin = function () {
   var script = %FunctionGetScript(this.fun);
-  if (!script || script.compilation_type != 1)
-    return null;
-  return new CallSite(null, script.eval_from_function,
-      script.eval_from_position);
+  return FormatEvalOrigin(script);
 };
 
 CallSite.prototype.getFunction = function () {
@@ -696,7 +697,7 @@ CallSite.prototype.getColumnNumber = function () {
   if (script) {
     location = script.locationFromPosition(this.pos, true);
   }
-  return location ? location.column : null;
+  return location ? location.column + 1: null;
 };
 
 CallSite.prototype.isNative = function () {
@@ -715,12 +716,44 @@ CallSite.prototype.isConstructor = function () {
   return this.fun === constructor;
 };
 
+function FormatEvalOrigin(script) {
+  var eval_origin = "";
+  if (script.eval_from_function_name) {
+    eval_origin += script.eval_from_function_name;
+  } else {
+    eval_origin +=  "<anonymous>";
+  }
+  
+  var eval_from_script = script.eval_from_script;
+  if (eval_from_script) {
+    if (eval_from_script.compilation_type == 1) {
+      // eval script originated from another eval.
+      eval_origin += " (eval at " + FormatEvalOrigin(eval_from_script) + ")";
+    } else {
+      // eval script originated from "real" scource.
+      if (eval_from_script.name) {
+        eval_origin += " (" + eval_from_script.name;
+        var location = eval_from_script.locationFromPosition(script.eval_from_script_position, true);
+        if (location) {
+          eval_origin += ":" + (location.line + 1);
+          eval_origin += ":" + (location.column + 1);
+        }
+        eval_origin += ")"
+      } else {
+        eval_origin += " (unknown source)";
+      }
+    }
+  }
+  
+  return eval_origin;
+};
+
 function FormatSourcePosition(frame) {
   var fileLocation = "";
   if (frame.isNative()) {
     fileLocation = "native";
   } else if (frame.isEval()) {
-    fileLocation = "eval at " + FormatSourcePosition(frame.getEvalOrigin());
+    fileLocation = "eval at " + frame.getEvalOrigin();
   } else {
     var fileName = frame.getFileName();
     if (fileName) {

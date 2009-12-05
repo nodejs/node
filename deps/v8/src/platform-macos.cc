@@ -252,11 +252,6 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
-double OS::nan_value() {
-  return NAN;
-}
-
-
 int OS::ActivationFrameAlignment() {
   // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
   // Function Call Guide".

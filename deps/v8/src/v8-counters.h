@@ -153,8 +153,9 @@ namespace internal {
   SC(zone_segment_bytes, V8.ZoneSegmentBytes)                       \
   SC(compute_entry_frame, V8.ComputeEntryFrame)                     \
   SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)          \
-  SC(generic_binary_stub_calls_regs, V8.GenericBinaryStubCallsRegs)
-
+  SC(generic_binary_stub_calls_regs, V8.GenericBinaryStubCallsRegs) \
+  SC(string_add_runtime, V8.StringAddRuntime)                       \
+  SC(string_add_native, V8.StringAddNative)
 
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {

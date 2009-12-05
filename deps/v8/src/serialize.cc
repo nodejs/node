@@ -44,6 +44,69 @@
 namespace v8 {
 namespace internal {
 
+// Mapping objects to their location after deserialization.
+// This is used during building, but not at runtime by V8.
+class SerializationAddressMapper {
+ public:
+  static bool IsMapped(HeapObject* obj) {
+    EnsureMapExists();
+    return serialization_map_->Lookup(Key(obj), Hash(obj), false) != NULL;
+  }
+
+  static int MappedTo(HeapObject* obj) {
+    ASSERT(IsMapped(obj));
+    return reinterpret_cast<intptr_t>(serialization_map_->Lookup(Key(obj),
+                                      Hash(obj),
+                                      false)->value);
+  }
+
+  static void Map(HeapObject* obj, int to) {
+    EnsureMapExists();
+    ASSERT(!IsMapped(obj));
+    HashMap::Entry* entry =
+        serialization_map_->Lookup(Key(obj), Hash(obj), true);
+    entry->value = Value(to);
+  }
+
+  static void Zap() {
+    if (serialization_map_ != NULL) {
+      delete serialization_map_;
+    }
+    serialization_map_ = NULL;
+  }
+
+ private:
+  static bool SerializationMatchFun(void* key1, void* key2) {
+    return key1 == key2;
+  }
+
+  static uint32_t Hash(HeapObject* obj) {
+    return reinterpret_cast<intptr_t>(obj->address());
+  }
+
+  static void* Key(HeapObject* obj) {
+    return reinterpret_cast<void*>(obj->address());
+  }
+
+  static void* Value(int v) {
+    return reinterpret_cast<void*>(v);
+  }
+
+  static void EnsureMapExists() {
+    if (serialization_map_ == NULL) {
+      serialization_map_ = new HashMap(&SerializationMatchFun);
+    }
+  }
+
+  static HashMap* serialization_map_;
+};
+
+
+HashMap* SerializationAddressMapper::serialization_map_ = NULL;
+
+
+
+
 // -----------------------------------------------------------------------------
 // Coding of external references.
 
@@ -871,6 +934,7 @@ void Serializer::Serialize() {
   Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   delete external_reference_encoder_;
   external_reference_encoder_ = NULL;
+  SerializationAddressMapper::Zap();
 }
 
 
@@ -894,10 +958,9 @@ void Serializer::SerializeObject(
     ReferenceRepresentation reference_representation) {
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
-  MapWord map_word = heap_object->map_word();
-  if (map_word.IsSerializationAddress()) {
+  if (SerializationAddressMapper::IsMapped(heap_object)) {
     int space = SpaceOfAlreadySerializedObject(heap_object);
-    int address = map_word.ToSerializationAddress();
+    int address = SerializationAddressMapper::MappedTo(heap_object);
     int offset = CurrentAllocationAddress(space) - address;
     bool from_start = true;
     if (SpaceIsPaged(space)) {
@@ -965,24 +1028,23 @@ void Serializer::ObjectSerializer::Serialize() {
   }
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
-  // Get the map before overwriting it.
-  Map* map = object_->map();
   // Mark this object as already serialized.
   bool start_new_page;
-  object_->set_map_word(MapWord::FromSerializationAddress(
-      serializer_->Allocate(space, size, &start_new_page)));
+  SerializationAddressMapper::Map(
+    object_,
+    serializer_->Allocate(space, size, &start_new_page));
   if (start_new_page) {
     sink_->Put(START_NEW_PAGE_SERIALIZATION, "NewPage");
     sink_->PutSection(space, "NewPageSpace");
   }
 
   // Serialize the map (first word of the object).
-  serializer_->SerializeObject(map, TAGGED_REPRESENTATION);
+  serializer_->SerializeObject(object_->map(), TAGGED_REPRESENTATION);
 
   // Serialize the rest of the object.
   CHECK_EQ(0, bytes_processed_so_far_);
   bytes_processed_so_far_ = kPointerSize;
-  object_->IterateBody(map->instance_type(), size, this);
+  object_->IterateBody(object_->map()->instance_type(), size, this);
   OutputRawData(object_->address() + size);
 }
 
@@ -1044,12 +1106,9 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    // Use raw_unchecked when maps are munged.
-    Object* source = Heap::raw_unchecked_natives_source_cache()->get(i);
+    Object* source = Heap::natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
-      // Don't use cast when maps are munged.
-      ExternalAsciiString* string =
-          reinterpret_cast<ExternalAsciiString*>(source);
+      ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;
       Resource* resource = string->resource();
       if (resource == *resource_pointer) {

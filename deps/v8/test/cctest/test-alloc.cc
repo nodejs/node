@@ -65,9 +65,9 @@ static Object* AllocateAfterFailures() {
 
   // Old data space.
   OldSpace* old_data_space = Heap::old_data_space();
-  static const int kOldDataSpaceFillerSize = SeqAsciiString::SizeFor(0);
+  static const int kOldDataSpaceFillerSize = ByteArray::SizeFor(0);
   while (old_data_space->Available() > kOldDataSpaceFillerSize) {
-    CHECK(!Heap::AllocateRawAsciiString(0, TENURED)->IsFailure());
+    CHECK(!Heap::AllocateByteArray(0, TENURED)->IsFailure());
   }
   CHECK(!Heap::AllocateRawAsciiString(100, TENURED)->IsFailure());
 

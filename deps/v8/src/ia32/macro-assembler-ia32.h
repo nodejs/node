@@ -69,6 +69,12 @@ class MacroAssembler: public Assembler {
 #endif
 
   // ---------------------------------------------------------------------------
+  // Stack limit support
+
+  // Do simple test for stack overflow. This doesn't handle an overflow.
+  void StackLimitCheck(Label* on_stack_limit_hit);
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
@@ -90,6 +96,8 @@ class MacroAssembler: public Assembler {
   // argument in register esi.
   void LeaveExitFrame(ExitFrame::Mode mode);
 
+  // Find the function context up the context chain.
+  void LoadContext(Register dst, int context_chain_length);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -175,7 +183,7 @@ class MacroAssembler: public Assembler {
   // scratch can be passed as no_reg in which case an additional object
   // reference will be added to the reloc info. The returned pointers in result
   // and result_end have not yet been tagged as heap objects. If
-  // result_contains_top_on_entry is true the contnt of result is known to be
+  // result_contains_top_on_entry is true the content of result is known to be
   // the allocation top on entry (could be result_end from a previous call to
   // AllocateInNewSpace). If result_contains_top_on_entry is true scratch
   // should be no_reg as it is never used.
@@ -217,6 +225,32 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Label* gc_required);
 
+  // Allocate a sequential string. All the header fields of the string object
+  // are initialized.
+  void AllocateTwoByteString(Register result,
+                             Register length,
+                             Register scratch1,
+                             Register scratch2,
+                             Register scratch3,
+                             Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           Register length,
+                           Register scratch1,
+                           Register scratch2,
+                           Register scratch3,
+                           Label* gc_required);
+
+  // Allocate a raw cons string object. Only the map field of the result is
+  // initialized.
+  void AllocateConsString(Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required);
+  void AllocateAsciiConsString(Register result,
+                               Register scratch1,
+                               Register scratch2,
+                               Label* gc_required);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -253,6 +287,9 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump).
+  void TailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);

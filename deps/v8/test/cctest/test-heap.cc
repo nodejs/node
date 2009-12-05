@@ -37,8 +37,7 @@ TEST(HeapMaps) {
   CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
   CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
-  CheckMap(Heap::long_string_map(), LONG_STRING_TYPE,
-           SeqTwoByteString::kAlignedSize);
+  CheckMap(Heap::string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
 }
 
 

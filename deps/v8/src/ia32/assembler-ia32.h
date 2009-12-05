@@ -464,6 +464,8 @@ class Assembler : public Malloced {
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
 
+  static const int kCallInstructionLength = 5;
+  static const int kJSReturnSequenceLength = 6;
 
   // ---------------------------------------------------------------------------
   // Code generation

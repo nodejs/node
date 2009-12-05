@@ -506,6 +506,17 @@
             ],
           }
         ],
+        ['OS=="openbsd"', {
+            'link_settings': {
+              'libraries': [
+                '-L/usr/local/lib -lexecinfo',
+            ]},
+            'sources': [
+              '../../src/platform-openbsd.cc',
+              '../../src/platform-posix.cc'
+            ],
+          }
+        ],
         ['OS=="mac"', {
           'sources': [
             '../../src/platform-macos.cc',

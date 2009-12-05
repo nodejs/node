@@ -159,7 +159,11 @@ Handle<Value> Shell::Write(const Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    fwrite(*str, sizeof(**str), str.length(), stdout);
+    int n = fwrite(*str, sizeof(**str), str.length(), stdout);
+    if (n != str.length()) {
+      printf("Error in fwrite\n");
+      exit(1);
+    }
   }
   return Undefined();
 }
@@ -203,7 +207,7 @@ Handle<Value> Shell::Load(const Arguments& args) {
       return ThrowException(String::New("Error loading file"));
     }
     if (!ExecuteString(source, String::New(*file), false, false)) {
-      return ThrowException(String::New("Error executing  file"));
+      return ThrowException(String::New("Error executing file"));
     }
   }
   return Undefined();

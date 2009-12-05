@@ -538,6 +538,81 @@ TEST(LogCallbacks) {
 }
 
 
+static v8::Handle<v8::Value> Prop1Getter(v8::Local<v8::String> property,
+                                         const v8::AccessorInfo& info) {
+  return v8::Handle<v8::Value>();
+}
+
+static void Prop1Setter(v8::Local<v8::String> property,
+                                         v8::Local<v8::Value> value,
+                                         const v8::AccessorInfo& info) {
+}
+
+static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
+                                         const v8::AccessorInfo& info) {
+  return v8::Handle<v8::Value>();
+}
+
+TEST(LogAccessorCallbacks) {
+  const bool saved_prof_lazy = i::FLAG_prof_lazy;
+  const bool saved_prof = i::FLAG_prof;
+  const bool saved_prof_auto = i::FLAG_prof_auto;
+  i::FLAG_prof = true;
+  i::FLAG_prof_lazy = false;
+  i::FLAG_prof_auto = false;
+  i::FLAG_logfile = "*";
+
+  // If tests are being run manually, V8 will be already initialized
+  // by the bottom test.
+  const bool need_to_set_up_logger = i::V8::IsRunning();
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  if (need_to_set_up_logger) Logger::Setup();
+  env->Enter();
+
+  // Skip all initially logged stuff.
+  EmbeddedVector<char, 102400> buffer;
+  int log_pos = GetLogLines(0, &buffer);
+
+  v8::Persistent<v8::FunctionTemplate> obj =
+      v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
+  obj->SetClassName(v8::String::New("Obj"));
+  v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
+  inst->SetAccessor(v8::String::New("prop1"), Prop1Getter, Prop1Setter);
+  inst->SetAccessor(v8::String::New("prop2"), Prop2Getter);
+
+  i::Logger::LogAccessorCallbacks();
+  log_pos = GetLogLines(log_pos, &buffer);
+  CHECK_GT(log_pos, 0);
+  buffer[log_pos] = 0;
+  printf("%s", buffer.start());
+
+  EmbeddedVector<char, 100> prop1_getter_record;
+  i::OS::SNPrintF(prop1_getter_record,
+                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                  Prop1Getter);
+  CHECK_NE(NULL, strstr(buffer.start(), prop1_getter_record.start()));
+  EmbeddedVector<char, 100> prop1_setter_record;
+  i::OS::SNPrintF(prop1_setter_record,
+                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                  Prop1Setter);
+  CHECK_NE(NULL, strstr(buffer.start(), prop1_setter_record.start()));
+  EmbeddedVector<char, 100> prop2_getter_record;
+  i::OS::SNPrintF(prop2_getter_record,
+                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                  Prop2Getter);
+  CHECK_NE(NULL, strstr(buffer.start(), prop2_getter_record.start()));
+
+  obj.Dispose();
+
+  env->Exit();
+  Logger::TearDown();
+  i::FLAG_prof_lazy = saved_prof_lazy;
+  i::FLAG_prof = saved_prof;
+  i::FLAG_prof_auto = saved_prof_auto;
+}
+
+
 static inline bool IsStringEqualTo(const char* r, const char* s) {
   return strncmp(r, s, strlen(r)) == 0;
 }

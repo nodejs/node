@@ -680,22 +680,51 @@ class CompressionHelper {
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
-void Logger::CallbackEvent(String* name, Address entry_point) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::CallbackEventInternal(const char* prefix, const char* name,
+                                   Address entry_point) {
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,%s,",
              log_events_[CODE_CREATION_EVENT], log_events_[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
-  SmartPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append(",1,\"%s\"", *str);
+  msg.Append(",1,\"%s%s\"", prefix, name);
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
   }
   msg.Append('\n');
   msg.WriteToLogFile();
+}
+#endif
+
+
+void Logger::CallbackEvent(String* name, Address entry_point) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  CallbackEventInternal("", *str, entry_point);
+#endif
+}
+
+
+void Logger::GetterCallbackEvent(String* name, Address entry_point) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  CallbackEventInternal("get ", *str, entry_point);
+#endif
+}
+
+
+void Logger::SetterCallbackEvent(String* name, Address entry_point) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  CallbackEventInternal("set ", *str, entry_point);
 #endif
 }
 
@@ -1098,6 +1127,7 @@ void Logger::ResumeProfiler(int flags) {
       LOG(UncheckedStringEvent("profiler", "resume"));
       FLAG_log_code = true;
       LogCompiledFunctions();
+      LogAccessorCallbacks();
       if (!FLAG_sliding_state_window) ticker_->Start();
     }
     profiler_->resume();
@@ -1240,6 +1270,28 @@ void Logger::LogCompiledFunctions() {
   }
 
   DeleteArray(sfis);
+}
+
+
+void Logger::LogAccessorCallbacks() {
+  AssertNoAllocation no_alloc;
+  HeapIterator iterator;
+  while (iterator.has_next()) {
+    HeapObject* obj = iterator.next();
+    ASSERT(obj != NULL);
+    if (!obj->IsAccessorInfo()) continue;
+    AccessorInfo* ai = AccessorInfo::cast(obj);
+    if (!ai->name()->IsString()) continue;
+    String* name = String::cast(ai->name());
+    Address getter_entry = v8::ToCData<Address>(ai->getter());
+    if (getter_entry != 0) {
+      LOG(GetterCallbackEvent(name, getter_entry));
+    }
+    Address setter_entry = v8::ToCData<Address>(ai->setter());
+    if (setter_entry != 0) {
+      LOG(SetterCallbackEvent(name, setter_entry));
+    }
+  }
 }
 
 #endif

@@ -482,6 +482,12 @@ class Assembler : public Malloced {
   static const int kPatchReturnSequenceAddressOffset = 13 - 4;
   // TODO(X64): Rename this, removing the "Real", after changing the above.
   static const int kRealPatchReturnSequenceAddressOffset = 2;
+
+  // The x64 JS return sequence is padded with int3 to make it large
+  // enough to hold a call instruction when the debugger patches it.
+  static const int kCallInstructionLength = 13;
+  static const int kJSReturnSequenceLength = 13;
+
   // ---------------------------------------------------------------------------
   // Code generation
   //

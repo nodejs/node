@@ -124,9 +124,12 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     // If there is no shared function info, try the fast code
     // generator for code in the global scope.  Otherwise obey the
     // explicit hint in the shared function info.
-    if (shared.is_null() && !literal->scope()->is_global_scope()) {
+    // If always_fast_compiler is true, always try the fast compiler.
+    if (shared.is_null() && !literal->scope()->is_global_scope() &&
+        !FLAG_always_fast_compiler) {
       if (FLAG_trace_bailout) PrintF("Non-global scope\n");
-    } else if (!shared.is_null() && !shared->try_fast_codegen()) {
+    } else if (!shared.is_null() && !shared->try_fast_codegen() &&
+               !FLAG_always_fast_compiler) {
       if (FLAG_trace_bailout) PrintF("No hint to try fast\n");
     } else {
       CodeGenSelector selector;
@@ -176,7 +179,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     // called.
     if (is_eval) {
       JavaScriptFrameIterator it;
-      script->set_eval_from_function(it.frame()->function());
+      script->set_eval_from_shared(
+          JSFunction::cast(it.frame()->function())->shared());
       int offset = static_cast<int>(
           it.frame()->pc() - it.frame()->code()->instruction_start());
       script->set_eval_from_instructions_offset(Smi::FromInt(offset));
@@ -599,11 +603,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
     }
   }
 
-  if (scope->arguments() != NULL) {
-    if (FLAG_trace_bailout) PrintF("function uses 'arguments'\n");
-    return NORMAL;
-  }
-
   has_supported_syntax_ = true;
   VisitDeclarations(scope->declarations());
   if (!has_supported_syntax_) return NORMAL;
@@ -802,7 +801,17 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
         BAILOUT("Lookup slot");
       }
     } else {
-      BAILOUT("access to arguments object");
+#ifdef DEBUG
+      // Only remaining possibility is a property where the object is
+      // a slotted variable and the key is a smi.
+      Property* property = rewrite->AsProperty();
+      ASSERT_NOT_NULL(property);
+      Variable* object = property->obj()->AsVariableProxy()->AsVariable();
+      ASSERT_NOT_NULL(object);
+      ASSERT_NOT_NULL(object->slot());
+      ASSERT_NOT_NULL(property->key()->AsLiteral());
+      ASSERT(property->key()->AsLiteral()->handle()->IsSmi());
+#endif
     }
   }
 }
@@ -886,12 +895,21 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     // All global variables are supported.
     if (!var->is_global()) {
       if (var->slot() == NULL) {
-        // This is a parameter that has rewritten to an arguments access.
-        BAILOUT("non-global/non-slot assignment");
-      }
-      Slot::Type type = var->slot()->type();
-      if (type == Slot::LOOKUP) {
-        BAILOUT("Lookup slot");
+        Property* property = var->AsProperty();
+        if (property == NULL) {
+          BAILOUT("non-global/non-slot/non-property assignment");
+        }
+        if (property->obj()->AsSlot() == NULL) {
+          BAILOUT("variable rewritten to property non slot object assignment");
+        }
+        if (property->key()->AsLiteral() == NULL) {
+          BAILOUT("variable rewritten to property non literal key assignment");
+        }
+      } else {
+        Slot::Type type = var->slot()->type();
+        if (type == Slot::LOOKUP) {
+          BAILOUT("Lookup slot");
+        }
       }
     }
   } else if (prop != NULL) {
@@ -979,8 +997,6 @@ void CodeGenSelector::VisitCallNew(CallNew* expr) {
 
 
 void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
-  // In case of JS runtime function bail out.
-  if (expr->function() == NULL) BAILOUT("call JS runtime function");
   // Check for inline runtime call
   if (expr->name()->Get(0) == '_' &&
       CodeGenerator::FindInlineRuntimeLUT(expr->name()) != NULL) {

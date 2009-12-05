@@ -126,7 +126,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ j(zero, &miss, not_taken);
 
   // Get the map of the receiver and compute the hash.
-  __ mov(scratch, FieldOperand(name, String::kLengthOffset));
+  __ mov(scratch, FieldOperand(name, String::kHashFieldOffset));
   __ add(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, flags);
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
@@ -135,7 +135,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ProbeTable(masm, flags, kPrimary, name, scratch, extra);
 
   // Primary miss: Compute hash for secondary probe.
-  __ mov(scratch, FieldOperand(name, String::kLengthOffset));
+  __ mov(scratch, FieldOperand(name, String::kHashFieldOffset));
   __ add(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, flags);
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
@@ -234,13 +234,9 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // scratch register.
   GenerateStringCheck(masm, receiver, scratch, miss, &check_wrapper);
 
-  // Load length directly from the string.
+  // Load length from the string and convert to a smi.
   __ bind(&load_length);
-  __ and_(scratch, kStringSizeMask);
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  // ecx is also the receiver.
-  __ lea(ecx, Operand(scratch, String::kLongLengthShift));
-  __ shr_cl(eax);
   __ shl(eax, kSmiTagSize);
   __ ret(0);
 

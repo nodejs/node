@@ -173,7 +173,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &miss);
 
   // Get the map of the receiver and compute the hash.
-  __ movl(scratch, FieldOperand(name, String::kLengthOffset));
+  __ movl(scratch, FieldOperand(name, String::kHashFieldOffset));
   // Use only the low 32 bits of the map pointer.
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, Immediate(flags));
@@ -183,7 +183,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ProbeTable(masm, flags, kPrimary, name, scratch);
 
   // Primary miss: Compute hash for secondary probe.
-  __ movl(scratch, FieldOperand(name, String::kLengthOffset));
+  __ movl(scratch, FieldOperand(name, String::kHashFieldOffset));
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, Immediate(flags));
   __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
@@ -323,11 +323,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
 
   // Load length directly from the string.
   __ bind(&load_length);
-  __ and_(scratch, Immediate(kStringSizeMask));
   __ movl(rax, FieldOperand(receiver, String::kLengthOffset));
-  // rcx is also the receiver.
-  __ lea(rcx, Operand(scratch, String::kLongLengthShift));
-  __ shr_cl(rax);
   __ Integer32ToSmi(rax, rax);
   __ ret(0);
 

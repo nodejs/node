@@ -1,3 +1,26 @@
+2009-12-03: Version 2.0.3
+
+        Optimized handling and adding of strings, for-in and Array.join.
+
+        Heap serialization is now non-destructive.
+
+        Improved profiler support with information on time spend in C++
+        callbacks registered through the API.
+
+        Added commands to the debugger protocol for starting/stopping
+        profiling.
+
+        Enabled the non-optimizing compiler for top-level code.
+
+        Changed the API to only allow strings to be set as data objects on
+        Contexts and scripts to avoid potentially keeping global objects
+        around for too long (issue 528).
+
+        OpenBSD support patch by Peter Valchev <pvalchev@gmail.com>.
+
+        Fixed bugs.
+
+
 2009-11-24: Version 2.0.2
 
         Improved profiler support.
@@ -34,7 +57,7 @@
 
         Reverted a change which caused crashes in RegExp replace.
 
-	Reverted a change which caused Chromium ui_tests failure.
+        Reverted a change which caused Chromium ui_tests failure.
 
 
 2009-10-28: Version 1.3.17

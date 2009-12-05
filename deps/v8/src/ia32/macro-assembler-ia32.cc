@@ -213,6 +213,13 @@ void MacroAssembler::RecordWrite(Register object, int offset,
 }
 
 
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  cmp(esp,
+      Operand::StaticVariable(ExternalReference::address_of_stack_limit()));
+  j(below, on_stack_overflow);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
@@ -680,6 +687,11 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
+  if (FLAG_debug_code) {
+    test(result_end, Immediate(kObjectAlignmentMask));
+    Check(zero, "Unaligned allocation in new space");
+  }
+
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
 
@@ -813,6 +825,109 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteString(Register result,
+                                           Register length,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  mov(scratch1, length);
+  ASSERT(kShortSize == 2);
+  shl(scratch1, 1);
+  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
+
+  // Allocate two byte string in new space.
+  AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
+                     times_1,
+                     scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::string_map()));
+  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         Register length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  mov(scratch1, length);
+  ASSERT(kCharSize == 1);
+  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
+
+  // Allocate ascii string in new space.
+  AllocateInNewSpace(SeqAsciiString::kHeaderSize,
+                     times_1,
+                     scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::ascii_string_map()));
+  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
+void MacroAssembler::AllocateConsString(Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::cons_string_map()));
+}
+
+
+void MacroAssembler::AllocateAsciiConsString(Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::cons_ascii_string_map()));
+}
+
+
 void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,
                                       Register op,
@@ -903,6 +1018,12 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
   call(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void MacroAssembler::TailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1185,6 +1306,26 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
 }
 
 
+void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  if (context_chain_length > 0) {
+    // Move up the chain of contexts to the context containing the slot.
+    mov(dst, Operand(esi, Context::SlotOffset(Context::CLOSURE_INDEX)));
+    // Load the function context (which is the incoming, outer context).
+    mov(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    for (int i = 1; i < context_chain_length; i++) {
+      mov(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
+      mov(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    }
+    // The context may be an intermediate context, not a function context.
+    mov(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {  // Slot is in the current function context.
+    // The context may be an intermediate context, not a function context.
+    mov(dst, Operand(esi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  }
+}
+
+
+
 void MacroAssembler::Ret() {
   ret(0);
 }
@@ -1252,11 +1393,15 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
+  // Disable stub call restrictions to always allow calls to abort.
+  set_allow_stub_calls(true);
+
   push(eax);
   push(Immediate(p0));
   push(Immediate(reinterpret_cast<intptr_t>(Smi::FromInt(p1 - p0))));
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  int3();
 }
 
 

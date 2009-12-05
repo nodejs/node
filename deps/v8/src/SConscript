@@ -159,6 +159,7 @@ SOURCES = {
     """),
   'simulator:arm': ['arm/simulator-arm.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
+  'os:openbsd': ['platform-openbsd.cc', 'platform-posix.cc'],
   'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],
   'os:android': ['platform-linux.cc', 'platform-posix.cc'],
   'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
@@ -185,6 +186,9 @@ D8_FILES = {
     'd8-posix.cc'
   ],
   'os:freebsd': [
+    'd8-posix.cc'
+  ],
+  'os:openbsd': [
     'd8-posix.cc'
   ],
   'os:win32': [

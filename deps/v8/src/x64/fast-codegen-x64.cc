@@ -76,11 +76,43 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
   bool function_in_register = true;
 
+  // Possibly allocate a local context.
+  if (fun->scope()->num_heap_slots() > 0) {
+    Comment cmnt(masm_, "[ Allocate local context");
+    // Argument to NewContext is the function, which is still in rdi.
+    __ push(rdi);
+    __ CallRuntime(Runtime::kNewContext, 1);
+    function_in_register = false;
+    // Context is returned in both rax and rsi.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in rsi.
+    __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+
+    // Copy any necessary parameters into the context.
+    int num_parameters = fun->scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Slot* slot = fun->scope()->parameter(i)->slot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+                               (num_parameters - 1 - i) * kPointerSize;
+        // Load parameter from stack.
+        __ movq(rax, Operand(rbp, parameter_offset));
+        // Store it in the context
+        __ movq(Operand(rsi, Context::SlotOffset(slot->index())), rax);
+      }
+    }
+  }
+
+  // Possibly allocate an arguments object.
   Variable* arguments = fun->scope()->arguments()->AsVariable();
   if (arguments != NULL) {
-    // Function uses arguments object.
+    // Arguments object must be allocated after the context object, in
+    // case the "arguments" or ".arguments" variables are in the context.
     Comment cmnt(masm_, "[ Allocate arguments object");
-    __ push(rdi);
+    if (function_in_register) {
+      __ push(rdi);
+    } else {
+      __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    }
     // The receiver is just before the parameters on the caller's stack.
     __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
                                  fun->num_parameters() * kPointerSize));
@@ -93,34 +125,11 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
     // Store new arguments object in both "arguments" and ".arguments" slots.
-    __ movq(Operand(rbp, SlotOffset(arguments->slot())), rax);
+    __ movq(rcx, rax);
+    Move(arguments->slot(), rax, rbx, rdx);
     Slot* dot_arguments_slot =
         fun->scope()->arguments_shadow()->AsVariable()->slot();
-    __ movq(Operand(rbp, SlotOffset(dot_arguments_slot)), rax);
-    function_in_register = false;
-  }
-
-  // Possibly allocate a local context.
-  if (fun->scope()->num_heap_slots() > 0) {
-    Comment cmnt(masm_, "[ Allocate local context");
-    if (function_in_register) {
-      // Argument to NewContext is the function, still in rdi.
-      __ push(rdi);
-    } else {
-      // Argument to NewContext is the function, no longer in rdi.
-      __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    }
-    __ CallRuntime(Runtime::kNewContext, 1);
-    // Context is returned in both rax and rsi.  It replaces the context
-    // passed to us.  It's saved in the stack and kept live in rsi.
-    __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
-#ifdef DEBUG
-    // Assert we do not have to copy any parameters into the context.
-    for (int i = 0, len = fun->scope()->num_parameters(); i < len; i++) {
-      Slot* slot = fun->scope()->parameter(i)->slot();
-      ASSERT(slot != NULL && slot->type() != Slot::CONTEXT);
-    }
-#endif
+    Move(dot_arguments_slot, rcx, rbx, rdx);
   }
 
   { Comment cmnt(masm_, "[ Stack check");
@@ -180,13 +189,13 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
     // (3 + 1 + 3).
-    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+    const int kPadding = Assembler::kJSReturnSequenceLength - 7;
     for (int i = 0; i < kPadding; ++i) {
       masm_->int3();
     }
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
-    ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+    ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }
@@ -227,20 +236,54 @@ void FastCodeGenerator::Move(Expression::Context context, Register source) {
 }
 
 
-void FastCodeGenerator::Move(Expression::Context context, Slot* source) {
+template <>
+Operand FastCodeGenerator::CreateSlotOperand<Operand>(Slot* source,
+                                                      Register scratch) {
+  switch (source->type()) {
+    case Slot::PARAMETER:
+    case Slot::LOCAL:
+      return Operand(rbp, SlotOffset(source));
+    case Slot::CONTEXT: {
+      int context_chain_length =
+          function_->scope()->ContextChainLength(source->var()->scope());
+      __ LoadContext(scratch, context_chain_length);
+      return CodeGenerator::ContextOperand(scratch, source->index());
+      break;
+    }
+    case Slot::LOOKUP:
+      UNIMPLEMENTED();
+      // Fall-through.
+    default:
+      UNREACHABLE();
+      return Operand(rax, 0);  // Dead code to make the compiler happy.
+  }
+}
+
+
+void FastCodeGenerator::Move(Register dst, Slot* source) {
+  Operand location = CreateSlotOperand<Operand>(source, dst);
+  __ movq(dst, location);
+}
+
+
+void FastCodeGenerator::Move(Expression::Context context,
+                             Slot* source,
+                             Register scratch) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
     case Expression::kEffect:
       break;
-    case Expression::kValue:
-      __ push(Operand(rbp, SlotOffset(source)));
+    case Expression::kValue: {
+      Operand location = CreateSlotOperand<Operand>(source, scratch);
+      __ push(location);
       break;
+    }
     case Expression::kTest:  // Fall through.
     case Expression::kValueTest:  // Fall through.
     case Expression::kTestValue:
-      __ movq(rax, Operand(rbp, SlotOffset(source)));
-      Move(context, rax);
+      Move(scratch, source);
+      Move(context, scratch);
       break;
   }
 }
@@ -265,24 +308,61 @@ void FastCodeGenerator::Move(Expression::Context context, Literal* expr) {
 }
 
 
+void FastCodeGenerator::Move(Slot* dst,
+                             Register src,
+                             Register scratch1,
+                             Register scratch2) {
+  switch (dst->type()) {
+    case Slot::PARAMETER:
+    case Slot::LOCAL:
+      __ movq(Operand(rbp, SlotOffset(dst)), src);
+      break;
+    case Slot::CONTEXT: {
+      ASSERT(!src.is(scratch1));
+      ASSERT(!src.is(scratch2));
+      ASSERT(!scratch1.is(scratch2));
+      int context_chain_length =
+          function_->scope()->ContextChainLength(dst->var()->scope());
+      __ LoadContext(scratch1, context_chain_length);
+      __ movq(Operand(scratch1, Context::SlotOffset(dst->index())), src);
+      int offset = FixedArray::kHeaderSize + dst->index() * kPointerSize;
+      __ RecordWrite(scratch1, offset, src, scratch2);
+      break;
+    }
+    case Slot::LOOKUP:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void FastCodeGenerator::DropAndMove(Expression::Context context,
-                                    Register source) {
+                                    Register source,
+                                    int drop_count) {
+  ASSERT(drop_count > 0);
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
     case Expression::kEffect:
-      __ addq(rsp, Immediate(kPointerSize));
+      __ addq(rsp, Immediate(drop_count * kPointerSize));
       break;
     case Expression::kValue:
+      if (drop_count > 1) {
+        __ addq(rsp, Immediate((drop_count - 1) * kPointerSize));
+      }
       __ movq(Operand(rsp, 0), source);
       break;
     case Expression::kTest:
       ASSERT(!source.is(rsp));
-      __ addq(rsp, Immediate(kPointerSize));
+      __ addq(rsp, Immediate(drop_count * kPointerSize));
       TestAndBranch(source, true_label_, false_label_);
       break;
     case Expression::kValueTest: {
       Label discard;
+      if (drop_count > 1) {
+        __ addq(rsp, Immediate((drop_count - 1) * kPointerSize));
+      }
       __ movq(Operand(rsp, 0), source);
       TestAndBranch(source, true_label_, &discard);
       __ bind(&discard);
@@ -382,26 +462,26 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
         __ Move(rax, Factory::the_hole_value());
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ movq(rbx, CodeGenerator::ContextOperand(
-              rsi, Context::FCONTEXT_INDEX));
+          __ movq(rbx, CodeGenerator::ContextOperand(rsi,
+                                                     Context::FCONTEXT_INDEX));
           __ cmpq(rbx, rsi);
           __ Check(equal, "Unexpected declaration in current context.");
         }
         __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
         // No write barrier since the_hole_value is in old space.
-        ASSERT(Heap::InNewSpace(*Factory::the_hole_value()));
+        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
       } else if (decl->fun() != NULL) {
         Visit(decl->fun());
         __ pop(rax);
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ movq(rbx, CodeGenerator::ContextOperand(
-              rsi, Context::FCONTEXT_INDEX));
+          __ movq(rbx, CodeGenerator::ContextOperand(rsi,
+                                                     Context::FCONTEXT_INDEX));
           __ cmpq(rbx, rsi);
           __ Check(equal, "Unexpected declaration in current context.");
         }
         __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ RecordWrite(rsi, offset, rax, rcx);
       }
       break;
@@ -473,53 +553,59 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     DropAndMove(expr->context(), rax);
   } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
-    switch (slot->type()) {
-      case Slot::LOCAL:
-      case Slot::PARAMETER: {
-        Comment cmnt(masm_, "Stack slot");
-        Move(expr->context(), slot);
-        break;
-      }
-
-      case Slot::CONTEXT: {
-        Comment cmnt(masm_, "Context slot");
-         int chain_length =
-            function_->scope()->ContextChainLength(slot->var()->scope());
-        if (chain_length > 0) {
-          // Move up the chain of contexts to the context containing the slot.
-          __ movq(rax,
-                  Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
-          // Load the function context (which is the incoming, outer context).
-          __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
-          for (int i = 1; i < chain_length; i++) {
-            __ movq(rax,
-                    Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)));
-            __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
-          }
-          // The context may be an intermediate context, not a function context.
-          __ movq(rax,
-                  Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-        } else {  // Slot is in the current function context.
-          // The context may be an intermediate context, not a function context.
-          __ movq(rax,
-                  Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    if (FLAG_debug_code) {
+      switch (slot->type()) {
+        case Slot::LOCAL:
+        case Slot::PARAMETER: {
+          Comment cmnt(masm_, "Stack slot");
+          break;
         }
-        __ movq(rax, Operand(rax, Context::SlotOffset(slot->index())));
-        Move(expr->context(), rax);
-        break;
+        case Slot::CONTEXT: {
+          Comment cmnt(masm_, "Context slot");
+          break;
+        }
+        case Slot::LOOKUP:
+          UNIMPLEMENTED();
+          break;
+        default:
+          UNREACHABLE();
       }
-
-      case Slot::LOOKUP:
-        UNREACHABLE();
-        break;
     }
+    Move(expr->context(), slot, rax);
   } else {
-    // The parameter variable has been rewritten into an explict access to
-    // the arguments object.
+    // A variable has been rewritten into an explicit access to
+    // an object property.
     Property* property = rewrite->AsProperty();
     ASSERT_NOT_NULL(property);
-    ASSERT_EQ(expr->context(), property->context());
-    Visit(property);
+
+    // Currently the only parameter expressions that can occur are
+    // on the form "slot[literal]".
+
+    // Check that the object is in a slot.
+    Variable* object = property->obj()->AsVariableProxy()->AsVariable();
+    ASSERT_NOT_NULL(object);
+    Slot* object_slot = object->slot();
+    ASSERT_NOT_NULL(object_slot);
+
+    // Load the object.
+    Move(Expression::kValue, object_slot, rax);
+
+    // Check that the key is a smi.
+    Literal* key_literal = property->key()->AsLiteral();
+    ASSERT_NOT_NULL(key_literal);
+    ASSERT(key_literal->handle()->IsSmi());
+
+    // Load the key.
+    Move(Expression::kValue, key_literal);
+
+    // Do a KEYED property load.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // Notice: We must not have a "test rax, ..." instruction after
+    // the call. It is treated specially by the LoadIC code.
+
+    // Drop key and object left on the stack by IC, and push the result.
+    DropAndMove(expr->context(), rax, 2);
   }
 }
 
@@ -580,8 +666,9 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
   }
 
-  // If result_saved == true: the result is saved on top of the stack.
-  // If result_saved == false: the result is not on the stack, just in rax.
+  // If result_saved == true: The result is saved on top of the
+  //  stack and in rax.
+  // If result_saved == false: The result not on the stack, just in rax.
   bool result_saved = false;
 
   for (int i = 0; i < expr->properties()->length(); i++) {
@@ -606,6 +693,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
           __ call(ic, RelocInfo::CODE_TARGET);
           // StoreIC leaves the receiver on the stack.
+          __ movq(rax, Operand(rsp, 0));  // Restore result back into rax.
           break;
         }
         // fall through
@@ -781,7 +869,7 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
     // Overwrite the global object on the stack with the result if needed.
     DropAndMove(expr->context(), rax);
 
-  } else {
+  } else if (var->slot()) {
     Slot* slot = var->slot();
     ASSERT_NOT_NULL(slot);  // Variables rewritten as properties not handled.
     switch (slot->type()) {
@@ -872,6 +960,36 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
       case Slot::LOOKUP:
         UNREACHABLE();
         break;
+    }
+  } else {
+    Property* property = var->AsProperty();
+    ASSERT_NOT_NULL(property);
+    // A variable has been rewritten into a property on an object.
+
+    // Load object and key onto the stack.
+    Slot* object_slot = property->obj()->AsSlot();
+    ASSERT_NOT_NULL(object_slot);
+    Move(Expression::kValue, object_slot, rax);
+
+    Literal* key_literal = property->key()->AsLiteral();
+    ASSERT_NOT_NULL(key_literal);
+    Move(Expression::kValue, key_literal);
+
+    // Value to store was pushed before object and key on the stack.
+    __ movq(rax, Operand(rsp, 2 * kPointerSize));
+
+    // Arguments to ic is value in rax, object and key on stack.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+
+    if (expr->context() == Expression::kEffect) {
+      __ addq(rsp, Immediate(3 * kPointerSize));
+    } else if (expr->context() == Expression::kValue) {
+      // Value is still on the stack in rsp[2 * kPointerSize]
+      __ addq(rsp, Immediate(2 * kPointerSize));
+    } else {
+      __ movq(rax, Operand(rsp, 2 * kPointerSize));
+      DropAndMove(expr->context(), rax, 3);
     }
   }
 }
@@ -969,9 +1087,9 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     Visit(expr->key());
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a "test rax,..."
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
+    // Notice: We must not have a "test rax, ..." instruction after
+    // the call. It is treated specially by the LoadIC code.
+
     // Drop key left on the stack by IC.
     __ addq(rsp, Immediate(kPointerSize));
   }
@@ -1054,7 +1172,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       SetSourcePosition(prop->position());
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
-      // By emitting a nop we make sure that we do not have a "test eax,..."
+      // By emitting a nop we make sure that we do not have a "test rax,..."
       // instruction after the call it is treated specially by the LoadIC code.
       __ nop();
       // Drop key left on the stack by IC.
@@ -1134,9 +1252,13 @@ void FastCodeGenerator::VisitCallNew(CallNew* expr) {
 void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
-  Runtime::Function* function = expr->function();
 
-  ASSERT(function != NULL);
+  if (expr->is_jsruntime()) {
+    // Prepare for calling JS runtime function.
+    __ Push(expr->name());
+    __ movq(rax, CodeGenerator::GlobalObject());
+    __ push(FieldOperand(rax, GlobalObject::kBuiltinsOffset));
+  }
 
   // Push the arguments ("left-to-right").
   int arg_count = args->length();
@@ -1145,8 +1267,19 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     ASSERT_EQ(Expression::kValue, args->at(i)->context());
   }
 
-  __ CallRuntime(function, arg_count);
-  Move(expr->context(), rax);
+  if (expr->is_jsruntime()) {
+    // Call the JS runtime function.
+    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
+                                                           NOT_IN_LOOP);
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // Restore context register.
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    // Discard the function left on TOS.
+    DropAndMove(expr->context(), rax);
+  } else {
+    __ CallRuntime(expr->function(), arg_count);
+    Move(expr->context(), rax);
+  }
 }
 
 void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {

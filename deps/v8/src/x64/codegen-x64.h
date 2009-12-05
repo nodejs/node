@@ -544,6 +544,9 @@ class CodeGenerator: public AstVisitor {
   inline void GenerateMathSin(ZoneList<Expression*>* args);
   inline void GenerateMathCos(ZoneList<Expression*>* args);
 
+  // Fast support for StringAdd.
+  void GenerateStringAdd(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,

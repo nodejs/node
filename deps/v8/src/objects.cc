@@ -37,6 +37,7 @@
 #include "scanner.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
+#include "utils.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "disassembler.h"
@@ -754,19 +755,21 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   ASSERT(size >= ExternalString::kSize);
   bool is_symbol = this->IsSymbol();
   int length = this->length();
+  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
-  this->set_map(ExternalTwoByteString::StringMap(length));
+  this->set_map(Heap::external_string_map());
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_length(length);
+  self->set_hash_field(hash_field);
   self->set_resource(resource);
   // Additionally make the object into an external symbol if the original string
   // was a symbol to start with.
   if (is_symbol) {
     self->Hash();  // Force regeneration of the hash value.
     // Now morph this external string into a external symbol.
-    self->set_map(ExternalTwoByteString::SymbolMap(length));
+    this->set_map(Heap::external_symbol_map());
   }
 
   // Fill the remainder of the string with dead wood.
@@ -798,19 +801,21 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   ASSERT(size >= ExternalString::kSize);
   bool is_symbol = this->IsSymbol();
   int length = this->length();
+  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
-  this->set_map(ExternalAsciiString::StringMap(length));
+  this->set_map(Heap::external_ascii_string_map());
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_length(length);
+  self->set_hash_field(hash_field);
   self->set_resource(resource);
   // Additionally make the object into an external symbol if the original string
   // was a symbol to start with.
   if (is_symbol) {
     self->Hash();  // Force regeneration of the hash value.
     // Now morph this external string into a external symbol.
-    self->set_map(ExternalAsciiString::SymbolMap(length));
+    this->set_map(Heap::external_ascii_symbol_map());
   }
 
   // Fill the remainder of the string with dead wood.
@@ -822,7 +827,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 
 void String::StringShortPrint(StringStream* accumulator) {
   int len = length();
-  if (len > kMaxMediumSize) {
+  if (len > kMaxShortPrintLength) {
     accumulator->Add("<Very long string[%u]>", len);
     return;
   }
@@ -2628,33 +2633,24 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 // Tests for the fast common case for property enumeration:
-// - this object has an enum cache
-// - this object has no elements
-// - no prototype has enumerable properties/elements
-// - neither this object nor any prototype has interceptors
+// - This object and all prototypes has an enum cache (which means that it has
+//   no interceptors and needs no access checks).
+// - This object has no elements.
+// - No prototype has enumerable properties/elements.
 bool JSObject::IsSimpleEnum() {
-  JSObject* arguments_boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
-  JSFunction* arguments_function =
-      JSFunction::cast(arguments_boilerplate->map()->constructor());
-  if (IsAccessCheckNeeded()) return false;
-  if (map()->constructor() == arguments_function) return false;
-
   for (Object* o = this;
        o != Heap::null_value();
        o = JSObject::cast(o)->GetPrototype()) {
     JSObject* curr = JSObject::cast(o);
-    if (!curr->HasFastProperties()) return false;
     if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
+    ASSERT(!curr->HasNamedInterceptor());
+    ASSERT(!curr->HasIndexedInterceptor());
+    ASSERT(!curr->IsAccessCheckNeeded());
     if (curr->NumberOfEnumElements() > 0) return false;
-    if (curr->HasNamedInterceptor()) return false;
-    if (curr->HasIndexedInterceptor()) return false;
     if (curr != this) {
       FixedArray* curr_fixed_array =
           FixedArray::cast(curr->map()->instance_descriptors()->GetEnumCache());
-      if (curr_fixed_array->length() > 0) {
-        return false;
-      }
+      if (curr_fixed_array->length() > 0) return false;
     }
   }
   return true;
@@ -4484,23 +4480,11 @@ bool String::MarkAsUndetectable() {
   if (StringShape(this).IsSymbol()) return false;
 
   Map* map = this->map();
-  if (map == Heap::short_string_map()) {
-    this->set_map(Heap::undetectable_short_string_map());
+  if (map == Heap::string_map()) {
+    this->set_map(Heap::undetectable_string_map());
     return true;
-  } else if (map == Heap::medium_string_map()) {
-    this->set_map(Heap::undetectable_medium_string_map());
-    return true;
-  } else if (map == Heap::long_string_map()) {
-    this->set_map(Heap::undetectable_long_string_map());
-    return true;
-  } else if (map == Heap::short_ascii_string_map()) {
-    this->set_map(Heap::undetectable_short_ascii_string_map());
-    return true;
-  } else if (map == Heap::medium_ascii_string_map()) {
-    this->set_map(Heap::undetectable_medium_ascii_string_map());
-    return true;
-  } else if (map == Heap::long_ascii_string_map()) {
-    this->set_map(Heap::undetectable_long_ascii_string_map());
+  } else if (map == Heap::ascii_string_map()) {
+    this->set_map(Heap::undetectable_ascii_string_map());
     return true;
   }
   // Rest cannot be marked as undetectable
@@ -4523,17 +4507,17 @@ bool String::IsEqualTo(Vector<const char> str) {
 
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
-  ASSERT(!(length_field() & kHashComputedMask));
+  ASSERT(!(hash_field() & kHashComputedMask));
 
   // Compute the hash code.
   StringInputBuffer buffer(this);
-  uint32_t field = ComputeLengthAndHashField(&buffer, length());
+  uint32_t field = ComputeHashField(&buffer, length());
 
   // Store the hash code in the object.
-  set_length_field(field);
+  set_hash_field(field);
 
   // Check the hash code is there.
-  ASSERT(length_field() & kHashComputedMask);
+  ASSERT(hash_field() & kHashComputedMask);
   uint32_t result = field >> kHashShift;
   ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
   return result;
@@ -4573,9 +4557,10 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
 bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length() <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
-    uint32_t field = length_field();
+    uint32_t field = hash_field();
     if ((field & kIsArrayIndexMask) == 0) return false;
-    *index = (field & ((1 << kShortLengthShift) - 1)) >> kLongLengthShift;
+    // Isolate the array index form the full hash field.
+    *index = (kArrayIndexHashMask & field) >> kHashShift;
     return true;
   } else {
     StringInputBuffer buffer(this);
@@ -4584,37 +4569,42 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
+static inline uint32_t HashField(uint32_t hash,
+                                 bool is_array_index,
+                                 int length = -1) {
   uint32_t result =
-      (hash << String::kLongLengthShift) | String::kHashComputedMask;
-  if (is_array_index) result |= String::kIsArrayIndexMask;
+      (hash << String::kHashShift) | String::kHashComputedMask;
+  if (is_array_index) {
+    // For array indexes mix the length into the hash as an array index could
+    // be zero.
+    ASSERT(length > 0);
+    ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+           (1 << String::kArrayIndexValueBits));
+    result |= String::kIsArrayIndexMask;
+    result |= length << String::kArrayIndexHashLengthShift;
+  }
   return result;
 }
 
 
 uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
-  if (length_ <= String::kMaxShortSize) {
-    uint32_t payload;
+  if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
-      payload = v8::internal::HashField(array_index(), true);
+      return v8::internal::HashField(array_index(), true, length_);
     } else {
-      payload = v8::internal::HashField(GetHash(), false);
+      return v8::internal::HashField(GetHash(), false);
     }
-    return (payload & ((1 << String::kShortLengthShift) - 1)) |
-           (length_ << String::kShortLengthShift);
-  } else if (length_ <= String::kMaxMediumSize) {
     uint32_t payload = v8::internal::HashField(GetHash(), false);
-    return (payload & ((1 << String::kMediumLengthShift) - 1)) |
-           (length_ << String::kMediumLengthShift);
+    return payload;
   } else {
     return v8::internal::HashField(length_, false);
   }
 }
 
 
-uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
-                                           int length) {
+uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
+                                  int length) {
   StringHasher hasher(length);
 
   // Very long strings have a trivial hash that doesn't inspect the
@@ -6177,6 +6167,7 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
   return pt->GetPropertyWithReceiver(receiver, name, attributes);
 }
 
+
 Object* JSObject::GetLocalPropertyPostInterceptor(
     JSObject* receiver,
     String* name,
@@ -6478,6 +6469,15 @@ int JSObject::NumberOfLocalElements(PropertyAttributes filter) {
 
 
 int JSObject::NumberOfEnumElements() {
+  // Fast case for objects with no elements.
+  if (!IsJSValue() && HasFastElements()) {
+    uint32_t length = IsJSArray() ?
+        static_cast<uint32_t>(
+            Smi::cast(JSArray::cast(this)->length())->value()) :
+        static_cast<uint32_t>(FixedArray::cast(elements())->length());
+    if (length == 0) return 0;
+  }
+  // Compute the number of enumerable elements.
   return NumberOfLocalElements(static_cast<PropertyAttributes>(DONT_ENUM));
 }
 
@@ -6737,19 +6737,19 @@ class RegExpKey : public HashTableKey {
 class Utf8SymbolKey : public HashTableKey {
  public:
   explicit Utf8SymbolKey(Vector<const char> string)
-      : string_(string), length_field_(0) { }
+      : string_(string), hash_field_(0) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsEqualTo(string_);
   }
 
   uint32_t Hash() {
-    if (length_field_ != 0) return length_field_ >> String::kHashShift;
+    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Length();
-    length_field_ = String::ComputeLengthAndHashField(&buffer, chars_);
-    uint32_t result = length_field_ >> String::kHashShift;
+    hash_field_ = String::ComputeHashField(&buffer, chars_);
+    uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
   }
@@ -6759,12 +6759,12 @@ class Utf8SymbolKey : public HashTableKey {
   }
 
   Object* AsObject() {
-    if (length_field_ == 0) Hash();
-    return Heap::AllocateSymbol(string_, chars_, length_field_);
+    if (hash_field_ == 0) Hash();
+    return Heap::AllocateSymbol(string_, chars_, hash_field_);
   }
 
   Vector<const char> string_;
-  uint32_t length_field_;
+  uint32_t hash_field_;
   int chars_;  // Caches the number of characters when computing the hash code.
 };
 
@@ -6805,7 +6805,7 @@ class SymbolKey : public HashTableKey {
     StringInputBuffer buffer(string_);
     return Heap::AllocateInternalSymbol(&buffer,
                                         string_->length(),
-                                        string_->length_field());
+                                        string_->hash_field());
   }
 
   static uint32_t StringHash(Object* obj) {

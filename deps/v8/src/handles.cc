@@ -429,12 +429,12 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 // Init line_ends array with code positions of line ends inside script
 // source.
 void InitScriptLineEnds(Handle<Script> script) {
-  if (!script->line_ends_fixed_array()->IsUndefined()) return;
+  if (!script->line_ends()->IsUndefined()) return;
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends_fixed_array(*(Factory::NewFixedArray(0)));
-    ASSERT(script->line_ends_fixed_array()->IsFixedArray());
+    script->set_line_ends(*(Factory::NewFixedArray(0)));
+    ASSERT(script->line_ends()->IsFixedArray());
     return;
   }
 
@@ -467,8 +467,8 @@ void InitScriptLineEnds(Handle<Script> script) {
   }
   ASSERT(array_index == line_count);
 
-  script->set_line_ends_fixed_array(*array);
-  ASSERT(script->line_ends_fixed_array()->IsFixedArray());
+  script->set_line_ends(*array);
+  ASSERT(script->line_ends()->IsFixedArray());
 }
 
 
@@ -477,7 +477,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
   FixedArray* line_ends_array =
-      FixedArray::cast(script->line_ends_fixed_array());
+      FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
   int line = -1;
@@ -548,6 +548,12 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
 Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
                                           KeyCollectionType type) {
   Handle<FixedArray> content = Factory::empty_fixed_array();
+  Handle<JSObject> arguments_boilerplate =
+      Handle<JSObject>(
+          Top::context()->global_context()->arguments_boilerplate());
+  Handle<JSFunction> arguments_function =
+      Handle<JSFunction>(
+          JSFunction::cast(arguments_boilerplate->map()->constructor()));
 
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;
@@ -577,8 +583,21 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
         content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
     }
 
-    // Compute the property keys.
-    content = UnionOfKeys(content, GetEnumPropertyKeys(current));
+    // We can cache the computed property keys if access checks are
+    // not needed and no interceptors are involved.
+    //
+    // We do not use the cache if the object has elements and
+    // therefore it does not make sense to cache the property names
+    // for arguments objects.  Arguments objects will always have
+    // elements.
+    bool cache_enum_keys =
+        ((current->map()->constructor() != *arguments_function) &&
+         !current->IsAccessCheckNeeded() &&
+         !current->HasNamedInterceptor() &&
+         !current->HasIndexedInterceptor());
+    // Compute the property keys and cache them if possible.
+    content =
+        UnionOfKeys(content, GetEnumPropertyKeys(current, cache_enum_keys));
 
     // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
@@ -605,7 +624,8 @@ Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
 }
 
 
-Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
+Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
+                                       bool cache_result) {
   int index = 0;
   if (object->HasFastProperties()) {
     if (object->map()->instance_descriptors()->HasEnumCache()) {
@@ -628,10 +648,12 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
       }
     }
     (*storage)->SortPairs(*sort_array, sort_array->length());
-    Handle<FixedArray> bridge_storage =
-        Factory::NewFixedArray(DescriptorArray::kEnumCacheBridgeLength);
-    DescriptorArray* desc = object->map()->instance_descriptors();
-    desc->SetEnumCache(*bridge_storage, *storage);
+    if (cache_result) {
+      Handle<FixedArray> bridge_storage =
+          Factory::NewFixedArray(DescriptorArray::kEnumCacheBridgeLength);
+      DescriptorArray* desc = object->map()->instance_descriptors();
+      desc->SetEnumCache(*bridge_storage, *storage);
+    }
     ASSERT(storage->length() == index);
     return storage;
   } else {

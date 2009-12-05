@@ -107,12 +107,17 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   static const int kProbes = 4;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ ldr(t1, FieldMemOperand(r2, String::kLengthOffset));
-    __ mov(t1, Operand(t1, LSR, String::kHashShift));
+    __ ldr(t1, FieldMemOperand(r2, String::kHashFieldOffset));
     if (i > 0) {
-      __ add(t1, t1, Operand(StringDictionary::GetProbeOffset(i)));
+      // Add the probe offset (i + i * i) left shifted to avoid right shifting
+      // the hash in a separate instruction. The value hash + i + i * i is right
+      // shifted in the following and instruction.
+      ASSERT(StringDictionary::GetProbeOffset(i) <
+             1 << (32 - String::kHashFieldOffset));
+      __ add(t1, t1, Operand(
+          StringDictionary::GetProbeOffset(i) << String::kHashShift));
     }
-    __ and_(t1, t1, Operand(r3));
+    __ and_(t1, r3, Operand(t1, LSR, String::kHashShift));
 
     // Scale the index by multiplying by the element size.
     ASSERT(StringDictionary::kEntrySize == 3);

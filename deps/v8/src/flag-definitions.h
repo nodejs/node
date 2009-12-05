@@ -143,10 +143,12 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
-DEFINE_bool(fast_compiler, false,
+DEFINE_bool(fast_compiler, true,
             "use the fast-mode compiler for some top-level code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for failing to use fast compilation")
+DEFINE_bool(always_fast_compiler, false,
+            "always try using the fast compiler")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -154,9 +156,9 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
-DEFINE_bool(debugger_auto_break, false,
+DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
-            "in the queue (experimental)")
+            "in the queue")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,

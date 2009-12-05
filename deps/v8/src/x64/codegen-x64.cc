@@ -505,13 +505,13 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Add padding that will be overwritten by a debugger breakpoint.
   // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
   // with length 7 (3 + 1 + 3).
-  const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+  const int kPadding = Assembler::kJSReturnSequenceLength - 7;
   for (int i = 0; i < kPadding; ++i) {
     masm_->int3();
   }
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
-  ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   DeleteFrame();
@@ -1662,8 +1662,54 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
   // rax: value to be iterated over
-  frame_->EmitPush(rax);  // push the object being iterated over (slot 4)
+  frame_->EmitPush(rax);  // Push the object being iterated over.
 
+
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  JumpTarget call_runtime;
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  JumpTarget check_prototype;
+  JumpTarget use_cache;
+  __ movq(rcx, rax);
+  loop.Bind();
+  // Check that there are no elements.
+  __ movq(rdx, FieldOperand(rcx, JSObject::kElementsOffset));
+  __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
+  call_runtime.Branch(not_equal);
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in ebx for the subsequent
+  // prototype load.
+  __ movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOffset));
+  __ CompareRoot(rdx, Heap::kEmptyDescriptorArrayRootIndex);
+  call_runtime.Branch(equal);
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors.  This is the case if the next enumeration index
+  // field does not contain a smi.
+  __ movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
+  is_smi = masm_->CheckSmi(rdx);
+  call_runtime.Branch(is_smi);
+  // For all objects but the receiver, check that the cache is empty.
+  __ cmpq(rcx, rax);
+  check_prototype.Branch(equal);
+  __ movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
+  call_runtime.Branch(not_equal);
+  check_prototype.Bind();
+  // Load the prototype from the map and loop if non-null.
+  __ movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  __ CompareRoot(rcx, Heap::kNullValueRootIndex);
+  loop.Branch(not_equal);
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  __ movq(rax, FieldOperand(rax, HeapObject::kMapOffset));
+  use_cache.Jump();
+
+  call_runtime.Bind();
+  // Call the runtime to get the property names for the object.
   frame_->EmitPush(rax);  // push the Object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
@@ -1676,8 +1722,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ CompareRoot(rcx, Heap::kMetaMapRootIndex);
   fixed_array.Branch(not_equal);
 
+  use_cache.Bind();
   // Get enum cache
-  // rax: map (result from call to Runtime::kGetPropertyNamesFast)
+  // rax: map (either the result from a call to
+  // Runtime::kGetPropertyNamesFast or has been fetched directly from
+  // the object)
   __ movq(rcx, rax);
   __ movq(rcx, FieldOperand(rcx, Map::kInstanceDescriptorsOffset));
   // Get the bridge array held in the enumeration index field.
@@ -3767,20 +3816,8 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ testb(rcx, Immediate(kIsNotStringMask));
   __ j(not_zero, &slow_case);
 
-  // Here we make assumptions about the tag values and the shifts needed.
-  // See the comment in objects.h.
-  ASSERT(kLongStringTag == 0);
-  ASSERT(kMediumStringTag + String::kLongLengthShift ==
-         String::kMediumLengthShift);
-  ASSERT(kShortStringTag + String::kLongLengthShift ==
-         String::kShortLengthShift);
-  __ and_(rcx, Immediate(kStringSizeMask));
-  __ addq(rcx, Immediate(String::kLongLengthShift));
-  // Fetch the length field into the temporary register.
-  __ movl(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  __ shrl_cl(temp.reg());
   // Check for index out of range.
-  __ cmpl(index.reg(), temp.reg());
+  __ cmpl(index.reg(), FieldOperand(object.reg(), String::kLengthOffset));
   __ j(greater_equal, &slow_case);
   // Reload the instance type (into the temp register this time)..
   __ movq(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
@@ -4005,6 +4042,17 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   }
   frame_->Push(&answer);
   done.Bind();
+}
+
+
+void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  Result answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+  frame_->Push(&answer);
 }
 
 
@@ -6175,11 +6223,8 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // String value => false iff empty.
   __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
   __ j(above_equal, &not_string);
-  __ and_(rcx, Immediate(kStringSizeMask));
-  __ cmpq(rcx, Immediate(kShortStringTag));
-  __ j(not_equal, &true_result);  // Empty string is always short.
   __ movl(rdx, FieldOperand(rax, String::kLengthOffset));
-  __ shr(rdx, Immediate(String::kShortLengthShift));
+  __ testl(rdx, rdx);
   __ j(zero, &false_result);
   __ jmp(&true_result);
 
@@ -7732,9 +7777,47 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     __ push(rcx);
   }
   switch (op_) {
-    case Token::ADD:
+    case Token::ADD: {
+      // Test for string arguments before calling runtime.
+      Label not_strings, both_strings, not_string1, string1;
+      Condition is_smi;
+      Result answer;
+      __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // First argument.
+      __ movq(rax, Operand(rsp, 1 * kPointerSize));  // Second argument.
+      is_smi = masm->CheckSmi(rdx);
+      __ j(is_smi, &not_string1);
+      __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rdx);
+      __ j(above_equal, &not_string1);
+
+      // First argument is a a string, test second.
+      is_smi = masm->CheckSmi(rax);
+      __ j(is_smi, &string1);
+      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ j(above_equal, &string1);
+
+      // First and second argument are strings.
+      Runtime::Function* f = Runtime::FunctionForId(Runtime::kStringAdd);
+      __ TailCallRuntime(ExternalReference(f), 2, f->result_size);
+
+      // Only first argument is a string.
+      __ bind(&string1);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
+
+      // First argument was not a string, test second.
+      __ bind(&not_string1);
+      is_smi = masm->CheckSmi(rax);
+      __ j(is_smi, &not_strings);
+      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ j(above_equal, &not_strings);
+
+      // Only second argument is a string.
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
+
+      __ bind(&not_strings);
+      // Neither argument is a string.
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
+    }
     case Token::SUB:
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
       break;

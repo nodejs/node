@@ -346,6 +346,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateMathCos, "_Math_cos"},
   {&CodeGenerator::GenerateIsObject, "_IsObject"},
   {&CodeGenerator::GenerateIsFunction, "_IsFunction"},
+  {&CodeGenerator::GenerateStringAdd, "_StringAdd"},
 };
 
 

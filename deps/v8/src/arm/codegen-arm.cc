@@ -326,7 +326,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // Calculate the exact length of the return sequence and make sure that
     // the constant pool is not emitted inside of the return sequence.
     int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
-    int return_sequence_length = Debug::kARMJSReturnSequenceLength;
+    int return_sequence_length = Assembler::kJSReturnSequenceLength;
     if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
       // Additional mov instruction generated.
       return_sequence_length++;
@@ -1560,7 +1560,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   VisitAndSpill(node->body());
 
-      // Compile the test.
+  // Compile the test.
   switch (info) {
     case ALWAYS_TRUE:
       // If control can fall off the end of the body, jump back to the
@@ -1775,19 +1775,77 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
-  frame_->EmitPush(r0);  // duplicate the object being enumerated
-  frame_->EmitPush(r0);
+  // r0: value to be iterated over
+  frame_->EmitPush(r0);  // Push the object being iterated over.
+
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  JumpTarget call_runtime;
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  JumpTarget check_prototype;
+  JumpTarget use_cache;
+  __ mov(r1, Operand(r0));
+  loop.Bind();
+  // Check that there are no elements.
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ LoadRoot(r4, Heap::kEmptyFixedArrayRootIndex);
+  __ cmp(r2, r4);
+  call_runtime.Branch(ne);
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in r3 for the subsequent
+  // prototype load.
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldr(r2, FieldMemOperand(r3, Map::kInstanceDescriptorsOffset));
+  __ LoadRoot(ip, Heap::kEmptyDescriptorArrayRootIndex);
+  __ cmp(r2, ip);
+  call_runtime.Branch(eq);
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors.  This is the case if the next enumeration index
+  // field does not contain a smi.
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumerationIndexOffset));
+  __ tst(r2, Operand(kSmiTagMask));
+  call_runtime.Branch(eq);
+  // For all objects but the receiver, check that the cache is empty.
+  // r4: empty fixed array root.
+  __ cmp(r1, r0);
+  check_prototype.Branch(eq);
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(r2, r4);
+  call_runtime.Branch(ne);
+  check_prototype.Bind();
+  // Load the prototype from the map and loop if non-null.
+  __ ldr(r1, FieldMemOperand(r3, Map::kPrototypeOffset));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r1, ip);
+  loop.Branch(ne);
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+  use_cache.Jump();
+
+  call_runtime.Bind();
+  // Call the runtime to get the property names for the object.
+  frame_->EmitPush(r0);  // push the object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
-  // If we got a Map, we can do a fast modification check.
-  // Otherwise, we got a FixedArray, and we have to do a slow check.
+  // If we got a map from the runtime call, we can do a fast
+  // modification check. Otherwise, we got a fixed array, and we have
+  // to do a slow check.
+  // r0: map or fixed array (result from call to
+  // Runtime::kGetPropertyNamesFast)
   __ mov(r2, Operand(r0));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
   __ cmp(r1, ip);
   fixed_array.Branch(ne);
 
+  use_cache.Bind();
   // Get enum cache
+  // r0: map (either the result from a call to
+  // Runtime::kGetPropertyNamesFast or has been fetched directly from
+  // the object)
   __ mov(r1, Operand(r0));
   __ ldr(r1, FieldMemOperand(r1, Map::kInstanceDescriptorsOffset));
   __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumerationIndexOffset));
@@ -3308,9 +3366,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Now r2 has the string type.
   __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
-  __ and_(r4, r2, Operand(kStringSizeMask));
-  __ add(r4, r4, Operand(String::kLongLengthShift));
-  __ mov(r3, Operand(r3, LSR, r4));
   // Now r3 has the length of the string.  Compare with the index.
   __ cmp(r3, Operand(r0, LSR, kSmiTagSize));
   __ b(le, &slow);
@@ -3504,6 +3559,17 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
       frame_->CallRuntime(Runtime::kMath_cos, 1);
       break;
   }
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  frame_->CallRuntime(Runtime::kStringAdd, 2);
   frame_->EmitPush(r0);
 }
 
@@ -5149,8 +5215,53 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // We jump to here if something goes wrong (one param is not a number of any
   // sort or new-space allocation fails).
   __ bind(&slow);
+
+  // Push arguments to the stack
   __ push(r1);
   __ push(r0);
+
+  if (Token::ADD == operation) {
+    // Test for string arguments before calling runtime.
+    // r1 : first argument
+    // r0 : second argument
+    // sp[0] : second argument
+    // sp[1] : first argument
+
+    Label not_strings, not_string1, string1;
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &not_string1);
+    __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &not_string1);
+
+    // First argument is a a string, test second.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &string1);
+    __ CompareObjectType(r0, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &string1);
+
+    // First and second argument are strings.
+    __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+
+    // Only first argument is a string.
+    __ bind(&string1);
+    __ mov(r0, Operand(2));  // Set number of arguments.
+    __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_JS);
+
+    // First argument was not a string, test second.
+    __ bind(&not_string1);
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &not_strings);
+    __ CompareObjectType(r0, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &not_strings);
+
+    // Only second argument is a string.
+    __ b(&not_strings);
+    __ mov(r0, Operand(2));  // Set number of arguments.
+    __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_JS);
+
+    __ bind(&not_strings);
+  }
+
   __ mov(r0, Operand(1));  // Set number of arguments.
   __ InvokeBuiltin(builtin, JUMP_JS);  // Tail call.  No return.
 
@@ -6388,7 +6499,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ b(eq, &adaptor);
 
   // Check index against formal parameters count limit passed in
-  // through register eax. Use unsigned comparison to get negative
+  // through register r0. Use unsigned comparison to get negative
   // check for free.
   __ cmp(r1, r0);
   __ b(cs, &slow);

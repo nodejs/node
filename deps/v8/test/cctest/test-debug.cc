@@ -5016,7 +5016,7 @@ TEST(ScriptNameAndData) {
   v8::ScriptOrigin origin2 = v8::ScriptOrigin(v8::String::New("new name"));
   v8::Handle<v8::Script> script2 = v8::Script::Compile(script, &origin2);
   script2->Run();
-  script2->SetData(data_obj);
+  script2->SetData(data_obj->ToString());
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(3, break_point_hit_count);
@@ -5069,8 +5069,8 @@ TEST(ContextData) {
   CHECK(context_2->GetData()->IsUndefined());
 
   // Set and check different data values.
-  v8::Handle<v8::Value> data_1 = v8::Number::New(1);
-  v8::Handle<v8::Value> data_2 = v8::String::New("2");
+  v8::Handle<v8::String> data_1 = v8::String::New("1");
+  v8::Handle<v8::String> data_2 = v8::String::New("2");
   context_1->SetData(data_1);
   context_2->SetData(data_2);
   CHECK(context_1->GetData()->StrictEquals(data_1));
@@ -5233,7 +5233,7 @@ static void ExecuteScriptForContextCheck() {
   CHECK(context_1->GetData()->IsUndefined());
 
   // Set and check a data value.
-  v8::Handle<v8::Value> data_1 = v8::Number::New(1);
+  v8::Handle<v8::String> data_1 = v8::String::New("1");
   context_1->SetData(data_1);
   CHECK(context_1->GetData()->StrictEquals(data_1));
 

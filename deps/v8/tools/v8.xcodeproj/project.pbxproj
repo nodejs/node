@@ -214,6 +214,10 @@
 		9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
 		9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
+		9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
+		9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
+		9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */; };
+		9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */; };
 		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 /* End PBXBuildFile section */
@@ -550,6 +554,10 @@
 		9F4B7B880FCC877A00DC4117 /* log-utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-utils.h"; sourceTree = "<group>"; };
 		9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "func-name-inferrer.cc"; sourceTree = "<group>"; };
 		9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "func-name-inferrer.h"; sourceTree = "<group>"; };
+		9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fast-codegen.cc"; sourceTree = "<group>"; };
+		9FBE03DD10BD409900F8BFBA /* fast-codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fast-codegen.h"; sourceTree = "<group>"; };
+		9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-ia32.cc"; path = "ia32/fast-codegen-ia32.cc"; sourceTree = "<group>"; };
+		9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-arm.cc"; path = "arm/fast-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -715,6 +723,10 @@
 				897FF1310E719B8F00D62E90 /* execution.h */,
 				897FF1320E719B8F00D62E90 /* factory.cc */,
 				897FF1330E719B8F00D62E90 /* factory.h */,
+				9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */,
+				9FBE03DD10BD409900F8BFBA /* fast-codegen.h */,
+				9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */,
+				9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */,
 				89471C7F0EB23EE400B6874B /* flag-definitions.h */,
 				897FF1350E719B8F00D62E90 /* flags.cc */,
 				897FF1360E719B8F00D62E90 /* flags.h */,
@@ -1225,6 +1237,8 @@
 				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
 				8981F6001010501900D1520E /* frame-element.cc in Sources */,
 				9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
+				9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */,
+				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1332,6 +1346,8 @@
 				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,
 				8981F6011010502800D1520E /* frame-element.cc in Sources */,
 				9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
+				9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */,
+				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

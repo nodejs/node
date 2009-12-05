@@ -566,6 +566,7 @@ class Assembler : public Malloced {
   // register.
   static const int kPcLoadDelta = 8;
 
+  static const int kJSReturnSequenceLength = 4;
 
   // ---------------------------------------------------------------------------
   // Code generation

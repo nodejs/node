@@ -105,7 +105,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ b(eq, &miss);
 
   // Get the map of the receiver and compute the hash.
-  __ ldr(scratch, FieldMemOperand(name, String::kLengthOffset));
+  __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
   __ eor(scratch, scratch, Operand(flags));
@@ -229,10 +229,7 @@ void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
                       miss, &check_wrapper);
 
   // Load length directly from the string.
-  __ and_(scratch1, scratch1, Operand(kStringSizeMask));
-  __ add(scratch1, scratch1, Operand(String::kHashShift));
   __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, scratch1));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   __ Ret();
 

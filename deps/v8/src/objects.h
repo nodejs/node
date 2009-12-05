@@ -221,248 +221,128 @@ enum PropertyNormalizationMode {
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST_ALL(V)               \
-  V(SHORT_SYMBOL_TYPE)                          \
-  V(MEDIUM_SYMBOL_TYPE)                         \
-  V(LONG_SYMBOL_TYPE)                           \
-  V(SHORT_ASCII_SYMBOL_TYPE)                    \
-  V(MEDIUM_ASCII_SYMBOL_TYPE)                   \
-  V(LONG_ASCII_SYMBOL_TYPE)                     \
-  V(SHORT_CONS_SYMBOL_TYPE)                     \
-  V(MEDIUM_CONS_SYMBOL_TYPE)                    \
-  V(LONG_CONS_SYMBOL_TYPE)                      \
-  V(SHORT_CONS_ASCII_SYMBOL_TYPE)               \
-  V(MEDIUM_CONS_ASCII_SYMBOL_TYPE)              \
-  V(LONG_CONS_ASCII_SYMBOL_TYPE)                \
-  V(SHORT_EXTERNAL_SYMBOL_TYPE)                 \
-  V(MEDIUM_EXTERNAL_SYMBOL_TYPE)                \
-  V(LONG_EXTERNAL_SYMBOL_TYPE)                  \
-  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE)           \
-  V(MEDIUM_EXTERNAL_ASCII_SYMBOL_TYPE)          \
-  V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE)            \
-  V(SHORT_STRING_TYPE)                          \
-  V(MEDIUM_STRING_TYPE)                         \
-  V(LONG_STRING_TYPE)                           \
-  V(SHORT_ASCII_STRING_TYPE)                    \
-  V(MEDIUM_ASCII_STRING_TYPE)                   \
-  V(LONG_ASCII_STRING_TYPE)                     \
-  V(SHORT_CONS_STRING_TYPE)                     \
-  V(MEDIUM_CONS_STRING_TYPE)                    \
-  V(LONG_CONS_STRING_TYPE)                      \
-  V(SHORT_CONS_ASCII_STRING_TYPE)               \
-  V(MEDIUM_CONS_ASCII_STRING_TYPE)              \
-  V(LONG_CONS_ASCII_STRING_TYPE)                \
-  V(SHORT_EXTERNAL_STRING_TYPE)                 \
-  V(MEDIUM_EXTERNAL_STRING_TYPE)                \
-  V(LONG_EXTERNAL_STRING_TYPE)                  \
-  V(SHORT_EXTERNAL_ASCII_STRING_TYPE)           \
-  V(MEDIUM_EXTERNAL_ASCII_STRING_TYPE)          \
-  V(LONG_EXTERNAL_ASCII_STRING_TYPE)            \
-  V(LONG_PRIVATE_EXTERNAL_ASCII_STRING_TYPE)    \
-                                                \
-  V(MAP_TYPE)                                   \
-  V(HEAP_NUMBER_TYPE)                           \
-  V(FIXED_ARRAY_TYPE)                           \
-  V(CODE_TYPE)                                  \
-  V(JS_GLOBAL_PROPERTY_CELL_TYPE)               \
-  V(ODDBALL_TYPE)                               \
-  V(PROXY_TYPE)                                 \
-  V(BYTE_ARRAY_TYPE)                            \
-  V(PIXEL_ARRAY_TYPE)                           \
-  /* Note: the order of these external array */ \
-  /* types is relied upon in */                 \
-  /* Object::IsExternalArray(). */              \
-  V(EXTERNAL_BYTE_ARRAY_TYPE)                   \
-  V(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)          \
-  V(EXTERNAL_SHORT_ARRAY_TYPE)                  \
-  V(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)         \
-  V(EXTERNAL_INT_ARRAY_TYPE)                    \
-  V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)           \
-  V(EXTERNAL_FLOAT_ARRAY_TYPE)                  \
-  V(FILLER_TYPE)                                \
-                                                \
-  V(ACCESSOR_INFO_TYPE)                         \
-  V(ACCESS_CHECK_INFO_TYPE)                     \
-  V(INTERCEPTOR_INFO_TYPE)                      \
-  V(SHARED_FUNCTION_INFO_TYPE)                  \
-  V(CALL_HANDLER_INFO_TYPE)                     \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                  \
-  V(SIGNATURE_INFO_TYPE)                        \
-  V(TYPE_SWITCH_INFO_TYPE)                      \
-  V(SCRIPT_TYPE)                                \
-                                                \
-  V(JS_VALUE_TYPE)                              \
-  V(JS_OBJECT_TYPE)                             \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)           \
-  V(JS_GLOBAL_OBJECT_TYPE)                      \
-  V(JS_BUILTINS_OBJECT_TYPE)                    \
-  V(JS_GLOBAL_PROXY_TYPE)                       \
-  V(JS_ARRAY_TYPE)                              \
-  V(JS_REGEXP_TYPE)                             \
-                                                \
-  V(JS_FUNCTION_TYPE)                           \
+#define INSTANCE_TYPE_LIST_ALL(V)                                              \
+  V(SYMBOL_TYPE)                                                               \
+  V(ASCII_SYMBOL_TYPE)                                                         \
+  V(CONS_SYMBOL_TYPE)                                                          \
+  V(CONS_ASCII_SYMBOL_TYPE)                                                    \
+  V(EXTERNAL_SYMBOL_TYPE)                                                      \
+  V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
+  V(STRING_TYPE)                                                               \
+  V(ASCII_STRING_TYPE)                                                         \
+  V(CONS_STRING_TYPE)                                                          \
+  V(CONS_ASCII_STRING_TYPE)                                                    \
+  V(EXTERNAL_STRING_TYPE)                                                      \
+  V(EXTERNAL_ASCII_STRING_TYPE)                                                \
+  V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
+                                                                               \
+  V(MAP_TYPE)                                                                  \
+  V(HEAP_NUMBER_TYPE)                                                          \
+  V(FIXED_ARRAY_TYPE)                                                          \
+  V(CODE_TYPE)                                                                 \
+  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
+  V(ODDBALL_TYPE)                                                              \
+  V(PROXY_TYPE)                                                                \
+  V(BYTE_ARRAY_TYPE)                                                           \
+  V(PIXEL_ARRAY_TYPE)                                                          \
+  /* Note: the order of these external array */                                \
+  /* types is relied upon in */                                                \
+  /* Object::IsExternalArray(). */                                             \
+  V(EXTERNAL_BYTE_ARRAY_TYPE)                                                  \
+  V(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)                                         \
+  V(EXTERNAL_SHORT_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)                                        \
+  V(EXTERNAL_INT_ARRAY_TYPE)                                                   \
+  V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)                                          \
+  V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
+  V(FILLER_TYPE)                                                               \
+                                                                               \
+  V(ACCESSOR_INFO_TYPE)                                                        \
+  V(ACCESS_CHECK_INFO_TYPE)                                                    \
+  V(INTERCEPTOR_INFO_TYPE)                                                     \
+  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
+  V(CALL_HANDLER_INFO_TYPE)                                                    \
+  V(FUNCTION_TEMPLATE_INFO_TYPE)                                               \
+  V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
+  V(SIGNATURE_INFO_TYPE)                                                       \
+  V(TYPE_SWITCH_INFO_TYPE)                                                     \
+  V(SCRIPT_TYPE)                                                               \
+                                                                               \
+  V(JS_VALUE_TYPE)                                                             \
+  V(JS_OBJECT_TYPE)                                                            \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
+  V(JS_GLOBAL_OBJECT_TYPE)                                                     \
+  V(JS_BUILTINS_OBJECT_TYPE)                                                   \
+  V(JS_GLOBAL_PROXY_TYPE)                                                      \
+  V(JS_ARRAY_TYPE)                                                             \
+  V(JS_REGEXP_TYPE)                                                            \
+                                                                               \
+  V(JS_FUNCTION_TYPE)                                                          \
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-#define INSTANCE_TYPE_LIST_DEBUGGER(V)          \
-  V(DEBUG_INFO_TYPE)                            \
+#define INSTANCE_TYPE_LIST_DEBUGGER(V)                                         \
+  V(DEBUG_INFO_TYPE)                                                           \
   V(BREAK_POINT_INFO_TYPE)
 #else
 #define INSTANCE_TYPE_LIST_DEBUGGER(V)
 #endif
 
-#define INSTANCE_TYPE_LIST(V)                   \
-  INSTANCE_TYPE_LIST_ALL(V)                     \
+#define INSTANCE_TYPE_LIST(V)                                                  \
+  INSTANCE_TYPE_LIST_ALL(V)                                                    \
   INSTANCE_TYPE_LIST_DEBUGGER(V)
 
 
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SHORT_SYMBOL_TYPE,                                                         \
+  V(SYMBOL_TYPE,                                                               \
     SeqTwoByteString::kAlignedSize,                                            \
-    short_symbol,                                                              \
-    ShortSymbol)                                                               \
-  V(MEDIUM_SYMBOL_TYPE,                                                        \
+    symbol,                                                                    \
+    Symbol)                                                                    \
+  V(ASCII_SYMBOL_TYPE,                                                         \
+    SeqAsciiString::kAlignedSize,                                              \
+    ascii_symbol,                                                              \
+    AsciiSymbol)                                                               \
+  V(CONS_SYMBOL_TYPE,                                                          \
+    ConsString::kSize,                                                         \
+    cons_symbol,                                                               \
+    ConsSymbol)                                                                \
+  V(CONS_ASCII_SYMBOL_TYPE,                                                    \
+    ConsString::kSize,                                                         \
+    cons_ascii_symbol,                                                         \
+    ConsAsciiSymbol)                                                           \
+  V(EXTERNAL_SYMBOL_TYPE,                                                      \
+    ExternalTwoByteString::kSize,                                              \
+    external_symbol,                                                           \
+    ExternalSymbol)                                                            \
+  V(EXTERNAL_ASCII_SYMBOL_TYPE,                                                \
+    ExternalAsciiString::kSize,                                                \
+    external_ascii_symbol,                                                     \
+    ExternalAsciiSymbol)                                                       \
+  V(STRING_TYPE,                                                               \
     SeqTwoByteString::kAlignedSize,                                            \
-    medium_symbol,                                                             \
-    MediumSymbol)                                                              \
-  V(LONG_SYMBOL_TYPE,                                                          \
-    SeqTwoByteString::kAlignedSize,                                            \
-    long_symbol,                                                               \
-    LongSymbol)                                                                \
-  V(SHORT_ASCII_SYMBOL_TYPE,                                                   \
+    string,                                                                    \
+    String)                                                                    \
+  V(ASCII_STRING_TYPE,                                                         \
     SeqAsciiString::kAlignedSize,                                              \
-    short_ascii_symbol,                                                        \
-    ShortAsciiSymbol)                                                          \
-  V(MEDIUM_ASCII_SYMBOL_TYPE,                                                  \
-    SeqAsciiString::kAlignedSize,                                              \
-    medium_ascii_symbol,                                                       \
-    MediumAsciiSymbol)                                                         \
-  V(LONG_ASCII_SYMBOL_TYPE,                                                    \
-    SeqAsciiString::kAlignedSize,                                              \
-    long_ascii_symbol,                                                         \
-    LongAsciiSymbol)                                                           \
-  V(SHORT_CONS_SYMBOL_TYPE,                                                    \
+    ascii_string,                                                              \
+    AsciiString)                                                               \
+  V(CONS_STRING_TYPE,                                                          \
     ConsString::kSize,                                                         \
-    short_cons_symbol,                                                         \
-    ShortConsSymbol)                                                           \
-  V(MEDIUM_CONS_SYMBOL_TYPE,                                                   \
+    cons_string,                                                               \
+    ConsString)                                                                \
+  V(CONS_ASCII_STRING_TYPE,                                                    \
     ConsString::kSize,                                                         \
-    medium_cons_symbol,                                                        \
-    MediumConsSymbol)                                                          \
-  V(LONG_CONS_SYMBOL_TYPE,                                                     \
-    ConsString::kSize,                                                         \
-    long_cons_symbol,                                                          \
-    LongConsSymbol)                                                            \
-  V(SHORT_CONS_ASCII_SYMBOL_TYPE,                                              \
-    ConsString::kSize,                                                         \
-    short_cons_ascii_symbol,                                                   \
-    ShortConsAsciiSymbol)                                                      \
-  V(MEDIUM_CONS_ASCII_SYMBOL_TYPE,                                             \
-    ConsString::kSize,                                                         \
-    medium_cons_ascii_symbol,                                                  \
-    MediumConsAsciiSymbol)                                                     \
-  V(LONG_CONS_ASCII_SYMBOL_TYPE,                                               \
-    ConsString::kSize,                                                         \
-    long_cons_ascii_symbol,                                                    \
-    LongConsAsciiSymbol)                                                       \
-  V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
+    cons_ascii_string,                                                         \
+    ConsAsciiString)                                                           \
+  V(EXTERNAL_STRING_TYPE,                                                      \
     ExternalTwoByteString::kSize,                                              \
-    short_external_symbol,                                                     \
-    ShortExternalSymbol)                                                       \
-  V(MEDIUM_EXTERNAL_SYMBOL_TYPE,                                               \
-    ExternalTwoByteString::kSize,                                              \
-    medium_external_symbol,                                                    \
-    MediumExternalSymbol)                                                      \
-  V(LONG_EXTERNAL_SYMBOL_TYPE,                                                 \
-    ExternalTwoByteString::kSize,                                              \
-    long_external_symbol,                                                      \
-    LongExternalSymbol)                                                        \
-  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE,                                          \
+    external_string,                                                           \
+    ExternalString)                                                            \
+  V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
-    short_external_ascii_symbol,                                               \
-    ShortExternalAsciiSymbol)                                                  \
-  V(MEDIUM_EXTERNAL_ASCII_SYMBOL_TYPE,                                         \
-    ExternalAsciiString::kSize,                                                \
-    medium_external_ascii_symbol,                                              \
-    MediumExternalAsciiSymbol)                                                 \
-  V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE,                                           \
-    ExternalAsciiString::kSize,                                                \
-    long_external_ascii_symbol,                                                \
-    LongExternalAsciiSymbol)                                                   \
-  V(SHORT_STRING_TYPE,                                                         \
-    SeqTwoByteString::kAlignedSize,                                            \
-    short_string,                                                              \
-    ShortString)                                                               \
-  V(MEDIUM_STRING_TYPE,                                                        \
-    SeqTwoByteString::kAlignedSize,                                            \
-    medium_string,                                                             \
-    MediumString)                                                              \
-  V(LONG_STRING_TYPE,                                                          \
-    SeqTwoByteString::kAlignedSize,                                            \
-    long_string,                                                               \
-    LongString)                                                                \
-  V(SHORT_ASCII_STRING_TYPE,                                                   \
-    SeqAsciiString::kAlignedSize,                                              \
-    short_ascii_string,                                                        \
-    ShortAsciiString)                                                          \
-  V(MEDIUM_ASCII_STRING_TYPE,                                                  \
-    SeqAsciiString::kAlignedSize,                                              \
-    medium_ascii_string,                                                       \
-    MediumAsciiString)                                                         \
-  V(LONG_ASCII_STRING_TYPE,                                                    \
-    SeqAsciiString::kAlignedSize,                                              \
-    long_ascii_string,                                                         \
-    LongAsciiString)                                                           \
-  V(SHORT_CONS_STRING_TYPE,                                                    \
-    ConsString::kSize,                                                         \
-    short_cons_string,                                                         \
-    ShortConsString)                                                           \
-  V(MEDIUM_CONS_STRING_TYPE,                                                   \
-    ConsString::kSize,                                                         \
-    medium_cons_string,                                                        \
-    MediumConsString)                                                          \
-  V(LONG_CONS_STRING_TYPE,                                                     \
-    ConsString::kSize,                                                         \
-    long_cons_string,                                                          \
-    LongConsString)                                                            \
-  V(SHORT_CONS_ASCII_STRING_TYPE,                                              \
-    ConsString::kSize,                                                         \
-    short_cons_ascii_string,                                                   \
-    ShortConsAsciiString)                                                      \
-  V(MEDIUM_CONS_ASCII_STRING_TYPE,                                             \
-    ConsString::kSize,                                                         \
-    medium_cons_ascii_string,                                                  \
-    MediumConsAsciiString)                                                     \
-  V(LONG_CONS_ASCII_STRING_TYPE,                                               \
-    ConsString::kSize,                                                         \
-    long_cons_ascii_string,                                                    \
-    LongConsAsciiString)                                                       \
-  V(SHORT_EXTERNAL_STRING_TYPE,                                                \
-    ExternalTwoByteString::kSize,                                              \
-    short_external_string,                                                     \
-    ShortExternalString)                                                       \
-  V(MEDIUM_EXTERNAL_STRING_TYPE,                                               \
-    ExternalTwoByteString::kSize,                                              \
-    medium_external_string,                                                    \
-    MediumExternalString)                                                      \
-  V(LONG_EXTERNAL_STRING_TYPE,                                                 \
-    ExternalTwoByteString::kSize,                                              \
-    long_external_string,                                                      \
-    LongExternalString)                                                        \
-  V(SHORT_EXTERNAL_ASCII_STRING_TYPE,                                          \
-    ExternalAsciiString::kSize,                                                \
-    short_external_ascii_string,                                               \
-    ShortExternalAsciiString)                                                  \
-  V(MEDIUM_EXTERNAL_ASCII_STRING_TYPE,                                         \
-    ExternalAsciiString::kSize,                                                \
-    medium_external_ascii_string,                                              \
-    MediumExternalAsciiString)                                                 \
-  V(LONG_EXTERNAL_ASCII_STRING_TYPE,                                           \
-    ExternalAsciiString::kSize,                                                \
-    long_external_ascii_string,                                                \
-    LongExternalAsciiString)
+    external_ascii_string,                                                     \
+    ExternalAsciiString)                                                       \
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -473,27 +353,27 @@ enum PropertyNormalizationMode {
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST_ALL(V)                                                \
-  V(ACCESSOR_INFO, AccessorInfo, accessor_info)                           \
-  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                \
-  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                  \
-  V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                \
-  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info) \
-  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)       \
-  V(SIGNATURE_INFO, SignatureInfo, signature_info)                        \
-  V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                   \
+#define STRUCT_LIST_ALL(V)                                                     \
+  V(ACCESSOR_INFO, AccessorInfo, accessor_info)                                \
+  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                     \
+  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                       \
+  V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                     \
+  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)      \
+  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)            \
+  V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
+  V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-#define STRUCT_LIST_DEBUGGER(V)                                           \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                    \
+#define STRUCT_LIST_DEBUGGER(V)                                                \
+  V(DEBUG_INFO, DebugInfo, debug_info)                                         \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)
 #else
 #define STRUCT_LIST_DEBUGGER(V)
 #endif
 
-#define STRUCT_LIST(V)                                                    \
-  STRUCT_LIST_ALL(V)                                                      \
+#define STRUCT_LIST(V)                                                         \
+  STRUCT_LIST_ALL(V)                                                           \
   STRUCT_LIST_DEBUGGER(V)
 
 // We use the full 8 bits of the instance_type field to encode heap object
@@ -508,15 +388,6 @@ const uint32_t kNotStringTag = 0x80;
 const uint32_t kIsSymbolMask = 0x20;
 const uint32_t kNotSymbolTag = 0x0;
 const uint32_t kSymbolTag = 0x20;
-
-// If bit 7 is clear, bits 3 and 4 are the string's size (short, medium or
-// long).  These values are very special in that they are also used to shift
-// the length field to get the length, removing the hash value.  This avoids
-// using if or switch when getting the length of a string.
-const uint32_t kStringSizeMask = 0x18;
-const uint32_t kShortStringTag = 0x18;
-const uint32_t kMediumStringTag = 0x10;
-const uint32_t kLongStringTag = 0x00;
 
 // If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.
@@ -547,60 +418,20 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 
 enum InstanceType {
-  SHORT_SYMBOL_TYPE = kShortStringTag | kSymbolTag | kSeqStringTag,
-  MEDIUM_SYMBOL_TYPE = kMediumStringTag | kSymbolTag | kSeqStringTag,
-  LONG_SYMBOL_TYPE = kLongStringTag | kSymbolTag | kSeqStringTag,
-  SHORT_ASCII_SYMBOL_TYPE =
-      kShortStringTag | kAsciiStringTag | kSymbolTag | kSeqStringTag,
-  MEDIUM_ASCII_SYMBOL_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSymbolTag | kSeqStringTag,
-  LONG_ASCII_SYMBOL_TYPE =
-      kLongStringTag | kAsciiStringTag | kSymbolTag | kSeqStringTag,
-  SHORT_CONS_SYMBOL_TYPE = kShortStringTag | kSymbolTag | kConsStringTag,
-  MEDIUM_CONS_SYMBOL_TYPE = kMediumStringTag | kSymbolTag | kConsStringTag,
-  LONG_CONS_SYMBOL_TYPE = kLongStringTag | kSymbolTag | kConsStringTag,
-  SHORT_CONS_ASCII_SYMBOL_TYPE =
-      kShortStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
-  MEDIUM_CONS_ASCII_SYMBOL_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
-  LONG_CONS_ASCII_SYMBOL_TYPE =
-      kLongStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
-  SHORT_EXTERNAL_SYMBOL_TYPE =
-      kShortStringTag | kSymbolTag | kExternalStringTag,
-  MEDIUM_EXTERNAL_SYMBOL_TYPE =
-      kMediumStringTag | kSymbolTag | kExternalStringTag,
-  LONG_EXTERNAL_SYMBOL_TYPE = kLongStringTag | kSymbolTag | kExternalStringTag,
-  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE =
-      kShortStringTag | kAsciiStringTag | kSymbolTag | kExternalStringTag,
-  MEDIUM_EXTERNAL_ASCII_SYMBOL_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSymbolTag | kExternalStringTag,
-  LONG_EXTERNAL_ASCII_SYMBOL_TYPE =
-      kLongStringTag | kAsciiStringTag | kSymbolTag | kExternalStringTag,
-  SHORT_STRING_TYPE = kShortStringTag | kSeqStringTag,
-  MEDIUM_STRING_TYPE = kMediumStringTag | kSeqStringTag,
-  LONG_STRING_TYPE = kLongStringTag | kSeqStringTag,
-  SHORT_ASCII_STRING_TYPE = kShortStringTag | kAsciiStringTag | kSeqStringTag,
-  MEDIUM_ASCII_STRING_TYPE = kMediumStringTag | kAsciiStringTag | kSeqStringTag,
-  LONG_ASCII_STRING_TYPE = kLongStringTag | kAsciiStringTag | kSeqStringTag,
-  SHORT_CONS_STRING_TYPE = kShortStringTag | kConsStringTag,
-  MEDIUM_CONS_STRING_TYPE = kMediumStringTag | kConsStringTag,
-  LONG_CONS_STRING_TYPE = kLongStringTag | kConsStringTag,
-  SHORT_CONS_ASCII_STRING_TYPE =
-      kShortStringTag | kAsciiStringTag | kConsStringTag,
-  MEDIUM_CONS_ASCII_STRING_TYPE =
-      kMediumStringTag | kAsciiStringTag | kConsStringTag,
-  LONG_CONS_ASCII_STRING_TYPE =
-      kLongStringTag | kAsciiStringTag | kConsStringTag,
-  SHORT_EXTERNAL_STRING_TYPE = kShortStringTag | kExternalStringTag,
-  MEDIUM_EXTERNAL_STRING_TYPE = kMediumStringTag | kExternalStringTag,
-  LONG_EXTERNAL_STRING_TYPE = kLongStringTag | kExternalStringTag,
-  SHORT_EXTERNAL_ASCII_STRING_TYPE =
-      kShortStringTag | kAsciiStringTag | kExternalStringTag,
-  MEDIUM_EXTERNAL_ASCII_STRING_TYPE =
-      kMediumStringTag | kAsciiStringTag | kExternalStringTag,
-  LONG_EXTERNAL_ASCII_STRING_TYPE =
-      kLongStringTag | kAsciiStringTag | kExternalStringTag,
-  LONG_PRIVATE_EXTERNAL_ASCII_STRING_TYPE = LONG_EXTERNAL_ASCII_STRING_TYPE,
+  SYMBOL_TYPE = kSymbolTag | kSeqStringTag,
+  ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
+  CONS_SYMBOL_TYPE = kSymbolTag | kConsStringTag,
+  CONS_ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kConsStringTag,
+  EXTERNAL_SYMBOL_TYPE = kSymbolTag | kExternalStringTag,
+  EXTERNAL_ASCII_SYMBOL_TYPE =
+      kAsciiStringTag | kSymbolTag | kExternalStringTag,
+  STRING_TYPE = kSeqStringTag,
+  ASCII_STRING_TYPE = kAsciiStringTag | kSeqStringTag,
+  CONS_STRING_TYPE = kConsStringTag,
+  CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
+  EXTERNAL_STRING_TYPE = kExternalStringTag,
+  EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
+  PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
   MAP_TYPE = kNotStringTag,
   HEAP_NUMBER_TYPE,
@@ -998,16 +829,6 @@ class MapWord BASE_EMBEDDED {
 
   // View this map word as a forwarding address.
   inline HeapObject* ToForwardingAddress();
-
-  // True if this map word is a serialization address.  This will only be the
-  // case during a destructive serialization of the heap.
-  inline bool IsSerializationAddress();
-
-  // Create a map word from a serialization address.
-  static inline MapWord FromSerializationAddress(int raw);
-
-  // View this map word as a serialization address.
-  inline int ToSerializationAddress();
 
   // Marking phase of full collection: the map word of live objects is
   // marked, and may be marked as overflowed (eg, the object is live, its
@@ -3182,14 +3003,11 @@ class Script: public Struct {
   DECL_ACCESSORS(compilation_type, Smi)
 
   // [line_ends]: FixedArray of line ends positions.
-  DECL_ACCESSORS(line_ends_fixed_array, Object)
+  DECL_ACCESSORS(line_ends, Object)
 
-  // [line_ends]: JSArray of line ends positions.
-  DECL_ACCESSORS(line_ends_js_array, Object)
-
-  // [eval_from_function]: for eval scripts the funcion from which eval was
-  // called.
-  DECL_ACCESSORS(eval_from_function, Object)
+  // [eval_from_shared]: for eval scripts the shared funcion info for the
+  // function from which eval was called.
+  DECL_ACCESSORS(eval_from_shared, Object)
 
   // [eval_from_instructions_offset]: the instruction offset in the code for the
   // function from which eval was called where eval was called.
@@ -3215,19 +3033,11 @@ class Script: public Struct {
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  // We have the line ends array both in FixedArray form and in JSArray form.
-  // The FixedArray form is useful when we don't have a context and so can't
-  // create a JSArray.  The JSArray form is useful when we want to see the
-  // array from JS code (e.g. debug-delay.js) which cannot handle unboxed
-  // FixedArray objects.
-  static const int kLineEndsFixedArrayOffset =
-      kCompilationTypeOffset + kPointerSize;
-  static const int kLineEndsJSArrayOffset =
-      kLineEndsFixedArrayOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsJSArrayOffset + kPointerSize;
-  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
+  static const int kIdOffset = kLineEndsOffset + kPointerSize;
+  static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
-      kEvalFromFunctionOffset + kPointerSize;
+      kEvalFromSharedOffset + kPointerSize;
   static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:
@@ -3910,12 +3720,9 @@ class String: public HeapObject {
   inline int length();
   inline void set_length(int value);
 
-  // Get and set the uninterpreted length field of the string.  Notice
-  // that the length field is also used to cache the hash value of
-  // strings.  In order to get or set the actual length of the string
-  // use the length() and set_length methods.
-  inline uint32_t length_field();
-  inline void set_length_field(uint32_t value);
+  // Get and set the hash field of the string.
+  inline uint32_t hash_field();
+  inline void set_hash_field(uint32_t value);
 
   inline bool IsAsciiRepresentation();
   inline bool IsTwoByteRepresentation();
@@ -3986,8 +3793,8 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static uint32_t ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
-                                            int length);
+  static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
+                                   int length);
 
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
@@ -4018,7 +3825,8 @@ class String: public HeapObject {
 
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kSize = kLengthOffset + kIntSize;
+  static const int kHashFieldOffset = kLengthOffset + kIntSize;
+  static const int kSize = kHashFieldOffset + kIntSize;
   // Notice: kSize is not pointer-size aligned if pointers are 64-bit.
 
   // Maximum number of characters to consider when trying to convert a string
@@ -4042,22 +3850,30 @@ class String: public HeapObject {
   static const int kIsArrayIndexMask = 1 << 1;
   static const int kNofLengthBitFields = 2;
 
+  // Shift constant retrieving hash code from hash field.
+  static const int kHashShift = kNofLengthBitFields;
+
   // Array index strings this short can keep their index in the hash
   // field.
   static const int kMaxCachedArrayIndexLength = 7;
 
-  // Shift constants for retrieving length and hash code from
-  // length/hash field.
-  static const int kHashShift = kNofLengthBitFields;
-  static const int kShortLengthShift = kHashShift + kShortStringTag;
-  static const int kMediumLengthShift = kHashShift + kMediumStringTag;
-  static const int kLongLengthShift = kHashShift + kLongStringTag;
+  // For strings which are array indexes the hash value has the string length
+  // mixed into the hash, mainly to avoid a hash value of zero which would be
+  // the case for the string '0'. 24 bits are used for the array index value.
+  static const int kArrayIndexHashLengthShift = 24 + kNofLengthBitFields;
+  static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
+  static const int kArrayIndexValueBits =
+      kArrayIndexHashLengthShift - kHashShift;
 
-  // Maximal string length that can be stored in the hash/length field for
-  // different types of strings.
-  static const int kMaxShortSize = (1 << (32 - kShortLengthShift)) - 1;
-  static const int kMaxMediumSize = (1 << (32 - kMediumLengthShift)) - 1;
-  static const int kMaxLength = (1 << (32 - kLongLengthShift)) - 1;
+  // Value of empty hash field indicating that the hash is not computed.
+  static const int kEmptyHashField = 0;
+
+  // Maximal string length.
+  static const int kMaxLength = (1 << (32 - 2)) - 1;
+
+  // Max length for computing hash. For strings longer than this limit the
+  // string length is used as the hash value.
+  static const int kMaxHashCalcLength = 16383;
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;
@@ -4339,9 +4155,6 @@ class ExternalAsciiString: public ExternalString {
                                                      unsigned* offset,
                                                      unsigned chars);
 
-  // Identify the map for the external string/symbol with a particular length.
-  static inline Map* StringMap(int length);
-  static inline Map* SymbolMap(int length);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalAsciiString);
 };
@@ -4374,9 +4187,6 @@ class ExternalTwoByteString: public ExternalString {
                                                 unsigned* offset_ptr,
                                                 unsigned chars);
 
-  // Identify the map for the external string/symbol with a particular length.
-  static inline Map* StringMap(int length);
-  static inline Map* SymbolMap(int length);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalTwoByteString);
 };

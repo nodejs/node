@@ -67,6 +67,12 @@ void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
 }
 
 
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  j(below, on_stack_overflow);
+}
+
+
 static void RecordWriteHelper(MacroAssembler* masm,
                               Register object,
                               Register addr,
@@ -282,6 +288,9 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
+  // Disable stub call restrictions to always allow calls to abort.
+  set_allow_stub_calls(true);
+
   push(rax);
   movq(kScratchRegister, p0, RelocInfo::NONE);
   push(kScratchRegister);
@@ -291,6 +300,7 @@ void MacroAssembler::Abort(const char* msg) {
   push(kScratchRegister);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  int3();
 }
 
 
@@ -2088,6 +2098,11 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
+  if (FLAG_debug_code) {
+    testq(result_end, Immediate(kObjectAlignmentMask));
+    Check(zero, "Unaligned allocation in new space");
+  }
+
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
 
@@ -2226,6 +2241,25 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   // Set the map.
   LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  if (context_chain_length > 0) {
+    // Move up the chain of contexts to the context containing the slot.
+    movq(dst, Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
+    // Load the function context (which is the incoming, outer context).
+    movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+    for (int i = 1; i < context_chain_length; i++) {
+      movq(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
+      movq(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    }
+    // The context may be an intermediate context, not a function context.
+    movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {  // context is the current function context.
+    // The context may be an intermediate context, not a function context.
+    movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  }
 }
 
 

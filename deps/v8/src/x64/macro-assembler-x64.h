@@ -98,6 +98,12 @@ class MacroAssembler: public Assembler {
 #endif
 
   // ---------------------------------------------------------------------------
+  // Stack limit support
+
+  // Do simple test for stack overflow. This doesn't handle an overflow.
+  void StackLimitCheck(Label* on_stack_limit_hit);
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
@@ -541,6 +547,9 @@ class MacroAssembler: public Assembler {
   // Generates code for reporting that an illegal operation has
   // occurred.
   void IllegalOperation(int num_arguments);
+
+  // Find the function context up the context chain.
+  void LoadContext(Register dst, int context_chain_length);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

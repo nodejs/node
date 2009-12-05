@@ -208,6 +208,8 @@ class Logger {
   // ==== Events logged by --log-code. ====
   // Emits a code event for a callback function.
   static void CallbackEvent(String* name, Address entry_point);
+  static void GetterCallbackEvent(String* name, Address entry_point);
+  static void SetterCallbackEvent(String* name, Address entry_point);
   // Emits a code create event.
   static void CodeCreateEvent(LogEventsAndTags tag,
                               Code* code, const char* source);
@@ -273,6 +275,8 @@ class Logger {
 
   // Logs all compiled functions found in the heap.
   static void LogCompiledFunctions();
+  // Logs all accessor callbacks found in the heap.
+  static void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   static void LogCodeObject(Object* code_object);
 
@@ -286,6 +290,11 @@ class Logger {
 
   // Emits the profiler's first message.
   static void ProfilerBeginEvent();
+
+  // Emits callback event messages.
+  static void CallbackEventInternal(const char* prefix,
+                                    const char* name,
+                                    Address entry_point);
 
   // Emits aliases for compressed messages.
   static void LogAliases();

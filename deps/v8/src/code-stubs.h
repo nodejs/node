@@ -36,6 +36,7 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
+  V(StringAdd)                           \
   V(SmiOp)                               \
   V(Compare)                             \
   V(RecordWrite)                         \

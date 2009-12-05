@@ -181,7 +181,7 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
   rinfo()->PatchCode(original_rinfo()->pc(),
-                     Debug::kX64JSReturnSequenceLength);
+                     Assembler::kJSReturnSequenceLength);
 }
 
 
@@ -191,9 +191,10 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 
 
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  ASSERT(Debug::kX64JSReturnSequenceLength >= Debug::kX64CallInstructionLength);
+  ASSERT(Assembler::kJSReturnSequenceLength >=
+         Assembler::kCallInstructionLength);
   rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
-      Debug::kX64JSReturnSequenceLength - Debug::kX64CallInstructionLength);
+      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

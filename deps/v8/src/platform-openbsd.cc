@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for FreeBSD goes here. For the POSIX comaptible parts
+// Platform specific code for OpenBSD goes here. For the POSIX comaptible parts
 // the implementation is in platform-posix.cc.
 
 #include <pthread.h>
@@ -34,7 +34,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#include <sys/ucontext.h>
 #include <stdlib.h>
 
 #include <sys/types.h>  // mmap & munmap
@@ -58,7 +57,7 @@
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on FreeBSD since tids and pids share a
+// 0 is never a valid thread id on OpenBSD since tids and pids share a
 // name space and pid 0 is used to kill the group (see man 2 kill).
 static const pthread_t kNoThread = (pthread_t) 0;
 
@@ -85,12 +84,12 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // FreeBSD runs on anything.
+  return 0;  // OpenBSD runs on anything.
 }
 
 
 int OS::ActivationFrameAlignment() {
-  // 16 byte alignment on FreeBSD
+  // 16 byte alignment on OpenBSD
   return 16;
 }
 
@@ -140,7 +139,6 @@ void* OS::Allocate(const size_t requested,
 
 
 void OS::Free(void* buf, const size_t length) {
-  // TODO(1240712): munmap has a return value which is ignored here.
   int result = munmap(buf, length);
   USE(result);
   ASSERT(result == 0);
@@ -266,33 +264,8 @@ void OS::LogSharedLibraryAddresses() {
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  int frames_size = frames.length();
-  void** addresses = NewArray<void*>(frames_size);
-
-  int frames_count = backtrace(addresses, frames_size);
-
-  char** symbols;
-  symbols = backtrace_symbols(addresses, frames_count);
-  if (symbols == NULL) {
-    DeleteArray(addresses);
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  DeleteArray(addresses);
-  free(symbols);
-
-  return frames_count;
+  UNIMPLEMENTED();
+  return 1;
 }
 
 
@@ -336,7 +309,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
+              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -447,10 +420,10 @@ void Thread::YieldCPU() {
 }
 
 
-class FreeBSDMutex : public Mutex {
+class OpenBSDMutex : public Mutex {
  public:
 
-  FreeBSDMutex() {
+  OpenBSDMutex() {
     pthread_mutexattr_t attrs;
     int result = pthread_mutexattr_init(&attrs);
     ASSERT(result == 0);
@@ -460,7 +433,7 @@ class FreeBSDMutex : public Mutex {
     ASSERT(result == 0);
   }
 
-  virtual ~FreeBSDMutex() { pthread_mutex_destroy(&mutex_); }
+  virtual ~OpenBSDMutex() { pthread_mutex_destroy(&mutex_); }
 
   virtual int Lock() {
     int result = pthread_mutex_lock(&mutex_);
@@ -478,14 +451,14 @@ class FreeBSDMutex : public Mutex {
 
 
 Mutex* OS::CreateMutex() {
-  return new FreeBSDMutex();
+  return new OpenBSDMutex();
 }
 
 
-class FreeBSDSemaphore : public Semaphore {
+class OpenBSDSemaphore : public Semaphore {
  public:
-  explicit FreeBSDSemaphore(int count) {  sem_init(&sem_, 0, count); }
-  virtual ~FreeBSDSemaphore() { sem_destroy(&sem_); }
+  explicit OpenBSDSemaphore(int count) {  sem_init(&sem_, 0, count); }
+  virtual ~OpenBSDSemaphore() { sem_destroy(&sem_); }
 
   virtual void Wait();
   virtual bool Wait(int timeout);
@@ -495,7 +468,7 @@ class FreeBSDSemaphore : public Semaphore {
 };
 
 
-void FreeBSDSemaphore::Wait() {
+void OpenBSDSemaphore::Wait() {
   while (true) {
     int result = sem_wait(&sem_);
     if (result == 0) return;  // Successfully got semaphore.
@@ -504,7 +477,7 @@ void FreeBSDSemaphore::Wait() {
 }
 
 
-bool FreeBSDSemaphore::Wait(int timeout) {
+bool OpenBSDSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
 
   // Split timeout into second and nanosecond parts.
@@ -525,7 +498,7 @@ bool FreeBSDSemaphore::Wait(int timeout) {
   struct timespec ts;
   TIMEVAL_TO_TIMESPEC(&end_time, &ts);
   while (true) {
-    int result = sem_timedwait(&sem_, &ts);
+    int result = sem_trywait(&sem_);
     if (result == 0) return true;  // Successfully got semaphore.
     if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
@@ -534,7 +507,7 @@ bool FreeBSDSemaphore::Wait(int timeout) {
 
 
 Semaphore* OS::CreateSemaphore(int count) {
-  return new FreeBSDSemaphore(count);
+  return new OpenBSDSemaphore(count);
 }
 
 
@@ -548,27 +521,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (active_sampler_ == NULL) return;
 
   TickSample sample;
-
-  // If profiling, we extract the current pc and sp.
-  if (active_sampler_->IsProfiling()) {
-    // Extracting the sample from the context is extremely machine dependent.
-    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-    mcontext_t& mcontext = ucontext->uc_mcontext;
-#if V8_HOST_ARCH_IA32
-    sample.pc = mcontext.mc_eip;
-    sample.sp = mcontext.mc_esp;
-    sample.fp = mcontext.mc_ebp;
-#elif V8_HOST_ARCH_X64
-    sample.pc = mcontext.mc_rip;
-    sample.sp = mcontext.mc_rsp;
-    sample.fp = mcontext.mc_rbp;
-#elif V8_HOST_ARCH_ARM
-    sample.pc = mcontext.mc_r15;
-    sample.sp = mcontext.mc_r13;
-    sample.fp = mcontext.mc_r11;
-#endif
-    active_sampler_->SampleStack(&sample);
-  }
 
   // We always sample the VM state.
   sample.state = Logger::state();

@@ -429,6 +429,26 @@ GlobalHandles::Node* GlobalHandles::head_ = NULL;
 GlobalHandles::Node* GlobalHandles::first_free_ = NULL;
 GlobalHandles::Node* GlobalHandles::first_deallocated_ = NULL;
 
+void GlobalHandles::RecordStats(HeapStats* stats) {
+  *stats->global_handle_count = 0;
+  *stats->weak_global_handle_count = 0;
+  *stats->pending_global_handle_count = 0;
+  *stats->near_death_global_handle_count = 0;
+  *stats->destroyed_global_handle_count = 0;
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    *stats->global_handle_count++;
+    if (current->state_ == Node::WEAK) {
+      *stats->weak_global_handle_count++;
+    } else if (current->state_ == Node::PENDING) {
+      *stats->pending_global_handle_count++;
+    } else if (current->state_ == Node::NEAR_DEATH) {
+      *stats->near_death_global_handle_count++;
+    } else if (current->state_ == Node::DESTROYED) {
+      *stats->destroyed_global_handle_count++;
+    }
+  }
+}
+
 #ifdef DEBUG
 
 void GlobalHandles::PrintStats() {

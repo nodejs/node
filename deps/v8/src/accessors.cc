@@ -315,14 +315,11 @@ Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
   HandleScope scope;
   Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
   InitScriptLineEnds(script);
-  if (script->line_ends_js_array()->IsUndefined()) {
-    Handle<FixedArray> line_ends_fixed_array(
-        FixedArray::cast(script->line_ends_fixed_array()));
-    Handle<FixedArray> copy = Factory::CopyFixedArray(line_ends_fixed_array);
-    Handle<JSArray> js_array = Factory::NewJSArrayWithElements(copy);
-    script->set_line_ends_js_array(*js_array);
-  }
-  return script->line_ends_js_array();
+  ASSERT(script->line_ends()->IsFixedArray());
+  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  Handle<FixedArray> copy = Factory::CopyFixedArray(line_ends);
+  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(copy);
+  return *js_array;
 }
 
 
@@ -352,29 +349,38 @@ const AccessorDescriptor Accessors::ScriptContextData = {
 
 
 //
-// Accessors::ScriptGetEvalFromFunction
+// Accessors::ScriptGetEvalFromScript
 //
 
 
-Object* Accessors::ScriptGetEvalFromFunction(Object* object, void*) {
+Object* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->eval_from_function();
+  if (!Script::cast(script)->eval_from_shared()->IsUndefined()) {
+    Handle<SharedFunctionInfo> eval_from_shared(
+        SharedFunctionInfo::cast(Script::cast(script)->eval_from_shared()));
+
+    if (eval_from_shared->script()->IsScript()) {
+      Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()));
+      return *GetScriptWrapper(eval_from_script);
+    }
+  }
+  return Heap::undefined_value();
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromFunction = {
-  ScriptGetEvalFromFunction,
+const AccessorDescriptor Accessors::ScriptEvalFromScript = {
+  ScriptGetEvalFromScript,
   IllegalSetter,
   0
 };
 
 
 //
-// Accessors::ScriptGetEvalFromPosition
+// Accessors::ScriptGetEvalFromScriptPosition
 //
 
 
-Object* Accessors::ScriptGetEvalFromPosition(Object* object, void*) {
+Object* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
   HandleScope scope;
   Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
 
@@ -386,14 +392,42 @@ Object* Accessors::ScriptGetEvalFromPosition(Object* object, void*) {
 
   // Get the function from where eval was called and find the source position
   // from the instruction offset.
-  Handle<Code> code(JSFunction::cast(script->eval_from_function())->code());
+  Handle<Code> code(SharedFunctionInfo::cast(
+      script->eval_from_shared())->code());
   return Smi::FromInt(code->SourcePosition(code->instruction_start() +
                       script->eval_from_instructions_offset()->value()));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromPosition = {
-  ScriptGetEvalFromPosition,
+const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
+  ScriptGetEvalFromScriptPosition,
+  IllegalSetter,
+  0
+};
+
+
+//
+// Accessors::ScriptGetEvalFromFunctionName
+//
+
+
+Object* Accessors::ScriptGetEvalFromFunctionName(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(
+      Script::cast(script)->eval_from_shared()));
+
+
+  // Find the name of the function calling eval.
+  if (!shared->name()->IsUndefined()) {
+    return shared->name();
+  } else {
+    return shared->inferred_name();
+  }
+}
+
+
+const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
+  ScriptGetEvalFromFunctionName,
   IllegalSetter,
   0
 };

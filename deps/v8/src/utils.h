@@ -584,6 +584,9 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 
+// Calculate 10^exponent.
+int TenToThe(int exponent);
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

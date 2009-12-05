@@ -750,6 +750,9 @@ Object* LoadCallbackProperty(Arguments args) {
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+    state.set_external_callback(getter_address);
+#endif
     result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
@@ -773,6 +776,9 @@ Object* StoreCallbackProperty(Arguments args) {
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+    state.set_external_callback(setter_address);
+#endif
     fun(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();

@@ -280,11 +280,6 @@ STATIC_CHECK((kStringRepresentationMask | kStringEncodingMask) ==
              Internals::kFullStringRepresentationMask);
 
 
-uint32_t StringShape::size_tag() {
-  return (type_ & kStringSizeMask);
-}
-
-
 bool StringShape::IsSequentialAscii() {
   return full_representation_tag() == (kSeqStringTag | kAsciiStringTag);
 }
@@ -918,25 +913,6 @@ MapWord MapWord::FromForwardingAddress(HeapObject* object) {
 HeapObject* MapWord::ToForwardingAddress() {
   ASSERT(IsForwardingAddress());
   return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
-}
-
-
-bool MapWord::IsSerializationAddress() {
-  return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
-}
-
-
-MapWord MapWord::FromSerializationAddress(int raw) {
-  // When the map word is being used as a serialization address we Smi-encode
-  // the serialization address (which is always a smallish positive integer).
-  return MapWord(reinterpret_cast<uintptr_t>(Smi::FromInt(raw)));
-}
-
-
-int MapWord::ToSerializationAddress() {
-  // When the map word is being used as a serialization address we treat the
-  // map word as a Smi and get the small integer that it encodes.
-  return reinterpret_cast<Smi*>(value_)->value();
 }
 
 
@@ -1635,44 +1611,25 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 INT_ACCESSORS(Array, length, kLengthOffset)
 
 
+INT_ACCESSORS(String, length, kLengthOffset)
+
+
+uint32_t String::hash_field() {
+  return READ_UINT32_FIELD(this, kHashFieldOffset);
+}
+
+
+void String::set_hash_field(uint32_t value) {
+  WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
+}
+
+
 bool String::Equals(String* other) {
   if (other == this) return true;
   if (StringShape(this).IsSymbol() && StringShape(other).IsSymbol()) {
     return false;
   }
   return SlowEquals(other);
-}
-
-
-int String::length() {
-  uint32_t len = READ_INT_FIELD(this, kLengthOffset);
-
-  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
-  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
-  ASSERT(kLongStringTag == 0);
-
-  return len >> (StringShape(this).size_tag() + kLongLengthShift);
-}
-
-
-void String::set_length(int value) {
-  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
-  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
-  ASSERT(kLongStringTag == 0);
-
-  WRITE_INT_FIELD(this,
-                  kLengthOffset,
-                  value << (StringShape(this).size_tag() + kLongLengthShift));
-}
-
-
-uint32_t String::length_field() {
-  return READ_UINT32_FIELD(this, kLengthOffset);
-}
-
-
-void String::set_length_field(uint32_t value) {
-  WRITE_UINT32_FIELD(this, kLengthOffset, value);
 }
 
 
@@ -1779,30 +1736,12 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 
 int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
-
-  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
-  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
-  ASSERT(kLongStringTag == 0);
-
-  // Use the map (and not 'this') to compute the size tag, since
-  // TwoByteStringSize is called during GC when maps are encoded.
-  length >>= StringShape(instance_type).size_tag() + kLongLengthShift;
-
   return SizeFor(length);
 }
 
 
 int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
-
-  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
-  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
-  ASSERT(kLongStringTag == 0);
-
-  // Use the map (and not 'this') to compute the size tag, since
-  // AsciiStringSize is called during GC when maps are encoded.
-  length >>= StringShape(instance_type).size_tag() + kLongLengthShift;
-
   return SizeFor(length);
 }
 
@@ -1850,34 +1789,6 @@ void ExternalAsciiString::set_resource(
 }
 
 
-Map* ExternalAsciiString::StringMap(int length) {
-  Map* map;
-  // Number of characters: determines the map.
-  if (length <= String::kMaxShortSize) {
-    map = Heap::short_external_ascii_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = Heap::medium_external_ascii_string_map();
-  } else {
-    map = Heap::long_external_ascii_string_map();
-  }
-  return map;
-}
-
-
-Map* ExternalAsciiString::SymbolMap(int length) {
-  Map* map;
-  // Number of characters: determines the map.
-  if (length <= String::kMaxShortSize) {
-    map = Heap::short_external_ascii_symbol_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = Heap::medium_external_ascii_symbol_map();
-  } else {
-    map = Heap::long_external_ascii_symbol_map();
-  }
-  return map;
-}
-
-
 ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
@@ -1886,34 +1797,6 @@ ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 void ExternalTwoByteString::set_resource(
     ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
-}
-
-
-Map* ExternalTwoByteString::StringMap(int length) {
-  Map* map;
-  // Number of characters: determines the map.
-  if (length <= String::kMaxShortSize) {
-    map = Heap::short_external_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = Heap::medium_external_string_map();
-  } else {
-    map = Heap::long_external_string_map();
-  }
-  return map;
-}
-
-
-Map* ExternalTwoByteString::SymbolMap(int length) {
-  Map* map;
-  // Number of characters: determines the map.
-  if (length <= String::kMaxShortSize) {
-    map = Heap::short_external_symbol_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = Heap::medium_external_symbol_map();
-  } else {
-    map = Heap::long_external_symbol_map();
-  }
-  return map;
 }
 
 
@@ -2441,9 +2324,8 @@ ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
-ACCESSORS(Script, line_ends_fixed_array, Object, kLineEndsFixedArrayOffset)
-ACCESSORS(Script, line_ends_js_array, Object, kLineEndsJSArrayOffset)
-ACCESSORS(Script, eval_from_function, Object, kEvalFromFunctionOffset)
+ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
+ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS(Script, eval_from_instructions_offset, Smi,
           kEvalFrominstructionsOffsetOffset)
 
@@ -2900,13 +2782,13 @@ NumberDictionary* JSObject::element_dictionary() {
 
 
 bool String::HasHashCode() {
-  return (length_field() & kHashComputedMask) != 0;
+  return (hash_field() & kHashComputedMask) != 0;
 }
 
 
 uint32_t String::Hash() {
   // Fast case: has hash code already been computed?
-  uint32_t field = length_field();
+  uint32_t field = hash_field();
   if (field & kHashComputedMask) return field >> kHashShift;
   // Slow case: compute hash code and set it.
   return ComputeAndSetHash();
@@ -2923,7 +2805,7 @@ StringHasher::StringHasher(int length)
 
 
 bool StringHasher::has_trivial_hash() {
-  return length_ > String::kMaxMediumSize;
+  return length_ > String::kMaxHashCalcLength;
 }
 
 
@@ -2979,7 +2861,7 @@ uint32_t StringHasher::GetHash() {
 
 
 bool String::AsArrayIndex(uint32_t* index) {
-  uint32_t field = length_field();
+  uint32_t field = hash_field();
   if ((field & kHashComputedMask) && !(field & kIsArrayIndexMask)) return false;
   return SlowAsArrayIndex(index);
 }

@@ -1080,6 +1080,7 @@ class CallRuntime: public Expression {
   Handle<String> name() const { return name_; }
   Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
+  bool is_jsruntime() const { return function_ == NULL; }
 
  private:
   Handle<String> name_;

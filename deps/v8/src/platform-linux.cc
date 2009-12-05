@@ -95,11 +95,6 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
-double OS::nan_value() {
-  return NAN;
-}
-
-
 #ifdef __arm__
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;

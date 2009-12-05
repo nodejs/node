@@ -598,7 +598,7 @@ class V8EXPORT Script {
    * with the debugger as this data object is only available through the
    * debugger API.
    */
-  void SetData(Handle<Value> data);
+  void SetData(Handle<String> data);
 };
 
 
@@ -2634,7 +2634,7 @@ class V8EXPORT Context {
    * with the debugger to provide additional information on the context through
    * the debugger API.
    */
-  void SetData(Handle<Value> data);
+  void SetData(Handle<String> data);
   Local<Value> GetData();
 
   /**
@@ -2819,6 +2819,18 @@ template <> struct SmiConstants<8> {
 const int kSmiShiftSize = SmiConstants<sizeof(void*)>::kSmiShiftSize;
 const int kSmiValueSize = SmiConstants<sizeof(void*)>::kSmiValueSize;
 
+template <size_t ptr_size> struct InternalConstants;
+
+// Internal constants for 32-bit systems.
+template <> struct InternalConstants<4> {
+  static const int kStringResourceOffset = 3 * sizeof(void*);
+};
+
+// Internal constants for 64-bit systems.
+template <> struct InternalConstants<8> {
+  static const int kStringResourceOffset = 2 * sizeof(void*);
+};
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -2831,7 +2843,9 @@ class Internals {
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
   static const int kMapInstanceTypeOffset = sizeof(void*) + sizeof(int);
-  static const int kStringResourceOffset = 2 * sizeof(void*);
+  static const int kStringResourceOffset =
+      InternalConstants<sizeof(void*)>::kStringResourceOffset;
+
   static const int kProxyProxyOffset = sizeof(void*);
   static const int kJSObjectHeaderSize = 3 * sizeof(void*);
   static const int kFullStringRepresentationMask = 0x07;

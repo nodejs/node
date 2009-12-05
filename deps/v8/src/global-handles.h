@@ -78,6 +78,8 @@ class GlobalHandles : public AllStatic {
   // Returns the current number of weak handles.
   static int NumberOfWeakHandles() { return number_of_weak_handles_; }
 
+  static void RecordStats(HeapStats* stats);
+
   // Returns the current number of weak handles to global objects.
   // These handles are also included in NumberOfWeakHandles().
   static int NumberOfGlobalObjectWeakHandles() {

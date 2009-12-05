@@ -1793,16 +1793,21 @@ ScriptMirror.prototype.context = function() {
 };
 
 
-ScriptMirror.prototype.evalFromFunction = function() {
-  return MakeMirror(this.script_.eval_from_function);
+ScriptMirror.prototype.evalFromScript = function() {
+  return MakeMirror(this.script_.eval_from_script);
+};
+
+
+ScriptMirror.prototype.evalFromFunctionName = function() {
+  return MakeMirror(this.script_.eval_from_function_name);
 };
 
 
 ScriptMirror.prototype.evalFromLocation = function() {
-  var eval_from_function = this.evalFromFunction();
-  if (!eval_from_function.isUndefined()) {
-    var position = this.script_.eval_from_position;
-    return eval_from_function.script().locationFromPosition(position, true);
+  var eval_from_script = this.evalFromScript();
+  if (!eval_from_script.isUndefined()) {
+    var position = this.script_.eval_from_script_position;
+    return eval_from_script.locationFromPosition(position, true);
   }
 };
 
@@ -2080,12 +2085,15 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       // For compilation type eval emit information on the script from which
       // eval was called if a script is present.
       if (mirror.compilationType() == 1 &&
-          mirror.evalFromFunction().script()) {
+          mirror.evalFromScript()) {
         content.evalFromScript =
-            this.serializeReference(mirror.evalFromFunction().script());
+            this.serializeReference(mirror.evalFromScript());
         var evalFromLocation = mirror.evalFromLocation()
         content.evalFromLocation = { line: evalFromLocation.line,
                                      column: evalFromLocation.column}
+        if (mirror.evalFromFunctionName()) {
+          content.evalFromFunctionName = mirror.evalFromFunctionName();
+        }
       }
       if (mirror.context()) {
         content.context = this.serializeReference(mirror.context());

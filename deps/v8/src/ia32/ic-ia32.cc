@@ -31,6 +31,7 @@
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -108,7 +109,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
       StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ mov(r1, FieldOperand(name, String::kLengthOffset));
+    __ mov(r1, FieldOperand(name, String::kHashFieldOffset));
     __ shr(r1, String::kHashShift);
     if (i > 0) {
       __ add(Operand(r1), Immediate(StringDictionary::GetProbeOffset(i)));
@@ -216,18 +217,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 }
 
 
-#ifdef DEBUG
-// For use in assert below.
-static int TenToThe(int exponent) {
-  ASSERT(exponent <= 9);
-  ASSERT(exponent >= 1);
-  int answer = 10;
-  for (int i = 1; i < exponent; i++) answer *= 10;
-  return answer;
-}
-#endif
-
-
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
@@ -309,7 +298,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edx);
   __ j(above_equal, &slow);
   // Is the string an array index, with cached numeric value?
-  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
+  __ mov(ebx, FieldOperand(eax, String::kHashFieldOffset));
   __ test(ebx, Immediate(String::kIsArrayIndexMask));
   __ j(not_zero, &index_string, not_taken);
 
@@ -324,20 +313,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
-  // Array index string: If short enough use cache in length/hash field (ebx).
-  // We assert that there are enough bits in an int32_t after the hash shift
-  // bits have been subtracted to allow space for the length and the cached
-  // array index.
+  // If the hash field contains an array index pick it out. The assert checks
+  // that the constants for the maximum number of digits for an array index
+  // cached in the hash field and the number of bits reserved for it does not
+  // conflict.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << (String::kShortLengthShift - String::kHashShift)));
+         (1 << String::kArrayIndexValueBits));
   __ bind(&index_string);
-  const int kLengthFieldLimit =
-      (String::kMaxCachedArrayIndexLength + 1) << String::kShortLengthShift;
-  __ cmp(ebx, kLengthFieldLimit);
-  __ j(above_equal, &slow);
   __ mov(eax, Operand(ebx));
-  __ and_(eax, (1 << String::kShortLengthShift) - 1);
-  __ shr(eax, String::kLongLengthShift);
+  __ and_(eax, String::kArrayIndexHashMask);
+  __ shr(eax, String::kHashShift);
   __ jmp(&index_int);
 }
 
@@ -403,13 +388,13 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       __ movsx_b(eax, Operand(ecx, eax, times_1, 0));
       break;
     case kExternalUnsignedByteArray:
-      __ mov_b(eax, Operand(ecx, eax, times_1, 0));
+      __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
       break;
     case kExternalShortArray:
       __ movsx_w(eax, Operand(ecx, eax, times_2, 0));
       break;
     case kExternalUnsignedShortArray:
-      __ mov_w(eax, Operand(ecx, eax, times_2, 0));
+      __ movzx_w(eax, Operand(ecx, eax, times_2, 0));
       break;
     case kExternalIntArray:
     case kExternalUnsignedIntArray:
