@@ -245,6 +245,10 @@ HTTPConnection::on_headers_complete (http_parser *parser)
           , connection->parser_.http_minor
           );
   message_info->Set(HTTP_VERSION_SYMBOL, String::New(version));
+  message_info->Set(String::NewSymbol("versionMajor"),
+                    Integer::New(connection->parser_.http_major));
+  message_info->Set(String::NewSymbol("versionMinor"),
+                    Integer::New(connection->parser_.http_minor));
 
   message_info->Set(SHOULD_KEEP_ALIVE_SYMBOL,
       http_should_keep_alive(&connection->parser_) ? True() : False());
