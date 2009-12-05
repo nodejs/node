@@ -734,13 +734,17 @@ static void ExecuteNativeJS(const char *filename, const char *data) {
 static Local<Object> Load(int argc, char *argv[]) {
   HandleScope scope;
 
+  Local<Object> global = Context::GetCurrent()->Global();
+
+  // Assign the global object to it's place as 'GLOBAL'
+  global->Set(String::NewSymbol("GLOBAL"), global);
+
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
   // Assign the process object to its place.
-  Local<Object> global = Context::GetCurrent()->Global();
   global->Set(String::NewSymbol("process"), process);
 
   // process.version
@@ -949,16 +953,9 @@ int main(int argc, char *argv[]) {
            "Use 'd8 --remote_debugger' to access it.\n");
   }
 
-  // Create the 'GLOBAL' object's FunctionTemplate.
-  Local<FunctionTemplate> global_template = FunctionTemplate::New();
-
   // Create the one and only Context.
-  Persistent<Context> context = Context::New(NULL,
-      global_template->InstanceTemplate());
+  Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
-
-  // Actually assign the global object to it's place as 'GLOBAL'
-  context->Global()->Set(String::NewSymbol("GLOBAL"), context->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
