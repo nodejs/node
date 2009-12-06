@@ -92,40 +92,6 @@ process.createChildProcess = function (file, args, env) {
   return child;
 };
 
-process.fs.cat = function (path, encoding) {
-  var promise = new process.Promise();
-  
-  encoding = encoding || "utf8"; // default to utf8
-
-  process.fs.open(path, process.O_RDONLY, 0666).addCallback(function (fd) {
-    var content = "", pos = 0;
-
-    function readChunk () {
-      process.fs.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
-        if (chunk) {
-          if (chunk.constructor === String) {
-            content += chunk;
-          } else {
-            content = content.concat(chunk);
-          }
-
-          pos += bytes_read;
-          readChunk();
-        } else {
-          promise.emitSuccess(content);
-          process.fs.close(fd);
-        }
-      }).addErrback(function () {
-        promise.emitError();
-      });
-    }
-    readChunk();
-  }).addErrback(function () {
-    promise.emitError(new Error("Could not open " + path));
-  });
-  return promise;
-};
-
 process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
@@ -374,6 +340,38 @@ process.unwatchFile = function (filename) {
   }
 };
 
+process.Stats.prototype._checkModeProperty = function (property) {
+  return ((this.mode & property) === property);
+};
+
+process.Stats.prototype.isDirectory = function () {
+  return this._checkModeProperty(process.S_IFDIR);
+};
+
+process.Stats.prototype.isFile = function () {
+  return this._checkModeProperty(process.S_IFREG);
+};
+
+process.Stats.prototype.isBlockDevice = function () {
+  return this._checkModeProperty(process.S_IFBLK);
+};
+
+process.Stats.prototype.isCharacterDevice = function () {
+  return this._checkModeProperty(process.S_IFCHR);
+};
+
+process.Stats.prototype.isSymbolicLink = function () {
+  return this._checkModeProperty(process.S_IFLNK);
+};
+
+process.Stats.prototype.isFIFO = function () {
+  return this._checkModeProperty(process.S_IFIFO);
+};
+
+process.Stats.prototype.isSocket = function () {
+  return this._checkModeProperty(process.S_IFSOCK);
+};
+
 
 
 // Timers
@@ -446,6 +444,171 @@ function createInternalModule (id, constructor) {
   return m;
 };
 
+var posixModule = createInternalModule("posix", function (exports) {
+  exports.Stats = process.Stats;
+
+  function callback (promise) {
+    return function () {
+      if (arguments[0] instanceof Error) {
+        promise.emitError.apply(promise, arguments);
+      } else {
+        promise.emitSuccess.apply(promise, arguments);
+      }
+    }
+  }
+
+  // Yes, the follow could be easily DRYed up but I provide the explicit
+  // list to make the arguments clear.
+
+  exports.close = function (fd) {
+    var promise = new process.Promise()
+    process.fs.close(fd, callback(promise));
+    return promise;
+  };
+
+  exports.closeSync = function (fd) {
+    return process.fs.close(fd);
+  };
+
+  exports.open = function (path, flags, mode) {
+    var promise = new process.Promise()
+    process.fs.open(path, flags, mode, callback(promise));
+    return promise;
+  };
+
+  exports.openSync = function (path, flags, mode) {
+    return process.fs.open(path, flags, mode);
+  };
+
+  exports.read = function (fd, length, position, encoding) {
+    var promise = new process.Promise()
+    process.fs.read(fd, length, position, encoding, callback(promise));
+    return promise;
+  };
+
+  exports.readSync = function (fd, length, position, encoding) {
+    return process.fs.read(fd, length, position, encoding);
+  };
+
+  exports.write = function (fd, data, position, encoding) {
+    var promise = new process.Promise()
+    process.fs.write(fd, data, position, encoding, callback(promise));
+    return promise;
+  };
+
+  exports.writeSync = function (fd, data, position, encoding) {
+    return process.fs.write(fd, data, position, encoding);
+  };
+
+  exports.rename = function (oldPath, newPath) {
+    var promise = new process.Promise()
+    process.fs.rename(oldPath, newPath, callback(promise));
+    return promise;
+  };
+
+  exports.renameSync = function (oldPath, newPath) {
+    return process.fs.rename(oldPath, newPath);
+  };
+
+  exports.rmdir = function (path) {
+    var promise = new process.Promise()
+    process.fs.rmdir(path, callback(promise));
+    return promise;
+  };
+
+  exports.rmdirSync = function (path) {
+    return process.fs.rmdir(path);
+  };
+
+  exports.mkdir = function (path, mode) {
+    var promise = new process.Promise()
+    process.fs.mkdir(path, mode, callback(promise));
+    return promise;
+  };
+
+  exports.mkdirSync = function (path, mode) {
+    return process.fs.mkdir(path, mode);
+  };
+
+  exports.sendfile = function (outFd, inFd, inOffset, length) {
+    var promise = new process.Promise()
+    process.fs.sendfile(outFd, inFd, inOffset, length, callback(promise));
+    return promise;
+  };
+
+  exports.sendfileSync = function (outFd, inFd, inOffset, length) {
+    return process.fs.sendfile(outFd, inFd, inOffset, length);
+  };
+
+  exports.readdir = function (path) {
+    var promise = new process.Promise()
+    process.fs.readdir(path, callback(promise));
+    return promise;
+  };
+
+  exports.readdirSync = function (path) {
+    return process.fs.readdir(path);
+  };
+
+  exports.stat = function (path) {
+    var promise = new process.Promise()
+    process.fs.stat(path, callback(promise));
+    return promise;
+  };
+
+  exports.statSync = function (path) {
+    return process.fs.stat(path);
+  };
+
+  exports.unlink = function (path) {
+    var promise = new process.Promise()
+    process.fs.unlink(path, callback(promise));
+    return promise;
+  };
+
+  exports.unlinkSync = function (path) {
+    return process.fs.unlink(path);
+  };
+
+
+  exports.cat = function (path, encoding) {
+    var promise = new process.Promise();
+
+    encoding = encoding || "utf8"; // default to utf8
+
+    exports.open(path, process.O_RDONLY, 0666).addCallback(function (fd) {
+      var content = "", pos = 0;
+
+      function readChunk () {
+        exports.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
+          if (chunk) {
+            if (chunk.constructor === String) {
+              content += chunk;
+            } else {
+              content = content.concat(chunk);
+            }
+
+            pos += bytes_read;
+            readChunk();
+          } else {
+            promise.emitSuccess(content);
+            exports.close(fd);
+          }
+        }).addErrback(function () {
+          promise.emitError.call(arguments);
+        });
+      }
+      readChunk();
+    }).addErrback(function () {
+      promise.emitError.apply(promise, arguments);
+    });
+    return promise;
+  };
+});
+
+var posix = posixModule.exports;
+
+
 var pathModule = createInternalModule("path", function (exports) {
   exports.join = function () {
     var joined = "";
@@ -481,7 +644,7 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    var p = process.fs.stat(path);
+    var p = posix.stat(path);
     p.addCallback(function () { callback(true); });
     p.addErrback(function () { callback(false); });
   };
@@ -637,7 +800,7 @@ function cat (id, loadPromise) {
         loadPromise.emitError(new Error("could not load core module \"http\""));
       });
   } else {
-    promise = process.fs.cat(id);
+    promise = posix.cat(id);
   }
 
   return promise;

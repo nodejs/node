@@ -8,212 +8,258 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
+#include <errno.h>
 
 namespace node {
 
 using namespace v8;
 
-#define BAD_ARGUMENTS Exception::TypeError(String::New("Bad argument"))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define THROW_BAD_ARGS \
+  ThrowException(Exception::TypeError(String::New("Bad argument")))
+#define ENCODING String::NewSymbol("node:encoding")
 
-void EIOPromise::Attach(void) {
-  ev_ref(EV_DEFAULT_UC);
-  Promise::Attach();
+static inline Local<Value> errno_exception(int errorno) {
+  Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
+  Local<Object> obj = e->ToObject();
+  obj->Set(String::NewSymbol("errno"), Integer::New(errorno));
+  return e;
 }
 
-void EIOPromise::Detach(void) {
-  Promise::Detach();
+static int After(eio_req *req) {
+  HandleScope scope;
+
+  Persistent<Function> *callback =
+    reinterpret_cast<Persistent<Function>*>(req->data);
+  assert((*callback)->IsFunction());
+
   ev_unref(EV_DEFAULT_UC);
-}
-
-Handle<Value> EIOPromise::New(const v8::Arguments& args) {
-  HandleScope scope;
-
-  EIOPromise *promise = new EIOPromise();
-  promise->Wrap(args.This());
-
-  promise->Attach();
-
-  return args.This();
-}
-
-EIOPromise* EIOPromise::Create() {
-  HandleScope scope;
-
-  Local<Object> handle =
-    EIOPromise::constructor_template->GetFunction()->NewInstance();
-
-  return ObjectWrap::Unwrap<EIOPromise>(handle);
-}
-
-
-int EIOPromise::After(eio_req *req) {
-  HandleScope scope;
-
-  EIOPromise *promise = reinterpret_cast<EIOPromise*>(req->data);
-  assert(req == promise->req_);
-
-  if (req->errorno != 0) {
-    Local<Value> exception = Exception::Error(
-        String::NewSymbol(strerror(req->errorno)));
-    promise->EmitError(1, &exception);
-    if (req->type == EIO_WRITE) {
-      assert(req->ptr2);
-      delete [] req->ptr2;
-    }
-    return 0;
-  }
 
   int argc = 0;
   Local<Value> argv[5];  // 5 is the maximum number of args
 
-  switch (req->type) {
-    case EIO_CLOSE:
-    case EIO_RENAME:
-    case EIO_UNLINK:
-    case EIO_RMDIR:
-    case EIO_MKDIR:
-      argc = 0;
-      break;
+  if (req->errorno != 0) {
+    argc = 1;
+    argv[0] = errno_exception(req->errorno);
+  } else {
+    switch (req->type) {
+      case EIO_CLOSE:
+      case EIO_RENAME:
+      case EIO_UNLINK:
+      case EIO_RMDIR:
+      case EIO_MKDIR:
+        argc = 0;
+        break;
 
-    case EIO_OPEN:
-    case EIO_SENDFILE:
-      argc = 1;
-      argv[0] = Integer::New(req->result);
-      break;
+      case EIO_OPEN:
+      case EIO_SENDFILE:
+        argc = 1;
+        argv[0] = Integer::New(req->result);
+        break;
 
-    case EIO_WRITE:
-      argc = 1;
-      argv[0] = Integer::New(req->result);
-      assert(req->ptr2);
-      delete [] req->ptr2;
-      break;
+      case EIO_WRITE:
+        argc = 1;
+        argv[0] = Integer::New(req->result);
+        break;
 
-    case EIO_STAT:
-    {
-      struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
-      argc = 1;
-      argv[0] = BuildStatsObject(s);
-      break;
-    }
-
-    case EIO_READ:
-    {
-      argc = 2;
-      argv[0] = Encode(req->ptr2, req->result, promise->encoding_);
-      argv[1] = Integer::New(req->result);
-      break;
-    }
-
-    case EIO_READDIR:
-    {
-      char *namebuf = static_cast<char*>(req->ptr2);
-      int nnames = req->result;
-
-      Local<Array> names = Array::New(nnames);
-
-      for (int i = 0; i < nnames; i++) {
-        Local<String> name = String::New(namebuf);
-        names->Set(Integer::New(i), name);
-#ifndef NDEBUG
-        namebuf += strlen(namebuf);
-        assert(*namebuf == '\0');
-        namebuf += 1;
-#else
-        namebuf += strlen(namebuf) + 1;
-#endif
+      case EIO_STAT:
+      {
+        struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
+        argc = 1;
+        argv[0] = BuildStatsObject(s);
+        break;
       }
 
-      argc = 1;
-      argv[0] = names;
-      break;
-    }
+      case EIO_READ:
+      {
+        argc = 2;
+        Local<Object> obj = Local<Object>::New(*callback);
+        Local<Value> enc_val = obj->GetHiddenValue(ENCODING);
+        argv[0] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
+        argv[1] = Integer::New(req->result);
+        break;
+      }
 
-    default:
-      assert(0 && "Unhandled eio response");
+      case EIO_READDIR:
+      {
+        char *namebuf = static_cast<char*>(req->ptr2);
+        int nnames = req->result;
+
+        Local<Array> names = Array::New(nnames);
+
+        for (int i = 0; i < nnames; i++) {
+          Local<String> name = String::New(namebuf);
+          names->Set(Integer::New(i), name);
+#ifndef NDEBUG
+          namebuf += strlen(namebuf);
+          assert(*namebuf == '\0');
+          namebuf += 1;
+#else
+          namebuf += strlen(namebuf) + 1;
+#endif
+        }
+
+        argc = 1;
+        argv[0] = names;
+        break;
+      }
+
+      default:
+        assert(0 && "Unhandled eio response");
+    }
   }
 
-  promise->EmitSuccess(argc, argv);
+  if (req->type == EIO_WRITE) {
+    assert(req->ptr2);
+    delete [] reinterpret_cast<char*>(req->ptr2);
+  }
+
+  TryCatch try_catch;
+
+  (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  // Dispose of the persistent handle
+  callback->Dispose();
+  delete callback;
 
   return 0;
 }
+
+static Persistent<Function>* persistent_callback(const Local<Value> &v) {
+  Persistent<Function> *fn = new Persistent<Function>();
+  *fn = Persistent<Function>::New(Local<Function>::Cast(v));
+  return fn;
+}
+
+#define ASYNC_CALL(func, callback, ...)                           \
+  eio_req *req = eio_##func(__VA_ARGS__, EIO_PRI_DEFAULT, After,  \
+    persistent_callback(callback));                               \
+  assert(req);                                                    \
+  ev_ref(EV_DEFAULT_UC);                                          \
+  return Undefined();
 
 static Handle<Value> Close(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsInt32()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   int fd = args[0]->Int32Value();
 
-  return scope.Close(EIOPromise::Close(fd));
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(close, args[1], fd)
+  } else {
+    int ret = close(fd);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+  }
 }
 
 static Handle<Value> Stat(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   String::Utf8Value path(args[0]->ToString());
 
-  return scope.Close(EIOPromise::Stat(*path));
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(stat, args[1], *path)
+  } else {
+    struct stat *s;
+    int ret = stat(*path, s);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return scope.Close(BuildStatsObject(s));
+  }
 }
 
 static Handle<Value> Rename(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value old_path(args[0]->ToString());
   String::Utf8Value new_path(args[1]->ToString());
 
-  return scope.Close(EIOPromise::Rename(*path, *new_path));
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(rename, args[2], *old_path, *new_path)
+  } else {
+    int ret = rename(*old_path, *new_path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
 }
 
 static Handle<Value> Unlink(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   String::Utf8Value path(args[0]->ToString());
-  return scope.Close(EIOPromise::Unlink(*path));
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(unlink, args[1], *path)
+  } else {
+    int ret = unlink(*path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
 }
 
 static Handle<Value> RMDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   String::Utf8Value path(args[0]->ToString());
-  return scope.Close(EIOPromise::RMDir(*path));
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(rmdir, args[1], *path)
+  } else {
+    int ret = rmdir(*path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
 }
 
 static Handle<Value> MKDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   String::Utf8Value path(args[0]->ToString());
   mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
 
-  return scope.Close(EIOPromise::MKDir(*path, mode));
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(mkdir, args[2], *path, mode)
+  } else {
+    int ret = mkdir(*path, mode);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
 }
 
 static Handle<Value> SendFile(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 4 || !args[0]->IsInt32() || !args[1]->IsInt32() || !args[3]->IsNumber()) {
-    return ThrowException(BAD_ARGUMENTS);
+  if (args.Length() < 4 || 
+      !args[0]->IsInt32() ||
+      !args[1]->IsInt32() ||
+      !args[3]->IsNumber()) {
+    return THROW_BAD_ARGS;
   }
 
   int out_fd = args[0]->Int32Value();
@@ -221,37 +267,58 @@ static Handle<Value> SendFile(const Arguments& args) {
   off_t in_offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
   size_t length = args[3]->IntegerValue();
 
-  return scope.Close(EIOPromise::SendFile(out_fd, in_fd, in_offset, length));
+  if (args[4]->IsFunction()) {
+    ASYNC_CALL(sendfile, args[4], out_fd, in_fd, in_offset, length)
+  } else {
+    ssize_t sent = eio_sendfile_sync (out_fd, in_fd, in_offset, length);
+    // XXX is this the right errno to use?
+    if (sent < 0) return ThrowException(errno_exception(errno));
+    return Integer::New(sent);
+  }
 }
 
 static Handle<Value> ReadDir(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   String::Utf8Value path(args[0]->ToString());
-  return scope.Close(EIOPromise::ReadDir(*path));
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
+  } else {
+    // TODO 
+    return ThrowException(Exception::Error(
+          String::New("synchronous readdir() not yet supported.")));
+  }
 }
 
 static Handle<Value> Open(const Arguments& args) {
   HandleScope scope;
 
-  if ( args.Length() < 3
-    || !args[0]->IsString()
-    || !args[1]->IsInt32()
-    || !args[2]->IsInt32()
-     ) return ThrowException(BAD_ARGUMENTS);
+  if (args.Length() < 3 ||
+      !args[0]->IsString() ||
+      !args[1]->IsInt32() ||
+      !args[2]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
 
   String::Utf8Value path(args[0]->ToString());
   int flags = args[1]->Int32Value();
   mode_t mode = static_cast<mode_t>(args[2]->Int32Value());
 
-  return scope.Close(EIOPromise::Open(*path, flags, mode));
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(open, args[3], *path, flags, mode)
+  } else {
+    int fd = open(*path, flags, mode);
+    if (fd < 0) return ThrowException(errno_exception(errno));
+    return scope.Close(Integer::New(fd));
+  }
 }
 
-/* node.fs.write(fd, data, position=null)
+/* node.fs.write(fd, data, position, enc, callback)
  * Wrapper for write(2).
  *
  * 0 fd        integer. file descriptor
@@ -263,8 +330,8 @@ static Handle<Value> Open(const Arguments& args) {
 static Handle<Value> Write(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 2 || !args[0]->IsInt32()) {
-    return ThrowException(BAD_ARGUMENTS);
+  if (args.Length() < 4 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
   }
 
   int fd = args[0]->Int32Value();
@@ -281,7 +348,17 @@ static Handle<Value> Write(const Arguments& args) {
   ssize_t written = DecodeWrite(buf, len, args[1], enc);
   assert(written == len);
 
-  return scope.Close(EIOPromise::Write(fd, buf, len, offset));
+  if (args[4]->IsFunction()) {
+    ASYNC_CALL(write, args[4], fd, buf, len, offset)
+  } else {
+    if (offset < 0) {
+      written = write(fd, buf, len);
+    } else {
+      written = pwrite(fd, buf, len, offset);
+    }
+    if (written < 0) return ThrowException(errno_exception(errno));
+    return scope.Close(Integer::New(written));
+  }
 }
 
 /* node.fs.read(fd, length, position, encoding)
@@ -297,19 +374,31 @@ static Handle<Value> Read(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsNumber()) {
-    return ThrowException(BAD_ARGUMENTS);
+    return THROW_BAD_ARGS;
   }
 
   int fd = args[0]->Int32Value();
   size_t len = args[1]->IntegerValue();
-  off_t pos = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
-
+  off_t offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
   enum encoding encoding = ParseEncoding(args[3]);
 
-  return scope.Close(EIOPromise::Read(fd, len, pos, encoding));
+  if (args[4]->IsFunction()) {
+    Local<Object> obj = args[4]->ToObject();
+    obj->SetHiddenValue(ENCODING, args[3]);
+    ASYNC_CALL(read, args[4], fd, NULL, len, offset)
+  } else {
+#define READ_BUF_LEN (16*1024)
+    char *buf[READ_BUF_LEN];
+    ssize_t ret;
+    if (offset < 0) {
+      ret = read(fd, buf, MIN(len, READ_BUF_LEN));
+    } else {
+      ret = pread(fd, buf, MIN(len, READ_BUF_LEN), offset);
+    }
+    if (ret < 0) return ThrowException(errno_exception(errno));
+    return scope.Close(Integer::New(ret));
+  }
 }
-
-Persistent<FunctionTemplate> EIOPromise::constructor_template;
 
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -325,18 +414,6 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
-
-
-  Local<FunctionTemplate> t2 = FunctionTemplate::New(EIOPromise::New);
-  EIOPromise::constructor_template = Persistent<FunctionTemplate>::New(t2);
-  EIOPromise::constructor_template->Inherit(
-      Promise::constructor_template);
-  EIOPromise::constructor_template->InstanceTemplate()->
-    SetInternalFieldCount(1);
-  EIOPromise::constructor_template->SetClassName(
-      String::NewSymbol("EIOPromise"));
-  target->Set(String::NewSymbol("EIOPromise"),
-      EIOPromise::constructor_template->GetFunction());
 }
 
 }  // end namespace node
