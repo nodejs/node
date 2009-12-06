@@ -14,3 +14,9 @@ target = {};
 process.mixin(true, target, fakeDomElement);
 
 assert.notStrictEqual(target.deep, fakeDomElement.deep);
+
+var objectWithUndefinedValue = {foo: undefined};
+target = {};
+
+process.mixin(target, objectWithUndefinedValue);
+assert.ok(target.hasOwnProperty('foo'));

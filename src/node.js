@@ -137,7 +137,7 @@ process.mixin = function() {
 					, copy );
 
 				// Don't bring in undefined values
-				else if ( copy !== undefined )
+				else
 					target[ name ] = copy;
 
 			}
