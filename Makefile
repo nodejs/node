@@ -1,17 +1,19 @@
+WAF=python tools/waf-light --jobs=1
+
 all:
-	@tools/waf-light build
+	@$(WAF) build
 
 all-debug:
-	@tools/waf-light -v build
+	@$(WAF) -v build
 
 all-progress:
-	@tools/waf-light -p build
+	@$(WAF) -p build
 
 install:
-	@tools/waf-light install
+	@$(WAF) install
 
 uninstall:
-	@tools/waf-light uninstall
+	@$(WAF) uninstall
 
 test: all
 	python tools/test.py --mode=release
@@ -45,7 +47,7 @@ website-upload: doc
 
 clean:
 	@-rm -f doc/node.1 doc/api.xml doc/api.html
-	@tools/waf-light clean
+	@$(WAF) clean
 
 distclean: clean
 	@-rm -rf build/
