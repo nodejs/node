@@ -210,6 +210,16 @@ GetMethod (int method)
     case HTTP_HEAD:       s = "HEAD"; break;
     case HTTP_POST:       s = "POST"; break;
     case HTTP_PUT:        s = "PUT"; break;
+    case HTTP_COPY:       s = "COPY"; break;
+    case HTTP_LOCK:       s = "LOCK"; break;
+    case HTTP_MKCOL:      s = "MKCOL"; break;
+    case HTTP_MOVE:       s = "MOVE"; break;
+    case HTTP_OPTIONS:    s = "OPTIONS"; break;
+    case HTTP_PROPFIND:   s = "PROPFIND"; break;
+    case HTTP_PROPPATCH:  s = "PROPPATCH"; break;
+    case HTTP_TRACE:      s = "TRACE"; break;
+    case HTTP_UNLOCK:     s = "UNLOCK"; break;
+    case HTTP_CONNECT:    s = "CONNECT"; break;
   }
   HandleScope scope;
   Local<String> method = String::NewSymbol(s);

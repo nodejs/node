@@ -50,20 +50,34 @@ typedef struct http_parser http_parser;
 typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
 typedef int (*http_cb) (http_parser*);
 
+/* Should be at least one longer than the longest request method */
+#define HTTP_PARSER_MAX_METHOD_LEN 10
+
 /* Request Methods */
 enum http_method
   { HTTP_DELETE    = 0x0002
   , HTTP_GET       = 0x0004
   , HTTP_HEAD      = 0x0008
-  , HTTP_POST      = 0x0100
-  , HTTP_PUT       = 0x0800
+  , HTTP_POST      = 0x0010
+  , HTTP_PUT       = 0x0020
+  /* webdav methods */
+  , HTTP_COPY      = 0x0040
+  , HTTP_LOCK      = 0x0080
+  , HTTP_MKCOL     = 0x0100
+  , HTTP_MOVE      = 0x0200
+  , HTTP_OPTIONS   = 0x0400
+  , HTTP_PROPFIND  = 0x0800
+  , HTTP_PROPPATCH = 0x1000
+  , HTTP_TRACE     = 0x2000
+  , HTTP_UNLOCK    = 0x4000
+  , HTTP_CONNECT   = 0x8000
   };
 
 struct http_parser {
   /** PRIVATE **/
   unsigned short state;
   unsigned short header_state;
-  size_t header_index;
+  size_t index;
 
   char flags;
 
@@ -88,6 +102,7 @@ struct http_parser {
   enum http_method method;    /* requests only */
   unsigned short http_major;
   unsigned short http_minor;
+  char buffer[HTTP_PARSER_MAX_METHOD_LEN];
 
   /** PUBLIC **/
   void *data; /* A pointer to get hook to the "connection" or "socket" object */

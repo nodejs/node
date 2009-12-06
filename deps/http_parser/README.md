@@ -4,7 +4,7 @@ HTTP Parser
 This is a parser for HTTP messages written in C. It parses both requests
 and responses. The parser is designed to be used in performance HTTP
 applications. It does not make any allocations, it does not buffer data, and
-it can be interrupted at anytime. It only requires about 128 bytes of data
+it can be interrupted at anytime. It only requires about 136 bytes of data
 per message stream (in a web server that is per connection).
 
 Features:
