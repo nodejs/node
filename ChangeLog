@@ -1,4 +1,21 @@
-2009.11.28, Version 0.1.20
+2009.12.06, Version 0.1.21
+
+  * Feature: Add HTTP client TLS support (Rhys Jones)
+
+  * Bugfix: use --jobs=1 with WAF
+
+  * Bugfix: Don't use chunked encoding for 1.0 requests
+
+  * Bugfix: Duplicated header weren't handled correctly
+
+  * Improve sys.inspect (Xavier Shay)
+
+  * Upgrade v8 to 2.0.3
+
+  * Use CommonJS assert API (Felix Geisendörfer, Karl Guertin)
+
+
+2009.11.28, Version 0.1.20, aa42c6790da8ed2cd2b72051c07f6251fe1724d8
 
   * Add gnutls version to configure script
 
