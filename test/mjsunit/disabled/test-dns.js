@@ -1,5 +1,5 @@
-process.mixin(require("../common.js"));
-var dns = require("/dns.js");
+process.mixin(require("../common"));
+var dns = require("dns");
 
 for (var i = 2; i < process.ARGV.length; i++) {
   var name = process.ARGV[i]

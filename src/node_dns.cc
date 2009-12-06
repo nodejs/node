@@ -8,8 +8,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
-#include <node_events.h>
-
 #include <v8.h>
 #include <ev.h>
 #include <udns.h>
@@ -20,6 +18,24 @@ using namespace v8;
 
 static ev_io io_watcher;
 static ev_timer timer_watcher;
+
+static inline Persistent<Function>* cb_persist(const Local<Value> &v) {
+  Persistent<Function> *fn = new Persistent<Function>();
+  *fn = Persistent<Function>::New(Local<Function>::Cast(v));
+  return fn;
+}
+
+static inline Persistent<Function>* cb_unwrap(void *data) {
+  Persistent<Function> *cb =
+    reinterpret_cast<Persistent<Function>*>(data);
+  assert((*cb)->IsFunction());
+  return cb;
+}
+
+static inline void cb_destroy(Persistent<Function> * cb) {
+  cb->Dispose();
+  delete cb;
+}
 
 static inline void set_timeout() {
   int maxwait = 20;
@@ -54,15 +70,16 @@ static void timeout(EV_P_ ev_timer *_watcher, int revents) {
   set_timeout();
 }
 
-static void ResolveError(Promise *promise) {
+static void ResolveError(Handle<Function> *cb) {
   HandleScope scope;
   int status = dns_status(NULL);
   assert(status < 0);
-  Local<String> msg = String::New(dns_strerror(status));
 
-  Local<Value> argv[2] = { Integer::New(status), msg };
+  Local<Value> e = Exception::Error(String::NewSymbol(dns_strerror(status)));
+  Local<Object> obj = e->ToObject();
+  obj->Set(String::NewSymbol("errno"), Integer::New(status));
 
-  promise->EmitError(2, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 1, &e);
 }
 
 static void AfterResolveA4(struct dns_ctx *ctx,
@@ -72,11 +89,11 @@ static void AfterResolveA4(struct dns_ctx *ctx,
 
   HandleScope scope;
 
-  Promise *promise = reinterpret_cast<Promise*>(data);
-  assert(promise);
+  Persistent<Function> *cb = cb_unwrap(data);
 
   if (result == NULL) {
-    ResolveError(promise);
+    ResolveError(cb);
+    cb_destroy(cb);
     return;
   }
 
@@ -98,7 +115,16 @@ static void AfterResolveA4(struct dns_ctx *ctx,
   }
 
   Local<Value> argv[3] = { addresses, ttl, cname };
-  promise->EmitSuccess(3, argv);
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
 }
 
 static void AfterResolveA6(struct dns_ctx *ctx,
@@ -108,11 +134,11 @@ static void AfterResolveA6(struct dns_ctx *ctx,
 
   HandleScope scope;
 
-  Promise *promise = reinterpret_cast<Promise*>(data);
-  assert(promise);
+  Persistent<Function> *cb = cb_unwrap(data);
 
   if (result == NULL) {
-    ResolveError(promise);
+    ResolveError(cb);
+    cb_destroy(cb);
     return;
   }
 
@@ -134,7 +160,16 @@ static void AfterResolveA6(struct dns_ctx *ctx,
   }
 
   Local<Value> argv[3] = { addresses, ttl, cname };
-  promise->EmitSuccess(3, argv);
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
 }
 
 static Handle<Value> ResolveA(int type, const Arguments& args) {
@@ -147,15 +182,14 @@ static Handle<Value> ResolveA(int type, const Arguments& args) {
 
   String::Utf8Value name(args[0]->ToString());
 
-  Promise *promise = Promise::Create();
   struct dns_query *query;
   switch (type) {
     case DNS_T_A:
-      query = dns_submit_a4(NULL, *name, 0, AfterResolveA4, promise);
+      query = dns_submit_a4(NULL, *name, 0, AfterResolveA4, cb_persist(args[1]));
       break;
 
     case DNS_T_AAAA:
-      query = dns_submit_a6(NULL, *name, 0, AfterResolveA6, promise);
+      query = dns_submit_a6(NULL, *name, 0, AfterResolveA6, cb_persist(args[1]));
       break;
 
     default:
@@ -166,7 +200,7 @@ static Handle<Value> ResolveA(int type, const Arguments& args) {
 
   maybe_start();
 
-  return scope.Close(promise->Handle());
+  return Undefined();
 }
 
 static Handle<Value> ResolveA4(const Arguments& args) {
@@ -184,11 +218,11 @@ static void AfterReverse(struct dns_ctx *ctx,
 
   HandleScope scope;
 
-  Promise *promise = reinterpret_cast<Promise*>(data);
-  assert(promise);
+  Persistent<Function> *cb = cb_unwrap(data);
 
   if (result == NULL) {
-    ResolveError(promise);
+    ResolveError(cb);
+    cb_destroy(cb);
     return;
   }
 
@@ -208,7 +242,16 @@ static void AfterReverse(struct dns_ctx *ctx,
   }
 
   Local<Value> argv[3] = { domains, ttl, cname };
-  promise->EmitSuccess(3, argv);
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
 }
 
 static Handle<Value> Reverse(const Arguments& args) {
@@ -237,20 +280,19 @@ static Handle<Value> Reverse(const Arguments& args) {
   }
 
 
-  Promise *promise = Promise::Create();
   struct dns_query *query;
 
   if (v4) {
-    query = dns_submit_a4ptr(NULL, &a.addr, AfterReverse, promise);
+    query = dns_submit_a4ptr(NULL, &a.addr, AfterReverse, cb_persist(args[1]));
   } else {
-    query = dns_submit_a6ptr(NULL, &a.addr6, AfterReverse, promise);
+    query = dns_submit_a6ptr(NULL, &a.addr6, AfterReverse, cb_persist(args[1]));
   }
 
   assert(query);  // TODO(ry) better error handling.
 
   maybe_start();
 
-  return scope.Close(promise->Handle());
+  return Undefined();
 }
 
 void DNS::Initialize(Handle<Object> target) {
