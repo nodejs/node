@@ -109,7 +109,7 @@ process.mixin = function() {
 	}
 
 	// Handle case when target is a string or something (possible in deep copy)
-	if ( typeof target !== "object" && !process.isFunction(target) )
+	if ( typeof target !== "object" && !(typeof target === 'function') )
 		target = {};
 
 	// mixin process itself if only one argument is passed
@@ -130,7 +130,7 @@ process.mixin = function() {
 					continue;
 
 				// Recurse if we're merging object values
-				if ( deep && copy && typeof copy === "object" && !copy.nodeType )
+				if ( deep && copy && typeof copy === "object" )
 					target[ name ] = process.mixin( deep, 
 						// Never move original objects, clone them
 						src || ( copy.length != null ? [ ] : { } )
