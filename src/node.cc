@@ -811,7 +811,6 @@ static Local<Object> Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
-  Promise::Initialize(process);                // events.cc
   Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
   SignalHandler::Initialize(process);          // signal_handler.cc

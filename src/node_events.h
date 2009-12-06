@@ -20,41 +20,5 @@ class EventEmitter : public ObjectWrap {
   EventEmitter() : ObjectWrap () { }
 };
 
-class Promise : public EventEmitter {
- public:
-  static void Initialize(v8::Handle<v8::Object> target);
-
-  static v8::Persistent<v8::FunctionTemplate> constructor_template;
-  static Promise* Create(void);
-
-  bool EmitSuccess(int argc, v8::Handle<v8::Value> argv[]);
-  bool EmitError(int argc, v8::Handle<v8::Value> argv[]);
-  void Block();
-
-  v8::Handle<v8::Object> Handle() {
-    return handle_;
-  }
-
- protected:
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Block(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EmitSuccess(const v8::Arguments& args);
-  static v8::Handle<v8::Value> EmitError(const v8::Arguments& args);
-
-  virtual void Detach(void);
-
-  bool has_fired_;
-  bool blocking_;
-  Promise *prev_; /* for the prev in the Poor Man's coroutine stack */
-
-  void Destack();
-
-  Promise() : EventEmitter() {
-    has_fired_ = false;
-    blocking_ = false;
-    prev_ = NULL;
-  }
-};
-
 }  // namespace node
 #endif  // SRC_EVENTS_H_

@@ -70,10 +70,6 @@ node.inherits = function () {
   throw new Error("node.inherits() has moved. Use require('sys') to access it.");
 };
 
-process.inherits = function () {
-  throw new Error("process.inherits() has moved. Use require('sys') to access it.");
-};
-
 
 process.createChildProcess = function (file, args, env) {
   var child = new process.ChildProcess();
@@ -184,6 +180,24 @@ process.EventEmitter.prototype.listeners = function (type) {
   return this._events[type];
 };
 
+process.inherits = function (ctor, superCtor) {
+  var tempCtor = function(){};
+  tempCtor.prototype = superCtor.prototype;
+  ctor.super_ = superCtor.prototype;
+  ctor.prototype = new tempCtor();
+  ctor.prototype.constructor = ctor;
+};
+
+
+// Promise
+
+process.Promise = function () {
+  process.EventEmitter.call();
+  this._blocking = false;
+  this._hasFired = false;
+}
+process.inherits(process.Promise, process.EventEmitter);
+
 process.Promise.prototype.timeout = function(timeout) {
   if (timeout === undefined) {
     return this._timeoutDuration;
@@ -235,7 +249,22 @@ process.Promise.prototype.cancel = function() {
 process.Promise.prototype.emitCancel = function() {
   var args = Array.prototype.slice.call(arguments);
   args.unshift('cancel');
+  this.emit.apply(this, args);
+};
 
+process.Promise.prototype.emitSuccess = function() {
+  if (this.hasFired) return;
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift('success');
+  this.hasFired = true;
+  this.emit.apply(this, args);
+};
+
+process.Promise.prototype.emitError = function() {
+  if (this.hasFired) return;
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift('error');
+  this.hasFired = true;
   this.emit.apply(this, args);
 };
 
@@ -254,26 +283,51 @@ process.Promise.prototype.addCancelback = function (listener) {
   return this;
 };
 
-process.Promise.prototype.wait = function () {
-  var ret;
-  var had_error = false;
-  this.addCallback(function () {
-        if (arguments.length == 1) {
-          ret = arguments[0];
-        } else if (arguments.length > 1) {
-          ret = [];
-          for (var i = 0; i < arguments.length; i++) {
-            ret.push(arguments[i]);
-          }
-        }
-      })
-      .addErrback(function (arg) {
-        had_error = true;
-        ret = arg;
-      })
-      .block();
+/* Poor Man's coroutines */
+var coroutineStack = [];
 
-  if (had_error) {
+process.Promise.prototype._destack = function () {
+  this._blocking = false;
+
+  while (coroutineStack.length > 0 &&
+         !coroutineStack[coroutineStack.length-1]._blocking)
+  {
+    coroutineStack.pop();
+    process.unloop("one");
+  }
+};
+
+process.Promise.prototype.wait = function () {
+  var self = this;
+  var ret;
+  var hadError = false;
+
+  self.addCallback(function () {
+    if (arguments.length == 1) {
+      ret = arguments[0];
+    } else if (arguments.length > 1) {
+      ret = Array.prototype.slice.call(arguments);
+    }
+    self._destack();
+  });
+
+  self.addErrback(function (arg) {
+    hadError = true;
+    ret = arg;
+    self._destack();
+  });
+
+  coroutineStack.push(self);
+  if (coroutineStack.length > 10) {
+    process.stdio.writeError("WARNING: promise.wait() is being called too often.\n");
+  }
+  self._blocking = true;
+
+  process.loop();
+
+  process.assert(self._blocking == false);
+
+  if (hadError) {
     if (ret) {
       throw ret;
     } else {
