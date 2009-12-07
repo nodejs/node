@@ -536,21 +536,25 @@ var posixModule = createInternalModule("posix", function (exports) {
 
   exports.read = function (fd, length, position, encoding) {
     var promise = new process.Promise()
+    encoding = encoding || "binary";
     process.fs.read(fd, length, position, encoding, callback(promise));
     return promise;
   };
 
   exports.readSync = function (fd, length, position, encoding) {
+    encoding = encoding || "binary";
     return process.fs.read(fd, length, position, encoding);
   };
 
   exports.write = function (fd, data, position, encoding) {
     var promise = new process.Promise()
+    encoding = encoding || "binary";
     process.fs.write(fd, data, position, encoding, callback(promise));
     return promise;
   };
 
   exports.writeSync = function (fd, data, position, encoding) {
+    encoding = encoding || "binary";
     return process.fs.write(fd, data, position, encoding);
   };
 
