@@ -55,22 +55,23 @@ typedef int (*http_cb) (http_parser*);
 
 /* Request Methods */
 enum http_method
-  { HTTP_DELETE    = 0x0002
-  , HTTP_GET       = 0x0004
-  , HTTP_HEAD      = 0x0008
-  , HTTP_POST      = 0x0010
-  , HTTP_PUT       = 0x0020
-  /* webdav methods */
-  , HTTP_COPY      = 0x0040
-  , HTTP_LOCK      = 0x0080
-  , HTTP_MKCOL     = 0x0100
-  , HTTP_MOVE      = 0x0200
-  , HTTP_OPTIONS   = 0x0400
-  , HTTP_PROPFIND  = 0x0800
-  , HTTP_PROPPATCH = 0x1000
-  , HTTP_TRACE     = 0x2000
+  { HTTP_DELETE    = 0x0001
+  , HTTP_GET       = 0x0002
+  , HTTP_HEAD      = 0x0004
+  , HTTP_POST      = 0x0008
+  , HTTP_PUT       = 0x0010
+  /* pathological */
+  , HTTP_CONNECT   = 0x0020
+  , HTTP_OPTIONS   = 0x0040
+  , HTTP_TRACE     = 0x0080
+  /* webdav */
+  , HTTP_COPY      = 0x0100
+  , HTTP_LOCK      = 0x0200
+  , HTTP_MKCOL     = 0x0400
+  , HTTP_MOVE      = 0x0800
+  , HTTP_PROPFIND  = 0x1000
+  , HTTP_PROPPATCH = 0x2000
   , HTTP_UNLOCK    = 0x4000
-  , HTTP_CONNECT   = 0x8000
   };
 
 struct http_parser {
@@ -133,6 +134,28 @@ size_t http_parse_responses(http_parser *parser, const char *data, size_t len);
  * if you are the client, close the connection.
  */
 int http_should_keep_alive(http_parser *parser);
+
+static inline const char * http_method_str (enum http_method method)
+{
+  switch (method) {
+    case HTTP_DELETE:     return "DELETE";
+    case HTTP_GET:        return "GET";
+    case HTTP_HEAD:       return "HEAD";
+    case HTTP_POST:       return "POST";
+    case HTTP_PUT:        return "PUT";
+    case HTTP_CONNECT:    return "CONNECT";
+    case HTTP_OPTIONS:    return "OPTIONS";
+    case HTTP_TRACE:      return "TRACE";
+    case HTTP_COPY:       return "COPY";
+    case HTTP_LOCK:       return "LOCK";
+    case HTTP_MKCOL:      return "MKCOL";
+    case HTTP_MOVE:       return "MOVE";
+    case HTTP_PROPFIND:   return "PROPFIND";
+    case HTTP_PROPPATCH:  return "PROPPATCH";
+    case HTTP_UNLOCK:     return "UNLOCK";
+    default:              return (const char*)0;
+  }
+}
 
 #ifdef __cplusplus
 }

@@ -200,32 +200,6 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
   return 0;
 }
 
-static inline Local<String>
-GetMethod (int method)
-{
-  const char *s;
-  switch (method) {
-    case HTTP_DELETE:     s = "DELETE"; break;
-    case HTTP_GET:        s = "GET"; break;
-    case HTTP_HEAD:       s = "HEAD"; break;
-    case HTTP_POST:       s = "POST"; break;
-    case HTTP_PUT:        s = "PUT"; break;
-    case HTTP_COPY:       s = "COPY"; break;
-    case HTTP_LOCK:       s = "LOCK"; break;
-    case HTTP_MKCOL:      s = "MKCOL"; break;
-    case HTTP_MOVE:       s = "MOVE"; break;
-    case HTTP_OPTIONS:    s = "OPTIONS"; break;
-    case HTTP_PROPFIND:   s = "PROPFIND"; break;
-    case HTTP_PROPPATCH:  s = "PROPPATCH"; break;
-    case HTTP_TRACE:      s = "TRACE"; break;
-    case HTTP_UNLOCK:     s = "UNLOCK"; break;
-    case HTTP_CONNECT:    s = "CONNECT"; break;
-  }
-  HandleScope scope;
-  Local<String> method = String::NewSymbol(s);
-  return scope.Close(method);
-}
-
 int
 HTTPConnection::on_headers_complete (http_parser *parser)
 {
@@ -237,7 +211,8 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   // METHOD
   if (connection->type_ == HTTP_REQUEST) {
-    message_info->Set(METHOD_SYMBOL, GetMethod(connection->parser_.method));
+    message_info->Set(METHOD_SYMBOL, String::NewSymbol(
+          http_method_str(connection->parser_.method)));
   }
 
   // STATUS
