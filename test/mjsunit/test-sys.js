@@ -10,6 +10,8 @@ assert.equal("[Function]", inspect(function() {}));
 assert.equal('undefined', inspect(undefined));
 assert.equal('null', inspect(null));
 
+assert.equal("\"\\n\\u0001\"", inspect("\n\u0001"));
+
 assert.equal('[]', inspect([]));
 assert.equal('[\n 1,\n 2\n]', inspect([1, 2]));
 assert.equal('[\n 1,\n [\n  2,\n  3\n ]\n]', inspect([1, [2, 3]]));
