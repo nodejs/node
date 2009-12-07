@@ -74,7 +74,7 @@ Handle<Value> Stat::Start(const Arguments& args) {
     ev_unref(EV_DEFAULT_UC);
   }
 
-  handler->Attach();
+  handler->Ref();
 
   return Undefined();
 }
@@ -95,7 +95,7 @@ void Stat::Stop () {
     ev_stat_stop(EV_DEFAULT_UC_ &watcher_);
     free(path_);
     path_ = NULL;
-    Detach();
+    Unref();
   }
 }
 

@@ -338,7 +338,7 @@ int ChildProcess::Spawn(const char *file, char *const args[], char *const env[])
   evcom_writer_set(&stdin_writer_, stdin_fd_);
   evcom_writer_attach(EV_DEFAULT_UC_ &stdin_writer_);
 
-  Attach();
+  Ref();
 
   return 0;
 }
@@ -382,7 +382,7 @@ void ChildProcess::MaybeShutdown(void) {
     Handle<Value> argv[1] = { Integer::New(exit_code_) };
     Emit("exit", 1, argv);
     Shutdown();
-    Detach();
+    Unref();
   }
 }
 

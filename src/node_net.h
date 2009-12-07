@@ -119,7 +119,7 @@ class Connection : public EventEmitter {
 
   static void on_read(evcom_stream *s, const void *buf, size_t len) {
     Connection *connection = static_cast<Connection*>(s->data);
-    assert(connection->attached_);
+    assert(connection->refs_);
     if (len == 0)
       connection->OnEOF();
     else
@@ -149,9 +149,9 @@ class Connection : public EventEmitter {
 
     connection->OnClose();
 
-    assert(connection->attached_);
+    assert(connection->refs_);
 
-    connection->Detach();
+    connection->Unref();
   }
 
   static void on_timeout(evcom_stream *s) {
@@ -204,7 +204,7 @@ class Server : public EventEmitter {
     int r = evcom_server_listen(&server_, address, backlog);
     if (r != 0) return r;
     evcom_server_attach(EV_DEFAULT_ &server_);
-    Attach();
+    Ref();
     return 0;
   }
 
@@ -230,7 +230,7 @@ class Server : public EventEmitter {
     Server *server = static_cast<Server*>(s->data);
     evcom_server_detach(s);
     server->OnClose(s->errorno);
-    server->Detach();
+    server->Unref();
   }
 
   evcom_server server_;

@@ -233,8 +233,8 @@ Handle<Value> Connection::Connect(const Arguments& args) {
   // out. Thus we need to add ev_ref() until AfterResolve().
   ev_ref(EV_DEFAULT_UC);
 
-  // Attach the object so it doesn't get garbage collected.
-  connection->Attach();
+  // Ref the object so it doesn't get garbage collected.
+  connection->Ref();
 
   // For the moment I will do DNS lookups in the eio thread pool. This is
   // sub-optimal and cannot handle massive numbers of requests.
@@ -252,7 +252,7 @@ int Connection::Resolve(eio_req *req) {
   Connection *connection = static_cast<Connection*> (req->data);
   struct addrinfo *address = NULL;
 
-  assert(connection->attached_);
+  assert(connection->refs_);
   assert(connection->resolving_);
 
   req->result = getaddrinfo(connection->host_, connection->port_,
@@ -281,7 +281,7 @@ int Connection::AfterResolve(eio_req *req) {
   Connection *connection = static_cast<Connection*> (req->data);
 
   assert(connection->resolving_);
-  assert(connection->attached_);
+  assert(connection->refs_);
 
   struct addrinfo *address = NULL,
                   *address_list = static_cast<struct addrinfo *>(req->ptr2);
@@ -311,7 +311,7 @@ int Connection::AfterResolve(eio_req *req) {
 
   connection->OnClose();
 
-  connection->Detach();
+  connection->Unref();
 
  out:
   return 0;
@@ -537,7 +537,7 @@ Handle<Value> Connection::ForceClose(const Arguments& args) {
   assert(connection);
 
   connection->ForceClose();
-  connection->Detach();
+  connection->Unref();
   return Undefined();
 }
 
@@ -709,7 +709,7 @@ Connection* Server::OnConnection(struct sockaddr *addr) {
   }
   #endif
 
-  connection->Attach();
+  connection->Ref();
 
   return connection;
 }

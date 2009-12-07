@@ -9,7 +9,7 @@ namespace node {
 class ObjectWrap {
  public:
   ObjectWrap ( ) {
-    attached_ = 0;
+    refs_ = 0;
   }
 
   virtual ~ObjectWrap ( ) {
@@ -45,42 +45,42 @@ class ObjectWrap {
     handle_.MakeWeak(this, WeakCallback);
   }
 
-  /* Attach() marks the object as being attached to an event loop.
-   * Attached objects will not be garbage collected, even if
+  /* Ref() marks the object as being attached to an event loop.
+   * Refed objects will not be garbage collected, even if
    * all references are lost.
    */
-  virtual void Attach() {
+  virtual void Ref() {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
-    attached_++;
+    refs_++;
   }
 
-  /* Detach() marks an object as detached from the event loop.  This is its
+  /* Unref() marks an object as detached from the event loop.  This is its
    * default state.  When an object with a "weak" reference changes from
    * attached to detached state it will be freed. Be careful not to access
    * the object after making this call as it might be gone!
-   * (A "weak reference" is v8 terminology for an object that only has a
+   * (A "weak reference" means an object that only has a
    * persistant handle.)
    *
    * DO NOT CALL THIS FROM DESTRUCTOR
    */
-  virtual void Detach() {
+  virtual void Unref() {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
-    assert(attached_ > 0);
-    attached_--;
-    if (attached_ == 0 && handle_.IsNearDeath()) delete this;
+    assert(refs_ > 0);
+    refs_--;
+    if (refs_ == 0 && handle_.IsNearDeath()) delete this;
   }
 
   v8::Persistent<v8::Object> handle_; // ro
-  int attached_; // ro
+  int refs_; // ro
 
  private:
   static void WeakCallback (v8::Persistent<v8::Value> value, void *data)
   {
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
-    if (obj->attached_ == 0) {
+    if (obj->refs_ == 0) {
       delete obj;
     } else {
       obj->MakeWeak();

@@ -64,7 +64,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   timer->Emit("timeout", 0, NULL);
 
-  if (timer->watcher_.repeat == 0) timer->Detach();
+  if (timer->watcher_.repeat == 0) timer->Unref();
 }
 
 Timer::~Timer ()
@@ -99,7 +99,7 @@ Timer::Start (const Arguments& args)
   timer->watcher_.data = timer;
   ev_timer_start(EV_DEFAULT_UC_ &timer->watcher_);
 
-  timer->Attach();
+  timer->Ref();
 
   return Undefined();
 }
@@ -110,7 +110,7 @@ Timer::Stop (const Arguments& args)
   Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
   if (ev_is_active(&timer->watcher_)) {
     ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
-    timer->Detach();
+    timer->Unref();
   }
   return Undefined();
 }
