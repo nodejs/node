@@ -219,7 +219,7 @@ sys.exec("ls /").addCallback(function (stdout, stderr) {
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
-objects which emit events are are instances of +process.EventEmitter+.
+objects which emit events are instances of +process.EventEmitter+.
 
 Events are represented by a camel-cased string. Here are some examples:
 +"connection"+, +"receive"+, +"messageBegin"+.
