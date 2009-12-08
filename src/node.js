@@ -929,7 +929,7 @@ process.exit = function (code) {
 var cwd = process.cwd();
 
 // Make process.ARGV[0] and process.ARGV[1] into full paths.
-if (process.ARGV[0].charAt(0) != "/") {
+if (process.ARGV[0].indexOf('/') > 0) {
   process.ARGV[0] = path.join(cwd, process.ARGV[0]);
 }
 
