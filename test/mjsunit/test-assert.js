@@ -12,7 +12,7 @@ function makeBlock(f){
     }
 }
 
-assert.ok(a.AssertionError instanceof Error, "a.AssertionError instanceof Error")
+assert.ok(a.AssertionError instanceof Error, "a.AssertionError instanceof Error");
 
 assert.throws(makeBlock(a.ok, false), a.AssertionError, "ok(false)");
 assert.doesNotThrow(makeBlock(a.ok, true), a.AssertionError, "ok(true)");
