@@ -17,12 +17,13 @@ using namespace v8;
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define THROW_BAD_ARGS \
   ThrowException(Exception::TypeError(String::New("Bad argument")))
-#define ENCODING String::NewSymbol("node:encoding")
+static Persistent<String> encoding_symbol;
+static Persistent<String> errno_symbol;
 
 static inline Local<Value> errno_exception(int errorno) {
   Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
   Local<Object> obj = e->ToObject();
-  obj->Set(String::NewSymbol("errno"), Integer::New(errorno));
+  obj->Set(errno_symbol, Integer::New(errorno));
   return e;
 }
 
@@ -74,7 +75,7 @@ static int After(eio_req *req) {
       {
         argc = 2;
         Local<Object> obj = Local<Object>::New(*callback);
-        Local<Value> enc_val = obj->GetHiddenValue(ENCODING);
+        Local<Value> enc_val = obj->GetHiddenValue(encoding_symbol);
         argv[0] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
         argv[1] = Integer::New(req->result);
         break;
@@ -384,7 +385,7 @@ static Handle<Value> Read(const Arguments& args) {
 
   if (args[4]->IsFunction()) {
     Local<Object> obj = args[4]->ToObject();
-    obj->SetHiddenValue(ENCODING, args[3]);
+    obj->SetHiddenValue(encoding_symbol, args[3]);
     ASYNC_CALL(read, args[4], fd, NULL, len, offset)
   } else {
 #define READ_BUF_LEN (16*1024)
@@ -414,6 +415,9 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
+
+  errno_symbol = NODE_PSYMBOL("errno");
+  encoding_symbol = NODE_PSYMBOL("node:encoding");
 }
 
 }  // end namespace node

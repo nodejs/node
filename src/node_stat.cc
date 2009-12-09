@@ -11,6 +11,9 @@ using namespace v8;
 
 Persistent<FunctionTemplate> Stat::constructor_template;
 
+static Persistent<String> change_symbol;
+static Persistent<String> stop_symbol;
+
 void Stat::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -19,6 +22,9 @@ void Stat::Initialize(Handle<Object> target) {
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Stat"));
+
+  change_symbol = NODE_PSYMBOL("change");
+  stop_symbol = NODE_PSYMBOL("stop");
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Stat::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Stat::Stop);
@@ -35,7 +41,7 @@ void Stat::Callback(EV_P_ ev_stat *watcher, int revents) {
   Handle<Value> argv[2];
   argv[0] = Handle<Value>(BuildStatsObject(&watcher->attr));
   argv[1] = Handle<Value>(BuildStatsObject(&watcher->prev));
-  handler->Emit("change", 2, argv);
+  handler->Emit(change_symbol, 2, argv);
 }
 
 
@@ -83,7 +89,7 @@ Handle<Value> Stat::Start(const Arguments& args) {
 Handle<Value> Stat::Stop(const Arguments& args) {
   HandleScope scope;
   Stat *handler = ObjectWrap::Unwrap<Stat>(args.Holder());
-  handler->Emit("stop", 0, NULL);
+  handler->Emit(stop_symbol, 0, NULL);
   handler->Stop();
   return Undefined();
 }

@@ -16,22 +16,29 @@ using namespace v8;
 
 namespace node {
 
-#define UTF8_SYMBOL           String::NewSymbol("utf8")
-#define BINARY_SYMBOL         String::NewSymbol("binary")
-#define ASCII_SYMBOL          String::NewSymbol("ascii")
+static Persistent<String> utf8_symbol;
+static Persistent<String> binary_symbol;
+static Persistent<String> ascii_symbol;
 
-#define SERVER_SYMBOL         String::NewSymbol("server")
-#define REMOTE_ADDRESS_SYMBOL String::NewSymbol("remoteAddress")
+static Persistent<String> server_symbol;
+static Persistent<String> remote_address_symbol;
+static Persistent<String> fd_symbol;
 
-#define FD_SYMBOL             String::NewSymbol("fd")
+static Persistent<String> ready_state_symbol;
+static Persistent<String> open_symbol;
+static Persistent<String> opening_symbol;
+static Persistent<String> read_only_symbol;
+static Persistent<String> write_only_symbol;
+static Persistent<String> closing_symbol;
+static Persistent<String> closed_symbol;
 
-#define READY_STATE_SYMBOL  String::NewSymbol("readyState")
-#define OPEN_SYMBOL         String::NewSymbol("open")
-#define OPENING_SYMBOL      String::NewSymbol("opening")
-#define READ_ONLY_SYMBOL    String::NewSymbol("readOnly")
-#define WRITE_ONLY_SYMBOL   String::NewSymbol("writeOnly")
-#define CLOSING_SYMBOL      String::NewSymbol("closing")
-#define CLOSED_SYMBOL       String::NewSymbol("closed")
+static Persistent<String> receive_symbol;
+static Persistent<String> connection_symbol;
+static Persistent<String> connect_symbol;
+static Persistent<String> timeout_symbol;
+static Persistent<String> drain_symbol;
+static Persistent<String> eof_symbol;
+static Persistent<String> close_symbol;
 
 static const struct addrinfo server_tcp_hints =
 /* ai_flags      */ { AI_PASSIVE
@@ -52,6 +59,30 @@ Persistent<FunctionTemplate> Connection::constructor_template;
 // Initialize the tcp.Connection object.
 void Connection::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
+
+  utf8_symbol = NODE_PSYMBOL("utf8");
+  binary_symbol = NODE_PSYMBOL("binary");
+  ascii_symbol = NODE_PSYMBOL("ascii");
+
+  server_symbol = NODE_PSYMBOL("server");
+  remote_address_symbol = NODE_PSYMBOL("remoteAddress");
+  fd_symbol = NODE_PSYMBOL("fd");
+
+  ready_state_symbol = NODE_PSYMBOL("readyState");
+  open_symbol = NODE_PSYMBOL("open");
+  opening_symbol = NODE_PSYMBOL("opening");
+  read_only_symbol = NODE_PSYMBOL("readOnly");
+  write_only_symbol = NODE_PSYMBOL("writeOnly");
+  closing_symbol = NODE_PSYMBOL("closing");
+  closed_symbol = NODE_PSYMBOL("closed");
+
+  receive_symbol = NODE_PSYMBOL("receive");
+  connection_symbol = NODE_PSYMBOL("connection");
+  connect_symbol = NODE_PSYMBOL("connect");
+  timeout_symbol = NODE_PSYMBOL("timeout");
+  drain_symbol = NODE_PSYMBOL("drain");
+  eof_symbol = NODE_PSYMBOL("eof");
+  close_symbol = NODE_PSYMBOL("close");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
@@ -82,12 +113,12 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
 
   // Getter for connection.readyState
   constructor_template->PrototypeTemplate()->SetAccessor(
-      READY_STATE_SYMBOL,
+      ready_state_symbol,
       ReadyStateGetter);
 
   // Getter for connection.readyState
   constructor_template->PrototypeTemplate()->SetAccessor(
-      FD_SYMBOL,
+      fd_symbol,
       FDGetter);
 
   // Assign class to its place as tcp.Connection
@@ -103,22 +134,22 @@ Handle<Value> Connection::ReadyStateGetter(Local<String> property,
 
   HandleScope scope;
 
-  assert(property == READY_STATE_SYMBOL);
+  assert(property == ready_state_symbol);
 
   // Resolving is not done in evcom, it's done in this file. Thus we add
   // this "opening" symbol to the native EVCOM ready states. "opening"
   // really means "resolving". 
-  if (connection->resolving_) return scope.Close(OPENING_SYMBOL);
+  if (connection->resolving_) return scope.Close(opening_symbol);
 
   // Map between the evcom enum and V8 strings:
   switch (evcom_stream_state(&connection->stream_)) {
-    case EVCOM_INITIALIZED:  return scope.Close(CLOSED_SYMBOL);
-    case EVCOM_CONNECTING:   return scope.Close(OPENING_SYMBOL);
-    case EVCOM_CONNECTED_RW: return scope.Close(OPEN_SYMBOL);
-    case EVCOM_CONNECTED_RO: return scope.Close(READ_ONLY_SYMBOL);
-    case EVCOM_CONNECTED_WO: return scope.Close(WRITE_ONLY_SYMBOL);
-    case EVCOM_CLOSING:      return scope.Close(CLOSING_SYMBOL);
-    case EVCOM_CLOSED:       return scope.Close(CLOSED_SYMBOL);
+    case EVCOM_INITIALIZED:  return scope.Close(closed_symbol);
+    case EVCOM_CONNECTING:   return scope.Close(opening_symbol);
+    case EVCOM_CONNECTED_RW: return scope.Close(open_symbol);
+    case EVCOM_CONNECTED_RO: return scope.Close(read_only_symbol);
+    case EVCOM_CONNECTED_WO: return scope.Close(write_only_symbol);
+    case EVCOM_CLOSING:      return scope.Close(closing_symbol);
+    case EVCOM_CLOSED:       return scope.Close(closed_symbol);
   }
 
   assert(0 && "This shouldnt happen");
@@ -134,7 +165,7 @@ Handle<Value> Connection::FDGetter(Local<String> property,
 
   HandleScope scope;
 
-  assert(property == FD_SYMBOL);
+  assert(property == fd_symbol);
 
   Local<Integer> fd = Integer::New(connection->stream_.recvfd);
 
@@ -325,21 +356,21 @@ Handle<Value> Connection::SetEncoding(const Arguments& args) {
 
   if (!args[0]->IsString()) {
     connection->encoding_ = BINARY;
-    return scope.Close(BINARY_SYMBOL);
+    return scope.Close(binary_symbol);
   }
 
   switch (ParseEncoding(args[0])) {
     case ASCII:
       connection->encoding_ = ASCII;
-      return scope.Close(ASCII_SYMBOL);
+      return scope.Close(ascii_symbol);
 
     case UTF8:
       connection->encoding_ = UTF8;
-      return scope.Close(UTF8_SYMBOL);
+      return scope.Close(utf8_symbol);
 
     case BINARY:
       connection->encoding_ = BINARY;
-      return scope.Close(BINARY_SYMBOL);
+      return scope.Close(binary_symbol);
   }
   assert(0 && "this shouldn't happen");
   return ThrowException(Exception::Error(
@@ -587,7 +618,7 @@ Handle<Value> Connection::Send(const Arguments& args) {
 void Connection::OnReceive(const void *buf, size_t len) {
   HandleScope scope;
   Local<Value> data = Encode(buf, len, encoding_);
-  Emit("receive", 1, &data);
+  Emit(receive_symbol, 1, &data);
 }
 
 void Connection::OnClose() {
@@ -598,7 +629,7 @@ void Connection::OnClose() {
     String::New(strerror(stream_.errorno))
   };
 
-  Emit("close", 2, argv);
+  Emit(close_symbol, 2, argv);
 }
 
 void Connection::OnConnect() {
@@ -607,25 +638,25 @@ void Connection::OnConnect() {
   if (stream_.server) {
     Server *server = static_cast<Server*>(stream_.server->data);
     Local<Value> value = Local<Value>::New(handle_);
-    server->Emit("connection", 1, &value);
+    server->Emit(connection_symbol, 1, &value);
   }
 
-  Emit("connect", 0, NULL);
+  Emit(connect_symbol, 0, NULL);
 }
 
 void Connection::OnTimeout() {
   HandleScope scope;
-  Emit("timeout", 0, NULL);
+  Emit(timeout_symbol, 0, NULL);
 }
 
 void Connection::OnDrain() {
   HandleScope scope;
-  Emit("drain", 0, NULL);
+  Emit(drain_symbol, 0, NULL);
 }
 
 void Connection::OnEOF() {
   HandleScope scope;
-  Emit("eof", 0, NULL);
+  Emit(eof_symbol, 0, NULL);
 }
 
 Persistent<FunctionTemplate> Server::constructor_template;
@@ -693,8 +724,8 @@ Connection* Server::OnConnection(struct sockaddr *addr) {
   }
 
   Local<String> remote_address = GetAddressString(addr);
-  js_connection->Set(REMOTE_ADDRESS_SYMBOL, remote_address);
-  js_connection->Set(SERVER_SYMBOL, handle_);
+  js_connection->Set(remote_address_symbol, remote_address);
+  js_connection->Set(server_symbol, handle_);
 
   Connection *connection = UnwrapConnection(js_connection);
   if (!connection) return NULL;
@@ -719,7 +750,7 @@ void Server::OnClose(int errorno) {
 
   Handle<Value> argv[1] = { Integer::New(errorno) };
 
-  Emit("close", 1, argv);
+  Emit(close_symbol, 1, argv);
 }
 
 Handle<Value> Server::New(const Arguments& args) {

@@ -22,6 +22,8 @@ using namespace v8;
 
 Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
+static Persistent<String> events_symbol;
+
 void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   HandleScope scope;
 
@@ -32,6 +34,8 @@ void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
       __emit);
   constructor_template->SetClassName(String::NewSymbol("EventEmitter"));
 
+  events_symbol = NODE_PSYMBOL("_events");
+
   // All other prototype methods are defined in events.js
 }
 
@@ -41,7 +45,7 @@ static bool ReallyEmit(Handle<Object> self,
                        Handle<Value> argv[]) {
   HandleScope scope;
 
-  Local<Value> events_v = self->Get(String::NewSymbol("_events"));
+  Local<Value> events_v = self->Get(events_symbol);
   if (!events_v->IsObject()) return false;
   Local<Object> events = events_v->ToObject();
 
@@ -91,9 +95,8 @@ Handle<Value> EventEmitter::Emit(const Arguments& args) {
   return scope.Close(r ? True() : False());
 }
 
-bool EventEmitter::Emit(const char *event_s, int argc, Handle<Value> argv[]) {
+bool EventEmitter::Emit(Handle<String> event, int argc, Handle<Value> argv[]) {
   HandleScope scope;
-  Local<String> event = String::NewSymbol(event_s);
   return ReallyEmit(handle_, event, argc, argv);
 }
 

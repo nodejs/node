@@ -19,6 +19,8 @@ using namespace v8;
 static ev_io io_watcher;
 static ev_timer timer_watcher;
 
+static Persistent<String> errno_symbol;
+
 static inline Persistent<Function>* cb_persist(const Local<Value> &v) {
   Persistent<Function> *fn = new Persistent<Function>();
   *fn = Persistent<Function>::New(Local<Function>::Cast(v));
@@ -77,7 +79,7 @@ static void ResolveError(Handle<Function> *cb) {
 
   Local<Value> e = Exception::Error(String::NewSymbol(dns_strerror(status)));
   Local<Object> obj = e->ToObject();
-  obj->Set(String::NewSymbol("errno"), Integer::New(status));
+  obj->Set(errno_symbol, Integer::New(status));
 
   (*cb)->Call(Context::GetCurrent()->Global(), 1, &e);
 }
@@ -307,6 +309,8 @@ void DNS::Initialize(Handle<Object> target) {
   ev_init(&timer_watcher, timeout);
 
   HandleScope scope;
+
+  errno_symbol = NODE_PSYMBOL("errno");
 
   target->Set(String::NewSymbol("TEMPFAIL"), Integer::New(DNS_E_TEMPFAIL));
   target->Set(String::NewSymbol("PROTOCOL"), Integer::New(DNS_E_PROTOCOL));

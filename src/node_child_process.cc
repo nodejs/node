@@ -13,9 +13,12 @@ namespace node {
 
 using namespace v8;
 
-#define PID_SYMBOL String::NewSymbol("pid")
-
 Persistent<FunctionTemplate> ChildProcess::constructor_template;
+
+static Persistent<String> pid_symbol;
+static Persistent<String> exit_symbol;
+static Persistent<String> output_symbol;
+static Persistent<String> error_symbol;
 
 void ChildProcess::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -25,6 +28,11 @@ void ChildProcess::Initialize(Handle<Object> target) {
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("ChildProcess"));
+
+  pid_symbol = NODE_PSYMBOL("pid");
+  exit_symbol = NODE_PSYMBOL("exit");
+  output_symbol = NODE_PSYMBOL("output");
+  error_symbol = NODE_PSYMBOL("error");
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "spawn", ChildProcess::Spawn);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", ChildProcess::Write);
@@ -100,7 +108,7 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
     return ThrowException(Exception::Error(String::New("Error spawning")));
   }
 
-  child->handle_->Set(PID_SYMBOL, Integer::New(child->pid_));
+  child->handle_->Set(pid_symbol, Integer::New(child->pid_));
 
   return Undefined();
 }
@@ -193,7 +201,7 @@ void ChildProcess::on_read(evcom_reader *r, const void *buf, size_t len) {
     child->stdout_encoding_ : child->stderr_encoding_;
 
   Local<Value> data = Encode(buf, len, encoding);
-  child->Emit(isSTDOUT ? "output" : "error", 1, &data);
+  child->Emit(isSTDOUT ? output_symbol : error_symbol, 1, &data);
   child->MaybeShutdown();
 }
 
@@ -380,7 +388,7 @@ void ChildProcess::MaybeShutdown(void) {
   if (stdout_fd_ < 0 && stderr_fd_ < 0 && got_chld_) {
     HandleScope scope;
     Handle<Value> argv[1] = { Integer::New(exit_code_) };
-    Emit("exit", 1, argv);
+    Emit(exit_symbol, 1, argv);
     Shutdown();
     Unref();
   }

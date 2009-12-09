@@ -7,6 +7,7 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> SignalHandler::constructor_template;
+static Persistent<String> signal_symbol;
 
 void SignalHandler::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -19,6 +20,8 @@ void SignalHandler::Initialize(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", SignalHandler::Stop);
 
+  signal_symbol = NODE_PSYMBOL("signal");
+
   target->Set(String::NewSymbol("SignalHandler"),
       constructor_template->GetFunction());
 }
@@ -29,7 +32,7 @@ void SignalHandler::OnSignal(EV_P_ ev_signal *watcher, int revents) {
 
   assert(revents == EV_SIGNAL);
 
-  handler->Emit("signal", 0, NULL);
+  handler->Emit(signal_symbol, 0, NULL);
 }
 
 SignalHandler::~SignalHandler() {

@@ -5,9 +5,10 @@
 using namespace v8;
 using namespace node;
 
-#define REPEAT_SYMBOL   String::NewSymbol("repeat")
-
 Persistent<FunctionTemplate> Timer::constructor_template;
+
+static Persistent<String> timeout_symbol;
+static Persistent<String> repeat_symbol;
 
 void
 Timer::Initialize (Handle<Object> target)
@@ -20,10 +21,13 @@ Timer::Initialize (Handle<Object> target)
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Timer"));
 
+  timeout_symbol = NODE_PSYMBOL("timeout");
+  repeat_symbol = NODE_PSYMBOL("repeat");
+
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Timer::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Timer::Stop);
 
-  constructor_template->PrototypeTemplate()->SetAccessor(REPEAT_SYMBOL,
+  constructor_template->PrototypeTemplate()->SetAccessor(repeat_symbol,
       RepeatGetter, RepeatSetter);
 
   target->Set(String::NewSymbol("Timer"), constructor_template->GetFunction());
@@ -36,7 +40,7 @@ Timer::RepeatGetter (Local<String> property, const AccessorInfo& info)
   Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
   assert(timer);
-  assert (property == REPEAT_SYMBOL);
+  assert (property == repeat_symbol);
 
   Local<Integer> v = Integer::New(timer->watcher_.repeat);
 
@@ -50,7 +54,7 @@ Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorI
   Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
   assert(timer);
-  assert(property == REPEAT_SYMBOL);
+  assert(property == repeat_symbol);
 
   timer->watcher_.repeat = NODE_V8_UNIXTIME(value);
 }
@@ -62,7 +66,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   assert(revents == EV_TIMEOUT);
 
-  timer->Emit("timeout", 0, NULL);
+  timer->Emit(timeout_symbol, 0, NULL);
 
   if (timer->watcher_.repeat == 0) timer->Unref();
 }

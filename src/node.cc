@@ -34,6 +34,29 @@ namespace node {
 
 static Persistent<Object> process;
 
+static Persistent<String> dev_symbol;
+static Persistent<String> ino_symbol;
+static Persistent<String> mode_symbol;
+static Persistent<String> nlink_symbol;
+static Persistent<String> uid_symbol;
+static Persistent<String> gid_symbol;
+static Persistent<String> rdev_symbol;
+static Persistent<String> size_symbol;
+static Persistent<String> blksize_symbol;
+static Persistent<String> blocks_symbol;
+static Persistent<String> atime_symbol;
+static Persistent<String> mtime_symbol;
+static Persistent<String> ctime_symbol;
+
+static Persistent<String> rss_symbol;
+static Persistent<String> vsize_symbol;
+static Persistent<String> heap_total_symbol;
+static Persistent<String> heap_used_symbol;
+
+static Persistent<String> listeners_symbol;
+static Persistent<String> uncaught_exception_symbol;
+static Persistent<String> emit_symbol;
+
 static int dash_dash_index = 0;
 static bool use_debug_agent = false;
 
@@ -160,66 +183,68 @@ ssize_t DecodeWrite(char *buf, size_t buflen,
   return buflen;
 }
 
-#define DEV_SYMBOL         String::NewSymbol("dev")
-#define INO_SYMBOL         String::NewSymbol("ino")
-#define MODE_SYMBOL        String::NewSymbol("mode")
-#define NLINK_SYMBOL       String::NewSymbol("nlink")
-#define UID_SYMBOL         String::NewSymbol("uid")
-#define GID_SYMBOL         String::NewSymbol("gid")
-#define RDEV_SYMBOL        String::NewSymbol("rdev")
-#define SIZE_SYMBOL        String::NewSymbol("size")
-#define BLKSIZE_SYMBOL     String::NewSymbol("blksize")
-#define BLOCKS_SYMBOL      String::NewSymbol("blocks")
-#define ATIME_SYMBOL       String::NewSymbol("atime")
-#define MTIME_SYMBOL       String::NewSymbol("mtime")
-#define CTIME_SYMBOL       String::NewSymbol("ctime")
-
 static Persistent<FunctionTemplate> stats_constructor_template;
 
 Local<Object> BuildStatsObject(struct stat * s) {
   HandleScope scope;
 
+  if (dev_symbol.IsEmpty()) {
+    dev_symbol = NODE_PSYMBOL("dev");
+    ino_symbol = NODE_PSYMBOL("ino");
+    mode_symbol = NODE_PSYMBOL("mode");
+    nlink_symbol = NODE_PSYMBOL("nlink");
+    uid_symbol = NODE_PSYMBOL("uid");
+    gid_symbol = NODE_PSYMBOL("gid");
+    rdev_symbol = NODE_PSYMBOL("rdev");
+    size_symbol = NODE_PSYMBOL("size");
+    blksize_symbol = NODE_PSYMBOL("blksize");
+    blocks_symbol = NODE_PSYMBOL("blocks");
+    atime_symbol = NODE_PSYMBOL("atime");
+    mtime_symbol = NODE_PSYMBOL("mtime");
+    ctime_symbol = NODE_PSYMBOL("ctime");
+  }
+
   Local<Object> stats =
     stats_constructor_template->GetFunction()->NewInstance();
 
   /* ID of device containing file */
-  stats->Set(DEV_SYMBOL, Integer::New(s->st_dev));
+  stats->Set(dev_symbol, Integer::New(s->st_dev));
 
   /* inode number */
-  stats->Set(INO_SYMBOL, Integer::New(s->st_ino));
+  stats->Set(ino_symbol, Integer::New(s->st_ino));
 
   /* protection */
-  stats->Set(MODE_SYMBOL, Integer::New(s->st_mode));
+  stats->Set(mode_symbol, Integer::New(s->st_mode));
 
   /* number of hard links */
-  stats->Set(NLINK_SYMBOL, Integer::New(s->st_nlink));
+  stats->Set(nlink_symbol, Integer::New(s->st_nlink));
 
   /* user ID of owner */
-  stats->Set(UID_SYMBOL, Integer::New(s->st_uid));
+  stats->Set(uid_symbol, Integer::New(s->st_uid));
 
   /* group ID of owner */
-  stats->Set(GID_SYMBOL, Integer::New(s->st_gid));
+  stats->Set(gid_symbol, Integer::New(s->st_gid));
 
   /* device ID (if special file) */
-  stats->Set(RDEV_SYMBOL, Integer::New(s->st_rdev));
+  stats->Set(rdev_symbol, Integer::New(s->st_rdev));
 
   /* total size, in bytes */
-  stats->Set(SIZE_SYMBOL, Integer::New(s->st_size));
+  stats->Set(size_symbol, Integer::New(s->st_size));
 
   /* blocksize for filesystem I/O */
-  stats->Set(BLKSIZE_SYMBOL, Integer::New(s->st_blksize));
+  stats->Set(blksize_symbol, Integer::New(s->st_blksize));
 
   /* number of blocks allocated */
-  stats->Set(BLOCKS_SYMBOL, Integer::New(s->st_blocks));
+  stats->Set(blocks_symbol, Integer::New(s->st_blocks));
 
   /* time of last access */
-  stats->Set(ATIME_SYMBOL, NODE_UNIXTIME_V8(s->st_atime));
+  stats->Set(atime_symbol, NODE_UNIXTIME_V8(s->st_atime));
 
   /* time of last modification */
-  stats->Set(MTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_mtime));
+  stats->Set(mtime_symbol, NODE_UNIXTIME_V8(s->st_mtime));
 
   /* time of last status change */
-  stats->Set(CTIME_SYMBOL, NODE_UNIXTIME_V8(s->st_ctime));
+  stats->Set(ctime_symbol, NODE_UNIXTIME_V8(s->st_ctime));
 
   return scope.Close(stats);
 }
@@ -510,15 +535,22 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
   Local<Object> info = Object::New();
 
-  info->Set(String::NewSymbol("rss"), Integer::NewFromUnsigned(rss));
-  info->Set(String::NewSymbol("vsize"), Integer::NewFromUnsigned(vsize));
+  if (rss_symbol.IsEmpty()) {
+    rss_symbol = NODE_PSYMBOL("rss");
+    vsize_symbol = NODE_PSYMBOL("vsize");
+    heap_total_symbol = NODE_PSYMBOL("heapTotal");
+    heap_used_symbol = NODE_PSYMBOL("heapUsed");
+  }
+
+  info->Set(rss_symbol, Integer::NewFromUnsigned(rss));
+  info->Set(vsize_symbol, Integer::NewFromUnsigned(vsize));
 
   // V8 memory usage
   HeapStatistics v8_heap_stats;
   V8::GetHeapStatistics(&v8_heap_stats);
-  info->Set(String::NewSymbol("heapTotal"),
+  info->Set(heap_total_symbol,
             Integer::NewFromUnsigned(v8_heap_stats.total_heap_size()));
-  info->Set(String::NewSymbol("heapUsed"),
+  info->Set(heap_used_symbol,
             Integer::NewFromUnsigned(v8_heap_stats.used_heap_size()));
 
   return scope.Close(info);
@@ -641,14 +673,19 @@ void FatalException(TryCatch &try_catch) {
     exit(1);
   }
 
-  Local<Value> listeners_v = process->Get(String::NewSymbol("listeners"));
+  if (listeners_symbol.IsEmpty()) {
+    listeners_symbol = NODE_PSYMBOL("listeners");
+    uncaught_exception_symbol = NODE_PSYMBOL("uncaughtException");
+    emit_symbol = NODE_PSYMBOL("emit");
+  }
+
+  Local<Value> listeners_v = process->Get(listeners_symbol);
   assert(listeners_v->IsFunction());
 
   Local<Function> listeners = Local<Function>::Cast(listeners_v);
 
-  Local<String> uncaught_exception = String::NewSymbol("uncaughtException");
-
-  Local<Value> argv[1] = { uncaught_exception };
+  Local<String> uncaught_exception_symbol_l = Local<String>::New(uncaught_exception_symbol);
+  Local<Value> argv[1] = { uncaught_exception_symbol_l  };
   Local<Value> ret = listeners->Call(process, 1, argv);
 
   assert(ret->IsArray());
@@ -663,13 +700,13 @@ void FatalException(TryCatch &try_catch) {
   }
 
   // Otherwise fire the process "uncaughtException" event
-  Local<Value> emit_v = process->Get(String::NewSymbol("emit"));
+  Local<Value> emit_v = process->Get(emit_symbol);
   assert(emit_v->IsFunction());
 
   Local<Function> emit = Local<Function>::Cast(emit_v);
 
   Local<Value> error = try_catch.Exception();
-  Local<Value> event_argv[2] = { uncaught_exception, error };
+  Local<Value> event_argv[2] = { uncaught_exception_symbol_l, error };
 
   uncaught_exception_counter++;
   emit->Call(process, 2, event_argv);

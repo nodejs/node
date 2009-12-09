@@ -13,6 +13,8 @@
 
 namespace node {
 
+#define NODE_PSYMBOL(s) Persistent<String>::New(String::NewSymbol(s))
+
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
 #define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->IntegerValue())/1000.0);
