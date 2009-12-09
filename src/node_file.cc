@@ -172,10 +172,10 @@ static Handle<Value> Stat(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(stat, args[1], *path)
   } else {
-    struct stat *s;
-    int ret = stat(*path, s);
+    struct stat s;
+    int ret = stat(*path, &s);
     if (ret != 0) return ThrowException(errno_exception(errno));
-    return scope.Close(BuildStatsObject(s));
+    return scope.Close(BuildStatsObject(&s));
   }
 }
 
