@@ -68,10 +68,7 @@ def read_la_file(path):
 def apply_link_libtool(self):
 	if self.type != 'program':
 		linktask = self.link_task
-		latask = self.create_task('fakelibtool')
-		latask.set_inputs(linktask.outputs)
-		latask.set_outputs(linktask.outputs[0].change_ext('.la'))
-		self.latask = latask
+		self.latask = self.create_task('fakelibtool', linktask.outputs, linktask.outputs[0].change_ext('.la'))
 
 	if self.bld.is_install:
 		self.bld.install_files('${PREFIX}/lib', linktask.outputs[0], self.env)

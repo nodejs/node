@@ -29,10 +29,8 @@ def process_marshal(self):
 		h_node = node.change_ext('.h')
 		c_node = node.change_ext('.c')
 
-		task = self.create_task('glib_genmarshal')
-		task.set_inputs(node)
-		task.set_outputs([h_node, c_node])
-		task.env['GLIB_GENMARSHAL_PREFIX'] = prefix
+		task = self.create_task('glib_genmarshal', node, [h_node, c_node])
+		task.env.GLIB_GENMARSHAL_PREFIX = prefix
 	self.allnodes.append(c_node)
 
 def genmarshal_func(self):
@@ -52,7 +50,8 @@ def genmarshal_func(self):
 
 	#print self.outputs[1].abspath(self.env)
 	f = open(self.outputs[1].abspath(self.env), 'wb')
-	f.write('''#include "%s"\n''' % self.outputs[0].name)
+	c = '''#include "%s"\n''' % self.outputs[0].name
+	f.write(c)
 	f.close()
 
 	cmd2 = "%s %s --prefix=%s --body >> %s" % (
@@ -107,9 +106,9 @@ def add_enums(self, source='', target='',
 @before('apply_core')
 def process_enums(self):
 	for enum in getattr(self, 'enums_list', []):
-		# temporary
-		env = self.env.copy()
-		task = self.create_task('glib_mkenums', env)
+		task = self.create_task('glib_mkenums')
+		env = task.env
+
 		inputs = []
 
 		# process the source
@@ -154,10 +153,10 @@ def process_enums(self):
 		task.set_outputs(tgt_node)
 
 Task.task_type_from_func('glib_genmarshal', func=genmarshal_func, vars=['GLIB_GENMARSHAL_PREFIX', 'GLIB_GENMARSHAL'],
-	color='BLUE', before='cc')
+	color='BLUE', before='cc cxx')
 Task.simple_task_type('glib_mkenums',
 	'${GLIB_MKENUMS} ${GLIB_MKENUMS_OPTIONS} ${GLIB_MKENUMS_SOURCE} > ${GLIB_MKENUMS_TARGET}',
-	color='PINK', before='cc')
+	color='PINK', before='cc cxx')
 
 def detect(conf):
 	glib_genmarshal = conf.find_program('glib-genmarshal', var='GLIB_GENMARSHAL')

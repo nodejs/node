@@ -176,13 +176,9 @@ def apply_tex(self):
 		if not node: raise Utils.WafError('cannot find %s' % filename)
 
 		if self.type == 'latex':
-			task = self.create_task('latex')
-			task.set_inputs(node)
-			task.set_outputs(node.change_ext('.dvi'))
+			task = self.create_task('latex', node, node.change_ext('.dvi'))
 		elif self.type == 'pdflatex':
-			task = self.create_task('pdflatex')
-			task.set_inputs(node)
-			task.set_outputs(node.change_ext('.pdf'))
+			task = self.create_task('pdflatex', node, node.change_ext('.pdf'))
 
 		task.env = self.env
 		task.curdirnode = self.path
@@ -200,18 +196,12 @@ def apply_tex(self):
 
 		if self.type == 'latex':
 			if 'ps' in outs:
-				pstask = self.create_task('dvips')
-				pstask.set_inputs(task.outputs)
-				pstask.set_outputs(node.change_ext('.ps'))
+				self.create_task('dvips', task.outputs, node.change_ext('.ps'))
 			if 'pdf' in outs:
-				pdftask = self.create_task('dvipdf')
-				pdftask.set_inputs(task.outputs)
-				pdftask.set_outputs(node.change_ext('.pdf'))
+				self.create_task('dvipdf', task.outputs, node.change_ext('.pdf'))
 		elif self.type == 'pdflatex':
 			if 'ps' in outs:
-				pstask = self.create_task('pdf2ps')
-				pstask.set_inputs(task.outputs)
-				pstask.set_outputs(node.change_ext('.ps'))
+				self.create_task('pdf2ps', task.outputs, node.change_ext('.ps'))
 	self.source = []
 
 def detect(conf):

@@ -22,6 +22,8 @@ def gxx_common_flags(conf):
 	v = conf.env
 
 	# CPPFLAGS CXXDEFINES _CXXINCFLAGS _CXXDEFFLAGS
+	v['CXXFLAGS_DEBUG'] = ['-g']
+	v['CXXFLAGS_RELEASE'] = ['-O2']
 
 	v['CXX_SRC_F']           = ''
 	v['CXX_TGT_F']           = ['-c', '-o', ''] # shell hack for -MD
@@ -69,7 +71,13 @@ def gxx_modifier_win32(conf):
 	v['shlib_PATTERN']       = '%s.dll'
 	v['implib_PATTERN']      = 'lib%s.dll.a'
 	v['IMPLIB_ST']           = '-Wl,--out-implib,%s'
-	v['shlib_CXXFLAGS']      = ['-DPIC', '-DDLL_EXPORT'] # TODO 64-bit platforms may need -fPIC
+
+	dest_arch = v['DEST_CPU']
+	if dest_arch == 'x86':
+		# On 32-bit x86, gcc emits a message telling the -fPIC option is ignored on this arch, so we remove that flag.
+		v['shlib_CXXFLAGS'] = ['-DPIC'] # TODO this is a wrong define, we don't use -fPIC!
+
+	v.append_value('shlib_CXXFLAGS', '-DDLL_EXPORT') # TODO adding nonstandard defines like this DLL_EXPORT is not a good idea
 
 	# Auto-import is enabled by default even without this option,
 	# but enabling it explicitly has the nice effect of suppressing the rather boring, debug-level messages
@@ -94,6 +102,7 @@ def gxx_modifier_darwin(conf):
 
 	v['SHLIB_MARKER']        = ''
 	v['STATICLIB_MARKER']    = ''
+	v['SONAME_ST']		 = ''	
 
 @conftest
 def gxx_modifier_aix(conf):

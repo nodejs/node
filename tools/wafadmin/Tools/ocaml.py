@@ -168,57 +168,42 @@ def apply_link_ml(self):
 
 @extension(EXT_MLL)
 def mll_hook(self, node):
-	mll_task = self.create_task('ocamllex', self.native_env)
-	mll_task.set_inputs(node)
-	mll_task.set_outputs(node.change_ext('.ml'))
+	mll_task = self.create_task('ocamllex', node, node.change_ext('.ml'), env=self.native_env)
 	self.mlltasks.append(mll_task)
 
 	self.allnodes.append(mll_task.outputs[0])
 
 @extension(EXT_MLY)
 def mly_hook(self, node):
-	mly_task = self.create_task('ocamlyacc', self.native_env)
-	mly_task.set_inputs(node)
-	mly_task.set_outputs([node.change_ext('.ml'), node.change_ext('.mli')])
+	mly_task = self.create_task('ocamlyacc', node, [node.change_ext('.ml'), node.change_ext('.mli')], env=self.native_env)
 	self.mlytasks.append(mly_task)
 	self.allnodes.append(mly_task.outputs[0])
 
-	task = self.create_task('ocamlcmi', self.native_env)
-	task.set_inputs(mly_task.outputs[1])
-	task.set_outputs(mly_task.outputs[1].change_ext('.cmi'))
+	task = self.create_task('ocamlcmi', mly_task.outputs[1], mly_task.outputs[1].change_ext('.cmi'), env=self.native_env)
 
 @extension(EXT_MLI)
 def mli_hook(self, node):
-	task = self.create_task('ocamlcmi', self.native_env)
-	task.set_inputs(node)
-	task.set_outputs(node.change_ext('.cmi'))
+	task = self.create_task('ocamlcmi', node, node.change_ext('.cmi'), env=self.native_env)
 	self.mlitasks.append(task)
 
 @extension(EXT_MLC)
 def mlc_hook(self, node):
-	task = self.create_task('ocamlcc', self.native_env)
-	task.set_inputs(node)
-	task.set_outputs(node.change_ext('.o'))
-
+	task = self.create_task('ocamlcc', node, node.change_ext('.o'), env=self.native_env)
 	self.compiled_tasks.append(task)
 
 @extension(EXT_ML)
 def ml_hook(self, node):
 	if self.native_env:
-		task = self.create_task('ocamlx', self.native_env)
-		task.set_inputs(node)
-		task.set_outputs(node.change_ext('.cmx'))
+		task = self.create_task('ocamlx', node, node.change_ext('.cmx'), env=self.native_env)
 		task.obj = self
 		task.incpaths = self.bld_incpaths_lst
 		self.native_tasks.append(task)
 
 	if self.bytecode_env:
-		task = self.create_task('ocaml', self.bytecode_env)
-		task.set_inputs(node)
+		task = self.create_task('ocaml', node, node.change_ext('.cmo'), env=self.bytecode_env)
 		task.obj = self
 		task.bytecode = 1
 		task.incpaths = self.bld_incpaths_lst
-		task.set_outputs(node.change_ext('.cmo'))
 		self.bytecode_tasks.append(task)
 
 def compile_may_start(self):

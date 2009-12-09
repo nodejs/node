@@ -57,8 +57,10 @@ def group_method(fun):
 			postpone = kw['postpone']
 			del kw['postpone']
 
+		# TODO waf 1.6 in theory there should be no reference to the TaskManager internals here
 		if postpone:
 			m = k[0].task_manager
+			if not m.groups: m.add_group()
 			m.groups[m.current_group].post_funs.append((fun, k, kw))
 			kw['cwd'] = k[0].path
 		else:
@@ -800,6 +802,9 @@ class BuildContext(Utils.Context):
 			lst = glob.glob(gl)
 		else:
 			lst = Utils.to_list(files)
+
+		if not getattr(lst, '__iter__', False):
+			lst = [lst]
 
 		destpath = self.get_install_path(path, env)
 

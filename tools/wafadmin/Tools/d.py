@@ -38,7 +38,7 @@ def filter_comments(filename):
 						else: break
 					#print "cnt is ", str(cnt)
 					if (cnt%2)==0: break
-		# i -= 1 # <- useless in practice
+			i += 1
 		# skip a char
 		elif c == "'":
 			i += 1
@@ -260,66 +260,67 @@ def init_d(self):
 		link_task=None)
 
 @feature('d')
-@after('apply_d_link')
+@after('apply_d_link', 'init_d')
 @before('apply_vnum')
 def apply_d_libs(self):
-	uselib = self.to_list(self.uselib)
-	seen = []
-	local_libs = self.to_list(self.uselib_local)
-	libs = []
-	libpaths = []
+	"""after apply_link because of 'link_task'
+	after default_cc because of the attribute 'uselib'"""
 	env = self.env
-	while local_libs:
-		x = local_libs.pop()
 
+	# 1. the case of the libs defined in the project (visit ancestors first)
+	# the ancestors external libraries (uselib) will be prepended
+	self.uselib = self.to_list(self.uselib)
+	names = self.to_list(self.uselib_local)
+
+	seen = set([])
+	tmp = Utils.deque(names) # consume a copy of the list of names
+	while tmp:
+		lib_name = tmp.popleft()
 		# visit dependencies only once
-		if x in seen:
+		if lib_name in seen:
 			continue
-		else:
-			seen.append(x)
 
-		y = self.name_to_obj(x)
+		y = self.name_to_obj(lib_name)
 		if not y:
-			raise Utils.WafError('object not found in uselib_local: obj %s uselib %s' % (self.name, x))
-
-		# object has ancestors to process first ? update the list of names
-		if y.uselib_local:
-			added = 0
-			lst = y.to_list(y.uselib_local)
-			lst.reverse()
-			for u in lst:
-				if u in seen: continue
-				added = 1
-				local_libs = [u]+local_libs
-			if added: continue # list of names modified, loop
-
-		# safe to process the current object
+			raise Utils.WafError('object %r was not found in uselib_local (required by %r)' % (lib_name, self.name))
 		y.post()
-		seen.append(x)
+		seen.add(lib_name)
 
-		libname = y.target[y.target.rfind(os.sep) + 1:]
-		if 'dshlib' in y.features or 'dstaticlib' in y.features:
-			#libs.append(y.target)
-			env.append_unique('DLINKFLAGS', env['DLIBPATH_ST'] % y.link_task.outputs[0].parent.bldpath(env))
-			env.append_unique('DLINKFLAGS', env['DLIB_ST'] % libname)
+		# object has ancestors to process (shared libraries): add them to the end of the list
+		if getattr(y, 'uselib_local', None):
+			lst = y.to_list(y.uselib_local)
+			if 'dshlib' in y.features or 'cprogram' in y.features:
+				lst = [x for x in lst if not 'cstaticlib' in self.name_to_obj(x).features]
+			tmp.extend(lst)
 
-		# add the link path too
-		tmp_path = y.path.bldpath(env)
-		if not tmp_path in libpaths: libpaths = [tmp_path] + libpaths
+		# link task and flags
+		if getattr(y, 'link_task', None):
 
-		# set the dependency over the link task
-		if y.link_task is not None:
+			link_name = y.target[y.target.rfind(os.sep) + 1:]
+			if 'dstaticlib' in y.features or 'dshlib' in y.features:
+				env.append_unique('DLINKFLAGS', env.DLIB_ST % link_name)
+				env.append_unique('DLINKFLAGS', env.DLIBPATH_ST % y.link_task.outputs[0].parent.bldpath(env))
+
+			# the order
 			self.link_task.set_run_after(y.link_task)
+
+			# for the recompilation
 			dep_nodes = getattr(self.link_task, 'dep_nodes', [])
 			self.link_task.dep_nodes = dep_nodes + y.link_task.outputs
 
-		# add ancestors uselib too
-		# TODO potential problems with static libraries ?
-		morelibs = y.to_list(y.uselib)
-		for v in morelibs:
-			if v in uselib: continue
-			uselib = [v]+uselib
-	self.uselib = uselib
+		# add ancestors uselib too - but only propagate those that have no staticlib
+		for v in self.to_list(y.uselib):
+			if not v in self.uselib:
+				self.uselib.insert(0, v)
+
+		# if the library task generator provides 'export_incdirs', add to the include path
+		# the export_incdirs must be a list of paths relative to the other library
+		if getattr(y, 'export_incdirs', None):
+			for x in self.to_list(y.export_incdirs):
+				node = y.path.find_dir(x)
+				if not node:
+					raise Utils.WafError('object %r: invalid folder %r in export_incdirs' % (y.target, x))
+				self.env.append_unique('INC_PATHS', node)
 
 @feature('dprogram', 'dshlib', 'dstaticlib')
 @after('apply_core')
@@ -328,12 +329,9 @@ def apply_d_link(self):
 	if not link:
 		if 'dstaticlib' in self.features: link = 'static_link'
 		else: link = 'd_link'
-	linktask = self.create_task(link)
-	outputs = [t.outputs[0] for t in self.compiled_tasks]
-	linktask.set_inputs(outputs)
-	linktask.set_outputs(self.path.find_or_declare(get_target_name(self)))
 
-	self.link_task = linktask
+	outputs = [t.outputs[0] for t in self.compiled_tasks]
+	self.link_task = self.create_task(link, outputs, self.path.find_or_declare(get_target_name(self)))
 
 @feature('d')
 @after('apply_core')
@@ -343,7 +341,6 @@ def apply_d_vars(self):
 	lib_st     = env['DLIB_ST']
 	libpath_st = env['DLIBPATH_ST']
 
-	#dflags = []
 	importpaths = self.to_list(self.importpaths)
 	libpaths = []
 	libs = []
@@ -383,10 +380,11 @@ def apply_d_vars(self):
 		if env['LIBPATH_' + i]:
 			for entry in self.to_list(env['LIBPATH_' + i]):
 				if not entry in libpaths:
-					libpaths += [entry]
+					libpaths.append(entry)
 	libpaths = self.to_list(self.libpaths) + libpaths
 
 	# now process the library paths
+	# apply same path manipulation as used with import paths
 	for path in libpaths:
 		env.append_unique('DLINKFLAGS', libpath_st % path)
 
@@ -395,8 +393,12 @@ def apply_d_vars(self):
 		if env['LIB_' + i]:
 			for entry in self.to_list(env['LIB_' + i]):
 				if not entry in libs:
-					libs += [entry]
-	libs = libs + self.to_list(self.libs)
+					libs.append(entry)
+	libs.extend(self.to_list(self.libs))
+
+	# process user flags
+	for flag in self.to_list(self.dflags):
+		env.append_unique('DFLAGS', flag)
 
 	# now process the libraries
 	for lib in libs:
@@ -486,8 +488,9 @@ Task.simple_task_type('d_header', d_header_str, color='BLUE', shell=False)
 
 @conftest
 def d_platform_flags(conf):
-	binfmt = conf.env.DEST_BINFMT or Utils.unversioned_sys_platform_to_binary_format(
-		conf.env.DEST_OS or Utils.unversioned_sys_platform())
+	v = conf.env
+	binfmt = v.DEST_BINFMT or Utils.unversioned_sys_platform_to_binary_format(
+		v.DEST_OS or Utils.unversioned_sys_platform())
 	if binfmt == 'pe':
 		v['D_program_PATTERN']   = '%s.exe'
 		v['D_shlib_PATTERN']     = 'lib%s.dll'
@@ -496,7 +499,6 @@ def d_platform_flags(conf):
 		v['D_program_PATTERN']   = '%s'
 		v['D_shlib_PATTERN']     = 'lib%s.so'
 		v['D_staticlib_PATTERN'] = 'lib%s.a'
-
 
 # quick test #
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from Logs import error, debug, warn
 from Utils import md5
 from TaskGen import taskgen, after, before, feature
 from Constants import *
+from Configure import conftest
 try:
 	from cStringIO import StringIO
 except ImportError:
@@ -136,14 +137,14 @@ def scan(self):
 
 	all_nodes = []
 	all_names = []
-	seen = []
+	seen = set()
 	for node in self.inputs:
 		(nodes, names) = preproc.get_deps(node, self.env, nodepaths = self.env['INC_PATHS'])
 		if Logs.verbose:
 			debug('deps: deps for %s: %r; unresolved %r' % (str(node), nodes, names))
 		for x in nodes:
 			if id(x) in seen: continue
-			seen.append(id(x))
+			seen.add(id(x))
 			all_nodes.append(x)
 		for x in names:
 			if not x in all_names:
@@ -239,7 +240,7 @@ def default_link_install(self):
 	"""you may kill this method to inject your own installation for the first element
 	any other install should only process its own nodes and not those from the others"""
 	if self.install_path:
-		self.bld.install_files(self.install_path, [self.link_task.outputs[0]], env=self.env, chmod=self.chmod)
+		self.bld.install_files(self.install_path, self.link_task.outputs[0], env=self.env, chmod=self.chmod)
 
 @feature('cc', 'cxx')
 @after('apply_type_vars', 'apply_lib_vars', 'apply_core')
@@ -336,13 +337,13 @@ def apply_lib_vars(self):
 
 	# 1. the case of the libs defined in the project (visit ancestors first)
 	# the ancestors external libraries (uselib) will be prepended
-	uselib = self.to_list(self.uselib)
+	self.uselib = self.to_list(self.uselib)
 	names = self.to_list(self.uselib_local)
 
-	seen = []
-	tmp = names[:] # consume a copy of the list of names
+	seen = set([])
+	tmp = Utils.deque(names) # consume a copy of the list of names
 	while tmp:
-		lib_name = tmp.pop(0)
+		lib_name = tmp.popleft()
 		# visit dependencies only once
 		if lib_name in seen:
 			continue
@@ -351,7 +352,7 @@ def apply_lib_vars(self):
 		if not y:
 			raise Utils.WafError('object %r was not found in uselib_local (required by %r)' % (lib_name, self.name))
 		y.post()
-		seen.append(lib_name)
+		seen.add(lib_name)
 
 		# object has ancestors to process (shared libraries): add them to the end of the list
 		if getattr(y, 'uselib_local', None):
@@ -381,12 +382,11 @@ def apply_lib_vars(self):
 			tmp_path = y.link_task.outputs[0].parent.bldpath(self.env)
 			if not tmp_path in env['LIBPATH']: env.prepend_value('LIBPATH', tmp_path)
 
-		# add ancestors uselib too
-		# WARNING providing STATICLIB_FOO in env will result in broken builds
-		# TODO waf 1.6 prevent this behaviour somehow
+		# add ancestors uselib too - but only propagate those that have no staticlib
 		for v in self.to_list(y.uselib):
-			if v in uselib: continue
-			uselib = [v] + uselib
+			if not env['STATICLIB_' + v]:
+				if not v in self.uselib:
+					self.uselib.insert(0, v)
 
 		# if the library task generator provides 'export_incdirs', add to the include path
 		# the export_incdirs must be a list of paths relative to the other library
@@ -398,13 +398,13 @@ def apply_lib_vars(self):
 				self.env.append_unique('INC_PATHS', node)
 
 	# 2. the case of the libs defined outside
-	for x in uselib:
+	for x in self.uselib:
 		for v in self.p_flag_vars:
 			val = self.env[v + '_' + x]
 			if val: self.env.append_value(v, val)
 
 @feature('cprogram', 'cstaticlib', 'cshlib')
-@after('apply_link')
+@after('init_cc', 'init_cxx', 'apply_link')
 def apply_objdeps(self):
 	"add the .o files produced by some other object files in the same manner as uselib_local"
 	if not getattr(self, 'add_objects', None): return
@@ -542,7 +542,7 @@ def apply_implib(self):
 
 	# install the dll in the bin dir
 	dll = self.link_task.outputs[0]
-	self.bld.install_files(bindir, [dll], self.env, self.chmod)
+	self.bld.install_files(bindir, dll, self.env, self.chmod)
 
 	# add linker flags to generate the import lib
 	implib = self.env['implib_PATTERN'] % os.path.split(self.target)[1]
@@ -562,7 +562,7 @@ def apply_vnum(self):
 	"""
 	libfoo.so is installed as libfoo.so.1.2.3
 	"""
-	if not getattr(self, 'vnum', '') or not 'cshlib' in self.features or os.name != 'posix' or self.env.DEST_BINFMT != 'elf':
+	if not getattr(self, 'vnum', '') or not 'cshlib' in self.features or os.name != 'posix' or self.env.DEST_BINFMT not in ('elf', 'mac-o'):
 		return
 
 	self.meths.remove('default_link_install')
@@ -573,13 +573,15 @@ def apply_vnum(self):
 
 	libname = node.name
 	if libname.endswith('.dylib'):
-		name3 = libname.replace('.dylib', '.%s.dylib' % task.vnum)
+		name3 = libname.replace('.dylib', '.%s.dylib' % self.vnum)
 		name2 = libname.replace('.dylib', '.%s.dylib' % nums[0])
 	else:
 		name3 = libname + '.' + self.vnum
 		name2 = libname + '.' + nums[0]
 
-	self.env.append_value('LINKFLAGS', (self.env['SONAME_ST'] % name2).split())
+	if self.env.SONAME_ST:
+		v = self.env.SONAME_ST % name2
+		self.env.append_value('LINKFLAGS', v.split())
 
 	bld = self.bld
 	nums = self.vnum.split('.')
@@ -597,17 +599,24 @@ def apply_vnum(self):
 	tsk.set_outputs(node.parent.find_or_declare(name2))
 
 def exec_vnum_link(self):
-	path = self.inputs[0].parent.abspath(self.env)
+	path = self.outputs[0].abspath(self.env)
 	try:
-		os.remove(self.outputs[0].abspath())
-	except OSError, e:
+		os.remove(path)
+	except OSError:
 		pass
 
 	try:
-		os.symlink(self.inputs[0].name, self.outputs[0].abspath(self.env))
-	except Exception, e:
+		os.symlink(self.inputs[0].name, path)
+	except OSError:
 		return 1
 
 cls = Task.task_type_from_func('vnum', func=exec_vnum_link, ext_in='.bin', color='CYAN')
 cls.quiet = 1
+
+# ============ the --as-needed flag should added during the configuration, not at runtime =========
+
+@conftest
+def add_as_needed(conf):
+	if conf.env.DEST_BINFMT == 'elf' and 'gcc' in (conf.env.CXX_NAME, conf.env.CC_NAME):
+		conf.env.append_unique('LINKFLAGS', '--as-needed')
 

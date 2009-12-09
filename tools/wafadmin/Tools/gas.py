@@ -16,12 +16,10 @@ Task.simple_task_type('asm', as_str, 'PINK', ext_out='.o', shell=False)
 @extension(EXT_ASM)
 def asm_hook(self, node):
 	# create the compilation task: cpp or cc
-	task = self.create_task('asm')
 	try: obj_ext = self.obj_ext
 	except AttributeError: obj_ext = '_%d.o' % self.idx
 
-	task.inputs = [node]
-	task.outputs = [node.change_ext(obj_ext)]
+	task = self.create_task('asm', node, node.change_ext(obj_ext))
 	self.compiled_tasks.append(task)
 	self.meths.append('asm_incflags')
 

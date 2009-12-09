@@ -443,6 +443,7 @@ cc_load_tools
 cxx_load_tools
 cc_add_flags
 cxx_add_flags
+link_add_flags
 '''
 
 @conftest
@@ -536,7 +537,7 @@ def find_msvc(conf):
 def msvc_common_flags(conf):
 	v = conf.env
 
-	v['CPPFLAGS']     = ['/W3', '/nologo', '/EHsc']
+	v['CPPFLAGS']     = ['/W3', '/nologo']
 
 	v['CCDEFINES_ST']     = '/D%s'
 	v['CXXDEFINES_ST']    = '/D%s'
@@ -585,16 +586,15 @@ def msvc_common_flags(conf):
 	v['CCFLAGS']            = ['/TC']
 	v['CCFLAGS_OPTIMIZED']  = ['/O2', '/DNDEBUG']
 	v['CCFLAGS_RELEASE']    = ['/O2', '/DNDEBUG']
-	# TODO _DEBUG is defined by the compiler itself!
-	v['CCFLAGS_DEBUG']      = ['/Od', '/RTC1', '/D_DEBUG', '/ZI']
-	v['CCFLAGS_ULTRADEBUG'] = ['/Od', '/RTC1', '/D_DEBUG', '/ZI']
+	v['CCFLAGS_DEBUG']      = ['/Od', '/RTC1', '/ZI']
+	v['CCFLAGS_ULTRADEBUG'] = ['/Od', '/RTC1', '/ZI']
 
-	v['CXXFLAGS']            = ['/TP']
+	v['CXXFLAGS']            = ['/TP', '/EHsc']
 	v['CXXFLAGS_OPTIMIZED']  = ['/O2', '/DNDEBUG']
 	v['CXXFLAGS_RELEASE']    = ['/O2', '/DNDEBUG']
-	# TODO _DEBUG is defined by the compiler itself!
-	v['CXXFLAGS_DEBUG']      = ['/Od', '/RTC1', '/D_DEBUG', '/ZI']
-	v['CXXFLAGS_ULTRADEBUG'] = ['/Od', '/RTC1', '/D_DEBUG', '/ZI']
+
+	v['CXXFLAGS_DEBUG']      = ['/Od', '/RTC1', '/ZI']
+	v['CXXFLAGS_ULTRADEBUG'] = ['/Od', '/RTC1', '/ZI']
 
 	# linker
 	v['LIB']              = []
@@ -604,7 +604,9 @@ def msvc_common_flags(conf):
 	v['STATICLIB_ST']     = 'lib%s.lib' # Note: to be able to distinguish between a static lib and a dll import lib, it's a good pratice to name the static lib 'lib%s.lib' and the dll import lib '%s.lib'
 	v['STATICLIBPATH_ST'] = '/LIBPATH:%s'
 
-	v['LINKFLAGS']        = ['/NOLOGO', '/MANIFEST']
+	v['LINKFLAGS']            = ['/NOLOGO', '/MANIFEST']
+	v['LINKFLAGS_DEBUG']      = ['/DEBUG']
+	v['LINKFLAGS_ULTRADEBUG'] = ['/DEBUG']
 
 	# shared library
 	v['shlib_CCFLAGS']  = ['']
@@ -628,7 +630,7 @@ def msvc_common_flags(conf):
 @after('apply_link')
 @feature('cc', 'cxx')
 def apply_flags_msvc(self):
-	if self.env.CC_NAME != 'msvc':
+	if self.env.CC_NAME != 'msvc' or not self.link_task:
 		return
 
 	subsystem = getattr(self, 'subsystem', '')
@@ -637,8 +639,9 @@ def apply_flags_msvc(self):
 		flags = 'cstaticlib' in self.features and 'ARFLAGS' or 'LINKFLAGS'
 		self.env.append_value(flags, subsystem)
 
-	if 'cstaticlib' not in self.features:
-		for d in (f.lower() for f in self.env.LINKFLAGS):
+	if getattr(self, 'link_task', None) and not 'cstaticlib' in self.features:
+		for f in self.env.LINKFLAGS:
+			d = f.lower()
 			if d[1:] == 'debug':
 				pdbnode = self.link_task.outputs[0].change_ext('.pdb')
 				pdbfile = pdbnode.bldpath(self.env)
@@ -768,7 +771,7 @@ def exec_command_msvc(self, *k, **kw):
 
 	return self.generator.bld.exec_command(*k, **kw)
 
-for k in 'cc cxx winrc cc_link cxx_link static_link'.split():
+for k in 'cc cxx winrc cc_link cxx_link static_link qxx'.split():
 	cls = Task.TaskBase.classes.get(k, None)
 	if cls:
 		cls.exec_command = exec_command_msvc

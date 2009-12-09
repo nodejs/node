@@ -20,9 +20,7 @@ def init_msgfmt(self):
 def apply_msgfmt(self):
 	for lang in self.to_list(self.langs):
 		node = self.path.find_resource(lang+'.po')
-		task = self.create_task('msgfmt')
-		task.set_inputs(node)
-		task.set_outputs(node.change_ext('.mo'))
+		task = self.create_task('msgfmt', node, node.change_ext('.mo'))
 
 		if not self.bld.is_install: continue
 		langname = lang.split('/')

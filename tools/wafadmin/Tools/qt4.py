@@ -197,7 +197,6 @@ def scan(self):
 	names = []
 	root = self.inputs[0].parent
 	for x in curHandler.files:
-		x = x.encode('utf8')
 		nd = root.find_resource(x)
 		if nd: nodes.append(nd)
 		else: names.append(x)
@@ -207,25 +206,16 @@ def scan(self):
 @extension(EXT_RCC)
 def create_rcc_task(self, node):
 	"hook for rcc files"
-
 	rcnode = node.change_ext('_rc.cpp')
-
-	rcctask = self.create_task('rcc')
-	rcctask.inputs = [node]
-	rcctask.outputs = [rcnode]
-
-	cpptask = self.create_task('cxx')
-	cpptask.inputs  = [rcnode]
-	cpptask.outputs = [rcnode.change_ext('.o')]
+	rcctask = self.create_task('rcc', node, rcnode)
+	cpptask = self.create_task('cxx', rcnode, rcnode.change_ext('.o'))
 	self.compiled_tasks.append(cpptask)
-
 	return cpptask
 
 @extension(EXT_UI)
 def create_uic_task(self, node):
 	"hook for uic tasks"
-	uictask = self.create_task('ui4')
-	uictask.inputs  = [node]
+	uictask = self.create_task('ui4', node)
 	uictask.outputs = [self.path.find_or_declare(self.env['ui_PATTERN'] % node.name[:-3])]
 
 class qt4_taskgen(cxx.cxx_taskgen):
@@ -250,9 +240,7 @@ def apply_qt4(self):
 			if not isinstance(l, Node.Node):
 				l = self.path.find_resource(l+'.ts')
 
-			t = self.create_task('ts2qm')
-			t.set_inputs(l)
-			t.set_outputs(l.change_ext('.qm'))
+			t = self.create_task('ts2qm', l, l.change_ext('.qm'))
 			lst.append(t.outputs[0])
 
 			if update:
@@ -283,13 +271,11 @@ def apply_qt4(self):
 @extension(EXT_QT4)
 def cxx_hook(self, node):
 	# create the compilation task: cpp or cc
-	task = self.create_task('qxx')
-	self.compiled_tasks.append(task)
 	try: obj_ext = self.obj_ext
 	except AttributeError: obj_ext = '_%d.o' % self.idx
 
-	task.inputs = [node]
-	task.outputs = [node.change_ext(obj_ext)]
+	task = self.create_task('qxx', node, node.change_ext(obj_ext))
+	self.compiled_tasks.append(task)
 
 def process_qm2rcc(task):
 	outfile = task.outputs[0].abspath(task.env)
@@ -393,45 +379,6 @@ def detect_qt4(conf):
 
 	vars = "QtCore QtGui QtUiTools QtNetwork QtOpenGL QtSql QtSvg QtTest QtXml QtWebKit Qt3Support".split()
 
-	framework_ok = False
-	if sys.platform == "darwin" and useframework:
-		for i in vars:
-			e = conf.create_framework_configurator()
-			e.path = [qtlibs, '/Library/Frameworks']
-			e.name = i
-			e.remove_dot_h = True
-			e.run()
-
-			if not i == 'QtCore':
-				# strip -F flag so it don't get reduant
-				for r in env['CCFLAGS_' + i.upper()]:
-					if r.startswith('-F'):
-						env['CCFLAGS_' + i.upper()].remove(r)
-						break
-
-#			incflag = '-I%s' % os.path.join(qtincludes, i)
-#			if not incflag in env["CCFLAGS_" + i.upper ()]:
-#				env['CCFLAGS_' + i.upper ()] += [incflag]
-#			if not incflag in env["CXXFLAGS_" + i.upper ()]:
-#				env['CXXFLAGS_' + i.upper ()] += [incflag]
-
-		# now we add some static depends.
-		if conf.is_defined('HAVE_QTOPENGL'):
-			env.append_unique('FRAMEWORK_QTOPENGL', 'OpenGL')
-
-		if conf.is_defined('HAVE_QTGUI'):
-			env.append_unique('FRAMEWORK_QTGUI', ['AppKit', 'ApplicationServices'])
-
-		framework_ok = True
-
-		# check for the qt includes first
-		if not conf.is_defined("HAVE_QTGUI"):
-			if not qtincludes: qtincludes = os.path.join(qtdir, 'include')
-			env.QTINCLUDEPATH = qtincludes
-
-			lst = [qtincludes, '/usr/share/qt4/include/', '/opt/qt4/include']
-			conf.check(header_name='QtGui/QFont', define_name='HAVE_QTGUI', mandatory=1, includes=lst)
-
 	find_bin(['uic-qt3', 'uic3'], 'QT_UIC3')
 	find_bin(['uic-qt4', 'uic'], 'QT_UIC')
 	if not env['QT_UIC']:
@@ -460,52 +407,51 @@ def detect_qt4(conf):
 	env['ui_PATTERN'] = 'ui_%s.h'
 	env['QT_LRELEASE_FLAGS'] = ['-silent']
 
-	if not framework_ok: # framework_ok is false either when the platform isn't OSX, Qt4 shall not be used as framework, or Qt4 could not be found as framework
-		vars_debug = [a+'_debug' for a in vars]
+	vars_debug = [a+'_debug' for a in vars]
 
-		pkgconfig = env['pkg-config'] or 'PKG_CONFIG_PATH=%s:%s/pkgconfig:/usr/lib/qt4/lib/pkgconfig:/opt/qt4/lib/pkgconfig:/usr/lib/qt4/lib:/opt/qt4/lib pkg-config --silence-errors' % (qtlibs, qtlibs)
-		for i in vars_debug+vars:
-			try:
-				conf.check_cfg(package=i, args='--cflags --libs', path=pkgconfig)
-			except ValueError:
-				pass
+	pkgconfig = env['pkg-config'] or 'PKG_CONFIG_PATH=%s:%s/pkgconfig:/usr/lib/qt4/lib/pkgconfig:/opt/qt4/lib/pkgconfig:/usr/lib/qt4/lib:/opt/qt4/lib pkg-config --silence-errors' % (qtlibs, qtlibs)
+	for i in vars_debug+vars:
+		try:
+			conf.check_cfg(package=i, args='--cflags --libs', path=pkgconfig)
+		except ValueError:
+			pass
 
-		# the libpaths are set nicely, unfortunately they make really long command-lines
-		# remove the qtcore ones from qtgui, etc
-		def process_lib(vars_, coreval):
+	# the libpaths are set nicely, unfortunately they make really long command-lines
+	# remove the qtcore ones from qtgui, etc
+	def process_lib(vars_, coreval):
+		for d in vars_:
+			var = d.upper()
+			if var == 'QTCORE': continue
+
+			value = env['LIBPATH_'+var]
+			if value:
+				core = env[coreval]
+				accu = []
+				for lib in value:
+					if lib in core: continue
+					accu.append(lib)
+				env['LIBPATH_'+var] = accu
+
+	process_lib(vars, 'LIBPATH_QTCORE')
+	process_lib(vars_debug, 'LIBPATH_QTCORE_DEBUG')
+
+	# rpath if wanted
+	if Options.options.want_rpath:
+		def process_rpath(vars_, coreval):
 			for d in vars_:
 				var = d.upper()
-				if var == 'QTCORE': continue
-
 				value = env['LIBPATH_'+var]
 				if value:
 					core = env[coreval]
 					accu = []
 					for lib in value:
-						if lib in core: continue
-						accu.append(lib)
-					env['LIBPATH_'+var] = accu
-
-		process_lib(vars, 'LIBPATH_QTCORE')
-		process_lib(vars_debug, 'LIBPATH_QTCORE_DEBUG')
-
-		# rpath if wanted
-		if Options.options.want_rpath:
-			def process_rpath(vars_, coreval):
-				for d in vars_:
-					var = d.upper()
-					value = env['LIBPATH_'+var]
-					if value:
-						core = env[coreval]
-						accu = []
-						for lib in value:
-							if var != 'QTCORE':
-								if lib in core:
-									continue
-							accu.append('-Wl,--rpath='+lib)
-						env['RPATH_'+var] = accu
-			process_rpath(vars, 'LIBPATH_QTCORE')
-			process_rpath(vars_debug, 'LIBPATH_QTCORE_DEBUG')
+						if var != 'QTCORE':
+							if lib in core:
+								continue
+						accu.append('-Wl,--rpath='+lib)
+					env['RPATH_'+var] = accu
+		process_rpath(vars, 'LIBPATH_QTCORE')
+		process_rpath(vars_debug, 'LIBPATH_QTCORE_DEBUG')
 
 	env['QTLOCALE'] = str(env['PREFIX'])+'/share/locale'
 

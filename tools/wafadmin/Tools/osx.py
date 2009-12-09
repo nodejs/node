@@ -89,7 +89,7 @@ def create_task_macapp(self):
 	"""Use env['MACAPP'] to force *all* executables to be transformed into Mac applications
 	or use obj.mac_app = True to build specific targets as Mac apps"""
 	if self.env['MACAPP'] or getattr(self, 'mac_app', False):
-		apptask = self.create_task('macapp', self.env)
+		apptask = self.create_task('macapp')
 		apptask.set_inputs(self.link_task.outputs)
 
 		out = self.link_task.outputs[0]
@@ -114,7 +114,7 @@ def create_task_macplist(self):
 		if not getattr(self, 'mac_plist', False):
 			self.mac_plist = app_info
 
-		plisttask = self.create_task('macplist', self.env)
+		plisttask = self.create_task('macplist')
 		plisttask.set_inputs(self.link_task.outputs)
 
 		out = self.link_task.outputs[0]

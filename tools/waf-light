@@ -37,7 +37,7 @@ if 'PSYCOWAF' in os.environ:
 	try:import psyco;psyco.full()
 	except:pass
 
-VERSION="1.5.9"
+VERSION="1.5.10"
 REVISION="x"
 INSTALL="x"
 C1='x'
@@ -75,8 +75,11 @@ def unpack_wafdir(dir):
 	import shutil, tarfile
 	try: shutil.rmtree(dir)
 	except OSError: pass
-	try: os.makedirs(join(dir, 'wafadmin', 'Tools'))
-	except OSError: err("Cannot unpack waf lib into %s\nMove waf into a writeable directory" % dir)
+	try:
+		for x in ['Tools', '3rdparty']:
+			os.makedirs(join(dir, 'wafadmin', x))
+	except OSError:
+		err("Cannot unpack waf lib into %s\nMove waf into a writeable directory" % dir)
 
 	os.chdir(dir)
 	tmp = 't.tbz2'
@@ -94,7 +97,8 @@ def unpack_wafdir(dir):
 		except OSError: pass
 		err("Waf cannot be unpacked, check that bzip2 support is present")
 
-	os.chmod(join('wafadmin','Tools'), 493)
+	for x in ['Tools', '3rdparty']:
+		os.chmod(join('wafadmin',x), 493)
 
 	os.unlink(tmp)
 
@@ -142,7 +146,8 @@ def find_lib():
 wafdir = find_lib()
 w = join(wafdir, 'wafadmin')
 t = join(w, 'Tools')
-sys.path = [w, t] + sys.path
+f = join(w, '3rdparty')
+sys.path = [w, t, f] + sys.path
 
 import Scripting
 Scripting.prepare(t, cwd, VERSION, wafdir)

@@ -46,6 +46,13 @@ else:
 import Logs
 from Constants import *
 
+try:
+	from collections import deque
+except ImportError:
+	class deque(list):
+		def popleft(self):
+			return self.pop(0)
+
 is_win32 = sys.platform == 'win32'
 
 try:
@@ -67,7 +74,10 @@ except ImportError:
 class WafError(Exception):
 	def __init__(self, *args):
 		self.args = args
-		self.stack = traceback.extract_stack()
+		try:
+			self.stack = traceback.extract_stack()
+		except:
+			pass
 		Exception.__init__(self, *args)
 	def __str__(self):
 		return str(len(self.args) == 1 and self.args[0] or self.args)
@@ -78,7 +88,10 @@ class WscriptError(WafError):
 			self.wscript_file = wscript_file
 			self.wscript_line = None
 		else:
-			(self.wscript_file, self.wscript_line) = self.locate_error()
+			try:
+				(self.wscript_file, self.wscript_line) = self.locate_error()
+			except:
+				(self.wscript_file, self.wscript_line) = (None, None)
 
 		msg_file_line = ''
 		if self.wscript_file:
@@ -124,7 +137,6 @@ except ImportError:
 	def h_file(filename):
 		f = open(filename, 'rb')
 		m = md5()
-		readBytes = 100000
 		while (filename):
 			filename = f.read(100000)
 			m.update(filename)
@@ -171,10 +183,12 @@ if is_win32:
 		try:
 			if 'stdout' not in kw:
 				kw['stdout'] = pproc.PIPE
-				kw['stderr'] = pproc.STDOUT
+				kw['stderr'] = pproc.PIPE
 				proc = pproc.Popen(s,**kw)
-				(stdout, _) = proc.communicate()
+				(stdout, stderr) = proc.communicate()
 				Logs.info(stdout)
+				if stderr:
+					Logs.error(stderr)
 			else:
 				proc = pproc.Popen(s,**kw)
 				return proc.wait()
@@ -252,8 +266,11 @@ def load_module(file_path, name=WSCRIPT_FILE):
 	sys.path.insert(0, module_dir)
 	try:
 		exec(code, module.__dict__)
-	except Exception:
-		raise WscriptError(traceback.format_exc(), file_path)
+	except Exception, e:
+		try:
+			raise WscriptError(traceback.format_exc(), file_path)
+		except:
+			raise e
 	sys.path.remove(module_dir)
 
 	g_loaded_modules[file_path] = module
@@ -347,14 +364,10 @@ def def_attrs(cls, **kw):
 		if not hasattr(cls, k):
 			setattr(cls, k, v)
 
-quote_define_name_table = None
 def quote_define_name(path):
-	"Converts a string to a constant name, foo/zbr-xpto.h -> FOO_ZBR_XPTO_H"
-	global quote_define_name_table
-	if not quote_define_name_table:
-		invalid_chars = set([chr(x) for x in xrange(256)]) - set(string.digits + string.uppercase)
-		quote_define_name_table = string.maketrans(''.join(invalid_chars), '_'*len(invalid_chars))
-	return string.translate(string.upper(path), quote_define_name_table)
+	fu = re.compile("[^a-zA-Z0-9]").sub("_", path)
+	fu = fu.upper()
+	return fu
 
 def quote_whitespace(path):
 	return (path.strip().find(' ') > 0 and '"%s"' % path or path).replace('""', '"')
@@ -524,12 +537,11 @@ def load_tool(tool, tooldir=None):
 
 def readf(fname, m='r'):
 	"get the contents of a file, it is not used anywhere for the moment"
-	f = None
+	f = open(fname, m)
 	try:
-		f = open(fname, m)
 		txt = f.read()
 	finally:
-		if f: f.close()
+		f.close()
 	return txt
 
 def nada(*k, **kw):
@@ -610,8 +622,11 @@ class Context(object):
 				try:
 					try:
 						exec(txt, dc)
-					except Exception:
-						raise WscriptError(traceback.format_exc(), base)
+					except Exception, e:
+						try:
+							raise WscriptError(traceback.format_exc(), base)
+						except:
+							raise e
 				finally:
 					self.curdir = old
 				if getattr(self.__class__, 'post_recurse', None):

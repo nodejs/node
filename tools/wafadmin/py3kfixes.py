@@ -12,10 +12,14 @@ all_modifs = {}
 
 def modif(dir, name, fun):
 	if name == '*':
-		lst = os.listdir(dir) + ['Tools' + os.sep + x for x in os.listdir(os.path.join(dir, 'Tools'))]
+		lst = []
+		for y in '. Tools 3rdparty'.split():
+			for x in os.listdir(os.path.join(dir, y)):
+				if x.endswith('.py'):
+					lst.append(y + os.sep + x)
+		#lst = [y + os.sep + x for x in os.listdir(os.path.join(dir, y)) for y in '. Tools 3rdparty'.split() if x.endswith('.py')]
 		for x in lst:
-			if x.endswith('.py'):
-				modif(dir, x, fun)
+			modif(dir, x, fun)
 		return
 
 	filename = os.path.join(dir, name)
@@ -48,12 +52,13 @@ def r1(code):
 @subst('Tools/ccroot.py')
 def r2(code):
 	code = code.replace("p.stdin.write('\\n')", "p.stdin.write(b'\\n')")
-	code = code.replace("out=str(out)", "out=out.decode('utf-8')")
+	code = code.replace('p.communicate()[0]', 'p.communicate()[0].decode("utf-8")')
 	return code
 
 @subst('Utils.py')
 def r3(code):
 	code = code.replace("m.update(str(lst))", "m.update(str(lst).encode())")
+	code = code.replace('p.communicate()[0]', 'p.communicate()[0].decode("utf-8")')
 	return code
 
 @subst('Task.py')
@@ -87,9 +92,21 @@ def r7(code):
 	code = code.replace('class task_gen(object):\n\t__metaclass__=register_obj', 'class task_gen(object, metaclass=register_obj):')
 	return code
 
+@subst('Tools/config_c.py')
+def r8(code):
+	code = code.replace('p.communicate()[0]', 'p.communicate()[0].decode("utf-8")')
+	return code
+
+@subst('Tools/glib2.py')
+def r9(code):
+	code = code.replace('f.write(c)', 'f.write(c.encode("utf-8"))')
+	return code
+
+
 def fixdir(dir):
 	global all_modifs
 	for k in all_modifs:
 		for v in all_modifs[k]:
 			modif(os.path.join(dir, 'wafadmin'), k, v)
 	#print('substitutions finished')
+

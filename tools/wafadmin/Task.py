@@ -569,7 +569,7 @@ class Task(TaskBase):
 
 	def add_file_dependency(self, filename):
 		"TODO user-provided file dependencies"
-		node = self.generator.bld.current.find_resource(filename)
+		node = self.generator.bld.path.find_resource(filename)
 		self.deps_nodes.append(node)
 
 	def signature(self):

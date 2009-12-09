@@ -69,9 +69,7 @@ def apply_copy(self):
 		# TODO the file path may be incorrect
 		newnode = self.path.find_or_declare(target)
 
-		tsk = self.create_task('copy')
-		tsk.set_inputs(node)
-		tsk.set_outputs(newnode)
+		tsk = self.create_task('copy', node, newnode)
 		tsk.fun = self.fun
 		tsk.chmod = self.chmod
 
@@ -141,9 +139,7 @@ def apply_subst(self):
 			lst = [self.dict[x] for x in keys]
 			self.env['DICT_HASH'] = str(Utils.h_list(lst))
 
-		tsk = self.create_task('copy')
-		tsk.set_inputs(node)
-		tsk.set_outputs(newnode)
+		tsk = self.create_task('copy', node, newnode)
 		tsk.fun = self.fun
 		tsk.dict = self.dict
 		tsk.dep_vars = ['DICT_HASH']

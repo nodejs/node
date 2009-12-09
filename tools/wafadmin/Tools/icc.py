@@ -33,4 +33,5 @@ gcc_common_flags
 gcc_modifier_platform
 cc_load_tools
 cc_add_flags
+link_add_flags
 '''

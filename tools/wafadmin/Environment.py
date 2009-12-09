@@ -86,7 +86,7 @@ class Environment(object):
 		else:
 			keys = tbl.keys()
 			for x in keys:
-				tbl[x] = copy.copy(tbl[x])
+				tbl[x] = copy.deepcopy(tbl[x])
 			self.table = tbl
 
 	def get_flat(self, key):

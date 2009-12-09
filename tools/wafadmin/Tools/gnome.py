@@ -112,9 +112,7 @@ def init_xml_to(self):
 def apply_xml_to(self):
 	xmlfile = self.path.find_resource(self.source)
 	xsltfile = self.path.find_resource(self.xslt)
-	tsk = self.create_task('xmlto')
-	tsk.set_inputs([xmlfile, xsltfile])
-	tsk.set_outputs(xmlfile.change_ext('html'))
+	tsk = self.create_task('xmlto', [xmlfile, xsltfile], xmlfile.change_ext('html'))
 	tsk.install_path = self.install_path
 
 def sgml_scan(self):

@@ -71,5 +71,6 @@ find_ar
 scc_common_flags
 cc_load_tools
 cc_add_flags
+link_add_flags
 '''
 

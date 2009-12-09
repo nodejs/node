@@ -19,6 +19,7 @@ Each object to use as a unit test must be a program and must have X{obj.unit_tes
 """
 import os, sys
 import Build, TaskGen, Utils, Options, Logs, Task
+from TaskGen import before, after, feature
 from Constants import *
 
 class unit_test(object):
@@ -210,37 +211,58 @@ bld.add_post_fun(UnitTest.summary)
 import threading
 testlock = threading.Lock()
 
-@TaskGen.feature('test')
-@TaskGen.after('apply_link')
+@feature('test')
+@after('apply_link', 'vars_target_cprogram')
 def make_test(self):
 	if not 'cprogram' in self.features:
 		Logs.error('test cannot be executed %s' % self)
 		return
 
+	self.default_install_path = None
 	tsk = self.create_task('utest')
 	tsk.set_inputs(self.link_task.outputs)
 
 def exec_test(self):
+	testlock.acquire()
 	fail = False
 	try:
-		testlock.acquire()
-
 		filename = self.inputs[0].abspath(self.env)
+
 		try:
-			ret = Utils.cmd_output(filename, cwd='/cygdrive/c/home/waf-1.5.8/demos/unit_test/tests/test0')
+			fu = getattr(self.generator.bld, 'all_test_paths')
+		except AttributeError:
+			fu = os.environ.copy()
+			self.generator.bld.all_test_paths = fu
+
+			lst = []
+			for obj in self.generator.bld.all_task_gen:
+				link_task = getattr(obj, 'link_task', None)
+				if link_task:
+					lst.append(link_task.outputs[0].parent.abspath(obj.env))
+
+			def add_path(dct, path, var):
+				dct[var] = os.pathsep.join(Utils.to_list(path) + [os.environ.get(var, '')])
+			if sys.platform == 'win32':
+				add_path(fu, lst, 'PATH')
+			elif sys.platform == 'darwin':
+				add_path(fu, lst, 'DYLD_LIBRARY_PATH')
+				add_path(fu, lst, 'LD_LIBRARY_PATH')
+			else:
+				add_path(fu, lst, 'LD_LIBRARY_PATH')
+
+		try:
+			ret = Utils.cmd_output(filename, cwd=self.inputs[0].parent.abspath(self.env), env=fu)
 		except Exception, e:
 			fail = True
-			ret = ""
+			ret = '' + str(e)
 		else:
 			pass
 
 		stats = getattr(self.generator.bld, 'utest_results', [])
 		stats.append((filename, fail, ret))
 		self.generator.bld.utest_results = stats
-
+	finally:
 		testlock.release()
-	except Exception, e:
-		print e
 
 cls = Task.task_type_from_func('utest', func=exec_test, color='RED', ext_in='.bin')
 
@@ -260,6 +282,7 @@ def summary(bld):
 		for (f, fail, ret) in lst:
 			col = fail and 'RED' or 'GREEN'
 			Utils.pprint(col, (fail and 'FAIL' or 'ok') + " " + f)
+			if fail: Utils.pprint('NORMAL', ret.replace('\\n', '\n'))
 
 def set_options(opt):
 	opt.add_option('--alltests', action='store_true', default=False, help='Exec all unit tests', dest='all_tests')

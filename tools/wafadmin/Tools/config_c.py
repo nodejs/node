@@ -66,8 +66,9 @@ def parse_flags(line, uselib, env):
 			env.append_unique('CXXFLAGS_' + uselib, x)
 			env.append_unique('LINKFLAGS_' + uselib, x)
 		elif x == '-framework':
-			framework = lst.pop(0)
-			env.append_unique('FRAMEWORK_' + uselib, framework)
+			env.append_unique('FRAMEWORK_' + uselib, lst.pop(0))
+		elif x.startswith('-F'):
+			env.append_unique('FRAMEWORKPATH_' + uselib, x[2:])
 		elif x.startswith('-std'):
 			env.append_unique('CCFLAGS_' + uselib, x)
 			env.append_unique('LINKFLAGS_' + uselib, x)
@@ -642,9 +643,10 @@ def get_config_header(self):
 			config_header.append('#define %s' % key)
 		elif value is UNDEFINED:
 			config_header.append('/* #undef %s */' % key)
+		elif isinstance(value, str):
+			config_header.append('#define %s %s' % (key, repr(value)[1:-1]))
 		else:
 			config_header.append('#define %s %s' % (key, value))
-
 	return "\n".join(config_header)
 
 @conftest
@@ -662,13 +664,16 @@ def find_cpp(conf):
 def cc_add_flags(conf):
 	conf.add_os_flags('CFLAGS', 'CCFLAGS')
 	conf.add_os_flags('CPPFLAGS')
-	conf.add_os_flags('LINKFLAGS')
 
 @conftest
 def cxx_add_flags(conf):
 	conf.add_os_flags('CXXFLAGS')
 	conf.add_os_flags('CPPFLAGS')
+
+@conftest
+def link_add_flags(conf):
 	conf.add_os_flags('LINKFLAGS')
+	conf.add_os_flags('LDFLAGS', 'LINKFLAGS')
 
 @conftest
 def cc_load_tools(conf):

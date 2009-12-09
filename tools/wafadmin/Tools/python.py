@@ -159,7 +159,8 @@ def check_python_headers(conf):
 
 	env = conf.env
 	python = env['PYTHON']
-	assert python, ("python is %r !" % (python,))
+	if not python:
+		conf.fatal('could not find the python executable')
 
 	## On Mac OSX we need to use mac bundles for python plugins
 	if Options.platform == 'darwin':
@@ -309,7 +310,8 @@ def check_python_version(conf, minver=None):
 	"""
 	assert minver is None or isinstance(minver, tuple)
 	python = conf.env['PYTHON']
-	assert python, ("python is %r !" % (python,))
+	if not python:
+		conf.fatal('could not find the python executable')
 
 	# Get python version string
 	cmd = [python, "-c", "import sys\nfor x in sys.version_info: print(str(x))"]
@@ -361,7 +363,7 @@ def check_python_version(conf, minver=None):
 		conf.check_message('Python version', ">= %s" % (minver_str,), result, option=pyver_full)
 
 	if not result:
-		conf.fatal("Python too old.")
+		conf.fatal('The python version is too old (%r)' % minver)
 
 @conf
 def check_python_module(conf, module_name):
@@ -372,11 +374,16 @@ def check_python_module(conf, module_name):
 			   stderr=Utils.pproc.PIPE, stdout=Utils.pproc.PIPE).wait()
 	conf.check_message('Python module', module_name, result)
 	if not result:
-		conf.fatal("Python module not found.")
+		conf.fatal('Could not find the python module %r' % module_name)
 
 def detect(conf):
+
+	if not conf.env.PYTHON:
+		conf.env.PYTHON = sys.executable
+
 	python = conf.find_program('python', var='PYTHON')
-	if not python: return
+	if not python:
+		conf.fatal('Could not find the path of the python executable')
 
 	v = conf.env
 

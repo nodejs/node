@@ -2,6 +2,7 @@
 # encoding: utf-8
 # Thomas Nagy, 2005 (ita)
 
+import ansiterm
 import os, re, logging, traceback, sys
 from Constants import *
 
@@ -11,7 +12,7 @@ verbose = 0
 colors_lst = {
 'USE' : True,
 'BOLD'  :'\x1b[01;1m',
-'RED'   :'\x1b[01;91m',
+'RED'   :'\x1b[01;31m',
 'GREEN' :'\x1b[32m',
 'YELLOW':'\x1b[33m',
 'PINK'  :'\x1b[35m',
@@ -31,8 +32,12 @@ if got_tty:
 
 import Utils
 
-if not got_tty or sys.platform == 'win32' or 'NOCOLOR' in os.environ:
+if not got_tty or 'NOCOLOR' in os.environ:
 	colors_lst['USE'] = False
+
+# test
+#if sys.platform == 'win32':
+#	colors_lst['USE'] = True
 
 def get_color(cl):
 	if not colors_lst['USE']: return ''

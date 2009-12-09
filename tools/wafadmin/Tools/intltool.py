@@ -42,10 +42,7 @@ def iapply_intltool_in_f(self):
 		self.env['INTLPODIR'] = podirnode.srcpath(self.env)
 		self.env['INTLFLAGS'] = getattr(self, 'flags', ['-q', '-u', '-c'])
 
-		task = self.create_task('intltool')
-		task.set_inputs(node)
-		task.set_outputs(node.change_ext(''))
-
+		task = self.create_task('intltool', node, node.change_ext(''))
 		task.install_path = self.install_path
 
 class intltool_po_taskgen(TaskGen.task_gen):

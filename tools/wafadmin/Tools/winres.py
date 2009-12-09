@@ -18,11 +18,7 @@ def rc_file(self, node):
 	obj_ext = '.rc.o'
 	if self.env['WINRC_TGT_F'] == '/fo': obj_ext = '.res'
 
-	rctask = self.create_task('winrc')
-	rctask.set_inputs(node)
-	rctask.set_outputs(node.change_ext(obj_ext))
-
-	# make linker can find compiled resource files
+	rctask = self.create_task('winrc', node, node.change_ext(obj_ext))
 	self.compiled_tasks.append(rctask)
 
 # create our action, for use with rc file

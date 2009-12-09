@@ -80,14 +80,12 @@ def apply_defines_cxx(self):
 @extension(EXT_CXX)
 def cxx_hook(self, node):
 	# create the compilation task: cpp or cc
-	task = self.create_task('cxx')
 	if getattr(self, 'obj_ext', None):
 		obj_ext = self.obj_ext
 	else:
 		obj_ext = '_%d.o' % self.idx
 
-	task.inputs = [node]
-	task.outputs = [node.change_ext(obj_ext)]
+	task = self.create_task('cxx', node, node.change_ext(obj_ext))
 	try:
 		self.compiled_tasks.append(task)
 	except AttributeError:

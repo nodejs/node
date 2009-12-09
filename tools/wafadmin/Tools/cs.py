@@ -4,7 +4,7 @@
 
 "C# support"
 
-import TaskGen, Utils, Task
+import TaskGen, Utils, Task, Options
 from Logs import error
 from TaskGen import before, after, taskgen, feature
 
@@ -37,33 +37,32 @@ def apply_cs(self):
 	except ValueError: pass
 
 	# process the flags for the assemblies
-	assemblies_flags = []
 	for i in self.to_list(self.assemblies) + self.env['ASSEMBLIES']:
-		assemblies_flags += '/r:'+i
-	self.env['_ASSEMBLIES'] += assemblies_flags
+		self.env.append_unique('_ASSEMBLIES', '/r:'+i)
 
 	# process the flags for the resources
 	for i in self.to_list(self.resources):
-		self.env['_RESOURCES'].append('/resource:'+i)
+		self.env.append_unique('_RESOURCES', '/resource:'+i)
+
+	# what kind of assembly are we generating?
+	self.env['_TYPE'] = getattr(self, 'type', 'exe')
 
 	# additional flags
-	self.env['_FLAGS'] += self.to_list(self.flags) + self.env['FLAGS']
-
-	curnode = self.path
+	self.env.append_unique('_FLAGS', self.to_list(self.flags))
+	self.env.append_unique('_FLAGS', self.env.FLAGS)
 
 	# process the sources
-	nodes = []
-	for i in self.to_list(self.source):
-		nodes.append(curnode.find_resource(i))
+	nodes = [self.path.find_resource(i) for i in self.to_list(self.source)]
+	self.create_task('mcs', nodes, self.path.find_or_declare(self.target))
 
-	# create the task
-	task = self.create_task('mcs')
-	task.inputs  = nodes
-	task.set_outputs(self.path.find_or_declare(self.target))
-
-Task.simple_task_type('mcs', '${MCS} ${SRC} /out:${TGT} ${_FLAGS} ${_ASSEMBLIES} ${_RESOURCES}', color='YELLOW')
+Task.simple_task_type('mcs', '${MCS} ${SRC} /target:${_TYPE} /out:${TGT} ${_FLAGS} ${_ASSEMBLIES} ${_RESOURCES}', color='YELLOW')
 
 def detect(conf):
-	mcs = conf.find_program('mcs', var='MCS')
-	if not mcs: mcs = conf.find_program('gmcs', var='MCS')
+	csc = getattr(Options.options, 'cscbinary', None)
+	if csc:
+		conf.env.MCS = csc
+	conf.find_program(['gmcs', 'mcs'], var='MCS')
+
+def set_options(opt):
+	opt.add_option('--with-csc-binary', type='string', dest='cscbinary')
 

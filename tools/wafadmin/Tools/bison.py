@@ -14,9 +14,6 @@ cls = Task.simple_task_type('bison', bison, 'GREEN', ext_in='.yc .y .yy', ext_ou
 @extension(['.y', '.yc', '.yy'])
 def big_bison(self, node):
 	"""when it becomes complicated (unlike flex), the old recipes work better (cwd)"""
-	tsk = self.create_task('bison')
-	tsk.set_inputs(node)
-
 	has_h = '-d' in self.env['BISONFLAGS']
 
 	outs = []
@@ -29,7 +26,7 @@ def big_bison(self, node):
 		if has_h:
 			outs.append(node.change_ext('.tab.h'))
 
-	tsk.set_outputs(outs)
+	tsk = self.create_task('bison', node, outs)
 	tsk.cwd = node.bld_dir(tsk.env)
 
 	# and the c/cxx file must be compiled too
