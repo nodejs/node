@@ -322,7 +322,7 @@ def build(bld):
   node.target       = "node"
   node.source = """
     src/node.cc
-    src/node_blob.cc
+    src/node_buffer.cc
     src/node_child_process.cc
     src/node_constants.cc
     src/node_dns.cc

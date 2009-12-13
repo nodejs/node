@@ -24,88 +24,92 @@ using namespace v8;
 static Persistent<String> length_symbol;
 static Persistent<FunctionTemplate> constructor_template;
 
-/* A blob is a chunk of memory stored outside the V8 heap mirrored by an
+/* A buffer is a chunk of memory stored outside the V8 heap, mirrored by an
  * object in javascript. The object is not totally opaque, one can access
- * individual bytes with [] and one can slice the blob into substrings or
- * subblobs without copying memory.
+ * individual bytes with [] and slice it into substrings or sub-buffers
+ * without copying memory.
  *
- * blob.asciiSlide(0, 3) // return an ascii encoded string - no memory iscopied
- * blob.slice(0, 3)      // returns another blob - no memory is copied
+ * // return an ascii encoded string - no memory iscopied
+ * buffer.asciiSlide(0, 3) 
  *
- * Interally, each javascript blob object is backed by a "struct blob" object. 
- * These "struct blob" objects are either the root object (in the case that
- * blob->root == NULL) or slice objects (in which case blob->root != NULL).
- * The root blob is only GCed once all it's slices are GCed.
+ * // returns another buffer - no memory is copied
+ * buffer.slice(0, 3)
+ *
+ * Interally, each javascript buffer object is backed by a "struct buffer"
+ * object.  These "struct buffer" objects are either a root buffer (in the
+ * case that buffer->root == NULL) or slice objects (in which case
+ * buffer->root != NULL).  A root buffer is only GCed once all its slices
+ * are GCed.
  */
 
-struct blob {
+struct buffer {
   Persistent<Object> handle;  // both
   bool weak;                  // both
-  struct blob *root;          // both (NULL for root)
+  struct buffer *root;        // both (NULL for root)
   size_t offset;              // both (0 for root)
   size_t length;              // both
   unsigned int refs;          // root only
-  char bytes[1];        // root only
+  char bytes[1];              // root only
 };
 
 
-static inline struct blob* blob_root(blob *blob) {
-  return blob->root ? blob->root : blob;
+static inline struct buffer* buffer_root(buffer *buffer) {
+  return buffer->root ? buffer->root : buffer;
 }
 
 /* Determines the absolute position for a relative offset */
-static inline size_t blob_abs_off(blob *blob, size_t off) {
-  struct blob *root = blob_root(blob);
+static inline size_t buffer_abs_off(buffer *buffer, size_t off) {
+  struct buffer *root = buffer_root(buffer);
   off += root->offset;
   return MIN(root->length, off);
 }
 
 
-static inline void blob_ref(struct blob *blob) {
-  assert(blob->root == NULL);
-  blob->refs++;
+static inline void buffer_ref(struct buffer *buffer) {
+  assert(buffer->root == NULL);
+  buffer->refs++;
 }
 
 
-static inline void blob_unref(struct blob *blob) {
-  assert(blob->root == NULL);
-  assert(blob->refs > 0);
-  blob->refs--;
-  if (blob->refs == 0 && blob->weak) free(blob);
+static inline void buffer_unref(struct buffer *buffer) {
+  assert(buffer->root == NULL);
+  assert(buffer->refs > 0);
+  buffer->refs--;
+  if (buffer->refs == 0 && buffer->weak) free(buffer);
 }
 
 
-static inline struct blob* Unwrap(Handle<Value> val) {
+static inline struct buffer* Unwrap(Handle<Value> val) {
   assert(val->IsObject());
   HandleScope scope;
   Local<Object> obj = val->ToObject();
   assert(obj->InternalFieldCount() == 1);
   Local<External> ext = Local<External>::Cast(obj->GetInternalField(0));
-  return static_cast<struct blob*>(ext->Value());
+  return static_cast<struct buffer*>(ext->Value());
 }
 
 
 static void RootWeakCallback(Persistent<Value> value, void *data)
 {
-  struct blob *blob = static_cast<struct blob*>(data);
-  assert(blob->root == NULL); // this is the root
-  assert(value == blob->handle);
-  blob->handle.Dispose();
-  if (blob->refs) {
-    blob->weak = true;
+  struct buffer *buffer = static_cast<struct buffer*>(data);
+  assert(buffer->root == NULL); // this is the root
+  assert(value == buffer->handle);
+  buffer->handle.Dispose();
+  if (buffer->refs) {
+    buffer->weak = true;
   } else {
-    free(blob);
+    free(buffer);
   }
 }
 
 
 static void SliceWeakCallback(Persistent<Value> value, void *data)
 {
-  struct blob *blob = static_cast<struct blob*>(data);
-  assert(blob->root != NULL); // this is a slice
-  assert(value == blob->handle);
-  blob->handle.Dispose();
-  blob_unref(blob->root);
+  struct buffer *buffer = static_cast<struct buffer*>(data);
+  assert(buffer->root != NULL); // this is a slice
+  assert(value == buffer->handle);
+  buffer->handle.Dispose();
+  buffer_unref(buffer->root);
 }
 
 
@@ -113,20 +117,20 @@ static Handle<Value> Constructor(const Arguments &args) {
   HandleScope scope;
 
   size_t length;
-  struct blob *blob;
+  struct buffer *buffer;
 
   if (constructor_template->HasInstance(args[0])) {
     // slice slice
     SLICE_ARGS(args[1], args[2])
 
-    struct blob *parent = Unwrap(args[0]);
+    struct buffer *parent = Unwrap(args[0]);
 
-    size_t start_abs = blob_abs_off(parent, start);
-    size_t end_abs   = blob_abs_off(parent, end);
+    size_t start_abs = buffer_abs_off(parent, start);
+    size_t end_abs   = buffer_abs_off(parent, end);
     assert(start_abs <= end_abs);
     length = end_abs - start_abs;
 
-    void *d = malloc(sizeof(struct blob));
+    void *d = malloc(sizeof(struct buffer));
 
     if (!d) {
       V8::LowMemoryNotification();
@@ -135,17 +139,17 @@ static Handle<Value> Constructor(const Arguments &args) {
 
     }
 
-    blob = static_cast<struct blob*>(d);
+    buffer = static_cast<struct buffer*>(d);
 
-    blob->length = length;
-    blob->offset = start_abs;
-    blob->weak = false;
-    blob->refs = 0;
-    blob->root = blob_root(parent);
-    blob->handle = Persistent<Object>::New(args.This());
-    blob->handle.MakeWeak(blob, SliceWeakCallback);
+    buffer->length = length;
+    buffer->offset = start_abs;
+    buffer->weak = false;
+    buffer->refs = 0;
+    buffer->root = buffer_root(parent);
+    buffer->handle = Persistent<Object>::New(args.This());
+    buffer->handle.MakeWeak(buffer, SliceWeakCallback);
 
-    blob_ref(blob->root);
+    buffer_ref(buffer->root);
   } else {
     // Root slice
 
@@ -157,7 +161,7 @@ static Handle<Value> Constructor(const Arguments &args) {
     }
 
     // TODO alignment. modify the length?
-    void *d = malloc(sizeof(struct blob) + length - 1);
+    void *d = malloc(sizeof(struct buffer) + length - 1);
 
     if (!d) {
       V8::LowMemoryNotification();
@@ -165,23 +169,23 @@ static Handle<Value> Constructor(const Arguments &args) {
             String::New("Could not allocate enough memory")));
     }
 
-    blob = static_cast<struct blob*>(d);
+    buffer = static_cast<struct buffer*>(d);
 
-    blob->offset = 0;
-    blob->length = length;
-    blob->weak = false;
-    blob->refs = 0;
-    blob->root = NULL;
-    blob->handle = Persistent<Object>::New(args.This());
-    blob->handle.MakeWeak(blob, RootWeakCallback);
+    buffer->offset = 0;
+    buffer->length = length;
+    buffer->weak = false;
+    buffer->refs = 0;
+    buffer->root = NULL;
+    buffer->handle = Persistent<Object>::New(args.This());
+    buffer->handle.MakeWeak(buffer, RootWeakCallback);
   }
 
-  args.This()->SetInternalField(0, v8::External::New(blob));
+  args.This()->SetInternalField(0, v8::External::New(buffer));
 
-  struct blob *root = blob_root(blob);
+  struct buffer *root = buffer_root(buffer);
 
   args.This()->
-    SetIndexedPropertiesToExternalArrayData(&root->bytes + blob->offset,
+    SetIndexedPropertiesToExternalArrayData(&root->bytes + buffer->offset,
                                             kExternalUnsignedByteArray,
                                             length);
 
@@ -194,16 +198,16 @@ static Handle<Value> Constructor(const Arguments &args) {
 class AsciiSliceExt: public String::ExternalAsciiStringResource {
  public:
 
-  AsciiSliceExt(struct blob *root, size_t start, size_t end) 
+  AsciiSliceExt(struct buffer *root, size_t start, size_t end) 
   {
     data_ = root->bytes + start;
     len_ = end - start;
     root_ = root;
-    blob_ref(root_);
+    buffer_ref(root_);
   }
 
   ~AsciiSliceExt() {
-    blob_unref(root_);
+    buffer_unref(root_);
   }
 
   const char* data() const {
@@ -217,7 +221,7 @@ class AsciiSliceExt: public String::ExternalAsciiStringResource {
  private:
   const char *data_;
   size_t len_;
-  struct blob *root_;
+  struct buffer *root_;
 };
 
 static Handle<Value> AsciiSlice(const Arguments &args) {
@@ -226,17 +230,17 @@ static Handle<Value> AsciiSlice(const Arguments &args) {
   SLICE_ARGS(args[0], args[1])
 
   assert(args.This()->InternalFieldCount() == 1);
-  struct blob *parent = Unwrap(args.This());
+  struct buffer *parent = Unwrap(args.This());
 
-  size_t start_abs = blob_abs_off(parent, start);
-  size_t end_abs   = blob_abs_off(parent, end);
+  size_t start_abs = buffer_abs_off(parent, start);
+  size_t end_abs   = buffer_abs_off(parent, end);
 
   assert(start_abs <= end_abs);
 
-  AsciiSliceExt *s = new AsciiSliceExt(blob_root(parent), start_abs, end_abs);
+  AsciiSliceExt *s = new AsciiSliceExt(buffer_root(parent), start_abs, end_abs);
   Local<String> string = String::NewExternal(s);
 
-  struct blob *root = blob_root(parent);
+  struct buffer *root = buffer_root(parent);
   assert(root->refs > 0);
   
   return scope.Close(string);
@@ -247,12 +251,12 @@ static Handle<Value> Utf8Slice(const Arguments &args) {
 
   SLICE_ARGS(args[0], args[1])
 
-  struct blob *parent = Unwrap(args.This());
-  size_t start_abs = blob_abs_off(parent, start);
-  size_t end_abs   = blob_abs_off(parent, end);
+  struct buffer *parent = Unwrap(args.This());
+  size_t start_abs = buffer_abs_off(parent, start);
+  size_t end_abs   = buffer_abs_off(parent, end);
   assert(start_abs <= end_abs);
 
-  struct blob *root = blob_root(parent);
+  struct buffer *root = buffer_root(parent);
 
   Local<String> string =
     String::New(reinterpret_cast<const char*>(&root->bytes + start_abs),
@@ -271,7 +275,7 @@ static Handle<Value> Slice(const Arguments &args) {
   return scope.Close(slice);
 }
 
-void InitBlob(Handle<Object> target) {
+void InitBuffer(Handle<Object> target) {
   HandleScope scope;
 
   length_symbol = Persistent<String>::New(String::NewSymbol("length"));
@@ -279,7 +283,7 @@ void InitBlob(Handle<Object> target) {
   Local<FunctionTemplate> t = FunctionTemplate::New(Constructor);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("Blob"));
+  constructor_template->SetClassName(String::NewSymbol("Buffer"));
 
   // copy free
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", AsciiSlice);
@@ -288,7 +292,7 @@ void InitBlob(Handle<Object> target) {
   // copy 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Slice", Utf8Slice);
 
-  target->Set(String::NewSymbol("Blob"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("Buffer"), constructor_template->GetFunction());
 }
 
 }  // namespace node

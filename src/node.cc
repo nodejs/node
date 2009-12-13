@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <dlfcn.h> /* dlopen(), dlsym() */
 
-#include <node_blob.h>
+#include <node_buffer.h>
 #include <node_events.h>
 #include <node_dns.h>
 #include <node_net.h>
@@ -848,7 +848,7 @@ static Local<Object> Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
-  InitBlob(process);                           // stdio.cc
+  InitBuffer(process);                         // buffer.cc
   Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
   SignalHandler::Initialize(process);          // signal_handler.cc
