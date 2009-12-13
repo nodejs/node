@@ -1,0 +1,126 @@
+// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <node_io_watcher.h>
+
+#include <assert.h>
+
+namespace node {
+
+using namespace v8;
+
+Persistent<FunctionTemplate> IOWatcher::constructor_template;
+
+void IOWatcher::Initialize(Handle<Object> target) {
+  HandleScope scope;
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(IOWatcher::New);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(2);
+  constructor_template->SetClassName(String::NewSymbol("IOWatcher"));
+
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", IOWatcher::Start);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", IOWatcher::Stop);
+
+  target->Set(String::NewSymbol("IOWatcher"), constructor_template->GetFunction());
+}
+
+
+void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
+  IOWatcher *io = static_cast<IOWatcher*>(w->data);
+  assert(w == &io->watcher_);
+  HandleScope scope;
+
+  Local<Value> callback_v = io->handle_->GetInternalField(1);
+  assert(callback_v->IsFunction());
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+
+  TryCatch try_catch;
+
+  Local<Value> argv[2];
+  argv[0] = Local<Value>::New(revents & EV_READ ? True() : False());
+  argv[1] = Local<Value>::New(revents & EV_WRITE ? True() : False());
+
+  callback->Call(io->handle_, 2, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+}
+
+
+// 
+//  var io = new process.IOWatcher(fd, true, true, function (readable, writable) {
+//    
+//  });
+//
+Handle<Value> IOWatcher::New(const Arguments& args) {
+  HandleScope scope;
+
+  if (!args[0]->IsInt32()) {
+    return ThrowException(Exception::TypeError(
+          String::New("First arg should be a file descriptor.")));
+  }
+
+  int fd = args[0]->Int32Value();
+
+  if (!args[1]->IsBoolean()) {
+    return ThrowException(Exception::TypeError(
+          String::New("Second arg should boolean (readable).")));
+  }
+
+  int events = 0;
+
+  if (args[1]->IsTrue()) events |= EV_READ;
+
+  if (!args[2]->IsBoolean()) {
+    return ThrowException(Exception::TypeError(
+          String::New("Third arg should boolean (writable).")));
+  }
+
+  if (args[2]->IsTrue()) events |= EV_WRITE;
+
+  if (!args[3]->IsFunction()) {
+    return ThrowException(Exception::TypeError(
+          String::New("Fourth arg should a callback.")));
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[3]);
+
+  IOWatcher *s = new IOWatcher(fd, events);
+
+  s->Wrap(args.This());
+  s->handle_->SetInternalField(1, callback);
+
+  return args.This();
+}
+
+
+Handle<Value> IOWatcher::Start(const Arguments& args) {
+  HandleScope scope;
+
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+
+  ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
+
+  io->Ref();
+
+  return Undefined();
+}
+
+
+Handle<Value> IOWatcher::Stop(const Arguments& args) {
+  HandleScope scope;
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+  io->Stop();
+  return Undefined();
+}
+
+
+void IOWatcher::Stop () {
+  if (watcher_.active) {
+    ev_io_stop(EV_DEFAULT_UC_ &watcher_);
+    Unref();
+  }
+}
+
+
+}  // namespace node

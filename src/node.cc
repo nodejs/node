@@ -11,6 +11,7 @@
 #include <dlfcn.h> /* dlopen(), dlsym() */
 
 #include <node_buffer.h>
+#include <node_io_watcher.h>
 #include <node_events.h>
 #include <node_dns.h>
 #include <node_net.h>
@@ -849,10 +850,13 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   // Initialize the C++ modules..................filename of module
   InitBuffer(process);                         // buffer.cc
-  Stdio::Initialize(process);                  // stdio.cc
+
+  IOWatcher::Initialize(process);              // io_watcher.cc
   Timer::Initialize(process);                  // timer.cc
-  SignalHandler::Initialize(process);          // signal_handler.cc
   Stat::Initialize(process);                   // stat.cc
+  SignalHandler::Initialize(process);          // signal_handler.cc
+
+  Stdio::Initialize(process);                  // stdio.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
   // Create node.dns
