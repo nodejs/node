@@ -4,14 +4,17 @@ assert = require("assert");
 
 var b = new process.Buffer(1024);
 
-sys.puts("b[0] == " + b[0]);
-assert.ok(b[0] >= 0);
-
-sys.puts("b[1] == " + b[1]);
-assert.ok(b[1] >= 0);
-
 sys.puts("b.length == " + b.length);
 assert.equal(1024, b.length);
+
+for (var i = 0; i < 1024; i++) {
+  assert.ok(b[i] >= 0);
+  b[i] = i % 256;
+}
+
+for (var i = 0; i < 1024; i++) {
+  assert.equal(i % 256, b[i]);
+}
 
 for (var j = 0; j < 10000; j++) {
   var asciiString = "hello world";
