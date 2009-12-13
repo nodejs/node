@@ -30,9 +30,7 @@ static inline Local<Value> errno_exception(int errorno) {
 static int After(eio_req *req) {
   HandleScope scope;
 
-  Persistent<Function> *callback =
-    reinterpret_cast<Persistent<Function>*>(req->data);
-  assert((*callback)->IsFunction());
+  Persistent<Function> *callback = cb_unwrap(req->data);
 
   ev_unref(EV_DEFAULT_UC);
 
@@ -124,21 +122,14 @@ static int After(eio_req *req) {
   }
 
   // Dispose of the persistent handle
-  callback->Dispose();
-  delete callback;
+  cb_destroy(callback);
 
   return 0;
 }
 
-static Persistent<Function>* persistent_callback(const Local<Value> &v) {
-  Persistent<Function> *fn = new Persistent<Function>();
-  *fn = Persistent<Function>::New(Local<Function>::Cast(v));
-  return fn;
-}
-
 #define ASYNC_CALL(func, callback, ...)                           \
   eio_req *req = eio_##func(__VA_ARGS__, EIO_PRI_DEFAULT, After,  \
-    persistent_callback(callback));                               \
+    cb_persist(callback));                                        \
   assert(req);                                                    \
   ev_ref(EV_DEFAULT_UC);                                          \
   return Undefined();

@@ -1,5 +1,6 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_dns.h>
+#include <node.h>
 
 #include <stdlib.h> /* exit() */
 #include <sys/types.h>
@@ -20,24 +21,6 @@ static ev_io io_watcher;
 static ev_timer timer_watcher;
 
 static Persistent<String> errno_symbol;
-
-static inline Persistent<Function>* cb_persist(const Local<Value> &v) {
-  Persistent<Function> *fn = new Persistent<Function>();
-  *fn = Persistent<Function>::New(Local<Function>::Cast(v));
-  return fn;
-}
-
-static inline Persistent<Function>* cb_unwrap(void *data) {
-  Persistent<Function> *cb =
-    reinterpret_cast<Persistent<Function>*>(data);
-  assert((*cb)->IsFunction());
-  return cb;
-}
-
-static inline void cb_destroy(Persistent<Function> * cb) {
-  cb->Dispose();
-  delete cb;
-}
 
 static inline void set_timeout() {
   int maxwait = 20;
