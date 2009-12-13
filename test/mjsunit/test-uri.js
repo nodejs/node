@@ -168,6 +168,7 @@ for (var url in parseTests) {
   
   var expected = url,
     actual = uri.format(parseTests[url]);
+  
   assert.equal(expected, actual, "format("+url+") == "+url+"\nactual:"+actual);
 }
 
@@ -175,12 +176,13 @@ for (var url in parseTests) {
   // [from, path, expected]
   ["/foo/bar/baz", "quux", "/foo/bar/quux"],
   ["/foo/bar/baz", "quux/asdf", "/foo/bar/quux/asdf"],
-  ["/foo/bar/baz", "quux/baz", "/foo/bar/quux/baz"], //TODO: failing test
-  ["/foo/bar/baz", "../quux/baz", "/foo/quux/baz"], //TODO: failing test
+  ["/foo/bar/baz", "quux/baz", "/foo/bar/quux/baz"],
+  ["/foo/bar/baz", "../quux/baz", "/foo/quux/baz"],
   ["/foo/bar/baz", "/bar", "/bar"],
   ["/foo/bar/baz/", "quux", "/foo/bar/baz/quux"],
   ["/foo/bar/baz/", "quux/baz", "/foo/bar/baz/quux/baz"],
-  ["/foo/bar/baz", "../../../../../../../../quux/baz", "/quux/baz"]
+  ["/foo/bar/baz", "../../../../../../../../quux/baz", "/quux/baz"],
+  ["/foo/bar/baz", "../../../../../../../quux/baz", "/quux/baz"]
 ].forEach(function (relativeTest) {
   var a = uri.resolve(relativeTest[0], relativeTest[1]),
     e = relativeTest[2];
