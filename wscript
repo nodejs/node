@@ -323,6 +323,7 @@ def build(bld):
   node.source = """
     src/node.cc
     src/node_buffer.cc
+    src/node_net2.cc
     src/node_io_watcher.cc
     src/node_child_process.cc
     src/node_constants.cc

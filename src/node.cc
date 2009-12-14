@@ -12,6 +12,7 @@
 
 #include <node_buffer.h>
 #include <node_io_watcher.h>
+#include <node_net2.h>
 #include <node_events.h>
 #include <node_dns.h>
 #include <node_net.h>
@@ -855,6 +856,8 @@ static Local<Object> Load(int argc, char *argv[]) {
   Timer::Initialize(process);                  // timer.cc
   Stat::Initialize(process);                   // stat.cc
   SignalHandler::Initialize(process);          // signal_handler.cc
+
+  InitNet2(process);                           // net2.cc
 
   Stdio::Initialize(process);                  // stdio.cc
   ChildProcess::Initialize(process);           // child_process.cc
