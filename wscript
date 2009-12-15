@@ -116,6 +116,8 @@ def configure(conf):
   #  conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
   if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
+    # Note on Darwin/OS X: This will fail, but will still be used as the
+    # execinfo stuff are part of the standard library.
     if sys.platform.startswith("freebsd"):
       conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
