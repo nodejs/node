@@ -334,31 +334,31 @@ static Handle<Value> Accept(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  struct sockaddr_storage addr;
-  socklen_t len;
+  struct sockaddr_storage address_storage;
+  socklen_t len = sizeof(struct sockaddr_storage);
 
-  int peer = accept(fd, (struct sockaddr*) &addr, &len);
+  int peer_fd = accept(fd, (struct sockaddr*) &address_storage, &len);
 
-  if (peer < 0) {
-    if (errno == EAGAIN) return Null(); 
+  if (peer_fd < 0) {
+    if (errno == EAGAIN) return scope.Close(Null());
     return ThrowException(ErrnoException(errno, "accept"));
   }
 
-  if (!SetNonBlock(peer)) {
+  if (!SetNonBlock(peer_fd)) {
     int fcntl_errno = errno;
-    close(peer);
-    return ThrowException(ErrnoException(fcntl_errno, "fcntl"));
+    close(peer_fd);
+    return ThrowException(ErrnoException(fcntl_errno, "fcntl", "Cannot make peer non-blocking"));
   }
 
   Local<Object> peer_info = Object::New();
 
-  peer_info->Set(fd_symbol, Integer::New(fd));
+  peer_info->Set(fd_symbol, Integer::New(peer_fd));
 
-  if (addr.ss_family == AF_INET6) {
-    struct sockaddr_in6 *a = reinterpret_cast<struct sockaddr_in6*>(&addr);
+  if (address_storage.ss_family == AF_INET6) {
+    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
 
     char ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &a->sin6_addr, ip, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
 
     int port = ntohs(a->sin6_port);
 
@@ -499,11 +499,11 @@ void InitNet2(Handle<Object> target) {
   target->Set(String::NewSymbol("EADDRINUSE"), Integer::New(EADDRINUSE));
   target->Set(String::NewSymbol("ECONNREFUSED"), Integer::New(ECONNREFUSED));
  
-  errno_symbol = NODE_PSYMBOL("errno");
-  syscall_symbol = NODE_PSYMBOL("syscall");
-  fd_symbol = NODE_PSYMBOL("fd");
+  errno_symbol          = NODE_PSYMBOL("errno");
+  syscall_symbol        = NODE_PSYMBOL("syscall");
+  fd_symbol             = NODE_PSYMBOL("fd");
   remote_address_symbol = NODE_PSYMBOL("remoteAddress");
-  remote_port_symbol = NODE_PSYMBOL("remotePort");
+  remote_port_symbol    = NODE_PSYMBOL("remotePort");
 }
 
 }  // namespace node

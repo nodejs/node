@@ -1,6 +1,9 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_io_watcher.h>
 
+#include <node.h>
+#include <v8.h>
+
 #include <assert.h>
 
 namespace node {
@@ -8,19 +11,23 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> IOWatcher::constructor_template;
+Persistent<String> callback_symbol;
 
 void IOWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(IOWatcher::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(2);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("IOWatcher"));
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", IOWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", IOWatcher::Stop);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "set", IOWatcher::Set);
 
   target->Set(String::NewSymbol("IOWatcher"), constructor_template->GetFunction());
+
+  callback_symbol = NODE_PSYMBOL("callback");
 }
 
 
@@ -29,7 +36,7 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   assert(w == &io->watcher_);
   HandleScope scope;
 
-  Local<Value> callback_v = io->handle_->GetInternalField(1);
+  Local<Value> callback_v = io->handle_->Get(callback_symbol);
   assert(callback_v->IsFunction());
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
@@ -48,12 +55,48 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 
 
 // 
-//  var io = new process.IOWatcher(fd, true, true, function (readable, writable) {
+//  var io = new process.IOWatcher(function (readable, writable) {
 //    
 //  });
+//  io.set(fd, true, false);
+//  io.start();
 //
 Handle<Value> IOWatcher::New(const Arguments& args) {
   HandleScope scope;
+
+  if (!args[0]->IsFunction()) {
+    return ThrowException(Exception::TypeError(
+          String::New("First arg should a callback.")));
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  IOWatcher *s = new IOWatcher();
+
+  s->Wrap(args.This());
+
+  s->handle_->Set(callback_symbol, callback);
+
+  return args.This();
+}
+
+
+Handle<Value> IOWatcher::Start(const Arguments& args) {
+  HandleScope scope;
+
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+
+  ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
+
+  io->Ref();
+
+  return Undefined();
+}
+
+Handle<Value> IOWatcher::Set(const Arguments& args) {
+  HandleScope scope;
+
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
 
   if (!args[0]->IsInt32()) {
     return ThrowException(Exception::TypeError(
@@ -78,34 +121,10 @@ Handle<Value> IOWatcher::New(const Arguments& args) {
 
   if (args[2]->IsTrue()) events |= EV_WRITE;
 
-  if (!args[3]->IsFunction()) {
-    return ThrowException(Exception::TypeError(
-          String::New("Fourth arg should a callback.")));
-  }
-
-  Local<Function> callback = Local<Function>::Cast(args[3]);
-
-  IOWatcher *s = new IOWatcher(fd, events);
-
-  s->Wrap(args.This());
-  s->handle_->SetInternalField(1, callback);
-
-  return args.This();
-}
-
-
-Handle<Value> IOWatcher::Start(const Arguments& args) {
-  HandleScope scope;
-
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
-
-  ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
-
-  io->Ref();
+  ev_io_set(&io->watcher_, fd, events);
 
   return Undefined();
 }
-
 
 Handle<Value> IOWatcher::Stop(const Arguments& args) {
   HandleScope scope;
@@ -117,6 +136,7 @@ Handle<Value> IOWatcher::Stop(const Arguments& args) {
 
 void IOWatcher::Stop () {
   if (watcher_.active) {
+    HandleScope scope;
     ev_io_stop(EV_DEFAULT_UC_ &watcher_);
     Unref();
   }
