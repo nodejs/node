@@ -1,6 +1,8 @@
 import Options
 import platform
 
+PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
+
 def set_options(opt):
   pass
   #opt.tool_options('compiler_cc')
@@ -10,7 +12,7 @@ def configure(conf):
   #conf.check_tool('compiler_cc')
 
   conf.check_cc(header_name="sys/inotify.h")
-  conf.check_cc(header_name="sys/epoll.h")
+  have_epoll = conf.check_cc(header_name="sys/epoll.h")
   conf.check_cc(header_name="sys/event.h")
   conf.check_cc(header_name="sys/queue.h")
   conf.check_cc(header_name="port.h")
@@ -18,18 +20,18 @@ def configure(conf):
   conf.check_cc(header_name="sys/select.h")
   conf.check_cc(header_name="sys/eventfd.h")
   conf.check_cc(header_name="sys/inotify.h", function_name="inotify_init")
+  if have_epoll:
+    code = """
+        #include <sys/epoll.h>
 
-  code = """
-      #include <sys/epoll.h>
+        int main() {
+        epoll_ctl(0, 0, 0, NULL);
+            return 0;
+        }
+    """
+    conf.check_cc(fragment=code, define_name="HAVE_EPOLL_CTL", msg="Checking for epoll_ctl")
 
-      int main() {
-      epoll_ctl(0, 0, 0, NULL);
-          return 0;
-      }
-  """
-  conf.check_cc(fragment=code, define_name="HAVE_EPOLL_CTL", msg="Checking for epoll_ctl")
-
-  if platform.platform().find('Darwin') == 0:
+  if PLATFORM_IS_DARWIN:
     conf.check_cc(header_name="sys/event.h", function_name="kqueue")
   else:
     conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
@@ -52,9 +54,13 @@ def configure(conf):
   conf.check_cc(fragment=code, define_name="HAVE_CLOCK_SYSCALL", execute=True,
                 msg="Checking for SYS_clock_gettime")
 
-  conf.check(lib='rt', uselib_store='RT')
-  conf.check_cc(lib="rt", header_name="time.h", function_name="clock_gettime")
-  conf.check_cc(lib="rt", header_name="time.h", function_name="nanosleep")
+  have_librt = conf.check(lib='rt', uselib_store='RT')
+  if have_librt:
+    conf.check_cc(lib="rt", header_name="time.h", function_name="clock_gettime")
+  if PLATFORM_IS_DARWIN:
+    conf.check_cc(header_name="time.h", function_name="nanosleep")
+  elif have_librt:
+    conf.check_cc(lib="rt", header_name="time.h", function_name="nanosleep")
   conf.check_cc(lib="m", header_name="math.h", function_name="ceil")
 
   conf.define("HAVE_CONFIG_H", 1)
