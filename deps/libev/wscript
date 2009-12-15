@@ -1,4 +1,5 @@
 import Options
+import platform
 
 def set_options(opt):
   pass
@@ -28,8 +29,10 @@ def configure(conf):
   """
   conf.check_cc(fragment=code, define_name="HAVE_EPOLL_CTL", msg="Checking for epoll_ctl")
 
-
-  conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
+  if platform.platform().find('Darwin') == 0:
+    conf.check_cc(header_name="sys/event.h", function_name="kqueue")
+  else:
+    conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
   conf.check_cc(header_name="port.h", function_name="port_create")
   conf.check_cc(header_name="poll.h", function_name="poll")
   conf.check_cc(header_name="sys/select.h", function_name="select")
