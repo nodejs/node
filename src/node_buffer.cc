@@ -1,13 +1,14 @@
+#include <node_buffer.h>
+
 #include <assert.h>
 #include <stdlib.h> // malloc, free
 #include <v8.h>
+
 #include <node.h>
 
 namespace node {
 
 using namespace v8;
-
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define SLICE_ARGS(start_arg, end_arg)                        \
   if (!start_arg->IsInt32() || !end_arg->IsInt32()) {           \
@@ -24,33 +25,11 @@ using namespace v8;
 static Persistent<String> length_symbol;
 static Persistent<FunctionTemplate> constructor_template;
 
-/* A buffer is a chunk of memory stored outside the V8 heap, mirrored by an
- * object in javascript. The object is not totally opaque, one can access
- * individual bytes with [] and slice it into substrings or sub-buffers
- * without copying memory.
- *
- * // return an ascii encoded string - no memory iscopied
- * buffer.asciiSlide(0, 3) 
- *
- * // returns another buffer - no memory is copied
- * buffer.slice(0, 3)
- *
- * Interally, each javascript buffer object is backed by a "struct buffer"
- * object.  These "struct buffer" objects are either a root buffer (in the
- * case that buffer->root == NULL) or slice objects (in which case
- * buffer->root != NULL).  A root buffer is only GCed once all its slices
- * are GCed.
- */
-
-struct buffer {
-  Persistent<Object> handle;  // both
-  bool weak;                  // both
-  struct buffer *root;        // both (NULL for root)
-  size_t offset;              // both (0 for root)
-  size_t length;              // both
-  unsigned int refs;          // root only
-  char bytes[1];              // root only
-};
+bool IsBuffer(v8::Handle<v8::Value> val) {
+  if (!val->IsObject()) return false;
+  Local<Object> obj = val->ToObject();
+  return constructor_template->HasInstance(obj);  
+}
 
 
 static inline struct buffer* buffer_root(buffer *buffer) {
@@ -79,7 +58,7 @@ static inline void buffer_unref(struct buffer *buffer) {
 }
 
 
-static inline struct buffer* Unwrap(Handle<Value> val) {
+struct buffer* BufferUnwrap(v8::Handle<v8::Value> val) {
   assert(val->IsObject());
   HandleScope scope;
   Local<Object> obj = val->ToObject();
@@ -123,7 +102,7 @@ static Handle<Value> Constructor(const Arguments &args) {
     // slice slice
     SLICE_ARGS(args[1], args[2])
 
-    struct buffer *parent = Unwrap(args[0]);
+    struct buffer *parent = BufferUnwrap(args[0]);
 
     size_t start_abs = buffer_abs_off(parent, start);
     size_t end_abs   = buffer_abs_off(parent, end);
@@ -230,7 +209,7 @@ static Handle<Value> AsciiSlice(const Arguments &args) {
   SLICE_ARGS(args[0], args[1])
 
   assert(args.This()->InternalFieldCount() == 1);
-  struct buffer *parent = Unwrap(args.This());
+  struct buffer *parent = BufferUnwrap(args.This());
 
   size_t start_abs = buffer_abs_off(parent, start);
   size_t end_abs   = buffer_abs_off(parent, end);
@@ -251,7 +230,7 @@ static Handle<Value> Utf8Slice(const Arguments &args) {
 
   SLICE_ARGS(args[0], args[1])
 
-  struct buffer *parent = Unwrap(args.This());
+  struct buffer *parent = BufferUnwrap(args.This());
   size_t start_abs = buffer_abs_off(parent, start);
   size_t end_abs   = buffer_abs_off(parent, end);
   assert(start_abs <= end_abs);
