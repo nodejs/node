@@ -425,9 +425,9 @@ static Handle<Value> Read(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  size_t bytes_read = read(fd,
-                           buffer_p(buffer, off),
-                           buffer_remaining(buffer, off));
+  ssize_t bytes_read = read(fd,
+                            buffer_p(buffer, off),
+                            buffer_remaining(buffer, off));
 
   if (bytes_read < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -457,20 +457,20 @@ static Handle<Value> Write(const Arguments& args) {
   struct buffer * buffer = BufferUnwrap(args[1]);
 
   size_t off = args[2]->Int32Value();
-  if (buffer_p(buffer, off) == NULL) {
+  char *p = buffer_p(buffer, off);
+  if (p == NULL) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (buffer_remaining(buffer, off) < len) {
+  size_t remaining = buffer_remaining(buffer, off);
+  if (remaining < len) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  size_t written = write(fd,
-                         buffer_p(buffer, off),
-                         buffer_remaining(buffer, off));
+  ssize_t written = write(fd, p, len);
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();

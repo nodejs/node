@@ -254,6 +254,90 @@ static Handle<Value> Slice(const Arguments &args) {
   return scope.Close(slice);
 }
 
+
+// var charsWritten = buffer.utf8Write(string, offset, length);
+static Handle<Value> Utf8Write(const Arguments &args) {
+  HandleScope scope;
+
+  struct buffer *buffer = BufferUnwrap(args.This());
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+
+  Local<String> s = args[0]->ToString();
+
+  size_t offset = args[1]->Int32Value();
+
+  char *p = buffer_p(buffer, offset);
+  if (buffer_p(buffer, offset) == NULL) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Offset is out of bounds")));
+  }
+
+  size_t toWrite = args[2]->Int32Value();
+
+  if (buffer_remaining(buffer, offset) < toWrite) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Length is out of bounds")));
+  }
+
+  int written = s->WriteUtf8(p, toWrite);
+
+  return scope.Close(Integer::New(written));
+}
+
+
+// var charsWritten = buffer.asciiWrite(string, offset, length);
+static Handle<Value> AsciiWrite(const Arguments &args) {
+  HandleScope scope;
+
+  struct buffer *buffer = BufferUnwrap(args.This());
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+
+  Local<String> s = args[0]->ToString();
+
+  size_t offset = args[1]->Int32Value();
+
+  char *p = buffer_p(buffer, offset);
+  if (buffer_p(buffer, offset) == NULL) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Offset is out of bounds")));
+  }
+
+  size_t toWrite = args[2]->Int32Value();
+
+  if (buffer_remaining(buffer, offset) < toWrite) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Length is out of bounds")));
+  }
+
+  // TODO Expose the second argument of WriteAscii?
+  // Could avoid doing slices when the string doesn't fit in a buffer.  V8
+  // slice() does copy the string, so exposing that argument would help.
+
+  int written = s->WriteAscii(p, 0, toWrite);
+
+  return scope.Close(Integer::New(written));
+}
+
+
+static Handle<Value> Utf8Length(const Arguments &args) {
+  HandleScope scope;
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+  Local<String> s = args[0]->ToString();
+  return scope.Close(Integer::New(s->Utf8Length()));
+}
+
+
 void InitBuffer(Handle<Object> target) {
   HandleScope scope;
 
@@ -270,6 +354,11 @@ void InitBuffer(Handle<Object> target) {
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
   // copy 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Slice", Utf8Slice);
+
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Write", Utf8Write);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", AsciiWrite);
+
+  NODE_SET_METHOD(constructor_template->GetFunction(), "utf8Length", Utf8Length);
 
   target->Set(String::NewSymbol("Buffer"), constructor_template->GetFunction());
 }
