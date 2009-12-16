@@ -12,23 +12,23 @@ GLOBAL.include = function () {
 
 GLOBAL.puts = function () {
   throw new Error("puts() has moved. Use require('sys') to bring it back.");
-}
+};
 
 GLOBAL.print = function () {
   throw new Error("print() has moved. Use require('sys') to bring it back.");
-}
+};
 
 GLOBAL.p = function () {
   throw new Error("p() has moved. Use require('sys') to bring it back.");
-}
+};
 
 process.debug = function () {
   throw new Error("process.debug() has moved. Use require('sys') to bring it back.");
-}
+};
 
 process.error = function () {
   throw new Error("process.error() has moved. Use require('sys') to bring it back.");
-}
+};
 
 GLOBAL.node = {};
 
@@ -118,9 +118,9 @@ process.mixin = function() {
 		--i;
 	}
 
-	for ( ; i < length; i++ )
+	for ( ; i < length; i++ ) {
 		// Only deal with non-null/undefined values
-		if ( (options = arguments[ i ]) != null )
+		if ( (options = arguments[ i ]) != null ) {
 			// Extend the base object
 			for ( var name in options ) {
 				var src = target[ name ], copy = options[ name ];
@@ -130,18 +130,19 @@ process.mixin = function() {
 					continue;
 
 				// Recurse if we're merging object values
-				if ( deep && copy && typeof copy === "object" )
+				if ( deep && copy && typeof copy === "object" ) {
 					target[ name ] = process.mixin( deep, 
 						// Never move original objects, clone them
 						src || ( copy.length != null ? [ ] : { } )
 					, copy );
 
 				// Don't bring in undefined values
-				else
+				} else {
 					target[ name ] = copy;
-
+				}
 			}
-
+		}
+	}
 	// Return the modified object
 	return target;
 };
@@ -195,7 +196,7 @@ process.Promise = function () {
   process.EventEmitter.call();
   this._blocking = false;
   this._hasFired = false;
-}
+};
 process.inherits(process.Promise, process.EventEmitter);
 
 process.Promise.prototype.timeout = function(timeout) {
@@ -435,18 +436,18 @@ GLOBAL.setTimeout = function (callback, after) {
   timer.addListener("timeout", callback);
   timer.start(after, 0);
   return timer;
-}
+};
 
 GLOBAL.setInterval = function (callback, repeat) {
   var timer = new process.Timer();
   timer.addListener("timeout", callback);
   timer.start(repeat, repeat);
   return timer;
-}
+};
 
 GLOBAL.clearTimeout = function (timer) {
   timer.stop();
-}
+};
 
 GLOBAL.clearInterval = GLOBAL.clearTimeout;
 
@@ -508,14 +509,14 @@ var posixModule = createInternalModule("posix", function (exports) {
       } else {
         promise.emitSuccess.apply(promise, arguments);
       }
-    }
+    };
   }
 
   // Yes, the follow could be easily DRYed up but I provide the explicit
   // list to make the arguments clear.
 
   exports.close = function (fd) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.close(fd, callback(promise));
     return promise;
   };
@@ -525,7 +526,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.open = function (path, flags, mode) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.open(path, flags, mode, callback(promise));
     return promise;
   };
@@ -535,7 +536,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.read = function (fd, length, position, encoding) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     encoding = encoding || "binary";
     process.fs.read(fd, length, position, encoding, callback(promise));
     return promise;
@@ -547,7 +548,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.write = function (fd, data, position, encoding) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     encoding = encoding || "binary";
     process.fs.write(fd, data, position, encoding, callback(promise));
     return promise;
@@ -559,7 +560,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.rename = function (oldPath, newPath) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.rename(oldPath, newPath, callback(promise));
     return promise;
   };
@@ -569,7 +570,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.rmdir = function (path) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.rmdir(path, callback(promise));
     return promise;
   };
@@ -579,7 +580,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.mkdir = function (path, mode) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.mkdir(path, mode, callback(promise));
     return promise;
   };
@@ -589,7 +590,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.sendfile = function (outFd, inFd, inOffset, length) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.sendfile(outFd, inFd, inOffset, length, callback(promise));
     return promise;
   };
@@ -599,7 +600,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.readdir = function (path) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.readdir(path, callback(promise));
     return promise;
   };
@@ -609,7 +610,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.stat = function (path) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.stat(path, callback(promise));
     return promise;
   };
@@ -619,7 +620,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.unlink = function (path) {
-    var promise = new process.Promise()
+    var promise = new process.Promise();
     process.fs.unlink(path, callback(promise));
     return promise;
   };
@@ -752,7 +753,7 @@ function findModulePath (id, dirs, callback) {
     path.join(dir, id + ".js"),
     path.join(dir, id + ".node"),
     path.join(dir, id, "index.js"),
-    path.join(dir, id, "index.addon"),
+    path.join(dir, id, "index.addon")
   ];
 
   var searchLocations = function() {
@@ -768,7 +769,7 @@ function findModulePath (id, dirs, callback) {
         return;
       }
       searchLocations();
-    })
+    });
   };
   searchLocations();
 }
@@ -933,7 +934,7 @@ if (process.ARGV[0].indexOf('/') > 0) {
   process.ARGV[0] = path.join(cwd, process.ARGV[0]);
 }
 
-if (process.ARGV[1].charAt(0) != "/" && !/^http:\/\//.exec(process.ARGV[1])) {
+if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
   process.ARGV[1] = path.join(cwd, process.ARGV[1]);
 }
 
