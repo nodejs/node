@@ -13,6 +13,13 @@
 #include <fcntl.h>
 #include <arpa/inet.h> /* inet_pton */
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
+#include <sys/ioctl.h>
+#include <linux/sockios.h>
+
+
 #include <errno.h>
 
 namespace node {
@@ -427,7 +434,7 @@ static Handle<Value> Read(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "read"));
   }
 
-  return Integer::New(bytes_read);
+  return scope.Close(Integer::New(bytes_read));
 }
 
 //  var bytesWritten = t.write(fd, buffer, offset, length);
@@ -470,8 +477,27 @@ static Handle<Value> Write(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "write"));
   }
 
-  return Integer::New(written);
+  return scope.Close(Integer::New(written));
 }
+
+
+// Probably only works for Linux TCP sockets?
+// Returns the amount of data on the read queue.
+static Handle<Value> ToRead(const Arguments& args) {
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  int value;
+  int r = ioctl(fd, SIOCINQ, &value);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "ioctl"));
+  }
+
+  return scope.Close(Integer::New(value));
+}
+
 
 void InitNet2(Handle<Object> target) {
   HandleScope scope;
@@ -490,6 +516,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
   NODE_SET_METHOD(target, "getSocketError", GetSocketError);
+  NODE_SET_METHOD(target, "toRead", ToRead);
 
 
   target->Set(String::NewSymbol("EINPROGRESS"), Integer::New(EINPROGRESS));

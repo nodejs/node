@@ -39,7 +39,7 @@ static inline struct buffer* buffer_root(buffer *buffer) {
 /* Determines the absolute position for a relative offset */
 static inline size_t buffer_abs_off(buffer *buffer, size_t off) {
   struct buffer *root = buffer_root(buffer);
-  off += root->offset;
+  off += buffer->offset;
   return MIN(root->length, off);
 }
 
