@@ -668,7 +668,7 @@ var posix = posixModule.exports;
 var pathModule = createInternalModule("path", function (exports) {
   exports.join = function () {
     var joined = "", 
-      dotre = /^\.\//g,
+      dotre = /^\.\//,
       dotreplace = "",
       dotdotre = /(^|(\/)([^\/]+\/)?)\.\.\//g,
       dotdotreplace = ""
@@ -677,7 +677,7 @@ var pathModule = createInternalModule("path", function (exports) {
 
       /* Some logic to shorten paths */
       if (part === ".") continue;
-      while (dotre.exec(part)) part.replace(dotre, dotreplace);
+      while (dotre.exec(part)) part = part.replace(dotre, dotreplace);
 
       if (i === 0) {
         part = part.replace(/\/*$/, "/");
