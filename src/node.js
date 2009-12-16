@@ -689,7 +689,7 @@ var pathModule = createInternalModule("path", function (exports) {
       joined += part;
     }
     // replace /foo/../bar/baz with /bar/baz
-    while (dotdotre.exec(joined)) joined.replace(dotdotre, dotdotreplace);
+    while (dotdotre.exec(joined)) joined = joined.replace(dotdotre, dotdotreplace);
     return joined;
     
   };
@@ -782,15 +782,19 @@ function loadModule (request, parent) {
   // This is the promise which is actually returned from require.async()
   var loadPromise = new process.Promise();
 
-  debug("loadModule REQUEST  " + JSON.stringify(request) + " parent: " + JSON.stringify(parent));
+  // debug("loadModule REQUEST  " + (request) + " parent: " + JSON.stringify(parent));
 
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
-    id = path.join(path.dirname(parent.id), request);
+    var parentIdPath = path.dirname(parent.id +
+      (path.filename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
+    id = path.join(parentIdPath, request);
+    debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
   } else {
     id = request;
+    debug("ABSOLUTE: id="+id);
     paths = process.paths;
   }
 
