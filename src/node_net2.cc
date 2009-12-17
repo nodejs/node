@@ -377,7 +377,7 @@ static Handle<Value> Accept(const Arguments& args) {
 }
 
 
-static Handle<Value> GetSocketError(const Arguments& args) {
+static Handle<Value> SocketError(const Arguments& args) {
   HandleScope scope;
 
   FD_ARG(args[0])
@@ -515,7 +515,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "bind", Bind);
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
-  NODE_SET_METHOD(target, "getSocketError", GetSocketError);
+  NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
 
 

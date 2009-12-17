@@ -18,6 +18,25 @@ var server = new net.Server(function (stream) {
     stream.send(b);
     stream.send("pong utf8\r\n", "utf8");
   });
+
+  stream.addListener("eof", function () {
+    sys.puts("server peer eof");
+    stream.close();
+  });
 });
 server.listen(8000);
 sys.puts("server fd: " + server.fd);
+
+
+var stream = new net.Stream();
+stream.addListener('connect', function () {
+  sys.puts("!!!client connected");
+  stream.send("hello\n");
+});
+
+stream.addListener('receive', function (d) {
+  sys.puts("!!!client got: " + JSON.stringify(d.toString()));
+});
+
+stream.connect(8000);
+
