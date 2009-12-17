@@ -790,11 +790,11 @@ function loadModule (request, parent) {
     var parentIdPath = path.dirname(parent.id +
       (path.filename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
     id = path.join(parentIdPath, request);
-    debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
+    // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
   } else {
     id = request;
-    debug("ABSOLUTE: id="+id);
+    // debug("ABSOLUTE: id="+id);
     paths = process.paths;
   }
 
