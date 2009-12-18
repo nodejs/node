@@ -1430,7 +1430,39 @@ Each DNS query can return an error code.
 - +dns.NOMEM+: out of memory while processing.
 - +dns.BADQUERY+: the query is malformed.
 
+=== Assert Module
 
+This module is used for writing unit tests for your applications, you can access it with +require("assert")+.
+
++assert.fail(actual, expected, message, operator)+::
+Tests if +actual+ is equal to +expected+ using the operator provided.
+
++assert.ok(value, message)+::
+Tests if value is a +true+ value, it is equivilant to +assert.equal(true, value, message);+
+
++assert.equal(actual, expected, message)+::
+Tests shallow, coercive equality with the equal comparison operator ( +==+ ). 
+
++assert.notEqual(actual, expected, message)+::
+Tests shallow, coercive non-equality with the not equal comparison operator ( +!=+ ).
+
++assert.deepEqual(actual, expected, message)+::
+Tests for deep equality.
+
++assert.notDeepEqual(actual, expected, message)+::
+Tests for any deep inequality. 
+
++assert.strictEqual(actual, expected, message)+::
+Tests strict equality, as determined by bitwise equality operator ( +===+ ) 
+
++assert.notStrictEqual(actual, expected, message)+::
+Tests strict non-equality, as determined by bitwise not equal operator ( +!==+ ) 
+
++assert.throws(block, error, message)+::
+Expects +block+ to throw an error.
+
++assert.doesNotThrow(block, error, message)+::
+Expects +block+ not to throw an error.
 
 == REPL
 
