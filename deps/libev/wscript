@@ -27,10 +27,11 @@ def configure(conf):
   if conf.check_cc(header_name="poll.h"):
     conf.check_cc(header_name="poll.h", function_name="poll")
 
-  if conf.check_cc(header_name="sys/event.h"):
+  conf.check_cc(header_name="sys/event.h")
+  conf.check_cc(header_name="sys/queue.h")
+  if PLATFORM_IS_DARWIN:
     conf.check_cc(header_name="sys/event.h", function_name="kqueue")
-
-  if conf.check_cc(header_name="sys/queue.h"):
+  else:
     conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
 
   if conf.check_cc(header_name="sys/select.h"):
