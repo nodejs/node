@@ -91,14 +91,14 @@ typedef int (*F0)();
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.
-  intptr_t test_numbers[] = {
+  int64_t test_numbers[] = {
       0, 1, -1, 127, 128, -128, -129, 255, 256, -256, -257,
-      Smi::kMaxValue, static_cast<intptr_t>(Smi::kMaxValue) + 1,
-      Smi::kMinValue, static_cast<intptr_t>(Smi::kMinValue) - 1
+      Smi::kMaxValue, static_cast<int64_t>(Smi::kMaxValue) + 1,
+      Smi::kMinValue, static_cast<int64_t>(Smi::kMinValue) - 1
   };
   int test_number_count = 15;
   for (int i = 0; i < test_number_count; i++) {
-    intptr_t number = test_numbers[i];
+    int64_t number = test_numbers[i];
     bool is_valid = Smi::IsValid(number);
     bool is_in_range = number >= Smi::kMinValue && number <= Smi::kMaxValue;
     CHECK_EQ(is_in_range, is_valid);
@@ -108,8 +108,8 @@ TEST(Smi) {
         Smi* smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
-      int smi_value = smi_from_intptr->value();
-      CHECK_EQ(number, static_cast<intptr_t>(smi_value));
+      int64_t smi_value = smi_from_intptr->value();
+      CHECK_EQ(number, smi_value);
     }
   }
 }

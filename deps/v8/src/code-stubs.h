@@ -43,6 +43,9 @@ namespace internal {
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
+  V(FastNewClosure)                      \
+  V(FastNewContext)                      \
+  V(FastCloneShallowArray)               \
   V(UnarySub)                            \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
@@ -83,6 +86,11 @@ class CodeStub BASE_EMBEDDED {
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GetCode();
 
+  // Retrieve the code for the stub if already generated.  Do not
+  // generate the code if not already generated and instead return a
+  // retry after GC Failure object.
+  Object* TryGetCode();
+
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   };
@@ -104,8 +112,19 @@ class CodeStub BASE_EMBEDDED {
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
 
  private:
+  // Lookup the code in the (possibly custom) cache.
+  bool FindCodeInCache(Code** code_out);
+
+  // Nonvirtual wrapper around the stub-specific Generate function.  Call
+  // this function to set up the macro assembler and generate the code.
+  void GenerateCode(MacroAssembler* masm);
+
   // Generates the assembler code for the stub.
   virtual void Generate(MacroAssembler* masm) = 0;
+
+  // Perform bookkeeping required after code generation when stub code is
+  // initially generated.
+  void RecordCodeGeneration(Code* code, MacroAssembler* masm);
 
   // Returns information for computing the number key.
   virtual Major MajorKey() = 0;

@@ -14,6 +14,7 @@
 *.pdb
 #*#
 *~
+.cpplint-cache
 d8
 d8_g
 shell

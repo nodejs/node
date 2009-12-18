@@ -74,8 +74,6 @@ namespace internal {
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                 \
   SC(symbol_table_capacity, V8.SymbolTableCapacity)              \
   SC(number_of_symbols, V8.NumberOfSymbols)                      \
-  /* Current amount of memory in external string buffers. */     \
-  SC(total_external_string_memory, V8.TotalExternalStringMemory) \
   SC(script_wrappers, V8.ScriptWrappers)                         \
   SC(call_initialize_stubs, V8.CallInitializeStubs)              \
   SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)      \

@@ -261,8 +261,12 @@ class RetainerHeapProfile BASE_EMBEDDED {
 class ProducerHeapProfile : public AllStatic {
  public:
   static void Setup();
-  static void RecordJSObjectAllocation(Object* obj);
+  static void RecordJSObjectAllocation(Object* obj) {
+    if (FLAG_log_producers) DoRecordJSObjectAllocation(obj);
+  }
+
  private:
+  static void DoRecordJSObjectAllocation(Object* obj);
   static bool can_log_;
 };
 

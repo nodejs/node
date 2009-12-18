@@ -223,6 +223,10 @@ namespace internal {
   F(CreateObjectLiteralBoilerplate, 3, 1) \
   F(CloneLiteralBoilerplate, 1, 1) \
   F(CloneShallowLiteralBoilerplate, 1, 1) \
+  F(CreateObjectLiteral, 3, 1) \
+  F(CreateObjectLiteralShallow, 3, 1) \
+  F(CreateArrayLiteral, 3, 1) \
+  F(CreateArrayLiteralShallow, 3, 1) \
   \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2, 1) \

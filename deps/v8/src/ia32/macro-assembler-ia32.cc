@@ -504,6 +504,13 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 }
 
 
+void MacroAssembler::PopTryHandler() {
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
 Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
                                    JSObject* holder, Register holder_reg,
                                    Register scratch,
@@ -834,10 +841,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
   ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  mov(scratch1, length);
   ASSERT(kShortSize == 2);
-  shl(scratch1, 1);
-  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  // scratch1 = length * 2 + kObjectAlignmentMask.
+  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask));
   and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.
@@ -1016,14 +1022,34 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
+Object* MacroAssembler::TryCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  Object* result = stub->TryGetCode();
+  if (!result->IsFailure()) {
+    call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  }
+  return result;
+}
+
+
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+Object* MacroAssembler::TryTailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  Object* result = stub->TryGetCode();
+  if (!result->IsFailure()) {
+    jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  }
+  return result;
 }
 
 
@@ -1328,6 +1354,18 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::Ret() {
   ret(0);
+}
+
+
+void MacroAssembler::Drop(int stack_elements) {
+  if (stack_elements > 0) {
+    add(Operand(esp), Immediate(stack_elements * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> value) {
+  mov(dst, value);
 }
 
 

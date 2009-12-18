@@ -594,11 +594,11 @@ class IndentedScope BASE_EMBEDDED {
     ast_printer_->inc_indent();
   }
 
-  explicit IndentedScope(const char* txt, SmiAnalysis* type = NULL) {
+  explicit IndentedScope(const char* txt, StaticType* type = NULL) {
     ast_printer_->PrintIndented(txt);
     if ((type != NULL) && (type->IsKnown())) {
       ast_printer_->Print(" (type = ");
-      ast_printer_->Print(SmiAnalysis::Type2String(type));
+      ast_printer_->Print(StaticType::Type2String(type));
       ast_printer_->Print(")");
     }
     ast_printer_->Print("\n");
@@ -657,7 +657,7 @@ void AstPrinter::PrintLiteralIndented(const char* info,
 void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value,
-                                              SmiAnalysis* type) {
+                                              StaticType* type) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
@@ -665,7 +665,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     if (type->IsKnown()) {
       OS::SNPrintF(buf, "%s (mode = %s, type = %s)", info,
                    Variable::Mode2String(var->mode()),
-                   SmiAnalysis::Type2String(type));
+                   StaticType::Type2String(type));
     } else {
       OS::SNPrintF(buf, "%s (mode = %s)", info,
                    Variable::Mode2String(var->mode()));
@@ -1072,7 +1072,7 @@ void AstPrinter::VisitCountOperation(CountOperation* node) {
     OS::SNPrintF(buf, "%s %s (type = %s)",
                  (node->is_prefix() ? "PRE" : "POST"),
                  Token::Name(node->op()),
-                 SmiAnalysis::Type2String(node->type()));
+                 StaticType::Type2String(node->type()));
   } else {
     OS::SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
                  Token::Name(node->op()));

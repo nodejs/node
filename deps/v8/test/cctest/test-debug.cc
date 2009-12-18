@@ -3141,6 +3141,39 @@ TEST(DisableBreak) {
   CheckDebuggerUnloaded();
 }
 
+static const char* kSimpleExtensionSource =
+  "(function Foo() {"
+  "  return 4;"
+  "})() ";
+
+// http://crbug.com/28933
+// Test that debug break is disabled when bootstrapper is active.
+TEST(NoBreakWhenBootstrapping) {
+  v8::HandleScope scope;
+
+  // Register a debug event listener which sets the break flag and counts.
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+
+  // Set the debug break flag.
+  v8::Debug::DebugBreak();
+  break_point_hit_count = 0;
+  {
+    // Create a context with an extension to make sure that some JavaScript
+    // code is executed during bootstrapping.
+    v8::RegisterExtension(new v8::Extension("simpletest",
+                                            kSimpleExtensionSource));
+    const char* extension_names[] = { "simpletest" };
+    v8::ExtensionConfiguration extensions(1, extension_names);
+    v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
+    context.Dispose();
+  }
+  // Check that no DebugBreak events occured during the context creation.
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Get rid of the debug event listener.
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
 
 static v8::Handle<v8::Array> NamedEnum(const v8::AccessorInfo&) {
   v8::Handle<v8::Array> result = v8::Array::New(3);

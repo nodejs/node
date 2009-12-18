@@ -149,6 +149,8 @@ class MacroAssembler: public Assembler {
   // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
+  // Unlink the stack handler on top of the stack from the try handler chain.
+  void PopTryHandler();
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -285,11 +287,21 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Runtime calls
 
-  // Call a code stub.
+  // Call a code stub.  Generate the code if necessary.
   void CallStub(CodeStub* stub);
 
-  // Tail call a code stub (jump).
+  // Call a code stub and return the code object called.  Try to generate
+  // the code if necessary.  Do not perform a GC but instead return a retry
+  // after GC failure.
+  Object* TryCallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump) and return the code object called.  Try to
+  // generate the code if necessary.  Do not perform a GC but instead return
+  // a retry after GC failure.
+  Object* TryTailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
@@ -322,6 +334,12 @@ class MacroAssembler: public Assembler {
   // Utilities
 
   void Ret();
+
+  void Drop(int element_count);
+
+  void Call(Label* target) { call(target); }
+
+  void Move(Register target, Handle<Object> value);
 
   struct Unresolved {
     int pc;

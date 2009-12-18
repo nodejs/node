@@ -145,6 +145,14 @@ const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
 const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
+// Desired alignment for maps.
+#if V8_HOST_ARCH_64_BIT
+const intptr_t kMapAlignmentBits = kObjectAlignmentBits;
+#else
+const intptr_t kMapAlignmentBits = kObjectAlignmentBits + 3;
+#endif
+const intptr_t kMapAlignment = (1 << kMapAlignmentBits);
+const intptr_t kMapAlignmentMask = kMapAlignment - 1;
 
 // Tag information for Failure.
 const int kFailureTag = 3;
@@ -172,6 +180,11 @@ const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 #endif
+
+
+// Number of bits to represent the page size for paged spaces. The value of 13
+// gives 8K bytes per page.
+const int kPageSizeBits = 13;
 
 
 // Constants relevant to double precision floating point numbers.
@@ -294,7 +307,7 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode { VISIT_ALL, VISIT_ONLY_STRONG };
+enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
 
 // A CodeDesc describes a buffer holding instructions and relocation
@@ -449,6 +462,10 @@ enum StateTag {
 // POINTER_SIZE_ALIGN returns the value aligned as a pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
+
+// MAP_SIZE_ALIGN returns the value aligned as a map pointer.
+#define MAP_SIZE_ALIGN(value)                               \
+  (((value) + kMapAlignmentMask) & ~kMapAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

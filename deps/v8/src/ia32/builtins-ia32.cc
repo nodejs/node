@@ -472,35 +472,38 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 4. Shift stuff one slot down the stack.
+  // 4. Check that the function really is a function.
+  { Label done;
+    __ test(edi, Operand(edi));
+    __ j(not_zero, &done, taken);
+    __ xor_(ebx, Operand(ebx));
+    // CALL_NON_FUNCTION will expect to find the non-function callee on the
+    // expression stack of the caller.  Transfer it from receiver to the
+    // caller's expression stack (and make the first argument the receiver
+    // for CALL_NON_FUNCTION) by decrementing the argument count.
+    __ dec(eax);
+    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+           RelocInfo::CODE_TARGET);
+    __ bind(&done);
+  }
+
+  // 5. Shift arguments and return address one slot down on the stack
+  //    (overwriting the receiver).
   { Label loop;
-    __ lea(ecx, Operand(eax, +1));  // +1 ~ copy receiver too
+    __ mov(ecx, eax);
     __ bind(&loop);
     __ mov(ebx, Operand(esp, ecx, times_4, 0));
     __ mov(Operand(esp, ecx, times_4, kPointerSize), ebx);
     __ dec(ecx);
-    __ j(not_zero, &loop);
+    __ j(not_sign, &loop);
+    __ pop(ebx);  // Discard copy of return address.
+    __ dec(eax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 5. Remove TOS (copy of last arguments), but keep return address.
-  __ pop(ebx);
-  __ pop(ecx);
-  __ push(ebx);
-  __ dec(eax);
-
-  // 6. Check that function really was a function and get the code to
-  //    call from the function and check that the number of expected
-  //    arguments matches what we're providing.
-  { Label invoke;
-    __ test(edi, Operand(edi));
-    __ j(not_zero, &invoke, taken);
-    __ xor_(ebx, Operand(ebx));
-    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-           RelocInfo::CODE_TARGET);
-
-    __ bind(&invoke);
-    __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  // 6. Get the code to call from the function and check that the number of
+  //    expected arguments matches what we're providing.
+  { __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ mov(ebx,
            FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
     __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));

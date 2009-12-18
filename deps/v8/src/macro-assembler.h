@@ -77,8 +77,13 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
 #include "assembler.h"
+#ifdef V8_ARM_VARIANT_THUMB
+#include "arm/assembler-thumb2.h"
+#include "arm/assembler-thumb2-inl.h"
+#else
 #include "arm/assembler-arm.h"
 #include "arm/assembler-arm-inl.h"
+#endif
 #include "code.h"  // must be after assembler_*.h
 #include "arm/macro-assembler-arm.h"
 #else

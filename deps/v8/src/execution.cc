@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
 #include "simulator.h"
@@ -604,6 +605,11 @@ static Object* RuntimePreempt() {
 Object* Execution::DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
+    return Heap::undefined_value();
+  }
+
+  // Ignore debug break during bootstrapping.
+  if (Bootstrapper::IsActive()) {
     return Heap::undefined_value();
   }
 

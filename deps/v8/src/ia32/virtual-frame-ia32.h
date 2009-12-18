@@ -341,9 +341,9 @@ class VirtualFrame: public ZoneObject {
   // of the frame.  Key and receiver are not dropped.
   Result CallKeyedStoreIC();
 
-  // Call call IC.  Arguments, reciever, and function name are found
-  // on top of the frame.  Function name slot is not dropped.  The
-  // argument count does not include the receiver.
+  // Call call IC.  Function name, arguments, and receiver are found on top
+  // of the frame and dropped by the call.  The argument count does not
+  // include the receiver.
   Result CallCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
 
   // Allocate and call JS function as constructor.  Arguments,

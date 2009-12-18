@@ -36,7 +36,7 @@
 
 #include "v8.h"
 
-#include "arm/assembler-arm-inl.h"
+#include "arm/assembler-thumb2-inl.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -193,7 +193,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
-// See assembler-arm-inl.h for inlined constructors
+// See assembler-thumb2-inl.h for inlined constructors
 
 Operand::Operand(Handle<Object> handle) {
   rm_ = no_reg;

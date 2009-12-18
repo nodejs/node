@@ -952,14 +952,14 @@ MapWord MapWord::EncodeAddress(Address map_address, int offset) {
   // exceed the object area size of a page.
   ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
 
-  int compact_offset = offset >> kObjectAlignmentBits;
+  uintptr_t compact_offset = offset >> kObjectAlignmentBits;
   ASSERT(compact_offset < (1 << kForwardingOffsetBits));
 
   Page* map_page = Page::FromAddress(map_address);
   ASSERT_MAP_PAGE_INDEX(map_page->mc_page_index);
 
-  int map_page_offset =
-      map_page->Offset(map_address) >> kObjectAlignmentBits;
+  uintptr_t map_page_offset =
+      map_page->Offset(map_address) >> kMapAlignmentBits;
 
   uintptr_t encoding =
       (compact_offset << kForwardingOffsetShift) |
@@ -975,8 +975,8 @@ Address MapWord::DecodeMapAddress(MapSpace* map_space) {
   ASSERT_MAP_PAGE_INDEX(map_page_index);
 
   int map_page_offset = static_cast<int>(
-      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift)
-      << kObjectAlignmentBits);
+      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift) <<
+      kMapAlignmentBits);
 
   return (map_space->PageAddress(map_page_index) + map_page_offset);
 }
@@ -1499,7 +1499,7 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  // Make sure non of the elements in desc are in new space.
+  // Make sure none of the elements in desc are in new space.
   ASSERT(!Heap::InNewSpace(desc->GetKey()));
   ASSERT(!Heap::InNewSpace(desc->GetValue()));
 

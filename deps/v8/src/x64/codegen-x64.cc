@@ -4051,7 +4051,8 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Load(args->at(1));
 
-  Result answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  Result answer = frame_->CallStub(&stub, 2);
   frame_->Push(&answer);
 }
 
@@ -5126,7 +5127,7 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           SmiAnalysis* type,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -5315,7 +5316,7 @@ void DeferredInlineSmiOperation::Generate() {
 void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                Result* operand,
                                                Handle<Object> value,
-                                               SmiAnalysis* type,
+                                               StaticType* type,
                                                bool reversed,
                                                OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -6098,7 +6099,7 @@ void Reference::SetValue(InitState init_state) {
       // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      SmiAnalysis* key_smi_analysis = property->key()->type();
+      StaticType* key_smi_analysis = property->key()->type();
 
       if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
         Comment cmnt(masm, "[ Inlined store to keyed Property");
@@ -7371,19 +7372,28 @@ void FloatingPointHelper::CheckNumberOperands(MacroAssembler* masm,
 
 
 const char* GenericBinaryOpStub::GetName() {
-  switch (op_) {
-    case Token::ADD: return "GenericBinaryOpStub_ADD";
-    case Token::SUB: return "GenericBinaryOpStub_SUB";
-    case Token::MUL: return "GenericBinaryOpStub_MUL";
-    case Token::DIV: return "GenericBinaryOpStub_DIV";
-    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
-    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
-    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
-    case Token::SAR: return "GenericBinaryOpStub_SAR";
-    case Token::SHL: return "GenericBinaryOpStub_SHL";
-    case Token::SHR: return "GenericBinaryOpStub_SHR";
-    default:         return "GenericBinaryOpStub";
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
   }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s",
+               op_name,
+               overwrite_name,
+               (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
+               args_in_registers_ ? "RegArgs" : "StackArgs",
+               args_reversed_ ? "_R" : "",
+               use_sse3_ ? "SSE3" : "SSE2");
+  return name_;
 }
 
 
@@ -7796,8 +7806,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ j(above_equal, &string1);
 
       // First and second argument are strings.
-      Runtime::Function* f = Runtime::FunctionForId(Runtime::kStringAdd);
-      __ TailCallRuntime(ExternalReference(f), 2, f->result_size);
+      StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+      __ TailCallStub(&stub);
 
       // Only first argument is a string.
       __ bind(&string1);
@@ -7879,6 +7889,234 @@ int CompareStub::MinorKey() {
   ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
   return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
+
+
+void StringAddStub::Generate(MacroAssembler* masm) {
+  Label string_add_runtime;
+
+  // Load the two arguments.
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));  // First argument.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));  // Second argument.
+
+  // Make sure that both arguments are strings if not known in advance.
+  if (string_check_) {
+    Condition is_smi;
+    is_smi = masm->CheckSmi(rax);
+    __ j(is_smi, &string_add_runtime);
+    __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, r8);
+    __ j(above_equal, &string_add_runtime);
+
+    // First argument is a a string, test second.
+    is_smi = masm->CheckSmi(rdx);
+    __ j(is_smi, &string_add_runtime);
+    __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, r9);
+    __ j(above_equal, &string_add_runtime);
+  }
+
+  // Both arguments are strings.
+  // rax: first string
+  // rdx: second string
+  // Check if either of the strings are empty. In that case return the other.
+  Label second_not_zero_length, both_not_zero_length;
+  __ movl(rcx, FieldOperand(rdx, String::kLengthOffset));
+  __ testl(rcx, rcx);
+  __ j(not_zero, &second_not_zero_length);
+  // Second string is empty, result is first string which is already in rax.
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+  __ bind(&second_not_zero_length);
+  __ movl(rbx, FieldOperand(rax, String::kLengthOffset));
+  __ testl(rbx, rbx);
+  __ j(not_zero, &both_not_zero_length);
+  // First string is empty, result is second string which is in rdx.
+  __ movq(rax, rdx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Both strings are non-empty.
+  // rax: first string
+  // rbx: length of first string
+  // ecx: length of second string
+  // edx: second string
+  // r8: instance type of first string if string check was performed above
+  // r9: instance type of first string if string check was performed above
+  Label string_add_flat_result;
+  __ bind(&both_not_zero_length);
+  // Look at the length of the result of adding the two strings.
+  __ addl(rbx, rcx);
+  // Use the runtime system when adding two one character strings, as it
+  // contains optimizations for this specific case using the symbol table.
+  __ cmpl(rbx, Immediate(2));
+  __ j(equal, &string_add_runtime);
+  // If arguments where known to be strings, maps are not loaded to r8 and r9
+  // by the code above.
+  if (!string_check_) {
+    __ movq(r8, FieldOperand(rax, HeapObject::kMapOffset));
+    __ movq(r9, FieldOperand(rdx, HeapObject::kMapOffset));
+  }
+  // Get the instance types of the two strings as they will be needed soon.
+  __ movzxbl(r8, FieldOperand(r8, Map::kInstanceTypeOffset));
+  __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
+  // Check if resulting string will be flat.
+  __ cmpl(rbx, Immediate(String::kMinNonFlatLength));
+  __ j(below, &string_add_flat_result);
+  // Handle exceptionally long strings in the runtime system.
+  ASSERT((String::kMaxLength & 0x80000000) == 0);
+  __ cmpl(rbx, Immediate(String::kMaxLength));
+  __ j(above, &string_add_runtime);
+
+  // If result is not supposed to be flat, allocate a cons string object. If
+  // both strings are ascii the result is an ascii cons string.
+  // rax: first string
+  // ebx: length of resulting flat string
+  // rdx: second string
+  // r8: instance type of first string
+  // r9: instance type of second string
+  Label non_ascii, allocated;
+  __ movl(rcx, r8);
+  __ and_(rcx, r9);
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  __ testl(rcx, Immediate(kAsciiStringTag));
+  __ j(zero, &non_ascii);
+  // Allocate an acsii cons string.
+  __ AllocateAsciiConsString(rcx, rdi, no_reg, &string_add_runtime);
+  __ bind(&allocated);
+  // Fill the fields of the cons string.
+  __ movl(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
+  __ movl(FieldOperand(rcx, ConsString::kHashFieldOffset),
+          Immediate(String::kEmptyHashField));
+  __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
+  __ movq(FieldOperand(rcx, ConsString::kSecondOffset), rdx);
+  __ movq(rax, rcx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+  __ bind(&non_ascii);
+  // Allocate a two byte cons string.
+  __ AllocateConsString(rcx, rdi, no_reg, &string_add_runtime);
+  __ jmp(&allocated);
+
+  // Handle creating a flat result. First check that both strings are not
+  // external strings.
+  // rax: first string
+  // ebx: length of resulting flat string
+  // rdx: second string
+  // r8: instance type of first string
+  // r9: instance type of first string
+  __ bind(&string_add_flat_result);
+  __ movl(rcx, r8);
+  __ and_(rcx, Immediate(kStringRepresentationMask));
+  __ cmpl(rcx, Immediate(kExternalStringTag));
+  __ j(equal, &string_add_runtime);
+  __ movl(rcx, r9);
+  __ and_(rcx, Immediate(kStringRepresentationMask));
+  __ cmpl(rcx, Immediate(kExternalStringTag));
+  __ j(equal, &string_add_runtime);
+  // Now check if both strings are ascii strings.
+  // rax: first string
+  // ebx: length of resulting flat string
+  // rdx: second string
+  // r8: instance type of first string
+  // r9: instance type of second string
+  Label non_ascii_string_add_flat_result;
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  __ testl(r8, Immediate(kAsciiStringTag));
+  __ j(zero, &non_ascii_string_add_flat_result);
+  __ testl(r9, Immediate(kAsciiStringTag));
+  __ j(zero, &string_add_runtime);
+  // Both strings are ascii strings. As they are short they are both flat.
+  __ AllocateAsciiString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
+  // rcx: result string
+  __ movq(rbx, rcx);
+  // Locate first character of result.
+  __ addq(rcx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // Locate first character of first argument
+  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ addq(rax, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // rax: first char of first argument
+  // rbx: result string
+  // rcx: first character of result
+  // rdx: second string
+  // rdi: length of first argument
+  GenerateCopyCharacters(masm, rcx, rax, rdi, true);
+  // Locate first character of second argument.
+  __ movl(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ addq(rdx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // rbx: result string
+  // rcx: next character of result
+  // rdx: first char of second argument
+  // rdi: length of second argument
+  GenerateCopyCharacters(masm, rcx, rdx, rdi, true);
+  __ movq(rax, rbx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Handle creating a flat two byte result.
+  // rax: first string - known to be two byte
+  // rbx: length of resulting flat string
+  // rdx: second string
+  // r8: instance type of first string
+  // r9: instance type of first string
+  __ bind(&non_ascii_string_add_flat_result);
+  __ and_(r9, Immediate(kAsciiStringTag));
+  __ j(not_zero, &string_add_runtime);
+  // Both strings are two byte strings. As they are short they are both
+  // flat.
+  __ AllocateTwoByteString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
+  // rcx: result string
+  __ movq(rbx, rcx);
+  // Locate first character of result.
+  __ addq(rcx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // Locate first character of first argument.
+  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ addq(rax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // rax: first char of first argument
+  // rbx: result string
+  // rcx: first character of result
+  // rdx: second argument
+  // rdi: length of first argument
+  GenerateCopyCharacters(masm, rcx, rax, rdi, false);
+  // Locate first character of second argument.
+  __ movl(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ addq(rdx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // rbx: result string
+  // rcx: next character of result
+  // rdx: first char of second argument
+  // rdi: length of second argument
+  GenerateCopyCharacters(masm, rcx, rdx, rdi, false);
+  __ movq(rax, rbx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Just jump to runtime to add the two strings.
+  __ bind(&string_add_runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+}
+
+
+void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
+                                           Register dest,
+                                           Register src,
+                                           Register count,
+                                           bool ascii) {
+  Label loop;
+  __ bind(&loop);
+  // This loop just copies one character at a time, as it is only used for very
+  // short strings.
+  if (ascii) {
+    __ movb(kScratchRegister, Operand(src, 0));
+    __ movb(Operand(dest, 0), kScratchRegister);
+    __ addq(src, Immediate(1));
+    __ addq(dest, Immediate(1));
+  } else {
+    __ movzxwl(kScratchRegister, Operand(src, 0));
+    __ movw(Operand(dest, 0), kScratchRegister);
+    __ addq(src, Immediate(2));
+    __ addq(dest, Immediate(2));
+  }
+  __ subl(count, Immediate(1));
+  __ j(not_zero, &loop);
+}
+
 
 #undef __
 

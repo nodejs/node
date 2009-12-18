@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// See: http://code.google.com/p/v8/issues/detail?id=545
+// and: http://code.google.com/p/chromium/issues/detail?id=28353
 
-#include "token.h"
+// The "this" variable proxy was reused. If context annotations differ between
+// uses, this can cause a use in a value context to assume a test context. Since
+// it has no true/false labels set, it causes a null-pointer dereference and
+// segmentation fault.
 
-namespace v8 {
-namespace internal {
+// Code should not crash:
 
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
+// Original bug report by Robert Swiecki (wrapped to not throw):
+try {
+ new IsPrimitive(load())?this.join():String('&#10;').charCodeAt((!this>Math));
+} catch (e) {}
 
+// Shorter examples:
 
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
+this + !this;
 
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-} }  // namespace v8::internal
+this + (this ? 1 : 2);

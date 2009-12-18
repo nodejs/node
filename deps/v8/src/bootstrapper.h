@@ -74,6 +74,10 @@ class Bootstrapper : public AllStatic {
   static char* ArchiveState(char* to);
   static char* RestoreState(char* from);
   static void FreeThreadResources();
+
+  // This will allocate a char array that is deleted when V8 is shut down.
+  // It should only be used for strictly finite allocations.
+  static char* AllocateAutoDeletedArray(int bytes);
 };
 
 

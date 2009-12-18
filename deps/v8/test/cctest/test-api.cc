@@ -447,6 +447,40 @@ THREADED_TEST(UsingExternalAsciiString) {
 }
 
 
+THREADED_TEST(ScavengeExternalString) {
+  TestResource::dispose_count = 0;
+  {
+    v8::HandleScope scope;
+    uint16_t* two_byte_string = AsciiToTwoByteString("test string");
+    Local<String> string =
+        String::NewExternal(new TestResource(two_byte_string));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);
+    CHECK(i::Heap::InNewSpace(*istring));
+    CHECK_EQ(0, TestResource::dispose_count);
+  }
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  CHECK_EQ(1, TestResource::dispose_count);
+}
+
+
+THREADED_TEST(ScavengeExternalAsciiString) {
+  TestAsciiResource::dispose_count = 0;
+  {
+    v8::HandleScope scope;
+    const char* one_byte_string = "test string";
+    Local<String> string = String::NewExternal(
+        new TestAsciiResource(i::StrDup(one_byte_string)));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);
+    CHECK(i::Heap::InNewSpace(*istring));
+    CHECK_EQ(0, TestAsciiResource::dispose_count);
+  }
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  CHECK_EQ(1, TestAsciiResource::dispose_count);
+}
+
+
 THREADED_TEST(StringConcat) {
   {
     v8::HandleScope scope;

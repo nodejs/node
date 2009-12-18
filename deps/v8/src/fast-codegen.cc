@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM(masm())
 
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
@@ -232,8 +232,10 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 
 void FastCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
+  Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
   VisitStatements(stmt->statements());
+  __ bind(nested_statement.break_target());
 }
 
 
@@ -278,22 +280,88 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
 
 void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_,  "[ ContinueStatement");
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (!current->IsContinueTarget(stmt->target())) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  Iteration* loop = current->AsIteration();
+  __ jmp(loop->continue_target());
 }
 
 
 void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_,  "[ BreakStatement");
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (!current->IsBreakTarget(stmt->target())) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  Breakable* target = current->AsBreakable();
+  __ jmp(target->break_target());
 }
 
 
+void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  Comment cmnt(masm_, "[ ReturnStatement");
+  Expression* expr = stmt->expression();
+  // Complete the statement based on the type of the subexpression.
+  if (expr->AsLiteral() != NULL) {
+    __ Move(result_register(), expr->AsLiteral()->handle());
+  } else {
+    ASSERT_EQ(Expression::kValue, expr->context());
+    Visit(expr);
+    __ pop(result_register());
+  }
+
+  // Exit all nested statements.
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (current != NULL) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  EmitReturnSequence(stmt->statement_pos());
+}
+
+
+
+
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WithEnterStatement");
+  SetStatementPosition(stmt);
+
+  Visit(stmt->expression());
+  if (stmt->is_catch_block()) {
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    __ CallRuntime(Runtime::kPushContext, 1);
+  }
+  // Both runtime calls return the new context in both the context and the
+  // result registers.
+
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
 void FastCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WithExitStatement");
+  SetStatementPosition(stmt);
+
+  // Pop context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
@@ -304,8 +372,10 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
+  Label body, stack_limit_hit, stack_check_success;
+
+  Iteration loop_statement(this, stmt);
   increment_loop_depth();
-  Label body, exit, stack_limit_hit, stack_check_success;
 
   __ bind(&body);
   Visit(stmt->body());
@@ -316,10 +386,11 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
   // We are not in an expression context because we have been compiling
   // statements.  Set up a test expression context for the condition.
+  __ bind(loop_statement.continue_target());
   ASSERT_EQ(NULL, true_label_);
   ASSERT_EQ(NULL, false_label_);
   true_label_ = &body;
-  false_label_ = &exit;
+  false_label_ = loop_statement.break_target();
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
   true_label_ = NULL;
@@ -330,7 +401,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ CallStub(&stack_stub);
   __ jmp(&stack_check_success);
 
-  __ bind(&exit);
+  __ bind(loop_statement.break_target());
 
   decrement_loop_depth();
 }
@@ -338,16 +409,18 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
+  Label body, stack_limit_hit, stack_check_success;
+
+  Iteration loop_statement(this, stmt);
   increment_loop_depth();
-  Label test, body, exit, stack_limit_hit, stack_check_success;
 
   // Emit the test at the bottom of the loop.
-  __ jmp(&test);
+  __ jmp(loop_statement.continue_target());
 
   __ bind(&body);
   Visit(stmt->body());
 
-  __ bind(&test);
+  __ bind(loop_statement.continue_target());
   // Check stack before looping.
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
@@ -357,7 +430,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT_EQ(NULL, true_label_);
   ASSERT_EQ(NULL, false_label_);
   true_label_ = &body;
-  false_label_ = &exit;
+  false_label_ = loop_statement.break_target();
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
   true_label_ = NULL;
@@ -368,55 +441,13 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   __ CallStub(&stack_stub);
   __ jmp(&stack_check_success);
 
-  __ bind(&exit);
-
+  __ bind(loop_statement.break_target());
   decrement_loop_depth();
 }
 
 
 void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
-  Comment cmnt(masm_, "[ ForStatement");
-  Label test, body, exit, stack_limit_hit, stack_check_success;
-  if (stmt->init() != NULL) Visit(stmt->init());
-
-  increment_loop_depth();
-  // Emit the test at the bottom of the loop (even if empty).
-  __ jmp(&test);
-  __ bind(&body);
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  __ StackLimitCheck(&stack_limit_hit);
-  __ bind(&stack_check_success);
-
-  if (stmt->next() != NULL) Visit(stmt->next());
-
-  __ bind(&test);
-
-  if (stmt->cond() == NULL) {
-    // For an empty test jump to the top of the loop.
-    __ jmp(&body);
-  } else {
-    // We are not in an expression context because we have been compiling
-    // statements.  Set up a test expression context for the condition.
-    ASSERT_EQ(NULL, true_label_);
-    ASSERT_EQ(NULL, false_label_);
-
-    true_label_ = &body;
-    false_label_ = &exit;
-    ASSERT(stmt->cond()->context() == Expression::kTest);
-    Visit(stmt->cond());
-    true_label_ = NULL;
-    false_label_ = NULL;
-  }
-
-  __ bind(&stack_limit_hit);
-  StackCheckStub stack_stub;
-  __ CallStub(&stack_stub);
-  __ jmp(&stack_check_success);
-
-  __ bind(&exit);
-  decrement_loop_depth();
+  UNREACHABLE();
 }
 
 
@@ -431,7 +462,63 @@ void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 
 void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  UNREACHABLE();
+  // Try finally is compiled by setting up a try-handler on the stack while
+  // executing the try body, and removing it again afterwards.
+  //
+  // The try-finally construct can enter the finally block in three ways:
+  // 1. By exiting the try-block normally. This removes the try-handler and
+  //      calls the finally block code before continuing.
+  // 2. By exiting the try-block with a function-local control flow transfer
+  //    (break/continue/return). The site of the, e.g., break removes the
+  //    try handler and calls the finally block code before continuing
+  //    its outward control transfer.
+  // 3. by exiting the try-block with a thrown exception.
+  //    This can happen in nested function calls. It traverses the try-handler
+  //    chaing and consumes the try-handler entry before jumping to the
+  //    handler code. The handler code then calls the finally-block before
+  //    rethrowing the exception.
+  //
+  // The finally block must assume a return address on top of the stack
+  // (or in the link register on ARM chips) and a value (return value or
+  // exception) in the result register (rax/eax/r0), both of which must
+  // be preserved. The return address isn't GC-safe, so it should be
+  // cooked before GC.
+  Label finally_entry;
+  Label try_handler_setup;
+
+  // Setup the try-handler chain. Use a call to
+  // Jump to try-handler setup and try-block code. Use call to put try-handler
+  // address on stack.
+  __ Call(&try_handler_setup);
+  // Try handler code. Return address of call is pushed on handler stack.
+  {
+    // This code is only executed during stack-handler traversal when an
+    // exception is thrown. The execption is in the result register, which
+    // is retained by the finally block.
+    // Call the finally block and then rethrow the exception.
+    __ Call(&finally_entry);
+    ThrowException();
+  }
+
+  __ bind(&finally_entry);
+  {
+    // Finally block implementation.
+    EnterFinallyBlock();
+    Finally finally_block(this);
+    Visit(stmt->finally_block());
+    ExitFinallyBlock();  // Return to the calling code.
+  }
+
+  __ bind(&try_handler_setup);
+  {
+    // Setup try handler (stack pointer registers).
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+    TryFinally try_block(this, &finally_entry);
+    VisitStatements(stmt->try_block()->statements());
+    __ PopTryHandler();
+  }
+  // Execute the finally block on the way out.
+  __ Call(&finally_entry);
 }
 
 
@@ -500,40 +587,79 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
 
   // Record source code position of the (possible) IC call.
   SetSourcePosition(expr->position());
 
-  Expression* rhs = expr->value();
-  // Left-hand side can only be a property, a global or a (parameter or
-  // local) slot.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
   Property* prop = expr->target()->AsProperty();
-  if (var != NULL) {
-    Visit(rhs);
-    ASSERT_EQ(Expression::kValue, rhs->context());
-    EmitVariableAssignment(expr);
-  } else if (prop != NULL) {
-    // Assignment to a property.
-    Visit(prop->obj());
-    ASSERT_EQ(Expression::kValue, prop->obj()->context());
-    // Use the expression context of the key subexpression to detect whether
-    // we have decided to us a named or keyed IC.
-    if (prop->key()->context() == Expression::kUninitialized) {
-      ASSERT(prop->key()->AsLiteral() != NULL);
-      Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      EmitNamedPropertyAssignment(expr);
-    } else {
+  // In case of a property we use the uninitialized expression context
+  // of the key to detect a named property.
+  if (prop != NULL) {
+    assign_type = (prop->key()->context() == Expression::kUninitialized)
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
+  }
+
+  // Evaluate LHS expression.
+  switch (assign_type) {
+    case VARIABLE:
+      // Nothing to do here.
+      break;
+    case NAMED_PROPERTY:
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
+      break;
+    case KEYED_PROPERTY:
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
-      Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      EmitKeyedPropertyAssignment(expr);
+      break;
+  }
+
+  // If we have a compound assignment: Get value of LHS expression and
+  // store in on top of the stack.
+  // Note: Relies on kValue context being 'stack'.
+  if (expr->is_compound()) {
+    switch (assign_type) {
+      case VARIABLE:
+        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
+                         Expression::kValue);
+        break;
+      case NAMED_PROPERTY:
+        EmitNamedPropertyLoad(prop, Expression::kValue);
+        break;
+      case KEYED_PROPERTY:
+        EmitKeyedPropertyLoad(Expression::kValue);
+        break;
     }
-  } else {
-    UNREACHABLE();
+  }
+
+  // Evaluate RHS expression.
+  Expression* rhs = expr->value();
+  ASSERT_EQ(Expression::kValue, rhs->context());
+  Visit(rhs);
+
+  // If we have a compount assignment: Apply operator.
+  if (expr->is_compound()) {
+    EmitCompoundAssignmentOp(expr->binary_op(), Expression::kValue);
+  }
+
+  // Store the value.
+  switch (assign_type) {
+    case VARIABLE:
+      EmitVariableAssignment(expr);
+      break;
+    case NAMED_PROPERTY:
+      EmitNamedPropertyAssignment(expr);
+      break;
+    case KEYED_PROPERTY:
+      EmitKeyedPropertyAssignment(expr);
+      break;
   }
 }
 
@@ -548,8 +674,20 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  UNREACHABLE();
+int FastCodeGenerator::TryFinally::Exit(int stack_depth) {
+  // The macros used here must preserve the result register.
+  __ Drop(stack_depth);
+  __ PopTryHandler();
+  __ Call(finally_entry_);
+  return 0;
+}
+
+
+int FastCodeGenerator::TryCatch::Exit(int stack_depth) {
+  // The macros used here must preserve the result register.
+  __ Drop(stack_depth);
+  __ PopTryHandler();
+  return 0;
 }
 
 
