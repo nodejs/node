@@ -892,7 +892,12 @@ Module.prototype.loadScript = function (filename, loadPromise) {
                 + "\n}; __wrap__;";
     var compiledWrapper = process.compile(wrapper, filename);
 
-    compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
+    try {
+      compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
+    } catch (e) {
+      loadPromise.emitError(e);
+      return;
+    }
 
     self.waitChildrenLoad(function () {
       self.loaded = true;

@@ -33,6 +33,14 @@ assert.equal("D", d3.D());
 assert.equal(true, d4.D instanceof Function);
 assert.equal("D", d4.D());
 
+var errorThrown = false;
+try {
+  require("./fixtures/throws_error");
+} catch (e) {
+  errorThrown = true;
+  assert.equal("blah", e.message);
+}
+
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);
   assert.equal("A done", a.A());
@@ -48,6 +56,8 @@ process.addListener("exit", function () {
 
   assert.equal(true, d2.D instanceof Function);
   assert.equal("D done", d2.D());
+
+  assert.equal(true, errorThrown);
 
   puts("exit");
 });
