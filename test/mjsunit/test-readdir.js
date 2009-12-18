@@ -7,7 +7,8 @@ puts("readdir " + fixturesDir);
 
 promise.addCallback(function (files) {
   p(files);
-  assert.deepEqual(["a.js", "b", "multipart.js", "test_ca.pem", "test_cert.pem", "test_key.pem", "x.txt"], files.sort());
+  assert.deepEqual(["a.js", "b", "multipart.js", "test_ca.pem",
+    "test_cert.pem", "test_key.pem", "throws_error.js", "x.txt"], files.sort());
 });
 
 promise.addErrback(function () {
