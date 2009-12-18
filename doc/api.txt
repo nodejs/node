@@ -130,6 +130,9 @@ success code 0.
 +process.cwd()+::
 Returns the current working directory of the process.
 
++process.chdir(directory)+::
+Changes the current working directory of the process.
+
 +process.umask(mask)+ ::
 Sets the process's file mode creation mask. Child processes inherit the mask 
 from the parent process.
