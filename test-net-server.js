@@ -19,6 +19,10 @@ var server = new net.Server(function (stream) {
     stream.send("pong utf8\r\n", "utf8");
   });
 
+  stream.addListener('drain', function () {
+    sys.puts("server-side socket drain");
+  });
+
   stream.addListener("eof", function () {
     sys.puts("server peer eof");
     stream.close();
@@ -28,15 +32,17 @@ server.listen(8000);
 sys.puts("server fd: " + server.fd);
 
 
-var stream = new net.Stream();
-stream.addListener('connect', function () {
+var c = net.createConnection(8000);
+c.addListener('connect', function () {
   sys.puts("!!!client connected");
-  stream.send("hello\n");
+  c.send("hello\n");
 });
 
-stream.addListener('receive', function (d) {
+c.addListener('drain', function () {
+  sys.puts("!!!client drain");
+});
+
+c.addListener('receive', function (d) {
   sys.puts("!!!client got: " + JSON.stringify(d.toString()));
 });
-
-stream.connect(8000);
 

@@ -5,6 +5,7 @@
 #include <node_buffer.h>
 
 #include <string.h>
+#include <stdlib.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -32,6 +33,8 @@ static Persistent<String> syscall_symbol;
 static Persistent<String> fd_symbol;
 static Persistent<String> remote_address_symbol;
 static Persistent<String> remote_port_symbol;
+static Persistent<String> address_symbol;
+static Persistent<String> port_symbol;
 
 #define FD_ARG(a)                                                     \
   if (!(a)->IsInt32()) {                                              \
@@ -181,11 +184,11 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
       char ipv6[255] = "::FFFF:";
 
       if (inet_pton(AF_INET, *ip, &(in6.sin6_addr)) > 0) {
-        // If this is an IPv4 address then we need to change it 
-        // to the IPv4-mapped-on-IPv6 format which looks like 
+        // If this is an IPv4 address then we need to change it
+        // to the IPv4-mapped-on-IPv6 format which looks like
         //        ::FFFF:<IPv4  address>
-        // For more information see "Address Format" ipv6(7) and 
-        // "BUGS" in inet_pton(3) 
+        // For more information see "Address Format" ipv6(7) and
+        // "BUGS" in inet_pton(3)
         strcat(ipv6, *ip);
       } else {
         strcpy(ipv6, *ip);
@@ -313,6 +316,38 @@ static Handle<Value> Connect(const Arguments& args) {
 }
 
 
+static Handle<Value> GetSockName(const Arguments& args) {
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  struct sockaddr_storage address_storage;
+  socklen_t len = sizeof(struct sockaddr_storage);
+
+  int r = getsockname(fd, (struct sockaddr *) &address_storage, &len);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "getsockname"));
+  }
+
+  Local<Object> info = Object::New();
+
+  if (address_storage.ss_family == AF_INET6) {
+    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
+
+    char ip[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
+
+    int port = ntohs(a->sin6_port);
+
+    info->Set(address_symbol, String::New(ip));
+    info->Set(port_symbol, Integer::New(port));
+  }
+
+  return scope.Close(info);
+}
+
+
 static Handle<Value> Listen(const Arguments& args) {
   HandleScope scope;
 
@@ -322,6 +357,7 @@ static Handle<Value> Listen(const Arguments& args) {
   if (0 > listen(fd, backlog)) {
     return ThrowException(ErrnoException(errno, "listen"));
   }
+
 
   return Undefined();
 }
@@ -499,6 +535,167 @@ static Handle<Value> ToRead(const Arguments& args) {
 }
 
 
+// G E T A D D R I N F O
+
+struct resolve_request {
+  Persistent<Function> cb;
+  int ai_family; // AF_INET or AF_INET6
+  char hostname[1];
+};
+
+
+static int AfterResolve(eio_req *req) {
+  ev_unref(EV_DEFAULT_UC);
+
+  struct resolve_request * rreq = (struct resolve_request *)(req->data);
+
+  struct addrinfo *address = NULL,
+                  *address_list = static_cast<struct addrinfo *>(req->ptr2);
+
+  HandleScope scope;
+  Local<Value> argv[1];
+
+  if (req->result != 0) {
+    argv[0] = ErrnoException(errno, "getaddrinfo");
+  } else {
+    int n = 0;
+    for (address = address_list; address; address = address->ai_next) { n++; }
+
+    Local<Array> results = Array::New(n);
+
+    char ip[INET6_ADDRSTRLEN];
+
+    n = 0;
+    address = address_list;
+    while (address) {
+      HandleScope scope;
+      assert(address->ai_family == AF_INET || address->ai_family == AF_INET6);
+      assert(address->ai_socktype == SOCK_STREAM);
+      const char *c = inet_ntop(address->ai_family, &(address->ai_addr), ip, INET6_ADDRSTRLEN);
+      Local<String> s = String::New(c);
+      results->Set(Integer::New(n), s);
+
+      n++;
+      address = address->ai_next;
+    }
+
+    argv[0] = results;
+  }
+
+  TryCatch try_catch;
+
+  rreq->cb->Call(Context::GetCurrent()->Global(), 1, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  rreq->cb.Dispose(); // Dispose of the persistent handle
+  free(rreq);
+  freeaddrinfo(address_list);
+}
+
+static int Resolve(eio_req *req) {
+  // Note: this function is executed in the thread pool! CAREFUL
+  struct resolve_request * rreq = (struct resolve_request *) req->data;
+  struct addrinfo *address_list = NULL;
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = rreq->ai_family;
+  hints.ai_socktype = SOCK_STREAM;
+
+  req->result = getaddrinfo((char*)rreq->hostname, NULL, &hints, &address_list);
+  req->ptr2 = address_list;
+  return 0;
+}
+
+
+static Handle<Value> GetAddrInfo(const Arguments& args) {
+  HandleScope scope;
+
+  String::Utf8Value hostname(args[0]->ToString());
+
+  int type = args[1]->Int32Value();
+  int fam = AF_INET;
+  switch (type) {
+    case 4:
+      fam = AF_INET;
+      break;
+    case 6:
+      fam = AF_INET6;
+      break;
+    default:
+      return ThrowException(Exception::TypeError(
+            String::New("Second argument must be an integer 4 or 6")));
+  }
+
+  if (!args[2]->IsFunction()) {
+    return ThrowException(Exception::TypeError(
+          String::New("Thrid argument must be a callback")));
+  }
+
+  Local<Function> cb = Local<Function>::Cast(args[2]);
+
+  struct resolve_request *rreq = (struct resolve_request *)
+    malloc(sizeof(struct resolve_request) + hostname.length());
+
+  if (!rreq) {
+    V8::LowMemoryNotification();
+    return ThrowException(Exception::Error(
+          String::New("Could not allocate enough memory")));
+  }
+
+  strcpy(rreq->hostname, *hostname);
+  rreq->cb = Persistent<Function>::New(cb);
+  rreq->ai_family = fam;
+
+  // For the moment I will do DNS lookups in the eio thread pool. This is
+  // sub-optimal and cannot handle massive numbers of requests.
+  //
+  // (One particularly annoying problem is that the pthread stack size needs
+  // to be increased dramatically to handle getaddrinfo() see X_STACKSIZE in
+  // wscript ).
+  //
+  // In the future I will move to a system using c-ares:
+  // http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
+  eio_custom(Resolve, EIO_PRI_DEFAULT, AfterResolve, rreq);
+
+  // There will not be any active watchers from this object on the event
+  // loop while getaddrinfo() runs. If the only thing happening in the
+  // script was this hostname resolution, then the event loop would drop
+  // out. Thus we need to add ev_ref() until AfterResolve().
+  ev_ref(EV_DEFAULT_UC);
+
+  return Undefined();
+}
+
+
+static Handle<Value> NeedsLookup(const Arguments& args) {
+  HandleScope scope;
+
+  if (args[0]->IsNull() || args[0]->IsUndefined()) return False();
+
+  String::Utf8Value s(args[0]->ToString());
+
+  // avoiding buffer overflows in the following strcat
+  // 2001:0db8:85a3:08d3:1319:8a2e:0370:7334
+  // 39 = max ipv6 address.
+  if (s.length() > INET6_ADDRSTRLEN) return True();
+
+  struct sockaddr_in6 a;
+
+  if (inet_pton(AF_INET, *s, &(a.sin6_addr)) > 0) return False();
+  if (inet_pton(AF_INET6, *s, &(a.sin6_addr)) > 0) return False();
+
+  char ipv6[255] = "::FFFF:";
+  strcat(ipv6, *s);
+  if (inet_pton(AF_INET6, ipv6, &(a.sin6_addr)) > 0) return False();
+
+  return True();
+}
+
+
 void InitNet2(Handle<Object> target) {
   HandleScope scope;
 
@@ -517,7 +714,9 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "accept", Accept);
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
-
+  NODE_SET_METHOD(target, "getsocksame", GetSockName);
+  NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
+  NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
 
   target->Set(String::NewSymbol("EINPROGRESS"), Integer::New(EINPROGRESS));
   target->Set(String::NewSymbol("EINTR"), Integer::New(EINTR));
@@ -525,12 +724,14 @@ void InitNet2(Handle<Object> target) {
   target->Set(String::NewSymbol("EPERM"), Integer::New(EPERM));
   target->Set(String::NewSymbol("EADDRINUSE"), Integer::New(EADDRINUSE));
   target->Set(String::NewSymbol("ECONNREFUSED"), Integer::New(ECONNREFUSED));
- 
+
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
   fd_symbol             = NODE_PSYMBOL("fd");
   remote_address_symbol = NODE_PSYMBOL("remoteAddress");
   remote_port_symbol    = NODE_PSYMBOL("remotePort");
+  address_symbol        = NODE_PSYMBOL("address");
+  port_symbol           = NODE_PSYMBOL("port");
 }
 
 }  // namespace node
