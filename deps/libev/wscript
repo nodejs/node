@@ -11,34 +11,35 @@ def configure(conf):
   print "--- libev ---"
   #conf.check_tool('compiler_cc')
 
-  conf.check_cc(header_name="sys/inotify.h")
-  have_epoll = conf.check_cc(header_name="sys/epoll.h")
-  conf.check_cc(header_name="sys/event.h")
-  conf.check_cc(header_name="sys/queue.h")
-  conf.check_cc(header_name="port.h")
-  conf.check_cc(header_name="poll.h")
-  conf.check_cc(header_name="sys/select.h")
-  conf.check_cc(header_name="sys/eventfd.h")
-  conf.check_cc(header_name="sys/inotify.h", function_name="inotify_init")
-  if have_epoll:
-    code = """
-        #include <sys/epoll.h>
+  # Why to the two checks? One is to define HAVE_SYS_EPOLL_H
+  # the other is to define HAVE_EPOLL_CTL
+  # Yes, WAF is a piece of shit.
 
-        int main() {
-        epoll_ctl(0, 0, 0, NULL);
-            return 0;
-        }
-    """
-    conf.check_cc(fragment=code, define_name="HAVE_EPOLL_CTL", msg="Checking for epoll_ctl")
+  if conf.check_cc(header_name="sys/inotify.h"):
+    conf.check_cc(header_name="sys/inotify.h", function_name="inotify_init")
 
-  if PLATFORM_IS_DARWIN:
+  if conf.check_cc(header_name="sys/epoll.h"):
+    conf.check_cc(header_name="sys/epoll.h", function_name="epoll_ctl")
+
+  if conf.check_cc(header_name="port.h"):
+    conf.check_cc(header_name="port.h", function_name="port_create")
+
+  if conf.check_cc(header_name="poll.h"):
+    conf.check_cc(header_name="poll.h", function_name="poll")
+
+  if conf.check_cc(header_name="sys/event.h"):
     conf.check_cc(header_name="sys/event.h", function_name="kqueue")
-  else:
+
+  if conf.check_cc(header_name="sys/queue.h"):
     conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
-  conf.check_cc(header_name="port.h", function_name="port_create")
-  conf.check_cc(header_name="poll.h", function_name="poll")
-  conf.check_cc(header_name="sys/select.h", function_name="select")
-  conf.check_cc(header_name="sys/eventfd.h", function_name="eventfd")
+
+  if conf.check_cc(header_name="sys/select.h"):
+    conf.check_cc(header_name="sys/select.h", function_name="select")
+
+  if conf.check_cc(header_name="sys/eventfd.h"):
+    conf.check_cc(header_name="sys/eventfd.h", function_name="eventfd")
+
+
   code = """
       #include <syscall.h>
       #include <time.h>
@@ -61,6 +62,7 @@ def configure(conf):
     conf.check_cc(header_name="time.h", function_name="nanosleep")
   elif have_librt:
     conf.check_cc(lib="rt", header_name="time.h", function_name="nanosleep")
+
   conf.check_cc(lib="m", header_name="math.h", function_name="ceil")
 
   conf.define("HAVE_CONFIG_H", 1)
