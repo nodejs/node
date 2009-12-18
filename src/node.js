@@ -248,25 +248,22 @@ process.Promise.prototype.cancel = function() {
 };
 
 process.Promise.prototype.emitCancel = function() {
-  var args = Array.prototype.slice.call(arguments);
-  args.unshift('cancel');
-  this.emit.apply(this, args);
+  Array.prototype.unshift.call(arguments, 'cancel')
+  this.emit.apply(this, arguments);
 };
 
 process.Promise.prototype.emitSuccess = function() {
   if (this.hasFired) return;
-  var args = Array.prototype.slice.call(arguments);
-  args.unshift('success');
   this.hasFired = true;
-  this.emit.apply(this, args);
+  Array.prototype.unshift.call(arguments, 'success')
+  this.emit.apply(this, arguments);
 };
 
 process.Promise.prototype.emitError = function() {
   if (this.hasFired) return;
-  var args = Array.prototype.slice.call(arguments);
-  args.unshift('error');
   this.hasFired = true;
-  this.emit.apply(this, args);
+  Array.prototype.unshift.call(arguments, 'error')
+  this.emit.apply(this, arguments);
 };
 
 process.Promise.prototype.addCallback = function (listener) {
