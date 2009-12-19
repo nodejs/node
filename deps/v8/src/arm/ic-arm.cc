@@ -276,7 +276,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 
@@ -371,11 +371,13 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+void CallIC::Generate(MacroAssembler* masm,
+                      int argc,
+                      const ExternalReference& f) {
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
@@ -392,7 +394,7 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 
   // Call the entry.
   __ mov(r0, Operand(2));
-  __ mov(r1, Operand(ExternalReference(IC_Utility(kCallIC_Miss))));
+  __ mov(r1, Operand(f));
 
   CEntryStub stub(1);
   __ CallStub(&stub);

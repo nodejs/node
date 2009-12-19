@@ -139,7 +139,6 @@ class AstNode: public ZoneObject {
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
-  virtual CompareOperation* AsCompareOperation() { return NULL; }
 };
 
 
@@ -193,13 +192,13 @@ class Expression: public AstNode {
   virtual void MarkAsStatement() { /* do nothing */ }
 
   // Static type information for this expression.
-  StaticType* type() { return &type_; }
+  SmiAnalysis* type() { return &type_; }
 
   Context context() { return context_; }
   void set_context(Context context) { context_ = context; }
 
  private:
-  StaticType type_;
+  SmiAnalysis type_;
   Context context_;
 };
 
@@ -1186,7 +1185,7 @@ class CountOperation: public Expression {
 class CompareOperation: public Expression {
  public:
   CompareOperation(Token::Value op, Expression* left, Expression* right)
-      : op_(op), left_(left), right_(right), is_for_loop_condition_(false) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsCompareOp(op));
   }
 
@@ -1196,18 +1195,10 @@ class CompareOperation: public Expression {
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
 
-  // Accessors for flag whether this compare operation is hanging of a for loop.
-  bool is_for_loop_condition() const { return is_for_loop_condition_; }
-  void set_is_for_loop_condition() { is_for_loop_condition_ = true; }
-
-  // Type testing & conversion
-  virtual CompareOperation* AsCompareOperation() { return this; }
-
  private:
   Token::Value op_;
   Expression* left_;
   Expression* right_;
-  bool is_for_loop_condition_;
 };
 
 
@@ -1250,8 +1241,6 @@ class Assignment: public Expression {
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
   int position() { return pos_; }
-  // This check relies on the definition order of token in token.h.
-  bool is_compound() const { return op() > Token::ASSIGN; }
 
   // An initialization block is a series of statments of the form
   // x.y.z.a = ...; x.y.z.b = ...; etc. The parser marks the beginning and

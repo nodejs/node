@@ -55,8 +55,9 @@ class SerializationAddressMapper {
 
   static int MappedTo(HeapObject* obj) {
     ASSERT(IsMapped(obj));
-    return static_cast<int>(reinterpret_cast<intptr_t>(
-        serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
+    return reinterpret_cast<intptr_t>(serialization_map_->Lookup(Key(obj),
+                                      Hash(obj),
+                                      false)->value);
   }
 
   static void Map(HeapObject* obj, int to) {
@@ -80,7 +81,7 @@ class SerializationAddressMapper {
   }
 
   static uint32_t Hash(HeapObject* obj) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
+    return reinterpret_cast<intptr_t>(obj->address());
   }
 
   static void* Key(HeapObject* obj) {
@@ -484,15 +485,6 @@ void ExternalReferenceTable::PopulateTable() {
       21,
       "NativeRegExpMacroAssembler::GrowStack()");
 #endif
-  // Keyed lookup cache.
-  Add(ExternalReference::keyed_lookup_cache_keys().address(),
-      UNCLASSIFIED,
-      22,
-      "KeyedLookupCache::keys()");
-  Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
-      UNCLASSIFIED,
-      23,
-      "KeyedLookupCache::field_offsets()");
 }
 
 
@@ -632,7 +624,7 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
     return HeapObject::FromAddress(pages_[space][0] + offset);
   }
   ASSERT(SpaceIsPaged(space));
-  int page_of_pointee = offset >> kPageSizeBits;
+  int page_of_pointee = offset >> Page::kPageSizeBits;
   Address object_address = pages_[space][page_of_pointee] +
                            (offset & Page::kPageAlignmentMask);
   return HeapObject::FromAddress(object_address);
@@ -972,8 +964,8 @@ void Serializer::SerializeObject(
     int offset = CurrentAllocationAddress(space) - address;
     bool from_start = true;
     if (SpaceIsPaged(space)) {
-      if ((CurrentAllocationAddress(space) >> kPageSizeBits) ==
-          (address >> kPageSizeBits)) {
+      if ((CurrentAllocationAddress(space) >> Page::kPageSizeBits) ==
+          (address >> Page::kPageSizeBits)) {
         from_start = false;
         address = offset;
       }

@@ -667,9 +667,8 @@ void ProducerHeapProfile::Setup() {
   can_log_ = true;
 }
 
-void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
-  ASSERT(FLAG_log_producers);
-  if (!can_log_) return;
+void ProducerHeapProfile::RecordJSObjectAllocation(Object* obj) {
+  if (!can_log_ || !FLAG_log_producers) return;
   int framesCount = 0;
   for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
     ++framesCount;

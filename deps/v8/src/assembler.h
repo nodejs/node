@@ -401,10 +401,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference builtin_passed_function();
   static ExternalReference random_positive_smi_function();
 
-  // Static data in the keyed lookup cache.
-  static ExternalReference keyed_lookup_cache_keys();
-  static ExternalReference keyed_lookup_cache_field_offsets();
-
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
 

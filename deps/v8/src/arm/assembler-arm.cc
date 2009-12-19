@@ -114,55 +114,55 @@ CRegister cr15 = { 15 };
 
 // Support for the VFP registers s0 to s31 (d0 to d15).
 // Note that "sN:sM" is the same as "dN/2".
-SwVfpRegister s0  = {  0 };
-SwVfpRegister s1  = {  1 };
-SwVfpRegister s2  = {  2 };
-SwVfpRegister s3  = {  3 };
-SwVfpRegister s4  = {  4 };
-SwVfpRegister s5  = {  5 };
-SwVfpRegister s6  = {  6 };
-SwVfpRegister s7  = {  7 };
-SwVfpRegister s8  = {  8 };
-SwVfpRegister s9  = {  9 };
-SwVfpRegister s10 = { 10 };
-SwVfpRegister s11 = { 11 };
-SwVfpRegister s12 = { 12 };
-SwVfpRegister s13 = { 13 };
-SwVfpRegister s14 = { 14 };
-SwVfpRegister s15 = { 15 };
-SwVfpRegister s16 = { 16 };
-SwVfpRegister s17 = { 17 };
-SwVfpRegister s18 = { 18 };
-SwVfpRegister s19 = { 19 };
-SwVfpRegister s20 = { 20 };
-SwVfpRegister s21 = { 21 };
-SwVfpRegister s22 = { 22 };
-SwVfpRegister s23 = { 23 };
-SwVfpRegister s24 = { 24 };
-SwVfpRegister s25 = { 25 };
-SwVfpRegister s26 = { 26 };
-SwVfpRegister s27 = { 27 };
-SwVfpRegister s28 = { 28 };
-SwVfpRegister s29 = { 29 };
-SwVfpRegister s30 = { 30 };
-SwVfpRegister s31 = { 31 };
+Register s0  = {  0 };
+Register s1  = {  1 };
+Register s2  = {  2 };
+Register s3  = {  3 };
+Register s4  = {  4 };
+Register s5  = {  5 };
+Register s6  = {  6 };
+Register s7  = {  7 };
+Register s8  = {  8 };
+Register s9  = {  9 };
+Register s10 = { 10 };
+Register s11 = { 11 };
+Register s12 = { 12 };
+Register s13 = { 13 };
+Register s14 = { 14 };
+Register s15 = { 15 };
+Register s16 = { 16 };
+Register s17 = { 17 };
+Register s18 = { 18 };
+Register s19 = { 19 };
+Register s20 = { 20 };
+Register s21 = { 21 };
+Register s22 = { 22 };
+Register s23 = { 23 };
+Register s24 = { 24 };
+Register s25 = { 25 };
+Register s26 = { 26 };
+Register s27 = { 27 };
+Register s28 = { 28 };
+Register s29 = { 29 };
+Register s30 = { 30 };
+Register s31 = { 31 };
 
-DwVfpRegister d0  = {  0 };
-DwVfpRegister d1  = {  1 };
-DwVfpRegister d2  = {  2 };
-DwVfpRegister d3  = {  3 };
-DwVfpRegister d4  = {  4 };
-DwVfpRegister d5  = {  5 };
-DwVfpRegister d6  = {  6 };
-DwVfpRegister d7  = {  7 };
-DwVfpRegister d8  = {  8 };
-DwVfpRegister d9  = {  9 };
-DwVfpRegister d10 = { 10 };
-DwVfpRegister d11 = { 11 };
-DwVfpRegister d12 = { 12 };
-DwVfpRegister d13 = { 13 };
-DwVfpRegister d14 = { 14 };
-DwVfpRegister d15 = { 15 };
+Register d0  = {  0 };
+Register d1  = {  1 };
+Register d2  = {  2 };
+Register d3  = {  3 };
+Register d4  = {  4 };
+Register d5  = {  5 };
+Register d6  = {  6 };
+Register d7  = {  7 };
+Register d8  = {  8 };
+Register d9  = {  9 };
+Register d10 = { 10 };
+Register d11 = { 11 };
+Register d12 = { 12 };
+Register d13 = { 13 };
+Register d14 = { 14 };
+Register d15 = { 15 };
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
@@ -1371,10 +1371,11 @@ void Assembler::stc2(Coprocessor coproc,
 
 
 // Support for VFP.
-void Assembler::vmov(const DwVfpRegister dst,
-                     const Register src1,
-                     const Register src2,
-                     const Condition cond) {
+void Assembler::fmdrr(const Register dst,
+                      const Register src1,
+                      const Register src2,
+                      const SBit s,
+                      const Condition cond) {
   // Dm = <Rt,Rt2>.
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=0(20) | Rt2(19-16) |
@@ -1386,10 +1387,11 @@ void Assembler::vmov(const DwVfpRegister dst,
 }
 
 
-void Assembler::vmov(const Register dst1,
-                     const Register dst2,
-                     const DwVfpRegister src,
-                     const Condition cond) {
+void Assembler::fmrrd(const Register dst1,
+                      const Register dst2,
+                      const Register src,
+                      const SBit s,
+                      const Condition cond) {
   // <Rt,Rt2> = Dm.
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=1(20) | Rt2(19-16) |
@@ -1401,8 +1403,9 @@ void Assembler::vmov(const Register dst1,
 }
 
 
-void Assembler::vmov(const SwVfpRegister dst,
+void Assembler::fmsr(const Register dst,
                      const Register src,
+                     const SBit s,
                      const Condition cond) {
   // Sn = Rt.
   // Instruction details available in ARM DDI 0406A, A8-642.
@@ -1415,8 +1418,9 @@ void Assembler::vmov(const SwVfpRegister dst,
 }
 
 
-void Assembler::vmov(const Register dst,
-                     const SwVfpRegister src,
+void Assembler::fmrs(const Register dst,
+                     const Register src,
+                     const SBit s,
                      const Condition cond) {
   // Rt = Sn.
   // Instruction details available in ARM DDI 0406A, A8-642.
@@ -1429,9 +1433,10 @@ void Assembler::vmov(const Register dst,
 }
 
 
-void Assembler::vcvt(const DwVfpRegister dst,
-                     const SwVfpRegister src,
-                     const Condition cond) {
+void Assembler::fsitod(const Register dst,
+                       const Register src,
+                       const SBit s,
+                       const Condition cond) {
   // Dd = Sm (integer in Sm converted to IEEE 64-bit doubles in Dd).
   // Instruction details available in ARM DDI 0406A, A8-576.
   // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) |opc2=000(18-16) |
@@ -1443,9 +1448,10 @@ void Assembler::vcvt(const DwVfpRegister dst,
 }
 
 
-void Assembler::vcvt(const SwVfpRegister dst,
-                     const DwVfpRegister src,
-                     const Condition cond) {
+void Assembler::ftosid(const Register dst,
+                       const Register src,
+                       const SBit s,
+                       const Condition cond) {
   // Sd = Dm (IEEE 64-bit doubles in Dm converted to 32 bit integer in Sd).
   // Instruction details available in ARM DDI 0406A, A8-576.
   // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) | opc2=101(18-16)|
@@ -1457,11 +1463,12 @@ void Assembler::vcvt(const SwVfpRegister dst,
 }
 
 
-void Assembler::vadd(const DwVfpRegister dst,
-                     const DwVfpRegister src1,
-                     const DwVfpRegister src2,
-                     const Condition cond) {
-  // Dd = vadd(Dn, Dm) double precision floating point addition.
+void Assembler::faddd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = faddd(Dn, Dm) double precision floating point addition.
   // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
   // Instruction details available in ARM DDI 0406A, A8-536.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
@@ -1472,11 +1479,12 @@ void Assembler::vadd(const DwVfpRegister dst,
 }
 
 
-void Assembler::vsub(const DwVfpRegister dst,
-                     const DwVfpRegister src1,
-                     const DwVfpRegister src2,
-                     const Condition cond) {
-  // Dd = vsub(Dn, Dm) double precision floating point subtraction.
+void Assembler::fsubd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fsubd(Dn, Dm) double precision floating point subtraction.
   // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
@@ -1487,11 +1495,12 @@ void Assembler::vsub(const DwVfpRegister dst,
 }
 
 
-void Assembler::vmul(const DwVfpRegister dst,
-                     const DwVfpRegister src1,
-                     const DwVfpRegister src2,
-                     const Condition cond) {
-  // Dd = vmul(Dn, Dm) double precision floating point multiplication.
+void Assembler::fmuld(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fmuld(Dn, Dm) double precision floating point multiplication.
   // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 10(21-20) | Vn(19-16) |
@@ -1502,11 +1511,12 @@ void Assembler::vmul(const DwVfpRegister dst,
 }
 
 
-void Assembler::vdiv(const DwVfpRegister dst,
-                     const DwVfpRegister src1,
-                     const DwVfpRegister src2,
-                     const Condition cond) {
-  // Dd = vdiv(Dn, Dm) double precision floating point division.
+void Assembler::fdivd(const Register dst,
+                      const  Register src1,
+                      const  Register src2,
+                      const  SBit s,
+                      const  Condition cond) {
+  // Dd = fdivd(Dn, Dm) double precision floating point division.
   // Dd = D:Vd; Dm=M:Vm; Dn=N:Vm.
   // Instruction details available in ARM DDI 0406A, A8-584.
   // cond(31-28) | 11101(27-23)| D=?(22) | 00(21-20) | Vn(19-16) |
@@ -1517,8 +1527,8 @@ void Assembler::vdiv(const DwVfpRegister dst,
 }
 
 
-void Assembler::vcmp(const DwVfpRegister src1,
-                     const DwVfpRegister src2,
+void Assembler::fcmp(const Register src1,
+                     const Register src2,
                      const SBit s,
                      const Condition cond) {
   // vcmp(Dd, Dm) double precision floating point comparison.

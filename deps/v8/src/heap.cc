@@ -733,7 +733,7 @@ void Heap::Scavenge() {
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
-  IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
+  IterateRoots(&scavenge_visitor, VISIT_ALL);
 
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
@@ -753,63 +753,6 @@ void Heap::Scavenge() {
     }
   }
 
-  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-
-  ScavengeExternalStringTable();
-  ASSERT(new_space_front == new_space_.top());
-
-  // Set age mark.
-  new_space_.set_age_mark(new_space_.top());
-
-  // Update how much has survived scavenge.
-  survived_since_last_expansion_ +=
-      (PromotedSpaceSize() - survived_watermark) + new_space_.Size();
-
-  LOG(ResourceEvent("scavenge", "end"));
-
-  gc_state_ = NOT_IN_GC;
-}
-
-
-void Heap::ScavengeExternalStringTable() {
-  ExternalStringTable::Verify();
-
-  if (ExternalStringTable::new_space_strings_.is_empty()) return;
-
-  Object** start = &ExternalStringTable::new_space_strings_[0];
-  Object** end = start + ExternalStringTable::new_space_strings_.length();
-  Object** last = start;
-
-  for (Object** p = start; p < end; ++p) {
-    ASSERT(Heap::InFromSpace(*p));
-    MapWord first_word = HeapObject::cast(*p)->map_word();
-
-    if (!first_word.IsForwardingAddress()) {
-      // Unreachable external string can be finalized.
-      FinalizeExternalString(String::cast(*p));
-      continue;
-    }
-
-    // String is still reachable.
-    String* target = String::cast(first_word.ToForwardingAddress());
-    ASSERT(target->IsExternalString());
-
-    if (Heap::InNewSpace(target)) {
-      // String is still in new space.  Update the table entry.
-      *last = target;
-      ++last;
-    } else {
-      // String got promoted.  Move it to the old string list.
-      ExternalStringTable::AddOldString(target);
-    }
-  }
-
-  ExternalStringTable::ShrinkNewStrings(last - start);
-}
-
-
-Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
-                         Address new_space_front) {
   do {
     ASSERT(new_space_front <= new_space_.top());
 
@@ -818,7 +761,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     // queue is empty.
     while (new_space_front < new_space_.top()) {
       HeapObject* object = HeapObject::FromAddress(new_space_front);
-      object->Iterate(scavenge_visitor);
+      object->Iterate(&scavenge_visitor);
       new_space_front += object->Size();
     }
 
@@ -840,7 +783,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
       RecordCopiedObject(target);
 #endif
       // Visit the newly copied object for pointers to new space.
-      target->Iterate(scavenge_visitor);
+      target->Iterate(&scavenge_visitor);
       UpdateRSet(target);
     }
 
@@ -848,7 +791,16 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     // (there are currently no more unswept promoted objects).
   } while (new_space_front < new_space_.top());
 
-  return new_space_front;
+  // Set age mark.
+  new_space_.set_age_mark(new_space_.top());
+
+  // Update how much has survived scavenge.
+  survived_since_last_expansion_ +=
+      (PromotedSpaceSize() - survived_watermark) + new_space_.Size();
+
+  LOG(ResourceEvent("scavenge", "end"));
+
+  gc_state_ = NOT_IN_GC;
 }
 
 
@@ -1142,13 +1094,6 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);
-
-  // If the map object is aligned fill the padding area with Smi 0 objects.
-  if (Map::kPadStart < Map::kSize) {
-    memset(reinterpret_cast<byte*>(map) + Map::kPadStart - kHeapObjectTag,
-           0,
-           Map::kSize - Map::kPadStart);
-  }
   return map;
 }
 
@@ -2240,11 +2185,8 @@ Object* Heap::AllocateFunctionPrototype(JSFunction* function) {
 
 Object* Heap::AllocateFunction(Map* function_map,
                                SharedFunctionInfo* shared,
-                               Object* prototype,
-                               PretenureFlag pretenure) {
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  Object* result = Allocate(function_map, space);
+                               Object* prototype) {
+  Object* result = Allocate(function_map, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
   return InitializeFunction(JSFunction::cast(result), shared, prototype);
 }
@@ -2261,14 +2203,10 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
 
-  // Check that the size of the boilerplate matches our
-  // expectations. The ArgumentsAccessStub::GenerateNewObject relies
-  // on the size being a known constant.
-  ASSERT(kArgumentsObjectSize == boilerplate->map()->instance_size());
-
-  // Do the allocation.
-  Object* result =
-      AllocateRaw(kArgumentsObjectSize, NEW_SPACE, OLD_POINTER_SPACE);
+  // Make the clone.
+  Map* map = boilerplate->map();
+  int object_size = map->instance_size();
+  Object* result = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
 
   // Copy the content. The arguments boilerplate doesn't have any
@@ -2276,7 +2214,7 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // barrier here.
   CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
             reinterpret_cast<Object**>(boilerplate->address()),
-            kArgumentsObjectSize);
+            object_size);
 
   // Set the two properties.
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
@@ -3237,11 +3175,6 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
   IterateStrongRoots(v, mode);
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
-    // Scavenge collections have special processing for this.
-    ExternalStringTable::Iterate(v);
-  }
-  v->Synchronize("external_string_table");
 }
 
 
@@ -3270,12 +3203,11 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   HandleScopeImplementer::Iterate(v);
   v->Synchronize("handlescope");
 
-  // Iterate over the builtin code objects and code stubs in the
-  // heap. Note that it is not necessary to iterate over code objects
-  // on scavenge collections.
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
-    Builtins::IterateBuiltins(v);
-  }
+  // Iterate over the builtin code objects and code stubs in the heap. Note
+  // that it is not strictly necessary to iterate over code objects on
+  // scavenge collections.  We still do it here because this same function
+  // is used by the mark-sweep collector and the deserializer.
+  Builtins::IterateBuiltins(v);
   v->Synchronize("builtins");
 
   // Iterate over global handles.
@@ -3491,8 +3423,6 @@ void Heap::SetStackLimits() {
 
 void Heap::TearDown() {
   GlobalHandles::TearDown();
-
-  ExternalStringTable::TearDown();
 
   new_space_.TearDown();
 
@@ -3909,8 +3839,8 @@ class MarkRootVisitor: public ObjectVisitor {
 
 // Triggers a depth-first traversal of reachable objects from roots
 // and finds a path to a specific heap object and prints it.
-void Heap::TracePathToObject(Object* target) {
-  search_target = target;
+void Heap::TracePathToObject() {
+  search_target = NULL;
   search_for_any_global = false;
 
   MarkRootVisitor root_visitor;
@@ -3977,8 +3907,8 @@ const char* GCTracer::CollectorString() {
 int KeyedLookupCache::Hash(Map* map, String* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
-  return (addr_hash ^ name->Hash()) & kCapacityMask;
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> 2;
+  return (addr_hash ^ name->Hash()) % kLength;
 }
 
 
@@ -4060,36 +3990,5 @@ void TranscendentalCache::Clear() {
   }
 }
 
-
-void ExternalStringTable::CleanUp() {
-  int last = 0;
-  for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i] == Heap::raw_unchecked_null_value()) continue;
-    if (Heap::InNewSpace(new_space_strings_[i])) {
-      new_space_strings_[last++] = new_space_strings_[i];
-    } else {
-      old_space_strings_.Add(new_space_strings_[i]);
-    }
-  }
-  new_space_strings_.Rewind(last);
-  last = 0;
-  for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i] == Heap::raw_unchecked_null_value()) continue;
-    ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
-    old_space_strings_[last++] = old_space_strings_[i];
-  }
-  old_space_strings_.Rewind(last);
-  Verify();
-}
-
-
-void ExternalStringTable::TearDown() {
-  new_space_strings_.Free();
-  old_space_strings_.Free();
-}
-
-
-List<Object*> ExternalStringTable::new_space_strings_;
-List<Object*> ExternalStringTable::old_space_strings_;
 
 } }  // namespace v8::internal

@@ -897,14 +897,15 @@ void Decoder::DecodeUnconditional(Instr* instr) {
 
 
 // void Decoder::DecodeTypeVFP(Instr* instr)
-// vmov: Sn = Rt
-// vmov: Rt = Sn
-// vcvt: Dd = Sm
-// vcvt: Sd = Dm
-// Dd = vadd(Dn, Dm)
-// Dd = vsub(Dn, Dm)
-// Dd = vmul(Dn, Dm)
-// Dd = vdiv(Dn, Dm)
+// Implements the following VFP instructions:
+// fmsr: Sn = Rt
+// fmrs: Rt = Sn
+// fsitod: Dd = Sm
+// ftosid: Sd = Dm
+// Dd = faddd(Dn, Dm)
+// Dd = fsubd(Dn, Dm)
+// Dd = fmuld(Dn, Dm)
+// Dd = fdivd(Dn, Dm)
 // vcmp(Dd, Dm)
 // VMRS
 void Decoder::DecodeTypeVFP(Instr* instr) {
@@ -996,8 +997,8 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
 
 
 // Decode Type 6 coprocessor instructions.
-// Dm = vmov(Rt, Rt2)
-// <Rt, Rt2> = vmov(Dm)
+// Dm = fmdrr(Rt, Rt2)
+// <Rt, Rt2> = fmrrd(Dm)
 void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 

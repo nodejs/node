@@ -48,13 +48,9 @@ namespace internal {
 // must always call a backup property load that is complete.
 // This function is safe to call if the receiver has fast properties,
 // or if name is not a symbol, and will jump to the miss_label in that case.
-static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* miss_label,
-                                   Register r0,
-                                   Register r1,
-                                   Register r2,
-                                   Register name,
-                                   DictionaryCheck check_dictionary) {
+static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
+                                   Register r0, Register r1, Register r2,
+                                   Register name) {
   // Register use:
   //
   // r0   - used to hold the property dictionary.
@@ -90,14 +86,10 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ cmpb(r0, Immediate(JS_BUILTINS_OBJECT_TYPE));
   __ j(equal, miss_label);
 
-  // Load properties array.
+  // Check that the properties array is a dictionary.
   __ movq(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
-
-  if (check_dictionary == CHECK_DICTIONARY) {
-    // Check that the properties array is a dictionary.
-    __ Cmp(FieldOperand(r0, HeapObject::kMapOffset), Factory::hash_table_map());
-    __ j(not_equal, miss_label);
-  }
+  __ Cmp(FieldOperand(r0, HeapObject::kMapOffset), Factory::hash_table_map());
+  __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
   const int kCapacityOffset =
@@ -254,8 +246,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
-  Label slow, check_string, index_int, index_string;
-  Label check_pixel_array, probe_dictionary;
+  Label slow, check_string, index_int, index_string, check_pixel_array;
 
   // Load name and receiver.
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -328,68 +319,14 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movl(rbx, FieldOperand(rax, String::kHashFieldOffset));
   __ testl(rbx, Immediate(String::kIsArrayIndexMask));
 
-  // Is the string a symbol?
+  // If the string is a symbol, do a quick inline probe of the receiver's
+  // dictionary, if it exists.
   __ j(not_zero, &index_string);  // The value in rbx is used at jump target.
   __ testb(FieldOperand(rdx, Map::kInstanceTypeOffset),
            Immediate(kIsSymbolMask));
   __ j(zero, &slow);
-
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary leaving result in rcx.
-  __ movq(rbx, FieldOperand(rcx, JSObject::kPropertiesOffset));
-  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &probe_dictionary);
-
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the string hash.
-  __ movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
-  __ movl(rdx, rbx);
-  __ shr(rdx, Immediate(KeyedLookupCache::kMapHashShift));
-  __ movl(rax, FieldOperand(rax, String::kHashFieldOffset));
-  __ shr(rax, Immediate(String::kHashShift));
-  __ xor_(rdx, rax);
-  __ and_(rdx, Immediate(KeyedLookupCache::kCapacityMask));
-
-  // Load the key (consisting of map and symbol) from the cache and
-  // check for match.
-  ExternalReference cache_keys
-      = ExternalReference::keyed_lookup_cache_keys();
-  __ movq(rdi, rdx);
-  __ shl(rdi, Immediate(kPointerSizeLog2 + 1));
-  __ movq(kScratchRegister, cache_keys);
-  __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, 0));
-  __ j(not_equal, &slow);
-  __ movq(rdi, Operand(kScratchRegister, rdi, times_1, kPointerSize));
-  __ cmpq(Operand(rsp, kPointerSize), rdi);
-  __ j(not_equal, &slow);
-
-  // Get field offset which is a 32-bit integer and check that it is
-  // an in-object property.
-  ExternalReference cache_field_offsets
-      = ExternalReference::keyed_lookup_cache_field_offsets();
-  __ movq(kScratchRegister, cache_field_offsets);
-  __ movl(rax, Operand(kScratchRegister, rdx, times_4, 0));
-  __ movzxbq(rdx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
-  __ cmpq(rax, rdx);
-  __ j(above_equal, &slow);
-
-  // Load in-object property.
-  __ subq(rax, rdx);
-  __ movzxbq(rdx, FieldOperand(rbx, Map::kInstanceSizeOffset));
-  __ addq(rax, rdx);
-  __ movq(rax, FieldOperand(rcx, rax, times_pointer_size, 0));
-  __ ret(0);
-
-  // Do a quick inline probe of the receiver's dictionary, if it
-  // exists.
-  __ bind(&probe_dictionary);
-  GenerateDictionaryLoad(masm,
-                         &slow,
-                         rbx,
-                         rcx,
-                         rdx,
-                         rax,
-                         DICTIONARY_CHECK_DONE);
+  // Probe the dictionary leaving result in rcx.
+  GenerateDictionaryLoad(masm, &slow, rbx, rcx, rdx, rax);
   GenerateCheckNonObjectOrLoaded(masm, &slow, rcx);
   __ movq(rax, rcx);
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
@@ -916,7 +853,9 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+void CallIC::Generate(MacroAssembler* masm,
+                      int argc,
+                      ExternalReference const& f) {
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
   // Get the name of the function to call from the stack.
@@ -933,7 +872,7 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // Call the entry.
   CEntryStub stub(1);
   __ movq(rax, Immediate(2));
-  __ movq(rbx, ExternalReference(IC_Utility(kCallIC_Miss)));
+  __ movq(rbx, f);
   __ CallStub(&stub);
 
   // Move result to rdi and exit the internal frame.
@@ -1024,7 +963,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 
@@ -1032,8 +971,8 @@ static void GenerateNormalHelper(MacroAssembler* masm,
                                  int argc,
                                  bool is_global_object,
                                  Label* miss) {
-  // Search dictionary - put result in register rdx.
-  GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx, CHECK_DICTIONARY);
+  // Search dictionary - put result in register edx.
+  GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx);
 
   // Move the result to register rdi and check that it isn't a smi.
   __ movq(rdi, rdx);
@@ -1126,7 +1065,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 
@@ -1257,9 +1196,9 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
           Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &miss);
 
-  // Search the dictionary placing the result in rax.
+  // Search the dictionary placing the result in eax.
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx);
   GenerateCheckNonObjectOrLoaded(masm, &miss, rax);
   __ ret(0);
 

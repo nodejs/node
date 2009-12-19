@@ -168,12 +168,6 @@ class GlobalHandles::Node : public Malloced {
       if (first_deallocated()) {
         first_deallocated()->set_next(head());
       }
-      // Check that we are not passing a finalized external string to
-      // the callback.
-      ASSERT(!object_->IsExternalAsciiString() ||
-             ExternalAsciiString::cast(object_)->resource() != NULL);
-      ASSERT(!object_->IsExternalTwoByteString() ||
-             ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState state(EXTERNAL);
       func(object, par);
@@ -442,15 +436,15 @@ void GlobalHandles::RecordStats(HeapStats* stats) {
   *stats->near_death_global_handle_count = 0;
   *stats->destroyed_global_handle_count = 0;
   for (Node* current = head_; current != NULL; current = current->next()) {
-    *stats->global_handle_count += 1;
+    *stats->global_handle_count++;
     if (current->state_ == Node::WEAK) {
-      *stats->weak_global_handle_count += 1;
+      *stats->weak_global_handle_count++;
     } else if (current->state_ == Node::PENDING) {
-      *stats->pending_global_handle_count += 1;
+      *stats->pending_global_handle_count++;
     } else if (current->state_ == Node::NEAR_DEATH) {
-      *stats->near_death_global_handle_count += 1;
+      *stats->near_death_global_handle_count++;
     } else if (current->state_ == Node::DESTROYED) {
-      *stats->destroyed_global_handle_count += 1;
+      *stats->destroyed_global_handle_count++;
     }
   }
 }
@@ -512,5 +506,6 @@ void GlobalHandles::RemoveObjectGroups() {
   }
   object_groups->Clear();
 }
+
 
 } }  // namespace v8::internal

@@ -56,8 +56,6 @@ class CodeGenSelector: public AstVisitor {
  private:
   // Visit an expression in a given expression context.
   void ProcessExpression(Expression* expr, Expression::Context context) {
-    ASSERT(expr->context() == Expression::kUninitialized ||
-           expr->context() == context);
     Expression::Context saved = context_;
     context_ = context;
     Visit(expr);
@@ -598,7 +596,7 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
       Slot* slot = scope->parameter(i)->slot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
         if (FLAG_trace_bailout) {
-          PrintF("Function has context-allocated parameters.\n");
+          PrintF("function has context-allocated parameters");
         }
         return NORMAL;
       }
@@ -647,18 +645,6 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
-  Property* prop = decl->proxy()->AsProperty();
-  if (prop != NULL) {
-    // Property rewrites are shared, ensure we are not changing its
-    // expression context state.
-    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
-           prop->obj()->context() == Expression::kValue);
-    ASSERT(prop->key()->context() == Expression::kUninitialized ||
-           prop->key()->context() == Expression::kValue);
-    ProcessExpression(prop->obj(), Expression::kValue);
-    ProcessExpression(prop->key(), Expression::kValue);
-  }
-
   if (decl->fun() != NULL) {
     ProcessExpression(decl->fun(), Expression::kValue);
   }
@@ -690,10 +676,12 @@ void CodeGenSelector::VisitIfStatement(IfStatement* stmt) {
 
 
 void CodeGenSelector::VisitContinueStatement(ContinueStatement* stmt) {
+  BAILOUT("ContinueStatement");
 }
 
 
 void CodeGenSelector::VisitBreakStatement(BreakStatement* stmt) {
+  BAILOUT("BreakStatement");
 }
 
 
@@ -703,12 +691,12 @@ void CodeGenSelector::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void CodeGenSelector::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  ProcessExpression(stmt->expression(), Expression::kValue);
+  BAILOUT("WithEnterStatement");
 }
 
 
 void CodeGenSelector::VisitWithExitStatement(WithExitStatement* stmt) {
-  // Supported.
+  BAILOUT("WithExitStatement");
 }
 
 
@@ -736,7 +724,21 @@ void CodeGenSelector::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void CodeGenSelector::VisitForStatement(ForStatement* stmt) {
-  BAILOUT("ForStatement");
+  // We do not handle loops with breaks or continue statements in their
+  // body.  We will bailout when we hit those statements in the body.
+  if (stmt->init() != NULL) {
+    Visit(stmt->init());
+    CHECK_BAILOUT;
+  }
+  if (stmt->cond() != NULL) {
+    ProcessExpression(stmt->cond(), Expression::kTest);
+    CHECK_BAILOUT;
+  }
+  Visit(stmt->body());
+  if (stmt->next() != NULL) {
+    CHECK_BAILOUT;
+    Visit(stmt->next());
+  }
 }
 
 
@@ -751,9 +753,7 @@ void CodeGenSelector::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 
 void CodeGenSelector::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  Visit(stmt->try_block());
-  CHECK_BAILOUT;
-  Visit(stmt->finally_block());
+  BAILOUT("TryFinallyStatement");
 }
 
 
@@ -885,22 +885,34 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   // non-context (stack-allocated) locals, and global variables.
   Token::Value op = expr->op();
   if (op == Token::INIT_CONST) BAILOUT("initialize constant");
+  if (op != Token::ASSIGN && op != Token::INIT_VAR) {
+    BAILOUT("compound assignment");
+  }
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Property* prop = expr->target()->AsProperty();
-  ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
     // All global variables are supported.
     if (!var->is_global()) {
-      ASSERT(var->slot() != NULL);
-      Slot::Type type = var->slot()->type();
-      if (type == Slot::LOOKUP) {
-        BAILOUT("Lookup slot");
+      if (var->slot() == NULL) {
+        Property* property = var->AsProperty();
+        if (property == NULL) {
+          BAILOUT("non-global/non-slot/non-property assignment");
+        }
+        if (property->obj()->AsSlot() == NULL) {
+          BAILOUT("variable rewritten to property non slot object assignment");
+        }
+        if (property->key()->AsLiteral() == NULL) {
+          BAILOUT("variable rewritten to property non literal key assignment");
+        }
+      } else {
+        Slot::Type type = var->slot()->type();
+        if (type == Slot::LOOKUP) {
+          BAILOUT("Lookup slot");
+        }
       }
     }
   } else if (prop != NULL) {
-    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
-           prop->obj()->context() == Expression::kValue);
     ProcessExpression(prop->obj(), Expression::kValue);
     CHECK_BAILOUT;
     // We will only visit the key during code generation for keyed property
@@ -911,8 +923,6 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     if (lit == NULL ||
         !lit->handle()->IsSymbol() ||
         String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
-      ASSERT(prop->key()->context() == Expression::kUninitialized ||
-             prop->key()->context() == Expression::kValue);
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }
@@ -1101,14 +1111,14 @@ void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void CodeGenSelector::VisitCompareOperation(CompareOperation* expr) {
-  ProcessExpression(expr->left(), Expression::kValue);
-  CHECK_BAILOUT;
-  ProcessExpression(expr->right(), Expression::kValue);
+      ProcessExpression(expr->left(), Expression::kValue);
+      CHECK_BAILOUT;
+      ProcessExpression(expr->right(), Expression::kValue);
 }
 
 
 void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {
-  // ThisFunction is supported.
+  BAILOUT("ThisFunction");
 }
 
 #undef BAILOUT

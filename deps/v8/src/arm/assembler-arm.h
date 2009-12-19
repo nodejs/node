@@ -103,94 +103,57 @@ extern Register sp;
 extern Register lr;
 extern Register pc;
 
+// Support for VFP registers s0 to s32 (d0 to d16).
+// Note that "sN:sM" is the same as "dN/2".
+extern Register s0;
+extern Register s1;
+extern Register s2;
+extern Register s3;
+extern Register s4;
+extern Register s5;
+extern Register s6;
+extern Register s7;
+extern Register s8;
+extern Register s9;
+extern Register s10;
+extern Register s11;
+extern Register s12;
+extern Register s13;
+extern Register s14;
+extern Register s15;
+extern Register s16;
+extern Register s17;
+extern Register s18;
+extern Register s19;
+extern Register s20;
+extern Register s21;
+extern Register s22;
+extern Register s23;
+extern Register s24;
+extern Register s25;
+extern Register s26;
+extern Register s27;
+extern Register s28;
+extern Register s29;
+extern Register s30;
+extern Register s31;
 
-// Single word VFP register.
-struct SwVfpRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 32; }
-  bool is(SwVfpRegister reg) const  { return code_ == reg.code_; }
-  int code() const  {
-    ASSERT(is_valid());
-    return code_;
-  }
-  int bit() const  {
-    ASSERT(is_valid());
-    return 1 << code_;
-  }
-
-  int code_;
-};
-
-
-// Double word VFP register.
-struct DwVfpRegister {
-  // Supporting d0 to d15, can be later extended to d31.
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  bool is(DwVfpRegister reg) const  { return code_ == reg.code_; }
-  int code() const  {
-    ASSERT(is_valid());
-    return code_;
-  }
-  int bit() const  {
-    ASSERT(is_valid());
-    return 1 << code_;
-  }
-
-  int code_;
-};
-
-
-// Support for VFP registers s0 to s31 (d0 to d15).
-// Note that "s(N):s(N+1)" is the same as "d(N/2)".
-extern SwVfpRegister s0;
-extern SwVfpRegister s1;
-extern SwVfpRegister s2;
-extern SwVfpRegister s3;
-extern SwVfpRegister s4;
-extern SwVfpRegister s5;
-extern SwVfpRegister s6;
-extern SwVfpRegister s7;
-extern SwVfpRegister s8;
-extern SwVfpRegister s9;
-extern SwVfpRegister s10;
-extern SwVfpRegister s11;
-extern SwVfpRegister s12;
-extern SwVfpRegister s13;
-extern SwVfpRegister s14;
-extern SwVfpRegister s15;
-extern SwVfpRegister s16;
-extern SwVfpRegister s17;
-extern SwVfpRegister s18;
-extern SwVfpRegister s19;
-extern SwVfpRegister s20;
-extern SwVfpRegister s21;
-extern SwVfpRegister s22;
-extern SwVfpRegister s23;
-extern SwVfpRegister s24;
-extern SwVfpRegister s25;
-extern SwVfpRegister s26;
-extern SwVfpRegister s27;
-extern SwVfpRegister s28;
-extern SwVfpRegister s29;
-extern SwVfpRegister s30;
-extern SwVfpRegister s31;
-
-extern DwVfpRegister d0;
-extern DwVfpRegister d1;
-extern DwVfpRegister d2;
-extern DwVfpRegister d3;
-extern DwVfpRegister d4;
-extern DwVfpRegister d5;
-extern DwVfpRegister d6;
-extern DwVfpRegister d7;
-extern DwVfpRegister d8;
-extern DwVfpRegister d9;
-extern DwVfpRegister d10;
-extern DwVfpRegister d11;
-extern DwVfpRegister d12;
-extern DwVfpRegister d13;
-extern DwVfpRegister d14;
-extern DwVfpRegister d15;
-
+extern Register d0;
+extern Register d1;
+extern Register d2;
+extern Register d3;
+extern Register d4;
+extern Register d5;
+extern Register d6;
+extern Register d7;
+extern Register d8;
+extern Register d9;
+extern Register d10;
+extern Register d11;
+extern Register d12;
+extern Register d13;
+extern Register d14;
+extern Register d15;
 
 // Coprocessor register
 struct CRegister {
@@ -796,45 +759,55 @@ class Assembler : public Malloced {
   // However, some simple modifications can allow
   // these APIs to support D16 to D31.
 
-  void vmov(const DwVfpRegister dst,
-            const Register src1,
-            const Register src2,
-            const Condition cond = al);
-  void vmov(const Register dst1,
-            const Register dst2,
-            const DwVfpRegister src,
-            const Condition cond = al);
-  void vmov(const SwVfpRegister dst,
+  void fmdrr(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmrrd(const Register dst1,
+             const Register dst2,
+             const Register src,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmsr(const Register dst,
             const Register src,
+            const SBit s = LeaveCC,
             const Condition cond = al);
-  void vmov(const Register dst,
-            const SwVfpRegister src,
+  void fmrs(const Register dst,
+            const Register src,
+            const SBit s = LeaveCC,
             const Condition cond = al);
-  void vcvt(const DwVfpRegister dst,
-            const SwVfpRegister src,
-            const Condition cond = al);
-  void vcvt(const SwVfpRegister dst,
-            const DwVfpRegister src,
-            const Condition cond = al);
+  void fsitod(const Register dst,
+              const Register src,
+              const SBit s = LeaveCC,
+              const Condition cond = al);
+  void ftosid(const Register dst,
+              const Register src,
+              const SBit s = LeaveCC,
+              const Condition cond = al);
 
-  void vadd(const DwVfpRegister dst,
-            const DwVfpRegister src1,
-            const DwVfpRegister src2,
-            const Condition cond = al);
-  void vsub(const DwVfpRegister dst,
-            const DwVfpRegister src1,
-            const DwVfpRegister src2,
-            const Condition cond = al);
-  void vmul(const DwVfpRegister dst,
-            const DwVfpRegister src1,
-            const DwVfpRegister src2,
-            const Condition cond = al);
-  void vdiv(const DwVfpRegister dst,
-            const DwVfpRegister src1,
-            const DwVfpRegister src2,
-            const Condition cond = al);
-  void vcmp(const DwVfpRegister src1,
-            const DwVfpRegister src2,
+  void faddd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fsubd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fmuld(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fdivd(const Register dst,
+             const Register src1,
+             const Register src2,
+             const SBit s = LeaveCC,
+             const Condition cond = al);
+  void fcmp(const Register src1,
+            const Register src2,
             const SBit s = LeaveCC,
             const Condition cond = al);
   void vmrs(const Register dst,

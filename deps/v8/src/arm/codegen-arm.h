@@ -455,15 +455,13 @@ class GenericBinaryOpStub : public CodeStub {
       : op_(op),
         mode_(mode),
         constant_rhs_(constant_rhs),
-        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)),
-        name_(NULL) { }
+        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)) { }
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
   int constant_rhs_;
   bool specialized_on_rhs_;
-  char* name_;
 
   static const int kMaxKnownRhs = 0x40000000;
 
@@ -508,7 +506,22 @@ class GenericBinaryOpStub : public CodeStub {
     return key;
   }
 
-  const char* GetName();
+  const char* GetName() {
+    switch (op_) {
+      case Token::ADD: return "GenericBinaryOpStub_ADD";
+      case Token::SUB: return "GenericBinaryOpStub_SUB";
+      case Token::MUL: return "GenericBinaryOpStub_MUL";
+      case Token::DIV: return "GenericBinaryOpStub_DIV";
+      case Token::MOD: return "GenericBinaryOpStub_MOD";
+      case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+      case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+      case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+      case Token::SAR: return "GenericBinaryOpStub_SAR";
+      case Token::SHL: return "GenericBinaryOpStub_SHL";
+      case Token::SHR: return "GenericBinaryOpStub_SHR";
+      default:         return "GenericBinaryOpStub";
+    }
+  }
 
 #ifdef DEBUG
   void Print() {

@@ -745,7 +745,6 @@ class Assembler : public Malloced {
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
-  void xorpd(XMMRegister dst, XMMRegister src);
 
   void comisd(XMMRegister dst, XMMRegister src);
 
