@@ -1,4 +1,13 @@
-2009.12.19, Version 0.1.22
+2009.12.22, Version 0.1.23
+
+  * Bugfix: require("../blah") issues (isaacs)
+
+  * Bugfix: posix.cat (Jonas Pfenniger)
+
+  * Do not pause request for multipart parsing (Felix Geisendörfer)
+
+
+2009.12.19, Version 0.1.22, a2d809fe902f6c4102dba8f2e3e9551aad137c0f
 
   * Bugfix: child modules get wrong id with "index.js" (isaacs)
 
