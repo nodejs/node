@@ -651,7 +651,7 @@ var posixModule = createInternalModule("posix", function (exports) {
             exports.close(fd);
           }
         }).addErrback(function () {
-          promise.emitError.call(arguments);
+          promise.emitError.apply(promise, arguments);
         });
       }
       readChunk();
