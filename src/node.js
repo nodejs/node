@@ -667,31 +667,31 @@ var posix = posixModule.exports;
 
 var pathModule = createInternalModule("path", function (exports) {
   exports.join = function () {
-    var joined = "", 
-      dotre = /^\.\//,
-      dotreplace = "",
-      dotdotre = /(^|(\/)([^\/]+\/)?)\.\.\//g,
-      dotdotreplace = ""
-    for (var i = 0; i < arguments.length; i++) {
-      var part = arguments[i].toString();
+    return exports.normalize(Array.prototype.join.call(arguments, "/"));
+  };
 
-      /* Some logic to shorten paths */
-      if (part === ".") continue;
-      while (dotre.exec(part)) part = part.replace(dotre, dotreplace);
-
-      if (i === 0) {
-        part = part.replace(/\/*$/, "/");
-      } else if (i === arguments.length - 1) {
-        part = part.replace(/^\/*/, "");
-      } else {
-        part = part.replace(/^\/*/, "").replace(/\/*$/, "/");
+  function normalizeArray (parts) {
+    var directories = [];
+    for (var i = 0; i < parts.length; i++) {
+      var directory = parts[i];
+      if (directory === "." || (directory === "" && directories.length)) {
+        continue;
       }
-      joined += part;
+      if (
+        directory === ".."
+        && directories.length
+        && directories[directories.length - 1] != '..'
+      ) {
+        directories.pop();
+      } else {
+        directories.push(directory);
+      }
     }
-    // replace /foo/../bar/baz with /bar/baz
-    while (dotdotre.exec(joined)) joined = joined.replace(dotdotre, dotdotreplace);
-    return joined;
-    
+    return directories;
+  }
+
+  exports.normalize = function (path) {
+    return normalizeArray(path.split("/")).join("/");
   };
 
   exports.dirname = function (path) {
@@ -898,7 +898,6 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.paths = process.paths;
     require.async = requireAsync;
     require.main = process.mainModule;
-
     // create wrapper function
     var wrapper = "var __wrap__ = function (exports, require, module, __filename) { " 
                 + content 
@@ -957,6 +956,10 @@ if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
 process.mainModule = createModule(".");
 var loadPromise = new process.Promise();
 process.mainModule.load(process.ARGV[1], loadPromise);
+
+loadPromise.addErrback(function(e) {
+  throw e;
+});
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If
