@@ -670,7 +670,7 @@ var pathModule = createInternalModule("path", function (exports) {
     return exports.normalize(Array.prototype.join.call(arguments, "/"));
   };
 
-  function normalizeArray (parts) {
+  exports.normalizeArray = function (parts) {
     var directories = [];
     for (var i = 0; i < parts.length; i++) {
       var directory = parts[i];
@@ -688,10 +688,10 @@ var pathModule = createInternalModule("path", function (exports) {
       }
     }
     return directories;
-  }
+  };
 
   exports.normalize = function (path) {
-    return normalizeArray(path.split("/")).join("/");
+    return exports.normalizeArray(path.split("/")).join("/");
   };
 
   exports.dirname = function (path) {
