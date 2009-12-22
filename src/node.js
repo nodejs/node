@@ -97,54 +97,54 @@ process.assert = function (x, msg) {
 // Dual licensed under the MIT and GPL licenses.
 // http://docs.jquery.com/License
 process.mixin = function() {
-	// copy reference to target object
-	var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, options;
+  // copy reference to target object
+  var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, options;
 
-	// Handle a deep copy situation
-	if ( typeof target === "boolean" ) {
-		deep = target;
-		target = arguments[1] || {};
-		// skip the boolean and the target
-		i = 2;
-	}
+  // Handle a deep copy situation
+  if ( typeof target === "boolean" ) {
+    deep = target;
+    target = arguments[1] || {};
+    // skip the boolean and the target
+    i = 2;
+  }
 
-	// Handle case when target is a string or something (possible in deep copy)
-	if ( typeof target !== "object" && !(typeof target === 'function') )
-		target = {};
+  // Handle case when target is a string or something (possible in deep copy)
+  if ( typeof target !== "object" && !(typeof target === 'function') )
+    target = {};
 
-	// mixin process itself if only one argument is passed
-	if ( length == i ) {
-		target = GLOBAL;
-		--i;
-	}
+  // mixin process itself if only one argument is passed
+  if ( length == i ) {
+    target = GLOBAL;
+    --i;
+  }
 
-	for ( ; i < length; i++ ) {
-		// Only deal with non-null/undefined values
-		if ( (options = arguments[ i ]) != null ) {
-			// Extend the base object
-			for ( var name in options ) {
-				var src = target[ name ], copy = options[ name ];
+  for ( ; i < length; i++ ) {
+    // Only deal with non-null/undefined values
+    if ( (options = arguments[ i ]) != null ) {
+      // Extend the base object
+      for ( var name in options ) {
+        var src = target[ name ], copy = options[ name ];
 
-				// Prevent never-ending loop
-				if ( target === copy )
-					continue;
+        // Prevent never-ending loop
+        if ( target === copy )
+          continue;
 
-				// Recurse if we're merging object values
-				if ( deep && copy && typeof copy === "object" ) {
-					target[ name ] = process.mixin( deep, 
-						// Never move original objects, clone them
-						src || ( copy.length != null ? [ ] : { } )
-					, copy );
+        // Recurse if we're merging object values
+        if ( deep && copy && typeof copy === "object" ) {
+          target[ name ] = process.mixin( deep,
+            // Never move original objects, clone them
+            src || ( copy.length != null ? [ ] : { } )
+          , copy );
 
-				// Don't bring in undefined values
-				} else {
-					target[ name ] = copy;
-				}
-			}
-		}
-	}
-	// Return the modified object
-	return target;
+        // Don't bring in undefined values
+        } else {
+          target[ name ] = copy;
+        }
+      }
+    }
+  }
+  // Return the modified object
+  return target;
 };
 
 
@@ -369,7 +369,7 @@ process.watchFile = function (filename) {
     options = {};
     listener = arguments[1];
   }
-    
+
   if (options.persistent === undefined) options.persistent = true;
   if (options.interval === undefined) options.interval = 0;
 
@@ -718,7 +718,7 @@ var path = pathModule.exports;
 
 process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
                ];
- 
+
 if (process.ENV["HOME"]) {
   process.paths.unshift(path.join(process.ENV["HOME"], ".node_libraries"));
 }
@@ -744,7 +744,7 @@ function findModulePath (id, dirs, callback) {
     callback();
     return;
   }
-  
+
   var dir = dirs[0];
   var rest = dirs.slice(1, dirs.length);
 
@@ -840,7 +840,7 @@ Module.prototype.load = function (filename, loadPromise) {
 Module.prototype.loadObject = function (filename, loadPromise) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
-  // file, store it to tmp then run dlopen on it. 
+  // file, store it to tmp then run dlopen on it.
   setTimeout(function () {
     self.loaded = true;
     process.dlopen(filename, self.exports); // FIXME synchronus
@@ -850,7 +850,7 @@ Module.prototype.loadObject = function (filename, loadPromise) {
 
 function cat (id, loadPromise) {
   var promise;
-  
+
   debug(id);
 
   if (id.match(/^http:\/\//)) {
@@ -899,8 +899,8 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.async = requireAsync;
     require.main = process.mainModule;
     // create wrapper function
-    var wrapper = "var __wrap__ = function (exports, require, module, __filename) { " 
-                + content 
+    var wrapper = "var __wrap__ = function (exports, require, module, __filename) { "
+                + content
                 + "\n}; __wrap__;";
     var compiledWrapper = process.compile(wrapper, filename);
 
