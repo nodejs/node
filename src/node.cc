@@ -949,6 +949,9 @@ int main(int argc, char *argv[]) {
   ev_async_init(&node::eio_watcher, node::EIOCallback);
   // 2. Actaully start the thread pool.
   eio_init(node::EIOWantPoll, NULL);
+  // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
+  // race conditions. See test/mjsunit/test-eio-race.js
+  eio_set_max_poll_reqs(10);
   // 3. Start watcher.
   ev_async_start(EV_DEFAULT_UC_ &node::eio_watcher);
   // 4. Remove a reference to the async watcher. This means we'll drop out
