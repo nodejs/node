@@ -20,7 +20,7 @@ class IOWatcher : ObjectWrap {
   }
 
   ~IOWatcher() {
-    Stop();
+    ev_io_stop(EV_DEFAULT_UC_ &watcher_);
   }
 
   static v8::Handle<v8::Value> New(const v8::Arguments& args);

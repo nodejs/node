@@ -37,7 +37,11 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   HandleScope scope;
 
   Local<Value> callback_v = io->handle_->Get(callback_symbol);
-  assert(callback_v->IsFunction());
+  if (!callback_v->IsFunction()) {
+    io->Stop();
+    return;
+  }
+
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
   TryCatch try_catch;
@@ -64,18 +68,8 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 Handle<Value> IOWatcher::New(const Arguments& args) {
   HandleScope scope;
 
-  if (!args[0]->IsFunction()) {
-    return ThrowException(Exception::TypeError(
-          String::New("First arg should a callback.")));
-  }
-
-  Local<Function> callback = Local<Function>::Cast(args[0]);
-
   IOWatcher *s = new IOWatcher();
-
   s->Wrap(args.This());
-
-  s->handle_->Set(callback_symbol, callback);
 
   return args.This();
 }
@@ -136,7 +130,6 @@ Handle<Value> IOWatcher::Stop(const Arguments& args) {
 
 void IOWatcher::Stop () {
   if (watcher_.active) {
-    HandleScope scope;
     ev_io_stop(EV_DEFAULT_UC_ &watcher_);
     Unref();
   }
