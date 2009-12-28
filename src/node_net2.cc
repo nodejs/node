@@ -264,7 +264,7 @@ static Handle<Value> Shutdown(const Arguments& args) {
   int how = SHUT_WR;
 
   if (args[1]->IsString()) {
-    String::Utf8Value t(args[0]->ToString());
+    String::Utf8Value t(args[1]->ToString());
     if (0 == strcasecmp(*t, "write")) {
       how = SHUT_WR;
     } else if (0 == strcasecmp(*t, "read")) {
