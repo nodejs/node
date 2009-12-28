@@ -54,11 +54,16 @@ static inline Local<Value> ErrnoException(int errorno,
   return e;
 }
 
+static inline bool SetCloseOnExec(int fd) {
+  return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
+}
+
 static inline bool SetNonBlock(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1) return false;
-  flags |= O_NONBLOCK;
-  return (fcntl(fd, F_SETFL, flags) != -1);
+  return (fcntl(fd, F_SETFL, O_NONBLOCK) != -1);
+}
+
+static inline bool SetSockFlags(int fd) {
+  return SetNonBlock(fd) && SetCloseOnExec(fd);
 }
 
 // Creates nonblocking pipe
@@ -68,7 +73,7 @@ static Handle<Value> Pipe(const Arguments& args) {
 
   if (pipe(fds) < 0) return ThrowException(ErrnoException(errno, "pipe"));
 
-  if(!SetNonBlock(fds[0]) || !SetNonBlock(fds[1])) {
+  if (!SetSockFlags(fds[0]) || !SetSockFlags(fds[1])) {
     int fcntl_errno = errno;
     close(fds[0]);
     close(fds[1]);
@@ -92,7 +97,7 @@ static Handle<Value> SocketPair(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "socketpair"));
   }
 
-  if (!SetNonBlock(fds[0]) || !SetNonBlock(fds[1])) {
+  if (!SetSockFlags(fds[0]) || !SetSockFlags(fds[1])) {
     int fcntl_errno = errno;
     close(fds[0]);
     close(fds[1]);
@@ -137,7 +142,7 @@ static Handle<Value> Socket(const Arguments& args) {
 
   if (fd < 0) return ThrowException(ErrnoException(errno, "socket"));
 
-  if (!SetNonBlock(fd)) {
+  if (!SetSockFlags(fd)) {
     int fcntl_errno = errno;
     close(fd);
     return ThrowException(ErrnoException(fcntl_errno, "fcntl"));
@@ -387,10 +392,10 @@ static Handle<Value> Accept(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "accept"));
   }
 
-  if (!SetNonBlock(peer_fd)) {
+  if (!SetSockFlags(peer_fd)) {
     int fcntl_errno = errno;
     close(peer_fd);
-    return ThrowException(ErrnoException(fcntl_errno, "fcntl", "Cannot make peer non-blocking"));
+    return ThrowException(ErrnoException(fcntl_errno, "fcntl"));
   }
 
   Local<Object> peer_info = Object::New();

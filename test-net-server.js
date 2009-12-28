@@ -42,7 +42,11 @@ c.addListener('drain', function () {
   sys.puts("!!!client drain");
 });
 
-c.addListener('receive', function (d) {
+c.addListener('data', function (d) {
   sys.puts("!!!client got: " + JSON.stringify(d.toString()));
+  c.close();
 });
 
+c.addListener('dataEnd', function (d) {
+  sys.puts("!!!client eof");
+});
