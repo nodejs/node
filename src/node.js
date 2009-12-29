@@ -880,7 +880,7 @@ Module.prototype.loadScript = function (filename, loadPromise) {
   var catPromise = cat(filename, loadPromise);
 
   catPromise.addErrback(function () {
-    loadPromise.emitError(new Error("Error reading " + filename));
+    loadPromise.emitError(new Error("Cannot read " + filename));
   });
 
   catPromise.addCallback(function (content) {
