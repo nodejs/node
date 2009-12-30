@@ -45,11 +45,13 @@ doc/node.1: doc/api.xml
 website-upload: doc
 	scp doc/* linode:~/tinyclouds/node/
 
-clean:
+docclean:
 	@-rm -f doc/node.1 doc/api.xml doc/api.html
+
+clean: docclean
 	@$(WAF) clean
 
-distclean: clean
+distclean: docclean
 	@-rm -rf build/
 	@-find tools/ -name "*.pyc" -delete
 
@@ -70,4 +72,4 @@ dist: doc/node.1 doc/api.html
 	rm -r $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
 
-.PHONY: benchmark clean dist distclean check uninstall install all test test-all website-upload
+.PHONY: benchmark clean docclean dist distclean check uninstall install all test test-all website-upload
