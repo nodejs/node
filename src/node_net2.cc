@@ -544,6 +544,7 @@ static Handle<Value> ToRead(const Arguments& args) {
 
 struct resolve_request {
   Persistent<Function> cb;
+  struct addrinfo *address_list;
   int ai_family; // AF_INET or AF_INET6
   char hostname[1];
 };
@@ -554,29 +555,32 @@ static int AfterResolve(eio_req *req) {
 
   struct resolve_request * rreq = (struct resolve_request *)(req->data);
 
-  struct addrinfo *address = NULL,
-                  *address_list = static_cast<struct addrinfo *>(req->ptr2);
-
   HandleScope scope;
   Local<Value> argv[1];
 
   if (req->result != 0) {
     argv[0] = ErrnoException(errno, "getaddrinfo");
   } else {
+    struct addrinfo *address;
     int n = 0;
-    for (address = address_list; address; address = address->ai_next) { n++; }
+
+    for (address = rreq->address_list; address; address = address->ai_next) { n++; }
 
     Local<Array> results = Array::New(n);
 
     char ip[INET6_ADDRSTRLEN];
+    const char *addr;
 
     n = 0;
-    address = address_list;
+    address = rreq->address_list;
     while (address) {
-      HandleScope scope;
-      assert(address->ai_family == AF_INET || address->ai_family == AF_INET6);
       assert(address->ai_socktype == SOCK_STREAM);
-      const char *c = inet_ntop(address->ai_family, &(address->ai_addr), ip, INET6_ADDRSTRLEN);
+      assert(address->ai_family == AF_INET || address->ai_family == AF_INET6);
+      addr = ( address->ai_family == AF_INET
+             ? (char *) &((struct sockaddr_in *) address->ai_addr)->sin_addr
+             : (char *) &((struct sockaddr_in6 *) address->ai_addr)->sin6_addr
+             );
+      const char *c = inet_ntop(address->ai_family, addr, ip, INET6_ADDRSTRLEN);
       Local<String> s = String::New(c);
       results->Set(Integer::New(n), s);
 
@@ -595,23 +599,27 @@ static int AfterResolve(eio_req *req) {
     FatalException(try_catch);
   }
 
+  if (rreq->address_list) freeaddrinfo(rreq->address_list);
   rreq->cb.Dispose(); // Dispose of the persistent handle
   free(rreq);
-  freeaddrinfo(address_list);
+
+  return 0;
 }
+
 
 static int Resolve(eio_req *req) {
   // Note: this function is executed in the thread pool! CAREFUL
   struct resolve_request * rreq = (struct resolve_request *) req->data;
-  struct addrinfo *address_list = NULL;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = rreq->ai_family;
   hints.ai_socktype = SOCK_STREAM;
 
-  req->result = getaddrinfo((char*)rreq->hostname, NULL, &hints, &address_list);
-  req->ptr2 = address_list;
+  req->result = getaddrinfo((char*)rreq->hostname,
+                            NULL,
+                            &hints,
+                            &(rreq->address_list));
   return 0;
 }
 
@@ -643,7 +651,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   Local<Function> cb = Local<Function>::Cast(args[2]);
 
   struct resolve_request *rreq = (struct resolve_request *)
-    malloc(sizeof(struct resolve_request) + hostname.length());
+    calloc(1, sizeof(struct resolve_request) + hostname.length());
 
   if (!rreq) {
     V8::LowMemoryNotification();
