@@ -761,6 +761,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
 
+  target->Set(String::NewSymbol("ENOENT"), Integer::New(ENOENT));
   target->Set(String::NewSymbol("EINPROGRESS"), Integer::New(EINPROGRESS));
   target->Set(String::NewSymbol("EINTR"), Integer::New(EINTR));
   target->Set(String::NewSymbol("EACCES"), Integer::New(EACCES));

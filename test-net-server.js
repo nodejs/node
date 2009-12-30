@@ -17,6 +17,10 @@ var server = new net.Server(function (socket) {
     socket.send("pong ascii\r\n", "ascii");
     socket.send(b);
     socket.send("pong utf8\r\n", "utf8");
+    if (/^quit/.test(b)) {
+      socket.close();
+      server.close();
+    }
   });
 
   socket.addListener("eof", function () {
@@ -28,25 +32,27 @@ var server = new net.Server(function (socket) {
     sys.puts("server-side socket drain");
   });
 });
-server.listen(8000);
+server.listen("/tmp/node.sock");
 sys.puts("server fd: " + server.fd);
 
+server.addListener("listening", function () {
+  var c = net.createConnection("/tmp/node.sock");
+  c.addListener('connect', function () {
+    sys.puts("!!!client connected");
+    c.send("hello\n");
+  });
 
-var c = net.createConnection(8000, "localhost");
-c.addListener('connect', function () {
-  sys.puts("!!!client connected");
-  c.send("hello\n");
+  c.addListener('drain', function () {
+    sys.puts("!!!client drain");
+  });
+
+  c.addListener('data', function (d) {
+    sys.puts("!!!client got: " + JSON.stringify(d.toString()));
+    c.close();
+  });
+
+  c.addListener('eof', function (d) {
+    sys.puts("!!!client eof");
+  });
 });
 
-c.addListener('drain', function () {
-  sys.puts("!!!client drain");
-});
-
-c.addListener('data', function (d) {
-  sys.puts("!!!client got: " + JSON.stringify(d.toString()));
-  c.close();
-});
-
-c.addListener('dataEnd', function (d) {
-  sys.puts("!!!client eof");
-});
