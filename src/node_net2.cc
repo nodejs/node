@@ -546,6 +546,23 @@ static Handle<Value> ToRead(const Arguments& args) {
 }
 
 
+static Handle<Value> SetNoDelay(const Arguments& args) {
+  int flags, r;
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  flags = args[1]->IsFalse() ? 0 : 1;
+  r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  }
+
+  return Undefined();
+}
+
+
 // G E T A D D R I N F O
 
 struct resolve_request {
@@ -739,6 +756,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "accept", Accept);
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
+  NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
   NODE_SET_METHOD(target, "getsocksame", GetSockName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
