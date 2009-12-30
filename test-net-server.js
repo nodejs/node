@@ -28,11 +28,11 @@ var server = new net.Server(function (socket) {
     sys.puts("server-side socket drain");
   });
 });
-server.listen(8000);
+server.listen(8000, "localhost");
 sys.puts("server fd: " + server.fd);
 
 
-var c = net.createConnection(8000);
+var c = net.createConnection(8000, "localhost");
 c.addListener('connect', function () {
   sys.puts("!!!client connected");
   c.send("hello\n");

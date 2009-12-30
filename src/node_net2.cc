@@ -559,7 +559,13 @@ static int AfterResolve(eio_req *req) {
   Local<Value> argv[1];
 
   if (req->result != 0) {
-    argv[0] = ErrnoException(errno, "getaddrinfo");
+    if (req->result == EAI_NODATA) {
+      argv[0] = Array::New();
+    } else {
+      argv[0] = ErrnoException(req->result,
+                               "getaddrinfo",
+                               gai_strerror(req->result));
+    }
   } else {
     struct addrinfo *address;
     int n = 0;
