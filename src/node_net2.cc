@@ -18,8 +18,14 @@
 #include <netinet/tcp.h>
 
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
 
+#ifdef __linux__
+# include <linux/sockios.h> /* For the SIOCINQ / FIONREAD ioctl */
+#endif
+/* Non-linux platforms like OS X define this ioctl elsewhere */
+#ifndef FIONREAD
+#include <sys/filio.h>
+#endif
 
 #include <errno.h>
 
@@ -530,7 +536,7 @@ static Handle<Value> ToRead(const Arguments& args) {
   FD_ARG(args[0])
 
   int value;
-  int r = ioctl(fd, SIOCINQ, &value);
+  int r = ioctl(fd, FIONREAD, &value);
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "ioctl"));
