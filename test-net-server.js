@@ -28,7 +28,7 @@ var server = new net.Server(function (socket) {
     sys.puts("server-side socket drain");
   });
 });
-server.listen(8000, "localhost");
+server.listen(8000);
 sys.puts("server fd: " + server.fd);
 
 
