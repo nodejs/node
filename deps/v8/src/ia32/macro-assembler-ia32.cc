@@ -504,6 +504,13 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 }
 
 
+void MacroAssembler::PopTryHandler() {
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
 Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
                                    JSObject* holder, Register holder_reg,
                                    Register scratch,
@@ -834,10 +841,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
   ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  mov(scratch1, length);
   ASSERT(kShortSize == 2);
-  shl(scratch1, 1);
-  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  // scratch1 = length * 2 + kObjectAlignmentMask.
+  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask));
   and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.
@@ -1016,14 +1022,34 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
+Object* MacroAssembler::TryCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  Object* result = stub->TryGetCode();
+  if (!result->IsFailure()) {
+    call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  }
+  return result;
+}
+
+
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+Object* MacroAssembler::TryTailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  Object* result = stub->TryGetCode();
+  if (!result->IsFailure()) {
+    jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  }
+  return result;
 }
 
 
@@ -1046,6 +1072,12 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 }
 
 
+Object* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
+                                       int num_arguments) {
+  return TryCallRuntime(Runtime::FunctionForId(id), num_arguments);
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
@@ -1059,6 +1091,22 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
       static_cast<Runtime::FunctionId>(f->stub_id);
   RuntimeStub stub(function_id, num_arguments);
   CallStub(&stub);
+}
+
+
+Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
+                                       int num_arguments) {
+  if (f->nargs >= 0 && f->nargs != num_arguments) {
+    IllegalOperation(num_arguments);
+    // Since we did not call the stub, there was no allocation failure.
+    // Return some non-failure object.
+    return Heap::undefined_value();
+  }
+
+  Runtime::FunctionId function_id =
+      static_cast<Runtime::FunctionId>(f->stub_id);
+  RuntimeStub stub(function_id, num_arguments);
+  return TryCallStub(&stub);
 }
 
 
@@ -1094,7 +1142,10 @@ void MacroAssembler::PushHandleScope(Register scratch) {
 }
 
 
-void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
+Object* MacroAssembler::PopHandleScopeHelper(Register saved,
+                                             Register scratch,
+                                             bool gc_allowed) {
+  Object* result = NULL;
   ExternalReference extensions_address =
         ExternalReference::handle_scope_extensions_address();
   Label write_back;
@@ -1104,7 +1155,12 @@ void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
   // Calling a runtime function messes with registers so we save and
   // restore any one we're asked not to change
   if (saved.is_valid()) push(saved);
-  CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
+  if (gc_allowed) {
+    CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
+  } else {
+    result = TryCallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
+    if (result->IsFailure()) return result;
+  }
   if (saved.is_valid()) pop(saved);
 
   bind(&write_back);
@@ -1117,6 +1173,18 @@ void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
   pop(scratch);
   shr(scratch, kSmiTagSize);
   mov(Operand::StaticVariable(extensions_address), scratch);
+
+  return result;
+}
+
+
+void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
+  PopHandleScopeHelper(saved, scratch, true);
+}
+
+
+Object* MacroAssembler::TryPopHandleScope(Register saved, Register scratch) {
+  return PopHandleScopeHelper(saved, scratch, false);
 }
 
 
@@ -1301,7 +1369,6 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
   mov(edi, FieldOperand(edx, builtins_offset));
 
-
   return Builtins::GetCode(id, resolved);
 }
 
@@ -1328,6 +1395,18 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::Ret() {
   ret(0);
+}
+
+
+void MacroAssembler::Drop(int stack_elements) {
+  if (stack_elements > 0) {
+    add(Operand(esp), Immediate(stack_elements * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> value) {
+  mov(dst, value);
 }
 
 

@@ -1,3 +1,35 @@
+2009-12-18: Version 2.0.5
+
+        Extended to upper limit of map space to allow for 7 times as many map
+        to be allocated (issue 524).
+
+        Improved performance of code using closures.
+
+        Improved performance of some binary operations involving doubles.
+
+
+2009-12-16: Version 2.0.4
+
+        Added ECMAScript 5 Object.create.
+
+        Improved performance of Math.max and Math.min.
+
+        Optimized adding of strings on 64-bit platforms.
+
+        Improved handling of external strings by using a separate table
+        instead of weak handles.  This improves garbage collection
+        performance and uses less memory.
+
+        Changed code generation for object and array literals in toplevel
+        code to be more compact by doing more work in the runtime.
+
+        Fixed a crash bug triggered when garbage collection happened during
+        generation of a callback load inline cache stub.
+
+        Fixed crash bug sometimes triggered when local variables shadowed
+        parameters in functions that used the arguments object.
+
+
 2009-12-03: Version 2.0.3
 
         Optimized handling and adding of strings, for-in and Array.join.
@@ -35,7 +67,7 @@
         Reverted a change which caused Chromium interactive ui test
         failures.
 
-        
+
 2009-11-18: Version 2.0.0
 
         Added support for VFP on ARM.
@@ -80,7 +112,7 @@
 
 
 2009-10-16: Version 1.3.16
-        
+
         X64: Convert smis to holding 32 bits of payload.
 
         Introduce v8::Integer::NewFromUnsigned method.
@@ -225,7 +257,7 @@
         notifications when V8 has not yet been initialized.
 
         Fixed ARM simulator compilation problem on Windows.
-        
+
 
 2009-08-25: Version 1.3.7
 
@@ -340,9 +372,9 @@
         function is a built-in.
 
         Initial implementation of constructor heap profile for JS objects.
-                  
+
         More fine grained control of profiling aspects through the API.
-                    
+
         Optimized the called as constructor check for API calls.
 
 
@@ -367,8 +399,8 @@
         Added an external allocation limit to avoid issues where small V8
         objects would hold on to large amounts of external memory without
         causing garbage collections.
- 
-        Finished more of the inline caching stubs for x64 targets. 
+
+        Finished more of the inline caching stubs for x64 targets.
 
 
 2009-07-13: Version 1.2.14
@@ -448,9 +480,9 @@
         Fixed a bug in the string type inference.
 
         Fixed a bug in the handling of 'constant function' properties.
-        
+
         Improved overall performance.
-        
+
 
 2009-06-16: Version 1.2.8
 

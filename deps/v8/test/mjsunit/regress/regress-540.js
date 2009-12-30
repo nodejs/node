@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Test context slot declarations in the arguments object.
+// See http://code.google.com/p/v8/issues/detail?id=540
 
-#include "token.h"
+function f(x, y) { eval(x); return y(); }
+var result = f("function y() { return 1; }", function () { return 0; })
+assertEquals(1, result);
 
-namespace v8 {
-namespace internal {
+result =
+    (function (x) {
+      function x() { return 3; }
+      return x();
+    })(function () { return 2; });
+assertEquals(3, result);
 
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-} }  // namespace v8::internal
+result =
+    (function (x) {
+      function x() { return 5; }
+      return arguments[0]();
+    })(function () { return 4; });
+assertEquals(5, result);

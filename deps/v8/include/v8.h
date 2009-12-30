@@ -833,13 +833,26 @@ class V8EXPORT String : public Primitive {
    * Returns true if the string is both external and ascii
    */
   bool IsExternalAscii() const;
+
+  class V8EXPORT ExternalStringResourceBase {
+   public:
+    virtual ~ExternalStringResourceBase() {}
+   protected:
+    ExternalStringResourceBase() {}
+   private:
+    // Disallow copying and assigning.
+    ExternalStringResourceBase(const ExternalStringResourceBase&);
+    void operator=(const ExternalStringResourceBase&);
+  };
+
   /**
    * An ExternalStringResource is a wrapper around a two-byte string
    * buffer that resides outside V8's heap. Implement an
    * ExternalStringResource to manage the life cycle of the underlying
    * buffer.  Note that the string data must be immutable.
    */
-  class V8EXPORT ExternalStringResource {  // NOLINT
+  class V8EXPORT ExternalStringResource
+      : public ExternalStringResourceBase {
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -852,10 +865,6 @@ class V8EXPORT String : public Primitive {
     virtual size_t length() const = 0;
    protected:
     ExternalStringResource() {}
-   private:
-    // Disallow copying and assigning.
-    ExternalStringResource(const ExternalStringResource&);
-    void operator=(const ExternalStringResource&);
   };
 
   /**
@@ -869,7 +878,8 @@ class V8EXPORT String : public Primitive {
    * Use String::New or convert to 16 bit data for non-ASCII.
    */
 
-  class V8EXPORT ExternalAsciiStringResource {  // NOLINT
+  class V8EXPORT ExternalAsciiStringResource
+      : public ExternalStringResourceBase {
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -882,10 +892,6 @@ class V8EXPORT String : public Primitive {
     virtual size_t length() const = 0;
    protected:
     ExternalAsciiStringResource() {}
-   private:
-    // Disallow copying and assigning.
-    ExternalAsciiStringResource(const ExternalAsciiStringResource&);
-    void operator=(const ExternalAsciiStringResource&);
   };
 
   /**

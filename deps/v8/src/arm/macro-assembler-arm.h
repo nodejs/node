@@ -64,6 +64,9 @@ class MacroAssembler: public Assembler {
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret(Condition cond = al);
+  void Drop(int stack_elements, Condition cond = al);
+  void Call(Label* target);
+  void Move(Register dst, Handle<Object> value);
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
   // Load an object from the root table.
@@ -148,6 +151,9 @@ class MacroAssembler: public Assembler {
   // On exit, r0 contains TOS (code slot).
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
+  // Unlink the stack handler on top of the stack from the try handler chain.
+  // Must preserve the result register.
+  void PopTryHandler();
 
   // ---------------------------------------------------------------------------
   // Inline caching support

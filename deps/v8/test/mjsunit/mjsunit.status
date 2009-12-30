@@ -45,6 +45,8 @@ array-constructor: PASS || TIMEOUT
 # Very slow on ARM, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm)
 
+# Skip long running test in debug.
+regress/regress-524: PASS, SKIP if $mode == debug
 
 [ $arch == arm ]
 

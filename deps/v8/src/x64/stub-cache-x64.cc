@@ -956,8 +956,24 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ movq(rdi, FieldOperand(rdi, JSGlobalPropertyCell::kValueOffset));
 
   // Check that the cell contains the same function.
-  __ Cmp(rdi, Handle<JSFunction>(function));
-  __ j(not_equal, &miss);
+  if (Heap::InNewSpace(function)) {
+    // We can't embed a pointer to a function in new space so we have
+    // to verify that the shared function info is unchanged. This has
+    // the nice side effect that multiple closures based on the same
+    // function can all use this call IC. Before we load through the
+    // function, we have to verify that it still is a function.
+    __ JumpIfSmi(rdi, &miss);
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &miss);
+
+    // Check the shared function info. Make sure it hasn't changed.
+    __ Move(rcx, Handle<SharedFunctionInfo>(function->shared()));
+    __ cmpq(FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset), rcx);
+    __ j(not_equal, &miss);
+  } else {
+    __ Cmp(rdi, Handle<JSFunction>(function));
+    __ j(not_equal, &miss);
+  }
 
   // Patch the receiver on the stack with the global proxy.
   if (object->IsGlobalObject()) {
@@ -987,10 +1003,10 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
+Object* LoadStubCompiler::CompileLoadCallback(String* name,
+                                              JSObject* object,
                                               JSObject* holder,
-                                              AccessorInfo* callback,
-                                              String* name) {
+                                              AccessorInfo* callback) {
   // ----------- S t a t e -------------
   //  -- rcx    : name
   //  -- rsp[0] : return address
@@ -999,8 +1015,11 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
-  GenerateLoadCallback(object, holder, rax, rcx, rbx, rdx,
-                       callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(object, holder, rax, rcx, rbx, rdx,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1154,8 +1173,11 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadCallback(receiver, holder, rcx, rax, rbx, rdx,
-                       callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(receiver, holder, rcx, rax, rbx, rdx,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_callback, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1610,7 +1632,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadCallback(JSObject* object,
+bool StubCompiler::GenerateLoadCallback(JSObject* object,
                                         JSObject* holder,
                                         Register receiver,
                                         Register name_reg,
@@ -1618,7 +1640,8 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
                                         Register scratch2,
                                         AccessorInfo* callback,
                                         String* name,
-                                        Label* miss) {
+                                        Label* miss,
+                                        Failure** failure) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss);
 
@@ -1641,6 +1664,8 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
   __ TailCallRuntime(load_callback_property, 5, 1);
+
+  return true;
 }
 
 

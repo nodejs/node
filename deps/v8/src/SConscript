@@ -106,7 +106,6 @@ SOURCES = {
     zone.cc
     """),
   'arch:arm': Split("""
-    arm/assembler-arm.cc
     arm/builtins-arm.cc
     arm/codegen-arm.cc
     arm/constants-arm.cc
@@ -122,6 +121,12 @@ SOURCES = {
     arm/register-allocator-arm.cc
     arm/stub-cache-arm.cc
     arm/virtual-frame-arm.cc
+    """),
+  'armvariant:arm': Split("""
+    arm/assembler-arm.cc
+    """),
+  'armvariant:thumb2': Split("""
+    arm/assembler-thumb2.cc
     """),
   'arch:ia32': Split("""
     ia32/assembler-ia32.cc

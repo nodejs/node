@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
 #include "simulator.h"
@@ -77,6 +78,10 @@ static Handle<Object> Invoke(bool construct,
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
     receiver = Handle<JSObject>(global->global_receiver());
   }
+
+  // Make sure that the global object of the context we're about to
+  // make the current one is indeed a global object.
+  ASSERT(func->context()->global()->IsGlobalObject());
 
   {
     // Save and restore context around invocation and block the
@@ -604,6 +609,11 @@ static Object* RuntimePreempt() {
 Object* Execution::DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
+    return Heap::undefined_value();
+  }
+
+  // Ignore debug break during bootstrapping.
+  if (Bootstrapper::IsActive()) {
     return Heap::undefined_value();
   }
 

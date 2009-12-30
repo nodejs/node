@@ -367,7 +367,7 @@ void AstOptimizer::VisitAssignment(Assignment* node) {
   if (proxy != NULL) {
     Variable* var = proxy->AsVariable();
     if (var != NULL) {
-      SmiAnalysis* var_type = var->type();
+      StaticType* var_type = var->type();
       if (var_type->IsUnknown()) {
         var_type->CopyFrom(node->type());
       } else if (var_type->IsLikelySmi()) {

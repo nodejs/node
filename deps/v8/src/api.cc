@@ -3082,81 +3082,13 @@ i::Handle<i::String> NewExternalAsciiStringHandle(
 }
 
 
-static void DisposeExternalString(v8::Persistent<v8::Value> obj,
-                                  void* parameter) {
-  ENTER_V8;
-  i::ExternalTwoByteString* str =
-      i::ExternalTwoByteString::cast(*Utils::OpenHandle(*obj));
-
-  // External symbols are deleted when they are pruned out of the symbol
-  // table. Generally external symbols are not registered with the weak handle
-  // callbacks unless they are upgraded to a symbol after being externalized.
-  if (!str->IsSymbol()) {
-    v8::String::ExternalStringResource* resource =
-        reinterpret_cast<v8::String::ExternalStringResource*>(parameter);
-    if (resource != NULL) {
-      const int total_size =
-          static_cast<int>(resource->length() * sizeof(*resource->data()));
-      i::Counters::total_external_string_memory.Decrement(total_size);
-
-      // The object will continue to live in the JavaScript heap until the
-      // handle is entirely cleaned out by the next GC. For example the
-      // destructor for the resource below could bring it back to life again.
-      // Which is why we make sure to not have a dangling pointer here.
-      str->set_resource(NULL);
-      delete resource;
-    }
-  }
-
-  // In any case we do not need this handle any longer.
-  obj.Dispose();
-}
-
-
-static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
-                                       void* parameter) {
-  ENTER_V8;
-  i::ExternalAsciiString* str =
-      i::ExternalAsciiString::cast(*Utils::OpenHandle(*obj));
-
-  // External symbols are deleted when they are pruned out of the symbol
-  // table. Generally external symbols are not registered with the weak handle
-  // callbacks unless they are upgraded to a symbol after being externalized.
-  if (!str->IsSymbol()) {
-    v8::String::ExternalAsciiStringResource* resource =
-        reinterpret_cast<v8::String::ExternalAsciiStringResource*>(parameter);
-    if (resource != NULL) {
-      const int total_size =
-          static_cast<int>(resource->length() * sizeof(*resource->data()));
-      i::Counters::total_external_string_memory.Decrement(total_size);
-
-      // The object will continue to live in the JavaScript heap until the
-      // handle is entirely cleaned out by the next GC. For example the
-      // destructor for the resource below could bring it back to life again.
-      // Which is why we make sure to not have a dangling pointer here.
-      str->set_resource(NULL);
-      delete resource;
-    }
-  }
-
-  // In any case we do not need this handle any longer.
-  obj.Dispose();
-}
-
-
 Local<String> v8::String::NewExternal(
       v8::String::ExternalStringResource* resource) {
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   ENTER_V8;
-  const int total_size =
-      static_cast<int>(resource->length() * sizeof(*resource->data()));
-  i::Counters::total_external_string_memory.Increment(total_size);
   i::Handle<i::String> result = NewExternalStringHandle(resource);
-  i::Handle<i::Object> handle = i::GlobalHandles::Create(*result);
-  i::GlobalHandles::MakeWeak(handle.location(),
-                             resource,
-                             &DisposeExternalString);
+  i::ExternalStringTable::AddString(*result);
   return Utils::ToLocal(result);
 }
 
@@ -3168,13 +3100,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    // Operation was successful and the string is not a symbol. In this case
-    // we need to make sure that the we call the destructor for the external
-    // resource when no strong references to the string remain.
-    i::Handle<i::Object> handle = i::GlobalHandles::Create(*obj);
-    i::GlobalHandles::MakeWeak(handle.location(),
-                               resource,
-                               &DisposeExternalString);
+    i::ExternalStringTable::AddString(*obj);
   }
   return result;
 }
@@ -3185,14 +3111,8 @@ Local<String> v8::String::NewExternal(
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   ENTER_V8;
-  const int total_size =
-      static_cast<int>(resource->length() * sizeof(*resource->data()));
-  i::Counters::total_external_string_memory.Increment(total_size);
   i::Handle<i::String> result = NewExternalAsciiStringHandle(resource);
-  i::Handle<i::Object> handle = i::GlobalHandles::Create(*result);
-  i::GlobalHandles::MakeWeak(handle.location(),
-                             resource,
-                             &DisposeExternalAsciiString);
+  i::ExternalStringTable::AddString(*result);
   return Utils::ToLocal(result);
 }
 
@@ -3205,13 +3125,7 @@ bool v8::String::MakeExternal(
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    // Operation was successful and the string is not a symbol. In this case
-    // we need to make sure that the we call the destructor for the external
-    // resource when no strong references to the string remain.
-    i::Handle<i::Object> handle = i::GlobalHandles::Create(*obj);
-    i::GlobalHandles::MakeWeak(handle.location(),
-                               resource,
-                               &DisposeExternalAsciiString);
+    i::ExternalStringTable::AddString(*obj);
   }
   return result;
 }

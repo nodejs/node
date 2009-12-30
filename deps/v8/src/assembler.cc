@@ -573,6 +573,16 @@ ExternalReference ExternalReference::random_positive_smi_function() {
 }
 
 
+ExternalReference ExternalReference::keyed_lookup_cache_keys() {
+  return ExternalReference(KeyedLookupCache::keys_address());
+}
+
+
+ExternalReference ExternalReference::keyed_lookup_cache_field_offsets() {
+  return ExternalReference(KeyedLookupCache::field_offsets_address());
+}
+
+
 ExternalReference ExternalReference::the_hole_value_location() {
   return ExternalReference(Factory::the_hole_value().location());
 }

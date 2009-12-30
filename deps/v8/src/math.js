@@ -29,7 +29,6 @@
 // Keep reference to original values of some global properties.  This
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
-const $Infinity = global.Infinity;
 const $floor = MathFloor;
 const $random = MathRandom;
 const $abs = MathAbs;
@@ -118,26 +117,40 @@ function MathLog(x) {
 
 // ECMA 262 - 15.8.2.11
 function MathMax(arg1, arg2) {  // length == 2
-  var r = -$Infinity;
   var length = %_ArgumentsLength();
-  for (var i = 0; i < length; i++) {
-    var n = ToNumber(%_Arguments(i));
+  if (length == 0) {
+    return -1/0;  // Compiler constant-folds this to -Infinity.
+  }
+  var r = arg1;
+  if (!IS_NUMBER(r)) r = ToNumber(r);
+  if (NUMBER_IS_NAN(r)) return r;
+  for (var i = 1; i < length; i++) {
+    var n = %_Arguments(i);
+    if (!IS_NUMBER(n)) n = ToNumber(n);
     if (NUMBER_IS_NAN(n)) return n;
-    // Make sure +0 is considered greater than -0.
-    if (n > r || (r === 0 && n === 0 && !%_IsSmi(r))) r = n;
+    // Make sure +0 is considered greater than -0.  -0 is never a Smi, +0 can be
+    // a Smi or heap number.
+    if (n > r || (r === 0 && n === 0 && !%_IsSmi(r) && 1 / r < 0)) r = n;
   }
   return r;
 }
 
 // ECMA 262 - 15.8.2.12
 function MathMin(arg1, arg2) {  // length == 2
-  var r = $Infinity;
   var length = %_ArgumentsLength();
-  for (var i = 0; i < length; i++) {
-    var n = ToNumber(%_Arguments(i));
+  if (length == 0) {
+    return 1/0;  // Compiler constant-folds this to Infinity.
+  }
+  var r = arg1;
+  if (!IS_NUMBER(r)) r = ToNumber(r);
+  if (NUMBER_IS_NAN(r)) return r;
+  for (var i = 1; i < length; i++) {
+    var n = %_Arguments(i);
+    if (!IS_NUMBER(n)) n = ToNumber(n);
     if (NUMBER_IS_NAN(n)) return n;
-    // Make sure -0 is considered less than +0.
-    if (n < r || (r === 0 && n === 0 && !%_IsSmi(n))) r = n;
+    // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can b a
+    // Smi or a heap number.
+    if (n < r || (r === 0 && n === 0 && !%_IsSmi(n) && 1 / n < 0)) r = n;
   }
   return r;
 }

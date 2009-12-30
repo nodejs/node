@@ -434,7 +434,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenericBinaryOperation(
       Token::Value op,
-      SmiAnalysis* type,
+      StaticType* type,
       OverwriteMode overwrite_mode);
 
   // If possible, combine two constant smi values using op to produce
@@ -447,7 +447,7 @@ class CodeGenerator: public AstVisitor {
   void ConstantSmiBinaryOperation(Token::Value op,
                                   Result* operand,
                                   Handle<Object> constant_operand,
-                                  SmiAnalysis* type,
+                                  StaticType* type,
                                   bool reversed,
                                   OverwriteMode overwrite_mode);
 
@@ -459,7 +459,8 @@ class CodeGenerator: public AstVisitor {
                                 Result* right,
                                 OverwriteMode overwrite_mode);
 
-  void Comparison(Condition cc,
+  void Comparison(AstNode* node,
+                  Condition cc,
                   bool strict,
                   ControlDestination* destination);
 
@@ -665,7 +666,8 @@ class GenericBinaryOpStub: public CodeStub {
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
-        args_reversed_(false) {
+        args_reversed_(false),
+        name_(NULL) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -684,6 +686,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
+  char* name_;
 
   const char* GetName();
 
@@ -725,8 +728,8 @@ class GenericBinaryOpStub: public CodeStub {
 
   bool ArgsInRegistersSupported() {
     return ((op_ == Token::ADD) || (op_ == Token::SUB)
-             || (op_ == Token::MUL) || (op_ == Token::DIV))
-            && flags_ != NO_SMI_CODE_IN_STUB;
+            || (op_ == Token::MUL) || (op_ == Token::DIV))
+        && flags_ != NO_SMI_CODE_IN_STUB;
   }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);
@@ -760,11 +763,11 @@ class StringAddStub: public CodeStub {
   void Generate(MacroAssembler* masm);
 
   void GenerateCopyCharacters(MacroAssembler* masm,
-                                   Register desc,
-                                   Register src,
-                                   Register count,
-                                   Register scratch,
-                                   bool ascii);
+                              Register desc,
+                              Register src,
+                              Register count,
+                              Register scratch,
+                              bool ascii);
 
   // Should the stub check whether arguments are strings?
   bool string_check_;

@@ -155,6 +155,8 @@ void MarkCompactCollector::Finish() {
   // objects (empty string, illegal builtin).
   StubCache::Clear();
 
+  ExternalStringTable::CleanUp();
+
   // If we've just compacted old space there's no reason to check the
   // fragmentation limit. Just return.
   if (HasCompacted()) return;
@@ -369,41 +371,18 @@ class RootMarkingVisitor : public ObjectVisitor {
 class SymbolTableCleaner : public ObjectVisitor {
  public:
   SymbolTableCleaner() : pointers_removed_(0) { }
-  void VisitPointers(Object** start, Object** end) {
+
+  virtual void VisitPointers(Object** start, Object** end) {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked()) {
         // Check if the symbol being pruned is an external symbol. We need to
         // delete the associated external data as this symbol is going away.
 
-        // Since the object is not marked we can access its map word safely
-        // without having to worry about marking bits in the object header.
-        Map* map = HeapObject::cast(*p)->map();
         // Since no objects have yet been moved we can safely access the map of
         // the object.
-        uint32_t type = map->instance_type();
-        bool is_external = (type & kStringRepresentationMask) ==
-                           kExternalStringTag;
-        if (is_external) {
-          bool is_two_byte = (type & kStringEncodingMask) == kTwoByteStringTag;
-          byte* resource_addr = reinterpret_cast<byte*>(*p) +
-                                ExternalString::kResourceOffset -
-                                kHeapObjectTag;
-          if (is_two_byte) {
-            v8::String::ExternalStringResource** resource =
-                reinterpret_cast<v8::String::ExternalStringResource**>
-                (resource_addr);
-            delete *resource;
-            // Clear the resource pointer in the symbol.
-            *resource = NULL;
-          } else {
-            v8::String::ExternalAsciiStringResource** resource =
-                reinterpret_cast<v8::String::ExternalAsciiStringResource**>
-                (resource_addr);
-            delete *resource;
-            // Clear the resource pointer in the symbol.
-            *resource = NULL;
-          }
+        if ((*p)->IsExternalString()) {
+          Heap::FinalizeExternalString(String::cast(*p));
         }
         // Set the entry to null_value (as deleted).
         *p = Heap::raw_unchecked_null_value();
@@ -546,45 +525,13 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 }
 
 
-class SymbolMarkingVisitor : public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    MarkingVisitor marker;
-    for (Object** p = start; p < end; p++) {
-      if (!(*p)->IsHeapObject()) continue;
-
-      HeapObject* object = HeapObject::cast(*p);
-      // If the object is marked, we have marked or are in the process
-      // of marking subparts.
-      if (object->IsMarked()) continue;
-
-      // The object is unmarked, we do not need to unmark to use its
-      // map.
-      Map* map = object->map();
-      object->IterateBody(map->instance_type(),
-                          object->SizeFromMap(map),
-                          &marker);
-    }
-  }
-};
-
-
 void MarkCompactCollector::MarkSymbolTable() {
-  // Objects reachable from symbols are marked as live so as to ensure
-  // that if the symbol itself remains alive after GC for any reason,
-  // and if it is a cons string backed by an external string (even indirectly),
-  // then the external string does not receive a weak reference callback.
   SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);
   // Explicitly mark the prefix.
   MarkingVisitor marker;
   symbol_table->IteratePrefix(&marker);
-  ProcessMarkingStack(&marker);
-  // Mark subparts of the symbols but not the symbols themselves
-  // (unless reachable from another symbol).
-  SymbolMarkingVisitor symbol_marker;
-  symbol_table->IterateElements(&symbol_marker);
   ProcessMarkingStack(&marker);
 }
 
@@ -774,6 +721,8 @@ void MarkCompactCollector::MarkLiveObjects() {
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
+  ExternalStringTable::Iterate(&v);
+  ExternalStringTable::CleanUp();
 
   // Remove object groups after marking phase.
   GlobalHandles::RemoveObjectGroups();
@@ -887,11 +836,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 // space are encoded in their map pointer word (along with an encoding of
 // their map pointers).
 //
-//  31             21 20              10 9               0
-// +-----------------+------------------+-----------------+
-// |forwarding offset|page offset of map|page index of map|
-// +-----------------+------------------+-----------------+
-//  11 bits           11 bits            10 bits
+// The excact encoding is described in the comments for class MapWord in
+// objects.h.
 //
 // An address range [start, end) can have both live and non-live objects.
 // Maximal non-live regions are marked so they can be skipped on subsequent

@@ -347,3 +347,48 @@ assertTrue(broke);
 assertFalse(caught);
 assertTrue(finalized);
 
+function return_from_nested_finally_in_finally() {
+  try {
+    return 1;
+  } finally {
+    try {
+      return 2;
+    } finally {
+      return 42;
+    }
+  }
+}
+
+assertEquals(42, return_from_nested_finally_in_finally());
+
+function break_from_nested_finally_in_finally() {
+  L: try {
+    return 1;
+  } finally {
+    try {
+      return 2;
+    } finally {
+      break L;
+    }
+  }
+  return 42;
+}
+
+assertEquals(42, break_from_nested_finally_in_finally());
+
+function continue_from_nested_finally_in_finally() {
+  do {
+    try {
+      return 1;
+    } finally {
+      try {
+        return 2;
+      } finally {
+        continue;
+      }
+    }
+  } while (false);
+  return 42;
+}
+
+assertEquals(42, continue_from_nested_finally_in_finally());

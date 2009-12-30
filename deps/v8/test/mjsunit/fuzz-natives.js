@@ -129,7 +129,6 @@ var knownProblems = {
   "Log": true,
   "DeclareGlobals": true,
 
-  "CollectStackTrace": true,
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true
 };

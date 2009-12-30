@@ -189,8 +189,7 @@ void Scope::Initialize(bool inside_with) {
       variables_.Declare(this, Factory::this_symbol(), Variable::VAR,
                          false, Variable::THIS);
   var->rewrite_ = new Slot(var, Slot::PARAMETER, -1);
-  receiver_ = new VariableProxy(Factory::this_symbol(), true, false);
-  receiver_->BindTo(var);
+  receiver_ = var;
 
   if (is_function_scope()) {
     // Declare 'arguments' variable which exists in all functions.

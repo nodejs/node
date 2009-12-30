@@ -1769,9 +1769,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   primitive.Bind();
   frame_->EmitPush(r0);
-  Result arg_count(r0);
-  __ mov(r0, Operand(0));
-  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, &arg_count, 1);
+  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, 1);
 
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
@@ -1910,9 +1908,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r0, frame_->ElementAt(4));  // push enumerable
   frame_->EmitPush(r0);
   frame_->EmitPush(r3);  // push entry
-  Result arg_count_reg(r0);
-  __ mov(r0, Operand(1));
-  frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS, &arg_count_reg, 2);
+  frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS, 2);
   __ mov(r3, Operand(r0));
 
   // If the property has been removed while iterating, we just skip it.
@@ -3660,9 +3656,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       LoadAndSpill(property->obj());
       LoadAndSpill(property->key());
-      Result arg_count(r0);
-      __ mov(r0, Operand(1));  // not counting receiver
-      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
+      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
 
     } else if (variable != NULL) {
       Slot* slot = variable->slot();
@@ -3670,9 +3664,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         LoadGlobal();
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        Result arg_count(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
@@ -3684,9 +3676,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->EmitPush(r0);
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        Result arg_count(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
 
       } else {
         // Default: Result of deleting non-global, not dynamically
@@ -3736,9 +3726,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         smi_label.Branch(eq);
 
         frame_->EmitPush(r0);
-        Result arg_count(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, &arg_count, 1);
+        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, 1);
 
         continue_label.Jump();
         smi_label.Bind();
@@ -3760,9 +3748,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
         continue_label.Branch(eq);
         frame_->EmitPush(r0);
-        Result arg_count(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
+        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
         continue_label.Bind();
         break;
       }
@@ -3847,9 +3833,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     {
       // Convert the operand to a number.
       frame_->EmitPush(r0);
-      Result arg_count(r0);
-      __ mov(r0, Operand(0));
-      frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
+      frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
     }
     if (is_postfix) {
       // Postfix: store to result (on the stack).
@@ -4235,9 +4219,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::IN: {
       LoadAndSpill(left);
       LoadAndSpill(right);
-      Result arg_count(r0);
-      __ mov(r0, Operand(1));  // not counting receiver
-      frame_->InvokeBuiltin(Builtins::IN, CALL_JS, &arg_count, 2);
+      frame_->InvokeBuiltin(Builtins::IN, CALL_JS, 2);
       frame_->EmitPush(r0);
       break;
     }
@@ -5079,10 +5061,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    __ fmdrr(d6, r0, r1);
-    __ fmdrr(d7, r2, r3);
+    __ vmov(d6, r0, r1);
+    __ vmov(d7, r2, r3);
 
-    __ fcmp(d6, d7);
+    __ vcmp(d6, d7);
     __ vmrs(pc);
     __ mov(r0, Operand(0), LeaveCC, eq);
     __ mov(r0, Operand(1), LeaveCC, lt);
@@ -5145,7 +5127,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
-  __ mov(r0, Operand(arg_count));
   __ InvokeBuiltin(native, CALL_JS);
   __ cmp(r0, Operand(0));
   __ pop(pc);
@@ -5244,7 +5225,6 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
 
     // Only first argument is a string.
     __ bind(&string1);
-    __ mov(r0, Operand(2));  // Set number of arguments.
     __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_JS);
 
     // First argument was not a string, test second.
@@ -5256,13 +5236,11 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
 
     // Only second argument is a string.
     __ b(&not_strings);
-    __ mov(r0, Operand(2));  // Set number of arguments.
     __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_JS);
 
     __ bind(&not_strings);
   }
 
-  __ mov(r0, Operand(1));  // Set number of arguments.
   __ InvokeBuiltin(builtin, JUMP_JS);  // Tail call.  No return.
 
   // We branch here if at least one of r0 and r1 is not a Smi.
@@ -5353,22 +5331,22 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement
     // double precision, add, subtract, multiply, divide.
-    __ fmdrr(d6, r0, r1);
-    __ fmdrr(d7, r2, r3);
+    __ vmov(d6, r0, r1);
+    __ vmov(d7, r2, r3);
 
     if (Token::MUL == operation) {
-      __ fmuld(d5, d6, d7);
+      __ vmul(d5, d6, d7);
     } else if (Token::DIV == operation) {
-      __ fdivd(d5, d6, d7);
+      __ vdiv(d5, d6, d7);
     } else if (Token::ADD == operation) {
-      __ faddd(d5, d6, d7);
+      __ vadd(d5, d6, d7);
     } else if (Token::SUB == operation) {
-      __ fsubd(d5, d6, d7);
+      __ vsub(d5, d6, d7);
     } else {
       UNREACHABLE();
     }
 
-    __ fmrrd(r0, r1, d5);
+    __ vmov(r0, r1, d5);
 
     __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
     __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
@@ -5457,9 +5435,9 @@ static void GetInt32(MacroAssembler* masm,
     // ARMv7 VFP3 instructions implementing double precision to integer
     // conversion using round to zero.
     __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
-    __ fmdrr(d7, scratch2, scratch);
-    __ ftosid(s15, d7);
-    __ fmrs(dest, s15);
+    __ vmov(d7, scratch2, scratch);
+    __ vcvt(s15, d7);
+    __ vmov(dest, s15);
   } else {
     // Get the top bits of the mantissa.
     __ and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
@@ -5598,7 +5576,6 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   __ bind(&slow);
   __ push(r1);  // restore stack
   __ push(r0);
-  __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
   switch (op_) {
     case Token::BIT_OR:
       __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
@@ -5700,6 +5677,29 @@ static void MultiplyByKnownInt2(
       __ mul(result, source, known_int_register);
       *required_shift = 0;
   }
+}
+
+
+const char* GenericBinaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s",
+               op_name,
+               overwrite_name,
+               specialized_on_rhs_ ? "_ConstantRhs" : 0);
+  return name_;
 }
 
 
@@ -5980,7 +5980,6 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   // Enter runtime system.
   __ bind(&slow);
   __ push(r0);
-  __ mov(r0, Operand(0));  // Set number of arguments.
   __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
 
   __ bind(&not_smi);
@@ -6456,7 +6455,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Slow-case.  Tail call builtin.
   __ bind(&slow);
-  __ mov(r0, Operand(1));  // Arg count without receiver.
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
 }
 

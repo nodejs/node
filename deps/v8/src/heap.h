@@ -487,9 +487,12 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateFunction(Map* function_map,
                                   SharedFunctionInfo* shared,
-                                  Object* prototype);
+                                  Object* prototype,
+                                  PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
+  static const int kArgumentsObjectSize =
+      JSObject::kHeaderSize + 2 * kPointerSize;
   static const int arguments_callee_index = 0;
   static const int arguments_length_index = 1;
 
@@ -565,6 +568,10 @@ class Heap : public AllStatic {
       ExternalAsciiString::Resource* resource);
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
+
+  // Finalizes an external string by deleting the associated external
+  // data and clearing the resource pointer.
+  static inline void FinalizeExternalString(String* string);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
@@ -778,7 +785,7 @@ class Heap : public AllStatic {
     return disallow_allocation_failure_;
   }
 
-  static void TracePathToObject();
+  static void TracePathToObject(Object* target);
   static void TracePathToGlobal();
 #endif
 
@@ -886,7 +893,7 @@ class Heap : public AllStatic {
   // The number of MapSpace pages is limited by the way we pack
   // Map pointers during GC.
   static const int kMaxMapSpaceSize =
-      (1 << MapWord::kMapPageIndexBits) * Page::kPageSize;
+      (1 << (MapWord::kMapPageIndexBits)) * Page::kPageSize;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;
@@ -1039,6 +1046,9 @@ class Heap : public AllStatic {
 
   // Performs a minor collection in new generation.
   static void Scavenge();
+  static void ScavengeExternalStringTable();
+  static Address DoScavenge(ObjectVisitor* scavenge_visitor,
+                            Address new_space_front);
 
   // Performs a major collection in the whole heap.
   static void MarkCompact(GCTracer* tracer);
@@ -1293,17 +1303,33 @@ class KeyedLookupCache {
 
   // Clear the cache.
   static void Clear();
+
+  static const int kLength = 64;
+  static const int kCapacityMask = kLength - 1;
+  static const int kMapHashShift = 2;
+
  private:
   static inline int Hash(Map* map, String* name);
-  static const int kLength = 64;
+
+  // Get the address of the keys and field_offsets arrays.  Used in
+  // generated code to perform cache lookups.
+  static Address keys_address() {
+    return reinterpret_cast<Address>(&keys_);
+  }
+
+  static Address field_offsets_address() {
+    return reinterpret_cast<Address>(&field_offsets_);
+  }
+
   struct Key {
     Map* map;
     String* name;
   };
   static Key keys_[kLength];
   static int field_offsets_[kLength];
-};
 
+  friend class ExternalReference;
+};
 
 
 // Cache for mapping (array, property name) into descriptor index.
@@ -1622,6 +1648,39 @@ class TranscendentalCache {
   Type type_;
 };
 
+
+// External strings table is a place where all external strings are
+// registered.  We need to keep track of such strings to properly
+// finalize them.
+class ExternalStringTable : public AllStatic {
+ public:
+  // Registers an external string.
+  inline static void AddString(String* string);
+
+  inline static void Iterate(ObjectVisitor* v);
+
+  // Restores internal invariant and gets rid of collected strings.
+  // Must be called after each Iterate() that modified the strings.
+  static void CleanUp();
+
+  // Destroys all allocated memory.
+  static void TearDown();
+
+ private:
+  friend class Heap;
+
+  inline static void Verify();
+
+  inline static void AddOldString(String* string);
+
+  // Notifies the table that only a prefix of the new list is valid.
+  inline static void ShrinkNewStrings(int position);
+
+  // To speed up scavenge collections new space string are kept
+  // separate from old space strings.
+  static List<Object*> new_space_strings_;
+  static List<Object*> old_space_strings_;
+};
 
 } }  // namespace v8::internal
 

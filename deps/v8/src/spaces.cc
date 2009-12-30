@@ -398,7 +398,7 @@ static int PagesInChunk(Address start, size_t size) {
   // start+size.  Page::kPageSize is a power of two so we can divide by
   // shifting.
   return static_cast<int>((RoundDown(start + size, Page::kPageSize)
-      - RoundUp(start, Page::kPageSize)) >> Page::kPageSizeBits);
+      - RoundUp(start, Page::kPageSize)) >> kPageSizeBits);
 }
 
 
@@ -412,7 +412,7 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
   if (size_ + static_cast<int>(chunk_size) > capacity_) {
     // Request as many pages as we can.
     chunk_size = capacity_ - size_;
-    requested_pages = static_cast<int>(chunk_size >> Page::kPageSizeBits);
+    requested_pages = static_cast<int>(chunk_size >> kPageSizeBits);
 
     if (requested_pages <= 0) return Page::FromAddress(NULL);
   }

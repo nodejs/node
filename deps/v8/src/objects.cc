@@ -1351,6 +1351,8 @@ Object* JSObject::AddFastProperty(String* name,
 Object* JSObject::AddConstantFunctionProperty(String* name,
                                               JSFunction* function,
                                               PropertyAttributes attributes) {
+  ASSERT(!Heap::InNewSpace(function));
+
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes);
   Object* new_descriptors =
@@ -1437,7 +1439,7 @@ Object* JSObject::AddProperty(String* name,
     // Ensure the descriptor array does not get too big.
     if (map()->instance_descriptors()->number_of_descriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
-      if (value->IsJSFunction()) {
+      if (value->IsJSFunction() && !Heap::InNewSpace(value)) {
         return AddConstantFunctionProperty(name,
                                            JSFunction::cast(value),
                                            attributes);
@@ -3254,7 +3256,8 @@ Object* DescriptorArray::Allocate(int number_of_descriptors) {
     return Heap::empty_descriptor_array();
   }
   // Allocate the array of keys.
-  Object* array = Heap::AllocateFixedArray(ToKeyIndex(number_of_descriptors));
+  Object* array =
+      Heap::AllocateFixedArray(ToKeyIndex(number_of_descriptors));
   if (array->IsFailure()) return array;
   // Do not use DescriptorArray::cast on incomplete object.
   FixedArray* result = FixedArray::cast(array);
@@ -7962,7 +7965,10 @@ Object* StringDictionary::TransformPropertiesToFastFor(
       PropertyType type = DetailsAt(i).type();
       ASSERT(type != FIELD);
       instance_descriptor_length++;
-      if (type == NORMAL && !value->IsJSFunction()) number_of_fields += 1;
+      if (type == NORMAL &&
+          (!value->IsJSFunction() || Heap::InNewSpace(value))) {
+        number_of_fields += 1;
+      }
     }
   }
 
@@ -7993,7 +7999,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
       PropertyDetails details = DetailsAt(i);
       PropertyType type = details.type();
 
-      if (value->IsJSFunction()) {
+      if (value->IsJSFunction() && !Heap::InNewSpace(value)) {
         ConstantFunctionDescriptor d(String::cast(key),
                                      JSFunction::cast(value),
                                      details.attributes(),

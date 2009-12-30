@@ -52,11 +52,14 @@ Context* Context::global_context() {
   if (global()->IsGlobalObject()) {
     return global()->global_context();
   }
+
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the global context.
+  ASSERT(Bootstrapper::IsActive());
   Context* current = this;
   while (!current->IsGlobalContext()) {
-    current = Context::cast(JSFunction::cast(current->closure())->context());
+    JSFunction* closure = JSFunction::cast(current->closure());
+    current = Context::cast(closure->context());
   }
   return current;
 }

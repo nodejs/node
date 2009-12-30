@@ -436,7 +436,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenericBinaryOperation(
       Token::Value op,
-      SmiAnalysis* type,
+      StaticType* type,
       OverwriteMode overwrite_mode);
 
   // If possible, combine two constant smi values using op to produce
@@ -449,7 +449,7 @@ class CodeGenerator: public AstVisitor {
   void ConstantSmiBinaryOperation(Token::Value op,
                                   Result* operand,
                                   Handle<Object> constant_operand,
-                                  SmiAnalysis* type,
+                                  StaticType* type,
                                   bool reversed,
                                   OverwriteMode overwrite_mode);
 
@@ -670,7 +670,8 @@ class GenericBinaryOpStub: public CodeStub {
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
-        args_reversed_(false) {
+        args_reversed_(false),
+        name_(NULL) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -689,6 +690,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
+  char* name_;
 
   const char* GetName();
 
@@ -742,6 +744,36 @@ class GenericBinaryOpStub: public CodeStub {
   bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
   bool HasArgumentsInRegisters() { return args_in_registers_; }
   bool HasArgumentsReversed() { return args_reversed_; }
+};
+
+
+// Flag that indicates how to generate code for the stub StringAddStub.
+enum StringAddFlags {
+  NO_STRING_ADD_FLAGS = 0,
+  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
+};
+
+
+class StringAddStub: public CodeStub {
+ public:
+  explicit StringAddStub(StringAddFlags flags) {
+    string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
+  }
+
+ private:
+  Major MajorKey() { return StringAdd; }
+  int MinorKey() { return string_check_ ? 0 : 1; }
+
+  void Generate(MacroAssembler* masm);
+
+  void GenerateCopyCharacters(MacroAssembler* masm,
+                              Register desc,
+                              Register src,
+                              Register count,
+                              bool ascii);
+
+  // Should the stub check whether arguments are strings?
+  bool string_check_;
 };
 
 
