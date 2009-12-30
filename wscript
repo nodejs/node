@@ -139,7 +139,7 @@ def configure(conf):
 
   conf.define("HAVE_CONFIG_H", 1)
 
-  conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (2*1024*1024))
+  conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
 
   # LFS
   conf.env.append_value('CCFLAGS',  '-D_LARGEFILE_SOURCE')
