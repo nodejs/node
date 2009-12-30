@@ -32,8 +32,6 @@ var server = new net.Server(function (socket) {
     sys.puts("server-side socket drain");
   });
 });
-server.listen("/tmp/node.sock");
-sys.puts("server fd: " + server.fd);
 
 server.addListener("listening", function () {
   var c = net.createConnection("/tmp/node.sock");
@@ -56,3 +54,5 @@ server.addListener("listening", function () {
   });
 });
 
+server.listen("/tmp/node.sock");
+sys.puts("server fd: " + server.fd);

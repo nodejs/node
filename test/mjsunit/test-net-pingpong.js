@@ -7,16 +7,13 @@ process.Buffer.prototype.toString = function () {
 
 var tests_run = 0;
 
-function pingPongTest (port, host, on_complete) {
+function pingPongTest (port, host) {
   var N = 1000;
   var count = 0;
   var sent_final_ping = false;
 
   var server = net.createServer(function (socket) {
     puts("connection: " + socket.remoteAddress);
-
-    assert.equal(true, socket.remoteAddress !== null);
-    assert.equal(true, socket.remoteAddress !== undefined);
     assert.equal(server, socket.server);
 
     socket.setNoDelay();
@@ -44,53 +41,58 @@ function pingPongTest (port, host, on_complete) {
       socket.server.close();
     });
   });
-  server.listen(port, host);
 
-  var client = net.createConnection(port, host);
+  server.addListener("listening", function () {
+    puts("server listening on " + port + " " + host);
 
-  client.addListener("connect", function () {
-    assert.equal(true, client.readable);
-    assert.equal(true, client.writable);
-    client.send("PING");
-  });
+    var client = net.createConnection(port, host);
 
-  client.addListener("data", function (data) {
-    puts("client got: " + data);
-
-    assert.equal("PONG", data);
-    count += 1;
-
-    if (sent_final_ping) {
-      assert.equal(false, client.writable);
+    client.addListener("connect", function () {
       assert.equal(true, client.readable);
-      return;
-    } else {
       assert.equal(true, client.writable);
-      assert.equal(true, client.readable);
-    }
+      client.send("PING");
+    });
 
-    if (count < N) {
-      client.send("PING");
-    } else {
-      sent_final_ping = true;
-      client.send("PING");
-      client.close();
-    }
+    client.addListener("data", function (data) {
+      puts("client got: " + data);
+
+      assert.equal("PONG", data);
+      count += 1;
+
+      if (sent_final_ping) {
+        assert.equal(false, client.writable);
+        assert.equal(true, client.readable);
+        return;
+      } else {
+        assert.equal(true, client.writable);
+        assert.equal(true, client.readable);
+      }
+
+      if (count < N) {
+        client.send("PING");
+      } else {
+        sent_final_ping = true;
+        client.send("PING");
+        client.close();
+      }
+    });
+
+    client.addListener("close", function () {
+      assert.equal(N+1, count);
+      assert.equal(true, sent_final_ping);
+      tests_run += 1;
+    });
   });
 
-  client.addListener("close", function () {
-    assert.equal(N+1, count);
-    assert.equal(true, sent_final_ping);
-    if (on_complete) on_complete();
-    tests_run += 1;
-  });
+  server.listen(port, host);
 }
 
 /* All are run at once, so run on different ports */
 pingPongTest(20989, "localhost");
-pingPongTest(20988, null);
+pingPongTest(20988);
 pingPongTest(20997, "::1");
+pingPongTest("/tmp/pingpong.sock");
 
 process.addListener("exit", function () {
-  assert.equal(3, tests_run);
+  assert.equal(4, tests_run);
 });
