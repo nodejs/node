@@ -174,12 +174,19 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     function_return_is_shadowed_ = false;
 
     // Allocate the local context if needed.
-    if (scope_->num_heap_slots() > 0) {
+    int heap_slots = scope_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    if (heap_slots > 0) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.
       // Get outer context and create a new context based on it.
       frame_->PushFunction();
-      Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      Result context;
+      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(heap_slots);
+        context = frame_->CallStub(&stub, 1);
+      } else {
+        context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      }
 
       // Update context local.
       frame_->SaveContextRegister();
@@ -763,19 +770,27 @@ class FloatingPointHelper : public AllStatic {
 
 
 const char* GenericBinaryOpStub::GetName() {
-  switch (op_) {
-    case Token::ADD: return "GenericBinaryOpStub_ADD";
-    case Token::SUB: return "GenericBinaryOpStub_SUB";
-    case Token::MUL: return "GenericBinaryOpStub_MUL";
-    case Token::DIV: return "GenericBinaryOpStub_DIV";
-    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
-    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
-    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
-    case Token::SAR: return "GenericBinaryOpStub_SAR";
-    case Token::SHL: return "GenericBinaryOpStub_SHL";
-    case Token::SHR: return "GenericBinaryOpStub_SHR";
-    default:         return "GenericBinaryOpStub";
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
   }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s_%s%s",
+               op_name,
+               overwrite_name,
+               (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
+               args_in_registers_ ? "RegArgs" : "StackArgs",
+               args_reversed_ ? "_R" : "");
+  return name_;
 }
 
 
@@ -803,14 +818,88 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void DeferredInlineBinaryOperation::Generate() {
+  Label done;
+  if (CpuFeatures::IsSupported(SSE2) && ((op_ == Token::ADD) ||
+      (op_ ==Token::SUB) ||
+      (op_ == Token::MUL) ||
+      (op_ == Token::DIV))) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    Label call_runtime, after_alloc_failure;
+    Label left_smi, right_smi, load_right, do_op;
+    __ test(left_, Immediate(kSmiTagMask));
+    __ j(zero, &left_smi);
+    __ cmp(FieldOperand(left_, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, &call_runtime);
+    __ movdbl(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_LEFT) {
+      __ mov(dst_, left_);
+    }
+    __ jmp(&load_right);
+
+    __ bind(&left_smi);
+    __ sar(left_, 1);
+    __ cvtsi2sd(xmm0, Operand(left_));
+    __ shl(left_, 1);
+    if (mode_ == OVERWRITE_LEFT) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+
+    __ bind(&load_right);
+    __ test(right_, Immediate(kSmiTagMask));
+    __ j(zero, &right_smi);
+    __ cmp(FieldOperand(right_, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, &call_runtime);
+    __ movdbl(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_RIGHT) {
+      __ mov(dst_, right_);
+    } else if (mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+    __ jmp(&do_op);
+
+    __ bind(&right_smi);
+    __ sar(right_, 1);
+    __ cvtsi2sd(xmm1, Operand(right_));
+    __ shl(right_, 1);
+    if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+
+    __ bind(&do_op);
+    switch (op_) {
+      case Token::ADD: __ addsd(xmm0, xmm1); break;
+      case Token::SUB: __ subsd(xmm0, xmm1); break;
+      case Token::MUL: __ mulsd(xmm0, xmm1); break;
+      case Token::DIV: __ divsd(xmm0, xmm1); break;
+      default: UNREACHABLE();
+    }
+    __ movdbl(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
+    __ jmp(&done);
+
+    __ bind(&after_alloc_failure);
+    __ pop(left_);
+    __ bind(&call_runtime);
+  }
   GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
+  __ bind(&done);
 }
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           SmiAnalysis* type,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -1491,7 +1580,7 @@ void DeferredInlineSmiSub::Generate() {
 void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                Result* operand,
                                                Handle<Object> value,
-                                               SmiAnalysis* type,
+                                               StaticType* type,
                                                bool reversed,
                                                OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -1776,7 +1865,8 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 }
 
 
-void CodeGenerator::Comparison(Condition cc,
+void CodeGenerator::Comparison(AstNode* node,
+                               Condition cc,
                                bool strict,
                                ControlDestination* dest) {
   // Strict only makes sense for equality comparisons.
@@ -1823,7 +1913,8 @@ void CodeGenerator::Comparison(Condition cc,
         default:
           UNREACHABLE();
       }
-    } else {  // Only one side is a constant Smi.
+    } else {
+      // Only one side is a constant Smi.
       // If left side is a constant Smi, reverse the operands.
       // Since one side is a constant Smi, conversion order does not matter.
       if (left_side_constant_smi) {
@@ -1837,6 +1928,8 @@ void CodeGenerator::Comparison(Condition cc,
       // Implement comparison against a constant Smi, inlining the case
       // where both sides are Smis.
       left_side.ToRegister();
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
 
       // Here we split control flow to the stub call and inlined cases
       // before finally splitting it to the control destination.  We use
@@ -1844,10 +1937,49 @@ void CodeGenerator::Comparison(Condition cc,
       // the first split.  We manually handle the off-frame references
       // by reconstituting them on the non-fall-through path.
       JumpTarget is_smi;
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_smi.Branch(zero, taken);
+
+      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
+          && node->AsCompareOperation()->is_for_loop_condition();
+      if (!is_for_loop_compare
+          && CpuFeatures::IsSupported(SSE2)
+          && right_val->IsSmi()) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        CpuFeatures::Scope use_sse2(SSE2);
+        JumpTarget not_number;
+        __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Immediate(Factory::heap_number_map()));
+        not_number.Branch(not_equal, &left_side);
+        __ movdbl(xmm1,
+                  FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = Smi::cast(*right_val)->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ mov(temp.reg(), Immediate(value));
+          __ cvtsi2sd(xmm0, Operand(temp.reg()));
+          temp.Unuse();
+        }
+        __ comisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, &left_side);
+        left_side.Unuse();
+        Condition double_cc = cc;
+        switch (cc) {
+          case less:          double_cc = below;       break;
+          case equal:         double_cc = equal;       break;
+          case less_equal:    double_cc = below_equal; break;
+          case greater:       double_cc = above;       break;
+          case greater_equal: double_cc = above_equal; break;
+          default: UNREACHABLE();
+        }
+        dest->true_target()->Branch(double_cc);
+        dest->false_target()->Jump();
+        not_number.Bind(&left_side);
+      }
 
       // Setup and call the compare stub.
       CompareStub stub(cc, strict);
@@ -1872,6 +2004,7 @@ void CodeGenerator::Comparison(Condition cc,
       right_side.Unuse();
       dest->Split(cc);
     }
+
   } else if (cc == equal &&
              (left_side_constant_null || right_side_constant_null)) {
     // To make null checks efficient, we check if either the left side or
@@ -1908,7 +2041,8 @@ void CodeGenerator::Comparison(Condition cc,
       operand.Unuse();
       dest->Split(not_zero);
     }
-  } else {  // Neither side is a constant Smi or null.
+  } else {
+    // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
@@ -2575,7 +2709,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Compare and branch to the body if true or the next test if
     // false.  Prefer the next test as a fall through.
     ControlDestination dest(clause->body_target(), &next_test, false);
-    Comparison(equal, true, &dest);
+    Comparison(node, equal, true, &dest);
 
     // If the comparison fell through to the true target, jump to the
     // actual body.
@@ -3585,18 +3719,28 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  // Call the runtime to instantiate the function boilerplate object.
-  // The inevitable call will sync frame elements to memory anyway, so
-  // we do it eagerly to allow us to push the arguments directly into
-  // place.
   ASSERT(boilerplate->IsBoilerplate());
-  frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Create a new closure.
-  frame_->EmitPush(esi);
-  frame_->EmitPush(Immediate(boilerplate));
-  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->Push(&result);
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+    FastNewClosureStub stub;
+    frame_->Push(boilerplate);
+    Result answer = frame_->CallStub(&stub, 1);
+    frame_->Push(&answer);
+  } else {
+    // Call the runtime to instantiate the function boilerplate
+    // object.  The inevitable call will sync frame elements to memory
+    // anyway, so we do it eagerly to allow us to push the arguments
+    // directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    // Create a new closure.
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(boilerplate));
+    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->Push(&result);
+  }
 }
 
 
@@ -4295,18 +4439,23 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Push the resulting array literal boilerplate on the stack.
   frame_->Push(&boilerplate);
+
   // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  int length = node->values()->length();
+  Result clone;
+  if (node->depth() == 1 &&
+      length <= FastCloneShallowArrayStub::kMaximumLength) {
+    FastCloneShallowArrayStub stub(length);
+    clone = frame_->CallStub(&stub, 1);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
   // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   // Generate code to set the elements in the array that are not
   // literals.
-  for (int i = 0; i < node->values()->length(); i++) {
+  for (int i = 0; i < length; i++) {
     Expression* value = node->values()->at(i);
 
     // If value is a literal the property value is already set in the
@@ -4535,9 +4684,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
 
-    // Push the name of the function and the receiver onto the stack.
-    frame_->Push(var->name());
-
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
@@ -4549,14 +4695,16 @@ void CodeGenerator::VisitCall(Call* node) {
       Load(args->at(i));
     }
 
+    // Push the name of the function onto the frame.
+    frame_->Push(var->name());
+
     // Call the IC initialization code.
     CodeForSourcePosition(node->position());
     Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
                                        arg_count,
                                        loop_nesting());
     frame_->RestoreContextRegister();
-    // Replace the function on the stack with the result.
-    frame_->SetElementAt(0, &result);
+    frame_->Push(&result);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -4609,8 +4757,7 @@ void CodeGenerator::VisitCall(Call* node) {
                       node->position());
 
       } else {
-        // Push the name of the function and the receiver onto the stack.
-        frame_->Push(name);
+        // Push the receiver onto the frame.
         Load(property->obj());
 
         // Load the arguments.
@@ -4619,14 +4766,16 @@ void CodeGenerator::VisitCall(Call* node) {
           Load(args->at(i));
         }
 
+        // Push the name of the function onto the frame.
+        frame_->Push(name);
+
         // Call the IC initialization code.
         CodeForSourcePosition(node->position());
         Result result =
             frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count,
                                loop_nesting());
         frame_->RestoreContextRegister();
-        // Replace the function on the stack with the result.
-        frame_->SetElementAt(0, &result);
+        frame_->Push(&result);
       }
 
     } else {
@@ -5284,8 +5433,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   Runtime::Function* function = node->function();
 
   if (function == NULL) {
-    // Prepare stack for calling JS runtime function.
-    frame_->Push(node->name());
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
@@ -5302,11 +5449,12 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
+    frame_->Push(node->name());
     Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
                                        arg_count,
                                        loop_nesting_);
     frame_->RestoreContextRegister();
-    frame_->SetElementAt(0, &answer);
+    frame_->Push(&answer);
   } else {
     // Call the C runtime function.
     Result answer = frame_->CallRuntime(function, arg_count);
@@ -5974,7 +6122,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   }
   Load(left);
   Load(right);
-  Comparison(cc, strict, destination());
+  Comparison(node, cc, strict, destination());
 }
 
 
@@ -6428,7 +6576,7 @@ void Reference::SetValue(InitState init_state) {
       // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      SmiAnalysis* key_smi_analysis = property->key()->type();
+      StaticType* key_smi_analysis = property->key()->type();
 
       if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
         Comment cmnt(masm, "[ Inlined store to keyed Property");
@@ -6526,6 +6674,136 @@ void Reference::SetValue(InitState init_state) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void FastNewClosureStub::Generate(MacroAssembler* masm) {
+  // Clone the boilerplate in new space. Set the context to the
+  // current context in esi.
+  Label gc;
+  __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the boilerplate function from the stack.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+
+  // Compute the function map in the current global context and set that
+  // as the map of the allocated object.
+  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalContextOffset));
+  __ mov(ecx, Operand(ecx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
+
+  // Clone the rest of the boilerplate fields. We don't have to update
+  // the write barrier because the allocated object is in new space.
+  for (int offset = kPointerSize;
+       offset < JSFunction::kSize;
+       offset += kPointerSize) {
+    if (offset == JSFunction::kContextOffset) {
+      __ mov(FieldOperand(eax, offset), esi);
+    } else {
+      __ mov(ebx, FieldOperand(edx, offset));
+      __ mov(FieldOperand(eax, offset), ebx);
+    }
+  }
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  // Create a new closure through the slower runtime call.
+  __ bind(&gc);
+  __ pop(ecx);  // Temporarily remove return address.
+  __ pop(edx);
+  __ push(esi);
+  __ push(edx);
+  __ push(ecx);  // Restore return address.
+  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+}
+
+
+void FastNewContextStub::Generate(MacroAssembler* masm) {
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
+                        eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the function from the stack.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+
+  // Setup the object header.
+  __ mov(FieldOperand(eax, HeapObject::kMapOffset), Factory::context_map());
+  __ mov(FieldOperand(eax, Array::kLengthOffset), Immediate(length));
+
+  // Setup the fixed slots.
+  __ xor_(ebx, Operand(ebx));  // Set to NULL.
+  __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
+  __ mov(Operand(eax, Context::SlotOffset(Context::FCONTEXT_INDEX)), eax);
+  __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), ebx);
+  __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
+
+  // Copy the global object from the surrounding context. We go through the
+  // context in the function (ecx) to match the allocation behavior we have
+  // in the runtime system (see Heap::AllocateFunctionContext).
+  __ mov(ebx, FieldOperand(ecx, JSFunction::kContextOffset));
+  __ mov(ebx, Operand(ebx, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_INDEX)), ebx);
+
+  // Initialize the rest of the slots to undefined.
+  __ mov(ebx, Factory::undefined_value());
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ mov(Operand(eax, Context::SlotOffset(i)), ebx);
+  }
+
+  // Return and remove the on-stack parameter.
+  __ mov(esi, Operand(eax));
+  __ ret(1 * kPointerSize);
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
+}
+
+
+void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int size = JSArray::kSize + elements_size;
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoid multiple limit checks.
+  Label gc;
+  __ AllocateInNewSpace(size, eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the boilerplate from the stack.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
+      __ mov(ebx, FieldOperand(ecx, i));
+      __ mov(FieldOperand(eax, i), ebx);
+    }
+  }
+
+  if (length_ > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ mov(ecx, FieldOperand(ecx, JSArray::kElementsOffset));
+    __ lea(edx, Operand(eax, JSArray::kSize));
+    __ mov(FieldOperand(eax, JSArray::kElementsOffset), edx);
+
+    // Copy the elements array.
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ mov(ebx, FieldOperand(ecx, i));
+      __ mov(FieldOperand(edx, i), ebx);
+    }
+  }
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  __ bind(&gc);
+  ExternalReference runtime(Runtime::kCloneShallowLiteralBoilerplate);
+  __ TailCallRuntime(runtime, 1, 1);
 }
 
 
@@ -7441,17 +7719,89 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   static const int kDisplacement = 2 * kPointerSize;
 
   // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
+  Label adaptor_frame, try_allocate, runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &runtime);
+  __ j(equal, &adaptor_frame);
+
+  // Get the length from the frame.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
+  __ bind(&adaptor_frame);
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ mov(Operand(esp, 1 * kPointerSize), ecx);
   __ lea(edx, Operand(edx, ecx, times_2, kDisplacement));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
+
+  // Try the new space allocation. Start out with computing the size of
+  // the arguments object and the elements array.
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &add_arguments_object);
+  __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
+  __ bind(&add_arguments_object);
+  __ add(Operand(ecx), Immediate(Heap::kArgumentsObjectSize));
+
+  // Do the allocation of both objects in one go.
+  __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
+  __ mov(edi, Operand(edi, offset));
+
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ mov(ebx, FieldOperand(edi, i));
+    __ mov(FieldOperand(eax, i), ebx);
+  }
+
+  // Setup the callee in-object property.
+  ASSERT(Heap::arguments_callee_index == 0);
+  __ mov(ebx, Operand(esp, 3 * kPointerSize));
+  __ mov(FieldOperand(eax, JSObject::kHeaderSize), ebx);
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  ASSERT(Heap::arguments_length_index == 1);
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ mov(FieldOperand(eax, JSObject::kHeaderSize + kPointerSize), ecx);
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &done);
+
+  // Get the parameters pointer from the stack and untag the length.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  __ sar(ecx, kSmiTagSize);
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
+  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
+
+  // Copy the fixed array slots.
+  Label loop;
+  __ bind(&loop);
+  __ mov(ebx, Operand(edx, -1 * kPointerSize));  // Skip receiver.
+  __ mov(FieldOperand(edi, FixedArray::kHeaderSize), ebx);
+  __ add(Operand(edi), Immediate(kPointerSize));
+  __ sub(Operand(edx), Immediate(kPointerSize));
+  __ dec(ecx);
+  __ test(ecx, Operand(ecx));
+  __ j(not_zero, &loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  __ ret(3 * kPointerSize);
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
@@ -8306,6 +8656,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
   __ and_(ecx, Operand(edi));
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ test(ecx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
   // Allocate an acsii cons string.
@@ -8348,7 +8699,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii_string_add_flat_result;
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  ASSERT(kAsciiStringTag != 0);
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ test(ecx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));

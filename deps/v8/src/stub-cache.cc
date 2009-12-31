@@ -120,7 +120,7 @@ Object* StubCache::ComputeLoadCallback(String* name,
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadCallback(receiver, holder, callback, name);
+    code = compiler.CompileLoadCallback(name, receiver, holder, callback);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -831,7 +831,7 @@ static Object* ThrowReferenceError(String* name) {
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.is_contextual()) return Heap::undefined_value();
+  if (!ic.SlowIsContextual()) return Heap::undefined_value();
 
   // Throw a reference error.
   HandleScope scope;

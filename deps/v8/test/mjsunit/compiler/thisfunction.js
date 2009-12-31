@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --always_fast_compiler
 
-#include "token.h"
+// Test reference to this-function.
 
-namespace v8 {
-namespace internal {
-
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-} }  // namespace v8::internal
+var g = (function f(x) {
+    if (x == 1) return 42; else return f(1);
+  })(0);
+assertEquals(42, g);

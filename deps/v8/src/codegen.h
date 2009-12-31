@@ -233,6 +233,55 @@ class StackCheckStub : public CodeStub {
 };
 
 
+class FastNewClosureStub : public CodeStub {
+ public:
+  void Generate(MacroAssembler* masm);
+
+ private:
+  const char* GetName() { return "FastNewClosureStub"; }
+  Major MajorKey() { return FastNewClosure; }
+  int MinorKey() { return 0; }
+};
+
+
+class FastNewContextStub : public CodeStub {
+ public:
+  static const int kMaximumSlots = 64;
+
+  explicit FastNewContextStub(int slots) : slots_(slots) {
+    ASSERT(slots_ > 0 && slots <= kMaximumSlots);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int slots_;
+
+  const char* GetName() { return "FastNewContextStub"; }
+  Major MajorKey() { return FastNewContext; }
+  int MinorKey() { return slots_; }
+};
+
+
+class FastCloneShallowArrayStub : public CodeStub {
+ public:
+  static const int kMaximumLength = 8;
+
+  explicit FastCloneShallowArrayStub(int length) : length_(length) {
+    ASSERT(length >= 0 && length <= kMaximumLength);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int length_;
+
+  const char* GetName() { return "FastCloneShallowArrayStub"; }
+  Major MajorKey() { return FastCloneShallowArray; }
+  int MinorKey() { return length_; }
+};
+
+
 class InstanceofStub: public CodeStub {
  public:
   InstanceofStub() { }

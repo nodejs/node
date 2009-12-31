@@ -219,7 +219,8 @@ class Factory : public AllStatic {
 
   static Handle<JSFunction> NewFunctionFromBoilerplate(
       Handle<JSFunction> boilerplate,
-      Handle<Context> context);
+      Handle<Context> context,
+      PretenureFlag pretenure = TENURED);
 
   static Handle<Code> NewCode(const CodeDesc& desc,
                               ZoneScopeInfo* sinfo,
@@ -374,7 +375,8 @@ class Factory : public AllStatic {
 
   static Handle<JSFunction> BaseNewFunctionFromBoilerplate(
       Handle<JSFunction> boilerplate,
-      Handle<Map> function_map);
+      Handle<Map> function_map,
+      PretenureFlag pretenure);
 
   // Create a new map cache.
   static Handle<MapCache> NewMapCache(int at_least_space_for);

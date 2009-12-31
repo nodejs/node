@@ -243,11 +243,8 @@ void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                  InvokeJSFlags flags,
-                                 Result* arg_count_register,
                                  int arg_count) {
-  ASSERT(arg_count_register->reg().is(r0));
   PrepareForCall(arg_count, arg_count);
-  arg_count_register->Unuse();
   __ InvokeBuiltin(id, flags);
 }
 

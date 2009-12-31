@@ -409,7 +409,7 @@ Object* CallIC::LoadFunction(State state,
   if (!lookup.IsValid()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    if (is_contextual()) {
+    if (IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
     return TypeError("undefined_method", object, name);
@@ -428,7 +428,7 @@ Object* CallIC::LoadFunction(State state,
     // If the object does not have the requested property, check which
     // exception we need to throw.
     if (attr == ABSENT) {
-      if (is_contextual()) {
+      if (IsContextual(object)) {
         return ReferenceError("not_defined", name);
       }
       return TypeError("undefined_method", object, name);
@@ -628,7 +628,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
   // If lookup is invalid, check if we need to throw an exception.
   if (!lookup.IsValid()) {
-    if (FLAG_strict || is_contextual()) {
+    if (FLAG_strict || IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
     LOG(SuspectReadEvent(*name, *object));
@@ -671,7 +671,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     if (result->IsFailure()) return result;
     // If the property is not present, check if we need to throw an
     // exception.
-    if (attr == ABSENT && is_contextual()) {
+    if (attr == ABSENT && IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
     return result;
@@ -843,7 +843,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // If lookup is invalid, check if we need to throw an exception.
     if (!lookup.IsValid()) {
-      if (FLAG_strict || is_contextual()) {
+      if (FLAG_strict || IsContextual(object)) {
         return ReferenceError("not_defined", name);
       }
     }
@@ -859,7 +859,7 @@ Object* KeyedLoadIC::Load(State state,
       if (result->IsFailure()) return result;
       // If the property is not present, check if we need to throw an
       // exception.
-      if (attr == ABSENT && is_contextual()) {
+      if (attr == ABSENT && IsContextual(object)) {
         return ReferenceError("not_defined", name);
       }
       return result;
@@ -1289,16 +1289,6 @@ Object* CallIC_Miss(Arguments args) {
     CompileLazy(function, CLEAR_EXCEPTION);
   }
   return *function;
-}
-
-
-void CallIC::GenerateInitialize(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 

@@ -33,6 +33,11 @@
 namespace v8 {
 namespace internal {
 
+// Flag indicating whether an IC stub needs to check that a backing
+// store is in dictionary case.
+enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
+
+
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.
 #define IC_UTIL_LIST(ICU)                             \
@@ -99,7 +104,16 @@ class IC {
 
   // Returns if this IC is for contextual (no explicit receiver)
   // access to properties.
-  bool is_contextual() {
+  bool IsContextual(Handle<Object> receiver) {
+    if (receiver->IsGlobalObject()) {
+      return SlowIsContextual();
+    } else {
+      ASSERT(!SlowIsContextual());
+      return false;
+    }
+  }
+
+  bool SlowIsContextual() {
     return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
   }
 
@@ -175,16 +189,14 @@ class CallIC: public IC {
 
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc);
+  static void GenerateInitialize(MacroAssembler* masm, int argc) {
+    GenerateMiss(masm, argc);
+  }
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
 
  private:
-  static void Generate(MacroAssembler* masm,
-                       int argc,
-                       const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,

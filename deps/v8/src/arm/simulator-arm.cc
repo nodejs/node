@@ -1893,14 +1893,14 @@ void Simulator::DecodeUnconditional(Instr* instr) {
 
 // void Simulator::DecodeTypeVFP(Instr* instr)
 // The Following ARMv7 VFPv instructions are currently supported.
-// fmsr :Sn = Rt
-// fmrs :Rt = Sn
-// fsitod: Dd = Sm
-// ftosid: Sd = Dm
-// Dd = faddd(Dn, Dm)
-// Dd = fsubd(Dn, Dm)
-// Dd = fmuld(Dn, Dm)
-// Dd = fdivd(Dn, Dm)
+// vmov :Sn = Rt
+// vmov :Rt = Sn
+// vcvt: Dd = Sm
+// vcvt: Sd = Dm
+// Dd = vadd(Dn, Dm)
+// Dd = vsub(Dn, Dm)
+// Dd = vmul(Dn, Dm)
+// Dd = vdiv(Dn, Dm)
 // vcmp(Dd, Dm)
 // VMRS
 void Simulator::DecodeTypeVFP(Instr* instr) {
@@ -2020,8 +2020,8 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
 
 // void Simulator::DecodeType6CoprocessorIns(Instr* instr)
 // Decode Type 6 coprocessor instructions.
-// Dm = fmdrr(Rt, Rt2)
-// <Rt, Rt2> = fmrrd(Dm)
+// Dm = vmov(Rt, Rt2)
+// <Rt, Rt2> = vmov(Dm)
 void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 

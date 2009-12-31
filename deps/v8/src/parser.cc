@@ -2657,6 +2657,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expression* cond = NULL;
   if (peek() != Token::SEMICOLON) {
     cond = ParseExpression(true, CHECK_OK);
+    if (cond && cond->AsCompareOperation()) {
+      cond->AsCompareOperation()->set_is_for_loop_condition();
+    }
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 

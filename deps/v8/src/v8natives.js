@@ -41,6 +41,7 @@
 const $isNaN = GlobalIsNaN;
 const $isFinite = GlobalIsFinite;
 
+
 // ----------------------------------------------------------------------------
 
 
@@ -87,7 +88,7 @@ function GlobalIsFinite(number) {
 
 // ECMA-262 - 15.1.2.2
 function GlobalParseInt(string, radix) {
-  if (radix === void 0) {
+  if (IS_UNDEFINED(radix)) {
     // Some people use parseInt instead of Math.floor.  This
     // optimization makes parseInt on a Smi 12 times faster (60ns
     // vs 800ns).  The following optimization makes parseInt on a
@@ -280,6 +281,207 @@ function ObjectKeys(obj) {
 }
 
 
+// ES5 8.10.1.
+function IsAccessorDescriptor(desc) {
+  if (IS_UNDEFINED(desc)) return false;
+  return desc.hasGetter_ || desc.hasSetter_;
+}
+
+
+// ES5 8.10.2.
+function IsDataDescriptor(desc) {
+  if (IS_UNDEFINED(desc)) return false;
+  return desc.hasValue_ || desc.hasWritable_;
+}
+
+
+// ES5 8.10.3.
+function IsGenericDescriptor(desc) {
+  return !(IsAccessorDescriptor(desc) || IsDataDescriptor(desc));
+}
+
+
+function IsInconsistentDescriptor(desc) {
+  return IsAccessorDescriptor(desc) && IsDataDescriptor(desc);
+}
+
+
+// ES5 8.10.5.
+function ToPropertyDescriptor(obj) {
+  if (!IS_OBJECT(obj)) {
+    throw MakeTypeError("property_desc_object", [obj]);
+  }
+  var desc = new PropertyDescriptor();
+
+  if ("enumerable" in obj) {
+    desc.setEnumerable(ToBoolean(obj.enumerable));
+  }
+
+
+  if ("configurable" in obj) {
+    desc.setConfigurable(ToBoolean(obj.configurable));
+  }
+
+  if ("value" in obj) {
+    desc.setValue(obj.value);
+  }
+
+  if ("writable" in obj) {
+    desc.setWritable(ToBoolean(obj.writable));
+  }
+
+  if ("get" in obj) {
+    var get = obj.get;
+    if (!IS_UNDEFINED(get) && !IS_FUNCTION(get)) {
+      throw MakeTypeError("getter_must_be_callable", [get]);
+    }
+    desc.setGet(get);
+  }
+
+  if ("set" in obj) {
+    var set = obj.set;
+    if (!IS_UNDEFINED(set) && !IS_FUNCTION(set)) {
+      throw MakeTypeError("setter_must_be_callable", [set]);
+    }
+    desc.setSet(set);
+  }
+
+  if (IsInconsistentDescriptor(desc)) {
+    throw MakeTypeError("value_and_accessor", [obj]);
+  }
+  return desc;
+}
+
+
+function PropertyDescriptor() {
+  // Initialize here so they are all in-object and have the same map.
+  // Default values from ES5 8.6.1.
+  this.value_ = void 0;
+  this.hasValue_ = false;
+  this.writable_ = false;
+  this.hasWritable_ = false;
+  this.enumerable_ = false;
+  this.configurable_ = false;
+  this.get_ = void 0;
+  this.hasGetter_ = false;
+  this.set_ = void 0;
+  this.hasSetter_ = false;
+}
+
+
+PropertyDescriptor.prototype.setValue = function(value) {
+  this.value_ = value;
+  this.hasValue_ = true;
+}
+
+
+PropertyDescriptor.prototype.getValue = function() {
+  return this.value_;
+}
+
+
+PropertyDescriptor.prototype.setEnumerable = function(enumerable) {
+  this.enumerable_ = enumerable;
+}
+
+
+PropertyDescriptor.prototype.isEnumerable = function () {
+  return this.enumerable_;
+}
+
+
+PropertyDescriptor.prototype.setWritable = function(writable) {
+  this.writable_ = writable;
+  this.hasWritable_ = true;
+}
+
+
+PropertyDescriptor.prototype.isWritable = function() {
+  return this.writable_;
+}
+
+
+PropertyDescriptor.prototype.setConfigurable = function(configurable) {
+  this.configurable_ = configurable;
+}
+
+
+PropertyDescriptor.prototype.isConfigurable = function() {
+  return this.configurable_;
+}
+
+
+PropertyDescriptor.prototype.setGet = function(get) {
+  this.get_ = get;
+  this.hasGetter_ = true;
+}
+
+
+PropertyDescriptor.prototype.getGet = function() {
+  return this.get_;
+}
+
+
+PropertyDescriptor.prototype.setSet = function(set) {
+  this.set_ = set;
+  this.hasSetter_ = true;
+}
+
+
+PropertyDescriptor.prototype.getSet = function() {
+  return this.set_;
+}
+
+
+// ES5 8.12.9.  This version cannot cope with the property p already
+// being present on obj.
+function DefineOwnProperty(obj, p, desc, should_throw) {
+  var flag = desc.isEnumerable() ? 0 : DONT_ENUM;
+  if (IsDataDescriptor(desc)) {
+    flag |= desc.isWritable() ? 0 : (DONT_DELETE | READ_ONLY);
+    %SetProperty(obj, p, desc.getValue(), flag);
+  } else {
+    if (IS_FUNCTION(desc.getGet())) %DefineAccessor(obj, p, GETTER, desc.getGet(), flag);
+    if (IS_FUNCTION(desc.getSet())) %DefineAccessor(obj, p, SETTER, desc.getSet(), flag);
+  }
+  return true;
+}
+
+
+// ES5 section 15.2.3.5.
+function ObjectCreate(proto, properties) {
+  if (!IS_OBJECT(proto) && !IS_NULL(proto)) {
+    throw MakeTypeError("proto_object_or_null", [proto]);
+  }
+  var obj = new $Object();
+  obj.__proto__ = proto;
+  if (!IS_UNDEFINED(properties)) ObjectDefineProperties(obj, properties);
+  return obj;
+}
+
+
+// ES5 section 15.2.3.7.  This version cannot cope with the properies already
+// being present on obj.  Therefore it is not exposed as
+// Object.defineProperties yet.
+function ObjectDefineProperties(obj, properties) {
+  var props = ToObject(properties);
+  var key_values = [];
+  for (var key in props) {
+    if (%HasLocalProperty(props, key)) {
+      key_values.push(key);
+      var value = props[key];
+      var desc = ToPropertyDescriptor(value);
+      key_values.push(desc);
+    }
+  }
+  for (var i = 0; i < key_values.length; i += 2) {
+    var key = key_values[i];
+    var desc = key_values[i + 1];
+    DefineOwnProperty(obj, key, desc, true);
+  }
+}
+
+
 %SetCode($Object, function(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -309,7 +511,8 @@ function SetupObject() {
     "__lookupSetter__", ObjectLookupSetter
   ));
   InstallFunctions($Object, DONT_ENUM, $Array(
-    "keys", ObjectKeys
+    "keys", ObjectKeys,
+    "create", ObjectCreate
   ));
 }
 

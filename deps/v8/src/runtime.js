@@ -122,6 +122,12 @@ function COMPARE(x, ncr) {
     return %StringCompare(this, x);
   }
 
+  // If one of the operands is undefined, it will convert to NaN and
+  // thus the result should be as if one of the operands was NaN.
+  if (IS_UNDEFINED(this) || IS_UNDEFINED(x)) {
+    return ncr;
+  }
+
   // Default implementation.
   var a = %ToPrimitive(this, NUMBER_HINT);
   var b = %ToPrimitive(x, NUMBER_HINT);

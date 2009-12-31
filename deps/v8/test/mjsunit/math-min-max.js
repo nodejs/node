@@ -25,28 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test Math.min().
 
-assertEquals(Number.POSITIVE_INFINITY, Math.min());
+assertEquals(Infinity, Math.min());
 assertEquals(1, Math.min(1));
 assertEquals(1, Math.min(1, 2));
 assertEquals(1, Math.min(2, 1));
 assertEquals(1, Math.min(1, 2, 3));
 assertEquals(1, Math.min(3, 2, 1));
 assertEquals(1, Math.min(2, 3, 1));
+assertEquals(1.1, Math.min(1.1, 2.2, 3.3));
+assertEquals(1.1, Math.min(3.3, 2.2, 1.1));
+assertEquals(1.1, Math.min(2.2, 3.3, 1.1));
+
+// Prepare a non-Smi zero value.
+function returnsNonSmi(){ return 0.25; }
+var ZERO = returnsNonSmi() - returnsNonSmi();
+assertEquals(0, ZERO);
+assertEquals(Infinity, 1/ZERO);
+assertEquals(-Infinity, 1/-ZERO);
+assertFalse(%_IsSmi(ZERO));
+assertFalse(%_IsSmi(-ZERO));
 
 var o = {};
 o.valueOf = function() { return 1; };
 assertEquals(1, Math.min(2, 3, '1'));
 assertEquals(1, Math.min(3, o, 2));
-assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(-0, +0));
-assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(+0, -0));
-assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(+0, -0, 1));
+assertEquals(1, Math.min(o, 2));
+assertEquals(-Infinity, Infinity / Math.min(-0, +0));
+assertEquals(-Infinity, Infinity / Math.min(+0, -0));
+assertEquals(-Infinity, Infinity / Math.min(+0, -0, 1));
+assertEquals(-Infinity, Infinity / Math.min(-0, ZERO));
+assertEquals(-Infinity, Infinity / Math.min(ZERO, -0));
+assertEquals(-Infinity, Infinity / Math.min(ZERO, -0, 1));
 assertEquals(-1, Math.min(+0, -0, -1));
 assertEquals(-1, Math.min(-1, +0, -0));
 assertEquals(-1, Math.min(+0, -1, -0));
 assertEquals(-1, Math.min(-0, -1, +0));
-
+assertNaN(Math.min('oxen'));
+assertNaN(Math.min('oxen', 1));
+assertNaN(Math.min(1, 'oxen'));
 
 
 // Test Math.max().
@@ -58,15 +78,28 @@ assertEquals(2, Math.max(2, 1));
 assertEquals(3, Math.max(1, 2, 3));
 assertEquals(3, Math.max(3, 2, 1));
 assertEquals(3, Math.max(2, 3, 1));
+assertEquals(3.3, Math.max(1.1, 2.2, 3.3));
+assertEquals(3.3, Math.max(3.3, 2.2, 1.1));
+assertEquals(3.3, Math.max(2.2, 3.3, 1.1));
 
 var o = {};
 o.valueOf = function() { return 3; };
 assertEquals(3, Math.max(2, '3', 1));
 assertEquals(3, Math.max(1, o, 2));
-assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(-0, +0));
-assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(+0, -0));
-assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(+0, -0, -1));
+assertEquals(3, Math.max(o, 1));
+assertEquals(Infinity, Infinity / Math.max(-0, +0));
+assertEquals(Infinity, Infinity / Math.max(+0, -0));
+assertEquals(Infinity, Infinity / Math.max(+0, -0, -1));
+assertEquals(Infinity, Infinity / Math.max(-0, ZERO));
+assertEquals(Infinity, Infinity / Math.max(ZERO, -0));
+assertEquals(Infinity, Infinity / Math.max(ZERO, -0, -1));
 assertEquals(1, Math.max(+0, -0, +1));
 assertEquals(1, Math.max(+1, +0, -0));
 assertEquals(1, Math.max(+0, +1, -0));
 assertEquals(1, Math.max(-0, +1, +0));
+assertNaN(Math.max('oxen'));
+assertNaN(Math.max('oxen', 1));
+assertNaN(Math.max(1, 'oxen'));
+
+assertEquals(Infinity, 1/Math.max(ZERO, -0));
+assertEquals(Infinity, 1/Math.max(-0, ZERO));

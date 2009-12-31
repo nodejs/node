@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Test allocation of a large number of maps.
 
-#include "token.h"
-
-namespace v8 {
-namespace internal {
-
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-} }  // namespace v8::internal
+var i = 500000
+var a = new Array(i)
+for (var j = 0; j < i; j++) { var o = {}; o.x = 42; delete o.x; a[j] = o; }

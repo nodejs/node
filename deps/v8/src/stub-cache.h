@@ -405,7 +405,7 @@ class StubCompiler BASE_EMBEDDED {
                          String* name,
                          Label* miss);
 
-  void GenerateLoadCallback(JSObject* object,
+  bool GenerateLoadCallback(JSObject* object,
                             JSObject* holder,
                             Register receiver,
                             Register name_reg,
@@ -413,7 +413,8 @@ class StubCompiler BASE_EMBEDDED {
                             Register scratch2,
                             AccessorInfo* callback,
                             String* name,
-                            Label* miss);
+                            Label* miss,
+                            Failure** failure);
 
   void GenerateLoadConstant(JSObject* object,
                             JSObject* holder,
@@ -447,10 +448,10 @@ class LoadStubCompiler: public StubCompiler {
                            JSObject* holder,
                            int index,
                            String* name);
-  Object* CompileLoadCallback(JSObject* object,
+  Object* CompileLoadCallback(String* name,
+                              JSObject* object,
                               JSObject* holder,
-                              AccessorInfo* callback,
-                              String* name);
+                              AccessorInfo* callback);
   Object* CompileLoadConstant(JSObject* object,
                               JSObject* holder,
                               Object* value,

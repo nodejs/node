@@ -305,7 +305,6 @@ class VirtualFrame : public ZoneObject {
   // removes from) the stack.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeJSFlags flag,
-                     Result* arg_count_register,
                      int arg_count);
 
   // Call into an IC stub given the number of arguments it removes

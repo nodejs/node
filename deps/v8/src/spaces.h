@@ -65,20 +65,23 @@ namespace internal {
 
 // Some assertion macros used in the debugging mode.
 
-#define ASSERT_PAGE_ALIGNED(address)                  \
+#define ASSERT_PAGE_ALIGNED(address)                                           \
   ASSERT((OffsetFrom(address) & Page::kPageAlignmentMask) == 0)
 
-#define ASSERT_OBJECT_ALIGNED(address)                \
+#define ASSERT_OBJECT_ALIGNED(address)                                         \
   ASSERT((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
-#define ASSERT_OBJECT_SIZE(size)                      \
+#define ASSERT_MAP_ALIGNED(address)                                            \
+  ASSERT((OffsetFrom(address) & kMapAlignmentMask) == 0)
+
+#define ASSERT_OBJECT_SIZE(size)                                               \
   ASSERT((0 < size) && (size <= Page::kMaxHeapObjectSize))
 
-#define ASSERT_PAGE_OFFSET(offset)                    \
-  ASSERT((Page::kObjectStartOffset <= offset)         \
+#define ASSERT_PAGE_OFFSET(offset)                                             \
+  ASSERT((Page::kObjectStartOffset <= offset)                                  \
       && (offset <= Page::kPageSize))
 
-#define ASSERT_MAP_PAGE_INDEX(index)                            \
+#define ASSERT_MAP_PAGE_INDEX(index)                                           \
   ASSERT((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
 
 
@@ -106,11 +109,8 @@ class AllocationInfo;
 // For this reason we add an offset to get room for the Page data at the start.
 //
 // The mark-compact collector transforms a map pointer into a page index and a
-// page offset. The map space can have up to 1024 pages, and 8M bytes (1024 *
-// 8K) in total.  Because a map pointer is aligned to the pointer size (4
-// bytes), 11 bits are enough to encode the page offset. 21 bits (10 for the
-// page index + 11 for the offset in the page) are required to encode a map
-// pointer.
+// page offset. The excact encoding is described in the comments for
+// class MapWord in objects.h.
 //
 // The only way to get a page pointer is by calling factory methods:
 //   Page* p = Page::FromAddress(addr); or
@@ -211,9 +211,6 @@ class Page {
   static bool is_rset_in_use() { return rset_state_ == IN_USE; }
   static void set_rset_state(RSetState state) { rset_state_ = state; }
 #endif
-
-  // 8K bytes per page.
-  static const int kPageSizeBits = 13;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -514,7 +511,7 @@ class MemoryAllocator : public AllStatic {
 #endif
 
   // Due to encoding limitation, we can only have 8K chunks.
-  static const int kMaxNofChunks = 1 << Page::kPageSizeBits;
+  static const int kMaxNofChunks = 1 << kPageSizeBits;
   // If a chunk has at least 16 pages, the maximum heap size is about
   // 8K * 8K * 16 = 1G bytes.
 #ifdef V8_TARGET_ARCH_X64
