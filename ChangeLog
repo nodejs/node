@@ -1,4 +1,18 @@
-2009.12.22, Version 0.1.23
+2009.12.31, Version 0.1.24
+
+  * Bugfix: don't chunk responses to HTTP/1.0 clients, even if
+    they send Connection: Keep-Alive (e.g. wget)
+
+  * Bugfix: libeio race condition
+
+  * Bugfix: Don't segfault on unknown http method
+
+  * Simplify exception reporting
+
+  * Upgrade V8 to 2.0.5.4
+
+
+2009.12.22, Version 0.1.23, f91e347eeeeac1a8bd6a7b462df0321b60f3affc
 
   * Bugfix: require("../blah") issues (isaacs)
 
