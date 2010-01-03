@@ -24,9 +24,23 @@ assert.equal('{\n "a": 1,\n "b": 2\n}', inspect({a: 1, b: 2}));
 assert.equal('{\n "a": {}\n}', inspect({'a': {}}));
 assert.equal('{\n "a": {\n  "b": 2\n }\n}', inspect({'a': {'b': 2}}));
 
+// Dynamic properties
+assert.equal(
+  "{\n \"readonly\": [Dynamic Property Read-only],\n \"readwrite\": [Dynamic Property],\n \"writeonly\": [Dynamic Property Write-only]\n}",
+  inspect({get readonly() {return 1;},get readwrite(){return 2;},set readwrite(value){},set writeonly(val){}})
+);
+
 var value = {};
 value['a'] = value;
 assert.equal('{\n "a": [Circular]\n}', inspect(value));
 value = Object.create([]);
 value.push(1);
 assert.equal('{\n "0": 1,\n "length": 1\n}', inspect(value));
+
+// Array with dynamic properties
+value = [1,2,3];
+value.__defineGetter__('growingLength', function () { this.push(true); return this.length; });
+assert.equal(
+  "{\n \"0\": 1,\n \"1\": 2,\n \"2\": 3,\n \"growingLength\": [Dynamic Property Read-only]\n}",
+  inspect(value)
+);
