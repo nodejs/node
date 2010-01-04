@@ -443,7 +443,9 @@ GLOBAL.setInterval = function (callback, repeat) {
 };
 
 GLOBAL.clearTimeout = function (timer) {
-  timer.stop();
+  if (timer instanceof process.Timer) {
+    timer.stop();
+  }
 };
 
 GLOBAL.clearInterval = GLOBAL.clearTimeout;
