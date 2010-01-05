@@ -7,10 +7,28 @@ var fixture = require('./fixtures/multipart');
 var port = 8222;
 var parts_reveived = 0;
 var parts_complete = 0;
+var requests = 0;
+var badRequests = 0;
 var parts = {};
+var respond = function(res, text) {
+  requests++;
+  if (requests == 2) {
+    server.close();
+  }
+
+  res.sendHeader(200, {"Content-Type": "text/plain"});
+  res.sendBody(text);
+  res.finish();
+};
 
 var server = http.createServer(function(req, res) {
-  var stream = new multipart.Stream(req);
+  try {
+    var stream = new multipart.Stream(req);
+  } catch (e) {
+    badRequests++;
+    respond(res, 'no thanks');
+    return;
+  }
 
   stream.addListener('part', function(part) {
     parts_reveived++;
@@ -39,10 +57,7 @@ var server = http.createServer(function(req, res) {
   });
 
   stream.addListener('complete', function() {
-    res.sendHeader(200, {"Content-Type": "text/plain"});
-    res.sendBody('thanks');
-    res.finish();
-    server.close();
+    respond(res, 'thanks');
   });
 });
 server.listen(port);
@@ -52,8 +67,13 @@ var request = client.request('POST', '/', {'Content-Type': 'multipart/form-data;
 request.sendBody(fixture.reply, 'binary');
 request.finish();
 
+var badRequest = client.request('POST', '/', {'Content-Type': 'something', 'Content-Length': fixture.reply.length});
+badRequest.sendBody(fixture.reply, 'binary');
+badRequest.finish();
+
 process.addListener('exit', function() {
   puts("done");
   assert.equal(2, parts_complete);
   assert.equal(2, parts_reveived);
+  assert.equal(1, badRequests);
 });
