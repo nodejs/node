@@ -12,7 +12,7 @@ var badRequests = 0;
 var parts = {};
 var respond = function(res, text) {
   requests++;
-  if (requests == 2) {
+  if (requests == 3) {
     server.close();
   }
 
@@ -22,6 +22,18 @@ var respond = function(res, text) {
 };
 
 var server = http.createServer(function(req, res) {
+  if (req.headers['x-use-simple-api']) {
+    multipart.parse(req)
+      .addCallback(function() {
+        respond(res, 'thanks');
+      })
+      .addErrback(function() {
+        badRequests++;
+      });
+    return;
+  }
+
+
   try {
     var stream = new multipart.Stream(req);
   } catch (e) {
@@ -66,6 +78,11 @@ var client = http.createClient(port);
 var request = client.request('POST', '/', {'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
 request.sendBody(fixture.reply, 'binary');
 request.finish();
+
+var client = http.createClient(port);
+var simpleRequest = client.request('POST', '/', {'X-Use-Simple-Api': 'yes', 'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
+simpleRequest.sendBody(fixture.reply, 'binary');
+simpleRequest.finish();
 
 var badRequest = client.request('POST', '/', {'Content-Type': 'something', 'Content-Length': fixture.reply.length});
 badRequest.sendBody(fixture.reply, 'binary');
