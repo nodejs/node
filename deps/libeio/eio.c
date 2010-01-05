@@ -548,6 +548,9 @@ static int etp_poll (void)
         }
     }
 
+  if (want_poll_cb)
+    want_poll_cb ();
+
   errno = EAGAIN;
   return -1;
 }
