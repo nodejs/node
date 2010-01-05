@@ -1134,9 +1134,11 @@ Node.  To use it, +require("multipart")+.
 +multipart.parse(options)+ ::
   - on success: Returns an object where each key holds the value of one part of
                 the stream. +options+ can either be an instance of
-                +http.ServerRequest+ or an object containing a "boundary" and a
-                "data" key.
-  - on error: no parameters.
+                +http.ServerRequest+ or an object containing a "boundary" and
+                an optional "data" key.
+  - on error: Returns an instanceof Error object. Right now only the request
+              content-type / boundary option is checked. The stream data itself
+              is not validated.
 
 ==== +multipart.Stream+
 
