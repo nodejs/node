@@ -155,6 +155,7 @@ extern "C" {
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <stddef.h>
 
@@ -1606,7 +1607,7 @@ loop_init (EV_P_ unsigned int flags)
       fs_fd             = flags & EVFLAG_NOINOTIFY ? -1 : -2;
 #endif
 #if EV_USE_SIGNALFD
-      sigfd             = flags & EVFLAG_NOSIGFD   ? -1 : -2;
+      sigfd             = flags & EVFLAG_SIGNALFD  ? -2 : -1;
 #endif
 
       if (!(flags & 0x0000ffffU))
@@ -2791,11 +2792,14 @@ ev_signal_stop (EV_P_ ev_signal *w)
 #if EV_USE_SIGNALFD
       if (sigfd >= 0)
         {
-          sigprocmask (SIG_UNBLOCK, &sigfd_set, 0);//D
+          sigset_t ss;
+
+          sigemptyset (&ss);
+          sigaddset (&ss, w->signum);
           sigdelset (&sigfd_set, w->signum);
+
           signalfd (sigfd, &sigfd_set, 0);
-          sigprocmask (SIG_BLOCK, &sigfd_set, 0);//D
-          /*TODO: maybe unblock signal? */
+          sigprocmask (SIG_UNBLOCK, &ss, 0);
         }
       else
 #endif
@@ -3102,25 +3106,28 @@ stat_timer_cb (EV_P_ ev_timer *w_, int revents)
 {
   ev_stat *w = (ev_stat *)(((char *)w_) - offsetof (ev_stat, timer));
 
-  /* we copy this here each the time so that */
-  /* prev has the old value when the callback gets invoked */
-  w->prev = w->attr;
+  ev_statdata prev = w->attr;
   ev_stat_stat (EV_A_ w);
 
   /* memcmp doesn't work on netbsd, they.... do stuff to their struct stat */
   if (
-    w->prev.st_dev      != w->attr.st_dev
-    || w->prev.st_ino   != w->attr.st_ino
-    || w->prev.st_mode  != w->attr.st_mode
-    || w->prev.st_nlink != w->attr.st_nlink
-    || w->prev.st_uid   != w->attr.st_uid
-    || w->prev.st_gid   != w->attr.st_gid
-    || w->prev.st_rdev  != w->attr.st_rdev
-    || w->prev.st_size  != w->attr.st_size
-    || w->prev.st_atime != w->attr.st_atime
-    || w->prev.st_mtime != w->attr.st_mtime
-    || w->prev.st_ctime != w->attr.st_ctime
+    prev.st_dev      != w->attr.st_dev
+    || prev.st_ino   != w->attr.st_ino
+    || prev.st_mode  != w->attr.st_mode
+    || prev.st_nlink != w->attr.st_nlink
+    || prev.st_uid   != w->attr.st_uid
+    || prev.st_gid   != w->attr.st_gid
+    || prev.st_rdev  != w->attr.st_rdev
+    || prev.st_size  != w->attr.st_size
+    || prev.st_atime != w->attr.st_atime
+    || prev.st_mtime != w->attr.st_mtime
+    || prev.st_ctime != w->attr.st_ctime
   ) {
+      /* we only update w->prev on actual differences */
+      /* in case we test more often than invoke the callback, */
+      /* to ensure that prev is always different to attr */
+      w->prev = prev;
+
       #if EV_USE_INOTIFY
         if (fs_fd >= 0)
           {

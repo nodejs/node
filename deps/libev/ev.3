@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LIBEV 3"
-.TH LIBEV 3 "2009-07-27" "libev-3.8" "libev - high performance full featured event loop"
+.TH LIBEV 3 "2009-12-31" "libev-3.9" "libev - high performance full featured event loop"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -248,7 +248,7 @@ configuration will be described, which supports multiple event loops. For
 more info about various configuration options please have a look at
 \&\fB\s-1EMBED\s0\fR section in this manual. If libev was configured without support
 for multiple event loops, then all functions taking an initial argument of
-name \f(CW\*(C`loop\*(C'\fR (which is always of type \f(CW\*(C`ev_loop *\*(C'\fR) will not have
+name \f(CW\*(C`loop\*(C'\fR (which is always of type \f(CW\*(C`struct ev_loop *\*(C'\fR) will not have
 this argument.
 .SS "\s-1TIME\s0 \s-1REPRESENTATION\s0"
 .IX Subsection "TIME REPRESENTATION"
@@ -488,14 +488,19 @@ When this flag is specified, then libev will not attempt to use the
 \&\fIinotify\fR \s-1API\s0 for it's \f(CW\*(C`ev_stat\*(C'\fR watchers. Apart from debugging and
 testing, this flag can be useful to conserve inotify file descriptors, as
 otherwise each loop using \f(CW\*(C`ev_stat\*(C'\fR watchers consumes one inotify handle.
-.ie n .IP """EVFLAG_NOSIGNALFD""" 4
-.el .IP "\f(CWEVFLAG_NOSIGNALFD\fR" 4
-.IX Item "EVFLAG_NOSIGNALFD"
-When this flag is specified, then libev will not attempt to use the
-\&\fIsignalfd\fR \s-1API\s0 for it's \f(CW\*(C`ev_signal\*(C'\fR (and \f(CW\*(C`ev_child\*(C'\fR) watchers. This is
-probably only useful to work around any bugs in libev. Consequently, this
-flag might go away once the signalfd functionality is considered stable,
-so it's useful mostly in environment variables and not in program code.
+.ie n .IP """EVFLAG_SIGNALFD""" 4
+.el .IP "\f(CWEVFLAG_SIGNALFD\fR" 4
+.IX Item "EVFLAG_SIGNALFD"
+When this flag is specified, then libev will attempt to use the
+\&\fIsignalfd\fR \s-1API\s0 for it's \f(CW\*(C`ev_signal\*(C'\fR (and \f(CW\*(C`ev_child\*(C'\fR) watchers. This \s-1API\s0
+delivers signals synchronously, which makes it both faster and might make
+it possible to get the queued signal data. It can also simplify signal
+handling with threads, as long as you properly block signals in your
+threads that are not interested in handling them.
+.Sp
+Signalfd will not be used by default as this changes your signal mask, and
+there are a lot of shoddy libraries and programs (glib's threadpool for
+example) that can't properly initialise their signal masks.
 .ie n .IP """EVBACKEND_SELECT""  (value 1, portable select backend)" 4
 .el .IP "\f(CWEVBACKEND_SELECT\fR  (value 1, portable select backend)" 4
 .IX Item "EVBACKEND_SELECT  (value 1, portable select backend)"
@@ -530,6 +535,9 @@ This backend maps \f(CW\*(C`EV_READ\*(C'\fR to \f(CW\*(C`POLLIN | POLLERR | POLL
 .ie n .IP """EVBACKEND_EPOLL""   (value 4, Linux)" 4
 .el .IP "\f(CWEVBACKEND_EPOLL\fR   (value 4, Linux)" 4
 .IX Item "EVBACKEND_EPOLL   (value 4, Linux)"
+Use the linux-specific \fIepoll\fR\|(7) interface (for both pre\- and post\-2.6.9
+kernels).
+.Sp
 For few fds, this backend is a bit little slower than poll and select,
 but it scales phenomenally better. While poll and select usually scale
 like O(total_fds) where n is the total number of fds (or the highest fd),
@@ -716,7 +724,7 @@ as signal and child watchers) would need to be stopped manually.
 In general it is not advisable to call this function except in the
 rare occasion where you really need to free e.g. the signal handling
 pipe fds. If you need dynamically allocated loops it is better to use
-\&\f(CW\*(C`ev_loop_new\*(C'\fR and \f(CW\*(C`ev_loop_destroy\*(C'\fR).
+\&\f(CW\*(C`ev_loop_new\*(C'\fR and \f(CW\*(C`ev_loop_destroy\*(C'\fR.
 .IP "ev_loop_destroy (loop)" 4
 .IX Item "ev_loop_destroy (loop)"
 Like \f(CW\*(C`ev_default_destroy\*(C'\fR, but destroys an event loop created by an
@@ -823,8 +831,8 @@ event loop time (see \f(CW\*(C`ev_now_update\*(C'\fR).
 .IP "ev_loop (loop, int flags)" 4
 .IX Item "ev_loop (loop, int flags)"
 Finally, this is it, the event handler. This function usually is called
-after you initialised all your watchers and you want to start handling
-events.
+after you have initialised all your watchers and you want to start
+handling events.
 .Sp
 If the flags argument is specified as \f(CW0\fR, it will not return until
 either no event watchers are active anymore or \f(CW\*(C`ev_unloop\*(C'\fR was called.
@@ -912,9 +920,10 @@ Ref/unref can be used to add or remove a reference count on the event
 loop: Every watcher keeps one reference, and as long as the reference
 count is nonzero, \f(CW\*(C`ev_loop\*(C'\fR will not return on its own.
 .Sp
-If you have a watcher you never unregister that should not keep \f(CW\*(C`ev_loop\*(C'\fR
-from returning, call \fIev_unref()\fR after starting, and \fIev_ref()\fR before
-stopping it.
+This is useful when you have a watcher that you never intend to
+unregister, but that nevertheless should not keep \f(CW\*(C`ev_loop\*(C'\fR from
+returning. In such a case, call \f(CW\*(C`ev_unref\*(C'\fR after starting, and \f(CW\*(C`ev_ref\*(C'\fR
+before stopping it.
 .Sp
 As an example, libev itself uses this for its internal signal pipe: It
 is not visible to the libev user and should not keep \f(CW\*(C`ev_loop\*(C'\fR from
@@ -1042,7 +1051,7 @@ While event loop modifications are allowed between invocations of
 \&\f(CW\*(C`release\*(C'\fR and \f(CW\*(C`acquire\*(C'\fR (that's their only purpose after all), no
 modifications done will affect the event loop, i.e. adding watchers will
 have no effect on the set of file descriptors being watched, or the time
-waited. USe an \f(CW\*(C`ev_async\*(C'\fR watcher to wake up \f(CW\*(C`ev_loop\*(C'\fR when you want it
+waited. Use an \f(CW\*(C`ev_async\*(C'\fR watcher to wake up \f(CW\*(C`ev_loop\*(C'\fR when you want it
 to take note of any changes you made.
 .Sp
 In theory, threads executing \f(CW\*(C`ev_loop\*(C'\fR will be async-cancel safe between
@@ -1247,9 +1256,9 @@ Example: Initialise an \f(CW\*(C`ev_io\*(C'\fR watcher in two steps.
 \&   ev_init (&w, my_cb);
 \&   ev_io_set (&w, STDIN_FILENO, EV_READ);
 .Ve
-.ie n .IP """ev_TYPE_set"" (ev_TYPE *, [args])" 4
-.el .IP "\f(CWev_TYPE_set\fR (ev_TYPE *, [args])" 4
-.IX Item "ev_TYPE_set (ev_TYPE *, [args])"
+.ie n .IP """ev_TYPE_set"" (ev_TYPE *watcher, [args])" 4
+.el .IP "\f(CWev_TYPE_set\fR (ev_TYPE *watcher, [args])" 4
+.IX Item "ev_TYPE_set (ev_TYPE *watcher, [args])"
 This macro initialises the type-specific parts of a watcher. You need to
 call \f(CW\*(C`ev_init\*(C'\fR at least once before you call this macro, but you can
 call \f(CW\*(C`ev_TYPE_set\*(C'\fR any number of times. You must not, however, call this
@@ -1272,9 +1281,9 @@ Example: Initialise and set an \f(CW\*(C`ev_io\*(C'\fR watcher in one step.
 .Vb 1
 \&   ev_io_init (&w, my_cb, STDIN_FILENO, EV_READ);
 .Ve
-.ie n .IP """ev_TYPE_start"" (loop *, ev_TYPE *watcher)" 4
-.el .IP "\f(CWev_TYPE_start\fR (loop *, ev_TYPE *watcher)" 4
-.IX Item "ev_TYPE_start (loop *, ev_TYPE *watcher)"
+.ie n .IP """ev_TYPE_start"" (loop, ev_TYPE *watcher)" 4
+.el .IP "\f(CWev_TYPE_start\fR (loop, ev_TYPE *watcher)" 4
+.IX Item "ev_TYPE_start (loop, ev_TYPE *watcher)"
 Starts (activates) the given watcher. Only active watchers will receive
 events. If the watcher is already active nothing will happen.
 .Sp
@@ -1284,9 +1293,9 @@ whole section.
 .Vb 1
 \&   ev_io_start (EV_DEFAULT_UC, &w);
 .Ve
-.ie n .IP """ev_TYPE_stop"" (loop *, ev_TYPE *watcher)" 4
-.el .IP "\f(CWev_TYPE_stop\fR (loop *, ev_TYPE *watcher)" 4
-.IX Item "ev_TYPE_stop (loop *, ev_TYPE *watcher)"
+.ie n .IP """ev_TYPE_stop"" (loop, ev_TYPE *watcher)" 4
+.el .IP "\f(CWev_TYPE_stop\fR (loop, ev_TYPE *watcher)" 4
+.IX Item "ev_TYPE_stop (loop, ev_TYPE *watcher)"
 Stops the given watcher if active, and clears the pending status (whether
 the watcher was active or not).
 .Sp
@@ -1315,8 +1324,8 @@ Returns the callback currently set on the watcher.
 .IX Item "ev_cb_set (ev_TYPE *watcher, callback)"
 Change the callback. You can change the callback at virtually any time
 (modulo threads).
-.IP "ev_set_priority (ev_TYPE *watcher, priority)" 4
-.IX Item "ev_set_priority (ev_TYPE *watcher, priority)"
+.IP "ev_set_priority (ev_TYPE *watcher, int priority)" 4
+.IX Item "ev_set_priority (ev_TYPE *watcher, int priority)"
 .PD 0
 .IP "int ev_priority (ev_TYPE *watcher)" 4
 .IX Item "int ev_priority (ev_TYPE *watcher)"
@@ -1356,6 +1365,19 @@ watcher isn't pending it does nothing and returns \f(CW0\fR.
 .Sp
 Sometimes it can be useful to \*(L"poll\*(R" a watcher instead of waiting for its
 callback to be invoked, which can be accomplished with this function.
+.IP "ev_feed_event (loop, ev_TYPE *watcher, int revents)" 4
+.IX Item "ev_feed_event (loop, ev_TYPE *watcher, int revents)"
+Feeds the given event set into the event loop, as if the specified event
+had happened for the specified watcher (which must be a pointer to an
+initialised but not necessarily started event watcher). Obviously you must
+not free the watcher as long as it has pending events.
+.Sp
+Stopping the watcher, letting libev invoke it, or calling
+\&\f(CW\*(C`ev_clear_pending\*(C'\fR will clear the pending event, even if the watcher was
+not started in the first place.
+.Sp
+See also \f(CW\*(C`ev_feed_fd_event\*(C'\fR and \f(CW\*(C`ev_feed_signal_event\*(C'\fR for related
+functions that do not need a watcher.
 .SS "\s-1ASSOCIATING\s0 \s-1CUSTOM\s0 \s-1DATA\s0 \s-1WITH\s0 A \s-1WATCHER\s0"
 .IX Subsection "ASSOCIATING CUSTOM DATA WITH A WATCHER"
 Each watcher has, by default, a member \f(CW\*(C`void *data\*(C'\fR that you can change
@@ -1976,8 +1998,8 @@ If the timer is repeating, either start it if necessary (with the
 .Sp
 This sounds a bit complicated, see \*(L"Be smart about timeouts\*(R", above, for a
 usage example.
-.IP "ev_timer_remaining (loop, ev_timer *)" 4
-.IX Item "ev_timer_remaining (loop, ev_timer *)"
+.IP "ev_tstamp ev_timer_remaining (loop, ev_timer *)" 4
+.IX Item "ev_tstamp ev_timer_remaining (loop, ev_timer *)"
 Returns the remaining time until a timer fires. If the timer is active,
 then this time is relative to the current event loop time, otherwise it's
 the timeout value currently configured.
@@ -2251,16 +2273,41 @@ When the first watcher gets started will libev actually register something
 with the kernel (thus it coexists with your own signal handlers as long as
 you don't register any with libev for the same signal).
 .PP
-Both the signal mask state (\f(CW\*(C`sigprocmask\*(C'\fR) and the signal handler state
-(\f(CW\*(C`sigaction\*(C'\fR) are unspecified after starting a signal watcher (and after
-sotpping it again), that is, libev might or might not block the signal,
-and might or might not set or restore the installed signal handler.
-.PP
 If possible and supported, libev will install its handlers with
 \&\f(CW\*(C`SA_RESTART\*(C'\fR (or equivalent) behaviour enabled, so system calls should
 not be unduly interrupted. If you have a problem with system calls getting
 interrupted by signals you can block all signals in an \f(CW\*(C`ev_check\*(C'\fR watcher
 and unblock them in an \f(CW\*(C`ev_prepare\*(C'\fR watcher.
+.PP
+\fIThe special problem of inheritance over fork/execve/pthread_create\fR
+.IX Subsection "The special problem of inheritance over fork/execve/pthread_create"
+.PP
+Both the signal mask (\f(CW\*(C`sigprocmask\*(C'\fR) and the signal disposition
+(\f(CW\*(C`sigaction\*(C'\fR) are unspecified after starting a signal watcher (and after
+stopping it again), that is, libev might or might not block the signal,
+and might or might not set or restore the installed signal handler.
+.PP
+While this does not matter for the signal disposition (libev never
+sets signals to \f(CW\*(C`SIG_IGN\*(C'\fR, so handlers will be reset to \f(CW\*(C`SIG_DFL\*(C'\fR on
+\&\f(CW\*(C`execve\*(C'\fR), this matters for the signal mask: many programs do not expect
+certain signals to be blocked.
+.PP
+This means that before calling \f(CW\*(C`exec\*(C'\fR (from the child) you should reset
+the signal mask to whatever \*(L"default\*(R" you expect (all clear is a good
+choice usually).
+.PP
+The simplest way to ensure that the signal mask is reset in the child is
+to install a fork handler with \f(CW\*(C`pthread_atfork\*(C'\fR that resets it. That will
+catch fork calls done by libraries (such as the libc) as well.
+.PP
+In current versions of libev, the signal will not be blocked indefinitely
+unless you use the \f(CW\*(C`signalfd\*(C'\fR \s-1API\s0 (\f(CW\*(C`EV_SIGNALFD\*(C'\fR). While this reduces
+the window of opportunity for problems, it will not go away, as libev
+\&\fIhas\fR to modify the signal mask, at least temporarily.
+.PP
+So I can't stress this enough: \fIIf you do not reset your signal mask when
+you expect it to be empty, you have a race condition in your code\fR. This
+is not a libev-specific thing, this is true for most event libraries.
 .PP
 \fIWatcher-Specific Functions and Data Members\fR
 .IX Subsection "Watcher-Specific Functions and Data Members"
@@ -3087,7 +3134,8 @@ just the default loop.
 \&\f(CW\*(C`ev_async\*(C'\fR does not support queueing of data in any way. The reason
 is that the author does not know of a simple (or any) algorithm for a
 multiple-writer-single-reader queue that works in all cases and doesn't
-need elaborate support such as pthreads.
+need elaborate support such as pthreads or unportable memory access
+semantics.
 .PP
 That means that if you want to queue data, you have to provide your own
 queue. But at least I can tell you how to implement locking around your
@@ -3242,17 +3290,12 @@ Example: wait up to ten seconds for data to appear on \s-1STDIN_FILENO\s0.
 \&
 \&   ev_once (STDIN_FILENO, EV_READ, 10., stdin_ready, 0);
 .Ve
-.IP "ev_feed_event (struct ev_loop *, watcher *, int revents)" 4
-.IX Item "ev_feed_event (struct ev_loop *, watcher *, int revents)"
-Feeds the given event set into the event loop, as if the specified event
-had happened for the specified watcher (which must be a pointer to an
-initialised but not necessarily started event watcher).
-.IP "ev_feed_fd_event (struct ev_loop *, int fd, int revents)" 4
-.IX Item "ev_feed_fd_event (struct ev_loop *, int fd, int revents)"
+.IP "ev_feed_fd_event (loop, int fd, int revents)" 4
+.IX Item "ev_feed_fd_event (loop, int fd, int revents)"
 Feed an event on the given fd, as if a file descriptor backend detected
 the given events it.
-.IP "ev_feed_signal_event (struct ev_loop *loop, int signum)" 4
-.IX Item "ev_feed_signal_event (struct ev_loop *loop, int signum)"
+.IP "ev_feed_signal_event (loop, int signum)" 4
+.IX Item "ev_feed_signal_event (loop, int signum)"
 Feed an event as if the given signal occurred (\f(CW\*(C`loop\*(C'\fR must be the default
 loop!).
 .SH "LIBEVENT EMULATION"
@@ -3331,8 +3374,8 @@ All of those classes have these methods:
 .IP "ev::TYPE::TYPE ()" 4
 .IX Item "ev::TYPE::TYPE ()"
 .PD 0
-.IP "ev::TYPE::TYPE (struct ev_loop *)" 4
-.IX Item "ev::TYPE::TYPE (struct ev_loop *)"
+.IP "ev::TYPE::TYPE (loop)" 4
+.IX Item "ev::TYPE::TYPE (loop)"
 .IP "ev::TYPE::~TYPE" 4
 .IX Item "ev::TYPE::~TYPE"
 .PD
@@ -3421,8 +3464,8 @@ Example: Use a plain function as callback.
 \&   static void io_cb (ev::io &w, int revents) { }
 \&   iow.set <io_cb> ();
 .Ve
-.IP "w\->set (struct ev_loop *)" 4
-.IX Item "w->set (struct ev_loop *)"
+.IP "w\->set (loop)" 4
+.IX Item "w->set (loop)"
 Associates a different \f(CW\*(C`struct ev_loop\*(C'\fR with this watcher. You can only
 do this when the watcher is inactive (and not pending either).
 .IP "w\->set ([arguments])" 4
@@ -3771,13 +3814,25 @@ be used is the winsock select). This means that it will call
 \&\f(CW\*(C`_get_osfhandle\*(C'\fR on the fd to convert it to an \s-1OS\s0 handle. Otherwise,
 it is assumed that all these functions actually work on fds, even
 on win32. Should not be defined on non\-win32 platforms.
-.IP "\s-1EV_FD_TO_WIN32_HANDLE\s0" 4
-.IX Item "EV_FD_TO_WIN32_HANDLE"
+.IP "\s-1EV_FD_TO_WIN32_HANDLE\s0(fd)" 4
+.IX Item "EV_FD_TO_WIN32_HANDLE(fd)"
 If \f(CW\*(C`EV_SELECT_IS_WINSOCKET\*(C'\fR is enabled, then libev needs a way to map
 file descriptors to socket handles. When not defining this symbol (the
 default), then libev will call \f(CW\*(C`_get_osfhandle\*(C'\fR, which is usually
 correct. In some cases, programs use their own file descriptor management,
 in which case they can provide this function to map fds to socket handles.
+.IP "\s-1EV_WIN32_HANDLE_TO_FD\s0(handle)" 4
+.IX Item "EV_WIN32_HANDLE_TO_FD(handle)"
+If \f(CW\*(C`EV_SELECT_IS_WINSOCKET\*(C'\fR then libev maps handles to file descriptors
+using the standard \f(CW\*(C`_open_osfhandle\*(C'\fR function. For programs implementing
+their own fd to handle mapping, overwriting this function makes it easier
+to do so. This can be done by defining this macro to an appropriate value.
+.IP "\s-1EV_WIN32_CLOSE_FD\s0(fd)" 4
+.IX Item "EV_WIN32_CLOSE_FD(fd)"
+If programs implement their own fd to handle mapping on win32, then this
+macro can be used to override the \f(CW\*(C`close\*(C'\fR function, useful to unregister
+file descriptors again. Note that the replacement function has to close
+the underlying \s-1OS\s0 handle.
 .IP "\s-1EV_USE_POLL\s0" 4
 .IX Item "EV_USE_POLL"
 If defined to be \f(CW1\fR, libev will compile in support for the \f(CW\*(C`poll\*(C'\fR(2)

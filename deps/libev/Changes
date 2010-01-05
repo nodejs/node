@@ -1,6 +1,11 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
-TODO: somehow unblock procmask?
+3.9  Thu Dec 31 07:59:59 CET 2009
+	- signalfd is no longer used by default and has to be requested
+          explicitly - this means that easy to catch bugs become hard to
+          catch race conditions, but the users have spoken.
+        - point out the unspecified signal mask in the documentation, and
+          that this is a race condition regardless of EV_SIGNALFD.
 	- backport inotify code to C89.
         - inotify file descriptors could leak into child processes.
         - ev_stat watchers could keep an errornous extra ref on the loop,
@@ -10,13 +15,17 @@ TODO: somehow unblock procmask?
           symbols to make it easier for apps to do their own fd management.
         - support EV_IDLE_ENABLE being disabled in ev++.h
           (patch by Didier Spezia).
-        - point out the unspecified signal mask in the documentation.
         - take advantage of inotify_init1, if available, to set cloexec/nonblock
           on fd creation, to avoid races.
         - the signal handling pipe wasn't always initialised under windows
           (analysed by lekma).
         - changed minimum glibc requirement from glibc 2.9 to 2.7, for
           signalfd.
+        - add missing string.h include (Denis F. Latypoff).
+        - only replace ev_stat.prev when we detect an actual difference,
+          so prev is (almost) always different to attr. this might
+          have caused the probems with 04_stat.t.
+        - add ev::timer->remaining () method to C++ API.
 
 3.8  Sun Aug  9 14:30:45 CEST 2009
 	- incompatible change: do not necessarily reset signal handler
