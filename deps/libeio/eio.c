@@ -1,7 +1,7 @@
 /*
  * libeio implementation
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libeio@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libeio@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -82,11 +82,11 @@
 # include <dirent.h>
 
 /* POSIX_SOURCE is useless on bsd's, and XOPEN_SOURCE is unreliable there, too */
-# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+# if __freebsd || defined __NetBSD__ || defined __OpenBSD__
 #  define _DIRENT_HAVE_D_TYPE /* sigh */
 #  define D_INO(de) (de)->d_fileno
 #  define D_NAMLEN(de) (de)->d_namlen
-# elif defined(__linux) || defined(d_ino) || _XOPEN_SOURCE >= 600
+# elif __linux || defined d_ino || _XOPEN_SOURCE >= 600
 #  define D_INO(de) (de)->d_ino
 # endif
 
@@ -108,12 +108,12 @@
 #if HAVE_SENDFILE
 # if __linux
 #  include <sys/sendfile.h>
-# elif __freebsd
+# elif __freebsd || defined __APPLE__
 #  include <sys/socket.h>
 #  include <sys/uio.h>
 # elif __hpux
 #  include <sys/socket.h>
-# elif __solaris /* not yet */
+# elif __solaris
 #  include <sys/sendfile.h>
 # else
 #  error sendfile support requested but not available
@@ -198,7 +198,7 @@ static void eio_execute (struct etp_worker *self, eio_req *req);
 
 #define ETP_NUM_PRI (ETP_PRI_MAX - ETP_PRI_MIN + 1)
 
-/* calculcate time difference in ~1/EIO_TICKS of a second */
+/* calculate time difference in ~1/EIO_TICKS of a second */
 static int tvdiff (struct timeval *tv1, struct timeval *tv2)
 {
   return  (tv2->tv_sec  - tv1->tv_sec ) * EIO_TICKS
@@ -600,7 +600,7 @@ static void etp_submit (ETP_REQ *req)
 static void etp_set_max_poll_time (double nseconds)
 {
   if (WORDACCESS_UNSAFE) X_LOCK   (reslock);
-  max_poll_time = nseconds;
+  max_poll_time = nseconds * EIO_TICKS;
   if (WORDACCESS_UNSAFE) X_UNLOCK (reslock);
 }
 
@@ -925,6 +925,16 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
       res = sbytes;
   }
 
+# elif defined (__APPLE__)
+
+  {
+    off_t sbytes = count;
+    res = sendfile (ifd, ofd, offset, &sbytes, 0, 0);
+
+    if (res < 0 && errno == EAGAIN && sbytes)
+      res = sbytes;
+  }
+
 # elif __hpux
   res = sendfile (ofd, ifd, offset, count, 0, 0);
 
@@ -945,6 +955,16 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
   }
 
 # endif
+
+#elif defined (_WIN32)
+
+  /* does not work, just for documentation of what would need to be done */
+  {
+    HANDLE h = TO_SOCKET (ifd);
+    SetFilePointer (h, offset, 0, FILE_BEGIN);
+    res = TransmitFile (TO_SOCKET (ofd), h, count, 0, 0, 0, 0);
+  }
+
 #else
   res = -1;
   errno = ENOSYS;
@@ -952,6 +972,11 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
 
   if (res <  0
       && (errno == ENOSYS || errno == EINVAL || errno == ENOTSOCK
+          /* BSDs */
+#ifdef ENOTSUP /* sigh, if the steenking pile called openbsd would only try to at least compile posix code... */
+          || errno == ENOTSUP
+#endif
+          || errno == EOPNOTSUPP /* BSDs */
 #if __solaris
           || errno == EAFNOSUPPORT || errno == EPROTOTYPE
 #endif
@@ -1355,8 +1380,25 @@ eio__scandir (eio_req *req, etp_worker *self)
 }
 
 #if !(_POSIX_MAPPED_FILES && _POSIX_SYNCHRONIZED_IO)
-# undef msync
-# define msync(a,b,c) ((errno = ENOSYS), -1)
+# define eio__msync(a,b,c) ((errno = ENOSYS), -1)
+#else
+
+int
+eio__msync (void *mem, size_t len, int flags)
+{
+  if (EIO_MS_ASYNC         != MS_SYNC
+      || EIO_MS_INVALIDATE != MS_INVALIDATE
+      || EIO_MS_SYNC       != MS_SYNC)
+    {
+      flags = 0
+         | (flags & EIO_MS_ASYNC      ? MS_ASYNC : 0)
+         | (flags & EIO_MS_INVALIDATE ? MS_INVALIDATE : 0)
+         | (flags & EIO_MS_SYNC       ? MS_SYNC : 0);
+    }
+
+  return msync (mem, len, flags);
+}
+
 #endif
 
 int
@@ -1373,10 +1415,11 @@ eio__mtouch (void *mem, size_t len, int flags)
     page = sysconf (_SC_PAGESIZE);
 #endif
 
+  /* round down to start of page, although this is probably useless */
   addr &= ~(page - 1); /* assume page size is always a power of two */
 
   if (addr < end)
-    if (flags) /* modify */
+    if (flags & EIO_MT_MODIFY) /* modify */
       do { *((volatile sig_atomic_t *)addr) |= 0; } while ((addr += page) < len);
     else
       do { *((volatile sig_atomic_t *)addr)     ; } while ((addr += page) < len);
@@ -1558,7 +1601,7 @@ static void eio_execute (etp_worker *self, eio_req *req)
       case EIO_SYNC:      req->result = 0; sync (); break;
       case EIO_FSYNC:     req->result = fsync     (req->int1); break;
       case EIO_FDATASYNC: req->result = fdatasync (req->int1); break;
-      case EIO_MSYNC:     req->result = msync (req->ptr2, req->size, req->int1); break;
+      case EIO_MSYNC:     req->result = eio__msync (req->ptr2, req->size, req->int1); break;
       case EIO_MTOUCH:    req->result = eio__mtouch (req->ptr2, req->size, req->int1); break;
       case EIO_SYNC_FILE_RANGE: req->result = eio__sync_file_range (req->int1, req->offs, req->size, req->int2); break;
 

@@ -1,6 +1,6 @@
 Revision history for libeio
 
-TODO: maybe add mincore support? available on at leats darwin, solaris, linux, freebsd
+TODO: maybe add mincore support? available on at least darwin, solaris, linux, freebsd
 
 1.0
         - readdir: correctly handle malloc failures.
@@ -16,4 +16,9 @@ TODO: maybe add mincore support? available on at leats darwin, solaris, linux, f
         - fixed custom support.
         - use a more robust feed-add detection method.
 	- "outbundled" from IO::AIO.
+        - eio_set_max_polltime did not properly convert time to ticks.
+        - tentatively support darwin in sendfile.
+        - also use sendfile emulation for ENOTSUP and EOPNOTSUPP
+          error codes.
+        - add OS-independent EIO_MT_* and EIO_MS_* flag enums.
 

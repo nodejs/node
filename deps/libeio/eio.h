@@ -1,7 +1,7 @@
 /*
  * libeio API header
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libeio@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libeio@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -100,6 +100,19 @@ struct eio_dirent {
   unsigned char type; /* one of EIO_DT_* */
   signed char score; /* internal use */
   ino_t inode; /* the inode number, if available, otherwise unspecified */
+};
+
+/* eio_msync flags */
+enum {
+  EIO_MS_ASYNC      = 1,
+  EIO_MS_INVALIDATE = 2,
+  EIO_MS_SYNC       = 4
+};
+
+/* eio_mtouch flags */
+
+enum {
+  EIO_MT_MODIFY     = 1
 };
 
 /* eio_sync_file_range flags */
