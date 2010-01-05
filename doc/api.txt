@@ -818,8 +818,8 @@ The request method as a string. Read only. Example:
 +"GET"+, +"DELETE"+.
 
 
-+request.uri+ ::
-Request URI Object. This contains only the parameters that are
++request.url+ ::
+Request URL string. This contains only the URL that is
 present in the actual HTTP request. If the request is
 +
 ----------------------------------------
@@ -828,16 +828,41 @@ Accept: text/plain\r\n
 \r\n
 ----------------------------------------
 +
-Then +request.uri+ will be
+Then +request.url+ will be
 +
 ----------------------------------------
-{ full: "/status?name=ryan",
-  path: "/status",
-  queryString: "name=ryan",
-  params: { "name": "ryan" },
-  fragment: ""
+"/status?name=ryan"
+----------------------------------------
++
+If you would like to parse the URL into its parts, you can use
++require("url").parse(request.url)+.  Example:
++
+----------------------------------------
+node> require("url").parse("/status?name=ryan")
+{
+ "href": "/status?name=ryan",
+ "search": "?name=ryan",
+ "query": "name=ryan",
+ "pathname": "/status"
 }
 ----------------------------------------
++
+If you would like to extract the params from the query string,
+you can use the +require("querystring").parse+ function, or pass
++true+ as the second argument to +require("url").parse+.  Example:
++
+----------------------------------------
+node> require("url").parse("/status?name=ryan", true)
+{
+ "href": "/status?name=ryan",
+ "search": "?name=ryan",
+ "query": {
+  "name": "ryan"
+ },
+ "pathname": "/status"
+}
+----------------------------------------
++
 
 
 +request.headers+ ::

@@ -1,12 +1,13 @@
 process.mixin(require("./common"));
 http = require("http");
+url = require("url");
 PORT = 8888;
 
 var body1_s = "1111111111111111";
 var body2_s = "22222";
 
 var server = http.createServer(function (req, res) {
-  var body = req.uri.path === "/1" ? body1_s : body2_s;
+  var body = url.parse(req.url).pathname === "/1" ? body1_s : body2_s;
   res.sendHeader(200, { "Content-Type": "text/plain"
                       , "Content-Length": body.length
                       });
