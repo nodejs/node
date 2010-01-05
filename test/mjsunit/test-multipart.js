@@ -12,7 +12,7 @@ var badRequests = 0;
 var parts = {};
 var respond = function(res, text) {
   requests++;
-  if (requests == 3) {
+  if (requests == 4) {
     server.close();
   }
 
@@ -29,6 +29,7 @@ var server = http.createServer(function(req, res) {
       })
       .addErrback(function() {
         badRequests++;
+        respond(res, 'no thanks');
       });
     return;
   }
@@ -88,9 +89,13 @@ var badRequest = client.request('POST', '/', {'Content-Type': 'something', 'Cont
 badRequest.sendBody(fixture.reply, 'binary');
 badRequest.finish();
 
+var simpleBadRequest = client.request('POST', '/', {'X-Use-Simple-Api': 'yes', 'Content-Type': 'something', 'Content-Length': fixture.reply.length});
+simpleBadRequest.sendBody(fixture.reply, 'binary');
+simpleBadRequest.finish();
+
 process.addListener('exit', function() {
   puts("done");
   assert.equal(2, parts_complete);
   assert.equal(2, parts_reveived);
-  assert.equal(1, badRequests);
+  assert.equal(2, badRequests);
 });
