@@ -60,6 +60,52 @@ static Persistent<String> emit_symbol;
 static int dash_dash_index = 0;
 static bool use_debug_agent = false;
 
+
+static ev_async eio_want_poll_notifier;
+static ev_async eio_done_poll_notifier;
+static ev_idle  eio_poller;
+
+
+static void DoPoll(EV_P_ ev_idle *watcher, int revents) {
+  assert(watcher == &eio_poller);
+  assert(revents == EV_IDLE);
+
+  if (eio_poll() != -1) ev_idle_stop(EV_DEFAULT_UC_ watcher);
+}
+
+
+// Called from the main thread.
+static void WantPollNotifier(EV_P_ ev_async *watcher, int revents) {
+  assert(watcher == &eio_want_poll_notifier);
+  assert(revents == EV_ASYNC);
+
+  if (eio_poll() == -1) ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+}
+
+
+static void DonePollNotifier(EV_P_ ev_async *watcher, int revents) {
+  assert(watcher == &eio_done_poll_notifier);
+  assert(revents == EV_ASYNC);
+
+  ev_idle_stop(EV_DEFAULT_UC_ &eio_poller);
+}
+
+
+// EIOWantPoll() is called from the EIO thread pool each time an EIO
+// request (that is, one of the node.fs.* functions) has completed.
+static void EIOWantPoll(void) {
+  // Signal the main thread that eio_poll need to be processed.
+  ev_async_send(EV_DEFAULT_UC_ &eio_want_poll_notifier);
+}
+
+
+static void EIODonePoll(void) {
+  // Signal the main thread that we should stop calling eio_poll().
+  // from the idle watcher.
+  ev_async_send(EV_DEFAULT_UC_ &eio_done_poll_notifier);
+}
+
+
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope;
 
@@ -336,6 +382,9 @@ static Handle<Value> ByteLength(const Arguments& args) {
 
 static Handle<Value> Loop(const Arguments& args) {
   HandleScope scope;
+
+  if (eio_poll() == -1) ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+
   ev_loop(EV_DEFAULT_UC_ 0);
   return Undefined();
 }
@@ -713,27 +762,6 @@ void FatalException(TryCatch &try_catch) {
   uncaught_exception_counter--;
 }
 
-static ev_async eio_watcher;
-
-// Called from the main thread.
-static void EIOCallback(EV_P_ ev_async *watcher, int revents) {
-  assert(watcher == &eio_watcher);
-  assert(revents == EV_ASYNC);
-  // Give control to EIO to process responses. In nearly every case
-  // EIOPromise::After() (file.cc) is called once EIO receives the response.
-  if (-1 == eio_poll() && !ev_async_pending(&eio_watcher)) {
-    ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
-  }
-}
-
-// EIOWantPoll() is called from the EIO thread pool each time an EIO
-// request (that is, one of the node.fs.* functions) has completed.
-static void EIOWantPoll(void) {
-  // Signal the main thread that EIO callbacks need to be processed.
-  ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
-  // EIOCallback() will be called from the main thread in the next event
-  // loop.
-}
 
 static ev_async debug_watcher;
 
@@ -943,21 +971,23 @@ int main(int argc, char *argv[]) {
   // Initialize the default ev loop.
   ev_default_loop(EVFLAG_AUTO);
 
-  // Start the EIO thread pool:
-  // 1. Initialize the ev_async watcher which allows for notification from
-  // the thread pool (in node::EIOWantPoll) to poll for updates (in
-  // node::EIOCallback).
-  ev_async_init(&node::eio_watcher, node::EIOCallback);
-  // 2. Actaully start the thread pool.
-  eio_init(node::EIOWantPoll, NULL);
-  // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
-  // race conditions. See test/mjsunit/test-eio-race.js
-  eio_set_max_poll_reqs(10);
-  // 3. Start watcher.
-  ev_async_start(EV_DEFAULT_UC_ &node::eio_watcher);
-  // 4. Remove a reference to the async watcher. This means we'll drop out
-  // of the ev_loop even though eio_watcher is active.
-  ev_unref(EV_DEFAULT_UC);
+  // Setup the EIO thread pool
+  { // It requires 3, yes 3, watchers.
+    ev_idle_init(&node::eio_poller, node::DoPoll);
+
+    ev_async_init(&node::eio_want_poll_notifier, node::WantPollNotifier);
+    ev_async_start(EV_DEFAULT_UC_ &node::eio_want_poll_notifier);
+    ev_unref(EV_DEFAULT_UC);
+
+    ev_async_init(&node::eio_done_poll_notifier, node::DonePollNotifier);
+    ev_async_start(EV_DEFAULT_UC_ &node::eio_done_poll_notifier);
+    ev_unref(EV_DEFAULT_UC);
+
+    eio_init(node::EIOWantPoll, node::EIODonePoll);
+    // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
+    // race conditions. See test/mjsunit/test-eio-race.js
+    eio_set_max_poll_reqs(10);
+  }
 
   V8::Initialize();
   HandleScope handle_scope;
