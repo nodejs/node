@@ -383,7 +383,9 @@ static Handle<Value> ByteLength(const Arguments& args) {
 static Handle<Value> Loop(const Arguments& args) {
   HandleScope scope;
 
-  if (eio_poll() == -1) ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+  // TODO Probably don't need to start this each time.
+  // Avoids failing on test/mjsunit/test-eio-race3.js though
+  ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
 
   ev_loop(EV_DEFAULT_UC_ 0);
   return Undefined();
