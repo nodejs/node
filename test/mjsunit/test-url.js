@@ -176,6 +176,27 @@ for (var u in parseTests) {
   assert.equal(expected, actual, "format("+u+") == "+u+"\nactual:"+actual);
 }
 
+var parseTestsWithQueryString = {
+  "/foo/bar?baz=quux#frag" : {
+   "href": "/foo/bar?baz=quux#frag",
+   "hash": "#frag",
+   "search": "?baz=quux",
+   "query": {
+     "baz": "quux"
+   },
+   "pathname": "/foo/bar"
+  },
+};
+for (var u in parseTestsWithQueryString) {
+  var actual = url.parse(u,true);
+  var expected = parseTestsWithQueryString[u];
+  for (var i in expected) {
+    var e = JSON.stringify(expected[i]),
+      a = JSON.stringify(actual[i]);
+    assert.equal(e, a, "parse(" + u + ")."+i+" == "+e+"\nactual: "+a);
+  }
+}
+
 // some extra formatting tests, just to verify that it'll format slightly wonky content to a valid url.
 var formatTests = {
   "http://a.com/a/b/c?s#h" : {
