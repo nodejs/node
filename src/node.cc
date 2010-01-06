@@ -721,7 +721,9 @@ static void EIOCallback(EV_P_ ev_async *watcher, int revents) {
   assert(revents == EV_ASYNC);
   // Give control to EIO to process responses. In nearly every case
   // EIOPromise::After() (file.cc) is called once EIO receives the response.
-  eio_poll();
+  if (-1 == eio_poll() && !ev_async_pending(&eio_watcher)) {
+    ev_async_send(EV_DEFAULT_UC_ &eio_watcher);
+  }
 }
 
 // EIOWantPoll() is called from the EIO thread pool each time an EIO
