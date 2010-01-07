@@ -457,6 +457,44 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   return Undefined();
 }
 
+
+#ifdef __FreeBSD__
+#define HAVE_GETMEM 1
+#include <kvm.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int getmem(size_t *rss, size_t *vsize) {
+  kvm_t *kd = NULL;
+  struct kinfo_proc *kinfo = NULL;
+  pid_t pid;
+  int nprocs;
+
+  pid = getpid();
+
+  kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open");
+  if (kd == NULL) goto error;
+
+  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
+  if (kinfo == NULL) goto error;
+
+  *rss = kinfo->ki_rssize * PAGE_SIZE;
+  *vsize = kinfo->ki_size;
+
+  kvm_close(kd);
+
+  return 0;
+
+error:
+  if (kd) kvm_close(kd);
+  return -1;
+}
+#endif  // __FreeBSD__
+
+
 #ifdef __APPLE__
 #define HAVE_GETMEM 1
 /* Researched by Tim Becker and Michael Knight

@@ -109,6 +109,9 @@ def configure(conf):
   conf.env.append_value("CCFLAGS", "-rdynamic")
   conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
+  if sys.platform.startswith("freebsd"):
+    conf.check(lib='kvm', uselib_store='KVM')
+
   #if Options.options.debug:
   #  conf.check(lib='profiler', uselib_store='PROFILER')
 
@@ -127,7 +130,7 @@ def configure(conf):
                     #libpath=['/usr/lib', '/usr/local/lib'],
                     uselib_store='GNUTLS'):
     if conf.check(lib='gpg-error',
-                  #libpath=['/usr/lib', '/usr/local/lib'],
+                  libpath=['/usr/lib', '/usr/local/lib'],
                   uselib_store='GPGERROR'):
       conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
       conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
@@ -346,7 +349,7 @@ def build(bld):
   """
   node.add_objects = 'ev eio evcom http_parser coupling'
   node.uselib_local = ''
-  node.uselib = 'UDNS V8 EXECINFO DL GPGERROR GNUTLS'
+  node.uselib = 'UDNS V8 EXECINFO DL KVM GPGERROR GNUTLS'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
