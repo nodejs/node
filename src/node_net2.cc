@@ -41,6 +41,9 @@ static Persistent<String> remote_address_symbol;
 static Persistent<String> remote_port_symbol;
 static Persistent<String> address_symbol;
 static Persistent<String> port_symbol;
+static Persistent<String> type_symbol;
+static Persistent<String> tcp_symbol;
+static Persistent<String> unix_symbol;
 
 #define FD_ARG(a)                                                     \
   if (!(a)->IsInt32()) {                                              \
@@ -181,7 +184,7 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
     strcpy(un.sun_path, *path);
 
     addr = (struct sockaddr*)&un;
-    addrlen = path.length() + sizeof(un.sun_family);
+    addrlen = path.length() + sizeof(un.sun_family) + 1;
 
   } else {
     // TCP or UDP
@@ -326,7 +329,6 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
-
 static Handle<Value> GetSockName(const Arguments& args) {
   HandleScope scope;
 
@@ -353,6 +355,37 @@ static Handle<Value> GetSockName(const Arguments& args) {
 
     info->Set(address_symbol, String::New(ip));
     info->Set(port_symbol, Integer::New(port));
+  }
+
+  return scope.Close(info);
+}
+
+static Handle<Value> GetPeerName(const Arguments& args) {
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  struct sockaddr_storage address_storage;
+  socklen_t len = sizeof(struct sockaddr_storage);
+
+  int r = getpeername(fd, (struct sockaddr *) &address_storage, &len);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "getsockname"));
+  }
+
+  Local<Object> info = Object::New();
+
+  if (address_storage.ss_family == AF_INET6) {
+    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
+
+    char ip[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
+
+    int port = ntohs(a->sin6_port);
+
+    info->Set(remote_address_symbol, String::New(ip));
+    info->Set(remote_port_symbol, Integer::New(port));
   }
 
   return scope.Close(info);
@@ -484,6 +517,78 @@ static Handle<Value> Read(const Arguments& args) {
   return scope.Close(Integer::New(bytes_read));
 }
 
+// bytesRead, receivedFd = t.recvMsg(fd, buffer, offset, length)
+static Handle<Value> RecvMsg(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 4) {
+    return ThrowException(Exception::TypeError(
+          String::New("Takes 4 parameters")));
+  }
+
+  FD_ARG(args[0])
+
+  if (!IsBuffer(args[1])) { 
+    return ThrowException(Exception::TypeError(
+          String::New("Second argument should be a buffer")));
+  }
+
+  struct buffer * buffer = BufferUnwrap(args[1]);
+
+  size_t off = args[2]->Int32Value();
+  if (buffer_p(buffer, off) == NULL) {
+    return ThrowException(Exception::Error(
+          String::New("Offset is out of bounds")));
+  }
+
+  size_t len = args[3]->Int32Value();
+  if (buffer_remaining(buffer, off) < len) {
+    return ThrowException(Exception::Error(
+          String::New("Length is extends beyond buffer")));
+  }
+
+  struct iovec iov[1];
+  struct msghdr msg;
+  int received_fd;
+  char control_msg[CMSG_SPACE(sizeof(received_fd))];
+  struct cmsghdr *cmsg;
+
+  // TODO: zero out control_msg ?
+
+  iov[0].iov_base = buffer_p(buffer, off);
+  iov[0].iov_len = buffer_remaining(buffer, off);
+  msg.msg_iov = iov;
+  msg.msg_iovlen = 1;
+  msg.msg_name = NULL;
+  msg.msg_namelen = 0;
+  /* Set up to receive a descriptor even if one isn't in the message */
+  msg.msg_control = (void *) control_msg;
+  msg.msg_controllen = CMSG_LEN(sizeof(received_fd));
+
+  ssize_t bytes_read = recvmsg(fd, &msg, 0);
+
+  if (bytes_read < 0) {
+    if (errno == EAGAIN || errno == EINTR) return Null();
+    return ThrowException(ErrnoException(errno, "recvMsg"));
+  }
+
+  // Return array of [bytesRead, fd] with fd == -1 if there was no FD
+  Local<Array> a = Array::New(2);
+  a->Set(Integer::New(0), Integer::New(bytes_read));
+
+  cmsg = CMSG_FIRSTHDR(&msg);
+  if (cmsg->cmsg_type == SCM_RIGHTS) {
+    received_fd = *(int *) CMSG_DATA(cmsg);
+  }
+  else {
+    received_fd = -1;
+  }
+
+  a->Set(Integer::New(1), Integer::New(received_fd));
+  return scope.Close(a);
+}
+
+
 //  var bytesWritten = t.write(fd, buffer, offset, length);
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
 static Handle<Value> Write(const Arguments& args) {
@@ -527,6 +632,60 @@ static Handle<Value> Write(const Arguments& args) {
   return scope.Close(Integer::New(written));
 }
 
+// var bytesWritten = t.sendFD(self.fd)
+//  returns null on EAGAIN or EINTR, raises an exception on all other errors
+static Handle<Value> SendFD(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 2) {
+    return ThrowException(Exception::TypeError(
+          String::New("Takes 2 parameters")));
+  }
+
+  FD_ARG(args[0])
+
+  // TODO: make sure fd is a unix domain socket?
+
+  if (!args[1]->IsInt32()) {
+    return ThrowException(Exception::TypeError(
+          String::New("FD to send is not an integer")));
+  }
+
+  int fd_to_send = args[1]->Int32Value();
+
+  struct msghdr msg;
+  struct iovec iov[1];
+  char control_msg[CMSG_SPACE(sizeof(fd_to_send))];
+  struct cmsghdr *cmsg;
+  char *dummy = "d"; // Need to send at least a byte of data in the message
+
+  iov[0].iov_base = dummy;
+  iov[0].iov_len = 1;
+  msg.msg_iov = iov;
+  msg.msg_iovlen = 1;
+  msg.msg_name = NULL;
+  msg.msg_namelen = 0;
+  msg.msg_flags = 0;
+  msg.msg_control = (void *) control_msg;
+  cmsg = CMSG_FIRSTHDR(&msg);
+  cmsg->cmsg_level = SOL_SOCKET;
+  cmsg->cmsg_type = SCM_RIGHTS;
+  cmsg->cmsg_len = CMSG_LEN(sizeof(fd_to_send));
+  *(int*) CMSG_DATA(cmsg) = fd_to_send;
+  msg.msg_controllen = cmsg->cmsg_len;
+
+  ssize_t written = sendmsg(fd, &msg, 0);
+
+  if (written < 0) {
+    if (errno == EAGAIN || errno == EINTR) return Null();
+    return ThrowException(ErrnoException(errno, "sendmsg"));
+  }
+
+  /* Note that the FD isn't explicitly closed here, this
+   * happens in the JS */
+
+  return scope.Close(Integer::New(written));
+}
 
 // Probably only works for Linux TCP sockets?
 // Returns the amount of data on the read queue.
@@ -744,6 +903,9 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
   NODE_SET_METHOD(target, "read", Read);
 
+  NODE_SET_METHOD(target, "sendFD", SendFD);
+  NODE_SET_METHOD(target, "recvMsg", RecvMsg);
+
   NODE_SET_METHOD(target, "socket", Socket);
   NODE_SET_METHOD(target, "close", Close);
   NODE_SET_METHOD(target, "shutdown", Shutdown);
@@ -757,7 +919,8 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
-  NODE_SET_METHOD(target, "getsocksame", GetSockName);
+  NODE_SET_METHOD(target, "getsockname", GetSockName);
+  NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
 
