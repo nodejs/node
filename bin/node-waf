@@ -12,6 +12,6 @@ t = join(w, 'Tools')
 sys.path = [w, t] + sys.path
 
 import Scripting
-VERSION="1.5.9"
+VERSION="1.5.10"
 Scripting.prepare(t, os.getcwd(), VERSION, wafdir)
 sys.exit(0)
