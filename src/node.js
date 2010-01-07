@@ -675,6 +675,23 @@ var posixModule = createInternalModule("posix", function (exports) {
     });
     return promise;
   };
+
+  exports.catSync = function (path, encoding) {
+    encoding = encoding || "utf8"; // default to utf8
+
+    var
+      fd = exports.openSync(path, process.O_RDONLY, 0666),
+      content = '',
+      pos = 0,
+      r;
+
+    while ((r = exports.readSync(fd, 16*1024, pos, encoding)) && r[0]) {
+      content += r[0];
+      pos += r[1]
+    }
+
+    return content;
+  };
 });
 
 var posix = posixModule.exports;
