@@ -20,6 +20,11 @@ static ev_io io_watcher;
 static ev_timer timer_watcher;
 
 static Persistent<String> errno_symbol;
+static Persistent<String> exchange_symbol;
+static Persistent<String> priority_symbol;
+static Persistent<String> weight_symbol;
+static Persistent<String> port_symbol;
+static Persistent<String> name_symbol;
 
 static inline Persistent<Function>* cb_persist(const Local<Value> &v) {
   Persistent<Function> *fn = new Persistent<Function>();
@@ -174,6 +179,145 @@ static void AfterResolveA6(struct dns_ctx *ctx,
   cb_destroy(cb);
 }
 
+static void AfterResolveMX(struct dns_ctx *ctx,
+                           struct dns_rr_mx *result,
+                           void *data) {
+  assert(ctx == &dns_defctx);
+
+  HandleScope scope;
+
+  Persistent<Function> *cb = cb_unwrap(data);
+
+  if (result == NULL) {
+    ResolveError(cb);
+    cb_destroy(cb);
+    return;
+  }
+
+  /* canonical name */
+  Local<String> cname = String::New(result->dnsmx_cname);
+
+  /* Time-To-Live (TTL) value */
+  Local<Integer> ttl = Integer::New(result->dnsmx_ttl);
+
+  Local<Array> exchanges = Array::New(result->dnsmx_nrr);
+  for (int i = 0; i < result->dnsmx_nrr; i++) {
+    HandleScope loop_scope;
+
+    Local<Object> exchange = Object::New();
+
+    struct dns_mx *mx = &(result->dnsmx_mx[i]);
+    exchange->Set(exchange_symbol, String::New(mx->name));
+    exchange->Set(priority_symbol, Integer::New(mx->priority));
+
+    exchanges->Set(Integer::New(i), exchange);
+  }
+
+  Local<Value> argv[3] = { exchanges, ttl, cname };
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
+}
+
+static void AfterResolveTXT(struct dns_ctx *ctx,
+                            struct dns_rr_txt *result,
+                            void *data) {
+  assert(ctx == &dns_defctx);
+
+  HandleScope scope;
+
+  Persistent<Function> *cb = cb_unwrap(data);
+
+  if (result == NULL) {
+    ResolveError(cb);
+    cb_destroy(cb);
+    return;
+  }
+
+  /* canonical name */
+  Local<String> cname = String::New(result->dnstxt_cname);
+
+  /* Time-To-Live (TTL) value */
+  Local<Integer> ttl = Integer::New(result->dnstxt_ttl);
+
+  Local<Array> records = Array::New(result->dnstxt_nrr);
+  for (int i = 0; i < result->dnstxt_nrr; i++) {
+    HandleScope loop_scope;
+
+    struct dns_txt *record = &(result->dnstxt_txt[i]);
+    const char *txt = (const char *)record->txt;
+    records->Set(Integer::New(i), String::New(txt));
+  }
+  
+  Local<Value> argv[3] = { records, ttl, cname };
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
+}
+
+static void AfterResolveSRV(struct dns_ctx *ctx,
+                            struct dns_rr_srv *result,
+                            void *data) {
+  assert(ctx == &dns_defctx);
+
+  HandleScope scope;
+
+  Persistent<Function> *cb = cb_unwrap(data);
+
+  if (result == NULL) {
+    ResolveError(cb);
+    cb_destroy(cb);
+    return;
+  }
+
+  /* canonical name */
+  Local<String> cname = String::New(result->dnssrv_cname);
+
+  /* Time-To-Live (TTL) value */
+  Local<Integer> ttl = Integer::New(result->dnssrv_ttl);
+
+  Local<Array> records = Array::New(result->dnssrv_nrr);
+  for (int i = 0; i < result->dnssrv_nrr; i++) {
+    HandleScope loop_scope;
+
+    Local<Object> record = Object::New();
+
+    struct dns_srv *srv = &(result->dnssrv_srv[i]);
+    record->Set(priority_symbol, Integer::New(srv->priority));
+    record->Set(weight_symbol, Integer::New(srv->weight));
+    record->Set(port_symbol, Integer::New(srv->port));
+    record->Set(name_symbol, String::New(srv->name));
+
+    records->Set(Integer::New(i), record);
+  }
+
+  Local<Value> argv[3] = { records, ttl, cname };
+
+  TryCatch try_catch;
+
+  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  cb_destroy(cb);
+}
+
 static Handle<Value> ResolveA(int type, const Arguments& args) {
   HandleScope scope;
 
@@ -194,6 +338,18 @@ static Handle<Value> ResolveA(int type, const Arguments& args) {
       query = dns_submit_a6(NULL, *name, 0, AfterResolveA6, cb_persist(args[1]));
       break;
 
+    case DNS_T_MX:
+      query = dns_submit_mx(NULL, *name, 0, AfterResolveMX, cb_persist(args[1]));
+      break;
+
+    case DNS_T_TXT:
+      query = dns_submit_txt(NULL, *name, DNS_C_IN, 0, AfterResolveTXT, cb_persist(args[1]));
+      break;
+
+    case DNS_T_SRV:
+      query = dns_submit_srv(NULL, *name, NULL, NULL, 0, AfterResolveSRV, cb_persist(args[1]));
+      break;
+
     default:
       return ThrowException(Exception::Error(String::New("Unsupported type")));
   }
@@ -211,6 +367,18 @@ static Handle<Value> ResolveA4(const Arguments& args) {
 
 static Handle<Value> ResolveA6(const Arguments& args) {
   return ResolveA(DNS_T_AAAA, args);
+}
+
+static Handle<Value> ResolveMX(const Arguments& args) {
+  return ResolveA(DNS_T_MX, args);
+}
+
+static Handle<Value> ResolveTXT(const Arguments& args) {
+  return ResolveA(DNS_T_TXT, args);
+}
+
+static Handle<Value> ResolveSRV(const Arguments& args) {
+  return ResolveA(DNS_T_SRV, args);
 }
 
 static void AfterReverse(struct dns_ctx *ctx,
@@ -312,6 +480,12 @@ void DNS::Initialize(Handle<Object> target) {
 
   errno_symbol = NODE_PSYMBOL("errno");
 
+  exchange_symbol = NODE_PSYMBOL("exchange");
+  priority_symbol = NODE_PSYMBOL("priority");
+  weight_symbol = NODE_PSYMBOL("weight");
+  port_symbol = NODE_PSYMBOL("port");
+  name_symbol = NODE_PSYMBOL("name");
+
   target->Set(String::NewSymbol("TEMPFAIL"), Integer::New(DNS_E_TEMPFAIL));
   target->Set(String::NewSymbol("PROTOCOL"), Integer::New(DNS_E_PROTOCOL));
   target->Set(String::NewSymbol("NXDOMAIN"), Integer::New(DNS_E_NXDOMAIN));
@@ -324,6 +498,15 @@ void DNS::Initialize(Handle<Object> target) {
 
   Local<FunctionTemplate> resolve6 = FunctionTemplate::New(ResolveA6);
   target->Set(String::NewSymbol("resolve6"), resolve6->GetFunction());
+
+  Local<FunctionTemplate> resolveMx = FunctionTemplate::New(ResolveMX);
+  target->Set(String::NewSymbol("resolveMx"), resolveMx->GetFunction());
+
+  Local<FunctionTemplate> resolveTxt = FunctionTemplate::New(ResolveTXT);
+  target->Set(String::NewSymbol("resolveTxt"), resolveTxt->GetFunction());
+
+  Local<FunctionTemplate> resolveSrv = FunctionTemplate::New(ResolveSRV);
+  target->Set(String::NewSymbol("resolveSrv"), resolveSrv->GetFunction());
 
   Local<FunctionTemplate> reverse = FunctionTemplate::New(Reverse);
   target->Set(String::NewSymbol("reverse"), reverse->GetFunction());
