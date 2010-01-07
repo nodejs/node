@@ -57,6 +57,14 @@ try {
 
 assert.equal(require('path').dirname(__filename), __dirname);
 
+require.async('./fixtures/a')
+  .addCallback(function(a) {
+    assert.equal("A", a.A());
+  })
+  .addErrback(function() {
+    assert.ok(false, 'async loading broken?');
+  });
+
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);
   assert.equal("A done", a.A());
