@@ -1,22 +1,22 @@
 /* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
  * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE. 
+ * IN THE SOFTWARE.
  */
 #include "http_parser.h"
 #include <stdlib.h>
@@ -69,7 +69,7 @@ inline size_t parse (enum message_type t, const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
-  nparsed = (t == REQUEST ? http_parse_requests(parser, buf, len) 
+  nparsed = (t == REQUEST ? http_parse_requests(parser, buf, len)
                           : http_parse_responses(parser, buf, len));
   return nparsed;
 }
@@ -88,7 +88,7 @@ const struct message requests[] =
          "Accept: */*\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -119,7 +119,7 @@ const struct message requests[] =
          "Connection: keep-alive\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -148,7 +148,7 @@ const struct message requests[] =
          "aaaaaaaaaaaaa:++++++++++\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -169,7 +169,7 @@ const struct message requests[] =
   ,.raw= "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -579,6 +579,27 @@ const struct message responses[] =
 
   }
 
+#define NO_CARRIAGE_RET 5
+, {.name="no carriage ret"
+  ,.type= RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\n"
+         "Content-Type: text/html; charset=utf-8\n"
+         "Connection: close\n"
+         "\n"
+         "these headers are from http://news.ycombinator.com/"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= TRUE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 2
+  ,.headers=
+    { {"Content-Type", "text/html; charset=utf-8" }
+    , {"Connection", "close" }
+    }
+  ,.body= "these headers are from http://news.ycombinator.com/"
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -688,7 +709,7 @@ message_complete_cb (http_parser *p)
   messages[num_messages].message_complete_cb_called = TRUE;
 
   messages[num_messages].message_complete_on_eof = currently_parsing_eof;
-  
+
   num_messages++;
   return 0;
 }
@@ -807,7 +828,7 @@ static void
 print_error (const char *raw, size_t error_location)
 {
   fprintf(stderr, "\n*** parse error ***\n\n");
-  
+
   int this_line = 0, char_len = 0;
   size_t i, j, len = strlen(raw), error_location_line = 0;
   for (i = 0; i < len; i++) {
@@ -1048,9 +1069,6 @@ main (void)
   int response_count;
 
   printf("sizeof(http_parser) = %d\n", sizeof(http_parser));
-
-  assert(strcmp(http_method_str(HTTP_GET), "GET") == 0);
-  assert(strcmp(http_method_str(HTTP_CONNECT), "CONNECT") == 0);
 
   for (request_count = 0; requests[request_count].name; request_count++);
   for (response_count = 0; responses[response_count].name; response_count++);
