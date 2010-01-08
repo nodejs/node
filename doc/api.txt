@@ -1548,6 +1548,18 @@ node> require("path").filename("/foo/bar/baz/asdf/quux")
 ------------------------------------
 +
 
++path.extname(p)+::
+Return the extension of the path.  Everything after the last '.', if there
+is no '.' then it returns an empty string.  Examples:
++
+------------------------------------
+node> require("path").extname("index.html")
+".html"
+node> require("path").extname("index")
+""
+------------------------------------
++
+
 +path.exists(p, callback)+::
 Test whether or not the given path exists.  Then, call the +callback+ argument with either true or false.  Example:
 +

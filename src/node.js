@@ -716,6 +716,11 @@ var pathModule = createInternalModule("path", function (exports) {
     return parts[parts.length-1];
   };
 
+  exports.extname = function (path) {
+      var index = path.lastIndexOf('.');
+      return index < 0 ? '' : path.substring(index);
+  };
+
   exports.exists = function (path, callback) {
     var p = posix.stat(path);
     p.addCallback(function () { callback(true); });
