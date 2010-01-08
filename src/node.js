@@ -681,13 +681,14 @@ var pathModule = createInternalModule("path", function (exports) {
       if (directory === "" && i !== 0 && i !== l && !keepBlanks) continue;
 
       // if it's a dot, and there was some previous dir already, then skip it.
-      if (directory === "." && prev) continue;
+      if (directory === "." && prev !== undefined) continue;
 
       if (
         directory === ".."
         && directories.length
-        && prev != '..'
-        && prev != ''
+        && prev !== ".."
+        && prev !== undefined
+        && (prev !== "" || keepBlanks)
       ) {
         directories.pop();
         prev = directories.slice(-1)[0]
@@ -705,20 +706,23 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.dirname = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts.slice(0, parts.length-1).join("/");
+    return path.substr(0, path.lastIndexOf("/")) || ".";
   };
 
-  exports.filename = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts[parts.length-1];
+  exports.filename = function () {
+    throw new Error("path.filename is deprecated. Please use path.basename instead.");
+  };
+  exports.basename = function (path, ext) {
+    var f = path.substr(path.lastIndexOf("/") + 1);
+    if (ext && f.substr(-1 * ext.length) === ext) {
+      f = f.substr(0, f.length - ext.length);
+    }
+    return f;
   };
 
   exports.extname = function (path) {
-      var index = path.lastIndexOf('.');
-      return index < 0 ? '' : path.substring(index);
+    var index = path.lastIndexOf('.');
+    return index < 0 ? '' : path.substring(index);
   };
 
   exports.exists = function (path, callback) {
@@ -803,7 +807,7 @@ function loadModule (request, parent) {
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
     var parentIdPath = path.dirname(parent.id +
-      (path.filename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
+      (path.basename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
     id = path.join(parentIdPath, request);
     // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
