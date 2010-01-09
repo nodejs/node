@@ -127,13 +127,9 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
   HandleScope scope;
 
   assert(refs_);
-  size_t nparsed; 
+  size_t nparsed;
 
-  if (type_ == HTTP_REQUEST) {
-    nparsed = http_parse_requests(&parser_, static_cast<const char*>(buf), len);
-  } else {
-    nparsed = http_parse_responses(&parser_, static_cast<const char*>(buf), len);
-  }
+  nparsed = http_parser_execute(&parser_, static_cast<const char*>(buf), len);
 
   if (nparsed != len) {
     ForceClose();
@@ -145,11 +141,8 @@ HTTPConnection::OnEOF ()
 {
   HandleScope scope;
   assert(refs_);
-  if (type_ == HTTP_REQUEST) {
-    http_parse_requests(&parser_, NULL, 0);
-  } else {
-    http_parse_responses(&parser_, NULL, 0);
-  }
+  size_t nparsed;
+  nparsed = http_parser_execute(&parser_, NULL, 0);
   Emit(eof_symbol, 0, NULL);
 }
 

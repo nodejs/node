@@ -1,4 +1,4 @@
-/* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
  *
  * Some parts of this source file were taken from NGINX
  * (src/http/ngx_http_parser.c) copyright (C) 2002-2009 Igor Sysoev.
@@ -97,6 +97,7 @@ static inline int message_complete_callback (http_parser *parser)
   return parser->on_message_complete(parser);
 }
 
+#define PROXY_CONNECTION "proxy-connection"
 #define CONNECTION "connection"
 #define CONTENT_LENGTH "content-length"
 #define TRANSFER_ENCODING "transfer-encoding"
@@ -218,6 +219,7 @@ enum header_states
   , h_CON
 
   , h_matching_connection
+  , h_matching_proxy_connection
   , h_matching_content_length
   , h_matching_transfer_encoding
 
@@ -245,6 +247,8 @@ enum flags
 #define LF '\n'
 #define LOWER(c) (unsigned char)(c | 0x20)
 
+#define start_state (parser->type == HTTP_REQUEST ? s_start_req : s_start_res)
+
 #if HTTP_PARSER_STRICT
 # define STRICT_CHECK(cond) if (cond) goto error
 # define NEW_MESSAGE() (http_should_keep_alive(parser) ? start_state : s_dead)
@@ -253,8 +257,9 @@ enum flags
 # define NEW_MESSAGE() start_state
 #endif
 
-static inline
-size_t parse (http_parser *parser, const char *data, size_t len, int start_state)
+size_t http_parser_execute (http_parser *parser,
+                            const char *data,
+                            size_t len)
 {
   char c, ch;
   const char *p, *pe;
@@ -950,6 +955,10 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
             header_state = h_C;
             break;
 
+          case 'p':
+            header_state = h_matching_proxy_connection;
+            break;
+
           case 't':
             header_state = h_matching_transfer_encoding;
             break;
@@ -1003,6 +1012,18 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
                   || c != CONNECTION[index]) {
                 header_state = h_general;
               } else if (index == sizeof(CONNECTION)-2) {
+                header_state = h_connection;
+              }
+              break;
+
+            /* proxy-connection */
+
+            case h_matching_proxy_connection:
+              index++;
+              if (index > sizeof(PROXY_CONNECTION)-1
+                  || c != PROXY_CONNECTION[index]) {
+                header_state = h_general;
+              } else if (index == sizeof(PROXY_CONNECTION)-2) {
                 header_state = h_connection;
               }
               break;
@@ -1256,7 +1277,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
             /* Content-Length header given and non-zero */
             state = s_body_identity;
           } else {
-            if (start_state == s_start_req || http_should_keep_alive(parser)) {
+            if (parser->type == HTTP_REQUEST || http_should_keep_alive(parser)) {
               /* Assume content-length 0 - read the next */
               CALLBACK2(message_complete);
               state = NEW_MESSAGE();
@@ -1408,22 +1429,6 @@ error:
 }
 
 
-size_t
-http_parse_requests (http_parser *parser, const char *data, size_t len)
-{
-  if (!parser->state) parser->state = s_start_req;
-  return parse(parser, data, len, s_start_req);
-}
-
-
-size_t
-http_parse_responses (http_parser *parser, const char *data, size_t len)
-{
-  if (!parser->state) parser->state = s_start_res;
-  return parse(parser, data, len, s_start_res);
-}
-
-
 int
 http_should_keep_alive (http_parser *parser)
 {
@@ -1446,9 +1451,10 @@ http_should_keep_alive (http_parser *parser)
 
 
 void
-http_parser_init (http_parser *parser)
+http_parser_init (http_parser *parser, enum http_parser_type t)
 {
-  parser->state = 0;
+  parser->type = t;
+  parser->state = (t == HTTP_REQUEST ? s_start_req : s_start_res);
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
   parser->on_query_string = NULL;

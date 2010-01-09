@@ -7,8 +7,6 @@
 
 namespace node {
 
-enum http_connection_type { HTTP_RESPONSE, HTTP_REQUEST };
-
 class HTTPConnection : public Connection {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
@@ -21,7 +19,7 @@ protected:
   static v8::Handle<v8::Value> NewServer (const v8::Arguments& args);
   static v8::Handle<v8::Value> ResetParser(const v8::Arguments& args);
 
-  HTTPConnection (enum http_connection_type t)
+  HTTPConnection (enum http_parser_type t)
     : Connection()
   {
     type_ = t;
@@ -29,7 +27,7 @@ protected:
   }
 
   void ResetParser() {
-    http_parser_init (&parser_);
+    http_parser_init (&parser_, type_);
     parser_.on_message_begin    = on_message_begin;
     parser_.on_url              = on_url;
     parser_.on_path             = on_path;
@@ -57,10 +55,8 @@ protected:
   static int on_body (http_parser *parser, const char *buf, size_t len);
   static int on_message_complete (http_parser *parser);
 
+  enum http_parser_type type_;
   http_parser parser_;
-  enum http_connection_type type_; // should probably use subclass
-                                   // but going to refactor this all soon
-                                   // so won't worry about it.
   friend class HTTPServer;
 };
 

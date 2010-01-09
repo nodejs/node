@@ -1,4 +1,4 @@
-/* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -74,8 +74,11 @@ enum http_method
   , HTTP_UNLOCK    = 0x4000
   };
 
+enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE };
+
 struct http_parser {
   /** PRIVATE **/
+  enum http_parser_type type;
   unsigned short state;
   unsigned short header_state;
   size_t index;
@@ -125,9 +128,8 @@ struct http_parser {
   http_cb      on_message_complete;
 };
 
-void http_parser_init(http_parser *parser);
-size_t http_parse_requests(http_parser *parser, const char *data, size_t len);
-size_t http_parse_responses(http_parser *parser, const char *data, size_t len);
+void http_parser_init(http_parser *parser, enum http_parser_type type);
+size_t http_parser_execute(http_parser *parser, const char *data, size_t len);
 /* Call this in the on_headers_complete or on_message_complete callback to
  * determine if this will be the last message on the connection.
  * If you are the server, respond with the "Connection: close" header
