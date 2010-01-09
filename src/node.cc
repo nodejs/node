@@ -70,7 +70,12 @@ static void DoPoll(EV_P_ ev_idle *watcher, int revents) {
   assert(watcher == &eio_poller);
   assert(revents == EV_IDLE);
 
-  if (eio_poll() != -1) ev_idle_stop(EV_DEFAULT_UC_ watcher);
+  //printf("eio_poller\n");
+
+  if (eio_poll() != -1) {
+    //printf("eio_poller stop\n");
+    ev_idle_stop(EV_DEFAULT_UC_ watcher);
+  }
 }
 
 
@@ -79,7 +84,12 @@ static void WantPollNotifier(EV_P_ ev_async *watcher, int revents) {
   assert(watcher == &eio_want_poll_notifier);
   assert(revents == EV_ASYNC);
 
-  if (eio_poll() == -1) ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+  //printf("want poll notifier\n");
+
+  if (eio_poll() == -1) {
+    //printf("eio_poller start\n");
+    ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+  }
 }
 
 
@@ -87,7 +97,12 @@ static void DonePollNotifier(EV_P_ ev_async *watcher, int revents) {
   assert(watcher == &eio_done_poll_notifier);
   assert(revents == EV_ASYNC);
 
-  ev_idle_stop(EV_DEFAULT_UC_ &eio_poller);
+  //printf("done poll notifier\n");
+
+  if (eio_poll() != -1) {
+    //printf("eio_poller stop\n");
+    ev_idle_stop(EV_DEFAULT_UC_ &eio_poller);
+  }
 }
 
 
