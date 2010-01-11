@@ -66,29 +66,8 @@ HTTPConnection::Initialize (Handle<Object> target)
   NODE_SET_PROTOTYPE_METHOD(server_constructor_template, "resetParser", ResetParser);
   server_constructor_template->SetClassName(String::NewSymbol("ServerSideConnection"));
 
-  method_symbol = NODE_PSYMBOL("method");
-  status_code_symbol = NODE_PSYMBOL("statusCode");
-  http_version_symbol = NODE_PSYMBOL("httpVersion");
-  should_keep_alive_symbol = NODE_PSYMBOL("should_keep_alive");
-
   eof_symbol = NODE_PSYMBOL("eof");
 
-  delete_sym = NODE_PSYMBOL("DELETE");
-  get_sym = NODE_PSYMBOL("GET");
-  head_sym = NODE_PSYMBOL("HEAD");
-  post_sym = NODE_PSYMBOL("POST");
-  put_sym = NODE_PSYMBOL("PUT");
-  connect_sym = NODE_PSYMBOL("CONNECT");
-  options_sym = NODE_PSYMBOL("OPTIONS");
-  trace_sym = NODE_PSYMBOL("TRACE");
-  copy_sym = NODE_PSYMBOL("COPY");
-  lock_sym = NODE_PSYMBOL("LOCK");
-  mkcol_sym = NODE_PSYMBOL("MKCOL");
-  move_sym = NODE_PSYMBOL("MOVE");
-  propfind_sym = NODE_PSYMBOL("PROPFIND");
-  proppatch_sym = NODE_PSYMBOL("PROPPATCH");
-  unlock_sym = NODE_PSYMBOL("UNLOCK");
-  unknown_method_sym = NODE_PSYMBOL("UNKNOWN_METHOD");
 }
 
 Handle<Value>
@@ -170,6 +149,23 @@ HTTPConnection::on_message_begin (http_parser *parser)
     header_value_symbol = NODE_PSYMBOL("headerValue");
     header_complete_symbol = NODE_PSYMBOL("headerComplete");
     body_symbol = NODE_PSYMBOL("body");
+
+    delete_sym = NODE_PSYMBOL("DELETE");
+    get_sym = NODE_PSYMBOL("GET");
+    head_sym = NODE_PSYMBOL("HEAD");
+    post_sym = NODE_PSYMBOL("POST");
+    put_sym = NODE_PSYMBOL("PUT");
+    connect_sym = NODE_PSYMBOL("CONNECT");
+    options_sym = NODE_PSYMBOL("OPTIONS");
+    trace_sym = NODE_PSYMBOL("TRACE");
+    copy_sym = NODE_PSYMBOL("COPY");
+    lock_sym = NODE_PSYMBOL("LOCK");
+    mkcol_sym = NODE_PSYMBOL("MKCOL");
+    move_sym = NODE_PSYMBOL("MOVE");
+    propfind_sym = NODE_PSYMBOL("PROPFIND");
+    proppatch_sym = NODE_PSYMBOL("PROPPATCH");
+    unlock_sym = NODE_PSYMBOL("UNLOCK");
+    unknown_method_sym = NODE_PSYMBOL("UNKNOWN_METHOD");
   }
 
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
