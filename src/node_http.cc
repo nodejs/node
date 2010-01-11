@@ -71,6 +71,7 @@ HTTPConnection::Initialize (Handle<Object> target)
   http_version_symbol = NODE_PSYMBOL("httpVersion");
   should_keep_alive_symbol = NODE_PSYMBOL("should_keep_alive");
 
+  eof_symbol = NODE_PSYMBOL("eof");
 
   delete_sym = NODE_PSYMBOL("DELETE");
   get_sym = NODE_PSYMBOL("GET");
@@ -169,7 +170,6 @@ HTTPConnection::on_message_begin (http_parser *parser)
     header_value_symbol = NODE_PSYMBOL("headerValue");
     header_complete_symbol = NODE_PSYMBOL("headerComplete");
     body_symbol = NODE_PSYMBOL("body");
-    eof_symbol = NODE_PSYMBOL("eof");
   }
 
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
