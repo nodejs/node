@@ -101,7 +101,9 @@ def conf_subproject (conf, subdir, command=None):
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
+  if not conf.env.CXX: conf.fatal('c++ compiler not found')
   conf.check_tool('compiler_cc')
+  if not conf.env.CC: conf.fatal('c compiler not found')
 
   conf.env["USE_DEBUG"] = Options.options.debug
 
