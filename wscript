@@ -351,7 +351,7 @@ def build(bld):
   """
   node.add_objects = 'ev eio evcom http_parser coupling'
   node.uselib_local = ''
-  node.uselib = 'UDNS V8 EXECINFO DL KVM GPGERROR GNUTLS'
+  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
