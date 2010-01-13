@@ -29,6 +29,23 @@ static Persistent<String> header_complete_symbol;
 static Persistent<String> body_symbol;
 static Persistent<String> eof_symbol;
 
+static Persistent<String> delete_sym;
+static Persistent<String> get_sym;
+static Persistent<String> head_sym;
+static Persistent<String> post_sym;
+static Persistent<String> put_sym;
+static Persistent<String> connect_sym;
+static Persistent<String> options_sym;
+static Persistent<String> trace_sym;
+static Persistent<String> copy_sym;
+static Persistent<String> lock_sym;
+static Persistent<String> mkcol_sym;
+static Persistent<String> move_sym;
+static Persistent<String> propfind_sym;
+static Persistent<String> proppatch_sym;
+static Persistent<String> unlock_sym;
+static Persistent<String> unknown_method_sym;
+
 void
 HTTPConnection::Initialize (Handle<Object> target)
 {
@@ -49,10 +66,8 @@ HTTPConnection::Initialize (Handle<Object> target)
   NODE_SET_PROTOTYPE_METHOD(server_constructor_template, "resetParser", ResetParser);
   server_constructor_template->SetClassName(String::NewSymbol("ServerSideConnection"));
 
-  method_symbol = NODE_PSYMBOL("method");
-  status_code_symbol = NODE_PSYMBOL("statusCode");
-  http_version_symbol = NODE_PSYMBOL("httpVersion");
-  should_keep_alive_symbol = NODE_PSYMBOL("should_keep_alive");
+  eof_symbol = NODE_PSYMBOL("eof");
+
 }
 
 Handle<Value>
@@ -92,13 +107,9 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
   HandleScope scope;
 
   assert(refs_);
-  size_t nparsed; 
+  size_t nparsed;
 
-  if (type_ == HTTP_REQUEST) {
-    nparsed = http_parse_requests(&parser_, static_cast<const char*>(buf), len);
-  } else {
-    nparsed = http_parse_responses(&parser_, static_cast<const char*>(buf), len);
-  }
+  nparsed = http_parser_execute(&parser_, static_cast<const char*>(buf), len);
 
   if (nparsed != len) {
     ForceClose();
@@ -110,11 +121,8 @@ HTTPConnection::OnEOF ()
 {
   HandleScope scope;
   assert(refs_);
-  if (type_ == HTTP_REQUEST) {
-    http_parse_requests(&parser_, NULL, 0);
-  } else {
-    http_parse_responses(&parser_, NULL, 0);
-  }
+  size_t nparsed;
+  nparsed = http_parser_execute(&parser_, NULL, 0);
   Emit(eof_symbol, 0, NULL);
 }
 
@@ -141,7 +149,23 @@ HTTPConnection::on_message_begin (http_parser *parser)
     header_value_symbol = NODE_PSYMBOL("headerValue");
     header_complete_symbol = NODE_PSYMBOL("headerComplete");
     body_symbol = NODE_PSYMBOL("body");
-    eof_symbol = NODE_PSYMBOL("eof");
+
+    delete_sym = NODE_PSYMBOL("DELETE");
+    get_sym = NODE_PSYMBOL("GET");
+    head_sym = NODE_PSYMBOL("HEAD");
+    post_sym = NODE_PSYMBOL("POST");
+    put_sym = NODE_PSYMBOL("PUT");
+    connect_sym = NODE_PSYMBOL("CONNECT");
+    options_sym = NODE_PSYMBOL("OPTIONS");
+    trace_sym = NODE_PSYMBOL("TRACE");
+    copy_sym = NODE_PSYMBOL("COPY");
+    lock_sym = NODE_PSYMBOL("LOCK");
+    mkcol_sym = NODE_PSYMBOL("MKCOL");
+    move_sym = NODE_PSYMBOL("MOVE");
+    propfind_sym = NODE_PSYMBOL("PROPFIND");
+    proppatch_sym = NODE_PSYMBOL("PROPPATCH");
+    unlock_sym = NODE_PSYMBOL("UNLOCK");
+    unknown_method_sym = NODE_PSYMBOL("UNKNOWN_METHOD");
   }
 
   HTTPConnection *connection = static_cast<HTTPConnection*> (parser->data);
@@ -242,6 +266,28 @@ HTTPConnection::on_header_value (http_parser *parser, const char *buf, size_t le
   return 0;
 }
 
+static inline Persistent<String>
+method_to_str(enum http_method m) {
+  switch (m) {
+    case HTTP_DELETE:     return delete_sym;
+    case HTTP_GET:        return get_sym;
+    case HTTP_HEAD:       return head_sym;
+    case HTTP_POST:       return post_sym;
+    case HTTP_PUT:        return put_sym;
+    case HTTP_CONNECT:    return connect_sym;
+    case HTTP_OPTIONS:    return options_sym;
+    case HTTP_TRACE:      return trace_sym;
+    case HTTP_COPY:       return copy_sym;
+    case HTTP_LOCK:       return lock_sym;
+    case HTTP_MKCOL:      return mkcol_sym;
+    case HTTP_MOVE:       return move_sym;
+    case HTTP_PROPFIND:   return propfind_sym;
+    case HTTP_PROPPATCH:  return proppatch_sym;
+    case HTTP_UNLOCK:     return unlock_sym;
+    default:              return unknown_method_sym;
+  }
+}
+
 int
 HTTPConnection::on_headers_complete (http_parser *parser)
 {
@@ -253,8 +299,7 @@ HTTPConnection::on_headers_complete (http_parser *parser)
 
   // METHOD
   if (connection->type_ == HTTP_REQUEST) {
-    message_info->Set(method_symbol, String::NewSymbol(
-          http_method_str(connection->parser_.method)));
+    message_info->Set(method_symbol, method_to_str(connection->parser_.method));
   }
 
   // STATUS

@@ -14,7 +14,7 @@ for (var i = 0; i < 20*1024; i++) {
 stored = {};
 
 http.createServer(function (req, res) {
-  var commands = req.uri.path.split("/");
+  var commands = req.url.split("/");
   var command = commands[1];
   var body = "";
   var arg = commands[2];

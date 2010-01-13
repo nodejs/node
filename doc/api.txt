@@ -1,7 +1,7 @@
 NODE(1)
 =======
 Ryan Dahl <ry@tinyclouds.org>
-Version, 0.1.23, 2009.12.22
+Version, 0.1.25, 2010.01.09
 
 
 == NAME
@@ -818,8 +818,8 @@ The request method as a string. Read only. Example:
 +"GET"+, +"DELETE"+.
 
 
-+request.uri+ ::
-Request URI Object. This contains only the parameters that are
++request.url+ ::
+Request URL string. This contains only the URL that is
 present in the actual HTTP request. If the request is
 +
 ----------------------------------------
@@ -828,16 +828,41 @@ Accept: text/plain\r\n
 \r\n
 ----------------------------------------
 +
-Then +request.uri+ will be
+Then +request.url+ will be
 +
 ----------------------------------------
-{ full: "/status?name=ryan",
-  path: "/status",
-  queryString: "name=ryan",
-  params: { "name": "ryan" },
-  fragment: ""
+"/status?name=ryan"
+----------------------------------------
++
+If you would like to parse the URL into its parts, you can use
++require("url").parse(request.url)+.  Example:
++
+----------------------------------------
+node> require("url").parse("/status?name=ryan")
+{
+ "href": "/status?name=ryan",
+ "search": "?name=ryan",
+ "query": "name=ryan",
+ "pathname": "/status"
 }
 ----------------------------------------
++
+If you would like to extract the params from the query string,
+you can use the +require("querystring").parse+ function, or pass
++true+ as the second argument to +require("url").parse+.  Example:
++
+----------------------------------------
+node> require("url").parse("/status?name=ryan", true)
+{
+ "href": "/status?name=ryan",
+ "search": "?name=ryan",
+ "query": {
+  "name": "ryan"
+ },
+ "pathname": "/status"
+}
+----------------------------------------
++
 
 
 +request.headers+ ::
@@ -1109,9 +1134,11 @@ Node.  To use it, +require("multipart")+.
 +multipart.parse(options)+ ::
   - on success: Returns an object where each key holds the value of one part of
                 the stream. +options+ can either be an instance of
-                +http.ServerRequest+ or an object containing a "boundary" and a
-                "data" key.
-  - on error: no parameters.
+                +http.ServerRequest+ or an object containing a "boundary" and
+                an optional "data" key.
+  - on error: Returns an instanceof Error object. Right now only the request
+              content-type / boundary option is checked. The stream data itself
+              is not validated.
 
 ==== +multipart.Stream+
 
@@ -1463,6 +1490,180 @@ Expects +block+ to throw an error.
 
 +assert.doesNotThrow(block, error, message)+::
 Expects +block+ not to throw an error.
+
+
+=== Path Module
+
+This module contains utilities for dealing with file paths.  Use
++require('path')+ to use it.  It provides the following methods:
+
++path.join(/* path1, path2, ... */)+::
+Join all arguments together and resolve the resulting path.  Example:
++
+------------------------------------
+node> require("path").join("/foo", "bar", "baz/asdf", "quux", "..")
+"/foo/bar/baz/asdf"
+------------------------------------
++
+
++path.normalizeArray(arr)+::
+Normalize an array of path parts, taking care of +".."+ and +"."+ parts.  Example:
++
+------------------------------------
+node> require("path").normalizeArray(["", "foo", "bar", "baz", "asdf", "quux", ".."])
+[
+  "",
+  "foo",
+  "bar",
+  "baz",
+  "asdf"
+]
+------------------------------------
++
+
++path.normalize(p)+::
+Normalize a string path, taking care of +".."+ and +"."+ parts.  Example:
++
+------------------------------------
+node> require("path").normalize("/foo/bar/baz/asdf/quux/..")
+"/foo/bar/baz/asdf"
+------------------------------------
++
+
++path.dirname(p)+::
+Return the directory name of a path.  Similar to the Unix +dirname+ command.  Example:
++
+------------------------------------
+node> require("path").dirname("/foo/bar/baz/asdf/quux")
+"/foo/bar/baz/asdf"
+------------------------------------
++
+
++path.basename(p, ext)+::
+Return the last portion of a path.  Similar to the Unix +basename+ command.  Example:
++
+------------------------------------
+node> require("path").filename("/foo/bar/baz/asdf/quux.html")
+"quux.html"
+node> require("path").filename("/foo/bar/baz/asdf/quux.html", ".html")
+"quux"
+------------------------------------
++
+
++path.extname(p)+::
+Return the extension of the path.  Everything after the last '.', if there
+is no '.' then it returns an empty string.  Examples:
++
+------------------------------------
+node> require("path").extname("index.html")
+".html"
+node> require("path").extname("index")
+""
+------------------------------------
++
+
++path.exists(p, callback)+::
+Test whether or not the given path exists.  Then, call the +callback+ argument with either true or false.  Example:
++
+------------------------------------
+require("path").exists("/etc/passwd", function (exists) {
+  require("sys").debug( exists ? "it's there" : "no passwd!" );
+});
+------------------------------------
+
+
+=== URL Module
+
+This module has utilities for URL resolution and parsing.
+
+Parsed URL objects have some or all of the following fields, depending on whether or not
+they exist in the URL string.  Any parts that are not in the URL string will not be in the
+parsed object.  Examples are shown for the URL +"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"+
+
++href+::
+The full URL that was originally parsed. Example: +"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"+
+
++protocol+::
+The request protocol.  Example: +"http:"+
+
++host+::
+The full host portion of the URL, including port and authentication information. Example:
++"user:pass@host.com:8080"+
+
++auth+::
+The authentication information portion of a URL.  Example: +"user:pass"+
+
++hostname+::
+Just the hostname portion of the host.  Example: +"host.com"+
+
++port+::
+The port number portion of the host.  Example: +"8080"+
+
++pathname+::
+The path section of the URL, that comes after the host and before the query, including the
+initial slash if present.  Example: +"/p/a/t/h"+
+
++search+::
+The "query string" portion of the URL, including the leading question mark. Example:
++"?query=string"+
+
++query+::
+Either the "params" portion of the query string, or a querystring-parsed object. Example:
++"query=string"+ or +{"query":"string"}+
+
++hash+::
+The portion of the URL after the pound-sign.  Example: +"#hash"+
+
+The following methods are provided by the URL module:
+
++url.parse(urlStr, parseQueryString=false)+::
+Take a URL string, and return an object.  Pass +true+ as the second argument to also parse
+the query string using the +querystring+ module.
+
++url.format(urlObj)+::
+Take a parsed URL object, and return a formatted URL string.
+
++url.resolve(from, to)+::
+Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
+
+
+=== Query String Module
+
+This module provides utilities for dealing with query strings.  It provides the following methods:
+
++querystring.stringify(obj, sep="&", eq="=")+::
+Serialize an object to a query string.  Optionally override the default separator and assignment characters.
+Example:
++
+------------------------------------
+node> require("querystring").stringify({foo:"bar", baz : {quux:"asdf", oof : "rab"}, boo:[1,2,3]})
+"foo=bar&baz%5Bquux%5D=asdf&baz%5Boof%5D=rab&boo%5B%5D=1&boo%5B%5D=2&boo%5B%5D=3"
+------------------------------------
++
+
++querystring.parse(str, sep="&", eq="=")+::
+Deserialize a query string to an object.  Optionally override the default separator and assignment characters.
++
+------------------------------------
+node> require("querystring").parse("foo=bar&baz%5Bquux%5D=asdf&baz%5Boof%5D=rab&boo%5B%5D=1")
+{
+  "foo": "bar",
+  "baz": {
+    "quux": "asdf",
+    "oof": "rab"
+  },
+  "boo": [
+    1
+  ]
+}
+------------------------------------
++
+
++querystring.escape+
+The escape function used by +querystring.stringify+, provided so that it could be overridden if necessary.
+
++querystring.unescape+
+The unescape function used by +querystring.parse+, provided so that it could be overridden if necessary.
 
 == REPL
 

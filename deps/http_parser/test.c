@@ -1,22 +1,22 @@
-/* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
- * 
+/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
  * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE. 
+ * IN THE SOFTWARE.
  */
 #include "http_parser.h"
 #include <stdlib.h>
@@ -34,14 +34,12 @@
 #define MAX_HEADERS 10
 #define MAX_ELEMENT_SIZE 500
 
-enum message_type { REQUEST, RESPONSE };
-
 static http_parser *parser;
 
 struct message {
   const char *name; // for debugging purposes
   const char *raw;
-  enum message_type type;
+  enum http_parser_type type;
   enum http_method method;
   int status_code;
   char request_path[MAX_ELEMENT_SIZE];
@@ -60,17 +58,16 @@ struct message {
   int message_begin_cb_called;
   int headers_complete_cb_called;
   int message_complete_cb_called;
-  int message_complete_on_eof;
+  int eof_indicates_message_end;
 };
 
 static int currently_parsing_eof;
 
-inline size_t parse (enum message_type t, const char *buf, size_t len)
+inline size_t parse (const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
-  nparsed = (t == REQUEST ? http_parse_requests(parser, buf, len) 
-                          : http_parse_responses(parser, buf, len));
+  nparsed = http_parser_execute(parser, buf, len);
   return nparsed;
 }
 
@@ -81,14 +78,14 @@ static int num_messages;
 const struct message requests[] =
 #define CURL_GET 0
 { {.name= "curl get"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /test HTTP/1.1\r\n"
          "User-Agent: curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1\r\n"
          "Host: 0.0.0.0=5000\r\n"
          "Accept: */*\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -107,7 +104,7 @@ const struct message requests[] =
 
 #define FIREFOX_GET 1
 , {.name= "firefox get"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /favicon.ico HTTP/1.1\r\n"
          "Host: 0.0.0.0=5000\r\n"
          "User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008061015 Firefox/3.0\r\n"
@@ -119,7 +116,7 @@ const struct message requests[] =
          "Connection: keep-alive\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -143,12 +140,12 @@ const struct message requests[] =
 
 #define DUMBFUCK 2
 , {.name= "dumbfuck"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /dumbfuck HTTP/1.1\r\n"
          "aaaaaaaaaaaaa:++++++++++\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -165,11 +162,11 @@ const struct message requests[] =
 
 #define FRAGMENT_IN_URI 3
 , {.name= "fragment in url"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE 
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -184,11 +181,11 @@ const struct message requests[] =
 
 #define GET_NO_HEADERS_NO_BODY 4
 , {.name= "get no headers no body"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /get_no_headers_no_body/world HTTP/1.1\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE /* would need Connection: close */
+  ,.eof_indicates_message_end= FALSE /* would need Connection: close */
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -202,12 +199,12 @@ const struct message requests[] =
 
 #define GET_ONE_HEADER_NO_BODY 5
 , {.name= "get one header no body"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /get_one_header_no_body HTTP/1.1\r\n"
          "Accept: */*\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE /* would need Connection: close */
+  ,.eof_indicates_message_end= FALSE /* would need Connection: close */
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -224,13 +221,13 @@ const struct message requests[] =
 
 #define GET_FUNKY_CONTENT_LENGTH 6
 , {.name= "get funky content length body hello"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /get_funky_content_length_body_hello HTTP/1.0\r\n"
          "conTENT-Length: 5\r\n"
          "\r\n"
          "HELLO"
   ,.should_keep_alive= FALSE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
@@ -247,7 +244,7 @@ const struct message requests[] =
 
 #define POST_IDENTITY_BODY_WORLD 7
 , {.name= "post identity body world"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
          "Accept: */*\r\n"
          "Transfer-Encoding: identity\r\n"
@@ -255,7 +252,7 @@ const struct message requests[] =
          "\r\n"
          "World"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -274,7 +271,7 @@ const struct message requests[] =
 
 #define POST_CHUNKED_ALL_YOUR_BASE 8
 , {.name= "post - chunked body: all your base are belong to us"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "POST /post_chunked_all_your_base HTTP/1.1\r\n"
          "Transfer-Encoding: chunked\r\n"
          "\r\n"
@@ -282,7 +279,7 @@ const struct message requests[] =
          "0\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -299,7 +296,7 @@ const struct message requests[] =
 
 #define TWO_CHUNKS_MULT_ZERO_END 9
 , {.name= "two chunks ; triple zero ending"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "POST /two_chunks_mult_zero_end HTTP/1.1\r\n"
          "Transfer-Encoding: chunked\r\n"
          "\r\n"
@@ -308,7 +305,7 @@ const struct message requests[] =
          "000\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -325,7 +322,7 @@ const struct message requests[] =
 
 #define CHUNKED_W_TRAILING_HEADERS 10
 , {.name= "chunked with trailing headers. blech."
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "POST /chunked_w_trailing_headers HTTP/1.1\r\n"
          "Transfer-Encoding: chunked\r\n"
          "\r\n"
@@ -336,7 +333,7 @@ const struct message requests[] =
          "Content-Type: text/plain\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -355,7 +352,7 @@ const struct message requests[] =
 
 #define CHUNKED_W_BULLSHIT_AFTER_LENGTH 11
 , {.name= "with bullshit after the length"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "POST /chunked_w_bullshit_after_length HTTP/1.1\r\n"
          "Transfer-Encoding: chunked\r\n"
          "\r\n"
@@ -364,7 +361,7 @@ const struct message requests[] =
          "0\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -381,10 +378,10 @@ const struct message requests[] =
 
 #define WITH_QUOTES 12
 , {.name= "with quotes"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -400,17 +397,17 @@ const struct message requests[] =
 #define APACHEBENCH_GET 13
 /* The server receiving this request SHOULD NOT wait for EOF
  * to know that content-length == 0.
- * How to represent this in a unit test? message_complete_on_eof
+ * How to represent this in a unit test? eof_indicates_message_end
  * Compare with NO_CONTENT_LENGTH_RESPONSE.
  */
 , {.name = "apachebench get"
-  ,.type= REQUEST
+  ,.type= HTTP_REQUEST
   ,.raw= "GET /test HTTP/1.0\r\n"
          "Host: 0.0.0.0:5000\r\n"
          "User-Agent: ApacheBench/2.3\r\n"
          "Accept: */*\r\n\r\n"
   ,.should_keep_alive= FALSE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
@@ -433,7 +430,7 @@ const struct message requests[] =
 const struct message responses[] =
 #define GOOGLE_301 0
 { {.name= "google 301"
-  ,.type= RESPONSE
+  ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 301 Moved Permanently\r\n"
          "Location: http://www.google.com/\r\n"
          "Content-Type: text/html; charset=UTF-8\r\n"
@@ -450,7 +447,7 @@ const struct message responses[] =
          "<A HREF=\"http://www.google.com/\">here</A>.\r\n"
          "</BODY></HTML>\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
@@ -479,7 +476,7 @@ const struct message responses[] =
  * Compare with APACHEBENCH_GET
  */
 , {.name= "no content-length response"
-  ,.type= RESPONSE
+  ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
          "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
          "Server: Apache\r\n"
@@ -497,7 +494,7 @@ const struct message responses[] =
          "  </SOAP-ENV:Body>\n"
          "</SOAP-ENV:Envelope>"
   ,.should_keep_alive= FALSE
-  ,.message_complete_on_eof= TRUE
+  ,.eof_indicates_message_end= TRUE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -522,10 +519,10 @@ const struct message responses[] =
 
 #define NO_HEADERS_NO_BODY_404 2
 , {.name= "404 no headers no body"
-  ,.type= RESPONSE
+  ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 404 Not Found\r\n\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 404
@@ -536,10 +533,10 @@ const struct message responses[] =
 
 #define NO_REASON_PHRASE 3
 , {.name= "301 no response phrase"
-  ,.type= RESPONSE
+  ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 301\r\n\r\n"
   ,.should_keep_alive = TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
@@ -550,7 +547,7 @@ const struct message responses[] =
 
 #define TRAILING_SPACE_ON_CHUNKED_BODY 4
 , {.name="200 trailing space on chunked body"
-  ,.type= RESPONSE
+  ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
          "Content-Type: text/plain\r\n"
          "Transfer-Encoding: chunked\r\n"
@@ -564,7 +561,7 @@ const struct message responses[] =
          "0  \r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.eof_indicates_message_end= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -577,6 +574,52 @@ const struct message responses[] =
          "This is the data in the first chunk\r\n"
          "and this is the second one\r\n"
 
+  }
+
+#define NO_CARRIAGE_RET 5
+, {.name="no carriage ret"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\n"
+         "Content-Type: text/html; charset=utf-8\n"
+         "Connection: close\n"
+         "\n"
+         "these headers are from http://news.ycombinator.com/"
+  ,.should_keep_alive= FALSE
+  ,.eof_indicates_message_end= TRUE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 2
+  ,.headers=
+    { {"Content-Type", "text/html; charset=utf-8" }
+    , {"Connection", "close" }
+    }
+  ,.body= "these headers are from http://news.ycombinator.com/"
+  }
+
+#define PROXY_CONNECTION 6
+, {.name="proxy connection"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\r\n"
+         "Content-Type: text/html; charset=UTF-8\r\n"
+         "Content-Length: 11\r\n"
+         "Proxy-Connection: close\r\n"
+         "Date: Thu, 31 Dec 2009 20:55:48 +0000\r\n"
+         "\r\n"
+         "hello world"
+  ,.should_keep_alive= FALSE
+  ,.eof_indicates_message_end= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 4
+  ,.headers=
+    { {"Content-Type", "text/html; charset=UTF-8" }
+    , {"Content-Length", "11" }
+    , {"Proxy-Connection", "close" }
+    , {"Date", "Thu, 31 Dec 2009 20:55:48 +0000"}
+    }
+  ,.body= "hello world"
   }
 
 , {.name= NULL } /* sentinel */
@@ -687,14 +730,14 @@ message_complete_cb (http_parser *p)
   }
   messages[num_messages].message_complete_cb_called = TRUE;
 
-  messages[num_messages].message_complete_on_eof = currently_parsing_eof;
-  
+  messages[num_messages].eof_indicates_message_end = currently_parsing_eof;
+
   num_messages++;
   return 0;
 }
 
 void
-parser_init ()
+parser_init (enum http_parser_type type)
 {
   num_messages = 0;
 
@@ -702,7 +745,7 @@ parser_init ()
 
   parser = malloc(sizeof(http_parser));
 
-  http_parser_init(parser);
+  http_parser_init(parser, type);
 
   memset(&messages, 0, sizeof messages);
 
@@ -770,14 +813,14 @@ message_eq (int index, const struct message *expected)
   MESSAGE_CHECK_NUM_EQ(expected, m, http_major);
   MESSAGE_CHECK_NUM_EQ(expected, m, http_minor);
 
-  if (expected->type == REQUEST) {
+  if (expected->type == HTTP_REQUEST) {
     MESSAGE_CHECK_NUM_EQ(expected, m, method);
   } else {
     MESSAGE_CHECK_NUM_EQ(expected, m, status_code);
   }
 
   MESSAGE_CHECK_NUM_EQ(expected, m, should_keep_alive);
-  MESSAGE_CHECK_NUM_EQ(expected, m, message_complete_on_eof);
+  MESSAGE_CHECK_NUM_EQ(expected, m, eof_indicates_message_end);
 
   assert(m->message_begin_cb_called);
   assert(m->headers_complete_cb_called);
@@ -807,7 +850,7 @@ static void
 print_error (const char *raw, size_t error_location)
 {
   fprintf(stderr, "\n*** parse error ***\n\n");
-  
+
   int this_line = 0, char_len = 0;
   size_t i, j, len = strlen(raw), error_location_line = 0;
   for (i = 0; i < len; i++) {
@@ -848,17 +891,17 @@ print_error (const char *raw, size_t error_location)
 void
 test_message (const struct message *message)
 {
-  parser_init();
+  parser_init(message->type);
 
   size_t read;
 
-  read = parse(message->type, message->raw, strlen(message->raw));
+  read = parse(message->raw, strlen(message->raw));
   if (read != strlen(message->raw)) {
     print_error(message->raw, read);
     exit(1);
   }
 
-  read = parse(message->type, NULL, 0);
+  read = parse(NULL, 0);
   if (read != 0) {
     print_error(message->raw, read);
     exit(1);
@@ -877,13 +920,13 @@ test_message (const struct message *message)
 void
 test_error (const char *buf)
 {
-  parser_init();
+  parser_init(HTTP_REQUEST);
 
   size_t parsed;
 
-  parsed = parse(REQUEST, buf, strlen(buf));
+  parsed = parse(buf, strlen(buf));
   if (parsed != strlen(buf)) goto out;
-  parsed = parse(REQUEST, NULL, 0);
+  parsed = parse(NULL, 0);
   if (parsed != 0) goto out;
 
   fprintf(stderr, "\n*** Error expected but none found ***\n\n%s", buf);
@@ -908,17 +951,17 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   strcat(total, r2->raw);
   strcat(total, r3->raw);
 
-  parser_init();
+  parser_init(r1->type);
 
   size_t read;
 
-  read = parse(r1->type, total, strlen(total));
+  read = parse(total, strlen(total));
   if (read != strlen(total)) {
     print_error(total, read);
     exit(1);
   }
 
-  read = parse(REQUEST, NULL, 0);
+  read = parse(NULL, 0);
   if (read != 0) {
     print_error(total, read);
     exit(1);
@@ -971,7 +1014,7 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
       }
       ops += 1;
 
-      parser_init();
+      parser_init(r1->type);
 
       buf1_len = i;
       strncpy(buf1, total, buf1_len);
@@ -985,25 +1028,25 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
       strncpy(buf3, total+j, buf3_len);
       buf3[buf3_len] = 0;
 
-      read = parse(r1->type, buf1, buf1_len);
+      read = parse(buf1, buf1_len);
       if (read != buf1_len) {
         print_error(buf1, read);
         goto error;
       }
 
-      read = parse(r1->type, buf2, buf2_len);
+      read = parse(buf2, buf2_len);
       if (read != buf2_len) {
         print_error(buf2, read);
         goto error;
       }
 
-      read = parse(r1->type, buf3, buf3_len);
+      read = parse(buf3, buf3_len);
       if (read != buf3_len) {
         print_error(buf3, read);
         goto error;
       }
 
-      parse(r1->type, NULL, 0);
+      parse(NULL, 0);
 
       if (3 != num_messages) {
         fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
@@ -1048,9 +1091,6 @@ main (void)
   int response_count;
 
   printf("sizeof(http_parser) = %d\n", sizeof(http_parser));
-
-  assert(strcmp(http_method_str(HTTP_GET), "GET") == 0);
-  assert(strcmp(http_method_str(HTTP_CONNECT), "CONNECT") == 0);
 
   for (request_count = 0; requests[request_count].name; request_count++);
   for (response_count = 0; responses[response_count].name; response_count++);

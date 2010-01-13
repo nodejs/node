@@ -29,7 +29,7 @@ It also offers wrappers around C<sendfile> (Solaris, Linux, HP-UX and
 FreeBSD, with emulation on other platforms) and C<readahead> (Linux, with
 emulation elsewhere>).
 
-The goal is to enbale you to write fully non-blocking programs. For
+The goal is to enable you to write fully non-blocking programs. For
 example, in a game server, you would not want to freeze for a few seconds
 just because the server is running a backup and you happen to call
 C<readdir>.

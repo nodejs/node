@@ -5,6 +5,7 @@ puts("Welcome to the Node.js REPL.");
 puts("Enter ECMAScript at the prompt.");
 puts("Tip 1: Use 'rlwrap node-repl' for a better interface");
 puts("Tip 2: Type Control-D to exit.");
+puts("Type '.help' for options.");
 
 require('repl').start();
 

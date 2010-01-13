@@ -1,5 +1,6 @@
 process.mixin(require("./common"));
 http = require("http");
+url = require("url");
 
 var PROXY_PORT = 8869;
 var BACKEND_PORT = 8870;
@@ -16,7 +17,7 @@ backend.listen(BACKEND_PORT);
 var proxy_client = http.createClient(BACKEND_PORT);
 var proxy = http.createServer(function (req, res) {
   debug("proxy req headers: " + JSON.stringify(req.headers));
-  var proxy_req = proxy_client.request(req.uri.path);
+  var proxy_req = proxy_client.request(url.parse(req.url).pathname);
   proxy_req.finish(function(proxy_res) {
     res.sendHeader(proxy_res.statusCode, proxy_res.headers);
     proxy_res.addListener("body", function(chunk) {

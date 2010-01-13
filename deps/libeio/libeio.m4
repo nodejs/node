@@ -64,7 +64,7 @@ AC_CACHE_CHECK(for sendfile, ac_cv_sendfile, [AC_LINK_IFELSE([
 # include <sys/types.h>
 #if __linux
 # include <sys/sendfile.h>
-#elif __freebsd
+#elif __freebsd || defined __APPLE__
 # include <sys/socket.h>
 # include <sys/uio.h>
 #elif __hpux

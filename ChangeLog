@@ -1,4 +1,43 @@
-2009.12.22, Version 0.1.23
+2010.01.09, Version 0.1.25
+
+  * sys.inspect() improvements (Tim Caswell)
+
+  * path module improvements (isaacs, Benjamin Thomas)
+
+  * API: request.uri -> request.url
+    It is no longer an object, but a string. The 'url' module
+    was addded to parse that string. That is, node no longer
+    parses the request URL automatically.
+
+       require('url').parse(request.url)
+
+    is roughly equivlent to the old request.uri object.
+    (isaacs)
+
+  * Bugfix: Several libeio related race conditions.
+
+  * Better errors for multipart library (Felix Geisendörfer)
+
+  * Bugfix: Update node-waf version to 1.5.10
+
+  * getmem for freebsd (Vanilla Hsu)
+
+
+2009.12.31, Version 0.1.24, 642c2773a7eb2034f597af1cd404b9e086b59632
+
+  * Bugfix: don't chunk responses to HTTP/1.0 clients, even if
+    they send Connection: Keep-Alive (e.g. wget)
+
+  * Bugfix: libeio race condition
+
+  * Bugfix: Don't segfault on unknown http method
+
+  * Simplify exception reporting
+
+  * Upgrade V8 to 2.0.5.4
+
+
+2009.12.22, Version 0.1.23, f91e347eeeeac1a8bd6a7b462df0321b60f3affc
 
   * Bugfix: require("../blah") issues (isaacs)
 

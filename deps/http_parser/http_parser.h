@@ -1,22 +1,22 @@
-/* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
- * 
+/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
  * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE. 
+ * IN THE SOFTWARE.
  */
 #ifndef http_parser_h
 #define http_parser_h
@@ -30,8 +30,8 @@ extern "C" {
 #include <sys/types.h>
 
 /* Compile with -DHTTP_PARSER_STRICT=0 to make less checks, but run
- * faster 
- */ 
+ * faster
+ */
 #ifndef HTTP_PARSER_STRICT
 # define HTTP_PARSER_STRICT 1
 #else
@@ -74,8 +74,11 @@ enum http_method
   , HTTP_UNLOCK    = 0x4000
   };
 
+enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE };
+
 struct http_parser {
   /** PRIVATE **/
+  enum http_parser_type type;
   unsigned short state;
   unsigned short header_state;
   size_t index;
@@ -125,37 +128,14 @@ struct http_parser {
   http_cb      on_message_complete;
 };
 
-void http_parser_init(http_parser *parser);
-size_t http_parse_requests(http_parser *parser, const char *data, size_t len);
-size_t http_parse_responses(http_parser *parser, const char *data, size_t len);
+void http_parser_init(http_parser *parser, enum http_parser_type type);
+size_t http_parser_execute(http_parser *parser, const char *data, size_t len);
 /* Call this in the on_headers_complete or on_message_complete callback to
- * determine if this will be the last message on the connection.  
+ * determine if this will be the last message on the connection.
  * If you are the server, respond with the "Connection: close" header
  * if you are the client, close the connection.
  */
 int http_should_keep_alive(http_parser *parser);
-
-static inline const char * http_method_str (enum http_method method)
-{
-  switch (method) {
-    case HTTP_DELETE:     return "DELETE";
-    case HTTP_GET:        return "GET";
-    case HTTP_HEAD:       return "HEAD";
-    case HTTP_POST:       return "POST";
-    case HTTP_PUT:        return "PUT";
-    case HTTP_CONNECT:    return "CONNECT";
-    case HTTP_OPTIONS:    return "OPTIONS";
-    case HTTP_TRACE:      return "TRACE";
-    case HTTP_COPY:       return "COPY";
-    case HTTP_LOCK:       return "LOCK";
-    case HTTP_MKCOL:      return "MKCOL";
-    case HTTP_MOVE:       return "MOVE";
-    case HTTP_PROPFIND:   return "PROPFIND";
-    case HTTP_PROPPATCH:  return "PROPPATCH";
-    case HTTP_UNLOCK:     return "UNLOCK";
-    default:              return (const char*)0;
-  }
-}
 
 #ifdef __cplusplus
 }

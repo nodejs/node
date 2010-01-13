@@ -161,6 +161,8 @@ epoll_poll (EV_P_ ev_tstamp timeout)
           ev->events = (want & EV_READ  ? EPOLLIN  : 0)
                      | (want & EV_WRITE ? EPOLLOUT : 0);
 
+          /* pre-2.6.9 kernels require a non-null pointer with EPOLL_CTL_DEL, */
+          /* which is fortunately easy to do for us. */
           if (epoll_ctl (backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
             {
               postfork = 1; /* an error occured, recreate kernel state */

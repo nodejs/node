@@ -443,7 +443,9 @@ GLOBAL.setInterval = function (callback, repeat) {
 };
 
 GLOBAL.clearTimeout = function (timer) {
-  timer.stop();
+  if (timer instanceof process.Timer) {
+    timer.stop();
+  }
 };
 
 GLOBAL.clearInterval = GLOBAL.clearTimeout;
@@ -670,40 +672,57 @@ var pathModule = createInternalModule("path", function (exports) {
     return exports.normalize(Array.prototype.join.call(arguments, "/"));
   };
 
-  exports.normalizeArray = function (parts) {
-    var directories = [];
-    for (var i = 0; i < parts.length; i++) {
+  exports.normalizeArray = function (parts, keepBlanks) {
+    var directories = [], prev;
+    for (var i = 0, l = parts.length - 1; i <= l; i++) {
       var directory = parts[i];
-      if (directory === "." || (directory === "" && directories.length)) {
-        continue;
-      }
+
+      // if it's blank, but it's not the first thing, and not the last thing, skip it.
+      if (directory === "" && i !== 0 && i !== l && !keepBlanks) continue;
+
+      // if it's a dot, and there was some previous dir already, then skip it.
+      if (directory === "." && prev !== undefined) continue;
+
       if (
         directory === ".."
         && directories.length
-        && directories[directories.length - 1] != '..'
+        && prev !== ".."
+        && prev !== undefined
+        && (prev !== "" || keepBlanks)
       ) {
         directories.pop();
+        prev = directories.slice(-1)[0]
       } else {
+        if (prev === ".") directories.pop();
         directories.push(directory);
+        prev = directory;
       }
     }
     return directories;
   };
 
-  exports.normalize = function (path) {
-    return exports.normalizeArray(path.split("/")).join("/");
+  exports.normalize = function (path, keepBlanks) {
+    return exports.normalizeArray(path.split("/"), keepBlanks).join("/");
   };
 
   exports.dirname = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts.slice(0, parts.length-1).join("/");
+    return path.substr(0, path.lastIndexOf("/")) || ".";
   };
 
-  exports.filename = function (path) {
-    if (path.charAt(0) !== "/") path = "./" + path;
-    var parts = path.split("/");
-    return parts[parts.length-1];
+  exports.filename = function () {
+    throw new Error("path.filename is deprecated. Please use path.basename instead.");
+  };
+  exports.basename = function (path, ext) {
+    var f = path.substr(path.lastIndexOf("/") + 1);
+    if (ext && f.substr(-1 * ext.length) === ext) {
+      f = f.substr(0, f.length - ext.length);
+    }
+    return f;
+  };
+
+  exports.extname = function (path) {
+    var index = path.lastIndexOf('.');
+    return index < 0 ? '' : path.substring(index);
   };
 
   exports.exists = function (path, callback) {
@@ -788,7 +807,7 @@ function loadModule (request, parent) {
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
     var parentIdPath = path.dirname(parent.id +
-      (path.filename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
+      (path.basename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
     id = path.join(parentIdPath, request);
     // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];

@@ -1,25 +1,25 @@
-/* Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
  *
  * Some parts of this source file were taken from NGINX
- * (src/http/ngx_http_parser.c) copyright (C) 2002-2009 Igor Sysoev. 
- * 
+ * (src/http/ngx_http_parser.c) copyright (C) 2002-2009 Igor Sysoev.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
  * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE. 
+ * IN THE SOFTWARE.
  */
 #include <http_parser.h>
 #include <stdint.h>
@@ -97,6 +97,7 @@ static inline int message_complete_callback (http_parser *parser)
   return parser->on_message_complete(parser);
 }
 
+#define PROXY_CONNECTION "proxy-connection"
 #define CONNECTION "connection"
 #define CONTENT_LENGTH "content-length"
 #define TRANSFER_ENCODING "transfer-encoding"
@@ -148,7 +149,7 @@ static const uint32_t  usual[] = {
 
 #define USUAL(c) (usual[c >> 5] & (1 << (c & 0x1f)))
 
-enum state 
+enum state
   { s_dead = 1 /* important that this is > 0 */
 
   , s_start_res
@@ -198,7 +199,6 @@ enum state
   , s_header_almost_done
 
   , s_headers_almost_done
-  , s_headers_done
 
   , s_chunk_size_start
   , s_chunk_size
@@ -212,13 +212,14 @@ enum state
   , s_body_identity_eof
   };
 
-enum header_states 
+enum header_states
   { h_general = 0
   , h_C
   , h_CO
   , h_CON
 
   , h_matching_connection
+  , h_matching_proxy_connection
   , h_matching_content_length
   , h_matching_transfer_encoding
 
@@ -236,28 +237,31 @@ enum header_states
   };
 
 enum flags
-  { F_CHUNKED               = 0x0001
-  , F_CONNECTION_KEEP_ALIVE = 0x0002
-  , F_CONNECTION_CLOSE      = 0x0004
-  , F_TRAILING              = 0x0010
+  { F_CHUNKED               = 1 << 0
+  , F_CONNECTION_KEEP_ALIVE = 1 << 1
+  , F_CONNECTION_CLOSE      = 1 << 2
+  , F_TRAILING              = 1 << 3
   };
 
 #define CR '\r'
 #define LF '\n'
 #define LOWER(c) (unsigned char)(c | 0x20)
 
+#define start_state (parser->type == HTTP_REQUEST ? s_start_req : s_start_res)
+
 #if HTTP_PARSER_STRICT
 # define STRICT_CHECK(cond) if (cond) goto error
 # define NEW_MESSAGE() (http_should_keep_alive(parser) ? start_state : s_dead)
-#else 
-# define STRICT_CHECK(cond) 
+#else
+# define STRICT_CHECK(cond)
 # define NEW_MESSAGE() start_state
 #endif
 
-static inline
-size_t parse (http_parser *parser, const char *data, size_t len, int start_state)
+size_t http_parser_execute (http_parser *parser,
+                            const char *data,
+                            size_t len)
 {
-  char c, ch; 
+  char c, ch;
   const char *p, *pe;
   ssize_t to_read;
 
@@ -298,7 +302,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
 
         switch (ch) {
           case 'H':
-            state = s_res_H; 
+            state = s_res_H;
             break;
 
           case CR:
@@ -321,7 +325,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         state = s_res_HTT;
         break;
 
-      case s_res_HTT: 
+      case s_res_HTT:
         STRICT_CHECK(ch != 'P');
         state = s_res_HTTP;
         break;
@@ -353,7 +357,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         if (parser->http_major > 999) goto error;
         break;
       }
-       
+
       /* first digit of minor HTTP version */
       case s_res_first_http_minor:
         if (ch < '0' || ch > '9') goto error;
@@ -464,7 +468,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
               if (strncmp(parser->buffer, "GET", 3) == 0) {
                 parser->method = HTTP_GET;
                 break;
-              } 
+              }
 
               if (strncmp(parser->buffer, "PUT", 3) == 0) {
                 parser->method = HTTP_PUT;
@@ -706,7 +710,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
 
         switch (ch) {
           case '?':
-            break; // XXX ignore extra '?' ... is this right? 
+            break; // XXX ignore extra '?' ... is this right?
           case ' ':
             CALLBACK(url);
             state = s_req_http_start;
@@ -931,8 +935,10 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         }
 
         if (ch == LF) {
-          state = s_headers_done;
-          break;
+          /* they might be just sending \n instead of \r\n so this would be
+           * the second \n to denote the end of headers*/
+          state = s_headers_almost_done;
+          goto headers_almost_done;
         }
 
         c = LOWER(ch);
@@ -947,6 +953,10 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         switch (c) {
           case 'c':
             header_state = h_C;
+            break;
+
+          case 'p':
+            header_state = h_matching_proxy_connection;
             break;
 
           case 't':
@@ -1002,6 +1012,18 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
                   || c != CONNECTION[index]) {
                 header_state = h_general;
               } else if (index == sizeof(CONNECTION)-2) {
+                header_state = h_connection;
+              }
+              break;
+
+            /* proxy-connection */
+
+            case h_matching_proxy_connection:
+              index++;
+              if (index > sizeof(PROXY_CONNECTION)-1
+                  || c != PROXY_CONNECTION[index]) {
+                header_state = h_general;
+              } else if (index == sizeof(PROXY_CONNECTION)-2) {
                 header_state = h_connection;
               }
               break;
@@ -1089,7 +1111,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
 
           header_state = h_general;
           break;
-        } 
+        }
 
         switch (header_state) {
           case h_transfer_encoding:
@@ -1138,8 +1160,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
 
           if (ch == LF) {
             CALLBACK(header_value);
-            state = s_header_field_start;
-            break;
+            goto header_almost_done;
           }
           break;
         }
@@ -1162,7 +1183,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
           /* Transfer-Encoding: chunked */
           case h_matching_transfer_encoding_chunked:
             index++;
-            if (index > sizeof(CHUNKED)-1 
+            if (index > sizeof(CHUNKED)-1
                 || c != CHUNKED[index]) {
               header_state = h_general;
             } else if (index == sizeof(CHUNKED)-2) {
@@ -1206,6 +1227,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
       }
 
       case s_header_almost_done:
+      header_almost_done:
       {
         STRICT_CHECK(ch != LF);
 
@@ -1228,6 +1250,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
       }
 
       case s_headers_almost_done:
+      headers_almost_done:
       {
         STRICT_CHECK(ch != LF);
 
@@ -1241,7 +1264,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
         parser->body_read = 0;
 
         CALLBACK2(headers_complete);
-        
+
         if (parser->flags & F_CHUNKED) {
           /* chunked encoding - ignore Content-Length header */
           state = s_chunk_size_start;
@@ -1254,7 +1277,7 @@ size_t parse (http_parser *parser, const char *data, size_t len, int start_state
             /* Content-Length header given and non-zero */
             state = s_body_identity;
           } else {
-            if (start_state == s_start_req || http_should_keep_alive(parser)) {
+            if (parser->type == HTTP_REQUEST || http_should_keep_alive(parser)) {
               /* Assume content-length 0 - read the next */
               CALLBACK2(message_complete);
               state = NEW_MESSAGE();
@@ -1406,22 +1429,6 @@ error:
 }
 
 
-size_t
-http_parse_requests (http_parser *parser, const char *data, size_t len)
-{
-  if (!parser->state) parser->state = s_start_req;
-  return parse(parser, data, len, s_start_req);
-}
-
-
-size_t
-http_parse_responses (http_parser *parser, const char *data, size_t len)
-{
-  if (!parser->state) parser->state = s_start_res;
-  return parse(parser, data, len, s_start_res);
-}
-
-
 int
 http_should_keep_alive (http_parser *parser)
 {
@@ -1444,9 +1451,10 @@ http_should_keep_alive (http_parser *parser)
 
 
 void
-http_parser_init (http_parser *parser)
+http_parser_init (http_parser *parser, enum http_parser_type t)
 {
-  parser->state = 0;
+  parser->type = t;
+  parser->state = (t == HTTP_REQUEST ? s_start_req : s_start_res);
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
   parser->on_query_string = NULL;

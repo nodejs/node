@@ -1,25 +1,59 @@
 process.mixin(require("./common"));
 http = require("http");
 
-var multipart = require('multipart');
-var fixture = require('./fixtures/multipart');
+var
+  PORT = 8222,
 
-var port = 8222;
-var parts_reveived = 0;
-var parts_complete = 0;
-var parts = {};
+  multipart = require('multipart'),
+  fixture = require('./fixtures/multipart'),
+
+  requests = 0,
+  badRequests = 0,
+  partsReceived = 0,
+  partsComplete = 0,
+
+  respond = function(res, text) {
+    requests++;
+    if (requests == 4) {
+      server.close();
+    }
+
+    res.sendHeader(200, {"Content-Type": "text/plain"});
+    res.sendBody(text);
+    res.finish();
+  };
 
 var server = http.createServer(function(req, res) {
-  var stream = new multipart.Stream(req);
+  if (req.headers['x-use-simple-api']) {
+    multipart.parse(req)
+      .addCallback(function() {
+        respond(res, 'thanks');
+      })
+      .addErrback(function() {
+        badRequests++;
+        respond(res, 'no thanks');
+      });
+    return;
+  }
 
+
+  try {
+    var stream = new multipart.Stream(req);
+  } catch (e) {
+    badRequests++;
+    respond(res, 'no thanks');
+    return;
+  }
+
+  var parts = {};
   stream.addListener('part', function(part) {
-    parts_reveived++;
+    partsReceived++;
 
     var name = part.name;
 
-    if (parts_reveived == 1) {
+    if (partsReceived == 1) {
       assert.equal('reply', name);
-    } else if (parts_reveived == 2) {
+    } else if (partsReceived == 2) {
       assert.equal('fileupload', name);
     }
 
@@ -29,31 +63,59 @@ var server = http.createServer(function(req, res) {
     });
     part.addListener('complete', function(chunk) {
       assert.equal(0, part.buffer.length);
-      if (parts_reveived == 1) {
+      if (partsReceived == 1) {
         assert.equal('yes', parts[name]);
-      } else if (parts_reveived == 2) {
-        assert.equal('/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg', parts[name]);
+      } else if (partsReceived == 2) {
+        assert.equal(
+          '/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg',
+          parts[name]
+        );
       }
-      parts_complete++;
+      partsComplete++;
     });
   });
 
   stream.addListener('complete', function() {
-    res.sendHeader(200, {"Content-Type": "text/plain"});
-    res.sendBody('thanks');
-    res.finish();
-    server.close();
+    respond(res, 'thanks');
   });
 });
-server.listen(port);
+server.listen(PORT);
 
-var client = http.createClient(port);
-var request = client.request('POST', '/', {'Content-Type': 'multipart/form-data; boundary=AaB03x', 'Content-Length': fixture.reply.length});
+var client = http.createClient(PORT);
+
+var request = client.request('POST', '/', {
+  'Content-Type': 'multipart/form-data; boundary=AaB03x',
+  'Content-Length': fixture.reply.length
+});
 request.sendBody(fixture.reply, 'binary');
 request.finish();
 
+var simpleRequest = client.request('POST', '/', {
+  'X-Use-Simple-Api': 'yes',
+  'Content-Type': 'multipart/form-data; boundary=AaB03x',
+  'Content-Length': fixture.reply.length
+});
+simpleRequest.sendBody(fixture.reply, 'binary');
+simpleRequest.finish();
+
+var badRequest = client.request('POST', '/', {
+  'Content-Type': 'invalid!',
+  'Content-Length': fixture.reply.length
+});
+badRequest.sendBody(fixture.reply, 'binary');
+badRequest.finish();
+
+var simpleBadRequest = client.request('POST', '/', {
+  'X-Use-Simple-Api': 'yes',
+  'Content-Type': 'something',
+  'Content-Length': fixture.reply.length
+});
+simpleBadRequest.sendBody(fixture.reply, 'binary');
+simpleBadRequest.finish();
+
 process.addListener('exit', function() {
   puts("done");
-  assert.equal(2, parts_complete);
-  assert.equal(2, parts_reveived);
+  assert.equal(2, partsComplete);
+  assert.equal(2, partsReceived);
+  assert.equal(2, badRequests);
 });

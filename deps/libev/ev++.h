@@ -644,6 +644,11 @@ namespace ev {
     {
       ev_timer_again (EV_A_ static_cast<ev_timer *>(this));
     }
+
+    ev_tstamp remaining ()
+    {
+      return ev_timer_remaining (EV_A_ static_cast<ev_timer *>(this));
+    }
   EV_END_WATCHER (timer, timer)
 
   #if EV_PERIODIC_ENABLE

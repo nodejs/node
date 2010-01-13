@@ -1,5 +1,6 @@
 process.mixin(require("./common"));
 http = require("http");
+url = require("url");
 PORT = 8888;
 
 var responses_sent = 0;
@@ -10,7 +11,7 @@ var body1 = "";
 http.createServer(function (req, res) {
   if (responses_sent == 0) {
     assert.equal("GET", req.method);
-    assert.equal("/hello", req.uri.path);
+    assert.equal("/hello", url.parse(req.url).pathname);
 
     p(req.headers);
     assert.equal(true, "accept" in req.headers);
@@ -22,13 +23,13 @@ http.createServer(function (req, res) {
 
   if (responses_sent == 1) {
     assert.equal("POST", req.method);
-    assert.equal("/world", req.uri.path);
+    assert.equal("/world", url.parse(req.url).pathname);
     this.close();
   }
 
   req.addListener("complete", function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
-    res.sendBody("The path was " + req.uri.path);
+    res.sendBody("The path was " + url.parse(req.url).pathname);
     res.finish();
     responses_sent += 1;
   });
