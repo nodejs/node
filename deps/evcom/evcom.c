@@ -849,21 +849,27 @@ static inline socklen_t
 address_length (struct sockaddr *address)
 {
   struct sockaddr_un* unix_address = (struct sockaddr_un*)address;
+  int length = 0;
 
   switch (address->sa_family) {
     case AF_INET:
-      return sizeof(struct sockaddr_in);
-
+      length = sizeof(struct sockaddr_in);
+      break;
     case AF_INET6:
-      return sizeof(struct sockaddr_in6);
-
+      length = sizeof(struct sockaddr_in6);
+      break;
     case AF_UNIX:
-      return strlen(unix_address->sun_path) + sizeof(unix_address->sun_family);
+#ifdef SUN_LEN
+      length = SUN_LEN(unix_address);
+#else
+      length = strlen(unix_address->sun_path) + sizeof(unix_address->sun_family);
+#endif
+      break;
 
     default:
       assert(0 && "Unsupported socket family");
   }
-  return 0;
+  return length;
 }
 
 int
