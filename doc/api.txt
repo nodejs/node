@@ -1459,14 +1459,14 @@ resolution.addCallback(function (addresses, ttl, cname) {
     reversing.addCallback( function (domains, ttl, cname) {
       sys.puts("reverse for " + a + ": " + JSON.stringify(domains));
     });
-    reversing.addErrback( function (code, msg) {
-      sys.puts("reverse for " + a + " failed: " + msg);
+    reversing.addErrback( function (e) {
+      puts("reverse for " + a + " failed: " + e.message);
     });
   }
 });
 
-resolution.addErrback(function (code, msg) {
-  sys.puts("error: " + msg);
+resolution.addErrback(function (e) {
+  puts("error: " + e.message);
 });
 -------------------------------------------------------------------------
 
@@ -1482,8 +1482,9 @@ This function returns a promise.
   canonical name for the query.
   The type of each item in +addresses+ is determined by the record type, and
   described in the documentation for the corresponding lookup methods below.
-- on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English.
+- on error: Returns an instanceof Error object, where the "errno" field is one
+  of the error codes listed below and the "message" field is a string
+  describing the error in English.
 
 +dns.resolve4(domain)+::
 
@@ -1521,8 +1522,9 @@ Reverse resolves an ip address to an array of domain names.
 - on success: returns +domains, ttl, cname+. +ttl+ (time-to-live) is an integer
   specifying the number of seconds this result is valid for. +cname+ is the
   canonical name for the query. +domains+ is an array of domains.
-- on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English.
+- on error: Returns an instanceof Error object, where the "errno" field is one
+  of the error codes listed below and the "message" field is a string
+  describing the error in English.
 
 
 Each DNS query can return an error code.
