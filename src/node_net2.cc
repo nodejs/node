@@ -45,6 +45,8 @@ static Persistent<String> type_symbol;
 static Persistent<String> tcp_symbol;
 static Persistent<String> unix_symbol;
 
+static Persistent<FunctionTemplate> recv_msg_template;
+
 #define FD_ARG(a)                                                     \
   if (!(a)->IsInt32()) {                                              \
     return ThrowException(Exception::TypeError(                       \
@@ -517,7 +519,10 @@ static Handle<Value> Read(const Arguments& args) {
   return scope.Close(Integer::New(bytes_read));
 }
 
-// bytesRead, receivedFd = t.recvMsg(fd, buffer, offset, length)
+// bytesRead = t.recvMsg(fd, buffer, offset, length)
+// if (recvMsg.fd) {
+//   receivedFd = recvMsg.fd;
+// }
 static Handle<Value> RecvMsg(const Arguments& args) {
   HandleScope scope;
 
@@ -528,7 +533,7 @@ static Handle<Value> RecvMsg(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  if (!IsBuffer(args[1])) { 
+  if (!IsBuffer(args[1])) {
     return ThrowException(Exception::TypeError(
           String::New("Second argument should be a buffer")));
   }
@@ -547,23 +552,21 @@ static Handle<Value> RecvMsg(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  struct iovec iov[1];
-  struct msghdr msg;
   int received_fd;
-  char control_msg[CMSG_SPACE(sizeof(received_fd))];
-  struct cmsghdr *cmsg;
 
-  // TODO: zero out control_msg ?
-
+  struct iovec iov[1];
   iov[0].iov_base = buffer_p(buffer, off);
-  iov[0].iov_len = buffer_remaining(buffer, off);
+  iov[0].iov_len = len;
+
+  struct msghdr msg;
   msg.msg_iov = iov;
   msg.msg_iovlen = 1;
   msg.msg_name = NULL;
   msg.msg_namelen = 0;
   /* Set up to receive a descriptor even if one isn't in the message */
-  msg.msg_control = (void *) control_msg;
-  msg.msg_controllen = CMSG_LEN(sizeof(received_fd));
+  char cmsg_space[64]; // should be big enough
+  msg.msg_controllen = 64;
+  msg.msg_control = (void *) cmsg_space;
 
   ssize_t bytes_read = recvmsg(fd, &msg, 0);
 
@@ -572,20 +575,22 @@ static Handle<Value> RecvMsg(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "recvMsg"));
   }
 
-  // Return array of [bytesRead, fd] with fd == -1 if there was no FD
-  Local<Array> a = Array::New(2);
-  a->Set(Integer::New(0), Integer::New(bytes_read));
+  // Why not return a two element array here [bytesRead, fd]? Because
+  // creating an object for each recvmsg() action is heavy. Instead we just
+  // assign the recved fd to a globalally accessable variable (recvMsg.fd)
+  // that the wrapper can pick up. Since we're single threaded, this is not
+  // a problem - just make sure to copy out that variable before the next
+  // call to recvmsg().
 
-  cmsg = CMSG_FIRSTHDR(&msg);
-  if (cmsg->cmsg_type == SCM_RIGHTS) {
+  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+  if (cmsg && cmsg->cmsg_type == SCM_RIGHTS) {
     received_fd = *(int *) CMSG_DATA(cmsg);
-  }
-  else {
-    received_fd = -1;
+    recv_msg_template->GetFunction()->Set(fd_symbol, Integer::New(received_fd));
+  } else {
+    recv_msg_template->GetFunction()->Set(fd_symbol, Null());
   }
 
-  a->Set(Integer::New(1), Integer::New(received_fd));
-  return scope.Close(a);
+  return scope.Close(Integer::New(bytes_read));
 }
 
 
@@ -904,7 +909,10 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "read", Read);
 
   NODE_SET_METHOD(target, "sendFD", SendFD);
-  NODE_SET_METHOD(target, "recvMsg", RecvMsg);
+
+  recv_msg_template =
+      Persistent<FunctionTemplate>::New(FunctionTemplate::New(RecvMsg));
+  target->Set(String::NewSymbol("recvMsg"), recv_msg_template->GetFunction());
 
   NODE_SET_METHOD(target, "socket", Socket);
   NODE_SET_METHOD(target, "close", Close);
