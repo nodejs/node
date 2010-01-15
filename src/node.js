@@ -921,9 +921,9 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     var wrapper = "var __wrap__ = function (exports, require, module, __filename) { "
                 + content
                 + "\n}; __wrap__;";
-    var compiledWrapper = process.compile(wrapper, filename);
 
     try {
+      var compiledWrapper = process.compile(wrapper, filename);
       compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
     } catch (e) {
       loadPromise.emitError(e);

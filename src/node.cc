@@ -316,7 +316,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
 }
 
-static void ReportException(TryCatch *try_catch) {
+static void ReportException(TryCatch *try_catch, bool show_line = false) {
   Handle<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     fprintf(stderr, "Error: (no message)\n");
@@ -333,7 +333,7 @@ static void ReportException(TryCatch *try_catch) {
     if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
   }
 
-  if (stack.IsEmpty()) {
+  if (show_line) {
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);
@@ -353,7 +353,9 @@ static void ReportException(TryCatch *try_catch) {
       fprintf(stderr, "^");
     }
     fprintf(stderr, "\n");
+  }
 
+  if (stack.IsEmpty()) {
     message->PrintCurrentStackTrace(stderr);
   } else {
     String::Utf8Value trace(stack);
@@ -736,7 +738,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   return Undefined();
 }
 
-v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
+Handle<Value> Compile(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2) {
@@ -747,11 +749,17 @@ v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
   Local<String> source = args[0]->ToString();
   Local<String> filename = args[1]->ToString();
 
-  Handle<Script> script = Script::Compile(source, filename);
-  if (script.IsEmpty()) return Undefined();
+  TryCatch try_catch;
 
-  Handle<Value> result = script->Run();
-  if (result.IsEmpty()) return Undefined();
+  Local<Script> script = Script::Compile(source, filename);
+  if (try_catch.HasCaught()) {
+    // Hack because I can't get a proper stacktrace on SyntaxError
+    ReportException(&try_catch, true);
+    exit(1);
+  }
+
+  Local<Value> result = script->Run();
+  if (try_catch.HasCaught()) return try_catch.ReThrow();
 
   return scope.Close(result);
 }
