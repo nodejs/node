@@ -222,7 +222,7 @@ sys.exec("ls /").addCallback(function (stdout, stderr) {
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
-objects which emit events are instances of +process.EventEmitter+.
+objects which emit events are instances of +events.EventEmitter+.
 
 Events are represented by a camel-cased string. Here are some examples:
 +"connection"+, +"receive"+, +"messageBegin"+.
@@ -234,7 +234,9 @@ Some asynchronous file operations return an +EventEmitter+ called a
 _promise_.  A promise emits just a single event when the operation is
 complete.
 
-==== +process.EventEmitter+
+==== +events.EventEmitter+
+
++require('events')+ to access the events module.
 
 All EventEmitters emit the event +"newListener"+ when new listeners are
 added.
@@ -268,9 +270,11 @@ manipulated, e.g. to remove listeners.
 +emitter.emit(event, arg1, arg2, ...)+ ::
 Execute each of the listeners in order with the supplied arguments.
 
-==== +process.Promise+
+==== +events.Promise+
 
-+process.Promise+ inherits from +process.eventEmitter+. A promise emits one of two
++require('events')+ to access the events module.
+
++events.Promise+ inherits from +process.eventEmitter+. A promise emits one of two
 events: +"success"+ or +"error"+.  After emitting its event, it will not
 emit anymore events.
 
@@ -292,7 +296,7 @@ Adds a listener for the +"error"+ event. Returns the same promise object.
 Adds a listener for the +"cancel"+ event. Returns the same promise object.
 
 +promise.emitSuccess(arg1, arg2, ...)+ ::
-If you created the promise (by doing +new process.Promise()+) then call
+If you created the promise (by doing +new events.Promise()+) then call
 +emitSuccess+ to emit the +"success"+ event with the given arguments. 
 +
 (+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
@@ -565,7 +569,7 @@ File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do +require("posix")+. 
 
 All POSIX wrappers have a similar form.  They return a promise
-(+process.Promise+). Example of deleting a file:
+(+events.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
 var posix = require("posix"),

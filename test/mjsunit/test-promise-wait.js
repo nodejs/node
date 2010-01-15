@@ -1,7 +1,8 @@
 process.mixin(require("./common"));
+events = require('events');
 
 var p1_done = false;
-var p1 = new process.Promise();
+var p1 = new events.Promise();
 p1.addCallback(function () {
   assert.equal(1, arguments.length);
   assert.equal("single arg", arguments[0]);
@@ -9,7 +10,7 @@ p1.addCallback(function () {
 });
 
 var p2_done = false;
-var p2 = new process.Promise();
+var p2 = new events.Promise();
 p2.addCallback(function () {
   p2_done = true;
   setTimeout(function () {
@@ -18,7 +19,7 @@ p2.addCallback(function () {
 });
 
 var p3_done = false;
-var p3 = new process.Promise();
+var p3 = new events.Promise();
 p3.addCallback(function () {
   p3_done = true;
 });
@@ -26,7 +27,7 @@ p3.addCallback(function () {
 
 
 var p4_done = false;
-var p4 = new process.Promise();
+var p4 = new events.Promise();
 p4.addCallback(function () {
   assert.equal(3, arguments.length);
   assert.equal("a", arguments[0]);
@@ -36,7 +37,7 @@ p4.addCallback(function () {
 });
 
 var p5_done = false;
-var p5 = new process.Promise();
+var p5 = new events.Promise();
 p5.addCallback(function () {
   p5_done = true;
   setTimeout(function () {

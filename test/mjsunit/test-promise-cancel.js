@@ -1,6 +1,7 @@
 process.mixin(require('./common'));
+events = require('events');
 
-var promise = new process.Promise();
+var promise = new events.Promise();
 var cancelled = false;
 promise.addCancelback(function(){
   if(cancelled){
