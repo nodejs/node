@@ -919,13 +919,13 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.async = requireAsync;
     require.main = process.mainModule;
     // create wrapper function
-    var wrapper = "var __wrap__ = function (exports, require, module, __filename) { "
+    var wrapper = "var __wrap__ = function (exports, require, module, __filename, __dirname) { "
                 + content
                 + "\n}; __wrap__;";
 
     try {
       var compiledWrapper = process.compile(wrapper, filename);
-      compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
+      compiledWrapper.apply(self.exports, [self.exports, require, self, filename, path.dirname(filename)]);
     } catch (e) {
       loadPromise.emitError(e);
       return;
