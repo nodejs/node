@@ -8,11 +8,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <ev.h>
+
 namespace node {
 
 using namespace v8;
 
 void DefineConstants(Handle<Object> target) {
+  NODE_DEFINE_CONSTANT(target, EV_MINPRI);
+  NODE_DEFINE_CONSTANT(target, EV_MAXPRI);
+
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);

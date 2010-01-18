@@ -14,6 +14,7 @@
 #include <node_dns.h>
 #include <node_net.h>
 #include <node_file.h>
+#include <node_idle_watcher.h>
 #include <node_http.h>
 #include <node_signal_handler.h>
 #include <node_stat.h>
@@ -940,6 +941,7 @@ static Local<Object> Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
+  IdleWatcher::Initialize(process);            // idle_watcher.cc
   Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
   SignalHandler::Initialize(process);          // signal_handler.cc

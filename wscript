@@ -338,6 +338,7 @@ def build(bld):
     src/node_stat.cc
     src/node_stdio.cc
     src/node_timer.cc
+    src/node_idle_watcher.cc
   """
   node.includes = """
     src/ 
