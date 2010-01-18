@@ -40,6 +40,38 @@ setInterval(function () {
     clearInterval(this);
 }, 1000);
 
+
+// Single param:
+setTimeout(function(param){
+  assert.equal("test param", param);
+}, 1000, "test param");
+
+var interval_count2 = 0;
+setInterval(function(param){
+  ++interval_count2;
+  assert.equal("test param", param);
+  
+  if(interval_count2 == 3)
+    clearInterval(this);
+}, 1000, "test param");
+
+
+// Multiple param
+setTimeout(function(param1, param2){
+  assert.equal("param1", param1);
+  assert.equal("param2", param2);
+}, 1000, "param1", "param2");
+
+var interval_count3 = 0;
+setInterval(function(param1, param2){
+  ++interval_count3;
+  assert.equal("param1", param1);
+  assert.equal("param2", param2);
+  
+  if(interval_count3 == 3)
+    clearInterval(this);
+}, 1000, "param1", "param2");
+
 process.addListener("exit", function () {
   assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);

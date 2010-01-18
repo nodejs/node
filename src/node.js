@@ -491,17 +491,29 @@ process.Stats.prototype.isSocket = function () {
 
 
 // Timers
+function addTimerListener (callback) {
+  var timer = this;
+  // Special case the no param case to avoid the extra object creation.
+  if (arguments.length > 2) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    timer.addListener("timeout", function(){
+      callback.apply(timer, args);
+    });
+  } else {
+    timer.addListener("timeout", callback);
+  }
+}
 
 GLOBAL.setTimeout = function (callback, after) {
   var timer = new process.Timer();
-  timer.addListener("timeout", callback);
+  addTimerListener.apply(timer, arguments);
   timer.start(after, 0);
   return timer;
 };
 
 GLOBAL.setInterval = function (callback, repeat) {
   var timer = new process.Timer();
-  timer.addListener("timeout", callback);
+  addTimerListener.apply(timer, arguments);
   timer.start(repeat, repeat);
   return timer;
 };

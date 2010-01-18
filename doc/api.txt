@@ -488,6 +488,8 @@ puts("The area of a cirlce of radius 4 is " + area(4));
 To schedule execution of callback after delay milliseconds. Returns a
 +timeoutId+ for possible use with +clearTimeout()+.
 
+Optionally, you can also pass arguments to the callback.
+
 
 +clearTimeout(timeoutId)+::
 Prevents said timeout from triggering.
@@ -496,6 +498,8 @@ Prevents said timeout from triggering.
 +setInterval(callback, delay)+::
 To schedule the repeated execution of callback every +delay+ milliseconds. Returns
 a +intervalId+ for possible use with +clearInterval()+.
+
+Optionally, you can also pass arguments to the callback.
 
 
 +clearInterval(intervalId)+::
