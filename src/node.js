@@ -377,6 +377,30 @@ var eventsModule = createInternalModule('events', function (exports) {
 var events = eventsModule.exports;
 
 
+// nextTick()
+
+var nextTickQueue = [];
+var nextTickWatcher = new process.IdleWatcher();
+nextTickWatcher.setPriority(process.EVMAXPRI); // max priority
+
+nextTickWatcher.callback = function () {
+  var l = nextTickQueue.length;
+  while (l--) {
+    var cb = nextTickQueue.shift();
+    cb();
+  }
+  if (nextTickQueue.length == 0) nextTickWatcher.stop();
+};
+
+process.nextTick = function (callback) {
+  nextTickQueue.push(callback);
+  nextTickWatcher.start();
+};
+
+
+
+
+
 // Signal Handlers
 
 function isSignal (event) {
@@ -829,9 +853,9 @@ function loadModule (request, parent) {
     debug("found  " + JSON.stringify(id) + " in cache");
     // In cache
     var module = moduleCache[id];
-    setTimeout(function () {
+    process.nextTick(function () {
       loadPromise.emitSuccess(module.exports);
-    }, 0);
+    });
   } else {
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
     // Not in cache
@@ -868,11 +892,11 @@ Module.prototype.loadObject = function (filename, loadPromise) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
   // file, store it to tmp then run dlopen on it.
-  setTimeout(function () {
+  process.nextTick(function () {
     self.loaded = true;
     process.dlopen(filename, self.exports); // FIXME synchronus
     loadPromise.emitSuccess(self.exports);
-  }, 0);
+  });
 };
 
 function cat (id, loadPromise) {

@@ -123,6 +123,9 @@ Returns the memory usage of the Node process. It looks like this
 +
 +heapTotal+ and +heapUsed+ refer to V8's memory usage.
 
++process.nextTick(callback)+::
+On the next loop around the event loop call this callback.
+
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
 success code 0.
