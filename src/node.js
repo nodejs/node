@@ -1,4 +1,4 @@
-(function () { // annonymous namespace
+(function () { // anonymous namespace
 
 /** deprecation errors ************************************************/
 
@@ -997,4 +997,4 @@ process.loop();
 
 process.emit("exit");
 
-}()); // end annonymous namespace
+}()); // end anonymous namespace
