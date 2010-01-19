@@ -259,7 +259,6 @@ var eventsModule = createInternalModule('events', function (exports) {
 
     this
       .addCallback(onComplete)
-      .addCancelback(onComplete)
       .addErrback(onComplete);
 
     var self = this;
@@ -273,21 +272,6 @@ var eventsModule = createInternalModule('events', function (exports) {
     }, this._timeoutDuration);
 
     return this;
-  };
-
-  exports.Promise.prototype.cancel = function() {
-    if(this._cancelled) return;
-    this._cancelled = true;
-
-    this._events['success'] = [];
-    this._events['error'] = [];
-
-    this.emitCancel();
-  };
-
-  exports.Promise.prototype.emitCancel = function() {
-    Array.prototype.unshift.call(arguments, 'cancel')
-    this.emit.apply(this, arguments);
   };
 
   exports.Promise.prototype.emitSuccess = function() {
@@ -311,11 +295,6 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   exports.Promise.prototype.addErrback = function (listener) {
     this.addListener("error", listener);
-    return this;
-  };
-
-  exports.Promise.prototype.addCancelback = function (listener) {
-    this.addListener("cancel", listener);
     return this;
   };
 

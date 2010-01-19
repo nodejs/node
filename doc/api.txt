@@ -286,7 +286,6 @@ emit anymore events.
 | Event       | Parameters       | Notes
 | +"success"+ | (depends)        |
 | +"error"+   | (depends)        |
-| +"cancel"+  | (depends)        |
 |=========================================================
 
 +promise.addCallback(listener)+ ::
@@ -294,9 +293,6 @@ Adds a listener for the +"success"+ event. Returns the same promise object.
 
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
-
-+promise.addCancelback(listener)+ ::
-Adds a listener for the +"cancel"+ event. Returns the same promise object.
 
 +promise.emitSuccess(arg1, arg2, ...)+ ::
 If you created the promise (by doing +new events.Promise()+) then call
@@ -308,21 +304,10 @@ the moment due to a bug; use +emitSuccess+ instead.)
 +promise.emitError(arg1, arg2, ...)+ ::
 Emits the +"error"+ event.
 
-+promise.emitCancel(arg1, arg2, ...)+ ::
-Emits the +"cancel"+ event. You may still get a +"success"+ or +"error"+
-callback if the promise giver does not handle the cancel event. Use
-+promise.cancel()+ to ignore any later events.
-
-+promise.cancel()+ ::
-Clears all +"success"+ and +"error"+ event listeners from the promise, then
-emits the +"cancel"+ event. Whether or not the promise is actually canceled
-or not depends on the promise giver. This also clears Promise.timeout() if one
-was set.
-
 +promise.timeout(timeout = undefined)+ ::
 If the +timeout+ parameter is provided, the promise will emit an +"error"+
 event after the given amount of millseconds. The timeout is canceled by any
-+"success"+, +"error"+ or +"cancel"+ event being emitted by the Promise.
++"success"+ or +"error"+ event being emitted by the Promise.
 +
 To tell apart a timeout from a regular "error" event, use the following test:
 +

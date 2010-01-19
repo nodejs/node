@@ -51,34 +51,6 @@ errorPromise.addErrback(function(e) {
   assert.equal('intentional', e.message);
 });
 
-var cancelPromise = new events.Promise();
-cancelPromise.timeout(500);
-setTimeout(function() {
-  cancelPromise.cancel();
-}, 250);
-
-setTimeout(function() {
-  cancelPromise.emitSuccess('should be ignored');
-}, 400);
-
-cancelPromise.addCallback(function(e) {
-  assert.ok(false, 'addCallback should not fire if the promise is canceled');
-});
-
-cancelPromise.addErrback(function(e) {
-  assert.ok(false, 'addErrback should not fire if the promise is canceled');
-});
-
-var cancelTimeoutPromise = new events.Promise();
-cancelTimeoutPromise.timeout(500);
-setTimeout(function() {
-  cancelPromise.emitCancel();
-}, 250);
-
-cancelPromise.addErrback(function(e) {
-  assert.ok(false, 'addErrback should not fire after a cancel event');
-});
-
 process.addListener('exit', function() {
   assert.equal(2, timeouts);
 });
