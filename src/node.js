@@ -289,24 +289,31 @@ var eventsModule = createInternalModule('events', function (exports) {
 
     this._values = Array.prototype.slice.call(arguments);
     this.emit.apply(this, ['error'].concat(this._values));
+
+    if (this.listeners('error').length == 0) {
+      var self = this;
+      process.nextTick(function() {
+        if (self.listeners('error').length == 0) {
+          throw new Error('Unhandled emitError: '+JSON.stringify(self._values));
+        }
+      });
+    }
   };
 
   exports.Promise.prototype.addCallback = function (listener) {
-    if (!this.hasFired) {
-      return this.addListener("success", listener);
+    if (this.hasFired) {
+      return listener.apply(this, this._values);
     }
 
-    listener.apply(this, this._values);
-    return this;
+    return this.addListener("success", listener);
   };
 
   exports.Promise.prototype.addErrback = function (listener) {
-    if (!this.hasFired) {
-      return this.addListener("error", listener);
+    if (this.hasFired) {
+      listener.apply(this, this._values);
     }
 
-    listener.apply(this, this._values);
-    return this;
+    return this.addListener("error", listener);
   };
 
   /* Poor Man's coroutines */
@@ -1009,10 +1016,6 @@ if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
 process.mainModule = createModule(".");
 var loadPromise = new events.Promise();
 process.mainModule.load(process.ARGV[1], loadPromise);
-
-loadPromise.addErrback(function(e) {
-  throw e;
-});
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If

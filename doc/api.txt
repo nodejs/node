@@ -304,7 +304,47 @@ If you created the promise (by doing +new events.Promise()+) then call
 the moment due to a bug; use +emitSuccess+ instead.)
 
 +promise.emitError(arg1, arg2, ...)+ ::
-Emits the +"error"+ event.
+Emits the +"error"+ event. If a no error handler is attached to the promise
+between +promise.emitError()+ and +process.nextTick()+, an exception is
+thrown.
++
+To explain the exception behavior, assume you have a "computeQuestion"
+function as follows:
++
+----------------------------------------
+var events = require('events');
+function computeQuestion(answer) {
+  var promise = new events.Promise();
+  if (answer !== 42) {
+    promise.emitError('wrong answer');
+    return promise;
+  }
+  // compute the question for 42
+
+  return promise;
+}
+----------------------------------------
++
+You can stop an exception to be thrown here by attaching an errback handler
+right away (in the same event loop tick) like this:
++
+----------------------------------------
+computeQuestion(23).addErrback(function() {
+  // No exception will be thrown
+});
+----------------------------------------
++
+However, if you try to  attach the error handler in a later tick, the promise
+will already have thrown an exception:
++
+----------------------------------------
+var promise = computeQuestion(23);
+setTimeout(function() {
+  promise.addErrback(function() {
+    // This will never execute, the promise already threw an exception
+  });
+}, 1000);
+----------------------------------------
 
 +promise.timeout(timeout = undefined)+ ::
 If the +timeout+ parameter is provided, the promise will emit an +"error"+

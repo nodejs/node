@@ -9,6 +9,8 @@ var
     a2: 1,
     b1: 1,
     b2: 1,
+    c1: 1,
+    d1: 1,
   };
 
 // Test regular & late callback binding
@@ -35,6 +37,27 @@ b.emitError(TEST_VALUE);
 b.addErrback(function(value) {
   assert.equal(TEST_VALUE, value);
   expectedCallbacks.b2--;
+});
+
+// Test late errback binding
+var c = new Promise();
+c.emitError(TEST_VALUE);
+c.addErrback(function(value) {
+  assert.equal(TEST_VALUE, value);
+  expectedCallbacks.c1--;
+});
+
+// Test errback exceptions
+var d = new Promise();
+d.emitError(TEST_VALUE);
+
+process.addListener('uncaughtException', function(e) {
+  if (e.name === "AssertionError") {
+    throw e;
+  }
+
+  expectedCallbacks.d1--;
+  assert.ok(e.message.match(/unhandled emitError/i));
 });
 
 process.addListener('exit', function() {
