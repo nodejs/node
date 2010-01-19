@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <wchar.h> // wint_t
 
 #include "v8.h"
 
@@ -73,7 +74,7 @@ v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
     uint16_t* string = NewArray<uint16_t>(length + 1);
     string_obj->Write(string);
     for (int j = 0; j < length; j++)
-      printf("%lc", string[j]);
+      printf("%lc", (wint_t)string[j]);
     DeleteArray(string);
   }
   printf("\n");

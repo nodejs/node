@@ -57,7 +57,7 @@ CDEFS = @CDEFS@
 PICFLAGS = -fPIC
 AWK = awk
 
-all: static
+all: staticlib
 
 .SUFFIXES: .c .o .lo
 

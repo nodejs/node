@@ -108,8 +108,9 @@ def configure(conf):
   conf.env["USE_DEBUG"] = Options.options.debug
 
   conf.check(lib='dl', uselib_store='DL')
-  conf.env.append_value("CCFLAGS", "-rdynamic")
-  conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
+  if not sys.platform.startswith("sunos"):
+    conf.env.append_value("CCFLAGS", "-rdynamic")
+    conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
   if sys.platform.startswith("freebsd"):
     conf.check(lib='kvm', uselib_store='KVM')
@@ -137,10 +138,19 @@ def configure(conf):
       conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
       conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
 
+  if sys.platform.startswith("sunos"):
+    if not conf.check(lib='socket', uselib_store="SOCKET"):
+      conf.fatal("Cannot find socket library")
+    if not conf.check(lib='nsl', uselib_store="NSL"):
+      conf.fatal("Cannot find nsl library")
+
   conf.sub_config('deps/libeio')
   conf.sub_config('deps/libev')
 
-  conf_subproject(conf, 'deps/udns', './configure')
+  if sys.platform.startswith("sunos"):
+    conf_subproject(conf, 'deps/udns', 'LIBS="-lsocket -lnsl" ./configure')
+  else:
+    conf_subproject(conf, 'deps/udns', './configure')
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -201,6 +211,7 @@ def build_udns(bld):
     debug.rule = rule % debug_dir
     t = join(bld.srcnode.abspath(bld.env_of_name("debug")), debug.target)
     bld.env_of_name('debug')["LINKFLAGS_UDNS"] = [t]
+
   bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
 def v8_cmd(bld, variant):
@@ -247,7 +258,10 @@ def build_v8(bld):
   v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), v8.target)
-  bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", t]
+  if sys.platform.startswith("sunos"):
+    bld.env_of_name('default')["LINKFLAGS_V8"] = ["-mt", t]
+  else:
+    bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", t]
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -256,7 +270,10 @@ def build_v8(bld):
     v8_debug.target = bld.env["staticlib_PATTERN"] % "v8_g"
     v8_debug.uselib = "EXECINFO"
     t = join(bld.srcnode.abspath(bld.env_of_name("debug")), v8_debug.target)
-    bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", t]
+    if sys.platform.startswith("sunos"):
+      bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-mt", t]
+    else:
+      bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", t]
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
@@ -352,7 +369,7 @@ def build(bld):
   """
   node.add_objects = 'ev eio evcom http_parser coupling'
   node.uselib_local = ''
-  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM'
+  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,31 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for MacOS goes here. For the POSIX comaptible parts
-// the implementation is in platform-posix.cc.
+// Platform specific code for Solaris 10 goes here. For the POSIX comaptible
+// parts the implementation is in platform-posix.cc.
 
-#include <unistd.h>
-#include <sys/mman.h>
-#include <mach/mach_init.h>
-#include <mach-o/dyld.h>
-#include <mach-o/getsect.h>
-
-#include <AvailabilityMacros.h>
-
+#include <sys/stack.h> // for stack alignment
+#include <unistd.h> // getpagesize()
+#include <sys/mman.h> // mmap()
+#include <unistd.h> // usleep()
+#include <execinfo.h> // backtrace(), backtrace_symbols()
 #include <pthread.h>
+#include <sched.h> // for sched_yield
 #include <semaphore.h>
-#include <signal.h>
-#include <mach/mach.h>
-#include <mach/semaphore.h>
-#include <mach/task.h>
-#include <mach/vm_statistics.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <stdarg.h>
-#include <stdlib.h>
-
+#include <time.h>
+#include <sys/time.h> // gettimeofday(), timeradd()
 #include <errno.h>
+#include <ieeefp.h> // finite()
+#include <signal.h> // sigemptyset(), etc
 
 #undef MAP_TYPE
 
@@ -57,38 +48,83 @@
 
 #include "platform.h"
 
-// Manually define these here as weak imports, rather than including execinfo.h.
-// This lets us launch on 10.4 which does not have these calls.
-extern "C" {
-  extern int backtrace(void**, int) __attribute__((weak_import));
-  extern char** backtrace_symbols(void* const*, int)
-      __attribute__((weak_import));
-  extern void backtrace_symbols_fd(void* const*, int, int)
-      __attribute__((weak_import));
+
+namespace v8 {
+namespace internal {
+
+int isfinite(double x) {
+  return finite(x) && !isnand(x);
+}
+
+} } // namespace v8::internal
+
+
+// Test for infinity - usually defined in math.h
+int isinf(double x) {
+  fpclass_t fpc = fpclass(x);
+  return (fpc == FP_NINF || fpc == FP_PINF);
+}
+
+
+// Test if x is less than y and both nominal - usually defined in math.h
+int isless(double x, double y) {
+  return isnan(x) || isnan(y) ? 0 : x < y;
+}
+
+
+// Test if x is greater than y and both nominal - usually defined in math.h
+int isgreater(double x, double y) {
+  return isnan(x) || isnan(y) ? 0 : x > y;
+}
+
+
+// Classify floating point number - usually defined in math.h#ifndef fpclassify
+int fpclassify(double x) {
+  // Use the Solaris-specific fpclass() for classification.
+  fpclass_t fpc = fpclass(x);
+
+  switch (fpc) {
+    case FP_PNORM:
+    case FP_NNORM:
+      return FP_NORMAL;
+    case FP_PZERO:
+    case FP_NZERO:
+      return FP_ZERO;
+    case FP_PDENORM:
+    case FP_NDENORM:
+      return FP_SUBNORMAL;
+    case FP_PINF:
+    case FP_NINF:
+      return FP_INFINITE;
+    default:
+      // All cases should be covered by the code above.
+      ASSERT(fpc == FP_QNAN || fpc == FP_SNAN);
+      return FP_NAN;
+  }
+}
+
+
+int signbit(double x) {
+  // We need to take care of the special case of both positive
+  // and negative versions of zero.
+  if (x == 0)
+    return fpclass(x) == FP_NZERO;
+  else
+    return x < 0;
 }
 
 
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on MacOSX since a ptread_t is
-// a pointer.
+// 0 is never a valid thread id on Solaris since the main thread is 1 and
+// subsequent have their ids incremented from there
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
+// TODO: Test to see if ceil() is correct on Solaris.
 double ceiling(double x) {
-  // Correct Mac OS X Leopard 'ceil' behavior.
-  if (-1.0 < x && x < 0.0) {
-    return -0.0;
-  } else {
-    return ceil(x);
-  }
-}
-
-
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
+  return ceil(x);
 }
 
 
@@ -100,6 +136,53 @@ void OS::Setup() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
+}
+
+
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+  return 0;  // Solaris runs on a lot of things.
+}
+
+
+double OS::nan_value() {
+  static double NAN = __builtin_nan("0x0");
+  return NAN;
+}
+
+
+int OS::ActivationFrameAlignment() {
+  return STACK_ALIGN;
+}
+
+
+const char* OS::LocalTimezone(double time) {
+  if (isnan(time)) return "";
+  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  if (NULL == t) return "";
+  return tzname[0]; // the location of the timezone string on Solaris
+}
+
+
+double OS::LocalTimeOffset() {
+  int days, hours, minutes;
+  time_t tv = time(NULL);
+
+  // on Solaris, struct tm does not contain a tm_gmtoff field...
+  struct tm* loc = localtime(&tv);
+  struct tm* utc = gmtime(&tv);
+
+  // calulate the utc offset
+  days = loc->tm_yday = utc->tm_yday;
+  hours = ((days < -1 ? 24 : 1 < days ? -24 : days * 24) +
+    loc->tm_hour - utc->tm_hour);
+  minutes = hours * 60 + loc->tm_min - utc->tm_min;
+
+  // don't include any daylight savings offset in local time
+  if (loc->tm_isdst > 0) minutes -= 60;
+
+  // the result is in milliseconds
+  return static_cast<double>(minutes * 60 * msPerSecond);
 }
 
 
@@ -126,16 +209,8 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 
 
 size_t OS::AllocateAlignment() {
-  return getpagesize();
+  return (size_t)getpagesize();
 }
-
-
-// Constants used for mmap.
-// kMmapFd is used to pass vm_alloc flags to tag the region with the user
-// defined tag 255 This helps identify V8-allocated regions in memory analysis
-// tools like vmmap(1).
-static const int kMmapFd = VM_MAKE_TAG(255);
-static const off_t kMmapFdOffset = 0;
 
 
 void* OS::Allocate(const size_t requested,
@@ -143,9 +218,8 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot,
-                     MAP_PRIVATE | MAP_ANON,
-                     kMmapFd, kMmapFdOffset);
+  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+
   if (mbase == MAP_FAILED) {
     LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
@@ -167,19 +241,23 @@ void OS::Free(void* address, const size_t size) {
 #ifdef ENABLE_HEAP_PROTECTION
 
 void OS::Protect(void* address, size_t size) {
-  UNIMPLEMENTED();
+  // TODO(1240712): mprotect has a return value which is ignored here.
+  mprotect(address, size, PROT_READ);
 }
 
 
 void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  UNIMPLEMENTED();
+  // TODO(1240712): mprotect has a return value which is ignored here.
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  mprotect(address, size, prot);
 }
 
 #endif
 
 
 void OS::Sleep(int milliseconds) {
-  usleep(1000 * milliseconds);
+  useconds_t ms = static_cast<useconds_t>(milliseconds);
+  usleep(1000 * ms);
 }
 
 
@@ -211,7 +289,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     void* initial) {
   FILE* file = fopen(name, "w+");
   if (file == NULL) return NULL;
-  fwrite(initial, size, 1, file);
+  int result = fwrite(initial, size, 1, file);
+  if (result < 1) {
+    fclose(file);
+    return NULL;
+  }
   void* memory =
       mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
   return new PosixMemoryMappedFile(file, memory, size);
@@ -226,70 +308,15 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 void OS::LogSharedLibraryAddresses() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  unsigned int images_count = _dyld_image_count();
-  for (unsigned int i = 0; i < images_count; ++i) {
-    const mach_header* header = _dyld_get_image_header(i);
-    if (header == NULL) continue;
-#if V8_HOST_ARCH_X64
-    uint64_t size;
-    char* code_ptr = getsectdatafromheader_64(
-        reinterpret_cast<const mach_header_64*>(header),
-        SEG_TEXT,
-        SECT_TEXT,
-        &size);
-#else
-    unsigned int size;
-    char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
+  UNIMPLEMENTED();
 #endif
-    if (code_ptr == NULL) continue;
-    const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
-    const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
-  }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  // MacOSX requires all these to install so we can assume they are present.
-  // These constants are defined by the CPUid instructions.
-  const uint64_t one = 1;
-  return (one << SSE2) | (one << CMOV) | (one << RDTSC) | (one << CPUID);
-}
-
-
-int OS::ActivationFrameAlignment() {
-  // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
-  // Function Call Guide".
-  return 16;
-}
-
-
-const char* OS::LocalTimezone(double time) {
-  if (isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
-  if (NULL == t) return "";
-  return t->tm_zone;
-}
-
-
-double OS::LocalTimeOffset() {
-  time_t tv = time(NULL);
-  struct tm* t = localtime(&tv);
-  // tm_gmtoff includes any daylight savings offset, so subtract it.
-  return static_cast<double>(t->tm_gmtoff * msPerSecond -
-                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-}
-
-
-int OS::StackWalk(Vector<StackFrame> frames) {
-  // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
-  if (backtrace == NULL)
-    return 0;
-
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
   int frames_size = frames.length();
   void** addresses = NewArray<void*>(frames_size);
+
   int frames_count = backtrace(addresses, frames_size);
 
   char** symbols;
@@ -303,8 +330,7 @@ int OS::StackWalk(Vector<StackFrame> frames) {
     frames[i].address = addresses[i];
     // Format a text representation of the frame based on the information
     // available.
-    SNPrintF(MutableCStrVector(frames[i].text,
-                               kStackWalkMaxTextLen),
+    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
              "%s",
              symbols[i]);
     // Make sure line termination is in place.
@@ -318,6 +344,9 @@ int OS::StackWalk(Vector<StackFrame> frames) {
 }
 
 
+// Constants used for mmap.
+static const int kMmapFd = -1;
+static const int kMmapFdOffset = 0;
 
 
 VirtualMemory::VirtualMemory(size_t size) {
@@ -340,8 +369,8 @@ bool VirtualMemory::IsReserved() {
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
+  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
   if (MAP_FAILED == mmap(address, size, prot,
                          MAP_PRIVATE | MAP_ANON | MAP_FIXED,
                          kMmapFd, kMmapFdOffset)) {
@@ -372,9 +401,9 @@ class ThreadHandle::PlatformData : public Malloced {
       case ThreadHandle::INVALID: thread_ = kNoThread; break;
     }
   }
+
   pthread_t thread_;  // Thread handle for pthread.
 };
-
 
 
 ThreadHandle::ThreadHandle(Kind kind) {
@@ -424,6 +453,7 @@ static void* ThreadEntry(void* arg) {
 
 void Thread::Start() {
   pthread_create(&thread_handle_data()->thread_, NULL, ThreadEntry, this);
+  ASSERT(IsValid());
 }
 
 
@@ -466,17 +496,17 @@ void Thread::YieldCPU() {
 }
 
 
-class MacOSMutex : public Mutex {
+class SolarisMutex : public Mutex {
  public:
 
-  MacOSMutex() {
+  SolarisMutex() {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mutex_, &attr);
   }
 
-  ~MacOSMutex() { pthread_mutex_destroy(&mutex_); }
+  ~SolarisMutex() { pthread_mutex_destroy(&mutex_); }
 
   int Lock() { return pthread_mutex_lock(&mutex_); }
 
@@ -488,135 +518,121 @@ class MacOSMutex : public Mutex {
 
 
 Mutex* OS::CreateMutex() {
-  return new MacOSMutex();
+  return new SolarisMutex();
 }
 
 
-class MacOSSemaphore : public Semaphore {
+class SolarisSemaphore : public Semaphore {
  public:
-  explicit MacOSSemaphore(int count) {
-    semaphore_create(mach_task_self(), &semaphore_, SYNC_POLICY_FIFO, count);
-  }
+  explicit SolarisSemaphore(int count) {  sem_init(&sem_, 0, count); }
+  virtual ~SolarisSemaphore() { sem_destroy(&sem_); }
 
-  ~MacOSSemaphore() {
-    semaphore_destroy(mach_task_self(), semaphore_);
-  }
-
-  // The MacOS mach semaphore documentation claims it does not have spurious
-  // wakeups, the way pthreads semaphores do.  So the code from the linux
-  // platform is not needed here.
-  void Wait() { semaphore_wait(semaphore_); }
-
-  bool Wait(int timeout);
-
-  void Signal() { semaphore_signal(semaphore_); }
-
+  virtual void Wait();
+  virtual bool Wait(int timeout);
+  virtual void Signal() { sem_post(&sem_); }
  private:
-  semaphore_t semaphore_;
+  sem_t sem_;
 };
 
 
-bool MacOSSemaphore::Wait(int timeout) {
-  mach_timespec_t ts;
-  ts.tv_sec = timeout / 1000000;
-  ts.tv_nsec = (timeout % 1000000) * 1000;
-  return semaphore_timedwait(semaphore_, ts) != KERN_OPERATION_TIMED_OUT;
+void SolarisSemaphore::Wait() {
+  while (true) {
+    int result = sem_wait(&sem_);
+    if (result == 0) return;  // Successfully got semaphore.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
+}
+
+
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
+    (ts)->tv_sec = (tv)->tv_sec;                                    \
+    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
+} while (false)
+#endif
+
+
+#ifndef timeradd
+#define timeradd(a, b, result) \
+  do { \
+    (result)->tv_sec = (a)->tv_sec + (b)->tv_sec; \
+    (result)->tv_usec = (a)->tv_usec + (b)->tv_usec; \
+    if ((result)->tv_usec >= 1000000) { \
+      ++(result)->tv_sec; \
+      (result)->tv_usec -= 1000000; \
+    } \
+  } while (0)
+#endif
+
+
+bool SolarisSemaphore::Wait(int timeout) {
+  const long kOneSecondMicros = 1000000;  // NOLINT
+
+  // Split timeout into second and nanosecond parts.
+  struct timeval delta;
+  delta.tv_usec = timeout % kOneSecondMicros;
+  delta.tv_sec = timeout / kOneSecondMicros;
+
+  struct timeval current_time;
+  // Get the current time.
+  if (gettimeofday(&current_time, NULL) == -1) {
+    return false;
+  }
+
+  // Calculate time for end of timeout.
+  struct timeval end_time;
+  timeradd(&current_time, &delta, &end_time);
+
+  struct timespec ts;
+  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
+  // Wait for semaphore signalled or timeout.
+  while (true) {
+    int result = sem_timedwait(&sem_, &ts);
+    if (result == 0) return true;  // Successfully got semaphore.
+    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
 }
 
 
 Semaphore* OS::CreateSemaphore(int count) {
-  return new MacOSSemaphore(count);
+  return new SolarisSemaphore(count);
 }
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+static Sampler* active_sampler_ = NULL;
+
+static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+  USE(info);
+  if (signal != SIGPROF) return;
+  if (active_sampler_ == NULL) return;
+
+  TickSample sample;
+
+  // We always sample the VM state.
+  sample.state = Logger::state();
+
+  active_sampler_->Tick(&sample);
+}
+
+
 class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(Sampler* sampler)
-      : sampler_(sampler),
-        task_self_(mach_task_self()),
-        profiled_thread_(0),
-        sampler_thread_(0) {
+  PlatformData() {
+    signal_handler_installed_ = false;
   }
 
-  Sampler* sampler_;
-  // Note: for profiled_thread_ Mach primitives are used instead of PThread's
-  // because the latter doesn't provide thread manipulation primitives required.
-  // For details, consult "Mac OS X Internals" book, Section 7.3.
-  mach_port_t task_self_;
-  thread_act_t profiled_thread_;
-  pthread_t sampler_thread_;
-
-  // Sampler thread handler.
-  void Runner() {
-    // Loop until the sampler is disengaged.
-    while (sampler_->IsActive()) {
-      TickSample sample;
-
-      // If profiling, we record the pc and sp of the profiled thread.
-      if (sampler_->IsProfiling()
-          && KERN_SUCCESS == thread_suspend(profiled_thread_)) {
-#if V8_HOST_ARCH_X64
-        thread_state_flavor_t flavor = x86_THREAD_STATE64;
-        x86_thread_state64_t state;
-        mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __r ## name
-#else
-#define REGISTER_FIELD(name) r ## name
-#endif  // __DARWIN_UNIX03
-#elif V8_HOST_ARCH_IA32
-        thread_state_flavor_t flavor = i386_THREAD_STATE;
-        i386_thread_state_t state;
-        mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
-#if __DARWIN_UNIX03
-#define REGISTER_FIELD(name) __e ## name
-#else
-#define REGISTER_FIELD(name) e ## name
-#endif  // __DARWIN_UNIX03
-#else
-#error Unsupported Mac OS X host architecture.
-#endif  // V8_HOST_ARCH
-
-        if (thread_get_state(profiled_thread_,
-                             flavor,
-                             reinterpret_cast<natural_t*>(&state),
-                             &count) == KERN_SUCCESS) {
-          sample.pc = state.REGISTER_FIELD(ip);
-          sample.sp = state.REGISTER_FIELD(sp);
-          sample.fp = state.REGISTER_FIELD(bp);
-          sampler_->SampleStack(&sample);
-        }
-        thread_resume(profiled_thread_);
-      }
-
-      // We always sample the VM state.
-      sample.state = Logger::state();
-      // Invoke tick handler with program counter and stack pointer.
-      sampler_->Tick(&sample);
-
-      // Wait until next sampling.
-      usleep(sampler_->interval_ * 1000);
-    }
-  }
+  bool signal_handler_installed_;
+  struct sigaction old_signal_handler_;
+  struct itimerval old_timer_value_;
 };
-
-#undef REGISTER_FIELD
-
-
-// Entry point for sampler thread.
-static void* SamplerEntry(void* arg) {
-  Sampler::PlatformData* data =
-      reinterpret_cast<Sampler::PlatformData*>(arg);
-  data->Runner();
-  return 0;
-}
 
 
 Sampler::Sampler(int interval, bool profiling)
     : interval_(interval), profiling_(profiling), active_(false) {
-  data_ = new PlatformData(this);
+  data_ = new PlatformData();
 }
 
 
@@ -626,42 +642,45 @@ Sampler::~Sampler() {
 
 
 void Sampler::Start() {
-  // If we are profiling, we need to be able to access the calling
-  // thread.
-  if (IsProfiling()) {
-    data_->profiled_thread_ = mach_thread_self();
-  }
+  // There can only be one active sampler at the time on POSIX
+  // platforms.
+  if (active_sampler_ != NULL) return;
 
-  // Create sampler thread with high priority.
-  // According to POSIX spec, when SCHED_FIFO policy is used, a thread
-  // runs until it exits or blocks.
-  pthread_attr_t sched_attr;
-  sched_param fifo_param;
-  pthread_attr_init(&sched_attr);
-  pthread_attr_setinheritsched(&sched_attr, PTHREAD_EXPLICIT_SCHED);
-  pthread_attr_setschedpolicy(&sched_attr, SCHED_FIFO);
-  fifo_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-  pthread_attr_setschedparam(&sched_attr, &fifo_param);
+  // Request profiling signals.
+  struct sigaction sa;
+  sa.sa_sigaction = ProfilerSignalHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO;
+  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
+  data_->signal_handler_installed_ = true;
 
+  // Set the itimer to generate a tick for each interval.
+  itimerval itimer;
+  itimer.it_interval.tv_sec = interval_ / 1000;
+  itimer.it_interval.tv_usec = (interval_ % 1000) * 1000;
+  itimer.it_value.tv_sec = itimer.it_interval.tv_sec;
+  itimer.it_value.tv_usec = itimer.it_interval.tv_usec;
+  setitimer(ITIMER_PROF, &itimer, &data_->old_timer_value_);
+
+  // Set this sampler as the active sampler.
+  active_sampler_ = this;
   active_ = true;
-  pthread_create(&data_->sampler_thread_, &sched_attr, SamplerEntry, data_);
 }
 
 
 void Sampler::Stop() {
-  // Seting active to false triggers termination of the sampler
-  // thread.
-  active_ = false;
-
-  // Wait for sampler thread to terminate.
-  pthread_join(data_->sampler_thread_, NULL);
-
-  // Deallocate Mach port for thread.
-  if (IsProfiling()) {
-    mach_port_deallocate(data_->task_self_, data_->profiled_thread_);
+  // Restore old signal handler
+  if (data_->signal_handler_installed_) {
+    setitimer(ITIMER_PROF, &data_->old_timer_value_, NULL);
+    sigaction(SIGPROF, &data_->old_signal_handler_, 0);
+    data_->signal_handler_installed_ = false;
   }
+
+  // This sampler is no longer the active sampler.
+  active_sampler_ = NULL;
+  active_ = false;
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
-} }  // namespace v8::internal
+} } // namespace v8::internal

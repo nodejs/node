@@ -1317,7 +1317,7 @@ int evcom_stream_pair (evcom_stream *a, evcom_stream *b)
   int sv[2];
   int old_errno;
 
-  int r = socketpair(PF_LOCAL, SOCK_STREAM, 0, sv);
+  int r = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
   if (r < 0) return -1;
 
   r = set_nonblock(sv[0]);
