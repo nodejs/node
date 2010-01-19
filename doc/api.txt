@@ -290,9 +290,11 @@ emit anymore events.
 
 +promise.addCallback(listener)+ ::
 Adds a listener for the +"success"+ event. Returns the same promise object.
+The listener is executed right away if the promise has already fired.
 
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
+The listener is executed right away if the promise has already fired.
 
 +promise.emitSuccess(arg1, arg2, ...)+ ::
 If you created the promise (by doing +new events.Promise()+) then call

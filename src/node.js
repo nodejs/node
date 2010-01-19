@@ -232,6 +232,7 @@ var eventsModule = createInternalModule('events', function (exports) {
     exports.EventEmitter.call();
     this._blocking = false;
     this.hasFired = false;
+    this._values = undefined;
   };
   process.inherits(exports.Promise, exports.EventEmitter);
 
@@ -277,24 +278,34 @@ var eventsModule = createInternalModule('events', function (exports) {
   exports.Promise.prototype.emitSuccess = function() {
     if (this.hasFired) return;
     this.hasFired = true;
-    Array.prototype.unshift.call(arguments, 'success')
-    this.emit.apply(this, arguments);
+
+    this._values = Array.prototype.slice.call(arguments);
+    this.emit.apply(this, ['success'].concat(this._values));
   };
 
   exports.Promise.prototype.emitError = function() {
     if (this.hasFired) return;
     this.hasFired = true;
-    Array.prototype.unshift.call(arguments, 'error')
-    this.emit.apply(this, arguments);
+
+    this._values = Array.prototype.slice.call(arguments);
+    this.emit.apply(this, ['error'].concat(this._values));
   };
 
   exports.Promise.prototype.addCallback = function (listener) {
-    this.addListener("success", listener);
+    if (!this.hasFired) {
+      return this.addListener("success", listener);
+    }
+
+    listener.apply(this, this._values);
     return this;
   };
 
   exports.Promise.prototype.addErrback = function (listener) {
-    this.addListener("error", listener);
+    if (!this.hasFired) {
+      return this.addListener("error", listener);
+    }
+
+    listener.apply(this, this._values);
     return this;
   };
 
