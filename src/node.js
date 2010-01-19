@@ -231,7 +231,7 @@ var eventsModule = createInternalModule('events', function (exports) {
   exports.Promise = function () {
     exports.EventEmitter.call();
     this._blocking = false;
-    this._hasFired = false;
+    this.hasFired = false;
   };
   process.inherits(exports.Promise, exports.EventEmitter);
 
