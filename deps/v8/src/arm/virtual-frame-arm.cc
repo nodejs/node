@@ -143,12 +143,25 @@ void VirtualFrame::AllocateStackSlots() {
   if (count > 0) {
     Comment cmnt(masm(), "[ Allocate space for locals");
     Adjust(count);
-      // Initialize stack slots with 'undefined' value.
+    // Initialize stack slots with 'undefined' value.
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  }
-  __ LoadRoot(r2, Heap::kStackLimitRootIndex);
-  for (int i = 0; i < count; i++) {
-    __ push(ip);
+    __ LoadRoot(r2, Heap::kStackLimitRootIndex);
+    if (count < kLocalVarBound) {
+      // For less locals the unrolled loop is more compact.
+      for (int i = 0; i < count; i++) {
+        __ push(ip);
+      }
+    } else {
+      // For more locals a loop in generated code is more compact.
+      Label alloc_locals_loop;
+      __ mov(r1, Operand(count));
+      __ bind(&alloc_locals_loop);
+      __ push(ip);
+      __ sub(r1, r1, Operand(1), SetCC);
+      __ b(ne, &alloc_locals_loop);
+    }
+  } else {
+    __ LoadRoot(r2, Heap::kStackLimitRootIndex);
   }
   // Check the stack for overflow or a break request.
   // Put the lr setup instruction in the delay slot.  The kInstrSize is added
@@ -384,6 +397,13 @@ void VirtualFrame::EmitPush(Register reg) {
   elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(reg);
+}
+
+
+void VirtualFrame::EmitPushMultiple(int count, int src_regs) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  Adjust(count);
+  __ stm(db_w, sp, src_regs);
 }
 
 

@@ -92,7 +92,15 @@ class MarkCompactCollector: public AllStatic {
   static bool HasCompacted() { return compacting_collection_; }
 
   // True after the Prepare phase if the compaction is taking place.
-  static bool IsCompacting() { return compacting_collection_; }
+  static bool IsCompacting() {
+#ifdef DEBUG
+    // For the purposes of asserts we don't want this to keep returning true
+    // after the collection is completed.
+    return state_ != IDLE && compacting_collection_;
+#else
+    return compacting_collection_;
+#endif
+  }
 
   // The count of the number of objects left marked at the end of the last
   // completed full GC (expected to be zero).

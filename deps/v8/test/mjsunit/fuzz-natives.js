@@ -95,7 +95,11 @@ function testArgumentTypes(name, argc) {
 
 var knownProblems = {
   "Abort": true,
-  
+
+  // Avoid calling the concat operation, because weird lengths
+  // may lead to out-of-memory.
+  "StringBuilderConcat": true,
+
   // These functions use pseudo-stack-pointers and are not robust
   // to unexpected integer values.
   "DebugEvaluate": true,
@@ -114,7 +118,7 @@ var knownProblems = {
   // the rest of the tests.
   "DisableAccessChecks": true,
   "EnableAccessChecks": true,
-  
+
   // These functions should not be callable as runtime functions.
   "NewContext": true,
   "NewArgumentsFast": true,

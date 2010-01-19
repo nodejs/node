@@ -77,6 +77,7 @@ enum ContextLookupFlags {
   V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun) \
   V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun) \
   V(TO_BOOLEAN_FUN_INDEX, JSFunction, to_boolean_fun) \
+  V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun) \
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
@@ -202,6 +203,7 @@ class Context: public FixedArray {
     TO_UINT32_FUN_INDEX,
     TO_INT32_FUN_INDEX,
     TO_BOOLEAN_FUN_INDEX,
+    GLOBAL_EVAL_FUN_INDEX,
     INSTANTIATE_FUN_INDEX,
     CONFIGURE_INSTANCE_FUN_INDEX,
     SPECIAL_FUNCTION_TABLE_INDEX,

@@ -153,7 +153,13 @@ namespace internal {
   SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)          \
   SC(generic_binary_stub_calls_regs, V8.GenericBinaryStubCallsRegs) \
   SC(string_add_runtime, V8.StringAddRuntime)                       \
-  SC(string_add_native, V8.StringAddNative)
+  SC(string_add_native, V8.StringAddNative)                         \
+  SC(sub_string_runtime, V8.SubStringRuntime)                       \
+  SC(sub_string_native, V8.SubStringNative)                         \
+  SC(string_compare_native, V8.StringCompareNative)                 \
+  SC(string_compare_runtime, V8.StringCompareRuntime)               \
+  SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                   \
+  SC(regexp_entry_native, V8.RegExpEntryNative)
 
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {

@@ -123,8 +123,6 @@ class RegExpMacroAssembler {
   // not have custom support.
   // May clobber the current loaded character.
   virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          int cp_offset,
-                                          bool check_offset,
                                           Label* on_no_match) {
     return false;
   }

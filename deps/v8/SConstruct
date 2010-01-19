@@ -252,6 +252,7 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Wall',
+                       '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
                        '-Wnon-virtual-dtor']
@@ -948,6 +949,7 @@ def BuildSpecific(env, mode, env_overrides):
 
   d8_env = Environment()
   d8_env.Replace(**context.flags['d8'])
+  context.ApplyEnvOverrides(d8_env)
   shell = d8_env.Program('d8' + suffix, object_files + shell_files)
   context.d8_targets.append(shell)
 

@@ -40,6 +40,7 @@ namespace internal {
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
 // figure 3-3, page 48, where the function is called clp2.
 uint32_t RoundUpToPowerOf2(uint32_t x) {
+  ASSERT(x <= 0x80000000u);
   x = x - 1;
   x = x | (x >> 1);
   x = x | (x >> 2);

@@ -503,6 +503,7 @@ class V8EXPORT ScriptData {  // NOLINT
 
   virtual int Length() = 0;
   virtual unsigned* Data() = 0;
+  virtual bool HasError() = 0;
 };
 
 

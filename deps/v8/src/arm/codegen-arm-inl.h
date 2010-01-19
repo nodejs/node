@@ -67,16 +67,6 @@ void Reference::GetValueAndSpill() {
 void DeferredCode::Jump() { __ jmp(&entry_label_); }
 void DeferredCode::Branch(Condition cc) { __ b(cc, &entry_label_); }
 
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(SIN, args);
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(COS, args);
-}
-
-
 #undef __
 
 } }  // namespace v8::internal

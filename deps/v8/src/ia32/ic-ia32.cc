@@ -313,6 +313,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Is the string a symbol?
   __ movzx_b(ebx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  ASSERT(kSymbolTag != 0);
   __ test(ebx, Immediate(kIsSymbolMask));
   __ j(zero, &slow, not_taken);
 
@@ -388,6 +389,48 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ and_(eax, String::kArrayIndexHashMask);
   __ shr(eax, String::kHashShift);
   __ jmp(&index_int);
+}
+
+
+void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- esp[0] : return address
+  //  -- esp[4] : key
+  //  -- esp[8] : receiver
+  // -----------------------------------
+  Label miss, index_ok;
+
+  // Pop return address.
+  // Performing the load early is better in the common case.
+  __ pop(eax);
+
+  __ mov(ebx, Operand(esp, 1 * kPointerSize));
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ test(ecx, Immediate(kIsNotStringMask));
+  __ j(not_zero, &miss);
+
+  // Check if key is a smi or a heap number.
+  __ mov(edx, Operand(esp, 0));
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &index_ok);
+  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
+  __ cmp(ecx, Factory::heap_number_map());
+  __ j(not_equal, &miss);
+
+  __ bind(&index_ok);
+  // Duplicate receiver and key since they are expected on the stack after
+  // the KeyedLoadIC call.
+  __ push(ebx);  // receiver
+  __ push(edx);  // key
+  __ push(eax);  // return address
+  __ InvokeBuiltin(Builtins::STRING_CHAR_AT, JUMP_FUNCTION);
+
+  __ bind(&miss);
+  __ push(eax);
+  GenerateMiss(masm);
 }
 
 

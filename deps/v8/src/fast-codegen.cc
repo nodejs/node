@@ -67,10 +67,44 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
     case Slot::LOCAL:
       offset += JavaScriptFrameConstants::kLocal0Offset;
       break;
-    default:
+    case Slot::CONTEXT:
+    case Slot::LOOKUP:
       UNREACHABLE();
   }
   return offset;
+}
+
+
+void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
+  switch (context) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:
+      break;
+    case Expression::kValue:
+      __ push(reg);
+      break;
+    case Expression::kTest:
+      TestAndBranch(reg, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ push(reg);
+      TestAndBranch(reg, true_label_, &discard);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ push(reg);
+      TestAndBranch(reg, &discard, false_label_);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(true_label_);
+    }
+  }
 }
 
 
@@ -162,7 +196,7 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
-    case Expression::kEffect:  // Fall through.
+    case Expression::kEffect:
     case Expression::kTest:
       // The value of the left subexpression is not needed.
       expected = Expression::kTest;
@@ -192,36 +226,33 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 #endif
 
   Label eval_right, done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
 
-  // Set up the appropriate context for the left subexpression based on the
-  // operation and our own context.
+  // Set up the appropriate context for the left subexpression based
+  // on the operation and our own context.  Initially assume we can
+  // inherit both true and false labels from our context.
+  Label* if_true = true_label_;
+  Label* if_false = false_label_;
   if (expr->op() == Token::OR) {
-    // If there is no usable true label in the OR expression's context, use
-    // the end of this expression, otherwise inherit the same true label.
+    // If we are not in some kind of a test context, we did not inherit a
+    // true label from our context.  Use the end of the expression.
     if (expr->context() == Expression::kEffect ||
         expr->context() == Expression::kValue) {
-      true_label_ = &done;
+      if_true = &done;
     }
-    // The false label is the label of the second subexpression.
-    false_label_ = &eval_right;
+    // The false label is the label of the right subexpression.
+    if_false = &eval_right;
   } else {
     ASSERT_EQ(Token::AND, expr->op());
-    // The true label is the label of the second subexpression.
-    true_label_ = &eval_right;
-    // If there is no usable false label in the AND expression's context,
-    // use the end of the expression, otherwise inherit the same false
-    // label.
+    // The true label is the label of the right subexpression.
+    if_true = &eval_right;
+    // If we are not in some kind of a test context, we did not inherit a
+    // false label from our context.  Use the end of the expression.
     if (expr->context() == Expression::kEffect ||
         expr->context() == Expression::kValue) {
-      false_label_ = &done;
+      if_false = &done;
     }
   }
-
-  Visit(expr->left());
-  true_label_ = saved_true;
-  false_label_ = saved_false;
+  VisitForControl(expr->left(), if_true, if_false);
 
   __ bind(&eval_right);
   Visit(expr->right());
@@ -254,19 +285,11 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   Comment cmnt(masm_, "[ IfStatement");
-  // Expressions cannot recursively enter statements, there are no labels in
-  // the state.
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
+  SetStatementPosition(stmt);
   Label then_part, else_part, done;
 
   // Do not worry about optimizing for empty then or else bodies.
-  true_label_ = &then_part;
-  false_label_ = &else_part;
-  ASSERT(stmt->condition()->context() == Expression::kTest);
-  Visit(stmt->condition());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->condition(), &then_part, &else_part);
 
   __ bind(&then_part);
   Visit(stmt->then_statement());
@@ -281,6 +304,7 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
 void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   Comment cmnt(masm_,  "[ ContinueStatement");
+  SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   while (!current->IsContinueTarget(stmt->target())) {
@@ -296,6 +320,7 @@ void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
 
 void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   Comment cmnt(masm_,  "[ BreakStatement");
+  SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   while (!current->IsBreakTarget(stmt->target())) {
@@ -311,6 +336,7 @@ void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   // Complete the statement based on the type of the subexpression.
   if (expr->AsLiteral() != NULL) {
@@ -372,6 +398,7 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
+  SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
 
   Iteration loop_statement(this, stmt);
@@ -384,17 +411,8 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
-  // We are not in an expression context because we have been compiling
-  // statements.  Set up a test expression context for the condition.
   __ bind(loop_statement.continue_target());
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
-  true_label_ = &body;
-  false_label_ = loop_statement.break_target();
-  ASSERT(stmt->cond()->context() == Expression::kTest);
-  Visit(stmt->cond());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);
   StackCheckStub stack_stub;
@@ -409,6 +427,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
+  SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
 
   Iteration loop_statement(this, stmt);
@@ -425,16 +444,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
-  // We are not in an expression context because we have been compiling
-  // statements.  Set up a test expression context for the condition.
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
-  true_label_ = &body;
-  false_label_ = loop_statement.break_target();
-  ASSERT(stmt->cond()->context() == Expression::kTest);
-  Visit(stmt->cond());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);
   StackCheckStub stack_stub;
@@ -457,11 +467,52 @@ void FastCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
 void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ TryCatchStatement");
+  SetStatementPosition(stmt);
+  // The try block adds a handler to the exception handler chain
+  // before entering, and removes it again when exiting normally.
+  // If an exception is thrown during execution of the try block,
+  // control is passed to the handler, which also consumes the handler.
+  // At this point, the exception is in a register, and store it in
+  // the temporary local variable (prints as ".catch-var") before
+  // executing the catch block. The catch block has been rewritten
+  // to introduce a new scope to bind the catch variable and to remove
+  // that scope again afterwards.
+
+  Label try_handler_setup, catch_entry, done;
+
+  __ Call(&try_handler_setup);
+  // Try handler code, exception in result register.
+
+  // Store exception in local .catch variable before executing catch block.
+  {
+    // The catch variable is *always* a variable proxy for a local variable.
+    Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
+    ASSERT_NOT_NULL(catch_var);
+    Slot* variable_slot = catch_var->slot();
+    ASSERT_NOT_NULL(variable_slot);
+    ASSERT_EQ(Slot::LOCAL, variable_slot->type());
+    StoreToFrameField(SlotOffset(variable_slot), result_register());
+  }
+
+  Visit(stmt->catch_block());
+  __ jmp(&done);
+
+  // Try block code. Sets up the exception handler chain.
+  __ bind(&try_handler_setup);
+  {
+    TryCatch try_block(this, &catch_entry);
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
+    Visit(stmt->try_block());
+    __ PopTryHandler();
+  }
+  __ bind(&done);
 }
 
 
 void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  Comment cmnt(masm_, "[ TryFinallyStatement");
+  SetStatementPosition(stmt);
   // Try finally is compiled by setting up a try-handler on the stack while
   // executing the try body, and removing it again afterwards.
   //
@@ -474,7 +525,7 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   //    its outward control transfer.
   // 3. by exiting the try-block with a thrown exception.
   //    This can happen in nested function calls. It traverses the try-handler
-  //    chaing and consumes the try-handler entry before jumping to the
+  //    chain and consumes the try-handler entry before jumping to the
   //    handler code. The handler code then calls the finally-block before
   //    rethrowing the exception.
   //
@@ -497,14 +548,15 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // is retained by the finally block.
     // Call the finally block and then rethrow the exception.
     __ Call(&finally_entry);
-    ThrowException();
+    __ push(result_register());
+    __ CallRuntime(Runtime::kReThrow, 1);
   }
 
   __ bind(&finally_entry);
   {
     // Finally block implementation.
-    EnterFinallyBlock();
     Finally finally_block(this);
+    EnterFinallyBlock();
     Visit(stmt->finally_block());
     ExitFinallyBlock();  // Return to the calling code.
   }
@@ -512,9 +564,9 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   __ bind(&try_handler_setup);
   {
     // Setup try handler (stack pointer registers).
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
     TryFinally try_block(this, &finally_entry);
-    VisitStatements(stmt->try_block()->statements());
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+    Visit(stmt->try_block());
     __ PopTryHandler();
   }
   // Execute the finally block on the way out.
@@ -546,14 +598,7 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 
 
   Label true_case, false_case, done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
-
-  true_label_ = &true_case;
-  false_label_ = &false_case;
-  Visit(expr->condition());
-  true_label_ = saved_true;
-  false_label_ = saved_false;
+  VisitForControl(expr->condition(), &true_case, &false_case);
 
   __ bind(&true_case);
   Visit(expr->then_expression());
@@ -581,7 +626,7 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  Move(expr->context(), expr);
+  Apply(expr->context(), expr);
 }
 
 
@@ -634,7 +679,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         EmitNamedPropertyLoad(prop, Expression::kValue);
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(Expression::kValue);
+        EmitKeyedPropertyLoad(prop, Expression::kValue);
         break;
     }
   }
@@ -652,7 +697,8 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   // Store the value.
   switch (assign_type) {
     case VARIABLE:
-      EmitVariableAssignment(expr);
+      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             expr->context());
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
@@ -665,12 +711,29 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 
 
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  UNREACHABLE();
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[ CatchExtensionObject");
+
+  // Push key string.
+  ASSERT_EQ(Expression::kValue, expr->key()->context());
+  Visit(expr->key());
+  ASSERT_EQ(Expression::kValue, expr->value()->context());
+  Visit(expr->value());
+
+  // Create catch extension object.
+  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+
+  __ push(result_register());
 }
 
 
 void FastCodeGenerator::VisitThrow(Throw* expr) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ Throw");
+  Visit(expr->exception());
+  // Exception is on stack.
+  __ CallRuntime(Runtime::kThrow, 1);
+  // Never returns here.
 }
 
 

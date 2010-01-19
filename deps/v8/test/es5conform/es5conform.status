@@ -38,8 +38,6 @@ chapter13: UNIMPLEMENTED
 chapter14: UNIMPLEMENTED
 chapter15/15.1: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.1: UNIMPLEMENTED
-chapter15/15.2/15.2.3/15.2.3.2: UNIMPLEMENTED
-chapter15/15.2/15.2.3/15.2.3.3: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.4: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.5: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.6: UNIMPLEMENTED
@@ -51,6 +49,99 @@ chapter15/15.2/15.2.3/15.2.3.11: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.12: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.13: UNIMPLEMENTED
 
+# Object.getPrototypeOf
+chapter15/15.2/15.2.3/15.2.3.2: PASS
+
+# Object.getOwnPropertyDescriptor
+chapter15/15.2/15.2.3/15.2.3.3: PASS
+
+# NOT IMPLEMENTED: defineProperty
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-3: FAIL_OK
+
+# NOT IMPLEMENTED: getOwnPropertyNames
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-16: FAIL_OK
+
+# NOT IMPLEMENTED: defineProperty
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-18: FAIL_OK
+
+# NOT IMPLEMENTED: defineProperties
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-19: FAIL_OK
+
+# NOT IMPLEMENTED: seal
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: FAIL_OK
+
+# NOT IMPLEMENTED: freeze
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-21: FAIL_OK
+
+# NOT IMPLEMENTED: preventExtensions
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-22: FAIL_OK
+
+# NOT IMPLEMENTED: isSealed
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: FAIL_OK
+
+# NOT IMPLEMENTED: isFrozen
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-24: FAIL_OK
+
+# NOT IMPLEMENTED: isExtensible
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-25: FAIL_OK
+
+# NOT IMPLEMENTED: bind
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: FAIL_OK
+
+# Built-ins have wrong descriptor (should all be false)
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-182: FAIL_OK
+
+# Our Function object has a "arguments" property which is used as a non
+# property in in the test
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-183: FAIL_OK
+
+
+# Our Function object has a "caller" property which is used as a non
+# property in in the test
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-184: FAIL_OK
+
+# Built-ins have wrong descriptor (should all be false)
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-185: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-186: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-187: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-188: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-189: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-190: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-191: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-192: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-193: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-194: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-195: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-201: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-210: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-211: FAIL_OK
+
+
+# NOT IMPLEMENTED: RegExp.prototype.source
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: FAIL_OK
+
+# NOT IMPLEMENTED: RegExp.prototype.global
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: FAIL_OK
+
+# NOT IMPLEMENTED: RegExp.prototype.ignoreCase
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: FAIL_OK
+
+# NOT IMPLEMENTED: RegExp.prototype.multiline
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: FAIL_OK
+
+# Errors have wrong descriptor (should all be false)
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-216: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-217: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-218: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-219: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-220: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-221: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-222: FAIL_OK
+
+
 # Object.keys
 chapter15/15.2/15.2.3/15.2.3.14: PASS
 
@@ -59,7 +150,74 @@ chapter15/15.2/15.2.3/15.2.3.14: PASS
 chapter15/15.2/15.2.3/15.2.3.14/15.2.3.14-3-3: FAIL_OK
 
 chapter15/15.3: UNIMPLEMENTED
-chapter15/15.4: UNIMPLEMENTED
+
+chapter15/15.4/15.4.4/15.4.4.14: UNIMPLEMENTED
+chapter15/15.4/15.4.4/15.4.4.15: UNIMPLEMENTED
+chapter15/15.4/15.4.4/15.4.4.20: UNIMPLEMENTED
+chapter15/15.4/15.4.4/15.4.4.21: UNIMPLEMENTED
+chapter15/15.4/15.4.4/15.4.4.22: UNIMPLEMENTED
+
+# Array.prototype.every
+chapter15/15.4/15.4.4/15.4.4.16: PASS
+
+# Wrong test - because this is not given as argument to arr.every
+# this._15_4_4_16_5_1 evaluates to undefined
+chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-5-1: FAIL_OK
+
+# In test case the element is not appended - it is added in the middle of 
+# the array
+chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-7-1: FAIL_OK
+
+# We fail because the test assumes that if the reference to array is deleted it
+# is not longer traversed
+chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-7-7: FAIL_OK
+
+# if (val>1) in test should be if (val>2)
+chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-8-10: FAIL_OK
+
+
+# Array.prototype.some
+chapter15/15.4/15.4.4/15.4.4.17: PASS
+
+# Wrong assumption - according to spec some returns a Boolean, not a number
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
+
+# Same as 15.4.4.16-5-1
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-5-1: FAIL_OK
+
+# Same as 15.4.4.16-7-1
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-7-1: FAIL_OK
+
+# Same as 15.4.4.16-7-7
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-7-7: FAIL_OK
+
+# Same as 15.4.4.16-10-8
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-8-10: FAIL_OK
+
+
+# Array.prototype.forEach
+chapter15/15.4/15.4.4/15.4.4.18: PASS
+
+# Same as 15.4.4.16-5-1
+chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-5-1: FAIL_OK
+
+# Same as 15.4.4.16-7-7
+chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-7-6: FAIL_OK
+
+
+# Array.prototype.map
+chapter15/15.4/15.4.4/15.4.4.19: PASS
+
+# Same as 15.4.4.16-5-1
+chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-5-1: FAIL_OK
+
+# Same as 15.4.4.16-7-7
+chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-7: FAIL_OK
+
+# Uses a array index number as a property
+chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-c-iii-1: FAIL_OK
+
+
 chapter15/15.5: UNIMPLEMENTED
 chapter15/15.6: UNIMPLEMENTED
 chapter15/15.7: UNIMPLEMENTED

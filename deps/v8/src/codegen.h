@@ -294,30 +294,53 @@ class InstanceofStub: public CodeStub {
 };
 
 
-class UnarySubStub : public CodeStub {
+class GenericUnaryOpStub : public CodeStub {
  public:
-  explicit UnarySubStub(bool overwrite)
-      : overwrite_(overwrite) { }
+  GenericUnaryOpStub(Token::Value op, bool overwrite)
+      : op_(op), overwrite_(overwrite) { }
 
  private:
+  Token::Value op_;
   bool overwrite_;
-  Major MajorKey() { return UnarySub; }
-  int MinorKey() { return overwrite_ ? 1 : 0; }
+
+  class OverwriteField: public BitField<int, 0, 1> {};
+  class OpField: public BitField<Token::Value, 1, kMinorBits - 1> {};
+
+  Major MajorKey() { return GenericUnaryOp; }
+  int MinorKey() {
+    return OpField::encode(op_) | OverwriteField::encode(overwrite_);
+  }
+
   void Generate(MacroAssembler* masm);
 
-  const char* GetName() { return "UnarySubStub"; }
+  const char* GetName();
+};
+
+
+enum NaNInformation {
+  kBothCouldBeNaN,
+  kCantBothBeNaN
 };
 
 
 class CompareStub: public CodeStub {
  public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+  CompareStub(Condition cc,
+              bool strict,
+              NaNInformation nan_info = kBothCouldBeNaN) :
+      cc_(cc), strict_(strict), never_nan_nan_(nan_info == kCantBothBeNaN) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
   Condition cc_;
   bool strict_;
+  // Only used for 'equal' comparisons.  Tells the stub that we already know
+  // that at least one side of the comparison is not NaN.  This allows the
+  // stub to use object identity in the positive case.  We ignore it when
+  // generating the minor key for other comparisons to avoid creating more
+  // stubs.
+  bool never_nan_nan_;
 
   Major MajorKey() { return Compare; }
 
@@ -329,6 +352,9 @@ class CompareStub: public CodeStub {
                          Register object,
                          Register scratch);
 
+  // Unfortunately you have to run without snapshots to see most of these
+  // names in the profile since most compare stubs end up in the snapshot.
+  const char* GetName();
 #ifdef DEBUG
   void Print() {
     PrintF("CompareStub (cc %d), (strict %s)\n",
@@ -465,6 +491,26 @@ class ArgumentsAccessStub: public CodeStub {
 #ifdef DEBUG
   void Print() {
     PrintF("ArgumentsAccessStub (type %d)\n", type_);
+  }
+#endif
+};
+
+
+class RegExpExecStub: public CodeStub {
+ public:
+  RegExpExecStub() { }
+
+ private:
+  Major MajorKey() { return RegExpExec; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "RegExpExecStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RegExpExecStub\n");
   }
 #endif
 };

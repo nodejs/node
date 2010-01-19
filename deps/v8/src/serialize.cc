@@ -918,7 +918,8 @@ void Serializer::Synchronize(const char* tag) {
 Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
-      external_reference_encoder_(NULL) {
+      external_reference_encoder_(NULL),
+      partial_(false) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
@@ -946,6 +947,16 @@ void Serializer::Serialize() {
 }
 
 
+void Serializer::SerializePartial(Object** object) {
+  partial_ = true;
+  external_reference_encoder_ = new ExternalReferenceEncoder();
+  this->VisitPointer(object);
+  delete external_reference_encoder_;
+  external_reference_encoder_ = NULL;
+  SerializationAddressMapper::Zap();
+}
+
+
 void Serializer::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsSmi()) {
@@ -961,11 +972,30 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 }
 
 
+int Serializer::RootIndex(HeapObject* heap_object) {
+  for (int i = 0; i < Heap::kRootListLength; i++) {
+    Object* root = Heap::roots_address()[i];
+    if (root == heap_object) return i;
+  }
+  return kInvalidRootIndex;
+}
+
+
 void Serializer::SerializeObject(
     Object* o,
     ReferenceRepresentation reference_representation) {
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
+  if (partial_) {
+    int root_index = RootIndex(heap_object);
+    if (root_index != kInvalidRootIndex) {
+      sink_->Put(ROOT_SERIALIZATION, "RootSerialization");
+      sink_->PutInt(root_index, "root_index");
+      return;
+    }
+    // All the symbols that the snapshot needs should be in the root table.
+    ASSERT(!heap_object->IsSymbol());
+  }
   if (SerializationAddressMapper::IsMapped(heap_object)) {
     int space = SpaceOfAlreadySerializedObject(heap_object);
     int address = SerializationAddressMapper::MappedTo(heap_object);

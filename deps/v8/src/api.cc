@@ -3741,8 +3741,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
 }
 
 
-bool Debug::EnableAgent(const char* name, int port) {
-  return i::Debugger::StartAgent(name, port);
+bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
+  return i::Debugger::StartAgent(name, port, wait_for_connection);
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,39 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_SIMULATOR_X64_H_
-#define V8_X64_SIMULATOR_X64_H_
 
-#include "allocation.h"
-
-// Since there is no simulator for the ia32 architecture the only thing we can
-// do is to call the entry directly.
-// TODO(X64): Don't pass p0, since it isn't used?
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  entry(p0, p1, p2, p3, p4);
-
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on x64 uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return c_limit;
+function TryGetPrototypeOfNonObject(x) {
+  var caught = 0;
+  try {
+      Object.getPrototypeOf(x);
+  } catch (e) {
+    caught = e;
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch() { }
+  assertTrue(caught instanceof TypeError);
 };
 
-// Call the generated regexp code directly. The entry function pointer should
-// expect eight int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  entry(p0, p1, p2, p3, p4, p5, p6, p7)
+function GetPrototypeOfObject(x) {
+  assertDoesNotThrow(Object.getPrototypeOf(x));
+  assertNotNull(Object.getPrototypeOf(x));
+  assertEquals(Object.getPrototypeOf(x), x.__proto__);
+}
 
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
+function F(){};
 
-#endif  // V8_X64_SIMULATOR_X64_H_
+// Non object
+var x = 10;
+
+// Object
+var y = new F();
+
+// Make sure that TypeError exceptions are thrown when non-objects are passed
+// as argument
+TryGetPrototypeOfNonObject(0);
+TryGetPrototypeOfNonObject(null);
+TryGetPrototypeOfNonObject('Testing');
+TryGetPrototypeOfNonObject(x);
+
+// Make sure the real objects have this method and that it returns the
+// actual prototype object. Also test for Functions and RegExp.
+GetPrototypeOfObject(this);
+GetPrototypeOfObject(y);
+GetPrototypeOfObject({x:5});
+GetPrototypeOfObject(F);
+GetPrototypeOfObject(RegExp);
+

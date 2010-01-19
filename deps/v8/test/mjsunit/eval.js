@@ -58,16 +58,16 @@ eval = global_eval;
 
 // Test that un-aliased eval reads from local context.
 foo = 0;
-result = 
+result =
   (function() {
     var foo = 2;
     return eval('foo');
   })();
 assertEquals(2, result);
 
-//Test that un-aliased eval writes to local context.
+// Test that un-aliased eval writes to local context.
 foo = 0;
-result = 
+result =
   (function() {
     var foo = 1;
     eval('foo = 2');
@@ -84,7 +84,7 @@ assertTrue(o === o.self);
 // Test that aliased eval reads from global context.
 var e = eval;
 foo = 0;
-result = 
+result =
   (function() {
     var foo = 2;
     return e('foo');
@@ -105,7 +105,7 @@ assertTrue(this === o.self);
 // Try to cheat the 'aliased eval' detection.
 var x = this;
 foo = 0;
-result = 
+result =
   (function() {
     var foo = 2;
     return x.eval('foo');
@@ -113,7 +113,7 @@ result =
 assertEquals(0, result);
 
 foo = 0;
-result = 
+result =
   (function() {
     var eval = function(x) { return x; };
     var foo = eval(2);
@@ -128,8 +128,29 @@ result =
   })();
 assertEquals(4, result);
 
+result =
+  (function() {
+    eval("var eval = function(s) { return this; }");
+    return eval("42");  // Should return the global object
+  })();
+assertEquals(this, result);
+
+result =
+  (function() {
+    var obj = { f: function(eval) { return eval("this"); } };
+    return obj.f(eval);
+  })();
+assertEquals(this, result);
+
+result =
+  (function() {
+    var obj = { f: function(eval) { arguments; return eval("this"); } };
+    return obj.f(eval);
+  })();
+assertEquals(this, result);
+
 eval = function(x) { return 2 * x; };
-result = 
+result =
   (function() {
     return (function() { return eval(2); })();
   })();

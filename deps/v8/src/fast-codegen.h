@@ -212,25 +212,47 @@ class FastCodeGenerator: public AstVisitor {
 
 
   int SlotOffset(Slot* slot);
-  void Move(Expression::Context destination, Register source);
-  void Move(Expression::Context destination, Slot* source, Register scratch);
-  void Move(Expression::Context destination, Literal* source);
+
+  // Emit code to complete the evaluation of an expression based on its
+  // expression context and given its value is in a register, non-lookup
+  // slot, or a literal.
+  void Apply(Expression::Context context, Register reg);
+  void Apply(Expression::Context context, Slot* slot, Register scratch);
+  void Apply(Expression::Context context, Literal* lit);
+
+  // Emit code to complete the evaluation of an expression based on its
+  // expression context and given its value is on top of the stack.
+  void ApplyTOS(Expression::Context context);
+
+  // Emit code to discard count elements from the top of stack, then
+  // complete the evaluation of an expression based on its expression
+  // context and given its value is in a register.
+  void DropAndApply(int count, Expression::Context context, Register reg);
+
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
 
-  // Templated to allow for Operand on intel and MemOperand on ARM.
-  template <typename MemoryLocation>
-  MemoryLocation CreateSlotOperand(Slot* slot, Register scratch);
-
-  // Drop the TOS, and store source to destination.
-  // If destination is TOS, just overwrite TOS with source.
-  void DropAndMove(Expression::Context destination,
-                   Register source,
-                   int drop_count = 1);
+  // Return an operand used to read/write to a known (ie, non-LOOKUP) slot.
+  // May emit code to traverse the context chain, destroying the scratch
+  // register.
+  MemOperand EmitSlotSearch(Slot* slot, Register scratch);
 
   // Test the JavaScript value in source as if in a test context, compile
   // control flow to a pair of labels.
   void TestAndBranch(Register source, Label* true_label, Label* false_label);
+
+  void VisitForControl(Expression* expr, Label* if_true, Label* if_false) {
+    ASSERT(expr->context() == Expression::kTest ||
+           expr->context() == Expression::kValueTest ||
+           expr->context() == Expression::kTestValue);
+    Label* saved_true = true_label_;
+    Label* saved_false = false_label_;
+    true_label_ = if_true;
+    false_label_ = if_false;
+    Visit(expr);
+    true_label_ = saved_true;
+    false_label_ = saved_false;
+  }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
@@ -247,13 +269,13 @@ class FastCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
-  // Load a value from a named property and push the result on the stack.
+  // Load a value from a named property.
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr, Expression::Context context);
 
-  // Load a value from a named property and push the result on the stack.
+  // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
-  void EmitKeyedPropertyLoad(Expression::Context context);
+  void EmitKeyedPropertyLoad(Property* expr, Expression::Context context);
 
   // Apply the compound assignment operator. Expects both operands on top
   // of the stack.
@@ -261,7 +283,7 @@ class FastCodeGenerator: public AstVisitor {
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // on top of the stack.
-  void EmitVariableAssignment(Assignment* expr);
+  void EmitVariableAssignment(Variable* var, Expression::Context context);
 
   // Complete a named property assignment.  The receiver and right-hand-side
   // value are expected on top of the stack.
@@ -279,7 +301,6 @@ class FastCodeGenerator: public AstVisitor {
   // Non-local control flow support.
   void EnterFinallyBlock();
   void ExitFinallyBlock();
-  void ThrowException();
 
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }

@@ -1,3 +1,19 @@
+2010-01-14: Version 2.0.6
+
+        Added ES5 Object.getPrototypeOf, GetOwnPropertyDescriptor,
+        GetOwnProperty, FromPropertyDescriptor.
+
+        Fixed Mac x64 build errors.
+
+        Improved performance of some math and string operations.
+
+        Improved performance of some regexp operations.
+
+        Improved performance of context creation.
+
+        Improved performance of hash tables.
+
+
 2009-12-18: Version 2.0.5
 
         Extended to upper limit of map space to allow for 7 times as many map

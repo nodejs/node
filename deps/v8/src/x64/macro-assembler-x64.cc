@@ -2374,7 +2374,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // Move up the chain of contexts to the context containing the slot.
     movq(dst, Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
     // Load the function context (which is the incoming, outer context).
-    movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+    movq(dst, FieldOperand(dst, JSFunction::kContextOffset));
     for (int i = 1; i < context_chain_length; i++) {
       movq(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
       movq(dst, FieldOperand(dst, JSFunction::kContextOffset));

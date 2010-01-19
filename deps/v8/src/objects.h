@@ -204,14 +204,13 @@ enum PropertyNormalizationMode {
 // instance_type is JS_OBJECT_TYPE.
 //
 // The names of the string instance types are intended to systematically
-// mirror their encoding in the instance_type field of the map.  The length
-// (SHORT, MEDIUM, or LONG) is always mentioned.  The default encoding is
-// considered TWO_BYTE.  It is not mentioned in the name.  ASCII encoding is
-// mentioned explicitly in the name.  Likewise, the default representation is
-// considered sequential.  It is not mentioned in the name.  The other
-// representations (eg, CONS, EXTERNAL) are explicitly mentioned.
-// Finally, the string is either a SYMBOL_TYPE (if it is a symbol) or a
-// STRING_TYPE (if it is not a symbol).
+// mirror their encoding in the instance_type field of the map.  The default
+// encoding is considered TWO_BYTE.  It is not mentioned in the name.  ASCII
+// encoding is mentioned explicitly in the name.  Likewise, the default
+// representation is considered sequential.  It is not mentioned in the
+// name.  The other representations (eg, CONS, EXTERNAL) are explicitly
+// mentioned.  Finally, the string is either a SYMBOL_TYPE (if it is a
+// symbol) or a STRING_TYPE (if it is not a symbol).
 //
 // NOTE: The following things are some that depend on the string types having
 // instance_types that are less than those of all other types:
@@ -237,11 +236,11 @@ enum PropertyNormalizationMode {
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
-  V(HEAP_NUMBER_TYPE)                                                          \
-  V(FIXED_ARRAY_TYPE)                                                          \
   V(CODE_TYPE)                                                                 \
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
   V(ODDBALL_TYPE)                                                              \
+                                                                               \
+  V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
   V(PIXEL_ARRAY_TYPE)                                                          \
@@ -257,6 +256,7 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
+  V(FIXED_ARRAY_TYPE)                                                          \
   V(ACCESSOR_INFO_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
@@ -383,11 +383,12 @@ const uint32_t kIsNotStringMask = 0x80;
 const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
-// If bit 7 is clear, bit 5 indicates that the string is a symbol (if set) or
-// not (if cleared).
-const uint32_t kIsSymbolMask = 0x20;
+// Bit 6 indicates that the object is a symbol (if set) or not (if cleared).
+// There are not enough types that the non-string types (with bit 7 set) can
+// have bit 6 set too.
+const uint32_t kIsSymbolMask = 0x40;
 const uint32_t kNotSymbolTag = 0x0;
-const uint32_t kSymbolTag = 0x20;
+const uint32_t kSymbolTag = 0x40;
 
 // If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.
@@ -418,6 +419,7 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 
 enum InstanceType {
+  // String types.
   SYMBOL_TYPE = kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kSymbolTag | kConsStringTag,
@@ -433,56 +435,66 @@ enum InstanceType {
   EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
   PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
-  MAP_TYPE = kNotStringTag,
-  HEAP_NUMBER_TYPE,
-  FIXED_ARRAY_TYPE,
+  // Objects allocated in their own spaces (never in new space).
+  MAP_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE
   CODE_TYPE,
   ODDBALL_TYPE,
   JS_GLOBAL_PROPERTY_CELL_TYPE,
+
+  // "Data", objects that cannot contain non-map-word pointers to heap
+  // objects.
+  HEAP_NUMBER_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   PIXEL_ARRAY_TYPE,
-  EXTERNAL_BYTE_ARRAY_TYPE,
+  EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
   EXTERNAL_SHORT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
   EXTERNAL_INT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
-  EXTERNAL_FLOAT_ARRAY_TYPE,
-  FILLER_TYPE,
-  SMI_TYPE,
+  EXTERNAL_FLOAT_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+  FILLER_TYPE,  // LAST_DATA_TYPE
 
+  // Structs.
   ACCESSOR_INFO_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   CALL_HANDLER_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+  SCRIPT_TYPE,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
 #endif
-  SCRIPT_TYPE,
 
-  JS_VALUE_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+
+  JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
-  JS_REGEXP_TYPE,
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
 
   JS_FUNCTION_TYPE,
 
   // Pseudo-types
-  FIRST_NONSTRING_TYPE = MAP_TYPE,
   FIRST_TYPE = 0x0,
-  INVALID_TYPE = FIRST_TYPE - 1,
   LAST_TYPE = JS_FUNCTION_TYPE,
+  INVALID_TYPE = FIRST_TYPE - 1,
+  FIRST_NONSTRING_TYPE = MAP_TYPE,
+  // Boundaries for testing for an external array.
+  FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
+  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_FLOAT_ARRAY_TYPE,
+  // Boundary for promotion to old data space/old pointer space.
+  LAST_DATA_TYPE = FILLER_TYPE,
   // Boundaries for testing the type is a JavaScript "object".  Note that
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.
@@ -1497,6 +1509,10 @@ class JSObject: public HeapObject {
 #endif
   Object* SlowReverseLookup(Object* value);
 
+  // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
+  // Also maximal value of JSArray's length property.
+  static const uint32_t kMaxElementCount = 0xffffffffu;
+
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
   static const int kInitialMaxFastElementArray = 100000;
@@ -1623,8 +1639,14 @@ class FixedArray: public Array {
   // Casting.
   static inline FixedArray* cast(Object* obj);
 
-  // Align data at kPointerSize, even if Array.kHeaderSize isn't aligned.
-  static const int kHeaderSize = POINTER_SIZE_ALIGN(Array::kHeaderSize);
+  static const int kHeaderSize = Array::kAlignedSize;
+
+  // Maximal allowed size, in bytes, of a single FixedArray.
+  // Prevents overflowing size computations, as well as extreme memory
+  // consumption.
+  static const int kMaxSize = 512 * MB;
+  // Maximally allowed length of a FixedArray.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
 
   // Dispatched behavior.
   int FixedArraySize() { return SizeFor(length()); }
@@ -1875,6 +1897,11 @@ class HashTable: public FixedArray {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
 
+  // Returns the number of deleted elements in the hash table.
+  int NumberOfDeletedElements() {
+    return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
+  }
+
   // Returns the capacity of the hash table.
   int Capacity() {
     return Smi::cast(get(kCapacityIndex))->value();
@@ -1886,8 +1913,14 @@ class HashTable: public FixedArray {
 
   // ElementRemoved should be called whenever an element is removed from
   // a hash table.
-  void ElementRemoved() { SetNumberOfElements(NumberOfElements() - 1); }
-  void ElementsRemoved(int n) { SetNumberOfElements(NumberOfElements() - n); }
+  void ElementRemoved() {
+    SetNumberOfElements(NumberOfElements() - 1);
+    SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
+  }
+  void ElementsRemoved(int n) {
+    SetNumberOfElements(NumberOfElements() - n);
+    SetNumberOfDeletedElements(NumberOfDeletedElements() + n);
+  }
 
   // Returns a new HashTable object. Might return Failure.
   static Object* Allocate(int at_least_space_for);
@@ -1914,16 +1947,23 @@ class HashTable: public FixedArray {
   }
 
   static const int kNumberOfElementsIndex = 0;
-  static const int kCapacityIndex         = 1;
-  static const int kPrefixStartIndex      = 2;
-  static const int kElementsStartIndex    =
+  static const int kNumberOfDeletedElementsIndex = 1;
+  static const int kCapacityIndex = 2;
+  static const int kPrefixStartIndex = 3;
+  static const int kElementsStartIndex =
       kPrefixStartIndex + Shape::kPrefixSize;
-  static const int kEntrySize             = Shape::kEntrySize;
-  static const int kElementsStartOffset   =
+  static const int kEntrySize = Shape::kEntrySize;
+  static const int kElementsStartOffset =
       kHeaderSize + kElementsStartIndex * kPointerSize;
 
   // Constant used for denoting a absent entry.
   static const int kNotFound = -1;
+
+  // Maximal capacity of HashTable. Based on maximal length of underlying
+  // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
+  // cannot overflow.
+  static const int kMaxCapacity =
+      (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
 
   // Find entry for key otherwise return -1.
   int FindEntry(Key key);
@@ -1944,12 +1984,18 @@ class HashTable: public FixedArray {
     fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
   }
 
+  // Update the number of deleted elements in the hash table.
+  void SetNumberOfDeletedElements(int nod) {
+    fast_set(this, kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
+  }
+
   // Sets the capacity of the hash table.
   void SetCapacity(int capacity) {
     // To scale a computed hash code to fit within the hash table, we
     // use bit-wise AND with a mask, so the capacity must be positive
     // and non-zero.
     ASSERT(capacity > 0);
+    ASSERT(capacity <= kMaxCapacity);
     fast_set(this, kCapacityIndex, Smi::FromInt(capacity));
   }
 
@@ -1958,6 +2004,14 @@ class HashTable: public FixedArray {
   static uint32_t GetProbe(uint32_t hash, uint32_t number, uint32_t size) {
     ASSERT(IsPowerOf2(size));
     return (hash + GetProbeOffset(number)) & (size - 1);
+  }
+
+  static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
+    return hash & (size - 1);
+  }
+
+  static uint32_t NextProbe(uint32_t last, uint32_t number, uint32_t size) {
+    return (last + number) & (size - 1);
   }
 
   // Ensure enough space for n additional elements.
@@ -2288,6 +2342,11 @@ class ByteArray: public Array {
   // ByteArray headers are not quadword aligned.
   static const int kHeaderSize = Array::kHeaderSize;
   static const int kAlignedSize = Array::kAlignedSize;
+
+  // Maximal memory consumption for a single ByteArray.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single ByteArray.
+  static const int kMaxLength = kMaxSize - kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
@@ -3575,6 +3634,14 @@ class JSRegExp: public JSObject {
   static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
 
   static const int kIrregexpDataSize = kIrregexpCaptureCountIndex + 1;
+
+  // Offsets directly into the data fixed array.
+  static const int kDataTagOffset =
+      FixedArray::kHeaderSize + kTagIndex * kPointerSize;
+  static const int kDataAsciiCodeOffset =
+      FixedArray::kHeaderSize + kIrregexpASCIICodeIndex * kPointerSize;
+  static const int kIrregexpCaptureCountOffset =
+      FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
 };
 
 
@@ -3998,6 +4065,12 @@ class SeqAsciiString: public SeqString {
   static const int kHeaderSize = String::kSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
+  // Maximal memory usage for a single sequential ASCII string.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single sequential ASCII string.
+  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
+  static const int kMaxLength = (kMaxSize - kHeaderSize);
+
   // Support for StringInputBuffer.
   inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
                                                 unsigned* offset,
@@ -4043,6 +4116,12 @@ class SeqTwoByteString: public SeqString {
   // Layout description.
   static const int kHeaderSize = String::kSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
+
+  // Maximal memory usage for a single sequential two-byte string.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single sequential two-byte string.
+  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);
 
   // Support for StringInputBuffer.
   inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,

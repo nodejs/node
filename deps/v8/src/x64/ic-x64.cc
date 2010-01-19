@@ -330,6 +330,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Is the string a symbol?
   __ j(not_zero, &index_string);  // The value in rbx is used at jump target.
+  ASSERT(kSymbolTag != 0);
   __ testb(FieldOperand(rdx, Map::kInstanceTypeOffset),
            Immediate(kIsSymbolMask));
   __ j(zero, &slow);
@@ -405,6 +406,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ and_(rax, Immediate(String::kArrayIndexHashMask));
   __ shrl(rax, Immediate(String::kHashShift));
   __ jmp(&index_int);
+}
+
+
+void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  GenerateGeneric(masm);
 }
 
 

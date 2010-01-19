@@ -674,6 +674,19 @@ ExternalReference ExternalReference::re_case_insensitive_compare_uc16() {
       FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
 }
 
+
+ExternalReference ExternalReference::address_of_static_offsets_vector() {
+  return ExternalReference(OffsetsVector::static_offsets_vector_address());
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_memory_address() {
+  return ExternalReference(RegExpStack::memory_address());
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_memory_size() {
+  return ExternalReference(RegExpStack::memory_size_address());
+}
+
 #endif
 
 

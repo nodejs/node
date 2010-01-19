@@ -86,7 +86,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ EnterConstructFrame();
 
   // Store a smi-tagged arguments count on the stack.
-  __ shl(eax, kSmiTagSize);
+  __ SmiTag(eax);
   __ push(eax);
 
   // Push the function to invoke on the stack.
@@ -255,7 +255,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Retrieve smi-tagged arguments count from the stack.
   __ mov(eax, Operand(esp, 0));
-  __ shr(eax, kSmiTagSize);
+  __ SmiUntag(eax);
 
   // Push the allocated receiver to the stack. We need two copies
   // because we may have to return the original one and the calling
@@ -440,8 +440,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ EnterInternalFrame();  // preserves eax, ebx, edi
 
     // Store the arguments count on the stack (smi tagged).
-    ASSERT(kSmiTag == 0);
-    __ shl(eax, kSmiTagSize);
+    __ SmiTag(eax);
     __ push(eax);
 
     __ push(edi);  // save edi across the call
@@ -452,7 +451,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Get the arguments count and untag it.
     __ pop(eax);
-    __ shr(eax, kSmiTagSize);
+    __ SmiUntag(eax);
 
     __ LeaveInternalFrame();
     __ jmp(&patch_receiver);
@@ -634,7 +633,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Invoke the function.
   ParameterCount actual(eax);
-  __ shr(eax, kSmiTagSize);
+  __ SmiUntag(eax);
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
 
@@ -831,7 +830,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   ASSERT(kSmiTag == 0);
-  __ shr(array_size, kSmiTagSize);  // Convert from smi to value.
+  __ SmiUntag(array_size);  // Convert from smi to value.
   __ mov(FieldOperand(elements_array, JSObject::kMapOffset),
          Factory::fixed_array_map());
   Label not_empty_2, fill_array;
@@ -960,7 +959,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // Handle construction of an array from a list of arguments.
   __ bind(&argc_two_or_more);
   ASSERT(kSmiTag == 0);
-  __ shl(eax, kSmiTagSize);  // Convet argc to a smi.
+  __ SmiTag(eax);  // Convet argc to a smi.
   // eax: array_size (smi)
   // edi: constructor
   // esp[0] : argc

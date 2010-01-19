@@ -540,6 +540,9 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Repetitive string instructions.
+  void rep_movs();
+
   // Exchange two registers
   void xchg(Register dst, Register src);
 
@@ -614,6 +617,7 @@ class Assembler : public Malloced {
   void shr_cl(Register dst);
 
   void subb(const Operand& dst, int8_t imm8);
+  void subb(Register dst, const Operand& src);
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);
@@ -693,6 +697,7 @@ class Assembler : public Malloced {
   void fistp_d(const Operand& adr);
 
   void fisttp_s(const Operand& adr);
+  void fisttp_d(const Operand& adr);
 
   void fabs();
   void fchs();
@@ -748,6 +753,11 @@ class Assembler : public Malloced {
   void xorpd(XMMRegister dst, XMMRegister src);
 
   void comisd(XMMRegister dst, XMMRegister src);
+
+  void movdqa(XMMRegister dst, const Operand& src);
+  void movdqa(const Operand& dst, XMMRegister src);
+  void movdqu(XMMRegister dst, const Operand& src);
+  void movdqu(const Operand& dst, XMMRegister src);
 
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);

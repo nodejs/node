@@ -91,6 +91,7 @@ class ScriptDataImpl : public ScriptData {
   virtual ~ScriptDataImpl();
   virtual int Length();
   virtual unsigned* Data();
+  virtual bool HasError();
   FunctionEntry GetFunctionEnd(int start);
   bool SanityCheck();
 

@@ -37,6 +37,8 @@ namespace internal {
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
   V(StringAdd)                           \
+  V(SubString)                           \
+  V(StringCompare)                       \
   V(SmiOp)                               \
   V(Compare)                             \
   V(RecordWrite)                         \
@@ -46,12 +48,13 @@ namespace internal {
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
-  V(UnarySub)                            \
+  V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
   V(Instanceof)                          \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
+  V(RegExpExec)                          \
   V(Runtime)                             \
   V(CEntry)                              \
   V(JSEntry)

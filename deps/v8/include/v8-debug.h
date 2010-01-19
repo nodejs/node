@@ -258,8 +258,11 @@ class EXPORT Debug {
   * supplied TCP/IP port for remote debugger connection.
   * \param name the name of the embedding application
   * \param port the TCP/IP port to listen on
+  * \param wait_for_connection whether V8 should pause on a first statement
+  *   allowing remote debugger to connect before anything interesting happened
   */
-  static bool EnableAgent(const char* name, int port);
+  static bool EnableAgent(const char* name, int port,
+                          bool wait_for_connection = false);
 };
 
 

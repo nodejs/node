@@ -64,7 +64,11 @@ class MacroAssembler: public Assembler {
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret(Condition cond = al);
-  void Drop(int stack_elements, Condition cond = al);
+
+  // Emit code to discard a non-negative number of pointer-sized elements
+  // from the stack, clobbering only the sp register.
+  void Drop(int count, Condition cond = al);
+
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
   // Jumps to the label at the index given by the Smi in "index".

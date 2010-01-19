@@ -151,6 +151,7 @@ int main(int argc, char** argv) {
   }
   i::Serializer::Enable();
   Persistent<Context> context = v8::Context::New();
+  ASSERT(!context.IsEmpty());
   // Make sure all builtin scripts are cached.
   { HandleScope scope;
     for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {

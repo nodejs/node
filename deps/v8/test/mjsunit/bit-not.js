@@ -25,39 +25,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_SIMULATOR_X64_H_
-#define V8_X64_SIMULATOR_X64_H_
+function testBitNot(x, name) {
+  // The VM constant folds so we use that to check the result.
+  var expected = eval("~(" + x + ")");
+  var actual = ~x;
+  assertEquals(expected, actual, "x: " + name);
 
-#include "allocation.h"
+  // Test the path where we can overwrite the result. Use -
+  // to avoid concatenating strings.
+  expected = eval("~(" + x + " - 0.01)");
+  actual = ~(x - 0.01);
+  assertEquals(expected, actual, "x - 0.01: " + name);
+}
 
-// Since there is no simulator for the ia32 architecture the only thing we can
-// do is to call the entry directly.
-// TODO(X64): Don't pass p0, since it isn't used?
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  entry(p0, p1, p2, p3, p4);
 
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on x64 uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return c_limit;
+testBitNot(0, 0);
+testBitNot(1, 1);
+testBitNot(-1, 1);
+testBitNot(100, 100);
+testBitNot(0x40000000, "0x40000000");
+testBitNot(0x7fffffff, "0x7fffffff");
+testBitNot(0x80000000, "0x80000000");
+
+testBitNot(2.2, 2.2);
+testBitNot(-2.3, -2.3);
+testBitNot(Infinity, "Infinity");
+testBitNot(NaN, "NaN");
+testBitNot(-Infinity, "-Infinity");
+testBitNot(0x40000000 + 0.12345, "float1");
+testBitNot(0x40000000 - 0.12345, "float2");
+testBitNot(0x7fffffff + 0.12345, "float3");
+testBitNot(0x7fffffff - 0.12345, "float4");
+testBitNot(0x80000000 + 0.12345, "float5");
+testBitNot(0x80000000 - 0.12345, "float6");
+
+testBitNot("0", "string0");
+testBitNot("2.3", "string2.3");
+testBitNot("-9.4", "string-9.4");
+
+
+// Try to test that we can deal with allocation failures in
+// the fast path and just use the slow path instead.
+function TryToGC() {
+  var x = 0x40000000;
+  for (var i = 0; i < 1000000; i++) {
+    assertEquals(~0x40000000, ~x);
   }
-
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch() { }
-};
-
-// Call the generated regexp code directly. The entry function pointer should
-// expect eight int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  entry(p0, p1, p2, p3, p4, p5, p6, p7)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
-
-#endif  // V8_X64_SIMULATOR_X64_H_
+}
+TryToGC();

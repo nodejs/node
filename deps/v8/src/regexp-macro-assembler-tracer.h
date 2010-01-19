@@ -69,8 +69,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                                               uc16 and_with,
                                               Label* on_not_equal);
   virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          int cp_offset,
-                                          bool check_offset,
                                           Label* on_no_match);
   virtual void Fail();
   virtual Handle<Object> GetCode(Handle<String> source);

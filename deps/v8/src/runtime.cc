@@ -559,6 +559,73 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 }
 
 
+// Recursively traverses hidden prototypes if property is not found
+static void GetOwnPropertyImplementation(JSObject* obj,
+                                         String* name,
+                                         LookupResult* result) {
+  obj->LocalLookupRealNamedProperty(name, result);
+
+  if (!result->IsProperty()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsJSObject() &&
+      JSObject::cast(proto)->map()->is_hidden_prototype())
+      GetOwnPropertyImplementation(JSObject::cast(proto),
+                                   name, result);
+  }
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+static Object* Runtime_GetOwnProperty(Arguments args) {
+  HandleScope scope;
+  Handle<FixedArray> elms = Factory::NewFixedArray(5);
+  Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
+  LookupResult result;
+  CONVERT_CHECKED(JSObject, obj, args[0]);
+  CONVERT_CHECKED(String, name, args[1]);
+
+  // Use recursive implementation to also traverse hidden prototypes
+  GetOwnPropertyImplementation(obj, name, &result);
+
+  if (!result.IsProperty())
+    return Heap::undefined_value();
+
+  if (result.type() == CALLBACKS) {
+    Object* structure = result.GetCallbackObject();
+    if (structure->IsProxy()) {
+      // Property that is internally implemented as a callback.
+      Object* value = obj->GetPropertyWithCallback(
+          obj, structure, name, result.holder());
+      elms->set(0, Heap::false_value());
+      elms->set(1, value);
+      elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+    } else if (structure->IsFixedArray()) {
+      // __defineGetter__/__defineSetter__ callback.
+      elms->set(0, Heap::true_value());
+      elms->set(1, FixedArray::cast(structure)->get(0));
+      elms->set(2, FixedArray::cast(structure)->get(1));
+    } else {
+      // TODO(ricow): Handle API callbacks.
+      return Heap::undefined_value();
+    }
+  } else {
+    elms->set(0, Heap::false_value());
+    elms->set(1, result.GetLazyValue());
+    elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+  }
+
+  elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
+  elms->set(4, Heap::ToBoolean(!result.IsReadOnly()));
+  return *desc;
+}
+
+
 static Object* Runtime_RegExpCompile(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -1158,6 +1225,7 @@ static Object* Runtime_RegExpExec(Arguments args) {
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
+  Counters::regexp_entry_runtime.Increment();
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
                                            index,
@@ -1384,6 +1452,17 @@ static Object* CharCodeAt(String* subject, Object* index) {
 }
 
 
+static Object* CharFromCode(Object* char_code) {
+  uint32_t code;
+  if (Array::IndexFromObject(char_code, &code)) {
+    if (code <= 0xffff) {
+      return Heap::LookupSingleCharacterStringFromCode(code);
+    }
+  }
+  return Heap::empty_string();
+}
+
+
 static Object* Runtime_StringCharCodeAt(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -1394,16 +1473,20 @@ static Object* Runtime_StringCharCodeAt(Arguments args) {
 }
 
 
+static Object* Runtime_StringCharAt(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  CONVERT_CHECKED(String, subject, args[0]);
+  Object* index = args[1];
+  return CharFromCode(CharCodeAt(subject, index));
+}
+
+
 static Object* Runtime_CharFromCode(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  uint32_t code;
-  if (Array::IndexFromObject(args[0], &code)) {
-    if (code <= 0xffff) {
-      return Heap::LookupSingleCharacterStringFromCode(code);
-    }
-  }
-  return Heap::empty_string();
+  return CharFromCode(args[0]);
 }
 
 // Forward declarations.
@@ -1509,7 +1592,7 @@ class ReplacementStringBuilder {
 
 
   void IncrementCharacterCount(int by) {
-    if (character_count_ > Smi::kMaxValue - by) {
+    if (character_count_ > String::kMaxLength - by) {
       V8::FatalProcessOutOfMemory("String.replace result too large.");
     }
     character_count_ += by;
@@ -2473,6 +2556,7 @@ static Object* Runtime_SubString(Arguments args) {
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
+  Counters::sub_string_runtime.Increment();
   return value->SubString(start, end);
 }
 
@@ -2724,7 +2808,6 @@ static Object* Runtime_GetProperty(Arguments args) {
 }
 
 
-
 // KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric.
 static Object* Runtime_KeyedGetProperty(Arguments args) {
   NoHandleAllocation ha;
@@ -2776,6 +2859,13 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
         // If value is the hole do the general lookup.
       }
     }
+  } else if (args[0]->IsString() && args[1]->IsSmi()) {
+    // Fast case for string indexing using [] with a smi index.
+    HandleScope scope;
+    Handle<String> str = args.at<String>(0);
+    int index = Smi::cast(args[1])->value();
+    Handle<Object> result = GetCharAt(str, index);
+    return *result;
   }
 
   // Fall back to GetObjectProperty.
@@ -3362,6 +3452,7 @@ static Object* Runtime_URIEscape(Arguments args) {
         escaped_length += 3;
       }
       // We don't allow strings that are longer than a maximal length.
+      ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
@@ -3908,20 +3999,19 @@ static inline void StringBuilderConcatHelper(String* special,
 
 static Object* Runtime_StringBuilderConcat(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSArray, array, args[0]);
-  CONVERT_CHECKED(String, special, args[1]);
+  if (!args[1]->IsSmi()) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  int array_length = Smi::cast(args[1])->value();
+  CONVERT_CHECKED(String, special, args[2]);
 
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
   int special_length = special->length();
-  Object* smi_array_length = array->length();
-  if (!smi_array_length->IsSmi()) {
-    Top::context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
-  }
-  int array_length = Smi::cast(smi_array_length)->value();
   if (!array->HasFastElements()) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }
@@ -3939,6 +4029,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
 
   bool ascii = special->IsAsciiRepresentation();
   int position = 0;
+  int increment = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
@@ -3951,10 +4042,10 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         if (pos + len > special_length) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
-        position += len;
+        increment = len;
       } else {
         // Position and length encoded in two smis.
-        position += (-len);
+        increment = (-len);
         // Get the position and check that it is also a smi.
         i++;
         if (i >= array_length) {
@@ -3968,17 +4059,18 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
-      position += element_length;
+      increment = element_length;
       if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
     }
-    if (position > String::kMaxLength) {
+    if (increment > String::kMaxLength - position) {
       Top::context()->mark_out_of_memory();
       return Failure::OutOfMemoryException();
     }
+    position += increment;
   }
 
   int length = position;
@@ -4191,6 +4283,8 @@ static Object* Runtime_StringCompare(Arguments args) {
 
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
+
+  Counters::string_compare_runtime.Increment();
 
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
@@ -5227,51 +5321,31 @@ static Object* Runtime_CompileString(Arguments args) {
 }
 
 
-static Handle<JSFunction> GetBuiltinFunction(String* name) {
-  LookupResult result;
-  Top::global_context()->builtins()->LocalLookup(name, &result);
-  return Handle<JSFunction>(JSFunction::cast(result.GetValue()));
-}
+static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
+  ASSERT(args.length() == 3);
+  if (!args[0]->IsJSFunction()) {
+    return MakePair(Top::ThrowIllegalOperation(), NULL);
+  }
 
-
-static Object* CompileDirectEval(Handle<String> source) {
-  // Compute the eval context.
   HandleScope scope;
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> receiver;  // Will be overwritten.
+
+  // Compute the calling context.
+  Handle<Context> context = Handle<Context>(Top::context());
+#ifdef DEBUG
+  // Make sure Top::context() agrees with the old code that traversed
+  // the stack frames to compute the context.
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  Handle<Context> context(Context::cast(frame->context()));
-  bool is_global = context->IsGlobalContext();
-
-  // Compile source string in the current context.
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(
-      source,
-      context,
-      is_global,
-      Compiler::DONT_VALIDATE_JSON);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context, NOT_TENURED);
-  return *fun;
-}
-
-
-static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
-  ASSERT(args.length() == 2);
-
-  HandleScope scope;
-
-  CONVERT_ARG_CHECKED(JSFunction, callee, 0);
-
-  Handle<Object> receiver;
+  ASSERT(Context::cast(frame->context()) == *context);
+#endif
 
   // Find where the 'eval' symbol is bound. It is unaliased only if
   // it is bound in the global context.
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  Handle<Context> context(Context::cast(frame->context()));
-  int index;
-  PropertyAttributes attributes;
-  while (!context.is_null()) {
+  int index = -1;
+  PropertyAttributes attributes = ABSENT;
+  while (true) {
     receiver = context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
                                &index, &attributes);
     // Stop search when eval is found or when the global context is
@@ -5290,46 +5364,42 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
     Handle<Object> name = Factory::eval_symbol();
     Handle<Object> reference_error =
         Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-    return Top::Throw(*reference_error);
+    return MakePair(Top::Throw(*reference_error), NULL);
   }
 
-  if (context->IsGlobalContext()) {
-    // 'eval' is bound in the global context, but it may have been overwritten.
-    // Compare it to the builtin 'GlobalEval' function to make sure.
-    Handle<JSFunction> global_eval =
-      GetBuiltinFunction(Heap::global_eval_symbol());
-    if (global_eval.is_identical_to(callee)) {
-      // A direct eval call.
-      if (args[1]->IsString()) {
-        CONVERT_ARG_CHECKED(String, source, 1);
-        // A normal eval call on a string. Compile it and return the
-        // compiled function bound in the local context.
-        Object* compiled_source = CompileDirectEval(source);
-        if (compiled_source->IsFailure()) return compiled_source;
-        receiver = Handle<Object>(frame->receiver());
-        callee = Handle<JSFunction>(JSFunction::cast(compiled_source));
-      } else {
-        // An eval call that is not called on a string. Global eval
-        // deals better with this.
-        receiver = Handle<Object>(Top::global_context()->global());
-      }
-    } else {
-      // 'eval' is overwritten. Just call the function with the given arguments.
-      receiver = Handle<Object>(Top::global_context()->global());
-    }
-  } else {
+  if (!context->IsGlobalContext()) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
     if (receiver->IsContext()) {
       context = Handle<Context>::cast(receiver);
       receiver = Handle<Object>(context->get(index));
+    } else if (receiver->IsJSContextExtensionObject()) {
+      receiver = Handle<JSObject>(Top::context()->global()->global_receiver());
     }
+    return MakePair(*callee, *receiver);
   }
 
-  Handle<FixedArray> call = Factory::NewFixedArray(2);
-  call->set(0, *callee);
-  call->set(1, *receiver);
-  return *call;
+  // 'eval' is bound in the global context, but it may have been overwritten.
+  // Compare it to the builtin 'GlobalEval' function to make sure.
+  if (*callee != Top::global_context()->global_eval_fun() ||
+      !args[1]->IsString()) {
+    return MakePair(*callee, Top::context()->global()->global_receiver());
+  }
+
+  // Deal with a normal eval call with a string argument. Compile it
+  // and return the compiled function bound in the local context.
+  Handle<String> source = args.at<String>(1);
+  Handle<JSFunction> boilerplate = Compiler::CompileEval(
+      source,
+      Handle<Context>(Top::context()),
+      Top::context()->IsGlobalContext(),
+      Compiler::DONT_VALIDATE_JSON);
+  if (boilerplate.is_null()) return MakePair(Failure::Exception(), NULL);
+  callee = Factory::NewFunctionFromBoilerplate(
+      boilerplate,
+      Handle<Context>(Top::context()),
+      NOT_TENURED);
+  return MakePair(*callee, args[2]);
 }
 
 
@@ -5386,11 +5456,11 @@ class ArrayConcatVisitor {
                      uint32_t index_limit,
                      bool fast_elements) :
       storage_(storage), index_limit_(index_limit),
-      fast_elements_(fast_elements), index_offset_(0) { }
+      index_offset_(0), fast_elements_(fast_elements) { }
 
   void visit(uint32_t i, Handle<Object> elm) {
-    uint32_t index = i + index_offset_;
-    if (index >= index_limit_) return;
+    if (i >= index_limit_ - index_offset_) return;
+    uint32_t index = index_offset_ + i;
 
     if (fast_elements_) {
       ASSERT(index < static_cast<uint32_t>(storage_->length()));
@@ -5406,14 +5476,23 @@ class ArrayConcatVisitor {
   }
 
   void increase_index_offset(uint32_t delta) {
-    index_offset_ += delta;
+    if (index_limit_ - index_offset_ < delta) {
+      index_offset_ = index_limit_;
+    } else {
+      index_offset_ += delta;
+    }
   }
+
+  Handle<FixedArray> storage() { return storage_; }
 
  private:
   Handle<FixedArray> storage_;
+  // Limit on the accepted indices. Elements with indices larger than the
+  // limit are ignored by the visitor.
   uint32_t index_limit_;
-  bool fast_elements_;
+  // Index after last seen index. Always less than or equal to index_limit_.
   uint32_t index_offset_;
+  bool fast_elements_;
 };
 
 
@@ -5585,6 +5664,11 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
  *
  * If a ArrayConcatVisitor object is given, the visitor is called with
  * parameters, element's index + visitor_index_offset and the element.
+ *
+ * The returned number of elements is an upper bound on the actual number
+ * of elements added. If the same element occurs in more than one object
+ * in the array's prototype chain, it will be counted more than once, but
+ * will only occur once in the result.
  */
 static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
                                                  ArrayConcatVisitor* visitor) {
@@ -5607,8 +5691,14 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
   uint32_t nof_elements = 0;
   for (int i = objects.length() - 1; i >= 0; i--) {
     Handle<JSObject> obj = objects[i];
-    nof_elements +=
+    uint32_t encountered_elements =
         IterateElements(Handle<JSObject>::cast(obj), range, visitor);
+
+    if (encountered_elements > JSObject::kMaxElementCount - nof_elements) {
+      nof_elements = JSObject::kMaxElementCount;
+    } else {
+      nof_elements += encountered_elements;
+    }
   }
 
   return nof_elements;
@@ -5625,10 +5715,12 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
  * elements.  If an argument is not an Array object, the function
  * visits the object as if it is an one-element array.
  *
- * If the result array index overflows 32-bit integer, the rounded
+ * If the result array index overflows 32-bit unsigned integer, the rounded
  * non-negative number is used as new length. For example, if one
  * array length is 2^32 - 1, second array length is 1, the
  * concatenated array length is 0.
+ * TODO(lrn) Change length behavior to ECMAScript 5 specification (length
+ * is one more than the last array index to get a value assigned).
  */
 static uint32_t IterateArguments(Handle<JSArray> arguments,
                                  ArrayConcatVisitor* visitor) {
@@ -5644,16 +5736,23 @@ static uint32_t IterateArguments(Handle<JSArray> arguments,
           IterateArrayAndPrototypeElements(array, visitor);
       // Total elements of array and its prototype chain can be more than
       // the array length, but ArrayConcat can only concatenate at most
-      // the array length number of elements.
-      visited_elements += (nof_elements > len) ? len : nof_elements;
+      // the array length number of elements. We use the length as an estimate
+      // for the actual number of elements added.
+      uint32_t added_elements = (nof_elements > len) ? len : nof_elements;
+      if (JSArray::kMaxElementCount - visited_elements < added_elements) {
+        visited_elements = JSArray::kMaxElementCount;
+      } else {
+        visited_elements += added_elements;
+      }
       if (visitor) visitor->increase_index_offset(len);
-
     } else {
       if (visitor) {
         visitor->visit(0, obj);
         visitor->increase_index_offset(1);
       }
-      visited_elements++;
+      if (visited_elements < JSArray::kMaxElementCount) {
+        visited_elements++;
+      }
     }
   }
   return visited_elements;
@@ -5663,6 +5762,8 @@ static uint32_t IterateArguments(Handle<JSArray> arguments,
 /**
  * Array::concat implementation.
  * See ECMAScript 262, 15.4.4.4.
+ * TODO(lrn): Fix non-compliance for very large concatenations and update to
+ * following the ECMAScript 5 specification.
  */
 static Object* Runtime_ArrayConcat(Arguments args) {
   ASSERT(args.length() == 1);
@@ -5679,12 +5780,18 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   { AssertNoAllocation nogc;
     for (uint32_t i = 0; i < num_of_args; i++) {
       Object* obj = arguments->GetElement(i);
+      uint32_t length_estimate;
       if (obj->IsJSArray()) {
-        result_length +=
+        length_estimate =
             static_cast<uint32_t>(JSArray::cast(obj)->length()->Number());
       } else {
-        result_length++;
+        length_estimate = 1;
       }
+      if (JSObject::kMaxElementCount - result_length < length_estimate) {
+        result_length = JSObject::kMaxElementCount;
+        break;
+      }
+      result_length += length_estimate;
     }
   }
 
@@ -5718,7 +5825,8 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   IterateArguments(arguments, &visitor);
 
   result->set_length(*len);
-  result->set_elements(*storage);
+  // Please note the storage might have changed in the visitor.
+  result->set_elements(*visitor.storage());
 
   return *result;
 }

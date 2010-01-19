@@ -307,18 +307,11 @@ void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
 
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
     uc16 type,
-    int cp_offset,
-    bool check_offset,
     Label* on_no_match) {
   bool supported = assembler_->CheckSpecialCharacterClass(type,
-                                                          cp_offset,
-                                                          check_offset,
                                                           on_no_match);
-  PrintF(" CheckSpecialCharacterClass(type='%c', offset=%d, "
-             "check_offset=%s, label[%08x]): %s;\n",
+  PrintF(" CheckSpecialCharacterClass(type='%c', label[%08x]): %s;\n",
          type,
-         cp_offset,
-         check_offset ? "true" : "false",
          on_no_match,
          supported ? "true" : "false");
   return supported;

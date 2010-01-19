@@ -420,6 +420,11 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable RegExpStack::limit_address()
   static ExternalReference address_of_regexp_stack_limit();
 
+  // Static variables for RegExp.
+  static ExternalReference address_of_static_offsets_vector();
+  static ExternalReference address_of_regexp_stack_memory_address();
+  static ExternalReference address_of_regexp_stack_memory_size();
+
   // Static variable Heap::NewSpaceStart()
   static ExternalReference new_space_start();
   static ExternalReference heap_always_allocate_scope_depth();

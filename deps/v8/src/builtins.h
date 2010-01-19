@@ -74,6 +74,7 @@ namespace internal {
   V(KeyedLoadIC_Initialize,     KEYED_LOAD_IC, UNINITIALIZED)             \
   V(KeyedLoadIC_PreMonomorphic, KEYED_LOAD_IC, PREMONOMORPHIC)            \
   V(KeyedLoadIC_Generic,        KEYED_LOAD_IC, MEGAMORPHIC)               \
+  V(KeyedLoadIC_String,         KEYED_LOAD_IC, MEGAMORPHIC)               \
   V(KeyedLoadIC_ExternalByteArray,          KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalUnsignedByteArray,  KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalShortArray,         KEYED_LOAD_IC, MEGAMORPHIC)   \
@@ -147,7 +148,8 @@ namespace internal {
   V(STRING_ADD_LEFT, 1)                  \
   V(STRING_ADD_RIGHT, 1)                 \
   V(APPLY_PREPARE, 1)                    \
-  V(APPLY_OVERFLOW, 1)
+  V(APPLY_OVERFLOW, 1)                   \
+  V(STRING_CHAR_AT, 1)
 
 
 class ObjectVisitor;

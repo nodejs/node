@@ -326,12 +326,19 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     function_return_is_shadowed_ = false;
 
     // Allocate the local context if needed.
-    if (scope_->num_heap_slots() > 0) {
+    int heap_slots = scope_->num_heap_slots();
+    if (heap_slots > 0) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.
       // Get outer context and create a new context based on it.
       frame_->PushFunction();
-      Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      Result context;
+      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(heap_slots);
+        context = frame_->CallStub(&stub, 1);
+      } else {
+        context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      }
 
       // Update context local.
       frame_->SaveContextRegister();
@@ -391,6 +398,12 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     // the context.
     if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
       StoreArgumentsObject(true);
+    }
+
+    // Initialize ThisFunction reference if present.
+    if (scope_->is_function_scope() && scope_->function() != NULL) {
+      frame_->Push(Factory::the_hole_value());
+      StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
     }
 
     // Generate code to 'execute' declarations and initialize functions
@@ -1865,13 +1878,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   frame_->EmitPush(rax);
 
   // Store the caught exception in the catch variable.
-  { Reference ref(this, node->catch_var());
-    ASSERT(ref.is_slot());
-    // Load the exception to the top of the stack.  Here we make use of the
-    // convenient property that it doesn't matter whether a value is
-    // immediately on top of or underneath a zero-sized reference.
-    ref.SetValue(NOT_CONST_INIT);
-  }
+  Variable* catch_var = node->catch_var()->var();
+  ASSERT(catch_var != NULL && catch_var->slot() != NULL);
+  StoreToSlot(catch_var->slot(), NOT_CONST_INIT);
 
   // Remove the exception from the stack.
   frame_->Drop();
@@ -2196,19 +2205,28 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  // Call the runtime to instantiate the function boilerplate object.
+  ASSERT(boilerplate->IsBoilerplate());
+
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
-  ASSERT(boilerplate->IsBoilerplate());
   frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Create a new closure.
-  frame_->EmitPush(rsi);
-  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
-  frame_->EmitPush(kScratchRegister);
-  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->Push(&result);
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+    FastNewClosureStub stub;
+    frame_->Push(boilerplate);
+    Result answer = frame_->CallStub(&stub, 1);
+    frame_->Push(&answer);
+  } else {
+    // Call the runtime to instantiate the function boilerplate
+    // object.
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(boilerplate);
+    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->Push(&result);
+  }
 }
 
 
@@ -2362,46 +2380,10 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 }
 
 
-// Materialize the object literal 'node' in the literals array
-// 'literals' of the function.  Leave the object boilerplate in
-// 'boilerplate'.
-class DeferredObjectLiteral: public DeferredCode {
- public:
-  DeferredObjectLiteral(Register boilerplate,
-                        Register literals,
-                        ObjectLiteral* node)
-      : boilerplate_(boilerplate), literals_(literals), node_(node) {
-    set_comment("[ DeferredObjectLiteral");
-  }
-
-  void Generate();
-
- private:
-  Register boilerplate_;
-  Register literals_;
-  ObjectLiteral* node_;
-};
-
-
-void DeferredObjectLiteral::Generate() {
-  // Since the entry is undefined we call the runtime system to
-  // compute the literal.
-  // Literal array (0).
-  __ push(literals_);
-  // Literal index (1).
-  __ Push(Smi::FromInt(node_->literal_index()));
-  // Constant properties (2).
-  __ Push(node_->constant_properties());
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
-}
-
-
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  // Retrieve the literals array and check the allocated entry.  Begin
-  // with a writable copy of the function of this activation in a
+  // Load a writable copy of the function of this activation in a
   // register.
   frame_->PushFunction();
   Result literals = frame_->Pop();
@@ -2411,32 +2393,18 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Load the literals array of the function.
   __ movq(literals.reg(),
           FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  Result boilerplate = allocator_->Allocate();
-  ASSERT(boilerplate.is_valid());
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code passing the literals array.
-  DeferredObjectLiteral* deferred =
-      new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
-  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
-  deferred->Branch(equal);
-  deferred->BindExit();
-  literals.Unuse();
-
-  // Push the boilerplate object.
-  frame_->Push(&boilerplate);
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  // Literal array.
+  frame_->Push(&literals);
+  // Literal index.
+  frame_->Push(Smi::FromInt(node->literal_index()));
+  // Constant properties.
+  frame_->Push(node->constant_properties());
+  Result clone;
+  if (node->depth() > 1) {
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
-  // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -2496,45 +2464,10 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-// Materialize the array literal 'node' in the literals array 'literals'
-// of the function.  Leave the array boilerplate in 'boilerplate'.
-class DeferredArrayLiteral: public DeferredCode {
- public:
-  DeferredArrayLiteral(Register boilerplate,
-                       Register literals,
-                       ArrayLiteral* node)
-      : boilerplate_(boilerplate), literals_(literals), node_(node) {
-    set_comment("[ DeferredArrayLiteral");
-  }
-
-  void Generate();
-
- private:
-  Register boilerplate_;
-  Register literals_;
-  ArrayLiteral* node_;
-};
-
-
-void DeferredArrayLiteral::Generate() {
-  // Since the entry is undefined we call the runtime system to
-  // compute the literal.
-  // Literal array (0).
-  __ push(literals_);
-  // Literal index (1).
-  __ Push(Smi::FromInt(node_->literal_index()));
-  // Constant properties (2).
-  __ Push(node_->literals());
-  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
-}
-
-
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  // Retrieve the literals array and check the allocated entry.  Begin
-  // with a writable copy of the function of this activation in a
+  // Load a writable copy of the function of this activation in a
   // register.
   frame_->PushFunction();
   Result literals = frame_->Pop();
@@ -2544,32 +2477,18 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Load the literals array of the function.
   __ movq(literals.reg(),
           FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  Result boilerplate = allocator_->Allocate();
-  ASSERT(boilerplate.is_valid());
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code passing the literals array.
-  DeferredArrayLiteral* deferred =
-      new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
-  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
-  deferred->Branch(equal);
-  deferred->BindExit();
-  literals.Unuse();
-
-  // Push the resulting array literal boilerplate on the stack.
-  frame_->Push(&boilerplate);
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  // Literal array.
+  frame_->Push(&literals);
+  // Literal index.
+  frame_->Push(Smi::FromInt(node->literal_index()));
+  // Constant elements.
+  frame_->Push(node->constant_elements());
+  Result clone;
+  if (node->depth() > 1) {
+    clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
-  // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   // Generate code to set the elements in the array that are not
@@ -2770,23 +2689,19 @@ void CodeGenerator::VisitCall(Call* node) {
       frame_->Push(Factory::undefined_value());
     }
 
+    // Push the receiver.
+    frame_->PushParameterAt(-1);
+
     // Resolve the call.
     Result result =
-        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
 
-    // Touch up the stack with the right values for the function and the
-    // receiver.  Use a scratch register to avoid destroying the result.
-    Result scratch = allocator_->Allocate();
-    ASSERT(scratch.is_valid());
-    __ movq(scratch.reg(),
-            FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
-    frame_->SetElementAt(arg_count + 1, &scratch);
-
-    // We can reuse the result register now.
-    frame_->Spill(result.reg());
-    __ movq(result.reg(),
-            FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
-    frame_->SetElementAt(arg_count, &result);
+    // The runtime call returns a pair of values in rax (function) and
+    // rdx (receiver). Touch up the stack with the right values.
+    Result receiver = allocator_->Allocate(rdx);
+    frame_->SetElementAt(arg_count + 1, &result);
+    frame_->SetElementAt(arg_count, &receiver);
+    receiver.Unuse();
 
     // Call the function.
     CodeForSourcePosition(node->position());
@@ -3109,7 +3024,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         bool overwrite =
           (node->expression()->AsBinaryOperation() != NULL &&
            node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-        UnarySubStub stub(overwrite);
+        GenericUnaryOpStub stub(Token::SUB, overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
@@ -3979,69 +3894,16 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  JumpTarget done;
-  JumpTarget call_runtime;
-  ASSERT(args->length() == 1);
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 4);
 
-  // Load number and duplicate it.
+  // Load the arguments on the stack and call the runtime system.
   Load(args->at(0));
-  frame_->Dup();
-
-  // Get the number into an unaliased register and load it onto the
-  // floating point stack still leaving one copy on the frame.
-  Result number = frame_->Pop();
-  number.ToRegister();
-  frame_->Spill(number.reg());
-  FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
-  number.Unuse();
-
-  // Perform the operation on the number.
-  switch (op) {
-    case SIN:
-      __ fsin();
-      break;
-    case COS:
-      __ fcos();
-      break;
-  }
-
-  // Go slow case if argument to operation is out of range.
-  Result eax_reg = allocator()->Allocate(rax);
-  ASSERT(eax_reg.is_valid());
-  __ fnstsw_ax();
-  __ testl(rax, Immediate(0x0400));  // Bit 10 is condition flag C2.
-  eax_reg.Unuse();
-  call_runtime.Branch(not_zero);
-
-  // Allocate heap number for result if possible.
-  Result scratch = allocator()->Allocate();
-  Result heap_number = allocator()->Allocate();
-  __ AllocateHeapNumber(heap_number.reg(),
-                        scratch.reg(),
-                        call_runtime.entry_label());
-  scratch.Unuse();
-
-  // Store the result in the allocated heap number.
-  __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
-  // Replace the extra copy of the argument with the result.
-  frame_->SetElementAt(0, &heap_number);
-  done.Jump();
-
-  call_runtime.Bind();
-  // Free ST(0) which was not popped before calling into the runtime.
-  __ ffree(0);
-  Result answer;
-  switch (op) {
-    case SIN:
-      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
-      break;
-    case COS:
-      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
-      break;
-  }
-  frame_->Push(&answer);
-  done.Bind();
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+  Result result = frame_->CallRuntime(Runtime::kRegExpExec, 4);
+  frame_->Push(&result);
 }
 
 
@@ -4053,6 +3915,29 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
 
   StringAddStub stub(NO_STRING_ADD_FLAGS);
   Result answer = frame_->CallStub(&stub, 2);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  Result answer = frame_->CallRuntime(Runtime::kSubString, 3);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  Result answer = frame_->CallRuntime(Runtime::kStringCompare, 2);
   frame_->Push(&answer);
 }
 
@@ -4380,15 +4265,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
     Load(property->obj());
-    // We use a named reference if the key is a literal symbol, unless it is
-    // a string that can be legally parsed as an integer.  This is because
-    // otherwise we will not get into the slow case code that handles [] on
-    // String objects.
-    Literal* literal = property->key()->AsLiteral();
-    uint32_t dummy;
-    if (literal != NULL &&
-        literal->handle()->IsSymbol() &&
-        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (property->key()->IsPropertyName()) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
@@ -4864,36 +4741,34 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->Push(&result);
   }
 
-  { Reference shadow_ref(this, scope_->arguments_shadow());
-    Reference arguments_ref(this, scope_->arguments());
-    ASSERT(shadow_ref.is_slot() && arguments_ref.is_slot());
-    // Here we rely on the convenient property that references to slot
-    // take up zero space in the frame (ie, it doesn't matter that the
-    // stored value is actually below the reference on the frame).
-    JumpTarget done;
-    bool skip_arguments = false;
-    if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
-      // We have to skip storing into the arguments slot if it has
-      // already been written to. This can happen if the a function
-      // has a local variable named 'arguments'.
-      LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
-      Result arguments = frame_->Pop();
-      if (arguments.is_constant()) {
-        // We have to skip updating the arguments object if it has
-        // been assigned a proper value.
-        skip_arguments = !arguments.handle()->IsTheHole();
-      } else {
-        __ CompareRoot(arguments.reg(), Heap::kTheHoleValueRootIndex);
-        arguments.Unuse();
-        done.Branch(not_equal);
-      }
+
+  Variable* arguments = scope_->arguments()->var();
+  Variable* shadow = scope_->arguments_shadow()->var();
+  ASSERT(arguments != NULL && arguments->slot() != NULL);
+  ASSERT(shadow != NULL && shadow->slot() != NULL);
+  JumpTarget done;
+  bool skip_arguments = false;
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+    // We have to skip storing into the arguments slot if it has
+    // already been written to. This can happen if the a function
+    // has a local variable named 'arguments'.
+    LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    Result probe = frame_->Pop();
+    if (probe.is_constant()) {
+      // We have to skip updating the arguments object if it has been
+      // assigned a proper value.
+      skip_arguments = !probe.handle()->IsTheHole();
+    } else {
+      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      probe.Unuse();
+      done.Branch(not_equal);
     }
-    if (!skip_arguments) {
-      arguments_ref.SetValue(NOT_CONST_INIT);
-      if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
-    }
-    shadow_ref.SetValue(NOT_CONST_INIT);
   }
+  if (!skip_arguments) {
+    StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+    if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+  }
+  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
   return frame_->Pop();
 }
 
@@ -6199,6 +6074,91 @@ void Reference::SetValue(InitState init_state) {
 }
 
 
+void FastNewClosureStub::Generate(MacroAssembler* masm) {
+  // Clone the boilerplate in new space. Set the context to the
+  // current context in rsi.
+  Label gc;
+  __ AllocateInNewSpace(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
+
+  // Get the boilerplate function from the stack.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+
+  // Compute the function map in the current global context and set that
+  // as the map of the allocated object.
+  __ movq(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalContextOffset));
+  __ movq(rcx, Operand(rcx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
+  __ movq(FieldOperand(rax, JSObject::kMapOffset), rcx);
+
+  // Clone the rest of the boilerplate fields. We don't have to update
+  // the write barrier because the allocated object is in new space.
+  for (int offset = kPointerSize;
+       offset < JSFunction::kSize;
+       offset += kPointerSize) {
+    if (offset == JSFunction::kContextOffset) {
+      __ movq(FieldOperand(rax, offset), rsi);
+    } else {
+      __ movq(rbx, FieldOperand(rdx, offset));
+      __ movq(FieldOperand(rax, offset), rbx);
+    }
+  }
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  // Create a new closure through the slower runtime call.
+  __ bind(&gc);
+  __ pop(rcx);  // Temporarily remove return address.
+  __ pop(rdx);
+  __ push(rsi);
+  __ push(rdx);
+  __ push(rcx);  // Restore return address.
+  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+}
+
+
+void FastNewContextStub::Generate(MacroAssembler* masm) {
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
+                        rax, rbx, rcx, &gc, TAG_OBJECT);
+
+  // Get the function from the stack.
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+
+  // Setup the object header.
+  __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
+  __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
+  __ movl(FieldOperand(rax, Array::kLengthOffset), Immediate(length));
+
+  // Setup the fixed slots.
+  __ xor_(rbx, rbx);  // Set to NULL.
+  __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
+  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
+
+  // Copy the global object from the surrounding context.
+  __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_INDEX)), rbx);
+
+  // Initialize the rest of the slots to undefined.
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ movq(Operand(rax, Context::SlotOffset(i)), rbx);
+  }
+
+  // Return and remove the on-stack parameter.
+  __ movq(rsi, rax);
+  __ ret(1 * kPointerSize);
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
+}
+
+
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
@@ -6338,7 +6298,9 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 
 // End of CodeGenerator implementation.
 
-void UnarySubStub::Generate(MacroAssembler* masm) {
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  ASSERT(op_ == Token::SUB);
+
   Label slow;
   Label done;
   Label try_float;
@@ -6406,34 +6368,39 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
       // so we do the second best thing - test it ourselves.
 
-      Label return_equal;
-      Label heap_number;
-      // If it's not a heap number, then return equal.
-      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             Factory::heap_number_map());
-      __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ xor_(rax, rax);
-      __ ret(0);
+      if (never_nan_nan_) {
+        __ xor_(rax, rax);
+        __ ret(0);
+      } else {
+        Label return_equal;
+        Label heap_number;
+        // If it's not a heap number, then return equal.
+        __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        __ j(equal, &heap_number);
+        __ bind(&return_equal);
+        __ xor_(rax, rax);
+        __ ret(0);
 
-      __ bind(&heap_number);
-      // It is a heap number, so return non-equal if it's NaN and equal if it's
-      // not NaN.
-      // The representation of NaN values has all exponent bits (52..62) set,
-      // and not all mantissa bits (0..51) clear.
-      // We only allow QNaNs, which have bit 51 set (which also rules out
-      // the value being Infinity).
+        __ bind(&heap_number);
+        // It is a heap number, so return non-equal if it's NaN and equal if
+        // it's not NaN.
+        // The representation of NaN values has all exponent bits (52..62) set,
+        // and not all mantissa bits (0..51) clear.
+        // We only allow QNaNs, which have bit 51 set (which also rules out
+        // the value being Infinity).
 
-      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-      // all bits in the mask are set. We only need to check the word
-      // that contains the exponent and high bit of the mantissa.
-      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
-      __ xorl(rax, rax);
-      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
-      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
-      __ setcc(above_equal, rax);
-      __ ret(0);
+        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+        // all bits in the mask are set. We only need to check the word
+        // that contains the exponent and high bit of the mantissa.
+        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+        __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+        __ xorl(rax, rax);
+        __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
+        __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+        __ setcc(above_equal, rax);
+        __ ret(0);
+      }
 
       __ bind(&not_identical);
     }
@@ -6580,9 +6547,11 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
   __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, Immediate(kIsSymbolMask | kIsNotStringMask));
-  __ cmpb(scratch, Immediate(kSymbolTag | kStringTag));
-  __ j(not_equal, label);
+  // Ensure that no non-strings have the symbol bit set.
+  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  ASSERT(kSymbolTag != 0);
+  __ testb(scratch, Immediate(kIsSymbolMask));
+  __ j(zero, label);
 }
 
 
@@ -6761,16 +6730,13 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
                 Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adaptor);
-
-  // Nothing to do: The formal number of parameters has already been
-  // passed in register rax by calling function. Just return it.
-  __ ret(0);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame and return it.
-  __ bind(&adaptor);
-  __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  // Otherwise nothing to do: The number of formal parameters has already been
+  // passed in register eax by calling function. Just return it.
+  __ cmovq(equal, rax,
+           Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ ret(0);
 }
 
@@ -7885,9 +7851,52 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 
 
 int CompareStub::MinorKey() {
-  // Encode the two parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
-  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
+  int nnn_value = (never_nan_nan_ ? 2 : 0);
+  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
+  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
+}
+
+
+const char* CompareStub::GetName() {
+  switch (cc_) {
+    case less: return "CompareStub_LT";
+    case greater: return "CompareStub_GT";
+    case less_equal: return "CompareStub_LE";
+    case greater_equal: return "CompareStub_GE";
+    case not_equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_NE_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_NO_NAN";
+        } else {
+          return "CompareStub_NE";
+        }
+      }
+    }
+    case equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_EQ_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_NO_NAN";
+        } else {
+          return "CompareStub_EQ";
+        }
+      }
+    }
+    default: return "CompareStub";
+  }
 }
 
 

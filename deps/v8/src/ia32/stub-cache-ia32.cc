@@ -236,7 +236,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // Load length from the string and convert to a smi.
   __ bind(&load_length);
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ shl(eax, kSmiTagSize);
+  __ SmiTag(eax);
   __ ret(0);
 
   // Check if the object is a JSValue wrapper.
@@ -1900,17 +1900,23 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // depending on the this.x = ...; assignment in the function.
   for (int i = 0; i < shared->this_property_assignments_count(); i++) {
     if (shared->IsThisPropertyAssignmentArgument(i)) {
-      Label not_passed;
-      // Set the property to undefined.
-      __ mov(Operand(edx, i * kPointerSize), edi);
       // Check if the argument assigned to the property is actually passed.
+      // If argument is not passed the property is set to undefined,
+      // otherwise find it on the stack.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
+      __ mov(ebx, edi);
       __ cmp(eax, arg_number);
-      __ j(below_equal, &not_passed);
-      // Argument passed - find it on the stack.
-      __ mov(ebx, Operand(ecx, arg_number * -kPointerSize));
+      if (CpuFeatures::IsSupported(CMOV)) {
+        CpuFeatures::Scope use_cmov(CMOV);
+        __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
+      } else {
+        Label not_passed;
+        __ j(below_equal, &not_passed);
+        __ mov(ebx, Operand(ecx, arg_number * -kPointerSize));
+        __ bind(&not_passed);
+      }
+      // Store value in the property.
       __ mov(Operand(edx, i * kPointerSize), ebx);
-      __ bind(&not_passed);
     } else {
       // Set the property to the constant value.
       Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));

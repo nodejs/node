@@ -433,7 +433,7 @@ void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
   } else {
     stream()->Add("%i ", that->max());
   }
-  stream()->Add(that->is_greedy() ? "g " : "n ");
+  stream()->Add(that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
   that->body()->Accept(this, data);
   stream()->Add(")");
   return NULL;

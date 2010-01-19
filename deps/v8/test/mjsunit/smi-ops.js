@@ -537,7 +537,7 @@ function testShiftNonSmis() {
   one = four - three;
   zero = one - one;
 
- // Begin block A repeat 3
+  // Begin block A repeat 3
   assertEquals(pos_non_smi, (pos_non_smi) >> zero);
   assertEquals(pos_non_smi, (pos_non_smi) >>> zero);
   assertEquals(pos_non_smi, (pos_non_smi) << zero);
@@ -638,6 +638,31 @@ function testShiftNonSmis() {
 
 testShiftNonSmis();
 
+function intConversion() {
+  function foo(x) {
+    assertEquals(x, (x * 1.0000000001) | 0, "foo more " + x);
+    assertEquals(x, x | 0, "foo " + x);
+    if (x > 0) {
+      assertEquals(x - 1, (x * 0.9999999999) | 0, "foo less " + x);
+    } else {
+      assertEquals(x + 1, (x * 0.9999999999) | 0, "foo less " + x);
+    }
+  }
+  for (var i = 1; i < 0x80000000; i *= 2) {
+    foo(i);
+    foo(-i);
+  }
+  for (var i = 1; i < 1/0; i *= 2) {
+    assertEquals(i | 0, (i * 1.0000000000000001) | 0, "b" + i);
+    assertEquals(-i | 0, (i * -1.0000000000000001) | 0, "c" + i);
+  }
+  for (var i = 0.5; i > 0; i /= 2) {
+    assertEquals(0, i | 0, "d" + i);
+    assertEquals(0, -i | 0, "e" + i);
+  }
+}
+
+intConversion();
 
 // Verify that we handle the (optimized) corner case of shifting by
 // zero even for non-smis.

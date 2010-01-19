@@ -587,7 +587,6 @@ static const char* TypeToString(InstanceType type) {
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
     case PROXY_TYPE: return "PROXY";
-    case SMI_TYPE: return "SMI";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE

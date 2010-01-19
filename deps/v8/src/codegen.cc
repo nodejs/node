@@ -342,11 +342,12 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateObjectEquals, "_ObjectEquals"},
   {&CodeGenerator::GenerateLog, "_Log"},
   {&CodeGenerator::GenerateRandomPositiveSmi, "_RandomPositiveSmi"},
-  {&CodeGenerator::GenerateMathSin, "_Math_sin"},
-  {&CodeGenerator::GenerateMathCos, "_Math_cos"},
   {&CodeGenerator::GenerateIsObject, "_IsObject"},
   {&CodeGenerator::GenerateIsFunction, "_IsFunction"},
   {&CodeGenerator::GenerateStringAdd, "_StringAdd"},
+  {&CodeGenerator::GenerateSubString, "_SubString"},
+  {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
+  {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
 };
 
 
@@ -447,6 +448,23 @@ void CodeGenerator::CodeForSourcePosition(int pos) {
 
 const char* RuntimeStub::GetName() {
   return Runtime::FunctionForId(id_)->stub_name;
+}
+
+
+const char* GenericUnaryOpStub::GetName() {
+  switch (op_) {
+    case Token::SUB:
+      return overwrite_
+          ? "GenericUnaryOpStub_SUB_Overwrite"
+          : "GenericUnaryOpStub_SUB_Alloc";
+    case Token::BIT_NOT:
+      return overwrite_
+          ? "GenericUnaryOpStub_BIT_NOT_Overwrite"
+          : "GenericUnaryOpStub_BIT_NOT_Alloc";
+    default:
+      UNREACHABLE();
+      return "<unknown>";
+  }
 }
 
 

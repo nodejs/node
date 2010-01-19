@@ -200,6 +200,9 @@ class VirtualFrame : public ZoneObject {
   // shared return site.  Emits code for spills.
   void PrepareForReturn();
 
+  // Number of local variables after when we use a loop for allocating.
+  static const int kLocalVarBound = 7;
+
   // Allocate and initialize the frame-allocated locals.
   void AllocateStackSlots();
 
