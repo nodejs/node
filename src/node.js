@@ -202,45 +202,39 @@ var eventsModule = createInternalModule('events', function (exports) {
   process.Promise = exports.Promise;
 
   exports.Promise.prototype.timeout = function(timeout) {
-    if (timeout === undefined) {
+    if (!timeout) {
       return this._timeoutDuration;
     }
-
+    
     this._timeoutDuration = timeout;
-    if (this._timer) {
-      clearTimeout(this._timer);
-      this._timer = null;
-    }
-
-    var promiseComplete = false;
-    var onComplete = function() {
-      promiseComplete = true;
-      if (this._timer) {
-        clearTimeout(this._timer);
-        this._timer = null;
-      }
-    };
-
-    this
-      .addCallback(onComplete)
-      .addErrback(onComplete);
+    
+    if (this.hasFired) return;
+    this._clearTimeout();
 
     var self = this;
     this._timer = setTimeout(function() {
       self._timer = null;
-      if (promiseComplete) {
+      if (self.hasFired) {
         return;
       }
 
       self.emitError(new Error('timeout'));
-    }, this._timeoutDuration);
+    }, timeout);
 
     return this;
   };
+  
+  exports.Promise.prototype._clearTimeout = function() {
+    if (!this._timer) return;
+    
+    clearTimeout(this._timer);
+    this._timer = null;
+  }
 
   exports.Promise.prototype.emitSuccess = function() {
     if (this.hasFired) return;
     this.hasFired = true;
+    this._clearTimeout();
 
     this._values = Array.prototype.slice.call(arguments);
     this.emit.apply(this, ['success'].concat(this._values));
@@ -249,6 +243,7 @@ var eventsModule = createInternalModule('events', function (exports) {
   exports.Promise.prototype.emitError = function() {
     if (this.hasFired) return;
     this.hasFired = true;
+    this._clearTimeout();
 
     this._values = Array.prototype.slice.call(arguments);
     this.emit.apply(this, ['error'].concat(this._values));
