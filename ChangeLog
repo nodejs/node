@@ -9,7 +9,7 @@
   * API: Add process.nextTick()
 
   * Allow optional params to setTimeout, setInterval
-    (Michaeljohn Clement)
+    (Micheil Smith)
 
   * API: change some Promise behavior (Felix Geisendörfer)
     - Removed Promise.cancel()
