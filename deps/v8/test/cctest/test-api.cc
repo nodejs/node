@@ -6742,6 +6742,27 @@ TEST(PreCompile) {
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
+  CHECK(!sd->HasError());
+  delete sd;
+}
+
+
+TEST(PreCompileWithError) {
+  v8::V8::Initialize();
+  const char *script = "function foo(a) { return 1 * * 2; }";
+  v8::ScriptData *sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+  CHECK(sd->HasError());
+  delete sd;
+}
+
+
+TEST(Regress31661) {
+  v8::V8::Initialize();
+  const char *script = " The Definintive Guide";
+  v8::ScriptData *sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+  CHECK(sd->HasError());
   delete sd;
 }
 

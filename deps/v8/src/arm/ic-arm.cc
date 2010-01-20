@@ -618,6 +618,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- sp[0]  : key
+  //  -- sp[4]  : receiver
+  GenerateGeneric(masm);
+}
+
+
 void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
                                         ExternalArrayType array_type) {
   // TODO(476): port specialized code.

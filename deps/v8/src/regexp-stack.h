@@ -98,12 +98,24 @@ class RegExpStack {
     void Free();
   };
 
+  // Address of allocated memory.
+  static Address memory_address() {
+    return reinterpret_cast<Address>(&thread_local_.memory_);
+  }
+
+  // Address of size of allocated memory.
+  static Address memory_size_address() {
+    return reinterpret_cast<Address>(&thread_local_.memory_size_);
+  }
+
   // Resets the buffer if it has grown beyond the default/minimum size.
   // After this, the buffer is either the default size, or it is empty, so
   // you have to call EnsureCapacity before using it again.
   static void Reset();
 
   static ThreadLocal thread_local_;
+
+  friend class ExternalReference;
 };
 
 }}  // namespace v8::internal

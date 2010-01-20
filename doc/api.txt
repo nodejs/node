@@ -1,7 +1,7 @@
 NODE(1)
 =======
 Ryan Dahl <ry@tinyclouds.org>
-Version, 0.1.25, 2010.01.09
+Version, 0.1.26, 2010.01.20
 
 
 == NAME
@@ -123,6 +123,9 @@ Returns the memory usage of the Node process. It looks like this
 +
 +heapTotal+ and +heapUsed+ refer to V8's memory usage.
 
++process.nextTick(callback)+::
+On the next loop around the event loop call this callback.
+
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
 success code 0.
@@ -222,7 +225,7 @@ sys.exec("ls /").addCallback(function (stdout, stderr) {
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
-objects which emit events are instances of +process.EventEmitter+.
+objects which emit events are instances of +events.EventEmitter+.
 
 Events are represented by a camel-cased string. Here are some examples:
 +"connection"+, +"receive"+, +"messageBegin"+.
@@ -234,7 +237,9 @@ Some asynchronous file operations return an +EventEmitter+ called a
 _promise_.  A promise emits just a single event when the operation is
 complete.
 
-==== +process.EventEmitter+
+==== +events.EventEmitter+
+
++require('events')+ to access the events module.
 
 All EventEmitters emit the event +"newListener"+ when new listeners are
 added.
@@ -268,9 +273,11 @@ manipulated, e.g. to remove listeners.
 +emitter.emit(event, arg1, arg2, ...)+ ::
 Execute each of the listeners in order with the supplied arguments.
 
-==== +process.Promise+
+==== +events.Promise+
 
-+process.Promise+ inherits from +process.eventEmitter+. A promise emits one of two
++require('events')+ to access the events module.
+
++events.Promise+ inherits from +process.eventEmitter+. A promise emits one of two
 events: +"success"+ or +"error"+.  After emitting its event, it will not
 emit anymore events.
 
@@ -279,43 +286,70 @@ emit anymore events.
 | Event       | Parameters       | Notes
 | +"success"+ | (depends)        |
 | +"error"+   | (depends)        |
-| +"cancel"+  | (depends)        |
 |=========================================================
 
 +promise.addCallback(listener)+ ::
 Adds a listener for the +"success"+ event. Returns the same promise object.
+The listener is executed right away if the promise has already fired.
 
 +promise.addErrback(listener)+ ::
 Adds a listener for the +"error"+ event. Returns the same promise object.
-
-+promise.addCancelback(listener)+ ::
-Adds a listener for the +"cancel"+ event. Returns the same promise object.
+The listener is executed right away if the promise has already fired.
 
 +promise.emitSuccess(arg1, arg2, ...)+ ::
-If you created the promise (by doing +new process.Promise()+) then call
+If you created the promise (by doing +new events.Promise()+) then call
 +emitSuccess+ to emit the +"success"+ event with the given arguments. 
 +
 (+promise.emit("success", arg1, arg2, ...)+ should also work, but doesn't at
 the moment due to a bug; use +emitSuccess+ instead.)
 
 +promise.emitError(arg1, arg2, ...)+ ::
-Emits the +"error"+ event.
+Emits the +"error"+ event. If a no error handler is attached to the promise
+between +promise.emitError()+ and +process.nextTick()+, an exception is
+thrown.
++
+To explain the exception behavior, assume you have a "computeQuestion"
+function as follows:
++
+----------------------------------------
+var events = require('events');
+function computeQuestion(answer) {
+  var promise = new events.Promise();
+  if (answer !== 42) {
+    promise.emitError('wrong answer');
+    return promise;
+  }
+  // compute the question for 42
 
-+promise.emitCancel(arg1, arg2, ...)+ ::
-Emits the +"cancel"+ event. You may still get a +"success"+ or +"error"+
-callback if the promise giver does not handle the cancel event. Use
-+promise.cancel()+ to ignore any later events.
-
-+promise.cancel()+ ::
-Clears all +"success"+ and +"error"+ event listeners from the promise, then
-emits the +"cancel"+ event. Whether or not the promise is actually canceled
-or not depends on the promise giver. This also clears Promise.timeout() if one
-was set.
+  return promise;
+}
+----------------------------------------
++
+You can stop an exception to be thrown here by attaching an errback handler
+right away (in the same event loop tick) like this:
++
+----------------------------------------
+computeQuestion(23).addErrback(function() {
+  // No exception will be thrown
+});
+----------------------------------------
++
+However, if you try to  attach the error handler in a later tick, the promise
+will already have thrown an exception:
++
+----------------------------------------
+var promise = computeQuestion(23);
+setTimeout(function() {
+  promise.addErrback(function() {
+    // This will never execute, the promise already threw an exception
+  });
+}, 1000);
+----------------------------------------
 
 +promise.timeout(timeout = undefined)+ ::
 If the +timeout+ parameter is provided, the promise will emit an +"error"+
 event after the given amount of millseconds. The timeout is canceled by any
-+"success"+, +"error"+ or +"cancel"+ event being emitted by the Promise.
++"success"+ or +"error"+ event being emitted by the Promise.
 +
 To tell apart a timeout from a regular "error" event, use the following test:
 +
@@ -481,6 +515,8 @@ puts("The area of a cirlce of radius 4 is " + area(4));
 To schedule execution of callback after delay milliseconds. Returns a
 +timeoutId+ for possible use with +clearTimeout()+.
 
+Optionally, you can also pass arguments to the callback.
+
 
 +clearTimeout(timeoutId)+::
 Prevents said timeout from triggering.
@@ -489,6 +525,8 @@ Prevents said timeout from triggering.
 +setInterval(callback, delay)+::
 To schedule the repeated execution of callback every +delay+ milliseconds. Returns
 a +intervalId+ for possible use with +clearInterval()+.
+
+Optionally, you can also pass arguments to the callback.
 
 
 +clearInterval(intervalId)+::
@@ -565,7 +603,7 @@ File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do +require("posix")+. 
 
 All POSIX wrappers have a similar form.  They return a promise
-(+process.Promise+). Example of deleting a file:
+(+events.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
 var posix = require("posix"),

@@ -231,7 +231,7 @@ def generate(env):
 
     if not env.has_key('ENV'):
         env['ENV']        = {}
-    env['ENV']['PATH']    = '/usr/local/bin:/opt/bin:/bin:/usr/bin'
+    env['ENV']['PATH']    = os.environ.get("PATH")
     env['OBJPREFIX']      = ''
     env['OBJSUFFIX']      = '.o'
     env['SHOBJPREFIX']    = '$OBJPREFIX'

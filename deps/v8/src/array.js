@@ -70,19 +70,22 @@ function GetSortedArrayKeys(array, intervals) {
 // Optimized for sparse arrays if separator is ''.
 function SparseJoin(array, len, convert) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
-  var builder = new StringBuilder();
   var last_key = -1;
   var keys_length = keys.length;
+
+  var elements = new $Array(keys_length);
+  var elements_length = 0;
+
   for (var i = 0; i < keys_length; i++) {
     var key = keys[i];
     if (key != last_key) {
       var e = array[key];
-      if (typeof(e) !== 'string') e = convert(e);
-      builder.add(e);
+      if (!IS_STRING(e)) e = convert(e);
+      elements[elements_length++] = e;
       last_key = key;
     }
   }
-  return builder.generate();
+  return %StringBuilderConcat(elements, elements_length, '');
 }
 
 
@@ -107,7 +110,7 @@ function Join(array, length, separator, convert) {
 
   // Attempt to convert the elements.
   try {
-    if (UseSparseVariant(array, length, is_array) && separator === '') {
+    if (UseSparseVariant(array, length, is_array) && (separator.length == 0)) {
       return SparseJoin(array, length, convert);
     }
 
@@ -115,39 +118,37 @@ function Join(array, length, separator, convert) {
     if (length == 1) {
       var e = array[0];
       if (!IS_UNDEFINED(e) || (0 in array)) {
-        if (typeof(e) === 'string') return e;
+        if (IS_STRING(e)) return e;
         return convert(e);
       }
     }
 
-    var builder = new StringBuilder();
+    // Construct an array for the elements.
+    var elements;
+    var elements_length = 0;
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
+      elements = new $Array(length);
       for (var i = 0; i < length; i++) {
         var e = array[i];
         if (!IS_UNDEFINED(e) || (i in array)) {
-          if (typeof(e) !== 'string') e = convert(e);
-          if (e.length > 0) {
-            var elements = builder.elements;
-            elements[elements.length] = e;
-          }
+          if (!IS_STRING(e)) e = convert(e);
+          elements[elements_length++] = e;
         }
       }
     } else {
+      elements = new $Array(length << 1);
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (i != 0) builder.add(separator);
+        if (i != 0) elements[elements_length++] = separator;
         if (!IS_UNDEFINED(e) || (i in array)) {
-          if (typeof(e) !== 'string') e = convert(e);
-          if (e.length > 0) {
-            var elements = builder.elements;
-            elements[elements.length] = e;
-          }
+          if (!IS_STRING(e)) e = convert(e);
+          elements[elements_length++] = e;
         }
       }
     }
-    return builder.generate();
+    return %StringBuilderConcat(elements, elements_length, '');
   } finally {
     // Make sure to pop the visited array no matter what happens.
     if (is_array) visited_arrays.pop();
@@ -156,16 +157,15 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(e) {
-  if (typeof(e) === 'string') return e;
   if (e == null) return '';
   else return ToString(e);
 }
 
 
 function ConvertToLocaleString(e) {
-  if (typeof(e) === 'string') return e;
-  if (e == null) return '';
-  else {
+  if (e == null) {
+    return '';
+  } else {
     // e_obj's toLocaleString might be overwritten, check if it is a function.
     // Call ToString if toLocaleString is not a function.
     // See issue 877615.
@@ -359,16 +359,20 @@ function ArrayToLocaleString() {
 
 
 function ArrayJoin(separator) {
-  if (IS_UNDEFINED(separator)) separator = ',';
-  else separator = ToString(separator);
-  return Join(this, ToUint32(this.length), separator, ConvertToString);
+  if (IS_UNDEFINED(separator)) {
+    separator = ',';
+  } else if (!IS_STRING(separator)) {
+    separator = ToString(separator);
+  }
+  var length = TO_UINT32(this.length);
+  return Join(this, length, separator, ConvertToString);
 }
 
 
 // Removes the last element from the array and returns it. See
 // ECMA-262, section 15.4.4.6.
 function ArrayPop() {
-  var n = ToUint32(this.length);
+  var n = TO_UINT32(this.length);
   if (n == 0) {
     this.length = n;
     return;
@@ -384,7 +388,7 @@ function ArrayPop() {
 // Appends the arguments to the end of the array and returns the new
 // length of the array. See ECMA-262, section 15.4.4.7.
 function ArrayPush() {
-  var n = ToUint32(this.length);
+  var n = TO_UINT32(this.length);
   var m = %_ArgumentsLength();
   for (var i = 0; i < m; i++) {
     this[i+n] = %_Arguments(i);
@@ -452,7 +456,7 @@ function SparseReverse(array, len) {
 
 
 function ArrayReverse() {
-  var j = ToUint32(this.length) - 1;
+  var j = TO_UINT32(this.length) - 1;
 
   if (UseSparseVariant(this, j, IS_ARRAY(this))) {
     SparseReverse(this, j+1);
@@ -483,7 +487,7 @@ function ArrayReverse() {
 
 
 function ArrayShift() {
-  var len = ToUint32(this.length);
+  var len = TO_UINT32(this.length);
 
   if (len === 0) {
     this.length = 0;
@@ -504,7 +508,7 @@ function ArrayShift() {
 
 
 function ArrayUnshift(arg1) {  // length == 1
-  var len = ToUint32(this.length);
+  var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
   if (IS_ARRAY(this))
@@ -523,7 +527,7 @@ function ArrayUnshift(arg1) {  // length == 1
 
 
 function ArraySlice(start, end) {
-  var len = ToUint32(this.length);
+  var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
 
@@ -568,7 +572,7 @@ function ArraySplice(start, delete_count) {
   // compatibility.
   if (num_arguments == 0) return;
 
-  var len = ToUint32(this.length);
+  var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
 
   if (start_i < 0) {
@@ -850,7 +854,7 @@ function ArraySort(comparefn) {
     return first_undefined;
   }
 
-  length = ToUint32(this.length);
+  length = TO_UINT32(this.length);
   if (length < 2) return this;
 
   var is_array = IS_ARRAY(this);
@@ -915,7 +919,7 @@ function ArrayForEach(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length =  TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
@@ -933,7 +937,7 @@ function ArraySome(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
@@ -950,17 +954,15 @@ function ArrayEvery(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
       if (!f.call(receiver, current, i, this)) return false;
     }
   }
-
   return true;
 }
-
 
 function ArrayMap(f, receiver) {
   if (!IS_FUNCTION(f)) {
@@ -968,7 +970,7 @@ function ArrayMap(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   var result = new $Array(length);
   for (var i = 0; i < length; i++) {
     var current = this[i];

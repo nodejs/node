@@ -61,28 +61,32 @@ void CPU::FlushICache(void* start, size_t size) {
       reinterpret_cast<uint32_t>(start) + size;
   register uint32_t flg asm("a3") = 0;
   #ifdef __ARM_EABI__
-    register uint32_t scno asm("r7") = __ARM_NR_cacheflush;
     #if defined (__arm__) && !defined(__thumb__)
       // __arm__ may be defined in thumb mode.
+      register uint32_t scno asm("r7") = __ARM_NR_cacheflush;
       asm volatile(
           "swi 0x0"
           : "=r" (beg)
           : "0" (beg), "r" (end), "r" (flg), "r" (scno));
     #else
+      // r7 is reserved by the EABI in thumb mode.
       asm volatile(
       "@   Enter ARM Mode  \n\t"
           "adr r3, 1f      \n\t"
           "bx  r3          \n\t"
           ".ALIGN 4        \n\t"
           ".ARM            \n"
-      "1:  swi 0x0         \n\t"
+      "1:  push {r7}       \n\t"
+          "mov r7, %4      \n\t"
+          "swi 0x0         \n\t"
+          "pop {r7}        \n\t"
       "@   Enter THUMB Mode\n\t"
           "adr r3, 2f+1    \n\t"
           "bx  r3          \n\t"
           ".THUMB          \n"
       "2:                  \n\t"
           : "=r" (beg)
-          : "0" (beg), "r" (end), "r" (flg), "r" (scno)
+          : "0" (beg), "r" (end), "r" (flg), "r" (__ARM_NR_cacheflush)
           : "r3");
     #endif
   #else

@@ -87,12 +87,14 @@ function StringCharCodeAt(pos) {
 
 // ECMA-262, section 15.5.4.6
 function StringConcat() {
-  var len = %_ArgumentsLength();
-  var parts = new $Array(len + 1);
-  parts[0] = ToString(this);
-  for (var i = 0; i < len; i++)
-    parts[i + 1] = ToString(%_Arguments(i));
-  return parts.join('');
+  var len = %_ArgumentsLength() + 1;
+  var parts = new $Array(len);
+  parts[0] = IS_STRING(this) ? this : ToString(this);
+  for (var i = 1; i < len; i++) {
+    var part = %_Arguments(i - 1);
+    parts[i] = IS_STRING(part) ? part : ToString(part);
+  }
+  return %StringBuilderConcat(parts, len, "");
 }
 
 // Match ES3 and Safari
@@ -180,7 +182,7 @@ function SubString(string, start, end) {
     }
     return %CharFromCode(char_code);
   }
-  return %SubString(string, start, end);
+  return %_SubString(string, start, end);
 }
 
 
@@ -194,7 +196,7 @@ var reusableMatchInfo = [2, "", "", -1, -1];
 
 // ECMA-262, section 15.5.4.11
 function StringReplace(search, replace) {
-  var subject = ToString(this);
+  var subject = IS_STRING(this) ? this : ToString(this);
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
@@ -207,7 +209,7 @@ function StringReplace(search, replace) {
   }
 
   // Convert the search argument to a string and search for it.
-  search = ToString(search);
+  search = IS_STRING(search) ? search : ToString(search);
   var start = %StringIndexOf(subject, search, 0);
   if (start < 0) return subject;
   var end = start + search.length;
@@ -222,7 +224,8 @@ function StringReplace(search, replace) {
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
-    ExpandReplacement(ToString(replace), subject, reusableMatchInfo, builder);
+    if (!IS_STRING(replace)) replace = ToString(replace);
+    ExpandReplacement(replace, subject, reusableMatchInfo, builder);
   }
 
   // suffix
@@ -505,7 +508,7 @@ function StringSlice(start, end) {
 // ECMA-262 section 15.5.4.14
 function StringSplit(separator, limit) {
   var subject = ToString(this);
-  limit = (limit === void 0) ? 0xffffffff : ToUint32(limit);
+  limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
   if (limit === 0) return [];
 
   // ECMA-262 says that if separator is undefined, the result should
@@ -604,22 +607,30 @@ function splitMatch(separator, subject, current_index, start_index) {
 
 // ECMA-262 section 15.5.4.15
 function StringSubstring(start, end) {
-  var s = ToString(this);
+  var s = this;
+  if (!IS_STRING(s)) s = ToString(s);
   var s_len = s.length;
+
   var start_i = TO_INTEGER(start);
+  if (start_i < 0) {
+    start_i = 0;
+  } else if (start_i > s_len) {
+    start_i = s_len;
+  }
+
   var end_i = s_len;
-  if (!IS_UNDEFINED(end))
+  if (!IS_UNDEFINED(end)) {
     end_i = TO_INTEGER(end);
-
-  if (start_i < 0) start_i = 0;
-  if (start_i > s_len) start_i = s_len;
-  if (end_i < 0) end_i = 0;
-  if (end_i > s_len) end_i = s_len;
-
-  if (start_i > end_i) {
-    var tmp = end_i;
-    end_i = start_i;
-    start_i = tmp;
+    if (end_i > s_len) {
+      end_i = s_len;
+    } else {
+      if (end_i < 0) end_i = 0;
+      if (start_i > end_i) {
+        var tmp = end_i;
+        end_i = start_i;
+        start_i = tmp;
+      }
+    }
   }
 
   return SubString(s, start_i, end_i);
@@ -790,21 +801,14 @@ function StringSup() {
 }
 
 
-// StringBuilder support.
-
-function StringBuilder() {
-  this.elements = new $Array();
-}
-
-
+// ReplaceResultBuilder support.
 function ReplaceResultBuilder(str) {
   this.elements = new $Array();
   this.special_string = str;
 }
 
 
-ReplaceResultBuilder.prototype.add =
-StringBuilder.prototype.add = function(str) {
+ReplaceResultBuilder.prototype.add = function(str) {
   if (!IS_STRING(str)) str = ToString(str);
   if (str.length > 0) {
     var elements = this.elements;
@@ -828,13 +832,9 @@ ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
 }
 
 
-StringBuilder.prototype.generate = function() {
-  return %StringBuilderConcat(this.elements, "");
-}
-
-
 ReplaceResultBuilder.prototype.generate = function() {
-  return %StringBuilderConcat(this.elements, this.special_string);
+  var elements = this.elements;
+  return %StringBuilderConcat(elements, elements.length, this.special_string);
 }
 
 

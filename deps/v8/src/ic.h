@@ -280,6 +280,7 @@ class KeyedLoadIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm);
   static void GeneratePreMonomorphic(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
+  static void GenerateString(MacroAssembler* masm);
 
   // Generators for external array types. See objects.h.
   // These are similar to the generic IC; they optimize the case of
@@ -312,6 +313,9 @@ class KeyedLoadIC: public IC {
   }
   static Code* pre_monomorphic_stub() {
     return Builtins::builtin(Builtins::KeyedLoadIC_PreMonomorphic);
+  }
+  static Code* string_stub() {
+    return Builtins::builtin(Builtins::KeyedLoadIC_String);
   }
   static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 

@@ -199,9 +199,7 @@
       'conditions': [
         # The ARM assembler assumes the host is 32 bits, so force building
         # 32-bit host tools.
-        # TODO(piman): This assumes that the host is ia32 or amd64. Fixing the
-        # code would be better
-        ['target_arch=="arm" and _toolset=="host"', {
+        ['target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
           'cflags': ['-m32'],
           'ldflags': ['-m32'],
         }]
@@ -428,9 +426,7 @@
           'conditions': [
             # The ARM assembler assumes the host is 32 bits, so force building
             # 32-bit host tools.
-            # TODO(piman): This assumes that the host is ia32 or amd64. Fixing
-            # the code would be better
-            ['_toolset=="host"', {
+            ['host_arch=="x64" and _toolset=="host"', {
               'cflags': ['-m32'],
               'ldflags': ['-m32'],
             }]
@@ -598,9 +594,7 @@
       'conditions': [
         # The ARM assembler assumes the host is 32 bits, so force building
         # 32-bit host tools.
-        # TODO(piman): This assumes that the host is ia32 or amd64. Fixing
-        # the code would be better
-        ['target_arch=="arm" and _toolset=="host"', {
+        ['target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
           'cflags': ['-m32'],
           'ldflags': ['-m32'],
         }]

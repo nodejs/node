@@ -60,20 +60,24 @@ namespace internal {
  * - r8  : code object pointer. Used to convert between absolute and
  *         code-object-relative addresses.
  *
- * The registers rax, rbx, rcx, r9 and r11 are free to use for computations.
+ * The registers rax, rbx, r9 and r11 are free to use for computations.
  * If changed to use r12+, they should be saved as callee-save registers.
  *
  * Each call to a C++ method should retain these registers.
  *
  * The stack will have the following content, in some order, indexable from the
  * frame pointer (see, e.g., kStackHighEnd):
- *    - stack_area_base       (High end of the memory area to use as
- *                             backtracking stack)
- *    - at_start              (if 1, start at start of string, if 0, don't)
- *    - int* capture_array    (int[num_saved_registers_], for output).
- *    - end of input          (Address of end of string)
- *    - start of input        (Address of first character in string)
- *    - String** input_string (location of a handle containing the string)
+ *    - direct_call          (if 1, direct call from JavaScript code, if 0 call
+ *                            through the runtime system)
+ *    - stack_area_base      (High end of the memory area to use as
+ *                            backtracking stack)
+ *    - at_start             (if 1, we are starting at the start of the
+ *                            string, otherwise 0)
+ *    - int* capture_array   (int[num_saved_registers_], for output).
+ *    - end of input         (Address of end of string)
+ *    - start of input       (Address of first character in string)
+ *    - start index          (character index of start)
+ *    - String* input_string (input string)
  *    - return address
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - Offset of location before start of input (effectively character
@@ -90,11 +94,13 @@ namespace internal {
  * calling the code's entry address cast to a function pointer with the
  * following signature:
  * int (*match)(String* input_string,
+ *              int start_index,
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
  *              bool at_start,
- *              byte* stack_area_base)
+ *              byte* stack_area_base,
+ *              bool direct_call)
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -490,27 +496,22 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
 
 
 bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
-                                                         int cp_offset,
-                                                         bool check_offset,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
-  // (c - min) <= (max - min) check
+  // (c - min) <= (max - min) check, using the sequence:
+  //   lea(rax, Operand(current_character(), -min)) or sub(rax, Immediate(min))
+  //   cmp(rax, Immediate(max - min))
   switch (type) {
   case 's':
     // Match space-characters
     if (mode_ == ASCII) {
       // ASCII space characters are '\t'..'\r' and ' '.
-      if (check_offset) {
-        LoadCurrentCharacter(cp_offset, on_no_match);
-      } else {
-        LoadCurrentCharacterUnchecked(cp_offset, 1);
-      }
       Label success;
       __ cmpl(current_character(), Immediate(' '));
       __ j(equal, &success);
       // Check range 0x09..0x0d
-      __ subl(current_character(), Immediate('\t'));
-      __ cmpl(current_character(), Immediate('\r' - '\t'));
+      __ lea(rax, Operand(current_character(), -'\t'));
+      __ cmpl(rax, Immediate('\r' - '\t'));
       BranchOrBacktrack(above, on_no_match);
       __ bind(&success);
       return true;
@@ -518,72 +519,116 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
     return false;
   case 'S':
     // Match non-space characters.
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
     if (mode_ == ASCII) {
       // ASCII space characters are '\t'..'\r' and ' '.
       __ cmpl(current_character(), Immediate(' '));
       BranchOrBacktrack(equal, on_no_match);
-      __ subl(current_character(), Immediate('\t'));
-      __ cmpl(current_character(), Immediate('\r' - '\t'));
+      __ lea(rax, Operand(current_character(), -'\t'));
+      __ cmpl(rax, Immediate('\r' - '\t'));
       BranchOrBacktrack(below_equal, on_no_match);
       return true;
     }
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9')
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ subl(current_character(), Immediate('0'));
-    __ cmpl(current_character(), Immediate('9' - '0'));
+    __ lea(rax, Operand(current_character(), -'0'));
+    __ cmpl(rax, Immediate('9' - '0'));
     BranchOrBacktrack(above, on_no_match);
     return true;
   case 'D':
     // Match non ASCII-digits
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ subl(current_character(), Immediate('0'));
-    __ cmpl(current_character(), Immediate('9' - '0'));
+    __ lea(rax, Operand(current_character(), -'0'));
+    __ cmpl(rax, Immediate('9' - '0'));
     BranchOrBacktrack(below_equal, on_no_match);
     return true;
   case '.': {
     // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ xor_(current_character(), Immediate(0x01));
+    __ movl(rax, current_character());
+    __ xor_(rax, Immediate(0x01));
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ subl(current_character(), Immediate(0x0b));
-    __ cmpl(current_character(), Immediate(0x0c - 0x0b));
+    __ subl(rax, Immediate(0x0b));
+    __ cmpl(rax, Immediate(0x0c - 0x0b));
     BranchOrBacktrack(below_equal, on_no_match);
     if (mode_ == UC16) {
       // Compare original value to 0x2028 and 0x2029, using the already
       // computed (current_char ^ 0x01 - 0x0b). I.e., check for
       // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ subl(current_character(), Immediate(0x2028 - 0x0b));
-      __ cmpl(current_character(), Immediate(1));
+      __ subl(rax, Immediate(0x2028 - 0x0b));
+      __ cmpl(rax, Immediate(0x2029 - 0x2028));
       BranchOrBacktrack(below_equal, on_no_match);
     }
     return true;
   }
-  case '*':
-    // Match any character.
-    if (check_offset) {
-      CheckPosition(cp_offset, on_no_match);
+  case 'n': {
+    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    __ movl(rax, current_character());
+    __ xor_(rax, Immediate(0x01));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
+    __ subl(rax, Immediate(0x0b));
+    __ cmpl(rax, Immediate(0x0c - 0x0b));
+    if (mode_ == ASCII) {
+      BranchOrBacktrack(above, on_no_match);
+    } else {
+      Label done;
+      BranchOrBacktrack(below_equal, &done);
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
+      // 0x201d (0x2028 - 0x0b) or 0x201e.
+      __ subl(rax, Immediate(0x2028 - 0x0b));
+      __ cmpl(rax, Immediate(0x2029 - 0x2028));
+      BranchOrBacktrack(above, on_no_match);
+      __ bind(&done);
     }
     return true;
-  // No custom implementation (yet): w, W, s(UC16), S(UC16).
+  }
+  case 'w': {
+    Label done, check_digits;
+    __ cmpl(current_character(), Immediate('9'));
+    __ j(less_equal, &check_digits);
+    __ cmpl(current_character(), Immediate('_'));
+    __ j(equal, &done);
+    // Convert to lower case if letter.
+    __ movl(rax, current_character());
+    __ orl(rax, Immediate(0x20));
+    // check rax in range ['a'..'z'].
+    __ subl(rax, Immediate('a'));
+    __ cmpl(rax, Immediate('z' - 'a'));
+    BranchOrBacktrack(above, on_no_match);
+    __ jmp(&done);
+    __ bind(&check_digits);
+    // Check current character in range ['0'..'9'].
+    __ cmpl(current_character(), Immediate('0'));
+    BranchOrBacktrack(below, on_no_match);
+    __ bind(&done);
+
+    return true;
+  }
+  case 'W': {
+    Label done, check_digits;
+    __ cmpl(current_character(), Immediate('9'));
+    __ j(less_equal, &check_digits);
+    __ cmpl(current_character(), Immediate('_'));
+    BranchOrBacktrack(equal, on_no_match);
+    // Convert to lower case if letter.
+    __ movl(rax, current_character());
+    __ orl(rax, Immediate(0x20));
+    // check current character in range ['a'..'z'], nondestructively.
+    __ subl(rax, Immediate('a'));
+    __ cmpl(rax, Immediate('z' - 'a'));
+    BranchOrBacktrack(below_equal, on_no_match);
+    __ jmp(&done);
+    __ bind(&check_digits);
+    // Check current character in range ['0'..'9'].
+    __ cmpl(current_character(), Immediate('0'));
+    BranchOrBacktrack(above_equal, on_no_match);
+    __ bind(&done);
+
+    return true;
+  }
+  case '*':
+    // Match any character.
+    return true;
+  // No custom implementation (yet): s(UC16), S(UC16).
   default:
     return false;
   }

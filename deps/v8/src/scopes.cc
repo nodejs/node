@@ -236,7 +236,7 @@ Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
 
 Variable* Scope::DeclareGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
-  return variables_.Declare(this, name, Variable::DYNAMIC, true,
+  return variables_.Declare(this, name, Variable::DYNAMIC_GLOBAL, true,
                             Variable::NORMAL);
 }
 

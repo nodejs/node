@@ -39,16 +39,6 @@ namespace internal {
 void DeferredCode::Jump() { __ jmp(&entry_label_); }
 void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
 
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(SIN, args);
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(COS, args);
-}
-
-
 #undef __
 
 } }  // namespace v8::internal

@@ -61,6 +61,8 @@ namespace internal {
   \
   F(IsConstructCall, 0, 1) \
   \
+  F(GetOwnProperty, 2, 1) \
+  \
   /* Utilities */ \
   F(GetCalledFunction, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \
@@ -103,7 +105,7 @@ namespace internal {
   F(NumberUnaryMinus, 1, 1) \
   \
   F(StringAdd, 2, 1) \
-  F(StringBuilderConcat, 2, 1) \
+  F(StringBuilderConcat, 3, 1) \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \
@@ -146,6 +148,7 @@ namespace internal {
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
+  F(StringCharAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
@@ -202,7 +205,7 @@ namespace internal {
   \
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
-  F(ResolvePossiblyDirectEval, 2, 1) \
+  F(ResolvePossiblyDirectEval, 3, 2) \
   \
   F(SetProperty, -1 /* 3 or 4 */, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \

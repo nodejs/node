@@ -150,8 +150,12 @@ bool Object::IsString() {
 bool Object::IsSymbol() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
-  return (type & (kIsNotStringMask | kIsSymbolMask)) ==
-         (kStringTag | kSymbolTag);
+  // Because the symbol tag is non-zero and no non-string types have the
+  // symbol bit set we can test for symbols with a very simple test
+  // operation.
+  ASSERT(kSymbolTag != 0);
+  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  return (type & kIsSymbolMask) != 0;
 }
 
 
@@ -226,7 +230,8 @@ StringShape::StringShape(InstanceType t)
 
 bool StringShape::IsSymbol() {
   ASSERT(valid());
-  return (type_ & kIsSymbolMask) == kSymbolTag;
+  ASSERT(kSymbolTag != 0);
+  return (type_ & kIsSymbolMask) != 0;
 }
 
 
@@ -336,8 +341,8 @@ bool Object::IsExternalArray() {
     return false;
   InstanceType instance_type =
       HeapObject::cast(this)->map()->instance_type();
-  return (instance_type >= EXTERNAL_BYTE_ARRAY_TYPE &&
-          instance_type <= EXTERNAL_FLOAT_ARRAY_TYPE);
+  return (instance_type >= FIRST_EXTERNAL_ARRAY_TYPE &&
+          instance_type <= LAST_EXTERNAL_ARRAY_TYPE);
 }
 
 

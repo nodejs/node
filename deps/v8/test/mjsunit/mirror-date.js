@@ -57,7 +57,7 @@ function testDateMirror(d, iso8601) {
 
 // Test Date values.
 testDateMirror(new Date(Date.parse("Dec 25, 1995 1:30 UTC")),
-               "1995-12-25T01:30:00Z");
+               "1995-12-25T01:30:00.000Z");
 d = new Date();
 d.setUTCFullYear(1967);
 d.setUTCMonth(0); // January.
@@ -66,10 +66,12 @@ d.setUTCHours(9);
 d.setUTCMinutes(22);
 d.setUTCSeconds(59);
 d.setUTCMilliseconds(0);
-testDateMirror(d, "1967-01-17T09:22:59Z");
+testDateMirror(d, "1967-01-17T09:22:59.000Z");
 d.setUTCMilliseconds(1);
-testDateMirror(d, "1967-01-17T09:22:59Z");
+testDateMirror(d, "1967-01-17T09:22:59.001Z");
 d.setUTCSeconds(12);
-testDateMirror(d, "1967-01-17T09:22:12Z");
+testDateMirror(d, "1967-01-17T09:22:12.001Z");
 d.setUTCSeconds(36);
-testDateMirror(d, "1967-01-17T09:22:36Z");
+testDateMirror(d, "1967-01-17T09:22:36.001Z");
+d.setUTCMilliseconds(136);
+testDateMirror(d, "1967-01-17T09:22:36.136Z");

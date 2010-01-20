@@ -162,9 +162,9 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 }
 
 
-void MacroAssembler::Drop(int stack_elements, Condition cond) {
-  if (stack_elements > 0) {
-    add(sp, sp, Operand(stack_elements * kPointerSize), LeaveCC, cond);
+void MacroAssembler::Drop(int count, Condition cond) {
+  if (count > 0) {
+    add(sp, sp, Operand(count * kPointerSize), LeaveCC, cond);
   }
 }
 

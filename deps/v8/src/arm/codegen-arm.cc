@@ -44,7 +44,8 @@ namespace internal {
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
-                                          Condition cc);
+                                          Condition cc,
+                                          bool never_nan_nan);
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* rhs_not_nan,
                                     Label* slow,
@@ -186,12 +187,18 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     function_return_is_shadowed_ = false;
 
     VirtualFrame::SpilledScope spilled_scope;
-    if (scope_->num_heap_slots() > 0) {
+    int heap_slots = scope_->num_heap_slots();
+    if (heap_slots > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
       __ ldr(r0, frame_->Function());
       frame_->EmitPush(r0);
-      frame_->CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
+      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(heap_slots);
+        frame_->CallStub(&stub, 1);
+      } else {
+        frame_->CallRuntime(Runtime::kNewContext, 1);
+      }
 
 #ifdef DEBUG
       JumpTarget verified_true;
@@ -240,26 +247,33 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // initialization because the arguments object may be stored in the
     // context.
     if (scope_->arguments() != NULL) {
-      ASSERT(scope_->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
-      { Reference shadow_ref(this, scope_->arguments_shadow());
-        { Reference arguments_ref(this, scope_->arguments());
-          ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-          __ ldr(r2, frame_->Function());
-          // The receiver is below the arguments, the return address,
-          // and the frame pointer on the stack.
-          const int kReceiverDisplacement = 2 + scope_->num_parameters();
-          __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-          __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
-          frame_->Adjust(3);
-          __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
-          frame_->CallStub(&stub, 3);
-          frame_->EmitPush(r0);
-          arguments_ref.SetValue(NOT_CONST_INIT);
-        }
-        shadow_ref.SetValue(NOT_CONST_INIT);
-      }
+      ASSERT(scope_->arguments_shadow() != NULL);
+      Variable* arguments = scope_->arguments()->var();
+      Variable* shadow = scope_->arguments_shadow()->var();
+      ASSERT(arguments != NULL && arguments->slot() != NULL);
+      ASSERT(shadow != NULL && shadow->slot() != NULL);
+      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      __ ldr(r2, frame_->Function());
+      // The receiver is below the arguments, the return address, and the
+      // frame pointer on the stack.
+      const int kReceiverDisplacement = 2 + scope_->num_parameters();
+      __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+      __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+      frame_->Adjust(3);
+      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+      frame_->CallStub(&stub, 3);
+      frame_->EmitPush(r0);
+      StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+      StoreToSlot(shadow->slot(), NOT_CONST_INIT);
       frame_->Drop();  // Value is no longer needed.
+    }
+
+    // Initialize ThisFunction reference if present.
+    if (scope_->is_function_scope() && scope_->function() != NULL) {
+      __ mov(ip, Operand(Factory::the_hole_value()));
+      frame_->EmitPush(ip);
+      StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
     }
 
     // Generate code to 'execute' declarations and initialize functions
@@ -613,15 +627,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
     LoadAndSpill(property->obj());
-    // We use a named reference if the key is a literal symbol, unless it is
-    // a string that can be legally parsed as an integer.  This is because
-    // otherwise we will not get into the slow case code that handles [] on
-    // String objects.
-    Literal* literal = property->key()->AsLiteral();
-    uint32_t dummy;
-    if (literal != NULL &&
-        literal->handle()->IsSymbol() &&
-        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (property->key()->IsPropertyName()) {
       ref->set_type(Reference::NAMED);
     } else {
       LoadAndSpill(property->key());
@@ -1986,13 +1992,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   frame_->EmitPush(r0);
 
   // Store the caught exception in the catch variable.
-  { Reference ref(this, node->catch_var());
-    ASSERT(ref.is_slot());
-    // Here we make use of the convenient property that it doesn't matter
-    // whether a value is immediately on top of or underneath a zero-sized
-    // reference.
-    ref.SetValue(NOT_CONST_INIT);
-  }
+  Variable* catch_var = node->catch_var()->var();
+  ASSERT(catch_var != NULL && catch_var->slot() != NULL);
+  StoreToSlot(catch_var->slot(), NOT_CONST_INIT);
 
   // Remove the exception from the stack.
   frame_->Drop();
@@ -2298,12 +2300,21 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(boilerplate->IsBoilerplate());
 
-  // Create a new closure.
-  frame_->EmitPush(cp);
   __ mov(r0, Operand(boilerplate));
-  frame_->EmitPush(r0);
-  frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->EmitPush(r0);
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+    FastNewClosureStub stub;
+    frame_->EmitPush(r0);
+    frame_->CallStub(&stub, 1);
+    frame_->EmitPush(r0);
+  } else {
+    // Create a new closure.
+    frame_->EmitPush(cp);
+    frame_->EmitPush(r0);
+    frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->EmitPush(r0);
+  }
 }
 
 
@@ -2439,6 +2450,87 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       __ cmp(r0, ip);
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
       frame_->EmitPush(r0);
+    }
+  }
+}
+
+
+void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
+  ASSERT(slot != NULL);
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->is_dynamic());
+
+    // For now, just do a runtime call.
+    frame_->EmitPush(cp);
+    __ mov(r0, Operand(slot->var()->name()));
+    frame_->EmitPush(r0);
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize
+      // const properties (introduced via eval("const foo = (some
+      // expr);")). Also, uses the current function context instead of
+      // the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the
+      // same time, because the const declaration may be at the end of
+      // the eval code (sigh...) and the const variable may have been
+      // used before (where its value is 'undefined'). Thus, we can only
+      // do the initialization when we actually encounter the expression
+      // and when the expression operands are defined and valid, and
+      // thus we need the split into 2 operations: declaration of the
+      // context slot followed by initialization.
+      frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling assignment expressions.
+    frame_->EmitPush(r0);
+
+  } else {
+    ASSERT(!slot->var()->is_dynamic());
+
+    JumpTarget exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(slot->var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is
+      // executed, the code is identical to a normal store (see below).
+      Comment cmnt(masm_, "[ Init const");
+      __ ldr(r2, SlotOperand(slot, r2));
+      __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+      __ cmp(r2, ip);
+      exit.Branch(ne);
+    }
+
+    // We must execute the store.  Storing a variable must keep the
+    // (new) value on the stack. This is necessary for compiling
+    // assignment expressions.
+    //
+    // Note: We will reach here even with slot->var()->mode() ==
+    // Variable::CONST because of const declarations which will
+    // initialize consts to 'the hole' value and by doing so, end up
+    // calling this code.  r2 may be loaded with context; used below in
+    // RecordWrite.
+    frame_->EmitPop(r0);
+    __ str(r0, SlotOperand(slot, r2));
+    frame_->EmitPush(r0);
+    if (slot->type() == Slot::CONTEXT) {
+      // Skip write barrier if the written value is a smi.
+      __ tst(r0, Operand(kSmiTagMask));
+      exit.Branch(eq);
+      // r2 is loaded with context when calling SlotOperand above.
+      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+      __ mov(r3, Operand(offset));
+      __ RecordWrite(r2, r3, r1);
+    }
+    // If we definitely did not jump over the assignment, we do not need
+    // to bind the exit label.  Doing so can defeat peephole
+    // optimization.
+    if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
+      exit.Bind();
     }
   }
 }
@@ -2601,42 +2693,6 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 }
 
 
-// This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateObjectLiteralBoilerplate.
-// Each created boilerplate is stored in the JSFunction and they are
-// therefore context dependent.
-class DeferredObjectLiteral: public DeferredCode {
- public:
-  explicit DeferredObjectLiteral(ObjectLiteral* node) : node_(node) {
-    set_comment("[ DeferredObjectLiteral");
-  }
-
-  virtual void Generate();
-
- private:
-  ObjectLiteral* node_;
-};
-
-
-void DeferredObjectLiteral::Generate() {
-  // Argument is passed in r1.
-
-  // If the entry is undefined we call the runtime system to compute
-  // the literal.
-  // Literal array (0).
-  __ push(r1);
-  // Literal index (1).
-  __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  __ push(r0);
-  // Constant properties (2).
-  __ mov(r0, Operand(node_->constant_properties()));
-  __ push(r0);
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ mov(r2, Operand(r0));
-  // Result is returned in r2.
-}
-
-
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2644,39 +2700,22 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(node);
-
-  // Retrieve the literal array and check the allocated entry.
-
   // Load the function of this activation.
-  __ ldr(r1, frame_->Function());
-
-  // Load the literals array of the function.
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ ldr(r2, FieldMemOperand(r1, literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code.
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r2, Operand(ip));
-  deferred->Branch(eq);
-  deferred->BindExit();
-
-  // Push the object literal boilerplate.
-  frame_->EmitPush(r2);
-
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  __ ldr(r2, frame_->Function());
+  // Literal array.
+  __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
+  // Literal index.
+  __ mov(r1, Operand(Smi::FromInt(node->literal_index())));
+  // Constant properties.
+  __ mov(r0, Operand(node->constant_properties()));
+  frame_->EmitPushMultiple(3, r2.bit() | r1.bit() | r0.bit());
+  if (node->depth() > 1) {
+    frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+  } else {
+    frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
-  frame_->CallRuntime(clone_function_id, 1);
   frame_->EmitPush(r0);  // save the result
-  // r0: cloned object literal
+  // r0: created object literal
 
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
@@ -2724,42 +2763,6 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-// This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateArrayLiteralBoilerplate.
-// Each created boilerplate is stored in the JSFunction and they are
-// therefore context dependent.
-class DeferredArrayLiteral: public DeferredCode {
- public:
-  explicit DeferredArrayLiteral(ArrayLiteral* node) : node_(node) {
-    set_comment("[ DeferredArrayLiteral");
-  }
-
-  virtual void Generate();
-
- private:
-  ArrayLiteral* node_;
-};
-
-
-void DeferredArrayLiteral::Generate() {
-  // Argument is passed in r1.
-
-  // If the entry is undefined we call the runtime system to computed
-  // the literal.
-  // Literal array (0).
-  __ push(r1);
-  // Literal index (1).
-  __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  __ push(r0);
-  // Constant properties (2).
-  __ mov(r0, Operand(node_->literals()));
-  __ push(r0);
-  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  __ mov(r2, Operand(r0));
-  // Result is returned in r2.
-}
-
-
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2767,39 +2770,22 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(node);
-
-  // Retrieve the literal array and check the allocated entry.
-
   // Load the function of this activation.
-  __ ldr(r1, frame_->Function());
-
-  // Load the literals array of the function.
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ ldr(r2, FieldMemOperand(r1, literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code.
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r2, Operand(ip));
-  deferred->Branch(eq);
-  deferred->BindExit();
-
-  // Push the object literal boilerplate.
-  frame_->EmitPush(r2);
-
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  __ ldr(r2, frame_->Function());
+  // Literals array.
+  __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
+  // Literal index.
+  __ mov(r1, Operand(Smi::FromInt(node->literal_index())));
+  // Constant elements.
+  __ mov(r0, Operand(node->constant_elements()));
+  frame_->EmitPushMultiple(3, r2.bit() | r1.bit() | r0.bit());
+  if (node->depth() > 1) {
+    frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
+  } else {
+    frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   }
-  frame_->CallRuntime(clone_function_id, 1);
   frame_->EmitPush(r0);  // save the result
-  // r0: cloned object literal
+  // r0: created object literal
 
   // Generate code to set the elements in the array that are not
   // literals.
@@ -2998,13 +2984,15 @@ void CodeGenerator::VisitCall(Call* node) {
       frame_->EmitPush(r2);
     }
 
+    // Push the receiver.
+    __ ldr(r1, frame_->Receiver());
+    frame_->EmitPush(r1);
+
     // Resolve the call.
-    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
 
     // Touch up stack with the right values for the function and the receiver.
-    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
-    __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
+    __ str(r0, MemOperand(sp, (arg_count + 1) * kPointerSize));
     __ str(r1, MemOperand(sp, arg_count * kPointerSize));
 
     // Call the function.
@@ -3544,21 +3532,6 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope;
-  LoadAndSpill(args->at(0));
-  switch (op) {
-    case SIN:
-      frame_->CallRuntime(Runtime::kMath_sin, 1);
-      break;
-    case COS:
-      frame_->CallRuntime(Runtime::kMath_cos, 1);
-      break;
-  }
-  frame_->EmitPush(r0);
-}
-
-
 void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
   ASSERT_EQ(2, args->length());
 
@@ -3566,6 +3539,42 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
   Load(args->at(1));
 
   frame_->CallRuntime(Runtime::kStringAdd, 2);
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  frame_->CallRuntime(Runtime::kSubString, 3);
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  frame_->CallRuntime(Runtime::kStringCompare, 2);
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(4, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+
+  frame_->CallRuntime(Runtime::kRegExpExec, 4);
   frame_->EmitPush(r0);
 }
 
@@ -3713,7 +3722,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         bool overwrite =
             (node->expression()->AsBinaryOperation() != NULL &&
              node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-        UnarySubStub stub(overwrite);
+        GenericUnaryOpStub stub(Token::SUB, overwrite);
         frame_->CallStub(&stub, 0);
         break;
       }
@@ -4343,83 +4352,7 @@ void Reference::SetValue(InitState init_state) {
     case SLOT: {
       Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
-      ASSERT(slot != NULL);
-      if (slot->type() == Slot::LOOKUP) {
-        ASSERT(slot->var()->is_dynamic());
-
-        // For now, just do a runtime call.
-        frame->EmitPush(cp);
-        __ mov(r0, Operand(slot->var()->name()));
-        frame->EmitPush(r0);
-
-        if (init_state == CONST_INIT) {
-          // Same as the case for a normal store, but ignores attribute
-          // (e.g. READ_ONLY) of context slot so that we can initialize
-          // const properties (introduced via eval("const foo = (some
-          // expr);")). Also, uses the current function context instead of
-          // the top context.
-          //
-          // Note that we must declare the foo upon entry of eval(), via a
-          // context slot declaration, but we cannot initialize it at the
-          // same time, because the const declaration may be at the end of
-          // the eval code (sigh...) and the const variable may have been
-          // used before (where its value is 'undefined'). Thus, we can only
-          // do the initialization when we actually encounter the expression
-          // and when the expression operands are defined and valid, and
-          // thus we need the split into 2 operations: declaration of the
-          // context slot followed by initialization.
-          frame->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        } else {
-          frame->CallRuntime(Runtime::kStoreContextSlot, 3);
-        }
-        // Storing a variable must keep the (new) value on the expression
-        // stack. This is necessary for compiling assignment expressions.
-        frame->EmitPush(r0);
-
-      } else {
-        ASSERT(!slot->var()->is_dynamic());
-
-        JumpTarget exit;
-        if (init_state == CONST_INIT) {
-          ASSERT(slot->var()->mode() == Variable::CONST);
-          // Only the first const initialization must be executed (the slot
-          // still contains 'the hole' value). When the assignment is
-          // executed, the code is identical to a normal store (see below).
-          Comment cmnt(masm, "[ Init const");
-          __ ldr(r2, cgen_->SlotOperand(slot, r2));
-          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ cmp(r2, ip);
-          exit.Branch(ne);
-        }
-
-        // We must execute the store.  Storing a variable must keep the
-        // (new) value on the stack. This is necessary for compiling
-        // assignment expressions.
-        //
-        // Note: We will reach here even with slot->var()->mode() ==
-        // Variable::CONST because of const declarations which will
-        // initialize consts to 'the hole' value and by doing so, end up
-        // calling this code.  r2 may be loaded with context; used below in
-        // RecordWrite.
-        frame->EmitPop(r0);
-        __ str(r0, cgen_->SlotOperand(slot, r2));
-        frame->EmitPush(r0);
-        if (slot->type() == Slot::CONTEXT) {
-          // Skip write barrier if the written value is a smi.
-          __ tst(r0, Operand(kSmiTagMask));
-          exit.Branch(eq);
-          // r2 is loaded with context when calling SlotOperand above.
-          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ mov(r3, Operand(offset));
-          __ RecordWrite(r2, r3, r1);
-        }
-        // If we definitely did not jump over the assignment, we do not need
-        // to bind the exit label.  Doing so can defeat peephole
-        // optimization.
-        if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
-          exit.Bind();
-        }
-      }
+      cgen_->StoreToSlot(slot, init_state);
       break;
     }
 
@@ -4463,6 +4396,103 @@ void Reference::SetValue(InitState init_state) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void FastNewClosureStub::Generate(MacroAssembler* masm) {
+  // Clone the boilerplate in new space. Set the context to the
+  // current context in cp.
+  Label gc;
+
+  // Pop the boilerplate function from the stack.
+  __ pop(r3);
+
+  // Attempt to allocate new JSFunction in new space.
+  __ AllocateInNewSpace(JSFunction::kSize / kPointerSize,
+                        r0,
+                        r1,
+                        r2,
+                        &gc,
+                        TAG_OBJECT);
+
+  // Compute the function map in the current global context and set that
+  // as the map of the allocated object.
+  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
+  __ ldr(r2, MemOperand(r2, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
+  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+
+  // Clone the rest of the boilerplate fields. We don't have to update
+  // the write barrier because the allocated object is in new space.
+  for (int offset = kPointerSize;
+       offset < JSFunction::kSize;
+       offset += kPointerSize) {
+    if (offset == JSFunction::kContextOffset) {
+      __ str(cp, FieldMemOperand(r0, offset));
+    } else {
+      __ ldr(r1, FieldMemOperand(r3, offset));
+      __ str(r1, FieldMemOperand(r0, offset));
+    }
+  }
+
+  // Return result. The argument boilerplate has been popped already.
+  __ Ret();
+
+  // Create a new closure through the slower runtime call.
+  __ bind(&gc);
+  __ push(cp);
+  __ push(r3);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+}
+
+
+void FastNewContextStub::Generate(MacroAssembler* masm) {
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+
+  // Attempt to allocate the context in new space.
+  __ AllocateInNewSpace(length + (FixedArray::kHeaderSize / kPointerSize),
+                        r0,
+                        r1,
+                        r2,
+                        &gc,
+                        TAG_OBJECT);
+
+  // Load the function from the stack.
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+
+  // Setup the object header.
+  __ LoadRoot(r2, Heap::kContextMapRootIndex);
+  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ mov(r2, Operand(length));
+  __ str(r2, FieldMemOperand(r0, Array::kLengthOffset));
+
+  // Setup the fixed slots.
+  __ mov(r1, Operand(Smi::FromInt(0)));
+  __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
+
+  // Copy the global object from the surrounding context.
+  __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+
+  // Initialize the rest of the slots to undefined.
+  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
+  }
+
+  // Remove the on-stack argument and return.
+  __ mov(cp, r0);
+  __ pop();
+  __ Ret();
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
 }
 
 
@@ -4692,47 +4722,55 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
 // for "identity and not NaN".
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
-                                          Condition cc) {
+                                          Condition cc,
+                                          bool never_nan_nan) {
   Label not_identical;
+  Label heap_number, return_equal;
+  Register exp_mask_reg = r5;
   __ cmp(r0, Operand(r1));
   __ b(ne, &not_identical);
 
-  Register exp_mask_reg = r5;
-  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
+  // The two objects are identical.  If we know that one of them isn't NaN then
+  // we now know they test equal.
+  if (cc != eq || !never_nan_nan) {
+    __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
 
-  // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-  // so we do the second best thing - test it ourselves.
-  Label heap_number, return_equal;
-  // They are both equal and they are not both Smis so both of them are not
-  // Smis.  If it's not a heap number, then return equal.
-  if (cc == lt || cc == gt) {
-    __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
-    __ b(ge, slow);
-  } else {
-    __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
-    __ b(eq, &heap_number);
-    // Comparing JS objects with <=, >= is complicated.
-    if (cc != eq) {
-      __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // They are both equal and they are not both Smis so both of them are not
+    // Smis.  If it's not a heap number, then return equal.
+    if (cc == lt || cc == gt) {
+      __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
       __ b(ge, slow);
-      // Normally here we fall through to return_equal, but undefined is
-      // special: (undefined == undefined) == true, but (undefined <= undefined)
-      // == false!  See ECMAScript 11.8.5.
-      if (cc == le || cc == ge) {
-        __ cmp(r4, Operand(ODDBALL_TYPE));
-        __ b(ne, &return_equal);
-        __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-        __ cmp(r0, Operand(r2));
-        __ b(ne, &return_equal);
-        if (cc == le) {
-          __ mov(r0, Operand(GREATER));  // undefined <= undefined should fail.
-        } else  {
-          __ mov(r0, Operand(LESS));     // undefined >= undefined should fail.
+    } else {
+      __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+      __ b(eq, &heap_number);
+      // Comparing JS objects with <=, >= is complicated.
+      if (cc != eq) {
+        __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+        __ b(ge, slow);
+        // Normally here we fall through to return_equal, but undefined is
+        // special: (undefined == undefined) == true, but
+        // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
+        if (cc == le || cc == ge) {
+          __ cmp(r4, Operand(ODDBALL_TYPE));
+          __ b(ne, &return_equal);
+          __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+          __ cmp(r0, Operand(r2));
+          __ b(ne, &return_equal);
+          if (cc == le) {
+            // undefined <= undefined should fail.
+            __ mov(r0, Operand(GREATER));
+          } else  {
+            // undefined >= undefined should fail.
+            __ mov(r0, Operand(LESS));
+          }
+          __ mov(pc, Operand(lr));       // Return.
         }
-        __ mov(pc, Operand(lr));       // Return.
       }
     }
   }
+
   __ bind(&return_equal);
   if (cc == lt) {
     __ mov(r0, Operand(GREATER));  // Things aren't less than themselves.
@@ -4743,43 +4781,45 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   }
   __ mov(pc, Operand(lr));  // Return.
 
-  // For less and greater we don't have to check for NaN since the result of
-  // x < x is false regardless.  For the others here is some code to check
-  // for NaN.
-  if (cc != lt && cc != gt) {
-    __ bind(&heap_number);
-    // It is a heap number, so return non-equal if it's NaN and equal if it's
-    // not NaN.
-    // The representation of NaN values has all exponent bits (52..62) set,
-    // and not all mantissa bits (0..51) clear.
-    // Read top bits of double representation (second word of value).
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-    // Test that exponent bits are all set.
-    __ and_(r3, r2, Operand(exp_mask_reg));
-    __ cmp(r3, Operand(exp_mask_reg));
-    __ b(ne, &return_equal);
+  if (cc != eq || !never_nan_nan) {
+    // For less and greater we don't have to check for NaN since the result of
+    // x < x is false regardless.  For the others here is some code to check
+    // for NaN.
+    if (cc != lt && cc != gt) {
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if it's
+      // not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // Read top bits of double representation (second word of value).
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      // Test that exponent bits are all set.
+      __ and_(r3, r2, Operand(exp_mask_reg));
+      __ cmp(r3, Operand(exp_mask_reg));
+      __ b(ne, &return_equal);
 
-    // Shift out flag and all exponent bits, retaining only mantissa.
-    __ mov(r2, Operand(r2, LSL, HeapNumber::kNonMantissaBitsInTopWord));
-    // Or with all low-bits of mantissa.
-    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-    __ orr(r0, r3, Operand(r2), SetCC);
-    // For equal we already have the right value in r0:  Return zero (equal)
-    // if all bits in mantissa are zero (it's an Infinity) and non-zero if not
-    // (it's a NaN).  For <= and >= we need to load r0 with the failing value
-    // if it's a NaN.
-    if (cc != eq) {
-      // All-zero means Infinity means equal.
-      __ mov(pc, Operand(lr), LeaveCC, eq);  // Return equal
-      if (cc == le) {
-        __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
-      } else {
-        __ mov(r0, Operand(LESS));     // NaN >= NaN should fail.
+      // Shift out flag and all exponent bits, retaining only mantissa.
+      __ mov(r2, Operand(r2, LSL, HeapNumber::kNonMantissaBitsInTopWord));
+      // Or with all low-bits of mantissa.
+      __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ orr(r0, r3, Operand(r2), SetCC);
+      // For equal we already have the right value in r0:  Return zero (equal)
+      // if all bits in mantissa are zero (it's an Infinity) and non-zero if not
+      // (it's a NaN).  For <= and >= we need to load r0 with the failing value
+      // if it's a NaN.
+      if (cc != eq) {
+        // All-zero means Infinity means equal.
+        __ mov(pc, Operand(lr), LeaveCC, eq);  // Return equal
+        if (cc == le) {
+          __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
+        } else {
+          __ mov(r0, Operand(LESS));     // NaN >= NaN should fail.
+        }
       }
+      __ mov(pc, Operand(lr));  // Return.
     }
-    __ mov(pc, Operand(lr));  // Return.
+    // No fall through here.
   }
-  // No fall through here.
 
   __ bind(&not_identical);
 }
@@ -4979,6 +5019,14 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm) {
     // Check for oddballs: true, false, null, undefined.
     __ cmp(r3, Operand(ODDBALL_TYPE));
     __ b(eq, &return_not_equal);
+
+    // Now that we have the types we might as well check for symbol-symbol.
+    // Ensure that no non-strings have the symbol bit set.
+    ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+    ASSERT(kSymbolTag != 0);
+    __ and_(r2, r2, Operand(r3));
+    __ tst(r2, Operand(kIsSymbolMask));
+    __ b(ne, &return_not_equal);
 }
 
 
@@ -5005,12 +5053,13 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 // Fast negative check for symbol-to-symbol equality.
 static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
   // r2 is object type of r0.
-  __ tst(r2, Operand(kIsNotStringMask));
-  __ b(ne, slow);
+  // Ensure that no non-strings have the symbol bit set.
+  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  ASSERT(kSymbolTag != 0);
   __ tst(r2, Operand(kIsSymbolMask));
   __ b(eq, slow);
-  __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE);
-  __ b(ge, slow);
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
   __ tst(r3, Operand(kIsSymbolMask));
   __ b(eq, slow);
 
@@ -5032,7 +5081,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // Handle the case where the objects are identical.  Either returns the answer
   // or goes to slow.  Only falls through if the objects were not identical.
-  EmitIdenticalObjectComparison(masm, &slow, cc_);
+  EmitIdenticalObjectComparison(masm, &slow, cc_, never_nan_nan_);
 
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
@@ -5096,19 +5145,19 @@ void CompareStub::Generate(MacroAssembler* masm) {
                              &slow);
 
   __ bind(&check_for_symbols);
-  if (cc_ == eq) {
+  // In the strict case the EmitStrictTwoHeapObjectCompare already took care of
+  // symbols.
+  if (cc_ == eq && !strict_) {
     // Either jumps to slow or returns the answer.  Assumes that r2 is the type
     // of r0 on entry.
     EmitCheckForSymbols(masm, &slow);
   }
 
   __ bind(&slow);
-  __ push(lr);
   __ push(r1);
   __ push(r0);
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript native;
-  int arg_count = 1;  // Not counting receiver.
   if (cc_ == eq) {
     native = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
@@ -5120,16 +5169,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
       ASSERT(cc_ == gt || cc_ == ge);  // remaining cases
       ncr = LESS;
     }
-    arg_count++;
     __ mov(r0, Operand(Smi::FromInt(ncr)));
     __ push(r0);
   }
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
-  __ InvokeBuiltin(native, CALL_JS);
-  __ cmp(r0, Operand(0));
-  __ pop(pc);
+  __ InvokeBuiltin(native, JUMP_JS);
 }
 
 
@@ -5955,7 +6001,9 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void UnarySubStub::Generate(MacroAssembler* masm) {
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  ASSERT(op_ == Token::SUB);
+
   Label undo;
   Label slow;
   Label not_smi;
@@ -6579,10 +6627,53 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+const char* CompareStub::GetName() {
+  switch (cc_) {
+    case lt: return "CompareStub_LT";
+    case gt: return "CompareStub_GT";
+    case le: return "CompareStub_LE";
+    case ge: return "CompareStub_GE";
+    case ne: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_NE_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_NO_NAN";
+        } else {
+          return "CompareStub_NE";
+        }
+      }
+    }
+    case eq: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_EQ_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_NO_NAN";
+        } else {
+          return "CompareStub_EQ";
+        }
+      }
+    }
+    default: return "CompareStub";
+  }
+}
+
+
 int CompareStub::MinorKey() {
-  // Encode the two parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) >> 28 < (1 << 15));
-  return (static_cast<unsigned>(cc_) >> 27) | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value.
+  ASSERT((static_cast<unsigned>(cc_) >> 26) < (1 << 16));
+  int nnn_value = (never_nan_nan_ ? 2 : 0);
+  if (cc_ != eq) nnn_value = 0;  // Avoid duplicate stubs.
+  return (static_cast<unsigned>(cc_) >> 26) | nnn_value | (strict_ ? 1 : 0);
 }
 
 

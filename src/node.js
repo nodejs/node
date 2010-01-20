@@ -1,73 +1,81 @@
-(function () { // annonymous namespace
+(function () { // anonymous namespace
 
-// deprecation errors
+/** deprecation errors ************************************************/
 
-GLOBAL.__module = function () {
-  throw new Error("'__module' has been renamed to 'module'");
-};
+function removed (reason) {
+  return function () {
+    throw new Error(reason)
+  }
+}
 
-GLOBAL.include = function () {
-  throw new Error("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
-};
-
-GLOBAL.puts = function () {
-  throw new Error("puts() has moved. Use require('sys') to bring it back.");
-};
-
-GLOBAL.print = function () {
-  throw new Error("print() has moved. Use require('sys') to bring it back.");
-};
-
-GLOBAL.p = function () {
-  throw new Error("p() has moved. Use require('sys') to bring it back.");
-};
-
-process.debug = function () {
-  throw new Error("process.debug() has moved. Use require('sys') to bring it back.");
-};
-
-process.error = function () {
-  throw new Error("process.error() has moved. Use require('sys') to bring it back.");
-};
+GLOBAL.__module = removed("'__module' has been renamed to 'module'");
+GLOBAL.include = removed("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
+GLOBAL.puts = removed("puts() has moved. Use require('sys') to bring it back.");
+GLOBAL.print = removed("print() has moved. Use require('sys') to bring it back.");
+GLOBAL.p = removed("p() has moved. Use require('sys') to bring it back.");
+process.debug = removed("process.debug() has moved. Use require('sys') to bring it back.");
+process.error = removed("process.error() has moved. Use require('sys') to bring it back.");
 
 GLOBAL.node = {};
 
-node.createProcess = function () {
-  throw new Error("node.createProcess() has been changed to process.createChildProcess() update your code");
-};
-
-node.exec = function () {
-  throw new Error("process.exec() has moved. Use require('sys') to bring it back.");
-};
+node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
+node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
+node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
 
 node.http = {};
-
-node.http.createServer = function () {
-  throw new Error("node.http.createServer() has moved. Use require('http') to access it.");
-};
-
-node.http.createClient = function () {
-  throw new Error("node.http.createClient() has moved. Use require('http') to access it.");
-};
+node.http.createServer = removed("node.http.createServer() has moved. Use require('http') to access it.");
+node.http.createClient = removed("node.http.createClient() has moved. Use require('http') to access it.");
 
 node.tcp = {};
-
-node.tcp.createServer = function () {
-  throw new Error("node.tcp.createServer() has moved. Use require('tcp') to access it.");
-};
-
-node.tcp.createConnection = function () {
-  throw new Error("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
-};
+node.tcp.createServer = removed("node.tcp.createServer() has moved. Use require('tcp') to access it.");
+node.tcp.createConnection = removed("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
 
 node.dns = {};
+node.dns.createConnection = removed("node.dns.createConnection() has moved. Use require('dns') to access it.");
 
-node.dns.createConnection = function () {
-  throw new Error("node.dns.createConnection() has moved. Use require('dns') to access it.");
+/**********************************************************************/
+
+// Module 
+
+function Module (id, parent) {
+  this.id = id;
+  this.exports = {};
+  this.parent = parent;
+
+  this.filename = null;
+  this.loaded = false;
+  this.loadPromise = null;
+  this.exited = false;
+  this.children = [];
 };
 
-node.inherits = function () {
-  throw new Error("node.inherits() has moved. Use require('sys') to access it.");
+var moduleCache = {};
+
+function createModule (id, parent) {
+  if (id in moduleCache) {
+    debug("found " + JSON.stringify(id) + " in cache");
+    return moduleCache[id];
+  }
+  debug("didn't found " + JSON.stringify(id) + " in cache. creating new module");
+  var m = new Module(id, parent);
+  moduleCache[id] = m;
+  return m;
+};
+
+function createInternalModule (id, constructor) {
+  var m = createModule(id);
+  constructor(m.exports);
+  m.loaded = true;
+  return m;
+};
+
+
+process.inherits = function (ctor, superCtor) {
+  var tempCtor = function(){};
+  tempCtor.prototype = superCtor.prototype;
+  ctor.super_ = superCtor;
+  ctor.prototype = new tempCtor();
+  ctor.prototype.constructor = ctor;
 };
 
 
@@ -147,193 +155,206 @@ process.mixin = function() {
   return target;
 };
 
-
 // Event
 
-// process.EventEmitter is defined in src/events.cc
-// process.EventEmitter.prototype.emit() is also defined there.
-process.EventEmitter.prototype.addListener = function (type, listener) {
-  if (listener instanceof Function) {
+var eventsModule = createInternalModule('events', function (exports) {
+  exports.EventEmitter = process.EventEmitter;
+
+  // process.EventEmitter is defined in src/events.cc
+  // process.EventEmitter.prototype.emit() is also defined there.
+  process.EventEmitter.prototype.addListener = function (type, listener) {
+    if (listener instanceof Function) {
+      if (!this._events) this._events = {};
+      if (!this._events.hasOwnProperty(type)) this._events[type] = [];
+      // To avoid recursion in the case that type == "newListeners"! Before
+      // adding it to the listeners, first emit "newListeners".
+      this.emit("newListener", type, listener);
+      this._events[type].push(listener);
+    }
+    return this;
+  };
+
+  process.EventEmitter.prototype.removeListener = function (type, listener) {
+    if (listener instanceof Function) {
+      // does not use listeners(), so no side effect of creating _events[type]
+      if (!this._events || !this._events.hasOwnProperty(type)) return;
+      var list = this._events[type];
+      if (list.indexOf(listener) < 0) return;
+      list.splice(list.indexOf(listener), 1);
+    }
+    return this;
+  };
+
+  process.EventEmitter.prototype.listeners = function (type) {
     if (!this._events) this._events = {};
     if (!this._events.hasOwnProperty(type)) this._events[type] = [];
-    // To avoid recursion in the case that type == "newListeners"! Before
-    // adding it to the listeners, first emit "newListeners".
-    this.emit("newListener", type, listener);
-    this._events[type].push(listener);
-  }
-  return this;
-};
+    return this._events[type];
+  };
 
-process.EventEmitter.prototype.removeListener = function (type, listener) {
-  if (listener instanceof Function) {
-    // does not use listeners(), so no side effect of creating _events[type]
-    if (!this._events || !this._events.hasOwnProperty(type)) return;
-    var list = this._events[type];
-    if (list.indexOf(listener) < 0) return;
-    list.splice(list.indexOf(listener), 1);
-  }
-  return this;
-};
+  exports.Promise = function () {
+    exports.EventEmitter.call(this);
+    this._blocking = false;
+    this.hasFired = false;
+    this._values = undefined;
+  };
+  process.inherits(exports.Promise, exports.EventEmitter);
 
-process.EventEmitter.prototype.listeners = function (type) {
-  if (!this._events) this._events = {};
-  if (!this._events.hasOwnProperty(type)) this._events[type] = [];
-  return this._events[type];
-};
+  process.Promise = exports.Promise;
 
-process.inherits = function (ctor, superCtor) {
-  var tempCtor = function(){};
-  tempCtor.prototype = superCtor.prototype;
-  ctor.super_ = superCtor;
-  ctor.prototype = new tempCtor();
-  ctor.prototype.constructor = ctor;
-};
+  exports.Promise.prototype.timeout = function(timeout) {
+    if (!timeout) {
+      return this._timeoutDuration;
+    }
+    
+    this._timeoutDuration = timeout;
+    
+    if (this.hasFired) return;
+    this._clearTimeout();
 
+    var self = this;
+    this._timer = setTimeout(function() {
+      self._timer = null;
+      if (self.hasFired) {
+        return;
+      }
 
-// Promise
+      self.emitError(new Error('timeout'));
+    }, timeout);
 
-process.Promise = function () {
-  process.EventEmitter.call();
-  this._blocking = false;
-  this._hasFired = false;
-};
-process.inherits(process.Promise, process.EventEmitter);
-
-process.Promise.prototype.timeout = function(timeout) {
-  if (timeout === undefined) {
-    return this._timeoutDuration;
-  }
-
-  this._timeoutDuration = timeout;
-  if (this._timer) {
+    return this;
+  };
+  
+  exports.Promise.prototype._clearTimeout = function() {
+    if (!this._timer) return;
+    
     clearTimeout(this._timer);
     this._timer = null;
   }
 
-  var promiseComplete = false;
-  var onComplete = function() {
-    promiseComplete = true;
-    if (this._timer) {
-      clearTimeout(this._timer);
-      this._timer = null;
+  exports.Promise.prototype.emitSuccess = function() {
+    if (this.hasFired) return;
+    this.hasFired = true;
+    this._clearTimeout();
+
+    this._values = Array.prototype.slice.call(arguments);
+    this.emit.apply(this, ['success'].concat(this._values));
+  };
+
+  exports.Promise.prototype.emitError = function() {
+    if (this.hasFired) return;
+    this.hasFired = true;
+    this._clearTimeout();
+
+    this._values = Array.prototype.slice.call(arguments);
+    this.emit.apply(this, ['error'].concat(this._values));
+
+    if (this.listeners('error').length == 0) {
+      var self = this;
+      process.nextTick(function() {
+        if (self.listeners('error').length == 0) {
+          throw (self._values[0] instanceof Error)
+            ? self._values[0]
+            : new Error('Unhandled emitError: '+JSON.stringify(self._values));
+        }
+      });
     }
   };
 
-  this
-    .addCallback(onComplete)
-    .addCancelback(onComplete)
-    .addErrback(onComplete);
-
-  var self = this;
-  this._timer = setTimeout(function() {
-    self._timer = null;
-    if (promiseComplete) {
-      return;
+  exports.Promise.prototype.addCallback = function (listener) {
+    if (this.hasFired) {
+      return listener.apply(this, this._values);
     }
 
-    self.emitError(new Error('timeout'));
-  }, this._timeoutDuration);
+    return this.addListener("success", listener);
+  };
 
-  return this;
-};
-
-process.Promise.prototype.cancel = function() {
-  if(this._cancelled) return;
-  this._cancelled = true;
-
-  this._events['success'] = [];
-  this._events['error'] = [];
-
-  this.emitCancel();
-};
-
-process.Promise.prototype.emitCancel = function() {
-  Array.prototype.unshift.call(arguments, 'cancel')
-  this.emit.apply(this, arguments);
-};
-
-process.Promise.prototype.emitSuccess = function() {
-  if (this.hasFired) return;
-  this.hasFired = true;
-  Array.prototype.unshift.call(arguments, 'success')
-  this.emit.apply(this, arguments);
-};
-
-process.Promise.prototype.emitError = function() {
-  if (this.hasFired) return;
-  this.hasFired = true;
-  Array.prototype.unshift.call(arguments, 'error')
-  this.emit.apply(this, arguments);
-};
-
-process.Promise.prototype.addCallback = function (listener) {
-  this.addListener("success", listener);
-  return this;
-};
-
-process.Promise.prototype.addErrback = function (listener) {
-  this.addListener("error", listener);
-  return this;
-};
-
-process.Promise.prototype.addCancelback = function (listener) {
-  this.addListener("cancel", listener);
-  return this;
-};
-
-/* Poor Man's coroutines */
-var coroutineStack = [];
-
-process.Promise.prototype._destack = function () {
-  this._blocking = false;
-
-  while (coroutineStack.length > 0 &&
-         !coroutineStack[coroutineStack.length-1]._blocking)
-  {
-    coroutineStack.pop();
-    process.unloop("one");
-  }
-};
-
-process.Promise.prototype.wait = function () {
-  var self = this;
-  var ret;
-  var hadError = false;
-
-  self.addCallback(function () {
-    if (arguments.length == 1) {
-      ret = arguments[0];
-    } else if (arguments.length > 1) {
-      ret = Array.prototype.slice.call(arguments);
+  exports.Promise.prototype.addErrback = function (listener) {
+    if (this.hasFired) {
+      listener.apply(this, this._values);
     }
-    self._destack();
-  });
 
-  self.addErrback(function (arg) {
-    hadError = true;
-    ret = arg;
-    self._destack();
-  });
+    return this.addListener("error", listener);
+  };
 
-  coroutineStack.push(self);
-  if (coroutineStack.length > 10) {
-    process.stdio.writeError("WARNING: promise.wait() is being called too often.\n");
-  }
-  self._blocking = true;
+  /* Poor Man's coroutines */
+  var coroutineStack = [];
 
-  process.loop();
+  exports.Promise.prototype._destack = function () {
+    this._blocking = false;
 
-  process.assert(self._blocking == false);
-
-  if (hadError) {
-    if (ret) {
-      throw ret;
-    } else {
-      throw new Error("Promise completed with error (No arguments given.)");
+    while (coroutineStack.length > 0 &&
+           !coroutineStack[coroutineStack.length-1]._blocking)
+    {
+      coroutineStack.pop();
+      process.unloop("one");
     }
+  };
+
+  exports.Promise.prototype.wait = function () {
+    var self = this;
+    var ret;
+    var hadError = false;
+
+    self.addCallback(function () {
+      if (arguments.length == 1) {
+        ret = arguments[0];
+      } else if (arguments.length > 1) {
+        ret = Array.prototype.slice.call(arguments);
+      }
+      self._destack();
+    });
+
+    self.addErrback(function (arg) {
+      hadError = true;
+      ret = arg;
+      self._destack();
+    });
+
+    coroutineStack.push(self);
+    if (coroutineStack.length > 10) {
+      process.stdio.writeError("WARNING: promise.wait() is being called too often.\n");
+    }
+    self._blocking = true;
+
+    process.loop();
+
+    process.assert(self._blocking == false);
+
+    if (hadError) {
+      if (ret) {
+        throw ret;
+      } else {
+        throw new Error("Promise completed with error (No arguments given.)");
+      }
+    }
+    return ret;
+  };
+});
+
+var events = eventsModule.exports;
+
+
+// nextTick()
+
+var nextTickQueue = [];
+var nextTickWatcher = new process.IdleWatcher();
+nextTickWatcher.setPriority(process.EVMAXPRI); // max priority
+
+nextTickWatcher.callback = function () {
+  var l = nextTickQueue.length;
+  while (l--) {
+    var cb = nextTickQueue.shift();
+    cb();
   }
-  return ret;
+  if (nextTickQueue.length == 0) nextTickWatcher.stop();
 };
+
+process.nextTick = function (callback) {
+  nextTickQueue.push(callback);
+  nextTickWatcher.start();
+};
+
+
 
 
 
@@ -427,17 +448,29 @@ process.Stats.prototype.isSocket = function () {
 
 
 // Timers
+function addTimerListener (callback) {
+  var timer = this;
+  // Special case the no param case to avoid the extra object creation.
+  if (arguments.length > 2) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    timer.addListener("timeout", function(){
+      callback.apply(timer, args);
+    });
+  } else {
+    timer.addListener("timeout", callback);
+  }
+}
 
 GLOBAL.setTimeout = function (callback, after) {
   var timer = new process.Timer();
-  timer.addListener("timeout", callback);
+  addTimerListener.apply(timer, arguments);
   timer.start(after, 0);
   return timer;
 };
 
 GLOBAL.setInterval = function (callback, repeat) {
   var timer = new process.Timer();
-  timer.addListener("timeout", callback);
+  addTimerListener.apply(timer, arguments);
   timer.start(repeat, repeat);
   return timer;
 };
@@ -465,38 +498,6 @@ function debug (x) {
 }
 
 
-// private constructor
-function Module (id, parent) {
-  this.id = id;
-  this.exports = {};
-  this.parent = parent;
-
-  this.filename = null;
-  this.loaded = false;
-  this.loadPromise = null;
-  this.exited = false;
-  this.children = [];
-};
-
-var moduleCache = {};
-
-function createModule (id, parent) {
-  if (id in moduleCache) {
-    debug("found " + JSON.stringify(id) + " in cache");
-    return moduleCache[id];
-  }
-  debug("didn't found " + JSON.stringify(id) + " in cache. creating new module");
-  var m = new Module(id, parent);
-  moduleCache[id] = m;
-  return m;
-};
-
-function createInternalModule (id, constructor) {
-  var m = createModule(id);
-  constructor(m.exports);
-  m.loaded = true;
-  return m;
-};
 
 var posixModule = createInternalModule("posix", function (exports) {
   exports.Stats = process.Stats;
@@ -515,7 +516,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   // list to make the arguments clear.
 
   exports.close = function (fd) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.close(fd, callback(promise));
     return promise;
   };
@@ -525,7 +526,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.open = function (path, flags, mode) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.open(path, flags, mode, callback(promise));
     return promise;
   };
@@ -535,7 +536,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.read = function (fd, length, position, encoding) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     encoding = encoding || "binary";
     process.fs.read(fd, length, position, encoding, callback(promise));
     return promise;
@@ -547,7 +548,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.write = function (fd, data, position, encoding) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     encoding = encoding || "binary";
     process.fs.write(fd, data, position, encoding, callback(promise));
     return promise;
@@ -559,7 +560,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.rename = function (oldPath, newPath) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.rename(oldPath, newPath, callback(promise));
     return promise;
   };
@@ -569,7 +570,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.rmdir = function (path) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.rmdir(path, callback(promise));
     return promise;
   };
@@ -579,7 +580,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.mkdir = function (path, mode) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.mkdir(path, mode, callback(promise));
     return promise;
   };
@@ -589,7 +590,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.sendfile = function (outFd, inFd, inOffset, length) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.sendfile(outFd, inFd, inOffset, length, callback(promise));
     return promise;
   };
@@ -599,7 +600,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.readdir = function (path) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.readdir(path, callback(promise));
     return promise;
   };
@@ -609,7 +610,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.stat = function (path) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.stat(path, callback(promise));
     return promise;
   };
@@ -619,7 +620,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.unlink = function (path) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
     process.fs.unlink(path, callback(promise));
     return promise;
   };
@@ -630,7 +631,7 @@ var posixModule = createInternalModule("posix", function (exports) {
 
 
   exports.cat = function (path, encoding) {
-    var promise = new process.Promise();
+    var promise = new events.Promise();
 
     encoding = encoding || "utf8"; // default to utf8
 
@@ -799,7 +800,7 @@ function findModulePath (id, dirs, callback) {
 
 function loadModule (request, parent) {
   // This is the promise which is actually returned from require.async()
-  var loadPromise = new process.Promise();
+  var loadPromise = new events.Promise();
 
   // debug("loadModule REQUEST  " + (request) + " parent: " + JSON.stringify(parent));
 
@@ -821,9 +822,9 @@ function loadModule (request, parent) {
     debug("found  " + JSON.stringify(id) + " in cache");
     // In cache
     var module = moduleCache[id];
-    setTimeout(function () {
+    process.nextTick(function () {
       loadPromise.emitSuccess(module.exports);
-    }, 0);
+    });
   } else {
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
     // Not in cache
@@ -860,11 +861,11 @@ Module.prototype.loadObject = function (filename, loadPromise) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
   // file, store it to tmp then run dlopen on it.
-  setTimeout(function () {
+  process.nextTick(function () {
     self.loaded = true;
     process.dlopen(filename, self.exports); // FIXME synchronus
     loadPromise.emitSuccess(self.exports);
-  }, 0);
+  });
 };
 
 function cat (id, loadPromise) {
@@ -873,7 +874,7 @@ function cat (id, loadPromise) {
   debug(id);
 
   if (id.match(/^http:\/\//)) {
-    promise = new process.Promise();
+    promise = new events.Promise();
     loadModule('http', process.mainModule)
       .addCallback(function(http) {
         http.cat(id)
@@ -921,9 +922,9 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     var wrapper = "var __wrap__ = function (exports, require, module, __filename) { "
                 + content
                 + "\n}; __wrap__;";
-    var compiledWrapper = process.compile(wrapper, filename);
 
     try {
+      var compiledWrapper = process.compile(wrapper, filename);
       compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
     } catch (e) {
       loadPromise.emitError(e);
@@ -973,12 +974,8 @@ if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
 
 // Load the main module--the command line argument.
 process.mainModule = createModule(".");
-var loadPromise = new process.Promise();
+var loadPromise = new events.Promise();
 process.mainModule.load(process.ARGV[1], loadPromise);
-
-loadPromise.addErrback(function(e) {
-  throw e;
-});
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If
@@ -989,4 +986,4 @@ process.loop();
 
 process.emit("exit");
 
-}()); // end annonymous namespace
+}()); // end anonymous namespace

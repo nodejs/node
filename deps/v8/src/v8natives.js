@@ -305,6 +305,22 @@ function IsInconsistentDescriptor(desc) {
   return IsAccessorDescriptor(desc) && IsDataDescriptor(desc);
 }
 
+// ES5 8.10.4
+function FromPropertyDescriptor(desc) {
+  if(IS_UNDEFINED(desc)) return desc;
+  var obj = new $Object();
+  if (IsDataDescriptor(desc)) {
+    obj.value = desc.getValue();
+    obj.writable = desc.isWritable();
+  }
+  if (IsAccessorDescriptor(desc)) {
+    obj.get = desc.getGet();
+    obj.set = desc.getSet();
+  }
+  obj.enumerable = desc.isEnumerable();
+  obj.configurable = desc.isConfigurable();
+  return obj;
+}
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
@@ -433,6 +449,33 @@ PropertyDescriptor.prototype.getSet = function() {
 }
 
 
+// ES5 section 8.12.1.
+function GetOwnProperty(obj, p) {
+  var desc = new PropertyDescriptor();
+  
+  // An array with:
+  //  obj is a data property [false, value, Writeable, Enumerable, Configurable]
+  //  obj is an accessor [true, Get, Set, Enumerable, Configurable]
+  var props = %GetOwnProperty(ToObject(obj), ToString(p));
+
+  if (IS_UNDEFINED(props))
+    return void 0;
+
+  // This is an accessor
+  if (props[0]) {
+    desc.setGet(props[1]);
+    desc.setSet(props[2]);
+  } else {
+    desc.setValue(props[1]);
+    desc.setWritable(props[2]);
+  }
+  desc.setEnumerable(props[3]);
+  desc.setConfigurable(props[4]);
+
+  return desc;
+}
+
+
 // ES5 8.12.9.  This version cannot cope with the property p already
 // being present on obj.
 function DefineOwnProperty(obj, p, desc, should_throw) {
@@ -445,6 +488,25 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     if (IS_FUNCTION(desc.getSet())) %DefineAccessor(obj, p, SETTER, desc.getSet(), flag);
   }
   return true;
+}
+
+
+// ES5 section 15.2.3.2.
+function ObjectGetPrototypeOf(obj) {
+ if (!IS_OBJECT(obj) && !IS_FUNCTION(obj)) {
+   throw MakeTypeError("object_get_prototype_non_object", [obj]);
+ }
+ return obj.__proto__;
+}
+
+
+// ES5 section 15.2.3.3 
+function ObjectGetOwnPropertyDescriptor(obj, p) {
+  if (!IS_OBJECT(obj) && !IS_FUNCTION(obj)) {
+    throw MakeTypeError("object_get_prototype_non_object", [obj]);
+  }
+  var desc = GetOwnProperty(obj, p);
+  return FromPropertyDescriptor(desc);
 }
 
 
@@ -512,7 +574,9 @@ function SetupObject() {
   ));
   InstallFunctions($Object, DONT_ENUM, $Array(
     "keys", ObjectKeys,
-    "create", ObjectCreate
+    "create", ObjectCreate,
+    "getPrototypeOf", ObjectGetPrototypeOf,
+    "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor
   ));
 }
 

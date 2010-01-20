@@ -6834,43 +6834,36 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 
 template<typename Shape, typename Key>
-Object* HashTable<Shape, Key>::Allocate(
-    int at_least_space_for) {
+Object* HashTable<Shape, Key>::Allocate(int at_least_space_for) {
   int capacity = RoundUpToPowerOf2(at_least_space_for);
-  if (capacity < 4) capacity = 4;  // Guarantee min capacity.
+  if (capacity < 4) {
+    capacity = 4;  // Guarantee min capacity.
+  } else if (capacity > HashTable::kMaxCapacity) {
+    return Failure::OutOfMemoryException();
+  }
+
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
+    HashTable::cast(obj)->SetNumberOfDeletedElements(0);
     HashTable::cast(obj)->SetCapacity(capacity);
   }
   return obj;
 }
 
 
-
-// Find entry for key otherwise return -1.
+// Find entry for key otherwise return kNotFound.
 template<typename Shape, typename Key>
 int HashTable<Shape, Key>::FindEntry(Key key) {
-  uint32_t nof = NumberOfElements();
-  if (nof == 0) return kNotFound;  // Bail out if empty.
-
   uint32_t capacity = Capacity();
-  uint32_t hash = Shape::Hash(key);
-  uint32_t entry = GetProbe(hash, 0, capacity);
-
-  Object* element = KeyAt(entry);
-  uint32_t passed_elements = 0;
-  if (!element->IsNull()) {
-    if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
-    if (++passed_elements == nof) return kNotFound;
-  }
-  for (uint32_t i = 1; !element->IsUndefined(); i++) {
-    entry = GetProbe(hash, i, capacity);
-    element = KeyAt(entry);
-    if (!element->IsNull()) {
-      if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
-      if (++passed_elements == nof) return kNotFound;
-    }
+  uint32_t entry = FirstProbe(Shape::Hash(key), capacity);
+  uint32_t count = 1;
+  // EnsureCapacity will guarantee the hash table is never full.
+  while (true) {
+    Object* element = KeyAt(entry);
+    if (element->IsUndefined()) break;  // Empty entry.
+    if (!element->IsNull() && Shape::IsMatch(key, element)) return entry;
+    entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
 }
@@ -6880,8 +6873,12 @@ template<typename Shape, typename Key>
 Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
-  // Make sure 50% is free
-  if (nof + (nof >> 1) <= capacity) return this;
+  int nod = NumberOfDeletedElements();
+  // Return if:
+  //   50% is still free after adding n elements and
+  //   at most 50% of the free elements are deleted elements.
+  if ((nof + (nof >> 1) <= capacity) &&
+      (nod <= (capacity - nof) >> 1)) return this;
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
@@ -6908,21 +6905,23 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
     }
   }
   table->SetNumberOfElements(NumberOfElements());
+  table->SetNumberOfDeletedElements(0);
   return table;
 }
+
 
 
 template<typename Shape, typename Key>
 uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t capacity = Capacity();
-  uint32_t entry = GetProbe(hash, 0, capacity);
-  Object* element = KeyAt(entry);
-
-  for (uint32_t i = 1; !(element->IsUndefined() || element->IsNull()); i++) {
-    entry = GetProbe(hash, i, capacity);
-    element = KeyAt(entry);
+  uint32_t entry = FirstProbe(hash, capacity);
+  uint32_t count = 1;
+  // EnsureCapacity will guarantee the hash table is never full.
+  while (true) {
+    Object* element = KeyAt(entry);
+    if (element->IsUndefined() || element->IsNull()) break;
+    entry = NextProbe(entry, count++, capacity);
   }
-
   return entry;
 }
 
@@ -7000,6 +6999,10 @@ int Dictionary<NumberDictionaryShape, uint32_t>::NumberOfEnumElements();
 
 template
 int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
+
+template
+int HashTable<NumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
+
 
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
@@ -7703,7 +7706,7 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
   }
 
   // Update the number of elements.
-  SetNumberOfElements(NumberOfElements() - removed_entries);
+  ElementsRemoved(removed_entries);
 }
 
 

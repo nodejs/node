@@ -92,6 +92,7 @@ bool HeapObjectIterator::HasNextInNextPage() {
   cur_addr_ = cur_page->ObjectAreaStart();
   cur_limit_ = (cur_page == end_page_) ? end_addr_ : cur_page->AllocationTop();
 
+  if (cur_addr_ == end_addr_) return false;
   ASSERT(cur_addr_ < cur_limit_);
 #ifdef DEBUG
   Verify();
@@ -1735,7 +1736,8 @@ void FixedSizeFreeList::Free(Address start) {
     Memory::Address_at(start + i) = kZapValue;
   }
 #endif
-  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
+  // We only use the freelists with mark-sweep.
+  ASSERT(!MarkCompactCollector::IsCompacting());
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(object_size_);
   node->set_next(head_);
@@ -1821,6 +1823,50 @@ void OldSpace::MCCommitRelocationInfo() {
 }
 
 
+bool NewSpace::ReserveSpace(int bytes) {
+  // We can't reliably unpack a partial snapshot that needs more new space
+  // space than the minimum NewSpace size.
+  ASSERT(bytes <= InitialCapacity());
+  Address limit = allocation_info_.limit;
+  Address top = allocation_info_.top;
+  return limit - top >= bytes;
+}
+
+
+bool PagedSpace::ReserveSpace(int bytes) {
+  Address limit = allocation_info_.limit;
+  Address top = allocation_info_.top;
+  if (limit - top >= bytes) return true;
+
+  // There wasn't enough space in the current page.  Lets put the rest
+  // of the page on the free list and start a fresh page.
+  PutRestOfCurrentPageOnFreeList(TopPageOf(allocation_info_));
+
+  Page* reserved_page = TopPageOf(allocation_info_);
+  int bytes_left_to_reserve = bytes;
+  while (bytes_left_to_reserve > 0) {
+    if (!reserved_page->next_page()->is_valid()) {
+      if (Heap::OldGenerationAllocationLimitReached()) return false;
+      Expand(reserved_page);
+    }
+    bytes_left_to_reserve -= Page::kPageSize;
+    reserved_page = reserved_page->next_page();
+    if (!reserved_page->is_valid()) return false;
+  }
+  ASSERT(TopPageOf(allocation_info_)->next_page()->is_valid());
+  SetAllocationInfo(&allocation_info_,
+                    TopPageOf(allocation_info_)->next_page());
+  return true;
+}
+
+
+// You have to call this last, since the implementation from PagedSpace
+// doesn't know that memory was 'promised' to large object space.
+bool LargeObjectSpace::ReserveSpace(int bytes) {
+  return Heap::OldGenerationSpaceAvailable() >= bytes;
+}
+
+
 // Slow case for normal allocation.  Try in order: (1) allocate in the next
 // page in the space, (2) allocate off the space's free list, (3) expand the
 // space, (4) fail.
@@ -1864,19 +1910,37 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
 }
 
 
-// Add the block at the top of the page to the space's free list, set the
-// allocation info to the next page (assumed to be one), and allocate
-// linearly there.
-HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
-                                         int size_in_bytes) {
-  ASSERT(current_page->next_page()->is_valid());
-  // Add the block at the top of this page to the free list.
+void OldSpace::PutRestOfCurrentPageOnFreeList(Page* current_page) {
   int free_size =
       static_cast<int>(current_page->ObjectAreaEnd() - allocation_info_.top);
   if (free_size > 0) {
     int wasted_bytes = free_list_.Free(allocation_info_.top, free_size);
     accounting_stats_.WasteBytes(wasted_bytes);
   }
+}
+
+
+void FixedSpace::PutRestOfCurrentPageOnFreeList(Page* current_page) {
+  int free_size =
+      static_cast<int>(current_page->ObjectAreaEnd() - allocation_info_.top);
+  // In the fixed space free list all the free list items have the right size.
+  // We use up the rest of the page while preserving this invariant.
+  while (free_size >= object_size_in_bytes_) {
+    free_list_.Free(allocation_info_.top);
+    allocation_info_.top += object_size_in_bytes_;
+    free_size -= object_size_in_bytes_;
+    accounting_stats_.WasteBytes(object_size_in_bytes_);
+  }
+}
+
+
+// Add the block at the top of the page to the space's free list, set the
+// allocation info to the next page (assumed to be one), and allocate
+// linearly there.
+HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
+                                         int size_in_bytes) {
+  ASSERT(current_page->next_page()->is_valid());
+  PutRestOfCurrentPageOnFreeList(current_page);
   SetAllocationInfo(&allocation_info_, current_page->next_page());
   return AllocateLinearly(&allocation_info_, size_in_bytes);
 }

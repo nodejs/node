@@ -12,10 +12,6 @@ are:
   - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
     copyrighted by Douglas Crockford and Baruch Even and has an MIT license.
 
-  - parseUri, a URI parser, is located in lib/http.js. This is just a small
-    snippit. It is copyrighted 2007 by Steven Levithan and released under an
-    MIT license.
-
   - WAF build system, located at tools/waf. Copyrighted Thomas Nagy.
     Released under an MIT license.
 
@@ -30,7 +26,7 @@ Other external libraries are my own and all use the same license as Node.
 
 Node's license follows:
 
-Copyright 2009, Ryan Lienhart Dahl. All rights reserved.
+Copyright 2009, 2010 Ryan Lienhart Dahl. All rights reserved.
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
 deal in the Software without restriction, including without limitation the

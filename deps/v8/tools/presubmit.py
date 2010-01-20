@@ -221,7 +221,7 @@ class CppLintProcessor(SourceFileProcessor):
 
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
-    r'Copyright [\d-]*200[8-9] the V8 project authors. All rights reserved.')
+    r'Copyright [\d-]*20[0-1][0-9] the V8 project authors. All rights reserved.')
 
 class SourceProcessor(SourceFileProcessor):
   """

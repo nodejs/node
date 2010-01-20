@@ -42,3 +42,25 @@ for (var i in a) {
   assertFalse(x <= NaN, "" + x + " <= NaN");
   assertFalse(x >= NaN, "" + x + " >= NaN");
 }
+
+var b = ["NaN", "-1", "0", "1", "1.2", "-7.9", "true", "false", "'foo'", "'0'",
+         "'NaN'" ];
+for (var i in b) {
+  var x = b[i];
+  var program =
+      "assertFalse(NaN == " + x + ", 'NaN == ' + " + x + ");\n" +
+      "assertFalse(NaN === " + x + ", 'NaN === ' + " + x + ");\n" +
+      "assertFalse(NaN < " + x + ", 'NaN < ' + " + x + ");\n" +
+      "assertFalse(NaN > " + x + ", 'NaN > ' + " + x + ");\n" +
+      "assertFalse(NaN <= " + x + ", 'NaN <= ' + " + x + ");\n" +
+      "assertFalse(NaN >= " + x + ", 'NaN >= ' + " + x + ");\n" +
+
+      "assertFalse(" + x + " == NaN, '' + " + x + " + ' == NaN');\n" +
+      "assertFalse(" + x + " === NaN, '' + " + x + " + ' === NaN');\n" +
+      "assertFalse(" + x + " < NaN, '' + " + x + " + ' < NaN');\n" +
+      "assertFalse(" + x + " > NaN, '' + " + x + " + ' > NaN');\n" +
+      "assertFalse(" + x + " <= NaN, '' + " + x + " + ' <= NaN');\n" +
+      "assertFalse(" + x + " >= NaN, '' + " + x + " + ' >= NaN');\n";
+  eval(program);
+}
+

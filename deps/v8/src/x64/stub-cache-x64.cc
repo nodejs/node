@@ -1827,17 +1827,15 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // depending on the this.x = ...; assignment in the function.
   for (int i = 0; i < shared->this_property_assignments_count(); i++) {
     if (shared->IsThisPropertyAssignmentArgument(i)) {
-      Label not_passed;
-      // Set the property to undefined.
-      __ movq(Operand(r9, i * kPointerSize), r8);
       // Check if the argument assigned to the property is actually passed.
+      // If argument is not passed the property is set to undefined,
+      // otherwise find it on the stack.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
+      __ movq(rbx, r8);
       __ cmpq(rax, Immediate(arg_number));
-      __ j(below_equal, &not_passed);
-      // Argument passed - find it on the stack.
-      __ movq(rbx, Operand(rcx, arg_number * -kPointerSize));
+      __ cmovq(above, rbx, Operand(rcx, arg_number * -kPointerSize));
+      // Store value in the property.
       __ movq(Operand(r9, i * kPointerSize), rbx);
-      __ bind(&not_passed);
     } else {
       // Set the property to the constant value.
       Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));

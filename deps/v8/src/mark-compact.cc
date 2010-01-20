@@ -116,6 +116,8 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   compact_on_next_gc_ = false;
 
   if (FLAG_never_compact) compacting_collection_ = false;
+  if (!Heap::map_space()->MapPointersEncodable())
+      compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
 
 #ifdef DEBUG
@@ -789,7 +791,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
   // back pointers, reversing them all at once.  This allows us to find
   // those maps with map transitions that need to be nulled, and only
   // scan the descriptor arrays of those maps, not all maps.
-  // All of these actions are carried out only on maps of JSObects
+  // All of these actions are carried out only on maps of JSObjects
   // and related subtypes.
   while (map_iterator.has_next()) {
     Map* map = reinterpret_cast<Map*>(map_iterator.next());
@@ -1166,7 +1168,7 @@ void MarkCompactCollector::DeallocateCodeBlock(Address start,
 
 void MarkCompactCollector::DeallocateMapBlock(Address start,
                                               int size_in_bytes) {
-  // Objects in map space are frequently assumed to have size Map::kSize and a
+  // Objects in map space are assumed to have size Map::kSize and a
   // valid map in their first word.  Thus, we break the free block up into
   // chunks and free them separately.
   ASSERT(size_in_bytes % Map::kSize == 0);
@@ -1240,6 +1242,225 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
 }
 
 
+class MapIterator : public HeapObjectIterator {
+ public:
+  MapIterator() : HeapObjectIterator(Heap::map_space(), &SizeCallback) { }
+
+  explicit MapIterator(Address start)
+      : HeapObjectIterator(Heap::map_space(), start, &SizeCallback) { }
+
+ private:
+  static int SizeCallback(HeapObject* unused) {
+    USE(unused);
+    return Map::kSize;
+  }
+};
+
+
+class MapCompact {
+ public:
+  explicit MapCompact(int live_maps)
+    : live_maps_(live_maps),
+      to_evacuate_start_(Heap::map_space()->TopAfterCompaction(live_maps)),
+      map_to_evacuate_it_(to_evacuate_start_),
+      first_map_to_evacuate_(
+          reinterpret_cast<Map*>(HeapObject::FromAddress(to_evacuate_start_))) {
+  }
+
+  void CompactMaps() {
+    // As we know the number of maps to evacuate beforehand,
+    // we stop then there is no more vacant maps.
+    for (Map* next_vacant_map = NextVacantMap();
+         next_vacant_map;
+         next_vacant_map = NextVacantMap()) {
+      EvacuateMap(next_vacant_map, NextMapToEvacuate());
+    }
+
+#ifdef DEBUG
+    CheckNoMapsToEvacuate();
+#endif
+  }
+
+  void UpdateMapPointersInRoots() {
+    Heap::IterateRoots(&map_updating_visitor_, VISIT_ONLY_STRONG);
+    GlobalHandles::IterateWeakRoots(&map_updating_visitor_);
+  }
+
+  void FinishMapSpace() {
+    // Iterate through to space and finish move.
+    MapIterator it;
+    HeapObject* o = it.next();
+    for (; o != first_map_to_evacuate_; o = it.next()) {
+      Map* map = reinterpret_cast<Map*>(o);
+      ASSERT(!map->IsMarked());
+      ASSERT(!map->IsOverflowed());
+      ASSERT(map->IsMap());
+      Heap::UpdateRSet(map);
+    }
+  }
+
+  void UpdateMapPointersInPagedSpace(PagedSpace* space) {
+    ASSERT(space != Heap::map_space());
+
+    PageIterator it(space, PageIterator::PAGES_IN_USE);
+    while (it.has_next()) {
+      Page* p = it.next();
+      UpdateMapPointersInRange(p->ObjectAreaStart(), p->AllocationTop());
+    }
+  }
+
+  void UpdateMapPointersInNewSpace() {
+    NewSpace* space = Heap::new_space();
+    UpdateMapPointersInRange(space->bottom(), space->top());
+  }
+
+  void UpdateMapPointersInLargeObjectSpace() {
+    LargeObjectIterator it(Heap::lo_space());
+    while (true) {
+      if (!it.has_next()) break;
+      UpdateMapPointersInObject(it.next());
+    }
+  }
+
+  void Finish() {
+    Heap::map_space()->FinishCompaction(to_evacuate_start_, live_maps_);
+  }
+
+ private:
+  int live_maps_;
+  Address to_evacuate_start_;
+  MapIterator vacant_map_it_;
+  MapIterator map_to_evacuate_it_;
+  Map* first_map_to_evacuate_;
+
+  // Helper class for updating map pointers in HeapObjects.
+  class MapUpdatingVisitor: public ObjectVisitor {
+  public:
+    void VisitPointer(Object** p) {
+      UpdateMapPointer(p);
+    }
+
+    void VisitPointers(Object** start, Object** end) {
+      for (Object** p = start; p < end; p++) UpdateMapPointer(p);
+    }
+
+  private:
+    void UpdateMapPointer(Object** p) {
+      if (!(*p)->IsHeapObject()) return;
+      HeapObject* old_map = reinterpret_cast<HeapObject*>(*p);
+
+      // Moved maps are tagged with overflowed map word.  They are the only
+      // objects those map word is overflowed as marking is already complete.
+      MapWord map_word = old_map->map_word();
+      if (!map_word.IsOverflowed()) return;
+
+      *p = GetForwardedMap(map_word);
+    }
+  };
+
+  static MapUpdatingVisitor map_updating_visitor_;
+
+  static Map* NextMap(MapIterator* it, HeapObject* last, bool live) {
+    while (true) {
+      ASSERT(it->has_next());
+      HeapObject* next = it->next();
+      if (next == last)
+        return NULL;
+      ASSERT(!next->IsOverflowed());
+      ASSERT(!next->IsMarked());
+      ASSERT(next->IsMap() || FreeListNode::IsFreeListNode(next));
+      if (next->IsMap() == live)
+        return reinterpret_cast<Map*>(next);
+    }
+  }
+
+  Map* NextVacantMap() {
+    Map* map = NextMap(&vacant_map_it_, first_map_to_evacuate_, false);
+    ASSERT(map == NULL || FreeListNode::IsFreeListNode(map));
+    return map;
+  }
+
+  Map* NextMapToEvacuate() {
+    Map* map = NextMap(&map_to_evacuate_it_, NULL, true);
+    ASSERT(map != NULL);
+    ASSERT(map->IsMap());
+    return map;
+  }
+
+  static void EvacuateMap(Map* vacant_map, Map* map_to_evacuate) {
+    ASSERT(FreeListNode::IsFreeListNode(vacant_map));
+    ASSERT(map_to_evacuate->IsMap());
+
+    memcpy(
+        reinterpret_cast<void*>(vacant_map->address()),
+        reinterpret_cast<void*>(map_to_evacuate->address()),
+        Map::kSize);
+    ASSERT(vacant_map->IsMap());  // Due to memcpy above.
+
+    MapWord forwarding_map_word = MapWord::FromMap(vacant_map);
+    forwarding_map_word.SetOverflow();
+    map_to_evacuate->set_map_word(forwarding_map_word);
+
+    ASSERT(map_to_evacuate->map_word().IsOverflowed());
+    ASSERT(GetForwardedMap(map_to_evacuate->map_word()) == vacant_map);
+  }
+
+  static Map* GetForwardedMap(MapWord map_word) {
+    ASSERT(map_word.IsOverflowed());
+    map_word.ClearOverflow();
+    Map* new_map = map_word.ToMap();
+    ASSERT_MAP_ALIGNED(new_map->address());
+    return new_map;
+  }
+
+  static int UpdateMapPointersInObject(HeapObject* obj) {
+    ASSERT(!obj->IsMarked());
+    Map* map = obj->map();
+    ASSERT(Heap::map_space()->Contains(map));
+    MapWord map_word = map->map_word();
+    ASSERT(!map_word.IsMarked());
+    if (map_word.IsOverflowed()) {
+      Map* new_map = GetForwardedMap(map_word);
+      ASSERT(Heap::map_space()->Contains(new_map));
+      obj->set_map(new_map);
+
+#ifdef DEBUG
+      if (FLAG_gc_verbose) {
+        PrintF("update %p : %p -> %p\n", obj->address(),
+              map, new_map);
+      }
+#endif
+    }
+
+    int size = obj->SizeFromMap(map);
+    obj->IterateBody(map->instance_type(), size, &map_updating_visitor_);
+    return size;
+  }
+
+  static void UpdateMapPointersInRange(Address start, Address end) {
+    HeapObject* object;
+    int size;
+    for (Address current = start; current < end; current += size) {
+      object = HeapObject::FromAddress(current);
+      size = UpdateMapPointersInObject(object);
+      ASSERT(size > 0);
+    }
+  }
+
+#ifdef DEBUG
+  void CheckNoMapsToEvacuate() {
+    if (!FLAG_enable_slow_asserts)
+      return;
+
+    while (map_to_evacuate_it_.has_next())
+      ASSERT(FreeListNode::IsFreeListNode(map_to_evacuate_it_.next()));
+  }
+#endif
+};
+
+MapCompact::MapUpdatingVisitor MapCompact::map_updating_visitor_;
+
+
 void MarkCompactCollector::SweepSpaces() {
   ASSERT(state_ == SWEEP_SPACES);
   ASSERT(!IsCompacting());
@@ -1254,6 +1475,26 @@ void MarkCompactCollector::SweepSpaces() {
   SweepSpace(Heap::cell_space(), &DeallocateCellBlock);
   SweepSpace(Heap::new_space());
   SweepSpace(Heap::map_space(), &DeallocateMapBlock);
+  int live_maps = Heap::map_space()->Size() / Map::kSize;
+  ASSERT(live_map_objects_ == live_maps);
+
+  if (Heap::map_space()->NeedsCompaction(live_maps)) {
+    MapCompact map_compact(live_maps);
+
+    map_compact.CompactMaps();
+    map_compact.UpdateMapPointersInRoots();
+
+    map_compact.FinishMapSpace();
+    PagedSpaces spaces;
+    while (PagedSpace* space = spaces.next()) {
+      if (space == Heap::map_space()) continue;
+      map_compact.UpdateMapPointersInPagedSpace(space);
+    }
+    map_compact.UpdateMapPointersInNewSpace();
+    map_compact.UpdateMapPointersInLargeObjectSpace();
+
+    map_compact.Finish();
+  }
 }
 
 

@@ -544,6 +544,11 @@ static void Generate_KeyedLoadIC_Generic(MacroAssembler* masm) {
 }
 
 
+static void Generate_KeyedLoadIC_String(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateString(masm);
+}
+
+
 static void Generate_KeyedLoadIC_ExternalByteArray(MacroAssembler* masm) {
   KeyedLoadIC::GenerateExternalArray(masm, kExternalByteArray);
 }

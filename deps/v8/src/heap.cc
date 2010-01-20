@@ -479,6 +479,65 @@ static void VerifySymbolTable() {
 }
 
 
+void Heap::ReserveSpace(
+    int new_space_size,
+    int pointer_space_size,
+    int data_space_size,
+    int code_space_size,
+    int map_space_size,
+    int cell_space_size,
+    int large_object_size) {
+  NewSpace* new_space = Heap::new_space();
+  PagedSpace* old_pointer_space = Heap::old_pointer_space();
+  PagedSpace* old_data_space = Heap::old_data_space();
+  PagedSpace* code_space = Heap::code_space();
+  PagedSpace* map_space = Heap::map_space();
+  PagedSpace* cell_space = Heap::cell_space();
+  LargeObjectSpace* lo_space = Heap::lo_space();
+  bool gc_performed = true;
+  while (gc_performed) {
+    gc_performed = false;
+    if (!new_space->ReserveSpace(new_space_size)) {
+      Heap::CollectGarbage(new_space_size, NEW_SPACE);
+      gc_performed = true;
+    }
+    if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
+      Heap::CollectGarbage(pointer_space_size, OLD_POINTER_SPACE);
+      gc_performed = true;
+    }
+    if (!(old_data_space->ReserveSpace(data_space_size))) {
+      Heap::CollectGarbage(data_space_size, OLD_DATA_SPACE);
+      gc_performed = true;
+    }
+    if (!(code_space->ReserveSpace(code_space_size))) {
+      Heap::CollectGarbage(code_space_size, CODE_SPACE);
+      gc_performed = true;
+    }
+    if (!(map_space->ReserveSpace(map_space_size))) {
+      Heap::CollectGarbage(map_space_size, MAP_SPACE);
+      gc_performed = true;
+    }
+    if (!(cell_space->ReserveSpace(cell_space_size))) {
+      Heap::CollectGarbage(cell_space_size, CELL_SPACE);
+      gc_performed = true;
+    }
+    // We add a slack-factor of 2 in order to have space for the remembered
+    // set and a series of large-object allocations that are only just larger
+    // than the page size.
+    large_object_size *= 2;
+    // The ReserveSpace method on the large object space checks how much
+    // we can expand the old generation.  This includes expansion caused by
+    // allocation in the other spaces.
+    large_object_size += cell_space_size + map_space_size + code_space_size +
+        data_space_size + pointer_space_size;
+    if (!(lo_space->ReserveSpace(large_object_size))) {
+      Heap::CollectGarbage(large_object_size, LO_SPACE);
+      gc_performed = true;
+    }
+  }
+}
+
+
 void Heap::EnsureFromSpaceIsCommitted() {
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 
@@ -576,6 +635,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   Top::MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
+
+  if (is_compacting) FlushNumberStringCache();
 }
 
 
@@ -804,7 +865,8 @@ void Heap::ScavengeExternalStringTable() {
     }
   }
 
-  ExternalStringTable::ShrinkNewStrings(last - start);
+  ASSERT(last <= end);
+  ExternalStringTable::ShrinkNewStrings(static_cast<int>(last - start));
 }
 
 
@@ -1354,9 +1416,6 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
 
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = OLD_DATA_SPACE;
-
   Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
@@ -1576,10 +1635,7 @@ bool Heap::CreateInitialObjects() {
 
   CreateFixedStubs();
 
-  // Allocate the number->string conversion cache
-  obj = AllocateFixedArray(kNumberStringCacheSize * 2);
-  if (obj->IsFailure()) return false;
-  set_number_string_cache(FixedArray::cast(obj));
+  if (InitializeNumberStringCache()->IsFailure()) return false;
 
   // Allocate cache for single character strings.
   obj = AllocateFixedArray(String::kMaxAsciiCharCode+1);
@@ -1610,25 +1666,45 @@ bool Heap::CreateInitialObjects() {
 }
 
 
+Object* Heap::InitializeNumberStringCache() {
+  // Compute the size of the number string cache based on the max heap size.
+  // max_semispace_size_ == 512 KB => number_string_cache_size = 32.
+  // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
+  int number_string_cache_size = max_semispace_size_ / 512;
+  number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
+  Object* obj = AllocateFixedArray(number_string_cache_size * 2);
+  if (!obj->IsFailure()) set_number_string_cache(FixedArray::cast(obj));
+  return obj;
+}
+
+
+void Heap::FlushNumberStringCache() {
+  // Flush the number to string cache.
+  int len = number_string_cache()->length();
+  for (int i = 0; i < len; i++) {
+    number_string_cache()->set_undefined(i);
+  }
+}
+
+
 static inline int double_get_hash(double d) {
   DoubleRepresentation rep(d);
-  return ((static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32)) &
-          (Heap::kNumberStringCacheSize - 1));
+  return static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32);
 }
 
 
 static inline int smi_get_hash(Smi* smi) {
-  return (smi->value() & (Heap::kNumberStringCacheSize - 1));
+  return smi->value();
 }
-
 
 
 Object* Heap::GetNumberStringCache(Object* number) {
   int hash;
+  int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number)) & mask;
   } else {
-    hash = double_get_hash(number->Number());
+    hash = double_get_hash(number->Number()) & mask;
   }
   Object* key = number_string_cache()->get(hash * 2);
   if (key == number) {
@@ -1644,11 +1720,12 @@ Object* Heap::GetNumberStringCache(Object* number) {
 
 void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
+  int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number)) & mask;
     number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
-    hash = double_get_hash(number->Number());
+    hash = double_get_hash(number->Number()) & mask;
     number_string_cache()->set(hash * 2, number);
   }
   number_string_cache()->set(hash * 2 + 1, string);
@@ -1762,7 +1839,6 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  if (always_allocate()) space = OLD_DATA_SPACE;
   Object* result = Allocate(proxy_map(), space);
   if (result->IsFailure()) return result;
 
@@ -1902,8 +1978,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 
   Map* map = is_ascii ? cons_ascii_string_map() : cons_string_map();
 
-  Object* result = Allocate(map,
-                            always_allocate() ? OLD_POINTER_SPACE : NEW_SPACE);
+  Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
   ConsString* cons_string = ConsString::cast(result);
   WriteBarrierMode mode = cons_string->GetWriteBarrierMode();
@@ -1967,8 +2042,7 @@ Object* Heap::AllocateExternalStringFromAscii(
   }
 
   Map* map = external_ascii_string_map();
-  Object* result = Allocate(map,
-                            always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
+  Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalAsciiString* external_string = ExternalAsciiString::cast(result);
@@ -1989,8 +2063,7 @@ Object* Heap::AllocateExternalStringFromTwoByte(
   }
 
   Map* map = Heap::external_string_map();
-  Object* result = Allocate(map,
-                            always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
+  Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
@@ -2025,15 +2098,16 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
 
 Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   if (pretenure == NOT_TENURED) {
     return AllocateByteArray(length);
   }
   int size = ByteArray::SizeFor(length);
-  AllocationSpace space =
-      size > MaxObjectSizeInPagedSpace() ? LO_SPACE : OLD_DATA_SPACE;
-
-  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
-
+  Object* result = (size <= MaxObjectSizeInPagedSpace())
+      ? old_data_space_->AllocateRaw(size)
+      : lo_space_->AllocateRaw(size);
   if (result->IsFailure()) return result;
 
   reinterpret_cast<Array*>(result)->set_map(byte_array_map());
@@ -2043,15 +2117,13 @@ Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateByteArray(int length) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
-      size > MaxObjectSizeInPagedSpace() ? LO_SPACE : NEW_SPACE;
-
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = LO_SPACE;
-
+      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : NEW_SPACE;
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
-
   if (result->IsFailure()) return result;
 
   reinterpret_cast<Array*>(result)->set_map(byte_array_map());
@@ -2076,12 +2148,7 @@ Object* Heap::AllocatePixelArray(int length,
                                  uint8_t* external_pointer,
                                  PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = OLD_DATA_SPACE;
-
   Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
-
   if (result->IsFailure()) return result;
 
   reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
@@ -2097,14 +2164,9 @@ Object* Heap::AllocateExternalArray(int length,
                                     void* external_pointer,
                                     PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = OLD_DATA_SPACE;
-
   Object* result = AllocateRaw(ExternalArray::kAlignedSize,
                                space,
                                OLD_DATA_SPACE);
-
   if (result->IsFailure()) return result;
 
   reinterpret_cast<ExternalArray*>(result)->set_map(
@@ -2193,9 +2255,12 @@ Object* Heap::CopyCode(Code* code) {
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
-  Object* result = AllocateRaw(map->instance_size(),
-                               space,
-                               TargetSpaceId(map->instance_type()));
+  // If allocation failures are disallowed, we may allocate in a different
+  // space when new space is full and the object is not a large object.
+  AllocationSpace retry_space =
+      (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
+  Object* result =
+      AllocateRaw(map->instance_size(), space, retry_space);
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -2383,7 +2448,6 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
   if (map->instance_size() > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
-  if (always_allocate()) space = OLD_POINTER_SPACE;
   Object* obj = Allocate(map, space);
   if (obj->IsFailure()) return obj;
 
@@ -2658,12 +2722,16 @@ Map* Heap::SymbolMapForString(String* string) {
 Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
                                      int chars,
                                      uint32_t hash_field) {
+  ASSERT(chars >= 0);
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
   bool is_ascii = true;
-  while (buffer->has_more() && is_ascii) {
-    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) is_ascii = false;
+  while (buffer->has_more()) {
+    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
+      is_ascii = false;
+      break;
+    }
   }
   buffer->Rewind();
 
@@ -2672,17 +2740,23 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   Map* map;
 
   if (is_ascii) {
+    if (chars > SeqAsciiString::kMaxLength) {
+      return Failure::OutOfMemoryException();
+    }
     map = ascii_symbol_map();
     size = SeqAsciiString::SizeFor(chars);
   } else {
+    if (chars > SeqTwoByteString::kMaxLength) {
+      return Failure::OutOfMemoryException();
+    }
     map = symbol_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
 
   // Allocate string.
-  AllocationSpace space =
-      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : OLD_DATA_SPACE;
-  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  Object* result = (size > MaxObjectSizeInPagedSpace())
+      ? lo_space_->AllocateRaw(size)
+      : old_data_space_->AllocateRaw(size);
   if (result->IsFailure()) return result;
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
@@ -2702,22 +2776,28 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = OLD_DATA_SPACE;
+  if (length < 0 || length > SeqAsciiString::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
 
   int size = SeqAsciiString::SizeFor(length);
+  ASSERT(size <= SeqAsciiString::kMaxSize);
 
-  Object* result = Failure::OutOfMemoryException();
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace retry_space = OLD_DATA_SPACE;
+
   if (space == NEW_SPACE) {
-    result = size <= kMaxObjectSizeInNewSpace
-        ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRaw(size);
-  } else {
-    if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
-    result = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (size > kMaxObjectSizeInNewSpace) {
+      // Allocate in large object space, retry space will be ignored.
+      space = LO_SPACE;
+    } else if (size > MaxObjectSizeInPagedSpace()) {
+      // Allocate in new space, retry in large object space.
+      retry_space = LO_SPACE;
+    }
+  } else if (space == OLD_DATA_SPACE && size > MaxObjectSizeInPagedSpace()) {
+    space = LO_SPACE;
   }
+  Object* result = AllocateRaw(size, space, retry_space);
   if (result->IsFailure()) return result;
 
   // Partially initialize the object.
@@ -2730,22 +2810,26 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-
-  // New space can't cope with forced allocation.
-  if (always_allocate()) space = OLD_DATA_SPACE;
-
-  int size = SeqTwoByteString::SizeFor(length);
-
-  Object* result = Failure::OutOfMemoryException();
-  if (space == NEW_SPACE) {
-    result = size <= kMaxObjectSizeInNewSpace
-        ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRaw(size);
-  } else {
-    if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
-    result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  if (length < 0 || length > SeqTwoByteString::kMaxLength) {
+    return Failure::OutOfMemoryException();
   }
+  int size = SeqTwoByteString::SizeFor(length);
+  ASSERT(size <= SeqTwoByteString::kMaxSize);
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace retry_space = OLD_DATA_SPACE;
+
+  if (space == NEW_SPACE) {
+    if (size > kMaxObjectSizeInNewSpace) {
+      // Allocate in large object space, retry space will be ignored.
+      space = LO_SPACE;
+    } else if (size > MaxObjectSizeInPagedSpace()) {
+      // Allocate in new space, retry in large object space.
+      retry_space = LO_SPACE;
+    }
+  } else if (space == OLD_DATA_SPACE && size > MaxObjectSizeInPagedSpace()) {
+    space = LO_SPACE;
+  }
+  Object* result = AllocateRaw(size, space, retry_space);
   if (result->IsFailure()) return result;
 
   // Partially initialize the object.
@@ -2769,6 +2853,9 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 
 Object* Heap::AllocateRawFixedArray(int length) {
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   // Use the general function if we're forced to always allocate.
   if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
@@ -2820,29 +2907,47 @@ Object* Heap::AllocateFixedArray(int length) {
 
 
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
+  ASSERT(length >= 0);
   ASSERT(empty_fixed_array()->IsFixedArray());
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   if (length == 0) return empty_fixed_array();
 
-  // New space can't cope with forced allocation.
-  if (always_allocate()) pretenure = TENURED;
-
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
   int size = FixedArray::SizeFor(length);
+  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
+    // Too big for new space.
+    space = LO_SPACE;
+  } else if (space == OLD_POINTER_SPACE &&
+             size > MaxObjectSizeInPagedSpace()) {
+    // Too big for old pointer space.
+    space = LO_SPACE;
+  }
+
+  // Specialize allocation for the space.
   Object* result = Failure::OutOfMemoryException();
-  if (pretenure != TENURED) {
-    result = size <= kMaxObjectSizeInNewSpace
-        ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRawFixedArray(size);
-  }
-  if (result->IsFailure()) {
-    if (size > MaxObjectSizeInPagedSpace()) {
-      result = lo_space_->AllocateRawFixedArray(size);
-    } else {
-      AllocationSpace space =
-          (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-      result = AllocateRaw(size, space, OLD_POINTER_SPACE);
+  if (space == NEW_SPACE) {
+    // We cannot use Heap::AllocateRaw() because it will not properly
+    // allocate extra remembered set bits if always_allocate() is true and
+    // new space allocation fails.
+    result = new_space_.AllocateRaw(size);
+    if (result->IsFailure() && always_allocate()) {
+      if (size <= MaxObjectSizeInPagedSpace()) {
+        result = old_pointer_space_->AllocateRaw(size);
+      } else {
+        result = lo_space_->AllocateRawFixedArray(size);
+      }
     }
-    if (result->IsFailure()) return result;
+  } else if (space == OLD_POINTER_SPACE) {
+    result = old_pointer_space_->AllocateRaw(size);
+  } else {
+    ASSERT(space == LO_SPACE);
+    result = lo_space_->AllocateRawFixedArray(size);
   }
+  if (result->IsFailure()) return result;
+
   // Initialize the object.
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
@@ -3437,7 +3542,10 @@ bool Heap::Setup(bool create_heap_objects) {
   if (!code_space_->Setup(NULL, 0)) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(kMaxMapSpaceSize, MAP_SPACE);
+  map_space_ = new MapSpace(FLAG_use_big_map_space
+      ? max_old_generation_size_
+      : (MapSpace::kMaxMapPageIndex + 1) * Page::kPageSize,
+      MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->Setup(NULL, 0)) return false;
 

@@ -1,7 +1,8 @@
 process.mixin(require("./common"));
+var events = require('events');
 
 function timer (t) {
-  var promise = new process.Promise();
+  var promise = new events.Promise();
   setTimeout(function () {
     promise.emitSuccess();
   }, t);

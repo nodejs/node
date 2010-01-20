@@ -325,6 +325,17 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+Condition MacroAssembler::IsObjectStringType(Register heap_object,
+                                             Register map,
+                                             Register instance_type) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  ASSERT(kNotStringTag != 0);
+  test(instance_type, Immediate(kIsNotStringMask));
+  return zero;
+}
+
+
 void MacroAssembler::FCmp() {
   if (CpuFeatures::IsSupported(CMOV)) {
     fucomip();
@@ -729,13 +740,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
-
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    or_(Operand(result), Immediate(kHeapObjectTag));
+    lea(result, Operand(result, kHeapObjectTag));
   }
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 
@@ -759,13 +770,13 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required);
 
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
-
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    or_(Operand(result), Immediate(kHeapObjectTag));
+    lea(result, Operand(result, kHeapObjectTag));
   }
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 
@@ -790,13 +801,13 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
-
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    or_(Operand(result), Immediate(kHeapObjectTag));
+    lea(result, Operand(result, kHeapObjectTag));
   }
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 

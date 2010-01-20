@@ -17,6 +17,7 @@
 #include <node_dns.h>
 #include <node_net.h>
 #include <node_file.h>
+#include <node_idle_watcher.h>
 #include <node_http.h>
 #include <node_signal_handler.h>
 #include <node_stat.h>
@@ -319,7 +320,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
 }
 
-static void ReportException(TryCatch *try_catch) {
+static void ReportException(TryCatch *try_catch, bool show_line = false) {
   Handle<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     fprintf(stderr, "Error: (no message)\n");
@@ -336,7 +337,7 @@ static void ReportException(TryCatch *try_catch) {
     if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
   }
 
-  if (stack.IsEmpty()) {
+  if (show_line) {
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);
@@ -356,7 +357,9 @@ static void ReportException(TryCatch *try_catch) {
       fprintf(stderr, "^");
     }
     fprintf(stderr, "\n");
+  }
 
+  if (stack.IsEmpty()) {
     message->PrintCurrentStackTrace(stderr);
   } else {
     String::Utf8Value trace(stack);
@@ -474,6 +477,50 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   exit(r);
   return Undefined();
 }
+
+#ifdef __sun
+#define HAVE_GETMEM 1
+#include <unistd.h> /* getpagesize() */
+
+#if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
+#define PROCFS_FILE_OFFSET_BITS_HACK 1
+#undef _FILE_OFFSET_BITS
+#else
+#define PROCFS_FILE_OFFSET_BITS_HACK 0
+#endif
+
+#include <procfs.h>
+
+#if (PROCFS_FILE_OFFSET_BITS_HACK - 0 == 1)
+#define _FILE_OFFSET_BITS 64
+#endif
+
+int getmem(size_t *rss, size_t *vsize) {
+  pid_t pid = getpid();
+
+  size_t page_size = getpagesize();
+  char pidpath[1024];
+  sprintf(pidpath, "/proc/%d/psinfo", pid);
+
+  psinfo_t psinfo;
+  FILE *f = fopen(pidpath, "r");
+  if (!f) return -1;
+
+  if (fread(&psinfo, sizeof(psinfo_t), 1, f) != 1) {
+    fclose (f);
+    return -1;
+  }
+
+  /* XXX correct? */
+
+  *vsize = (size_t) psinfo.pr_size * page_size;
+  *rss = (size_t) psinfo.pr_rssize * 1024;
+
+  fclose (f);
+
+  return 0;
+}
+#endif
 
 
 #ifdef __FreeBSD__
@@ -739,7 +786,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   return Undefined();
 }
 
-v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
+Handle<Value> Compile(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2) {
@@ -750,11 +797,17 @@ v8::Handle<v8::Value> Compile(const v8::Arguments& args) {
   Local<String> source = args[0]->ToString();
   Local<String> filename = args[1]->ToString();
 
-  Handle<Script> script = Script::Compile(source, filename);
-  if (script.IsEmpty()) return Undefined();
+  TryCatch try_catch;
 
-  Handle<Value> result = script->Run();
-  if (result.IsEmpty()) return Undefined();
+  Local<Script> script = Script::Compile(source, filename);
+  if (try_catch.HasCaught()) {
+    // Hack because I can't get a proper stacktrace on SyntaxError
+    ReportException(&try_catch, true);
+    exit(1);
+  }
+
+  Local<Value> result = script->Run();
+  if (try_catch.HasCaught()) return try_catch.ReThrow();
 
   return scope.Close(result);
 }
@@ -936,8 +989,8 @@ static Local<Object> Load(int argc, char *argv[]) {
 
   // Initialize the C++ modules..................filename of module
   InitBuffer(process);                         // buffer.cc
-
   IOWatcher::Initialize(process);              // io_watcher.cc
+  IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
   Stat::Initialize(process);                   // stat.cc
   SignalHandler::Initialize(process);          // signal_handler.cc

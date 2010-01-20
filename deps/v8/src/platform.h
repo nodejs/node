@@ -46,6 +46,20 @@
 
 #define V8_INFINITY INFINITY
 
+#ifdef __sun
+
+namespace v8 {
+namespace internal {
+int isfinite(double x);
+} }
+int isinf(double x);
+int isless(double x, double y);
+int isgreater(double x, double y);
+int fpclassify(double x);
+int signbit(double x);
+
+#endif  // __sun
+
 // Windows specific stuff.
 #ifdef WIN32
 

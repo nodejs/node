@@ -513,13 +513,33 @@ void VirtualFrame::AllocateStackSlots() {
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
-    Result temp = cgen()->allocator()->Allocate();
-    ASSERT(temp.is_valid());
-    __ Set(temp.reg(), Immediate(undefined));
+    if (count == 1) {
+      __ push(Immediate(undefined));
+    } else if (count < kLocalVarBound) {
+      // For less locals the unrolled loop is more compact.
+      Result temp = cgen()->allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      __ Set(temp.reg(), Immediate(undefined));
+      for (int i = 0; i < count; i++) {
+        __ push(temp.reg());
+      }
+    } else {
+      // For more locals a loop in generated code is more compact.
+      Label alloc_locals_loop;
+      Result cnt = cgen()->allocator()->Allocate();
+      Result tmp = cgen()->allocator()->Allocate();
+      ASSERT(cnt.is_valid());
+      ASSERT(tmp.is_valid());
+      __ mov(cnt.reg(), Immediate(count));
+      __ mov(tmp.reg(), Immediate(undefined));
+      __ bind(&alloc_locals_loop);
+      __ push(tmp.reg());
+      __ dec(cnt.reg());
+      __ j(not_zero, &alloc_locals_loop);
+    }
     for (int i = 0; i < count; i++) {
       elements_.Add(initial_value);
       stack_pointer_++;
-      __ push(temp.reg());
     }
   }
 }

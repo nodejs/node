@@ -58,6 +58,16 @@
 using namespace v8::internal;
 
 
+static bool CheckParse(const char* input) {
+  V8::Initialize(NULL);
+  v8::HandleScope scope;
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  FlatStringReader reader(CStrVector(input));
+  RegExpCompileData result;
+  return v8::internal::ParseRegExp(&reader, false, &result);
+}
+
+
 static SmartPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
@@ -106,7 +116,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 }
 
 
-
+#define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
 #define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 #define CHECK_MIN_MAX(input, min, max)                                         \
@@ -117,6 +127,9 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 TEST(Parser) {
   V8::Initialize(NULL);
+
+  CHECK_PARSE_ERROR("?");
+
   CHECK_PARSE_EQ("abc", "'abc'");
   CHECK_PARSE_EQ("", "%");
   CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
@@ -600,6 +613,34 @@ TEST(DispatchTableConstruction) {
   }
 }
 
+// Test of debug-only syntax.
+#ifdef DEBUG
+
+TEST(ParsePossessiveRepetition) {
+  bool old_flag_value = FLAG_regexp_possessive_quantifier;
+
+  // Enable possessive quantifier syntax.
+  FLAG_regexp_possessive_quantifier = true;
+
+  CHECK_PARSE_EQ("a*+", "(# 0 - p 'a')");
+  CHECK_PARSE_EQ("a++", "(# 1 - p 'a')");
+  CHECK_PARSE_EQ("a?+", "(# 0 1 p 'a')");
+  CHECK_PARSE_EQ("a{10,20}+", "(# 10 20 p 'a')");
+  CHECK_PARSE_EQ("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
+
+  // Disable possessive quantifier syntax.
+  FLAG_regexp_possessive_quantifier = false;
+
+  CHECK_PARSE_ERROR("a*+");
+  CHECK_PARSE_ERROR("a++");
+  CHECK_PARSE_ERROR("a?+");
+  CHECK_PARSE_ERROR("a{10,20}+");
+  CHECK_PARSE_ERROR("a{10,20}+b");
+
+  FLAG_regexp_possessive_quantifier = old_flag_value;
+}
+
+#endif
 
 // Tests of interpreter.
 
@@ -1550,7 +1591,68 @@ TEST(CharClassDifference) {
 }
 
 
+TEST(CanonicalizeCharacterSets) {
+  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(4);
+  CharacterSet set(list);
+
+  list->Add(CharacterRange(10, 20));
+  list->Add(CharacterRange(30, 40));
+  list->Add(CharacterRange(50, 60));
+  set.Canonicalize();
+  ASSERT_EQ(3, list->length());
+  ASSERT_EQ(10, list->at(0).from());
+  ASSERT_EQ(20, list->at(0).to());
+  ASSERT_EQ(30, list->at(1).from());
+  ASSERT_EQ(40, list->at(1).to());
+  ASSERT_EQ(50, list->at(2).from());
+  ASSERT_EQ(60, list->at(2).to());
+
+  list->Rewind(0);
+  list->Add(CharacterRange(10, 20));
+  list->Add(CharacterRange(50, 60));
+  list->Add(CharacterRange(30, 40));
+  set.Canonicalize();
+  ASSERT_EQ(3, list->length());
+  ASSERT_EQ(10, list->at(0).from());
+  ASSERT_EQ(20, list->at(0).to());
+  ASSERT_EQ(30, list->at(1).from());
+  ASSERT_EQ(40, list->at(1).to());
+  ASSERT_EQ(50, list->at(2).from());
+  ASSERT_EQ(60, list->at(2).to());
+
+  list->Rewind(0);
+  list->Add(CharacterRange(30, 40));
+  list->Add(CharacterRange(10, 20));
+  list->Add(CharacterRange(25, 25));
+  list->Add(CharacterRange(100, 100));
+  list->Add(CharacterRange(1, 1));
+  set.Canonicalize();
+  ASSERT_EQ(5, list->length());
+  ASSERT_EQ(1, list->at(0).from());
+  ASSERT_EQ(1, list->at(0).to());
+  ASSERT_EQ(10, list->at(1).from());
+  ASSERT_EQ(20, list->at(1).to());
+  ASSERT_EQ(25, list->at(2).from());
+  ASSERT_EQ(25, list->at(2).to());
+  ASSERT_EQ(30, list->at(3).from());
+  ASSERT_EQ(40, list->at(3).to());
+  ASSERT_EQ(100, list->at(4).from());
+  ASSERT_EQ(100, list->at(4).to());
+
+  list->Rewind(0);
+  list->Add(CharacterRange(10, 19));
+  list->Add(CharacterRange(21, 30));
+  list->Add(CharacterRange(20, 20));
+  set.Canonicalize();
+  ASSERT_EQ(1, list->length());
+  ASSERT_EQ(10, list->at(0).from());
+  ASSERT_EQ(30, list->at(0).to());
+}
+
+
+
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(?:(?:x(.))?\1)+$", false, true, true);
+  Execute("\\b\\w+\\b", false, true, true);
 }

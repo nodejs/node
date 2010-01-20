@@ -37,6 +37,8 @@
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "cctest.h"
+#include "spaces.h"
+#include "objects.h"
 
 using namespace v8::internal;
 
@@ -274,6 +276,149 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
   v8::Local<v8::String> source = v8::String::New(c_source);
   v8::Local<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(4, script->Run()->Int32Value());
+}
+
+
+class FileByteSink : public SnapshotByteSink {
+ public:
+  explicit FileByteSink(const char* snapshot_file) {
+    fp_ = OS::FOpen(snapshot_file, "wb");
+    if (fp_ == NULL) {
+      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
+      exit(1);
+    }
+  }
+  virtual ~FileByteSink() {
+    if (fp_ != NULL) {
+      fclose(fp_);
+    }
+  }
+  virtual void Put(int byte, const char* description) {
+    if (fp_ != NULL) {
+      fputc(byte, fp_);
+    }
+  }
+
+ private:
+  FILE* fp_;
+};
+
+
+TEST(PartialSerialization) {
+  Serializer::Enable();
+  v8::V8::Initialize();
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  v8::HandleScope handle_scope;
+  v8::Local<v8::String> foo = v8::String::New("foo");
+
+  FileByteSink file(FLAG_testing_serialization_file);
+  Serializer ser(&file);
+  i::Handle<i::String> internal_foo = v8::Utils::OpenHandle(*foo);
+  Object* raw_foo = *internal_foo;
+  ser.SerializePartial(&raw_foo);
+}
+
+
+TEST(LinearAllocation) {
+  v8::V8::Initialize();
+  int new_space_max = 512 * KB;
+  for (int size = 1000; size < 5 * MB; size += size >> 1) {
+    int new_space_size = (size < new_space_max) ? size : new_space_max;
+    Heap::ReserveSpace(
+        new_space_size,
+        size,              // Old pointer space.
+        size,              // Old data space.
+        size,              // Code space.
+        size,              // Map space.
+        size,              // Cell space.
+        size);             // Large object space.
+    LinearAllocationScope linear_allocation_scope;
+    const int kSmallFixedArrayLength = 4;
+    const int kSmallFixedArraySize =
+        FixedArray::kHeaderSize + kSmallFixedArrayLength * kPointerSize;
+    const int kSmallStringLength = 16;
+    const int kSmallStringSize =
+        SeqAsciiString::kHeaderSize + kSmallStringLength;
+    const int kMapSize = Map::kSize;
+
+    Object* new_last = NULL;
+    for (int i = 0;
+         i + kSmallFixedArraySize <= new_space_size;
+         i += kSmallFixedArraySize) {
+      Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength);
+      if (new_last != NULL) {
+        CHECK_EQ(reinterpret_cast<char*>(obj),
+                 reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
+      }
+      new_last = obj;
+    }
+
+    Object* pointer_last = NULL;
+    for (int i = 0;
+         i + kSmallFixedArraySize <= size;
+         i += kSmallFixedArraySize) {
+      Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength, TENURED);
+      int old_page_fullness = i % Page::kPageSize;
+      int page_fullness = (i + kSmallFixedArraySize) % Page::kPageSize;
+      if (page_fullness < old_page_fullness ||
+          page_fullness > Page::kObjectAreaSize) {
+        i = RoundUp(i, Page::kPageSize);
+        pointer_last = NULL;
+      }
+      if (pointer_last != NULL) {
+        CHECK_EQ(reinterpret_cast<char*>(obj),
+                 reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
+      }
+      pointer_last = obj;
+    }
+
+    Object* data_last = NULL;
+    for (int i = 0; i + kSmallStringSize <= size; i += kSmallStringSize) {
+      Object* obj = Heap::AllocateRawAsciiString(kSmallStringLength, TENURED);
+      int old_page_fullness = i % Page::kPageSize;
+      int page_fullness = (i + kSmallStringSize) % Page::kPageSize;
+      if (page_fullness < old_page_fullness ||
+          page_fullness > Page::kObjectAreaSize) {
+        i = RoundUp(i, Page::kPageSize);
+        data_last = NULL;
+      }
+      if (data_last != NULL) {
+        CHECK_EQ(reinterpret_cast<char*>(obj),
+                 reinterpret_cast<char*>(data_last) + kSmallStringSize);
+      }
+      data_last = obj;
+    }
+
+    Object* map_last = NULL;
+    for (int i = 0; i + kMapSize <= size; i += kMapSize) {
+      Object* obj = Heap::AllocateMap(JS_OBJECT_TYPE, 42 * kPointerSize);
+      int old_page_fullness = i % Page::kPageSize;
+      int page_fullness = (i + kMapSize) % Page::kPageSize;
+      if (page_fullness < old_page_fullness ||
+          page_fullness > Page::kObjectAreaSize) {
+        i = RoundUp(i, Page::kPageSize);
+        map_last = NULL;
+      }
+      if (map_last != NULL) {
+        CHECK_EQ(reinterpret_cast<char*>(obj),
+                 reinterpret_cast<char*>(map_last) + kMapSize);
+      }
+      map_last = obj;
+    }
+
+    if (size > Page::kObjectAreaSize) {
+      // Support for reserving space in large object space is not there yet,
+      // but using an always-allocate scope is fine for now.
+      AlwaysAllocateScope always;
+      int large_object_array_length =
+          (size - FixedArray::kHeaderSize) / kPointerSize;
+      Object* obj = Heap::AllocateFixedArray(large_object_array_length,
+                                             TENURED);
+      CHECK(!obj->IsFailure());
+    }
+  }
 }
 
 

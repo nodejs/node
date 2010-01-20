@@ -874,7 +874,9 @@ Object* KeyedLoadIC::Load(State state,
 
   if (use_ic) {
     Code* stub = generic_stub();
-    if (object->IsJSObject()) {
+    if (object->IsString() && key->IsNumber()) {
+      stub = string_stub();
+    } else if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->HasExternalArrayElements()) {
         stub = external_array_stub(receiver->GetElementsKind());

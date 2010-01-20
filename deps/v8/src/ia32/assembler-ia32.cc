@@ -575,6 +575,7 @@ void Assembler::leave() {
 
 
 void Assembler::mov_b(Register dst, const Operand& src) {
+  ASSERT(dst.code() < 4);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x8A);
@@ -592,6 +593,7 @@ void Assembler::mov_b(const Operand& dst, int8_t imm8) {
 
 
 void Assembler::mov_b(const Operand& dst, Register src) {
+  ASSERT(src.code() < 4);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x88);
@@ -749,6 +751,14 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
   EMIT(0x0F);
   EMIT(0x40 + cc);
   emit_operand(dst, src);
+}
+
+
+void Assembler::rep_movs() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0xA5);
 }
 
 
@@ -1199,6 +1209,15 @@ void Assembler::sub(Register dst, const Operand& src) {
 }
 
 
+void Assembler::subb(Register dst, const Operand& src) {
+  ASSERT(dst.code() < 4);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x2A);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::sub(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1586,7 +1605,6 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
 
 // FPU instructions
 
-
 void Assembler::fld(int i) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1671,6 +1689,15 @@ void Assembler::fisttp_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xDB);
+  emit_operand(ecx, adr);
+}
+
+
+void Assembler::fisttp_d(const Operand& adr) {
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDD);
   emit_operand(ecx, adr);
 }
 
@@ -2022,6 +2049,50 @@ void Assembler::comisd(XMMRegister dst, XMMRegister src) {
   EMIT(0x66);
   EMIT(0x0F);
   EMIT(0x2F);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqa(const Operand& dst, XMMRegister src ) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqa(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x6F);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqu(const Operand& dst, XMMRegister src ) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqu(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x6F);
   emit_sse_operand(dst, src);
 }
 

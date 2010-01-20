@@ -199,6 +199,9 @@ class VirtualFrame: public ZoneObject {
   // shared return site.  Emits code for spills.
   void PrepareForReturn();
 
+  // Number of local variables after when we use a loop for allocating.
+  static const int kLocalVarBound = 10;
+
   // Allocate and initialize the frame-allocated locals.
   void AllocateStackSlots();
 
@@ -392,6 +395,8 @@ class VirtualFrame: public ZoneObject {
   // Pushing a result invalidates it (its contents become owned by the
   // frame).
   void Push(Result* result) {
+    // This assert will trigger if you try to push the same value twice.
+    ASSERT(result->is_valid());
     if (result->is_register()) {
       Push(result->reg());
     } else {
