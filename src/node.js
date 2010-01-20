@@ -294,7 +294,9 @@ var eventsModule = createInternalModule('events', function (exports) {
       var self = this;
       process.nextTick(function() {
         if (self.listeners('error').length == 0) {
-          throw new Error('Unhandled emitError: '+JSON.stringify(self._values));
+          throw (self._values[0] instanceof Error)
+            ? self._values[0]
+            : new Error('Unhandled emitError: '+JSON.stringify(self._values));
         }
       });
     }
