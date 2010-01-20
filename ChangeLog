@@ -1,4 +1,27 @@
-2010.01.09, Version 0.1.25
+2010.01.20, Version 0.1.26
+
+  * Bugfix, HTTP eof causing crash (Ben Williamson)
+
+  * Better error message on SyntaxError
+
+  * API: Move Promise and EventEmitter into 'events' module
+
+  * API: Add process.nextTick()
+
+  * Allow optional params to setTimeout, setInterval
+    (Michaeljohn Clement)
+
+  * API: change some Promise behavior (Felix Geisendörfer)
+    - Removed Promise.cancel()
+    - Support late callback binding
+    - Make unhandled Promise errors throw an exception
+
+  * Upgrade V8 to 2.0.6.1
+
+  * Solaris port
+
+
+2010.01.09, Version 0.1.25, 39ca93549af91575ca9d4cbafd1e170fbcef3dfa
 
   * sys.inspect() improvements (Tim Caswell)
 
