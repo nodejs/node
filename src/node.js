@@ -192,7 +192,7 @@ var eventsModule = createInternalModule('events', function (exports) {
   };
 
   exports.Promise = function () {
-    exports.EventEmitter.call();
+    exports.EventEmitter.call(this);
     this._blocking = false;
     this.hasFired = false;
     this._values = undefined;
