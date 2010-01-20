@@ -1,3 +1,4 @@
+process.mixin(require("./common"));
 tcp = require("tcp");
 http = require("http");
 
