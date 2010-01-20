@@ -11,7 +11,7 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> IOWatcher::constructor_template;
-Persistent<String> callback_symbol;
+static Persistent<String> callback_symbol;
 
 void IOWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
