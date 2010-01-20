@@ -2,73 +2,36 @@
 
 /** deprecation errors ************************************************/
 
-GLOBAL.__module = function () {
-  throw new Error("'__module' has been renamed to 'module'");
-};
+function removed (reason) {
+  return function () {
+    throw new Error(reason)
+  }
+}
 
-GLOBAL.include = function () {
-  throw new Error("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
-};
-
-GLOBAL.puts = function () {
-  throw new Error("puts() has moved. Use require('sys') to bring it back.");
-};
-
-GLOBAL.print = function () {
-  throw new Error("print() has moved. Use require('sys') to bring it back.");
-};
-
-GLOBAL.p = function () {
-  throw new Error("p() has moved. Use require('sys') to bring it back.");
-};
-
-process.debug = function () {
-  throw new Error("process.debug() has moved. Use require('sys') to bring it back.");
-};
-
-process.error = function () {
-  throw new Error("process.error() has moved. Use require('sys') to bring it back.");
-};
+GLOBAL.__module = removed("'__module' has been renamed to 'module'");
+GLOBAL.include = removed("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
+GLOBAL.puts = removed("puts() has moved. Use require('sys') to bring it back.");
+GLOBAL.print = removed("print() has moved. Use require('sys') to bring it back.");
+GLOBAL.p = removed("p() has moved. Use require('sys') to bring it back.");
+process.debug = removed("process.debug() has moved. Use require('sys') to bring it back.");
+process.error = removed("process.error() has moved. Use require('sys') to bring it back.");
 
 GLOBAL.node = {};
 
-node.createProcess = function () {
-  throw new Error("node.createProcess() has been changed to process.createChildProcess() update your code");
-};
-
-node.exec = function () {
-  throw new Error("process.exec() has moved. Use require('sys') to bring it back.");
-};
+node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
+node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
+node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
 
 node.http = {};
-
-node.http.createServer = function () {
-  throw new Error("node.http.createServer() has moved. Use require('http') to access it.");
-};
-
-node.http.createClient = function () {
-  throw new Error("node.http.createClient() has moved. Use require('http') to access it.");
-};
+node.http.createServer = removed("node.http.createServer() has moved. Use require('http') to access it.");
+node.http.createClient = removed("node.http.createClient() has moved. Use require('http') to access it.");
 
 node.tcp = {};
-
-node.tcp.createServer = function () {
-  throw new Error("node.tcp.createServer() has moved. Use require('tcp') to access it.");
-};
-
-node.tcp.createConnection = function () {
-  throw new Error("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
-};
+node.tcp.createServer = removed("node.tcp.createServer() has moved. Use require('tcp') to access it.");
+node.tcp.createConnection = removed("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
 
 node.dns = {};
-
-node.dns.createConnection = function () {
-  throw new Error("node.dns.createConnection() has moved. Use require('dns') to access it.");
-};
-
-node.inherits = function () {
-  throw new Error("node.inherits() has moved. Use require('sys') to access it.");
-};
+node.dns.createConnection = removed("node.dns.createConnection() has moved. Use require('dns') to access it.");
 
 /**********************************************************************/
 
