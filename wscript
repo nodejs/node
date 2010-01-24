@@ -346,6 +346,7 @@ def build(bld):
     src/node.cc
     src/node_buffer.cc
     src/node_net2.cc
+    src/node_http_parser.cc
     src/node_io_watcher.cc
     src/node_child_process.cc
     src/node_constants.cc

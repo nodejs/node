@@ -19,6 +19,7 @@
 #include <node_file.h>
 #include <node_idle_watcher.h>
 #include <node_http.h>
+#include <node_http_parser.h>
 #include <node_signal_handler.h>
 #include <node_stat.h>
 #include <node_timer.h>
@@ -996,6 +997,7 @@ static Local<Object> Load(int argc, char *argv[]) {
   SignalHandler::Initialize(process);          // signal_handler.cc
 
   InitNet2(process);                           // net2.cc
+  InitHttpParser(process);                     // http_parser.cc
 
   Stdio::Initialize(process);                  // stdio.cc
   ChildProcess::Initialize(process);           // child_process.cc
