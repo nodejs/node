@@ -40,14 +40,18 @@ void InitBuffer(v8::Handle<v8::Object> target);
 struct buffer* BufferUnwrap(v8::Handle<v8::Value> val);
 bool IsBuffer(v8::Handle<v8::Value> val);
 
+static inline struct buffer * buffer_root(struct buffer *buffer) {
+  return buffer->root ? buffer->root : buffer;
+}
+
 static inline char * buffer_p(struct buffer *buffer, size_t off) {
-  struct buffer *root = buffer->root ? buffer->root : buffer;
+  struct buffer *root = buffer_root(buffer);
   if (buffer->offset + off >= root->length) return NULL;
   return reinterpret_cast<char*>(&(root->bytes) + buffer->offset + off);
 }
 
 static inline size_t buffer_remaining(struct buffer *buffer, size_t off) {
-  struct buffer *root = buffer->root ? buffer->root : buffer;
+  struct buffer *root = buffer_root(buffer);
   char *end = reinterpret_cast<char*>(&(root->bytes) + root->length);
   return end - buffer_p(buffer, off);
 }
