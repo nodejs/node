@@ -29,14 +29,14 @@ parser.onHeadersComplete = function (info) {
   callbacks++;
 };
 
-parser.onURL = function (off, len) {
+parser.onURL = function (b, off, len) {
   //throw new Error("hello world");
   callbacks++;
 };
 
-parser.onPath = function (off, length) {
+parser.onPath = function (b, off, length) {
   puts("path [" + off + ", " + length + "]");
-  var path = buffer.asciiSlice(off, off+length);
+  var path = b.asciiSlice(off, off+length);
   puts("path = '" + path + "'");
   assert.equal('/hello', path);
   callbacks++;
@@ -50,7 +50,7 @@ assert.equal(4, callbacks);
 // thrown from parser.execute()
 //
 
-parser.onURL = function (off, len) {
+parser.onURL = function (b, off, len) {
   throw new Error("hello world");
 };
 

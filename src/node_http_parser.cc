@@ -81,17 +81,18 @@ static Persistent<String> should_keep_alive_sym;
     HandleScope scope;                                                  \
                                                                         \
     assert(parser->buffer_);                                            \
-    char * base = buffer_p(parser->buffer_, 0);                         \
+    struct buffer * root = buffer_root(parser->buffer_);                \
+    char * base = buffer_p(root, 0);                                    \
                                                                         \
     Local<Value> cb_value = parser->handle_->Get(name##_sym);           \
     if (!cb_value->IsFunction()) return 0;                              \
     Local<Function> cb = Local<Function>::Cast(cb_value);               \
                                                                         \
-    Local<Integer> off = Integer::New(at - base);                       \
-    Local<Integer> len = Integer::New(length);                          \
-    Local<Value> argv[2] = { off, len };                                \
-                                                                        \
-    Local<Value> ret = cb->Call(parser->handle_, 2, argv);              \
+    Local<Value> argv[3] = { Local<Value>::New(root->handle)            \
+                           , Integer::New(at - base)                    \
+                           , Integer::New(length)                       \
+                           };                                           \
+    Local<Value> ret = cb->Call(parser->handle_, 3, argv);              \
     return ret.IsEmpty() ? -1 : 0;                                      \
   }
 
