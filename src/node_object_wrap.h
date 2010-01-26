@@ -53,6 +53,7 @@ class ObjectWrap {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
     refs_++;
+    MakeWeak();
   }
 
   /* Unref() marks an object as detached from the event loop.  This is its

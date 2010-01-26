@@ -33,24 +33,15 @@ bool IsBuffer(v8::Handle<v8::Value> val) {
 
 
 /* Determines the absolute position for a relative offset */
-static inline size_t buffer_abs_off(buffer *buffer, size_t off) {
+size_t buffer_abs_off(buffer *buffer, size_t off) {
   struct buffer *root = buffer_root(buffer);
   off += buffer->offset;
   return MIN(root->length, off);
 }
 
 
-static inline void buffer_ref(struct buffer *buffer) {
-  assert(buffer->root == NULL);
-  buffer->refs++;
-}
-
-
-static inline void buffer_unref(struct buffer *buffer) {
-  assert(buffer->root == NULL);
-  assert(buffer->refs > 0);
-  buffer->refs--;
-  if (buffer->refs == 0 && buffer->weak) free(buffer);
+void buffer_ref(struct buffer *buffer) {
+  buffer_root(buffer)->refs++;
 }
 
 
@@ -69,11 +60,22 @@ static void RootWeakCallback(Persistent<Value> value, void *data)
   struct buffer *buffer = static_cast<struct buffer*>(data);
   assert(buffer->root == NULL); // this is the root
   assert(value == buffer->handle);
-  buffer->handle.Dispose();
+  value.ClearWeak();
   if (buffer->refs) {
     buffer->weak = true;
   } else {
+    buffer->handle.Dispose();
     free(buffer);
+  }
+}
+
+
+void buffer_unref(struct buffer *buffer) {
+  struct buffer * root = buffer_root(buffer);
+  assert(root->refs > 0);
+  root->refs--;
+  if (root->refs == 0 && root->weak) {
+    root->handle.MakeWeak(root, RootWeakCallback);
   }
 }
 

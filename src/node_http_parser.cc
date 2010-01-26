@@ -19,6 +19,30 @@
 // No copying is performed when slicing the buffer, only small reference
 // allocations.
 
+ #include <execinfo.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+ /* Obtain a backtrace and print it to stdout. */
+ void
+ print_trace (void)
+ {
+   void *array[10];
+   size_t size;
+   char **strings;
+   size_t i;
+ 
+   size = backtrace (array, 10);
+   strings = backtrace_symbols (array, size);
+ 
+   printf ("Obtained %zd stack frames.\n", size);
+ 
+   for (i = 0; i < size; i++)
+      printf ("%s\n", strings[i]);
+ 
+   free (strings);
+ }
+
 namespace node {
 
 using namespace v8;
@@ -93,6 +117,7 @@ static Persistent<String> should_keep_alive_sym;
                            , Integer::New(length)                       \
                            };                                           \
     Local<Value> ret = cb->Call(parser->handle_, 3, argv);              \
+    assert(parser->buffer_);                                            \
     return ret.IsEmpty() ? -1 : 0;                                      \
   }
 
@@ -139,6 +164,10 @@ class Parser : public ObjectWrap {
     parser_.on_message_complete = on_message_complete;
 
     parser_.data = this;
+  }
+
+  ~Parser() {
+    assert(buffer_ == NULL && "Destroying a parser while it's parsing");
   }
 
   DEFINE_HTTP_CB(on_message_begin)
@@ -215,6 +244,7 @@ class Parser : public ObjectWrap {
     Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
 
     if (parser->buffer_) {
+      print_trace();
       return ThrowException(Exception::TypeError(
             String::New("Already parsing a buffer")));
     }
@@ -243,8 +273,12 @@ class Parser : public ObjectWrap {
     // Assign 'buffer_' while we parse. The callbacks will access that varible.
     parser->buffer_ = buffer;
 
+    buffer_ref(parser->buffer_);
+
     size_t nparsed = 
       http_parser_execute(&(parser->parser_), buffer_p(buffer, off), len);
+
+    buffer_unref(parser->buffer_);
 
     // Unassign the 'buffer_' variable
     assert(parser->buffer_);
@@ -266,6 +300,17 @@ class Parser : public ObjectWrap {
     return scope.Close(nparsed_obj);
   }
 
+  static Handle<Value> ExecuteEOF(const Arguments& args) {
+    HandleScope scope;
+
+    Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
+
+    assert(!parser->buffer_);
+    http_parser_execute(&parser->parser_, NULL, 0);
+
+    return Undefined();
+  }
+
 
  private:
 
@@ -282,6 +327,7 @@ void InitHttpParser(Handle<Object> target) {
   //t->SetClassName(String::NewSymbol("HTTPParser"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
+  NODE_SET_PROTOTYPE_METHOD(t, "executeEOF", Parser::ExecuteEOF);
 
   target->Set(String::NewSymbol("HTTPParser"), t->GetFunction());
 

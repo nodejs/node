@@ -59,9 +59,8 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 
 
 // 
-//  var io = new process.IOWatcher(function (readable, writable) {
-//    
-//  });
+//  var io = new process.IOWatcher();
+//  io.callback = function (readable, writable) { ... };
 //  io.set(fd, true, false);
 //  io.start();
 //
@@ -69,6 +68,8 @@ Handle<Value> IOWatcher::New(const Arguments& args) {
   HandleScope scope;
 
   IOWatcher *s = new IOWatcher();
+
+
   s->Wrap(args.This());
 
   return args.This();
@@ -78,11 +79,10 @@ Handle<Value> IOWatcher::New(const Arguments& args) {
 Handle<Value> IOWatcher::Start(const Arguments& args) {
   HandleScope scope;
 
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+  IOWatcher *io = Unwrap(args.Holder());
 
   ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
-
-  io->Ref();
+  assert(ev_is_active(&io->watcher_));
 
   return Undefined();
 }
@@ -90,7 +90,7 @@ Handle<Value> IOWatcher::Start(const Arguments& args) {
 Handle<Value> IOWatcher::Set(const Arguments& args) {
   HandleScope scope;
 
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+  IOWatcher *io = Unwrap(args.Holder());
 
   if (!args[0]->IsInt32()) {
     return ThrowException(Exception::TypeError(
@@ -122,16 +122,16 @@ Handle<Value> IOWatcher::Set(const Arguments& args) {
 
 Handle<Value> IOWatcher::Stop(const Arguments& args) {
   HandleScope scope;
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+  IOWatcher *io = Unwrap(args.This());
   io->Stop();
   return Undefined();
 }
 
 
 void IOWatcher::Stop () {
-  if (watcher_.active) {
+  if (ev_is_active(&watcher_)) {
     ev_io_stop(EV_DEFAULT_UC_ &watcher_);
-    Unref();
+    assert(!ev_is_active(&watcher_));
   }
 }
 

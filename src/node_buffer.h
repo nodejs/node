@@ -56,6 +56,9 @@ static inline size_t buffer_remaining(struct buffer *buffer, size_t off) {
   return end - buffer_p(buffer, off);
 }
 
-}
+void buffer_ref(struct buffer *buffer);
+void buffer_unref(struct buffer *buffer);
+
+}  // namespace node buffer
 
 #endif  // NODE_BUFFER
