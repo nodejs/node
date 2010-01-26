@@ -13,12 +13,10 @@ class ObjectWrap {
   }
 
   virtual ~ObjectWrap ( ) {
-    if (!handle_.IsEmpty()) {
-      assert(handle_.IsNearDeath());
-      handle_->SetInternalField(0, v8::Undefined());
-      handle_.Dispose();
-      handle_.Clear();
-    }
+    assert(handle_.IsNearDeath());
+    handle_->SetInternalField(0, v8::Undefined());
+    handle_.Dispose();
+    handle_.Clear();
   }
 
  protected:
@@ -37,11 +35,6 @@ class ObjectWrap {
     assert(handle->InternalFieldCount() > 0);
     handle_ = v8::Persistent<v8::Object>::New(handle);
     handle_->SetInternalField(0, v8::External::New(this));
-    MakeWeak();
-  }
-
-  inline void MakeWeak (void)
-  {
     handle_.MakeWeak(this, WeakCallback);
   }
 
@@ -53,7 +46,6 @@ class ObjectWrap {
     assert(!handle_.IsEmpty());
     assert(handle_.IsWeak());
     refs_++;
-    MakeWeak();
   }
 
   /* Unref() marks an object as detached from the event loop.  This is its
@@ -83,8 +75,6 @@ class ObjectWrap {
     assert(value == obj->handle_);
     if (obj->refs_ == 0) {
       delete obj;
-    } else {
-      obj->MakeWeak();
     }
   }
 };
