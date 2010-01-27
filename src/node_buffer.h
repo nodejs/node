@@ -1,11 +1,11 @@
-#ifndef NODE_BUFFER
-#define NODE_BUFFER
+#ifndef NODE_BUFFER_H_
+#define NODE_BUFFER_H_
 
+#include <node.h>
+#include <node_object_wrap.h>
 #include <v8.h>
 
 namespace node {
-
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 /* A buffer is a chunk of memory stored outside the V8 heap, mirrored by an
  * object in javascript. The object is not totally opaque, one can access
@@ -13,7 +13,7 @@ namespace node {
  * without copying memory.
  *
  * // return an ascii encoded string - no memory iscopied
- * buffer.asciiSlide(0, 3) 
+ * buffer.asciiSlide(0, 3)
  *
  * // returns another buffer - no memory is copied
  * buffer.slice(0, 3)
@@ -25,40 +25,42 @@ namespace node {
  * are GCed.
  */
 
-struct buffer {
-  v8::Persistent<v8::Object> handle;  // both
-  bool weak;                          // both
-  struct buffer *root;                // both (NULL for root)
-  size_t offset;                      // both (0 for root)
-  size_t length;                      // both
-  unsigned int refs;                  // root only
-  char bytes[1];                      // root only
+
+struct Blob_;
+
+class Buffer : public ObjectWrap {
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
+  static bool HasInstance(v8::Handle<v8::Value> val);
+
+  const char* data() const { return data_; }
+  size_t length() const { return length_; }
+  struct Blob_* blob() const { return blob_; }
+
+ protected:
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
+  static v8::Handle<v8::Value> New(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Slice(const v8::Arguments &args);
+  static v8::Handle<v8::Value> AsciiSlice(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Utf8Slice(const v8::Arguments &args);
+  static v8::Handle<v8::Value> AsciiWrite(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Utf8Write(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Utf8Length(const v8::Arguments &args);
+
+  int AsciiWrite(char *string, int offset, int length);
+  int Utf8Write(char *string, int offset, int length);
+
+ private:
+  Buffer(size_t length);
+  Buffer(Buffer *parent, size_t start, size_t end);
+  ~Buffer();
+
+  const char *data_;
+  size_t length_;
+  struct Blob_ *blob_;
 };
 
-void InitBuffer(v8::Handle<v8::Object> target);
-
-struct buffer* BufferUnwrap(v8::Handle<v8::Value> val);
-bool IsBuffer(v8::Handle<v8::Value> val);
-
-static inline struct buffer * buffer_root(struct buffer *buffer) {
-  return buffer->root ? buffer->root : buffer;
-}
-
-static inline char * buffer_p(struct buffer *buffer, size_t off) {
-  struct buffer *root = buffer_root(buffer);
-  if (buffer->offset + off >= root->length) return NULL;
-  return reinterpret_cast<char*>(&(root->bytes) + buffer->offset + off);
-}
-
-static inline size_t buffer_remaining(struct buffer *buffer, size_t off) {
-  struct buffer *root = buffer_root(buffer);
-  char *end = reinterpret_cast<char*>(&(root->bytes) + root->length);
-  return end - buffer_p(buffer, off);
-}
-
-void buffer_ref(struct buffer *buffer);
-void buffer_unref(struct buffer *buffer);
 
 }  // namespace node buffer
 
-#endif  // NODE_BUFFER
+#endif  // NODE_BUFFER_H_

@@ -21,7 +21,8 @@ class ObjectWrap {
     }
   }
 
- protected:
+  v8::Persistent<v8::Object> handle_; // ro
+
   template <class T>
   static inline T* Unwrap (v8::Handle<v8::Object> handle)
   {
@@ -31,6 +32,7 @@ class ObjectWrap {
         handle->GetInternalField(0))->Value());
   }
 
+ protected:
   inline void Wrap (v8::Handle<v8::Object> handle)
   {
     assert(handle_.IsEmpty());
@@ -72,7 +74,6 @@ class ObjectWrap {
     if (refs_ == 0 && handle_.IsNearDeath()) delete this;
   }
 
-  v8::Persistent<v8::Object> handle_; // ro
   int refs_; // ro
 
  private:

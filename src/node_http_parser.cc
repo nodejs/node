@@ -65,41 +65,35 @@ static Persistent<String> version_minor_sym;
 static Persistent<String> should_keep_alive_sym;
 
 // Callback prototype for http_cb
-#define DEFINE_HTTP_CB(name)                                            \
-  static int name(http_parser *p) {                                     \
-    Parser *parser = static_cast<Parser*>(p->data);                     \
-                                                                        \
-    HandleScope scope;                                                  \
-                                                                        \
-    Local<Value> cb_value = parser->handle_->Get(name##_sym);           \
-    if (!cb_value->IsFunction()) return 0;                              \
-    Local<Function> cb = Local<Function>::Cast(cb_value);               \
-    Local<Value> ret = cb->Call(parser->handle_, 0, NULL);              \
-    return ret.IsEmpty() ? -1 : 0;                                      \
+#define DEFINE_HTTP_CB(name)                                             \
+  static int name(http_parser *p) {                                      \
+    Parser *parser = static_cast<Parser*>(p->data);                      \
+                                                                         \
+    HandleScope scope;                                                   \
+                                                                         \
+    Local<Value> cb_value = parser->handle_->Get(name##_sym);            \
+    if (!cb_value->IsFunction()) return 0;                               \
+    Local<Function> cb = Local<Function>::Cast(cb_value);                \
+    Local<Value> ret = cb->Call(parser->handle_, 0, NULL);               \
+    return ret.IsEmpty() ? -1 : 0;                                       \
   }
 
 // Callback prototype for http_data_cb
-#define DEFINE_HTTP_DATA_CB(name)                                       \
-  static int name(http_parser *p, const char *at, size_t length) {      \
-    Parser *parser = static_cast<Parser*>(p->data);                     \
-                                                                        \
-    HandleScope scope;                                                  \
-                                                                        \
-    assert(parser->buffer_);                                            \
-    struct buffer * root = buffer_root(parser->buffer_);                \
-    char * base = buffer_p(root, 0);                                    \
-                                                                        \
-    Local<Value> cb_value = parser->handle_->Get(name##_sym);           \
-    if (!cb_value->IsFunction()) return 0;                              \
-    Local<Function> cb = Local<Function>::Cast(cb_value);               \
-                                                                        \
-    Local<Value> argv[3] = { Local<Value>::New(root->handle)            \
-                           , Integer::New(at - base)                    \
-                           , Integer::New(length)                       \
-                           };                                           \
-    Local<Value> ret = cb->Call(parser->handle_, 3, argv);              \
-    assert(parser->buffer_);                                            \
-    return ret.IsEmpty() ? -1 : 0;                                      \
+#define DEFINE_HTTP_DATA_CB(name)                                        \
+  static int name(http_parser *p, const char *at, size_t length) {       \
+    Parser *parser = static_cast<Parser*>(p->data);                      \
+    HandleScope scope;                                                   \
+    assert(parser->buffer_);                                             \
+    Local<Value> cb_value = parser->handle_->Get(name##_sym);            \
+    if (!cb_value->IsFunction()) return 0;                               \
+    Local<Function> cb = Local<Function>::Cast(cb_value);                \
+    Local<Value> argv[3] = { Local<Value>::New(parser->buffer_->handle_) \
+                           , Integer::New(at - parser->buffer_->data())  \
+                           , Integer::New(length)                        \
+                           };                                            \
+    Local<Value> ret = cb->Call(parser->handle_, 3, argv);               \
+    assert(parser->buffer_);                                             \
+    return ret.IsEmpty() ? -1 : 0;                                       \
   }
 
 
@@ -218,21 +212,21 @@ class Parser : public ObjectWrap {
             String::New("Already parsing a buffer")));
     }
 
-    if (!IsBuffer(args[0])) {
+    if (!Buffer::HasInstance(args[0])) {
       return ThrowException(Exception::TypeError(
             String::New("Argument should be a buffer")));
     }
 
-    struct buffer * buffer = BufferUnwrap(args[0]);
+    Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
 
     size_t off = args[1]->Int32Value();
-    if (buffer_p(buffer, off) == NULL) {
+    if (off >= buffer->length()) {
       return ThrowException(Exception::Error(
             String::New("Offset is out of bounds")));
     }
 
     size_t len = args[2]->Int32Value();
-    if (buffer_remaining(buffer, off) < len) {
+    if (off+len > buffer->length()) {
       return ThrowException(Exception::Error(
             String::New("Length is extends beyond buffer")));
     }
@@ -242,8 +236,8 @@ class Parser : public ObjectWrap {
     // Assign 'buffer_' while we parse. The callbacks will access that varible.
     parser->buffer_ = buffer;
 
-    size_t nparsed = 
-      http_parser_execute(&(parser->parser_), buffer_p(buffer, off), len);
+    size_t nparsed =
+      http_parser_execute(&parser->parser_, buffer->data()+off, len);
 
     // Unassign the 'buffer_' variable
     assert(parser->buffer_);
@@ -318,7 +312,7 @@ class Parser : public ObjectWrap {
     parser_.data = this;
   }
 
-  struct buffer * buffer_;  // The buffer currently being parsed.
+  Buffer * buffer_;  // The buffer currently being parsed.
   http_parser parser_;
 };
 

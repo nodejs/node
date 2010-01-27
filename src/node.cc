@@ -989,7 +989,7 @@ static Local<Object> Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
-  InitBuffer(process);                         // buffer.cc
+  Buffer::Initialize(process);                 // buffer.cc
   IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc

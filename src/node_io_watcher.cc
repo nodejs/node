@@ -11,7 +11,7 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> IOWatcher::constructor_template;
-static Persistent<String> callback_symbol;
+Persistent<String> callback_symbol;
 
 void IOWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -34,7 +34,6 @@ void IOWatcher::Initialize(Handle<Object> target) {
 void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   IOWatcher *io = static_cast<IOWatcher*>(w->data);
   assert(w == &io->watcher_);
-  assert(!(revents & EV_ERROR));
   HandleScope scope;
 
   Local<Value> callback_v = io->handle_->Get(callback_symbol);
@@ -51,9 +50,7 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   argv[0] = Local<Value>::New(revents & EV_READ ? True() : False());
   argv[1] = Local<Value>::New(revents & EV_WRITE ? True() : False());
 
-  io->Ref();
   callback->Call(io->handle_, 2, argv);
-  io->Unref();
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -62,8 +59,9 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 
 
 // 
-//  var io = new process.IOWatcher();
-//  io.callback = function (readable, writable) { ... };
+//  var io = new process.IOWatcher(function (readable, writable) {
+//    
+//  });
 //  io.set(fd, true, false);
 //  io.start();
 //
@@ -71,23 +69,33 @@ Handle<Value> IOWatcher::New(const Arguments& args) {
   HandleScope scope;
 
   IOWatcher *s = new IOWatcher();
-
-
   s->Wrap(args.This());
 
   return args.This();
 }
 
 
+Handle<Value> IOWatcher::Start(const Arguments& args) {
+  HandleScope scope;
+
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+
+  ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
+
+  io->Ref();
+
+  return Undefined();
+}
+
 Handle<Value> IOWatcher::Set(const Arguments& args) {
   HandleScope scope;
+
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
 
   if (!args[0]->IsInt32()) {
     return ThrowException(Exception::TypeError(
           String::New("First arg should be a file descriptor.")));
   }
-
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.This());
 
   int fd = args[0]->Int32Value();
 
@@ -112,38 +120,19 @@ Handle<Value> IOWatcher::Set(const Arguments& args) {
   return Undefined();
 }
 
-
-Handle<Value> IOWatcher::Start(const Arguments& args) {
-  HandleScope scope;
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.This());
-  io->Start();
-  return Undefined();
-}
-
-
 Handle<Value> IOWatcher::Stop(const Arguments& args) {
   HandleScope scope;
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.This());
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
   io->Stop();
   return Undefined();
 }
 
 
-void IOWatcher::Start () {
-  if (!ev_is_active(&watcher_)) {
-    ev_io_start(EV_DEFAULT_UC_ &watcher_);
-    Ref();
-  }
-  assert(ev_is_active(&watcher_));
-}
-
-
 void IOWatcher::Stop () {
-  if (ev_is_active(&watcher_)) {
+  if (watcher_.active) {
     ev_io_stop(EV_DEFAULT_UC_ &watcher_);
     Unref();
   }
-  assert(!ev_is_active(&watcher_));
 }
 
 

@@ -488,28 +488,26 @@ static Handle<Value> Read(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  if (!IsBuffer(args[1])) { 
+  if (!Buffer::HasInstance(args[1])) {
     return ThrowException(Exception::TypeError(
           String::New("Second argument should be a buffer")));
   }
 
-  struct buffer * buffer = BufferUnwrap(args[1]);
+  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
 
   size_t off = args[2]->Int32Value();
-  if (buffer_p(buffer, off) == NULL) {
+  if (off >= buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (buffer_remaining(buffer, off) < len) {
+  if (off + len > buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  ssize_t bytes_read = read(fd,
-                            buffer_p(buffer, off),
-                            buffer_remaining(buffer, off));
+  ssize_t bytes_read = read(fd, (char*)buffer->data() + off, len);
 
   if (bytes_read < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -533,21 +531,21 @@ static Handle<Value> RecvMsg(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  if (!IsBuffer(args[1])) {
+  if (!Buffer::HasInstance(args[1])) {
     return ThrowException(Exception::TypeError(
           String::New("Second argument should be a buffer")));
   }
 
-  struct buffer * buffer = BufferUnwrap(args[1]);
+  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
 
   size_t off = args[2]->Int32Value();
-  if (buffer_p(buffer, off) == NULL) {
+  if (off >= buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (buffer_remaining(buffer, off) < len) {
+  if (off + len > buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
@@ -555,7 +553,7 @@ static Handle<Value> RecvMsg(const Arguments& args) {
   int received_fd;
 
   struct iovec iov[1];
-  iov[0].iov_base = buffer_p(buffer, off);
+  iov[0].iov_base = (char*)buffer->data() + off;
   iov[0].iov_len = len;
 
   struct msghdr msg;
@@ -606,28 +604,26 @@ static Handle<Value> Write(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  if (!IsBuffer(args[1])) { 
+  if (!Buffer::HasInstance(args[1])) { 
     return ThrowException(Exception::TypeError(
           String::New("Second argument should be a buffer")));
   }
 
-  struct buffer * buffer = BufferUnwrap(args[1]);
+  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
 
   size_t off = args[2]->Int32Value();
-  char *p = buffer_p(buffer, off);
-  if (p == NULL) {
+  if (off >= buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  size_t remaining = buffer_remaining(buffer, off);
-  if (remaining < len) {
+  if (off + len > buffer->length()) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  ssize_t written = write(fd, p, len);
+  ssize_t written = write(fd, (char*)buffer->data() + off, len);
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -662,9 +658,9 @@ static Handle<Value> SendFD(const Arguments& args) {
   struct iovec iov[1];
   char control_msg[CMSG_SPACE(sizeof(fd_to_send))];
   struct cmsghdr *cmsg;
-  char *dummy = "d"; // Need to send at least a byte of data in the message
+  static char dummy = 'd'; // Need to send at least a byte of data in the message
 
-  iov[0].iov_base = dummy;
+  iov[0].iov_base = &dummy;
   iov[0].iov_len = 1;
   msg.msg_iov = iov;
   msg.msg_iovlen = 1;
