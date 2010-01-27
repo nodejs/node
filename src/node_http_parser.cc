@@ -23,29 +23,11 @@
  #include <stdio.h>
  #include <stdlib.h>
  
- /* Obtain a backtrace and print it to stdout. */
- void
- print_trace (void)
- {
-   void *array[10];
-   size_t size;
-   char **strings;
-   size_t i;
- 
-   size = backtrace (array, 10);
-   strings = backtrace_symbols (array, size);
- 
-   printf ("Obtained %zd stack frames.\n", size);
- 
-   for (i = 0; i < size; i++)
-      printf ("%s\n", strings[i]);
- 
-   free (strings);
- }
-
 namespace node {
 
 using namespace v8;
+
+  static int deep = 0;
 
 static Persistent<String> on_message_begin_sym;
 static Persistent<String> on_path_sym;
@@ -92,7 +74,6 @@ static Persistent<String> should_keep_alive_sym;
     Local<Value> cb_value = parser->handle_->Get(name##_sym);           \
     if (!cb_value->IsFunction()) return 0;                              \
     Local<Function> cb = Local<Function>::Cast(cb_value);               \
-                                                                        \
     Local<Value> ret = cb->Call(parser->handle_, 0, NULL);              \
     return ret.IsEmpty() ? -1 : 0;                                      \
   }
@@ -149,21 +130,7 @@ class Parser : public ObjectWrap {
  public:
   Parser(enum http_parser_type type) : ObjectWrap() {
     buffer_ = NULL;
-
-    http_parser_init(&parser_, type);
-
-    parser_.on_message_begin    = on_message_begin;
-    parser_.on_path             = on_path;
-    parser_.on_query_string     = on_query_string;
-    parser_.on_url              = on_url;
-    parser_.on_fragment         = on_fragment;
-    parser_.on_header_field     = on_header_field;
-    parser_.on_header_value     = on_header_value;
-    parser_.on_headers_complete = on_headers_complete;
-    parser_.on_body             = on_body;
-    parser_.on_message_complete = on_message_complete;
-
-    parser_.data = this;
+    Init(type);
   }
 
   ~Parser() {
@@ -213,6 +180,7 @@ class Parser : public ObjectWrap {
     Local<Value> argv[1] = { message_info };
 
     Local<Value> ret = cb->Call(parser->handle_, 1, argv);
+
     return ret.IsEmpty() ? -1 : 0;
   }
 
@@ -233,6 +201,7 @@ class Parser : public ObjectWrap {
     }
 
     parser->Wrap(args.This());
+    assert(!parser->buffer_);
 
     return args.This();
   }
@@ -243,8 +212,8 @@ class Parser : public ObjectWrap {
 
     Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
 
+    assert(!parser->buffer_);
     if (parser->buffer_) {
-      print_trace();
       return ThrowException(Exception::TypeError(
             String::New("Already parsing a buffer")));
     }
@@ -273,12 +242,8 @@ class Parser : public ObjectWrap {
     // Assign 'buffer_' while we parse. The callbacks will access that varible.
     parser->buffer_ = buffer;
 
-    buffer_ref(parser->buffer_);
-
     size_t nparsed = 
       http_parser_execute(&(parser->parser_), buffer_p(buffer, off), len);
-
-    buffer_unref(parser->buffer_);
 
     // Unassign the 'buffer_' variable
     assert(parser->buffer_);
@@ -297,25 +262,64 @@ class Parser : public ObjectWrap {
       return ThrowException(e);
     }
 
+    assert(!parser->buffer_);
     return scope.Close(nparsed_obj);
   }
 
-  static Handle<Value> ExecuteEOF(const Arguments& args) {
+  static Handle<Value> Finish(const Arguments& args) {
     HandleScope scope;
 
     Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
 
     assert(!parser->buffer_);
-    http_parser_execute(&parser->parser_, NULL, 0);
 
+    parser->Ref();
+    http_parser_execute(&(parser->parser_), NULL, 0);
+    parser->Unref();
+
+    return Undefined();
+  }
+
+  static Handle<Value> Reinitialize(const Arguments& args) {
+    HandleScope scope;
+    Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
+
+    String::Utf8Value type(args[0]->ToString());
+
+    if (0 == strcasecmp(*type, "request")) {
+      parser->Init(HTTP_REQUEST);
+    } else if (0 == strcasecmp(*type, "response")) {
+      parser->Init(HTTP_RESPONSE);
+    } else {
+      return ThrowException(Exception::Error(
+            String::New("Argument be 'request' or 'response'")));
+    }
     return Undefined();
   }
 
 
  private:
 
-  http_parser parser_;
+  void Init (enum http_parser_type type) {
+    assert(buffer_ == NULL); // don't call this during Execute()
+    http_parser_init(&parser_, type);
+
+    parser_.on_message_begin    = on_message_begin;
+    parser_.on_path             = on_path;
+    parser_.on_query_string     = on_query_string;
+    parser_.on_url              = on_url;
+    parser_.on_fragment         = on_fragment;
+    parser_.on_header_field     = on_header_field;
+    parser_.on_header_value     = on_header_value;
+    parser_.on_headers_complete = on_headers_complete;
+    parser_.on_body             = on_body;
+    parser_.on_message_complete = on_message_complete;
+
+    parser_.data = this;
+  }
+
   struct buffer * buffer_;  // The buffer currently being parsed.
+  http_parser parser_;
 };
 
 
@@ -324,10 +328,11 @@ void InitHttpParser(Handle<Object> target) {
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  //t->SetClassName(String::NewSymbol("HTTPParser"));
+  t->SetClassName(String::NewSymbol("HTTPParser"));
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);
-  NODE_SET_PROTOTYPE_METHOD(t, "executeEOF", Parser::ExecuteEOF);
+  NODE_SET_PROTOTYPE_METHOD(t, "finish", Parser::Finish);
+  NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
 
   target->Set(String::NewSymbol("HTTPParser"), t->GetFunction());
 
