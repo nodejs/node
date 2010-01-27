@@ -118,8 +118,8 @@ def configure(conf):
   #if Options.options.debug:
   #  conf.check(lib='profiler', uselib_store='PROFILER')
 
-  #if Options.options.efence:
-  #  conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
+  if Options.options.efence:
+    conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
   if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
     # Note on Darwin/OS X: This will fail, but will still be used as the
@@ -373,7 +373,7 @@ def build(bld):
   """
   node.add_objects = 'ev eio evcom http_parser coupling'
   node.uselib_local = ''
-  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL EFENCE'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
