@@ -13,15 +13,11 @@ class ObjectWrap {
   }
 
   virtual ~ObjectWrap ( ) {
-    if (!handle_.IsEmpty()) {
-      assert(handle_.IsNearDeath());
-      handle_->SetInternalField(0, v8::Undefined());
-      handle_.Dispose();
-      handle_.Clear();
-    }
+    assert(handle_.IsNearDeath());
+    handle_->SetInternalField(0, v8::Undefined());
+    handle_.Dispose();
+    handle_.Clear();
   }
-
-  v8::Persistent<v8::Object> handle_; // ro
 
   template <class T>
   static inline T* Unwrap (v8::Handle<v8::Object> handle)
@@ -31,6 +27,8 @@ class ObjectWrap {
     return static_cast<T*>(v8::Handle<v8::External>::Cast(
         handle->GetInternalField(0))->Value());
   }
+
+  v8::Persistent<v8::Object> handle_; // ro
 
  protected:
   inline void Wrap (v8::Handle<v8::Object> handle)
@@ -53,8 +51,8 @@ class ObjectWrap {
    */
   virtual void Ref() {
     assert(!handle_.IsEmpty());
-    assert(handle_.IsWeak());
     refs_++;
+    handle_.ClearWeak();
   }
 
   /* Unref() marks an object as detached from the event loop.  This is its
@@ -68,10 +66,9 @@ class ObjectWrap {
    */
   virtual void Unref() {
     assert(!handle_.IsEmpty());
-    assert(handle_.IsWeak());
+    assert(!handle_.IsWeak());
     assert(refs_ > 0);
-    refs_--;
-    if (refs_ == 0 && handle_.IsNearDeath()) delete this;
+    if (--refs_ == 0) { MakeWeak(); }
   }
 
   int refs_; // ro
@@ -81,11 +78,8 @@ class ObjectWrap {
   {
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
-    if (obj->refs_ == 0) {
-      delete obj;
-    } else {
-      obj->MakeWeak();
-    }
+    assert(!obj->refs_);
+    if (value.IsNearDeath()) delete obj;
   }
 };
 
