@@ -14,7 +14,7 @@ var
 
   respond = function(res, text) {
     requests++;
-    if (requests == 4) {
+    if (requests == 5) {
       server.close();
     }
 
@@ -112,6 +112,14 @@ var simpleBadRequest = client.request('POST', '/', {
 });
 simpleBadRequest.sendBody(fixture.reply, 'binary');
 simpleBadRequest.finish();
+
+var requestWithCharset = client.request('POST', '/', {
+  'X-Use-Simple-Api': 'yes',
+  'Content-Type': 'multipart/form-data; charset=utf-8; boundary=AaB03x',
+  'Content-Length': fixture.reply.length
+});
+requestWithCharset.sendBody(fixture.reply, 'binary');
+requestWithCharset.finish();
 
 process.addListener('exit', function() {
   puts("done");
