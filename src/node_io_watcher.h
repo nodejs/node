@@ -20,7 +20,7 @@ class IOWatcher : ObjectWrap {
   }
 
   ~IOWatcher() {
-    Stop();
+    ev_io_stop(EV_DEFAULT_UC_ &watcher_);
     assert(!ev_is_active(&watcher_));
     assert(!ev_is_pending(&watcher_));
   }

@@ -13,6 +13,7 @@ using namespace v8;
 Persistent<FunctionTemplate> IOWatcher::constructor_template;
 Persistent<String> callback_symbol;
 
+
 void IOWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -50,7 +51,9 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   argv[0] = Local<Value>::New(revents & EV_READ ? True() : False());
   argv[1] = Local<Value>::New(revents & EV_WRITE ? True() : False());
 
+  io->Ref();
   callback->Call(io->handle_, 2, argv);
+  io->Unref();
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -59,33 +62,50 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 
 
 // 
-//  var io = new process.IOWatcher(function (readable, writable) {
-//    
-//  });
+//  var io = new process.IOWatcher();
+//  process.callback = function (readable, writable) { ... };
 //  io.set(fd, true, false);
 //  io.start();
 //
 Handle<Value> IOWatcher::New(const Arguments& args) {
   HandleScope scope;
-
   IOWatcher *s = new IOWatcher();
   s->Wrap(args.This());
-
   return args.This();
 }
 
 
 Handle<Value> IOWatcher::Start(const Arguments& args) {
   HandleScope scope;
-
   IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
-
-  ev_io_start(EV_DEFAULT_UC_ &io->watcher_);
-
-  io->Ref();
-
+  io->Start();
   return Undefined();
 }
+
+
+Handle<Value> IOWatcher::Stop(const Arguments& args) {
+  HandleScope scope;
+  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
+  io->Stop();
+  return Undefined();
+}
+
+
+void IOWatcher::Start() {
+  if (!ev_is_active(&watcher_)) {
+    ev_io_start(EV_DEFAULT_UC_ &watcher_);
+    Ref();
+  }
+}
+
+
+void IOWatcher::Stop() {
+  if (ev_is_active(&watcher_)) {
+    ev_io_stop(EV_DEFAULT_UC_ &watcher_);
+    Unref();
+  }
+}
+
 
 Handle<Value> IOWatcher::Set(const Arguments& args) {
   HandleScope scope;
@@ -120,20 +140,6 @@ Handle<Value> IOWatcher::Set(const Arguments& args) {
   return Undefined();
 }
 
-Handle<Value> IOWatcher::Stop(const Arguments& args) {
-  HandleScope scope;
-  IOWatcher *io = ObjectWrap::Unwrap<IOWatcher>(args.Holder());
-  io->Stop();
-  return Undefined();
-}
-
-
-void IOWatcher::Stop () {
-  if (watcher_.active) {
-    ev_io_stop(EV_DEFAULT_UC_ &watcher_);
-    Unref();
-  }
-}
 
 
 }  // namespace node
