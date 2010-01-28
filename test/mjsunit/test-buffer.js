@@ -1,10 +1,10 @@
-sys = require("sys");
+process.mixin(require("./common"));
 assert = require("assert");
 
 
 var b = new process.Buffer(1024);
 
-sys.puts("b.length == " + b.length);
+puts("b.length == " + b.length);
 assert.equal(1024, b.length);
 
 for (var i = 0; i < 1024; i++) {
