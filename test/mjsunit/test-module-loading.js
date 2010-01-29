@@ -6,7 +6,7 @@ var a = require("./fixtures/a");
 var d = require("./fixtures/b/d");
 var d2 = require("./fixtures/b/d");
 // Absolute
-var d3 = require(require('path').dirname(__filename)+"/fixtures/b/d");
+var d3 = require(__dirname+"/fixtures/b/d");
 // Relative
 var d4 = require("../mjsunit/fixtures/b/d");
 
@@ -51,6 +51,8 @@ try {
   errorThrown = true;
   assert.equal("blah", e.message);
 }
+
+assert.equal(require('path').dirname(__filename), __dirname);
 
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);

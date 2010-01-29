@@ -233,7 +233,7 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   exports.Promise.prototype.emitSuccess = function() {
     if (this.hasFired) return;
-    this.hasFired = true;
+    this.hasFired = 'success';
     this._clearTimeout();
 
     this._values = Array.prototype.slice.call(arguments);
@@ -242,7 +242,7 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   exports.Promise.prototype.emitError = function() {
     if (this.hasFired) return;
-    this.hasFired = true;
+    this.hasFired = 'error';
     this._clearTimeout();
 
     this._values = Array.prototype.slice.call(arguments);
@@ -261,7 +261,7 @@ var eventsModule = createInternalModule('events', function (exports) {
   };
 
   exports.Promise.prototype.addCallback = function (listener) {
-    if (this.hasFired) {
+    if (this.hasFired === 'success') {
       return listener.apply(this, this._values);
     }
 
@@ -269,7 +269,7 @@ var eventsModule = createInternalModule('events', function (exports) {
   };
 
   exports.Promise.prototype.addErrback = function (listener) {
-    if (this.hasFired) {
+    if (this.hasFired === 'error') {
       listener.apply(this, this._values);
     }
 
@@ -919,13 +919,13 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.async = requireAsync;
     require.main = process.mainModule;
     // create wrapper function
-    var wrapper = "var __wrap__ = function (exports, require, module, __filename) { "
+    var wrapper = "var __wrap__ = function (exports, require, module, __filename, __dirname) { "
                 + content
                 + "\n}; __wrap__;";
 
     try {
       var compiledWrapper = process.compile(wrapper, filename);
-      compiledWrapper.apply(self.exports, [self.exports, require, self, filename]);
+      compiledWrapper.apply(self.exports, [self.exports, require, self, filename, path.dirname(filename)]);
     } catch (e) {
       loadPromise.emitError(e);
       return;

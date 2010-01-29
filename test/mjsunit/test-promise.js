@@ -19,11 +19,17 @@ a.addCallback(function(value) {
   assert.equal(TEST_VALUE, value);
   expectedCallbacks.a1--;
 });
+a.addErrback(function(error) {
+  assert.notEqual(TEST_VALUE, error, 'normal');
+});
 a.emitSuccess(TEST_VALUE);
 
 a.addCallback(function(value) {
   assert.equal(TEST_VALUE, value);
   expectedCallbacks.a2--;
+});
+a.addErrback(function(error) {
+  assert.notEqual(TEST_VALUE, error, 'late');
 });
 
 // Test regular & late errback binding
