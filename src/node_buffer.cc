@@ -4,6 +4,8 @@
 #include <stdlib.h> // malloc, free
 #include <v8.h>
 
+#include <arpa/inet.h>  // htons, htonl
+
 #include <node.h>
 
 namespace node {
@@ -261,6 +263,70 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 }
 
 
+// buffer.unpack(format, index);
+// Starting at 'index', unpacks binary from the buffer into an array.
+// 'format' is a string
+//
+//  FORMAT  RETURNS
+//    N     uint32_t   a 32bit unsigned integer in network byte order
+//    n     uint16_t   a 16bit unsigned integer in network byte order
+//    o     uint8_t    a 8bit unsigned integer
+Handle<Value> Buffer::Unpack(const Arguments &args) {
+  HandleScope scope;
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+
+  String::AsciiValue format(args[0]->ToString());
+  int index = args[1]->IntegerValue();
+
+#define OUT_OF_BOUNDS ThrowException(Exception::Error(String::New("Out of bounds")))
+
+  Local<Array> array = Array::New(format.length());
+
+  uint8_t  uint8;
+  uint16_t uint16;
+  uint32_t uint32;
+
+  for (int i = 0; i < format.length(); i++) {
+    switch ((*format)[i]) {
+      // 32bit unsigned integer in network byte order
+      case 'N':
+        if (index + 3 >= buffer->length_) return OUT_OF_BOUNDS;
+        uint32 = htonl(*(uint32_t*)(buffer->data_ + index));
+        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint32));
+        index += 4;
+        break;
+
+      // 16bit unsigned integer in network byte order
+      case 'n':
+        if (index + 1 >= buffer->length_) return OUT_OF_BOUNDS;
+        uint16 = htons(*(uint16_t*)(buffer->data_ + index));
+        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint16));
+        index += 2;
+        break;
+
+      // a single octet, unsigned.
+      case 'o':
+        if (index >= buffer->length_) return OUT_OF_BOUNDS;
+        uint8 = (uint8_t)buffer->data_[index];
+        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint8));
+        index += 1;
+        break;
+
+      default:
+        return ThrowException(Exception::Error(
+              String::New("Unknown format character")));
+    }
+  }
+
+  return scope.Close(array);
+}
+
+
 // var nbytes = Buffer.utf8Length("string")
 Handle<Value> Buffer::Utf8Length(const Arguments &args) {
   HandleScope scope;
@@ -278,6 +344,7 @@ bool Buffer::HasInstance(Handle<Value> val) {
   Local<Object> obj = val->ToObject();
   return constructor_template->HasInstance(obj);
 }
+
 
 
 void Buffer::Initialize(Handle<Object> target) {
@@ -299,6 +366,7 @@ void Buffer::Initialize(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Write", Buffer::Utf8Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
 
   NODE_SET_METHOD(constructor_template->GetFunction(), "utf8Length", Buffer::Utf8Length);
 

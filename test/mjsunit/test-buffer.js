@@ -50,4 +50,26 @@ for (var j = 0; j < 10000; j++) {
 }
 
 
+// unpack
 
+var b = new process.Buffer(10);
+b[0] = 0x00;
+b[1] = 0x01;
+b[2] = 0x03;
+b[3] = 0x00;
+
+assert.deepEqual([0x0001], b.unpack('n', 0));
+assert.deepEqual([0x0001, 0x0300], b.unpack('nn', 0));
+assert.deepEqual([0x0103], b.unpack('n', 1));
+assert.deepEqual([0x0300], b.unpack('n', 2));
+assert.deepEqual([0x00010300], b.unpack('N', 0));
+assert.throws(function () {
+  b.unpack('N', 8);
+});
+
+b[4] = 0xDE;
+b[5] = 0xAD;
+b[6] = 0xBE;
+b[7] = 0xEF;
+
+assert.deepEqual([0xDEADBEEF], b.unpack('N', 4));

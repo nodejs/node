@@ -46,6 +46,7 @@ class Buffer : public ObjectWrap {
   static v8::Handle<v8::Value> AsciiWrite(const v8::Arguments &args);
   static v8::Handle<v8::Value> Utf8Write(const v8::Arguments &args);
   static v8::Handle<v8::Value> Utf8Length(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Unpack(const v8::Arguments &args);
 
   int AsciiWrite(char *string, int offset, int length);
   int Utf8Write(char *string, int offset, int length);
