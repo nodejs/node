@@ -101,6 +101,7 @@ class ProgressIndicator(object):
       # ...and then reraise the exception to bail out
       raise
     self.Done()
+    print "\r\nPlatform: {0} {1}".format(platform.system(), platform.release())
     return not self.failed
 
   def RunSingle(self):
