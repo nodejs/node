@@ -1,4 +1,4 @@
-__wrap__ = function (process) {
+(function (process) {
 
 process.global.process = process;
 process.global.global = process.global;
@@ -923,9 +923,9 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.async = requireAsync;
     require.main = process.mainModule;
     // create wrapper function
-    var wrapper = "var __wrap__ = function (exports, require, module, __filename, __dirname) { "
+    var wrapper = "(function (exports, require, module, __filename, __dirname) { "
                 + content
-                + "\n}; __wrap__;";
+                + "\n});";
 
     try {
       var compiledWrapper = process.compile(wrapper, filename);
@@ -990,5 +990,4 @@ process.loop();
 
 process.emit("exit");
 
-};
-__wrap__;
+})
