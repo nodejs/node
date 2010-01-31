@@ -198,7 +198,6 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
 ssize_t DecodeWrite(char *buf, size_t buflen,
                     v8::Handle<v8::Value> val,
                     enum encoding encoding) {
-  size_t i;
   HandleScope scope;
 
   // XXX
@@ -366,18 +365,17 @@ static void ReportException(TryCatch *try_catch, bool show_line = false) {
 }
 
 // Executes a str within the current v8 context.
-Handle<Value> ExecuteString(v8::Handle<v8::String> source,
-                            v8::Handle<v8::Value> filename) {
+Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
   HandleScope scope;
   TryCatch try_catch;
 
-  Handle<Script> script = Script::Compile(source, filename);
+  Local<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(&try_catch);
     exit(1);
   }
 
-  Handle<Value> result = script->Run();
+  Local<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(&try_catch);
     exit(1);
@@ -877,8 +875,7 @@ static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
   HandleScope scope;
   assert(watcher == &debug_watcher);
   assert(revents == EV_ASYNC);
-  ExecuteString(String::New("1+1;"),
-                String::New("debug_poll"));
+  ExecuteString(String::New("1+1;"), String::New("debug_poll"));
 }
 
 static void DebugMessageDispatch(void) {
@@ -893,33 +890,19 @@ static void DebugMessageDispatch(void) {
 
 static void ExecuteNativeJS(const char *filename, const char *data) {
   HandleScope scope;
-  TryCatch try_catch;
-  ExecuteString(String::New(data), String::New(filename));
-  // There should not be any syntax errors in these file!
-  // If there are exit the process.
-  if (try_catch.HasCaught())  {
-    puts("There is an error in Node's built-in javascript");
-    puts("This should be reported as a bug!");
-    ReportException(&try_catch);
-    exit(1);
-  }
 }
 
-static Local<Object> Load(int argc, char *argv[]) {
+static void Load(int argc, char *argv[]) {
   HandleScope scope;
-
-  Local<Object> global = Context::GetCurrent()->Global();
-
-  // Assign the global object to it's place as 'GLOBAL'
-  global->Set(String::NewSymbol("GLOBAL"), global);
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
-  // Assign the process object to its place.
-  global->Set(String::NewSymbol("process"), process);
+  // Add a reference to the global object
+  Local<Object> global = Context::GetCurrent()->Global();
+  process->Set(String::NewSymbol("global"), global);
 
   // process.version
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
@@ -1012,11 +995,45 @@ static Local<Object> Load(int argc, char *argv[]) {
   HTTPServer::Initialize(http);                 // http.cc
   HTTPConnection::Initialize(http);             // http.cc
 
-  // Compile, execute the src/*.js files. (Which were included a static C
-  // strings in node_natives.h)
-  // In node.js we actually load the file specified in ARGV[1]
-  // so your next reading stop should be node.js!
-  ExecuteNativeJS("node.js", native_node);
+
+
+  // Compile, execute the src/node.js file. (Which was included as static C
+  // string in node_natives.h. 'natve_node' is the string containing that
+  // source code.)
+  
+  // The node.js file returns a function 'f'
+ 
+#ifndef NDEBUG
+  TryCatch try_catch;
+#endif 
+
+  Local<Value> f_value = ExecuteString(String::New(native_node),
+                                       String::New("node.js"));
+#ifndef NDEBUG
+  if (try_catch.HasCaught())  {
+    ReportException(&try_catch);
+    exit(10);
+  }
+#endif 
+  assert(f_value->IsFunction());
+  Local<Function> f = Local<Function>::Cast(f_value);
+
+  // Now we call 'f' with the 'process' variable that we've built up with
+  // all our bindings. Inside node.js we'll take care of assigning things to
+  // their places.
+  
+  // We start the process this way in order to be more modular. Developers
+  // who do not like how 'src/node.js' setups the module system but do like
+  // Node's I/O bindings may want to replace 'f' with their own function.
+
+  f->Call(global, 1, &Local<Value>::New(process));
+
+#ifndef NDEBUG
+  if (try_catch.HasCaught())  {
+    ReportException(&try_catch);
+    exit(11);
+  }
+#endif 
 }
 
 static void PrintHelp() {

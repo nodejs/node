@@ -1,4 +1,8 @@
-(function () { // anonymous namespace
+__wrap__ = function (process) {
+
+process.global.process = process;
+process.global.global = process.global;
+global.GLOBAL = global;
 
 /** deprecation errors ************************************************/
 
@@ -986,4 +990,5 @@ process.loop();
 
 process.emit("exit");
 
-}()); // end anonymous namespace
+};
+__wrap__;
