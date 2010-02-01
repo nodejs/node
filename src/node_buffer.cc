@@ -327,8 +327,8 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
 }
 
 
-// var nbytes = Buffer.utf8Length("string")
-Handle<Value> Buffer::Utf8Length(const Arguments &args) {
+// var nbytes = Buffer.utf8ByteLength("string")
+Handle<Value> Buffer::Utf8ByteLength(const Arguments &args) {
   HandleScope scope;
   if (!args[0]->IsString()) {
     return ThrowException(Exception::TypeError(String::New(
@@ -368,7 +368,9 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
 
-  NODE_SET_METHOD(constructor_template->GetFunction(), "utf8Length", Buffer::Utf8Length);
+  NODE_SET_METHOD(constructor_template->GetFunction(),
+                  "utf8ByteLength",
+                  Buffer::Utf8ByteLength);
 
   target->Set(String::NewSymbol("Buffer"), constructor_template->GetFunction());
 }
