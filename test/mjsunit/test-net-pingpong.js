@@ -29,7 +29,7 @@ function pingPongTest (port, host) {
       }
     });
 
-    socket.addListener("eof", function () {
+    socket.addListener("end", function () {
       assert.equal(true, socket.writable);
       assert.equal(false, socket.readable);
       socket.close();
