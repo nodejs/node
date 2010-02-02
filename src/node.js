@@ -507,11 +507,12 @@ var posixModule = createInternalModule("posix", function (exports) {
   exports.Stats = process.Stats;
 
   function callback (promise) {
-    return function () {
-      if (arguments[0] instanceof Error) {
+    return function (error) {
+      if (error) {
         promise.emitError.apply(promise, arguments);
       } else {
-        promise.emitSuccess.apply(promise, arguments);
+        promise.emitSuccess.apply(promise,
+                                  Array.prototype.slice.call(arguments, 1));
       }
     };
   }
