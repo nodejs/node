@@ -68,9 +68,6 @@ static Persistent<String> should_keep_alive_sym;
 #define DEFINE_HTTP_CB(name)                                             \
   static int name(http_parser *p) {                                      \
     Parser *parser = static_cast<Parser*>(p->data);                      \
-                                                                         \
-    HandleScope scope;                                                   \
-                                                                         \
     Local<Value> cb_value = parser->handle_->Get(name##_sym);            \
     if (!cb_value->IsFunction()) return 0;                               \
     Local<Function> cb = Local<Function>::Cast(cb_value);                \
@@ -82,7 +79,6 @@ static Persistent<String> should_keep_alive_sym;
 #define DEFINE_HTTP_DATA_CB(name)                                        \
   static int name(http_parser *p, const char *at, size_t length) {       \
     Parser *parser = static_cast<Parser*>(p->data);                      \
-    HandleScope scope;                                                   \
     assert(parser->buffer_);                                             \
     Local<Value> cb_value = parser->handle_->Get(name##_sym);            \
     if (!cb_value->IsFunction()) return 0;                               \
@@ -144,8 +140,6 @@ class Parser : public ObjectWrap {
 
   static int on_headers_complete(http_parser *p) {
     Parser *parser = static_cast<Parser*>(p->data);
-
-    HandleScope scope;
 
     Local<Value> cb_value = parser->handle_->Get(on_headers_complete_sym);
     if (!cb_value->IsFunction()) return 0;
@@ -267,9 +261,7 @@ class Parser : public ObjectWrap {
 
     assert(!parser->buffer_);
 
-    parser->Ref();
     http_parser_execute(&(parser->parser_), NULL, 0);
-    parser->Unref();
 
     return Undefined();
   }
