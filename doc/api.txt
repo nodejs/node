@@ -48,7 +48,7 @@ execution.
 
 === Global Objects
 
-+GLOBAL+ ::
++global+ ::
 The global namespace object.
 
 +process+ ::
@@ -100,10 +100,10 @@ more information.
                                                signal names such as SIGINT, SIGUSR1, etc.
 |=========================================================
 
-+process.ARGV+ ::
++process.argv+ ::
 An array containing the command line arguments.
 
-+process.ENV+ ::
++process.env+ ::
 An object containing the user environment. See environ(7).
 
 +process.pid+ ::
@@ -565,7 +565,7 @@ Node provides a tridirectional +popen(3)+ facility through the class
                             +"error"+ callbacks will no longer be made.
 |=========================================================
 
-+process.createChildProcess(command, args=[], env=ENV)+::
++process.createChildProcess(command, args=[], env=process.env)+::
 Launches a new process with the given +command+, command line arguments, and
 environmental variables. For example:
 +

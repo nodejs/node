@@ -914,7 +914,7 @@ static void Load(int argc, char *argv[]) {
 #define str(s) #s
   process->Set(String::NewSymbol("platform"), String::New(xstr(PLATFORM)));
 
-  // process.ARGV
+  // process.argv
   int i, j;
   Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
@@ -924,8 +924,9 @@ static void Load(int argc, char *argv[]) {
   }
   // assign it
   process->Set(String::NewSymbol("ARGV"), arguments);
+  process->Set(String::NewSymbol("argv"), arguments);
 
-  // create process.ENV
+  // create process.env
   Local<Object> env = Object::New();
   for (i = 0; environ[i]; i++) {
     // skip entries without a '=' character
@@ -941,6 +942,8 @@ static void Load(int argc, char *argv[]) {
   }
   // assign process.ENV
   process->Set(String::NewSymbol("ENV"), env);
+  process->Set(String::NewSymbol("env"), env);
+
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
   // define various internal methods

@@ -86,7 +86,7 @@ process.inherits = function (ctor, superCtor) {
 process.createChildProcess = function (file, args, env) {
   var child = new process.ChildProcess();
   args = args || [];
-  env = env || process.ENV;
+  env = env || process.env;
   var envPairs = [];
   for (var key in env) {
     if (env.hasOwnProperty(key)) {
@@ -493,7 +493,7 @@ GLOBAL.clearInterval = GLOBAL.clearTimeout;
 // Modules
 
 var debugLevel = 0;
-if ("NODE_DEBUG" in process.ENV) debugLevel = 1;
+if ("NODE_DEBUG" in process.env) debugLevel = 1;
 
 function debug (x) {
   if (debugLevel > 0) {
@@ -744,12 +744,12 @@ var path = pathModule.exports;
 process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
                ];
 
-if (process.ENV["HOME"]) {
-  process.paths.unshift(path.join(process.ENV["HOME"], ".node_libraries"));
+if (process.env["HOME"]) {
+  process.paths.unshift(path.join(process.env["HOME"], ".node_libraries"));
 }
 
-if (process.ENV["NODE_PATH"]) {
-  process.paths = process.ENV["NODE_PATH"].split(":").concat(process.paths);
+if (process.env["NODE_PATH"]) {
+  process.paths = process.env["NODE_PATH"].split(":").concat(process.paths);
 }
 
 
@@ -968,19 +968,19 @@ process.exit = function (code) {
 
 var cwd = process.cwd();
 
-// Make process.ARGV[0] and process.ARGV[1] into full paths.
-if (process.ARGV[0].indexOf('/') > 0) {
-  process.ARGV[0] = path.join(cwd, process.ARGV[0]);
+// Make process.argv[0] and process.argv[1] into full paths.
+if (process.argv[0].indexOf('/') > 0) {
+  process.argv[0] = path.join(cwd, process.argv[0]);
 }
 
-if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
-  process.ARGV[1] = path.join(cwd, process.ARGV[1]);
+if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
+  process.argv[1] = path.join(cwd, process.argv[1]);
 }
 
 // Load the main module--the command line argument.
 process.mainModule = createModule(".");
 var loadPromise = new events.Promise();
-process.mainModule.load(process.ARGV[1], loadPromise);
+process.mainModule.load(process.argv[1], loadPromise);
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If
