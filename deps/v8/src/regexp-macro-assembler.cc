@@ -122,7 +122,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
 
   bool is_ascii = subject->IsAsciiRepresentation();
 
+  // The string has been flattened, so it it is a cons string it contains the
+  // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
+    ASSERT_EQ(0, ConsString::cast(subject_ptr)->second()->length());
     subject_ptr = ConsString::cast(subject_ptr)->first();
   }
   // Ensure that an underlying string has the same ascii-ness.
@@ -141,8 +144,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
                        start_offset,
                        input_start,
                        input_end,
-                       offsets_vector,
-                       previous_index == 0);
+                       offsets_vector);
   return res;
 }
 
@@ -153,13 +155,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     int start_offset,
     const byte* input_start,
     const byte* input_end,
-    int* output,
-    bool at_start) {
+    int* output) {
   typedef int (*matcher)(String*, int, const byte*,
-                         const byte*, int*, int, Address, int);
+                         const byte*, int*, Address, int);
   matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
-
-  int at_start_val = at_start ? 1 : 0;
 
   // Ensure that the minimum stack has been allocated.
   RegExpStack stack;
@@ -172,7 +171,6 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
                                           input_start,
                                           input_end,
                                           output,
-                                          at_start_val,
                                           stack_base,
                                           direct_call);
   ASSERT(result <= SUCCESS);
@@ -188,6 +186,30 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
 
 
 static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
+
+
+byte NativeRegExpMacroAssembler::word_character_map[] = {
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // '0' - '7'
+    0xffu, 0xffu, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,  // '8' - '9'
+
+    0x00u, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'A' - 'G'
+    0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'H' - 'O'
+    0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'P' - 'W'
+    0xffu, 0xffu, 0xffu, 0x00u, 0x00u, 0x00u, 0x00u, 0xffu,  // 'X' - 'Z', '_'
+
+    0x00u, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'a' - 'g'
+    0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'h' - 'o'
+    0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu,  // 'p' - 'w'
+    0xffu, 0xffu, 0xffu, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,  // 'x' - 'z'
+};
+
 
 int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     Address byte_offset1,

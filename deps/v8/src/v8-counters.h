@@ -60,40 +60,44 @@ namespace internal {
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                 \
-  /* Global Handle Count*/                                       \
-  SC(global_handles, V8.GlobalHandles)                           \
-  /* Mallocs from PCRE */                                        \
-  SC(pcre_mallocs, V8.PcreMallocCount)                           \
-  /* OS Memory allocated */                                      \
-  SC(memory_allocated, V8.OsMemoryAllocated)                     \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)       \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)      \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                   \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)               \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                 \
-  SC(symbol_table_capacity, V8.SymbolTableCapacity)              \
-  SC(number_of_symbols, V8.NumberOfSymbols)                      \
-  SC(script_wrappers, V8.ScriptWrappers)                         \
-  SC(call_initialize_stubs, V8.CallInitializeStubs)              \
-  SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)      \
-  SC(call_normal_stubs, V8.CallNormalStubs)                      \
-  SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)            \
-  SC(arguments_adaptors, V8.ArgumentsAdaptors)                   \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)            \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)        \
-  SC(regexp_cache_hits, V8.RegExpCacheHits)                      \
-  SC(regexp_cache_misses, V8.RegExpCacheMisses)                  \
-  /* Amount of evaled source code. */                            \
-  SC(total_eval_size, V8.TotalEvalSize)                          \
-  /* Amount of loaded source code. */                            \
-  SC(total_load_size, V8.TotalLoadSize)                          \
-  /* Amount of parsed source code. */                            \
-  SC(total_parse_size, V8.TotalParseSize)                        \
-  /* Amount of source code skipped over using preparsing. */     \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)            \
-  /* Amount of compiled source code. */                          \
-  SC(total_compile_size, V8.TotalCompileSize)
+#define STATS_COUNTER_LIST_1(SC)                                      \
+  /* Global Handle Count*/                                            \
+  SC(global_handles, V8.GlobalHandles)                                \
+  /* Mallocs from PCRE */                                             \
+  SC(pcre_mallocs, V8.PcreMallocCount)                                \
+  /* OS Memory allocated */                                           \
+  SC(memory_allocated, V8.OsMemoryAllocated)                          \
+  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
+  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
+  SC(symbol_table_capacity, V8.SymbolTableCapacity)                   \
+  SC(number_of_symbols, V8.NumberOfSymbols)                           \
+  SC(script_wrappers, V8.ScriptWrappers)                              \
+  SC(call_initialize_stubs, V8.CallInitializeStubs)                   \
+  SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
+  SC(call_normal_stubs, V8.CallNormalStubs)                           \
+  SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
+  SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
+  SC(regexp_cache_hits, V8.RegExpCacheHits)                           \
+  SC(regexp_cache_misses, V8.RegExpCacheMisses)                       \
+  /* Amount of evaled source code. */                                 \
+  SC(total_eval_size, V8.TotalEvalSize)                               \
+  /* Amount of loaded source code. */                                 \
+  SC(total_load_size, V8.TotalLoadSize)                               \
+  /* Amount of parsed source code. */                                 \
+  SC(total_parse_size, V8.TotalParseSize)                             \
+  /* Amount of source code skipped over using preparsing. */          \
+  SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
+  /* Amount of compiled source code. */                               \
+  SC(total_compile_size, V8.TotalCompileSize)                         \
+  /* Amount of source code compiled with the old codegen. */          \
+  SC(total_old_codegen_source_size, V8.TotalOldCodegenSourceSize)     \
+  /* Amount of source code compiled with the full codegen. */         \
+  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)
 
 
 #define STATS_COUNTER_LIST_2(SC)                                    \

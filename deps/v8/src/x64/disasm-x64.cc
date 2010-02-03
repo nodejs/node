@@ -114,6 +114,10 @@ static ByteMnemonic zero_operands_instr[] = {
   { 0x9E, UNSET_OP_ORDER, "sahf" },
   { 0x99, UNSET_OP_ORDER, "cdq" },
   { 0x9B, UNSET_OP_ORDER, "fwait" },
+  { 0xA4, UNSET_OP_ORDER, "movs" },
+  { 0xA5, UNSET_OP_ORDER, "movs" },
+  { 0xA6, UNSET_OP_ORDER, "cmps" },
+  { 0xA7, UNSET_OP_ORDER, "cmps" },
   { -1, UNSET_OP_ORDER, "" }
 };
 
@@ -154,6 +158,16 @@ enum InstructionType {
   MOVE_REG_INSTR,
   CALL_JUMP_INSTR,
   SHORT_IMMEDIATE_INSTR
+};
+
+
+enum Prefixes {
+  ESCAPE_PREFIX = 0x0F,
+  OPERAND_SIZE_OVERRIDE_PREFIX = 0x66,
+  ADDRESS_SIZE_OVERRIDE_PREFIX = 0x67,
+  REPNE_PREFIX = 0xF2,
+  REP_PREFIX = 0xF3,
+  REPEQ_PREFIX = REP_PREFIX
 };
 
 
@@ -1128,12 +1142,12 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   // Scan for prefixes.
   while (true) {
     current = *data;
-    if (current == 0x66) {  // Group 3 prefix.
+    if (current == OPERAND_SIZE_OVERRIDE_PREFIX) {  // Group 3 prefix.
       operand_size_ = current;
     } else if ((current & 0xF0) == 0x40) {  // REX prefix.
       setRex(current);
       if (rex_w()) AppendToBuffer("REX.W ");
-    } else if ((current & 0xFE) == 0xF2) {  // Group 1 prefix.
+    } else if ((current & 0xFE) == 0xF2) {  // Group 1 prefix (0xF2 or 0xF3).
       group_1_prefix_ = current;
     } else {  // Not a prefix - an opcode.
       break;
@@ -1145,7 +1159,17 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   byte_size_operand_ = idesc.byte_size_operation;
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:
-      AppendToBuffer(idesc.mnem);
+      if (current >= 0xA4 && current <= 0xA7) {
+        // String move or compare operations.
+        if (group_1_prefix_ == REP_PREFIX) {
+          // REP.
+          AppendToBuffer("rep ");
+        }
+        if (rex_w()) AppendToBuffer("REX.W ");
+        AppendToBuffer("%s%c", idesc.mnem, operand_size_code());
+      } else {
+        AppendToBuffer("%s", idesc.mnem, operand_size_code());
+      }
       data++;
       break;
 

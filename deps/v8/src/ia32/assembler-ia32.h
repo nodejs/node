@@ -229,8 +229,9 @@ enum ScaleFactor {
   times_2 = 1,
   times_4 = 2,
   times_8 = 3,
-  times_pointer_size = times_4,
-  times_half_pointer_size = times_2
+  times_int_size = times_4,
+  times_half_pointer_size = times_2,
+  times_pointer_size = times_4
 };
 
 
@@ -559,6 +560,8 @@ class Assembler : public Malloced {
   void and_(const Operand& dst, const Immediate& x);
 
   void cmpb(const Operand& op, int8_t imm8);
+  void cmpb(Register src, const Operand& dst);
+  void cmpb(const Operand& dst, Register src);
   void cmpb_al(const Operand& op);
   void cmpw_ax(const Operand& op);
   void cmpw(const Operand& op, Immediate imm16);
@@ -624,6 +627,7 @@ class Assembler : public Malloced {
 
   void test(Register reg, const Immediate& imm);
   void test(Register reg, const Operand& op);
+  void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
 
   void xor_(Register dst, int32_t imm32);

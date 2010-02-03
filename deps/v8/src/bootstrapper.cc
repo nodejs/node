@@ -249,26 +249,24 @@ bool PendingFixups::Process(Handle<JSBuiltinsObject> builtins) {
       V8_Fatal(__FILE__, __LINE__, "Cannot resolve call to builtin %s", name);
     }
 #endif
-    Handle<JSFunction> f = Handle<JSFunction>(JSFunction::cast(o));
+    Handle<SharedFunctionInfo> shared(JSFunction::cast(o)->shared());
     // Make sure the number of parameters match the formal parameter count.
     int argc = Bootstrapper::FixupFlagsArgumentsCount::decode(flags);
     USE(argc);
-    ASSERT(f->shared()->formal_parameter_count() == argc);
-    if (!f->is_compiled()) {
-      // Do lazy compilation and check for stack overflows.
-      if (!CompileLazy(f, CLEAR_EXCEPTION)) {
-        Clear();
-        return false;
-      }
+    ASSERT(shared->formal_parameter_count() == argc);
+    // Do lazy compilation if necessary and check for stack overflows.
+    if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+      Clear();
+      return false;
     }
     Code* code = Code::cast(code_[i]);
     Address pc = code->instruction_start() + pc_[i];
     RelocInfo target(pc, RelocInfo::CODE_TARGET, 0);
     bool use_code_object = Bootstrapper::FixupFlagsUseCodeObject::decode(flags);
     if (use_code_object) {
-      target.set_target_object(f->code());
+      target.set_target_object(shared->code());
     } else {
-      target.set_target_address(f->code()->instruction_start());
+      target.set_target_address(shared->code()->instruction_start());
     }
     LOG(StringEvent("resolved", name));
   }
@@ -960,7 +958,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
 
-  // Call function using the either the runtime object or the global
+  // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context

@@ -101,6 +101,8 @@ TEST(DisasmIa320) {
   __ cmp(Operand(ebp, ecx, times_4, 0), Immediate(1000));
   Handle<FixedArray> foo2 = Factory::NewFixedArray(10, TENURED);
   __ cmp(ebx, foo2);
+  __ cmpb(ebx, Operand(ebp, ecx, times_2, 0));
+  __ cmpb(Operand(ebp, ecx, times_2, 0), ebx);
   __ or_(edx, 3);
   __ xor_(edx, 3);
   __ nop();

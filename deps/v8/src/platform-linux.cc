@@ -73,12 +73,6 @@ double ceiling(double x) {
 }
 
 
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
-}
-
-
 void OS::Setup() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -731,23 +725,23 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
 #if V8_HOST_ARCH_IA32
-    sample.pc = mcontext.gregs[REG_EIP];
-    sample.sp = mcontext.gregs[REG_ESP];
-    sample.fp = mcontext.gregs[REG_EBP];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
 #elif V8_HOST_ARCH_X64
-    sample.pc = mcontext.gregs[REG_RIP];
-    sample.sp = mcontext.gregs[REG_RSP];
-    sample.fp = mcontext.gregs[REG_RBP];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 // An undefined macro evaluates to 0, so this applies to Android's Bionic also.
 #if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-    sample.pc = mcontext.gregs[R15];
-    sample.sp = mcontext.gregs[R13];
-    sample.fp = mcontext.gregs[R11];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
 #else
-    sample.pc = mcontext.arm_pc;
-    sample.sp = mcontext.arm_sp;
-    sample.fp = mcontext.arm_fp;
+    sample.pc = reinterpret_cast<Address>(mcontext.arm_pc);
+    sample.sp = reinterpret_cast<Address>(mcontext.arm_sp);
+    sample.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif
 #endif
     if (IsVmThread())

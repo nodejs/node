@@ -47,10 +47,10 @@ static void InitTraceEnv(TickSample* sample) {
 
 
 static void DoTrace(Address fp) {
-  trace_env.sample->fp = reinterpret_cast<uintptr_t>(fp);
+  trace_env.sample->fp = fp;
   // sp is only used to define stack high bound
   trace_env.sample->sp =
-      reinterpret_cast<uintptr_t>(trace_env.sample) - 10240;
+      reinterpret_cast<Address>(trace_env.sample) - 10240;
   StackTracer::Trace(trace_env.sample);
 }
 
@@ -315,6 +315,9 @@ TEST(PureJSStackTrace) {
       "         JSTrace();"
       "};\n"
       "OuterJSTrace();");
+  // The last JS function called.
+  CHECK_EQ(GetGlobalJSFunction("JSFuncDoTrace")->address(),
+           sample.function);
   CHECK_GT(sample.frames_count, 1);
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   CheckRetAddrIsInJSFunction("JSTrace",

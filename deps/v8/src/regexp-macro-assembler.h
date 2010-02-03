@@ -204,13 +204,21 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   static const byte* StringCharacterPosition(String* subject, int start_index);
 
+  // Byte map of ASCII characters with a 0xff if the character is a word
+  // character (digit, letter or underscore) and 0x00 otherwise.
+  // Used by generated RegExp code.
+  static byte word_character_map[128];
+
+  static Address word_character_map_address() {
+    return &word_character_map[0];
+  }
+
   static Result Execute(Code* code,
                         String* input,
                         int start_offset,
                         const byte* input_start,
                         const byte* input_end,
-                        int* output,
-                        bool at_start);
+                        int* output);
 };
 
 #endif  // V8_NATIVE_REGEXP

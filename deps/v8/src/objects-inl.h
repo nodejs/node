@@ -1349,7 +1349,7 @@ void FixedArray::set(int index, Object* value) {
 }
 
 
-WriteBarrierMode HeapObject::GetWriteBarrierMode() {
+WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
   if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
@@ -1367,6 +1367,7 @@ void FixedArray::set(int index,
 
 void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(index >= 0 && index < array->length());
+  ASSERT(!Heap::InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
@@ -1547,9 +1548,7 @@ uint32_t NumberDictionary::max_number_key() {
 }
 
 void NumberDictionary::set_requires_slow_elements() {
-  set(kMaxNumberKeyIndex,
-      Smi::FromInt(kRequiresSlowElementsMask),
-      SKIP_WRITE_BARRIER);
+  set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
 }
 
 
@@ -2372,8 +2371,8 @@ BOOL_GETTER(SharedFunctionInfo, compiler_hints,
             kHasOnlySimpleThisPropertyAssignments)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
-               try_fast_codegen,
-               kTryFastCodegen)
+               try_full_codegen,
+               kTryFullCodegen)
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
@@ -2972,7 +2971,8 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
                                       PropertyDetails details) {
   ASSERT(!key->IsString() || details.IsDeleted() || details.index() > 0);
   int index = HashTable<Shape, Key>::EntryToIndex(entry);
-  WriteBarrierMode mode = FixedArray::GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
   FixedArray::set(index, key, mode);
   FixedArray::set(index+1, value, mode);
   FixedArray::fast_set(this, index+2, details.AsSmi());
@@ -3006,8 +3006,13 @@ void JSArray::EnsureSize(int required_size) {
 }
 
 
+void JSArray::set_length(Smi* length) {
+  set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
+}
+
+
 void JSArray::SetContent(FixedArray* storage) {
-  set_length(Smi::FromInt(storage->length()), SKIP_WRITE_BARRIER);
+  set_length(Smi::FromInt(storage->length()));
   set_elements(storage);
 }
 

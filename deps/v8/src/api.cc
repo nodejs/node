@@ -3669,7 +3669,6 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
 void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  HandleScope scope;
   i::Debugger::SetMessageHandler(handler);
 }
 
@@ -3691,10 +3690,10 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
 
 
 void Debug::SetDebugMessageDispatchHandler(
-    DebugMessageDispatchHandler handler) {
+    DebugMessageDispatchHandler handler, bool provide_locker) {
   EnsureInitialized("v8::Debug::SetDebugMessageDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetDebugMessageDispatchHandler(handler);
+  i::Debugger::SetDebugMessageDispatchHandler(handler, provide_locker);
 }
 
 
@@ -3744,6 +3743,11 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
 bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
   return i::Debugger::StartAgent(name, port, wait_for_connection);
 }
+
+void Debug::ProcessDebugMessages() {
+  i::Execution::ProcessDebugMesssages(true);
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {

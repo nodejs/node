@@ -35,6 +35,41 @@
 namespace v8 {
 namespace internal {
 
+// CompilationInfo encapsulates some information known at compile time.
+class CompilationInfo BASE_EMBEDDED {
+ public:
+  CompilationInfo(Handle<SharedFunctionInfo> shared_info,
+                  Handle<Object> receiver,
+                  int loop_nesting)
+      : shared_info_(shared_info),
+        receiver_(receiver),
+        loop_nesting_(loop_nesting),
+        has_this_properties_(false),
+        has_globals_(false) {
+  }
+
+  Handle<SharedFunctionInfo> shared_info() { return shared_info_; }
+
+  bool has_receiver() { return !receiver_.is_null(); }
+  Handle<Object> receiver() { return receiver_; }
+
+  int loop_nesting() { return loop_nesting_; }
+
+  bool has_this_properties() { return has_this_properties_; }
+  void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
+
+  bool has_globals() { return has_globals_; }
+  void set_has_globals(bool flag) { has_globals_ = flag; }
+
+ private:
+  Handle<SharedFunctionInfo> shared_info_;
+  Handle<Object> receiver_;
+  int loop_nesting_;
+  bool has_this_properties_;
+  bool has_globals_;
+};
+
+
 // The V8 compiler
 //
 // General strategy: Source code is translated into an anonymous function w/o
@@ -70,7 +105,7 @@ class Compiler : public AllStatic {
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack
   // overflow.
-  static bool CompileLazy(Handle<SharedFunctionInfo> shared, int loop_nesting);
+  static bool CompileLazy(CompilationInfo* info);
 
   // Compile a function boilerplate object (the function is possibly
   // lazily compiled). Called recursively from a backend code

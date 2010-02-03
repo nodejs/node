@@ -1,5 +1,5 @@
-OPT_DEBUG=-O0 -g -Wall -Wextra -Werror 
-OPT_FAST=-O3 -DHTTP_PARSER_STRICT=0
+OPT_DEBUG=-O0 -g -Wall -Wextra -Werror -I.
+OPT_FAST=-O3 -DHTTP_PARSER_STRICT=0 -I.
 
 
 test: test_debug

@@ -860,6 +860,24 @@ void Assembler::cmpb(const Operand& op, int8_t imm8) {
 }
 
 
+void Assembler::cmpb(const Operand& dst, Register src) {
+  ASSERT(src.is_byte_register());
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x38);
+  emit_operand(src, dst);
+}
+
+
+void Assembler::cmpb(Register dst, const Operand& src) {
+  ASSERT(dst.is_byte_register());
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x3A);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::cmpw(const Operand& op, Immediate imm16) {
   ASSERT(imm16.is_int16());
   EnsureSpace ensure_space(this);
@@ -1257,6 +1275,14 @@ void Assembler::test(Register reg, const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x85);
+  emit_operand(reg, op);
+}
+
+
+void Assembler::test_b(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x84);
   emit_operand(reg, op);
 }
 

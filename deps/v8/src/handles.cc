@@ -31,6 +31,7 @@
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "execution.h"
@@ -666,30 +667,51 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag,
-                       int loop_nesting) {
+bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                    ClearExceptionFlag flag) {
+  return shared->is_compiled() || CompileLazyShared(shared, flag);
+}
+
+
+static bool CompileLazyHelper(CompilationInfo* info,
+                              ClearExceptionFlag flag) {
   // Compile the source information to a code object.
-  ASSERT(!shared->is_compiled());
-  bool result = Compiler::CompileLazy(shared, loop_nesting);
+  ASSERT(!info->shared_info()->is_compiled());
+  bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
   return result;
 }
 
 
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  Handle<SharedFunctionInfo> shared(function->shared());
-  return CompileLazyShared(shared, flag, 0);
+bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
+                       ClearExceptionFlag flag) {
+  CompilationInfo info(shared, Handle<Object>::null(), 0);
+  return CompileLazyHelper(&info, flag);
 }
 
 
-bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
+bool CompileLazy(Handle<JSFunction> function,
+                 Handle<Object> receiver,
+                 ClearExceptionFlag flag) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  return CompileLazyShared(shared, flag, 1);
+  CompilationInfo info(shared, receiver, 0);
+  bool result = CompileLazyHelper(&info, flag);
+  LOG(FunctionCreateEvent(*function));
+  return result;
 }
+
+
+bool CompileLazyInLoop(Handle<JSFunction> function,
+                       Handle<Object> receiver,
+                       ClearExceptionFlag flag) {
+  Handle<SharedFunctionInfo> shared(function->shared());
+  CompilationInfo info(shared, receiver, 1);
+  bool result = CompileLazyHelper(&info, flag);
+  LOG(FunctionCreateEvent(*function));
+  return result;
+}
+
 
 OptimizedObjectForAddingMultipleProperties::
 OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,

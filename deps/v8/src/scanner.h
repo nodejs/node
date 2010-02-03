@@ -252,18 +252,22 @@ class KeywordMatcher {
 };
 
 
+enum ParserMode { PARSE, PREPARSE };
+enum ParserLanguage { JAVASCRIPT, JSON };
+
+
 class Scanner {
  public:
-
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   // Construction
-  explicit Scanner(bool is_pre_parsing);
+  explicit Scanner(ParserMode parse_mode);
 
   // Initialize the Scanner to scan source:
   void Init(Handle<String> source,
             unibrow::CharacterStream* stream,
-            int position);
+            int position,
+            ParserLanguage language);
 
   // Returns the next token.
   Token::Value Next();
@@ -377,6 +381,7 @@ class Scanner {
   TokenDesc next_;     // desc for next token (one token look-ahead)
   bool has_line_terminator_before_next_;
   bool is_pre_parsing_;
+  bool is_parsing_json_;
 
   // Literal buffer support
   void StartLiteral();
@@ -391,14 +396,57 @@ class Scanner {
     c0_ = ch;
   }
 
-  bool SkipWhiteSpace();
+  bool SkipWhiteSpace() {
+    if (is_parsing_json_) {
+      return SkipJsonWhiteSpace();
+    } else {
+      return SkipJavaScriptWhiteSpace();
+    }
+  }
+  bool SkipJavaScriptWhiteSpace();
+  bool SkipJsonWhiteSpace();
   Token::Value SkipSingleLineComment();
   Token::Value SkipMultiLineComment();
 
   inline Token::Value Select(Token::Value tok);
   inline Token::Value Select(uc32 next, Token::Value then, Token::Value else_);
 
-  void Scan();
+  inline void Scan() {
+    if (is_parsing_json_) {
+      ScanJson();
+    } else {
+      ScanJavaScript();
+    }
+  }
+
+  // Scans a single JavaScript token.
+  void ScanJavaScript();
+
+  // Scan a single JSON token. The JSON lexical grammar is specified in the
+  // ECMAScript 5 standard, section 15.12.1.1.
+  // Recognizes all of the single-character tokens directly, or calls a function
+  // to scan a number, string or identifier literal.
+  // The only allowed whitespace characters between tokens are tab,
+  // carrige-return, newline and space.
+  void ScanJson();
+
+  // A JSON number (production JSONNumber) is a subset of the valid JavaScript
+  // decimal number literals.
+  // It includes an optional minus sign, must have at least one
+  // digit before and after a decimal point, may not have prefixed zeros (unless
+  // the integer part is zero), and may include an exponent part (e.g., "e-10").
+  // Hexadecimal and octal numbers are not allowed.
+  Token::Value ScanJsonNumber();
+  // A JSON string (production JSONString) is subset of valid JavaScript string
+  // literals. The string must only be double-quoted (not single-quoted), and
+  // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
+  // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
+  Token::Value ScanJsonString();
+  // Used to recognizes one of the literals "true", "false", or "null". These
+  // are the only valid JSON identifiers (productions JSONBooleanLiteral,
+  // JSONNullLiteral).
+  Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
+
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifier();

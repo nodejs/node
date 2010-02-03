@@ -44,21 +44,13 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#define V8_INFINITY INFINITY
-
 #ifdef __sun
+// On Solaris, to get isinf, INFINITY, fpclassify and other macros one needs
+// to define this symbol
+#define __C99FEATURES__ 1
+#endif
 
-namespace v8 {
-namespace internal {
-int isfinite(double x);
-} }
-int isinf(double x);
-int isless(double x, double y);
-int isgreater(double x, double y);
-int fpclassify(double x);
-int signbit(double x);
-
-#endif  // __sun
+#define V8_INFINITY INFINITY
 
 // Windows specific stuff.
 #ifdef WIN32
@@ -520,11 +512,18 @@ class Socket {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), fp(0), state(OTHER), frames_count(0) {}
-  uintptr_t pc;  // Instruction pointer.
-  uintptr_t sp;  // Stack pointer.
-  uintptr_t fp;  // Frame pointer.
-  StateTag state;   // The state of the VM.
+  TickSample()
+      : pc(NULL),
+        sp(NULL),
+        fp(NULL),
+        function(NULL),
+        state(OTHER),
+        frames_count(0) {}
+  Address pc;  // Instruction pointer.
+  Address sp;  // Stack pointer.
+  Address fp;  // Frame pointer.
+  Address function;  // The last called JS function.
+  StateTag state;  // The state of the VM.
   static const int kMaxFramesCount = 100;
   EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
   int frames_count;  // Number of captured frames.

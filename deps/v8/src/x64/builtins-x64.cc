@@ -34,16 +34,36 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(428): Don't pass the function in a static variable.
-  ExternalReference passed = ExternalReference::builtin_passed_function();
-  __ movq(kScratchRegister, passed.address(), RelocInfo::EXTERNAL_REFERENCE);
-  __ movq(Operand(kScratchRegister, 0), rdi);
 
-  // The actual argument count has already been loaded into register
-  // rax, but JumpToRuntime expects rax to contain the number of
-  // arguments including the receiver.
-  __ incq(rax);
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                CFunctionId id,
+                                BuiltinExtraArguments extra_args) {
+  // ----------- S t a t e -------------
+  //  -- rax                : number of arguments excluding receiver
+  //  -- rdi                : called function (only guaranteed when
+  //                          extra_args requires it)
+  //  -- rsi                : context
+  //  -- rsp[0]             : return address
+  //  -- rsp[8]             : last argument
+  //  -- ...
+  //  -- rsp[8 * argc]      : first argument (argc == rax)
+  //  -- rsp[8 * (argc +1)] : receiver
+  // -----------------------------------
+
+  // Insert extra arguments.
+  int num_extra_args = 0;
+  if (extra_args == NEEDS_CALLED_FUNCTION) {
+    num_extra_args = 1;
+    __ pop(kScratchRegister);  // Save return address.
+    __ push(rdi);
+    __ push(kScratchRegister);  // Restore return address.
+  } else {
+    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+  }
+
+  // JumpToRuntime expects rax to contain the number of arguments
+  // including the receiver and the extra arguments.
+  __ addq(rax, Immediate(num_extra_args + 1));
   __ JumpToRuntime(ExternalReference(id), 1);
 }
 
@@ -888,7 +908,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+static void Generate_JSConstructStubHelper(MacroAssembler* masm,
+                                           bool is_api_function) {
     // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -1091,8 +1112,17 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ j(greater_equal, &loop);
 
   // Call the function.
-  ParameterCount actual(rax);
-  __ InvokeFunction(rdi, actual, CALL_FUNCTION);
+  if (is_api_function) {
+    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    Handle<Code> code = Handle<Code>(
+        Builtins::builtin(Builtins::HandleApiCallConstruct));
+    ParameterCount expected(0);
+    __ InvokeCode(code, expected, expected,
+                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+  } else {
+    ParameterCount actual(rax);
+    __ InvokeFunction(rdi, actual, CALL_FUNCTION);
+  }
 
   // Restore context from the frame.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -1126,6 +1156,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ push(rcx);
   __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);
+}
+
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false);
+}
+
+
+void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, true);
 }
 
 

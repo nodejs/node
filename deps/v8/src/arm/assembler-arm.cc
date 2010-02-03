@@ -30,9 +30,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The original source code covered by the above license above has been modified
-// significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// The original source code covered by the above license above has been
+// modified significantly by Google Inc.
+// Copyright 2010 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -1371,6 +1371,36 @@ void Assembler::stc2(Coprocessor coproc,
 
 
 // Support for VFP.
+void Assembler::vldr(const DwVfpRegister dst,
+                     const Register base,
+                     int offset,
+                     const Condition cond) {
+  // Ddst = MEM(Rbase + offset).
+  // Instruction details available in ARM DDI 0406A, A8-628.
+  // cond(31-28) | 1101(27-24)| 1001(23-20) | Rbase(19-16) |
+  // Vdst(15-12) | 1011(11-8) | offset
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(offset % 4 == 0);
+  emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
+       0xB*B8 | ((offset / 4) & 255));
+}
+
+
+void Assembler::vstr(const DwVfpRegister src,
+                     const Register base,
+                     int offset,
+                     const Condition cond) {
+  // MEM(Rbase + offset) = Dsrc.
+  // Instruction details available in ARM DDI 0406A, A8-786.
+  // cond(31-28) | 1101(27-24)| 1000(23-20) | | Rbase(19-16) |
+  // Vsrc(15-12) | 1011(11-8) | (offset/4)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(offset % 4 == 0);
+  emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
+       0xB*B8 | ((offset / 4) & 255));
+}
+
+
 void Assembler::vmov(const DwVfpRegister dst,
                      const Register src1,
                      const Register src2,

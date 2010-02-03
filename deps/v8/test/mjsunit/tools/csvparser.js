@@ -77,3 +77,7 @@ assertEquals(
 assertEquals(
     ['code-creation','RegExp','0xf6c21c00','826','NccyrJroXvg\\/([^,]*)'],
     parser.parseLine('code-creation,RegExp,0xf6c21c00,826,"NccyrJroXvg\\/([^,]*)"'));
+
+assertEquals(
+    ['code-creation','Function','0x42f0a0','163',''],
+    parser.parseLine('code-creation,Function,0x42f0a0,163,""'));

@@ -1,3 +1,32 @@
+2010-02-03: Version 2.1.0
+
+        Values are now always wrapped in objects when used as a receiver.
+        (issue 223).
+
+        [ES5] Implemented Object.getOwnPropertyNames.
+
+        [ES5] Restrict JSON.parse to only accept strings that conforms to the
+        JSON grammar.
+
+        Improvement of debugger agent (issue 549 and 554).
+
+        Fixed problem with skipped stack frame in profiles (issue 553).
+
+        Solaris support by Erich Ocean <erich.ocean@me.com> and Ryan Dahl
+        <ry@tinyclouds.org>.
+
+        Fix a bug that Math.round() returns incorrect results for huge
+        integers.
+
+        Fix enumeration order for objects created from some constructor
+        functions (isue http://crbug.com/3867).
+
+        Fix arithmetic on some integer constants (issue 580).
+
+        Numerous performance improvements including porting of previous IA-32
+        optimizations to x64 and ARM architectures.
+
+
 2010-01-14: Version 2.0.6
 
         Added ES5 Object.getPrototypeOf, GetOwnPropertyDescriptor,

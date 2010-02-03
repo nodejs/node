@@ -53,14 +53,79 @@ function readFile(fileName) {
 
 
 function inherits(childCtor, parentCtor) {
-  function tempCtor() {};
-  tempCtor.prototype = parentCtor.prototype;
-  childCtor.prototype = new tempCtor();
+  childCtor.prototype.__proto__ = parentCtor.prototype;
+};
+
+
+function SnapshotLogProcessor() {
+  devtools.profiler.LogReader.call(this, {
+      'code-creation': {
+          parsers: [null, this.createAddressParser('code'), parseInt, null],
+          processor: this.processCodeCreation, backrefs: true },
+      'code-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processCodeMove, backrefs: true },
+      'code-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processCodeDelete, backrefs: true },
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true }});
+
+  Profile.prototype.handleUnknownCode = function(operation, addr) {
+    var op = devtools.profiler.Profile.Operation;
+    switch (operation) {
+      case op.MOVE:
+        print('Snapshot: Code move event for unknown code: 0x' +
+              addr.toString(16));
+        break;
+      case op.DELETE:
+        print('Snapshot: Code delete event for unknown code: 0x' +
+              addr.toString(16));
+        break;
+    }
+  };
+
+  this.profile_ = new Profile();
+  this.serializedEntries_ = [];
+}
+inherits(SnapshotLogProcessor, devtools.profiler.LogReader);
+
+
+SnapshotLogProcessor.prototype.processCodeCreation = function(
+    type, start, size, name) {
+  var entry = this.profile_.addCode(
+      this.expandAlias(type), name, start, size);
+};
+
+
+SnapshotLogProcessor.prototype.processCodeMove = function(from, to) {
+  this.profile_.moveCode(from, to);
+};
+
+
+SnapshotLogProcessor.prototype.processCodeDelete = function(start) {
+  this.profile_.deleteCode(start);
+};
+
+
+SnapshotLogProcessor.prototype.processSnapshotPosition = function(addr, pos) {
+  this.serializedEntries_[pos] = this.profile_.findEntry(addr);
+};
+
+
+SnapshotLogProcessor.prototype.processLogFile = function(fileName) {
+  var contents = readFile(fileName);
+  this.processLogChunk(contents);
+};
+
+
+SnapshotLogProcessor.prototype.getSerializedEntryName = function(pos) {
+  var entry = this.serializedEntries_[pos];
+  return entry ? entry.getRawName() : null;
 };
 
 
 function TickProcessor(
-    cppEntriesProvider, separateIc, ignoreUnknown, stateFilter) {
+    cppEntriesProvider, separateIc, ignoreUnknown, stateFilter, snapshotLogProcessor) {
   devtools.profiler.LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -72,8 +137,19 @@ function TickProcessor(
           processor: this.processCodeMove, backrefs: true },
       'code-delete': { parsers: [this.createAddressParser('code')],
           processor: this.processCodeDelete, backrefs: true },
+      'function-creation': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('function-obj')],
+          processor: this.processFunctionCreation, backrefs: true },
+      'function-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processFunctionMove, backrefs: true },
+      'function-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processFunctionDelete, backrefs: true },
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true },
       'tick': { parsers: [this.createAddressParser('code'),
-          this.createAddressParser('stack'), parseInt, 'var-args'],
+          this.createAddressParser('stack'),
+          this.createAddressParser('func'), parseInt, 'var-args'],
           processor: this.processTick, backrefs: true },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
@@ -95,6 +171,8 @@ function TickProcessor(
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
+  this.snapshotLogProcessor_ = snapshotLogProcessor;
+  this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -202,6 +280,7 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
+  name = this.deserializedEntriesNames_[start] || name;
   var entry = this.profile_.addCode(
       this.expandAlias(type), name, start, size);
 };
@@ -217,12 +296,36 @@ TickProcessor.prototype.processCodeDelete = function(start) {
 };
 
 
+TickProcessor.prototype.processFunctionCreation = function(
+    functionAddr, codeAddr) {
+  this.profile_.addCodeAlias(functionAddr, codeAddr);
+};
+
+
+TickProcessor.prototype.processFunctionMove = function(from, to) {
+  this.profile_.safeMoveDynamicCode(from, to);
+};
+
+
+TickProcessor.prototype.processFunctionDelete = function(start) {
+  this.profile_.safeDeleteDynamicCode(start);
+};
+
+
+TickProcessor.prototype.processSnapshotPosition = function(addr, pos) {
+  if (this.snapshotLogProcessor_) {
+    this.deserializedEntriesNames_[addr] =
+      this.snapshotLogProcessor_.getSerializedEntryName(pos);
+  }
+};
+
+
 TickProcessor.prototype.includeTick = function(vmState) {
   return this.stateFilter_ == null || this.stateFilter_ == vmState;
 };
 
 
-TickProcessor.prototype.processTick = function(pc, sp, vmState, stack) {
+TickProcessor.prototype.processTick = function(pc, sp, func, vmState, stack) {
   this.ticks_.total++;
   if (vmState == TickProcessor.VmStates.GC) this.ticks_.gc++;
   if (!this.includeTick(vmState)) {
@@ -230,7 +333,19 @@ TickProcessor.prototype.processTick = function(pc, sp, vmState, stack) {
     return;
   }
 
-  this.profile_.recordTick(this.processStack(pc, stack));
+  if (func) {
+    var funcEntry = this.profile_.findEntry(func);
+    if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
+      func = 0;
+    } else {
+      var currEntry = this.profile_.findEntry(pc);
+      if (!currEntry || !currEntry.isJSFunction || currEntry.isJSFunction()) {
+        func = 0;
+      }
+    }
+  }
+
+  this.profile_.recordTick(this.processStack(pc, func, stack));
 };
 
 
@@ -263,7 +378,7 @@ TickProcessor.prototype.processJSProducer = function(constructor, stack) {
   if (stack.length == 0) return;
   var first = stack.shift();
   var processedStack =
-      this.profile_.resolveAndFilterFuncs_(this.processStack(first, stack));
+      this.profile_.resolveAndFilterFuncs_(this.processStack(first, 0, stack));
   processedStack.unshift(constructor);
   this.currentProducerProfile_.addPath(processedStack);
 };
@@ -648,7 +763,9 @@ function ArgumentsProcessor(args) {
     '--mac': ['platform', 'mac',
         'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
-        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
+        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+    '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
+        'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
@@ -660,6 +777,7 @@ function ArgumentsProcessor(args) {
 
 ArgumentsProcessor.DEFAULTS = {
   logFileName: 'v8.log',
+  snapshotLogFileName: null,
   platform: 'unix',
   stateFilter: null,
   ignoreUnknown: false,

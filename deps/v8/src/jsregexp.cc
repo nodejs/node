@@ -4462,10 +4462,13 @@ void CharacterRange::Merge(ZoneList<CharacterRange>* first_set,
   while (i1 < n1 || i2 < n2) {
     CharacterRange next_range;
     int range_source;
-    if (i2 == n2 || first_set->at(i1).from() < second_set->at(i2).from()) {
+    if (i2 == n2 ||
+        (i1 < n1 && first_set->at(i1).from() < second_set->at(i2).from())) {
+      // Next smallest element is in first set.
       next_range = first_set->at(i1++);
       range_source = kInsideFirst;
     } else {
+      // Next smallest element is in second set.
       next_range = second_set->at(i2++);
       range_source = kInsideSecond;
     }

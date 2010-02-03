@@ -53,8 +53,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 // Call the generated regexp code directly. The entry function pointer should
 // expect eight int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  entry(p0, p1, p2, p3, p4, p5, p6, p7)
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  entry(p0, p1, p2, p3, p4, p5, p6)
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
   reinterpret_cast<TryCatch*>(try_catch_address)

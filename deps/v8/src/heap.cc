@@ -76,8 +76,8 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
-int Heap::max_semispace_size_  = 512*KB;
-int Heap::max_old_generation_size_ = 128*MB;
+int Heap::max_semispace_size_  = 2*MB;
+int Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 size_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
@@ -327,7 +327,7 @@ void Heap::GarbageCollectionPrologue() {
 int Heap::SizeOfObjects() {
   int total = 0;
   AllSpaces spaces;
-  while (Space* space = spaces.next()) {
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     total += space->Size();
   }
   return total;
@@ -732,13 +732,14 @@ static void VerifyNonPointerSpacePointers() {
   // do not expect them.
   VerifyNonPointerSpacePointersVisitor v;
   HeapObjectIterator code_it(Heap::code_space());
-  while (code_it.has_next()) {
-    HeapObject* object = code_it.next();
+  for (HeapObject* object = code_it.next();
+       object != NULL; object = code_it.next())
     object->Iterate(&v);
-  }
 
   HeapObjectIterator data_it(Heap::old_data_space());
-  while (data_it.has_next()) data_it.next()->Iterate(&v);
+  for (HeapObject* object = data_it.next();
+       object != NULL; object = data_it.next())
+    object->Iterate(&v);
 }
 #endif
 
@@ -804,8 +805,8 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
-  while (cell_iterator.has_next()) {
-    HeapObject* cell = cell_iterator.next();
+  for (HeapObject* cell = cell_iterator.next();
+       cell != NULL; cell = cell_iterator.next()) {
     if (cell->IsJSGlobalPropertyCell()) {
       Address value_address =
           reinterpret_cast<Address>(cell) +
@@ -1013,13 +1014,15 @@ void Heap::RebuildRSets() {
 
 void Heap::RebuildRSets(PagedSpace* space) {
   HeapObjectIterator it(space);
-  while (it.has_next()) Heap::UpdateRSet(it.next());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+    Heap::UpdateRSet(obj);
 }
 
 
 void Heap::RebuildRSets(LargeObjectSpace* space) {
   LargeObjectIterator it(space);
-  while (it.has_next()) Heap::UpdateRSet(it.next());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+    Heap::UpdateRSet(obj);
 }
 
 
@@ -1182,7 +1185,10 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
+  reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
+  reinterpret_cast<Map*>(result)->set_bit_field(0);
+  reinterpret_cast<Map*>(result)->set_bit_field2(0);
   return result;
 }
 
@@ -1203,7 +1209,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2(0);
+  map->set_bit_field2(1 << Map::kIsExtensible);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -1493,8 +1499,8 @@ void Heap::CreateRegExpCEntryStub() {
 
 
 void Heap::CreateCEntryDebugBreakStub() {
-  CEntryDebugBreakStub stub;
-  set_c_entry_debug_break_code(*stub.GetCode());
+  DebuggerStatementStub stub;
+  set_debugger_statement_code(*stub.GetCode());
 }
 
 
@@ -1520,8 +1526,8 @@ void Heap::CreateFixedStubs() {
   // {  CEntryStub stub;
   //    c_entry_code_ = *stub.GetCode();
   // }
-  // {  CEntryDebugBreakStub stub;
-  //    c_entry_debug_break_code_ = *stub.GetCode();
+  // {  DebuggerStatementStub stub;
+  //    debugger_statement_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateCEntryStub();
@@ -1723,7 +1729,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
+    number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
     number_string_cache()->set(hash * 2, number);
@@ -1980,8 +1986,10 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
+
+  AssertNoAllocation no_gc;
   ConsString* cons_string = ConsString::cast(result);
-  WriteBarrierMode mode = cons_string->GetWriteBarrierMode();
+  WriteBarrierMode mode = cons_string->GetWriteBarrierMode(no_gc);
   cons_string->set_length(length);
   cons_string->set_hash_field(String::kEmptyHashField);
   cons_string->set_first(first, mode);
@@ -2279,7 +2287,7 @@ Object* Heap::InitializeFunction(JSFunction* function,
   function->set_shared(shared);
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  function->set_literals(empty_fixed_array());
   return function;
 }
 
@@ -2398,8 +2406,10 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
       String* name = fun->shared()->GetThisPropertyAssignmentName(i);
       ASSERT(name->IsSymbol());
       FieldDescriptor field(name, i, NONE);
+      field.SetEnumerationIndex(i);
       descriptors->Set(i, &field);
     }
+    descriptors->SetNextEnumerationIndex(count);
     descriptors->Sort();
     map->set_instance_descriptors(descriptors);
     map->set_pre_allocated_property_fields(count);
@@ -2880,8 +2890,10 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
   HeapObject::cast(obj)->set_map(src->map());
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
+
   // Copy the content
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
@@ -2899,6 +2911,7 @@ Object* Heap::AllocateFixedArray(int length) {
     Object* value = undefined_value();
     // Initialize body.
     for (int index = 0; index < length; index++) {
+      ASSERT(!Heap::InNewSpace(value));  // value = undefined
       array->set(index, value, SKIP_WRITE_BARRIER);
     }
   }
@@ -2954,6 +2967,7 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   array->set_length(length);
   Object* value = undefined_value();
   for (int index = 0; index < length; index++) {
+    ASSERT(!Heap::InNewSpace(value));  // value = undefined
     array->set(index, value, SKIP_WRITE_BARRIER);
   }
   return array;
@@ -2971,6 +2985,7 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     // Initialize body.
     Object* value = the_hole_value();
     for (int index = 0; index < length; index++)  {
+      ASSERT(!Heap::InNewSpace(value));  // value = the hole
       array->set(index, value, SKIP_WRITE_BARRIER);
     }
   }
@@ -3106,7 +3121,8 @@ void Heap::Print() {
   if (!HasBeenSetup()) return;
   Top::PrintStack();
   AllSpaces spaces;
-  while (Space* space = spaces.next()) space->Print();
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+    space->Print();
 }
 
 
@@ -3340,6 +3356,11 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
 
 void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
   IterateStrongRoots(v, mode);
+  IterateWeakRoots(v, mode);
+}
+
+
+void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
   if (mode != VISIT_ALL_IN_SCAVENGE) {
@@ -3394,6 +3415,20 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over pointers being held by inactive threads.
   ThreadManager::Iterate(v);
   v->Synchronize("threadmanager");
+
+  // Iterate over the pointers the Serialization/Deserialization code is
+  // holding.
+  // During garbage collection this keeps the partial snapshot cache alive.
+  // During deserialization of the startup snapshot this creates the partial
+  // snapshot cache and deserializes the objects it refers to.  During
+  // serialization this does nothing, since the partial snapshot cache is
+  // empty.  However the next thing we do is create the partial snapshot,
+  // filling up the partial snapshot cache with objects it needs as we go.
+  SerializerDeserializer::Iterate(v);
+  // We don't do a v->Synchronize call here, because in debug mode that will
+  // output a flag to the snapshot.  However at this point the serializer and
+  // deserializer are deliberately a little unsynchronized (see above) so the
+  // checking of the sync flag in the snapshot would fail.
 }
 
 
@@ -3544,7 +3579,8 @@ bool Heap::Setup(bool create_heap_objects) {
   // Initialize map space.
   map_space_ = new MapSpace(FLAG_use_big_map_space
       ? max_old_generation_size_
-      : (MapSpace::kMaxMapPageIndex + 1) * Page::kPageSize,
+      : MapSpace::kMaxMapPageIndex * Page::kPageSize,
+      FLAG_max_map_space_pages,
       MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->Setup(NULL, 0)) return false;
@@ -3647,7 +3683,8 @@ void Heap::TearDown() {
 void Heap::Shrink() {
   // Try to shrink all paged spaces.
   PagedSpaces spaces;
-  while (PagedSpace* space = spaces.next()) space->Shrink();
+  for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
+    space->Shrink();
 }
 
 
@@ -3656,7 +3693,8 @@ void Heap::Shrink() {
 void Heap::Protect() {
   if (HasBeenSetup()) {
     AllSpaces spaces;
-    while (Space* space = spaces.next()) space->Protect();
+    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+      space->Protect();
   }
 }
 
@@ -3664,7 +3702,8 @@ void Heap::Protect() {
 void Heap::Unprotect() {
   if (HasBeenSetup()) {
     AllSpaces spaces;
-    while (Space* space = spaces.next()) space->Unprotect();
+    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+      space->Unprotect();
   }
 }
 
@@ -3836,34 +3875,25 @@ void HeapIterator::Shutdown() {
 }
 
 
-bool HeapIterator::has_next() {
+HeapObject* HeapIterator::next() {
   // No iterator means we are done.
-  if (object_iterator_ == NULL) return false;
+  if (object_iterator_ == NULL) return NULL;
 
-  if (object_iterator_->has_next_object()) {
+  if (HeapObject* obj = object_iterator_->next_object()) {
     // If the current iterator has more objects we are fine.
-    return true;
+    return obj;
   } else {
     // Go though the spaces looking for one that has objects.
     while (space_iterator_->has_next()) {
       object_iterator_ = space_iterator_->next();
-      if (object_iterator_->has_next_object()) {
-        return true;
+      if (HeapObject* obj = object_iterator_->next_object()) {
+        return obj;
       }
     }
   }
   // Done with the last space.
   object_iterator_ = NULL;
-  return false;
-}
-
-
-HeapObject* HeapIterator::next() {
-  if (has_next()) {
-    return object_iterator_->next_object();
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 

@@ -600,14 +600,14 @@ ObjectMirror.prototype.protoObject = function() {
 
 ObjectMirror.prototype.hasNamedInterceptor = function() {
   // Get information on interceptors for this object.
-  var x = %DebugInterceptorInfo(this.value_);
+  var x = %GetInterceptorInfo(this.value_);
   return (x & 2) != 0;
 };
 
 
 ObjectMirror.prototype.hasIndexedInterceptor = function() {
   // Get information on interceptors for this object.
-  var x = %DebugInterceptorInfo(this.value_);
+  var x = %GetInterceptorInfo(this.value_);
   return (x & 1) != 0;
 };
 
@@ -631,13 +631,13 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
     // Get the local property names.
-    propertyNames = %DebugLocalPropertyNames(this.value_);
+    propertyNames = %GetLocalPropertyNames(this.value_);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.
     if (this.hasNamedInterceptor() && (kind & PropertyKind.Named)) {
       var namedInterceptorNames =
-          %DebugNamedInterceptorPropertyNames(this.value_);
+          %GetNamedInterceptorPropertyNames(this.value_);
       if (namedInterceptorNames) {
         propertyNames = propertyNames.concat(namedInterceptorNames);
         total += namedInterceptorNames.length;
@@ -648,13 +648,13 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
   // Find all the indexed properties.
   if (kind & PropertyKind.Indexed) {
     // Get the local element names.
-    elementNames = %DebugLocalElementNames(this.value_);
+    elementNames = %GetLocalElementNames(this.value_);
     total += elementNames.length;
 
     // Get names for indexed interceptor properties.
     if (this.hasIndexedInterceptor() && (kind & PropertyKind.Indexed)) {
       var indexedInterceptorNames =
-          %DebugIndexedInterceptorElementNames(this.value_);
+          %GetIndexedInterceptorElementNames(this.value_);
       if (indexedInterceptorNames) {
         elementNames = elementNames.concat(indexedInterceptorNames);
         total += indexedInterceptorNames.length;
@@ -2089,8 +2089,10 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
         content.evalFromScript =
             this.serializeReference(mirror.evalFromScript());
         var evalFromLocation = mirror.evalFromLocation()
-        content.evalFromLocation = { line: evalFromLocation.line,
-                                     column: evalFromLocation.column}
+        if (evalFromLocation) {
+          content.evalFromLocation = { line: evalFromLocation.line,
+                                       column: evalFromLocation.column };
+        }
         if (mirror.evalFromFunctionName()) {
           content.evalFromFunctionName = mirror.evalFromFunctionName();
         }

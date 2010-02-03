@@ -718,6 +718,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 }
 
 
+Handle<Object> Factory::ToObject(Handle<Object> object) {
+  CALL_HEAP_FUNCTION(object->ToObject(), Object);
+}
+
+
 Handle<Object> Factory::ToObject(Handle<Object> object,
                                  Handle<Context> global_context) {
   CALL_HEAP_FUNCTION(object->ToObject(*global_context), Object);
@@ -766,6 +771,8 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 Handle<JSFunction> Factory::CreateApiFunction(
     Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
   Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::HandleApiCall));
+  Handle<Code> construct_stub =
+      Handle<Code>(Builtins::builtin(Builtins::JSConstructStubApi));
 
   int internal_field_count = 0;
   if (!obj->instance_template()->IsUndefined()) {
@@ -840,6 +847,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   result->shared()->set_function_data(*obj);
+  result->shared()->set_construct_stub(*construct_stub);
   result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.

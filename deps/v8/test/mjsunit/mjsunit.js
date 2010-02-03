@@ -75,6 +75,7 @@ function deepEquals(a, b) {
   if (typeof a == "number" && typeof b == "number" && isNaN(a) && isNaN(b)) {
     return true;
   }
+  if (a == null || b == null) return false;
   if (a.constructor === RegExp || b.constructor === RegExp) {
     return (a.constructor === b.constructor) && (a.toString === b.toString);
   }

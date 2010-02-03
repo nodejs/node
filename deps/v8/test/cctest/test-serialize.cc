@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2007-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,6 +39,8 @@
 #include "cctest.h"
 #include "spaces.h"
 #include "objects.h"
+#include "natives.h"
+#include "bootstrapper.h"
 
 using namespace v8::internal;
 
@@ -117,10 +119,6 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference(&Counters::keyed_load_function_prototype);
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
-  ExternalReference passed_function =
-      ExternalReference::builtin_passed_function();
-  CHECK_EQ(make_code(UNCLASSIFIED, 1),
-           encoder.Encode(passed_function.address()));
   ExternalReference the_hole_value_location =
       ExternalReference::the_hole_value_location();
   CHECK_EQ(make_code(UNCLASSIFIED, 2),
@@ -160,8 +158,6 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(
                make_code(STATS_COUNTER,
                          Counters::k_keyed_load_function_prototype)));
-  CHECK_EQ(ExternalReference::builtin_passed_function().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 1)));
   CHECK_EQ(ExternalReference::the_hole_value_location().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 2)));
   CHECK_EQ(ExternalReference::address_of_stack_limit().address(),
@@ -175,6 +171,75 @@ TEST(ExternalReferenceDecoder) {
 }
 
 
+class FileByteSink : public SnapshotByteSink {
+ public:
+  explicit FileByteSink(const char* snapshot_file) {
+    fp_ = OS::FOpen(snapshot_file, "wb");
+    file_name_ = snapshot_file;
+    if (fp_ == NULL) {
+      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
+      exit(1);
+    }
+  }
+  virtual ~FileByteSink() {
+    if (fp_ != NULL) {
+      fclose(fp_);
+    }
+  }
+  virtual void Put(int byte, const char* description) {
+    if (fp_ != NULL) {
+      fputc(byte, fp_);
+    }
+  }
+  virtual int Position() {
+    return ftell(fp_);
+  }
+  void WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used);
+
+ private:
+  FILE* fp_;
+  const char* file_name_;
+};
+
+
+void FileByteSink::WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used) {
+  int file_name_length = StrLength(file_name_) + 10;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(name, "%s.size", file_name_);
+  FILE* fp = OS::FOpen(name.start(), "w");
+  fprintf(fp, "new %d\n", new_space_used);
+  fprintf(fp, "pointer %d\n", pointer_space_used);
+  fprintf(fp, "data %d\n", data_space_used);
+  fprintf(fp, "code %d\n", code_space_used);
+  fprintf(fp, "map %d\n", map_space_used);
+  fprintf(fp, "cell %d\n", cell_space_used);
+  fprintf(fp, "large %d\n", large_space_used);
+  fclose(fp);
+}
+
+
+static bool WriteToFile(const char* snapshot_file) {
+  FileByteSink file(snapshot_file);
+  StartupSerializer ser(&file);
+  ser.Serialize();
+  return true;
+}
+
+
 static void Serialize() {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from v8natives.js and their addresses can be processed.  This
@@ -182,7 +247,7 @@ static void Serialize() {
   // that would confuse the serialization/deserialization process.
   v8::Persistent<v8::Context> env = v8::Context::New();
   env.Dispose();
-  Snapshot::WriteToFile(FLAG_testing_serialization_file);
+  WriteToFile(FLAG_testing_serialization_file);
 }
 
 
@@ -279,45 +344,112 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 }
 
 
-class FileByteSink : public SnapshotByteSink {
- public:
-  explicit FileByteSink(const char* snapshot_file) {
-    fp_ = OS::FOpen(snapshot_file, "wb");
-    if (fp_ == NULL) {
-      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
-      exit(1);
-    }
-  }
-  virtual ~FileByteSink() {
-    if (fp_ != NULL) {
-      fclose(fp_);
-    }
-  }
-  virtual void Put(int byte, const char* description) {
-    if (fp_ != NULL) {
-      fputc(byte, fp_);
-    }
-  }
-
- private:
-  FILE* fp_;
-};
-
-
 TEST(PartialSerialization) {
   Serializer::Enable();
   v8::V8::Initialize();
+
   v8::Persistent<v8::Context> env = v8::Context::New();
+  ASSERT(!env.IsEmpty());
   env->Enter();
+  // Make sure all builtin scripts are cached.
+  { HandleScope scope;
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Bootstrapper::NativesSourceLookup(i);
+    }
+  }
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
 
+  Object* raw_foo;
+  {
+    v8::HandleScope handle_scope;
+    v8::Local<v8::String> foo = v8::String::New("foo");
+    ASSERT(!foo.IsEmpty());
+    raw_foo = *(v8::Utils::OpenHandle(*foo));
+  }
+
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  env->Exit();
+  env.Dispose();
+
+  FileByteSink startup_sink(startup_name.start());
+  StartupSerializer startup_serializer(&startup_sink);
+  startup_serializer.SerializeStrongReferences();
+
+  FileByteSink partial_sink(FLAG_testing_serialization_file);
+  PartialSerializer p_ser(&startup_serializer, &partial_sink);
+  p_ser.Serialize(&raw_foo);
+  startup_serializer.SerializeWeakReferences();
+  partial_sink.WriteSpaceUsed(p_ser.CurrentAllocationAddress(NEW_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+                              p_ser.CurrentAllocationAddress(CODE_SPACE),
+                              p_ser.CurrentAllocationAddress(MAP_SPACE),
+                              p_ser.CurrentAllocationAddress(CELL_SPACE),
+                              p_ser.CurrentAllocationAddress(LO_SPACE));
+}
+
+
+DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  CHECK(Snapshot::Initialize(startup_name.start()));
+
+  const char* file_name = FLAG_testing_serialization_file;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(name, "%s.size", file_name);
+  FILE* fp = OS::FOpen(name.start(), "r");
+  int new_size, pointer_size, data_size, code_size, map_size, cell_size;
+  int large_size;
+#ifdef _MSC_VER
+  // Avoid warning about unsafe fscanf from MSVC.
+  // Please note that this is only fine if %c and %s are not being used.
+#define fscanf fscanf_s
+#endif
+  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
+  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
+  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
+  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
+  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
+  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
+  CHECK_EQ(1, fscanf(fp, "large %d\n", &large_size));
+#ifdef _MSC_VER
+#undef fscanf
+#endif
+  fclose(fp);
+  Heap::ReserveSpace(new_size,
+                     pointer_size,
+                     data_size,
+                     code_size,
+                     map_size,
+                     cell_size,
+                     large_size);
+  int snapshot_size = 0;
+  byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+  Object* root;
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root);
+    CHECK(root->IsString());
+  }
   v8::HandleScope handle_scope;
-  v8::Local<v8::String> foo = v8::String::New("foo");
+  Handle<Object>root_handle(root);
 
-  FileByteSink file(FLAG_testing_serialization_file);
-  Serializer ser(&file);
-  i::Handle<i::String> internal_foo = v8::Utils::OpenHandle(*foo);
-  Object* raw_foo = *internal_foo;
-  ser.SerializePartial(&raw_foo);
+  Object* root2;
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root2);
+    CHECK(root2->IsString());
+    CHECK(*root_handle == root2);
+  }
 }
 
 

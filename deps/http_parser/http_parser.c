@@ -106,11 +106,10 @@ static inline int message_complete_callback (http_parser *parser)
 #define KEEP_ALIVE "keep-alive"
 #define CLOSE "close"
 
-
 static const unsigned char lowcase[] =
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
   "\0\0\0\0\0\0\0\0\0\0\0\0\0-\0\0" "0123456789\0\0\0\0\0\0"
-  "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0\0"
+  "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0_"
   "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0\0"
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
@@ -199,7 +198,10 @@ enum state
   , s_header_almost_done
 
   , s_headers_almost_done
-
+  /* Important: 's_headers_almost_done' must be the last 'header' state. All
+   * states beyond this must be 'body' states. It is used for overflow
+   * checking. See the PARSING_HEADER() macro.
+   */
   , s_chunk_size_start
   , s_chunk_size
   , s_chunk_size_almost_done
@@ -211,6 +213,8 @@ enum state
   , s_body_identity
   , s_body_identity_eof
   };
+
+#define PARSING_HEADER(state) (state <= s_headers_almost_done)
 
 enum header_states
   { h_general = 0
@@ -262,12 +266,13 @@ size_t http_parser_execute (http_parser *parser,
                             size_t len)
 {
   char c, ch;
-  const char *p, *pe;
+  const char *p = data, *pe;
   ssize_t to_read;
 
   enum state state = parser->state;
   enum header_states header_state = parser->header_state;
   size_t index = parser->index;
+  size_t nread = parser->nread;
 
   if (len == 0) {
     if (state == s_body_identity_eof) {
@@ -285,6 +290,12 @@ size_t http_parser_execute (http_parser *parser,
 
   for (p=data, pe=data+len; p != pe; p++) {
     ch = *p;
+
+    if (++nread > HTTP_MAX_HEADER_SIZE && PARSING_HEADER(state)) {
+      /* Buffer overflow attack */
+      goto error;
+    }
+
     switch (state) {
 
       case s_dead:
@@ -442,6 +453,8 @@ size_t http_parser_execute (http_parser *parser,
 
       case s_start_req:
       {
+        if (ch == CR || ch == LF)
+          break;
         parser->flags = 0;
         parser->content_length = -1;
 
@@ -739,6 +752,9 @@ size_t http_parser_execute (http_parser *parser,
         if (USUAL(ch)) break;
 
         switch (ch) {
+          case '?':
+            // allow extra '?' in query string
+            break;
           case ' ':
             CALLBACK(url);
             CALLBACK(query_string);
@@ -1262,6 +1278,7 @@ size_t http_parser_execute (http_parser *parser,
         }
 
         parser->body_read = 0;
+        nread = 0;
 
         CALLBACK2(headers_complete);
 
@@ -1421,6 +1438,7 @@ size_t http_parser_execute (http_parser *parser,
   parser->state = state;
   parser->header_state = header_state;
   parser->index = index;
+  parser->nread = nread;
 
   return len;
 
@@ -1455,6 +1473,8 @@ http_parser_init (http_parser *parser, enum http_parser_type t)
 {
   parser->type = t;
   parser->state = (t == HTTP_REQUEST ? s_start_req : s_start_res);
+  parser->nread = 0;
+
   parser->on_message_begin = NULL;
   parser->on_path = NULL;
   parser->on_query_string = NULL;

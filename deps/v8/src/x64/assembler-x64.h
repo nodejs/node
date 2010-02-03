@@ -574,6 +574,13 @@ class Assembler : public Malloced {
   void movzxwq(Register dst, const Operand& src);
   void movzxwl(Register dst, const Operand& src);
 
+  // Repeated moves.
+
+  void repmovsb();
+  void repmovsw();
+  void repmovsl();
+  void repmovsq();
+
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
@@ -738,6 +745,9 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x23, dst, src);
   }
 
+  void andb(Register dst, Immediate src) {
+    immediate_arithmetic_op_8(0x4, dst, src);
+  }
 
   void decq(Register dst);
   void decq(const Operand& dst);
@@ -916,6 +926,10 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x2B, dst, src);
   }
 
+  void subl(Register dst, const Operand& src) {
+    arithmetic_op_32(0x2B, dst, src);
+  }
+
   void subl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
@@ -931,6 +945,7 @@ class Assembler : public Malloced {
   void testb(Register dst, Register src);
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
+  void testb(const Operand& op, Register reg);
   void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
   void testl(const Operand& op, Immediate mask);
@@ -1047,6 +1062,7 @@ class Assembler : public Malloced {
   void fistp_d(const Operand& adr);
 
   void fisttp_s(const Operand& adr);
+  void fisttp_d(const Operand& adr);
 
   void fabs();
   void fchs();

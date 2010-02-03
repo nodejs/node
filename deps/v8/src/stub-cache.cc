@@ -1058,6 +1058,19 @@ Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, String* name) {
   return GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
 }
 
+void StubCompiler::LookupPostInterceptor(JSObject* holder,
+                                         String* name,
+                                         LookupResult* lookup) {
+  holder->LocalLookupRealNamedProperty(name, lookup);
+  if (lookup->IsNotFound()) {
+    Object* proto = holder->GetPrototype();
+    if (proto != Heap::null_value()) {
+      proto->Lookup(name, lookup);
+    }
+  }
+}
+
+
 
 Object* LoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);

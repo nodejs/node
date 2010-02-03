@@ -280,17 +280,11 @@ V8_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'WARNINGFLAGS': ['/WX', '/wd4355', '/wd4800']
+      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
     },
     'library:shared': {
       'CPPDEFINES': ['BUILDING_V8_SHARED'],
       'LIBS': ['winmm', 'ws2_32']
-    },
-    'arch:ia32': {
-      'WARNINGFLAGS': ['/W3']
-    },
-    'arch:x64': {
-      'WARNINGFLAGS': ['/W3']
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],
@@ -317,7 +311,8 @@ MKSNAPSHOT_EXTRA_FLAGS = {
       'LIBS': ['execinfo', 'pthread']
     },
     'os:solaris': {
-      'LIBS': ['pthread', 'socket', 'nsl', 'rt']
+      'LIBS': ['m', 'pthread', 'socket', 'nsl', 'rt'],
+      'LINKFLAGS': ['-mt']
     },
     'os:openbsd': {
       'LIBS': ['execinfo', 'pthread']
@@ -369,7 +364,8 @@ CCTEST_EXTRA_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:solaris': {
-      'LIBS':         ['pthread', 'socket', 'nsl', 'rt']
+      'LIBS':         ['m', 'pthread', 'socket', 'nsl', 'rt'],
+      'LINKFLAGS':    ['-mt']
     },
     'os:openbsd': {
       'LIBS':         ['execinfo', 'pthread']
@@ -431,7 +427,8 @@ SAMPLE_FLAGS = {
     },
     'os:solaris': {
       'LIBPATH' : ['/usr/local/lib'],
-      'LIBS':     ['pthread', 'socket', 'nsl', 'rt']
+      'LIBS':     ['m', 'pthread', 'socket', 'nsl', 'rt'],
+      'LINKFLAGS': ['-mt']
     },
     'os:openbsd': {
       'LIBPATH' : ['/usr/local/lib'],
@@ -543,7 +540,8 @@ D8_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:solaris': {
-      'LIBS': ['pthread', 'socket', 'nsl', 'rt']
+      'LIBS': ['m', 'pthread', 'socket', 'nsl', 'rt'],
+      'LINKFLAGS': ['-mt']
     },
     'os:openbsd': {
       'LIBS': ['pthread'],
@@ -693,7 +691,7 @@ SIMPLE_OPTIONS = {
 def GetOptions():
   result = Options()
   result.Add('mode', 'compilation mode (debug, release)', 'release')
-  result.Add('sample', 'build sample (shell, process)', '')
+  result.Add('sample', 'build sample (shell, process, lineprocessor)', '')
   result.Add('env', 'override environment settings (NAME0:value0,NAME1:value1,...)', '')
   result.Add('importenv', 'import environment settings (NAME0,NAME1,...)', '')
   for (name, option) in SIMPLE_OPTIONS.iteritems():
@@ -761,7 +759,7 @@ def IsLegal(env, option, values):
 def VerifyOptions(env):
   if not IsLegal(env, 'mode', ['debug', 'release']):
     return False
-  if not IsLegal(env, 'sample', ["shell", "process"]):
+  if not IsLegal(env, 'sample', ["shell", "process", "lineprocessor"]):
     return False
   if not IsLegal(env, 'regexp', ["native", "interpreted"]):
     return False

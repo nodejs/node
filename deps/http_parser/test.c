@@ -58,7 +58,7 @@ struct message {
   int message_begin_cb_called;
   int headers_complete_cb_called;
   int message_complete_cb_called;
-  int eof_indicates_message_end;
+  int message_complete_on_eof;
 };
 
 static int currently_parsing_eof;
@@ -85,7 +85,7 @@ const struct message requests[] =
          "Accept: */*\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -116,7 +116,7 @@ const struct message requests[] =
          "Connection: keep-alive\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -145,7 +145,7 @@ const struct message requests[] =
          "aaaaaaaaaaaaa:++++++++++\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -166,7 +166,7 @@ const struct message requests[] =
   ,.raw= "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -185,7 +185,7 @@ const struct message requests[] =
   ,.raw= "GET /get_no_headers_no_body/world HTTP/1.1\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE /* would need Connection: close */
+  ,.message_complete_on_eof= FALSE /* would need Connection: close */
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -204,7 +204,7 @@ const struct message requests[] =
          "Accept: */*\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE /* would need Connection: close */
+  ,.message_complete_on_eof= FALSE /* would need Connection: close */
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -227,7 +227,7 @@ const struct message requests[] =
          "\r\n"
          "HELLO"
   ,.should_keep_alive= FALSE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
@@ -252,7 +252,7 @@ const struct message requests[] =
          "\r\n"
          "World"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -279,7 +279,7 @@ const struct message requests[] =
          "0\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -305,7 +305,7 @@ const struct message requests[] =
          "000\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -333,7 +333,7 @@ const struct message requests[] =
          "Content-Type: text/plain\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -361,7 +361,7 @@ const struct message requests[] =
          "0\r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
@@ -381,7 +381,7 @@ const struct message requests[] =
   ,.type= HTTP_REQUEST
   ,.raw= "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
@@ -397,7 +397,7 @@ const struct message requests[] =
 #define APACHEBENCH_GET 13
 /* The server receiving this request SHOULD NOT wait for EOF
  * to know that content-length == 0.
- * How to represent this in a unit test? eof_indicates_message_end
+ * How to represent this in a unit test? message_complete_on_eof
  * Compare with NO_CONTENT_LENGTH_RESPONSE.
  */
 , {.name = "apachebench get"
@@ -407,7 +407,7 @@ const struct message requests[] =
          "User-Agent: ApacheBench/2.3\r\n"
          "Accept: */*\r\n\r\n"
   ,.should_keep_alive= FALSE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
@@ -420,6 +420,47 @@ const struct message requests[] =
              , { "User-Agent", "ApacheBench/2.3" }
              , { "Accept", "*/*" }
              }
+  ,.body= ""
+  }
+
+#define QUERY_URL_WITH_QUESTION_MARK_GET 14
+/* Some clients include '?' characters in query strings.
+ */
+, {.name = "query url with question mark"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /test.cgi?foo=bar?baz HTTP/1.1\r\n\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= "foo=bar?baz"
+  ,.fragment= ""
+  ,.request_path= "/test.cgi"
+  ,.request_url= "/test.cgi?foo=bar?baz"
+  ,.num_headers= 0
+  ,.headers= {}
+  ,.body= ""
+  }
+
+#define PREFIX_NEWLINE_GET 15
+/* Some clients, especially after a POST in a keep-alive connection,
+ * will send an extra CRLF before the next request
+ */
+, {.name = "newline prefix get"
+  ,.type= HTTP_REQUEST
+  ,.raw= "\r\nGET /test HTTP/1.1\r\n\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/test"
+  ,.request_url= "/test"
+  ,.num_headers= 0
+  ,.headers= { }
   ,.body= ""
   }
 
@@ -447,7 +488,7 @@ const struct message responses[] =
          "<A HREF=\"http://www.google.com/\">here</A>.\r\n"
          "</BODY></HTML>\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
@@ -494,7 +535,7 @@ const struct message responses[] =
          "  </SOAP-ENV:Body>\n"
          "</SOAP-ENV:Envelope>"
   ,.should_keep_alive= FALSE
-  ,.eof_indicates_message_end= TRUE
+  ,.message_complete_on_eof= TRUE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -522,7 +563,7 @@ const struct message responses[] =
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 404 Not Found\r\n\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 404
@@ -536,7 +577,7 @@ const struct message responses[] =
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 301\r\n\r\n"
   ,.should_keep_alive = TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
@@ -561,7 +602,7 @@ const struct message responses[] =
          "0  \r\n"
          "\r\n"
   ,.should_keep_alive= TRUE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -585,7 +626,7 @@ const struct message responses[] =
          "\n"
          "these headers are from http://news.ycombinator.com/"
   ,.should_keep_alive= FALSE
-  ,.eof_indicates_message_end= TRUE
+  ,.message_complete_on_eof= TRUE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -608,7 +649,7 @@ const struct message responses[] =
          "\r\n"
          "hello world"
   ,.should_keep_alive= FALSE
-  ,.eof_indicates_message_end= FALSE
+  ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 200
@@ -620,6 +661,31 @@ const struct message responses[] =
     , {"Date", "Thu, 31 Dec 2009 20:55:48 +0000"}
     }
   ,.body= "hello world"
+  }
+
+#define UNDERSTORE_HEADER_KEY 7
+  // shown by
+  // curl -o /dev/null -v "http://ad.doubleclick.net/pfadx/DARTSHELLCONFIGXML;dcmt=text/xml;"
+, {.name="underscore header key"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\r\n"
+         "Server: DCLK-AdSvr\r\n"
+         "Content-Type: text/xml\r\n"
+         "Content-Length: 0\r\n"
+         "DCLK_imp: v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o\r\n\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 4
+  ,.headers=
+    { {"Server", "DCLK-AdSvr" }
+    , {"Content-Type", "text/xml" }
+    , {"Content-Length", "0" }
+    , {"DCLK_imp", "v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o" }
+    }
+  ,.body= ""
   }
 
 , {.name= NULL } /* sentinel */
@@ -730,7 +796,7 @@ message_complete_cb (http_parser *p)
   }
   messages[num_messages].message_complete_cb_called = TRUE;
 
-  messages[num_messages].eof_indicates_message_end = currently_parsing_eof;
+  messages[num_messages].message_complete_on_eof = currently_parsing_eof;
 
   num_messages++;
   return 0;
@@ -820,7 +886,7 @@ message_eq (int index, const struct message *expected)
   }
 
   MESSAGE_CHECK_NUM_EQ(expected, m, should_keep_alive);
-  MESSAGE_CHECK_NUM_EQ(expected, m, eof_indicates_message_end);
+  MESSAGE_CHECK_NUM_EQ(expected, m, message_complete_on_eof);
 
   assert(m->message_begin_cb_called);
   assert(m->headers_complete_cb_called);

@@ -55,9 +55,9 @@ namespace internal {
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
-  V(Runtime)                             \
   V(CEntry)                              \
-  V(JSEntry)
+  V(JSEntry)                             \
+  V(DebuggerStatement)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM

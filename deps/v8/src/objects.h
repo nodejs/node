@@ -1023,8 +1023,12 @@ class HeapObject: public Object {
   // Casting.
   static inline HeapObject* cast(Object* obj);
 
-  // Return the write barrier mode for this.
-  inline WriteBarrierMode GetWriteBarrierMode();
+  // Return the write barrier mode for this. Callers of this function
+  // must be able to present a reference to an AssertNoAllocation
+  // object as a sign that they are not going to use this function
+  // from code that allocates and thus invalidates the returned write
+  // barrier mode.
+  inline WriteBarrierMode GetWriteBarrierMode(const AssertNoAllocation&);
 
   // Dispatched behavior.
   void HeapObjectShortPrint(StringStream* accumulator);
@@ -1669,7 +1673,8 @@ class FixedArray: public Array {
   void SortPairs(FixedArray* numbers, uint32_t len);
 
  protected:
-  // Set operation on FixedArray without using write barriers.
+  // Set operation on FixedArray without using write barriers. Can
+  // only be used for storing old space objects or smis.
   static inline void fast_set(FixedArray* array, int index, Object* value);
 
  private:
@@ -2889,6 +2894,14 @@ class Map: public HeapObject {
     return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
   }
 
+  inline void set_is_extensible() {
+    set_bit_field2(bit_field2() | (1 << kIsExtensible));
+  }
+
+  inline bool is_extensible() {
+    return ((1 << kIsExtensible) & bit_field2()) != 0;
+  }
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3006,6 +3019,7 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
+  static const int kIsExtensible = 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
@@ -3213,8 +3227,8 @@ class SharedFunctionInfo: public HeapObject {
   // this.x = y; where y is either a constant or refers to an argument.
   inline bool has_only_simple_this_property_assignments();
 
-  inline bool try_fast_codegen();
-  inline void set_try_fast_codegen(bool flag);
+  inline bool try_full_codegen();
+  inline void set_try_full_codegen(bool flag);
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.
@@ -3295,7 +3309,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // Bit positions in compiler_hints.
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
-  static const int kTryFastCodegen = 1;
+  static const int kTryFullCodegen = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -3640,6 +3654,8 @@ class JSRegExp: public JSObject {
       FixedArray::kHeaderSize + kTagIndex * kPointerSize;
   static const int kDataAsciiCodeOffset =
       FixedArray::kHeaderSize + kIrregexpASCIICodeIndex * kPointerSize;
+  static const int kDataUC16CodeOffset =
+      FixedArray::kHeaderSize + kIrregexpUC16CodeIndex * kPointerSize;
   static const int kIrregexpCaptureCountOffset =
       FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
 };
@@ -4462,6 +4478,10 @@ class JSArray: public JSObject {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
+
+  // Overload the length setter to skip write barrier when the length
+  // is set to a smi. This matches the set function on FixedArray.
+  inline void set_length(Smi* length);
 
   Object* JSArrayUpdateLengthFromIndex(uint32_t index, Object* value);
 

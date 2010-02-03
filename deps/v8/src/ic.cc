@@ -378,6 +378,18 @@ Object* CallIC::TryCallAsFunction(Object* object) {
   return *delegate;
 }
 
+void CallIC::ReceiverToObject(Handle<Object> object) {
+  HandleScope scope;
+  Handle<Object> receiver(object);
+
+  // Change the receiver to the result of calling ToObject on it.
+  const int argc = this->target()->arguments_count();
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  int index = frame->ComputeExpressionsCount() - (argc + 1);
+  frame->SetExpression(index, *Factory::ToObject(object));
+}
+
 
 Object* CallIC::LoadFunction(State state,
                              Handle<Object> object,
@@ -386,6 +398,10 @@ Object* CallIC::LoadFunction(State state,
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
     return TypeError("non_object_property_call", object, name);
+  }
+
+  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
+    ReceiverToObject(object);
   }
 
   // Check if the name is trivially convertible to an index and get
@@ -1286,9 +1302,9 @@ Object* CallIC_Miss(Arguments args) {
   Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
   InLoopFlag in_loop = ic.target()->ic_in_loop();
   if (in_loop == IN_LOOP) {
-    CompileLazyInLoop(function, CLEAR_EXCEPTION);
+    CompileLazyInLoop(function, args.at<Object>(0), CLEAR_EXCEPTION);
   } else {
-    CompileLazy(function, CLEAR_EXCEPTION);
+    CompileLazy(function, args.at<Object>(0), CLEAR_EXCEPTION);
   }
   return *function;
 }
@@ -1376,16 +1392,6 @@ Object* SharedStoreIC_ExtendStorage(Arguments args) {
 
   // Return the stored value.
   return value;
-}
-
-
-void StoreIC::GenerateInitialize(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
-}
-
-
-void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
 }
 
 

@@ -82,8 +82,8 @@ void HeapObjectIterator::Initialize(Address cur, Address end,
 }
 
 
-bool HeapObjectIterator::HasNextInNextPage() {
-  if (cur_addr_ == end_addr_) return false;
+HeapObject* HeapObjectIterator::FromNextPage() {
+  if (cur_addr_ == end_addr_) return NULL;
 
   Page* cur_page = Page::FromAllocationTop(cur_addr_);
   cur_page = cur_page->next_page();
@@ -92,12 +92,12 @@ bool HeapObjectIterator::HasNextInNextPage() {
   cur_addr_ = cur_page->ObjectAreaStart();
   cur_limit_ = (cur_page == end_page_) ? end_addr_ : cur_page->AllocationTop();
 
-  if (cur_addr_ == end_addr_) return false;
+  if (cur_addr_ == end_addr_) return NULL;
   ASSERT(cur_addr_ < cur_limit_);
 #ifdef DEBUG
   Verify();
 #endif
-  return true;
+  return FromCurrentPage();
 }
 
 
@@ -357,12 +357,18 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   }
   int alloced = static_cast<int>(*allocated);
   size_ += alloced;
+#ifdef DEBUG
+  ZapBlock(reinterpret_cast<Address>(mem), alloced);
+#endif
   Counters::memory_allocated.Increment(alloced);
   return mem;
 }
 
 
 void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
+#ifdef DEBUG
+  ZapBlock(reinterpret_cast<Address>(mem), length);
+#endif
   if (CodeRange::contains(static_cast<Address>(mem))) {
     CodeRange::FreeRawMemory(mem, length);
   } else {
@@ -446,6 +452,9 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
   if (!initial_chunk_->Commit(start, size, owner->executable() == EXECUTABLE)) {
     return Page::FromAddress(NULL);
   }
+#ifdef DEBUG
+  ZapBlock(start, size);
+#endif
   Counters::memory_allocated.Increment(static_cast<int>(size));
 
   // So long as we correctly overestimated the number of chunks we should not
@@ -467,9 +476,13 @@ bool MemoryAllocator::CommitBlock(Address start,
   ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Commit(start, size, executable)) return false;
+#ifdef DEBUG
+  ZapBlock(start, size);
+#endif
   Counters::memory_allocated.Increment(static_cast<int>(size));
   return true;
 }
+
 
 bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   ASSERT(start != NULL);
@@ -482,6 +495,14 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   Counters::memory_allocated.Decrement(static_cast<int>(size));
   return true;
 }
+
+
+void MemoryAllocator::ZapBlock(Address start, size_t size) {
+  for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
+    Memory::Address_at(start + s) = kZapValue;
+  }
+}
+
 
 Page* MemoryAllocator::InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                               PagedSpace* owner) {
@@ -1437,7 +1458,8 @@ void NewSpace::ClearHistograms() {
 void NewSpace::CollectStatistics() {
   ClearHistograms();
   SemiSpaceIterator it(this);
-  while (it.has_next()) RecordAllocation(it.next());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+    RecordAllocation(obj);
 }
 
 
@@ -1598,9 +1620,7 @@ void OldSpaceFreeList::RebuildSizeList() {
 
 int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
 #ifdef DEBUG
-  for (int i = 0; i < size_in_bytes; i += kPointerSize) {
-    Memory::Address_at(start + i) = kZapValue;
-  }
+  MemoryAllocator::ZapBlock(start, size_in_bytes);
 #endif
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(size_in_bytes);
@@ -1732,9 +1752,7 @@ void FixedSizeFreeList::Reset() {
 
 void FixedSizeFreeList::Free(Address start) {
 #ifdef DEBUG
-  for (int i = 0; i < object_size_; i += kPointerSize) {
-    Memory::Address_at(start + i) = kZapValue;
-  }
+  MemoryAllocator::ZapBlock(start, object_size_);
 #endif
   // We only use the freelists with mark-sweep.
   ASSERT(!MarkCompactCollector::IsCompacting());
@@ -2054,8 +2072,7 @@ static void CollectCommentStatistics(RelocIterator* it) {
 // - by code comment
 void PagedSpace::CollectCodeStatistics() {
   HeapObjectIterator obj_it(this);
-  while (obj_it.has_next()) {
-    HeapObject* obj = obj_it.next();
+  for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next()) {
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
       code_kind_statistics[code->kind()] += code->Size();
@@ -2157,7 +2174,8 @@ void OldSpace::ReportStatistics() {
 
   ClearHistograms();
   HeapObjectIterator obj_it(this);
-  while (obj_it.has_next()) { CollectHistogramInfo(obj_it.next()); }
+  for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next())
+    CollectHistogramInfo(obj);
   ReportHistogram(true);
 }
 
@@ -2393,7 +2411,8 @@ void FixedSpace::ReportStatistics() {
 
   ClearHistograms();
   HeapObjectIterator obj_it(this);
-  while (obj_it.has_next()) { CollectHistogramInfo(obj_it.next()); }
+  for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next())
+    CollectHistogramInfo(obj);
   ReportHistogram(false);
 }
 
@@ -2462,7 +2481,8 @@ LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space,
 
 
 HeapObject* LargeObjectIterator::next() {
-  ASSERT(has_next());
+  if (current_ == NULL) return NULL;
+
   HeapObject* object = current_->GetObject();
   current_ = current_->next();
   return object;
@@ -2639,8 +2659,7 @@ void LargeObjectSpace::ClearRSet() {
   ASSERT(Page::is_rset_in_use());
 
   LargeObjectIterator it(this);
-  while (it.has_next()) {
-    HeapObject* object = it.next();
+  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
     // We only have code, sequential strings, or fixed arrays in large
     // object space, and only fixed arrays need remembered set support.
     if (object->IsFixedArray()) {
@@ -2668,11 +2687,10 @@ void LargeObjectSpace::IterateRSet(ObjectSlotCallback copy_object_func) {
       30);
 
   LargeObjectIterator it(this);
-  while (it.has_next()) {
+  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
     // We only have code, sequential strings, or fixed arrays in large
     // object space, and only fixed arrays can possibly contain pointers to
     // the young generation.
-    HeapObject* object = it.next();
     if (object->IsFixedArray()) {
       // Iterate the normal page remembered set range.
       Page* page = Page::FromAddress(object->address());
@@ -2718,9 +2736,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      if (object->IsCode()) {
-        LOG(CodeDeleteEvent(object->address()));
-      }
+      MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
       page_count_--;
       MemoryAllocator::FreeRawMemory(chunk_address, chunk_size);
@@ -2800,8 +2816,8 @@ void LargeObjectSpace::Verify() {
 
 void LargeObjectSpace::Print() {
   LargeObjectIterator it(this);
-  while (it.has_next()) {
-    it.next()->Print();
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    obj->Print();
   }
 }
 
@@ -2811,9 +2827,9 @@ void LargeObjectSpace::ReportStatistics() {
   int num_objects = 0;
   ClearHistograms();
   LargeObjectIterator it(this);
-  while (it.has_next()) {
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     num_objects++;
-    CollectHistogramInfo(it.next());
+    CollectHistogramInfo(obj);
   }
 
   PrintF("  number of objects %d\n", num_objects);
@@ -2823,8 +2839,7 @@ void LargeObjectSpace::ReportStatistics() {
 
 void LargeObjectSpace::CollectCodeStatistics() {
   LargeObjectIterator obj_it(this);
-  while (obj_it.has_next()) {
-    HeapObject* obj = obj_it.next();
+  for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next()) {
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
       code_kind_statistics[code->kind()] += code->Size();
@@ -2835,8 +2850,7 @@ void LargeObjectSpace::CollectCodeStatistics() {
 
 void LargeObjectSpace::PrintRSet() {
   LargeObjectIterator it(this);
-  while (it.has_next()) {
-    HeapObject* object = it.next();
+  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
     if (object->IsFixedArray()) {
       Page* page = Page::FromAddress(object->address());
 

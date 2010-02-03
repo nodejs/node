@@ -229,6 +229,7 @@ class Factory : public AllStatic {
 
   static Handle<Code> CopyCode(Handle<Code> code);
 
+  static Handle<Object> ToObject(Handle<Object> object);
   static Handle<Object> ToObject(Handle<Object> object,
                                  Handle<Context> global_context);
 

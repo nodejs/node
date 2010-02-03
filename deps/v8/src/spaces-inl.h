@@ -36,32 +36,6 @@ namespace internal {
 
 
 // -----------------------------------------------------------------------------
-// HeapObjectIterator
-
-bool HeapObjectIterator::has_next() {
-  if (cur_addr_ < cur_limit_) {
-    return true;  // common case
-  }
-  ASSERT(cur_addr_ == cur_limit_);
-  return HasNextInNextPage();  // slow path
-}
-
-
-HeapObject* HeapObjectIterator::next() {
-  ASSERT(has_next());
-
-  HeapObject* obj = HeapObject::FromAddress(cur_addr_);
-  int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
-  ASSERT_OBJECT_SIZE(obj_size);
-
-  cur_addr_ += obj_size;
-  ASSERT(cur_addr_ <= cur_limit_);
-
-  return obj;
-}
-
-
-// -----------------------------------------------------------------------------
 // PageIterator
 
 bool PageIterator::has_next() {

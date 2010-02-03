@@ -197,7 +197,7 @@ $Object.prototype.constructor = $Object;
 
 // ECMA-262 - 15.2.4.2
 function ObjectToString() {
-  return "[object " + %_ClassOf(this) + "]";
+  return "[object " + %_ClassOf(ToObject(this)) + "]";
 }
 
 
@@ -209,7 +209,7 @@ function ObjectToLocaleString() {
 
 // ECMA-262 - 15.2.4.4
 function ObjectValueOf() {
-  return this;
+  return ToObject(this);
 }
 
 
@@ -276,7 +276,7 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
-    throw MakeTypeError('object_keys_non_object', [obj]);
+    throw MakeTypeError("obj_ctor_property_non_object", ["keys"]);
   return %LocalKeys(obj);
 }
 
@@ -493,20 +493,56 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 
 // ES5 section 15.2.3.2.
 function ObjectGetPrototypeOf(obj) {
- if (!IS_OBJECT(obj) && !IS_FUNCTION(obj)) {
-   throw MakeTypeError("object_get_prototype_non_object", [obj]);
- }
- return obj.__proto__;
+  if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
+    throw MakeTypeError("obj_ctor_property_non_object", ["getPrototypeOf"]);
+  return obj.__proto__;
 }
 
 
 // ES5 section 15.2.3.3 
 function ObjectGetOwnPropertyDescriptor(obj, p) {
-  if (!IS_OBJECT(obj) && !IS_FUNCTION(obj)) {
-    throw MakeTypeError("object_get_prototype_non_object", [obj]);
-  }
+  if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
+    throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyDescriptor"]);
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
+}
+
+
+// ES5 section 15.2.3.4.
+function ObjectGetOwnPropertyNames(obj) {
+  if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
+    throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyNames"]);
+
+  // Find all the indexed properties.
+
+  // Get the local element names.
+  var propertyNames = %GetLocalElementNames(obj);
+
+  // Get names for indexed interceptor properties.
+  if (%GetInterceptorInfo(obj) & 1) {
+    var indexedInterceptorNames =
+        %GetIndexedInterceptorElementNames(obj);
+    if (indexedInterceptorNames) {
+      propertyNames = propertyNames.concat(indexedInterceptorNames);
+    }
+  }
+
+  // Find all the named properties.
+
+  // Get the local property names.
+  propertyNames = propertyNames.concat(%GetLocalPropertyNames(obj));
+
+  // Get names for named interceptor properties if any.
+
+  if (%GetInterceptorInfo(obj) & 2) {
+    var namedInterceptorNames =
+        %GetNamedInterceptorPropertyNames(obj);
+    if (namedInterceptorNames) {
+      propertyNames = propertyNames.concat(namedInterceptorNames);
+    }
+  }
+
+  return propertyNames;
 }
 
 
@@ -576,7 +612,8 @@ function SetupObject() {
     "keys", ObjectKeys,
     "create", ObjectCreate,
     "getPrototypeOf", ObjectGetPrototypeOf,
-    "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor
+    "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
+    "getOwnPropertyNames", ObjectGetOwnPropertyNames
   ));
 }
 

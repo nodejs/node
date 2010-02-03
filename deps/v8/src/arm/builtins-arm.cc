@@ -38,15 +38,32 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(428): Don't pass the function in a static variable.
-  __ mov(ip, Operand(ExternalReference::builtin_passed_function()));
-  __ str(r1, MemOperand(ip, 0));
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                CFunctionId id,
+                                BuiltinExtraArguments extra_args) {
+  // ----------- S t a t e -------------
+  //  -- r0                 : number of arguments excluding receiver
+  //  -- r1                 : called function (only guaranteed when
+  //                          extra_args requires it)
+  //  -- cp                 : context
+  //  -- sp[0]              : last argument
+  //  -- ...
+  //  -- sp[4 * (argc - 1)] : first argument (argc == r0)
+  //  -- sp[4 * argc]       : receiver
+  // -----------------------------------
 
-  // The actual argument count has already been loaded into register
-  // r0, but JumpToRuntime expects r0 to contain the number of
-  // arguments including the receiver.
-  __ add(r0, r0, Operand(1));
+  // Insert extra arguments.
+  int num_extra_args = 0;
+  if (extra_args == NEEDS_CALLED_FUNCTION) {
+    num_extra_args = 1;
+    __ push(r1);
+  } else {
+    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+  }
+
+  // JumpToRuntime expects r0 to contain the number of arguments
+  // including the receiver and the extra arguments.
+  __ add(r0, r0, Operand(num_extra_args + 1));
   __ JumpToRuntime(ExternalReference(id));
 }
 
@@ -491,7 +508,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+static void Generate_JSConstructStubHelper(MacroAssembler* masm,
+                                           bool is_api_function) {
   // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -727,8 +745,17 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Call the function.
   // r0: number of arguments
   // r1: constructor function
-  ParameterCount actual(r0);
-  __ InvokeFunction(r1, actual, CALL_FUNCTION);
+  if (is_api_function) {
+    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+    Handle<Code> code = Handle<Code>(
+        Builtins::builtin(Builtins::HandleApiCallConstruct));
+    ParameterCount expected(0);
+    __ InvokeCode(code, expected, expected,
+                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+  } else {
+    ParameterCount actual(r0);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION);
+  }
 
   // Pop the function from the stack.
   // sp[0]: constructor function
@@ -780,6 +807,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ add(sp, sp, Operand(kPointerSize));
   __ IncrementCounter(&Counters::constructed_objects, 1, r1, r2);
   __ Jump(lr);
+}
+
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false);
+}
+
+
+void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, true);
 }
 
 

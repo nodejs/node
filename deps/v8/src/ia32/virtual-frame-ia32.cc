@@ -899,31 +899,45 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 
 Result VirtualFrame::CallStoreIC() {
   // Name, value, and receiver are on top of the frame.  The IC
-  // expects name in ecx, value in eax, and receiver on the stack.  It
-  // does not drop the receiver.
+  // expects name in ecx, value in eax, and receiver in edx.
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   Result name = Pop();
   Result value = Pop();
-  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+  Result receiver = Pop();
+  PrepareForCall(0, 0);
 
-  if (value.is_register() && value.reg().is(ecx)) {
-    if (name.is_register() && name.reg().is(eax)) {
-      // Wrong registers.
-      __ xchg(eax, ecx);
-    } else {
-      // Register eax is free for value, which frees ecx for name.
-      value.ToRegister(eax);
+  // Optimized for case in which name is a constant value.
+  if (name.is_register() && (name.reg().is(edx) || name.reg().is(eax))) {
+    if (!is_used(ecx)) {
       name.ToRegister(ecx);
+    } else if (!is_used(ebx)) {
+      name.ToRegister(ebx);
+    } else {
+      ASSERT(!is_used(edi));  // Only three results are live, so edi is free.
+      name.ToRegister(edi);
+    }
+  }
+  // Now name is not in edx or eax, so we can fix them, then move name to ecx.
+  if (value.is_register() && value.reg().is(edx)) {
+    if (receiver.is_register() && receiver.reg().is(eax)) {
+      // Wrong registers.
+      __ xchg(eax, edx);
+    } else {
+      // Register eax is free for value, which frees edx for receiver.
+      value.ToRegister(eax);
+      receiver.ToRegister(edx);
     }
   } else {
-    // Register ecx is free for name, which guarantees eax is free for
+    // Register edx is free for receiver, which guarantees eax is free for
     // value.
-    name.ToRegister(ecx);
+    receiver.ToRegister(edx);
     value.ToRegister(eax);
   }
-
+  // Receiver and value are in the right place, so ecx is free for name.
+  name.ToRegister(ecx);
   name.Unuse();
   value.Unuse();
+  receiver.Unuse();
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 

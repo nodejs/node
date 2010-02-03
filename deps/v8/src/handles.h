@@ -313,12 +313,19 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 // false if the compilation resulted in a stack overflow.
 enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
 
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag,
-                       int loop_nesting);
+bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                    ClearExceptionFlag flag);
 
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
-bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
+bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
+                       ClearExceptionFlag flag);
+
+bool CompileLazy(Handle<JSFunction> function,
+                 Handle<Object> receiver,
+                 ClearExceptionFlag flag);
+
+bool CompileLazyInLoop(Handle<JSFunction> function,
+                       Handle<Object> receiver,
+                       ClearExceptionFlag flag);
 
 // Returns the lazy compilation stub for argc arguments.
 Handle<Code> ComputeLazyCompile(int argc);

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -223,5 +223,64 @@ TEST(3) {
   CHECK_EQ(1000/8, t.s);
 }
 
+
+TEST(4) {
+  // Test the VFP floating point instructions.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles t.a, t.b, and t.c.
+  Assembler assm(NULL, 0);
+  Label L, C;
+
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ sub(fp, ip, Operand(4));
+
+    __ mov(r4, Operand(r0));
+    __ vldr(d6, r4, OFFSET_OF(T, a));
+    __ vldr(d7, r4, OFFSET_OF(T, b));
+    __ vadd(d5, d6, d7);
+    __ vstr(d5, r4, OFFSET_OF(T, c));
+
+    __ vmov(r2, r3, d5);
+    __ vmov(d4, r2, r3);
+    __ vstr(d4, r4, OFFSET_OF(T, b));
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = Heap::CreateCode(desc,
+                                    NULL,
+                                    Code::ComputeFlags(Code::STUB),
+                                    Handle<Object>(Heap::undefined_value()));
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    t.a = 1.5;
+    t.b = 2.75;
+    t.c = 17.17;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(4.25, t.c);
+    CHECK_EQ(4.25, t.b);
+    CHECK_EQ(1.5, t.a);
+  }
+}
 
 #undef __

@@ -28,7 +28,6 @@
 		GenerateDebugInformation="true"
 		MapFileName="$(OutDir)\$(TargetName).map"
 		ImportLibrary="$(OutDir)\lib\$(TargetName).lib"
-		TargetMachine="1"
 		FixedBaseAddress="1"
 		AdditionalOptions="/IGNORE:4221 /NXCOMPAT"
 	/>

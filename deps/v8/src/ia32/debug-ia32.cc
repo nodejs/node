@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -94,7 +94,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ Set(eax, Immediate(0));  // no arguments
   __ mov(ebx, Immediate(ExternalReference::debug_break()));
 
-  CEntryDebugBreakStub ceb;
+  CEntryStub ceb(1, ExitFrame::MODE_DEBUG);
   __ CallStub(&ceb);
 
   // Restore the register values containing object pointers from the expression
@@ -132,12 +132,13 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
-  // REgister state for IC store call (from ic-ia32.cc).
+  // Register state for IC store call (from ic-ia32.cc).
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
+  //  -- edx    : receiver
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit(), false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit() | edx.bit(), false);
 }
 
 

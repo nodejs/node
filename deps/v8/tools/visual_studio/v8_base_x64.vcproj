@@ -337,6 +337,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\data-flow.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\data-flow.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\dateparser.cc"
 				>
 			</File>
@@ -389,6 +397,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\x64\fast-codegen-x64.cc"
+				>
+			</File>
+                        <File
+                                RelativePath="..\..\src\fast-codegen.cc"
+                                >
+                        </File>
+                        <File
+                                RelativePath="..\..\src\fast-codegen.h"
+                                >
+                        </File>
+			<File
 				RelativePath="..\..\src\flags.cc"
 				>
 			</File>
@@ -425,6 +445,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\x64\full-codegen-x64.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\full-codegen.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\full-codegen.h"
+				>
+			</File>
+			<File
+
 				RelativePath="..\..\src\func-name-inferrer.cc"
 				>
 			</File>

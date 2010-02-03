@@ -86,12 +86,6 @@ double ceiling(double x) {
 }
 
 
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
-}
-
-
 void OS::Setup() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -583,9 +577,9 @@ class Sampler::PlatformData : public Malloced {
                              flavor,
                              reinterpret_cast<natural_t*>(&state),
                              &count) == KERN_SUCCESS) {
-          sample.pc = state.REGISTER_FIELD(ip);
-          sample.sp = state.REGISTER_FIELD(sp);
-          sample.fp = state.REGISTER_FIELD(bp);
+          sample.pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
+          sample.sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
+          sample.fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
           sampler_->SampleStack(&sample);
         }
         thread_resume(profiled_thread_);

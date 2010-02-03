@@ -115,6 +115,9 @@ class MarkCompactCollector: public AllStatic {
   static bool in_use() { return state_ > PREPARE_GC; }
 #endif
 
+  // Determine type of object and emit deletion log event.
+  static void ReportDeleteIfNeeded(HeapObject* obj);
+
  private:
 #ifdef DEBUG
   enum CollectorState {

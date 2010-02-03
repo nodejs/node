@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,366 +28,395 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
-#include "compiler.h"
+#include "data-flow.h"
 #include "fast-codegen.h"
-#include "stub-cache.h"
-#include "debug.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
+
+#define BAILOUT(reason)                         \
+  do {                                          \
+    if (FLAG_trace_bailout) {                   \
+      PrintF("%s\n", reason);                   \
+    }                                           \
+    has_supported_syntax_ = false;              \
+    return;                                     \
+  } while (false)
+
+
+#define CHECK_BAILOUT                           \
+  do {                                          \
+    if (!has_supported_syntax_) return;         \
+  } while (false)
+
+
+void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
+                                     CompilationInfo* info) {
+  info_ = info;
+
+  // We do not specialize if we do not have a receiver or if it is not a
+  // JS object with fast mode properties.
+  if (!info->has_receiver()) BAILOUT("No receiver");
+  if (!info->receiver()->IsJSObject()) BAILOUT("Receiver is not an object");
+  Handle<JSObject> object = Handle<JSObject>::cast(info->receiver());
+  if (!object->HasFastProperties()) BAILOUT("Receiver is in dictionary mode");
+
+  // We do not support stack or heap slots (both of which require
+  // allocation).
+  Scope* scope = fun->scope();
+  if (scope->num_stack_slots() > 0) {
+    BAILOUT("Function has stack-allocated locals");
+  }
+  if (scope->num_heap_slots() > 0) {
+    BAILOUT("Function has context-allocated locals");
+  }
+
+  VisitDeclarations(scope->declarations());
+  CHECK_BAILOUT;
+
+  // We do not support empty function bodies.
+  if (fun->body()->is_empty()) BAILOUT("Function has an empty body");
+  VisitStatements(fun->body());
+}
+
+
+void FastCodeGenSyntaxChecker::VisitDeclarations(
+    ZoneList<Declaration*>* decls) {
+  if (!decls->is_empty()) BAILOUT("Function has declarations");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitStatements(ZoneList<Statement*>* stmts) {
+  for (int i = 0, len = stmts->length(); i < len; i++) {
+    Visit(stmts->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FastCodeGenSyntaxChecker::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenSyntaxChecker::VisitBlock(Block* stmt) {
+  VisitStatements(stmt->statements());
+}
+
+
+void FastCodeGenSyntaxChecker::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+
+void FastCodeGenSyntaxChecker::VisitEmptyStatement(EmptyStatement* stmt) {
+  // Supported.
+}
+
+
+void FastCodeGenSyntaxChecker::VisitIfStatement(IfStatement* stmt) {
+  BAILOUT("IfStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitContinueStatement(ContinueStatement* stmt) {
+  BAILOUT("Continuestatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitBreakStatement(BreakStatement* stmt) {
+  BAILOUT("BreakStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitReturnStatement(ReturnStatement* stmt) {
+  BAILOUT("ReturnStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitWithEnterStatement(
+    WithEnterStatement* stmt) {
+  BAILOUT("WithEnterStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitWithExitStatement(WithExitStatement* stmt) {
+  BAILOUT("WithExitStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitSwitchStatement(SwitchStatement* stmt) {
+  BAILOUT("SwitchStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  BAILOUT("DoWhileStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitWhileStatement(WhileStatement* stmt) {
+  BAILOUT("WhileStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitForStatement(ForStatement* stmt) {
+  BAILOUT("ForStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitForInStatement(ForInStatement* stmt) {
+  BAILOUT("ForInStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  BAILOUT("TryCatchStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  BAILOUT("TryFinallyStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitDebuggerStatement(
+    DebuggerStatement* stmt) {
+  BAILOUT("DebuggerStatement");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
+  BAILOUT("FunctionLiteral");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* expr) {
+  BAILOUT("FunctionBoilerplateLiteral");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitConditional(Conditional* expr) {
+  BAILOUT("Conditional");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
+  // Only global variable references are supported.
+  Variable* var = expr->var();
+  if (!var->is_global()) BAILOUT("Non-global variable");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitLiteral(Literal* expr) {
+  BAILOUT("Literal");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitRegExpLiteral(RegExpLiteral* expr) {
+  BAILOUT("RegExpLiteral");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitObjectLiteral(ObjectLiteral* expr) {
+  BAILOUT("ObjectLiteral");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitArrayLiteral(ArrayLiteral* expr) {
+  BAILOUT("ArrayLiteral");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  BAILOUT("CatchExtensionObject");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
+  // Simple assignments to (named) this properties are supported.
+  if (expr->op() != Token::ASSIGN) BAILOUT("Non-simple assignment");
+
+  Property* prop = expr->target()->AsProperty();
+  if (prop == NULL) BAILOUT("Non-property assignment");
+  VariableProxy* proxy = prop->obj()->AsVariableProxy();
+  if (proxy == NULL || !proxy->var()->is_this()) {
+    BAILOUT("Non-this-property assignment");
+  }
+  if (!prop->key()->IsPropertyName()) {
+    BAILOUT("Non-named-property assignment");
+  }
+
+  // We will only specialize for fields on the object itself.
+  // Expression::IsPropertyName implies that the name is a literal
+  // symbol but we do not assume that.
+  Literal* key = prop->key()->AsLiteral();
+  if (key != NULL && key->handle()->IsString()) {
+    Handle<Object> receiver = info()->receiver();
+    Handle<String> name = Handle<String>::cast(key->handle());
+    LookupResult lookup;
+    receiver->Lookup(*name, &lookup);
+    if (lookup.holder() != *receiver) BAILOUT("Non-own property assignment");
+    if (!lookup.type() == FIELD) BAILOUT("Non-field property assignment");
+  } else {
+    UNREACHABLE();
+    BAILOUT("Unexpected non-string-literal property key");
+  }
+
+  Visit(expr->value());
+}
+
+
+void FastCodeGenSyntaxChecker::VisitThrow(Throw* expr) {
+  BAILOUT("Throw");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitProperty(Property* expr) {
+  BAILOUT("Property");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCall(Call* expr) {
+  BAILOUT("Call");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCallNew(CallNew* expr) {
+  BAILOUT("CallNew");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCallRuntime(CallRuntime* expr) {
+  BAILOUT("CallRuntime");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitUnaryOperation(UnaryOperation* expr) {
+  BAILOUT("UnaryOperation");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCountOperation(CountOperation* expr) {
+  BAILOUT("CountOperation");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitBinaryOperation(BinaryOperation* expr) {
+  BAILOUT("BinaryOperation");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitCompareOperation(CompareOperation* expr) {
+  BAILOUT("CompareOperation");
+}
+
+
+void FastCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
+  BAILOUT("ThisFunction");
+}
+
+#undef BAILOUT
+#undef CHECK_BAILOUT
+
 
 #define __ ACCESS_MASM(masm())
 
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
-                                         bool is_eval) {
+                                         bool is_eval,
+                                         CompilationInfo* info) {
+  // Label the AST before calling MakeCodePrologue, so AST node numbers are
+  // printed with the AST.
+  AstLabeler labeler;
+  labeler.Label(fun);
+  info->set_has_this_properties(labeler.has_this_properties());
+
   CodeGenerator::MakeCodePrologue(fun);
+
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
-  FastCodeGenerator cgen(&masm, script, is_eval);
-  cgen.Generate(fun);
+
+  // Generate the fast-path code.
+  FastCodeGenerator fast_cgen(&masm, script, is_eval);
+  fast_cgen.Generate(fun, info);
+  if (fast_cgen.HasStackOverflow()) {
+    ASSERT(!Top::has_pending_exception());
+    return Handle<Code>::null();
+  }
+
+  // Generate the full code for the function in bailout mode, using the same
+  // macro assembler.
+  CodeGenerator cgen(&masm, script, is_eval);
+  CodeGeneratorScope scope(&cgen);
+  cgen.Generate(fun, CodeGenerator::SECONDARY, info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
+
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
   return CodeGenerator::MakeCodeEpilogue(fun, &masm, flags, script);
 }
 
 
-int FastCodeGenerator::SlotOffset(Slot* slot) {
-  ASSERT(slot != NULL);
-  // Offset is negative because higher indexes are at lower addresses.
-  int offset = -slot->index() * kPointerSize;
-  // Adjust by a (parameter or local) base offset.
-  switch (slot->type()) {
-    case Slot::PARAMETER:
-      offset += (function_->scope()->num_parameters() + 1) * kPointerSize;
-      break;
-    case Slot::LOCAL:
-      offset += JavaScriptFrameConstants::kLocal0Offset;
-      break;
-    case Slot::CONTEXT:
-    case Slot::LOOKUP:
-      UNREACHABLE();
-  }
-  return offset;
-}
-
-
-void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
-  switch (context) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:
-      break;
-    case Expression::kValue:
-      __ push(reg);
-      break;
-    case Expression::kTest:
-      TestAndBranch(reg, true_label_, false_label_);
-      break;
-    case Expression::kValueTest: {
-      Label discard;
-      __ push(reg);
-      TestAndBranch(reg, true_label_, &discard);
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(false_label_);
-      break;
-    }
-    case Expression::kTestValue: {
-      Label discard;
-      __ push(reg);
-      TestAndBranch(reg, &discard, false_label_);
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(true_label_);
-    }
-  }
-}
-
-
-void FastCodeGenerator::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
-  int length = declarations->length();
-  int globals = 0;
-  for (int i = 0; i < length; i++) {
-    Declaration* decl = declarations->at(i);
-    Variable* var = decl->proxy()->var();
-    Slot* slot = var->slot();
-
-    // If it was not possible to allocate the variable at compile
-    // time, we need to "declare" it at runtime to make sure it
-    // actually exists in the local context.
-    if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
-      VisitDeclaration(decl);
-    } else {
-      // Count global variables and functions for later processing
-      globals++;
-    }
-  }
-
-  // Compute array of global variable and function declarations.
-  // Do nothing in case of no declared global functions or variables.
-  if (globals > 0) {
-    Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
-    for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
-      Slot* slot = var->slot();
-
-      if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
-        array->set(j++, *(var->name()));
-        if (decl->fun() == NULL) {
-          if (var->mode() == Variable::CONST) {
-            // In case this is const property use the hole.
-            array->set_the_hole(j++);
-          } else {
-            array->set_undefined(j++);
-          }
-        } else {
-          Handle<JSFunction> function =
-              Compiler::BuildBoilerplate(decl->fun(), script_, this);
-          // Check for stack-overflow exception.
-          if (HasStackOverflow()) return;
-          array->set(j++, *function);
-        }
-      }
-    }
-    // Invoke the platform-dependent code generator to do the actual
-    // declaration the global variables and functions.
-    DeclareGlobals(array);
-  }
-}
-
-
-void FastCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->start_position());
-  }
-}
-
-
-void FastCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->end_position());
-  }
-}
-
-
-void FastCodeGenerator::SetStatementPosition(Statement* stmt) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
-  }
-}
-
-
-void FastCodeGenerator::SetSourcePosition(int pos) {
-  if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
-    masm_->RecordPosition(pos);
-  }
-}
-
-
-void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
-#ifdef DEBUG
-  Expression::Context expected = Expression::kUninitialized;
-  switch (expr->context()) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:
-    case Expression::kTest:
-      // The value of the left subexpression is not needed.
-      expected = Expression::kTest;
-      break;
-    case Expression::kValue:
-      // The value of the left subexpression is needed and its specific
-      // context depends on the operator.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kValueTest
-          : Expression::kTestValue;
-      break;
-    case Expression::kValueTest:
-      // The value of the left subexpression is needed for OR.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kValueTest
-          : Expression::kTest;
-      break;
-    case Expression::kTestValue:
-      // The value of the left subexpression is needed for AND.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kTest
-          : Expression::kTestValue;
-      break;
-  }
-  ASSERT_EQ(expected, expr->left()->context());
-  ASSERT_EQ(expr->context(), expr->right()->context());
-#endif
-
-  Label eval_right, done;
-
-  // Set up the appropriate context for the left subexpression based
-  // on the operation and our own context.  Initially assume we can
-  // inherit both true and false labels from our context.
-  Label* if_true = true_label_;
-  Label* if_false = false_label_;
-  if (expr->op() == Token::OR) {
-    // If we are not in some kind of a test context, we did not inherit a
-    // true label from our context.  Use the end of the expression.
-    if (expr->context() == Expression::kEffect ||
-        expr->context() == Expression::kValue) {
-      if_true = &done;
-    }
-    // The false label is the label of the right subexpression.
-    if_false = &eval_right;
-  } else {
-    ASSERT_EQ(Token::AND, expr->op());
-    // The true label is the label of the right subexpression.
-    if_true = &eval_right;
-    // If we are not in some kind of a test context, we did not inherit a
-    // false label from our context.  Use the end of the expression.
-    if (expr->context() == Expression::kEffect ||
-        expr->context() == Expression::kValue) {
-      if_false = &done;
-    }
-  }
-  VisitForControl(expr->left(), if_true, if_false);
-
-  __ bind(&eval_right);
-  Visit(expr->right());
-
-  __ bind(&done);
+void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitBlock(Block* stmt) {
-  Comment cmnt(masm_, "[ Block");
-  Breakable nested_statement(this, stmt);
-  SetStatementPosition(stmt);
   VisitStatements(stmt->statements());
-  __ bind(nested_statement.break_target());
 }
 
 
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
-  Comment cmnt(masm_, "[ ExpressionStatement");
-  SetStatementPosition(stmt);
   Visit(stmt->expression());
 }
 
 
 void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
-  Comment cmnt(masm_, "[ EmptyStatement");
-  SetStatementPosition(stmt);
+  // Nothing to do.
 }
 
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
-  Comment cmnt(masm_, "[ IfStatement");
-  SetStatementPosition(stmt);
-  Label then_part, else_part, done;
-
-  // Do not worry about optimizing for empty then or else bodies.
-  VisitForControl(stmt->condition(), &then_part, &else_part);
-
-  __ bind(&then_part);
-  Visit(stmt->then_statement());
-  __ jmp(&done);
-
-  __ bind(&else_part);
-  Visit(stmt->else_statement());
-
-  __ bind(&done);
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
-  Comment cmnt(masm_,  "[ ContinueStatement");
-  SetStatementPosition(stmt);
-  NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
-  while (!current->IsContinueTarget(stmt->target())) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
-  }
-  __ Drop(stack_depth);
-
-  Iteration* loop = current->AsIteration();
-  __ jmp(loop->continue_target());
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
-  Comment cmnt(masm_,  "[ BreakStatement");
-  SetStatementPosition(stmt);
-  NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
-  while (!current->IsBreakTarget(stmt->target())) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
-  }
-  __ Drop(stack_depth);
-
-  Breakable* target = current->AsBreakable();
-  __ jmp(target->break_target());
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  Comment cmnt(masm_, "[ ReturnStatement");
-  SetStatementPosition(stmt);
-  Expression* expr = stmt->expression();
-  // Complete the statement based on the type of the subexpression.
-  if (expr->AsLiteral() != NULL) {
-    __ Move(result_register(), expr->AsLiteral()->handle());
-  } else {
-    ASSERT_EQ(Expression::kValue, expr->context());
-    Visit(expr);
-    __ pop(result_register());
-  }
-
-  // Exit all nested statements.
-  NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
-  while (current != NULL) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
-  }
-  __ Drop(stack_depth);
-
-  EmitReturnSequence(stmt->statement_pos());
+  UNREACHABLE();
 }
 
 
-
-
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  Comment cmnt(masm_, "[ WithEnterStatement");
-  SetStatementPosition(stmt);
-
-  Visit(stmt->expression());
-  if (stmt->is_catch_block()) {
-    __ CallRuntime(Runtime::kPushCatchContext, 1);
-  } else {
-    __ CallRuntime(Runtime::kPushContext, 1);
-  }
-  // Both runtime calls return the new context in both the context and the
-  // result registers.
-
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  Comment cmnt(masm_, "[ WithExitStatement");
-  SetStatementPosition(stmt);
-
-  // Pop context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  UNREACHABLE();
 }
 
 
@@ -397,62 +426,12 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  Comment cmnt(masm_, "[ DoWhileStatement");
-  SetStatementPosition(stmt);
-  Label body, stack_limit_hit, stack_check_success;
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  __ bind(&body);
-  Visit(stmt->body());
-
-  // Check stack before looping.
-  __ StackLimitCheck(&stack_limit_hit);
-  __ bind(&stack_check_success);
-
-  __ bind(loop_statement.continue_target());
-  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
-
-  __ bind(&stack_limit_hit);
-  StackCheckStub stack_stub;
-  __ CallStub(&stack_stub);
-  __ jmp(&stack_check_success);
-
-  __ bind(loop_statement.break_target());
-
-  decrement_loop_depth();
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  Comment cmnt(masm_, "[ WhileStatement");
-  SetStatementPosition(stmt);
-  Label body, stack_limit_hit, stack_check_success;
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // Emit the test at the bottom of the loop.
-  __ jmp(loop_statement.continue_target());
-
-  __ bind(&body);
-  Visit(stmt->body());
-
-  __ bind(loop_statement.continue_target());
-  // Check stack before looping.
-  __ StackLimitCheck(&stack_limit_hit);
-  __ bind(&stack_check_success);
-
-  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
-
-  __ bind(&stack_limit_hit);
-  StackCheckStub stack_stub;
-  __ CallStub(&stack_stub);
-  __ jmp(&stack_check_success);
-
-  __ bind(loop_statement.break_target());
-  decrement_loop_depth();
+  UNREACHABLE();
 }
 
 
@@ -467,120 +446,22 @@ void FastCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
 void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  Comment cmnt(masm_, "[ TryCatchStatement");
-  SetStatementPosition(stmt);
-  // The try block adds a handler to the exception handler chain
-  // before entering, and removes it again when exiting normally.
-  // If an exception is thrown during execution of the try block,
-  // control is passed to the handler, which also consumes the handler.
-  // At this point, the exception is in a register, and store it in
-  // the temporary local variable (prints as ".catch-var") before
-  // executing the catch block. The catch block has been rewritten
-  // to introduce a new scope to bind the catch variable and to remove
-  // that scope again afterwards.
-
-  Label try_handler_setup, catch_entry, done;
-
-  __ Call(&try_handler_setup);
-  // Try handler code, exception in result register.
-
-  // Store exception in local .catch variable before executing catch block.
-  {
-    // The catch variable is *always* a variable proxy for a local variable.
-    Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
-    ASSERT_NOT_NULL(catch_var);
-    Slot* variable_slot = catch_var->slot();
-    ASSERT_NOT_NULL(variable_slot);
-    ASSERT_EQ(Slot::LOCAL, variable_slot->type());
-    StoreToFrameField(SlotOffset(variable_slot), result_register());
-  }
-
-  Visit(stmt->catch_block());
-  __ jmp(&done);
-
-  // Try block code. Sets up the exception handler chain.
-  __ bind(&try_handler_setup);
-  {
-    TryCatch try_block(this, &catch_entry);
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
-    Visit(stmt->try_block());
-    __ PopTryHandler();
-  }
-  __ bind(&done);
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  Comment cmnt(masm_, "[ TryFinallyStatement");
-  SetStatementPosition(stmt);
-  // Try finally is compiled by setting up a try-handler on the stack while
-  // executing the try body, and removing it again afterwards.
-  //
-  // The try-finally construct can enter the finally block in three ways:
-  // 1. By exiting the try-block normally. This removes the try-handler and
-  //      calls the finally block code before continuing.
-  // 2. By exiting the try-block with a function-local control flow transfer
-  //    (break/continue/return). The site of the, e.g., break removes the
-  //    try handler and calls the finally block code before continuing
-  //    its outward control transfer.
-  // 3. by exiting the try-block with a thrown exception.
-  //    This can happen in nested function calls. It traverses the try-handler
-  //    chain and consumes the try-handler entry before jumping to the
-  //    handler code. The handler code then calls the finally-block before
-  //    rethrowing the exception.
-  //
-  // The finally block must assume a return address on top of the stack
-  // (or in the link register on ARM chips) and a value (return value or
-  // exception) in the result register (rax/eax/r0), both of which must
-  // be preserved. The return address isn't GC-safe, so it should be
-  // cooked before GC.
-  Label finally_entry;
-  Label try_handler_setup;
-
-  // Setup the try-handler chain. Use a call to
-  // Jump to try-handler setup and try-block code. Use call to put try-handler
-  // address on stack.
-  __ Call(&try_handler_setup);
-  // Try handler code. Return address of call is pushed on handler stack.
-  {
-    // This code is only executed during stack-handler traversal when an
-    // exception is thrown. The execption is in the result register, which
-    // is retained by the finally block.
-    // Call the finally block and then rethrow the exception.
-    __ Call(&finally_entry);
-    __ push(result_register());
-    __ CallRuntime(Runtime::kReThrow, 1);
-  }
-
-  __ bind(&finally_entry);
-  {
-    // Finally block implementation.
-    Finally finally_block(this);
-    EnterFinallyBlock();
-    Visit(stmt->finally_block());
-    ExitFinallyBlock();  // Return to the calling code.
-  }
-
-  __ bind(&try_handler_setup);
-  {
-    // Setup try handler (stack pointer registers).
-    TryFinally try_block(this, &finally_entry);
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
-    Visit(stmt->try_block());
-    __ PopTryHandler();
-  }
-  // Execute the finally block on the way out.
-  __ Call(&finally_entry);
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Comment cmnt(masm_, "[ DebuggerStatement");
-  SetStatementPosition(stmt);
-  __ CallRuntime(Runtime::kDebugBreak, 0);
-  // Ignore the return value.
-#endif
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+  UNREACHABLE();
 }
 
 
@@ -591,168 +472,122 @@ void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
 
 
 void FastCodeGenerator::VisitConditional(Conditional* expr) {
-  Comment cmnt(masm_, "[ Conditional");
-  ASSERT_EQ(Expression::kTest, expr->condition()->context());
-  ASSERT_EQ(expr->context(), expr->then_expression()->context());
-  ASSERT_EQ(expr->context(), expr->else_expression()->context());
-
-
-  Label true_case, false_case, done;
-  VisitForControl(expr->condition(), &true_case, &false_case);
-
-  __ bind(&true_case);
-  Visit(expr->then_expression());
-  // If control flow falls through Visit, jump to done.
-  if (expr->context() == Expression::kEffect ||
-      expr->context() == Expression::kValue) {
-    __ jmp(&done);
-  }
-
-  __ bind(&false_case);
-  Visit(expr->else_expression());
-  // If control flow falls through Visit, merge it with true case here.
-  if (expr->context() == Expression::kEffect ||
-      expr->context() == Expression::kValue) {
-    __ bind(&done);
-  }
-}
-
-
-void FastCodeGenerator::VisitSlot(Slot* expr) {
-  // Slots do not appear directly in the AST.
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  Comment cmnt(masm_, "[ Literal");
-  Apply(expr->context(), expr);
+void FastCodeGenerator::VisitSlot(Slot* expr) {
+  UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitAssignment(Assignment* expr) {
-  Comment cmnt(masm_, "[ Assignment");
-
-  // Record source code position of the (possible) IC call.
-  SetSourcePosition(expr->position());
-
-  // Left-hand side can only be a property, a global or a (parameter or local)
-  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
-  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
-  LhsKind assign_type = VARIABLE;
-  Property* prop = expr->target()->AsProperty();
-  // In case of a property we use the uninitialized expression context
-  // of the key to detect a named property.
-  if (prop != NULL) {
-    assign_type = (prop->key()->context() == Expression::kUninitialized)
-        ? NAMED_PROPERTY
-        : KEYED_PROPERTY;
+void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  ASSERT(expr->var()->is_global() && !expr->var()->is_this());
+  Comment cmnt(masm(), ";; Global");
+  if (FLAG_print_ir) {
+    SmartPointer<char> name = expr->name()->ToCString();
+    PrintF("%d: t%d = Global(%s)\n", expr->num(), expr->num(), *name);
   }
+  EmitGlobalVariableLoad(expr->name());
+}
 
-  // Evaluate LHS expression.
-  switch (assign_type) {
-    case VARIABLE:
-      // Nothing to do here.
-      break;
-    case NAMED_PROPERTY:
-      Visit(prop->obj());
-      ASSERT_EQ(Expression::kValue, prop->obj()->context());
-      break;
-    case KEYED_PROPERTY:
-      Visit(prop->obj());
-      ASSERT_EQ(Expression::kValue, prop->obj()->context());
-      Visit(prop->key());
-      ASSERT_EQ(Expression::kValue, prop->key()->context());
-      break;
-  }
 
-  // If we have a compound assignment: Get value of LHS expression and
-  // store in on top of the stack.
-  // Note: Relies on kValue context being 'stack'.
-  if (expr->is_compound()) {
-    switch (assign_type) {
-      case VARIABLE:
-        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
-                         Expression::kValue);
-        break;
-      case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop, Expression::kValue);
-        break;
-      case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop, Expression::kValue);
-        break;
-    }
-  }
+void FastCodeGenerator::VisitLiteral(Literal* expr) {
+  UNREACHABLE();
+}
 
-  // Evaluate RHS expression.
-  Expression* rhs = expr->value();
-  ASSERT_EQ(Expression::kValue, rhs->context());
-  Visit(rhs);
 
-  // If we have a compount assignment: Apply operator.
-  if (expr->is_compound()) {
-    EmitCompoundAssignmentOp(expr->binary_op(), Expression::kValue);
-  }
+void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+  UNREACHABLE();
+}
 
-  // Store the value.
-  switch (assign_type) {
-    case VARIABLE:
-      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
-                             expr->context());
-      break;
-    case NAMED_PROPERTY:
-      EmitNamedPropertyAssignment(expr);
-      break;
-    case KEYED_PROPERTY:
-      EmitKeyedPropertyAssignment(expr);
-      break;
-  }
+
+void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+  UNREACHABLE();
 }
 
 
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  // Call runtime routine to allocate the catch extension object and
-  // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[ CatchExtensionObject");
+  UNREACHABLE();
+}
 
-  // Push key string.
-  ASSERT_EQ(Expression::kValue, expr->key()->context());
-  Visit(expr->key());
-  ASSERT_EQ(Expression::kValue, expr->value()->context());
+
+void FastCodeGenerator::VisitAssignment(Assignment* expr) {
+  // Known to be a simple this property assignment.
   Visit(expr->value());
 
-  // Create catch extension object.
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  Property* prop = expr->target()->AsProperty();
+  ASSERT_NOT_NULL(prop);
+  ASSERT_NOT_NULL(prop->obj()->AsVariableProxy());
+  ASSERT(prop->obj()->AsVariableProxy()->var()->is_this());
+  ASSERT(prop->key()->IsPropertyName());
+  Handle<String> name =
+      Handle<String>::cast(prop->key()->AsLiteral()->handle());
 
-  __ push(result_register());
+  Comment cmnt(masm(), ";; Store(this)");
+  if (FLAG_print_ir) {
+    SmartPointer<char> name_string = name->ToCString();
+    PrintF("%d: t%d = Store(this, \"%s\", t%d)\n",
+           expr->num(), expr->num(), *name_string, expr->value()->num());
+  }
+
+  EmitThisPropertyStore(name);
 }
 
 
 void FastCodeGenerator::VisitThrow(Throw* expr) {
-  Comment cmnt(masm_, "[ Throw");
-  Visit(expr->exception());
-  // Exception is on stack.
-  __ CallRuntime(Runtime::kThrow, 1);
-  // Never returns here.
+  UNREACHABLE();
 }
 
 
-int FastCodeGenerator::TryFinally::Exit(int stack_depth) {
-  // The macros used here must preserve the result register.
-  __ Drop(stack_depth);
-  __ PopTryHandler();
-  __ Call(finally_entry_);
-  return 0;
+void FastCodeGenerator::VisitProperty(Property* expr) {
+  UNREACHABLE();
 }
 
 
-int FastCodeGenerator::TryCatch::Exit(int stack_depth) {
-  // The macros used here must preserve the result register.
-  __ Drop(stack_depth);
-  __ PopTryHandler();
-  return 0;
+void FastCodeGenerator::VisitCall(Call* expr) {
+  UNREACHABLE();
 }
 
+
+void FastCodeGenerator::VisitCallNew(CallNew* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
+  UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+  UNREACHABLE();
+}
 
 #undef __
 

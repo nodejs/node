@@ -1,4 +1,8 @@
-(function () { // anonymous namespace
+(function (process) {
+
+process.global.process = process;
+process.global.global = process.global;
+global.GLOBAL = global;
 
 /** deprecation errors ************************************************/
 
@@ -503,11 +507,12 @@ var posixModule = createInternalModule("posix", function (exports) {
   exports.Stats = process.Stats;
 
   function callback (promise) {
-    return function () {
-      if (arguments[0] instanceof Error) {
+    return function (error) {
+      if (error) {
         promise.emitError.apply(promise, arguments);
       } else {
-        promise.emitSuccess.apply(promise, arguments);
+        promise.emitSuccess.apply(promise,
+                                  Array.prototype.slice.call(arguments, 1));
       }
     };
   }
@@ -919,9 +924,9 @@ Module.prototype.loadScript = function (filename, loadPromise) {
     require.async = requireAsync;
     require.main = process.mainModule;
     // create wrapper function
-    var wrapper = "var __wrap__ = function (exports, require, module, __filename, __dirname) { "
+    var wrapper = "(function (exports, require, module, __filename, __dirname) { "
                 + content
-                + "\n}; __wrap__;";
+                + "\n});";
 
     try {
       var compiledWrapper = process.compile(wrapper, filename);
@@ -986,4 +991,4 @@ process.loop();
 
 process.emit("exit");
 
-}()); // end anonymous namespace
+})

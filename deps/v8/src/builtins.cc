@@ -36,8 +36,78 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// Arguments object passed to C++ builtins.
+template <BuiltinExtraArguments extra_args>
+class BuiltinArguments : public Arguments {
+ public:
+  BuiltinArguments(int length, Object** arguments)
+      : Arguments(length, arguments) { }
+
+  Object*& operator[] (int index) {
+    ASSERT(index < length());
+    return Arguments::operator[](index);
+  }
+
+  template <class S> Handle<S> at(int index) {
+    ASSERT(index < length());
+    return Arguments::at<S>(index);
+  }
+
+  Handle<Object> receiver() {
+    return Arguments::at<Object>(0);
+  }
+
+  Handle<JSFunction> called_function() {
+    STATIC_ASSERT(extra_args == NEEDS_CALLED_FUNCTION);
+    return Arguments::at<JSFunction>(Arguments::length() - 1);
+  }
+
+  // Gets the total number of arguments including the receiver (but
+  // excluding extra arguments).
+  int length() const {
+    STATIC_ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+    return Arguments::length();
+  }
+
+#ifdef DEBUG
+  void Verify() {
+    // Check we have at least the receiver.
+    ASSERT(Arguments::length() >= 1);
+  }
+#endif
+};
+
+
+// Specialize BuiltinArguments for the called function extra argument.
+
+template <>
+int BuiltinArguments<NEEDS_CALLED_FUNCTION>::length() const {
+  return Arguments::length() - 1;
+}
+
+#ifdef DEBUG
+template <>
+void BuiltinArguments<NEEDS_CALLED_FUNCTION>::Verify() {
+  // Check we have at least the receiver and the called function.
+  ASSERT(Arguments::length() >= 2);
+  // Make sure cast to JSFunction succeeds.
+  called_function();
+}
+#endif
+
+
+#define DEF_ARG_TYPE(name, spec)                      \
+  typedef BuiltinArguments<spec> name##ArgumentsType;
+BUILTIN_LIST_C(DEF_ARG_TYPE)
+#undef DEF_ARG_TYPE
+
+}  // namespace
+
+
 // ----------------------------------------------------------------------------
-// Support macros for defining builtins in C.
+// Support macro for defining builtins in C++.
 // ----------------------------------------------------------------------------
 //
 // A builtin function is defined by writing:
@@ -45,30 +115,26 @@ namespace internal {
 //   BUILTIN(name) {
 //     ...
 //   }
-//   BUILTIN_END
 //
-// In the body of the builtin function, the variable 'receiver' is visible.
-// The arguments can be accessed through the Arguments object args.
-//
-//   args[0]: Receiver (also available as 'receiver')
-//   args[1]: First argument
-//     ...
-//   args[n]: Last argument
-//   args.length(): Number of arguments including the receiver.
-// ----------------------------------------------------------------------------
+// In the body of the builtin function the arguments can be accessed
+// through the BuiltinArguments object args.
 
+#ifdef DEBUG
 
-// TODO(428): We should consider passing whether or not the
-// builtin was invoked as a constructor as part of the
-// arguments. Maybe we also want to pass the called function?
-#define BUILTIN(name)                                                   \
-  static Object* Builtin_##name(Arguments args) {      \
-    Handle<Object> receiver = args.at<Object>(0);
+#define BUILTIN(name)                                           \
+  static Object* Builtin_Impl_##name(name##ArgumentsType args); \
+  static Object* Builtin_##name(name##ArgumentsType args) {     \
+    args.Verify();                                              \
+    return Builtin_Impl_##name(args);                           \
+  }                                                             \
+  static Object* Builtin_Impl_##name(name##ArgumentsType args)
 
+#else  // For release mode.
 
-#define BUILTIN_END                             \
-  return Heap::undefined_value();               \
-}
+#define BUILTIN(name)                                           \
+  static Object* Builtin_##name(name##ArgumentsType args)
+
+#endif
 
 
 static inline bool CalledAsConstructor() {
@@ -109,12 +175,12 @@ Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
   if (Top::context() != NULL) {
     Object* object = Top::builtins()->javascript_builtin(id);
     if (object->IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(object));
+      Handle<SharedFunctionInfo> shared(JSFunction::cast(object)->shared());
       // Make sure the number of parameters match the formal parameter count.
-      ASSERT(function->shared()->formal_parameter_count() ==
+      ASSERT(shared->formal_parameter_count() ==
              Builtins::GetArgumentsCount(id));
-      if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
-        code = function->code();
+      if (EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+        code = shared->code();
         *resolved = true;
       }
     }
@@ -126,13 +192,13 @@ Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
 
 BUILTIN(Illegal) {
   UNREACHABLE();
+  return Heap::undefined_value();  // Make compiler happy.
 }
-BUILTIN_END
 
 
 BUILTIN(EmptyFunction) {
+  return Heap::undefined_value();
 }
-BUILTIN_END
 
 
 BUILTIN(ArrayCodeGeneric) {
@@ -140,7 +206,7 @@ BUILTIN(ArrayCodeGeneric) {
 
   JSArray* array;
   if (CalledAsConstructor()) {
-    array = JSArray::cast(*receiver);
+    array = JSArray::cast(*args.receiver());
   } else {
     // Allocate the JS Array
     JSFunction* constructor =
@@ -181,8 +247,10 @@ BUILTIN(ArrayCodeGeneric) {
   Smi* len = Smi::FromInt(number_of_elements);
   Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
   if (obj->IsFailure()) return obj;
+
+  AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
-  WriteBarrierMode mode = elms->GetWriteBarrierMode();
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   // Fill in the content
   for (int index = 0; index < number_of_elements; index++) {
     elms->set(index, args[index+1], mode);
@@ -190,15 +258,14 @@ BUILTIN(ArrayCodeGeneric) {
 
   // Set length and elements on the array.
   array->set_elements(FixedArray::cast(obj));
-  array->set_length(len, SKIP_WRITE_BARRIER);
+  array->set_length(len);
 
   return array;
 }
-BUILTIN_END
 
 
 BUILTIN(ArrayPush) {
-  JSArray* array = JSArray::cast(*receiver);
+  JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
 
   // Make sure we have space for the elements.
@@ -218,8 +285,10 @@ BUILTIN(ArrayPush) {
     int capacity = new_length + (new_length >> 1) + 16;
     Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
     if (obj->IsFailure()) return obj;
+
+    AssertNoAllocation no_gc;
     FixedArray* new_elms = FixedArray::cast(obj);
-    WriteBarrierMode mode = new_elms->GetWriteBarrierMode();
+    WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
     // Fill out the new array with old elements.
     for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
     // Add the provided values.
@@ -230,14 +299,13 @@ BUILTIN(ArrayPush) {
     array->set_elements(new_elms);
   }
   // Set the length.
-  array->set_length(Smi::FromInt(new_length), SKIP_WRITE_BARRIER);
+  array->set_length(Smi::FromInt(new_length));
   return array->length();
 }
-BUILTIN_END
 
 
 BUILTIN(ArrayPop) {
-  JSArray* array = JSArray::cast(*receiver);
+  JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
   Object* undefined = Heap::undefined_value();
 
@@ -249,7 +317,7 @@ BUILTIN(ArrayPop) {
   Object* top = elms->get(len - 1);
 
   // Set the length.
-  array->set_length(Smi::FromInt(len - 1), SKIP_WRITE_BARRIER);
+  array->set_length(Smi::FromInt(len - 1));
 
   if (!top->IsTheHole()) {
     // Delete the top element.
@@ -265,7 +333,6 @@ BUILTIN(ArrayPop) {
 
   return top;
 }
-BUILTIN_END
 
 
 // -----------------------------------------------------------------------------
@@ -320,20 +387,20 @@ static inline Object* TypeCheck(int argc,
 }
 
 
-BUILTIN(HandleApiCall) {
-  HandleScope scope;
-  bool is_construct = CalledAsConstructor();
+template <bool is_construct>
+static Object* HandleApiCallHelper(
+    BuiltinArguments<NEEDS_CALLED_FUNCTION> args) {
+  ASSERT(is_construct == CalledAsConstructor());
 
-  // TODO(428): Remove use of static variable, handle API callbacks directly.
-  Handle<JSFunction> function =
-      Handle<JSFunction>(JSFunction::cast(Builtins::builtin_passed_function));
+  HandleScope scope;
+  Handle<JSFunction> function = args.called_function();
 
   if (is_construct) {
     Handle<FunctionTemplateInfo> desc =
         Handle<FunctionTemplateInfo>(
             FunctionTemplateInfo::cast(function->shared()->function_data()));
     bool pending_exception = false;
-    Factory::ConfigureInstance(desc, Handle<JSObject>::cast(receiver),
+    Factory::ConfigureInstance(desc, Handle<JSObject>::cast(args.receiver()),
                                &pending_exception);
     ASSERT(Top::has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
@@ -359,15 +426,13 @@ BUILTIN(HandleApiCall) {
     Object* data_obj = call_data->data();
     Object* result;
 
-    v8::Local<v8::Object> self =
-        v8::Utils::ToLocal(Handle<JSObject>::cast(receiver));
     Handle<Object> data_handle(data_obj);
     v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
     ASSERT(raw_holder->IsJSObject());
     v8::Local<v8::Function> callee = v8::Utils::ToLocal(function);
     Handle<JSObject> holder_handle(JSObject::cast(raw_holder));
     v8::Local<v8::Object> holder = v8::Utils::ToLocal(holder_handle);
-    LOG(ApiObjectAccess("call", JSObject::cast(*receiver)));
+    LOG(ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         data,
         holder,
@@ -395,16 +460,26 @@ BUILTIN(HandleApiCall) {
     if (!is_construct || result->IsJSObject()) return result;
   }
 
-  return *receiver;
+  return *args.receiver();
 }
-BUILTIN_END
+
+
+BUILTIN(HandleApiCall) {
+  return HandleApiCallHelper<false>(args);
+}
+
+
+BUILTIN(HandleApiCallConstruct) {
+  return HandleApiCallHelper<true>(args);
+}
 
 
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
-                                                    Arguments args) {
+static Object* HandleApiCallAsFunctionOrConstructor(
+    bool is_construct_call,
+    BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   // Non-functions are never called as constructors. Even if this is an object
   // called as a constructor the delegate call is not a construct call.
   ASSERT(!CalledAsConstructor());
@@ -412,7 +487,7 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
   Handle<Object> receiver = args.at<Object>(0);
 
   // Get the object called.
-  JSObject* obj = JSObject::cast(*receiver);
+  JSObject* obj = JSObject::cast(*args.receiver());
 
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
@@ -432,12 +507,12 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
   Object* result;
   { HandleScope scope;
     v8::Local<v8::Object> self =
-        v8::Utils::ToLocal(Handle<JSObject>::cast(receiver));
+        v8::Utils::ToLocal(Handle<JSObject>::cast(args.receiver()));
     Handle<Object> data_handle(data_obj);
     v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
     Handle<JSFunction> callee_handle(constructor);
     v8::Local<v8::Function> callee = v8::Utils::ToLocal(callee_handle);
-    LOG(ApiObjectAccess("call non-function", JSObject::cast(*receiver)));
+    LOG(ApiObjectAccess("call non-function", JSObject::cast(*args.receiver())));
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         data,
         self,
@@ -471,7 +546,6 @@ static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
 BUILTIN(HandleApiCallAsFunction) {
   return HandleApiCallAsFunctionOrConstructor(false, args);
 }
-BUILTIN_END
 
 
 // Handle calls to non-function objects created through the API. This delegate
@@ -479,14 +553,6 @@ BUILTIN_END
 BUILTIN(HandleApiCallAsConstructor) {
   return HandleApiCallAsFunctionOrConstructor(true, args);
 }
-BUILTIN_END
-
-
-// TODO(1238487): This is a nasty hack. We need to improve the way we
-// call builtins considerable to get rid of this and the hairy macros
-// in builtins.cc.
-Object* Builtins::builtin_passed_function;
-
 
 
 static void Generate_LoadIC_ArrayLength(MacroAssembler* masm) {
@@ -708,7 +774,7 @@ static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm) {
 Object* Builtins::builtins_[builtin_count] = { NULL, };
 const char* Builtins::names_[builtin_count] = { NULL, };
 
-#define DEF_ENUM_C(name) FUNCTION_ADDR(Builtin_##name),
+#define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
   Address Builtins::c_functions_[cfunction_count] = {
     BUILTIN_LIST_C(DEF_ENUM_C)
   };
@@ -739,14 +805,16 @@ void Builtins::Setup(bool create_heap_objects) {
     const char* s_name;  // name is only used for generating log information.
     int name;
     Code::Flags flags;
+    BuiltinExtraArguments extra_args;
   };
 
-#define DEF_FUNCTION_PTR_C(name)         \
-    { FUNCTION_ADDR(Generate_Adaptor),   \
-      FUNCTION_ADDR(Builtin_##name),     \
-      #name,                             \
-      c_##name,                          \
-      Code::ComputeFlags(Code::BUILTIN)  \
+#define DEF_FUNCTION_PTR_C(name, extra_args) \
+    { FUNCTION_ADDR(Generate_Adaptor),            \
+      FUNCTION_ADDR(Builtin_##name),              \
+      #name,                                      \
+      c_##name,                                   \
+      Code::ComputeFlags(Code::BUILTIN),          \
+      extra_args                                  \
     },
 
 #define DEF_FUNCTION_PTR_A(name, kind, state)              \
@@ -754,7 +822,8 @@ void Builtins::Setup(bool create_heap_objects) {
       NULL,                                                \
       #name,                                               \
       name,                                                \
-      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state)   \
+      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state),  \
+      NO_EXTRA_ARGUMENTS                                   \
     },
 
   // Define array of pointers to generators and C builtin functions.
@@ -763,7 +832,8 @@ void Builtins::Setup(bool create_heap_objects) {
       BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
       BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
       // Terminator:
-      { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0) }
+      { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0),
+        NO_EXTRA_ARGUMENTS }
   };
 
 #undef DEF_FUNCTION_PTR_C
@@ -779,12 +849,12 @@ void Builtins::Setup(bool create_heap_objects) {
     if (create_heap_objects) {
       MacroAssembler masm(buffer, sizeof buffer);
       // Generate the code/adaptor.
-      typedef void (*Generator)(MacroAssembler*, int);
+      typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
-      g(&masm, functions[i].name);
+      g(&masm, functions[i].name, functions[i].extra_args);
       // Move the code into the object heap.
       CodeDesc desc;
       masm.GetCode(&desc);

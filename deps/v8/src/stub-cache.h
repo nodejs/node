@@ -435,6 +435,10 @@ class StubCompiler BASE_EMBEDDED {
                                String* name,
                                Label* miss);
 
+  static void LookupPostInterceptor(JSObject* holder,
+                                    String* name,
+                                    LookupResult* lookup);
+
  private:
   HandleScope scope_;
   MacroAssembler masm_;

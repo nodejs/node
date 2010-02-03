@@ -35,12 +35,16 @@ static int After(eio_req *req) {
   ev_unref(EV_DEFAULT_UC);
 
   int argc = 0;
-  Local<Value> argv[5];  // 5 is the maximum number of args
+  Local<Value> argv[6];  // 6 is the maximum number of args
 
   if (req->errorno != 0) {
     argc = 1;
     argv[0] = errno_exception(req->errorno);
   } else {
+    // Note: the error is always given the first argument of the callback.
+    // If there is no error then then the first argument is null.
+    argv[0] = Local<Value>::New(Null());
+
     switch (req->type) {
       case EIO_CLOSE:
       case EIO_RENAME:
@@ -52,30 +56,30 @@ static int After(eio_req *req) {
 
       case EIO_OPEN:
       case EIO_SENDFILE:
-        argc = 1;
-        argv[0] = Integer::New(req->result);
+        argc = 2;
+        argv[1] = Integer::New(req->result);
         break;
 
       case EIO_WRITE:
-        argc = 1;
-        argv[0] = Integer::New(req->result);
+        argc = 2;
+        argv[1] = Integer::New(req->result);
         break;
 
       case EIO_STAT:
       {
         struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
-        argc = 1;
-        argv[0] = BuildStatsObject(s);
+        argc = 2;
+        argv[1] = BuildStatsObject(s);
         break;
       }
 
       case EIO_READ:
       {
-        argc = 2;
+        argc = 3;
         Local<Object> obj = Local<Object>::New(*callback);
         Local<Value> enc_val = obj->GetHiddenValue(encoding_symbol);
-        argv[0] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
-        argv[1] = Integer::New(req->result);
+        argv[1] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
+        argv[2] = Integer::New(req->result);
         break;
       }
 
@@ -98,8 +102,8 @@ static int After(eio_req *req) {
 #endif
         }
 
-        argc = 1;
-        argv[0] = names;
+        argc = 2;
+        argv[1] = names;
         break;
       }
 

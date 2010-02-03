@@ -10,4 +10,8 @@
 		Name="VCCLCompilerTool"
 		PreprocessorDefinitions="_USE_32BIT_TIME_T;V8_TARGET_ARCH_IA32;V8_NATIVE_REGEXP"
 	/>
+	<Tool
+		Name="VCLinkerTool"
+		TargetMachine="1"
+	/>
 </VisualStudioPropertySheet>

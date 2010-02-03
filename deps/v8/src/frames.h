@@ -589,6 +589,9 @@ class StackTraceFrameIterator: public JavaScriptFrameIterator {
  public:
   StackTraceFrameIterator();
   void Advance();
+
+ private:
+  bool IsValidFrame();
 };
 
 
@@ -607,11 +610,12 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   void Advance();
   void Reset();
 
- private:
   static bool IsWithinBounds(
       Address low_bound, Address high_bound, Address addr) {
     return low_bound <= addr && addr <= high_bound;
   }
+
+ private:
   bool IsValidStackAddress(Address addr) const {
     return IsWithinBounds(low_bound_, high_bound_, addr);
   }

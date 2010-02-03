@@ -143,12 +143,14 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
-DEFINE_bool(fast_compiler, true,
-            "use the fast-mode compiler for some top-level code")
-DEFINE_bool(trace_bailout, false,
-            "print reasons for failing to use fast compilation")
+DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
+DEFINE_bool(fast_compiler, false, "enable speculative optimizing backend")
+DEFINE_bool(always_full_compiler, false,
+            "try to use the dedicated run-once backend for all code")
 DEFINE_bool(always_fast_compiler, false,
-            "always try using the fast compiler")
+            "try to use the speculative optimizing backend for all code")
+DEFINE_bool(trace_bailout, false,
+            "print reasons for falling back to using the classic V8 backend")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -200,6 +202,11 @@ DEFINE_bool(canonicalize_object_literal_maps, true,
 
 DEFINE_bool(use_big_map_space, true,
             "Use big map space, but don't compact if it grew too big.")
+
+DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
+           "Maximum number of pages in map space which still allows to encode "
+           "forwarding pointers.  That's actually a constant, but it's useful "
+           "to control it with a flag for better testing.")
 
 // mksnapshot.cc
 DEFINE_bool(h, false, "print this message")
@@ -294,6 +301,7 @@ DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_bool(print_scopes, false, "print scopes")
+DEFINE_bool(print_ir, false, "print the AST as seen by the backend")
 
 // contexts.cc
 DEFINE_bool(trace_contexts, false, "trace contexts operations")
@@ -358,6 +366,8 @@ DEFINE_bool(log_code, false,
 DEFINE_bool(log_gc, false,
             "Log heap samples on garbage collection for the hp2ps tool.")
 DEFINE_bool(log_handles, false, "Log global handle events.")
+DEFINE_bool(log_snapshot_positions, false,
+            "log positions of (de)serialized objects in the snapshot.")
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")

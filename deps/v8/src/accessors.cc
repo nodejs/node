@@ -493,11 +493,11 @@ Object* Accessors::FunctionGetLength(Object* object, void*) {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;
-    Handle<JSFunction> function_handle(function);
-    if (!CompileLazy(function_handle, KEEP_EXCEPTION)) {
+    Handle<SharedFunctionInfo> shared(function->shared());
+    if (!CompileLazyShared(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
     }
-    return Smi::FromInt(function_handle->shared()->length());
+    return Smi::FromInt(shared->length());
   } else {
     return Smi::FromInt(function->shared()->length());
   }

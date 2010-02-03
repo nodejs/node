@@ -30,9 +30,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The original source code covered by the above license above has been modified
-// significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// The original source code covered by the above license above has been
+// modified significantly by Google Inc.
+// Copyright 2010 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -398,8 +398,6 @@ class Operand BASE_EMBEDDED {
          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
@@ -796,6 +794,14 @@ class Assembler : public Malloced {
   // However, some simple modifications can allow
   // these APIs to support D16 to D31.
 
+  void vldr(const DwVfpRegister dst,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
+  void vstr(const DwVfpRegister src,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
   void vmov(const DwVfpRegister dst,
             const Register src1,
             const Register src2,

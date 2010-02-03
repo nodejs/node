@@ -148,7 +148,7 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
     } else if (args[0]->IsString()) {
       Local<String> signame = args[0]->ToString();
       Local<Object> process = Context::GetCurrent()->Global();
-      Local<Object> node_obj = process->Get(String::NewSymbol("node"))->ToObject();
+      Local<Object> node_obj = process->Get(String::NewSymbol("process"))->ToObject();
 
       Local<Value> sig_v = node_obj->Get(signame);
       if (!sig_v->IsNumber()) {

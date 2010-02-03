@@ -639,10 +639,7 @@ class Context(object):
       name = name + '.exe'
     return name
 
-def RunTestCases(all_cases, progress, tasks):
-  def DoSkip(case):
-    return SKIP in c.outcomes or SLOW in c.outcomes
-  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
   return progress.Run(tasks)
 
@@ -1335,13 +1332,16 @@ def Main():
     PrintReport(all_cases)
 
   result = None
-  if len(all_cases) == 0:
+  def DoSkip(case):
+    return SKIP in case.outcomes or SLOW in case.outcomes
+  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+  if len(cases_to_run) == 0:
     print "No tests to run."
     return 0
   else:
     try:
       start = time.time()
-      if RunTestCases(all_cases, options.progress, options.j):
+      if RunTestCases(cases_to_run, options.progress, options.j):
         result = 0
       else:
         result = 1
@@ -1355,7 +1355,7 @@ def Main():
     # test output.
     print
     sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
-    timed_tests = [ t.case for t in all_cases if not t.case.duration is None ]
+    timed_tests = [ t.case for t in cases_to_run if not t.case.duration is None ]
     timed_tests.sort(lambda a, b: a.CompareTime(b))
     index = 1
     for entry in timed_tests[:20]:

@@ -101,7 +101,7 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(Code, c_entry_code, CEntryCode)                                            \
-  V(Code, c_entry_debug_break_code, CEntryDebugBreakCode)                      \
+  V(Code, debugger_statement_code, DebuggerStatementCode)                      \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -690,6 +690,8 @@ class Heap : public AllStatic {
   static void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
   static void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
+  // Iterates over all the other roots in the heap.
+  static void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
   // Iterates remembered set of an old space.
   static void IterateRSet(PagedSpace* space, ObjectSlotCallback callback);
@@ -1290,7 +1292,6 @@ class HeapIterator BASE_EMBEDDED {
   explicit HeapIterator();
   virtual ~HeapIterator();
 
-  bool has_next();
   HeapObject* next();
   void reset();
 

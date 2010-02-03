@@ -98,7 +98,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ mov(r0, Operand(0));  // no arguments
   __ mov(r1, Operand(ExternalReference::debug_break()));
 
-  CEntryDebugBreakStub ceb;
+  CEntryStub ceb(1, ExitFrame::MODE_DEBUG);
   __ CallStub(&ceb);
 
   // Restore the register values containing object pointers from the expression

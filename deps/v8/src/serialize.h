@@ -147,6 +147,8 @@ class SnapshotByteSource {
     return position_ == length_;
   }
 
+  int position() { return position_; }
+
  private:
   const byte* data_;
   int length_;
@@ -183,9 +185,14 @@ class SnapshotByteSource {
   f(14, 32) \
   f(15, 36)
 
-// The SerDes class is a common superclass for Serializer and Deserializer
-// which is used to store common constants and methods used by both.
-class SerDes: public ObjectVisitor {
+// The Serializer/Deserializer class is a common superclass for Serializer and
+// Deserializer which is used to store common constants and methods used by
+// both.
+class SerializerDeserializer: public ObjectVisitor {
+ public:
+  static void Iterate(ObjectVisitor* visitor);
+  static void SetSnapshotCacheSize(int size);
+
  protected:
   enum DataType {
     RAW_DATA_SERIALIZATION = 0,
@@ -200,7 +207,8 @@ class SerDes: public ObjectVisitor {
     START_NEW_PAGE_SERIALIZATION = 37,
     NATIVES_STRING_RESOURCE = 38,
     ROOT_SERIALIZATION = 39,
-    // Free: 40-47.
+    PARTIAL_SNAPSHOT_CACHE_ENTRY = 40,
+    // Free: 41-47.
     BACKREF_SERIALIZATION = 48,
     // One per space, must be kSpaceMask aligned.
     // Free: 57-63.
@@ -225,20 +233,28 @@ class SerDes: public ObjectVisitor {
   static inline bool SpaceIsPaged(int space) {
     return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
   }
+
+  static int partial_snapshot_cache_length_;
+  static const int kPartialSnapshotCacheCapacity = 1024;
+  static Object* partial_snapshot_cache_[];
 };
 
 
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-class Deserializer: public SerDes {
+class Deserializer: public SerializerDeserializer {
  public:
   // Create a deserializer from a snapshot byte source.
   explicit Deserializer(SnapshotByteSource* source);
 
-  virtual ~Deserializer() { }
+  virtual ~Deserializer();
 
   // Deserialize the snapshot into an empty heap.
   void Deserialize();
+
+  // Deserialize a single object and the objects reachable from it.
+  void DeserializePartial(Object** root);
+
 #ifdef DEBUG
   virtual void Synchronize(const char* tag);
 #endif
@@ -264,10 +280,10 @@ class Deserializer: public SerDes {
   // (In large object space we are keeping track of individual objects
   // rather than pages.)  In new space we just need the address of the
   // first object and the others will flow from that.
-  List<Address> pages_[SerDes::kNumberOfSpaces];
+  List<Address> pages_[SerializerDeserializer::kNumberOfSpaces];
 
   SnapshotByteSource* source_;
-  ExternalReferenceDecoder* external_reference_decoder_;
+  static ExternalReferenceDecoder* external_reference_decoder_;
   // This is the address of the next object that will be allocated in each
   // space.  It is used to calculate the addresses of back-references.
   Address high_water_[LAST_SPACE + 1];
@@ -288,21 +304,71 @@ class SnapshotByteSink {
     Put(byte, description);
   }
   void PutInt(uintptr_t integer, const char* description);
+  virtual int Position() = 0;
 };
 
 
-class Serializer : public SerDes {
+// Mapping objects to their location after deserialization.
+// This is used during building, but not at runtime by V8.
+class SerializationAddressMapper {
+ public:
+  SerializationAddressMapper()
+      : serialization_map_(new HashMap(&SerializationMatchFun)),
+        no_allocation_(new AssertNoAllocation()) { }
+
+  ~SerializationAddressMapper() {
+    delete serialization_map_;
+    delete no_allocation_;
+  }
+
+  bool IsMapped(HeapObject* obj) {
+    return serialization_map_->Lookup(Key(obj), Hash(obj), false) != NULL;
+  }
+
+  int MappedTo(HeapObject* obj) {
+    ASSERT(IsMapped(obj));
+    return static_cast<int>(reinterpret_cast<intptr_t>(
+        serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
+  }
+
+  void AddMapping(HeapObject* obj, int to) {
+    ASSERT(!IsMapped(obj));
+    HashMap::Entry* entry =
+        serialization_map_->Lookup(Key(obj), Hash(obj), true);
+    entry->value = Value(to);
+  }
+
+ private:
+  static bool SerializationMatchFun(void* key1, void* key2) {
+    return key1 == key2;
+  }
+
+  static uint32_t Hash(HeapObject* obj) {
+    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
+  }
+
+  static void* Key(HeapObject* obj) {
+    return reinterpret_cast<void*>(obj->address());
+  }
+
+  static void* Value(int v) {
+    return reinterpret_cast<void*>(v);
+  }
+
+  HashMap* serialization_map_;
+  AssertNoAllocation* no_allocation_;
+  DISALLOW_COPY_AND_ASSIGN(SerializationAddressMapper);
+};
+
+
+class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(SnapshotByteSink* sink);
-  // Serialize the current state of the heap.
-  void Serialize();
-  // Serialize a single object and the objects reachable from it.
-  void SerializePartial(Object** obj);
   void VisitPointers(Object** start, Object** end);
   // You can call this after serialization to find out how much space was used
   // in each space.
   int CurrentAllocationAddress(int space) {
-    if (SpaceIsLarge(space)) space = LO_SPACE;
+    if (SpaceIsLarge(space)) return large_object_total_;
     return fullness_[space];
   }
 
@@ -318,15 +384,20 @@ class Serializer : public SerDes {
   // going on.
   static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
   static bool enabled() { return serialization_enabled_; }
+  SerializationAddressMapper* address_mapper() { return &address_mapper_; }
 #ifdef DEBUG
   virtual void Synchronize(const char* tag);
 #endif
 
- private:
+ protected:
   enum ReferenceRepresentation {
     TAGGED_REPRESENTATION,      // A tagged object reference.
     CODE_TARGET_REPRESENTATION  // A reference to first instruction in target.
   };
+  static const int kInvalidRootIndex = -1;
+  virtual int RootIndex(HeapObject* heap_object) = 0;
+  virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) = 0;
+
   class ObjectSerializer : public ObjectVisitor {
    public:
     ObjectSerializer(Serializer* serializer,
@@ -362,7 +433,12 @@ class Serializer : public SerDes {
     int bytes_processed_so_far_;
   };
 
-  void SerializeObject(Object* o, ReferenceRepresentation representation);
+  virtual void SerializeObject(Object* o,
+                               ReferenceRepresentation representation) = 0;
+  void SerializeReferenceToPreviousObject(
+      int space,
+      int address,
+      ReferenceRepresentation reference_representation);
   void InitializeAllocators();
   // This will return the space for an object.  If the object is in large
   // object space it may return kLargeCode or kLargeFixedArray in order
@@ -377,8 +453,6 @@ class Serializer : public SerDes {
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_->Encode(addr);
   }
-  int RootIndex(HeapObject* heap_object);
-  static const int kInvalidRootIndex = -1;
 
   // Keep track of the fullness of each space in order to generate
   // relative addresses for back references.  Large objects are
@@ -388,15 +462,72 @@ class Serializer : public SerDes {
   SnapshotByteSink* sink_;
   int current_root_index_;
   ExternalReferenceEncoder* external_reference_encoder_;
-  bool partial_;
   static bool serialization_enabled_;
   // Did we already make use of the fact that serialization was not enabled?
   static bool too_late_to_enable_now_;
+  int large_object_total_;
+  SerializationAddressMapper address_mapper_;
 
   friend class ObjectSerializer;
   friend class Deserializer;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
+};
+
+
+class PartialSerializer : public Serializer {
+ public:
+  PartialSerializer(Serializer* startup_snapshot_serializer,
+                    SnapshotByteSink* sink)
+    : Serializer(sink),
+      startup_serializer_(startup_snapshot_serializer) {
+  }
+
+  // Serialize the objects reachable from a single object pointer.
+  virtual void Serialize(Object** o);
+  virtual void SerializeObject(Object* o,
+                               ReferenceRepresentation representation);
+
+ protected:
+  virtual int RootIndex(HeapObject* o);
+  virtual int PartialSnapshotCacheIndex(HeapObject* o);
+  virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+    return o->IsString() || o->IsSharedFunctionInfo();
+  }
+
+ private:
+  Serializer* startup_serializer_;
+  DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
+};
+
+
+class StartupSerializer : public Serializer {
+ public:
+  explicit StartupSerializer(SnapshotByteSink* sink) : Serializer(sink) {
+    // Clear the cache of objects used by the partial snapshot.  After the
+    // strong roots have been serialized we can create a partial snapshot
+    // which will repopulate the cache with objects neede by that partial
+    // snapshot.
+    partial_snapshot_cache_length_ = 0;
+  }
+  // Serialize the current state of the heap.  The order is:
+  // 1) Strong references.
+  // 2) Partial snapshot cache.
+  // 3) Weak references (eg the symbol table).
+  virtual void SerializeStrongReferences();
+  virtual void SerializeObject(Object* o,
+                               ReferenceRepresentation representation);
+  void SerializeWeakReferences();
+  void Serialize() {
+    SerializeStrongReferences();
+    SerializeWeakReferences();
+  }
+
+ private:
+  virtual int RootIndex(HeapObject* o) { return kInvalidRootIndex; }
+  virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+    return false;
+  }
 };
 
 } }  // namespace v8::internal

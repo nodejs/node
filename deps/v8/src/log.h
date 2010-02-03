@@ -116,6 +116,10 @@ class VMState BASE_EMBEDDED {
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
+  V(FUNCTION_CREATION_EVENT,        "function-creation",      "fc")       \
+  V(FUNCTION_MOVE_EVENT,            "function-move",          "fm")       \
+  V(FUNCTION_DELETE_EVENT,          "function-delete",        "fd")       \
+  V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos",           "sp")       \
   V(TICK_EVENT,                     "tick",                   "t")        \
   V(REPEAT_META_EVENT,              "repeat",                 "r")        \
   V(BUILTIN_TAG,                    "Builtin",                "bi")       \
@@ -223,6 +227,14 @@ class Logger {
   static void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
+  // Emits a function object create event.
+  static void FunctionCreateEvent(JSFunction* function);
+  // Emits a function move event.
+  static void FunctionMoveEvent(Address from, Address to);
+  // Emits a function delete event.
+  static void FunctionDeleteEvent(Address from);
+
+  static void SnapshotPositionEvent(Address addr, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
@@ -275,6 +287,8 @@ class Logger {
 
   // Logs all compiled functions found in the heap.
   static void LogCompiledFunctions();
+  // Logs all compiled JSFunction objects found in the heap.
+  static void LogFunctionObjects();
   // Logs all accessor callbacks found in the heap.
   static void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
@@ -295,6 +309,15 @@ class Logger {
   static void CallbackEventInternal(const char* prefix,
                                     const char* name,
                                     Address entry_point);
+
+  // Internal configurable move event.
+  static void MoveEventInternal(LogEventsAndTags event,
+                                Address from,
+                                Address to);
+
+  // Internal configurable move event.
+  static void DeleteEventInternal(LogEventsAndTags event,
+                                  Address from);
 
   // Emits aliases for compressed messages.
   static void LogAliases();
