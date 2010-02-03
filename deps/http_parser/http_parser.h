@@ -38,6 +38,9 @@ extern "C" {
 # define HTTP_PARSER_STRICT 0
 #endif
 
+/* Maximium header size allowed */
+#define HTTP_MAX_HEADER_SIZE (80*1024)
+
 typedef struct http_parser http_parser;
 
 /* Callbacks should return non-zero to indicate an error. The parse will
@@ -85,6 +88,7 @@ struct http_parser {
 
   char flags;
 
+  size_t nread;
   ssize_t body_read;
   ssize_t content_length;
 
