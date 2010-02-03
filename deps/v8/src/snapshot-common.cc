@@ -59,39 +59,4 @@ bool Snapshot::Initialize(const char* snapshot_file) {
   return false;
 }
 
-
-class FileByteSink : public SnapshotByteSink {
- public:
-  explicit FileByteSink(const char* snapshot_file) {
-    fp_ = OS::FOpen(snapshot_file, "wb");
-    if (fp_ == NULL) {
-      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
-      exit(1);
-    }
-  }
-  virtual ~FileByteSink() {
-    if (fp_ != NULL) {
-      fclose(fp_);
-    }
-  }
-  virtual void Put(int byte, const char* description) {
-    if (fp_ != NULL) {
-      fputc(byte, fp_);
-    }
-  }
-
- private:
-  FILE* fp_;
-};
-
-
-bool Snapshot::WriteToFile(const char* snapshot_file) {
-  FileByteSink file(snapshot_file);
-  Serializer ser(&file);
-  ser.Serialize();
-  return true;
-}
-
-
-
 } }  // namespace v8::internal

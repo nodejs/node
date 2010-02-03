@@ -266,13 +266,7 @@ static int DecodeIt(FILE* f,
               case CodeStub::CallFunction:
                 out.AddFormatted("argc = %d", minor_key);
                 break;
-              case CodeStub::Runtime: {
-                const char* name =
-                    RuntimeStub::GetNameFromMinorKey(minor_key);
-                out.AddFormatted("%s", name);
-                break;
-              }
-              default:
+            default:
                 out.AddFormatted("minor: %d", minor_key);
             }
           }

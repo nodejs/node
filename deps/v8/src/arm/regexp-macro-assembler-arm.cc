@@ -63,8 +63,6 @@ namespace internal {
  *                             through the runtime system)
  *       - stack_area_base    (High end of the memory area to use as
  *                             backtracking stack)
- *       - at_start           (if 1, we are starting at the start of the
- *                             string, otherwise 0)
  *       - int* capture_array (int[num_saved_registers_], for output).
  *       --- sp when called ---
  *       - link address
@@ -76,6 +74,8 @@ namespace internal {
  *       - void* input_string (location of a handle containing the string)
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
+ *       - At start (if 1, we are starting at the start of the
+ *         string, otherwise 0)
  *       - register 0         (Only positions must be stored in the first
  *       - register 1          num_saved_registers_ registers)
  *       - ...
@@ -526,64 +526,54 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'n': {
-      // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
-      __ eor(r0, current_character(), Operand(0x01));
-      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-      __ sub(r0, r0, Operand(0x0b));
-      __ cmp(r0, Operand(0x0c - 0x0b));
-      if (mode_ == ASCII) {
-        BranchOrBacktrack(hi, on_no_match);
-      } else {
-        Label done;
-        __ b(ls, &done);
-        // Compare original value to 0x2028 and 0x2029, using the already
-        // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-        // 0x201d (0x2028 - 0x0b) or 0x201e.
-        __ sub(r0, r0, Operand(0x2028 - 0x0b));
-        __ cmp(r0, Operand(1));
-        BranchOrBacktrack(hi, on_no_match);
-        __ bind(&done);
-      }
-      return true;
+    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    __ eor(r0, current_character(), Operand(0x01));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
+    __ sub(r0, r0, Operand(0x0b));
+    __ cmp(r0, Operand(0x0c - 0x0b));
+    if (mode_ == ASCII) {
+      BranchOrBacktrack(hi, on_no_match);
+    } else {
+      Label done;
+      __ b(ls, &done);
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
+      // 0x201d (0x2028 - 0x0b) or 0x201e.
+      __ sub(r0, r0, Operand(0x2028 - 0x0b));
+      __ cmp(r0, Operand(1));
+      BranchOrBacktrack(hi, on_no_match);
+      __ bind(&done);
     }
+    return true;
+  }
   case 'w': {
-    // Match word character (0-9, A-Z, a-z and _).
-    Label digits, done;
-    __ cmp(current_character(), Operand('9'));
-    __ b(ls, &digits);
-    __ cmp(current_character(), Operand('_'));
-    __ b(eq, &done);
-    __ orr(r0, current_character(), Operand(0x20));
-    __ sub(r0, r0, Operand('a'));
-    __ cmp(r0, Operand('z' - 'a'));
-    BranchOrBacktrack(hi, on_no_match);
-    __ jmp(&done);
-
-    __ bind(&digits);
-    __ cmp(current_character(), Operand('0'));
-    BranchOrBacktrack(lo, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(current_character(), Operand('z'));
+      BranchOrBacktrack(hi, on_no_match);
+    }
+    ExternalReference map = ExternalReference::re_word_character_map();
+    __ mov(r0, Operand(map));
+    __ ldrb(r0, MemOperand(r0, current_character()));
+    __ tst(r0, Operand(r0));
+    BranchOrBacktrack(eq, on_no_match);
     return true;
   }
   case 'W': {
-    // Match non-word character (not 0-9, A-Z, a-z and _).
-    Label digits, done;
-    __ cmp(current_character(), Operand('9'));
-    __ b(ls, &digits);
-    __ cmp(current_character(), Operand('_'));
-    BranchOrBacktrack(eq, on_no_match);
-    __ orr(r0, current_character(), Operand(0x20));
-    __ sub(r0, r0, Operand('a'));
-    __ cmp(r0, Operand('z' - 'a'));
-    BranchOrBacktrack(ls, on_no_match);
-    __ jmp(&done);
-
-    __ bind(&digits);
-    __ cmp(current_character(), Operand('0'));
-    BranchOrBacktrack(hs, on_no_match);
-    __ bind(&done);
-
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(current_character(), Operand('z'));
+      __ b(hi, &done);
+    }
+    ExternalReference map = ExternalReference::re_word_character_map();
+    __ mov(r0, Operand(map));
+    __ ldrb(r0, MemOperand(r0, current_character()));
+    __ tst(r0, Operand(r0));
+    BranchOrBacktrack(ne, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
   case '*':
@@ -620,6 +610,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Set frame pointer just above the arguments.
   __ add(frame_pointer(), sp, Operand(4 * kPointerSize));
   __ push(r0);  // Make room for "position - 1" constant (value is irrelevant).
+  __ push(r0);  // Make room for "at start" constant (value is irrelevant).
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -663,6 +654,15 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ str(r0, MemOperand(frame_pointer(), kInputStartMinusOne));
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ ldr(r1, MemOperand(frame_pointer(), kStartIndex));
+  __ tst(r1, Operand(r1));
+  __ mov(r1, Operand(1), LeaveCC, eq);
+  __ mov(r1, Operand(0), LeaveCC, ne);
+  __ str(r1, MemOperand(frame_pointer(), kAtStart));
+
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
 

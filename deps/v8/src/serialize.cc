@@ -44,67 +44,6 @@
 namespace v8 {
 namespace internal {
 
-// Mapping objects to their location after deserialization.
-// This is used during building, but not at runtime by V8.
-class SerializationAddressMapper {
- public:
-  static bool IsMapped(HeapObject* obj) {
-    EnsureMapExists();
-    return serialization_map_->Lookup(Key(obj), Hash(obj), false) != NULL;
-  }
-
-  static int MappedTo(HeapObject* obj) {
-    ASSERT(IsMapped(obj));
-    return static_cast<int>(reinterpret_cast<intptr_t>(
-        serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
-  }
-
-  static void Map(HeapObject* obj, int to) {
-    EnsureMapExists();
-    ASSERT(!IsMapped(obj));
-    HashMap::Entry* entry =
-        serialization_map_->Lookup(Key(obj), Hash(obj), true);
-    entry->value = Value(to);
-  }
-
-  static void Zap() {
-    if (serialization_map_ != NULL) {
-      delete serialization_map_;
-    }
-    serialization_map_ = NULL;
-  }
-
- private:
-  static bool SerializationMatchFun(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
-  static uint32_t Hash(HeapObject* obj) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
-  }
-
-  static void* Key(HeapObject* obj) {
-    return reinterpret_cast<void*>(obj->address());
-  }
-
-  static void* Value(int v) {
-    return reinterpret_cast<void*>(v);
-  }
-
-  static void EnsureMapExists() {
-    if (serialization_map_ == NULL) {
-      serialization_map_ = new HashMap(&SerializationMatchFun);
-    }
-  }
-
-  static HashMap* serialization_map_;
-};
-
-
-HashMap* SerializationAddressMapper::serialization_map_ = NULL;
-
-
-
 
 // -----------------------------------------------------------------------------
 // Coding of external references.
@@ -241,7 +180,7 @@ void ExternalReferenceTable::PopulateTable() {
 
   static const RefTableEntry ref_table[] = {
   // Builtins
-#define DEF_ENTRY_C(name) \
+#define DEF_ENTRY_C(name, ignored) \
   { C_BUILTIN, \
     Builtins::c_##name, \
     "Builtins::" #name },
@@ -249,11 +188,11 @@ void ExternalReferenceTable::PopulateTable() {
   BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
 
-#define DEF_ENTRY_C(name) \
+#define DEF_ENTRY_C(name, ignored) \
   { BUILTIN, \
     Builtins::name, \
     "Builtins::" #name },
-#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name)
+#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name, ignored)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
   BUILTIN_LIST_A(DEF_ENTRY_A)
@@ -396,10 +335,6 @@ void ExternalReferenceTable::PopulateTable() {
       "V8::RandomPositiveSmi");
 
   // Miscellaneous
-  Add(ExternalReference::builtin_passed_function().address(),
-      UNCLASSIFIED,
-      1,
-      "Builtins::builtin_passed_function");
   Add(ExternalReference::the_hole_value_location().address(),
       UNCLASSIFIED,
       2,
@@ -483,15 +418,19 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       21,
       "NativeRegExpMacroAssembler::GrowStack()");
+  Add(ExternalReference::re_word_character_map().address(),
+      UNCLASSIFIED,
+      22,
+      "NativeRegExpMacroAssembler::word_character_map");
 #endif
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      22,
+      23,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      23,
+      24,
       "KeyedLookupCache::field_offsets()");
 }
 
@@ -558,11 +497,10 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
 
 bool Serializer::serialization_enabled_ = false;
 bool Serializer::too_late_to_enable_now_ = false;
+ExternalReferenceDecoder* Deserializer::external_reference_decoder_ = NULL;
 
 
-Deserializer::Deserializer(SnapshotByteSource* source)
-    : source_(source),
-      external_reference_decoder_(NULL) {
+Deserializer::Deserializer(SnapshotByteSource* source) : source_(source) {
 }
 
 
@@ -648,12 +586,34 @@ void Deserializer::Deserialize() {
   ASSERT_EQ(NULL, ThreadState::FirstInUse());
   // No active handles.
   ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
+  // Make sure the entire partial snapshot cache is traversed, filling it with
+  // valid object pointers.
+  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
-  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
+  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  Heap::IterateWeakRoots(this, VISIT_ALL);
+}
+
+
+void Deserializer::DeserializePartial(Object** root) {
+  // Don't GC while deserializing - just expand the heap.
+  AlwaysAllocateScope always_allocate;
+  // Don't use the free lists while deserializing.
+  LinearAllocationScope allocate_linearly;
+  if (external_reference_decoder_ == NULL) {
+    external_reference_decoder_ = new ExternalReferenceDecoder();
+  }
+  VisitPointer(root);
+}
+
+
+Deserializer::~Deserializer() {
   ASSERT(source_->AtEOF());
-  delete external_reference_decoder_;
-  external_reference_decoder_ = NULL;
+  if (external_reference_decoder_ != NULL) {
+    delete external_reference_decoder_;
+    external_reference_decoder_ = NULL;
+  }
 }
 
 
@@ -680,6 +640,9 @@ void Deserializer::ReadObject(int space_number,
   *write_back = HeapObject::FromAddress(address);
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
+  if (FLAG_log_snapshot_positions) {
+    LOG(SnapshotPositionEvent(address, source_->position()));
+  }
   ReadChunk(current, limit, space_number, address);
 }
 
@@ -739,7 +702,6 @@ void Deserializer::ReadChunk(Object** current,
         break;
       case OBJECT_SERIALIZATION + CODE_SPACE:
         ReadObject(CODE_SPACE, Heap::code_space(), current++);
-        LOG(LogCodeObject(current[-1]));
         break;
       case OBJECT_SERIALIZATION + CELL_SPACE:
         ReadObject(CELL_SPACE, Heap::cell_space(), current++);
@@ -749,7 +711,6 @@ void Deserializer::ReadChunk(Object** current,
         break;
       case OBJECT_SERIALIZATION + kLargeCode:
         ReadObject(kLargeCode, Heap::lo_space(), current++);
-        LOG(LogCodeObject(current[-1]));
         break;
       case OBJECT_SERIALIZATION + kLargeFixedArray:
         ReadObject(kLargeFixedArray, Heap::lo_space(), current++);
@@ -758,7 +719,6 @@ void Deserializer::ReadChunk(Object** current,
         Object* new_code_object = NULL;
         ReadObject(kLargeCode, Heap::lo_space(), &new_code_object);
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
-        LOG(LogCodeObject(code_object));
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
         Assembler::set_target_at(location_of_branch_data,
@@ -771,7 +731,6 @@ void Deserializer::ReadChunk(Object** current,
         Object* new_code_object = NULL;
         ReadObject(CODE_SPACE, Heap::code_space(), &new_code_object);
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
-        LOG(LogCodeObject(code_object));
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
         Assembler::set_target_at(location_of_branch_data,
@@ -866,6 +825,21 @@ void Deserializer::ReadChunk(Object** current,
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }
+      case ROOT_SERIALIZATION: {
+        int root_id = source_->GetInt();
+        *current++ = Heap::roots_address()[root_id];
+        break;
+      }
+      case PARTIAL_SNAPSHOT_CACHE_ENTRY: {
+        int cache_index = source_->GetInt();
+        *current++ = partial_snapshot_cache_[cache_index];
+        break;
+      }
+      case SYNCHRONIZE: {
+        // If we get here then that indicates that you have a mismatch between
+        // the number of GC roots when serializing and deserializing.
+        UNREACHABLE();
+      }
       default:
         UNREACHABLE();
     }
@@ -919,14 +893,14 @@ Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
       external_reference_encoder_(NULL),
-      partial_(false) {
+      large_object_total_(0) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
 }
 
 
-void Serializer::Serialize() {
+void StartupSerializer::SerializeStrongReferences() {
   // No active threads.
   CHECK_EQ(NULL, ThreadState::FirstInUse());
   // No active or weak handles.
@@ -940,20 +914,30 @@ void Serializer::Serialize() {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
   external_reference_encoder_ = new ExternalReferenceEncoder();
-  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
+  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
   delete external_reference_encoder_;
   external_reference_encoder_ = NULL;
-  SerializationAddressMapper::Zap();
 }
 
 
-void Serializer::SerializePartial(Object** object) {
-  partial_ = true;
+void PartialSerializer::Serialize(Object** object) {
   external_reference_encoder_ = new ExternalReferenceEncoder();
   this->VisitPointer(object);
+
+  // After we have done the partial serialization the partial snapshot cache
+  // will contain some references needed to decode the partial snapshot.  We
+  // fill it up with undefineds so it has a predictable length so the
+  // deserialization code doesn't need to know the length.
+  for (int index = partial_snapshot_cache_length_;
+       index < kPartialSnapshotCacheCapacity;
+       index++) {
+    partial_snapshot_cache_[index] = Heap::undefined_value();
+    startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
+  }
+  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
+
   delete external_reference_encoder_;
   external_reference_encoder_ = NULL;
-  SerializationAddressMapper::Zap();
 }
 
 
@@ -972,7 +956,54 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-int Serializer::RootIndex(HeapObject* heap_object) {
+Object* SerializerDeserializer::partial_snapshot_cache_[
+    kPartialSnapshotCacheCapacity];
+int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
+
+
+// This ensures that the partial snapshot cache keeps things alive during GC and
+// tracks their movement.  When it is called during serialization of the startup
+// snapshot the partial snapshot is empty, so nothing happens.  When the partial
+// (context) snapshot is created, this array is populated with the pointers that
+// the partial snapshot will need. As that happens we emit serialized objects to
+// the startup snapshot that correspond to the elements of this cache array.  On
+// deserialization we therefore need to visit the cache array.  This fills it up
+// with pointers to deserialized objects.
+void SerializerDeserializer::Iterate(ObjectVisitor *visitor) {
+  visitor->VisitPointers(
+      &partial_snapshot_cache_[0],
+      &partial_snapshot_cache_[partial_snapshot_cache_length_]);
+}
+
+
+// When deserializing we need to set the size of the snapshot cache.  This means
+// the root iteration code (above) will iterate over array elements, writing the
+// references to deserialized objects in them.
+void SerializerDeserializer::SetSnapshotCacheSize(int size) {
+  partial_snapshot_cache_length_ = size;
+}
+
+
+int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
+  for (int i = 0; i < partial_snapshot_cache_length_; i++) {
+    Object* entry = partial_snapshot_cache_[i];
+    if (entry == heap_object) return i;
+  }
+  // We didn't find the object in the cache.  So we add it to the cache and
+  // then visit the pointer so that it becomes part of the startup snapshot
+  // and we can refer to it from the partial snapshot.
+  int length = partial_snapshot_cache_length_;
+  CHECK(length < kPartialSnapshotCacheCapacity);
+  partial_snapshot_cache_[length] = heap_object;
+  startup_serializer_->VisitPointer(&partial_snapshot_cache_[length]);
+  // We don't recurse from the startup snapshot generator into the partial
+  // snapshot generator.
+  ASSERT(length == partial_snapshot_cache_length_);
+  return partial_snapshot_cache_length_++;
+}
+
+
+int PartialSerializer::RootIndex(HeapObject* heap_object) {
   for (int i = 0; i < Heap::kRootListLength; i++) {
     Object* root = Heap::roots_address()[i];
     if (root == heap_object) return i;
@@ -981,67 +1012,136 @@ int Serializer::RootIndex(HeapObject* heap_object) {
 }
 
 
-void Serializer::SerializeObject(
+// Encode the location of an already deserialized object in order to write its
+// location into a later object.  We can encode the location as an offset from
+// the start of the deserialized objects or as an offset backwards from the
+// current allocation pointer.
+void Serializer::SerializeReferenceToPreviousObject(
+    int space,
+    int address,
+    ReferenceRepresentation reference_representation) {
+  int offset = CurrentAllocationAddress(space) - address;
+  bool from_start = true;
+  if (SpaceIsPaged(space)) {
+    // For paged space it is simple to encode back from current allocation if
+    // the object is on the same page as the current allocation pointer.
+    if ((CurrentAllocationAddress(space) >> kPageSizeBits) ==
+        (address >> kPageSizeBits)) {
+      from_start = false;
+      address = offset;
+    }
+  } else if (space == NEW_SPACE) {
+    // For new space it is always simple to encode back from current allocation.
+    if (offset < address) {
+      from_start = false;
+      address = offset;
+    }
+  }
+  // If we are actually dealing with real offsets (and not a numbering of
+  // all objects) then we should shift out the bits that are always 0.
+  if (!SpaceIsLarge(space)) address >>= kObjectAlignmentBits;
+  // On some architectures references between code objects are encoded
+  // specially (as relative offsets).  Such references have their own
+  // special tags to simplify the deserializer.
+  if (reference_representation == CODE_TARGET_REPRESENTATION) {
+    if (from_start) {
+      sink_->Put(CODE_REFERENCE_SERIALIZATION + space, "RefCodeSer");
+      sink_->PutInt(address, "address");
+    } else {
+      sink_->Put(CODE_BACKREF_SERIALIZATION + space, "BackRefCodeSer");
+      sink_->PutInt(address, "address");
+    }
+  } else {
+    // Regular absolute references.
+    CHECK_EQ(TAGGED_REPRESENTATION, reference_representation);
+    if (from_start) {
+      // There are some common offsets that have their own specialized encoding.
+#define COMMON_REFS_CASE(tag, common_space, common_offset)               \
+      if (space == common_space && address == common_offset) {           \
+        sink_->PutSection(tag + REFERENCE_SERIALIZATION, "RefSer");      \
+      } else  /* NOLINT */
+      COMMON_REFERENCE_PATTERNS(COMMON_REFS_CASE)
+#undef COMMON_REFS_CASE
+      {  /* NOLINT */
+        sink_->Put(REFERENCE_SERIALIZATION + space, "RefSer");
+        sink_->PutInt(address, "address");
+      }
+    } else {
+      sink_->Put(BACKREF_SERIALIZATION + space, "BackRefSer");
+      sink_->PutInt(address, "address");
+    }
+  }
+}
+
+
+void StartupSerializer::SerializeObject(
     Object* o,
     ReferenceRepresentation reference_representation) {
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
-  if (partial_) {
-    int root_index = RootIndex(heap_object);
-    if (root_index != kInvalidRootIndex) {
-      sink_->Put(ROOT_SERIALIZATION, "RootSerialization");
-      sink_->PutInt(root_index, "root_index");
-      return;
-    }
-    // All the symbols that the snapshot needs should be in the root table.
-    ASSERT(!heap_object->IsSymbol());
-  }
-  if (SerializationAddressMapper::IsMapped(heap_object)) {
+
+  if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfAlreadySerializedObject(heap_object);
-    int address = SerializationAddressMapper::MappedTo(heap_object);
-    int offset = CurrentAllocationAddress(space) - address;
-    bool from_start = true;
-    if (SpaceIsPaged(space)) {
-      if ((CurrentAllocationAddress(space) >> kPageSizeBits) ==
-          (address >> kPageSizeBits)) {
-        from_start = false;
-        address = offset;
-      }
-    } else if (space == NEW_SPACE) {
-      if (offset < address) {
-        from_start = false;
-        address = offset;
-      }
-    }
-    // If we are actually dealing with real offsets (and not a numbering of
-    // all objects) then we should shift out the bits that are always 0.
-    if (!SpaceIsLarge(space)) address >>= kObjectAlignmentBits;
-    if (reference_representation == CODE_TARGET_REPRESENTATION) {
-      if (from_start) {
-        sink_->Put(CODE_REFERENCE_SERIALIZATION + space, "RefCodeSer");
-        sink_->PutInt(address, "address");
-      } else {
-        sink_->Put(CODE_BACKREF_SERIALIZATION + space, "BackRefCodeSer");
-        sink_->PutInt(address, "address");
-      }
-    } else {
-      CHECK_EQ(TAGGED_REPRESENTATION, reference_representation);
-      if (from_start) {
-#define COMMON_REFS_CASE(tag, common_space, common_offset)                 \
-        if (space == common_space && address == common_offset) {           \
-          sink_->PutSection(tag + REFERENCE_SERIALIZATION, "RefSer");      \
-        } else  /* NOLINT */
-        COMMON_REFERENCE_PATTERNS(COMMON_REFS_CASE)
-#undef COMMON_REFS_CASE
-        {  /* NOLINT */
-          sink_->Put(REFERENCE_SERIALIZATION + space, "RefSer");
-          sink_->PutInt(address, "address");
-        }
-      } else {
-        sink_->Put(BACKREF_SERIALIZATION + space, "BackRefSer");
-        sink_->PutInt(address, "address");
-      }
-    }
+    int address = address_mapper_.MappedTo(heap_object);
+    SerializeReferenceToPreviousObject(space,
+                                       address,
+                                       reference_representation);
+  } else {
+    // Object has not yet been serialized.  Serialize it here.
+    ObjectSerializer object_serializer(this,
+                                       heap_object,
+                                       sink_,
+                                       reference_representation);
+    object_serializer.Serialize();
+  }
+}
+
+
+void StartupSerializer::SerializeWeakReferences() {
+  for (int i = partial_snapshot_cache_length_;
+       i < kPartialSnapshotCacheCapacity;
+       i++) {
+    sink_->Put(ROOT_SERIALIZATION, "RootSerialization");
+    sink_->PutInt(Heap::kUndefinedValueRootIndex, "root_index");
+  }
+  Heap::IterateWeakRoots(this, VISIT_ALL);
+}
+
+
+void PartialSerializer::SerializeObject(
+    Object* o,
+    ReferenceRepresentation reference_representation) {
+  CHECK(o->IsHeapObject());
+  HeapObject* heap_object = HeapObject::cast(o);
+
+  int root_index;
+  if ((root_index = RootIndex(heap_object)) != kInvalidRootIndex) {
+    sink_->Put(ROOT_SERIALIZATION, "RootSerialization");
+    sink_->PutInt(root_index, "root_index");
+    return;
+  }
+
+  if (ShouldBeInThePartialSnapshotCache(heap_object)) {
+    int cache_index = PartialSnapshotCacheIndex(heap_object);
+    sink_->Put(PARTIAL_SNAPSHOT_CACHE_ENTRY, "PartialSnapshotCache");
+    sink_->PutInt(cache_index, "partial_snapshot_cache_index");
+    return;
+  }
+
+  // Pointers from the partial snapshot to the objects in the startup snapshot
+  // should go through the root array or through the partial snapshot cache.
+  // If this is not the case you may have to add something to the root array.
+  ASSERT(!startup_serializer_->address_mapper()->IsMapped(heap_object));
+  // All the symbols that the partial snapshot needs should be either in the
+  // root table or in the partial snapshot cache.
+  ASSERT(!heap_object->IsSymbol());
+
+  if (address_mapper_.IsMapped(heap_object)) {
+    int space = SpaceOfAlreadySerializedObject(heap_object);
+    int address = address_mapper_.MappedTo(heap_object);
+    SerializeReferenceToPreviousObject(space,
+                                       address,
+                                       reference_representation);
   } else {
     // Object has not yet been serialized.  Serialize it here.
     ObjectSerializer serializer(this,
@@ -1051,7 +1151,6 @@ void Serializer::SerializeObject(
     serializer.Serialize();
   }
 }
-
 
 
 void Serializer::ObjectSerializer::Serialize() {
@@ -1066,11 +1165,12 @@ void Serializer::ObjectSerializer::Serialize() {
   }
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
+  LOG(SnapshotPositionEvent(object_->address(), sink_->Position()));
+
   // Mark this object as already serialized.
   bool start_new_page;
-  SerializationAddressMapper::Map(
-    object_,
-    serializer_->Allocate(space, size, &start_new_page));
+  int offset = serializer_->Allocate(space, size, &start_new_page);
+  serializer_->address_mapper()->AddMapping(object_, offset);
   if (start_new_page) {
     sink_->Put(START_NEW_PAGE_SERIALIZATION, "NewPage");
     sink_->PutSection(space, "NewPageSpace");
@@ -1230,6 +1330,7 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
     // In large object space we merely number the objects instead of trying to
     // determine some sort of address.
     *new_page = true;
+    large_object_total_ += size;
     return fullness_[LO_SPACE]++;
   }
   *new_page = false;

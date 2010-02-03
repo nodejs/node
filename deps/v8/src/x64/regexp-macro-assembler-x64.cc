@@ -71,8 +71,6 @@ namespace internal {
  *                            through the runtime system)
  *    - stack_area_base      (High end of the memory area to use as
  *                            backtracking stack)
- *    - at_start             (if 1, we are starting at the start of the
- *                            string, otherwise 0)
  *    - int* capture_array   (int[num_saved_registers_], for output).
  *    - end of input         (Address of end of string)
  *    - start of input       (Address of first character in string)
@@ -82,6 +80,8 @@ namespace internal {
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - Offset of location before start of input (effectively character
  *      position -1). Used to initialize capture registers to a non-position.
+ *    - At start of string (if 1, we are starting at the start of the
+ *      string, otherwise 0)
  *    - register 0  rbp[-n]   (Only positions must be stored in the first
  *    - register 1  rbp[-n-8]  num_saved_registers_ registers)
  *    - ...
@@ -329,14 +329,14 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     ASSERT(mode_ == UC16);
     // Save important/volatile registers before calling C function.
 #ifndef _WIN64
-    // Callee save on Win64
+    // Caller save on Linux and callee save in Windows.
     __ push(rsi);
     __ push(rdi);
 #endif
     __ push(backtrack_stackpointer());
 
     int num_arguments = 3;
-    FrameAlign(num_arguments);
+    __ PrepareCallCFunction(num_arguments);
 
     // Put arguments into parameter registers. Parameters are
     //   Address byte_offset1 - Address captured substring's start.
@@ -361,7 +361,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif
     ExternalReference compare =
         ExternalReference::re_case_insensitive_compare_uc16();
-    CallCFunction(compare, num_arguments);
+    __ CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_->CodeObject());
@@ -582,49 +582,38 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    Label done, check_digits;
-    __ cmpl(current_character(), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmpl(current_character(), Immediate('_'));
-    __ j(equal, &done);
-    // Convert to lower case if letter.
-    __ movl(rax, current_character());
-    __ orl(rax, Immediate(0x20));
-    // check rax in range ['a'..'z'].
-    __ subl(rax, Immediate('a'));
-    __ cmpl(rax, Immediate('z' - 'a'));
-    BranchOrBacktrack(above, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmpl(current_character(), Immediate('0'));
-    BranchOrBacktrack(below, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmpl(current_character(), Immediate('z'));
+      BranchOrBacktrack(above, on_no_match);
+    }
+    __ movq(rbx, ExternalReference::re_word_character_map());
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ testb(Operand(rbx, current_character(), times_1, 0),
+             current_character());
+    BranchOrBacktrack(zero, on_no_match);
     return true;
   }
   case 'W': {
-    Label done, check_digits;
-    __ cmpl(current_character(), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmpl(current_character(), Immediate('_'));
-    BranchOrBacktrack(equal, on_no_match);
-    // Convert to lower case if letter.
-    __ movl(rax, current_character());
-    __ orl(rax, Immediate(0x20));
-    // check current character in range ['a'..'z'], nondestructively.
-    __ subl(rax, Immediate('a'));
-    __ cmpl(rax, Immediate('z' - 'a'));
-    BranchOrBacktrack(below_equal, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmpl(current_character(), Immediate('0'));
-    BranchOrBacktrack(above_equal, on_no_match);
-    __ bind(&done);
-
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmpl(current_character(), Immediate('z'));
+      __ j(above, &done);
+    }
+    __ movq(rbx, ExternalReference::re_word_character_map());
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ testb(Operand(rbx, current_character(), times_1, 0),
+             current_character());
+    BranchOrBacktrack(not_zero, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
+
   case '*':
     // Match any character.
     return true;
@@ -645,7 +634,6 @@ void RegExpMacroAssemblerX64::Fail() {
 Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
-
   // Entry code:
   __ bind(&entry_label_);
   // Start new stack frame.
@@ -672,7 +660,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   ASSERT_EQ(kInputStart, -3 * kPointerSize);
   ASSERT_EQ(kInputEnd, -4 * kPointerSize);
   ASSERT_EQ(kRegisterOutput, -5 * kPointerSize);
-  ASSERT_EQ(kAtStart, -6 * kPointerSize);
+  ASSERT_EQ(kStackHighEnd, -6 * kPointerSize);
   __ push(rdi);
   __ push(rsi);
   __ push(rdx);
@@ -682,7 +670,9 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
   __ push(rbx);  // Callee-save
 #endif
+
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ push(Immediate(0));  // Make room for "at start" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -727,6 +717,15 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ movq(Operand(rbp, kInputStartMinusOne), rax);
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ movq(rbx, Operand(rbp, kStartIndex));
+  __ xor_(rcx, rcx);  // setcc only operates on cl (lower byte of rcx).
+  __ testq(rbx, rbx);
+  __ setcc(zero, rcx);  // 1 if 0 (start of string), 0 if positive.
+  __ movq(Operand(rbp, kAtStart), rcx);
+
   if (num_saved_registers_ > 0) {
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
@@ -851,7 +850,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 2;
-    FrameAlign(num_arguments);
+    __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx.
     // First argument, backtrack stackpointer, is already in rcx.
@@ -862,7 +861,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
 #endif
     ExternalReference grow_stack = ExternalReference::re_grow_stack();
-    CallCFunction(grow_stack, num_arguments);
+    __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ testq(rax, rax);
@@ -1031,7 +1030,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // This function call preserves no register values. Caller should
   // store anything volatile in a C call or overwritten by this function.
   int num_arguments = 3;
-  FrameAlign(num_arguments);
+  __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).
   __ movq(rdx, code_object_pointer());
@@ -1051,7 +1050,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state();
-  CallCFunction(stack_check, num_arguments);
+  __ CallCFunction(stack_check, num_arguments);
 }
 
 
@@ -1072,6 +1071,12 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
 
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
+
+  // If this is a direct call from JavaScript retry the RegExp forcing the call
+  // through the runtime system. Currently the direct call cannot handle a GC.
+  if (frame_entry<int>(re_frame, kDirectCall) == 1) {
+    return RETRY;
+  }
 
   // Prepare for possible GC.
   HandleScope handles;
@@ -1264,45 +1269,6 @@ void RegExpMacroAssemblerX64::CheckStackLimit() {
   SafeCall(&stack_overflow_label_);
 
   __ bind(&no_stack_overflow);
-}
-
-
-void RegExpMacroAssemblerX64::FrameAlign(int num_arguments) {
-  // TODO(lrn): Since we no longer use the system stack arbitrarily (but we do
-  // use it, e.g., for SafeCall), we know the number of elements on the stack
-  // since the last frame alignment. We might be able to do this simpler then.
-  int frameAlignment = OS::ActivationFrameAlignment();
-  ASSERT(frameAlignment != 0);
-  // Make stack end at alignment and make room for num_arguments pointers
-  // (on Win64 only) and the original value of rsp.
-  __ movq(kScratchRegister, rsp);
-  ASSERT(IsPowerOf2(frameAlignment));
-#ifdef _WIN64
-  // Allocate space for parameters and old rsp.
-  __ subq(rsp, Immediate((num_arguments + 1) * kPointerSize));
-  __ and_(rsp, Immediate(-frameAlignment));
-  __ movq(Operand(rsp, num_arguments * kPointerSize), kScratchRegister);
-#else
-  // Allocate space for old rsp.
-  __ subq(rsp, Immediate(kPointerSize));
-  __ and_(rsp, Immediate(-frameAlignment));
-  __ movq(Operand(rsp, 0), kScratchRegister);
-#endif
-}
-
-
-void RegExpMacroAssemblerX64::CallCFunction(ExternalReference function,
-                                            int num_arguments) {
-  __ movq(rax, function);
-  __ call(rax);
-  ASSERT(OS::ActivationFrameAlignment() != 0);
-#ifdef _WIN64
-  __ movq(rsp, Operand(rsp, num_arguments * kPointerSize));
-#else
-  // All arguments passed in registers.
-  ASSERT(num_arguments <= 6);
-  __ pop(rsp);
-#endif
 }
 
 

@@ -180,7 +180,6 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -197,7 +196,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -214,7 +212,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -244,11 +241,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Get the map of the receiver.
   __ mov(edx, FieldOperand(ecx, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.
+
+  // Check bit field.
   __ movzx_b(ebx, FieldOperand(edx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test(ebx, Immediate(kSlowCaseBitFieldMask));
   __ j(not_zero, &slow, not_taken);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -1040,7 +1036,6 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1179,7 +1174,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss, probe, global;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -1385,19 +1379,17 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
-  // Get the receiver from the stack and probe the stub cache.
-  __ mov(edx, Operand(esp, 4));
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  GenerateMiss(masm);
 }
 
 
@@ -1405,12 +1397,12 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : transition map
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
   __ pop(ebx);
-  __ push(Operand(esp, 0));  // receiver
+  __ push(edx);  // receiver
   __ push(ecx);  // transition map
   __ push(eax);  // value
   __ push(ebx);  // return address
@@ -1421,23 +1413,22 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 }
 
 
-void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ebx);
-  __ push(Operand(esp, 0));
+  __ push(edx);
   __ push(ecx);
   __ push(eax);
   __ push(ebx);
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3, 1);
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
 }
 
 
@@ -1452,7 +1443,6 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ecx);
   __ push(Operand(esp, 1 * kPointerSize));
   __ push(Operand(esp, 1 * kPointerSize));
@@ -1473,7 +1463,6 @@ void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ebx);
   __ push(Operand(esp, 1 * kPointerSize));
   __ push(ecx);

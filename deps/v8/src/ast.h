@@ -180,11 +180,12 @@ class Expression: public AstNode {
     kTestValue
   };
 
-  Expression() : context_(kUninitialized) {}
+  static const int kNoLabel = -1;
+
+  Expression() : num_(kNoLabel) {}
 
   virtual Expression* AsExpression()  { return this; }
 
-  virtual bool IsValidJSON() { return false; }
   virtual bool IsValidLeftHandSide() { return false; }
 
   // Symbols that cannot be parsed as array indices are considered property
@@ -200,12 +201,14 @@ class Expression: public AstNode {
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
-  Context context() { return context_; }
-  void set_context(Context context) { context_ = context; }
+  int num() { return num_; }
+
+  // AST node numbering ordered by evaluation order.
+  void set_num(int n) { num_ = n; }
 
  private:
   StaticType type_;
-  Context context_;
+  int num_;
 };
 
 
@@ -709,8 +712,6 @@ class Literal: public Expression {
     return handle_.is_identical_to(other->handle_);
   }
 
-  virtual bool IsValidJSON() { return true; }
-
   virtual bool IsPropertyName() {
     if (handle_->IsSymbol()) {
       uint32_t ignored;
@@ -746,8 +747,6 @@ class MaterializedLiteral: public Expression {
   // A materialized literal is simple if the values consist of only
   // constants and simple object and array literals.
   bool is_simple() const { return is_simple_; }
-
-  virtual bool IsValidJSON() { return true; }
 
   int depth() const { return depth_; }
 
@@ -802,7 +801,6 @@ class ObjectLiteral: public MaterializedLiteral {
 
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
-  virtual bool IsValidJSON();
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -850,7 +848,6 @@ class ArrayLiteral: public MaterializedLiteral {
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
-  virtual bool IsValidJSON();
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -1184,6 +1181,9 @@ class CountOperation: public Expression {
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
   Token::Value op() const { return op_; }
+  Token::Value binary_op() {
+    return op_ == Token::INC ? Token::ADD : Token::SUB;
+  }
   Expression* expression() const { return expression_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
@@ -1324,10 +1324,9 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
-        loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
-        try_fast_codegen_(false) {
+        try_full_codegen_(false) {
 #ifdef DEBUG
     already_compiled_ = false;
 #endif
@@ -1359,16 +1358,13 @@ class FunctionLiteral: public Expression {
 
   bool AllowsLazyCompilation();
 
-  bool loop_nesting() const { return loop_nesting_; }
-  void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
-
   Handle<String> inferred_name() const  { return inferred_name_; }
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;
   }
 
-  bool try_fast_codegen() { return try_fast_codegen_; }
-  void set_try_fast_codegen(bool flag) { try_fast_codegen_ = flag; }
+  bool try_full_codegen() { return try_full_codegen_; }
+  void set_try_full_codegen(bool flag) { try_full_codegen_ = flag; }
 
 #ifdef DEBUG
   void mark_as_compiled() {
@@ -1389,10 +1385,9 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
-  int loop_nesting_;
   int function_token_position_;
   Handle<String> inferred_name_;
-  bool try_fast_codegen_;
+  bool try_full_codegen_;
 #ifdef DEBUG
   bool already_compiled_;
 #endif

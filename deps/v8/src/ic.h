@@ -209,6 +209,8 @@ class CallIC: public IC {
   // Otherwise, it returns the undefined value.
   Object* TryCallAsFunction(Object* object);
 
+  void ReceiverToObject(Handle<Object> object);
+
   static void Clear(Address address, Code* target);
   friend class IC;
 };
@@ -293,6 +295,13 @@ class KeyedLoadIC: public IC {
   static void ClearInlinedVersion(Address address);
 
  private:
+  // Bit mask to be tested against bit field for the cases when
+  // generic stub should go into slow case.
+  // Access check is necessary explicitly since generic stub does not perform
+  // map checks.
+  static const int kSlowCaseBitFieldMask =
+      (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
+
   static void Generate(MacroAssembler* masm, const ExternalReference& f);
 
   // Update the inline cache.
@@ -339,14 +348,12 @@ class StoreIC: public IC {
                 Handle<Object> value);
 
   // Code generators for stub routines. Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateExtendStorage(MacroAssembler* masm);
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,

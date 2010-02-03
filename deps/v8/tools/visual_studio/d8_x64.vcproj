@@ -50,7 +50,6 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="winmm.lib Ws2_32.lib"
-				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -69,9 +68,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -112,7 +108,6 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="winmm.lib Ws2_32.lib"
-				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -133,9 +128,6 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -146,6 +138,22 @@
 		<File
 			RelativePath="..\..\src\d8.cc"
 			>
+			<FileConfiguration
+				Name="Debug|x64"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					DisableSpecificWarnings="4267"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|x64"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					DisableSpecificWarnings="4267"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
 			RelativePath="..\..\src\d8.h"

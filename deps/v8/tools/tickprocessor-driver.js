@@ -44,10 +44,16 @@ var entriesProviders = {
 };
 
 var params = processArguments(arguments);
+var snapshotLogProcessor;
+if (params.snapshotLogFileName) {
+  snapshotLogProcessor = new SnapshotLogProcessor();
+  snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
+}
 var tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm),
   params.separateIc,
   params.ignoreUnknown,
-  params.stateFilter);
+  params.stateFilter,
+  snapshotLogProcessor);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

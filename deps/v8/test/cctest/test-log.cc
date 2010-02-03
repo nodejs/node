@@ -202,9 +202,9 @@ static int CheckThatProfilerWorks(int log_pos) {
   // Force compiler to generate new code by parametrizing source.
   EmbeddedVector<char, 100> script_src;
   i::OS::SNPrintF(script_src,
-                  "for (var i = 0; i < 1000; ++i) { "
-                  "(function(x) { return %d * x; })(i); }",
-                  log_pos);
+                  "function f%d(x) { return %d * x; }"
+                  "for (var i = 0; i < 10000; ++i) { f%d(i); }",
+                  log_pos, log_pos, log_pos);
   // Run code for 200 msecs to get some ticks.
   const double end_time = i::OS::TimeCurrentMillis() + 200;
   while (i::OS::TimeCurrentMillis() < end_time) {
@@ -228,6 +228,7 @@ static int CheckThatProfilerWorks(int log_pos) {
   log_pos += log_size;
   // Check buffer contents.
   buffer[log_size] = '\0';
+  printf("%s", buffer.start());
   const char* tick = "\ntick,";
   CHECK_NE(NULL, strstr(buffer.start(), code_creation));
   const bool ticks_found = strstr(buffer.start(), tick) != NULL;

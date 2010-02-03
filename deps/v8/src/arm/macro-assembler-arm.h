@@ -337,6 +337,25 @@ class MacroAssembler: public Assembler {
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
 
+  // ---------------------------------------------------------------------------
+  // String utilities
+
+  // Checks if both objects are sequential ASCII strings and jumps to label
+  // if either is not. Assumes that neither object is a smi.
+  void JumpIfNonSmisNotBothSequentialAsciiStrings(Register object1,
+                                                  Register object2,
+                                                  Register scratch1,
+                                                  Register scratch2,
+                                                  Label *failure);
+
+  // Checks if both objects are sequential ASCII strings and jumps to label
+  // if either is not.
+  void JumpIfNotBothSequentialAsciiStrings(Register first,
+                                           Register second,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* not_flat_ascii_strings);
+
  private:
   List<Unresolved> unresolved_;
   bool generating_stub_;

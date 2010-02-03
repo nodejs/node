@@ -31,20 +31,28 @@
 namespace v8 {
 namespace internal {
 
-// Define list of builtins implemented in C.
-#define BUILTIN_LIST_C(V)                          \
-  V(Illegal)                                       \
-                                                   \
-  V(EmptyFunction)                                 \
-                                                   \
-  V(ArrayCodeGeneric)                              \
-                                                   \
-  V(ArrayPush)                                     \
-  V(ArrayPop)                                      \
-                                                   \
-  V(HandleApiCall)                                 \
-  V(HandleApiCallAsFunction)                       \
-  V(HandleApiCallAsConstructor)
+// Specifies extra arguments required by a C++ builtin.
+enum BuiltinExtraArguments {
+  NO_EXTRA_ARGUMENTS = 0,
+  NEEDS_CALLED_FUNCTION = 1
+};
+
+
+// Define list of builtins implemented in C++.
+#define BUILTIN_LIST_C(V)                                           \
+  V(Illegal, NO_EXTRA_ARGUMENTS)                                    \
+                                                                    \
+  V(EmptyFunction, NO_EXTRA_ARGUMENTS)                              \
+                                                                    \
+  V(ArrayCodeGeneric, NO_EXTRA_ARGUMENTS)                           \
+                                                                    \
+  V(ArrayPush, NO_EXTRA_ARGUMENTS)                                  \
+  V(ArrayPop, NO_EXTRA_ARGUMENTS)                                   \
+                                                                    \
+  V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
+  V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)                  \
+  V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
+  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)
 
 
 // Define list of builtins implemented in assembly.
@@ -52,6 +60,7 @@ namespace internal {
   V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED)                   \
   V(JSConstructCall,            BUILTIN, UNINITIALIZED)                   \
   V(JSConstructStubGeneric,     BUILTIN, UNINITIALIZED)                   \
+  V(JSConstructStubApi,         BUILTIN, UNINITIALIZED)                   \
   V(JSEntryTrampoline,          BUILTIN, UNINITIALIZED)                   \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED)                   \
                                                                           \
@@ -169,7 +178,7 @@ class Builtins : public AllStatic {
   static const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM_C(name) name,
+#define DEF_ENUM_C(name, ignore) name,
 #define DEF_ENUM_A(name, kind, state) name,
     BUILTIN_LIST_C(DEF_ENUM_C)
     BUILTIN_LIST_A(DEF_ENUM_A)
@@ -180,7 +189,7 @@ class Builtins : public AllStatic {
   };
 
   enum CFunctionId {
-#define DEF_ENUM_C(name) c_##name,
+#define DEF_ENUM_C(name, ignore) c_##name,
     BUILTIN_LIST_C(DEF_ENUM_C)
 #undef DEF_ENUM_C
     cfunction_count
@@ -212,8 +221,6 @@ class Builtins : public AllStatic {
   static Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
-  static Object* builtin_passed_function;
-
  private:
   // The external C++ functions called from the code.
   static Address c_functions_[cfunction_count];
@@ -226,9 +233,12 @@ class Builtins : public AllStatic {
   static const char* javascript_names_[id_count];
   static int javascript_argc_[id_count];
 
-  static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id);
+  static void Generate_Adaptor(MacroAssembler* masm,
+                               CFunctionId id,
+                               BuiltinExtraArguments extra_args);
   static void Generate_JSConstructCall(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
+  static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);

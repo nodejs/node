@@ -54,10 +54,12 @@ void DebuggerAgent::Run() {
   while (!bound && !terminate_) {
     bound = server_->Bind(port_);
 
-    // If an error occoured wait a bit before retrying. The most common error
+    // If an error occurred wait a bit before retrying. The most common error
     // would be that the port is already in use so this avoids a busy loop and
     // make the agent take over the port when it becomes free.
     if (!bound) {
+      PrintF("Failed to open socket on port %d, "
+          "waiting %d ms before retrying\n", port_, kOneSecondInMicros / 1000);
       terminate_now_->Wait(kOneSecondInMicros);
     }
   }

@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -998,29 +998,43 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
 // Decode Type 6 coprocessor instructions.
 // Dm = vmov(Rt, Rt2)
 // <Rt, Rt2> = vmov(Dm)
+// Ddst = MEM(Rbase + 4*offset).
+// MEM(Rbase + 4*offset) = Dsrc.
 void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 
-  if (instr->Bit(23) == 1) {
-     Unknown(instr);  // Not used by V8.
-  } else if (instr->Bit(22) == 1) {
-    if ((instr->Bits(27, 24) == 0xC) &&
-        (instr->Bit(22) == 1) &&
-        (instr->Bits(11, 8) == 0xB) &&
-        (instr->Bits(7, 6) == 0x0) &&
-        (instr->Bit(4) == 1)) {
-      if (instr->Bit(20) == 0) {
-        Format(instr, "vmov'cond 'Dm, 'rt, 'rn");
-      } else if (instr->Bit(20) == 1) {
-        Format(instr, "vmov'cond 'rt, 'rn, 'Dm");
-      }
-    } else {
-      Unknown(instr);  // Not used by V8.
-    }
-  } else if (instr->Bit(21) == 1) {
+  if (instr->CoprocessorField() != 0xB) {
     Unknown(instr);  // Not used by V8.
   } else {
-    Unknown(instr);  // Not used by V8.
+    switch (instr->OpcodeField()) {
+      case 0x2:
+        // Load and store double to two GP registers
+        if (instr->Bits(7, 4) != 0x1) {
+          Unknown(instr);  // Not used by V8.
+        } else if (instr->HasL()) {
+          Format(instr, "vmov'cond 'rt, 'rn, 'Dm");
+        } else {
+          Format(instr, "vmov'cond 'Dm, 'rt, 'rn");
+        }
+        break;
+      case 0x8:
+        if (instr->HasL()) {
+          Format(instr, "vldr'cond 'Dd, ['rn - 4*'off8]");
+        } else {
+          Format(instr, "vstr'cond 'Dd, ['rn - 4*'off8]");
+        }
+        break;
+      case 0xC:
+        if (instr->HasL()) {
+          Format(instr, "vldr'cond 'Dd, ['rn + 4*'off8]");
+        } else {
+          Format(instr, "vstr'cond 'Dd, ['rn + 4*'off8]");
+        }
+        break;
+      default:
+        Unknown(instr);  // Not used by V8.
+        break;
+    }
   }
 }
 

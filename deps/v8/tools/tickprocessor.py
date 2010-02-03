@@ -59,6 +59,8 @@ class CodeEntry(object):
   def IsICEntry(self):
     return False
 
+  def IsJSFunction(self):
+    return False
 
 class SharedLibraryEntry(CodeEntry):
 
@@ -124,6 +126,8 @@ class JSCodeEntry(CodeEntry):
     return self.type in ('CallIC', 'LoadIC', 'StoreIC') or \
       (self.type == 'Builtin' and self.builtin_ic_re.match(self.name))
 
+  def IsJSFunction(self):
+    return self.type in ('Function', 'LazyCompile', 'Script')
 
 class CodeRegion(object):
 
@@ -212,13 +216,19 @@ class TickProcessor(object):
         for row in logreader:
           row_num += 1
           if row[0] == 'tick':
-            self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), self.PreprocessStack(row[4:]))
+            self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3], 16), int(row[4]), self.PreprocessStack(row[5:]))
           elif row[0] == 'code-creation':
             self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
           elif row[0] == 'code-move':
             self.ProcessCodeMove(int(row[1], 16), int(row[2], 16))
           elif row[0] == 'code-delete':
             self.ProcessCodeDelete(int(row[1], 16))
+          elif row[0] == 'function-creation':
+            self.ProcessFunctionCreation(int(row[1], 16), int(row[2], 16))
+          elif row[0] == 'function-move':
+            self.ProcessFunctionMove(int(row[1], 16), int(row[2], 16))
+          elif row[0] == 'function-delete':
+            self.ProcessFunctionDelete(int(row[1], 16))
           elif row[0] == 'shared-library':
             self.AddSharedLibraryEntry(row[1], int(row[2], 16), int(row[3], 16))
             self.ParseVMSymbols(row[1], int(row[2], 16), int(row[3], 16))
@@ -275,6 +285,27 @@ class TickProcessor(object):
     except splaytree.KeyNotFoundError:
       print('Code delete event for unknown code: 0x%x' % from_addr)
 
+  def ProcessFunctionCreation(self, func_addr, code_addr):
+    js_entry_node = self.js_entries.Find(code_addr)
+    if js_entry_node:
+      js_entry = js_entry_node.value
+      self.js_entries.Insert(func_addr, JSCodeEntry(func_addr, js_entry.name, js_entry.type, 1, None))
+
+  def ProcessFunctionMove(self, from_addr, to_addr):
+    try:
+      removed_node = self.js_entries.Remove(from_addr)
+      removed_node.value.SetStartAddress(to_addr);
+      self.js_entries.Insert(to_addr, removed_node.value)
+    except splaytree.KeyNotFoundError:
+      return
+
+  def ProcessFunctionDelete(self, from_addr):
+    try:
+      removed_node = self.js_entries.Remove(from_addr)
+      self.deleted_code.append(removed_node.value)
+    except splaytree.KeyNotFoundError:
+      return
+
   def ProcessBeginCodeRegion(self, id, assm, start, name):
     if not assm in self.pending_assemblers:
       self.pending_assemblers[assm] = Assembler()
@@ -320,7 +351,7 @@ class TickProcessor(object):
         result.append(entry.ToString())
     return result
 
-  def ProcessTick(self, pc, sp, state, stack):
+  def ProcessTick(self, pc, sp, func, state, stack):
     if state == VMStates['GC']:
       self.number_of_gc_ticks += 1
     if not self.IncludeTick(pc, sp, state):
@@ -337,11 +368,16 @@ class TickProcessor(object):
       if len(stack) > 0:
         caller_pc = stack.pop(0)
         self.total_number_of_ticks -= 1
-        self.ProcessTick(caller_pc, sp, state, stack)
+        self.ProcessTick(caller_pc, sp, func, state, stack)
       else:
         self.unaccounted_number_of_ticks += 1
     else:
-      entry.Tick(pc, self.ProcessStack(stack))
+      processed_stack = self.ProcessStack(stack)
+      if not entry.IsSharedLibraryEntry() and not entry.IsJSFunction():
+        func_entry_node = self.js_entries.Find(func)
+        if func_entry_node and func_entry_node.value.IsJSFunction():
+          processed_stack.insert(0, func_entry_node.value.ToString())
+      entry.Tick(pc, processed_stack)
       if self.call_graph_json:
         self.AddToPackedStacks(pc, stack)
 

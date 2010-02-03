@@ -1537,6 +1537,40 @@ void Assembler::movzxwl(Register dst, const Operand& src) {
 }
 
 
+void Assembler::repmovsb() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit(0xA4);
+}
+
+
+void Assembler::repmovsw() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);  // Operand size override.
+  emit(0xF3);
+  emit(0xA4);
+}
+
+
+void Assembler::repmovsl() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit(0xA5);
+}
+
+
+void Assembler::repmovsq() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit_rex_64();
+  emit(0xA5);
+}
+
+
 void Assembler::mul(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1880,6 +1914,20 @@ void Assembler::testb(const Operand& op, Immediate mask) {
 }
 
 
+void Assembler::testb(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg, op);
+  } else {
+    emit_optional_rex_32(reg, op);
+  }
+  emit(0x84);
+  emit_operand(reg, op);
+}
+
+
 void Assembler::testl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2061,6 +2109,16 @@ void Assembler::fisttp_s(const Operand& adr) {
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
   emit(0xDB);
+  emit_operand(1, adr);
+}
+
+
+void Assembler::fisttp_d(const Operand& adr) {
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(adr);
+  emit(0xDD);
   emit_operand(1, adr);
 }
 

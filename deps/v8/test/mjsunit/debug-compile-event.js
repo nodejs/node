@@ -107,7 +107,7 @@ compileSource('eval("a=2")');
 source_count++;  // Using eval causes additional compilation event.
 compileSource('eval("eval(\'(function(){return a;})\')")');
 source_count += 2;  // Using eval causes additional compilation event.
-compileSource('JSON.parse("{a:1,b:2}")');
+compileSource('JSON.parse(\'{"a":1,"b":2}\')');
 source_count++;  // Using JSON.parse causes additional compilation event.
 
 // Make sure that the debug event listener was invoked.

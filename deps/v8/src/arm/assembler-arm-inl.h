@@ -174,20 +174,6 @@ Operand::Operand(const ExternalReference& f)  {
 }
 
 
-Operand::Operand(Object** opp) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(opp);
-  rmode_ = RelocInfo::NONE;
-}
-
-
-Operand::Operand(Context** cpp) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(cpp);
-  rmode_ = RelocInfo::NONE;
-}
-
-
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);

@@ -28,19 +28,23 @@
 // Platform specific code for Solaris 10 goes here. For the POSIX comaptible
 // parts the implementation is in platform-posix.cc.
 
-#include <sys/stack.h> // for stack alignment
-#include <unistd.h> // getpagesize()
-#include <sys/mman.h> // mmap()
-#include <unistd.h> // usleep()
-#include <execinfo.h> // backtrace(), backtrace_symbols()
+#ifdef __sparc
+# error "V8 does not support the SPARC CPU architecture."
+#endif
+
+#include <sys/stack.h>  // for stack alignment
+#include <unistd.h>  // getpagesize(), usleep()
+#include <sys/mman.h>  // mmap()
+#include <execinfo.h>  // backtrace(), backtrace_symbols()
 #include <pthread.h>
-#include <sched.h> // for sched_yield
+#include <sched.h>  // for sched_yield
 #include <semaphore.h>
 #include <time.h>
-#include <sys/time.h> // gettimeofday(), timeradd()
+#include <sys/time.h>  // gettimeofday(), timeradd()
 #include <errno.h>
-#include <ieeefp.h> // finite()
-#include <signal.h> // sigemptyset(), etc
+#include <ieeefp.h>  // finite()
+#include <signal.h>  // sigemptyset(), etc
+
 
 #undef MAP_TYPE
 
@@ -52,77 +56,12 @@
 namespace v8 {
 namespace internal {
 
-int isfinite(double x) {
-  return finite(x) && !isnand(x);
-}
-
-} } // namespace v8::internal
-
-
-// Test for infinity - usually defined in math.h
-int isinf(double x) {
-  fpclass_t fpc = fpclass(x);
-  return (fpc == FP_NINF || fpc == FP_PINF);
-}
-
-
-// Test if x is less than y and both nominal - usually defined in math.h
-int isless(double x, double y) {
-  return isnan(x) || isnan(y) ? 0 : x < y;
-}
-
-
-// Test if x is greater than y and both nominal - usually defined in math.h
-int isgreater(double x, double y) {
-  return isnan(x) || isnan(y) ? 0 : x > y;
-}
-
-
-// Classify floating point number - usually defined in math.h#ifndef fpclassify
-int fpclassify(double x) {
-  // Use the Solaris-specific fpclass() for classification.
-  fpclass_t fpc = fpclass(x);
-
-  switch (fpc) {
-    case FP_PNORM:
-    case FP_NNORM:
-      return FP_NORMAL;
-    case FP_PZERO:
-    case FP_NZERO:
-      return FP_ZERO;
-    case FP_PDENORM:
-    case FP_NDENORM:
-      return FP_SUBNORMAL;
-    case FP_PINF:
-    case FP_NINF:
-      return FP_INFINITE;
-    default:
-      // All cases should be covered by the code above.
-      ASSERT(fpc == FP_QNAN || fpc == FP_SNAN);
-      return FP_NAN;
-  }
-}
-
-
-int signbit(double x) {
-  // We need to take care of the special case of both positive
-  // and negative versions of zero.
-  if (x == 0)
-    return fpclass(x) == FP_NZERO;
-  else
-    return x < 0;
-}
-
-
-namespace v8 {
-namespace internal {
 
 // 0 is never a valid thread id on Solaris since the main thread is 1 and
 // subsequent have their ids incremented from there
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
-// TODO: Test to see if ceil() is correct on Solaris.
 double ceiling(double x) {
   return ceil(x);
 }
@@ -144,12 +83,6 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
-double OS::nan_value() {
-  static double NAN = __builtin_nan("0x0");
-  return NAN;
-}
-
-
 int OS::ActivationFrameAlignment() {
   return STACK_ALIGN;
 }
@@ -160,29 +93,17 @@ const char* OS::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
-  return tzname[0]; // the location of the timezone string on Solaris
+  return tzname[0];  // The location of the timezone string on Solaris.
 }
 
 
 double OS::LocalTimeOffset() {
-  int days, hours, minutes;
-  time_t tv = time(NULL);
-
-  // on Solaris, struct tm does not contain a tm_gmtoff field...
-  struct tm* loc = localtime(&tv);
-  struct tm* utc = gmtime(&tv);
-
-  // calulate the utc offset
-  days = loc->tm_yday = utc->tm_yday;
-  hours = ((days < -1 ? 24 : 1 < days ? -24 : days * 24) +
-    loc->tm_hour - utc->tm_hour);
-  minutes = hours * 60 + loc->tm_min - utc->tm_min;
-
-  // don't include any daylight savings offset in local time
-  if (loc->tm_isdst > 0) minutes -= 60;
-
-  // the result is in milliseconds
-  return static_cast<double>(minutes * 60 * msPerSecond);
+  // On Solaris, struct tm does not contain a tm_gmtoff field.
+  time_t utc = time(NULL);
+  ASSERT(utc != -1);
+  struct tm* loc = localtime(&utc);
+  ASSERT(loc != NULL);
+  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
 
 
@@ -209,7 +130,7 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 
 
 size_t OS::AllocateAlignment() {
-  return (size_t)getpagesize();
+  return static_cast<size_t>(getpagesize());
 }
 
 
@@ -262,7 +183,7 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Redirect to std abort to signal abnormal program termination
+  // Redirect to std abort to signal abnormal program termination.
   abort();
 }
 
@@ -307,9 +228,6 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  UNIMPLEMENTED();
-#endif
 }
 
 
@@ -610,6 +528,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (active_sampler_ == NULL) return;
 
   TickSample sample;
+  sample.pc = 0;
+  sample.sp = 0;
+  sample.fp = 0;
 
   // We always sample the VM state.
   sample.state = Logger::state();
@@ -683,4 +604,4 @@ void Sampler::Stop() {
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
-} } // namespace v8::internal
+} }  // namespace v8::internal

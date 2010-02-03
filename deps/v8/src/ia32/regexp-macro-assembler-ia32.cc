@@ -59,8 +59,6 @@ namespace internal {
  *                               call through the runtime system)
  *       - stack_area_base      (High end of the memory area to use as
  *                               backtracking stack)
- *       - at_start             (if 1, we are starting at the start of the
- *                               string, otherwise 0)
  *       - int* capture_array   (int[num_saved_registers_], for output).
  *       - end of input         (Address of end of string)
  *       - start of input       (Address of first character in string)
@@ -74,6 +72,8 @@ namespace internal {
  *       - backup of caller ebx
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
+ *       - Boolean at start (if 1, we are starting at the start of the string,
+ *         otherwise 0)
  *       - register 0  ebp[-4]  (Only positions must be stored in the first
  *       - register 1  ebp[-8]   num_saved_registers_ registers)
  *       - ...
@@ -539,46 +539,33 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    Label done, check_digits;
-    __ cmp(Operand(current_character()), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmp(Operand(current_character()), Immediate('_'));
-    __ j(equal, &done);
-    // Convert to lower case if letter.
-    __ mov(Operand(eax), current_character());
-    __ or_(eax, 0x20);
-    // check current character in range ['a'..'z'], nondestructively.
-    __ sub(Operand(eax), Immediate('a'));
-    __ cmp(Operand(eax), Immediate('z' - 'a'));
-    BranchOrBacktrack(above, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmp(Operand(current_character()), Immediate('0'));
-    BranchOrBacktrack(below, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(Operand(current_character()), Immediate('z'));
+      BranchOrBacktrack(above, on_no_match);
+    }
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ test_b(current_character(),
+              Operand::StaticArray(current_character(), times_1, word_map));
+    BranchOrBacktrack(zero, on_no_match);
     return true;
   }
   case 'W': {
-    Label done, check_digits;
-    __ cmp(Operand(current_character()), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmp(Operand(current_character()), Immediate('_'));
-    BranchOrBacktrack(equal, on_no_match);
-    // Convert to lower case if letter.
-    __ mov(Operand(eax), current_character());
-    __ or_(eax, 0x20);
-    // check current character in range ['a'..'z'], nondestructively.
-    __ sub(Operand(eax), Immediate('a'));
-    __ cmp(Operand(eax), Immediate('z' - 'a'));
-    BranchOrBacktrack(below_equal, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmp(Operand(current_character()), Immediate('0'));
-    BranchOrBacktrack(above_equal, on_no_match);
-    __ bind(&done);
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(Operand(current_character()), Immediate('z'));
+      __ j(above, &done);
+    }
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ test_b(current_character(),
+              Operand::StaticArray(current_character(), times_1, word_map));
+    BranchOrBacktrack(not_zero, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
   // Non-standard classes (with no syntactic shorthand) used internally.
@@ -638,6 +625,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ push(Immediate(0));  // Make room for "at start" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -680,6 +668,15 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ mov(ebx, Operand(ebp, kStartIndex));
+  __ xor_(Operand(ecx), ecx);  // setcc only operates on cl (lower byte of ecx).
+  __ test(ebx, Operand(ebx));
+  __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
+  __ mov(Operand(ebp, kAtStart), ecx);
+
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten

@@ -91,7 +91,7 @@ class PositionStack  {
 class Parser {
  public:
   Parser(Handle<Script> script, bool allow_natives_syntax,
-         v8::Extension* extension, bool is_pre_parsing,
+         v8::Extension* extension, ParserMode is_pre_parsing,
          ParserFactory* factory, ParserLog* log, ScriptDataImpl* pre_data);
   virtual ~Parser() { }
 
@@ -112,6 +112,8 @@ class Parser {
   FunctionLiteral* ParseLazy(Handle<String> source,
                              Handle<String> name,
                              int start_position, bool is_expression);
+  FunctionLiteral* ParseJson(Handle<String> source,
+                             unibrow::CharacterStream* stream);
 
   // The minimum number of contiguous assignment that will
   // be treated as an initialization block. Benchmarks show that
@@ -202,7 +204,21 @@ class Parser {
   Expression* ParseObjectLiteral(bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
-  // Decide if a property should be the object boilerplate.
+  // Populate the constant properties fixed array for a materialized object
+  // literal.
+  void BuildObjectLiteralConstantProperties(
+      ZoneList<ObjectLiteral::Property*>* properties,
+      Handle<FixedArray> constants,
+      bool* is_simple,
+      int* depth);
+
+  // Populate the literals fixed array for a materialized array literal.
+  void BuildArrayLiteralBoilerplateLiterals(ZoneList<Expression*>* properties,
+                                            Handle<FixedArray> constants,
+                                            bool* is_simple,
+                                            int* depth);
+
+  // Decide if a property should be in the object boilerplate.
   bool IsBoilerplateProperty(ObjectLiteral::Property* property);
   // If the expression is a literal, return the literal value;
   // if the expression is a materialized literal and is simple return a
@@ -231,6 +247,7 @@ class Parser {
   INLINE(Token::Value Next()) { return scanner_.Next(); }
   INLINE(void Consume(Token::Value token));
   void Expect(Token::Value token, bool* ok);
+  bool Check(Token::Value token);
   void ExpectSemicolon(bool* ok);
 
   // Get odd-ball literals.
@@ -276,6 +293,29 @@ class Parser {
   Expression* NewThrowError(Handle<String> constructor,
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
+
+  // JSON is a subset of JavaScript, as specified in, e.g., the ECMAScript 5
+  // specification section 15.12.1 (and appendix A.8).
+  // The grammar is given section 15.12.1.2 (and appendix A.8.2).
+
+  // Parse JSON input as a single JSON value.
+  Expression* ParseJson(bool* ok);
+
+  // Parse a single JSON value from input (grammar production JSONValue).
+  // A JSON value is either a (double-quoted) string literal, a number literal,
+  // one of "true", "false", or "null", or an object or array literal.
+  Expression* ParseJsonValue(bool* ok);
+  // Parse a JSON object literal (grammar production JSONObject).
+  // An object literal is a squiggly-braced and comma separated sequence
+  // (possibly empty) of key/value pairs, where the key is a JSON string
+  // literal, the value is a JSON value, and the two are spearated by a colon.
+  // A JavaScript object also allows numbers and identifiers as keys.
+  Expression* ParseJsonObject(bool* ok);
+  // Parses a JSON array literal (grammar production JSONArray). An array
+  // literal is a square-bracketed and comma separated sequence (possibly empty)
+  // of JSON values.
+  // A JavaScript array allows leaving out values from the sequence.
+  Expression* ParseJsonArray(bool* ok);
 
   friend class Target;
   friend class TargetScope;
@@ -983,7 +1023,7 @@ class AstBuildingParser : public Parser {
  public:
   AstBuildingParser(Handle<Script> script, bool allow_natives_syntax,
                     v8::Extension* extension, ScriptDataImpl* pre_data)
-      : Parser(script, allow_natives_syntax, extension, false,
+      : Parser(script, allow_natives_syntax, extension, PARSE,
                factory(), log(), pre_data) { }
   virtual void ReportMessageAt(Scanner::Location loc, const char* message,
                                Vector<const char*> args);
@@ -1002,9 +1042,9 @@ class PreParser : public Parser {
  public:
   PreParser(Handle<Script> script, bool allow_natives_syntax,
             v8::Extension* extension)
-      : Parser(script, allow_natives_syntax, extension, true,
-               factory(), recorder(), NULL)
-      , factory_(true) { }
+      : Parser(script, allow_natives_syntax, extension, PREPARSE,
+               factory(), recorder(), NULL),
+        factory_(true) { }
   virtual void ReportMessageAt(Scanner::Location loc, const char* message,
                                Vector<const char*> args);
   virtual VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
@@ -1147,7 +1187,7 @@ class LexicalScope BASE_EMBEDDED {
 Parser::Parser(Handle<Script> script,
                bool allow_natives_syntax,
                v8::Extension* extension,
-               bool is_pre_parsing,
+               ParserMode is_pre_parsing,
                ParserFactory* factory,
                ParserLog* log,
                ScriptDataImpl* pre_data)
@@ -1161,7 +1201,7 @@ Parser::Parser(Handle<Script> script,
       extension_(extension),
       factory_(factory),
       log_(log),
-      is_pre_parsing_(is_pre_parsing),
+      is_pre_parsing_(is_pre_parsing == PREPARSE),
       pre_data_(pre_data) {
 }
 
@@ -1172,7 +1212,7 @@ bool Parser::PreParseProgram(Handle<String> source,
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
-  scanner_.Init(source, stream, 0);
+  scanner_.Init(source, stream, 0, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
   DummyScope top_scope;
@@ -1195,7 +1235,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlattenIfNotFlat();
-  scanner_.Init(source, stream, 0);
+  scanner_.Init(source, stream, 0, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
 
   // Compute the parsing mode.
@@ -1254,7 +1294,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   SafeStringInputBuffer buffer(source.location());
 
   // Initialize parser state.
-  scanner_.Init(source, &buffer, start_position);
+  scanner_.Init(source, &buffer, start_position, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -1290,6 +1330,55 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   return result;
 }
 
+FunctionLiteral* Parser::ParseJson(Handle<String> source,
+                                   unibrow::CharacterStream* stream) {
+  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+
+  HistogramTimerScope timer(&Counters::parse);
+  Counters::total_parse_size.Increment(source->length());
+
+  // Initialize parser state.
+  source->TryFlattenIfNotFlat();
+  scanner_.Init(source, stream, 0, JSON);
+  ASSERT(target_stack_ == NULL);
+
+  FunctionLiteral* result = NULL;
+  Handle<String> no_name = factory()->EmptySymbol();
+
+  {
+    Scope* scope = factory()->NewScope(top_scope_, Scope::GLOBAL_SCOPE, false);
+    LexicalScope lexical_scope(this, scope);
+    TemporaryScope temp_scope(this);
+    bool ok = true;
+    Expression* expression = ParseJson(&ok);
+    if (ok) {
+      ZoneListWrapper<Statement> statement = factory()->NewList<Statement>(1);
+      statement.Add(new ExpressionStatement(expression));
+      result = NEW(FunctionLiteral(
+          no_name,
+          top_scope_,
+          statement.elements(),
+          temp_scope.materialized_literal_count(),
+          temp_scope.expected_property_count(),
+          temp_scope.only_simple_this_property_assignments(),
+          temp_scope.this_property_assignments(),
+          0,
+          0,
+          source->length(),
+          false));
+    } else if (scanner().stack_overflow()) {
+      Top::StackOverflow();
+    }
+  }
+
+  // Make sure the target stack is empty.
+  ASSERT(target_stack_ == NULL);
+
+  // If there was a syntax error we have to get rid of the AST
+  // and it is not safe to do so before the scope has been deleted.
+  if (result == NULL) zone_scope.DeleteOnExit();
+  return result;
+}
 
 void Parser::ReportMessage(const char* type, Vector<const char*> args) {
   Scanner::Location source_location = scanner_.location();
@@ -1868,8 +1957,10 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
+  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<JSFunction> boilerplate =
       Factory::NewFunctionBoilerplate(name, literals, code);
+  boilerplate->shared()->set_construct_stub(*construct_stub);
 
   // Copy the function data to the boilerplate. Used by
   // builtins.cc:HandleApiCall to perform argument type checks and to
@@ -3120,7 +3211,7 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 void Parser::ReportUnexpectedToken(Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
-  // over, in ParseProgram.
+  // over, in ParseProgram/ParseJson.
   if (token == Token::ILLEGAL && scanner().stack_overflow())
     return;
   // Four of the tokens are treated specially
@@ -3260,6 +3351,33 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 }
 
 
+void Parser::BuildArrayLiteralBoilerplateLiterals(ZoneList<Expression*>* values,
+                                                  Handle<FixedArray> literals,
+                                                  bool* is_simple,
+                                                  int* depth) {
+  // Fill in the literals.
+  // Accumulate output values in local variables.
+  bool is_simple_acc = true;
+  int depth_acc = 1;
+  for (int i = 0; i < values->length(); i++) {
+    MaterializedLiteral* m_literal = values->at(i)->AsMaterializedLiteral();
+    if (m_literal != NULL && m_literal->depth() >= depth_acc) {
+      depth_acc = m_literal->depth() + 1;
+    }
+    Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
+    if (boilerplate_value->IsUndefined()) {
+      literals->set_the_hole(i);
+      is_simple_acc = false;
+    } else {
+      literals->set(i, *boilerplate_value);
+    }
+  }
+
+  *is_simple = is_simple_acc;
+  *depth = depth_acc;
+}
+
+
 Expression* Parser::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
@@ -3362,6 +3480,43 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
 }
 
 
+void Parser::BuildObjectLiteralConstantProperties(
+    ZoneList<ObjectLiteral::Property*>* properties,
+    Handle<FixedArray> constant_properties,
+    bool* is_simple,
+    int* depth) {
+  int position = 0;
+  // Accumulate the value in local variables and store it at the end.
+  bool is_simple_acc = true;
+  int depth_acc = 1;
+  for (int i = 0; i < properties->length(); i++) {
+    ObjectLiteral::Property* property = properties->at(i);
+    if (!IsBoilerplateProperty(property)) {
+      is_simple_acc = false;
+      continue;
+    }
+    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
+    if (m_literal != NULL && m_literal->depth() >= depth_acc) {
+      depth_acc = m_literal->depth() + 1;
+    }
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    Handle<Object> key = property->key()->handle();
+    Handle<Object> value = GetBoilerplateValue(property->value());
+    is_simple_acc = is_simple_acc && !value->IsUndefined();
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *value);
+  }
+
+  *is_simple = is_simple_acc;
+  *depth = depth_acc;
+}
+
+
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
   //   '{' (
@@ -3452,32 +3607,13 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
   Handle<FixedArray> constant_properties =
       Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
-  int position = 0;
+
   bool is_simple = true;
   int depth = 1;
-  for (int i = 0; i < properties.length(); i++) {
-    ObjectLiteral::Property* property = properties.at(i);
-    if (!IsBoilerplateProperty(property)) {
-      is_simple = false;
-      continue;
-    }
-    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
-    if (m_literal != NULL && m_literal->depth() + 1 > depth) {
-      depth = m_literal->depth() + 1;
-    }
-
-    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
-    // value for COMPUTED properties, the real value is filled in at
-    // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->handle();
-    Handle<Object> value = GetBoilerplateValue(property->value());
-    is_simple = is_simple && !value->IsUndefined();
-
-    // Add name, value pair to the fixed array.
-    constant_properties->set(position++, *key);
-    constant_properties->set(position++, *value);
-  }
-
+  BuildObjectLiteralConstantProperties(properties.elements(),
+                                       constant_properties,
+                                       &is_simple,
+                                       &depth);
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
                            literal_index,
@@ -3718,6 +3854,16 @@ void Parser::Expect(Token::Value token, bool* ok) {
 }
 
 
+bool Parser::Check(Token::Value token) {
+  Token::Value next = peek();
+  if (next == token) {
+    Consume(next);
+    return true;
+  }
+  return false;
+}
+
+
 void Parser::ExpectSemicolon(bool* ok) {
   // Check for automatic semicolon insertion according to
   // the rules given in ECMA-262, section 7.9, page 21.
@@ -3882,6 +4028,145 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   args->Add(new Literal(array));
   return new Throw(new CallRuntime(constructor, NULL, args),
                    scanner().location().beg_pos);
+}
+
+// ----------------------------------------------------------------------------
+// JSON
+
+Expression* Parser::ParseJson(bool* ok) {
+  Expression* result = ParseJsonValue(CHECK_OK);
+  Expect(Token::EOS, CHECK_OK);
+  return result;
+}
+
+
+// Parse any JSON value.
+Expression* Parser::ParseJsonValue(bool* ok) {
+  Token::Value token = peek();
+  switch (token) {
+    case Token::STRING: {
+      Consume(Token::STRING);
+      int literal_length = scanner_.literal_length();
+      const char* literal_string = scanner_.literal_string();
+      if (literal_length == 0) {
+        return NEW(Literal(Factory::empty_string()));
+      }
+      Vector<const char> literal(literal_string, literal_length);
+      return NEW(Literal(Factory::NewStringFromUtf8(literal, TENURED)));
+    }
+    case Token::NUMBER: {
+      Consume(Token::NUMBER);
+      ASSERT(scanner_.literal_length() > 0);
+      double value = StringToDouble(scanner_.literal_string(),
+                                    NO_FLAGS,  // Hex, octal or trailing junk.
+                                    OS::nan_value());
+      return NewNumberLiteral(value);
+    }
+    case Token::FALSE_LITERAL:
+      Consume(Token::FALSE_LITERAL);
+      return NEW(Literal(Factory::false_value()));
+    case Token::TRUE_LITERAL:
+      Consume(Token::TRUE_LITERAL);
+      return NEW(Literal(Factory::true_value()));
+    case Token::NULL_LITERAL:
+      Consume(Token::NULL_LITERAL);
+      return NEW(Literal(Factory::null_value()));
+    case Token::LBRACE: {
+      Expression* result = ParseJsonObject(CHECK_OK);
+      return result;
+    }
+    case Token::LBRACK: {
+      Expression* result = ParseJsonArray(CHECK_OK);
+      return result;
+    }
+    default:
+      *ok = false;
+      ReportUnexpectedToken(token);
+      return NULL;
+  }
+}
+
+
+// Parse a JSON object. Scanner must be right after '{' token.
+Expression* Parser::ParseJsonObject(bool* ok) {
+  Consume(Token::LBRACE);
+  ZoneListWrapper<ObjectLiteral::Property> properties =
+      factory()->NewList<ObjectLiteral::Property>(4);
+  int boilerplate_properties = 0;
+  if (peek() != Token::RBRACE) {
+    do {
+      Expect(Token::STRING, CHECK_OK);
+      Handle<String> key = factory()->LookupSymbol(scanner_.literal_string(),
+                                                   scanner_.literal_length());
+      Expect(Token::COLON, CHECK_OK);
+      Expression* value = ParseJsonValue(CHECK_OK);
+      Literal* key_literal;
+      uint32_t index;
+      if (key->AsArrayIndex(&index)) {
+        key_literal = NewNumberLiteral(index);
+      } else {
+        key_literal = NEW(Literal(key));
+      }
+      ObjectLiteral::Property* property =
+          NEW(ObjectLiteral::Property(key_literal, value));
+      properties.Add(property);
+
+      if (IsBoilerplateProperty(property)) {
+        boilerplate_properties++;
+      }
+    } while (Check(Token::COMMA));
+  }
+  Expect(Token::RBRACE, CHECK_OK);
+
+  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+  if (is_pre_parsing_) return NULL;
+
+  Handle<FixedArray> constant_properties =
+        Factory::NewFixedArray(boilerplate_properties * 2, TENURED);
+  bool is_simple = true;
+  int depth = 1;
+  BuildObjectLiteralConstantProperties(properties.elements(),
+                                       constant_properties,
+                                       &is_simple,
+                                       &depth);
+  return new ObjectLiteral(constant_properties,
+                           properties.elements(),
+                           literal_index,
+                           is_simple,
+                           depth);
+}
+
+
+// Parse a JSON array. Scanner must be right after '[' token.
+Expression* Parser::ParseJsonArray(bool* ok) {
+  Consume(Token::LBRACK);
+
+  ZoneListWrapper<Expression> values = factory()->NewList<Expression>(4);
+  if (peek() != Token::RBRACK) {
+    do {
+      Expression* exp = ParseJsonValue(CHECK_OK);
+      values.Add(exp);
+    } while (Check(Token::COMMA));
+  }
+  Expect(Token::RBRACK, CHECK_OK);
+
+  // Update the scope information before the pre-parsing bailout.
+  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+
+  if (is_pre_parsing_) return NULL;
+
+  // Allocate a fixed array with all the literals.
+  Handle<FixedArray> literals =
+      Factory::NewFixedArray(values.length(), TENURED);
+
+  bool is_simple;
+  int depth;
+  BuildArrayLiteralBoilerplateLiterals(values.elements(),
+                                       literals,
+                                       &is_simple,
+                                       &depth);
+  return NEW(ArrayLiteral(literals, values.elements(),
+                          literal_index, is_simple, depth));
 }
 
 
@@ -4759,7 +5044,8 @@ bool ParseRegExp(FlatStringReader* input,
 FunctionLiteral* MakeAST(bool compile_in_global_context,
                          Handle<Script> script,
                          v8::Extension* extension,
-                         ScriptDataImpl* pre_data) {
+                         ScriptDataImpl* pre_data,
+                         bool is_json) {
   bool allow_natives_syntax =
       always_allow_natives_syntax ||
       FLAG_allow_natives_syntax ||
@@ -4771,15 +5057,21 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
     Vector<const char*> args = pre_data->BuildArgs();
     parser.ReportMessageAt(loc, message, args);
     DeleteArray(message);
-    for (int i = 0; i < args.length(); i++)
+    for (int i = 0; i < args.length(); i++) {
       DeleteArray(args[i]);
+    }
     DeleteArray(args.start());
     return NULL;
   }
   Handle<String> source = Handle<String>(String::cast(script->source()));
   SafeStringInputBuffer input(source.location());
-  FunctionLiteral* result = parser.ParseProgram(source,
-      &input, compile_in_global_context);
+  FunctionLiteral* result;
+  if (is_json) {
+    ASSERT(compile_in_global_context);
+    result = parser.ParseJson(source, &input);
+  } else {
+    result = parser.ParseProgram(source, &input, compile_in_global_context);
+  }
   return result;
 }
 

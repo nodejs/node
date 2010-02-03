@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -271,11 +271,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ CmpObjectType(rcx, JS_OBJECT_TYPE, rdx);
   __ j(below, &slow);
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.  The map is already in rdx.
+
+  // Check bit field.
   __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
+           Immediate(kSlowCaseBitFieldMask));
   __ j(not_zero, &slow);
 
   // Check that the key is a smi.
@@ -415,6 +414,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
+
   GenerateGeneric(masm);
 }
 
@@ -982,7 +982,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // rsp[16] argument argc - 1
   // ...
   // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
@@ -1078,10 +1078,9 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // rsp[16] argument argc - 1
   // ...
   // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
   // -----------------------------------
-
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack.
@@ -1179,7 +1178,6 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1196,7 +1194,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1244,7 +1241,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss, probe, global;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1292,7 +1288,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1331,33 +1326,34 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   return true;
 }
 
-void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
+
   __ pop(rbx);
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ push(rcx);  // name
   __ push(rax);  // value
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3, 1);
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : Map (target of map transition)
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   __ pop(rbx);
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ push(rcx);  // transition map
   __ push(rax);  // value
   __ push(rbx);  // return address
@@ -1371,19 +1367,18 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  __ movq(rdx, Operand(rsp, kPointerSize));
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  GenerateMiss(masm);
 }
 
 

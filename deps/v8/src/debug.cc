@@ -75,9 +75,6 @@ BreakLocationIterator::BreakLocationIterator(Handle<DebugInfo> debug_info,
                                              BreakLocatorType type) {
   debug_info_ = debug_info;
   type_ = type;
-  // Get the stub early to avoid possible GC during iterations. We may need
-  // this stub to detect debugger calls generated from debugger statements.
-  debug_break_stub_ = RuntimeStub(Runtime::kDebugBreak, 0).GetCode();
   reloc_iterator_ = NULL;
   reloc_iterator_original_ = NULL;
   Reset();  // Initialize the rest of the member variables.
@@ -461,9 +458,7 @@ bool BreakLocationIterator::IsDebuggerStatement() {
     Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->kind() == Code::STUB) {
       CodeStub::Major major_key = code->major_key();
-      if (major_key == CodeStub::Runtime) {
-        return (*debug_break_stub_ == code);
-      }
+      return (major_key == CodeStub::DebuggerStatement);
     }
   }
   return false;
@@ -1241,12 +1236,14 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       uint32_t key = Smi::cast(*obj)->value();
       // Argc in the stub is the number of arguments passed - not the
       // expected arguments of the called function.
-      int call_function_arg_count = CodeStub::MinorKeyFromKey(key);
+      int call_function_arg_count =
+          CallFunctionStub::ExtractArgcFromMinorKey(
+              CodeStub::MinorKeyFromKey(key));
       ASSERT(call_function_stub->major_key() ==
              CodeStub::MajorKeyFromKey(key));
 
       // Find target function on the expression stack.
-      // Expression stack lools like this (top to bottom):
+      // Expression stack looks like this (top to bottom):
       // argN
       // ...
       // arg0
@@ -1524,19 +1521,13 @@ void Debug::ClearStepNext() {
 }
 
 
-bool Debug::EnsureCompiled(Handle<SharedFunctionInfo> shared) {
-  if (shared->is_compiled()) return true;
-  return CompileLazyShared(shared, CLEAR_EXCEPTION, 0);
-}
-
-
 // Ensures the debug information is present for shared.
 bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Return if we already have the debug info for shared.
   if (HasDebugInfo(shared)) return true;
 
   // Ensure shared in compiled. Return false if this failed.
-  if (!EnsureCompiled(shared)) return false;
+  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = Factory::NewDebugInfo(shared);
@@ -1693,9 +1684,7 @@ void Debug::CreateScriptCache() {
   // Scan heap for Script objects.
   int count = 0;
   HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {
       script_cache_->Add(Handle<Script>(Script::cast(obj)));
       count++;
@@ -1759,8 +1748,10 @@ bool Debugger::never_unload_debugger_ = false;
 v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::debugger_unload_pending_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+Mutex* Debugger::dispatch_handler_access_ = OS::CreateMutex();
 v8::Debug::DebugMessageDispatchHandler
     Debugger::debug_message_dispatch_handler_ = NULL;
+MessageDispatchHelperThread* Debugger::message_dispatch_helper_thread_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingCommandMessageQueue Debugger::command_queue_(kQueueInitialSize);
@@ -2379,17 +2370,12 @@ void Debugger::ListenersChanged() {
   if (IsDebuggerActive()) {
     // Disable the compilation cache when the debugger is active.
     CompilationCache::Disable();
+    debugger_unload_pending_ = false;
   } else {
     CompilationCache::Enable();
-
     // Unload the debugger if event listener and message handler cleared.
-    if (Debug::InDebugger()) {
-      // If we are in debugger set the flag to unload the debugger when last
-      // EnterDebugger on the current stack is destroyed.
-      debugger_unload_pending_ = true;
-    } else {
-      UnloadDebugger();
-    }
+    // Schedule this for later, because we may be in non-V8 thread.
+    debugger_unload_pending_ = true;
   }
 }
 
@@ -2402,8 +2388,14 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 
 
 void Debugger::SetDebugMessageDispatchHandler(
-    v8::Debug::DebugMessageDispatchHandler handler) {
+    v8::Debug::DebugMessageDispatchHandler handler, bool provide_locker) {
+  ScopedLock with(dispatch_handler_access_);
   debug_message_dispatch_handler_ = handler;
+
+  if (provide_locker && message_dispatch_helper_thread_ == NULL) {
+    message_dispatch_helper_thread_ = new MessageDispatchHelperThread;
+    message_dispatch_helper_thread_->Start();
+  }
 }
 
 
@@ -2438,8 +2430,16 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
     StackGuard::DebugCommand();
   }
 
-  if (Debugger::debug_message_dispatch_handler_ != NULL) {
-    Debugger::debug_message_dispatch_handler_();
+  MessageDispatchHelperThread* dispatch_thread;
+  {
+    ScopedLock with(dispatch_handler_access_);
+    dispatch_thread = message_dispatch_helper_thread_;
+  }
+
+  if (dispatch_thread == NULL) {
+    CallMessageDispatchHandler();
+  } else {
+    dispatch_thread->Schedule();
   }
 }
 
@@ -2525,6 +2525,19 @@ void Debugger::WaitForAgent() {
   if (agent_ != NULL)
     agent_->WaitUntilListening();
 }
+
+
+void Debugger::CallMessageDispatchHandler() {
+  v8::Debug::DebugMessageDispatchHandler handler;
+  {
+    ScopedLock with(dispatch_handler_access_);
+    handler = Debugger::debug_message_dispatch_handler_;
+  }
+  if (handler != NULL) {
+    handler();
+  }
+}
+
 
 MessageImpl MessageImpl::NewEvent(DebugEvent event,
                                   bool running,
@@ -2744,6 +2757,45 @@ void LockingCommandMessageQueue::Put(const CommandMessage& message) {
 void LockingCommandMessageQueue::Clear() {
   ScopedLock sl(lock_);
   queue_.Clear();
+}
+
+
+MessageDispatchHelperThread::MessageDispatchHelperThread()
+    : sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
+      already_signalled_(false) {
+}
+
+
+MessageDispatchHelperThread::~MessageDispatchHelperThread() {
+  delete mutex_;
+  delete sem_;
+}
+
+
+void MessageDispatchHelperThread::Schedule() {
+  {
+    ScopedLock lock(mutex_);
+    if (already_signalled_) {
+      return;
+    }
+    already_signalled_ = true;
+  }
+  sem_->Signal();
+}
+
+
+void MessageDispatchHelperThread::Run() {
+  while (true) {
+    sem_->Wait();
+    {
+      ScopedLock lock(mutex_);
+      already_signalled_ = false;
+    }
+    {
+      Locker locker;
+      Debugger::CallMessageDispatchHandler();
+    }
+  }
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

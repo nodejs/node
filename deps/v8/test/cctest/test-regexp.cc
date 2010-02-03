@@ -679,16 +679,14 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
                                                 int start_offset,
                                                 const byte* input_start,
                                                 const byte* input_end,
-                                                int* captures,
-                                                bool at_start) {
+                                                int* captures) {
   return NativeRegExpMacroAssembler::Execute(
       code,
       input,
       start_offset,
       input_start,
       input_end,
-      captures,
-      at_start);
+      captures);
 }
 
 
@@ -716,8 +714,7 @@ TEST(MacroAssemblerNativeSuccess) {
               0,
               start_adr,
               start_adr + seq_input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(-1, captures[0]);
@@ -760,8 +757,7 @@ TEST(MacroAssemblerNativeSimple) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -778,8 +774,7 @@ TEST(MacroAssemblerNativeSimple) {
                    0,
                    start_adr,
                    start_adr + input->length(),
-                   captures,
-                   true);
+                   captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -820,8 +815,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -839,8 +833,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
                    0,
                    start_adr,
                    start_adr + input->length() * 2,
-                   captures,
-                   true);
+                   captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -877,8 +870,7 @@ TEST(MacroAssemblerNativeBacktrack) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -920,8 +912,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -969,8 +960,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
                   0,
                   start_adr,
                   start_adr + input->length() * 2,
-                  output,
-                  true);
+                  output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1022,8 +1012,7 @@ TEST(MacroAssemblernativeAtStart) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 
@@ -1032,8 +1021,7 @@ TEST(MacroAssemblernativeAtStart) {
                    3,
                    start_adr + 3,
                    start_adr + input->length(),
-                   NULL,
-                   false);
+                   NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
@@ -1084,8 +1072,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1184,8 +1171,7 @@ TEST(MacroAssemblerNativeRegisters) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1225,8 +1211,7 @@ TEST(MacroAssemblerStackOverflow) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
   CHECK(Top::has_pending_exception());
@@ -1271,8 +1256,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -1650,6 +1634,163 @@ TEST(CanonicalizeCharacterSets) {
   ASSERT_EQ(30, list->at(0).to());
 }
 
+// Checks whether a character is in the set represented by a list of ranges.
+static bool CharacterInSet(ZoneList<CharacterRange>* set, uc16 value) {
+  for (int i = 0; i < set->length(); i++) {
+    CharacterRange range = set->at(i);
+    if (range.from() <= value && value <= range.to()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+TEST(CharacterRangeMerge) {
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange> l1(4);
+  ZoneList<CharacterRange> l2(4);
+  // Create all combinations of intersections of ranges, both singletons and
+  // longer.
+
+  int offset = 0;
+
+  // The five kinds of singleton intersections:
+  //     X
+  //   Y      - outside before
+  //    Y     - outside touching start
+  //     Y    - overlap
+  //      Y   - outside touching end
+  //       Y  - outside after
+
+  for (int i = 0; i < 5; i++) {
+    l1.Add(CharacterRange::Singleton(offset + 2));
+    l2.Add(CharacterRange::Singleton(offset + i));
+    offset += 6;
+  }
+
+  // The seven kinds of singleton/non-singleton intersections:
+  //    XXX
+  //  Y        - outside before
+  //   Y       - outside touching start
+  //    Y      - inside touching start
+  //     Y     - entirely inside
+  //      Y    - inside touching end
+  //       Y   - outside touching end
+  //        Y  - disjoint after
+
+  for (int i = 0; i < 7; i++) {
+    l1.Add(CharacterRange::Range(offset + 2, offset + 4));
+    l2.Add(CharacterRange::Singleton(offset + i));
+    offset += 8;
+  }
+
+  // The eleven kinds of non-singleton intersections:
+  //
+  //       XXXXXXXX
+  // YYYY                  - outside before.
+  //   YYYY                - outside touching start.
+  //     YYYY              - overlapping start
+  //       YYYY            - inside touching start
+  //         YYYY          - entirely inside
+  //           YYYY        - inside touching end
+  //             YYYY      - overlapping end
+  //               YYYY    - outside touching end
+  //                 YYYY  - outside after
+  //       YYYYYYYY        - identical
+  //     YYYYYYYYYYYY      - containing entirely.
+
+  for (int i = 0; i < 9; i++) {
+    l1.Add(CharacterRange::Range(offset + 6, offset + 15));  // Length 8.
+    l2.Add(CharacterRange::Range(offset + 2 * i, offset + 2 * i + 3));
+    offset += 22;
+  }
+  l1.Add(CharacterRange::Range(offset + 6, offset + 15));
+  l2.Add(CharacterRange::Range(offset + 6, offset + 15));
+  offset += 22;
+  l1.Add(CharacterRange::Range(offset + 6, offset + 15));
+  l2.Add(CharacterRange::Range(offset + 4, offset + 17));
+  offset += 22;
+
+  // Different kinds of multi-range overlap:
+  // XXXXXXXXXXXXXXXXXXXXXX         XXXXXXXXXXXXXXXXXXXXXX
+  //   YYYY  Y  YYYY  Y  YYYY  Y  YYYY  Y  YYYY  Y  YYYY  Y
+
+  l1.Add(CharacterRange::Range(offset, offset + 21));
+  l1.Add(CharacterRange::Range(offset + 31, offset + 52));
+  for (int i = 0; i < 6; i++) {
+    l2.Add(CharacterRange::Range(offset + 2, offset + 5));
+    l2.Add(CharacterRange::Singleton(offset + 8));
+    offset += 9;
+  }
+
+  ASSERT(CharacterRange::IsCanonical(&l1));
+  ASSERT(CharacterRange::IsCanonical(&l2));
+
+  ZoneList<CharacterRange> first_only(4);
+  ZoneList<CharacterRange> second_only(4);
+  ZoneList<CharacterRange> both(4);
+
+  // Merge one direction.
+  CharacterRange::Merge(&l1, &l2, &first_only, &second_only, &both);
+
+  CHECK(CharacterRange::IsCanonical(&first_only));
+  CHECK(CharacterRange::IsCanonical(&second_only));
+  CHECK(CharacterRange::IsCanonical(&both));
+
+  for (uc16 i = 0; i < offset; i++) {
+    bool in_first = CharacterInSet(&l1, i);
+    bool in_second = CharacterInSet(&l2, i);
+    CHECK((in_first && !in_second) == CharacterInSet(&first_only, i));
+    CHECK((!in_first && in_second) == CharacterInSet(&second_only, i));
+    CHECK((in_first && in_second) == CharacterInSet(&both, i));
+  }
+
+  first_only.Clear();
+  second_only.Clear();
+  both.Clear();
+
+  // Merge other direction.
+  CharacterRange::Merge(&l2, &l1, &second_only, &first_only, &both);
+
+  CHECK(CharacterRange::IsCanonical(&first_only));
+  CHECK(CharacterRange::IsCanonical(&second_only));
+  CHECK(CharacterRange::IsCanonical(&both));
+
+  for (uc16 i = 0; i < offset; i++) {
+    bool in_first = CharacterInSet(&l1, i);
+    bool in_second = CharacterInSet(&l2, i);
+    CHECK((in_first && !in_second) == CharacterInSet(&first_only, i));
+    CHECK((!in_first && in_second) == CharacterInSet(&second_only, i));
+    CHECK((in_first && in_second) == CharacterInSet(&both, i));
+  }
+
+  first_only.Clear();
+  second_only.Clear();
+  both.Clear();
+
+  // Merge but don't record all combinations.
+  CharacterRange::Merge(&l1, &l2, NULL, NULL, &both);
+
+  CHECK(CharacterRange::IsCanonical(&both));
+
+  for (uc16 i = 0; i < offset; i++) {
+    bool in_first = CharacterInSet(&l1, i);
+    bool in_second = CharacterInSet(&l2, i);
+    CHECK((in_first && in_second) == CharacterInSet(&both, i));
+  }
+
+  // Merge into same set.
+  ZoneList<CharacterRange> all(4);
+  CharacterRange::Merge(&l1, &l2, &all, &all, &all);
+
+  CHECK(CharacterRange::IsCanonical(&all));
+
+  for (uc16 i = 0; i < offset; i++) {
+    bool in_first = CharacterInSet(&l1, i);
+    bool in_second = CharacterInSet(&l2, i);
+    CHECK((in_first || in_second) == CharacterInSet(&all, i));
+  }
+}
 
 
 TEST(Graph) {

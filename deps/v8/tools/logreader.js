@@ -139,11 +139,12 @@ devtools.profiler.LogReader.prototype.processLogChunk = function(chunk) {
  * Processes stack record.
  *
  * @param {number} pc Program counter.
+ * @param {number} func JS Function.
  * @param {Array.<string>} stack String representation of a stack.
  * @return {Array.<number>} Processed stack.
  */
-devtools.profiler.LogReader.prototype.processStack = function(pc, stack) {
-  var fullStack = [pc];
+devtools.profiler.LogReader.prototype.processStack = function(pc, func, stack) {
+  var fullStack = func ? [pc, func] : [pc];
   var prevFrame = pc;
   for (var i = 0, n = stack.length; i < n; ++i) {
     var frame = stack[i];

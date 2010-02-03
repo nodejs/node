@@ -52,6 +52,11 @@ namespace internal {
   F(IsPropertyEnumerable, 2, 1) \
   F(GetPropertyNames, 1, 1) \
   F(GetPropertyNamesFast, 1, 1) \
+  F(GetLocalPropertyNames, 1, 1) \
+  F(GetLocalElementNames, 1, 1) \
+  F(GetInterceptorInfo, 1, 1) \
+  F(GetNamedInterceptorPropertyNames, 1, 1) \
+  F(GetIndexedInterceptorElementNames, 1, 1) \
   F(GetArgumentsProperty, 1, 1) \
   F(ToFastProperties, 1, 1) \
   F(ToSlowProperties, 1, 1) \
@@ -62,6 +67,8 @@ namespace internal {
   F(IsConstructCall, 0, 1) \
   \
   F(GetOwnProperty, 2, 1) \
+  \
+  F(IsExtensible, 1, 1) \
   \
   /* Utilities */ \
   F(GetCalledFunction, 0, 1) \
@@ -285,14 +292,9 @@ namespace internal {
   F(Break, 0, 1) \
   F(DebugGetPropertyDetails, 2, 1) \
   F(DebugGetProperty, 2, 1) \
-  F(DebugLocalPropertyNames, 1, 1) \
-  F(DebugLocalElementNames, 1, 1) \
   F(DebugPropertyTypeFromDetails, 1, 1) \
   F(DebugPropertyAttributesFromDetails, 1, 1) \
   F(DebugPropertyIndexFromDetails, 1, 1) \
-  F(DebugInterceptorInfo, 1, 1) \
-  F(DebugNamedInterceptorPropertyNames, 1, 1) \
-  F(DebugIndexedInterceptorElementNames, 1, 1) \
   F(DebugNamedInterceptorPropertyValue, 2, 1) \
   F(DebugIndexedInterceptorElementValue, 2, 1) \
   F(CheckExecutionState, 1, 1) \
@@ -370,9 +372,6 @@ class Runtime : public AllStatic {
   struct Function {
     // The JS name of the function.
     const char* name;
-
-    // The name of the stub that calls the runtime function.
-    const char* stub_name;
 
     // The C++ (native) entry point.
     byte* entry;

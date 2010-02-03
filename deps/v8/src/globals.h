@@ -204,6 +204,7 @@ class AccessorInfo;
 class Allocation;
 class Arguments;
 class Assembler;
+class AssertNoAllocation;
 class BreakableStatement;
 class Code;
 class CodeGenerator;
@@ -376,6 +377,12 @@ enum InlineCacheState {
 enum InLoopFlag {
   NOT_IN_LOOP,
   IN_LOOP
+};
+
+
+enum CallFunctionFlags {
+  NO_CALL_FUNCTION_FLAGS = 0,
+  RECEIVER_MIGHT_BE_VALUE = 1 << 0  // Receiver might not be a JSObject.
 };
 
 

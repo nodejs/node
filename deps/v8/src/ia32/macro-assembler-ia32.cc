@@ -147,6 +147,11 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 // All registers are clobbered by the operation.
 void MacroAssembler::RecordWrite(Register object, int offset,
                                  Register value, Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are esi.
+  ASSERT(!object.is(esi) && !value.is(esi) && !scratch.is(esi));
+
   // First, check if a remembered set write is even needed. The tests below
   // catch stores of Smis and stores into young gen (which does not have space
   // for the remembered set bits.
@@ -210,6 +215,14 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   }
 
   bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (FLAG_debug_code) {
+    mov(object, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(scratch, Immediate(bit_cast<int32_t>(kZapValue)));
+  }
 }
 
 
@@ -1098,10 +1111,14 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
     return;
   }
 
-  Runtime::FunctionId function_id =
-      static_cast<Runtime::FunctionId>(f->stub_id);
-  RuntimeStub stub(function_id, num_arguments);
-  CallStub(&stub);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ExternalReference(f)));
+  CEntryStub ces(1);
+  CallStub(&ces);
 }
 
 
@@ -1114,10 +1131,14 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
     return Heap::undefined_value();
   }
 
-  Runtime::FunctionId function_id =
-      static_cast<Runtime::FunctionId>(f->stub_id);
-  RuntimeStub stub(function_id, num_arguments);
-  return TryCallStub(&stub);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ExternalReference(f)));
+  CEntryStub ces(1);
+  return TryCallStub(&ces);
 }
 
 
@@ -1454,6 +1475,36 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 }
 
 
+void MacroAssembler::IncrementCounter(Condition cc,
+                                      StatsCounter* counter,
+                                      int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Label skip;
+    j(NegateCondition(cc), &skip);
+    pushfd();
+    IncrementCounter(counter, value);
+    popfd();
+    bind(&skip);
+  }
+}
+
+
+void MacroAssembler::DecrementCounter(Condition cc,
+                                      StatsCounter* counter,
+                                      int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Label skip;
+    j(NegateCondition(cc), &skip);
+    pushfd();
+    DecrementCounter(counter, value);
+    popfd();
+    bind(&skip);
+  }
+}
+
+
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
 }
@@ -1492,6 +1543,38 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   int3();
+}
+
+
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
+                                                         Register object2,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* failure) {
+  // Check that both objects are not smis.
+  ASSERT_EQ(0, kSmiTag);
+  mov(scratch1, Operand(object1));
+  and_(scratch1, Operand(object2));
+  test(scratch1, Immediate(kSmiTagMask));
+  j(zero, failure);
+
+  // Load instance type for both strings.
+  mov(scratch1, FieldOperand(object1, HeapObject::kMapOffset));
+  mov(scratch2, FieldOperand(object2, HeapObject::kMapOffset));
+  movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
+  movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
+
+  // Check that both are flat ascii strings.
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  // Interleave bits from both instance types and compare them in one check.
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  and_(scratch1, kFlatAsciiStringMask);
+  and_(scratch2, kFlatAsciiStringMask);
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
+  j(not_equal, failure);
 }
 
 

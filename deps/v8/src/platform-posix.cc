@@ -61,6 +61,13 @@ double modulo(double x, double y) {
   return fmod(x, y);
 }
 
+
+double OS::nan_value() {
+  // NAN from math.h is defined in C99 and not in POSIX.
+  return NAN;
+}
+
+
 // ----------------------------------------------------------------------------
 // POSIX date/time support.
 //

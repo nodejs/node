@@ -146,27 +146,6 @@ bool ObjectLiteral::Property::IsCompileTimeValue() {
 }
 
 
-bool ObjectLiteral::IsValidJSON() {
-  int length = properties()->length();
-  for (int i = 0; i < length; i++) {
-    Property* prop = properties()->at(i);
-    if (!prop->value()->IsValidJSON())
-      return false;
-  }
-  return true;
-}
-
-
-bool ArrayLiteral::IsValidJSON() {
-  int length = values()->length();
-  for (int i = 0; i < length; i++) {
-    if (!values()->at(i)->IsValidJSON())
-      return false;
-  }
-  return true;
-}
-
-
 void TargetCollector::AddTarget(BreakTarget* target) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_->length();

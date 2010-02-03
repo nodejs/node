@@ -38,7 +38,6 @@ chapter13: UNIMPLEMENTED
 chapter14: UNIMPLEMENTED
 chapter15/15.1: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.1: UNIMPLEMENTED
-chapter15/15.2/15.2.3/15.2.3.4: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.5: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.6: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.7: UNIMPLEMENTED
@@ -140,6 +139,117 @@ chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-219: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-220: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-221: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-222: FAIL_OK
+
+# Object.getOwnPropertyNames
+chapter15/15.2/15.2.3/15.2.3.4: PASS
+
+# All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because 
+# the tests assumes that objects can not have more properties
+# than those described in the spec - but according to spec they can 
+# have additional properties.
+# All compareArray calls in these tests could be exchanged with a 
+# isSubsetOfArray call (I will upload a path to the es5conform site)
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-1: FAIL_OK
+
+# SUBSETFAIL + we do not implement all methods on Object
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-2: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-3: FAIL_OK
+
+# SUBSETFAIL + we do not implement Function.prototype.bind
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-4: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-5: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-6: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-7: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-8: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-9: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK
+
+# We do not implement all methods on RegExp
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-14: FAIL_OK
+
+# EvalError.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL_OK
+
+# Rangeerror.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL_OK
+
+# ReferenceError.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL_OK
+
+# SyntaxError.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL_OK
+
+# TypeError.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL_OK
+
+# URIError.prototype does not have message property
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-22: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-23: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-24: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-25: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-26: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-27: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-28: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-29: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-30: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-31: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-32: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-33: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
+
+# getOwnPropertyDescriptor not implemented on array indices
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-b-1: FAIL_OK
+
+
 
 
 # Object.keys

@@ -224,9 +224,11 @@ class EXPORT Debug {
    * be processed. Note that debug messages will only be processed if there is
    * a V8 break. This can happen automatically by using the option
    * --debugger-auto-break.
+   * \param provide_locker requires that V8 acquires v8::Locker for you before
+   *        calling handler
    */
   static void SetDebugMessageDispatchHandler(
-      DebugMessageDispatchHandler handler);
+      DebugMessageDispatchHandler handler, bool provide_locker = false);
 
  /**
   * Run a JavaScript function in the debugger.
@@ -263,6 +265,43 @@ class EXPORT Debug {
   */
   static bool EnableAgent(const char* name, int port,
                           bool wait_for_connection = false);
+
+  /**
+   * Makes V8 process all pending debug messages.
+   *
+   * From V8 point of view all debug messages come asynchronously (e.g. from
+   * remote debugger) but they all must be handled synchronously: V8 cannot
+   * do 2 things at one time so normal script execution must be interrupted
+   * for a while.
+   *
+   * Generally when message arrives V8 may be in one of 3 states:
+   * 1. V8 is running script; V8 will automatically interrupt and process all
+   * pending messages (however auto_break flag should be enabled);
+   * 2. V8 is suspended on debug breakpoint; in this state V8 is dedicated
+   * to reading and processing debug messages;
+   * 3. V8 is not running at all or has called some long-working C++ function;
+   * by default it means that processing of all debug message will be deferred
+   * until V8 gets control again; however, embedding application may improve
+   * this by manually calling this method.
+   *
+   * It makes sense to call this method whenever a new debug message arrived and
+   * V8 is not already running. Method v8::Debug::SetDebugMessageDispatchHandler
+   * should help with the former condition.
+   *
+   * Technically this method in many senses is equivalent to executing empty
+   * script:
+   * 1. It does nothing except for processing all pending debug messages.
+   * 2. It should be invoked with the same precautions and from the same context
+   * as V8 script would be invoked from, because:
+   *   a. with "evaluate" command it can do whatever normal script can do,
+   *   including all native calls;
+   *   b. no other thread should call V8 while this method is running
+   *   (v8::Locker may be used here).
+   *
+   * "Evaluate" debug command behavior currently is not specified in scope
+   * of this method.
+   */
+  static void ProcessDebugMessages();
 };
 
 

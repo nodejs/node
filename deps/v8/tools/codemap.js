@@ -196,6 +196,18 @@ devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
 
 
 /**
+ * Returns a dynamic code entry using its starting address.
+ *
+ * @param {number} addr Address.
+ */
+devtools.profiler.CodeMap.prototype.findDynamicEntryByStartAddress =
+    function(addr) {
+  var node = this.dynamics_.find(addr);
+  return node ? node.value : null;
+};
+
+
+/**
  * Returns an array of all dynamic code entries.
  */
 devtools.profiler.CodeMap.prototype.getAllDynamicEntries = function() {

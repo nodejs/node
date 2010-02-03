@@ -73,12 +73,6 @@ double ceiling(double x) {
 }
 
 
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
-}
-
-
 void OS::Setup() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -579,17 +573,17 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
 #if V8_HOST_ARCH_IA32
-    sample.pc = mcontext.mc_eip;
-    sample.sp = mcontext.mc_esp;
-    sample.fp = mcontext.mc_ebp;
+    sample.pc = reinterpret_cast<Address>(mcontext.mc_eip);
+    sample.sp = reinterpret_cast<Address>(mcontext.mc_esp);
+    sample.fp = reinterpret_cast<Address>(mcontext.mc_ebp);
 #elif V8_HOST_ARCH_X64
-    sample.pc = mcontext.mc_rip;
-    sample.sp = mcontext.mc_rsp;
-    sample.fp = mcontext.mc_rbp;
+    sample.pc = reinterpret_cast<Address>(mcontext.mc_rip);
+    sample.sp = reinterpret_cast<Address>(mcontext.mc_rsp);
+    sample.fp = reinterpret_cast<Address>(mcontext.mc_rbp);
 #elif V8_HOST_ARCH_ARM
-    sample.pc = mcontext.mc_r15;
-    sample.sp = mcontext.mc_r13;
-    sample.fp = mcontext.mc_r11;
+    sample.pc = reinterpret_cast<Address>(mcontext.mc_r15);
+    sample.sp = reinterpret_cast<Address>(mcontext.mc_r13);
+    sample.fp = reinterpret_cast<Address>(mcontext.mc_r11);
 #endif
     active_sampler_->SampleStack(&sample);
   }

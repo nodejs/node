@@ -594,12 +594,22 @@ class IndentedScope BASE_EMBEDDED {
     ast_printer_->inc_indent();
   }
 
-  explicit IndentedScope(const char* txt, StaticType* type = NULL) {
+  explicit IndentedScope(const char* txt, AstNode* node = NULL) {
     ast_printer_->PrintIndented(txt);
-    if ((type != NULL) && (type->IsKnown())) {
-      ast_printer_->Print(" (type = ");
-      ast_printer_->Print(StaticType::Type2String(type));
-      ast_printer_->Print(")");
+    if (node != NULL && node->AsExpression() != NULL) {
+      Expression* expr = node->AsExpression();
+      bool printed_first = false;
+      if ((expr->type() != NULL) && (expr->type()->IsKnown())) {
+        ast_printer_->Print(" (type = ");
+        ast_printer_->Print(StaticType::Type2String(expr->type()));
+        printed_first = true;
+      }
+      if (expr->num() != Expression::kNoLabel) {
+        ast_printer_->Print(printed_first ? ", num = " : " (num = ");
+        ast_printer_->Print("%d", expr->num());
+        printed_first = true;
+      }
+      if (printed_first) ast_printer_->Print(")");
     }
     ast_printer_->Print("\n");
     ast_printer_->inc_indent();
@@ -657,19 +667,22 @@ void AstPrinter::PrintLiteralIndented(const char* info,
 void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value,
-                                              StaticType* type) {
+                                              StaticType* type,
+                                              int num) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
+    int pos = OS::SNPrintF(buf, "%s (mode = %s", info,
+                           Variable::Mode2String(var->mode()));
     if (type->IsKnown()) {
-      OS::SNPrintF(buf, "%s (mode = %s, type = %s)", info,
-                   Variable::Mode2String(var->mode()),
-                   StaticType::Type2String(type));
-    } else {
-      OS::SNPrintF(buf, "%s (mode = %s)", info,
-                   Variable::Mode2String(var->mode()));
+      pos += OS::SNPrintF(buf + pos, ", type = %s",
+                          StaticType::Type2String(type));
     }
+    if (num != Expression::kNoLabel) {
+      pos += OS::SNPrintF(buf + pos, ", num = %d", num);
+    }
+    OS::SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
 }
@@ -692,7 +705,7 @@ void AstPrinter::PrintLabelsIndented(const char* info, ZoneStringList* labels) {
 
 
 void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
-  IndentedScope indent(s);
+  IndentedScope indent(s, node);
   Visit(node);
 }
 
@@ -726,7 +739,8 @@ void AstPrinter::PrintParameters(Scope* scope) {
     for (int i = 0; i < scope->num_parameters(); i++) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
-                                   scope->parameter(i)->type());
+                                   scope->parameter(i)->type(),
+                                   Expression::kNoLabel);
     }
   }
 }
@@ -771,7 +785,8 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
                                  node->proxy()->AsVariable(),
                                  node->proxy()->name(),
-                                 node->proxy()->AsVariable()->type());
+                                 node->proxy()->AsVariable()->type(),
+                                 Expression::kNoLabel);
   } else {
     // function declarations
     PrintIndented("FUNCTION ");
@@ -1007,7 +1022,7 @@ void AstPrinter::VisitSlot(Slot* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name(),
-                               node->type());
+                               node->type(), node->num());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
     IndentedScope indent;
@@ -1017,7 +1032,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
 
 
 void AstPrinter::VisitAssignment(Assignment* node) {
-  IndentedScope indent(Token::Name(node->op()), node->type());
+  IndentedScope indent(Token::Name(node->op()), node);
   Visit(node->target());
   Visit(node->value());
 }
@@ -1029,7 +1044,7 @@ void AstPrinter::VisitThrow(Throw* node) {
 
 
 void AstPrinter::VisitProperty(Property* node) {
-  IndentedScope indent("PROPERTY");
+  IndentedScope indent("PROPERTY", node);
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
   if (literal != NULL && literal->handle()->IsSymbol()) {
@@ -1082,14 +1097,14 @@ void AstPrinter::VisitCountOperation(CountOperation* node) {
 
 
 void AstPrinter::VisitBinaryOperation(BinaryOperation* node) {
-  IndentedScope indent(Token::Name(node->op()), node->type());
+  IndentedScope indent(Token::Name(node->op()), node);
   Visit(node->left());
   Visit(node->right());
 }
 
 
 void AstPrinter::VisitCompareOperation(CompareOperation* node) {
-  IndentedScope indent(Token::Name(node->op()), node->type());
+  IndentedScope indent(Token::Name(node->op()), node);
   Visit(node->left());
   Visit(node->right());
 }

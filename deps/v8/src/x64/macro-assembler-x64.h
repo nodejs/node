@@ -162,7 +162,8 @@ class MacroAssembler: public Assembler {
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an integer value. The result must be known to be a valid smi value.
-  // Only uses the low 32 bits of the src register.
+  // Only uses the low 32 bits of the src register. Sets the N and Z flags
+  // based on the value of the resulting integer.
   void Integer32ToSmi(Register dst, Register src);
 
   // Tag an integer value if possible, or jump the integer value cannot be
@@ -204,8 +205,14 @@ class MacroAssembler: public Assembler {
   // Is the value a positive tagged smi.
   Condition CheckPositiveSmi(Register src);
 
-  // Are both values are tagged smis.
+  // Are both values tagged smis.
   Condition CheckBothSmi(Register first, Register second);
+
+  // Are both values tagged smis.
+  Condition CheckBothPositiveSmi(Register first, Register second);
+
+  // Are either value a tagged smi.
+  Condition CheckEitherSmi(Register first, Register second);
 
   // Is the value the minimum smi value (since we are using
   // two's complement numbers, negating the value is known to yield
@@ -244,6 +251,10 @@ class MacroAssembler: public Assembler {
 
   // Jump if either or both register are not smi values.
   void JumpIfNotBothSmi(Register src1, Register src2, Label* on_not_both_smi);
+
+  // Jump if either or both register are not positive smi values.
+  void JumpIfNotBothPositiveSmi(Register src1, Register src2,
+                                Label* on_not_both_smi);
 
   // Operations on tagged smi values.
 
@@ -403,6 +414,14 @@ class MacroAssembler: public Assembler {
   void Test(const Operand& dst, Smi* source);
 
   // ---------------------------------------------------------------------------
+  // String macros.
+  void JumpIfNotBothSequentialAsciiStrings(Register first_object,
+                                           Register second_object,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* on_not_both_flat_ascii);
+
+  // ---------------------------------------------------------------------------
   // Macro instructions.
 
   // Load a register with a long value as efficiently as possible.
@@ -440,6 +459,15 @@ class MacroAssembler: public Assembler {
   // Compare instance type for map.
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
+
+  // Check if the object in register heap_object is a string. Afterwards the
+  // register map contains the object map and the register instance_type
+  // contains the instance_type. The registers map and instance_type can be the
+  // same in which case it contains the instance type afterwards. Either of the
+  // registers map and instance_type can be the same as heap_object.
+  Condition IsObjectStringType(Register heap_object,
+                               Register map,
+                               Register instance_type);
 
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
@@ -617,6 +645,26 @@ class MacroAssembler: public Assembler {
   // Jump to a runtime routine.
   void JumpToRuntime(const ExternalReference& ext, int result_size);
 
+  // Before calling a C-function from generated code, align arguments on stack.
+  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // etc., not pushed. The argument count assumes all arguments are word sized.
+  // The number of slots reserved for arguments depends on platform. On Windows
+  // stack slots are reserved for the arguments passed in registers. On other
+  // platforms stack slots are only reserved for the arguments actually passed
+  // on the stack.
+  void PrepareCallCFunction(int num_arguments);
+
+  // Calls a C function and cleans up the space for arguments allocated
+  // by PrepareCallCFunction. The called function is not allowed to trigger a
+  // garbage collection, since that might move the code and invalidate the
+  // return address (unless this is somehow accounted for by the called
+  // function).
+  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
+
+  // Calculate the number of stack slots to reserve for arguments when calling a
+  // C function.
+  int ArgumentStackSlotsForCFunctionCall(int num_arguments);
 
   // ---------------------------------------------------------------------------
   // Utilities

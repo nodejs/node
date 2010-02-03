@@ -334,7 +334,7 @@ function PrintMonitor(outputOrFileName) {
   print = function(str) {
     var strSplit = str.split('\n');
     for (var i = 0; i < strSplit.length; ++i) {
-      s = strSplit[i];
+      var s = strSplit[i];
       realOut.push(s);
       if (outputPos < expectedOut.length) {
         if (expectedOut[outputPos] != s) {
@@ -400,7 +400,10 @@ function driveTickProcessorTest(
       'tickprocessor-test.log', 'tickprocessor-test.ignore-unknown'],
     'GcState': [
       false, false, TickProcessor.VmStates.GC,
-      'tickprocessor-test.log', 'tickprocessor-test.gc-state']
+      'tickprocessor-test.log', 'tickprocessor-test.gc-state'],
+    'FunctionInfo': [
+      false, false, null,
+      'tickprocessor-test-func-info.log', 'tickprocessor-test.func-info']
   };
   for (var testName in testData) {
     print('=== testProcessing-' + testName + ' ===');

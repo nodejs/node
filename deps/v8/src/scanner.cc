@@ -323,11 +323,14 @@ void KeywordMatcher::Step(uc32 input) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(bool pre) : stack_overflow_(false), is_pre_parsing_(pre) { }
+Scanner::Scanner(ParserMode pre)
+    : stack_overflow_(false), is_pre_parsing_(pre == PREPARSE) { }
 
 
-void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
-    int position) {
+void Scanner::Init(Handle<String> source,
+                   unibrow::CharacterStream* stream,
+                   int position,
+                   ParserLanguage language) {
   // Initialize the source buffer.
   if (!source.is_null() && StringShape(*source).IsExternalTwoByte()) {
     two_byte_string_buffer_.Initialize(
@@ -339,6 +342,7 @@ void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
   }
 
   position_ = position;
+  is_parsing_json_ = (language == JSON);
 
   // Set c0_ (one character ahead)
   ASSERT(kCharacterLookaheadBufferSize == 1);
@@ -416,7 +420,17 @@ static inline bool IsByteOrderMark(uc32 c) {
 }
 
 
-bool Scanner::SkipWhiteSpace() {
+bool Scanner::SkipJsonWhiteSpace() {
+  int start_position = source_pos();
+  // JSON WhiteSpace is tab, carrige-return, newline and space.
+  while (c0_ == ' ' || c0_ == '\n' || c0_ == '\r' || c0_ == '\t') {
+    Advance();
+  }
+  return source_pos() != start_position;
+}
+
+
+bool Scanner::SkipJavaScriptWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
@@ -512,7 +526,194 @@ Token::Value Scanner::ScanHtmlComment() {
 }
 
 
-void Scanner::Scan() {
+
+void Scanner::ScanJson() {
+  next_.literal_buffer = NULL;
+  Token::Value token;
+  has_line_terminator_before_next_ = false;
+  do {
+    // Remember the position of the next token
+    next_.location.beg_pos = source_pos();
+    switch (c0_) {
+      case '\t':
+      case '\r':
+      case '\n':
+      case ' ':
+        Advance();
+        token = Token::WHITESPACE;
+        break;
+      case '{':
+        Advance();
+        token = Token::LBRACE;
+        break;
+      case '}':
+        Advance();
+        token = Token::RBRACE;
+        break;
+      case '[':
+        Advance();
+        token = Token::LBRACK;
+        break;
+      case ']':
+        Advance();
+        token = Token::RBRACK;
+        break;
+      case ':':
+        Advance();
+        token = Token::COLON;
+        break;
+      case ',':
+        Advance();
+        token = Token::COMMA;
+        break;
+      case '"':
+        token = ScanJsonString();
+        break;
+      case '-':
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        token = ScanJsonNumber();
+        break;
+      case 't':
+        token = ScanJsonIdentifier("true", Token::TRUE_LITERAL);
+        break;
+      case 'f':
+        token = ScanJsonIdentifier("false", Token::FALSE_LITERAL);
+        break;
+      case 'n':
+        token = ScanJsonIdentifier("null", Token::NULL_LITERAL);
+        break;
+      default:
+        if (c0_ < 0) {
+          Advance();
+          token = Token::EOS;
+        } else {
+          Advance();
+          token = Select(Token::ILLEGAL);
+        }
+    }
+  } while (token == Token::WHITESPACE);
+
+  next_.location.end_pos = source_pos();
+  next_.token = token;
+}
+
+
+Token::Value Scanner::ScanJsonString() {
+  ASSERT_EQ('"', c0_);
+  Advance();
+  StartLiteral();
+  while (c0_ != '"' && c0_ > 0) {
+    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    if (c0_ < 0x20) return Token::ILLEGAL;
+    if (c0_ != '\\') {
+      AddCharAdvance();
+    } else {
+      Advance();
+      switch (c0_) {
+        case '"':
+        case '\\':
+        case '/':
+          AddChar(c0_);
+          break;
+        case 'b':
+          AddChar('\x08');
+          break;
+        case 'f':
+          AddChar('\x0c');
+          break;
+        case 'n':
+          AddChar('\x0a');
+          break;
+        case 'r':
+          AddChar('\x0d');
+          break;
+        case 't':
+          AddChar('\x09');
+          break;
+        case 'u': {
+          uc32 value = 0;
+          for (int i = 0; i < 4; i++) {
+            Advance();
+            int digit = HexValue(c0_);
+            if (digit < 0) return Token::ILLEGAL;
+            value = value * 16 + digit;
+          }
+          AddChar(value);
+          break;
+        }
+        default:
+          return Token::ILLEGAL;
+      }
+      Advance();
+    }
+  }
+  if (c0_ != '"') {
+    return Token::ILLEGAL;
+  }
+  TerminateLiteral();
+  Advance();
+  return Token::STRING;
+}
+
+
+Token::Value Scanner::ScanJsonNumber() {
+  StartLiteral();
+  if (c0_ == '-') AddCharAdvance();
+  if (c0_ == '0') {
+    AddCharAdvance();
+    // Prefix zero is only allowed if it's the only digit before
+    // a decimal point or exponent.
+    if ('0' <= c0_ && c0_ <= '9') return Token::ILLEGAL;
+  } else {
+    if (c0_ < '1' || c0_ > '9') return Token::ILLEGAL;
+    do {
+      AddCharAdvance();
+    } while (c0_ >= '0' && c0_ <= '9');
+  }
+  if (c0_ == '.') {
+    AddCharAdvance();
+    if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
+    do {
+      AddCharAdvance();
+    } while (c0_ >= '0' && c0_ <= '9');
+  }
+  if ((c0_ | 0x20) == 'e') {
+    AddCharAdvance();
+    if (c0_ == '-' || c0_ == '+') AddCharAdvance();
+    if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
+    do {
+      AddCharAdvance();
+    } while (c0_ >= '0' && c0_ <= '9');
+  }
+  TerminateLiteral();
+  return Token::NUMBER;
+}
+
+
+Token::Value Scanner::ScanJsonIdentifier(const char* text,
+                                         Token::Value token) {
+  StartLiteral();
+  while (*text != '\0') {
+    if (c0_ != *text) return Token::ILLEGAL;
+    Advance();
+    text++;
+  }
+  if (kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
+  TerminateLiteral();
+  return token;
+}
+
+
+void Scanner::ScanJavaScript() {
   next_.literal_buffer = NULL;
   Token::Value token;
   has_line_terminator_before_next_ = false;

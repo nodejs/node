@@ -93,19 +93,45 @@ for (var p in this)
   assertFalse(p == "JSON");
 
 // Parse
-
 assertEquals({}, JSON.parse("{}"));
+assertEquals({42:37}, JSON.parse('{"42":37}'));
 assertEquals(null, JSON.parse("null"));
 assertEquals(true, JSON.parse("true"));
 assertEquals(false, JSON.parse("false"));
 assertEquals("foo", JSON.parse('"foo"'));
 assertEquals("f\no", JSON.parse('"f\\no"'));
+assertEquals("\b\f\n\r\t\"\u2028\/\\",
+             JSON.parse('"\\b\\f\\n\\r\\t\\"\\u2028\\/\\\\"'));
+assertEquals([1.1], JSON.parse("[1.1]"));
+assertEquals([1], JSON.parse("[1.0]"));
+
+assertEquals(0, JSON.parse("0"));
+assertEquals(1, JSON.parse("1"));
+assertEquals(0.1, JSON.parse("0.1"));
 assertEquals(1.1, JSON.parse("1.1"));
-assertEquals(1, JSON.parse("1.0"));
-assertEquals(0.0000000003, JSON.parse("3e-10"));
+assertEquals(1.1, JSON.parse("1.100000"));
+assertEquals(1.111111, JSON.parse("1.111111"));
+assertEquals(-0, JSON.parse("-0"));
+assertEquals(-1, JSON.parse("-1"));
+assertEquals(-0.1, JSON.parse("-0.1"));
+assertEquals(-1.1, JSON.parse("-1.1"));
+assertEquals(-1.1, JSON.parse("-1.100000"));
+assertEquals(-1.111111, JSON.parse("-1.111111"));
+assertEquals(11, JSON.parse("1.1e1"));
+assertEquals(11, JSON.parse("1.1e+1"));
+assertEquals(0.11, JSON.parse("1.1e-1"));
+assertEquals(11, JSON.parse("1.1E1"));
+assertEquals(11, JSON.parse("1.1E+1"));
+assertEquals(0.11, JSON.parse("1.1E-1"));
+
 assertEquals([], JSON.parse("[]"));
 assertEquals([1], JSON.parse("[1]"));
 assertEquals([1, "2", true, null], JSON.parse('[1, "2", true, null]'));
+
+assertEquals("", JSON.parse('""'));
+assertEquals(["", "", -0, ""], JSON.parse('[    ""  ,    ""  ,   -0,    ""]'));
+assertEquals("", JSON.parse('""'));
+
 
 function GetFilter(name) {
   function Filter(key, value) {
@@ -144,6 +170,64 @@ TestInvalid('function () { return 0; }');
 
 TestInvalid("[1, 2");
 TestInvalid('{"x": 3');
+
+// JavaScript number literals not valid in JSON.
+TestInvalid('[01]');
+TestInvalid('[.1]');
+TestInvalid('[1.]');
+TestInvalid('[1.e1]');
+TestInvalid('[-.1]');
+TestInvalid('[-1.]');
+
+// Plain invalid number literals.
+TestInvalid('-');
+TestInvalid('--1');
+TestInvalid('-1e');
+TestInvalid('1e--1]');
+TestInvalid('1e+-1');
+TestInvalid('1e-+1');
+TestInvalid('1e++1');
+
+// JavaScript string literals not valid in JSON.
+TestInvalid("'single quote'");  // Valid JavaScript
+TestInvalid('"\\a invalid escape"');
+TestInvalid('"\\v invalid escape"');  // Valid JavaScript
+TestInvalid('"\\\' invalid escape"');  // Valid JavaScript
+TestInvalid('"\\x42 invalid escape"');  // Valid JavaScript
+TestInvalid('"\\u202 invalid escape"');
+TestInvalid('"\\012 invalid escape"');
+TestInvalid('"Unterminated string');
+TestInvalid('"Unterminated string\\"');
+TestInvalid('"Unterminated string\\\\\\"');
+
+// Test bad JSON that would be good JavaScript (ES5).
+
+TestInvalid("{true:42}");
+TestInvalid("{false:42}");
+TestInvalid("{null:42}");
+TestInvalid("{'foo':42}");
+TestInvalid("{42:42}");
+TestInvalid("{0:42}");
+TestInvalid("{-1:42}");
+
+// Test for trailing garbage detection.
+
+TestInvalid('42 px');
+TestInvalid('42 .2');
+TestInvalid('42 2');
+TestInvalid('42 e1');
+TestInvalid('"42" ""');
+TestInvalid('"42" ""');
+TestInvalid('"" ""');
+TestInvalid('true ""');
+TestInvalid('false ""');
+TestInvalid('null ""');
+TestInvalid('null ""');
+TestInvalid('[] ""');
+TestInvalid('[true] ""');
+TestInvalid('{} ""');
+TestInvalid('{"x":true} ""');
+TestInvalid('"Garbage""After string"');
 
 // Stringify
 
@@ -196,12 +280,8 @@ assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 assertEquals(undefined, JSON.stringify(undefined));
 assertEquals(undefined, JSON.stringify(function () { }));
 
-function checkIllegal(str) {
-  assertThrows(function () { JSON.parse(str); }, SyntaxError);
-}
-
-checkIllegal('1); throw "foo"; (1');
+TestInvalid('1); throw "foo"; (1');
 
 var x = 0;
 eval("(1); x++; (1)");
-checkIllegal('1); x++; (1');
+TestInvalid('1); x++; (1');
