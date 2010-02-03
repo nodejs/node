@@ -31,7 +31,11 @@ struct Blob_;
 class Buffer : public ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
-  static bool HasInstance(v8::Handle<v8::Value> val);
+  static inline bool HasInstance(v8::Handle<v8::Value> val) {
+    if (!val->IsObject()) return false;
+    v8::Local<v8::Object> obj = val->ToObject();
+    return constructor_template->HasInstance(obj);
+  }
 
   const char* data() const { return data_; }
   size_t length() const { return length_; }

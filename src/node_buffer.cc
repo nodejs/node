@@ -339,14 +339,6 @@ Handle<Value> Buffer::Utf8ByteLength(const Arguments &args) {
 }
 
 
-bool Buffer::HasInstance(Handle<Value> val) {
-  if (!val->IsObject()) return false;
-  Local<Object> obj = val->ToObject();
-  return constructor_template->HasInstance(obj);
-}
-
-
-
 void Buffer::Initialize(Handle<Object> target) {
   HandleScope scope;
 
