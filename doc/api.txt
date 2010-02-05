@@ -1184,73 +1184,158 @@ After emitted no other events will be emitted on the response.
 
 === Multipart Parsing
 
-A library to parse HTTP requests with +multipart/form-data+ is included with
+A library to parse +multipart+ internet messages is included with
 Node.  To use it, +require("multipart")+.
 
-+multipart.parse(options)+ ::
-  - on success: Returns an object where each key holds the value of one part of
-                the stream. +options+ can either be an instance of
-                +http.ServerRequest+ or an object containing a "boundary" and
-                an optional "data" key.
-  - on error: Returns an instanceof Error object. Right now only the request
-              content-type / boundary option is checked. The stream data itself
-              is not validated.
++multipart.parse(message)+ ::
+  Returns a multipart.Stream wrapper around a streaming message.
+  The message must contain a `headers` member, and may be either an
+  HTTP request object or a JSGI-style request object with either a
+  forEachable or String body.
+  +
+  See the Stream class below.
+
++multipart.cat(message)+ ::
+  Returns a promise.
+  - on success: Returns a multipart.Stream object representing the completed
+                message.  The body of each part is saved on the `body` member.
+  - on error: Returns an instanceof Error object.  This indicates
+              that the message was malformed in some way.
+  +
+  *Note*: This function saves the *entire* message into memory.  As such,
+  it is ill-suited to parsing actual incoming messages from an HTTP request!
+  If a user uploads a very large file, then it may cause serious problems.
+  No checking is done to ensure that the file does not overload the memory.
+  Only use multipart.cat with known and trusted input!
 
 ==== +multipart.Stream+
+
+The multipart.Stream class is a streaming parser wrapped around a message.
+The Stream also contains the properties described for the +part+ objects below,
+and is a reference to the top-level message.
+
+===== Events
+
+[cols="1,2,10",options="header"]
+|=========================================================
+|Event           | Parameters   | Notes
+|+"partBegin"+   | +part+       | Emitted when a new part is found in the stream.
+                                  +part+ is a +part object+, described below.
+|+"partEnd"+     | +part+       | Emitted when a part is done.
+|+"body"+        | +chunk+      | Emitted when a chunk of the body is read.
+|+"complete"+    |              | Emitted when the end of the stream is reached.
+|+"error"+       | +error+      | Emitted when a parse error is encountered. This
+                                  indicates that the message is malformed.
+|=========================================================
+
+===== Properties
+
++stream.part+::
+The current part being processed.  This is important, for instance, when responding
+to the +body+ event.
+
++stream.isMultiPart+::
+True if the stream is a multipart message.  Generally this will be true, but non-multipart
+messages will behave the same as a multipart message with a single part, and +isMultiPart+
+will be set to +false+.
+
++stream.parts+::
+An array of the parts contained within the message.  Each is a +part+ object.
+
+===== Methods
+
++stream.pause+::
+If the underlying message supports pause and resume, then this will pause the stream.
+
++stream.resume+::
+If the underlying message supports pause and resume, then this will resume the paused stream.
+
+==== Part Objects
+
+As it parses the message, the Stream object will create +Part+ objects.
+
+===== Properties
+
++part.parent+::
+The message that contains this part.
+
++part.headers+::
+The headers object for this message.
+
++part.filename+::
+The filename, if specified in the +content-disposition+ or +content-type+ header.
+For uploads, downloads, and attachments, this is the intended filename for the
+attached file.
+
++part.name+::
+The name, if specified in the +content-disposition+ or +content-type+ header.  For
++multipart/form-data+ messages, this is the name of the field that was posted, and the
+body specifies the value.
+
++part.isMultiPart+::
+True if this part is a multipart message.
+
++part.parts+::
+Array of children contained within a multipart message, or falsey.
+
++part.boundary+::
+For multipart messages, this is the boundary that separates subparts.
+
++part.type+::
+For multipart messages, this is the multipart type specified in the +content-type+ header.
+For example, a message with +content-type: multipart/form-data+ will have a +type+
+property of +form-data+.
+
+==== Example
 
 Here is an example for parsing a +multipart/form-data+ request:
 
 ----------------------------------------
-var multipart = require("multipart");
-var stream = new multipart.Stream(options);
-var parts = {};
-
-stream.addListener("part", function (part) {
-  var buffer = "";
-
-  part.addListener("body", function(chunk) {
-    buffer = buffer + chunk;
+var multipart = require("multipart"),
+  sys = require("sys"),
+  http = require("http");
+http.createServer(function (req, res) {
+  var mp = multipart.parse(req),
+    fields = {},
+    name, filename;
+  mp.addListener("error", function (er) {
+    res.sendHeader(400, {"content-type":"text/plain"});
+    res.sendBody("You sent a bad message!\n"+er.message);
+    res.finish();
   });
-
-  part.addListener("complete", function() {
-    parts[part.name] = buffer;
+  mp.addListener("partBegin", function (part) {
+    name = part.name;
+    filename = part.filename;
+    if (name) fields[name] = "";
   });
-});
-
-stream.addListener("complete", function() {
-  // The parts object now contains all parts and data
+  mp.addListener("body", function (chunk) {
+    if (name) {
+      // just a demo.  in reality, you'd probably
+      // want to sniff for base64 encoding, decode,
+      // and write the bytes to a file or something.
+      if (fields[name].length > 1024) return;
+      fields[name] += chunk;
+    }
+  });
+  mp.addListener("complete", function () {
+    var response = "You posted: \n" + sys.inspect(fields);
+    res.sendHeader(200, {
+      "content-type" : "text/plain",
+      "content-length" : response.length
+    });
+    res.sendBody(response);
+    res.finish();
+  })
 });
 ----------------------------------------
 
+==== Nested Multipart Messages
 
-[cols="1,2,10",options="header"]
-|=========================================================
-|Event           | Parameters   | Notes
-|+"part"+        | +part+       | Emitted when a new part is found in the stream.
-                                  +part+ is an instance of +multipart.Part+.
-|+"complete"+    |              | Emitted when the end of the stream is reached.
-|=========================================================
-
-+stream.bytesTotal+::
-The amount of bytes this stream is expected to have.
-
-+stream.bytesReceived+::
-The amount of bytes received by this stream so far.
-
-==== +multipart.Part+
-
-[cols="1,2,10",options="header"]
-|=========================================================
-|Event           | Parameters   | Notes
-|+"body"+        | +chunk+      | Emitted when a chunk of body is read.
-|+"complete"+    |              | Emitted when the end of the part is reached.
-|=========================================================
-
-+part.name+::
-The field name of this part.
-
-+part.filename+::
-The filename of this part. Only set for file uploads.
+Nested multipart parsing is supported. The +stream.part+ object always refers
+to the current part. If +part.isMultiPart+ is set, then that part is a
+multipart message, which contains other parts. You can inspect its +parts+
+array to see the list of sub-parts, which may also be multipart, and contain
+sub-parts.
 
 === TCP
 

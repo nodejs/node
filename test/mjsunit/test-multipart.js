@@ -1,129 +1,123 @@
 process.mixin(require("./common"));
-http = require("http");
 
-var
+var http = require("http"),
+  multipart = require("multipart"),
+  sys = require("sys"),
   PORT = 8222,
-
-  multipart = require('multipart'),
-  fixture = require('./fixtures/multipart'),
-
-  requests = 0,
-  badRequests = 0,
-  partsReceived = 0,
-  partsComplete = 0,
-
-  respond = function(res, text) {
-    requests++;
-    if (requests == 5) {
-      server.close();
+  fixture = require("./fixtures/multipart"),
+  events = require("events"),
+  testPart = function (expect, part) {
+    if (!expect) {
+      throw new Error("Got more parts than expected: "+
+        JSON.stringify(part.headers));
     }
-
-    res.sendHeader(200, {"Content-Type": "text/plain"});
-    res.sendBody(text);
-    res.finish();
+    for (var i in expect) {
+      assert.equal(expect[i], part[i]);
+    }
   };
 
-var server = http.createServer(function(req, res) {
-  if (req.headers['x-use-simple-api']) {
-    multipart.parse(req)
-      .addCallback(function() {
-        respond(res, 'thanks');
-      })
-      .addErrback(function() {
-        badRequests++;
-        respond(res, 'no thanks');
-      });
+var emails = fixture.messages.slice(0),
+  chunkSize = 1, // set to minimum to forcibly expose boundary conditions.
+                 // in a real scenario, this would be much much bigger.
+  firstPart = new (events.Promise);
+
+// test streaming messages through directly, as if they were in a file or something.
+(function testEmails () {
+  var email = emails.pop(),
+    curr = 0;
+  if (!email) {
+    firstPart.emitSuccess();
     return;
   }
+  var expect = email.expect;
 
+  var message  = new (events.EventEmitter);
+  message.headers = email.headers;
 
-  try {
-    var stream = new multipart.Stream(req);
-  } catch (e) {
-    badRequests++;
-    respond(res, 'no thanks');
-    return;
-  }
-
-  var parts = {};
-  stream.addListener('part', function(part) {
-    partsReceived++;
-
-    var name = part.name;
-
-    if (partsReceived == 1) {
-      assert.equal('reply', name);
-    } else if (partsReceived == 2) {
-      assert.equal('fileupload', name);
+  var mp = multipart.parse(message);
+  mp.addListener("partBegin", function (part) {
+    testPart(email.expect[curr ++], part);
+  });
+  mp.addListener("complete", function () {
+    process.nextTick(testEmails);
+  });
+  // stream it through in chunks.
+  var emailBody = email.body;
+  process.nextTick(function s () {
+    if (emailBody) {
+      message.emit("body", emailBody.substr(0, chunkSize));
+      emailBody = emailBody.substr(chunkSize);
+      process.nextTick(s);
+    } else {
+      message.emit("complete");
     }
-
-    parts[name] = '';
-    part.addListener('body', function(chunk) {
-      parts[name] += chunk;
-    });
-    part.addListener('complete', function(chunk) {
-      assert.equal(0, part.buffer.length);
-      if (partsReceived == 1) {
-        assert.equal('yes', parts[name]);
-      } else if (partsReceived == 2) {
-        assert.equal(
-          '/9j/4AAQSkZJRgABAQAAAQABAAD//gA+Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcg',
-          parts[name]
-        );
-      }
-      partsComplete++;
-    });
   });
+})();
 
-  stream.addListener('complete', function() {
-    respond(res, 'thanks');
-  });
-});
+// run good HTTP messages test after previous test ends.
+var secondPart = new (events.Promise),
+  server = http.createServer(function (req, res) {
+    var mp = multipart.parse(req),
+      curr = 0;
+    req.setBodyEncoding("binary");
+    if (req.url !== "/bad") {
+      mp.addListener("partBegin", function (part) {
+        testPart(message.expect[curr ++], part);
+      });
+    }
+    mp.addListener("error", function (er) {
+      res.sendHeader(400, {});
+      res.sendBody("bad");
+      res.finish();
+    });
+    mp.addListener("complete", function () {
+      res.sendHeader(200, {});
+      res.sendBody("ok");
+      res.finish();
+    });
+  }),
+  message,
+  client = http.createClient(PORT);
 server.listen(PORT);
 
-var client = http.createClient(PORT);
-
-var request = client.request('POST', '/', {
-  'Content-Type': 'multipart/form-data; boundary=AaB03x',
-  'Content-Length': fixture.reply.length
+// could dry these two up a bit.
+firstPart.addCallback(function testGoodMessages () {
+  var httpMessages = fixture.messages.slice(0);
+  process.nextTick(function testHTTP () {
+    message = httpMessages.pop();
+    if (!message) {
+      secondPart.emitSuccess();
+      return;
+    }
+    var req = client.request("POST", "/", message.headers);
+    req.sendBody(message.body, "binary");
+    req.finish(function (res) {
+      var buff = "";
+      res.addListener("body", function (chunk) { buff += chunk });
+      res.addListener("complete", function () {
+        assert.equal(buff, "ok");
+        process.nextTick(testHTTP);
+      });
+    });
+  });
 });
-request.sendBody(fixture.reply, 'binary');
-request.finish();
-
-var simpleRequest = client.request('POST', '/', {
-  'X-Use-Simple-Api': 'yes',
-  'Content-Type': 'multipart/form-data; boundary=AaB03x',
-  'Content-Length': fixture.reply.length
-});
-simpleRequest.sendBody(fixture.reply, 'binary');
-simpleRequest.finish();
-
-var badRequest = client.request('POST', '/', {
-  'Content-Type': 'invalid!',
-  'Content-Length': fixture.reply.length
-});
-badRequest.sendBody(fixture.reply, 'binary');
-badRequest.finish();
-
-var simpleBadRequest = client.request('POST', '/', {
-  'X-Use-Simple-Api': 'yes',
-  'Content-Type': 'something',
-  'Content-Length': fixture.reply.length
-});
-simpleBadRequest.sendBody(fixture.reply, 'binary');
-simpleBadRequest.finish();
-
-var requestWithCharset = client.request('POST', '/', {
-  'X-Use-Simple-Api': 'yes',
-  'Content-Type': 'multipart/form-data; charset=utf-8; boundary=AaB03x',
-  'Content-Length': fixture.reply.length
-});
-requestWithCharset.sendBody(fixture.reply, 'binary');
-requestWithCharset.finish();
-
-process.addListener('exit', function() {
-  puts("done");
-  assert.equal(2, partsComplete);
-  assert.equal(2, partsReceived);
-  assert.equal(2, badRequests);
+secondPart.addCallback(function testBadMessages () {
+  var httpMessages = fixture.badMessages.slice(0);
+  process.nextTick(function testHTTP () {
+    message = httpMessages.pop();
+    if (!message) {
+      server.close()
+      return;
+    }
+    var req = client.request("POST", "/bad", message.headers);
+    req.sendBody(message.body, "binary");
+    req.finish(function (res) {
+      var buff = "";
+      res.addListener("body", function (chunk) { buff += chunk });
+      res.addListener("complete", function () {
+        assert.equal(buff, "bad");
+        process.nextTick(testHTTP);
+      });
+    });
+  });
 });
