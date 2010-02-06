@@ -41,10 +41,19 @@ node.dns.createConnection = removed("node.dns.createConnection() has moved. Use 
 
 // Module 
 
+var internalModuleCache = {};
+
 function Module (id, parent) {
   this.id = id;
   this.exports = {};
   this.parent = parent;
+
+  this.moduleCache = {};
+
+  if (parent) {
+    process.mixin(this.moduleCache, parent.moduleCache);
+    this.moduleCache[parent.id] = parent;
+  }
 
   this.filename = null;
   this.loaded = false;
@@ -53,23 +62,11 @@ function Module (id, parent) {
   this.children = [];
 };
 
-var moduleCache = {};
-
-function createModule (id, parent) {
-  if (id in moduleCache) {
-    debug("found " + JSON.stringify(id) + " in cache");
-    return moduleCache[id];
-  }
-  debug("didn't found " + JSON.stringify(id) + " in cache. creating new module");
-  var m = new Module(id, parent);
-  moduleCache[id] = m;
-  return m;
-};
-
 function createInternalModule (id, constructor) {
-  var m = createModule(id);
+  var m = new Module(id);
   constructor(m.exports);
   m.loaded = true;
+  internalModuleCache[id] = m;
   return m;
 };
 
@@ -86,7 +83,7 @@ process.inherits = function (ctor, superCtor) {
 process.createChildProcess = function (file, args, env) {
   var child = new process.ChildProcess();
   args = args || [];
-  env = env || process.ENV;
+  env = env || process.env;
   var envPairs = [];
   for (var key in env) {
     if (env.hasOwnProperty(key)) {
@@ -493,7 +490,7 @@ GLOBAL.clearInterval = GLOBAL.clearTimeout;
 // Modules
 
 var debugLevel = 0;
-if ("NODE_DEBUG" in process.ENV) debugLevel = 1;
+if ("NODE_DEBUG" in process.env) debugLevel = 1;
 
 function debug (x) {
   if (debugLevel > 0) {
@@ -744,12 +741,12 @@ var path = pathModule.exports;
 process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
                ];
 
-if (process.ENV["HOME"]) {
-  process.paths.unshift(path.join(process.ENV["HOME"], ".node_libraries"));
+if (process.env["HOME"]) {
+  process.paths.unshift(path.join(process.env["HOME"], ".node_libraries"));
 }
 
-if (process.ENV["NODE_PATH"]) {
-  process.paths = process.ENV["NODE_PATH"].split(":").concat(process.paths);
+if (process.env["NODE_PATH"]) {
+  process.paths = process.env["NODE_PATH"].split(":").concat(process.paths);
 }
 
 
@@ -803,11 +800,7 @@ function findModulePath (id, dirs, callback) {
   searchLocations();
 }
 
-function loadModule (request, parent) {
-  // This is the promise which is actually returned from require.async()
-  var loadPromise = new events.Promise();
-
-  // debug("loadModule REQUEST  " + (request) + " parent: " + JSON.stringify(parent));
+function resolveModulePath(request, parent) {
 
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
@@ -823,21 +816,33 @@ function loadModule (request, parent) {
     paths = process.paths;
   }
 
-  if (id in moduleCache) {
+  return [id, paths];
+}
+
+function loadModule (request, parent) {
+  var
+    // The promise returned from require.async()
+    loadPromise = new events.Promise(),
+    resolvedModule = resolveModulePath(request, parent),
+    id = resolvedModule[0],
+    paths = resolvedModule[1];
+
+  // debug("loadModule REQUEST  " + (request) + " parent: " + JSON.stringify(parent));
+
+  var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
+  if (cachedModule) {
     debug("found  " + JSON.stringify(id) + " in cache");
-    // In cache
-    var module = moduleCache[id];
-    process.nextTick(function () {
-      loadPromise.emitSuccess(module.exports);
+    process.nextTick(function() {
+      loadPromise.emitSuccess(cachedModule.exports);
     });
-  } else {
+   } else {
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
     // Not in cache
     findModulePath(request, paths, function (filename) {
       if (!filename) {
         loadPromise.emitError(new Error("Cannot find module '" + request + "'"));
       } else {
-        var module = createModule(id, parent);
+        var module = new Module(id, parent);
         module.load(filename, loadPromise);
       }
     });
@@ -968,19 +973,19 @@ process.exit = function (code) {
 
 var cwd = process.cwd();
 
-// Make process.ARGV[0] and process.ARGV[1] into full paths.
-if (process.ARGV[0].indexOf('/') > 0) {
-  process.ARGV[0] = path.join(cwd, process.ARGV[0]);
+// Make process.argv[0] and process.argv[1] into full paths.
+if (process.argv[0].indexOf('/') > 0) {
+  process.argv[0] = path.join(cwd, process.argv[0]);
 }
 
-if (process.ARGV[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.ARGV[1])) {
-  process.ARGV[1] = path.join(cwd, process.ARGV[1]);
+if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
+  process.argv[1] = path.join(cwd, process.argv[1]);
 }
 
 // Load the main module--the command line argument.
-process.mainModule = createModule(".");
+process.mainModule = new Module(".");
 var loadPromise = new events.Promise();
-process.mainModule.load(process.ARGV[1], loadPromise);
+process.mainModule.load(process.argv[1], loadPromise);
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If

@@ -1,7 +1,7 @@
 NODE(1)
 =======
 Ryan Dahl <ry@tinyclouds.org>
-Version, 0.1.26, 2010.01.20
+Version, 0.1.27, 2010.02.03
 
 
 == NAME
@@ -48,7 +48,7 @@ execution.
 
 === Global Objects
 
-+GLOBAL+ ::
++global+ ::
 The global namespace object.
 
 +process+ ::
@@ -100,10 +100,10 @@ more information.
                                                signal names such as SIGINT, SIGUSR1, etc.
 |=========================================================
 
-+process.ARGV+ ::
++process.argv+ ::
 An array containing the command line arguments.
 
-+process.ENV+ ::
++process.env+ ::
 An object containing the user environment. See environ(7).
 
 +process.pid+ ::
@@ -565,7 +565,7 @@ Node provides a tridirectional +popen(3)+ facility through the class
                             +"error"+ callbacks will no longer be made.
 |=========================================================
 
-+process.createChildProcess(command, args=[], env=ENV)+::
++process.createChildProcess(command, args=[], env=process.env)+::
 Launches a new process with the given +command+, command line arguments, and
 environmental variables. For example:
 +
@@ -1459,14 +1459,14 @@ resolution.addCallback(function (addresses, ttl, cname) {
     reversing.addCallback( function (domains, ttl, cname) {
       sys.puts("reverse for " + a + ": " + JSON.stringify(domains));
     });
-    reversing.addErrback( function (code, msg) {
-      sys.puts("reverse for " + a + " failed: " + msg);
+    reversing.addErrback( function (e) {
+      puts("reverse for " + a + " failed: " + e.message);
     });
   }
 });
 
-resolution.addErrback(function (code, msg) {
-  sys.puts("error: " + msg);
+resolution.addErrback(function (e) {
+  puts("error: " + e.message);
 });
 -------------------------------------------------------------------------
 
@@ -1482,8 +1482,9 @@ This function returns a promise.
   canonical name for the query.
   The type of each item in +addresses+ is determined by the record type, and
   described in the documentation for the corresponding lookup methods below.
-- on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English.
+- on error: Returns an instanceof Error object, where the "errno" field is one
+  of the error codes listed below and the "message" field is a string
+  describing the error in English.
 
 +dns.resolve4(domain)+::
 
@@ -1521,8 +1522,9 @@ Reverse resolves an ip address to an array of domain names.
 - on success: returns +domains, ttl, cname+. +ttl+ (time-to-live) is an integer
   specifying the number of seconds this result is valid for. +cname+ is the
   canonical name for the query. +domains+ is an array of domains.
-- on error: returns +code, msg+. +code+ is one of the error codes listed
-  below and +msg+ is a string describing the error in English.
+- on error: Returns an instanceof Error object, where the "errno" field is one
+  of the error codes listed below and the "message" field is a string
+  describing the error in English.
 
 
 Each DNS query can return an error code.

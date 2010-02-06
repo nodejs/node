@@ -1,4 +1,38 @@
-2010.01.20, Version 0.1.26
+2010.02.03, Version 0.1.27
+
+  * Implemented __dirname (Felix Geisendörfer)
+
+  * Downcase process.ARGV, process.ENV, GLOBAL
+    (now process.argv, process.env, global)
+
+  * Bug Fix: Late promise promise callbacks firing
+    (Felix Geisendörfer, Jonas Pfenniger)
+
+  * Make assert.AssertionError instance of Error
+
+  * Removed inline require call for querystring
+    (self@cloudhead.net)
+
+  * Add support for MX, TXT, and SRV records in DNS module.
+    (Blaine Cook)
+
+  * Bugfix: HTTP client automatically reconnecting
+
+  * Adding OS X .dmg build scripts. (Standa Opichal)
+
+  * Bugfix: ObjectWrap memory leak
+
+  * Bugfix: Multipart handle Content-Type headers with charset
+    (Felix Geisendörfer)
+
+  * Upgrade http-parser to fix header overflow attack.
+
+  * Upgrade V8 to 2.1.0
+
+  * Various other bug fixes, performance improvements.
+
+
+2010.01.20, Version 0.1.26, da00413196e432247346d9e587f8c78ce5ceb087
 
   * Bugfix, HTTP eof causing crash (Ben Williamson)
 
