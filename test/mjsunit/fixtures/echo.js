@@ -1,5 +1,12 @@
 process.mixin(require("../common"));
 process.stdio.open();
+
+print("hello world\r\n");
+
 process.stdio.addListener("data", function (data) {
-  puts(data);
+  print(data);
+});
+
+process.stdio.addListener("close", function () {
+  process.stdio.close();
 });

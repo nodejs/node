@@ -2,20 +2,34 @@ process.mixin(require("./common"));
 
 var sub = path.join(fixturesDir, 'echo.js');
 
-var result = false;
- 
-var child = process.createChildProcess(path.join(libDir, "../bin/node"), [sub]);
+var gotHelloWorld = false;
+var gotEcho = false;
+
+var child = process.createChildProcess(process.argv[0], [sub]);
+
 child.addListener("error", function (data){
   puts("parent stderr: " + data);
 });
+
 child.addListener("output", function (data){
-  if (data && data[0] == 't') {
-    result = true;
+  if (data) {
+    puts('child said: ' + JSON.stringify(data));
+    if (!gotHelloWorld) {
+      assert.equal("hello world\r\n", data);
+      gotHelloWorld = true;
+      child.write('echo me\r\n');
+    } else {
+      assert.equal("echo me\r\n", data);
+      gotEcho = true;
+      child.close();
+    }
+  } else {
+    puts('child eof');
   }
 });
-setTimeout(function () {
-  child.write('t\r\n');
-}, 100);
-setTimeout(function (){
-  assert.ok(result);
-}, 500)
+
+
+process.addListener('exit', function () {
+  assert.ok(gotHelloWorld);
+  assert.ok(gotEcho);
+});
