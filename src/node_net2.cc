@@ -29,6 +29,7 @@
 
 #include <errno.h>
 
+
 namespace node {
 
 using namespace v8;
@@ -47,12 +48,14 @@ static Persistent<String> unix_symbol;
 
 static Persistent<FunctionTemplate> recv_msg_template;
 
-#define FD_ARG(a)                                                     \
-  if (!(a)->IsInt32()) {                                              \
-    return ThrowException(Exception::TypeError(                       \
-          String::New("Bad file descriptor argument")));              \
-  }                                                                   \
+
+#define FD_ARG(a)                                        \
+  if (!(a)->IsInt32()) {                                 \
+    return ThrowException(Exception::TypeError(          \
+          String::New("Bad file descriptor argument"))); \
+  }                                                      \
   int fd = (a)->Int32Value();
+
 
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
@@ -394,17 +397,21 @@ static inline Local<Value> ErrnoException(int errorno,
   return e;
 }
 
+
 static inline bool SetCloseOnExec(int fd) {
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
 }
+
 
 static inline bool SetNonBlock(int fd) {
   return (fcntl(fd, F_SETFL, O_NONBLOCK) != -1);
 }
 
+
 static inline bool SetSockFlags(int fd) {
   return SetNonBlock(fd) && SetCloseOnExec(fd);
 }
+
 
 // Creates nonblocking pipe
 static Handle<Value> Pipe(const Arguments& args) {
@@ -425,6 +432,7 @@ static Handle<Value> Pipe(const Arguments& args) {
   a->Set(Integer::New(1), Integer::New(fds[1]));
   return scope.Close(a);
 }
+
 
 // Creates nonblocking socket pair
 static Handle<Value> SocketPair(const Arguments& args) {
@@ -449,6 +457,7 @@ static Handle<Value> SocketPair(const Arguments& args) {
   a->Set(Integer::New(1), Integer::New(fds[1]));
   return scope.Close(a);
 }
+
 
 // Creates a new non-blocking socket fd
 // t.socket("TCP");
@@ -597,6 +606,7 @@ static Handle<Value> Close(const Arguments& args) {
   return Undefined();
 }
 
+
 // t.shutdown(fd, "read");      -- SHUT_RD
 // t.shutdown(fd, "write");     -- SHUT_WR
 // t.shutdown(fd, "readwrite"); -- SHUT_RDWR
@@ -660,6 +670,7 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
+
 static Handle<Value> GetSockName(const Arguments& args) {
   HandleScope scope;
 
@@ -690,6 +701,7 @@ static Handle<Value> GetSockName(const Arguments& args) {
 
   return scope.Close(info);
 }
+
 
 static Handle<Value> GetPeerName(const Arguments& args) {
   HandleScope scope;
@@ -804,6 +816,7 @@ static Handle<Value> SocketError(const Arguments& args) {
   return scope.Close(Integer::New(error)); 
 }
 
+
 //  var bytesRead = t.read(fd, buffer, offset, length);
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
 //  returns 0 on EOF.
@@ -845,6 +858,7 @@ static Handle<Value> Read(const Arguments& args) {
 
   return scope.Close(Integer::New(bytes_read));
 }
+
 
 // bytesRead = t.recvMsg(fd, buffer, offset, length)
 // if (recvMsg.fd) {
@@ -962,6 +976,7 @@ static Handle<Value> Write(const Arguments& args) {
   return scope.Close(Integer::New(written));
 }
 
+
 // var bytesWritten = t.sendFD(self.fd)
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
 static Handle<Value> SendFD(const Arguments& args) {
@@ -1017,6 +1032,7 @@ static Handle<Value> SendFD(const Arguments& args) {
   return scope.Close(Integer::New(written));
 }
 
+
 // Probably only works for Linux TCP sockets?
 // Returns the amount of data on the read queue.
 static Handle<Value> ToRead(const Arguments& args) {
@@ -1052,7 +1068,10 @@ static Handle<Value> SetNoDelay(const Arguments& args) {
 }
 
 
+//
 // G E T A D D R I N F O
+//
+
 
 struct resolve_request {
   Persistent<Function> cb;
