@@ -465,11 +465,10 @@ static Handle<Value> Umask(const Arguments& args){
 }
 
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
-  int r = 0;
-  if (args.Length() > 0)
-    r = args[0]->IntegerValue();
+  HandleScope scope;
   fflush(stderr);
-  exit(r);
+  Stdio::Flush();
+  exit(args[0]->IntegerValue());
   return Undefined();
 }
 
