@@ -1160,6 +1160,8 @@ int main(int argc, char *argv[]) {
   // so your next reading stop should be node::Load()!
   node::Load(argc, argv);
 
+  node::Stdio::Flush();
+
 #ifndef NDEBUG
   // Clean up.
   context.Dispose();

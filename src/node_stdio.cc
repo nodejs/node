@@ -197,6 +197,19 @@ Close (const Arguments& args)
   return Undefined();
 }
 
+void Stdio::Flush() {
+  if (stdout_fd >= 0) {
+    close(stdout_fd);
+    stdout_fd = -1;
+  }
+
+  if (stdout_coupling) {
+    coupling_join(stdout_coupling);
+    coupling_destroy(stdout_coupling);
+    stdout_coupling = NULL;
+  }
+}
+
 void
 Stdio::Initialize (v8::Handle<v8::Object> target)
 {

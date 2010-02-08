@@ -8,5 +8,3 @@ for (var i = 0; i < n-1; i++) {
 }
 
 puts(s); // \n is the nth char.
-
-process.exit(0);
