@@ -653,6 +653,11 @@ sys.puts("stats: " + JSON.stringify(stats));
   - on success: no parameters.
   - on error: no parameters.
 
++posix.truncate(fd, len)+ ::
+  See ftruncate(2).
+  - on success: no parameters.
+  - on error: no parameters.
+
 
 +posix.stat(path)+ ::
 See stat(2).

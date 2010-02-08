@@ -571,6 +571,16 @@ var posixModule = createInternalModule("posix", function (exports) {
     return process.fs.rename(oldPath, newPath);
   };
 
+  exports.truncate = function (fd, len) {
+    var promise = new events.Promise();
+    process.fs.truncate(fd, len, callback(promise));
+    return promise;
+  };
+
+  exports.truncateSync = function (fd, len) {
+    return process.fs.truncate(fd, len);
+  };
+
   exports.rmdir = function (path) {
     var promise = new events.Promise();
     process.fs.rmdir(path, callback(promise));
