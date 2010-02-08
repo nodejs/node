@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <dlfcn.h> /* dlopen(), dlsym() */
+#include <sys/types.h>
+#include <unistd.h> /* setuid, getuid */
 
 #include <node_events.h>
 #include <node_dns.h>
@@ -463,6 +465,32 @@ static Handle<Value> Umask(const Arguments& args){
   
   return scope.Close(Uint32::New(old));
 }
+
+
+static Handle<Value> GetUid(const Arguments& args) {
+  HandleScope scope;
+  int uid = getuid();
+  return scope.Close(Integer::New(uid));
+}
+
+
+static Handle<Value> SetUid(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1) {
+    return ThrowException(Exception::Error(
+          String::New("setuid requires 1 argument")));
+  }
+
+  Local<Integer> given_uid = args[0]->ToInteger();
+  int uid = given_uid->Int32Value();
+  int result;
+  if ((result = setuid(uid)) != 0) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+  return Undefined();
+}
+
 
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   HandleScope scope;
@@ -953,6 +981,8 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
+  NODE_SET_METHOD(process, "getuid", GetUid);
+  NODE_SET_METHOD(process, "setuid", SetUid);
   NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
