@@ -821,6 +821,14 @@ Handle<Value> Server::Listen(const Arguments& args) {
 
   if (address_list) freeaddrinfo(address_list);
 
+  if (server->server_.errorno) {
+    Local<Value> e = Exception::Error(
+        String::NewSymbol(strerror(server->server_.errorno)));
+    Local<Object> obj = e->ToObject();
+    obj->Set(String::NewSymbol("errno"), Integer::New(server->server_.errorno));
+    return ThrowException(e);
+  }
+
   return Undefined();
 }
 
