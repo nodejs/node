@@ -13,6 +13,7 @@ promise.addCallback(function (files) {
                    , 'echo.js'
                    , 'multipart.js'
                    , 'nested-index'
+                   , 'print-chars.js'
                    , 'test_ca.pem'
                    , 'test_cert.pem'
                    , 'test_key.pem'
