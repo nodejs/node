@@ -49,7 +49,8 @@ def CompressScript(lines, do_jsmin):
   # If we're not expecting this code to be user visible, we can run it through
   # a more aggressive minifier.
   if do_jsmin:
-    return jsmin.jsmin(lines)
+    minifier = JavaScriptMinifier()
+    return minifier.JSMinify(lines)
 
   # Remove stuff from the source that we don't want to appear when
   # people print the source code using Function.prototype.toString().
