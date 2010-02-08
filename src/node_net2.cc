@@ -1246,6 +1246,18 @@ static Handle<Value> NeedsLookup(const Arguments& args) {
 }
 
 
+static Handle<Value> CreateErrnoException(const Arguments& args) {
+  HandleScope scope;
+
+  int errorno = args[0]->Int32Value();
+  String::Utf8Value syscall(args[1]->ToString());
+
+  Local<Value> exception = ErrnoException(errorno, *syscall); 
+
+  return scope.Close(exception);
+}
+
+
 void InitNet2(Handle<Object> target) {
   HandleScope scope;
 
@@ -1275,6 +1287,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
+  NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
 
   target->Set(String::NewSymbol("ENOENT"), Integer::New(ENOENT));
   target->Set(String::NewSymbol("EINPROGRESS"), Integer::New(EINPROGRESS));
