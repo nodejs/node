@@ -1,4 +1,23 @@
-2010.02.03, Version 0.1.27
+2010.02.09, Version 0.1.28
+
+  * Use Google's jsmin.py which can be used for evil.
+
+  * Add posix.truncate()
+
+  * Throw errors from server.listen()
+
+  * stdio bugfix (test by Mikeal Rogers)
+
+  * Module system refactor (Felix Geisendörfer, Blaine Cook)
+
+  * Add process.setuid(), getuid() (Michael Carter)
+
+  * sys.inspect refactor (Tim Caswell)
+
+  * Multipart library rewrite (isaacs)
+
+
+2010.02.03, Version 0.1.27, 0cfa789cc530848725a8cb5595224e78ae7b9dd0
 
   * Implemented __dirname (Felix Geisendörfer)
 
