@@ -208,8 +208,8 @@ Like +puts()+ but without the trailing new-line.
 A synchronous output function. Will block the process and
 output the string immediately to stdout.
 
-+inspect(object)+ ::
-Return a string representation of the +object+. (For debugging.)
++inspect(object, showHidden)+ ::
+Return a string representation of the +object+. (For debugging.)  If showHidden is true, then the object's non-enumerable properties will be shown too.
 
 +exec(command)+::
 Executes the command as a child process, buffers the output and returns it
