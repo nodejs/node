@@ -4,6 +4,8 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
+#include <errno.h>
 
 using namespace v8;
 using namespace node;
@@ -42,6 +44,15 @@ EmitClose (void)
   emit->Call(stdio, 1, argv);
 }
 
+
+static inline Local<Value> errno_exception(int errorno) {
+  Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
+  Local<Object> obj = e->ToObject();
+  obj->Set(String::NewSymbol("errno"), Integer::New(errorno));
+  return e;
+}
+
+
 /* STDERR IS ALWAY SYNC */
 static Handle<Value>
 WriteError (const Arguments& args)
@@ -53,8 +64,13 @@ WriteError (const Arguments& args)
 
   String::Utf8Value msg(args[0]->ToString());
 
-  fprintf(stderr, "%s", *msg);
-  fflush(stderr);
+  ssize_t r;
+  size_t written = 0;
+  while (written < msg.length()) {
+    r = write(STDERR_FILENO, (*msg) + written, msg.length() - written);
+    if (r < 0) return ThrowException(errno_exception(errno));
+    written += (size_t)r;
+  }
 
   return Undefined();
 }
