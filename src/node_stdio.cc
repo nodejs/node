@@ -68,7 +68,13 @@ WriteError (const Arguments& args)
   size_t written = 0;
   while (written < msg.length()) {
     r = write(STDERR_FILENO, (*msg) + written, msg.length() - written);
-    if (r < 0) return ThrowException(errno_exception(errno));
+    if (r < 0) {
+      if (errno == EAGAIN || errno == EIO) {
+        usleep(100);
+        continue;
+      }
+      return ThrowException(errno_exception(errno));
+    }
     written += (size_t)r;
   }
 
