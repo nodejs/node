@@ -11,6 +11,7 @@ namespace node {
 class Stdio  {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
+  static void Flush ();
 };
 
 } // namespace node

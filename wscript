@@ -7,7 +7,7 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.27"
+VERSION="0.1.28"
 APPNAME="node.js"
 
 import js2c
@@ -91,7 +91,7 @@ def conf_subproject (conf, subdir, command=None):
     copytree(src, default_tgt, True)
 
   if command:
-    if os.system("cd %s && %s" % (default_tgt, command)) != 0:
+    if os.system("cd \"%s\" && %s" % (default_tgt, command)) != 0:
       conf.fatal("Configuring %s failed." % (subdir))
 
   debug_tgt = join(conf.blddir, "debug", subdir)
@@ -191,7 +191,7 @@ def build_udns(bld):
 
   static_lib = bld.env["staticlib_PATTERN"] % "udns"
 
-  rule = 'cd %s && make'
+  rule = 'cd "%s" && make'
 
   default = bld.new_task_gen(
     target= join("deps/udns", static_lib),
@@ -234,7 +234,7 @@ def v8_cmd(bld, variant):
   else:
     mode = "debug"
 
-  cmd_R = 'python %s -C %s -Y %s visibility=default mode=%s %s library=static snapshot=on'
+  cmd_R = 'python "%s" -C "%s" -Y "%s" visibility=default mode=%s %s library=static snapshot=on'
 
   cmd = cmd_R % ( scons
                 , bld.srcnode.abspath(bld.env_of_name(variant))

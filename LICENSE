@@ -9,9 +9,6 @@ are:
     This code is copyrighted by Marc Alexander Lehmann. Both are dually
     licensed under MIT and GPL2.
 
-  - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
-    copyrighted by Douglas Crockford and Baruch Even and has an MIT license.
-
   - WAF build system, located at tools/waf. Copyrighted Thomas Nagy.
     Released under an MIT license.
 

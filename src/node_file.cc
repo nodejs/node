@@ -51,6 +51,7 @@ static int After(eio_req *req) {
       case EIO_UNLINK:
       case EIO_RMDIR:
       case EIO_MKDIR:
+      case EIO_FTRUNCATE:
         argc = 0;
         break;
 
@@ -188,6 +189,25 @@ static Handle<Value> Rename(const Arguments& args) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
   } else {
     int ret = rename(*old_path, *new_path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
+}
+
+static Handle<Value> Truncate(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 2 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+
+  int fd = args[0]->Int32Value();
+  off_t len = args[1]->Uint32Value();
+
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(ftruncate, args[2], fd, len)
+  } else {
+    int ret = ftruncate(fd, len);
     if (ret != 0) return ThrowException(errno_exception(errno));
     return Undefined();
   }
@@ -403,6 +423,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "open", Open);
   NODE_SET_METHOD(target, "read", Read);
   NODE_SET_METHOD(target, "rename", Rename);
+  NODE_SET_METHOD(target, "truncate", Truncate);
   NODE_SET_METHOD(target, "rmdir", RMDir);
   NODE_SET_METHOD(target, "mkdir", MKDir);
   NODE_SET_METHOD(target, "sendfile", SendFile);
