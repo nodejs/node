@@ -48,12 +48,12 @@ function Module (id, parent) {
   this.exports = {};
   this.parent = parent;
 
-  this.moduleCache = {};
-
   if (parent) {
-    process.mixin(this.moduleCache, parent.moduleCache);
-    this.moduleCache[parent.id] = parent;
+    this.moduleCache = parent.moduleCache;
+  } else {
+    this.moduleCache = {};
   }
+  this.moduleCache[this.id] = this;
 
   this.filename = null;
   this.loaded = false;

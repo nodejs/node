@@ -3,6 +3,7 @@ process.mixin(require("./common"));
 debug("load test-module-loading.js");
 
 var a = require("./fixtures/a");
+var c = require("./fixtures/b/c");
 var d = require("./fixtures/b/d");
 var d2 = require("./fixtures/b/d");
 // Absolute
@@ -33,6 +34,8 @@ assert.equal("D", d3.D());
 assert.equal(true, d4.D instanceof Function);
 assert.equal("D", d4.D());
 
+assert.ok((new a.SomeClass) instanceof c.SomeClass);
+
 debug("test index.js modules ids and relative loading")
 var one = require("./fixtures/nested-index/one"),
   two = require("./fixtures/nested-index/two");
@@ -41,6 +44,7 @@ assert.notEqual(one.hello, two.hello);
 debug("test cycles containing a .. path");
 var root = require("./fixtures/cycles/root"),
   foo = require("./fixtures/cycles/folder/foo");
+assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
 
 var errorThrown = false;

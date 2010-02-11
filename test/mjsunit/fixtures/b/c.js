@@ -10,6 +10,10 @@ debug("load fixtures/b/c.js");
 
 var string = "C";
 
+exports.SomeClass = function() {
+ 
+};
+
 exports.C = function () {
   return string;
 };

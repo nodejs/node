@@ -4,6 +4,7 @@ debug("load fixtures/a.js");
 
 var string = "A";
 
+exports.SomeClass = c.SomeClass;
 
 exports.A = function () {
   return string;
