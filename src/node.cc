@@ -318,15 +318,15 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
 }
 
-static void ReportException(TryCatch *try_catch, bool show_line = false) {
-  Handle<Message> message = try_catch->Message();
+static void ReportException(TryCatch &try_catch, bool show_line = false) {
+  Handle<Message> message = try_catch.Message();
   if (message.IsEmpty()) {
     fprintf(stderr, "Error: (no message)\n");
     fflush(stderr);
     return;
   }
 
-  Handle<Value> error = try_catch->Exception();
+  Handle<Value> error = try_catch.Exception();
   Handle<String> stack;
 
   if (error->IsObject()) {
@@ -373,13 +373,13 @@ Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
 
   Local<Script> script = Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
@@ -424,15 +424,15 @@ static Handle<Value> Unloop(const Arguments& args) {
 
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
-  
+
   if (args.Length() != 1 || !args[0]->IsString()) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
-  
+
   String::Utf8Value path(args[0]->ToString());
-  
+
   int r = chdir(*path);
-  
+
   if (r != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
@@ -456,13 +456,13 @@ static Handle<Value> Cwd(const Arguments& args) {
 static Handle<Value> Umask(const Arguments& args){
   HandleScope scope;
 
-  if(args.Length() < 1 || !args[0]->IsInt32()) {		
+  if(args.Length() < 1 || !args[0]->IsInt32()) {
     return ThrowException(Exception::TypeError(
           String::New("argument must be an integer.")));
   }
   unsigned int mask = args[0]->Uint32Value();
   unsigned int old = umask((mode_t)mask);
-  
+
   return scope.Close(Uint32::New(old));
 }
 
@@ -736,11 +736,11 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
   HandleScope scope;
-  
+
   if (args.Length() < 1 || !args[0]->IsNumber()) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
-  
+
   pid_t pid = args[0]->IntegerValue();
 
   int sig = SIGTERM;
@@ -824,7 +824,7 @@ Handle<Value> Compile(const Arguments& args) {
   Local<Script> script = Script::Compile(source, filename);
   if (try_catch.HasCaught()) {
     // Hack because I can't get a proper stacktrace on SyntaxError
-    ReportException(&try_catch, true);
+    ReportException(try_catch, true);
     exit(1);
   }
 
@@ -850,7 +850,7 @@ void FatalException(TryCatch &try_catch) {
 
   // Check if uncaught_exception_counter indicates a recursion
   if (uncaught_exception_counter > 0) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
@@ -876,7 +876,7 @@ void FatalException(TryCatch &try_catch) {
   uint32_t length = listener_array->Length();
   // Report and exit if process has no "uncaughtException" listener
   if (length == 0) {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(1);
   }
 
@@ -914,10 +914,6 @@ static void DebugMessageDispatch(void) {
   ev_async_send(EV_DEFAULT_UC_ &debug_watcher);
 }
 
-
-static void ExecuteNativeJS(const char *filename, const char *data) {
-  HandleScope scope;
-}
 
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
@@ -1032,40 +1028,41 @@ static void Load(int argc, char *argv[]) {
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
   // source code.)
-  
+
   // The node.js file returns a function 'f'
- 
+
 #ifndef NDEBUG
   TryCatch try_catch;
-#endif 
+#endif
 
   Local<Value> f_value = ExecuteString(String::New(native_node),
                                        String::New("node.js"));
 #ifndef NDEBUG
   if (try_catch.HasCaught())  {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(10);
   }
-#endif 
+#endif
   assert(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Now we call 'f' with the 'process' variable that we've built up with
   // all our bindings. Inside node.js we'll take care of assigning things to
   // their places.
-  
+
   // We start the process this way in order to be more modular. Developers
   // who do not like how 'src/node.js' setups the module system but do like
   // Node's I/O bindings may want to replace 'f' with their own function.
 
-  f->Call(global, 1, &Local<Value>::New(process));
+  Local<Value> args[1] = { Local<Value>::New(process) };
+  f->Call(global, 1, args);
 
 #ifndef NDEBUG
   if (try_catch.HasCaught())  {
-    ReportException(&try_catch);
+    ReportException(try_catch);
     exit(11);
   }
-#endif 
+#endif
 }
 
 static void PrintHelp() {
