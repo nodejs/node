@@ -54,7 +54,7 @@ c.addListener("connect", function () {
   requests_sent += 1;
 });
 
-c.addListener("receive", function (chunk) {
+c.addListener("data", function (chunk) {
   server_response += chunk;
 
   if (requests_sent == 1) {
@@ -72,7 +72,7 @@ c.addListener("receive", function (chunk) {
 
 });
 
-c.addListener("eof", function () {
+c.addListener("end", function () {
   client_got_eof = true;
 });
 

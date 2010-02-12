@@ -32,12 +32,12 @@ static Persistent<String> write_only_symbol;
 static Persistent<String> closing_symbol;
 static Persistent<String> closed_symbol;
 
-static Persistent<String> receive_symbol;
+static Persistent<String> data_symbol;
 static Persistent<String> connection_symbol;
 static Persistent<String> connect_symbol;
 static Persistent<String> timeout_symbol;
 static Persistent<String> drain_symbol;
-static Persistent<String> eof_symbol;
+static Persistent<String> end_symbol;
 static Persistent<String> close_symbol;
 
 static const struct addrinfo server_tcp_hints =
@@ -76,12 +76,12 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   closing_symbol = NODE_PSYMBOL("closing");
   closed_symbol = NODE_PSYMBOL("closed");
 
-  receive_symbol = NODE_PSYMBOL("receive");
+  data_symbol = NODE_PSYMBOL("data");
   connection_symbol = NODE_PSYMBOL("connection");
   connect_symbol = NODE_PSYMBOL("connect");
   timeout_symbol = NODE_PSYMBOL("timeout");
   drain_symbol = NODE_PSYMBOL("drain");
-  eof_symbol = NODE_PSYMBOL("eof");
+  end_symbol = NODE_PSYMBOL("end");
   close_symbol = NODE_PSYMBOL("close");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -618,7 +618,7 @@ Handle<Value> Connection::Send(const Arguments& args) {
 void Connection::OnReceive(const void *buf, size_t len) {
   HandleScope scope;
   Local<Value> data = Encode(buf, len, encoding_);
-  Emit(receive_symbol, 1, &data);
+  Emit(data_symbol, 1, &data);
 }
 
 void Connection::OnClose() {
@@ -656,7 +656,7 @@ void Connection::OnDrain() {
 
 void Connection::OnEOF() {
   HandleScope scope;
-  Emit(eof_symbol, 0, NULL);
+  Emit(end_symbol, 0, NULL);
 }
 
 Persistent<FunctionTemplate> Server::constructor_template;

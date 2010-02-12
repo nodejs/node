@@ -15,12 +15,12 @@ var echo_server = tcp.createServer(function (socket) {
     p(timeouttime);
   });
 
-  socket.addListener("receive", function (d) {
+  socket.addListener("data", function (d) {
     p(d);
     socket.send(d);
   });
 
-  socket.addListener("eof", function () {
+  socket.addListener("end", function () {
     socket.close();
   });
 });
@@ -36,7 +36,7 @@ client.addListener("connect", function () {
   client.send("hello\r\n");
 });
 
-client.addListener("receive", function (chunk) {
+client.addListener("data", function (chunk) {
   assert.equal("hello\r\n", chunk);
   if (exchanges++ < 5) {
     setTimeout(function () {
@@ -57,8 +57,8 @@ client.addListener("timeout", function () {
   assert.equal(false, true);
 });
 
-client.addListener("eof", function () {
-  puts("client eof");
+client.addListener("end", function () {
+  puts("client end");
   client.close();
 });
 

@@ -40,14 +40,14 @@ c.addListener("connect", function () {
           "Connection: Keep-Alive\r\n\r\n");
 });
 
-c.addListener("receive", function (chunk) {
+c.addListener("data", function (chunk) {
   puts(chunk);
   server_response += chunk;
 });
 
-c.addListener("eof", function () {
+c.addListener("end", function () {
   client_got_eof = true;
-  puts('got eof');
+  puts('got end');
   c.close();
 });
 

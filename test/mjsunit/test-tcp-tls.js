@@ -21,7 +21,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.addListener("receive", function (data) {
+    socket.addListener("data", function (data) {
       var verified = socket.verifyPeer();
       var peerDN = socket.getPeerCertificate("DNstring");
       assert.equal(verified, 1);
@@ -35,7 +35,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
       }
     });
 
-    socket.addListener("eof", function () {
+    socket.addListener("end", function () {
       assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
@@ -65,7 +65,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     client.send("PING");
   });
 
-  client.addListener("receive", function (data) {
+  client.addListener("data", function (data) {
     assert.equal("PONG", data);
     count += 1;
 

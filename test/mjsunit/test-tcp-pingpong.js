@@ -21,7 +21,7 @@ function pingPongTest (port, host, on_complete) {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.addListener("receive", function (data) {
+    socket.addListener("data", function (data) {
       puts("server got: " + JSON.stringify(data));
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
@@ -30,7 +30,7 @@ function pingPongTest (port, host, on_complete) {
       }
     });
 
-    socket.addListener("eof", function () {
+    socket.addListener("end", function () {
       assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
@@ -52,7 +52,7 @@ function pingPongTest (port, host, on_complete) {
     client.send("PING");
   });
 
-  client.addListener("receive", function (data) {
+  client.addListener("data", function (data) {
     assert.equal("PONG", data);
     count += 1;
 

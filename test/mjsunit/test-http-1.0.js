@@ -23,12 +23,12 @@ c.addListener("connect", function () {
   c.send( "GET / HTTP/1.0\r\n\r\n" );
 });
 
-c.addListener("receive", function (chunk) {
+c.addListener("data", function (chunk) {
   puts(chunk);
   server_response += chunk;
 });
 
-c.addListener("eof", function () {
+c.addListener("end", function () {
   client_got_eof = true;
   c.close();
   server.close();

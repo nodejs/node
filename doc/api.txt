@@ -234,7 +234,7 @@ there is a connection, a child process emits an event when it exits. All
 objects which emit events are instances of +events.EventEmitter+.
 
 Events are represented by a camel-cased string. Here are some examples:
-+"connection"+, +"receive"+, +"messageBegin"+.
++"connection"+, +"data"+, +"messageBegin"+.
 
 Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_.
@@ -1353,10 +1353,10 @@ var server = tcp.createServer(function (socket) {
   socket.addListener("connect", function () {
     socket.send("hello\r\n");
   });
-  socket.addListener("receive", function (data) {
+  socket.addListener("data", function (data) {
     socket.send(data);
   });
-  socket.addListener("eof", function () {
+  socket.addListener("end", function () {
     socket.send("goodbye\r\n");
     socket.close();
   });
@@ -1421,11 +1421,11 @@ socket for +tcp.Server+.
 |+"connect"+     |              | Call once the connection is established
                                   after a call to +createConnection()+ or
                                   +connect()+.
-|+"receive"+     | +data+       | Called when data is received on the
+|+"data"+        | +data+       | Called when data is received on the
                                   connection.  +data+ will be a string.
                                   Encoding of data is set by
                                   +connection.setEncoding()+. 
-|+"eof"+         |              | Called when the other end of the
+|+"end"+         |              | Called when the other end of the
                                   connection sends a FIN packet.
                                   After this is emitted the +readyState+
                                   will be +"writeOnly"+. One should probably
@@ -1491,7 +1491,7 @@ Ensures that no more I/O activity happens on this socket. Only
 necessary in case of errors (parse error or so).
 
 +connection.readPause()+::
-Pauses the reading of data. That is, +"receive"+ events will not be emitted.
+Pauses the reading of data. That is, +"data"+ events will not be emitted.
 Useful to throttle back an upload.
 
 +connection.readResume()+::

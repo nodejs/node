@@ -21,7 +21,7 @@ client.addListener("error", function() {
   errorCount++;
 });
 
-client.addListener("eof", function() {
+client.addListener("end", function() {
   sys.puts("EOF!");
   eofCount++;
 });

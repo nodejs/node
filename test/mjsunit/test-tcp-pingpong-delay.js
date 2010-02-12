@@ -13,7 +13,7 @@ function pingPongTest (port, host, on_complete) {
   var server = tcp.createServer(function (socket) {
     socket.setEncoding("utf8");
 
-    socket.addListener("receive", function (data) {
+    socket.addListener("data", function (data) {
       puts(data);
       assert.equal("PING", data);
       assert.equal("open", socket.readyState);
@@ -29,7 +29,7 @@ function pingPongTest (port, host, on_complete) {
       assert.equal(false, true);
     });
 
-    socket.addListener("eof", function () {
+    socket.addListener("end", function () {
       puts("server-side socket EOF");
       assert.equal("writeOnly", socket.readyState);
       socket.close();
@@ -53,7 +53,7 @@ function pingPongTest (port, host, on_complete) {
     client.send("PING");
   });
 
-  client.addListener("receive", function (data) {
+  client.addListener("data", function (data) {
     puts(data);
     assert.equal("PONG", data);
     assert.equal("open", client.readyState);

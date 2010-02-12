@@ -24,7 +24,7 @@ chars_recved = 0;
 
 client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
-client.addListener("receive", function (d) {
+client.addListener("data", function (d) {
     print(d);
     recv += d;
 });
@@ -57,7 +57,7 @@ setTimeout(function () {
 
 }, 500);
 
-client.addListener("eof", function () {
+client.addListener("end", function () {
   server.close();
   client.close();
 });
