@@ -1071,7 +1071,7 @@ static void PrintHelp() {
          "  --debug          enable remote debugging\n" // TODO specify port
          "  --cflags         print pre-processor and compiler flags\n"
          "  --v8-options     print v8 command line options\n\n"
-         "Documentation can be found at http://tinyclouds.org/node/api.html"
+         "Documentation can be found at http://nodejs.org/api.html"
          " or with 'man node'\n");
 }
 
