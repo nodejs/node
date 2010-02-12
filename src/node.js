@@ -501,7 +501,7 @@ function debug (x) {
 
 
 
-var posixModule = createInternalModule("posix", function (exports) {
+var fsModule = createInternalModule("fs", function (exports) {
   exports.Stats = process.Stats;
 
   function callback (promise) {
@@ -695,7 +695,7 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 });
 
-var posix = posixModule.exports;
+var fs = fsModule.exports;
 
 
 var pathModule = createInternalModule("path", function (exports) {
@@ -757,7 +757,7 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    var p = posix.stat(path);
+    var p = fs.stat(path);
     p.addCallback(function () { callback(true); });
     p.addErrback(function () { callback(false); });
   };
@@ -927,7 +927,7 @@ function cat (id, loadPromise) {
         loadPromise.emitError(new Error("could not load core module \"http\""));
       });
   } else {
-    promise = posix.cat(id);
+    promise = fs.cat(id);
   }
 
   return promise;

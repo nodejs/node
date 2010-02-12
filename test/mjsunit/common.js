@@ -11,5 +11,5 @@ var sys = require("sys");
 
 process.mixin(exports, sys);
 exports.assert = require('assert');
-exports.posix = require("posix");
+exports.fs = require("fs");
 exports.path = path;

@@ -1,6 +1,6 @@
 process.mixin(require("./common"));
 tcp = require("tcp");
-posix=require("posix");
+fs=require("fs");
 
 var tests_run = 0;
 
@@ -105,9 +105,9 @@ try {
 } 
 
 if (have_tls) {
-  var caPem = posix.cat(fixturesDir+"/test_ca.pem").wait();
-  var certPem = posix.cat(fixturesDir+"/test_cert.pem").wait();
-  var keyPem = posix.cat(fixturesDir+"/test_key.pem").wait();
+  var caPem = fs.cat(fixturesDir+"/test_ca.pem").wait();
+  var certPem = fs.cat(fixturesDir+"/test_cert.pem").wait();
+  var keyPem = fs.cat(fixturesDir+"/test_key.pem").wait();
 
   /* All are run at once, so run on different ports */
   tlsTest(20443, "localhost", caPem, keyPem, certPem);
