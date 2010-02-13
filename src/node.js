@@ -264,7 +264,7 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   exports.Promise.prototype.addCallback = function (listener) {
     if (this.hasFired === 'success') {
-      return listener.apply(this, this._values);
+      listener.apply(this, this._values);
     }
 
     return this.addListener("success", listener);
