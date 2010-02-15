@@ -45,6 +45,9 @@ p5.addCallback(function () {
   }, 100);
 });
 
+var p6 = new events.Promise();
+var p7 = new events.Promise();
+p7.addErrback(function() {});
 
 p2.emitSuccess();
 
@@ -73,6 +76,18 @@ var ret4 = p4.wait();
 assert.deepEqual(["a","b","c"], ret4);
 
 assert.equal(true, p4_done);
+
+
+p6.emitSuccess("something");
+assert.equal("something", p6.wait());
+p7.emitError("argh!");
+var goterr;
+try {
+	p7.wait();
+} catch(err) {
+	goterr = err;
+}
+assert.equal("argh!", goterr.toString());
 
 process.addListener("exit", function () {
   assert.equal(true, p1_done);
