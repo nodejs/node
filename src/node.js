@@ -1,5 +1,4 @@
 (function (process) {
-process.startTime = new Date();
 
 process.global.process = process;
 process.global.global = process.global;

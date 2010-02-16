@@ -112,9 +112,6 @@ The PID of the process.
 +process.platform+ ::
 What platform you're running on. +"linux2"+, +"darwin"+, etc.
 
-+process.startTime+ ::
-When the process started.
-
 +process.memoryUsage()+ ::
 Returns the memory usage of the Node process. It looks like this
 +
