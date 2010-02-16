@@ -592,7 +592,6 @@ error:
 #include <mach/mach_init.h>
 
 int getmem(size_t *rss, size_t *vsize) {
-  task_t task = MACH_PORT_NULL;
   struct task_basic_info t_info;
   mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
 
