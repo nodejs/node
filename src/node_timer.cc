@@ -27,7 +27,7 @@ Timer::Initialize (Handle<Object> target)
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Timer::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Timer::Stop);
 
-  constructor_template->PrototypeTemplate()->SetAccessor(repeat_symbol,
+  constructor_template->InstanceTemplate()->SetAccessor(repeat_symbol,
       RepeatGetter, RepeatSetter);
 
   target->Set(String::NewSymbol("Timer"), constructor_template->GetFunction());

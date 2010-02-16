@@ -112,12 +112,12 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   #endif
 
   // Getter for connection.readyState
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       ready_state_symbol,
       ReadyStateGetter);
 
   // Getter for connection.readyState
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       fd_symbol,
       FDGetter);
 
