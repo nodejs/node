@@ -20,7 +20,7 @@ function pingPongTest (port, host, on_complete) {
       assert.equal(true, count <= N);
       setTimeout(function () {
         assert.equal("open", socket.readyState);
-        socket.send("PONG");
+        socket.write("PONG");
       }, DELAY);
     });
 
@@ -50,7 +50,7 @@ function pingPongTest (port, host, on_complete) {
 
   client.addListener("connect", function () {
     assert.equal("open", client.readyState);
-    client.send("PING");
+    client.write("PING");
   });
 
   client.addListener("data", function (data) {
@@ -61,7 +61,7 @@ function pingPongTest (port, host, on_complete) {
     setTimeout(function () {
       assert.equal("open", client.readyState);
       if (count++ < N) {
-        client.send("PING");
+        client.write("PING");
       } else {
         puts("closing client");
         client.close();

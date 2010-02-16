@@ -20,7 +20,7 @@ var c = tcp.createConnection(port);
 c.setEncoding("utf8");
 
 c.addListener("connect", function () {
-  c.send( "GET / HTTP/1.0\r\n\r\n" );
+  c.write( "GET / HTTP/1.0\r\n\r\n" );
 });
 
 c.addListener("data", function (chunk) {

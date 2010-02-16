@@ -23,7 +23,7 @@ s.listen(port);
 
 var c = tcp.createConnection(port);
 c.addListener("connect", function () {
-  c.send("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
+  c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.close();
 });
 

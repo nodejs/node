@@ -50,7 +50,7 @@ var c = tcp.createConnection(port);
 c.setEncoding("utf8");
 
 c.addListener("connect", function () {
-  c.send( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
+  c.write( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
   requests_sent += 1;
 });
 
@@ -58,13 +58,13 @@ c.addListener("data", function (chunk) {
   server_response += chunk;
 
   if (requests_sent == 1) {
-    c.send("POST /quit HTTP/1.1\r\n\r\n");
+    c.write("POST /quit HTTP/1.1\r\n\r\n");
     requests_sent += 1;
   }
 
   if (requests_sent == 2) {
-    c.send("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
-          +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
+    c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
+           +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
     c.close();
     assert.equal(c.readyState, "readOnly");
     requests_sent += 2;

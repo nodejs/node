@@ -36,7 +36,7 @@ var c = tcp.createConnection(port);
 c.setEncoding("utf8");
 
 c.addListener("connect", function () {
-  c.send( "GET / HTTP/1.0\r\n" +
+  c.write("GET / HTTP/1.0\r\n" +
           "Connection: Keep-Alive\r\n\r\n");
 });
 

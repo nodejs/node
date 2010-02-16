@@ -27,6 +27,7 @@ class Connection : public EventEmitter {
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
   static v8::Handle<v8::Value> Send(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Write(const v8::Arguments& args);
   static v8::Handle<v8::Value> SendUtf8(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
   static v8::Handle<v8::Value> ForceClose(const v8::Arguments& args);
@@ -61,7 +62,7 @@ class Connection : public EventEmitter {
     return evcom_stream_connect(&stream_, address);
   }
 
-  void Send(const char *buf, size_t len) {
+  void Write(const char *buf, size_t len) {
     evcom_stream_write(&stream_, buf, len);
   }
 

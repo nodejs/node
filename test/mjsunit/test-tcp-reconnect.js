@@ -9,7 +9,7 @@ var disconnect_count = 0;
 
 var server = tcp.createServer(function (socket) {
   socket.addListener("connect", function () {
-    socket.send("hello\r\n");
+    socket.write("hello\r\n");
   });
 
   socket.addListener("end", function () {

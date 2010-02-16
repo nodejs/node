@@ -31,7 +31,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
-        socket.send("PONG");
+        socket.write("PONG");
       }
     });
 
@@ -62,7 +62,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     assert.equal(verified, 1);
     assert.equal(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
 			 + "OU=Test TLS Certificate,CN=localhost");
-    client.send("PING");
+    client.write("PING");
   });
 
   client.addListener("data", function (data) {
@@ -79,10 +79,10 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     }
 
     if (count < N) {
-      client.send("PING");
+      client.write("PING");
     } else {
       sent_final_ping = true;
-      client.send("PING");
+      client.write("PING");
       client.close();
     }
   });

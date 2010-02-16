@@ -18,7 +18,7 @@ var server = tcp.createServer(function (c) {
   c.addListener("connect", function () {
     total_connections++;
     print("#");
-    c.send(body);
+    c.write(body);
     c.close();
   });
 });

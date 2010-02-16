@@ -23,7 +23,7 @@ var echoServer = tcp.createServer(function (connection) {
   connection.setEncoding("binary");
   connection.addListener("data", function (chunk) {
     error("recved: " + JSON.stringify(chunk));
-    connection.send(chunk, "binary");
+    connection.write(chunk, "binary");
   });
   connection.addListener("end", function () {
     connection.close();
@@ -39,8 +39,8 @@ var c = tcp.createConnection(PORT);
 c.setEncoding("binary");
 c.addListener("data", function (chunk) {
   if (j < 256) {
-    error("send " + j);
-    c.send(String.fromCharCode(j), "binary");
+    error("write " + j);
+    c.write(String.fromCharCode(j), "binary");
     j++;
   } else {
     c.close();
@@ -49,7 +49,7 @@ c.addListener("data", function (chunk) {
 });
 
 c.addListener("connect", function () {
-  c.send(binaryString, "binary");
+  c.write(binaryString, "binary");
 });
 
 c.addListener("close", function () {

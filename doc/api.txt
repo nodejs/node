@@ -1351,13 +1351,13 @@ var tcp = require("tcp");
 var server = tcp.createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
-    socket.send("hello\r\n");
+    socket.write("hello\r\n");
   });
   socket.addListener("data", function (data) {
-    socket.send(data);
+    socket.write(data);
   });
   socket.addListener("end", function () {
-    socket.send("goodbye\r\n");
+    socket.write("goodbye\r\n");
     socket.close();
   });
 });
@@ -1474,7 +1474,7 @@ Either +"closed"+, +"open"+, +"opening"+, +"readOnly"+, or +"writeOnly"+.
 +connection.setEncoding(encoding)+::
 Sets the encoding (either +"ascii"+, +"utf8"+, or +"binary"+) for data that is received.
 
-+connection.send(data, encoding="ascii")+::
++connection.write(data, encoding="ascii")+::
 Sends data on the connection. The second parameter specifies the encoding
 in the case of a string--it defaults to ASCII because encoding to UTF8 is
 rather slow.
@@ -1507,7 +1507,7 @@ If +timeout+ is 0, then the idle timeout is disabled.
 +connection.setNoDelay(noDelay=true)+::
 Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting +noDelay+ will
-immediately fire off data each time +connection.send()+ is called.
+immediately fire off data each time +connection.write()+ is called.
 
 +connection.verifyPeer()+::
 Returns an integer indicating the trusted status of the peer in a TLS
