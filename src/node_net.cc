@@ -226,7 +226,7 @@ Handle<Value> Connection::Connect(const Arguments& args) {
   }
 
   // If connect() is called on an open connection, raise an error.
-  if (connection->ReadyState() != EVCOM_INITIALIZED) {
+  if (connection->ReadyState() != EVCOM_INITIALIZED || connection->resolving_) {
     Local<Value> exception = Exception::Error(
         String::New("Socket is not in CLOSED state."));
     return ThrowException(exception);
