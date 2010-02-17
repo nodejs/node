@@ -22,13 +22,18 @@ var emails = fixture.messages.slice(0),
   firstPart = new (events.Promise);
 
 // test streaming messages through directly, as if they were in a file or something.
+sys.puts("test "+emails.length+" emails");
 (function testEmails () {
+  
   var email = emails.pop(),
     curr = 0;
+
   if (!email) {
+    sys.puts("done testing emails");
     firstPart.emitSuccess();
     return;
   }
+  sys.puts("testing email "+emails.length);
   var expect = email.expect;
 
   var message  = new (events.EventEmitter);
@@ -36,9 +41,11 @@ var emails = fixture.messages.slice(0),
 
   var mp = multipart.parse(message);
   mp.addListener("partBegin", function (part) {
+    sys.puts(">> testing part #"+curr);
     testPart(email.expect[curr ++], part);
   });
   mp.addListener("complete", function () {
+    sys.puts("done with email "+emails.length);
     process.nextTick(testEmails);
   });
   // stream it through in chunks.
@@ -57,15 +64,21 @@ var emails = fixture.messages.slice(0),
 // run good HTTP messages test after previous test ends.
 var secondPart = new (events.Promise),
   server = http.createServer(function (req, res) {
+    sys.puts("HTTP mp request");
     var mp = multipart.parse(req),
       curr = 0;
     req.setBodyEncoding("binary");
     if (req.url !== "/bad") {
+      sys.puts("expected to be good");
       mp.addListener("partBegin", function (part) {
+        sys.puts(">> testing part #"+curr);
         testPart(message.expect[curr ++], part);
       });
+    } else {
+      sys.puts("expected to be bad");
     }
     mp.addListener("error", function (er) {
+      sys.puts("!! error occurred");
       res.sendHeader(400, {});
       res.sendBody("bad");
       res.finish();
@@ -83,12 +96,14 @@ server.listen(PORT);
 // could dry these two up a bit.
 firstPart.addCallback(function testGoodMessages () {
   var httpMessages = fixture.messages.slice(0);
-  process.nextTick(function testHTTP () {
+  sys.puts("testing "+httpMessages.length+" good messages");
+  (function testHTTP () {
     message = httpMessages.pop();
     if (!message) {
       secondPart.emitSuccess();
       return;
     }
+    sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/", message.headers);
     req.sendBody(message.body, "binary");
     req.finish(function (res) {
@@ -99,16 +114,18 @@ firstPart.addCallback(function testGoodMessages () {
         process.nextTick(testHTTP);
       });
     });
-  });
+  })();
 });
 secondPart.addCallback(function testBadMessages () {
   var httpMessages = fixture.badMessages.slice(0);
-  process.nextTick(function testHTTP () {
+  sys.puts("testing "+httpMessages.length+" bad messages");
+  (function testHTTP () {
     message = httpMessages.pop();
     if (!message) {
       server.close()
       return;
     }
+    sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/bad", message.headers);
     req.sendBody(message.body, "binary");
     req.finish(function (res) {
@@ -119,5 +136,5 @@ secondPart.addCallback(function testBadMessages () {
         process.nextTick(testHTTP);
       });
     });
-  });
+  })();
 });
