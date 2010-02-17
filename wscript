@@ -7,7 +7,7 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.28"
+VERSION="0.1.29"
 APPNAME="node.js"
 
 import js2c
@@ -133,7 +133,7 @@ def configure(conf):
                     #libpath=['/usr/lib', '/usr/local/lib'],
                     uselib_store='GNUTLS'):
     if conf.check(lib='gpg-error',
-                  libpath=['/usr/lib', '/usr/local/lib'],
+                  libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib'],
                   uselib_store='GPGERROR'):
       conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
       conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")

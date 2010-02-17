@@ -33,6 +33,7 @@ doc/api.html: doc/api.txt
 	asciidoc --unsafe              \
 		-a theme=pipe                \
 		-a toc                       \
+		-a toclevels=1               \
 		-a linkcss                   \
 		-o doc/api.html doc/api.txt
 
@@ -43,7 +44,7 @@ doc/node.1: doc/api.xml
 	xsltproc --output doc/node.1 --nonet doc/manpage.xsl doc/api.xml
 
 website-upload: doc
-	scp doc/* linode:~/tinyclouds/node/
+	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
 
 docclean:
 	@-rm -f doc/node.1 doc/api.xml doc/api.html
@@ -58,11 +59,11 @@ distclean: docclean
 check:
 	@tools/waf-light check
 
-VERSION=$(shell git-describe)
+VERSION=$(shell git describe)
 TARNAME=node-$(VERSION)
 
 dist: doc/node.1 doc/api.html
-	git-archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
+	git archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp doc/api.html $(TARNAME)/doc/api.html

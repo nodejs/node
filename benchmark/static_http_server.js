@@ -20,15 +20,17 @@ var server = http.createServer(function (req, res) {
     "Content-Type": "text/plain",
     "Content-Length": body.length
   });
-  res.sendBody(body);
-  res.finish();
+  res.write(body);
+  res.close();
 })
 server.listen(port);
 
 function responseListener (res) {
-  res.addListener("complete", function () {
+  res.addListener("end", function () {
     if (requests < n) {
-      res.client.request("/").finish(responseListener);
+      var req = res.client.request("/");
+      req.addListener('response', responseListener);
+      req.close();
       requests++;
     }
 
@@ -41,6 +43,8 @@ function responseListener (res) {
 for (var i = 0; i < concurrency; i++) {
   var client = http.createClient(port);
   client.id = i;
-  client.request("/").finish(responseListener);
+  var req = client.request("/");
+  req.addListener('response', responseListener);
+  req.close();
   requests++;
 }

@@ -2,18 +2,18 @@ process.mixin(require("./common"));
 
 var
   count = 100,
-  posix = require('posix');
+  fs = require('fs');
 
 function tryToKillEventLoop() {
   puts('trying to kill event loop ...');
 
-  posix.stat(__filename)
+  fs.stat(__filename)
     .addCallback(function() {
-      puts('first posix.stat succeeded ...');
+      puts('first fs.stat succeeded ...');
 
-      posix.stat(__filename)
+      fs.stat(__filename)
         .addCallback(function() {
-          puts('second posix.stat succeeded ...');
+          puts('second fs.stat succeeded ...');
           puts('could not kill event loop, retrying...');
 
           setTimeout(function () {
@@ -25,26 +25,26 @@ function tryToKillEventLoop() {
           }, 1);
         })
         .addErrback(function() {
-          throw new Exception('second posix.stat failed')
+          throw new Exception('second fs.stat failed')
         })
 
     })
     .addErrback(function() {
-      throw new Exception('first posix.stat failed')
+      throw new Exception('first fs.stat failed')
     });
 }
 
 // Generate a lot of thread pool events
 var pos = 0;
-posix.open('/dev/zero', process.O_RDONLY, 0666).addCallback(function (rd) {
+fs.open('/dev/zero', "r").addCallback(function (rd) {
   function readChunk () {
-    posix.read(rd, 1024, pos, 'binary').addCallback(function (chunk, bytesRead) {
+    fs.read(rd, 1024, pos, 'binary').addCallback(function (chunk, bytesRead) {
       if (chunk) {
         pos += bytesRead;
         //puts(pos);
         readChunk();
       } else {
-        posix.close(rd);
+        fs.close(rd);
         throw new Exception(BIG_FILE+' should not end before the issue shows up');
       }
     }).addErrback(function () {

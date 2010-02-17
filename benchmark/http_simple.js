@@ -52,7 +52,6 @@ http.createServer(function (req, res) {
                   , "Content-Length": content_length
                   }
                 );
-  res.sendBody(body);
-          
-  res.finish();
+  res.write(body);
+  res.close();
 }).listen(8000);

@@ -2,7 +2,7 @@ process.mixin(require("./common"));
 
 var got_error = false;
 
-var promise = posix.readdir(fixturesDir);
+var promise = fs.readdir(fixturesDir);
 puts("readdir " + fixturesDir);
 
 promise.addCallback(function (files) {

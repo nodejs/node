@@ -9,10 +9,10 @@ var disconnect_count = 0;
 
 var server = tcp.createServer(function (socket) {
   socket.addListener("connect", function () {
-    socket.send("hello\r\n");
+    socket.write("hello\r\n");
   });
 
-  socket.addListener("eof", function () {
+  socket.addListener("end", function () {
     socket.close();
   });
 
@@ -31,7 +31,7 @@ client.addListener("connect", function () {
   puts("client connected.");
 });
 
-client.addListener("receive", function (chunk) {
+client.addListener("data", function (chunk) {
   client_recv_count += 1;
   puts("client_recv_count " + client_recv_count);
   assert.equal("hello\r\n", chunk);

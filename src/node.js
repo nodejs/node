@@ -48,12 +48,12 @@ function Module (id, parent) {
   this.exports = {};
   this.parent = parent;
 
-  this.moduleCache = {};
-
   if (parent) {
-    process.mixin(this.moduleCache, parent.moduleCache);
-    this.moduleCache[parent.id] = parent;
+    this.moduleCache = parent.moduleCache;
+  } else {
+    this.moduleCache = {};
   }
+  this.moduleCache[this.id] = this;
 
   this.filename = null;
   this.loaded = false;
@@ -263,7 +263,7 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   exports.Promise.prototype.addCallback = function (listener) {
     if (this.hasFired === 'success') {
-      return listener.apply(this, this._values);
+      listener.apply(this, this._values);
     }
 
     return this.addListener("success", listener);
@@ -295,6 +295,18 @@ var eventsModule = createInternalModule('events', function (exports) {
     var self = this;
     var ret;
     var hadError = false;
+
+    if (this.hasFired) {
+      ret = (this._values.length == 1)
+          ? this._values[0]
+          : this.values;
+
+      if (this.hasFired == 'success') {
+        return ret;
+      } else if (this.hasFired == 'error') {
+        throw ret;
+      }
+    }
 
     self.addCallback(function () {
       if (arguments.length == 1) {
@@ -339,7 +351,8 @@ var events = eventsModule.exports;
 
 var nextTickQueue = [];
 var nextTickWatcher = new process.IdleWatcher();
-nextTickWatcher.setPriority(process.EVMAXPRI); // max priority
+// Only debugger has maximum priority. Below that is the nextTickWatcher.
+nextTickWatcher.setPriority(process.EVMAXPRI-1);
 
 nextTickWatcher.callback = function () {
   var l = nextTickQueue.length;
@@ -500,7 +513,7 @@ function debug (x) {
 
 
 
-var posixModule = createInternalModule("posix", function (exports) {
+var fsModule = createInternalModule("fs", function (exports) {
   exports.Stats = process.Stats;
 
   function callback (promise) {
@@ -512,6 +525,23 @@ var posixModule = createInternalModule("posix", function (exports) {
                                   Array.prototype.slice.call(arguments, 1));
       }
     };
+  }
+  
+  // Used by fs.open and friends
+  function stringToFlags(flag) {
+    // Only mess with strings
+    if (typeof flag !== 'string') {
+      return flag;
+    }
+    switch (flag) {
+      case "r": return process.O_RDONLY;
+      case "r+": return process.O_RDWR;
+      case "w": return process.O_CREAT | process.O_TRUNC | process.O_WRONLY;
+      case "w+": return process.O_CREAT | process.O_TRUNC | process.O_RDWR;
+      case "a": return process.O_APPEND | process.O_CREAT | process.O_WRONLY; 
+      case "a+": return process.O_APPEND | process.O_CREAT | process.O_RDWR;
+      default: throw new Error("Unknown file open flag: " + flag);
+    }
   }
 
   // Yes, the follow could be easily DRYed up but I provide the explicit
@@ -528,13 +558,15 @@ var posixModule = createInternalModule("posix", function (exports) {
   };
 
   exports.open = function (path, flags, mode) {
+    if (mode === undefined) { mode = 0666; }
     var promise = new events.Promise();
-    process.fs.open(path, flags, mode, callback(promise));
+    process.fs.open(path, stringToFlags(flags), mode, callback(promise));
     return promise;
   };
 
   exports.openSync = function (path, flags, mode) {
-    return process.fs.open(path, flags, mode);
+    if (mode === undefined) { mode = 0666; }
+    return process.fs.open(path, stringToFlags(flags), mode);
   };
 
   exports.read = function (fd, length, position, encoding) {
@@ -641,13 +673,54 @@ var posixModule = createInternalModule("posix", function (exports) {
     return process.fs.unlink(path);
   };
 
+  exports.writeFile = function (path, data, encoding) {
+    var promise = new events.Promise();
+    encoding = encoding || "utf8"; // default to utf8
 
-  exports.cat = function (path, encoding) {
+    fs.open(path, "w")
+      .addCallback(function (fd) {
+        function doWrite (_data) {
+          fs.write(fd, _data, 0, encoding)
+            .addErrback(function () {
+              fs.close(fd);
+              promise.emitError();
+            })
+            .addCallback(function (written) {
+              if (written === _data.length) {
+                fs.close(fd);
+                promise.emitSuccess();
+              } else {
+                doWrite(_data.slice(written));
+              }
+            });
+        }
+        doWrite(data);
+      })
+      .addErrback(function () {
+        promise.emitError();
+      });
+
+    return promise;
+    
+  };
+  
+  exports.writeFileSync = function (path, data, encoding) {
+    encoding = encoding || "utf8"; // default to utf8
+    var fd = exports.openSync(path, "w");
+    return process.fs.write(fd, data, 0, encoding);
+  };
+  
+  
+  exports.cat = function () {
+    throw new Error("fs.cat is deprecated. Please use fs.readFile instead.");
+  };
+
+  exports.readFile = function (path, encoding) {
     var promise = new events.Promise();
 
     encoding = encoding || "utf8"; // default to utf8
 
-    exports.open(path, process.O_RDONLY, 0666).addCallback(function (fd) {
+    exports.open(path, "r").addCallback(function (fd) {
       var content = "", pos = 0;
 
       function readChunk () {
@@ -675,9 +748,30 @@ var posixModule = createInternalModule("posix", function (exports) {
     });
     return promise;
   };
+
+  exports.catSync = function () {
+    throw new Error("fs.catSync is deprecated. Please use fs.readFileSync instead.");
+  };
+
+  exports.readFileSync = function (path, encoding) {
+    encoding = encoding || "utf8"; // default to utf8
+
+    var
+      fd = exports.openSync(path, "r"),
+      content = '',
+      pos = 0,
+      r;
+
+    while ((r = exports.readSync(fd, 16*1024, pos, encoding)) && r[0]) {
+      content += r[0];
+      pos += r[1]
+    }
+
+    return content;
+  };
 });
 
-var posix = posixModule.exports;
+var fs = fsModule.exports;
 
 
 var pathModule = createInternalModule("path", function (exports) {
@@ -739,7 +833,7 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    var p = posix.stat(path);
+    var p = fs.stat(path);
     p.addCallback(function () { callback(true); });
     p.addErrback(function () { callback(false); });
   };
@@ -909,7 +1003,7 @@ function cat (id, loadPromise) {
         loadPromise.emitError(new Error("could not load core module \"http\""));
       });
   } else {
-    promise = posix.cat(id);
+    promise = fs.readFile(id);
   }
 
   return promise;

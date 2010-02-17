@@ -27,7 +27,7 @@ static Persistent<String> header_field_symbol;
 static Persistent<String> header_value_symbol;
 static Persistent<String> header_complete_symbol;
 static Persistent<String> body_symbol;
-static Persistent<String> eof_symbol;
+static Persistent<String> end_symbol;
 
 static Persistent<String> delete_sym;
 static Persistent<String> get_sym;
@@ -66,7 +66,7 @@ HTTPConnection::Initialize (Handle<Object> target)
   NODE_SET_PROTOTYPE_METHOD(server_constructor_template, "resetParser", ResetParser);
   server_constructor_template->SetClassName(String::NewSymbol("ServerSideConnection"));
 
-  eof_symbol = NODE_PSYMBOL("eof");
+  end_symbol = NODE_PSYMBOL("end");
 
 }
 
@@ -123,7 +123,7 @@ HTTPConnection::OnEOF ()
   assert(refs_);
   size_t nparsed;
   nparsed = http_parser_execute(&parser_, NULL, 0);
-  Emit(eof_symbol, 0, NULL);
+  Emit(end_symbol, 0, NULL);
 }
 
 int

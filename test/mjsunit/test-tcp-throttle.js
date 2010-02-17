@@ -4,17 +4,17 @@ PORT = 20443;
 N = 200;
 
 server = tcp.createServer(function (connection) {
-  function send (j) {
+  function write (j) {
     if (j >= N) {
       connection.close();
       return;
     }
     setTimeout(function () {
-      connection.send("C");
-      send(j+1);
+      connection.write("C");
+      write(j+1);
     }, 10);
   }
-  send(0);
+  write(0);
 });
 server.listen(PORT);
 
@@ -24,7 +24,7 @@ chars_recved = 0;
 
 client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
-client.addListener("receive", function (d) {
+client.addListener("data", function (d) {
     print(d);
     recv += d;
 });
@@ -57,7 +57,7 @@ setTimeout(function () {
 
 }, 500);
 
-client.addListener("eof", function () {
+client.addListener("end", function () {
   server.close();
   client.close();
 });

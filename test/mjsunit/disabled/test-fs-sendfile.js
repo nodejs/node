@@ -19,8 +19,8 @@ server.listen(PORT);
 
 var client = tcp.createConnection(PORT);
 client.addListener("connect", function () {
-  posix.open(x,process.O_RDONLY, 0666).addCallback(function (fd) {
-    posix.sendfile(client.fd, fd, 0, expected.length).addCallback(function (size) {
+  fs.open(x, 'r').addCallback(function (fd) {
+    fs.sendfile(client.fd, fd, 0, expected.length).addCallback(function (size) {
       assert.equal(expected.length, size);
     });
   });

@@ -1,4 +1,45 @@
-2010.02.09, Version 0.1.28
+2010.02.17, Version 0.1.29
+
+  * Major API Changes
+    - Remove 'file' module
+    - require('posix') -----------------> require('fs')
+    - fs.cat ---------------------------> fs.readFile
+    - file.write -----------------------> fs.writeFile
+    - TCP 'receive' event --------------> 'data'
+    - TCP 'eof' event ------------------> 'end'
+    - TCP send() -----------------------> write()
+    - HTTP sendBody() ------------------> write()
+    - HTTP finish() --------------------> close()
+    - HTTP 'body' event ----------------> 'data'
+    - HTTP 'complete' event ------------> 'end'
+    - http.Client.prototype.close() (formerly finish()) no longer
+      takes an argument. Add the 'response' listener manually.
+    - Allow strings for the flag argument to fs.open
+      ("r", "r+", "w", "w+", "a", "a+")
+
+  * Added multiple arg support for sys.puts(), print(), etc.
+    (tj@vision-media.ca)
+
+  * sys.inspect(Date) now shows the date value (Mark Hansen)
+
+  * Calculate page size with getpagesize for armel (Jérémy Lal)
+
+  * Bugfix: stderr flushing.
+
+  * Bugfix: Promise late chain (Yuichiro MASUI)
+
+  * Bugfix: wait() on fired promises
+    (Felix Geisendörfer, Jonas Pfenniger)
+
+  * Bugfix: Use InstanceTemplate() instead of PrototypeTemplate() for
+    accessor methods. Was causing a crash with Eclipse debugger.
+    (Zoran Tomicic)
+
+  * Bugfix: Throw from connection.connect if resolving.
+    (Reported by James Golick)
+
+
+2010.02.09, Version 0.1.28, 49de41ef463292988ddacfb01a20543b963d9669
 
   * Use Google's jsmin.py which can be used for evil.
 

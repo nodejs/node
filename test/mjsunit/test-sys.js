@@ -10,6 +10,8 @@ assert.equal("[Function]", inspect(function() {}));
 assert.equal('undefined', inspect(undefined));
 assert.equal('null', inspect(null));
 assert.equal('/foo(bar\\n)?/gi', inspect(/foo(bar\n)?/gi));
+assert.equal('Sun, 14 Feb 2010 11:48:40 GMT',
+        inspect(new Date("Sun, 14 Feb 2010 11:48:40 GMT")));
 
 assert.equal("\"\\n\\u0001\"", inspect("\n\u0001"));
 
@@ -77,5 +79,13 @@ value = /123/ig;
 value.aprop = 42;
 assert.equal(
   "{ /123/gi\n \"aprop\": 42\n}",
+  inspect(value)
+);
+
+// Dates with properties
+value = new Date("Sun, 14 Feb 2010 11:48:40 GMT");
+value.aprop = 42;
+assert.equal(
+  "{ Sun, 14 Feb 2010 11:48:40 GMT\n \"aprop\": 42\n}",
   inspect(value)
 );

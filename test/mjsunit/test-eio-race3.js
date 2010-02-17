@@ -2,10 +2,10 @@ process.mixin(require("./common"));
 
 puts('first stat ...');
 
-posix.stat(__filename)
+fs.stat(__filename)
   .addCallback( function(stats) {
     puts('second stat ...');
-    posix.stat(__filename)
+    fs.stat(__filename)
       .timeout(1000)
       .wait();
 

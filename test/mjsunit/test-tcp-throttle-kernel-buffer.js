@@ -13,7 +13,7 @@ puts("start server on port " + PORT);
 
 server = tcp.createServer(function (connection) {
   connection.addListener("connect", function () {
-    connection.send(body);
+    connection.write(body);
     connection.close();
   });
 });
@@ -27,7 +27,7 @@ npauses = 0;
 var paused = false;
 client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
-client.addListener("receive", function (d) {
+client.addListener("data", function (d) {
   chars_recved += d.length;
   puts("got " + chars_recved);
   if (!paused) {
@@ -45,7 +45,7 @@ client.addListener("receive", function (d) {
   }
 });
 
-client.addListener("eof", function () {
+client.addListener("end", function () {
   server.close();
   client.close();
 });

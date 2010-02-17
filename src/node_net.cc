@@ -32,12 +32,12 @@ static Persistent<String> write_only_symbol;
 static Persistent<String> closing_symbol;
 static Persistent<String> closed_symbol;
 
-static Persistent<String> receive_symbol;
+static Persistent<String> data_symbol;
 static Persistent<String> connection_symbol;
 static Persistent<String> connect_symbol;
 static Persistent<String> timeout_symbol;
 static Persistent<String> drain_symbol;
-static Persistent<String> eof_symbol;
+static Persistent<String> end_symbol;
 static Persistent<String> close_symbol;
 
 static const struct addrinfo server_tcp_hints =
@@ -76,12 +76,12 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   closing_symbol = NODE_PSYMBOL("closing");
   closed_symbol = NODE_PSYMBOL("closed");
 
-  receive_symbol = NODE_PSYMBOL("receive");
+  data_symbol = NODE_PSYMBOL("data");
   connection_symbol = NODE_PSYMBOL("connection");
   connect_symbol = NODE_PSYMBOL("connect");
   timeout_symbol = NODE_PSYMBOL("timeout");
   drain_symbol = NODE_PSYMBOL("drain");
-  eof_symbol = NODE_PSYMBOL("eof");
+  end_symbol = NODE_PSYMBOL("end");
   close_symbol = NODE_PSYMBOL("close");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -96,6 +96,7 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "write", Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
@@ -112,12 +113,12 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   #endif
 
   // Getter for connection.readyState
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       ready_state_symbol,
       ReadyStateGetter);
 
   // Getter for connection.readyState
-  constructor_template->PrototypeTemplate()->SetAccessor(
+  constructor_template->InstanceTemplate()->SetAccessor(
       fd_symbol,
       FDGetter);
 
@@ -225,7 +226,7 @@ Handle<Value> Connection::Connect(const Arguments& args) {
   }
 
   // If connect() is called on an open connection, raise an error.
-  if (connection->ReadyState() != EVCOM_INITIALIZED) {
+  if (connection->ReadyState() != EVCOM_INITIALIZED || connection->resolving_) {
     Local<Value> exception = Exception::Error(
         String::New("Socket is not in CLOSED state."));
     return ThrowException(exception);
@@ -586,7 +587,17 @@ Handle<Value> Connection::SetNoDelay(const Arguments& args) {
   return Undefined();
 }
 
+
 Handle<Value> Connection::Send(const Arguments& args) {
+  HandleScope scope;
+  return ThrowException(Exception::Error(String::New(
+        "connection.send() has been renamed to connection.write(). "
+        "(Also the 'receive' event has been renamed to 'data' and "
+        "the 'eof' event has been renamed to 'end'.)")));
+}
+
+
+Handle<Value> Connection::Write(const Arguments& args) {
   HandleScope scope;
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
   assert(connection);
@@ -609,7 +620,7 @@ Handle<Value> Connection::Send(const Arguments& args) {
   char * buf = new char[len];
   ssize_t written = DecodeWrite(buf, len, args[0], enc);
   assert(written == len);
-  connection->Send(buf, written);
+  connection->Write(buf, written);
   delete [] buf;
 
   return scope.Close(Integer::New(written));
@@ -618,7 +629,7 @@ Handle<Value> Connection::Send(const Arguments& args) {
 void Connection::OnReceive(const void *buf, size_t len) {
   HandleScope scope;
   Local<Value> data = Encode(buf, len, encoding_);
-  Emit(receive_symbol, 1, &data);
+  Emit(data_symbol, 1, &data);
 }
 
 void Connection::OnClose() {
@@ -656,7 +667,7 @@ void Connection::OnDrain() {
 
 void Connection::OnEOF() {
   HandleScope scope;
-  Emit(eof_symbol, 0, NULL);
+  Emit(end_symbol, 0, NULL);
 }
 
 Persistent<FunctionTemplate> Server::constructor_template;

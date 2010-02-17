@@ -14,8 +14,8 @@ var s = http.createServer(function (req, res) {
   puts("req: " + JSON.stringify(url.parse(req.url)));
 
   res.sendHeader(200, {"Content-Type": "text/plain"});
-  res.sendBody("Hello World");
-  res.finish();
+  res.write("Hello World");
+  res.close();
 
   if (++nrequests_completed == nrequests_expected) s.close();
 });
@@ -23,7 +23,7 @@ s.listen(port);
 
 var c = tcp.createConnection(port);
 c.addListener("connect", function () {
-  c.send("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
+  c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.close();
 });
 

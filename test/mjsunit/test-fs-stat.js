@@ -4,7 +4,7 @@ var got_error = false;
 var success_count = 0;
 var stats;
 
-var promise = posix.stat(".");
+var promise = fs.stat(".");
 
 promise.addCallback(function (_stats) {
   stats = _stats;
@@ -17,7 +17,7 @@ promise.addErrback(function () {
 });
 
 puts("stating: " + __filename);
-posix.stat(__filename).addCallback(function (s) {
+fs.stat(__filename).addCallback(function (s) {
   p(s);
   success_count++;
 

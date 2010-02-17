@@ -7,12 +7,11 @@ var setTimeout_called = false;
 
 assert.equal(true, setTimeout instanceof Function);
 var starttime = new Date;
-
 setTimeout(function () {
   var endtime = new Date;
 
   var diff = endtime - starttime;
-  if (diff < 0) diff = -diff;
+  assert.ok(diff > 0);
   puts("diff: " + diff);
 
   assert.equal(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
@@ -28,7 +27,7 @@ setInterval(function () {
   var endtime = new Date;
 
   var diff = endtime - starttime;
-  if (diff < 0) diff = -diff;
+  assert.ok(diff > 0);
   puts("diff: " + diff);
 
   var t = interval_count * 1000;
@@ -50,7 +49,7 @@ var interval_count2 = 0;
 setInterval(function(param){
   ++interval_count2;
   assert.equal("test param", param);
-  
+
   if(interval_count2 == 3)
     clearInterval(this);
 }, 1000, "test param");
@@ -67,7 +66,7 @@ setInterval(function(param1, param2){
   ++interval_count3;
   assert.equal("param1", param1);
   assert.equal("param2", param2);
-  
+
   if(interval_count3 == 3)
     clearInterval(this);
 }, 1000, "param1", "param2");

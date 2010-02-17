@@ -24,7 +24,7 @@ child.addListener("output", function (data){
       child.close();
     }
   } else {
-    puts('child eof');
+    puts('child end');
   }
 });
 

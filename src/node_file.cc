@@ -412,7 +412,10 @@ static Handle<Value> Read(const Arguments& args) {
       ret = pread(fd, buf, MIN(len, READ_BUF_LEN), offset);
     }
     if (ret < 0) return ThrowException(errno_exception(errno));
-    return scope.Close(Integer::New(ret));
+    Local<Array> a = Array::New(2);
+    a->Set(Integer::New(0), Encode(buf, ret, encoding));
+    a->Set(Integer::New(1), Integer::New(ret));
+    return scope.Close(a);
   }
 }
 

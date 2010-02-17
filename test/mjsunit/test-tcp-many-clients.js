@@ -18,7 +18,7 @@ var server = tcp.createServer(function (c) {
   c.addListener("connect", function () {
     total_connections++;
     print("#");
-    c.send(body);
+    c.write(body);
     c.close();
   });
 });
@@ -35,11 +35,11 @@ function runClient (callback) {
     client.connections += 1;
   });
 
-  client.addListener("receive", function (chunk) {
+  client.addListener("data", function (chunk) {
     this.recved += chunk;
   });
 
-  client.addListener("eof", function (had_error) {
+  client.addListener("end", function (had_error) {
     client.close();
   });
 

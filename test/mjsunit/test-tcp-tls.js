@@ -1,6 +1,6 @@
 process.mixin(require("./common"));
 tcp = require("tcp");
-posix=require("posix");
+fs=require("fs");
 
 var tests_run = 0;
 
@@ -21,7 +21,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.addListener("receive", function (data) {
+    socket.addListener("data", function (data) {
       var verified = socket.verifyPeer();
       var peerDN = socket.getPeerCertificate("DNstring");
       assert.equal(verified, 1);
@@ -31,11 +31,11 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
-        socket.send("PONG");
+        socket.write("PONG");
       }
     });
 
-    socket.addListener("eof", function () {
+    socket.addListener("end", function () {
       assert.equal("writeOnly", socket.readyState);
       socket.close();
     });
@@ -62,10 +62,10 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     assert.equal(verified, 1);
     assert.equal(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
 			 + "OU=Test TLS Certificate,CN=localhost");
-    client.send("PING");
+    client.write("PING");
   });
 
-  client.addListener("receive", function (data) {
+  client.addListener("data", function (data) {
     assert.equal("PONG", data);
     count += 1;
 
@@ -79,10 +79,10 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     }
 
     if (count < N) {
-      client.send("PING");
+      client.write("PING");
     } else {
       sent_final_ping = true;
-      client.send("PING");
+      client.write("PING");
       client.close();
     }
   });
@@ -105,9 +105,9 @@ try {
 } 
 
 if (have_tls) {
-  var caPem = posix.cat(fixturesDir+"/test_ca.pem").wait();
-  var certPem = posix.cat(fixturesDir+"/test_cert.pem").wait();
-  var keyPem = posix.cat(fixturesDir+"/test_key.pem").wait();
+  var caPem = fs.readFile(fixturesDir+"/test_ca.pem").wait();
+  var certPem = fs.readFile(fixturesDir+"/test_cert.pem").wait();
+  var keyPem = fs.readFile(fixturesDir+"/test_key.pem").wait();
 
   /* All are run at once, so run on different ports */
   tlsTest(20443, "localhost", caPem, keyPem, certPem);

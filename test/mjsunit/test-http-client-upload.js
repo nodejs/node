@@ -10,17 +10,17 @@ var server = http.createServer(function(req, res) {
   assert.equal("POST", req.method);
   req.setBodyEncoding("utf8");
 
-  req.addListener("body", function (chunk) {
+  req.addListener('data', function (chunk) {
     puts("server got: " + JSON.stringify(chunk));
     sent_body += chunk;
   });
 
-  req.addListener("complete", function () {
+  req.addListener('end', function () {
     server_req_complete = true;
     puts("request complete from server");
     res.sendHeader(200, {'Content-Type': 'text/plain'});
-    res.sendBody('hello\n');
-    res.finish();
+    res.write('hello\n');
+    res.close();
   });
 });
 server.listen(PORT);
@@ -28,21 +28,22 @@ server.listen(PORT);
 var client = http.createClient(PORT);
 var req = client.request('POST', '/');
 
-req.sendBody('1\n');
-req.sendBody('2\n');
-req.sendBody('3\n');
+req.write('1\n');
+req.write('2\n');
+req.write('3\n');
 
 puts("client finished sending request");
-req.finish(function(res) {
+req.addListener('response', function(res) {
   res.setBodyEncoding("utf8");
-  res.addListener('body', function(chunk) {
+  res.addListener('data', function(chunk) {
     puts(chunk);
   });
-  res.addListener('complete', function() {
+  res.addListener('end', function() {
     client_res_complete = true;
     server.close();
   });
 });
+req.close();
 
 process.addListener("exit", function () {
   assert.equal("1\n2\n3\n", sent_body);

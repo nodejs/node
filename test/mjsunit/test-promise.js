@@ -24,13 +24,13 @@ a.addErrback(function(error) {
 });
 a.emitSuccess(TEST_VALUE);
 
-a.addCallback(function(value) {
+assert.ok(a.addCallback(function(value) {
   assert.equal(TEST_VALUE, value);
   expectedCallbacks.a2--;
-});
-a.addErrback(function(error) {
+}));
+assert.ok(a.addErrback(function(error) {
   assert.notEqual(TEST_VALUE, error, 'late');
-});
+}));
 
 // Test regular & late errback binding
 var b = new Promise();
@@ -48,10 +48,10 @@ b.addErrback(function(value) {
 // Test late errback binding
 var c = new Promise();
 c.emitError(TEST_VALUE);
-c.addErrback(function(value) {
+assert.ok(c.addErrback(function(value) {
   assert.equal(TEST_VALUE, value);
   expectedCallbacks.c1--;
-});
+}));
 
 // Test errback exceptions
 var d = new Promise();
