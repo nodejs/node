@@ -901,7 +901,7 @@ static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
   HandleScope scope;
   assert(watcher == &debug_watcher);
   assert(revents == EV_ASYNC);
-  ExecuteString(String::New("1+1;"), String::New("debug_poll"));
+  Debug::ProcessDebugMessages();
 }
 
 static void DebugMessageDispatch(void) {
@@ -1148,12 +1148,8 @@ int main(int argc, char *argv[]) {
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
-#define AUTO_BREAK_FLAG "--debugger_auto_break"
   // If the --debug flag was specified then initialize the debug thread.
   if (node::use_debug_agent) {
-    // First apply --debugger_auto_break setting to V8. This is so we can
-    // enter V8 by just executing any bit of javascript
-    V8::SetFlagsFromString(AUTO_BREAK_FLAG, sizeof(AUTO_BREAK_FLAG));
     // Initialize the async watcher for receiving messages from the debug
     // thread and marshal it into the main thread. DebugMessageCallback()
     // is called from the main thread to execute a random bit of javascript
