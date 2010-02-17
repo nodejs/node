@@ -33,6 +33,7 @@ doc/api.html: doc/api.txt
 	asciidoc --unsafe              \
 		-a theme=pipe                \
 		-a toc                       \
+		-a toclevels=1               \
 		-a linkcss                   \
 		-o doc/api.html doc/api.txt
 

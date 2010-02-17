@@ -35,18 +35,15 @@ Server running at http://127.0.0.1:8000/
 ----------------------------------------
 
 
-== API
+== Encodings
 
 Node supports 3 string encodings. UTF-8 (+"utf8"+), ASCII (+"ascii"+), and
 Binary (+"binary"+). +"ascii"+ and +"binary"+ only look at the first 8 bits
 of the 16bit JavaScript string characters. Both are relatively fast--use
 them if you can. +"utf8"+ is slower and should be avoided when possible.
 
-Unless otherwise noted, functions are all asynchronous and do not block
-execution.
 
-
-=== Global Objects
+== Global Objects
 
 +global+ ::
 The global namespace object.
@@ -55,7 +52,7 @@ The global namespace object.
 The process object. Most stuff lives in here. See the "process object"
 section.
 
-+require(path)+ ::
++require()+ ::
 See the modules section.
 
 +require.paths+ ::
@@ -74,7 +71,7 @@ more information.
 
 
 
-=== The +process+ Object
+== The +process+ Object
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -193,7 +190,7 @@ share structure with the original object(s).
 Undefined properties are not copied. However, properties inherited from the
 object's prototype will be copied over.
 
-=== System module
+== System module
 
 These function are in the module +"sys"+. Use +require("sys")+ to access
 them.
@@ -227,7 +224,7 @@ sys.exec("ls /").addCallback(function (stdout, stderr) {
 
 
 
-=== Events
+== Events
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a connection, a child process emits an event when it exits. All
@@ -243,7 +240,7 @@ Some asynchronous file operations return an +EventEmitter+ called a
 _promise_.  A promise emits just a single event when the operation is
 complete.
 
-==== +events.EventEmitter+
+=== +events.EventEmitter+
 
 +require("events")+ to access the events module.
 
@@ -279,7 +276,7 @@ manipulated, e.g. to remove listeners.
 +emitter.emit(event, arg1, arg2, ...)+ ::
 Execute each of the listeners in order with the supplied arguments.
 
-==== +events.Promise+
+=== +events.Promise+
 
 +require("events")+ to access the events module.
 
@@ -394,7 +391,7 @@ to wait(). Use +promise.wait()+ sparingly--probably best used only during
 program setup, not during busy server activity. 
 
 
-=== Standard I/O
+== Standard I/O
 
 Standard I/O is handled through a special object +process.stdio+. stdout and
 stdin are fully non-blocking (even when piping to files). stderr is
@@ -426,7 +423,7 @@ Write data to stderr. Synchronous.
 Close stdin.
 
 
-=== Modules
+== Modules
 
 Node uses the CommonJS module system.
 
@@ -514,13 +511,14 @@ puts("The area of a circle of radius 4 is " + area(4));
 
 
 
-=== Timers
+== Timers
 
+The following are global variables
 
 +setTimeout(callback, delay, [arg, ...])+::
 To schedule execution of +callback+ after +delay+ milliseconds. Returns a
 +timeoutId+ for possible use with +clearTimeout()+.
-
++
 Optionally, you can also pass arguments to the callback.
 
 
@@ -531,7 +529,7 @@ Prevents said timeout from triggering.
 +setInterval(callback, delay, [arg, ...])+::
 To schedule the repeated execution of +callback+ every +delay+ milliseconds. Returns
 a +intervalId+ for possible use with +clearInterval()+.
-
++
 Optionally, you can also pass arguments to the callback.
 
 
@@ -539,13 +537,13 @@ Optionally, you can also pass arguments to the callback.
 Stops a interval from triggering.
 
 
-=== Child Processes
+== Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
 +process.ChildProcess+. It is possible to stream data through the child's +stdin+,
 +stdout+, and +stderr+ in a fully non-blocking way.
 
-==== +process.ChildProcess+
+=== +process.ChildProcess+
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -603,13 +601,11 @@ will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
 
 
 
-=== POSIX module
+== File System
 
 File I/O is provided by simple wrappers around standard POSIX functions.  To
-use this module do +require("fs")+. 
-
-All POSIX wrappers have a similar form.  They return a promise
-(+events.Promise+). Example of deleting a file:
+use this module do +require("fs")+. All the methods have a similar form.
+They return a promise (+events.Promise+). Example of deleting a file:
 
 ------------------------------------------------------------------------------
 var fs = require("fs"),
@@ -622,8 +618,8 @@ promise.addCallback(function () {
 });
 ------------------------------------------------------------------------------
 
-There is no guaranteed ordering to the POSIX wrappers. The
-following is very much prone to error
+This is asynchornous, there is no guaranteed ordering. The following is
+prone to error
 
 ------------------------------------------------------------------------------
 fs.rename("/tmp/hello", "/tmp/world");
@@ -632,7 +628,7 @@ fs.stat("/tmp/world").addCallback(function (stats) {
 });
 ------------------------------------------------------------------------------
 
-It could be that +stat()+ is executed before the +rename()+.
+It could be that +fs.stat+ is executed before +fs.rename+.
 The correct way to do this is to chain the promises.
 
 ------------------------------------------------------------------------------
@@ -761,7 +757,7 @@ fs.writeFile("message.txt", "Hello Node").addCallback(function () {
 - on success: no parameters.
 - on error: no parameters.
 
-==== +fs.Stats+
+=== +fs.Stats+
 
 Objects returned from +fs.stat()+ are of this type.
 
@@ -779,7 +775,7 @@ Objects returned from +fs.stat()+ are of this type.
 
 +stats.isSocket()+:: ...
 
-=== HTTP
+== HTTP
 
 To use the HTTP server and client one must +require("http")+.
 
@@ -807,7 +803,7 @@ parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
 
-==== +http.Server+
+=== +http.Server+
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -861,7 +857,7 @@ Stops the server from accepting new connections.
 
 
 
-==== +http.ServerRequest+
+=== +http.ServerRequest+
 
 This object is created internally by a HTTP server--not by
 the user--and passed as the first argument to a +"request"+ listener.
@@ -961,7 +957,7 @@ Resumes a paused request.
 The +http.Connection+ object.
 
 
-==== +http.ServerResponse+
+=== +http.ServerResponse+
 
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the +"request"+ event.
@@ -1012,7 +1008,7 @@ response.
 
 
 
-==== +http.Client+
+=== +http.Client+
 
 An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
@@ -1078,7 +1074,7 @@ key for the client, which together with the certificate allows the client to aut
 itself to the server.
 
 
-==== +http.ClientRequest+
+=== +http.ClientRequest+
 
 This object is created internally and returned from the request methods of a
 +http.Client+. It represents an _in-progress_ request whose header has
@@ -1153,7 +1149,7 @@ chunked, this will send the terminating +"0\r\n\r\n"+.
 
 
 
-==== +http.ClientResponse+
+=== +http.ClientResponse+
 
 This object is created internally and passed to the +"response"+ event.
 
@@ -1196,7 +1192,7 @@ After emitted no other events will be emitted on the response.
 +response.client+ ::
   A reference to the +http.Client+ that this response belongs to.
 
-=== Multipart Parsing
+== Multipart Parsing
 
 A library to parse +multipart+ internet messages is included with
 Node.  To use it, +require("multipart")+.
@@ -1222,13 +1218,12 @@ Node.  To use it, +require("multipart")+.
   No checking is done to ensure that the file does not overload the memory.
   Only use multipart.cat with known and trusted input!
 
-==== +multipart.Stream+
+=== +multipart.Stream+
 
 The multipart.Stream class is a streaming parser wrapped around a message.
 The Stream also contains the properties described for the +part+ objects below,
 and is a reference to the top-level message.
 
-===== Events
 
 [cols="1,2,10",options="header"]
 |=========================================================
@@ -1242,7 +1237,6 @@ and is a reference to the top-level message.
                                   indicates that the message is malformed.
 |=========================================================
 
-===== Properties
 
 +stream.part+::
 The current part being processed.  This is important, for instance, when responding
@@ -1256,19 +1250,15 @@ will be set to +false+.
 +stream.parts+::
 An array of the parts contained within the message.  Each is a +part+ object.
 
-===== Methods
-
 +stream.pause+::
 If the underlying message supports pause and resume, then this will pause the stream.
 
 +stream.resume+::
 If the underlying message supports pause and resume, then this will resume the paused stream.
 
-==== Part Objects
+=== +multipart.Part+
 
 As it parses the message, the Stream object will create +Part+ objects.
-
-===== Properties
 
 +part.parent+::
 The message that contains this part.
@@ -1300,7 +1290,7 @@ For multipart messages, this is the multipart type specified in the +content-typ
 For example, a message with +content-type: multipart/form-data+ will have a +type+
 property of +form-data+.
 
-==== Example
+=== Example
 
 Here is an example for parsing a +multipart/form-data+ request:
 
@@ -1343,7 +1333,7 @@ http.createServer(function (req, res) {
 });
 ----------------------------------------
 
-==== Nested Multipart Messages
+=== Nested Multipart Messages
 
 Nested multipart parsing is supported. The +stream.part+ object always refers
 to the current part. If +part.isMultiPart+ is set, then that part is a
@@ -1351,11 +1341,11 @@ multipart message, which contains other parts. You can inspect its +parts+
 array to see the list of sub-parts, which may also be multipart, and contain
 sub-parts.
 
-=== TCP
+== TCP
 
 To use the TCP server and client one must +require("tcp")+.
 
-==== +tcp.Server+
+=== +tcp.Server+
 
 Here is an example of a echo server which listens for connections
 on port 7000:
@@ -1424,7 +1414,7 @@ asynchronous, the server is finally closed when the server emits a +"close"+
 event.
 
 
-==== +tcp.Connection+
+=== +tcp.Connection+
 
 This object is used as a TCP client and also as a server-side
 socket for +tcp.Server+.
@@ -1542,7 +1532,7 @@ A format of "DNstring" gives a single string with the combined Distinguished
 Name (DN) from the certificate, as comma delimited name=value pairs as defined
 in RFC2253. This function is synchronous.
 
-=== DNS module
+== DNS module
 
 Use +require("dns")+ to access this module.
 
@@ -1643,7 +1633,7 @@ Each DNS query can return an error code.
 - +dns.NOMEM+: out of memory while processing.
 - +dns.BADQUERY+: the query is malformed.
 
-=== Assert Module
+== Assert Module
 
 This module is used for writing unit tests for your applications, you can access it with +require("assert")+.
 
@@ -1678,7 +1668,7 @@ Expects +block+ to throw an error.
 Expects +block+ not to throw an error.
 
 
-=== Path Module
+== Path Module
 
 This module contains utilities for dealing with file paths.  Use
 +require("path")+ to use it.  It provides the following methods:
@@ -1758,7 +1748,7 @@ require("path").exists("/etc/passwd", function (exists) {
 ------------------------------------
 
 
-=== URL Module
+== URL Module
 
 This module has utilities for URL resolution and parsing.
 
@@ -1813,7 +1803,7 @@ Take a parsed URL object, and return a formatted URL string.
 Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
 
 
-=== Query String Module
+== Query String Module
 
 This module provides utilities for dealing with query strings.  It provides the following methods:
 
