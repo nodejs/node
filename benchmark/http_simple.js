@@ -53,6 +53,5 @@ http.createServer(function (req, res) {
                   }
                 );
   res.write(body);
-          
-  res.finish();
+  res.close();
 }).listen(8000);
