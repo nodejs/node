@@ -44,7 +44,7 @@ doc/node.1: doc/api.xml
 	xsltproc --output doc/node.1 --nonet doc/manpage.xsl doc/api.xml
 
 website-upload: doc
-	scp doc/* linode:~/tinyclouds/node/
+	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
 
 docclean:
 	@-rm -f doc/node.1 doc/api.xml doc/api.html
