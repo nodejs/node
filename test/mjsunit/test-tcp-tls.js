@@ -105,9 +105,9 @@ try {
 } 
 
 if (have_tls) {
-  var caPem = fs.cat(fixturesDir+"/test_ca.pem").wait();
-  var certPem = fs.cat(fixturesDir+"/test_cert.pem").wait();
-  var keyPem = fs.cat(fixturesDir+"/test_key.pem").wait();
+  var caPem = fs.readFile(fixturesDir+"/test_ca.pem").wait();
+  var certPem = fs.readFile(fixturesDir+"/test_cert.pem").wait();
+  var keyPem = fs.readFile(fixturesDir+"/test_key.pem").wait();
 
   /* All are run at once, so run on different ports */
   tlsTest(20443, "localhost", caPem, keyPem, certPem);

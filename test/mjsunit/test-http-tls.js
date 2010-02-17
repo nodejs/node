@@ -21,9 +21,9 @@ var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = "";
 var body1 = "";
-var caPem = fs.cat(fixturesDir+"/test_ca.pem").wait();
-var certPem = fs.cat(fixturesDir+"/test_cert.pem").wait();
-var keyPem = fs.cat(fixturesDir+"/test_key.pem").wait();
+var caPem = fs.readFile(fixturesDir+"/test_ca.pem").wait();
+var certPem = fs.readFile(fixturesDir+"/test_cert.pem").wait();
+var keyPem = fs.readFile(fixturesDir+"/test_key.pem").wait();
 
 
 var http_server=http.createServer(function (req, res) {
