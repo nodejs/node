@@ -612,7 +612,6 @@ int getmem(size_t *rss, size_t *vsize) {
 #ifdef __linux__
 # define HAVE_GETMEM 1
 # include <sys/param.h> /* for MAXPATHLEN */
-# include <sys/user.h> /* for PAGE_SIZE */
 
 int getmem(size_t *rss, size_t *vsize) {
   FILE *f = fopen("/proc/self/stat", "r");
@@ -621,6 +620,7 @@ int getmem(size_t *rss, size_t *vsize) {
   int itmp;
   char ctmp;
   char buffer[MAXPATHLEN];
+  size_t page_size = getpagesize();
 
   /* PID */
   if (fscanf(f, "%d ", &itmp) == 0) goto error;
@@ -673,7 +673,7 @@ int getmem(size_t *rss, size_t *vsize) {
 
   /* Resident set size */
   if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  *rss = (size_t) itmp * PAGE_SIZE;
+  *rss = (size_t) itmp * page_size;
 
   /* rlim */
   if (fscanf (f, "%u ", &itmp) == 0) goto error;
