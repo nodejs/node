@@ -368,27 +368,7 @@ promise.addErrback(function(e) {
 +
 If the +timeout+ parameter is not provided, the current timeout value, if any,
 is returned.
-+
 
-+promise.wait()+ ::
-Blocks futher execution until the promise emits a success or error event.
-Events setup before the call to +promise.wait()+ was made may still be
-emitted and executed while +promise.wait()+ is blocking.
-+
-If there was a single argument to the +"success"+ event then it is returned.
-If there were multiple arguments to +"success"+ then they are returned as an
-array.
-+
-If +"error"+ was emitted instead, +wait()+ throws an error.
-+
-*IMPORTANT* +promise.wait()+ is not a true fiber/coroutine. If any other
-promises are created and made to wait while the first promise waits, the
-first promise's wait will not return until all others return. The benefit of
-this is a simple implementation and the event loop does not get blocked.
-Disadvantage is the possibility of situations where the promise stack grows
-infinitely large because promises keep getting created and keep being told
-to wait(). Use +promise.wait()+ sparingly--probably best used only during
-program setup, not during busy server activity. 
 
 
 == Standard I/O
@@ -639,13 +619,6 @@ fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
 });
 ------------------------------------------------------------------------------
 
-Or use the +promise.wait()+ functionality:
-
-------------------------------------------------------------------------------
-fs.rename("/tmp/hello", "/tmp/world").wait();
-var stats = fs.stat("/tmp/world").wait();
-sys.puts("stats: " + JSON.stringify(stats));
-------------------------------------------------------------------------------
 
 +fs.rename(path1, path2)+ ::
   See rename(2).
