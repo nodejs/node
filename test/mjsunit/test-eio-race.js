@@ -36,7 +36,7 @@ function tryToKillEventLoop() {
 
 // Generate a lot of thread pool events
 var pos = 0;
-fs.open('/dev/zero', process.O_RDONLY, 0666).addCallback(function (rd) {
+fs.open('/dev/zero', "r").addCallback(function (rd) {
   function readChunk () {
     fs.read(rd, 1024, pos, 'binary').addCallback(function (chunk, bytesRead) {
       if (chunk) {

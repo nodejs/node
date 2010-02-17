@@ -526,6 +526,23 @@ var fsModule = createInternalModule("fs", function (exports) {
       }
     };
   }
+  
+  // Used by fs.open and friends
+  function stringToFlags(flag) {
+    // Only mess with strings
+    if (typeof flag !== 'string') {
+      return flag;
+    }
+    switch (flag) {
+      case "r": return process.O_RDONLY;
+      case "r+": return process.O_RDWR;
+      case "w": return process.O_CREAT | process.O_TRUNC | process.O_WRONLY;
+      case "w+": return process.O_CREAT | process.O_TRUNC | process.O_RDWR;
+      case "a": return process.O_APPEND | process.O_CREAT | process.O_WRONLY; 
+      case "a+": return process.O_APPEND | process.O_CREAT | process.O_RDWR;
+      default: throw new Error("Unknown file open flag: " + flag);
+    }
+  }
 
   // Yes, the follow could be easily DRYed up but I provide the explicit
   // list to make the arguments clear.
@@ -541,13 +558,15 @@ var fsModule = createInternalModule("fs", function (exports) {
   };
 
   exports.open = function (path, flags, mode) {
+    if (mode === undefined) { mode = 0666; }
     var promise = new events.Promise();
-    process.fs.open(path, flags, mode, callback(promise));
+    process.fs.open(path, stringToFlags(flags), mode, callback(promise));
     return promise;
   };
 
   exports.openSync = function (path, flags, mode) {
-    return process.fs.open(path, flags, mode);
+    if (mode === undefined) { mode = 0666; }
+    return process.fs.open(path, stringToFlags(flags), mode);
   };
 
   exports.read = function (fd, length, position, encoding) {
@@ -654,13 +673,54 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.unlink(path);
   };
 
+  exports.writeFile = function (path, data, encoding) {
+    var promise = new events.Promise();
+    encoding = encoding || "utf8"; // default to utf8
 
-  exports.cat = function (path, encoding) {
+    fs.open(path, "w")
+      .addCallback(function (fd) {
+        function doWrite (_data) {
+          fs.write(fd, _data, 0, encoding)
+            .addErrback(function () {
+              fs.close(fd);
+              promise.emitError();
+            })
+            .addCallback(function (written) {
+              if (written === _data.length) {
+                fs.close(fd);
+                promise.emitSuccess();
+              } else {
+                doWrite(_data.slice(written));
+              }
+            });
+        }
+        doWrite(data);
+      })
+      .addErrback(function () {
+        promise.emitError();
+      });
+
+    return promise;
+    
+  };
+  
+  exports.writeFileSync = function (path, data, encoding) {
+    encoding = encoding || "utf8"; // default to utf8
+    var fd = exports.openSync(path, "w");
+    return process.fs.write(fd, data, 0, encoding);
+  };
+  
+  
+  exports.cat = function () {
+    throw new Error("fs.cat is deprecated. Please use fs.readFile instead.");
+  };
+
+  exports.readFile = function (path, encoding) {
     var promise = new events.Promise();
 
     encoding = encoding || "utf8"; // default to utf8
 
-    exports.open(path, process.O_RDONLY, 0666).addCallback(function (fd) {
+    exports.open(path, "r").addCallback(function (fd) {
       var content = "", pos = 0;
 
       function readChunk () {
@@ -689,11 +749,15 @@ var fsModule = createInternalModule("fs", function (exports) {
     return promise;
   };
 
-  exports.catSync = function (path, encoding) {
+  exports.catSync = function () {
+    throw new Error("fs.catSync is deprecated. Please use fs.readFileSync instead.");
+  };
+
+  exports.readFileSync = function (path, encoding) {
     encoding = encoding || "utf8"; // default to utf8
 
     var
-      fd = exports.openSync(path, process.O_RDONLY, 0666),
+      fd = exports.openSync(path, "r"),
       content = '',
       pos = 0,
       r;
@@ -939,7 +1003,7 @@ function cat (id, loadPromise) {
         loadPromise.emitError(new Error("could not load core module \"http\""));
       });
   } else {
-    promise = fs.cat(id);
+    promise = fs.readFile(id);
   }
 
   return promise;

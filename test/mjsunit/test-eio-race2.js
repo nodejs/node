@@ -8,7 +8,7 @@ setTimeout(function () {
   N = 30;
   for (var i=0; i < N; i++) {
     puts("start " + i);
-    fs.cat(testTxt).addCallback(function(data) {
+    fs.readFile(testTxt).addCallback(function(data) {
       puts("finish");
     }).addErrback(function (e) {
       puts("error! " + e);

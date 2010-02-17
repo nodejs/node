@@ -709,8 +709,10 @@ See the +fs.Stats+ section below for more information.
   - on error: no parameters.
 
 
-+fs.open(path, flags, mode)+::
++fs.open(path, flags, mode=0666)+::
   See open(2). The constants like +O_CREAT+ are defined at +process.O_CREAT+.
+  Also you can use the strings "r", "r+", "w", "w+", "a", or "a+" as aliases
+  to the common flag combinations.
   - on success: +fd+ is given as the parameter.
   - on error: no parameters.
 
@@ -735,16 +737,28 @@ See the +fs.Stats+ section below for more information.
   - on success: returns +data, bytes_read+, what was read from the file.
   - on error: no parameters.
 
-+fs.cat(filename, encoding="utf8")+::
++fs.readFile(filename, encoding="utf8")+::
 Outputs the entire contents of a file. Example:
 +
 --------------------------------
-fs.cat("/etc/passwd").addCallback(function (content) {
+fs.readFile("/etc/passwd").addCallback(function (content) {
   sys.puts(content);
 });
 --------------------------------
 +
 - on success: returns +data+, what was read from the file.
+- on error: no parameters.
+
++fs.writeFile(filename, data, encoding="utf8")+::
+Writes data to a file. Example:
++
+--------------------------------
+fs.writeFile("message.txt", "Hello Node").addCallback(function () {
+  sys.puts("It's saved!");
+});
+--------------------------------
++
+- on success: no parameters.
 - on error: no parameters.
 
 ==== +fs.Stats+

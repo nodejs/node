@@ -16,12 +16,11 @@ process.watchFile(f, function (curr, prev) {
 });
 
 
-var File = require("file").File;
+var fs = require("fs");
 
-var file = new File(f, 'w+');
-file.write('xyz\n');
-file.close().wait();
-
+var fd = fs.openSync(f, "w+");
+fs.writeSync(fd, 'xyz\n');
+fs.closeSync(fd);
 
 process.addListener("exit", function () {
   assert.equal(true, changes > 0);
