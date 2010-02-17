@@ -20,13 +20,13 @@ var server = http.createServer(function (req, res) {
     "Content-Type": "text/plain",
     "Content-Length": body.length
   });
-  res.sendBody(body);
+  res.write(body);
   res.finish();
 })
 server.listen(port);
 
 function responseListener (res) {
-  res.addListener("complete", function () {
+  res.addListener("end", function () {
     if (requests < n) {
       res.client.request("/").finish(responseListener);
       requests++;

@@ -48,7 +48,7 @@ var sys = require('sys'),
 http.createServer(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, {'Content-Type': 'text/plain'});
-    res.sendBody('Hello World');
+    res.write('Hello World');
     res.finish();
   }, 2000);
 }).listen(8000);

@@ -11,7 +11,7 @@ var server = http.createServer(function (req, res) {
   res.sendHeader(200, { "Content-Type": "text/plain"
                       , "Content-Length": body.length
                       });
-  res.sendBody(body);
+  res.write(body);
   res.finish();
 });
 server.listen(PORT);
@@ -24,15 +24,15 @@ var body2 = "";
 client.request("/1").finish(function (res1) {
   res1.setBodyEncoding("utf8");
 
-  res1.addListener("body", function (chunk) {
+  res1.addListener('data', function (chunk) {
     body1 += chunk;
   });
 
-  res1.addListener("complete", function () {
+  res1.addListener('end', function () {
     client.request("/2").finish(function (res2) {
       res2.setBodyEncoding("utf8");
-      res2.addListener("body", function (chunk) { body2 += chunk; });
-      res2.addListener("complete", function () { server.close(); });
+      res2.addListener('data', function (chunk) { body2 += chunk; });
+      res2.addListener('end', function () { server.close(); });
     });
   });
 });

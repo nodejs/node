@@ -25,8 +25,8 @@ var connection_was_closed = false;
 
 var server = http.createServer(function (req, res) {
   res.sendHeader(200, {"Content-Type": "text/plain"});
-  res.sendBody("hello ");
-  res.sendBody("world\n");
+  res.write("hello ");
+  res.write("world\n");
   res.finish();
 })
 server.listen(port);

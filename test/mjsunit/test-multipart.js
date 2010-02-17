@@ -52,11 +52,11 @@ sys.puts("test "+emails.length+" emails");
   var emailBody = email.body;
   process.nextTick(function s () {
     if (emailBody) {
-      message.emit("body", emailBody.substr(0, chunkSize));
+      message.emit("data", emailBody.substr(0, chunkSize));
       emailBody = emailBody.substr(chunkSize);
       process.nextTick(s);
     } else {
-      message.emit("complete");
+      message.emit("end");
     }
   });
 })();
@@ -80,12 +80,12 @@ var secondPart = new (events.Promise),
     mp.addListener("error", function (er) {
       sys.puts("!! error occurred");
       res.sendHeader(400, {});
-      res.sendBody("bad");
+      res.write("bad");
       res.finish();
     });
     mp.addListener("complete", function () {
       res.sendHeader(200, {});
-      res.sendBody("ok");
+      res.write("ok");
       res.finish();
     });
   }),
@@ -105,11 +105,11 @@ firstPart.addCallback(function testGoodMessages () {
     }
     sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/", message.headers);
-    req.sendBody(message.body, "binary");
+    req.write(message.body, "binary");
     req.finish(function (res) {
       var buff = "";
-      res.addListener("body", function (chunk) { buff += chunk });
-      res.addListener("complete", function () {
+      res.addListener("data", function (chunk) { buff += chunk });
+      res.addListener("end", function () {
         assert.equal(buff, "ok");
         process.nextTick(testHTTP);
       });
@@ -127,11 +127,11 @@ secondPart.addCallback(function testBadMessages () {
     }
     sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/bad", message.headers);
-    req.sendBody(message.body, "binary");
+    req.write(message.body, "binary");
     req.finish(function (res) {
       var buff = "";
-      res.addListener("body", function (chunk) { buff += chunk });
-      res.addListener("complete", function () {
+      res.addListener("data", function (chunk) { buff += chunk });
+      res.addListener("end", function () {
         assert.equal(buff, "bad");
         process.nextTick(testHTTP);
       });

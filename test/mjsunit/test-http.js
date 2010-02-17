@@ -27,9 +27,9 @@ http.createServer(function (req, res) {
     this.close();
   }
 
-  req.addListener("complete", function () {
+  req.addListener('end', function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
-    res.sendBody("The path was " + url.parse(req.url).pathname);
+    res.write("The path was " + url.parse(req.url).pathname);
     res.finish();
     responses_sent += 1;
   });
@@ -43,7 +43,7 @@ req.finish(function (res) {
   assert.equal(200, res.statusCode);
   responses_recvd += 1;
   res.setBodyEncoding("ascii");
-  res.addListener("body", function (chunk) { body0 += chunk; });
+  res.addListener('data', function (chunk) { body0 += chunk; });
   debug("Got /hello response");
 });
 
@@ -53,7 +53,7 @@ setTimeout(function () {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
-    res.addListener("body", function (chunk) { body1 += chunk; });
+    res.addListener('data', function (chunk) { body1 += chunk; });
     debug("Got /world response");
   });
 }, 1);

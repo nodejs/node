@@ -14,7 +14,7 @@ var s = http.createServer(function (req, res) {
   puts("req: " + JSON.stringify(url.parse(req.url)));
 
   res.sendHeader(200, {"Content-Type": "text/plain"});
-  res.sendBody("Hello World");
+  res.write("Hello World");
   res.finish();
 
   if (++nrequests_completed == nrequests_expected) s.close();

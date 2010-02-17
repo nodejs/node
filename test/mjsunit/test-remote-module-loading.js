@@ -12,7 +12,7 @@ var server = http.createServer(function(req, res) {
              '};';
 
   res.sendHeader(200, {'Content-Type': 'text/javascript'});
-  res.sendBody(body);
+  res.write(body);
   res.finish();
 });
 server.listen(PORT);

@@ -10,7 +10,7 @@ server = http.createServer(function (req, res) {
     "Content-Length": body.length, 
     "Content-Type": "text/plain", 
   });
-  res.sendBody(body);
+  res.write(body);
   res.finish();
 });
 server.listen(PORT);

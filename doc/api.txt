@@ -20,7 +20,7 @@ var sys = require("sys"),
    http = require("http");
 http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
-  response.sendBody("Hello World\n");
+  response.write("Hello World\n");
   response.finish();
 }).listen(8000);
 sys.puts("Server running at http://127.0.0.1:8000/");
@@ -856,7 +856,7 @@ the user--and passed as the first argument to a +"request"+ listener.
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"body"+        | +chunk+      | Emitted when a piece of the 
+|+"data"+        | +chunk+      | Emitted when a piece of the 
                                   message body is received. Example: A chunk
                                   of the body is given as the single
                                   argument. The transfer-encoding has been
@@ -864,7 +864,7 @@ the user--and passed as the first argument to a +"request"+ listener.
                                   body encoding is set with
                                   +request.setBodyEncoding()+.
 
-|+"complete"+    | (none)       | Emitted exactly once for each message. 
+|+"end"+         | (none)       | Emitted exactly once for each message. 
                                   No arguments.  After emitted no other
                                   events will be emitted on the request.
 |=========================================================
@@ -970,7 +970,7 @@ response.sendHeader(200, {
 This method must only be called once on a message and it must
 be called before +response.finish()+ is called.
 
-+response.sendBody(chunk, encoding="ascii")+ ::
++response.write(chunk, encoding="ascii")+ ::
 
 This method must be called after +sendHeader+ was
 called. It sends a chunk of the response body. This method may
@@ -983,10 +983,10 @@ specifies how to encode it into a byte stream. By default the
 Note: This is the raw HTTP body and has nothing to do with
 higher-level multi-part body encodings that may be used.
 +
-The first time +sendBody+ is called, it will send the buffered header
-information and the first body to the client. The second time
-+sendBody+ is called, Node assumes you're going to be streaming data, and
-sends that seperately. That is, the response is buffered up to the
+The first time +response.write()+ is called, it will send the buffered
+header information and the first body to the client. The second time
++response.write()+ is called, Node assumes you're going to be streaming
+data, and sends that seperately. That is, the response is buffered up to the
 first chunk of body.
 
 
@@ -1017,7 +1017,7 @@ request.finish(function (response) {
   sys.puts("STATUS: " + response.statusCode);
   sys.puts("HEADERS: " + JSON.stringify(response.headers));
   response.setBodyEncoding("utf8");
-  response.addListener("body", function (chunk) {
+  response.addListener("data", function (chunk) {
     sys.puts("BODY: " + chunk);
   });
 });
@@ -1049,7 +1049,7 @@ the header of the request. One needs to call
 +request.finish()+ to finalize the request and retrieve
 the response.  (This sounds convoluted but it provides a chance
 for the user to stream a body to the server with
-+request.sendBody()+.)
++request.write()+.)
 
 +client.setSecure(format_type, ca_certs, crl_list, private_key, certificate)+ ::
 Enable TLS for the client connection, with the specified credentials.
@@ -1082,7 +1082,7 @@ The +response+ argument will be an instance of +http.ClientResponse+.
 |=========================================================
 
 
-+request.sendBody(chunk, encoding="ascii")+ ::
++request.write(chunk, encoding="ascii")+ ::
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
@@ -1112,16 +1112,16 @@ The +responseListener+ callback is executed with one
 argument which is an instance of +http.ClientResponse+.
 +
 In the +responseListener+ callback, one can add more listeners to the
-response, in particular listening for the +"body"+ event. Note that
+response, in particular listening for the +"data"+ event. Note that
 the +responseListener+ is called before any part of the body is received,
 so there is no need to worry about racing to catch the first part of the
-body. As long as a listener for +"body"+ is added during the
+body. As long as a listener for +"data"+ is added during the
 +responseListener+ callback, the entire body will be caught.
 +
 ----------------------------------------
 // Good
 request.finish(function (response) {
-  response.addListener("body", function (chunk) {
+  response.addListener("data", function (chunk) {
     sys.puts("BODY: " + chunk);
   });
 });
@@ -1129,7 +1129,7 @@ request.finish(function (response) {
 // Bad - misses all or part of the body
 request.finish(function (response) {
   setTimeout(function () {
-    response.addListener("body", function (chunk) {
+    response.addListener("data", function (chunk) {
       sys.puts("BODY: " + chunk);
     });
   }, 10);
@@ -1147,13 +1147,13 @@ This object is created internally and passed to the +"response"+ event.
 |=========================================================
 |Event           | Parameters   | Notes
 
-|+"body"+        | +chunk+ |
+|+"data"+        | +chunk+ |
 Emitted when a piece of the message body is received. Example: A chunk of
 the body is given as the single argument. The transfer-encoding has been
 decoded.  The body chunk a String.  The body encoding is set with
 +response.setBodyEncoding()+.
 
-|+"complete"+    |        |
+|+"end"+    |        |
 Emitted exactly once for each message. No arguments.
 After emitted no other events will be emitted on the response.
 
@@ -1300,7 +1300,7 @@ http.createServer(function (req, res) {
     name, filename;
   mp.addListener("error", function (er) {
     res.sendHeader(400, {"content-type":"text/plain"});
-    res.sendBody("You sent a bad message!\n"+er.message);
+    res.write("You sent a bad message!\n"+er.message);
     res.finish();
   });
   mp.addListener("partBegin", function (part) {
@@ -1323,7 +1323,7 @@ http.createServer(function (req, res) {
       "content-type" : "text/plain",
       "content-length" : response.length
     });
-    res.sendBody(response);
+    res.write(response);
     res.finish();
   })
 });

@@ -10,7 +10,7 @@ var client_got_eof = false;
 
 var server = http.createServer(function (req, res) {
   res.sendHeader(200, {"Content-Type": "text/plain"});
-  res.sendBody(body);
+  res.write(body);
   res.finish();
 })
 server.listen(port);
