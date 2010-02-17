@@ -11,7 +11,7 @@ var changes = 0;
 process.watchFile(f, function (curr, prev) {
   puts(f + " change");
   changes++;
-  assert.equal(true, curr.mtime != prev.mtime);
+  assert.ok(curr.mtime != prev.mtime);
   process.unwatchFile(f);
 });
 
@@ -23,5 +23,5 @@ fs.writeSync(fd, 'xyz\n');
 fs.closeSync(fd);
 
 process.addListener("exit", function () {
-  assert.equal(true, changes > 0);
+  assert.ok(changes > 0);
 });
