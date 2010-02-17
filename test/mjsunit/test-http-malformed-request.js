@@ -15,7 +15,7 @@ var s = http.createServer(function (req, res) {
 
   res.sendHeader(200, {"Content-Type": "text/plain"});
   res.write("Hello World");
-  res.finish();
+  res.close();
 
   if (++nrequests_completed == nrequests_expected) s.close();
 });

@@ -7,7 +7,7 @@ var UTF8_STRING = "Il était tué";
 var server = http.createServer(function(req, res) {
   res.sendHeader(200, {"Content-Type": "text/plain; charset=utf8"});
   res.write(UTF8_STRING, 'utf8');
-  res.finish();
+  res.close();
 });
 server.listen(PORT);
 

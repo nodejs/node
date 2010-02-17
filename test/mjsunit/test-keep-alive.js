@@ -11,7 +11,7 @@ server = http.createServer(function (req, res) {
     "Content-Type": "text/plain", 
   });
   res.write(body);
-  res.finish();
+  res.close();
 });
 server.listen(PORT);
 

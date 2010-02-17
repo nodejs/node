@@ -21,7 +21,7 @@ var sys = require("sys"),
 http.createServer(function (request, response) {
   response.sendHeader(200, {"Content-Type": "text/plain"});
   response.write("Hello World\n");
-  response.finish();
+  response.close();
 }).listen(8000);
 sys.puts("Server running at http://127.0.0.1:8000/");
 ----------------------------------------
@@ -982,7 +982,7 @@ response.sendHeader(200, {
 ----------------------------------------
 +
 This method must only be called once on a message and it must
-be called before +response.finish()+ is called.
+be called before +response.close()+ is called.
 
 +response.write(chunk, encoding="ascii")+ ::
 
@@ -1004,10 +1004,10 @@ data, and sends that seperately. That is, the response is buffered up to the
 first chunk of body.
 
 
-+response.finish()+ ::
++response.close()+ ::
 This method signals to the server that all of the response headers and body
 has been sent; that server should consider this message complete.
-The method, +response.finish()+, MUST be called on each
+The method, +response.close()+, MUST be called on each
 response.
 
 
@@ -1027,7 +1027,7 @@ var sys = require("sys"),
    http = require("http");
 var google = http.createClient(80, "www.google.com");
 var request = google.request("GET", "/", {"host": "www.google.com"});
-request.finish(function (response) {
+request.addListener('response', function (response) {
   sys.puts("STATUS: " + response.statusCode);
   sys.puts("HEADERS: " + JSON.stringify(response.headers));
   response.setBodyEncoding("utf8");
@@ -1035,6 +1035,7 @@ request.finish(function (response) {
     sys.puts("BODY: " + chunk);
   });
 });
+request.close();
 ----------------------------------------
 
 +http.createClient(port, host)+ ::
@@ -1060,7 +1061,7 @@ set +Transfer-Encoding: chunked+.
 +
 NOTE: the request is not complete. This method only sends
 the header of the request. One needs to call
-+request.finish()+ to finalize the request and retrieve
++request.close()+ to finalize the request and retrieve
 the response.  (This sounds convoluted but it provides a chance
 for the user to stream a body to the server with
 +request.write()+.)
@@ -1083,12 +1084,42 @@ This object is created internally and returned from the request methods of a
 +http.Client+. It represents an _in-progress_ request whose header has
 already been sent.
 
+To get the response, add a listener for +'response'+ to the request object.
++'response'+ will be emitted from the request object when the response
+headers have been received.  The +'response'+ event is executed with one
+argument which is an instance of +http.ClientResponse+.
+
+During the +'response'+ event, one can add listeners to the
+response object; particularly to listen for the +"data"+ event. Note that
+the +'response' event is called before any part of the response body is received,
+so there is no need to worry about racing to catch the first part of the
+body. As long as a listener for +'data'+ is added during the +'response'
+event, the entire body will be caught.
+
+----------------------------------------
+// Good
+request.addListener('response', function (response) {
+  response.addListener("data", function (chunk) {
+    sys.puts("BODY: " + chunk);
+  });
+});
+
+// Bad - misses all or part of the body
+request.addListener('response', function (response) {
+  setTimeout(function () {
+    response.addListener("data", function (chunk) {
+      sys.puts("BODY: " + chunk);
+    });
+  }, 10);
+});
+----------------------------------------
+
+
 [cols="1,2,10",options="header"]
 |=========================================================
 |Event           | Parameters   | Notes
 |+"response"+    | +response+ |
-Emitted when a response is received to this request. Typically the user will
-set a listener to this via the +request.finish()+ method.
+Emitted when a response is received to this request.
 +
 This event is emitted only once.
 +
@@ -1114,42 +1145,11 @@ argument should be either +"utf8"+ or
 as it is faster.
 
 
-+request.finish(responseListener)+ ::
++request.close()+ ::
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the socket. If the request is
 chunked, this will send the terminating +"0\r\n\r\n"+.
-+
-The parameter +responseListener+ is a callback which
-will be executed when the response headers have been received.
-The +responseListener+ callback is executed with one
-argument which is an instance of +http.ClientResponse+.
-+
-In the +responseListener+ callback, one can add more listeners to the
-response, in particular listening for the +"data"+ event. Note that
-the +responseListener+ is called before any part of the body is received,
-so there is no need to worry about racing to catch the first part of the
-body. As long as a listener for +"data"+ is added during the
-+responseListener+ callback, the entire body will be caught.
-+
-----------------------------------------
-// Good
-request.finish(function (response) {
-  response.addListener("data", function (chunk) {
-    sys.puts("BODY: " + chunk);
-  });
-});
-
-// Bad - misses all or part of the body
-request.finish(function (response) {
-  setTimeout(function () {
-    response.addListener("data", function (chunk) {
-      sys.puts("BODY: " + chunk);
-    });
-  }, 10);
-});
-----------------------------------------
-
 
 
 
@@ -1315,7 +1315,7 @@ http.createServer(function (req, res) {
   mp.addListener("error", function (er) {
     res.sendHeader(400, {"content-type":"text/plain"});
     res.write("You sent a bad message!\n"+er.message);
-    res.finish();
+    res.close();
   });
   mp.addListener("partBegin", function (part) {
     name = part.name;
@@ -1338,7 +1338,7 @@ http.createServer(function (req, res) {
       "content-length" : response.length
     });
     res.write(response);
-    res.finish();
+    res.close();
   })
 });
 ----------------------------------------

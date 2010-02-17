@@ -30,7 +30,7 @@ http.createServer(function (req, res) {
   req.addListener('end', function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
     res.write("The path was " + url.parse(req.url).pathname);
-    res.finish();
+    res.close();
     responses_sent += 1;
   });
 
@@ -39,23 +39,25 @@ http.createServer(function (req, res) {
 
 var client = http.createClient(PORT);
 var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
-req.finish(function (res) {
+req.addListener('response', function (res) {
   assert.equal(200, res.statusCode);
   responses_recvd += 1;
   res.setBodyEncoding("ascii");
   res.addListener('data', function (chunk) { body0 += chunk; });
   debug("Got /hello response");
 });
+req.close();
 
 setTimeout(function () {
   req = client.request("POST", "/world");
-  req.finish(function (res) {
+  req.addListener('response',function (res) {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
     res.addListener('data', function (chunk) { body1 += chunk; });
     debug("Got /world response");
   });
+  req.close();
 }, 1);
 
 process.addListener("exit", function () {

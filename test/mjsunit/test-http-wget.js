@@ -27,7 +27,7 @@ var server = http.createServer(function (req, res) {
   res.sendHeader(200, {"Content-Type": "text/plain"});
   res.write("hello ");
   res.write("world\n");
-  res.finish();
+  res.close();
 })
 server.listen(port);
 

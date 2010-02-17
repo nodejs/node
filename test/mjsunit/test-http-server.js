@@ -40,7 +40,7 @@ http.createServer(function (req, res) {
   setTimeout(function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
     res.write(url.parse(req.url).pathname);
-    res.finish();
+    res.close();
   }, 1);
 
 }).listen(port);

@@ -20,7 +20,7 @@ var server = http.createServer(function(req, res) {
     puts("request complete from server");
     res.sendHeader(200, {'Content-Type': 'text/plain'});
     res.write('hello\n');
-    res.finish();
+    res.close();
   });
 });
 server.listen(PORT);
@@ -33,7 +33,7 @@ req.write('2\n');
 req.write('3\n');
 
 puts("client finished sending request");
-req.finish(function(res) {
+req.addListener('response', function(res) {
   res.setBodyEncoding("utf8");
   res.addListener('data', function(chunk) {
     puts(chunk);
@@ -43,6 +43,7 @@ req.finish(function(res) {
     server.close();
   });
 });
+req.close();
 
 process.addListener("exit", function () {
   assert.equal("1\n2\n3\n", sent_body);

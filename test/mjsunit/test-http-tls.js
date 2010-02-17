@@ -54,7 +54,7 @@ var http_server=http.createServer(function (req, res) {
   req.addListener('end', function () {
     res.sendHeader(200, {"Content-Type": "text/plain"});
     res.write("The path was " + url.parse(req.url).pathname);
-    res.finish();
+    res.close();
     responses_sent += 1;
   });
 
@@ -66,7 +66,7 @@ http_server.listen(PORT);
 var client = http.createClient(PORT, HOST);
 client.setSecure("x509_PEM", caPem, 0, keyPem, certPem);
 var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
-req.finish(function (res) {
+req.addListener('response', function (res) {
   var verified = res.connection.verifyPeer();
   var peerDN = res.connection.getPeerCertificate("DNstring");
   assert.equal(verified, 1);
@@ -78,10 +78,11 @@ req.finish(function (res) {
   res.addListener('data', function (chunk) { body0 += chunk; });
   debug("Got /hello response");
 });
+req.close();
 
 setTimeout(function () {
   req = client.request("POST", "/world");
-  req.finish(function (res) {
+  req.addListener('response', function (res) {
     var verified = res.connection.verifyPeer();
     var peerDN = res.connection.getPeerCertificate("DNstring");
     assert.equal(verified, 1);
@@ -93,6 +94,7 @@ setTimeout(function () {
     res.addListener('data', function (chunk) { body1 += chunk; });
     debug("Got /world response");
   });
+  req.close();
 }, 1);
 
 process.addListener("exit", function () {

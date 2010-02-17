@@ -81,12 +81,12 @@ var secondPart = new (events.Promise),
       sys.puts("!! error occurred");
       res.sendHeader(400, {});
       res.write("bad");
-      res.finish();
+      res.close();
     });
     mp.addListener("complete", function () {
       res.sendHeader(200, {});
       res.write("ok");
-      res.finish();
+      res.close();
     });
   }),
   message,
@@ -106,7 +106,7 @@ firstPart.addCallback(function testGoodMessages () {
     sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/", message.headers);
     req.write(message.body, "binary");
-    req.finish(function (res) {
+    req.addListener('response', function (res) {
       var buff = "";
       res.addListener("data", function (chunk) { buff += chunk });
       res.addListener("end", function () {
@@ -114,6 +114,7 @@ firstPart.addCallback(function testGoodMessages () {
         process.nextTick(testHTTP);
       });
     });
+    req.close();
   })();
 });
 secondPart.addCallback(function testBadMessages () {
@@ -128,7 +129,7 @@ secondPart.addCallback(function testBadMessages () {
     sys.puts("test message "+httpMessages.length);
     var req = client.request("POST", "/bad", message.headers);
     req.write(message.body, "binary");
-    req.finish(function (res) {
+    req.addListener('response', function (res) {
       var buff = "";
       res.addListener("data", function (chunk) { buff += chunk });
       res.addListener("end", function () {
@@ -136,5 +137,6 @@ secondPart.addCallback(function testBadMessages () {
         process.nextTick(testHTTP);
       });
     });
+    req.close();
   })();
 });
