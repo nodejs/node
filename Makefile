@@ -59,11 +59,11 @@ distclean: docclean
 check:
 	@tools/waf-light check
 
-VERSION=$(shell git-describe)
+VERSION=$(shell git describe)
 TARNAME=node-$(VERSION)
 
 dist: doc/node.1 doc/api.html
-	git-archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
+	git archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp doc/api.html $(TARNAME)/doc/api.html
