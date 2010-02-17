@@ -1156,6 +1156,7 @@ int main(int argc, char *argv[]) {
     // - which will give V8 control so it can handle whatever new message
     // had been received on the debug thread.
     ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
+    ev_set_priority(&node::debug_watcher, EV_MAXPRI);
     // Set the callback DebugMessageDispatch which is called from the debug
     // thread.
     Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
