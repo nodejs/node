@@ -344,7 +344,8 @@ will already have thrown an exception:
 var promise = computeQuestion(23);
 setTimeout(function() {
   promise.addErrback(function() {
-    // This will never execute, the promise already threw an exception
+    // This will never execute, 
+    // the promise already threw an exception
   });
 }, 1000);
 ----------------------------------------
@@ -416,7 +417,8 @@ The contents of +foo.js+:
 ----------------------------------------
 var circle = require("./circle"),
 var sys = require("sys");
-sys.puts("The area of a circle of radius 4 is " + circle.area(4));
+sys.puts( "The area of a circle of radius 4 is " 
+        + circle.area(4));
 ----------------------------------------
 
 The contents of +circle.js+:
@@ -635,12 +637,22 @@ fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
 See stat(2).
 - on success: Returns +fs.Stats+ object. It looks like this:
 +
-------------------------------------------------------------------------------
-  { dev: 2049, ino: 305352, mode: 16877, nlink: 12, uid: 1000, gid: 1000,
-  rdev: 0, size: 4096, blksize: 4096, blocks: 8, atime:
-  "2009-06-29T11:11:55Z", mtime: "2009-06-29T11:11:40Z", ctime:
-  "2009-06-29T11:11:40Z" }+
-------------------------------------------------------------------------------
+---------------------------------
+{ dev: 2049
+, ino: 305352
+, mode: 16877
+, nlink: 12
+, uid: 1000
+, gid: 1000
+, rdev: 0
+, size: 4096
+, blksize: 4096
+, blocks: 8
+, atime: "2009-06-29T11:11:55Z"
+, mtime: "2009-06-29T11:11:40Z"
+, ctime: "2009-06-29T11:11:40Z" 
+}
+----------------------------------
 +
 See the +fs.Stats+ section below for more information.
 
@@ -1659,7 +1671,9 @@ node> require("path").join("/foo", "bar", "baz/asdf", "quux", "..")
 Normalize an array of path parts, taking care of +".."+ and +"."+ parts.  Example:
 +
 ------------------------------------
-node> require("path").normalizeArray(["", "foo", "bar", "baz", "asdf", "quux", ".."])
+path.normalizeArray(["", 
+  "foo", "bar", "baz", "asdf", "quux", ".."])
+// returns
 [
   "",
   "foo",
@@ -1674,7 +1688,8 @@ node> require("path").normalizeArray(["", "foo", "bar", "baz", "asdf", "quux", "
 Normalize a string path, taking care of +".."+ and +"."+ parts.  Example:
 +
 ------------------------------------
-node> require("path").normalize("/foo/bar/baz/asdf/quux/..")
+path.normalize("/foo/bar/baz/asdf/quux/..")
+// returns
 "/foo/bar/baz/asdf"
 ------------------------------------
 +
@@ -1683,7 +1698,8 @@ node> require("path").normalize("/foo/bar/baz/asdf/quux/..")
 Return the directory name of a path.  Similar to the Unix +dirname+ command.  Example:
 +
 ------------------------------------
-node> require("path").dirname("/foo/bar/baz/asdf/quux")
+path.dirname("/foo/bar/baz/asdf/quux")
+// returns
 "/foo/bar/baz/asdf"
 ------------------------------------
 +
@@ -1692,9 +1708,12 @@ node> require("path").dirname("/foo/bar/baz/asdf/quux")
 Return the last portion of a path.  Similar to the Unix +basename+ command.  Example:
 +
 ------------------------------------
-node> require("path").basename("/foo/bar/baz/asdf/quux.html")
+path.basename("/foo/bar/baz/asdf/quux.html")
+// returns
 "quux.html"
-node> require("path").basename("/foo/bar/baz/asdf/quux.html", ".html")
+
+path.basename("/foo/bar/baz/asdf/quux.html", ".html")
+// returns
 "quux"
 ------------------------------------
 +
@@ -1704,9 +1723,12 @@ Return the extension of the path.  Everything after the last '.', if there
 is no '.' then it returns an empty string.  Examples:
 +
 ------------------------------------
-node> require("path").extname("index.html")
+path.extname("index.html")
+// returns 
 ".html"
-node> require("path").extname("index")
+
+path.extname("index")
+// returns
 ""
 ------------------------------------
 +
@@ -1715,8 +1737,8 @@ node> require("path").extname("index")
 Test whether or not the given path exists.  Then, call the +callback+ argument with either true or false.  Example:
 +
 ------------------------------------
-require("path").exists("/etc/passwd", function (exists) {
-  require("sys").debug( exists ? "it's there" : "no passwd!" );
+path.exists("/etc/passwd", function (exists) {
+  sys.debug(exists ? "it's there" : "no passwd!");
 });
 ------------------------------------
 
@@ -1785,8 +1807,9 @@ Serialize an object to a query string.  Optionally override the default separato
 Example:
 +
 ------------------------------------
-node> require("querystring").stringify({foo:"bar", baz : {quux:"asdf", oof : "rab"}, boo:[1,2,3]})
-"foo=bar&baz%5Bquux%5D=asdf&baz%5Boof%5D=rab&boo%5B%5D=1&boo%5B%5D=2&boo%5B%5D=3"
+querystring.stringify({foo: 'bar'})
+// returns
+"foo=bar"
 ------------------------------------
 +
 
@@ -1794,16 +1817,10 @@ node> require("querystring").stringify({foo:"bar", baz : {quux:"asdf", oof : "ra
 Deserialize a query string to an object.  Optionally override the default separator and assignment characters.
 +
 ------------------------------------
-node> require("querystring").parse("foo=bar&baz%5Bquux%5D=asdf&baz%5Boof%5D=rab&boo%5B%5D=1")
-{
-  "foo": "bar",
-  "baz": {
-    "quux": "asdf",
-    "oof": "rab"
-  },
-  "boo": [
-    1
-  ]
+querystring.parse('a=b&b=c')
+// returns
+{ 'a': 'b'
+, 'b': 'c'
 }
 ------------------------------------
 +
