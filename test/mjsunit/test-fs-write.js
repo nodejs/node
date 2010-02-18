@@ -9,7 +9,7 @@ fs.open(fn, 'w', 0644).addCallback(function (file) {
     fs.close(file).addCallback(function() {
       fs.readFile(fn, process.UTF8).addCallback(function(contents) {
         found = contents;
-        fs.unlink(fn).wait();
+        fs.unlinkSync(fn);
       });
     });
   });
