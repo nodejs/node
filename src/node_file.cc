@@ -10,6 +10,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include <dirent.h>
+
 namespace node {
 
 using namespace v8;
@@ -304,6 +306,10 @@ static Handle<Value> SendFile(const Arguments& args) {
   }
 }
 
+static inline int scandir_one(struct dirent *unused) {
+  return 1;
+}
+
 static Handle<Value> ReadDir(const Arguments& args) {
   HandleScope scope;
 
@@ -316,9 +322,26 @@ static Handle<Value> ReadDir(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
-    // TODO 
-    return ThrowException(Exception::Error(
-          String::New("synchronous readdir() not yet supported.")));
+    struct dirent **eps;
+    int n = scandir(*path, &eps, scandir_one, alphasort);
+
+    if ( n >= 0) {
+      int cnt;
+      char *name;
+
+      Local<Array> res = Array::New(n);
+
+      for(cnt = 0; cnt < n; ++cnt) {
+        name = eps[cnt]->d_name;
+
+        if (name [0] != '.') {
+          res->Set(Integer::New(cnt), String::New(name));
+        }
+      }
+      return scope.Close(res);
+    } else {
+      return ThrowException(errno_exception(errno));
+    }
   }
 }
 
