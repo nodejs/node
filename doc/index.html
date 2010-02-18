@@ -76,10 +76,10 @@ var server = tcp.createServer(function (socket) {
   socket.addListener("connect", function () {
     socket.write("hello\r\n");
   });
-  socket.addListener("receive", function (data) {
+  socket.addListener("data", function (data) {
     socket.write(data);
   });
-  socket.addListener("eof", function () {
+  socket.addListener("end", function () {
     socket.write("goodbye\r\n");
     socket.close();
   });
