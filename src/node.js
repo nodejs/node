@@ -105,9 +105,10 @@ process.assert = function (x, msg) {
 // Copyright (c) 2009 John Resig
 // Dual licensed under the MIT and GPL licenses.
 // http://docs.jquery.com/License
+// Modified for node.js (formely for copying properties correctly)
 process.mixin = function() {
   // copy reference to target object
-  var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, options;
+  var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, source;
 
   // Handle a deep copy situation
   if ( typeof target === "boolean" ) {
@@ -129,27 +130,31 @@ process.mixin = function() {
 
   for ( ; i < length; i++ ) {
     // Only deal with non-null/undefined values
-    if ( (options = arguments[ i ]) != null ) {
+    if ( (source = arguments[i]) != null ) {
       // Extend the base object
-      for ( var name in options ) {
-        var src = target[ name ], copy = options[ name ];
-
-        // Prevent never-ending loop
-        if ( target === copy )
-          continue;
-
-        // Recurse if we're merging object values
-        if ( deep && copy && typeof copy === "object" ) {
-          target[ name ] = process.mixin( deep,
-            // Never move original objects, clone them
-            src || ( copy.length != null ? [ ] : { } )
-          , copy );
-
-        // Don't bring in undefined values
-        } else {
-          target[ name ] = copy;
+      Object.getOwnPropertyNames(source).forEach(function(k){
+        var d = Object.getOwnPropertyDescriptor(source, k);
+        if (d.get) {
+          target.__defineGetter__(k, d.get);
+          if (d.set)
+            target.__defineSetter__(k, d.set);
         }
-      }
+        else {
+          // Prevent never-ending loop
+          if (target === d.value)
+            continue;
+          
+          if (deep && d.value && typeof d.value === "object") {
+            target[k] = process.mixin(deep,
+              // Never move original objects, clone them
+              source || (d.value.length != null ? [] : {})
+            , d.value);
+          }
+          else {
+            target[k] = d.value;
+          }
+        }
+      });
     }
   }
   // Return the modified object
