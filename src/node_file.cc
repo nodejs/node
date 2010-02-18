@@ -54,6 +54,7 @@ static int After(eio_req *req) {
       case EIO_RMDIR:
       case EIO_MKDIR:
       case EIO_FTRUNCATE:
+      case EIO_CHMOD:
         argc = 0;
         break;
 
@@ -428,6 +429,28 @@ static Handle<Value> Read(const Arguments& args) {
   }
 }
 
+/* node.fs.chmod(fd, mode);
+ * Wrapper for chmod(1) / EIO_CHMOD
+ */
+static Handle<Value> Chmod(const Arguments& args){
+  HandleScope scope;
+  
+  if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+  String::Utf8Value path(args[0]->ToString());
+  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  
+  if(args[2]->IsFunction()) {
+    ASYNC_CALL(chmod, args[2], *path, mode);
+  } else {
+    int ret = chmod(*path, mode);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
+}
+
+
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -443,6 +466,8 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
+  
+  NODE_SET_METHOD(target, "chmod", Chmod);
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");

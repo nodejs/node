@@ -769,6 +769,17 @@ var fsModule = createInternalModule("fs", function (exports) {
 
     return content;
   };
+  
+  exports.chmod = function(path, mode){
+    var promise = new events.Promise();
+    process.fs.chmod(path, mode, callback(promise));
+    return promise;
+  };
+  
+  exports.chmodSync = function(path, mode){
+    return process.fs.chmod(path, mode);
+  };
+  
 });
 
 var fs = fsModule.exports;

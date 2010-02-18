@@ -632,7 +632,11 @@ fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
   - on success: no parameters.
   - on error: no parameters.
 
-
++fs.chmod(path, mode)+ ::
+  See chmod(1)
+  - on success: no parameters.
+  - on error: no parameters.
+  
 +fs.stat(path)+ ::
 See stat(2).
 - on success: Returns +fs.Stats+ object. It looks like this:
