@@ -21,15 +21,6 @@ setTimeout(function() {
   promise.emitSuccess('Am I too late?');
 }, 500);
 
-var waitPromise = new events.Promise();
-try {
-  waitPromise.timeout(250).wait()
-} catch (e) {
-  assert.equal(true, e instanceof Error);
-  assert.equal('timeout', e.message);
-  timeouts++;
-}
-
 var successPromise = new events.Promise();
 successPromise.timeout(500);
 setTimeout(function() {
@@ -52,5 +43,5 @@ errorPromise.addErrback(function(e) {
 });
 
 process.addListener('exit', function() {
-  assert.equal(2, timeouts);
+  assert.equal(1, timeouts);
 });
