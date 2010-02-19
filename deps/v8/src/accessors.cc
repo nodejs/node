@@ -647,42 +647,9 @@ Object* Accessors::ObjectGetPrototype(Object* receiver, void*) {
 Object* Accessors::ObjectSetPrototype(JSObject* receiver,
                                       Object* value,
                                       void*) {
-  // Before we can set the prototype we need to be sure
-  // prototype cycles are prevented.
-  // It is sufficient to validate that the receiver is not in the new prototype
-  // chain.
-
-  // Silently ignore the change if value is not a JSObject or null.
-  // SpiderMonkey behaves this way.
-  if (!value->IsJSObject() && !value->IsNull()) return value;
-
-  for (Object* pt = value; pt != Heap::null_value(); pt = pt->GetPrototype()) {
-    if (JSObject::cast(pt) == receiver) {
-      // Cycle detected.
-      HandleScope scope;
-      return Top::Throw(*Factory::NewError("cyclic_proto",
-                                           HandleVector<Object>(NULL, 0)));
-    }
-  }
-
-  // Find the first object in the chain whose prototype object is not
-  // hidden and set the new prototype on that object.
-  JSObject* current = receiver;
-  Object* current_proto = receiver->GetPrototype();
-  while (current_proto->IsJSObject() &&
-         JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
-    current = JSObject::cast(current_proto);
-    current_proto = current_proto->GetPrototype();
-  }
-
-  // Set the new prototype of the object.
-  Object* new_map = current->map()->CopyDropTransitions();
-  if (new_map->IsFailure()) return new_map;
-  Map::cast(new_map)->set_prototype(value);
-  current->set_map(Map::cast(new_map));
-
+  const bool skip_hidden_prototypes = true;
   // To be consistent with other Set functions, return the value.
-  return value;
+  return receiver->SetPrototype(value, skip_hidden_prototypes);
 }
 
 

@@ -30,6 +30,7 @@
 #define V8_CODEGEN_INL_H_
 
 #include "codegen.h"
+#include "compiler.h"
 #include "register-allocator-inl.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -38,6 +39,8 @@
 #include "x64/codegen-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/codegen-arm-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/codegen-mips-inl.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -46,42 +49,8 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
-
-// -----------------------------------------------------------------------------
-// Support for "structured" code comments.
-//
-// By selecting matching brackets in disassembler output,
-// code segments can be identified more easily.
-
-#ifdef DEBUG
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler* masm, const char* msg) : masm_(masm), msg_(msg) {
-    __ RecordComment(msg);
-  }
-
-  ~Comment() {
-    if (msg_[0] == '[') __ RecordComment("]");
-  }
-
- private:
-  MacroAssembler* masm_;
-  const char* msg_;
-};
-
-#else
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler*, const char*)  {}
-};
-
-#endif  // DEBUG
-
-#undef __
-
+Handle<Script> CodeGenerator::script() { return info_->script(); }
+bool CodeGenerator::is_eval() { return info_->is_eval(); }
 
 } }  // namespace v8::internal
 

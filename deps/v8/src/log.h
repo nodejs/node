@@ -161,12 +161,6 @@ class Logger {
   // Enable the computation of a sliding window of states.
   static void EnableSlidingStateWindow();
 
-  // Write a raw string to the log to be used as a preamble.
-  // No check is made that the 'preamble' is actually at the beginning
-  // of the log. The preample is used to write code events saved in the
-  // snapshot.
-  static void Preamble(const char* content);
-
   // Emits an event with a string value -> (name, value).
   static void StringEvent(const char* name, const char* value);
 
@@ -277,8 +271,8 @@ class Logger {
   // Pause/Resume collection of profiling data.
   // When data collection is paused, CPU Tick events are discarded until
   // data collection is Resumed.
-  static void PauseProfiler(int flags);
-  static void ResumeProfiler(int flags);
+  static void PauseProfiler(int flags, int tag);
+  static void ResumeProfiler(int flags, int tag);
   static int GetActiveProfilerModules();
 
   // If logging is performed into a memory buffer, allows to
@@ -292,7 +286,7 @@ class Logger {
   // Logs all accessor callbacks found in the heap.
   static void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
-  static void LogCodeObject(Object* code_object);
+  static void LogCodeObjects();
 
  private:
 
@@ -324,6 +318,9 @@ class Logger {
 
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
+
+  // Used for logging stubs found in the snapshot.
+  static void LogCodeObject(Object* code_object);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);
@@ -376,6 +373,8 @@ class Logger {
   friend class LoggerTestHelper;
 
   static bool is_logging_;
+  static int cpu_profiler_nesting_;
+  static int heap_profiler_nesting_;
 #else
   static bool is_logging() { return false; }
 #endif

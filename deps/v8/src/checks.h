@@ -125,7 +125,9 @@ static inline void CheckEqualsHelper(const char* file,
                                      const char* expected,
                                      const char* value_source,
                                      const char* value) {
-  if (strcmp(expected, value) != 0) {
+  if ((expected == NULL && value != NULL) ||
+      (expected != NULL && value == NULL) ||
+      (expected != NULL && value != NULL && strcmp(expected, value) != 0)) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %s\n#   Found: %s",
              expected_source, value_source, expected, value);

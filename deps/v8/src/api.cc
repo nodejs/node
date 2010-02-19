@@ -1106,7 +1106,8 @@ ScriptData* ScriptData::New(unsigned* data, int length) {
 
 Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
-                          v8::ScriptData* script_data) {
+                          v8::ScriptData* pre_data,
+                          v8::Handle<String> script_data) {
   ON_BAILOUT("v8::Script::New()", return Local<Script>());
   LOG_API("Script::New");
   ENTER_V8;
@@ -1126,20 +1127,17 @@ Local<Script> Script::New(v8::Handle<String> source,
     }
   }
   EXCEPTION_PREAMBLE();
-  i::ScriptDataImpl* pre_data = static_cast<i::ScriptDataImpl*>(script_data);
+  i::ScriptDataImpl* pre_data_impl = static_cast<i::ScriptDataImpl*>(pre_data);
   // We assert that the pre-data is sane, even though we can actually
   // handle it if it turns out not to be in release mode.
-  ASSERT(pre_data == NULL || pre_data->SanityCheck());
+  ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
   // If the pre-data isn't sane we simply ignore it
-  if (pre_data != NULL && !pre_data->SanityCheck()) {
-    pre_data = NULL;
+  if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
+    pre_data_impl = NULL;
   }
-  i::Handle<i::JSFunction> boilerplate = i::Compiler::Compile(str,
-                                                              name_obj,
-                                                              line_offset,
-                                                              column_offset,
-                                                              NULL,
-                                                              pre_data);
+  i::Handle<i::JSFunction> boilerplate =
+      i::Compiler::Compile(str, name_obj, line_offset, column_offset, NULL,
+                           pre_data_impl, Utils::OpenHandle(*script_data));
   has_pending_exception = boilerplate.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Script>());
   return Local<Script>(ToApi<Script>(boilerplate));
@@ -1155,11 +1153,12 @@ Local<Script> Script::New(v8::Handle<String> source,
 
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
-                              v8::ScriptData* script_data) {
+                              v8::ScriptData* pre_data,
+                              v8::Handle<String> script_data) {
   ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
   LOG_API("Script::Compile");
   ENTER_V8;
-  Local<Script> generic = New(source, origin, script_data);
+  Local<Script> generic = New(source, origin, pre_data, script_data);
   if (generic.IsEmpty())
     return generic;
   i::Handle<i::JSFunction> boilerplate = Utils::OpenHandle(*generic);
@@ -1171,9 +1170,10 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::Handle<Value> file_name) {
+                              v8::Handle<Value> file_name,
+                              v8::Handle<String> script_data) {
   ScriptOrigin origin(file_name);
-  return Compile(source, &origin);
+  return Compile(source, &origin, 0, script_data);
 }
 
 
@@ -2032,6 +2032,19 @@ Local<Value> v8::Object::GetPrototype() {
 }
 
 
+bool v8::Object::SetPrototype(Handle<Value> value) {
+  ON_BAILOUT("v8::Object::SetPrototype()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Handle<FunctionTemplate> tmpl) {
   ON_BAILOUT("v8::Object::FindInstanceInPrototypeChain()",
@@ -2194,7 +2207,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
-  if (lookup.IsValid()) {
+  if (lookup.IsProperty()) {
     PropertyAttributes attributes;
     i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
                                                       &lookup,
@@ -2213,7 +2226,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
-  if (lookup.IsValid()) {
+  if (lookup.IsProperty()) {
     PropertyAttributes attributes;
     i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
                                                       &lookup,
@@ -2445,6 +2458,99 @@ Handle<Value> Function::GetName() const {
 }
 
 
+ScriptOrigin Function::GetScriptOrigin() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (func->shared()->script()->IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    v8::ScriptOrigin origin(
+      Utils::ToLocal(i::Handle<i::Object>(script->name())),
+      v8::Integer::New(script->line_offset()->value()),
+      v8::Integer::New(script->column_offset()->value()));
+    return origin;
+  }
+  return v8::ScriptOrigin(Handle<Value>());
+}
+
+
+const int Function::kLineOffsetNotFound = -1;
+
+
+int Function::GetScriptLineNumber() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (func->shared()->script()->IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    return i::GetScriptLineNumber(script, func->shared()->start_position());
+  }
+  return kLineOffsetNotFound;
+}
+
+
+namespace {
+
+// Tracks string usage to help make better decisions when
+// externalizing strings.
+//
+// Implementation note: internally this class only tracks fresh
+// strings and keeps a single use counter for them.
+class StringTracker {
+ public:
+  // Records that the given string's characters were copied to some
+  // external buffer. If this happens often we should honor
+  // externalization requests for the string.
+  static void RecordWrite(i::Handle<i::String> string) {
+    i::Address address = reinterpret_cast<i::Address>(*string);
+    i::Address top = i::Heap::NewSpaceTop();
+    if (IsFreshString(address, top)) {
+      IncrementUseCount(top);
+    }
+  }
+
+  // Estimates freshness and use frequency of the given string based
+  // on how close it is to the new space top and the recorded usage
+  // history.
+  static inline bool IsFreshUnusedString(i::Handle<i::String> string) {
+    i::Address address = reinterpret_cast<i::Address>(*string);
+    i::Address top = i::Heap::NewSpaceTop();
+    return IsFreshString(address, top) && IsUseCountLow(top);
+  }
+
+ private:
+  static inline bool IsFreshString(i::Address string, i::Address top) {
+    return top - kFreshnessLimit <= string && string <= top;
+  }
+
+  static inline bool IsUseCountLow(i::Address top) {
+    if (last_top_ != top) return true;
+    return use_count_ < kUseLimit;
+  }
+
+  static inline void IncrementUseCount(i::Address top) {
+    if (last_top_ != top) {
+      use_count_ = 0;
+      last_top_ = top;
+    }
+    ++use_count_;
+  }
+
+  // How close to the new space top a fresh string has to be.
+  static const int kFreshnessLimit = 1024;
+
+  // The number of uses required to consider a string useful.
+  static const int kUseLimit = 32;
+
+  // Single use counter shared by all fresh strings.
+  static int use_count_;
+
+  // Last new space top when the use count above was valid.
+  static i::Address last_top_;
+};
+
+int StringTracker::use_count_ = 0;
+i::Address StringTracker::last_top_ = NULL;
+
+}  // namespace
+
+
 int String::Length() const {
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();
@@ -2462,6 +2568,7 @@ int String::WriteUtf8(char* buffer, int capacity) const {
   LOG_API("String::WriteUtf8");
   ENTER_V8;
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
@@ -2505,6 +2612,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
   str->TryFlattenIfNotFlat();
@@ -2531,6 +2639,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -3098,6 +3207,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3123,6 +3233,7 @@ bool v8::String::MakeExternal(
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3134,6 +3245,7 @@ bool v8::String::MakeExternal(
 bool v8::String::CanMakeExternal() {
   if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kSize)
     return false;
@@ -3357,14 +3469,14 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(PROFILER_MODULE_CPU);
+  PauseProfilerEx(PROFILER_MODULE_CPU);
 #endif
 }
 
 
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::ResumeProfiler(PROFILER_MODULE_CPU);
+  ResumeProfilerEx(PROFILER_MODULE_CPU);
 #endif
 }
 
@@ -3378,7 +3490,7 @@ bool V8::IsProfilerPaused() {
 }
 
 
-void V8::ResumeProfilerEx(int flags) {
+void V8::ResumeProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
     // Snapshot mode: resume modules, perform GC, then pause only
@@ -3388,19 +3500,19 @@ void V8::ResumeProfilerEx(int flags) {
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
-    i::Logger::ResumeProfiler(flags);
+    i::Logger::ResumeProfiler(flags, tag);
     i::Heap::CollectAllGarbage(false);
-    i::Logger::PauseProfiler(~current_flags & flags);
+    i::Logger::PauseProfiler(~current_flags & flags, tag);
   } else {
-    i::Logger::ResumeProfiler(flags);
+    i::Logger::ResumeProfiler(flags, tag);
   }
 #endif
 }
 
 
-void V8::PauseProfilerEx(int flags) {
+void V8::PauseProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(flags);
+  i::Logger::PauseProfiler(flags, tag);
 #endif
 }
 

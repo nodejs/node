@@ -330,6 +330,8 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
 CompressionHelper* Logger::compression_helper_ = NULL;
 bool Logger::is_logging_ = false;
+int Logger::cpu_profiler_nesting_ = 0;
+int Logger::heap_profiler_nesting_ = 0;
 
 #define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
 const char* kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
@@ -366,15 +368,6 @@ void Logger::LogAliases() {
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
-
-
-void Logger::Preamble(const char* content) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.WriteCStringToLogFile(content);
-#endif
-}
 
 
 void Logger::StringEvent(const char* name, const char* value) {
@@ -1164,53 +1157,61 @@ int Logger::GetActiveProfilerModules() {
 }
 
 
-void Logger::PauseProfiler(int flags) {
+void Logger::PauseProfiler(int flags, int tag) {
   if (!Log::IsEnabled()) return;
-  const int active_modules = GetActiveProfilerModules();
-  const int modules_to_disable = active_modules & flags;
-  if (modules_to_disable == PROFILER_MODULE_NONE) return;
-
-  if (modules_to_disable & PROFILER_MODULE_CPU) {
-    profiler_->pause();
-    if (FLAG_prof_lazy) {
-      if (!FLAG_sliding_state_window) ticker_->Stop();
-      FLAG_log_code = false;
-      // Must be the same message as Log::kDynamicBufferSeal.
-      LOG(UncheckedStringEvent("profiler", "pause"));
+  if (flags & PROFILER_MODULE_CPU) {
+    // It is OK to have negative nesting.
+    if (--cpu_profiler_nesting_ == 0) {
+      profiler_->pause();
+      if (FLAG_prof_lazy) {
+        if (!FLAG_sliding_state_window) ticker_->Stop();
+        FLAG_log_code = false;
+        // Must be the same message as Log::kDynamicBufferSeal.
+        LOG(UncheckedStringEvent("profiler", "pause"));
+      }
     }
   }
-  if (modules_to_disable &
+  if (flags &
       (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    FLAG_log_gc = false;
+    if (--heap_profiler_nesting_ == 0) {
+      FLAG_log_gc = false;
+    }
   }
-  // Turn off logging if no active modules remain.
-  if ((active_modules & ~flags) == PROFILER_MODULE_NONE) {
+  if (tag != 0) {
+    IntEvent("close-tag", tag);
+  }
+  if (GetActiveProfilerModules() == PROFILER_MODULE_NONE) {
     is_logging_ = false;
   }
 }
 
 
-void Logger::ResumeProfiler(int flags) {
+void Logger::ResumeProfiler(int flags, int tag) {
   if (!Log::IsEnabled()) return;
-  const int modules_to_enable = ~GetActiveProfilerModules() & flags;
-  if (modules_to_enable != PROFILER_MODULE_NONE) {
-    is_logging_ = true;
+  if (tag != 0) {
+    IntEvent("open-tag", tag);
   }
-  if (modules_to_enable & PROFILER_MODULE_CPU) {
-    if (FLAG_prof_lazy) {
-      profiler_->Engage();
-      LOG(UncheckedStringEvent("profiler", "resume"));
-      FLAG_log_code = true;
-      LogCompiledFunctions();
-      LogFunctionObjects();
-      LogAccessorCallbacks();
-      if (!FLAG_sliding_state_window) ticker_->Start();
+  if (flags & PROFILER_MODULE_CPU) {
+    if (cpu_profiler_nesting_++ == 0) {
+      is_logging_ = true;
+      if (FLAG_prof_lazy) {
+        profiler_->Engage();
+        LOG(UncheckedStringEvent("profiler", "resume"));
+        FLAG_log_code = true;
+        LogCompiledFunctions();
+        LogFunctionObjects();
+        LogAccessorCallbacks();
+        if (!FLAG_sliding_state_window) ticker_->Start();
+      }
+      profiler_->resume();
     }
-    profiler_->resume();
   }
-  if (modules_to_enable &
+  if (flags &
       (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    FLAG_log_gc = true;
+    if (heap_profiler_nesting_++ == 0) {
+      is_logging_ = true;
+      FLAG_log_gc = true;
+    }
   }
 }
 
@@ -1219,7 +1220,7 @@ void Logger::ResumeProfiler(int flags) {
 // either from main or Profiler's thread.
 void Logger::StopLoggingAndProfiling() {
   Log::stop();
-  PauseProfiler(PROFILER_MODULE_CPU);
+  PauseProfiler(PROFILER_MODULE_CPU, 0);
 }
 
 
@@ -1261,7 +1262,9 @@ void Logger::LogCodeObject(Object* object) {
       case Code::FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
       case Code::STUB:
-        description = CodeStub::MajorName(code_object->major_key());
+        description = CodeStub::MajorName(code_object->major_key(), true);
+        if (description == NULL)
+          description = "A stub from the snapshot";
         tag = Logger::STUB_TAG;
         break;
       case Code::BUILTIN:
@@ -1290,6 +1293,15 @@ void Logger::LogCodeObject(Object* object) {
         break;
     }
     LOG(CodeCreateEvent(tag, code_object, description));
+  }
+}
+
+
+void Logger::LogCodeObjects() {
+  AssertNoAllocation no_alloc;
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (obj->IsCode()) LogCodeObject(obj);
   }
 }
 

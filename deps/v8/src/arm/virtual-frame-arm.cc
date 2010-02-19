@@ -47,7 +47,7 @@ VirtualFrame::VirtualFrame()
     : elements_(parameter_count() + local_count() + kPreallocatedElements),
       stack_pointer_(parameter_count()) {  // 0-based index of TOS.
   for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement());
+    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
   }
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     register_locations_[i] = kIllegalIndex;
@@ -233,6 +233,14 @@ void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ DebugBreak();
+}
+#endif
+
+
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                  InvokeJSFlags flags,
                                  int arg_count) {
@@ -305,7 +313,7 @@ void VirtualFrame::EmitPop(Register reg) {
 
 void VirtualFrame::EmitPush(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
   stack_pointer_++;
   __ push(reg);
 }

@@ -45,7 +45,7 @@ VirtualFrame::VirtualFrame()
     : elements_(parameter_count() + local_count() + kPreallocatedElements),
       stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
   for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement());
+    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
   }
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     register_locations_[i] = kIllegalIndex;
@@ -193,25 +193,25 @@ void VirtualFrame::EmitPop(const Operand& operand) {
 }
 
 
-void VirtualFrame::EmitPush(Register reg) {
+void VirtualFrame::EmitPush(Register reg, NumberInfo::Type info) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ push(reg);
 }
 
 
-void VirtualFrame::EmitPush(const Operand& operand) {
+void VirtualFrame::EmitPush(const Operand& operand, NumberInfo::Type info) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ push(operand);
 }
 
 
-void VirtualFrame::EmitPush(Immediate immediate) {
+void VirtualFrame::EmitPush(Immediate immediate, NumberInfo::Type info) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ push(immediate);
 }
@@ -219,7 +219,7 @@ void VirtualFrame::EmitPush(Immediate immediate) {
 
 void VirtualFrame::EmitPush(Smi* smi_value) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(NumberInfo::kSmi));
   stack_pointer_++;
   __ Push(smi_value);
 }
@@ -227,15 +227,21 @@ void VirtualFrame::EmitPush(Smi* smi_value) {
 
 void VirtualFrame::EmitPush(Handle<Object> value) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  NumberInfo::Type info = NumberInfo::kUnknown;
+  if (value->IsSmi()) {
+    info = NumberInfo::kSmi;
+  } else if (value->IsHeapNumber()) {
+    info = NumberInfo::kHeapNumber;
+  }
+  elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ Push(value);
 }
 
 
-void VirtualFrame::EmitPush(Heap::RootListIndex index) {
+void VirtualFrame::EmitPush(Heap::RootListIndex index, NumberInfo::Type info) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement());
+  elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ PushRoot(index);
 }
@@ -305,10 +311,14 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
   // Set the new backing element.
   if (elements_[new_backing_index].is_synced()) {
     elements_[new_backing_index] =
-        FrameElement::RegisterElement(backing_reg, FrameElement::SYNCED);
+        FrameElement::RegisterElement(backing_reg,
+                                      FrameElement::SYNCED,
+                                      original.number_info());
   } else {
     elements_[new_backing_index] =
-        FrameElement::RegisterElement(backing_reg, FrameElement::NOT_SYNCED);
+        FrameElement::RegisterElement(backing_reg,
+                                      FrameElement::NOT_SYNCED,
+                                      original.number_info());
   }
   // Update the other copies.
   for (int i = new_backing_index + 1; i < element_count(); i++) {
@@ -339,7 +349,8 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
       ASSERT(fresh.is_valid());
       FrameElement new_element =
           FrameElement::RegisterElement(fresh.reg(),
-                                        FrameElement::NOT_SYNCED);
+                                        FrameElement::NOT_SYNCED,
+                                        original.number_info());
       Use(fresh.reg(), element_count());
       elements_.Add(new_element);
       __ movq(fresh.reg(), Operand(rbp, fp_relative(index)));
@@ -480,10 +491,12 @@ void VirtualFrame::MakeMergable() {
   for (int i = 0; i < element_count(); i++) {
     FrameElement element = elements_[i];
 
+    // In all cases we have to reset the number type information
+    // to unknown for a mergable frame because of incoming back edges.
     if (element.is_constant() || element.is_copy()) {
       if (element.is_synced()) {
         // Just spill.
-        elements_[i] = FrameElement::MemoryElement();
+        elements_[i] = FrameElement::MemoryElement(NumberInfo::kUnknown);
       } else {
         // Allocate to a register.
         FrameElement backing_element;  // Invalid if not a copy.
@@ -494,7 +507,8 @@ void VirtualFrame::MakeMergable() {
         ASSERT(fresh.is_valid());  // A register was spilled if all were in use.
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
-                                          FrameElement::NOT_SYNCED);
+                                          FrameElement::NOT_SYNCED,
+                                          NumberInfo::kUnknown);
         Use(fresh.reg(), i);
 
         // Emit a move.
@@ -523,6 +537,7 @@ void VirtualFrame::MakeMergable() {
       // The copy flag is not relied on before the end of this loop,
       // including when registers are spilled.
       elements_[i].clear_copied();
+      elements_[i].set_number_info(NumberInfo::kUnknown);
     }
   }
 }
@@ -728,6 +743,14 @@ Result VirtualFrame::Pop() {
   int index = element_count();
   ASSERT(element.is_valid());
 
+  // Get number type information of the result.
+  NumberInfo::Type info;
+  if (!element.is_copy()) {
+    info = element.number_info();
+  } else {
+    info = elements_[element.index()].number_info();
+  }
+
   bool pop_needed = (stack_pointer_ == index);
   if (pop_needed) {
     stack_pointer_--;
@@ -735,6 +758,7 @@ Result VirtualFrame::Pop() {
       Result temp = cgen()->allocator()->Allocate();
       ASSERT(temp.is_valid());
       __ pop(temp.reg());
+      temp.set_number_info(info);
       return temp;
     }
 
@@ -762,14 +786,16 @@ Result VirtualFrame::Pop() {
     ASSERT(temp.is_valid());
     Use(temp.reg(), index);
     FrameElement new_element =
-        FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
+        FrameElement::RegisterElement(temp.reg(),
+                                      FrameElement::SYNCED,
+                                      element.number_info());
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
     elements_[index] = new_element;
     __ movq(temp.reg(), Operand(rbp, fp_relative(index)));
-    return Result(temp.reg());
+    return Result(temp.reg(), info);
   } else if (element.is_register()) {
-    return Result(element.reg());
+    return Result(element.reg(), info);
   } else {
     ASSERT(element.is_constant());
     return Result(element.handle());
@@ -969,6 +995,17 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
+  PrepareForCall(0, 0);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ DebugBreak();
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+}
+#endif
+
+
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  The IC expects
   // name in rcx and receiver on the stack.  It does not drop the
@@ -996,7 +1033,6 @@ Result VirtualFrame::CallKeyedStoreIC() {
   // expects value in rax and key and receiver on the stack.  It does
   // not drop the key and receiver.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  // TODO(1222589): Make the IC grab the values from the stack.
   Result value = Pop();
   PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
   value.ToRegister(rax);
@@ -1008,14 +1044,17 @@ Result VirtualFrame::CallKeyedStoreIC() {
 Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
                                 int arg_count,
                                 int loop_nesting) {
-  // Arguments, receiver, and function name are on top of the frame.
-  // The IC expects them on the stack.  It does not drop the function
-  // name slot (but it does drop the rest).
+  // Function name, arguments, and receiver are found on top of the frame
+  // and dropped by the call.  The IC expects the name in rcx and the rest
+  // on the stack, and drops them all.
   InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = cgen()->ComputeCallInitialize(arg_count, in_loop);
+  Result name = Pop();
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
-  PrepareForCall(arg_count + 2, arg_count + 1);
+  PrepareForCall(arg_count + 1, arg_count + 1);
+  name.ToRegister(rcx);
+  name.Unuse();
   return RawCallCodeObject(ic, mode);
 }
 

@@ -185,14 +185,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // Stack Layout:
-  // rsp: return address
-  //  +1: Argument n
-  //  +2: Argument n-1
+  // rsp[0]:   Return address
+  // rsp[1]:   Argument n
+  // rsp[2]:   Argument n-1
   //  ...
-  //  +n: Argument 1 = receiver
-  //  +n+1: Argument 0 = function to call
+  // rsp[n]:   Argument 1
+  // rsp[n+1]: Receiver (function to call)
   //
-  // rax contains the number of arguments, n, not counting the function.
+  // rax contains the number of arguments, n, not counting the receiver.
   //
   // 1. Make sure we have at least one argument.
   { Label done;
@@ -205,31 +205,23 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 2. Get the function to call from the stack.
-  { Label done, non_function, function;
-    // The function to call is at position n+1 on the stack.
-    __ movq(rdi, Operand(rsp, rax, times_pointer_size, +1 * kPointerSize));
-    __ JumpIfSmi(rdi, &non_function);
-    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-    __ j(equal, &function);
+  // 2. Get the function to call (passed as receiver) from the stack, check
+  //    if it is a function.
+  Label non_function;
+  // The function to call is at position n+1 on the stack.
+  __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+  __ JumpIfSmi(rdi, &non_function);
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &non_function);
 
-    // Non-function called: Clear the function to force exception.
-    __ bind(&non_function);
-    __ xor_(rdi, rdi);
-    __ jmp(&done);
-
-    // Function called: Change context eagerly to get the right global object.
-    __ bind(&function);
+  // 3a. Patch the first argument if necessary when calling a function.
+  Label shift_arguments;
+  { Label convert_to_object, use_global_receiver, patch_receiver;
+    // Change context eagerly in case we need the global receiver.
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-    __ bind(&done);
-  }
-
-  // 3. Make sure first argument is an object; convert if necessary.
-  { Label call_to_object, use_global_receiver, patch_receiver, done;
     __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
-
-    __ JumpIfSmi(rbx, &call_to_object);
+    __ JumpIfSmi(rbx, &convert_to_object);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
@@ -237,31 +229,28 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(equal, &use_global_receiver);
 
     __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
-    __ j(below, &call_to_object);
+    __ j(below, &convert_to_object);
     __ CmpInstanceType(rcx, LAST_JS_OBJECT_TYPE);
-    __ j(below_equal, &done);
+    __ j(below_equal, &shift_arguments);
 
-    __ bind(&call_to_object);
-    __ EnterInternalFrame();  // preserves rax, rbx, rdi
-
-    // Store the arguments count on the stack (smi tagged).
+    __ bind(&convert_to_object);
+    __ EnterInternalFrame();  // In order to preserve argument count.
     __ Integer32ToSmi(rax, rax);
     __ push(rax);
 
-    __ push(rdi);  // save edi across the call
     __ push(rbx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ movq(rbx, rax);
-    __ pop(rdi);  // restore edi after the call
 
-    // Get the arguments count and untag it.
     __ pop(rax);
     __ SmiToInteger32(rax, rax);
-
     __ LeaveInternalFrame();
+    // Restore the function to rdi.
+    __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
     __ jmp(&patch_receiver);
 
-    // Use the global receiver object from the called function as the receiver.
+    // Use the global receiver object from the called function as the
+    // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
@@ -273,48 +262,57 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&patch_receiver);
     __ movq(Operand(rsp, rax, times_pointer_size, 0), rbx);
 
-    __ bind(&done);
+    __ jmp(&shift_arguments);
   }
 
-  // 4. Shift stuff one slot down the stack.
+
+  // 3b. Patch the first argument when calling a non-function.  The
+  //     CALL_NON_FUNCTION builtin expects the non-function callee as
+  //     receiver, so overwrite the first argument which will ultimately
+  //     become the receiver.
+  __ bind(&non_function);
+  __ movq(Operand(rsp, rax, times_pointer_size, 0), rdi);
+  __ xor_(rdi, rdi);
+
+  // 4. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  __ bind(&shift_arguments);
   { Label loop;
-    __ lea(rcx, Operand(rax, +1));  // +1 ~ copy receiver too
+    __ movq(rcx, rax);
     __ bind(&loop);
     __ movq(rbx, Operand(rsp, rcx, times_pointer_size, 0));
     __ movq(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
     __ decq(rcx);
-    __ j(not_zero, &loop);
+    __ j(not_sign, &loop);  // While non-negative (to copy return address).
+    __ pop(rbx);  // Discard copy of return address.
+    __ decq(rax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 5. Remove TOS (copy of last arguments), but keep return address.
-  __ pop(rbx);
-  __ pop(rcx);
-  __ push(rbx);
-  __ decq(rax);
-
-  // 6. Check that function really was a function and get the code to
-  //    call from the function and check that the number of expected
-  //    arguments matches what we're providing.
-  { Label invoke, trampoline;
+  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
+  { Label function;
     __ testq(rdi, rdi);
-    __ j(not_zero, &invoke);
+    __ j(not_zero, &function);
     __ xor_(rbx, rbx);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-    __ bind(&trampoline);
     __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
             RelocInfo::CODE_TARGET);
-
-    __ bind(&invoke);
-    __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movsxlq(rbx,
-           FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-    __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
-    __ cmpq(rax, rbx);
-    __ j(not_equal, &trampoline);
+    __ bind(&function);
   }
 
-  // 7. Jump (tail-call) to the code in register edx without checking arguments.
+  // 5b. Get the code to call from the function and check that the number of
+  //     expected arguments matches what we're providing.  If so, jump
+  //     (tail-call) to the code in register edx without checking arguments.
+  __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movsxlq(rbx,
+         FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ cmpq(rax, rbx);
+  __ j(not_equal,
+       Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+       RelocInfo::CODE_TARGET);
+
   ParameterCount expected(0);
   __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION);
 }
@@ -586,6 +584,7 @@ static void AllocateJSArray(MacroAssembler* masm,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
   // Check whether an empty sized array is requested.
+  __ SmiToInteger64(array_size, array_size);
   __ testq(array_size, array_size);
   __ j(not_zero, &not_empty);
 
@@ -605,7 +604,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        times_half_pointer_size,  // array_size is a smi.
+                        times_pointer_size,
                         array_size,
                         result,
                         elements_array_end,
@@ -618,19 +617,20 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: initial map
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   __ bind(&allocated);
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
   __ Move(elements_array, Factory::empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
-  __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
+  __ Integer32ToSmi(scratch, array_size);
+  __ movq(FieldOperand(result, JSArray::kLengthOffset), scratch);
 
   // Calculate the location of the elements array and set elements array member
   // of the JSArray.
   // result: JSObject
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   __ lea(elements_array, Operand(result, JSArray::kSize));
   __ movq(FieldOperand(result, JSArray::kElementsOffset), elements_array);
 
@@ -638,9 +638,8 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   ASSERT(kSmiTag == 0);
-  __ SmiToInteger64(array_size, array_size);
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
           Factory::fixed_array_map());
   Label not_empty_2, fill_array;
@@ -900,7 +899,11 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // edi: called object
   // eax: number of arguments
   __ bind(&non_function_call);
-  // Set expected number of arguments to zero (not changing eax).
+  // CALL_NON_FUNCTION expects the non-function constructor as receiver
+  // (instead of the original receiver from the call site).  The receiver is
+  // stack element argc+1.
+  __ movq(Operand(rsp, rax, times_pointer_size, kPointerSize), rdi);
+  // Set expected number of arguments to zero (not changing rax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),

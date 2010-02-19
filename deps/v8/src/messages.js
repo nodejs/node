@@ -162,6 +162,8 @@ function FormatMessage(message) {
       value_and_accessor:           "Invalid property.  A property cannot both have accessors and be writable or have a value: %0",
       proto_object_or_null:         "Object prototype may only be an Object or null",
       property_desc_object:         "Property description must be an object: %0",
+      redefine_disallowed:          "Cannot redefine property: %0",
+      define_disallowed:            "Cannot define property, object is not extensible: %0",
       // RangeError
       invalid_array_length:         "Invalid array length",
       stack_overflow:               "Maximum call stack size exceeded",

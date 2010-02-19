@@ -51,9 +51,10 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-x64.h for its layout.
-void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
-  function_ = fun;
-  SetFunctionPosition(fun);
+void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+  ASSERT(info_ == NULL);
+  info_ = info;
+  SetFunctionPosition(function());
 
   if (mode == PRIMARY) {
     __ push(rbp);  // Caller's frame pointer.
@@ -62,7 +63,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     __ push(rdi);  // Callee's JS Function.
 
     { Comment cmnt(masm_, "[ Allocate locals");
-      int locals_count = fun->scope()->num_stack_slots();
+      int locals_count = scope()->num_stack_slots();
       if (locals_count == 1) {
         __ PushRoot(Heap::kUndefinedValueRootIndex);
       } else if (locals_count > 1) {
@@ -76,7 +77,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     bool function_in_register = true;
 
     // Possibly allocate a local context.
-    if (fun->scope()->num_heap_slots() > 0) {
+    if (scope()->num_heap_slots() > 0) {
       Comment cmnt(masm_, "[ Allocate local context");
       // Argument to NewContext is the function, which is still in rdi.
       __ push(rdi);
@@ -87,9 +88,9 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
       __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
 
       // Copy any necessary parameters into the context.
-      int num_parameters = fun->scope()->num_parameters();
+      int num_parameters = scope()->num_parameters();
       for (int i = 0; i < num_parameters; i++) {
-        Slot* slot = fun->scope()->parameter(i)->slot();
+        Slot* slot = scope()->parameter(i)->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           int parameter_offset = StandardFrameConstants::kCallerSPOffset +
                                      (num_parameters - 1 - i) * kPointerSize;
@@ -108,7 +109,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     }
 
     // Possibly allocate an arguments object.
-    Variable* arguments = fun->scope()->arguments()->AsVariable();
+    Variable* arguments = scope()->arguments()->AsVariable();
     if (arguments != NULL) {
       // Arguments object must be allocated after the context object, in
       // case the "arguments" or ".arguments" variables are in the context.
@@ -119,10 +120,11 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
         __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
       }
       // The receiver is just before the parameters on the caller's stack.
-      __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
-                          fun->num_parameters() * kPointerSize));
+      int offset = scope()->num_parameters() * kPointerSize;
+      __ lea(rdx,
+             Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
       __ push(rdx);
-      __ Push(Smi::FromInt(fun->num_parameters()));
+      __ Push(Smi::FromInt(scope()->num_parameters()));
       // Arguments to ArgumentsAccessStub:
       //   function, receiver address, parameter count.
       // The stub will rewrite receiver and parameter count if the previous
@@ -133,13 +135,13 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
       __ movq(rcx, rax);
       Move(arguments->slot(), rax, rbx, rdx);
       Slot* dot_arguments_slot =
-          fun->scope()->arguments_shadow()->AsVariable()->slot();
+          scope()->arguments_shadow()->AsVariable()->slot();
       Move(dot_arguments_slot, rcx, rbx, rdx);
     }
   }
 
   { Comment cmnt(masm_, "[ Declarations");
-    VisitDeclarations(fun->scope()->declarations());
+    VisitDeclarations(scope()->declarations());
   }
 
   { Comment cmnt(masm_, "[ Stack check");
@@ -157,14 +159,14 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
 
   { Comment cmnt(masm_, "[ Body");
     ASSERT(loop_depth() == 0);
-    VisitStatements(fun->body());
+    VisitStatements(function()->body());
     ASSERT(loop_depth() == 0);
   }
 
   { Comment cmnt(masm_, "[ return <undefined>;");
     // Emit a 'return undefined' in case control fell off the end of the body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    EmitReturnSequence(function_->end_position());
+    EmitReturnSequence(function()->end_position());
   }
 }
 
@@ -190,7 +192,7 @@ void FullCodeGenerator::EmitReturnSequence(int position) {
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
     __ pop(rbp);
-    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+    __ ret((scope()->num_parameters() + 1) * kPointerSize);
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
@@ -629,7 +631,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       return Operand(rbp, SlotOffset(slot));
     case Slot::CONTEXT: {
       int context_chain_length =
-          function_->scope()->ContextChainLength(slot->var()->scope());
+          scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
       return CodeGenerator::ContextOperand(scratch, slot->index());
     }
@@ -688,7 +690,7 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
         // this specific context.
 
         // The variable in the decl always resides in the current context.
-        ASSERT_EQ(0, function_->scope()->ContextChainLength(var->scope()));
+        ASSERT_EQ(0, scope()->ContextChainLength(var->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
           __ movq(rbx,
@@ -767,7 +769,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(rsi);  // The context is the first argument.
   __ Push(pairs);
-  __ Push(Smi::FromInt(is_eval_ ? 1 : 0));
+  __ Push(Smi::FromInt(is_eval() ? 1 : 0));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -778,7 +780,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(expr, script_, this);
+      Compiler::BuildBoilerplate(expr, script(), this);
   if (HasStackOverflow()) return;
 
   ASSERT(boilerplate->IsBoilerplate());
@@ -1013,6 +1015,92 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
+void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() != Token::INIT_CONST);
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->target()->AsProperty();
+  if (prop != NULL) {
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  }
+
+  // Evaluate LHS expression.
+  switch (assign_type) {
+    case VARIABLE:
+      // Nothing to do here.
+      break;
+    case NAMED_PROPERTY:
+      if (expr->is_compound()) {
+        // We need the receiver both on the stack and in the accumulator.
+        VisitForValue(prop->obj(), kAccumulator);
+        __ push(result_register());
+      } else {
+        VisitForValue(prop->obj(), kStack);
+      }
+      break;
+    case KEYED_PROPERTY:
+      VisitForValue(prop->obj(), kStack);
+      VisitForValue(prop->key(), kStack);
+      break;
+  }
+
+  // If we have a compound assignment: Get value of LHS expression and
+  // store in on top of the stack.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kStack;
+    switch (assign_type) {
+      case VARIABLE:
+        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
+                         Expression::kValue);
+        break;
+      case NAMED_PROPERTY:
+        EmitNamedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+      case KEYED_PROPERTY:
+        EmitKeyedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+    }
+    location_ = saved_location;
+  }
+
+  // Evaluate RHS expression.
+  Expression* rhs = expr->value();
+  VisitForValue(rhs, kAccumulator);
+
+  // If we have a compound assignment: Apply operator.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kAccumulator;
+    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    location_ = saved_location;
+  }
+
+  // Record source position before possible IC call.
+  SetSourcePosition(expr->position());
+
+  // Store the value.
+  switch (assign_type) {
+    case VARIABLE:
+      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             context_);
+      break;
+    case NAMED_PROPERTY:
+      EmitNamedPropertyAssignment(expr);
+      break;
+    case KEYED_PROPERTY:
+      EmitKeyedPropertyAssignment(expr);
+      break;
+  }
+}
+
+
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
@@ -1198,7 +1286,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
 
 void FullCodeGenerator::EmitCallWithIC(Call* expr,
-                                       Handle<Object> ignored,
+                                       Handle<Object> name,
                                        RelocInfo::Mode mode) {
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1206,6 +1294,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   for (int i = 0; i < arg_count; i++) {
     VisitForValue(args->at(i), kStack);
   }
+  __ Move(rcx, name);
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
@@ -1215,8 +1304,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   __ Call(ic, mode);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
-  DropAndApply(1, context_, rax);
+  Apply(context_, rax);
 }
 
 
@@ -1248,7 +1336,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     UNREACHABLE();
   } else if (var != NULL && !var->is_this() && var->is_global()) {
     // Call to a global variable.
-    __ Push(var->name());
     // Push global object as receiver for the call IC lookup.
     __ push(CodeGenerator::GlobalObject());
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
@@ -1262,7 +1349,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
       // Call to a named property, use call IC.
-      __ Push(key->handle());
       VisitForValue(prop->obj(), kStack);
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
@@ -1353,7 +1439,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ Push(expr->name());
     __ movq(rax, CodeGenerator::GlobalObject());
     __ push(FieldOperand(rax, GlobalObject::kBuiltinsOffset));
   }
@@ -1365,18 +1450,17 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   }
 
   if (expr->is_jsruntime()) {
-    // Call the JS runtime function.
-    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                           NOT_IN_LOOP);
+    // Call the JS runtime function using a call IC.
+    __ Move(rcx, expr->name());
+    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
     __ call(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    // Discard the function left on TOS.
-    DropAndApply(1, context_, rax);
   } else {
     __ CallRuntime(expr->function(), arg_count);
-    Apply(context_, rax);
   }
+  Apply(context_, rax);
 }
 
 

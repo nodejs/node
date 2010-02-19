@@ -37,6 +37,8 @@
 #include "x64/virtual-frame-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/virtual-frame-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/virtual-frame-mips.h"
 #else
 #error Unsupported target architecture.
 #endif

@@ -72,6 +72,7 @@ SOURCES = {
     interpreter-irregexp.cc
     jsregexp.cc
     jump-target.cc
+    liveedit.cc
     log-utils.cc
     log.cc
     mark-compact.cc
@@ -131,6 +132,24 @@ SOURCES = {
   'armvariant:thumb2': Split("""
     arm/assembler-thumb2.cc
     """),
+  'arch:mips': Split("""
+    mips/assembler-mips.cc
+    mips/builtins-mips.cc
+    mips/codegen-mips.cc
+    mips/constants-mips.cc
+    mips/cpu-mips.cc
+    mips/debug-mips.cc
+    mips/disasm-mips.cc
+    mips/fast-codegen-mips.cc
+    mips/full-codegen-mips.cc
+    mips/frames-mips.cc
+    mips/ic-mips.cc
+    mips/jump-target-mips.cc
+    mips/macro-assembler-mips.cc
+    mips/register-allocator-mips.cc
+    mips/stub-cache-mips.cc
+    mips/virtual-frame-mips.cc
+    """),
   'arch:ia32': Split("""
     ia32/assembler-ia32.cc
     ia32/builtins-ia32.cc
@@ -168,6 +187,7 @@ SOURCES = {
     x64/virtual-frame-x64.cc
     """),
   'simulator:arm': ['arm/simulator-arm.cc'],
+  'simulator:mips': ['mips/simulator-mips.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
   'os:openbsd': ['platform-openbsd.cc', 'platform-posix.cc'],
   'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],

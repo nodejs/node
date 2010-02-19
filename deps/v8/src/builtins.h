@@ -48,8 +48,13 @@ enum BuiltinExtraArguments {
                                                                     \
   V(ArrayPush, NO_EXTRA_ARGUMENTS)                                  \
   V(ArrayPop, NO_EXTRA_ARGUMENTS)                                   \
+  V(ArrayShift, NO_EXTRA_ARGUMENTS)                                 \
+  V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                               \
+  V(ArraySlice, NO_EXTRA_ARGUMENTS)                                 \
+  V(ArraySplice, NO_EXTRA_ARGUMENTS)                                \
                                                                     \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
+  V(FastHandleApiCall, NO_EXTRA_ARGUMENTS)                          \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)                  \
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
   V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)
@@ -68,9 +73,6 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_Miss,           BUILTIN, UNINITIALIZED)                   \
   V(StoreIC_Miss,               BUILTIN, UNINITIALIZED)                   \
   V(KeyedStoreIC_Miss,          BUILTIN, UNINITIALIZED)                   \
-                                                                          \
-  V(StoreIC_ExtendStorage,      BUILTIN, UNINITIALIZED)                   \
-  V(KeyedStoreIC_ExtendStorage, BUILTIN, UNINITIALIZED)                   \
                                                                           \
   V(LoadIC_Initialize,          LOAD_IC, UNINITIALIZED)                   \
   V(LoadIC_PreMonomorphic,      LOAD_IC, PREMONOMORPHIC)                  \
@@ -91,8 +93,10 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_ExternalIntArray,           KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalUnsignedIntArray,   KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalFloatArray,         KEYED_LOAD_IC, MEGAMORPHIC)   \
+  V(KeyedLoadIC_IndexedInterceptor,         KEYED_LOAD_IC, MEGAMORPHIC)   \
                                                                           \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)                  \
+  V(StoreIC_ArrayLength,        STORE_IC, MONOMORPHIC)                    \
   V(StoreIC_Megamorphic,        STORE_IC, MEGAMORPHIC)                    \
                                                                           \
   V(KeyedStoreIC_Initialize,    KEYED_STORE_IC, UNINITIALIZED)            \

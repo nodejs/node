@@ -29,7 +29,7 @@
 #define V8_DATAFLOW_H_
 
 #include "ast.h"
-#include "scopes.h"
+#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -38,13 +38,13 @@ namespace internal {
 // their evaluation order (post-order left-to-right traversal).
 class AstLabeler: public AstVisitor {
  public:
-  AstLabeler() : next_number_(0), has_this_properties_(false) {}
+  AstLabeler() : next_number_(0) {}
 
-  void Label(FunctionLiteral* fun);
-
-  bool has_this_properties() { return has_this_properties_; }
+  void Label(CompilationInfo* info);
 
  private:
+  CompilationInfo* info() { return info_; }
+
   void VisitDeclarations(ZoneList<Declaration*>* decls);
   void VisitStatements(ZoneList<Statement*>* stmts);
 
@@ -56,12 +56,62 @@ class AstLabeler: public AstVisitor {
   // Traversal number for labelling AST nodes.
   int next_number_;
 
-  bool has_this_properties_;
+  CompilationInfo* info_;
 
   DISALLOW_COPY_AND_ASSIGN(AstLabeler);
 };
 
 
+class VarUseMap : public HashMap {
+ public:
+  VarUseMap() : HashMap(VarMatch) {}
+
+  ZoneList<Expression*>* Lookup(Variable* var);
+
+ private:
+  static bool VarMatch(void* key1, void* key2) { return key1 == key2; }
+};
+
+
+class DefinitionInfo : public ZoneObject {
+ public:
+  explicit DefinitionInfo() : last_use_(NULL) {}
+
+  Expression* last_use() { return last_use_; }
+  void set_last_use(Expression* expr) { last_use_ = expr; }
+
+ private:
+  Expression* last_use_;
+  Register location_;
+};
+
+
+class LivenessAnalyzer : public AstVisitor {
+ public:
+  LivenessAnalyzer() {}
+
+  void Analyze(FunctionLiteral* fun);
+
+ private:
+  void VisitStatements(ZoneList<Statement*>* stmts);
+
+  void RecordUse(Variable* var, Expression* expr);
+  void RecordDef(Variable* var, Expression* expr);
+
+
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  // Map for tracking the live variables.
+  VarUseMap live_vars_;
+
+  DISALLOW_COPY_AND_ASSIGN(LivenessAnalyzer);
+};
+
+
 } }  // namespace v8::internal
+
 
 #endif  // V8_DATAFLOW_H_

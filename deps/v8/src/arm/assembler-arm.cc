@@ -51,9 +51,14 @@ void CpuFeatures::Probe() {
   // If the compiler is allowed to use vfp then we can use vfp too in our
   // code generation.
 #if !defined(__arm__)
-  // For the simulator=arm build, always use VFP since the arm simulator has
-  // VFP support.
-  supported_ |= 1u << VFP3;
+  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
+  if (FLAG_enable_vfp3) {
+      supported_ |= 1u << VFP3;
+  }
+  // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
+  if (FLAG_enable_armv7) {
+      supported_ |= 1u << ARMv7;
+  }
 #else
   if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
@@ -65,6 +70,11 @@ void CpuFeatures::Probe() {
     // runtime detection of VFP returns true.
     supported_ |= 1u << VFP3;
     found_by_runtime_probing_ |= 1u << VFP3;
+  }
+
+  if (OS::ArmCpuHasFeature(ARMv7)) {
+    supported_ |= 1u << ARMv7;
+    found_by_runtime_probing_ |= 1u << ARMv7;
   }
 #endif
 }
@@ -83,9 +93,9 @@ Register r4  = {  4 };
 Register r5  = {  5 };
 Register r6  = {  6 };
 Register r7  = {  7 };
-Register r8  = {  8 };
+Register r8  = {  8 };  // Used as context register.
 Register r9  = {  9 };
-Register r10 = { 10 };
+Register r10 = { 10 };  // Used as roots register.
 Register fp  = { 11 };
 Register ip  = { 12 };
 Register sp  = { 13 };
@@ -264,9 +274,9 @@ MemOperand::MemOperand(Register rn, Register rm,
 
 
 // -----------------------------------------------------------------------------
-// Implementation of Assembler
+// Implementation of Assembler.
 
-// Instruction encoding bits
+// Instruction encoding bits.
 enum {
   H   = 1 << 5,   // halfword (or byte)
   S6  = 1 << 6,   // signed (or unsigned)
@@ -299,14 +309,14 @@ enum {
   B26 = 1 << 26,
   B27 = 1 << 27,
 
-  // Instruction bit masks
+  // Instruction bit masks.
   RdMask     = 15 << 12,  // in str instruction
   CondMask   = 15 << 28,
   CoprocessorMask = 15 << 8,
   OpCodeMask = 15 << 21,  // in data-processing instructions
   Imm24Mask  = (1 << 24) - 1,
   Off12Mask  = (1 << 12) - 1,
-  // Reserved condition
+  // Reserved condition.
   nv = 15 << 28
 };
 
@@ -327,13 +337,13 @@ const Instr kMovLrPc = al | 13*B21 | pc.code() | lr.code() * B12;
 // ldr pc, [pc, #XXX]
 const Instr kLdrPCPattern = al | B26 | L | pc.code() * B16;
 
-// spare_buffer_
+// Spare buffer.
 static const int kMinimalBufferSize = 4*KB;
 static byte* spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
   if (buffer == NULL) {
-    // do our own buffer management
+    // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
@@ -351,14 +361,14 @@ Assembler::Assembler(void* buffer, int buffer_size) {
     own_buffer_ = true;
 
   } else {
-    // use externally provided buffer instead
+    // Use externally provided buffer instead.
     ASSERT(buffer_size > 0);
     buffer_ = static_cast<byte*>(buffer);
     buffer_size_ = buffer_size;
     own_buffer_ = false;
   }
 
-  // setup buffer pointers
+  // Setup buffer pointers.
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
@@ -386,11 +396,11 @@ Assembler::~Assembler() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  // emit constant pool if necessary
+  // Emit constant pool if necessary.
   CheckConstPool(true, false);
   ASSERT(num_prinfo_ == 0);
 
-  // setup desc
+  // Setup code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
@@ -539,7 +549,7 @@ void Assembler::bind_to(Label* L, int pos) {
 void Assembler::link_to(Label* L, Label* appendix) {
   if (appendix->is_linked()) {
     if (L->is_linked()) {
-      // append appendix to L's list
+      // Append appendix to L's list.
       int fixup_pos;
       int link = L->pos();
       do {
@@ -549,7 +559,7 @@ void Assembler::link_to(Label* L, Label* appendix) {
       ASSERT(link == kEndOfChain);
       target_at_put(fixup_pos, appendix->pos());
     } else {
-      // L is empty, simply use appendix
+      // L is empty, simply use appendix.
       *L = *appendix;
     }
   }
@@ -575,12 +585,12 @@ void Assembler::next(Label* L) {
 }
 
 
-// Low-level code emission routines depending on the addressing mode
+// Low-level code emission routines depending on the addressing mode.
 static bool fits_shifter(uint32_t imm32,
                          uint32_t* rotate_imm,
                          uint32_t* immed_8,
                          Instr* instr) {
-  // imm32 must be unsigned
+  // imm32 must be unsigned.
   for (int rot = 0; rot < 16; rot++) {
     uint32_t imm8 = (imm32 << 2*rot) | (imm32 >> (32 - 2*rot));
     if ((imm8 <= 0xff)) {
@@ -589,7 +599,7 @@ static bool fits_shifter(uint32_t imm32,
       return true;
     }
   }
-  // if the opcode is mov or mvn and if ~imm32 fits, change the opcode
+  // If the opcode is mov or mvn and if ~imm32 fits, change the opcode.
   if (instr != NULL && (*instr & 0xd*B21) == 0xd*B21) {
     if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
       *instr ^= 0x2*B21;
@@ -626,7 +636,7 @@ void Assembler::addrmod1(Instr instr,
   CheckBuffer();
   ASSERT((instr & ~(CondMask | OpCodeMask | S)) == 0);
   if (!x.rm_.is_valid()) {
-    // immediate
+    // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (MustUseIp(x.rmode_) ||
@@ -634,7 +644,7 @@ void Assembler::addrmod1(Instr instr,
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
       // However, if the original instruction is a 'mov rd, x' (not setting the
-      // condition code), then replace it with a 'ldr rd, [pc]'
+      // condition code), then replace it with a 'ldr rd, [pc]'.
       RecordRelocInfo(x.rmode_, x.imm32_);
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = static_cast<Condition>(instr & CondMask);
@@ -648,16 +658,16 @@ void Assembler::addrmod1(Instr instr,
     }
     instr |= I | rotate_imm*B8 | immed_8;
   } else if (!x.rs_.is_valid()) {
-    // immediate shift
+    // Immediate shift.
     instr |= x.shift_imm_*B7 | x.shift_op_ | x.rm_.code();
   } else {
-    // register shift
+    // Register shift.
     ASSERT(!rn.is(pc) && !rd.is(pc) && !x.rm_.is(pc) && !x.rs_.is(pc));
     instr |= x.rs_.code()*B8 | x.shift_op_ | B4 | x.rm_.code();
   }
   emit(instr | rn.code()*B16 | rd.code()*B12);
   if (rn.is(pc) || x.rm_.is(pc))
-    // block constant pool emission for one instruction after reading pc
+    // Block constant pool emission for one instruction after reading pc.
     BlockConstPoolBefore(pc_offset() + kInstrSize);
 }
 
@@ -666,15 +676,15 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
   ASSERT((instr & ~(CondMask | B | L)) == B26);
   int am = x.am_;
   if (!x.rm_.is_valid()) {
-    // immediate offset
+    // Immediate offset.
     int offset_12 = x.offset_;
     if (offset_12 < 0) {
       offset_12 = -offset_12;
       am ^= U;
     }
     if (!is_uint12(offset_12)) {
-      // immediate offset cannot be encoded, load it first to register ip
-      // rn (and rd in a load) should never be ip, or will be trashed
+      // Immediate offset cannot be encoded, load it first to register ip
+      // rn (and rd in a load) should never be ip, or will be trashed.
       ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
       mov(ip, Operand(x.offset_), LeaveCC,
           static_cast<Condition>(instr & CondMask));
@@ -684,9 +694,9 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
     ASSERT(offset_12 >= 0);  // no masking needed
     instr |= offset_12;
   } else {
-    // register offset (shift_imm_ and shift_op_ are 0) or scaled
+    // Register offset (shift_imm_ and shift_op_ are 0) or scaled
     // register offset the constructors make sure than both shift_imm_
-    // and shift_op_ are initialized
+    // and shift_op_ are initialized.
     ASSERT(!x.rm_.is(pc));
     instr |= B25 | x.shift_imm_*B7 | x.shift_op_ | x.rm_.code();
   }
@@ -700,15 +710,15 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
   ASSERT(x.rn_.is_valid());
   int am = x.am_;
   if (!x.rm_.is_valid()) {
-    // immediate offset
+    // Immediate offset.
     int offset_8 = x.offset_;
     if (offset_8 < 0) {
       offset_8 = -offset_8;
       am ^= U;
     }
     if (!is_uint8(offset_8)) {
-      // immediate offset cannot be encoded, load it first to register ip
-      // rn (and rd in a load) should never be ip, or will be trashed
+      // Immediate offset cannot be encoded, load it first to register ip
+      // rn (and rd in a load) should never be ip, or will be trashed.
       ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
       mov(ip, Operand(x.offset_), LeaveCC,
           static_cast<Condition>(instr & CondMask));
@@ -718,15 +728,15 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
     ASSERT(offset_8 >= 0);  // no masking needed
     instr |= B | (offset_8 >> 4)*B8 | (offset_8 & 0xf);
   } else if (x.shift_imm_ != 0) {
-    // scaled register offset not supported, load index first
-    // rn (and rd in a load) should never be ip, or will be trashed
+    // Scaled register offset not supported, load index first
+    // rn (and rd in a load) should never be ip, or will be trashed.
     ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
     mov(ip, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,
         static_cast<Condition>(instr & CondMask));
     addrmod3(instr, rd, MemOperand(x.rn_, ip, x.am_));
     return;
   } else {
-    // register offset
+    // Register offset.
     ASSERT((am & (P|W)) == P || !x.rm_.is(pc));  // no pc index with writeback
     instr |= x.rm_.code();
   }
@@ -744,7 +754,7 @@ void Assembler::addrmod4(Instr instr, Register rn, RegList rl) {
 
 
 void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
-  // unindexed addressing is not encoded by this function
+  // Unindexed addressing is not encoded by this function.
   ASSERT_EQ((B27 | B26),
             (instr & ~(CondMask | CoprocessorMask | P | U | N | W | L)));
   ASSERT(x.rn_.is_valid() && !x.rm_.is_valid());
@@ -759,7 +769,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
   ASSERT(is_uint8(offset_8));  // unsigned word offset must fit in a byte
   ASSERT((am & (P|W)) == P || !x.rn_.is(pc));  // no pc base with writeback
 
-  // post-indexed addressing requires W == 1; different than in addrmod2/3
+  // Post-indexed addressing requires W == 1; different than in addrmod2/3.
   if ((am & P) == 0)
     am |= W;
 
@@ -782,7 +792,7 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
   }
 
   // Block the emission of the constant pool, since the branch instruction must
-  // be emitted at the pc offset recorded by the label
+  // be emitted at the pc offset recorded by the label.
   BlockConstPoolBefore(pc_offset() + kInstrSize);
   return target_pos - (pc_offset() + kPcLoadDelta);
 }
@@ -804,7 +814,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
 }
 
 
-// Branch instructions
+// Branch instructions.
 void Assembler::b(int branch_offset, Condition cond) {
   ASSERT((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
@@ -812,7 +822,7 @@ void Assembler::b(int branch_offset, Condition cond) {
   emit(cond | B27 | B25 | (imm24 & Imm24Mask));
 
   if (cond == al)
-    // dead code is a good location to emit the constant pool
+    // Dead code is a good location to emit the constant pool.
     CheckConstPool(false, false);
 }
 
@@ -849,7 +859,22 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
 }
 
 
-// Data-processing instructions
+// Data-processing instructions.
+
+// UBFX <Rd>,<Rn>,#<lsb>,#<width - 1>
+// Instruction details available in ARM DDI 0406A, A8-464.
+// cond(31-28) | 01111(27-23)| 1(22) | 1(21) | widthm1(20-16) |
+//  Rd(15-12) | lsb(11-7) | 101(6-4) | Rn(3-0)
+void Assembler::ubfx(Register dst, Register src1, const Operand& src2,
+                     const Operand& src3, Condition cond) {
+  ASSERT(!src2.rm_.is_valid() && !src3.rm_.is_valid());
+  ASSERT(static_cast<uint32_t>(src2.imm32_) <= 0x1f);
+  ASSERT(static_cast<uint32_t>(src3.imm32_) <= 0x1f);
+  emit(cond | 0x3F*B21 | src3.imm32_*B16 |
+       dst.code()*B12 | src2.imm32_*B7 | 0x5*B4 | src1.code());
+}
+
+
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
                      SBit s, Condition cond) {
   addrmod1(cond | 0*B21 | s, src1, dst, src2);
@@ -886,7 +911,7 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
   if (FLAG_push_pop_elimination &&
       last_bound_pos_ <= (pc_offset() - pattern_size) &&
       reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
-      // pattern
+      // Pattern.
       instr_at(pc_ - 1 * kInstrSize) == kPopInstruction &&
       (instr_at(pc_ - 2 * kInstrSize) & ~RdMask) == kPushRegPattern) {
     pc_ -= 2 * kInstrSize;
@@ -960,7 +985,7 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
 }
 
 
-// Multiply instructions
+// Multiply instructions.
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
@@ -1029,7 +1054,7 @@ void Assembler::umull(Register dstL,
 }
 
 
-// Miscellaneous arithmetic instructions
+// Miscellaneous arithmetic instructions.
 void Assembler::clz(Register dst, Register src, Condition cond) {
   // v5 and above.
   ASSERT(!dst.is(pc) && !src.is(pc));
@@ -1038,7 +1063,7 @@ void Assembler::clz(Register dst, Register src, Condition cond) {
 }
 
 
-// Status register access instructions
+// Status register access instructions.
 void Assembler::mrs(Register dst, SRegister s, Condition cond) {
   ASSERT(!dst.is(pc));
   emit(cond | B24 | s | 15*B16 | dst.code()*B12);
@@ -1050,12 +1075,12 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
   ASSERT(fields >= B16 && fields < B20);  // at least one field set
   Instr instr;
   if (!src.rm_.is_valid()) {
-    // immediate
+    // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (MustUseIp(src.rmode_) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
-      // immediate operand cannot be encoded, load it first to register ip
+      // Immediate operand cannot be encoded, load it first to register ip.
       RecordRelocInfo(src.rmode_, src.imm32_);
       ldr(ip, MemOperand(pc, 0), cond);
       msr(fields, Operand(ip), cond);
@@ -1070,7 +1095,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 }
 
 
-// Load/Store instructions
+// Load/Store instructions.
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
   if (dst.is(pc)) {
     WriteRecordedPositions();
@@ -1085,7 +1110,7 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
   if (FLAG_push_pop_elimination &&
       last_bound_pos_ <= (pc_offset() - pattern_size) &&
       reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
-      // pattern
+      // Pattern.
       instr_at(pc_ - 1 * kInstrSize) == (kPopRegPattern | dst.code() * B12) &&
       instr_at(pc_ - 2 * kInstrSize) == (kPushRegPattern | dst.code() * B12)) {
     pc_ -= 2 * kInstrSize;
@@ -1106,6 +1131,7 @@ void Assembler::str(Register src, const MemOperand& dst, Condition cond) {
   if (FLAG_push_pop_elimination &&
      last_bound_pos_ <= (pc_offset() - pattern_size) &&
      reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
+     // Pattern.
      instr_at(pc_ - 1 * kInstrSize) == (kPushRegPattern | src.code() * B12) &&
      instr_at(pc_ - 2 * kInstrSize) == kPopInstruction) {
     pc_ -= 2 * kInstrSize;
@@ -1147,17 +1173,17 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 }
 
 
-// Load/Store multiple instructions
+// Load/Store multiple instructions.
 void Assembler::ldm(BlockAddrMode am,
                     Register base,
                     RegList dst,
                     Condition cond) {
-  // ABI stack constraint: ldmxx base, {..sp..}  base != sp  is not restartable
+  // ABI stack constraint: ldmxx base, {..sp..}  base != sp  is not restartable.
   ASSERT(base.is(sp) || (dst & sp.bit()) == 0);
 
   addrmod4(cond | B27 | am | L, base, dst);
 
-  // emit the constant pool after a function return implemented by ldm ..{..pc}
+  // Emit the constant pool after a function return implemented by ldm ..{..pc}.
   if (cond == al && (dst & pc.bit()) != 0) {
     // There is a slight chance that the ldm instruction was actually a call,
     // in which case it would be wrong to return into the constant pool; we
@@ -1177,7 +1203,7 @@ void Assembler::stm(BlockAddrMode am,
 }
 
 
-// Semaphore instructions
+// Semaphore instructions.
 void Assembler::swp(Register dst, Register src, Register base, Condition cond) {
   ASSERT(!dst.is(pc) && !src.is(pc) && !base.is(pc));
   ASSERT(!dst.is(base) && !src.is(base));
@@ -1197,7 +1223,7 @@ void Assembler::swpb(Register dst,
 }
 
 
-// Exception-generating instructions and debugging support
+// Exception-generating instructions and debugging support.
 void Assembler::stop(const char* msg) {
 #if !defined(__arm__)
   // The simulator handles these special instructions and stops execution.
@@ -1222,7 +1248,7 @@ void Assembler::swi(uint32_t imm24, Condition cond) {
 }
 
 
-// Coprocessor instructions
+// Coprocessor instructions.
 void Assembler::cdp(Coprocessor coproc,
                     int opcode_1,
                     CRegister crd,
@@ -1307,7 +1333,7 @@ void Assembler::ldc(Coprocessor coproc,
                     int option,
                     LFlag l,
                     Condition cond) {
-  // unindexed addressing
+  // Unindexed addressing.
   ASSERT(is_uint8(option));
   emit(cond | B27 | B26 | U | l | L | rn.code()*B16 | crd.code()*B12 |
        coproc*B8 | (option & 255));
@@ -1346,7 +1372,7 @@ void Assembler::stc(Coprocessor coproc,
                     int option,
                     LFlag l,
                     Condition cond) {
-  // unindexed addressing
+  // Unindexed addressing.
   ASSERT(is_uint8(option));
   emit(cond | B27 | B26 | U | l | rn.code()*B16 | crd.code()*B12 |
        coproc*B8 | (option & 255));
@@ -1464,7 +1490,7 @@ void Assembler::vcvt(const DwVfpRegister dst,
                      const Condition cond) {
   // Dd = Sm (integer in Sm converted to IEEE 64-bit doubles in Dd).
   // Instruction details available in ARM DDI 0406A, A8-576.
-  // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) |opc2=000(18-16) |
+  // cond(31-28) | 11101(27-23)| D=?(22) | 11(21-20) | 1(19) | opc2=000(18-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | op(7)=1 | 1(6) | M=?(5) | 0(4) | Vm(3-0)
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   emit(cond | 0xE*B24 | B23 | 0x3*B20 | B19 |
@@ -1571,14 +1597,14 @@ void Assembler::vmrs(Register dst, Condition cond) {
 }
 
 
-// Pseudo instructions
+// Pseudo instructions.
 void Assembler::lea(Register dst,
                     const MemOperand& x,
                     SBit s,
                     Condition cond) {
   int am = x.am_;
   if (!x.rm_.is_valid()) {
-    // immediate offset
+    // Immediate offset.
     if ((am & P) == 0)  // post indexing
       mov(dst, Operand(x.rn_), s, cond);
     else if ((am & U) == 0)  // negative indexing
@@ -1612,7 +1638,7 @@ void Assembler::BlockConstPoolFor(int instructions) {
 }
 
 
-// Debugging
+// Debugging.
 void Assembler::RecordJSReturn() {
   WriteRecordedPositions();
   CheckBuffer();
@@ -1665,7 +1691,7 @@ void Assembler::WriteRecordedPositions() {
 void Assembler::GrowBuffer() {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
-  // compute new buffer size
+  // Compute new buffer size.
   CodeDesc desc;  // the new buffer
   if (buffer_size_ < 4*KB) {
     desc.buffer_size = 4*KB;
@@ -1676,20 +1702,20 @@ void Assembler::GrowBuffer() {
   }
   CHECK_GT(desc.buffer_size, 0);  // no overflow
 
-  // setup new buffer
+  // Setup new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
 
   desc.instr_size = pc_offset();
   desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
 
-  // copy the data
+  // Copy the data.
   int pc_delta = desc.buffer - buffer_;
   int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
   memmove(desc.buffer, buffer_, desc.instr_size);
   memmove(reloc_info_writer.pos() + rc_delta,
           reloc_info_writer.pos(), desc.reloc_size);
 
-  // switch buffers
+  // Switch buffers.
   DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
@@ -1697,11 +1723,11 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // none of our relocation types are pc relative pointing outside the code
+  // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
-  // to relocate any emitted relocation entries
+  // to relocate any emitted relocation entries.
 
-  // relocate pending relocation entries
+  // Relocate pending relocation entries.
   for (int i = 0; i < num_prinfo_; i++) {
     RelocInfo& rinfo = prinfo_[i];
     ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
@@ -1716,16 +1742,16 @@ void Assembler::GrowBuffer() {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
   if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::STATEMENT_POSITION) {
-    // Adjust code for new modes
+    // Adjust code for new modes.
     ASSERT(RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode));
-    // these modes do not need an entry in the constant pool
+    // These modes do not need an entry in the constant pool.
   } else {
     ASSERT(num_prinfo_ < kMaxNumPRInfo);
     prinfo_[num_prinfo_++] = rinfo;
     // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info
+    // instruction for which we just recorded relocation info.
     BlockConstPoolBefore(pc_offset() + kInstrSize);
   }
   if (rinfo.rmode() != RelocInfo::NONE) {
@@ -1752,7 +1778,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // blocked for a specific range.
   next_buffer_check_ = pc_offset() + kCheckConstInterval;
 
-  // There is nothing to do if there are no pending relocation info entries
+  // There is nothing to do if there are no pending relocation info entries.
   if (num_prinfo_ == 0) return;
 
   // We emit a constant pool at regular intervals of about kDistBetweenPools
@@ -1778,10 +1804,11 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // no_const_pool_before_, which is checked here. Also, recursive calls to
   // CheckConstPool are blocked by no_const_pool_before_.
   if (pc_offset() < no_const_pool_before_) {
-    // Emission is currently blocked; make sure we try again as soon as possible
+    // Emission is currently blocked; make sure we try again as soon as
+    // possible.
     next_buffer_check_ = no_const_pool_before_;
 
-    // Something is wrong if emission is forced and blocked at the same time
+    // Something is wrong if emission is forced and blocked at the same time.
     ASSERT(!force_emit);
     return;
   }
@@ -1795,23 +1822,23 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       jump_instr + kInstrSize + num_prinfo_*(kInstrSize + kMaxRelocSize);
   while (buffer_space() <= (max_needed_space + kGap)) GrowBuffer();
 
-  // Block recursive calls to CheckConstPool
+  // Block recursive calls to CheckConstPool.
   BlockConstPoolBefore(pc_offset() + jump_instr + kInstrSize +
                        num_prinfo_*kInstrSize);
   // Don't bother to check for the emit calls below.
   next_buffer_check_ = no_const_pool_before_;
 
-  // Emit jump over constant pool if necessary
+  // Emit jump over constant pool if necessary.
   Label after_pool;
   if (require_jump) b(&after_pool);
 
   RecordComment("[ Constant Pool");
 
-  // Put down constant pool marker
-  // "Undefined instruction" as specified by A3.1 Instruction set encoding
+  // Put down constant pool marker "Undefined instruction" as specified by
+  // A3.1 Instruction set encoding.
   emit(0x03000000 | num_prinfo_);
 
-  // Emit constant pool entries
+  // Emit constant pool entries.
   for (int i = 0; i < num_prinfo_; i++) {
     RelocInfo& rinfo = prinfo_[i];
     ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
@@ -1819,8 +1846,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
            rinfo.rmode() != RelocInfo::STATEMENT_POSITION);
     Instr instr = instr_at(rinfo.pc());
 
-    // Instruction to patch must be a ldr/str [pc, #offset]
-    // P and U set, B and W clear, Rn == pc, offset12 still 0
+    // Instruction to patch must be a ldr/str [pc, #offset].
+    // P and U set, B and W clear, Rn == pc, offset12 still 0.
     ASSERT((instr & (7*B25 | P | U | B | W | 15*B16 | Off12Mask)) ==
            (2*B25 | P | U | pc.code()*B16));
     int delta = pc_ - rinfo.pc() - 8;

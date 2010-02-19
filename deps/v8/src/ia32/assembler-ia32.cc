@@ -267,7 +267,7 @@ bool Operand::is_reg(Register reg) const {
 }
 
 // -----------------------------------------------------------------------------
-// Implementation of Assembler
+// Implementation of Assembler.
 
 // Emit a single byte. Must always be inlined.
 #define EMIT(x)                                 \
@@ -278,12 +278,12 @@ bool Operand::is_reg(Register reg) const {
 static void InitCoverageLog();
 #endif
 
-// spare_buffer_
+// Spare buffer.
 byte* Assembler::spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
   if (buffer == NULL) {
-    // do our own buffer management
+    // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
@@ -300,7 +300,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
     buffer_size_ = buffer_size;
     own_buffer_ = true;
   } else {
-    // use externally provided buffer instead
+    // Use externally provided buffer instead.
     ASSERT(buffer_size > 0);
     buffer_ = static_cast<byte*>(buffer);
     buffer_size_ = buffer_size;
@@ -316,7 +316,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   }
 #endif
 
-  // setup buffer pointers
+  // Setup buffer pointers.
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
@@ -344,11 +344,10 @@ Assembler::~Assembler() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  // finalize code
-  // (at this point overflow() may be true, but the gap ensures that
-  // we are still not overlapping instructions and relocation info)
-  ASSERT(pc_ <= reloc_info_writer.pos());  // no overlap
-  // setup desc
+  // Finalize code (at this point overflow() may be true, but the gap ensures
+  // that we are still not overlapping instructions and relocation info).
+  ASSERT(pc_ <= reloc_info_writer.pos());  // No overlap.
+  // Setup code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
@@ -435,7 +434,7 @@ void Assembler::push(const Operand& src) {
 void Assembler::pop(Register dst) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {
-    // (last_pc_ != NULL) is rolled into the above check
+    // (last_pc_ != NULL) is rolled into the above check.
     // If a last_pc_ is set, we need to make sure that there has not been any
     // relocation information generated between the last instruction and this
     // pop instruction.
@@ -461,7 +460,7 @@ void Assembler::pop(Register dst) {
       return;
     } else if (instr == 0xff) {  // push of an operand, convert to a move
       byte op1 = last_pc_[1];
-      // Check if the operation is really a push
+      // Check if the operation is really a push.
       if ((op1 & 0x38) == (6 << 3)) {
         op1 = (op1 & ~0x38) | static_cast<byte>(dst.code() << 3);
         last_pc_[0] = 0x8b;
@@ -747,7 +746,7 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(CMOV));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  // Opcode: 0f 40 + cc /r
+  // Opcode: 0f 40 + cc /r.
   EMIT(0x0F);
   EMIT(0x40 + cc);
   emit_operand(dst, src);
@@ -765,7 +764,7 @@ void Assembler::rep_movs() {
 void Assembler::xchg(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (src.is(eax) || dst.is(eax)) {  // Single-byte encoding
+  if (src.is(eax) || dst.is(eax)) {  // Single-byte encoding.
     EMIT(0x90 | (src.is(eax) ? dst.code() : src.code()));
   } else {
     EMIT(0x87);
@@ -1434,7 +1433,7 @@ void Assembler::bind_to(Label* L, int pos) {
       if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
         ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
       }
-      // relative address, relative to point after address
+      // Relative address, relative to point after address.
       int imm32 = pos - (fixup_pos + sizeof(int32_t));
       long_at_put(fixup_pos, imm32);
     }
@@ -1449,7 +1448,7 @@ void Assembler::link_to(Label* L, Label* appendix) {
   last_pc_ = NULL;
   if (appendix->is_linked()) {
     if (L->is_linked()) {
-      // append appendix to L's list
+      // Append appendix to L's list.
       Label p;
       Label q = *L;
       do {
@@ -1462,7 +1461,7 @@ void Assembler::link_to(Label* L, Label* appendix) {
       disp_at_put(&p, disp);
       p.Unuse();  // to avoid assertion failure in ~Label
     } else {
-      // L is empty, simply use appendix
+      // L is empty, simply use appendix.
       *L = *appendix;
     }
   }
@@ -1485,11 +1484,11 @@ void Assembler::call(Label* L) {
     const int long_size = 5;
     int offs = L->pos() - pc_offset();
     ASSERT(offs <= 0);
-    // 1110 1000 #32-bit disp
+    // 1110 1000 #32-bit disp.
     EMIT(0xE8);
     emit(offs - long_size);
   } else {
-    // 1110 1000 #32-bit disp
+    // 1110 1000 #32-bit disp.
     EMIT(0xE8);
     emit_disp(L, Displacement::OTHER);
   }
@@ -1532,16 +1531,16 @@ void Assembler::jmp(Label* L) {
     int offs = L->pos() - pc_offset();
     ASSERT(offs <= 0);
     if (is_int8(offs - short_size)) {
-      // 1110 1011 #8-bit disp
+      // 1110 1011 #8-bit disp.
       EMIT(0xEB);
       EMIT((offs - short_size) & 0xFF);
     } else {
-      // 1110 1001 #32-bit disp
+      // 1110 1001 #32-bit disp.
       EMIT(0xE9);
       emit(offs - long_size);
     }
   } else {
-    // 1110 1001 #32-bit disp
+    // 1110 1001 #32-bit disp.
     EMIT(0xE9);
     emit_disp(L, Displacement::UNCONDITIONAL_JUMP);
   }
@@ -1611,7 +1610,7 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint) {
   last_pc_ = pc_;
   ASSERT((0 <= cc) && (cc < 16));
   if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
-  // 0000 1111 1000 tttn #32-bit disp
+  // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
   emit(entry - (pc_ + sizeof(int32_t)), rmode);
@@ -1629,7 +1628,7 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
 }
 
 
-// FPU instructions
+// FPU instructions.
 
 void Assembler::fld(int i) {
   EnsureSpace ensure_space(this);
@@ -2225,10 +2224,10 @@ void Assembler::WriteRecordedPositions() {
 
 
 void Assembler::GrowBuffer() {
-  ASSERT(overflow());  // should not call this otherwise
+  ASSERT(overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
 
-  // compute new buffer size
+  // Compute new buffer size.
   CodeDesc desc;  // the new buffer
   if (buffer_size_ < 4*KB) {
     desc.buffer_size = 4*KB;
@@ -2242,7 +2241,7 @@ void Assembler::GrowBuffer() {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
-  // setup new buffer
+  // Setup new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
   desc.instr_size = pc_offset();
   desc.reloc_size = (buffer_ + buffer_size_) - (reloc_info_writer.pos());
@@ -2253,14 +2252,14 @@ void Assembler::GrowBuffer() {
   memset(desc.buffer, 0xCC, desc.buffer_size);
 #endif
 
-  // copy the data
+  // Copy the data.
   int pc_delta = desc.buffer - buffer_;
   int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
   memmove(desc.buffer, buffer_, desc.instr_size);
   memmove(rc_delta + reloc_info_writer.pos(),
           reloc_info_writer.pos(), desc.reloc_size);
 
-  // switch buffers
+  // Switch buffers.
   if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
     spare_buffer_ = buffer_;
   } else {
@@ -2275,7 +2274,7 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // relocate runtime entries
+  // Relocate runtime entries.
   for (RelocIterator it(desc); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::RUNTIME_ENTRY) {

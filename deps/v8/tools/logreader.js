@@ -76,6 +76,18 @@ devtools.profiler.LogReader = function(dispatchTable) {
    * @type {Array.<string>}
    */
   this.backRefs_ = [];
+
+  /**
+   * Current line.
+   * @type {number}
+   */
+  this.lineNum_ = 0;
+
+  /**
+   * CSV lines parser.
+   * @type {devtools.profiler.CsvParser}
+   */
+  this.csvParser_ = new devtools.profiler.CsvParser();
 };
 
 
@@ -132,6 +144,16 @@ devtools.profiler.LogReader.prototype.printError = function(str) {
  */
 devtools.profiler.LogReader.prototype.processLogChunk = function(chunk) {
   this.processLog_(chunk.split('\n'));
+};
+
+
+/**
+ * Processes a line of V8 profiler event log.
+ *
+ * @param {string} line A line of log.
+ */
+devtools.profiler.LogReader.prototype.processLogLine = function(line) {
+  this.processLog_([line]);
 };
 
 
@@ -280,25 +302,20 @@ devtools.profiler.LogReader.prototype.processAlias_ = function(
  * @private
  */
 devtools.profiler.LogReader.prototype.processLog_ = function(lines) {
-  var csvParser = new devtools.profiler.CsvParser();
-  try {
-    for (var i = 0, n = lines.length; i < n; ++i) {
-      var line = lines[i];
-      if (!line) {
-        continue;
-      }
+  for (var i = 0, n = lines.length; i < n; ++i, ++this.lineNum_) {
+    var line = lines[i];
+    if (!line) {
+      continue;
+    }
+    try {
       if (line.charAt(0) == '#' ||
           line.substr(0, line.indexOf(',')) in this.backRefsCommands_) {
         line = this.expandBackRef_(line);
       }
-      var fields = csvParser.parseLine(line);
+      var fields = this.csvParser_.parseLine(line);
       this.dispatchLogRow_(fields);
-    }
-  } catch (e) {
-    // An error on the last line is acceptable since log file can be truncated.
-    if (i < n - 1) {
-      this.printError('line ' + (i + 1) + ': ' + (e.message || e));
-      throw e;
+    } catch (e) {
+      this.printError('line ' + (this.lineNum_ + 1) + ': ' + (e.message || e));
     }
   }
 };

@@ -1,3 +1,17 @@
+2010-02-19: Version 2.1.1
+
+        [ES5] Implemented Object.defineProperty.
+
+        Improved profiler support.
+
+        Added SetPrototype method in the public V8 API.
+
+        Added GetScriptOrigin and GetScriptLineNumber methods to Function
+        objects in the API.
+
+        Performance improvements on all platforms.
+
+
 2010-02-03: Version 2.1.0
 
         Values are now always wrapped in objects when used as a receiver.

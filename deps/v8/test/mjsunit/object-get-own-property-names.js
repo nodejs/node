@@ -57,6 +57,8 @@ propertyNames.sort();
 assertEquals(3, propertyNames.length);
 assertEquals("0", propertyNames[0]);
 assertEquals("1", propertyNames[1]);
+assertEquals("string", typeof propertyNames[0]);
+assertEquals("string", typeof propertyNames[1]);
 assertEquals("length", propertyNames[2]);
 
 // Check that no proto properties are returned.

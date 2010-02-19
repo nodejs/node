@@ -152,7 +152,7 @@ int RunMain(int argc, char* argv[]) {
     } else if (strcmp(str, "--main-cycle-in-js") == 0) {
       cycle_type = CycleInJs;
     } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-      port_number = atoi(argv[i + 1]);
+      port_number = atoi(argv[i + 1]);  // NOLINT
       i++;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);

@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
@@ -453,15 +454,7 @@ void BreakLocationIterator::ClearDebugBreakAtIC() {
 
 
 bool BreakLocationIterator::IsDebuggerStatement() {
-  if (RelocInfo::IsCodeTarget(rmode())) {
-    Address target = original_rinfo()->target_address();
-    Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->kind() == Code::STUB) {
-      CodeStub::Major major_key = code->major_key();
-      return (major_key == CodeStub::DebuggerStatement);
-    }
-  }
-  return false;
+  return RelocInfo::DEBUG_BREAK == rmode();
 }
 
 
@@ -690,7 +683,8 @@ bool Debug::CompileDebuggerScript(int index) {
   bool allow_natives_syntax = FLAG_allow_natives_syntax;
   FLAG_allow_natives_syntax = true;
   Handle<JSFunction> boilerplate;
-  boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL);
+  boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
+                                  Handle<String>::null());
   FLAG_allow_natives_syntax = allow_natives_syntax;
 
   // Silently ignore stack overflows during compilation.

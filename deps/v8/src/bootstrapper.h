@@ -59,9 +59,6 @@ class Bootstrapper : public AllStatic {
                                  Handle<JSFunction>* handle);
   static void NativesCacheAdd(Vector<const char> name, Handle<JSFunction> fun);
 
-  // Append code that needs fixup at the end of boot strapping.
-  static void AddFixup(Code* code, MacroAssembler* masm);
-
   // Tells whether bootstrapping is active.
   static bool IsActive();
 

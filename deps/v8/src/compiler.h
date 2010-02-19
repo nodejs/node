@@ -28,45 +28,136 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include "ast.h"
 #include "frame-element.h"
 #include "parser.h"
+#include "register-allocator.h"
 #include "zone.h"
 
 namespace v8 {
 namespace internal {
 
-// CompilationInfo encapsulates some information known at compile time.
+// CompilationInfo encapsulates some information known at compile time.  It
+// is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  CompilationInfo(Handle<SharedFunctionInfo> shared_info,
-                  Handle<Object> receiver,
-                  int loop_nesting)
-      : shared_info_(shared_info),
-        receiver_(receiver),
+  // Lazy compilation of a JSFunction.
+  CompilationInfo(Handle<JSFunction> closure,
+                  int loop_nesting,
+                  Handle<Object> receiver)
+      : closure_(closure),
+        function_(NULL),
+        is_eval_(false),
         loop_nesting_(loop_nesting),
-        has_this_properties_(false),
-        has_globals_(false) {
+        receiver_(receiver) {
+    Initialize();
+    ASSERT(!closure_.is_null() &&
+           shared_info_.is_null() &&
+           script_.is_null());
   }
 
-  Handle<SharedFunctionInfo> shared_info() { return shared_info_; }
+  // Lazy compilation based on SharedFunctionInfo.
+  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info)
+      : shared_info_(shared_info),
+        function_(NULL),
+        is_eval_(false),
+        loop_nesting_(0) {
+    Initialize();
+    ASSERT(closure_.is_null() &&
+           !shared_info_.is_null() &&
+           script_.is_null());
+  }
 
+  // Eager compilation.
+  CompilationInfo(FunctionLiteral* literal, Handle<Script> script, bool is_eval)
+      : script_(script),
+        function_(literal),
+        is_eval_(is_eval),
+        loop_nesting_(0) {
+    Initialize();
+    ASSERT(closure_.is_null() &&
+           shared_info_.is_null() &&
+           !script_.is_null());
+  }
+
+  // We can only get a JSFunction if we actually have one.
+  Handle<JSFunction> closure() { return closure_; }
+
+  // We can get a SharedFunctionInfo from a JSFunction or if we actually
+  // have one.
+  Handle<SharedFunctionInfo> shared_info() {
+    if (!closure().is_null()) {
+      return Handle<SharedFunctionInfo>(closure()->shared());
+    } else {
+      return shared_info_;
+    }
+  }
+
+  // We can always get a script.  Either we have one or we can get a shared
+  // function info.
+  Handle<Script> script() {
+    if (!script_.is_null()) {
+      return script_;
+    } else {
+      ASSERT(shared_info()->script()->IsScript());
+      return Handle<Script>(Script::cast(shared_info()->script()));
+    }
+  }
+
+  // There should always be a function literal, but it may be set after
+  // construction (for lazy compilation).
+  FunctionLiteral* function() { return function_; }
+  void set_function(FunctionLiteral* literal) {
+    ASSERT(function_ == NULL);
+    function_ = literal;
+  }
+
+  // Simple accessors.
+  bool is_eval() { return is_eval_; }
+  int loop_nesting() { return loop_nesting_; }
   bool has_receiver() { return !receiver_.is_null(); }
   Handle<Object> receiver() { return receiver_; }
 
-  int loop_nesting() { return loop_nesting_; }
-
+  // Accessors for mutable fields, possibly set by analysis passes with
+  // default values given by Initialize.
   bool has_this_properties() { return has_this_properties_; }
   void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
+
+  bool has_global_object() {
+    return !closure().is_null() && (closure()->context()->global() != NULL);
+  }
+
+  GlobalObject* global_object() {
+    return has_global_object() ? closure()->context()->global() : NULL;
+  }
 
   bool has_globals() { return has_globals_; }
   void set_has_globals(bool flag) { has_globals_ = flag; }
 
+  // Derived accessors.
+  Scope* scope() { return function()->scope(); }
+
  private:
+  void Initialize() {
+    has_this_properties_ = false;
+    has_globals_ = false;
+  }
+
+  Handle<JSFunction> closure_;
   Handle<SharedFunctionInfo> shared_info_;
-  Handle<Object> receiver_;
+  Handle<Script> script_;
+
+  FunctionLiteral* function_;
+
+  bool is_eval_;
   int loop_nesting_;
+
+  Handle<Object> receiver_;
+
   bool has_this_properties_;
   bool has_globals_;
+
+  DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
 
@@ -94,7 +185,8 @@ class Compiler : public AllStatic {
                                     Handle<Object> script_name,
                                     int line_offset, int column_offset,
                                     v8::Extension* extension,
-                                    ScriptDataImpl* script_Data);
+                                    ScriptDataImpl* pre_data,
+                                    Handle<Object> script_data);
 
   // Compile a String source within a context for Eval.
   static Handle<JSFunction> CompileEval(Handle<String> source,
@@ -119,6 +211,17 @@ class Compiler : public AllStatic {
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);
+
+ private:
+
+#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
+  static void LogCodeCreateEvent(Logger::LogEventsAndTags tag,
+                                 Handle<String> name,
+                                 Handle<String> inferred_name,
+                                 int start_position,
+                                 Handle<Script> script,
+                                 Handle<Code> code);
+#endif
 };
 
 

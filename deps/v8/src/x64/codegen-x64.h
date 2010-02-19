@@ -305,19 +305,15 @@ class CodeGenerator: public AstVisitor {
 
   // Takes a function literal, generates code for it. This function should only
   // be called by compiler.cc.
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval,
-                               CompilationInfo* info);
+  static Handle<Code> MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(FunctionLiteral* fun);
+  static void MakeCodePrologue(CompilationInfo* info);
 
   // Allocate and install the code.
-  static Handle<Code> MakeCodeEpilogue(FunctionLiteral* fun,
-                                       MacroAssembler* masm,
+  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
                                        Code::Flags flags,
-                                       Handle<Script> script);
+                                       CompilationInfo* info);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
@@ -328,7 +324,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   MacroAssembler* masm() { return masm_; }
   VirtualFrame* frame() const { return frame_; }
-  Handle<Script> script() { return script_; }
+  inline Handle<Script> script();
 
   bool has_valid_frame() const { return frame_ != NULL; }
 
@@ -352,15 +348,14 @@ class CodeGenerator: public AstVisitor {
 
  private:
   // Construction/Destruction
-  CodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval);
+  explicit CodeGenerator(MacroAssembler* masm);
 
   // Accessors
-  Scope* scope() const { return scope_; }
+  inline bool is_eval();
+  Scope* scope();
 
   // Generating deferred code.
   void ProcessDeferred();
-
-  bool is_eval() { return is_eval_; }
 
   // State
   ControlDestination* destination() const { return state_->destination(); }
@@ -390,7 +385,7 @@ class CodeGenerator: public AstVisitor {
   void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
-  void Generate(FunctionLiteral* fun, Mode mode, CompilationInfo* info);
+  void Generate(CompilationInfo* info, Mode mode);
 
   // Generate the return sequence code.  Should be called no more than
   // once per compiled function, immediately after binding the return
@@ -398,7 +393,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateReturnSequence(Result* return_value);
 
   // Returns the arguments allocation mode.
-  ArgumentsAllocationMode ArgumentsMode() const;
+  ArgumentsAllocationMode ArgumentsMode();
 
   // Store the arguments object and allocate it if necessary.
   Result StoreArgumentsObject(bool initial);
@@ -489,7 +484,8 @@ class CodeGenerator: public AstVisitor {
                                   Result* right,
                                   OverwriteMode overwrite_mode);
 
-  void Comparison(Condition cc,
+  void Comparison(AstNode* node,
+                  Condition cc,
                   bool strict,
                   ControlDestination* destination);
 
@@ -581,6 +577,9 @@ class CodeGenerator: public AstVisitor {
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
+  // Fast support for number to string.
+  void GenerateNumberToString(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
@@ -604,15 +603,14 @@ class CodeGenerator: public AstVisitor {
   bool HasValidEntryRegisters();
 #endif
 
-  bool is_eval_;  // Tells whether code is generated for eval.
-  Handle<Script> script_;
   ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code
 
+  CompilationInfo* info_;
+
   // Code generation state
-  Scope* scope_;
   VirtualFrame* frame_;
   RegisterAllocator* allocator_;
   CodeGenState* state_;
@@ -660,13 +658,15 @@ class GenericBinaryOpStub: public CodeStub {
  public:
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
-                      GenericBinaryFlags flags)
+                      GenericBinaryFlags flags,
+                      NumberInfo::Type operands_type = NumberInfo::kUnknown)
       : op_(op),
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false),
-        name_(NULL) {
+        name_(NULL),
+        operands_type_(operands_type) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -691,28 +691,32 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
   char* name_;
+  NumberInfo::Type operands_type_;
 
   const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub (op %s), "
-           "(mode %d, flags %d, registers %d, reversed %d)\n",
+    PrintF("GenericBinaryOpStub %d (op %s), "
+           "(mode %d, flags %d, registers %d, reversed %d, only_numbers %s)\n",
+           MinorKey(),
            Token::String(op_),
            static_cast<int>(mode_),
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
-           static_cast<int>(args_reversed_));
+           static_cast<int>(args_reversed_),
+           NumberInfo::ToString(operands_type_));
   }
 #endif
 
-  // Minor key encoding in 16 bits FRASOOOOOOOOOOMM.
+  // Minor key encoding in 16 bits NNNFRASOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 10> {};
-  class SSE3Bits: public BitField<bool, 12, 1> {};
-  class ArgsInRegistersBits: public BitField<bool, 13, 1> {};
-  class ArgsReversedBits: public BitField<bool, 14, 1> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
+  class OpBits: public BitField<Token::Value, 2, 7> {};
+  class SSE3Bits: public BitField<bool, 9, 1> {};
+  class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
+  class ArgsReversedBits: public BitField<bool, 11, 1> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
+  class NumberInfoBits: public BitField<NumberInfo::Type, 13, 3> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -722,7 +726,8 @@ class GenericBinaryOpStub: public CodeStub {
            | FlagBits::encode(flags_)
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
-           | ArgsReversedBits::encode(args_reversed_);
+           | ArgsReversedBits::encode(args_reversed_)
+           | NumberInfoBits::encode(operands_type_);
   }
 
   void Generate(MacroAssembler* masm);

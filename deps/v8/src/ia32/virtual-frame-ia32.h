@@ -28,6 +28,7 @@
 #ifndef V8_IA32_VIRTUAL_FRAME_IA32_H_
 #define V8_IA32_VIRTUAL_FRAME_IA32_H_
 
+#include "number-info.h"
 #include "register-allocator.h"
 #include "scopes.h"
 
@@ -82,7 +83,8 @@ class VirtualFrame: public ZoneObject {
   MacroAssembler* masm() { return cgen()->masm(); }
 
   // Create a duplicate of an existing valid frame element.
-  FrameElement CopyElementAt(int index);
+  FrameElement CopyElementAt(int index,
+    NumberInfo::Type info = NumberInfo::kUninitialized);
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -324,12 +326,16 @@ class VirtualFrame: public ZoneObject {
   Result CallRuntime(Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  void DebugBreak();
+#endif
+
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
   Result InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag, int arg_count);
 
   // Call load IC.  Name and receiver are found on top of the frame.
-  // Receiver is not dropped.
+  // Both are dropped.
   Result CallLoadIC(RelocInfo::Mode mode);
 
   // Call keyed load IC.  Key and receiver are found on top of the
@@ -381,12 +387,15 @@ class VirtualFrame: public ZoneObject {
 
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
-  void EmitPush(Register reg);
-  void EmitPush(Operand operand);
-  void EmitPush(Immediate immediate);
+  void EmitPush(Register reg,
+                NumberInfo::Type info = NumberInfo::kUnknown);
+  void EmitPush(Operand operand,
+                NumberInfo::Type info = NumberInfo::kUnknown);
+  void EmitPush(Immediate immediate,
+                NumberInfo::Type info = NumberInfo::kUnknown);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
   void Push(Handle<Object> value);
   void Push(Smi* value) {
     Push(Handle<Object> (value));
@@ -398,7 +407,7 @@ class VirtualFrame: public ZoneObject {
     // This assert will trigger if you try to push the same value twice.
     ASSERT(result->is_valid());
     if (result->is_register()) {
-      Push(result->reg());
+      Push(result->reg(), result->number_info());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());

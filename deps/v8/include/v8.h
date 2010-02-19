@@ -534,51 +534,76 @@ class V8EXPORT ScriptOrigin {
 class V8EXPORT Script {
  public:
 
-   /**
-    * Compiles the specified script. The ScriptOrigin* and ScriptData*
-    * parameters are owned by the caller of Script::Compile. No
-    * references to these objects are kept after compilation finishes.
-    *
-    * The script object returned is context independent; when run it
-    * will use the currently entered context.
-    */
-   static Local<Script> New(Handle<String> source,
-                            ScriptOrigin* origin = NULL,
-                            ScriptData* pre_data = NULL);
-
-   /**
-    * Compiles the specified script using the specified file name
-    * object (typically a string) as the script's origin.
-    *
-    * The script object returned is context independent; when run it
-    * will use the currently entered context.
-    */
-   static Local<Script> New(Handle<String> source,
-                            Handle<Value> file_name);
-
   /**
-   * Compiles the specified script. The ScriptOrigin* and ScriptData*
-   * parameters are owned by the caller of Script::Compile. No
-   * references to these objects are kept after compilation finishes.
+   * Compiles the specified script (context-independent).
    *
-   * The script object returned is bound to the context that was active
-   * when this function was called.  When run it will always use this
-   * context.
+   * \param source Script source code.
+   * \param origin Script origin, owned by caller, no references are kept 
+   *   when New() returns
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when New() returns.
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but allows data to be 
+   *   available to compile event handlers.
+   * \return Compiled script object (context independent; when run it
+   *   will use the currently entered context).
    */
-  static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL);
+  static Local<Script> New(Handle<String> source,
+                           ScriptOrigin* origin = NULL,
+                           ScriptData* pre_data = NULL,
+                           Handle<String> script_data = Handle<String>());
 
   /**
    * Compiles the specified script using the specified file name
    * object (typically a string) as the script's origin.
    *
-   * The script object returned is bound to the context that was active
-   * when this function was called.  When run it will always use this
-   * context.
+   * \param source Script source code.
+   * \patam file_name file name object (typically a string) to be used 
+   *   as the script's origin.
+   * \return Compiled script object (context independent; when run it
+   *   will use the currently entered context).
+   */
+  static Local<Script> New(Handle<String> source,
+                           Handle<Value> file_name);
+
+  /**
+   * Compiles the specified script (bound to current context).
+   *
+   * \param source Script source code.
+   * \param origin Script origin, owned by caller, no references are kept 
+   *   when Compile() returns
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when Compile() returns.
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but makes data available
+   *   earlier (i.e. to compile event handlers).
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called.  When run it will always use this
+   *   context.
    */
   static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name);
+                               ScriptOrigin* origin = NULL,
+                               ScriptData* pre_data = NULL,
+                               Handle<String> script_data = Handle<String>());
+
+  /**
+   * Compiles the specified script using the specified file name
+   * object (typically a string) as the script's origin.
+   *
+   * \param source Script source code.
+   * \param file_name File name to use as script's origin
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but makes data available
+   *   earlier (i.e. to compile event handlers).
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called.  When run it will always use this
+   *   context.
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<Value> file_name,
+                               Handle<String> script_data = Handle<String>());
 
   /**
    * Runs the script returning the resulting value.  If the script is
@@ -1197,6 +1222,13 @@ class V8EXPORT Object : public Value {
   Local<Value> GetPrototype();
 
   /**
+   * Set the prototype object.  This does not skip objects marked to
+   * be skipped by __proto__ and it does not consult the security
+   * handler.
+   */
+  bool SetPrototype(Handle<Value> prototype);
+
+  /**
    * Finds an instance of the given function template in the prototype
    * chain.
    */
@@ -1354,7 +1386,15 @@ class V8EXPORT Function : public Object {
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
+
+  /**
+   * Returns zero based line number of function body and
+   * kLineOffsetNotFound if no information available.
+   */
+  int GetScriptLineNumber() const;
+  ScriptOrigin GetScriptOrigin() const;
   static inline Function* Cast(Value* obj);
+  static const int kLineOffsetNotFound;
  private:
   Function();
   static void CheckCast(Value* obj);
@@ -2309,22 +2349,30 @@ class V8EXPORT V8 {
   static bool IsProfilerPaused();
 
   /**
-   * Resumes specified profiler modules.
+   * Resumes specified profiler modules. Can be called several times to
+   * mark the opening of a profiler events block with the given tag.
+   *
    * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
    * See ProfilerModules enum.
    *
    * \param flags Flags specifying profiler modules.
+   * \param tag Profile tag.
    */
-  static void ResumeProfilerEx(int flags);
+  static void ResumeProfilerEx(int flags, int tag = 0);
 
   /**
-   * Pauses specified profiler modules.
+   * Pauses specified profiler modules. Each call to "PauseProfilerEx" closes
+   * a block of profiler events opened by a call to "ResumeProfilerEx" with the
+   * same tag value. There is no need for blocks to be properly nested.
+   * The profiler is paused when the last opened block is closed.
+   *
    * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
    * See ProfilerModules enum.
    *
    * \param flags Flags specifying profiler modules.
+   * \param tag Profile tag.
    */
-  static void PauseProfilerEx(int flags);
+  static void PauseProfilerEx(int flags, int tag = 0);
 
   /**
    * Returns active (resumed) profiler modules.

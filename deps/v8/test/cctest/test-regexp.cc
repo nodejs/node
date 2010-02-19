@@ -653,6 +653,8 @@ typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
 typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_ARM
 typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_MIPS
+typedef RegExpMacroAssembler ArchRegExpMacroAssembler;
 #endif
 
 class ContextInitializer {

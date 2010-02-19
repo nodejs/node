@@ -27,8 +27,8 @@
 
 
 #include <cstdio>  // NOLINT
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <readline/readline.h> // NOLINT
+#include <readline/history.h> // NOLINT
 
 
 #include "d8.h"

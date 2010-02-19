@@ -949,10 +949,15 @@ Handle<Context> Top::GetCallingGlobalContext() {
 }
 
 
+bool Top::CanHaveSpecialFunctions(JSObject* object) {
+  return object->IsJSArray();
+}
+
+
 Object* Top::LookupSpecialFunction(JSObject* receiver,
                                    JSObject* prototype,
                                    JSFunction* function) {
-  if (receiver->IsJSArray()) {
+  if (CanHaveSpecialFunctions(receiver)) {
     FixedArray* table = context()->global_context()->special_function_table();
     for (int index = 0; index < table->length(); index +=3) {
       if ((prototype == table->get(index)) &&

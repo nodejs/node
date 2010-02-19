@@ -46,6 +46,9 @@ namespace internal {
 #elif defined(__ARMEL__)
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
+#elif defined(_MIPS_ARCH_MIPS32R2)
+#define V8_HOST_ARCH_MIPS 1
+#define V8_HOST_ARCH_32_BIT 1
 #else
 #error Your host architecture was not detected as supported by v8
 #endif
@@ -53,6 +56,7 @@ namespace internal {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
 #define V8_TARGET_CAN_READ_UNALIGNED 1
 #elif V8_TARGET_ARCH_ARM
+#elif V8_TARGET_ARCH_MIPS
 #else
 #error Your target architecture is not supported by v8
 #endif
@@ -608,6 +612,7 @@ enum CpuFeature { SSE3 = 32,   // x86
                   RDTSC = 4,   // x86
                   CPUID = 10,  // x86
                   VFP3 = 1,    // ARM
+                  ARMv7 = 2,   // ARM
                   SAHF = 0};   // x86
 
 } }  // namespace v8::internal

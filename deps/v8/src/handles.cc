@@ -300,6 +300,12 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 }
 
 
+Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
+  const bool skip_hidden_prototypes = false;
+  CALL_HEAP_FUNCTION(obj->SetPrototype(*value, skip_hidden_prototypes), Object);
+}
+
+
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
   Object* holder = obj->BypassGlobalProxy();
@@ -477,25 +483,25 @@ void InitScriptLineEnds(Handle<Script> script) {
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
-  FixedArray* line_ends_array =
-      FixedArray::cast(script->line_ends());
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
-  int line = -1;
-  if (line_ends_len > 0 &&
-      code_pos <= (Smi::cast(line_ends_array->get(0)))->value()) {
-    line = 0;
-  } else {
-    for (int i = 1; i < line_ends_len; ++i) {
-      if ((Smi::cast(line_ends_array->get(i - 1)))->value() < code_pos &&
-          code_pos <= (Smi::cast(line_ends_array->get(i)))->value()) {
-        line = i;
-        break;
-      }
+  if (!line_ends_len)
+    return -1;
+
+  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos)
+    return script->line_offset()->value();
+
+  int left = 0;
+  int right = line_ends_len;
+  while (int half = (right - left) / 2) {
+    if ((Smi::cast(line_ends_array->get(left + half)))->value() > code_pos) {
+      right -= half;
+    } else {
+      left += half;
     }
   }
-
-  return line != -1 ? line + script->line_offset()->value() : line;
+  return right + script->line_offset()->value();
 }
 
 
@@ -686,7 +692,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(shared, Handle<Object>::null(), 0);
+  CompilationInfo info(shared);
   return CompileLazyHelper(&info, flag);
 }
 
@@ -694,8 +700,7 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  CompilationInfo info(shared, receiver, 0);
+  CompilationInfo info(function, 0, receiver);
   bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;
@@ -705,8 +710,7 @@ bool CompileLazy(Handle<JSFunction> function,
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  CompilationInfo info(shared, receiver, 1);
+  CompilationInfo info(function, 1, receiver);
   bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;
@@ -766,7 +770,8 @@ void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
     Handle<String> script_name = Factory::NewStringFromAscii(name);
     bool allow_natives_syntax = FLAG_allow_natives_syntax;
     FLAG_allow_natives_syntax = true;
-    boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL);
+    boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
+                                    Handle<String>::null());
     FLAG_allow_natives_syntax = allow_natives_syntax;
     // If the compilation failed (possibly due to stack overflows), we
     // should never enter the result in the natives cache. Instead we

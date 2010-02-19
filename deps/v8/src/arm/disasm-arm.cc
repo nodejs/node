@@ -429,12 +429,22 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return 3;
     }
     case 'o': {
-      if (format[3] == '1') {
+      if ((format[3] == '1') && (format[4] == '2')) {
         // 'off12: 12-bit offset for load and store instructions
         ASSERT(STRING_STARTS_WITH(format, "off12"));
         out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                              "%d", instr->Offset12Field());
         return 5;
+      } else if ((format[3] == '1') && (format[4] == '6')) {
+        ASSERT(STRING_STARTS_WITH(format, "off16to20"));
+        out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                           "%d", instr->Bits(20, 16) +1);
+        return 9;
+      } else if (format[3] == '7') {
+        ASSERT(STRING_STARTS_WITH(format, "off7to11"));
+        out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                            "%d", instr->ShiftAmountField());
+        return 8;
       }
       // 'off8: 8-bit offset for extra load and store instructions
       ASSERT(STRING_STARTS_WITH(format, "off8"));
@@ -795,7 +805,18 @@ void Decoder::DecodeType3(Instr* instr) {
       break;
     }
     case 3: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, +'shift_rm]'w");
+      if (instr->HasW() && (instr->Bits(6, 4) == 0x5)) {
+        uint32_t widthminus1 = static_cast<uint32_t>(instr->Bits(20, 16));
+        uint32_t lsbit = static_cast<uint32_t>(instr->ShiftAmountField());
+        uint32_t msbit = widthminus1 + lsbit;
+        if (msbit <= 31) {
+          Format(instr, "ubfx'cond 'rd, 'rm, #'off7to11, #'off16to20");
+        } else {
+          UNREACHABLE();
+        }
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, +'shift_rm]'w");
+      }
       break;
     }
     default: {

@@ -191,6 +191,17 @@ LIBRARY_FLAGS = {
     'armvariant:arm': {
       'CPPDEFINES':   ['V8_ARM_VARIANT_ARM']
     },
+    'arch:mips': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'simulator:none': {
+        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
+        'LDFLAGS':      ['-EL']
+      }
+    },
+    'simulator:mips': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
       'CCFLAGS':      ['-m64'],
@@ -291,6 +302,9 @@ V8_EXTRA_FLAGS = {
       # /wd4996 is to silence the warning about sscanf
       # used by the arm simulator.
       'WARNINGFLAGS': ['/wd4996']
+    },
+    'arch:mips': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -457,7 +471,19 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-m64'],
       'LINKFLAGS':    ['-m64']
     },
+    'arch:mips': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'simulator:none': {
+        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
+        'LINKFLAGS':    ['-EL'],
+        'LDFLAGS':      ['-EL']
+      }
+    },
     'simulator:arm': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
+    'simulator:mips': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
@@ -601,7 +627,7 @@ SIMPLE_OPTIONS = {
     'help': 'the os to build for (' + OS_GUESS + ')'
   },
   'arch': {
-    'values':['arm', 'ia32', 'x64'],
+    'values':['arm', 'ia32', 'x64', 'mips'],
     'default': ARCH_GUESS,
     'help': 'the architecture to build for (' + ARCH_GUESS + ')'
   },
@@ -651,7 +677,7 @@ SIMPLE_OPTIONS = {
     'help': 'use Microsoft Visual C++ link-time code generation'
   },
   'simulator': {
-    'values': ['arm', 'none'],
+    'values': ['arm', 'mips', 'none'],
     'default': 'none',
     'help': 'build with simulator'
   },
@@ -871,6 +897,11 @@ def PostprocessOptions(options):
     options['armvariant'] = 'arm'
   if (options['armvariant'] != 'none' and options['arch'] != 'arm'):
     options['armvariant'] = 'none'
+  if options['arch'] == 'mips':
+    if ('regexp' in ARGUMENTS) and options['regexp'] == 'native':
+      # Print a warning if native regexp is specified for mips
+      print "Warning: forcing regexp to interpreted for mips"
+    options['regexp'] = 'interpreted'
 
 
 def ParseEnvOverrides(arg, imports):

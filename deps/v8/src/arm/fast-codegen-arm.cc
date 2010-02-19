@@ -35,78 +35,142 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-void FastCodeGenerator::EmitLoadReceiver(Register reg) {
+Register FastCodeGenerator::accumulator0() { return r0; }
+Register FastCodeGenerator::accumulator1() { return r1; }
+Register FastCodeGenerator::scratch0() { return r3; }
+Register FastCodeGenerator::scratch1() { return r4; }
+Register FastCodeGenerator::receiver_reg() { return r2; }
+Register FastCodeGenerator::context_reg() { return cp; }
+
+
+void FastCodeGenerator::EmitLoadReceiver() {
   // Offset 2 is due to return address and saved frame pointer.
-  int index = 2 + function()->scope()->num_parameters();
-  __ ldr(reg, MemOperand(sp, index * kPointerSize));
+  int index = 2 + scope()->num_parameters();
+  __ ldr(receiver_reg(), MemOperand(sp, index * kPointerSize));
 }
 
 
-void FastCodeGenerator::EmitReceiverMapCheck() {
-  Comment cmnt(masm(), ";; MapCheck(this)");
-  if (FLAG_print_ir) {
-    PrintF("MapCheck(this)\n");
+void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(!destination().is(no_reg));
+  ASSERT(cell->IsJSGlobalPropertyCell());
+
+  __ mov(destination(), Operand(cell));
+  __ ldr(destination(),
+         FieldMemOperand(destination(), JSGlobalPropertyCell::kValueOffset));
+  if (FLAG_debug_code) {
+    __ mov(ip, Operand(Factory::the_hole_value()));
+    __ cmp(destination(), ip);
+    __ Check(ne, "DontDelete cells can't contain the hole");
   }
 
-  EmitLoadReceiver(r1);
-  __ BranchOnSmi(r1, bailout());
-
-  ASSERT(has_receiver() && receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(receiver());
-  Handle<Map> map(object->map());
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ mov(ip, Operand(map));
-  __ cmp(r3, ip);
-  __ b(ne, bailout());
-}
-
-
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<String> name) {
-  // Compile global variable accesses as load IC calls.  The only live
-  // registers are cp (context) and possibly r1 (this).  Both are also saved
-  // in the stack and cp is preserved by the call.
-  __ ldr(ip, CodeGenerator::GlobalObject());
-  __ push(ip);
-  __ mov(r2, Operand(name));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-  if (has_this_properties()) {
-    // Restore this.
-    EmitLoadReceiver(r1);
-  }
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
 void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   LookupResult lookup;
-  receiver()->Lookup(*name, &lookup);
+  info()->receiver()->Lookup(*name, &lookup);
 
-  ASSERT(lookup.holder() == *receiver());
+  ASSERT(lookup.holder() == *info()->receiver());
   ASSERT(lookup.type() == FIELD);
-  Handle<Map> map(Handle<HeapObject>::cast(receiver())->map());
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
+
+  // We will emit the write barrier unless the stored value is statically
+  // known to be a smi.
+  bool needs_write_barrier = !is_smi(accumulator0());
 
   // Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ mov(r2, r1);  // Copy receiver for write barrier.
+    __ str(accumulator0(), FieldMemOperand(receiver_reg(), offset));
+    if (needs_write_barrier) {
+      // Preserve receiver from write barrier.
+      __ mov(scratch0(), receiver_reg());
+    }
   } else {
     offset += FixedArray::kHeaderSize;
-    __ ldr(r2, FieldMemOperand(r1, JSObject::kPropertiesOffset));
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
   }
-  // Perform the store.
-  __ str(r0, FieldMemOperand(r2, offset));
-  __ mov(r3, Operand(offset));
-  __ RecordWrite(r2, r3, ip);
+
+  if (needs_write_barrier) {
+    __ mov(scratch1(), Operand(offset));
+    __ RecordWrite(scratch0(), scratch1(), ip);
+  }
+
+  if (destination().is(accumulator1())) {
+    __ mov(accumulator1(), accumulator0());
+    if (is_smi(accumulator0())) {
+      set_as_smi(accumulator1());
+    } else {
+      clear_as_smi(accumulator1());
+    }
+  }
 }
 
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  ASSERT(!destination().is(no_reg));
+  LookupResult lookup;
+  info()->receiver()->Lookup(*name, &lookup);
+
+  ASSERT(lookup.holder() == *info()->receiver());
+  ASSERT(lookup.type() == FIELD);
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
+  int index = lookup.GetFieldIndex() - map->inobject_properties();
+  int offset = index * kPointerSize;
+
+  // Perform the load.  Negative offsets are inobject properties.
+  if (offset < 0) {
+    offset += map->instance_size();
+    __ ldr(destination(), FieldMemOperand(receiver_reg(), offset));
+  } else {
+    offset += FixedArray::kHeaderSize;
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ ldr(destination(), FieldMemOperand(scratch0(), offset));
+  }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
+  if (is_smi(accumulator0()) && is_smi(accumulator1())) {
+    // If both operands are known to be a smi then there is no need to check
+    // the operands or result.  There is no need to perform the operation in
+    // an effect context.
+    if (!destination().is(no_reg)) {
+      __ orr(destination(), accumulator1(), Operand(accumulator0()));
+    }
+  } else if (destination().is(no_reg)) {
+    // Result is not needed but do not clobber the operands in case of
+    // bailout.
+    __ orr(scratch0(), accumulator1(), Operand(accumulator0()));
+    __ BranchOnNotSmi(scratch0(), bailout());
+  } else {
+    // Preserve the destination operand in a scratch register in case of
+    // bailout.
+    __ mov(scratch0(), destination());
+    __ orr(destination(), accumulator1(), Operand(accumulator0()));
+    __ BranchOnNotSmi(destination(), bailout());
+  }
+
+  // If we didn't bailout, the result (in fact, both inputs too) is known to
+  // be a smi.
+  set_as_smi(accumulator0());
+  set_as_smi(accumulator1());
+}
+
+
+void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   ASSERT(info_ == NULL);
-  function_ = fun;
-  info_ = info;
+  info_ = compilation_info;
 
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");
@@ -115,18 +179,42 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // Note that we keep a live register reference to cp (context) at
   // this point.
 
-  // Receiver (this) is allocated to r1 if there are this properties.
-  if (has_this_properties()) EmitReceiverMapCheck();
+  // Receiver (this) is allocated to a fixed register.
+  if (info()->has_this_properties()) {
+    Comment cmnt(masm(), ";; MapCheck(this)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(this)\n");
+    }
+    ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+    Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
+    Handle<Map> map(object->map());
+    EmitLoadReceiver();
+    __ CheckMap(receiver_reg(), scratch0(), map, bailout(), false);
+  }
 
-  VisitStatements(fun->body());
+  // If there is a global variable access check if the global object is the
+  // same as at lazy-compilation time.
+  if (info()->has_globals()) {
+    Comment cmnt(masm(), ";; MapCheck(GLOBAL)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(GLOBAL)\n");
+    }
+    ASSERT(info()->has_global_object());
+    Handle<Map> map(info()->global_object()->map());
+    __ ldr(scratch0(), CodeGenerator::GlobalObject());
+    __ CheckMap(scratch0(), scratch1(), map, bailout(), true);
+  }
+
+  VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
+  if (FLAG_print_ir) {
+    PrintF("Return(<undefined>)\n");
+  }
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-
-  Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  int32_t sp_delta = (fun->scope()->num_parameters() + 1) * kPointerSize;
+  int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
   __ add(sp, sp, Operand(sp_delta));
   __ Jump(lr);
 

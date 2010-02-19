@@ -1014,7 +1014,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
           const char* mnem = NULL;
-          printf("%d\n", regop);
           switch (regop) {
             case 5:  mnem = "subb"; break;
             case 7:  mnem = "cmpb"; break;

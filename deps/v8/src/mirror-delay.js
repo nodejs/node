@@ -1733,7 +1733,8 @@ ScriptMirror.prototype.value = function() {
 
 
 ScriptMirror.prototype.name = function() {
-  return this.script_.name;
+  // If we have name, we trust it more than sourceURL from comments
+  return this.script_.name || this.sourceUrlFromComment_();
 };
 
 
@@ -1826,6 +1827,29 @@ ScriptMirror.prototype.toText = function() {
   result += ')';
   return result;
 }
+
+
+/**
+ * Returns a suggested script URL from comments in script code (if found), 
+ * undefined otherwise. Used primarily by debuggers for identifying eval()'ed
+ * scripts. See 
+ * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
+ * for details.
+ * 
+ * @return {?string} value for //@ sourceURL comment
+ */
+ScriptMirror.prototype.sourceUrlFromComment_ = function() {
+  if (!('sourceUrl_' in this) && this.source()) {
+    // TODO(608): the spaces in a regexp below had to be escaped as \040 
+    // because this file is being processed by js2c whose handling of spaces
+    // in regexps is broken.
+    // We're not using \s here to prevent \n from matching.
+    var sourceUrlPattern = /\/\/@[\040\t]sourceURL=[\040\t]*(\S+)[\040\t]*$/m;
+    var match = sourceUrlPattern.exec(this.source());
+    this.sourceUrl_ = match ? match[1] : undefined;
+  }
+  return this.sourceUrl_;
+};
 
 
 /**

@@ -113,8 +113,8 @@ struct Register {
     return code_ & 0x7;
   }
 
-  // (unfortunately we can't make this private in a struct when initializing
-  // by assignment.)
+  // Unfortunately we can't make this private in a struct when initializing
+  // by assignment.
   int code_;
 };
 
@@ -308,7 +308,6 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_half_pointer_size = times_4,
   times_pointer_size = times_8
 };
 
@@ -1122,6 +1121,10 @@ class Assembler : public Malloced {
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
 
+  void xorpd(XMMRegister dst, XMMRegister src);
+
+  void comisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, XMMRegister src);
 
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
@@ -1167,14 +1170,6 @@ class Assembler : public Malloced {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
-
- protected:
-  // void movsd(XMMRegister dst, const Operand& src);
-  // void movsd(const Operand& dst, XMMRegister src);
-
-  // void emit_sse_operand(XMMRegister reg, const Operand& adr);
-  // void emit_sse_operand(XMMRegister dst, XMMRegister src);
-
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
