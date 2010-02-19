@@ -857,6 +857,16 @@ var pathModule = createInternalModule("path", function (exports) {
 
 var path = pathModule.exports;
 
+function existsSync (path) {
+  try {
+    fs.statSync(path);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+
 
 process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
                ];
@@ -870,11 +880,16 @@ if (process.env["NODE_PATH"]) {
 }
 
 
+/* Sync unless callback given */
 function findModulePath (id, dirs, callback) {
   process.assert(dirs.constructor == Array);
 
   if (/^https?:\/\//.exec(id)) {
-    callback(id);
+    if (callback) {
+      callback(id);
+    } else {
+      throw new Error("Sync http require not allowed.");
+    }
     return;
   }
 
@@ -883,8 +898,11 @@ function findModulePath (id, dirs, callback) {
   }
 
   if (dirs.length == 0) {
-    callback();
-    return;
+    if (callback) {
+      callback();
+    } else {
+      return; // sync returns null
+    }
   }
 
   var dir = dirs[0];
@@ -902,26 +920,37 @@ function findModulePath (id, dirs, callback) {
     path.join(dir, id, "index.addon")
   ];
 
-  var searchLocations = function() {
+  function searchLocations () {
     var location = locations.shift();
-    if (location === undefined) {
-      findModulePath(id, rest, callback);
-      return;
+    if (!location) {
+      return findModulePath(id, rest, callback);
     }
 
-    path.exists(location, function (found) {
-      if (found) {
-        callback(location);
-        return;
+    // if async
+    if (callback) {
+      path.exists(location, function (found) {
+        if (found) {
+          callback(location);
+        } else {
+          return searchLocations();
+        }
+      })
+
+    // if sync
+    } else {
+      if (existsSync(location)) {
+        return location;
+      } else {
+        return searchLocations();
       }
-      searchLocations();
-    });
-  };
-  searchLocations();
+    }
+  }
+  return searchLocations();
 }
 
-function resolveModulePath(request, parent) {
 
+// sync - no i/o performed
+function resolveModulePath(request, parent) {
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
@@ -939,6 +968,33 @@ function resolveModulePath(request, parent) {
   return [id, paths];
 }
 
+
+function loadModuleSync (request, parent) {
+  var resolvedModule = resolveModulePath(request, parent);
+  var id = resolvedModule[0];
+  var paths = resolvedModule[1];
+
+  debug("loadModuleSync REQUEST  " + (request) + " parent: " + parent.id);
+
+  var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
+
+  if (cachedModule) {
+    debug("found  " + JSON.stringify(id) + " in cache");
+    return cachedModule.exports;
+  } else {
+    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+    var filename = findModulePath(request, paths);
+    if (!filename) {
+      throw new Error("Cannot find module '" + request + "'");
+    } else {
+      var module = new Module(id, parent);
+      module.loadSync(filename);
+      return module.exports;
+    }
+  }
+}
+
+
 function loadModule (request, parent) {
   var
     // The promise returned from require.async()
@@ -947,7 +1003,7 @@ function loadModule (request, parent) {
     id = resolvedModule[0],
     paths = resolvedModule[1];
 
-  // debug("loadModule REQUEST  " + (request) + " parent: " + JSON.stringify(parent));
+  debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
   var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
   if (cachedModule) {
@@ -971,6 +1027,21 @@ function loadModule (request, parent) {
   return loadPromise;
 };
 
+
+Module.prototype.loadSync = function (filename) {
+  debug("loadSync " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
+
+  process.assert(!this.loaded);
+  this.filename = filename;
+
+  if (filename.match(/\.node$/)) {
+    this._loadObjectSync(filename);
+  } else {
+    this._loadScriptSync(filename);
+  }
+};
+
+
 Module.prototype.load = function (filename, loadPromise) {
   debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
@@ -981,13 +1052,20 @@ Module.prototype.load = function (filename, loadPromise) {
   this.filename = filename;
 
   if (filename.match(/\.node$/)) {
-    this.loadObject(filename, loadPromise);
+    this._loadObject(filename, loadPromise);
   } else {
-    this.loadScript(filename, loadPromise);
+    this._loadScript(filename, loadPromise);
   }
 };
 
-Module.prototype.loadObject = function (filename, loadPromise) {
+
+Module.prototype._loadObjectSync = function (filename) {
+  this.loaded = true;
+  process.dlopen(filename, this.exports);
+};
+
+
+Module.prototype._loadObject = function (filename, loadPromise) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
   // file, store it to tmp then run dlopen on it.
@@ -998,10 +1076,9 @@ Module.prototype.loadObject = function (filename, loadPromise) {
   });
 };
 
+
 function cat (id, loadPromise) {
   var promise;
-
-  debug(id);
 
   if (id.match(/^http:\/\//)) {
     promise = new events.Promise();
@@ -1025,7 +1102,52 @@ function cat (id, loadPromise) {
   return promise;
 }
 
-Module.prototype.loadScript = function (filename, loadPromise) {
+
+Module.prototype._loadContent = function (content, filename) {
+  var self = this;
+  // remove shebang
+  content = content.replace(/^\#\!.*/, '');
+
+  function requireAsync (url) {
+    return loadModule(url, self); // new child
+  }
+
+  function require (path) {
+    return loadModuleSync(path, self);
+  }
+
+  require.paths = process.paths;
+  require.async = requireAsync;
+  require.main = process.mainModule;
+  // create wrapper function
+  var wrapper = "(function (exports, require, module, __filename, __dirname) { "
+              + content
+              + "\n});";
+
+  try {
+    var compiledWrapper = process.compile(wrapper, filename);
+    compiledWrapper.apply(self.exports, [self.exports, require, self, filename, path.dirname(filename)]);
+  } catch (e) {
+    return e;
+  }
+};
+
+
+Module.prototype._loadScriptSync = function (filename) {
+  var content = fs.readFileSync(filename);
+  // remove shebang
+  content = content.replace(/^\#\!.*/, '');
+
+  var e = this._loadContent(content, filename);
+  if (e) {
+    throw e;
+  } else {
+    this.loaded = true;
+  }
+};
+
+
+Module.prototype._loadScript = function (filename, loadPromise) {
   var self = this;
   var catPromise = cat(filename, loadPromise);
 
@@ -1034,41 +1156,20 @@ Module.prototype.loadScript = function (filename, loadPromise) {
   });
 
   catPromise.addCallback(function (content) {
-    // remove shebang
-    content = content.replace(/^\#\!.*/, '');
-
-    function requireAsync (url) {
-      return loadModule(url, self); // new child
-    }
-
-    function require (url) {
-      return requireAsync(url).wait();
-    }
-
-    require.paths = process.paths;
-    require.async = requireAsync;
-    require.main = process.mainModule;
-    // create wrapper function
-    var wrapper = "(function (exports, require, module, __filename, __dirname) { "
-                + content
-                + "\n});";
-
-    try {
-      var compiledWrapper = process.compile(wrapper, filename);
-      compiledWrapper.apply(self.exports, [self.exports, require, self, filename, path.dirname(filename)]);
-    } catch (e) {
+    var e = self._loadContent(content, filename);
+    if (e) {
       loadPromise.emitError(e);
       return;
     }
-
-    self.waitChildrenLoad(function () {
+    self._waitChildrenLoad(function () {
       self.loaded = true;
       loadPromise.emitSuccess(self.exports);
     });
   });
 };
 
-Module.prototype.waitChildrenLoad = function (callback) {
+
+Module.prototype._waitChildrenLoad = function (callback) {
   var nloaded = 0;
   var children = this.children;
   for (var i = 0; i < children.length; i++) {

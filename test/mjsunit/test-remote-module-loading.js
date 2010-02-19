@@ -17,9 +17,11 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(PORT);
 
-var httpModule = require('http://localhost:'+PORT+'/moduleA.js');
-assert.equal('/moduleA.js', httpModule.httpPath());
-modulesLoaded++;
+assert.throws(function () {
+  var httpModule = require('http://localhost:'+PORT+'/moduleA.js');
+  assert.equal('/moduleA.js', httpModule.httpPath());
+  modulesLoaded++;
+});
 
 var nodeBinary = process.ARGV[0];
 var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+PORT+'/moduleB.js';
@@ -35,5 +37,5 @@ sys
   });
 
 process.addListener('exit', function() {
-  assert.equal(2, modulesLoaded);
+  assert.equal(1, modulesLoaded);
 });
