@@ -57,7 +57,6 @@ function Module (id, parent) {
 
   this.filename = null;
   this.loaded = false;
-  this.loadPromise = null;
   this.exited = false;
   this.children = [];
 };
@@ -929,10 +928,8 @@ function loadModuleSync (request, parent) {
 }
 
 
-function loadModule (request, parent) {
+function loadModule (request, parent, callback) {
   var
-    // The promise returned from require.async()
-    loadPromise = new events.Promise(),
     resolvedModule = resolveModulePath(request, parent),
     id = resolvedModule[0],
     paths = resolvedModule[1];
@@ -942,23 +939,20 @@ function loadModule (request, parent) {
   var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
   if (cachedModule) {
     debug("found  " + JSON.stringify(id) + " in cache");
-    process.nextTick(function() {
-      loadPromise.emitSuccess(cachedModule.exports);
-    });
+    if (callback) callback(null, cachedModule.exports);
    } else {
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
     // Not in cache
     findModulePath(request, paths, function (filename) {
       if (!filename) {
-        loadPromise.emitError(new Error("Cannot find module '" + request + "'"));
+        var err = new Error("Cannot find module '" + request + "'");
+        if (callback) callback(err);
       } else {
         var module = new Module(id, parent);
-        module.load(filename, loadPromise);
+        module.load(filename, callback);
       }
     });
   }
-
-  return loadPromise;
 };
 
 
@@ -976,19 +970,17 @@ Module.prototype.loadSync = function (filename) {
 };
 
 
-Module.prototype.load = function (filename, loadPromise) {
+Module.prototype.load = function (filename, callback) {
   debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
   process.assert(!this.loaded);
-  process.assert(!this.loadPromise);
 
-  this.loadPromise = loadPromise;
   this.filename = filename;
 
   if (filename.match(/\.node$/)) {
-    this._loadObject(filename, loadPromise);
+    this._loadObject(filename, callback);
   } else {
-    this._loadScript(filename, loadPromise);
+    this._loadScript(filename, callback);
   }
 };
 
@@ -999,41 +991,40 @@ Module.prototype._loadObjectSync = function (filename) {
 };
 
 
-Module.prototype._loadObject = function (filename, loadPromise) {
+Module.prototype._loadObject = function (filename, callback) {
   var self = this;
   // XXX Not yet supporting loading from HTTP. would need to download the
   // file, store it to tmp then run dlopen on it.
-  process.nextTick(function () {
-    self.loaded = true;
-    process.dlopen(filename, self.exports); // FIXME synchronus
-    loadPromise.emitSuccess(self.exports);
-  });
+  self.loaded = true;
+  process.dlopen(filename, self.exports); // FIXME synchronus
+  if (callback) callback(null, self.exports);
 };
 
 
-function cat (id, loadPromise) {
-  var promise;
-
+function cat (id, callback) {
   if (id.match(/^http:\/\//)) {
-    promise = new events.Promise();
-    loadModule('http', process.mainModule)
-      .addCallback(function(http) {
+    loadModule('http', process.mainModule, function (err, http) {
+      if (err) {
+        if (callback) callback(err);
+      } else {
         http.cat(id)
           .addCallback(function(content) {
-            promise.emitSuccess(content);
+            if (callback) callback(null, content);
           })
-          .addErrback(function() {
-            promise.emitError.apply(null, arguments);
+          .addErrback(function(err) {
+            if (callback) callback(err);
           });
-      })
-      .addErrback(function() {
-        loadPromise.emitError(new Error("could not load core module \"http\""));
-      });
+      }
+    });
   } else {
-    promise = fs.readFile(id);
+    fs.readFile(id)
+      .addCallback(function(content) {
+        if (callback) callback(null, content);
+      })
+      .addErrback(function(err) {
+        if (callback) callback(err);
+      });
   }
-
-  return promise;
 }
 
 
@@ -1042,8 +1033,8 @@ Module.prototype._loadContent = function (content, filename) {
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
 
-  function requireAsync (url) {
-    return loadModule(url, self); // new child
+  function requireAsync (url, cb) {
+    loadModule(url, self, cb);
   }
 
   function require (path) {
@@ -1081,24 +1072,23 @@ Module.prototype._loadScriptSync = function (filename) {
 };
 
 
-Module.prototype._loadScript = function (filename, loadPromise) {
+Module.prototype._loadScript = function (filename, callback) {
   var self = this;
-  var catPromise = cat(filename, loadPromise);
-
-  catPromise.addErrback(function () {
-    loadPromise.emitError(new Error("Cannot read " + filename));
-  });
-
-  catPromise.addCallback(function (content) {
-    var e = self._loadContent(content, filename);
-    if (e) {
-      loadPromise.emitError(e);
-      return;
+  cat(filename, function (err, content) {
+    if (err) {
+      if (callback) callback(err);
+    } else {
+      var e = self._loadContent(content, filename);
+      if (e) {
+        if (callback) callback(e);
+      } else {
+        self._waitChildrenLoad(function () {
+          self.loaded = true;
+          if (self.onload) self.onload();
+          if (callback) callback(null, self.exports);
+        });
+      }
     }
-    self._waitChildrenLoad(function () {
-      self.loaded = true;
-      loadPromise.emitSuccess(self.exports);
-    });
   });
 };
 
@@ -1111,10 +1101,11 @@ Module.prototype._waitChildrenLoad = function (callback) {
     if (child.loaded) {
       nloaded++;
     } else {
-      child.loadPromise.addCallback(function () {
+      child.onload = function () {
+        child.onload = null;
         nloaded++;
         if (children.length == nloaded && callback) callback();
-      });
+      };
     }
   }
   if (children.length == nloaded && callback) callback();
@@ -1139,8 +1130,7 @@ if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
 
 // Load the main module--the command line argument.
 process.mainModule = new Module(".");
-var loadPromise = new events.Promise();
-process.mainModule.load(process.argv[1], loadPromise);
+process.mainModule.load(process.argv[1]);
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If
