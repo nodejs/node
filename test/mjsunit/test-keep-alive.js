@@ -18,13 +18,15 @@ server.listen(PORT);
 var keepAliveReqSec = 0;
 var normalReqSec = 0;
 
-function error (msg) {
-  throw new Error("ERROR. 'ab' not installed? " + msg);
-}
 
 function runAb(opts, callback) {
   var command = "ab " + opts + " http://127.0.0.1:" + PORT + "/";
   sys.exec(command, function (err, stdout, stderr) {
+    if (err) {
+      puts("ab not installed? skipping test.\n" + stderr);
+      process.exit();
+      return;
+    }
     if (err) throw err;
     var matches = /Requests per second:\s*(\d+)\./mi.exec(stdout);
     var reqSec = parseInt(matches[1]);
