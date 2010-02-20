@@ -453,17 +453,6 @@ function debug (x) {
 
 var fsModule = createInternalModule("fs", function (exports) {
   exports.Stats = process.Stats;
-
-  function callback (promise) {
-    return function (error) {
-      if (error) {
-        promise.emitError.apply(promise, arguments);
-      } else {
-        promise.emitSuccess.apply(promise,
-                                  Array.prototype.slice.call(arguments, 1));
-      }
-    };
-  }
   
   // Used by fs.open and friends
   function stringToFlags(flag) {
@@ -482,24 +471,22 @@ var fsModule = createInternalModule("fs", function (exports) {
     }
   }
 
+  function noop () {}
+
   // Yes, the follow could be easily DRYed up but I provide the explicit
   // list to make the arguments clear.
 
-  exports.close = function (fd) {
-    var promise = new events.Promise();
-    process.fs.close(fd, callback(promise));
-    return promise;
+  exports.close = function (fd, callback) {
+    process.fs.close(fd, callback || noop);
   };
 
   exports.closeSync = function (fd) {
     return process.fs.close(fd);
   };
 
-  exports.open = function (path, flags, mode) {
+  exports.open = function (path, flags, mode, callback) {
     if (mode === undefined) { mode = 0666; }
-    var promise = new events.Promise();
-    process.fs.open(path, stringToFlags(flags), mode, callback(promise));
-    return promise;
+    process.fs.open(path, stringToFlags(flags), mode, callback || noop);
   };
 
   exports.openSync = function (path, flags, mode) {
@@ -507,11 +494,9 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.open(path, stringToFlags(flags), mode);
   };
 
-  exports.read = function (fd, length, position, encoding) {
-    var promise = new events.Promise();
+  exports.read = function (fd, length, position, encoding, callback) {
     encoding = encoding || "binary";
-    process.fs.read(fd, length, position, encoding, callback(promise));
-    return promise;
+    process.fs.read(fd, length, position, encoding, callback || noop);
   };
 
   exports.readSync = function (fd, length, position, encoding) {
@@ -519,11 +504,9 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.read(fd, length, position, encoding);
   };
 
-  exports.write = function (fd, data, position, encoding) {
-    var promise = new events.Promise();
+  exports.write = function (fd, data, position, encoding, callback) {
     encoding = encoding || "binary";
-    process.fs.write(fd, data, position, encoding, callback(promise));
-    return promise;
+    process.fs.write(fd, data, position, encoding, callback || noop);
   };
 
   exports.writeSync = function (fd, data, position, encoding) {
@@ -531,160 +514,149 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.write(fd, data, position, encoding);
   };
 
-  exports.rename = function (oldPath, newPath) {
-    var promise = new events.Promise();
-    process.fs.rename(oldPath, newPath, callback(promise));
-    return promise;
+  exports.rename = function (oldPath, newPath, callback) {
+    process.fs.rename(oldPath, newPath, callback || noop);
   };
 
   exports.renameSync = function (oldPath, newPath) {
     return process.fs.rename(oldPath, newPath);
   };
 
-  exports.truncate = function (fd, len) {
-    var promise = new events.Promise();
-    process.fs.truncate(fd, len, callback(promise));
-    return promise;
+  exports.truncate = function (fd, len, callback) {
+    process.fs.truncate(fd, len, callback || noop);
   };
 
   exports.truncateSync = function (fd, len) {
     return process.fs.truncate(fd, len);
   };
 
-  exports.rmdir = function (path) {
-    var promise = new events.Promise();
-    process.fs.rmdir(path, callback(promise));
-    return promise;
+  exports.rmdir = function (path, callback) {
+    process.fs.rmdir(path, callback || noop);
   };
 
   exports.rmdirSync = function (path) {
     return process.fs.rmdir(path);
   };
 
-  exports.mkdir = function (path, mode) {
-    var promise = new events.Promise();
-    process.fs.mkdir(path, mode, callback(promise));
-    return promise;
+  exports.mkdir = function (path, mode, callback) {
+    process.fs.mkdir(path, mode, callback || noop);
   };
 
   exports.mkdirSync = function (path, mode) {
     return process.fs.mkdir(path, mode);
   };
 
-  exports.sendfile = function (outFd, inFd, inOffset, length) {
-    var promise = new events.Promise();
-    process.fs.sendfile(outFd, inFd, inOffset, length, callback(promise));
-    return promise;
+  exports.sendfile = function (outFd, inFd, inOffset, length, callback) {
+    process.fs.sendfile(outFd, inFd, inOffset, length, callback || noop);
   };
 
   exports.sendfileSync = function (outFd, inFd, inOffset, length) {
     return process.fs.sendfile(outFd, inFd, inOffset, length);
   };
 
-  exports.readdir = function (path) {
-    var promise = new events.Promise();
-    process.fs.readdir(path, callback(promise));
-    return promise;
+  exports.readdir = function (path, callback) {
+    process.fs.readdir(path, callback || noop);
   };
 
   exports.readdirSync = function (path) {
     return process.fs.readdir(path);
   };
 
-  exports.stat = function (path) {
-    var promise = new events.Promise();
-    process.fs.stat(path, callback(promise));
-    return promise;
+  exports.stat = function (path, callback) {
+    process.fs.stat(path, callback || noop);
   };
 
   exports.statSync = function (path) {
     return process.fs.stat(path);
   };
 
-  exports.unlink = function (path) {
-    var promise = new events.Promise();
-    process.fs.unlink(path, callback(promise));
-    return promise;
+  exports.unlink = function (path, callback) {
+    process.fs.unlink(path, callback || noop);
   };
 
   exports.unlinkSync = function (path) {
     return process.fs.unlink(path);
   };
+  
+  exports.chmod = function (path, mode, callback) {
+    process.fs.chmod(path, mode, callback || noop);
+  };
+  
+  exports.chmodSync = function (path, mode) {
+    return process.fs.chmod(path, mode);
+  };
 
-  exports.writeFile = function (path, data, encoding) {
-    var promise = new events.Promise();
-    encoding = encoding || "utf8"; // default to utf8
-
-    fs.open(path, "w")
-      .addCallback(function (fd) {
-        function doWrite (_data) {
-          fs.write(fd, _data, 0, encoding)
-            .addErrback(function () {
-              fs.close(fd);
-              promise.emitError();
-            })
-            .addCallback(function (written) {
-              if (written === _data.length) {
-                fs.close(fd);
-                promise.emitSuccess();
-              } else {
-                doWrite(_data.slice(written));
-              }
-            });
+  function writeAll (fd, data, encoding, callback) {
+    exports.write(fd, data, 0, encoding, function (writeErr, written) {
+      if (writeErr) {
+        exports.close(fd, function () {
+          if (callback) callback(writeErr);
+        });
+      } else {
+        if (written === _data.length) {
+          exports.close(fd, callback);
+        } else {
+          writeAll(fd, data.slice(written), encoding, callback);
         }
-        doWrite(data);
-      })
-      .addErrback(function () {
-        promise.emitError();
-      });
+      }
+    });
+  }
 
-    return promise;
-    
+  exports.writeFile = function (path, data, encoding_) {
+    var encoding = (typeof(encoding) == 'string' ? encoding_ : 'utf8');
+    var callback_ = arguments[arguments.length - 1];
+    var callback = (typeof(callback_) == 'function' ? callback_ : null);
+    exports.open(path, 'w', 0666, function (openErr, fd) {
+      if (openErr) {
+        if (callback) callback(openErr);
+      } else {
+        writeAll(fd, data, encoding, callback);
+      }
+    });
   };
   
   exports.writeFileSync = function (path, data, encoding) {
     encoding = encoding || "utf8"; // default to utf8
     var fd = exports.openSync(path, "w");
-    return process.fs.write(fd, data, 0, encoding);
+    var written = 0;
+    while (written < data.length) {
+      written += exports.writeSync(fd, data, 0, encoding);
+      data = data.slice(written);
+    }
+    exports.closeSync(fd);
   };
-  
   
   exports.cat = function () {
     throw new Error("fs.cat is deprecated. Please use fs.readFile instead.");
   };
 
-  exports.readFile = function (path, encoding) {
-    var promise = new events.Promise();
-
-    encoding = encoding || "utf8"; // default to utf8
-
-    exports.open(path, "r").addCallback(function (fd) {
-      var content = "", pos = 0;
-
-      function readChunk () {
-        exports.read(fd, 16*1024, pos, encoding).addCallback(function (chunk, bytes_read) {
-          if (chunk) {
-            if (chunk.constructor === String) {
-              content += chunk;
-            } else {
-              content = content.concat(chunk);
-            }
-
-            pos += bytes_read;
-            readChunk();
-          } else {
-            promise.emitSuccess(content);
-            exports.close(fd);
-          }
-        }).addErrback(function () {
-          promise.emitError.apply(promise, arguments);
+  function readAll (fd, pos, content, encoding, callback) {
+    exports.read(fd, 4*1024, pos, encoding, function (err, chunk, bytesRead) {
+      if (err) {
+        if (callback) callback(err);
+      } else if (chunk) {
+        content += chunk;
+        pos += bytesRead;
+        readAll(fd, pos, content, encoding, callback);
+      } else {
+        process.fs.close(fd, function (err) {
+          if (callback) callback(err, content);
         });
       }
-      readChunk();
-    }).addErrback(function () {
-      promise.emitError.apply(promise, arguments);
     });
-    return promise;
+  }
+
+  exports.readFile = function (path, encoding_) {
+    var encoding = typeof(encoding_) == 'string' ? encoding : 'utf8';
+    var callback_ = arguments[arguments.length - 1];
+    var callback = (typeof(callback_) == 'function' ? callback_ : null);
+    exports.open(path, 'r', 0666, function (err, fd) {
+      if (err) {
+        if (callback) callback(err); 
+      } else {
+        readAll(fd, 0, "", encoding, callback);
+      }
+    });
   };
 
   exports.catSync = function () {
@@ -694,30 +666,27 @@ var fsModule = createInternalModule("fs", function (exports) {
   exports.readFileSync = function (path, encoding) {
     encoding = encoding || "utf8"; // default to utf8
 
-    var
-      fd = exports.openSync(path, "r"),
-      content = '',
-      pos = 0,
-      r;
+    debug('readFileSync open');
 
-    while ((r = exports.readSync(fd, 16*1024, pos, encoding)) && r[0]) {
+    var fd = exports.openSync(path, "r");
+    var content = '';
+    var pos = 0;
+    var r;
+
+    while ((r = exports.readSync(fd, 4*1024, pos, encoding)) && r[0]) {
+      debug('readFileSync read ' + r[1]);
       content += r[0];
       pos += r[1]
     }
 
+    debug('readFileSync close');
+
+    exports.closeSync(fd);
+
+    debug('readFileSync done');
+
     return content;
   };
-  
-  exports.chmod = function(path, mode){
-    var promise = new events.Promise();
-    process.fs.chmod(path, mode, callback(promise));
-    return promise;
-  };
-  
-  exports.chmodSync = function(path, mode){
-    return process.fs.chmod(path, mode);
-  };
-  
 });
 
 var fs = fsModule.exports;
@@ -782,9 +751,9 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    var p = fs.stat(path);
-    p.addCallback(function () { callback(true); });
-    p.addErrback(function () { callback(false); });
+    fs.stat(path, function (err, stats) {
+      if (callback) callback(err ? false : true);
+    });
   };
 });
 
@@ -1017,13 +986,7 @@ function cat (id, callback) {
       }
     });
   } else {
-    fs.readFile(id)
-      .addCallback(function(content) {
-        if (callback) callback(null, content);
-      })
-      .addErrback(function(err) {
-        if (callback) callback(err);
-      });
+    fs.readFile(id, callback);
   }
 }
 
@@ -1075,6 +1038,7 @@ Module.prototype._loadScriptSync = function (filename) {
 Module.prototype._loadScript = function (filename, callback) {
   var self = this;
   cat(filename, function (err, content) {
+    debug('cat done');
     if (err) {
       if (callback) callback(err);
     } else {
@@ -1130,7 +1094,9 @@ if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
 
 // Load the main module--the command line argument.
 process.mainModule = new Module(".");
-process.mainModule.load(process.argv[1]);
+process.mainModule.load(process.argv[1], function (err) {
+  if (err) throw err;
+});
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If

@@ -236,9 +236,6 @@ Events are represented by a camel-cased string. Here are some examples:
 Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_.
 
-Some asynchronous file operations return an +EventEmitter+ called a
-_promise_.  A promise emits just a single event when the operation is
-complete.
 
 === +events.EventEmitter+
 
@@ -586,60 +583,96 @@ will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
 == File System
 
 File I/O is provided by simple wrappers around standard POSIX functions.  To
-use this module do +require("fs")+. All the methods have a similar form.
-They return a promise (+events.Promise+). Example of deleting a file:
+use this module do +require("fs")+. All the methods have asynchornous and
+synchronous forms. 
 
-------------------------------------------------------------------------------
+The asynchronous form always take a completion callback as its last
+argument. The arguments passed to the completion callback depend on the
+method, but the first argument is always reserved for an exception. If the
+operation was completed successfully, then the first argument will be +null+
+or +undefined+.
+
+Here is an example of the asynchornous version:
+
+-------------------------------------------------------
 var fs = require("fs"),
     sys = require("sys");
 
-var promise = fs.unlink("/tmp/hello");
-
-promise.addCallback(function () {
+fs.unlink("/tmp/hello", function (err) {
+  if (err) throw err;
   sys.puts("successfully deleted /tmp/hello");
 });
-------------------------------------------------------------------------------
+-------------------------------------------------------
 
-This is asynchornous, there is no guaranteed ordering. The following is
-prone to error
+Here is the synchronous version:
 
-------------------------------------------------------------------------------
-fs.rename("/tmp/hello", "/tmp/world");
-fs.stat("/tmp/world").addCallback(function (stats) {
+-------------------------------------------------------
+var fs = require("fs"),
+    sys = require("sys");
+
+fs.unlinkSync("/tmp/hello")
+sys.puts("successfully deleted /tmp/hello");
+-------------------------------------------------------
+
+With the asynchronous methods there is no guaranteed ordering. So the
+following is prone to error:
+
+------------------------------------------------------
+fs.rename("/tmp/hello", "/tmp/world", function (err) {
+  if (err) throw err;
+  sys.puts("renamed complete");
+});
+fs.stat("/tmp/world", function (err, stats) {
+  if (err) throw err;
   sys.puts("stats: " + JSON.stringify(stats));
 });
-------------------------------------------------------------------------------
+------------------------------------------------------
 
 It could be that +fs.stat+ is executed before +fs.rename+.
-The correct way to do this is to chain the promises.
+The correct way to do this is to chain the callbacks.
 
-------------------------------------------------------------------------------
-fs.rename("/tmp/hello", "/tmp/world").addCallback(function () {
-  fs.stat("/tmp/world").addCallback(function (stats) {
+------------------------------------------------------
+fs.rename("/tmp/hello", "/tmp/world", function (err) {
+  if (err) throw err;
+  fs.stat("/tmp/world", function (err, stats) {
+    if (err) throw err;
     sys.puts("stats: " + JSON.stringify(stats));
   });
 });
-------------------------------------------------------------------------------
+------------------------------------------------------
+
+In busy processes, the programmer is _strongly encouraged_ to use the
+asynchronous versions of these calls. The synchronous versions will block
+the entire process until they complete--halting all connections.
 
 
-+fs.rename(path1, path2)+ ::
-  See rename(2).
-  - on success: no parameters.
-  - on error: no parameters.
++fs.rename(path1, path2, callback)+ ::
+Asynchronous rename(2). 
+No arguments other than a possible exception are given to the completion callback.
 
-+fs.truncate(fd, len)+ ::
-  See ftruncate(2).
-  - on success: no parameters.
-  - on error: no parameters.
++fs.renameSync(path1, path2)+ ::
+Synchronous rename(2).
 
-+fs.chmod(path, mode)+ ::
-  See chmod(1)
-  - on success: no parameters.
-  - on error: no parameters.
+
++fs.truncate(fd, len, callback)+ ::
+  Asynchronous ftruncate(2).
+  No arguments other than a possible exception are given to the completion callback.
+
++fs.truncateSync(fd, len)+ ::
+  Synchronous ftruncate(2).
+
+
++fs.chmod(path, mode, callback)+ ::
+  Asynchronous chmod(2).
+  No arguments other than a possible exception are given to the completion callback.
+
++fs.chmodSync(path, mode)+ ::
+  Synchronous chmod(2).
+
   
-+fs.stat(path)+ ::
-See stat(2).
-- on success: Returns +fs.Stats+ object. It looks like this:
++fs.stat(path, callback)+ ::
+Asynchronous stat(2). The callback gets two arguments +(err, stats)+ where
++stats+ is a +fs.Stats+ object. It looks like this:
 +
 ---------------------------------
 { dev: 2049
@@ -660,91 +693,116 @@ See stat(2).
 +
 See the +fs.Stats+ section below for more information.
 
-- on error: no parameters.
++fs.statSync(path)+ ::
+Synchronous stat(2). Returns an instance of +fs.Stats+.
 
 
-+fs.unlink(path)+ ::
-  See unlink(2)
-  - on success: no parameters.
-  - on error: no parameters.
++fs.unlink(path, callback)+ ::
+Asynchronous unlink(2).
+No arguments other than a possible exception are given to the completion callback.
+
++fs.unlinkSync(path)+ ::
+Synchronous unlink(2).
 
 
-+fs.rmdir(path)+ ::
-  See rmdir(2)
-  - on success: no parameters.
-  - on error: no parameters.
++fs.rmdir(path, callback)+ ::
+Asynchronous rmdir(2).
+No arguments other than a possible exception are given to the completion callback.
+
++fs.rmdirSync(path)+ ::
+Synchronous rmdir(2).
 
 
-+fs.mkdir(path, mode)+ ::
-  See mkdir(2)
-  - on success: no parameters.
-  - on error: no parameters.
++fs.mkdir(path, mode, callback)+ ::
+Asynchronous mkdir(2).
+No arguments other than a possible exception are given to the completion callback.
+
++fs.mkdirSync(path, mode)+ ::
+Synchronous mkdir(2).
 
 
-+fs.readdir(path)+ ::
-  Reads the contents of a directory.
-  - on success: One argument, an array containing the names (strings) of the
-    files in the directory (excluding "." and "..").
-  - on error: no parameters.
++fs.readdir(path, callback)+ ::
+Asynchronous readdir(3).  Reads the contents of a directory.
+The callback gets two arguments +(err, files)+ where +files+ is an array of
+the names of the files in the directory excluding +"."+ and +".."+.
 
 
-+fs.close(fd)+ ::
-  See close(2)
-  - on success: no parameters.
-  - on error: no parameters.
++fs.close(fd, callback)+ ::
+Asynchronous close(2).
+No arguments other than a possible exception are given to the completion callback.
+
++fs.closeSync(fd)+ ::
+Synchronous close(2).
 
 
-+fs.open(path, flags, mode=0666)+::
-  See open(2). The constants like +O_CREAT+ are defined at +process.O_CREAT+.
-  Also you can use the strings "r", "r+", "w", "w+", "a", or "a+" as aliases
-  to the common flag combinations.
-  - on success: +fd+ is given as the parameter.
-  - on error: no parameters.
++fs.open(path, flags, mode, callback)+::
+Asynchronous file open. See open(2). Flags can be "r", "r+", "w", "w+", "a",
+or "a+". The callback gets two arguments +(err, fd)+. 
+
++fs.openSync(path, flags, mode)+::
+Synchronous open(2). 
 
 
-+fs.write(fd, data, position, encoding)+::
-  Write data to the file specified by +fd+.  +position+ refers to the offset
-  from the beginning of the file where this data should be written. If
-  +position+ is +null+, the data will be written at the current position.
-  See pwrite(2).
-  - on success: returns an integer +written+ which specifies how many _bytes_ were written.
-  - on error: no parameters.
++fs.write(fd, data, position, encoding, callback)+::
+Write data to the file specified by +fd+.  +position+ refers to the offset
+from the beginning of the file where this data should be written. If
++position+ is +null+, the data will be written at the current position.
+See pwrite(2).
++
+The callback will be given two arguments +(err, written)+ where +written+
+specifies how many _bytes_ were written.
 
-+fs.read(fd, length, position, encoding)+::
-  Read data from the file specified by +fd+.
-  +
-  +length+ is an integer specifying the number of
-  bytes to read.
-  +
-  +position+ is an integer specifying where to begin
-  reading from in the file.
-  +
-  - on success: returns +data, bytes_read+, what was read from the file.
-  - on error: no parameters.
++fs.writeSync(fd, data, position, encoding)+::
+Synchronous version of +fs.write()+. Returns the number of bytes written.
 
-+fs.readFile(filename, encoding="utf8")+::
-Outputs the entire contents of a file. Example:
+
++fs.read(fd, length, position, encoding, callback)+::
+Read data from the file specified by +fd+.
++
++length+ is an integer specifying the number of
+bytes to read.
++
++position+ is an integer specifying where to begin
+reading from in the file.
++
+The callback is given three arguments, +(err, data, bytesRead)+ where +data+
+is a string--what was read--and +bytesRead+ is the number of bytes read.
+
++fs.readSync(fd, length, position, encoding)+::
+Synchronous version of +fs.read+. Returns an array +[data, bytesRead]+.
+
++fs.readFile(filename, encoding="utf8", callback)+::
+Asynchronously reads the entire contents of a file. Example:
 +
 --------------------------------
-fs.readFile("/etc/passwd").addCallback(function (content) {
+fs.readFile("/etc/passwd", function (err, data) {
+  if (err) throw err;
   sys.puts(content);
 });
 --------------------------------
 +
-- on success: returns +data+, what was read from the file.
-- on error: no parameters.
+The callback is passed two arguments +(err, data)+, where +data+ is the
+contents of the file.
 
-+fs.writeFile(filename, data, encoding="utf8")+::
-Writes data to a file. Example:
++fs.readFileSync(filename, encoding="utf8")+::
+Synchronous version of +fs.readFile+. Returns the contents of the
++filename+.
+
+
++fs.writeFile(filename, data, encoding="utf8", callback)+::
+Asynchronously writes data to a file. Example:
 +
 --------------------------------
-fs.writeFile("message.txt", "Hello Node").addCallback(function () {
+fs.writeFile("message.txt", "Hello Node", function (err) {
+  if (err) throw err;
   sys.puts("It's saved!");
 });
 --------------------------------
-+
-- on success: no parameters.
-- on error: no parameters.
+
++fs.writeFileSync(filename, data, encoding="utf8")+::
+The synchronous version of +fs.writeFile+.
+
+
 
 === +fs.Stats+
 

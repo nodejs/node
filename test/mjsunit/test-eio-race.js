@@ -1,18 +1,20 @@
 process.mixin(require("./common"));
 
-var
-  count = 100,
-  fs = require('fs');
+var count = 100;
+var fs = require('fs');
 
 function tryToKillEventLoop() {
   puts('trying to kill event loop ...');
 
-  fs.stat(__filename)
-    .addCallback(function() {
+  fs.stat(__filename, function (err) {
+    if (err) {
+      throw new Exception('first fs.stat failed')
+    } else {
       puts('first fs.stat succeeded ...');
-
-      fs.stat(__filename)
-        .addCallback(function() {
+      fs.stat(__filename, function (err) {
+        if (err) {
+          throw new Exception('second fs.stat failed')
+        } else {
           puts('second fs.stat succeeded ...');
           puts('could not kill event loop, retrying...');
 
@@ -23,37 +25,31 @@ function tryToKillEventLoop() {
               process.exit(0);
             }
           }, 1);
-        })
-        .addErrback(function() {
-          throw new Exception('second fs.stat failed')
-        })
-
-    })
-    .addErrback(function() {
-      throw new Exception('first fs.stat failed')
-    });
+        }
+      });
+    }
+  });
 }
 
 // Generate a lot of thread pool events
 var pos = 0;
-fs.open('/dev/zero', "r").addCallback(function (rd) {
+fs.open('/dev/zero', "r", 0666, function (err, fd) {
+  if (err) throw err;
+
   function readChunk () {
-    fs.read(rd, 1024, pos, 'binary').addCallback(function (chunk, bytesRead) {
+    fs.read(fd, 1024, pos, 'binary', function (err, chunk, bytesRead) {
+      if (err) throw err;
       if (chunk) {
         pos += bytesRead;
         //puts(pos);
         readChunk();
       } else {
-        fs.close(rd);
-        throw new Exception(BIG_FILE+' should not end before the issue shows up');
+        fs.closeSync(fd);
+        throw new Exception('/dev/zero should not end before the issue shows up');
       }
-    }).addErrback(function () {
-      throw new Exception('could not read from '+BIG_FILE);
     });
   }
   readChunk();
-}).addErrback(function () {
-  throw new Exception('could not open '+BIG_FILE);
 });
 
 tryToKillEventLoop();

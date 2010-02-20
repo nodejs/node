@@ -3,21 +3,19 @@ process.mixin(require("./common"));
 var got_error = false;
 var success_count = 0;
 
-var __file = path.join(fixturesDir, "a.js");
+var file = path.join(fixturesDir, "a.js");
 
-var promise = fs.chmod(__file, 0777);
-
-promise.addCallback(function () {
-  puts(fs.statSync(__file).mode);
-  assert.equal("777", (fs.statSync(__file).mode & 0777).toString(8));
-  
-  fs.chmodSync(__file, 0644);
-  assert.equal("644", (fs.statSync(__file).mode & 0777).toString(8));
-  success_count++;
-});
-
-promise.addErrback(function () {
-  got_error = true;
+fs.chmod(file, 0777, function (err) {
+  if (err) {
+    got_error = true;
+  } else {
+    puts(fs.statSync(file).mode);
+    assert.equal(0777, fs.statSync(file).mode & 0777);
+    
+    fs.chmodSync(file, 0644);
+    assert.equal(0644, fs.statSync(file).mode & 0777);
+    success_count++;
+  }
 });
 
 process.addListener("exit", function () {
