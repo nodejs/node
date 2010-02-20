@@ -117,6 +117,6 @@ if (have_tls) {
     assert.equal(2, tests_run);
   });
 } else {
-  puts("Not compiled with TLS support.");
-  process.exit(1);
+  puts("Not compiled with TLS support -- skipping test");
+  process.exit(0);
 }
