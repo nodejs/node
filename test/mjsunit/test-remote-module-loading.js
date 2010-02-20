@@ -26,15 +26,12 @@ assert.throws(function () {
 var nodeBinary = process.ARGV[0];
 var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+PORT+'/moduleB.js';
 
-sys
-  .exec(cmd)
-  .addCallback(function() {
-    modulesLoaded++;
-    server.close();
-  })
-  .addErrback(function(code, stdout, stderr) {
-    assertUnreachable('node binary could not load module from url: ' + stderr);
-  });
+sys.exec(cmd, function (err, stdout, stderr) {
+  if (err) throw err;
+  puts('success!');
+  modulesLoaded++;
+  server.close();
+});
 
 process.addListener('exit', function() {
   assert.equal(1, modulesLoaded);

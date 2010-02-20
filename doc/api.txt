@@ -208,19 +208,21 @@ output the string immediately to stdout.
 +inspect(object, showHidden)+ ::
 Return a string representation of the +object+. (For debugging.)  If showHidden is true, then the object's non-enumerable properties will be shown too.
 
-+exec(command)+::
++exec(command, callback)+::
 Executes the command as a child process, buffers the output and returns it
-in a promise callback.
+in a callback.
 +
 ----------------------------------------
 var sys = require("sys");
-sys.exec("ls /").addCallback(function (stdout, stderr) {
+sys.exec("ls /", function (err, stdout, stderr) {
+  if (err) throw err;
   sys.puts(stdout);
 });
 ----------------------------------------
 +
-- on success: stdout buffer, stderr buffer
-- on error: exit code, stdout buffer, stderr buffer
+The callback gets the arguments +(err, stdout, stderr)+. On success +err+
+will be +null+. On error +err+ will be an instance of +Error+ and +err.code+
+will be the exit code of the child process.
 
 
 
