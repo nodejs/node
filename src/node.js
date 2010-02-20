@@ -976,13 +976,7 @@ function cat (id, callback) {
       if (err) {
         if (callback) callback(err);
       } else {
-        http.cat(id)
-          .addCallback(function(content) {
-            if (callback) callback(null, content);
-          })
-          .addErrback(function(err) {
-            if (callback) callback(err);
-          });
+        http.cat(id, callback);
       }
     });
   } else {
