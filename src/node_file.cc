@@ -163,6 +163,7 @@ static Handle<Value> Close(const Arguments& args) {
   } else {
     int ret = close(fd);
     if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
   }
 }
 
