@@ -1254,18 +1254,21 @@ Node.  To use it, +require("multipart")+.
   +
   See the Stream class below.
 
-+multipart.cat(message)+ ::
-  Returns a promise.
-  - on success: Returns a multipart.Stream object representing the completed
-                message.  The body of each part is saved on the `body` member.
-  - on error: Returns an instanceof Error object.  This indicates
-              that the message was malformed in some way.
++multipart.cat(message, callback)+ ::
+  On success, +callback+ is called with +(null, stream)+ where +stream+ is a
+  +multipart.Stream+ object representing the completed message.  The body of
+  each part is saved on the `body` member.
   +
-  *Note*: This function saves the *entire* message into memory.  As such,
-  it is ill-suited to parsing actual incoming messages from an HTTP request!
+  On error, +callback+ is called with +(err)+ where +err+ is an instanceof
+  the +Error+ object.  This indicates that the message was malformed in some
+  way.
+  +
+  *Note*: This function saves the *entire* message into memory.  As such, it
+  is ill-suited to parsing actual incoming messages from an HTTP request!
   If a user uploads a very large file, then it may cause serious problems.
   No checking is done to ensure that the file does not overload the memory.
-  Only use multipart.cat with known and trusted input!
+  Only use +multipart.cat+ with known and trusted input!
+
 
 === +multipart.Stream+
 
