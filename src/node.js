@@ -508,7 +508,7 @@ var fsModule = createInternalModule("fs", function (exports) {
           if (callback) callback(writeErr);
         });
       } else {
-        if (written === _data.length) {
+        if (written === data.length) {
           exports.close(fd, callback);
         } else {
           writeAll(fd, data.slice(written), encoding, callback);
