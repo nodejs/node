@@ -518,7 +518,7 @@ var fsModule = createInternalModule("fs", function (exports) {
   }
 
   exports.writeFile = function (path, data, encoding_) {
-    var encoding = (typeof(encoding) == 'string' ? encoding_ : 'utf8');
+    var encoding = (typeof(encoding_) == 'string' ? encoding_ : 'utf8');
     var callback_ = arguments[arguments.length - 1];
     var callback = (typeof(callback_) == 'function' ? callback_ : null);
     exports.open(path, 'w', 0666, function (openErr, fd) {
