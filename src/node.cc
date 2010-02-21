@@ -60,7 +60,7 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
-static int dash_dash_index = 0;
+static int option_end_index = 0;
 static bool use_debug_agent = false;
 
 
@@ -951,9 +951,9 @@ static void Load(int argc, char *argv[]) {
 
   // process.argv
   int i, j;
-  Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
+  Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
-  for (j = 1, i = dash_dash_index + 1; i < argc; j++, i++) {
+  for (j = 1, i = option_end_index + 1; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(j), arg);
   }
@@ -1078,7 +1078,7 @@ static void Load(int argc, char *argv[]) {
 }
 
 static void PrintHelp() {
-  printf("Usage: node [options] [--] script.js [arguments] \n"
+  printf("Usage: node [options] script.js [arguments] \n"
          "  -v, --version    print node's version\n"
          "  --debug          enable remote debugging\n" // TODO specify port
          "  --cflags         print pre-processor and compiler flags\n"
@@ -1092,13 +1092,10 @@ static void ParseArgs(int *argc, char **argv) {
   // TODO use parse opts
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
-    if (strcmp(arg, "--") == 0) {
-      dash_dash_index = i;
-      break;
-    } else if (strcmp(arg, "--debug") == 0) {
+    if (strcmp(arg, "--debug") == 0) {
       argv[i] = reinterpret_cast<const char*>("");
       use_debug_agent = true;
-      dash_dash_index = i;
+      option_end_index = i;
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -1110,7 +1107,10 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = reinterpret_cast<const char*>("--help");
-      dash_dash_index = i+1;
+      option_end_index = i+1;
+    } else if (argv[i][0] != '-') {
+      option_end_index = i-1;
+      break;
     }
   }
 }
@@ -1121,9 +1121,9 @@ static void ParseArgs(int *argc, char **argv) {
 int main(int argc, char *argv[]) {
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);
-  // Parse the rest of the args (up to the 'dash_dash_index' (where '--' was
+  // Parse the rest of the args (up to the 'option_end_index' (where '--' was
   // in the command line))
-  V8::SetFlagsFromCommandLine(&node::dash_dash_index, argv, false);
+  V8::SetFlagsFromCommandLine(&node::option_end_index, argv, false);
 
   // Error out if we don't have a script argument.
   if (argc < 2) {
@@ -1144,7 +1144,7 @@ int main(int argc, char *argv[]) {
   // watchers. In this way it can check if the 'tick' has other pending
   // watchers by using ev_pending_count() - if it ran with lower priority
   // then the other watchers might run before it - not giving us good idea
-  // of loop idleness. 
+  // of loop idleness.
   ev_set_priority(&node::gc_timer, EV_MAXPRI);
   ev_timer_start(EV_DEFAULT_UC_ &node::gc_timer);
   ev_unref(EV_DEFAULT_UC);
