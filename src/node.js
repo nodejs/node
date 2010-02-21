@@ -195,6 +195,9 @@ var eventsModule = createInternalModule('events', function (exports) {
     if (!this._events.hasOwnProperty(type)) this._events[type] = [];
     return this._events[type];
   };
+
+  exports.Promise = removed('Promise has been removed. See http://groups.google.com/group/nodejs/msg/0c483b891c56fea2 for more information.');
+  process.Promise = exports.Promise;
 });
 
 var events = eventsModule.exports;
