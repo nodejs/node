@@ -1451,12 +1451,12 @@ this +readyState+ will be +"readOnly"+.
 Ensures that no more I/O activity happens on this socket. Only
 necessary in case of errors (parse error or so).
 
-+connection.readPause()+::
++connection.pause()+::
 Pauses the reading of data. That is, +"data"+ events will not be emitted.
 Useful to throttle back an upload.
 
-+connection.readResume()+::
-Resumes reading if reading was paused by +readPause()+.
++connection.resume()+::
+Resumes reading after a call to +pause()+.
 
 +connection.setTimeout(timeout)+::
 Sets the connection to timeout after +timeout+ milliseconds of inactivity on

@@ -100,8 +100,8 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "forceClose", ForceClose);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ReadPause);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ReadResume);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "pause", Pause);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "resume", Resume);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
   #if EVCOM_HAVE_GNUTLS
@@ -513,24 +513,24 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
 }
 #endif
 
-Handle<Value> Connection::ReadPause(const Arguments& args) {
+Handle<Value> Connection::Pause(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
   assert(connection);
 
-  connection->ReadPause();
+  connection->Pause();
 
   return Undefined();
 }
 
-Handle<Value> Connection::ReadResume(const Arguments& args) {
+Handle<Value> Connection::Resume(const Arguments& args) {
   HandleScope scope;
 
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.This());
   assert(connection);
 
-  connection->ReadResume();
+  connection->Resume();
 
   return Undefined();
 }
