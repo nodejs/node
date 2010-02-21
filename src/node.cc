@@ -68,6 +68,34 @@ static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
 
+static ev_idle  gc_idle_watcher;
+static ev_timer  gc_timer;
+#define GC_INTERVAL 1.0
+
+
+// Node calls this every GC_INTERVAL seconds in order to try
+// and turn on the gc_idle_watcher, which will eventually (when the process
+// isn't busy) call the GC
+static void GCTimeout(EV_P_ ev_timer *watcher, int revents) {
+  assert(watcher == &gc_timer);
+  assert(revents == EV_TIMER);
+
+  if (ev_pending_count() == 0 && !ev_is_active(&gc_idle_watcher)) {
+    ev_idle_start(EV_DEFAULT_UC_ &gc_idle_watcher);
+    ev_unref(EV_DEFAULT_UC);
+  }
+}
+
+
+static void DoGC(EV_P_ ev_idle *watcher, int revents) {
+  assert(watcher == &gc_idle_watcher);
+  assert(revents == EV_IDLE);
+  if (V8::IdleNotification()) {
+    ev_ref(EV_DEFAULT_UC);
+    ev_idle_stop(EV_DEFAULT_UC_ watcher);
+  }
+}
+
 
 static void DoPoll(EV_P_ ev_idle *watcher, int revents) {
   assert(watcher == &eio_poller);
@@ -1124,6 +1152,17 @@ int main(int argc, char *argv[]) {
 
   // Initialize the default ev loop.
   ev_default_loop(EVFLAG_AUTO);
+
+
+  // The idle watcher which will call GC
+  ev_idle_init(&node::gc_idle_watcher, node::DoGC);
+  ev_set_priority(&node::gc_idle_watcher, EV_MINPRI);
+  // The check for pending events (will start the idle watcher)
+  ev_timer_init(&node::gc_timer, node::GCTimeout, GC_INTERVAL, GC_INTERVAL);
+  ev_set_priority(&node::gc_timer, EV_MINPRI);
+  ev_timer_start(EV_DEFAULT_UC_ &node::gc_timer);
+  ev_unref(EV_DEFAULT_UC);
+
 
   // Setup the EIO thread pool
   { // It requires 3, yes 3, watchers.
