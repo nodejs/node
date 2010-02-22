@@ -80,7 +80,7 @@ static ev_timer  gc_timer;
 static void GCTimeout(EV_P_ ev_timer *watcher, int revents) {
   assert(watcher == &gc_timer);
   assert(revents == EV_TIMER);
-  if (ev_pending_count() == 0) V8::IdleNotification();
+  if (ev_pending_count(EV_DEFAULT_UC) == 0) V8::IdleNotification();
 }
 
 
