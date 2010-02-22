@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -336,9 +337,27 @@ static Handle<Value> ReadDir(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
-    // TODO 
-    return ThrowException(Exception::Error(
-          String::New("synchronous readdir() not yet supported.")));
+    DIR *dir = opendir(*path);
+    if (!dir) return ThrowException(errno_exception(errno));
+
+    struct dirent *ent;
+
+    Local<Array> files = Array::New();
+    char *name;
+    int i = 0;
+
+    while (ent = readdir(dir)) {
+      name = ent->d_name;
+
+      if (name[0] != '.' || (name[1] && (name[1] != '.' || name[2]))) {
+        files->Set(Integer::New(i), String::New(name));
+        i++;
+      }
+    }
+
+    closedir(dir);
+
+    return scope.Close(files);
   }
 }
 
