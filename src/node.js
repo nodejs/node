@@ -926,7 +926,10 @@ Module.prototype._loadContent = function (content, filename) {
 
   try {
     var compiledWrapper = process.compile(wrapper, filename);
-    compiledWrapper.apply(self.exports, [self.exports, require, self, filename, path.dirname(filename)]);
+    var dirName = path.dirname(filename);
+    if (filename === process.argv[1])
+      process.checkBreak();
+    compiledWrapper.apply(self.exports, [self.exports, require, self, filename, dirName]);
   } catch (e) {
     return e;
   }
