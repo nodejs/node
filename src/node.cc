@@ -170,7 +170,7 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
 Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
   HandleScope scope;
 
-  if (!len) return scope.Close(Null());
+  if (!len) return scope.Close(String::Empty());
 
   if (encoding == BINARY) {
     const unsigned char *cbuf = static_cast<const unsigned char*>(buf);
