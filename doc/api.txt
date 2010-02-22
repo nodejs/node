@@ -125,6 +125,8 @@ Returns the memory usage of the Node process. It looks like this
 
 +process.nextTick(callback)+::
 On the next loop around the event loop call this callback.
+This is *not* a simple alias to +setTimeout(fn, 0)+, it's much more
+efficient. 
 
 +process.exit(code=0)+::
 Ends the process with the specified code. By default it exits with the
