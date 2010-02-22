@@ -5,18 +5,14 @@ var PORT = 8888;
 var UTF8_STRING = "Il était tué";
 
 var server = http.createServer(function(req, res) {
-  res.sendHeader(200, {"Content-Type": "text/plain; charset=utf8"});
+  res.writeHeader(200, {"Content-Type": "text/plain; charset=utf8"});
   res.write(UTF8_STRING, 'utf8');
   res.close();
 });
 server.listen(PORT);
 
-http.cat("http://localhost:"+PORT+"/", "utf8")
-  .addCallback(function (data) {
-    assert.equal(UTF8_STRING, data);
-    server.close();
-  })
-  .addErrback(function() {
-    assert.ok(false, 'http.cat should succeed in < 1000ms');
-  })
-  .timeout(1000);
+http.cat("http://localhost:"+PORT+"/", "utf8", function (err, data) {
+  if (err) throw err;
+  assert.equal(UTF8_STRING, data);
+  server.close();
+})

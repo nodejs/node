@@ -24,7 +24,7 @@ var client_got_eof = false;
 var connection_was_closed = false;
 
 var server = http.createServer(function (req, res) {
-  res.sendHeader(200, {"Content-Type": "text/plain"});
+  res.writeHeader(200, {"Content-Type": "text/plain"});
   res.write("hello ");
   res.write("world\n");
   res.close();

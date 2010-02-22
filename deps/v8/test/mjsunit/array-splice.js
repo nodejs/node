@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,290 +25,265 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/**
- * @fileoverview Test splice, shift, unshift, slice and join on small
- * and large arrays.  Some of these methods are specified such that they
- * should work on other objects too, so we test that too.
- */
+// Check that splicing array of holes keeps it as array of holes
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var array = new Array(10);
+    var spliced = array.splice(1, 1, 'one', 'two');
+    assertEquals(1, spliced.length);
+    assertFalse(0 in spliced);
 
-var LARGE = 40000000;
-var VERYLARGE = 4000000000;
-
-// Nicer for firefox 1.5.  Unless you uncomment the following two lines,
-// smjs will appear to hang on this file.
-//var LARGE = 40000;
-//var VERYLARGE = 40000;
-
-var fourhundredth = LARGE/400;
-
-function PseudoArray() {
-};
-
-for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
-  var poses = [0, 140, 20000, VERYLARGE];
-  var the_prototype;
-  var new_function;
-  var push_function;
-  var concat_function;
-  var slice_function;
-  var splice_function;
-  var splice_function_2;
-  var unshift_function;
-  var unshift_function_2;
-  var shift_function;
-  if (use_real_arrays) {
-    new_function = function(length) {
-      return new Array(length);
-    };
-    the_prototype = Array.prototype;
-    push_function = function(array, elt) {
-      return array.push(elt);
-    };
-    concat_function = function(array, other) {
-      return array.concat(other);
-    };
-    slice_function = function(array, start, len) {
-      return array.slice(start, len);
-    };
-    splice_function = function(array, start, len) {
-      return array.splice(start, len);
-    };
-    splice_function_2 = function(array, start, len, elt) {
-      return array.splice(start, len, elt);
-    };
-    unshift_function = function(array, elt) {
-      return array.unshift(elt);
-    };
-    unshift_function_2 = function(array, elt1, elt2) {
-      return array.unshift(elt1, elt2);
-    };
-    shift_function = function(array) {
-      return array.shift();
-    };
-  } else {
-    // Don't run largest size on non-arrays or we'll be here for ever.
-    poses.pop();
-    new_function = function(length) {
-      var obj = new PseudoArray();
-      obj.length = length;
-      return obj;
-    };
-    the_prototype = PseudoArray.prototype;
-    push_function = function(array, elt) {
-      array[array.length] = elt;
-      array.length++;
-    };
-    concat_function = function(array, other) {
-      return Array.prototype.concat.call(array, other);
-    };
-    slice_function = function(array, start, len) {
-      return Array.prototype.slice.call(array, start, len);
-    };
-    splice_function = function(array, start, len) {
-      return Array.prototype.splice.call(array, start, len);
-    };
-    splice_function_2 = function(array, start, len, elt) {
-      return Array.prototype.splice.call(array, start, len, elt);
-    };
-    unshift_function = function(array, elt) {
-      return Array.prototype.unshift.call(array, elt);
-    };
-    unshift_function_2 = function(array, elt1, elt2) {
-      return Array.prototype.unshift.call(array, elt1, elt2);
-    };
-    shift_function = function(array) {
-      return Array.prototype.shift.call(array);
-    };
+    assertEquals(11, array.length);
+    assertFalse(0 in array);
+    assertTrue(1 in array);
+    assertTrue(2 in array);
+    assertFalse(3 in array);
   }
+})();
 
-  for (var pos_pos = 0; pos_pos < poses.length; pos_pos++) {
-    var pos = poses[pos_pos];
-    if (pos > 100) {
-      var a = new_function(pos);
-      assertEquals(pos, a.length);
-      push_function(a, 'foo');
-      assertEquals(pos + 1, a.length);
-      var b = ['bar'];
-      // Delete a huge number of holes.
-      var c = splice_function(a, 10, pos - 20);
-      assertEquals(pos - 20, c.length);
-      assertEquals(21, a.length);
+
+// Check various forms of arguments omission.
+(function() {
+  var array;
+  for (var i = 0; i < 7; i++) {
+    // SpiderMonkey and JSC return undefined in the case where no
+    // arguments are given instead of using the implicit undefined
+    // arguments.  This does not follow ECMA-262, but we do the same for
+    // compatibility.
+    // TraceMonkey follows ECMA-262 though.
+    array = [1, 2, 3]
+    assertEquals(undefined, array.splice());
+    assertEquals([1, 2, 3], array);
+
+    // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
+    // given differently from when an undefined delete count is given.
+    // This does not follow ECMA-262, but we do the same for
+    // compatibility.
+    array = [1, 2, 3]
+    assertEquals([1, 2, 3], array.splice(0));
+    assertEquals([], array);
+
+    array = [1, 2, 3]
+    assertEquals([1, 2, 3], array.splice(undefined));
+    assertEquals([], array);
+
+    array = [1, 2, 3]
+    assertEquals([1, 2, 3], array.splice("foobar"));
+    assertEquals([], array);
+
+    array = [1, 2, 3]
+    assertEquals([], array.splice(undefined, undefined));
+    assertEquals([1, 2, 3], array);
+
+    array = [1, 2, 3]
+    assertEquals([], array.splice("foobar", undefined));
+    assertEquals([1, 2, 3], array);
+
+    array = [1, 2, 3]
+    assertEquals([], array.splice(undefined, "foobar"));
+    assertEquals([1, 2, 3], array);
+
+    array = [1, 2, 3]
+    assertEquals([], array.splice("foobar", "foobar"));
+    assertEquals([1, 2, 3], array);
+  }
+})();
+
+
+// Check variants of negatives and positive indices.
+(function() {
+  var array, spliced;
+  for (var i = 0; i < 7; i++) {
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(-100);
+    assertEquals([], array);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(-3);
+    assertEquals([1, 2, 3, 4], array);
+    assertEquals([5, 6, 7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(4);
+    assertEquals([1, 2, 3, 4], array);
+    assertEquals([5, 6, 7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(6);
+    assertEquals([1, 2, 3, 4, 5, 6], array);
+    assertEquals([7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(7);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
+    assertEquals([], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(8);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
+    assertEquals([], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(100);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
+    assertEquals([], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, -100);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
+    assertEquals([], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, -3);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
+    assertEquals([], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, 4);
+    assertEquals([5, 6, 7], array);
+    assertEquals([1, 2, 3, 4], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, 6);
+    assertEquals([7], array);
+    assertEquals([1, 2, 3, 4, 5, 6], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, 7);
+    assertEquals([], array);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, 8);
+    assertEquals([], array);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
+
+    array = [1, 2, 3, 4, 5, 6, 7];
+    spliced = array.splice(0, 100);
+    assertEquals([], array);
+    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
+
+    // Some exotic cases.
+    obj = { toString: function() { throw 'Exception'; } };
+
+    // Throwing an exception in conversion:
+    try {
+      [1, 2, 3].splice(obj, 3);
+      throw 'Should have thrown';
+    } catch (e) {
+      assertEquals('Exception', e);
     }
 
-    // Add a numeric property to the prototype of the array class.  This
-    // allows us to test some borderline stuff relative to the standard.
-    the_prototype["" + (pos + 1)] = 'baz';
-
-    if (use_real_arrays) {
-      // It seems quite clear from ECMAScript spec 15.4.4.5.  Just call Get on
-      // every integer in the range.
-      // IE, Safari get this right.
-      // FF, Opera get this wrong.
-      var a = ['zero', ,'two'];
-      if (pos == 0) {
-        assertEquals("zero,baz,two", a.join(","));
-      }
-
-      // Concat only applies to real arrays, unlike most of the other methods.
-      var a = new_function(pos);
-      push_function(a, "con");
-      assertEquals("con", a[pos]);
-      assertEquals(pos + 1, a.length);
-      var b = new_function(0);
-      push_function(b, "cat");
-      assertEquals("cat", b[0]);
-      var ab = concat_function(a, b);
-      assertEquals("con", ab[pos]);
-      assertEquals(pos + 2, ab.length);
-      assertEquals("cat", ab[pos + 1]);
-      var ba = concat_function(b, a);
-      assertEquals("con", ba[pos + 1]);
-      assertEquals(pos + 2, ba.length);
-      assertEquals("cat", ba[0]);
-
-      // Join with '' as separator.
-      var join = a.join('');
-      assertEquals("con", join);
-      join = b.join('');
-      assertEquals("cat", join);
-      join = ab.join('');
-      assertEquals("concat", join);
-      join = ba.join('');
-      assertEquals("catcon", join);
-
-      var sparse = [];
-      sparse[pos + 1000] = 'is ';
-      sparse[pos + 271828] = 'time ';
-      sparse[pos + 31415] = 'the ';
-      sparse[pos + 012260199] = 'all ';
-      sparse[-1] = 'foo';
-      sparse[pos + 22591927] = 'good ';
-      sparse[pos + 1618033] = 'for ';
-      sparse[pos + 91] = ': Now ';
-      sparse[pos + 86720199] = 'men.';
-      sparse.hest = 'fisk';
-
-      assertEquals("baz: Now is the time for all good men.", sparse.join(''));
+    try {
+      [1, 2, 3].splice(0, obj, 3);
+      throw 'Should have thrown';
+    } catch (e) {
+      assertEquals('Exception', e);
     }
 
-    a = new_function(pos);
-    push_function(a, 'zero');
-    push_function(a, void 0);
-    push_function(a, 'two');
+    array = [1, 2, 3];
+    array.splice(0, 3, obj);
+    assertEquals(1, array.length);
 
-    // Splice works differently from join.
-    // IE, Safari get this wrong.
-    // FF, Opera get this right.
-    // 15.4.4.12 line 24 says the object itself has to have the property...
-    var zero = splice_function(a, pos, 1);
-    assertEquals("undefined", typeof(a[pos]));
-    assertEquals("two", a[pos+1], "pos1:" + pos);
-    assertEquals(pos + 2, a.length, "a length");
-    assertEquals(1, zero.length, "zero length");
-    assertEquals("zero", zero[0]);
-
-    // 15.4.4.12 line 41 says the object itself has to have the property...
-    a = new_function(pos);
-    push_function(a, 'zero');
-    push_function(a, void 0);
-    push_function(a, 'two');
-    var nothing = splice_function_2(a, pos, 0, 'minus1');
-    assertEquals("minus1", a[pos]);
-    assertEquals("zero", a[pos+1]);
-    assertEquals("undefined", typeof(a[pos+2]), "toot!");
-    assertEquals("two", a[pos+3], "pos3");
-    assertEquals(pos + 4, a.length);
-    assertEquals(1, zero.length);
-    assertEquals("zero", zero[0]);
-
-    // 15.4.4.12 line 10 says the object itself has to have the property...
-    a = new_function(pos);
-    push_function(a, 'zero');
-    push_function(a, void 0);
-    push_function(a, 'two');
-    var one = splice_function(a, pos + 1, 1);
-    assertEquals("", one.join(","));
-    assertEquals(pos + 2, a.length);
-    assertEquals("zero", a[pos]);
-    assertEquals("two", a[pos+1]);
-
-    // Set things back to the way they were.
-    the_prototype[pos + 1] = undefined;
-
-    // Unshift.
-    var a = new_function(pos);
-    push_function(a, "foo");
-    assertEquals("foo", a[pos]);
-    assertEquals(pos + 1, a.length);
-    unshift_function(a, "bar");
-    assertEquals("foo", a[pos+1]);
-    assertEquals(pos + 2, a.length);
-    assertEquals("bar", a[0]);
-    unshift_function_2(a, "baz", "boo");
-    assertEquals("foo", a[pos+3]);
-    assertEquals(pos + 4, a.length);
-    assertEquals("baz", a[0]);
-    assertEquals("boo", a[1]);
-    assertEquals("bar", a[2]);
-
-    // Shift.
-    var baz = shift_function(a);
-    assertEquals("baz", baz);
-    assertEquals("boo", a[0]);
-    assertEquals(pos + 3, a.length);
-    assertEquals("foo", a[pos + 2]);
-
-    // Slice.
-    var bar = slice_function(a, 1, 0);  // don't throw an exception please.
-    bar = slice_function(a, 1, 2);
-    assertEquals("bar", bar[0]);
-    assertEquals(1, bar.length);
-    assertEquals("bar", a[1]);
-
+    // Custom conversion:
+    array = [1, 2, 3];
+    spliced = array.splice({valueOf: function() { return 1; }},
+                           {toString: function() { return 2; }},
+                           'one', 'two');
+    assertEquals([2, 3], spliced);
+    assertEquals([1, 'one', 'two'], array);
   }
-}
-
-// Lets see if performance is reasonable.
-
-var a = new Array(LARGE + 10);
-for (var i = 0; i < a.length; i += 1000) {
-  a[i] = i;
-}
-
-// Take something near the end of the array.
-for (var i = 0; i < 100; i++) {
-  var top = a.splice(LARGE, 5);
-  assertEquals(5, top.length);
-  assertEquals(LARGE, top[0]);
-  assertEquals("undefined", typeof(top[1]));
-  assertEquals(LARGE + 5, a.length);
-  a.splice(LARGE, 0, LARGE);
-  a.length = LARGE + 10;
-}
-
-var a = new Array(LARGE + 10);
-for (var i = 0; i < a.length; i += fourhundredth) {
-  a[i] = i;
-}
-
-// Take something near the middle of the array.
-for (var i = 0; i < 10; i++) {
-  var top = a.splice(LARGE >> 1, 5);
-  assertEquals(5, top.length);
-  assertEquals(LARGE >> 1, top[0]);
-  assertEquals("undefined", typeof(top[1]));
-  assertEquals(LARGE + 5, a.length);
-  a.splice(LARGE >> 1, 0, LARGE >> 1, void 0, void 0, void 0, void 0);
-}
+})();
 
 
-// Test http://b/issue?id=1202711
-arr = [0];
-arr.length = 2;
-Array.prototype[1] = 1;
-assertEquals(1, arr.pop());
-assertEquals(0, arr.pop());
-Array.prototype[1] = undefined;
+// Nasty: modify the array in ToInteger.
+(function() {
+  var array = [];
+  var spliced;
 
-// Test http://code.google.com/p/chromium/issues/detail?id=21860
-Array.prototype.push.apply([], [1].splice(0, -(-1 % 5)));
+  for (var i = 0; i < 13; i++) {
+    bad_start = { valueOf: function() { array.push(2*i); return -1; } };
+    bad_count = { valueOf: function() { array.push(2*i + 1); return 1; } };
+    spliced = array.splice(bad_start, bad_count);
+    // According to the spec (15.4.4.12), length is calculated before
+    // performing ToInteger on arguments.  However, v8 ignores elements
+    // we add while converting, so we need corrective pushes.
+    array.push(2*i); array.push(2*i + 1);
+    if (i == 0) {
+      assertEquals([], spliced);  // Length was 0, nothing to get.
+      assertEquals([0, 1], array);
+    } else {
+      // When we start splice, array is [0 .. 2*i - 1], so we get
+      // as a result [2*i], this element is removed from the array,
+      // but [2 * i, 2 * i + 1] are added.
+      assertEquals([2 * i - 1], spliced);
+      assertEquals(2 * i, array[i]);
+      assertEquals(2 * i + 1, array[i + 1]);
+    }
+  }
+})();
+
+
+// Now check the case with array of holes and some elements on prototype.
+(function() {
+  var len = 9;
+
+  var at3 = "@3";
+  var at7 = "@7";
+
+  for (var i = 0; i < 7; i++) {
+    var array = new Array(len);
+    Array.prototype[3] = at3;
+    Array.prototype[7] = at7;
+
+    var spliced = array.splice(2, 2, 'one', undefined, 'two');
+
+    // Second hole (at index 3) of array turns into
+    // value of Array.prototype[3] while copying.
+    assertEquals([, at3], spliced);
+    assertEquals([, , 'one', undefined, 'two', , , at7, at7, ,], array);
+
+    // ... but array[7] is actually a hole:
+    assertTrue(delete Array.prototype[7]);
+    assertEquals(undefined, array[7]);
+
+    // and now check hasOwnProperty
+    assertFalse(array.hasOwnProperty(0));
+    assertFalse(array.hasOwnProperty(1));
+    assertTrue(array.hasOwnProperty(2));
+    assertTrue(array.hasOwnProperty(3));
+    assertTrue(array.hasOwnProperty(4));
+    assertFalse(array.hasOwnProperty(5));
+    assertFalse(array.hasOwnProperty(6));
+    assertFalse(array.hasOwnProperty(7));
+    assertTrue(array.hasOwnProperty(8));
+    assertFalse(array.hasOwnProperty(9));
+
+    // and now check couple of indices above length.
+    assertFalse(array.hasOwnProperty(10));
+    assertFalse(array.hasOwnProperty(15));
+    assertFalse(array.hasOwnProperty(31));
+    assertFalse(array.hasOwnProperty(63));
+    assertFalse(array.hasOwnProperty(2 << 32 - 1));
+  }
+})();
+
+
+// Check the behaviour when approaching maximal values for length.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    try {
+      new Array((1 << 32) - 3).splice(-1, 0, 1, 2, 3, 4, 5);
+      throw 'Should have thrown RangeError';
+    } catch (e) {
+      assertTrue(e instanceof RangeError);
+    }
+
+    // Check smi boundary
+    var bigNum = (1 << 30) - 3;
+    var array = new Array(bigNum);
+    array.splice(-1, 0, 1, 2, 3, 4, 5, 6, 7);
+    assertEquals(bigNum + 7, array.length);
+  }
+})();

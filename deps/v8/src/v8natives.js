@@ -56,7 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %SetProperty(object, key, f, attributes);
   }
-  %TransformToFastProperties(object);
+  %ToFastProperties(object);
 }
 
 // Emulates JSC by installing functions on a hidden prototype that
@@ -307,7 +307,7 @@ function IsInconsistentDescriptor(desc) {
 
 // ES5 8.10.4
 function FromPropertyDescriptor(desc) {
-  if(IS_UNDEFINED(desc)) return desc;
+  if (IS_UNDEFINED(desc)) return desc;
   var obj = new $Object();
   if (IsDataDescriptor(desc)) {
     obj.value = desc.getValue();
@@ -332,7 +332,6 @@ function ToPropertyDescriptor(obj) {
   if ("enumerable" in obj) {
     desc.setEnumerable(ToBoolean(obj.enumerable));
   }
-
 
   if ("configurable" in obj) {
     desc.setConfigurable(ToBoolean(obj.configurable));
@@ -377,7 +376,9 @@ function PropertyDescriptor() {
   this.writable_ = false;
   this.hasWritable_ = false;
   this.enumerable_ = false;
+  this.hasEnumerable_ = false;
   this.configurable_ = false;
+  this.hasConfigurable_ = false;
   this.get_ = void 0;
   this.hasGetter_ = false;
   this.set_ = void 0;
@@ -396,13 +397,24 @@ PropertyDescriptor.prototype.getValue = function() {
 }
 
 
+PropertyDescriptor.prototype.hasValue = function() {
+  return this.hasValue_;
+}
+
+
 PropertyDescriptor.prototype.setEnumerable = function(enumerable) {
   this.enumerable_ = enumerable;
+  this.hasEnumerable_ = true;
 }
 
 
 PropertyDescriptor.prototype.isEnumerable = function () {
   return this.enumerable_;
+}
+
+
+PropertyDescriptor.prototype.hasEnumerable = function() {
+  return this.hasEnumerable_;
 }
 
 
@@ -419,6 +431,12 @@ PropertyDescriptor.prototype.isWritable = function() {
 
 PropertyDescriptor.prototype.setConfigurable = function(configurable) {
   this.configurable_ = configurable;
+  this.hasConfigurable_ = true;
+}
+
+
+PropertyDescriptor.prototype.hasConfigurable = function() {
+  return this.hasConfigurable_;
 }
 
 
@@ -438,6 +456,11 @@ PropertyDescriptor.prototype.getGet = function() {
 }
 
 
+PropertyDescriptor.prototype.hasGetter = function() {
+  return this.hasGetter_;
+}
+
+
 PropertyDescriptor.prototype.setSet = function(set) {
   this.set_ = set;
   this.hasSetter_ = true;
@@ -449,6 +472,12 @@ PropertyDescriptor.prototype.getSet = function() {
 }
 
 
+PropertyDescriptor.prototype.hasSetter = function() {
+  return this.hasSetter_;
+}
+
+
+
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, p) {
   var desc = new PropertyDescriptor();
@@ -458,8 +487,7 @@ function GetOwnProperty(obj, p) {
   //  obj is an accessor [true, Get, Set, Enumerable, Configurable]
   var props = %GetOwnProperty(ToObject(obj), ToString(p));
 
-  if (IS_UNDEFINED(props))
-    return void 0;
+  if (IS_UNDEFINED(props)) return void 0;
 
   // This is an accessor
   if (props[0]) {
@@ -476,16 +504,89 @@ function GetOwnProperty(obj, p) {
 }
 
 
-// ES5 8.12.9.  This version cannot cope with the property p already
-// being present on obj.
+// ES5 section 8.12.2.
+function GetProperty(obj, p) {
+  var prop = GetOwnProperty(obj);
+  if (!IS_UNDEFINED(prop)) return prop;
+  var proto = obj.__proto__;
+  if (IS_NULL(proto)) return void 0;
+  return GetProperty(proto, p);
+}
+
+
+// ES5 section 8.12.6
+function HasProperty(obj, p) {
+  var desc = GetProperty(obj, p);
+  return IS_UNDEFINED(desc) ? false : true;
+}
+
+
+// ES5 8.12.9.  
 function DefineOwnProperty(obj, p, desc, should_throw) {
-  var flag = desc.isEnumerable() ? 0 : DONT_ENUM;
-  if (IsDataDescriptor(desc)) {
-    flag |= desc.isWritable() ? 0 : (DONT_DELETE | READ_ONLY);
-    %SetProperty(obj, p, desc.getValue(), flag);
+  var current = GetOwnProperty(obj, p);
+  var extensible = %IsExtensible(ToObject(obj));
+
+  // Error handling according to spec.
+  // Step 3
+  if (IS_UNDEFINED(current) && !extensible)
+    throw MakeTypeError("define_disallowed", ["defineProperty"]);
+
+  if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
+    // Step 7
+    if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
+      throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+    // Step 9
+    if (IsDataDescriptor(current) != IsDataDescriptor(desc))
+      throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+    // Step 10
+    if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
+      if (!current.isWritable() && desc.isWritable())
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      if (!current.isWritable() && desc.hasValue() &&
+          !SameValue(desc.getValue(), current.getValue())) {
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      }
+    }
+    // Step 11
+    if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
+      if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      }
+      if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+    }
+  }
+
+  // Send flags - enumerable and configurable are common - writable is 
+  // only send to the data descriptor.
+  // Take special care if enumerable and configurable is not defined on
+  // desc (we need to preserve the existing values from current).
+  var flag = NONE;
+  if (desc.hasEnumerable()) {
+    flag |= desc.isEnumerable() ? 0 : DONT_ENUM;
+  } else if (!IS_UNDEFINED(current)) {
+    flag |= current.isEnumerable() ? 0 : DONT_ENUM;
   } else {
-    if (IS_FUNCTION(desc.getGet())) %DefineAccessor(obj, p, GETTER, desc.getGet(), flag);
-    if (IS_FUNCTION(desc.getSet())) %DefineAccessor(obj, p, SETTER, desc.getSet(), flag);
+    flag |= DONT_ENUM;
+  }
+
+  if (desc.hasConfigurable()) {
+    flag |= desc.isConfigurable() ? 0 : DONT_DELETE;
+  } else if (!IS_UNDEFINED(current)) {
+    flag |= current.isConfigurable() ? 0 : DONT_DELETE;
+  } else
+    flag |= DONT_DELETE;
+
+  if (IsDataDescriptor(desc) || IsGenericDescriptor(desc)) {
+    flag |= desc.isWritable() ? 0 : READ_ONLY;
+    %DefineOrRedefineDataProperty(obj, p, desc.getValue(), flag);
+  } else {
+    if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
+       %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
+    }
+    if (desc.hasSetter() && IS_FUNCTION(desc.getSet())) {
+      %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
+    }
   }
   return true;
 }
@@ -522,9 +623,8 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%GetInterceptorInfo(obj) & 1) {
     var indexedInterceptorNames =
         %GetIndexedInterceptorElementNames(obj);
-    if (indexedInterceptorNames) {
+    if (indexedInterceptorNames)
       propertyNames = propertyNames.concat(indexedInterceptorNames);
-    }
   }
 
   // Find all the named properties.
@@ -542,6 +642,10 @@ function ObjectGetOwnPropertyNames(obj) {
     }
   }
 
+  // Property names are expected to be strings.
+  for (var i = 0; i < propertyNames.length; ++i)
+    propertyNames[i] = ToString(propertyNames[i]);
+
   return propertyNames;
 }
 
@@ -558,10 +662,21 @@ function ObjectCreate(proto, properties) {
 }
 
 
-// ES5 section 15.2.3.7.  This version cannot cope with the properies already
-// being present on obj.  Therefore it is not exposed as
-// Object.defineProperties yet.
+// ES5 section 15.2.3.6.
+function ObjectDefineProperty(obj, p, attributes) {
+  if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
+    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
+  var name = ToString(p);
+  var desc = ToPropertyDescriptor(attributes);
+  DefineOwnProperty(obj, name, desc, true);
+  return obj;
+}
+
+
+// ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
+ if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
+    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
   var key_values = [];
   for (var key in props) {
@@ -577,6 +692,7 @@ function ObjectDefineProperties(obj, properties) {
     var desc = key_values[i + 1];
     DefineOwnProperty(obj, key, desc, true);
   }
+  return obj;
 }
 
 
@@ -611,6 +727,8 @@ function SetupObject() {
   InstallFunctions($Object, DONT_ENUM, $Array(
     "keys", ObjectKeys,
     "create", ObjectCreate,
+    "defineProperty", ObjectDefineProperty,
+    "defineProperties", ObjectDefineProperties,
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames
@@ -796,7 +914,7 @@ function SetupNumber() {
                "POSITIVE_INFINITY",
                1/0,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %TransformToFastProperties($Number);
+  %ToFastProperties($Number);
 
   // Setup non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(

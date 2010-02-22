@@ -28,7 +28,7 @@ http.createServer(function (req, res) {
   }
 
   req.addListener('end', function () {
-    res.sendHeader(200, {"Content-Type": "text/plain"});
+    res.writeHeader(200, {"Content-Type": "text/plain"});
     res.write("The path was " + url.parse(req.url).pathname);
     res.close();
     responses_sent += 1;

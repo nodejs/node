@@ -566,10 +566,11 @@ function ArraySlice(start, end) {
 function ArraySplice(start, delete_count) {
   var num_arguments = %_ArgumentsLength();
 
-  // SpiderMonkey and KJS return undefined in the case where no
+  // SpiderMonkey and JSC return undefined in the case where no
   // arguments are given instead of using the implicit undefined
   // arguments.  This does not follow ECMA-262, but we do the same for
   // compatibility.
+  // TraceMonkey follows ECMA-262 though.
   if (num_arguments == 0) return;
 
   var len = TO_UINT32(this.length);
@@ -582,7 +583,7 @@ function ArraySplice(start, delete_count) {
     if (start_i > len) start_i = len;
   }
 
-  // SpiderMonkey and KJS treat the case where no delete count is
+  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
   // given differently from when an undefined delete count is given.
   // This does not follow ECMA-262, but we do the same for
   // compatibility.

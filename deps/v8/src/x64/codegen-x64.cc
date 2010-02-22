@@ -246,14 +246,10 @@ class FloatingPointHelper : public AllStatic {
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation.
 
-CodeGenerator::CodeGenerator(MacroAssembler* masm,
-                             Handle<Script> script,
-                             bool is_eval)
-    : is_eval_(is_eval),
-      script_(script),
-      deferred_(8),
+CodeGenerator::CodeGenerator(MacroAssembler* masm)
+    : deferred_(8),
       masm_(masm),
-      scope_(NULL),
+      info_(NULL),
       frame_(NULL),
       allocator_(NULL),
       state_(NULL),
@@ -261,6 +257,9 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm,
       function_return_is_shadowed_(false),
       in_spilled_code_(false) {
 }
+
+
+Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
@@ -278,16 +277,12 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void CodeGenerator::Generate(FunctionLiteral* function,
-                             Mode mode,
-                             CompilationInfo* info) {
+void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
   // Record the position for debugging purposes.
-  CodeForFunctionPosition(function);
-  ZoneList<Statement*>* body = function->body();
+  CodeForFunctionPosition(info->function());
 
   // Initialize state.
-  ASSERT(scope_ == NULL);
-  scope_ = function->scope();
+  info_ = info;
   ASSERT(allocator_ == NULL);
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
@@ -302,7 +297,7 @@ void CodeGenerator::Generate(FunctionLiteral* function,
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      function->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
     frame_->SpillAll();
     __ int3();
   }
@@ -328,7 +323,7 @@ void CodeGenerator::Generate(FunctionLiteral* function,
       frame_->AllocateStackSlots();
 
       // Allocate the local context if needed.
-      int heap_slots = scope_->num_heap_slots();
+      int heap_slots = scope()->num_heap_slots();
       if (heap_slots > 0) {
         Comment cmnt(masm_, "[ allocate local context");
         // Allocate local context.
@@ -358,7 +353,6 @@ void CodeGenerator::Generate(FunctionLiteral* function,
       // 3) don't copy parameter operand code from SlotOperand!
       {
         Comment cmnt2(masm_, "[ copy context parameters into .context");
-
         // Note that iteration order is relevant here! If we have the same
         // parameter twice (e.g., function (x, y, x)), and that parameter
         // needs to be copied into the context, it must be the last argument
@@ -367,15 +361,15 @@ void CodeGenerator::Generate(FunctionLiteral* function,
         // order: such a parameter is copied repeatedly into the same
         // context location and thus the last value is what is seen inside
         // the function.
-        for (int i = 0; i < scope_->num_parameters(); i++) {
-          Variable* par = scope_->parameter(i);
+        for (int i = 0; i < scope()->num_parameters(); i++) {
+          Variable* par = scope()->parameter(i);
           Slot* slot = par->slot();
           if (slot != NULL && slot->type() == Slot::CONTEXT) {
             // The use of SlotOperand below is safe in unspilled code
             // because the slot is guaranteed to be a context slot.
             //
             // There are no parameters in the global scope.
-            ASSERT(!scope_->is_global_scope());
+            ASSERT(!scope()->is_global_scope());
             frame_->PushParameterAt(i);
             Result value = frame_->Pop();
             value.ToRegister();
@@ -403,9 +397,9 @@ void CodeGenerator::Generate(FunctionLiteral* function,
       }
 
       // Initialize ThisFunction reference if present.
-      if (scope_->is_function_scope() && scope_->function() != NULL) {
+      if (scope()->is_function_scope() && scope()->function() != NULL) {
         frame_->Push(Factory::the_hole_value());
-        StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
+        StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
       }
     } else {
       // When used as the secondary compiler for splitting, rbp, rsi,
@@ -423,12 +417,12 @@ void CodeGenerator::Generate(FunctionLiteral* function,
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to
     // handle that instead of processing the declarations.
-    if (scope_->HasIllegalRedeclaration()) {
+    if (scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ illegal redeclarations");
-      scope_->VisitIllegalRedeclaration(this);
+      scope()->VisitIllegalRedeclaration(this);
     } else {
       Comment cmnt(masm_, "[ declarations");
-      ProcessDeclarations(scope_->declarations());
+      ProcessDeclarations(scope()->declarations());
       // Bail out if a stack-overflow exception occurred when processing
       // declarations.
       if (HasStackOverflow()) return;
@@ -443,7 +437,7 @@ void CodeGenerator::Generate(FunctionLiteral* function,
     // Compile the body of the function in a vanilla state. Don't
     // bother compiling all the code if the scope has an illegal
     // redeclaration.
-    if (!scope_->HasIllegalRedeclaration()) {
+    if (!scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ function body");
 #ifdef DEBUG
       bool is_builtin = Bootstrapper::IsActive();
@@ -454,14 +448,14 @@ void CodeGenerator::Generate(FunctionLiteral* function,
         // Ignore the return value.
       }
 #endif
-      VisitStatements(body);
+      VisitStatements(info->function()->body());
 
       // Handle the return from the function.
       if (has_valid_frame()) {
         // If there is a valid frame, control flow can fall off the end of
         // the body.  In that case there is an implicit return statement.
         ASSERT(!function_return_is_shadowed_);
-        CodeForReturnPosition(function);
+        CodeForReturnPosition(info->function());
         frame_->PrepareForReturn();
         Result undefined(Factory::undefined_value());
         if (function_return_.is_bound()) {
@@ -504,7 +498,6 @@ void CodeGenerator::Generate(FunctionLiteral* function,
   // There is no need to delete the register allocator, it is a
   // stack-allocated local.
   allocator_ = NULL;
-  scope_ = NULL;
 }
 
 void CodeGenerator::GenerateReturnSequence(Result* return_value) {
@@ -527,7 +520,7 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
+  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Add padding that will be overwritten by a debugger breakpoint.
   // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
@@ -695,7 +688,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load the receiver and the existing arguments object onto the
   // expression stack. Avoid allocating the arguments object here.
   Load(receiver);
-  LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+  LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
 
   // Emit the source position information after having loaded the
   // receiver and the arguments.
@@ -773,8 +766,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(equal, &adapted);
 
       // No arguments adaptor frame. Copy fixed number of arguments.
-      __ movq(rax, Immediate(scope_->num_parameters()));
-      for (int i = 0; i < scope_->num_parameters(); i++) {
+      __ movq(rax, Immediate(scope()->num_parameters()));
+      for (int i = 0; i < scope()->num_parameters(); i++) {
         __ push(frame_->ParameterAt(i));
       }
       __ jmp(&invoke);
@@ -1228,7 +1221,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Compare and branch to the body if true or the next test if
     // false.  Prefer the next test as a fall through.
     ControlDestination dest(clause->body_target(), &next_test, false);
-    Comparison(equal, true, &dest);
+    Comparison(node, equal, true, &dest);
 
     // If the comparison fell through to the true target, jump to the
     // actual body.
@@ -2225,8 +2218,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
 
-  DebuggerStatementStub ces;
-  frame_->CallStub(&ces, 0);
+  frame_->DebugBreak();
   // Ignore the return value.
 #endif
 }
@@ -2263,7 +2255,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script_, this);
+      Compiler::BuildBoilerplate(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
   InstantiateBoilerplate(boilerplate);
@@ -2503,17 +2495,19 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Load the literals array of the function.
   __ movq(literals.reg(),
           FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-  // Literal array.
+
   frame_->Push(&literals);
-  // Literal index.
   frame_->Push(Smi::FromInt(node->literal_index()));
-  // Constant elements.
   frame_->Push(node->constant_elements());
+  int length = node->values()->length();
   Result clone;
   if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else {
+  } else if (length > FastCloneShallowArrayStub::kMaximumLength) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
+  } else {
+    FastCloneShallowArrayStub stub(length);
+    clone = frame_->CallStub(&stub, 3);
   }
   frame_->Push(&clone);
 
@@ -2763,9 +2757,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
 
-    // Push the name of the function and the receiver onto the stack.
-    frame_->Push(var->name());
-
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
@@ -2777,6 +2768,9 @@ void CodeGenerator::VisitCall(Call* node) {
       Load(args->at(i));
     }
 
+    // Push the name of the function on the frame.
+    frame_->Push(var->name());
+
     // Call the IC initialization code.
     CodeForSourcePosition(node->position());
     Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
@@ -2784,7 +2778,7 @@ void CodeGenerator::VisitCall(Call* node) {
                                        loop_nesting());
     frame_->RestoreContextRegister();
     // Replace the function on the stack with the result.
-    frame_->SetElementAt(0, &result);
+    frame_->Push(&result);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -2837,8 +2831,7 @@ void CodeGenerator::VisitCall(Call* node) {
                       node->position());
 
       } else {
-        // Push the name of the function and the receiver onto the stack.
-        frame_->Push(name);
+        // Push the receiver onto the frame.
         Load(property->obj());
 
         // Load the arguments.
@@ -2847,14 +2840,16 @@ void CodeGenerator::VisitCall(Call* node) {
           Load(args->at(i));
         }
 
+        // Push the name of the function onto the frame.
+        frame_->Push(name);
+
         // Call the IC initialization code.
         CodeForSourcePosition(node->position());
         Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET,
                                            arg_count,
                                            loop_nesting());
         frame_->RestoreContextRegister();
-        // Replace the function on the stack with the result.
-        frame_->SetElementAt(0, &result);
+        frame_->Push(&result);
       }
 
     } else {
@@ -2945,8 +2940,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   Runtime::Function* function = node->function();
 
   if (function == NULL) {
-    // Prepare stack for calling JS runtime function.
-    frame_->Push(node->name());
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
@@ -2964,11 +2957,12 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
+    frame_->Push(node->name());
     Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
                                        arg_count,
                                        loop_nesting_);
     frame_->RestoreContextRegister();
-    frame_->SetElementAt(0, &answer);
+    frame_->Push(&answer);
   } else {
     // Call the C runtime function.
     Result answer = frame_->CallRuntime(function, arg_count);
@@ -3077,7 +3071,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::SUB: {
         GenericUnaryOpStub stub(Token::SUB, overwrite);
-        // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
         frame_->Push(&answer);
@@ -3593,7 +3586,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   }
   Load(left);
   Load(right);
-  Comparison(cc, strict, destination());
+  Comparison(node, cc, strict, destination());
 }
 
 
@@ -3610,7 +3603,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Result key = frame_->Pop();
   // Explicitly create a constant result.
-  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
+  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   Result result = frame_->CallStub(&stub, &key, &count);
@@ -3719,7 +3712,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument
   // in register eax.  Create a constant result for it.
-  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
+  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   Result result = frame_->CallStub(&stub, &count);
@@ -3975,6 +3968,17 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   RegExpExecStub stub;
   Result result = frame_->CallStub(&stub, 4);
   frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+
+  Result answer = frame_->CallRuntime(Runtime::kNumberToString, 1);
+  frame_->Push(&answer);
 }
 
 
@@ -4267,34 +4271,52 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   // The value to convert should be popped from the frame.
   Result value = frame_->Pop();
   value.ToRegister();
-  // Fast case checks.
 
-  // 'false' => false.
-  __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
-  dest->false_target()->Branch(equal);
+  if (value.is_number()) {
+    Comment cmnt(masm_, "ONLY_NUMBER");
+    // Fast case if NumberInfo indicates only numbers.
+    if (FLAG_debug_code) {
+      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+    }
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    dest->false_target()->Branch(equal);
+    Condition is_smi = masm_->CheckSmi(value.reg());
+    dest->true_target()->Branch(is_smi);
+    __ fldz();
+    __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
+    __ FCmp();
+    value.Unuse();
+    dest->Split(not_zero);
+  } else {
+    // Fast case checks.
+    // 'false' => false.
+    __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
+    dest->false_target()->Branch(equal);
 
-  // 'true' => true.
-  __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
-  dest->true_target()->Branch(equal);
+    // 'true' => true.
+    __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
+    dest->true_target()->Branch(equal);
 
-  // 'undefined' => false.
-  __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
-  dest->false_target()->Branch(equal);
+    // 'undefined' => false.
+    __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
+    dest->false_target()->Branch(equal);
 
-  // Smi => false iff zero.
-  __ SmiCompare(value.reg(), Smi::FromInt(0));
-  dest->false_target()->Branch(equal);
-  Condition is_smi = masm_->CheckSmi(value.reg());
-  dest->true_target()->Branch(is_smi);
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    dest->false_target()->Branch(equal);
+    Condition is_smi = masm_->CheckSmi(value.reg());
+    dest->true_target()->Branch(is_smi);
 
-  // Call the stub for all other cases.
-  frame_->Push(&value);  // Undo the Pop() from above.
-  ToBooleanStub stub;
-  Result temp = frame_->CallStub(&stub, 1);
-  // Convert the result to a condition code.
-  __ testq(temp.reg(), temp.reg());
-  temp.Unuse();
-  dest->Split(not_equal);
+    // Call the stub for all other cases.
+    frame_->Push(&value);  // Undo the Pop() from above.
+    ToBooleanStub stub;
+    Result temp = frame_->CallStub(&stub, 1);
+    // Convert the result to a condition code.
+    __ testq(temp.reg(), temp.reg());
+    temp.Unuse();
+    dest->Split(not_equal);
+  }
 }
 
 
@@ -4789,13 +4811,13 @@ void CodeGenerator::LoadGlobalReceiver() {
 }
 
 
-ArgumentsAllocationMode CodeGenerator::ArgumentsMode() const {
-  if (scope_->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
-  ASSERT(scope_->arguments_shadow() != NULL);
+ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
+  if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
+  ASSERT(scope()->arguments_shadow() != NULL);
   // We don't want to do lazy arguments allocation for functions that
   // have heap-allocated contexts, because it interfers with the
   // uninitialized const tracking in the context objects.
-  return (scope_->num_heap_slots() > 0)
+  return (scope()->num_heap_slots() > 0)
       ? EAGER_ARGUMENTS_ALLOCATION
       : LAZY_ARGUMENTS_ALLOCATION;
 }
@@ -4815,14 +4837,14 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     frame_->PushFunction();
     frame_->PushReceiverSlotAddress();
-    frame_->Push(Smi::FromInt(scope_->num_parameters()));
+    frame_->Push(Smi::FromInt(scope()->num_parameters()));
     Result result = frame_->CallStub(&stub, 3);
     frame_->Push(&result);
   }
 
 
-  Variable* arguments = scope_->arguments()->var();
-  Variable* shadow = scope_->arguments_shadow()->var();
+  Variable* arguments = scope()->arguments()->var();
+  Variable* shadow = scope()->arguments_shadow()->var();
   ASSERT(arguments != NULL && arguments->slot() != NULL);
   ASSERT(shadow != NULL && shadow->slot() != NULL);
   JumpTarget done;
@@ -4831,7 +4853,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // We have to skip storing into the arguments slot if it has
     // already been written to. This can happen if the a function
     // has a local variable named 'arguments'.
-    LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
     Result probe = frame_->Pop();
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has been
@@ -4875,7 +4897,8 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 }
 
 
-void CodeGenerator::Comparison(Condition cc,
+void CodeGenerator::Comparison(AstNode* node,
+                               Condition cc,
                                bool strict,
                                ControlDestination* dest) {
   // Strict only makes sense for equality comparisons.
@@ -4922,7 +4945,8 @@ void CodeGenerator::Comparison(Condition cc,
         default:
           UNREACHABLE();
       }
-    } else {  // Only one side is a constant Smi.
+    } else {
+      // Only one side is a constant Smi.
       // If left side is a constant Smi, reverse the operands.
       // Since one side is a constant Smi, conversion order does not matter.
       if (left_side_constant_smi) {
@@ -4936,6 +4960,8 @@ void CodeGenerator::Comparison(Condition cc,
       // Implement comparison against a constant Smi, inlining the case
       // where both sides are Smis.
       left_side.ToRegister();
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
 
       // Here we split control flow to the stub call and inlined cases
       // before finally splitting it to the control destination.  We use
@@ -4943,11 +4969,47 @@ void CodeGenerator::Comparison(Condition cc,
       // the first split.  We manually handle the off-frame references
       // by reconstituting them on the non-fall-through path.
       JumpTarget is_smi;
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
 
       Condition left_is_smi = masm_->CheckSmi(left_side.reg());
       is_smi.Branch(left_is_smi);
+
+      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
+          && node->AsCompareOperation()->is_for_loop_condition();
+      if (!is_for_loop_compare && right_val->IsSmi()) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        JumpTarget not_number;
+        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        not_number.Branch(not_equal, &left_side);
+        __ movsd(xmm1,
+                 FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = Smi::cast(*right_val)->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ movl(temp.reg(), Immediate(value));
+          __ cvtlsi2sd(xmm0, temp.reg());
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, &left_side);
+        left_side.Unuse();
+        Condition double_cc = cc;
+        switch (cc) {
+          case less:          double_cc = below;       break;
+          case equal:         double_cc = equal;       break;
+          case less_equal:    double_cc = below_equal; break;
+          case greater:       double_cc = above;       break;
+          case greater_equal: double_cc = above_equal; break;
+          default: UNREACHABLE();
+        }
+        dest->true_target()->Branch(double_cc);
+        dest->false_target()->Jump();
+        not_number.Bind(&left_side);
+      }
 
       // Setup and call the compare stub.
       CompareStub stub(cc, strict);
@@ -5121,26 +5183,34 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Neither operand is known to be a string.
   }
 
-  bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
-  bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
-  bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
-  bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool left_is_smi_constant = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi_constant = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi_constant = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi_constant =
+      right.is_constant() && !right.handle()->IsSmi();
 
-  if (left_is_smi && right_is_smi) {
+  if (left_is_smi_constant && right_is_smi_constant) {
     // Compute the constant result at compile time, and leave it on the frame.
     int left_int = Smi::cast(*left.handle())->value();
     int right_int = Smi::cast(*right.handle())->value();
     if (FoldConstantSmis(op, left_int, right_int)) return;
   }
 
+  // Get number type of left and right sub-expressions.
+  NumberInfo::Type operands_type =
+      NumberInfo::Combine(left.number_info(), right.number_info());
+
   Result answer;
-  if (left_is_non_smi || right_is_non_smi) {
-    GenericBinaryOpStub stub(op, overwrite_mode, NO_SMI_CODE_IN_STUB);
+  if (left_is_non_smi_constant || right_is_non_smi_constant) {
+    GenericBinaryOpStub stub(op,
+                             overwrite_mode,
+                             NO_SMI_CODE_IN_STUB,
+                             operands_type);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
-  } else if (right_is_smi) {
+  } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
                                         type, false, overwrite_mode);
-  } else if (left_is_smi) {
+  } else if (left_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
                                         type, true, overwrite_mode);
   } else {
@@ -5152,10 +5222,62 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
       answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
     } else {
-      GenericBinaryOpStub stub(op, overwrite_mode, NO_GENERIC_BINARY_FLAGS);
+      GenericBinaryOpStub stub(op,
+                               overwrite_mode,
+                               NO_GENERIC_BINARY_FLAGS,
+                               operands_type);
       answer = stub.GenerateCall(masm_, frame_, &left, &right);
     }
   }
+
+  // Set NumberInfo of result according to the operation performed.
+  // We rely on the fact that smis have a 32 bit payload on x64.
+  ASSERT(kSmiValueSize == 32);
+  NumberInfo::Type result_type = NumberInfo::kUnknown;
+  switch (op) {
+    case Token::COMMA:
+      result_type = right.number_info();
+      break;
+    case Token::OR:
+    case Token::AND:
+      // Result type can be either of the two input types.
+      result_type = operands_type;
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      // Result is always a smi.
+      result_type = NumberInfo::kSmi;
+      break;
+    case Token::SAR:
+    case Token::SHL:
+      // Result is always a smi.
+      result_type = NumberInfo::kSmi;
+      break;
+    case Token::SHR:
+      // Result of x >>> y is always a smi if y >= 1, otherwise a number.
+      result_type = (right.is_constant() && right.handle()->IsSmi()
+                     && Smi::cast(*right.handle())->value() >= 1)
+          ? NumberInfo::kSmi
+          : NumberInfo::kNumber;
+      break;
+    case Token::ADD:
+      // Result could be a string or a number. Check types of inputs.
+      result_type = NumberInfo::IsNumber(operands_type)
+          ? NumberInfo::kNumber
+          : NumberInfo::kUnknown;
+      break;
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      // Result is always a number.
+      result_type = NumberInfo::kNumber;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  answer.set_number_info(result_type);
   frame_->Push(&answer);
 }
 
@@ -6228,6 +6350,63 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [rsp + kPointerSize]: constant elements.
+  // [rsp + (2 * kPointerSize)]: literal index.
+  // [rsp + (3 * kPointerSize)]: literals array.
+
+  // All sizes here are multiples of kPointerSize.
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int size = JSArray::kSize + elements_size;
+
+  // Load boilerplate object into rcx and check if we need to create a
+  // boilerplate.
+  Label slow_case;
+  __ movq(rcx, Operand(rsp, 3 * kPointerSize));
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
+  __ movq(rcx,
+          FieldOperand(rcx, index.reg, index.scale, FixedArray::kHeaderSize));
+  __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &slow_case);
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoids multiple limit checks.
+  __ AllocateInNewSpace(size, rax, rbx, rdx, &slow_case, TAG_OBJECT);
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
+      __ movq(rbx, FieldOperand(rcx, i));
+      __ movq(FieldOperand(rax, i), rbx);
+    }
+  }
+
+  if (length_ > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
+    __ lea(rdx, Operand(rax, JSArray::kSize));
+    __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
+
+    // Copy the elements array.
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ movq(rbx, FieldOperand(rcx, i));
+      __ movq(FieldOperand(rdx, i), rbx);
+    }
+  }
+
+  // Return and remove the on-stack parameters.
+  __ ret(3 * kPointerSize);
+
+  __ bind(&slow_case);
+  ExternalReference runtime(Runtime::kCreateArrayLiteralShallow);
+  __ TailCallRuntime(runtime, 3, 1);
+}
+
+
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
@@ -7241,30 +7420,107 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // rsp[0] : return address
+  // rsp[8] : number of parameters
+  // rsp[16] : receiver displacement
+  // rsp[24] : function
+
   // The displacement is used for skipping the return address and the
   // frame pointer on the stack. It is the offset of the last
   // parameter (if any) relative to the frame pointer.
   static const int kDisplacement = 2 * kPointerSize;
 
   // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
+  Label adaptor_frame, try_allocate, runtime;
   __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
                 Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &runtime);
-  // Value in rcx is Smi encoded.
+  __ j(equal, &adaptor_frame);
+
+  // Get the length from the frame.
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
+  __ bind(&adaptor_frame);
   __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ movq(Operand(rsp, 1 * kPointerSize), rcx);
-  SmiIndex index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
+  // Do not clobber the length index for the indexing operation since
+  // it is used compute the size for allocation later.
+  SmiIndex index = masm->SmiToIndex(rbx, rcx, kPointerSizeLog2);
   __ lea(rdx, Operand(rdx, index.reg, index.scale, kDisplacement));
   __ movq(Operand(rsp, 2 * kPointerSize), rdx);
 
+  // Try the new space allocation. Start out with computing the size of
+  // the arguments object and the elements array.
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  __ testq(rcx, rcx);
+  __ j(zero, &add_arguments_object);
+  index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
+  __ lea(rcx, Operand(index.reg, index.scale, FixedArray::kHeaderSize));
+  __ bind(&add_arguments_object);
+  __ addq(rcx, Immediate(Heap::kArgumentsObjectSize));
+
+  // Do the allocation of both objects in one go.
+  __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
+  __ movq(rdi, Operand(rdi, offset));
+
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ movq(kScratchRegister, FieldOperand(rdi, i));
+    __ movq(FieldOperand(rax, i), kScratchRegister);
+  }
+
+  // Setup the callee in-object property.
+  ASSERT(Heap::arguments_callee_index == 0);
+  __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
+  __ movq(FieldOperand(rax, JSObject::kHeaderSize), kScratchRegister);
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  ASSERT(Heap::arguments_length_index == 1);
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  __ movq(FieldOperand(rax, JSObject::kHeaderSize + kPointerSize), rcx);
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  __ testq(rcx, rcx);
+  __ j(zero, &done);
+
+  // Get the parameters pointer from the stack and untag the length.
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  __ SmiToInteger32(rcx, rcx);
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
+  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
+  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
+  __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
+  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+
+  // Copy the fixed array slots.
+  Label loop;
+  __ bind(&loop);
+  __ movq(kScratchRegister, Operand(rdx, -1 * kPointerSize));  // Skip receiver.
+  __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
+  __ addq(rdi, Immediate(kPointerSize));
+  __ subq(rdx, Immediate(kPointerSize));
+  __ decq(rcx);
+  __ j(not_zero, &loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  __ ret(3 * kPointerSize);
+
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  Runtime::Function* f = Runtime::FunctionForId(Runtime::kNewArgumentsFast);
-  __ TailCallRuntime(ExternalReference(f), 3, f->result_size);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
 }
 
 
@@ -7599,6 +7855,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdi);
   __ Set(rax, argc_);
   __ Set(rbx, 0);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
@@ -7987,13 +8246,14 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
-               use_sse3_ ? "SSE3" : "SSE2");
+               use_sse3_ ? "SSE3" : "SSE2",
+               NumberInfo::ToString(operands_type_));
   return name_;
 }
 
@@ -8019,6 +8279,8 @@ void GenericBinaryOpStub::GenerateCall(
         }
       } else if (left.is(left_arg)) {
         __ movq(right_arg, right);
+      } else if (right.is(right_arg)) {
+        __ movq(left_arg, left);
       } else if (left.is(right_arg)) {
         if (IsOperationCommutative()) {
           __ movq(left_arg, right);
@@ -8037,8 +8299,6 @@ void GenericBinaryOpStub::GenerateCall(
           __ movq(right_arg, right);
           __ movq(left_arg, left);
         }
-      } else if (right.is(right_arg)) {
-        __ movq(left_arg, left);
       } else {
         // Order of moves is not important.
         __ movq(left_arg, left);
@@ -8074,6 +8334,10 @@ void GenericBinaryOpStub::GenerateCall(
       __ Move(left_arg, right);
       SetArgsReversed();
     } else {
+      // For non-commutative operations, left and right_arg might be
+      // the same register.  Therefore, the order of the moves is
+      // important here in order to not overwrite left before moving
+      // it to left_arg.
       __ movq(left_arg, left);
       __ Move(right_arg, right);
     }
@@ -8106,8 +8370,12 @@ void GenericBinaryOpStub::GenerateCall(
       __ Move(right_arg, left);
       SetArgsReversed();
     } else {
-      __ Move(left_arg, left);
+      // For non-commutative operations, right and left_arg might be
+      // the same register.  Therefore, the order of the moves is
+      // important here in order to not overwrite right before moving
+      // it to right_arg.
       __ movq(right_arg, right);
+      __ Move(left_arg, left);
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
@@ -8309,7 +8577,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // rax: y
       // rdx: x
-      FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
+      if (NumberInfo::IsNumber(operands_type_)) {
+        if (FLAG_debug_code) {
+          // Assert at runtime that inputs are only numbers.
+          __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
+          __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
+        }
+      } else {
+        FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
+      }
       // Fast-case: Both operands are numbers.
       // xmm4 and xmm5 are volatile XMM registers.
       FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);

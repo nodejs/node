@@ -200,7 +200,9 @@ void ChildProcess::on_read(evcom_reader *r, const void *buf, size_t len) {
   enum encoding encoding = isSTDOUT ?
     child->stdout_encoding_ : child->stderr_encoding_;
 
-  Local<Value> data = Encode(buf, len, encoding);
+  // TODO emit 'end' event instead of null.
+
+  Local<Value> data = len ? Encode(buf, len, encoding) : Local<Value>::New(Null());
   child->Emit(isSTDOUT ? output_symbol : error_symbol, 1, &data);
   child->MaybeShutdown();
 }

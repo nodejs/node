@@ -30,9 +30,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The original source code covered by the above license above has been modified
-// significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// The original source code covered by the above license above has been
+// modified significantly by Google Inc.
+// Copyright 2010 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -80,7 +80,7 @@ struct Register {
     return 1 << code_;
   }
 
-  // (unfortunately we can't make this private in a struct)
+  // Unfortunately we can't make this private in a struct.
   int code_;
 };
 
@@ -205,7 +205,7 @@ struct CRegister {
     return 1 << code_;
   }
 
-  // (unfortunately we can't make this private in a struct)
+  // Unfortunately we can't make this private in a struct.
   int code_;
 };
 
@@ -250,7 +250,7 @@ enum Coprocessor {
 };
 
 
-// Condition field in instructions
+// Condition field in instructions.
 enum Condition {
   eq =  0 << 28,  // Z set            equal.
   ne =  1 << 28,  // Z clear          not equal.
@@ -398,8 +398,6 @@ class Operand BASE_EMBEDDED {
          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
@@ -630,6 +628,9 @@ class Assembler : public Malloced {
   void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
 
   // Data-processing instructions
+  void ubfx(Register dst, Register src1, const Operand& src2,
+            const Operand& src3, Condition cond = al);
+
   void and_(Register dst, Register src1, const Operand& src2,
             SBit s = LeaveCC, Condition cond = al);
 
@@ -796,6 +797,14 @@ class Assembler : public Malloced {
   // However, some simple modifications can allow
   // these APIs to support D16 to D31.
 
+  void vldr(const DwVfpRegister dst,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
+  void vstr(const DwVfpRegister src,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
   void vmov(const DwVfpRegister dst,
             const Register src1,
             const Register src2,

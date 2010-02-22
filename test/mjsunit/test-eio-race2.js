@@ -8,11 +8,13 @@ setTimeout(function () {
   N = 30;
   for (var i=0; i < N; i++) {
     puts("start " + i);
-    fs.readFile(testTxt).addCallback(function(data) {
-      puts("finish");
-    }).addErrback(function (e) {
-      puts("error! " + e);
-      process.exit(1);
+    fs.readFile(testTxt, function(err, data) {
+      if (err) {
+        puts("error! " + e);
+        process.exit(1);
+      } else {
+        puts("finish");
+      }
     });
   }
 }, 100);

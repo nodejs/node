@@ -80,7 +80,7 @@ struct Register {
     return 1 << code_;
   }
 
-  // (unfortunately we can't make this private in a struct)
+  // Unfortunately we can't make this private in a struct.
   int code_;
 };
 
@@ -205,7 +205,7 @@ struct CRegister {
     return 1 << code_;
   }
 
-  // (unfortunately we can't make this private in a struct)
+  // Unfortunately we can't make this private in a struct.
   int code_;
 };
 
@@ -250,7 +250,7 @@ enum Coprocessor {
 };
 
 
-// Condition field in instructions
+// Condition field in instructions.
 enum Condition {
   eq =  0 << 28,  // Z set            equal.
   ne =  1 << 28,  // Z clear          not equal.
@@ -628,6 +628,9 @@ class Assembler : public Malloced {
   void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
 
   // Data-processing instructions
+  void ubfx(Register dst, Register src1, const Operand& src2,
+            const Operand& src3, Condition cond = al);
+
   void and_(Register dst, Register src1, const Operand& src2,
             SBit s = LeaveCC, Condition cond = al);
 

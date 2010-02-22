@@ -67,6 +67,9 @@ function SnapshotLogProcessor() {
           processor: this.processCodeMove, backrefs: true },
       'code-delete': { parsers: [this.createAddressParser('code')],
           processor: this.processCodeDelete, backrefs: true },
+      'function-creation': null,
+      'function-move': null,
+      'function-delete': null,
       'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
           processor: this.processSnapshotPosition, backrefs: true }});
 
@@ -259,6 +262,16 @@ TickProcessor.prototype.isJsCode = function(name) {
 
 TickProcessor.prototype.processLogFile = function(fileName) {
   this.lastLogFileName_ = fileName;
+  var line;
+  while (line = readline()) {
+    this.processLogLine(line);
+  }
+};
+
+
+TickProcessor.prototype.processLogFileInTest = function(fileName) {
+   // Hack file name to avoid dealing with platform specifics.
+  this.lastLogFileName_ = 'v8.log';
   var contents = readFile(fileName);
   this.processLogChunk(contents);
 };

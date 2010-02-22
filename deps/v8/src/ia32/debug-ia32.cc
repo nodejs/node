@@ -125,9 +125,10 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-ia32.cc).
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit(), false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit(), false);
 }
 
 

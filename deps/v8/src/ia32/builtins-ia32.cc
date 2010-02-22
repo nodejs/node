@@ -93,7 +93,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // edi: called object
   // eax: number of arguments
   __ bind(&non_function_call);
-
+  // CALL_NON_FUNCTION expects the non-function constructor as receiver
+  // (instead of the original receiver from the call site).  The receiver is
+  // stack element argc+1.
+  __ mov(Operand(esp, eax, times_4, kPointerSize), edi);
   // Set expected number of arguments to zero (not changing eax).
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
@@ -437,33 +440,26 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 2. Get the function to call from the stack.
-  { Label done, non_function, function;
-    // +1 ~ return address.
-    __ mov(edi, Operand(esp, eax, times_4, +1 * kPointerSize));
-    __ test(edi, Immediate(kSmiTagMask));
-    __ j(zero, &non_function, not_taken);
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-    __ j(equal, &function, taken);
+  // 2. Get the function to call (passed as receiver) from the stack, check
+  //    if it is a function.
+  Label non_function;
+  // 1 ~ return address.
+  __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
+  __ test(edi, Immediate(kSmiTagMask));
+  __ j(zero, &non_function, not_taken);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &non_function, not_taken);
 
-    // Non-function called: Clear the function to force exception.
-    __ bind(&non_function);
-    __ xor_(edi, Operand(edi));
-    __ jmp(&done);
 
-    // Function called: Change context eagerly to get the right global object.
-    __ bind(&function);
+  // 3a. Patch the first argument if necessary when calling a function.
+  Label shift_arguments;
+  { Label convert_to_object, use_global_receiver, patch_receiver;
+    // Change context eagerly in case we need the global receiver.
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-    __ bind(&done);
-  }
-
-  // 3. Make sure first argument is an object; convert if necessary.
-  { Label call_to_object, use_global_receiver, patch_receiver, done;
-    __ mov(ebx, Operand(esp, eax, times_4, 0));
-
+    __ mov(ebx, Operand(esp, eax, times_4, 0));  // First argument.
     __ test(ebx, Immediate(kSmiTagMask));
-    __ j(zero, &call_to_object);
+    __ j(zero, &convert_to_object);
 
     __ cmp(ebx, Factory::null_value());
     __ j(equal, &use_global_receiver);
@@ -473,31 +469,28 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
     __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
     __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(less, &call_to_object);
+    __ j(below, &convert_to_object);
     __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-    __ j(less_equal, &done);
+    __ j(below_equal, &shift_arguments);
 
-    __ bind(&call_to_object);
-    __ EnterInternalFrame();  // preserves eax, ebx, edi
-
-    // Store the arguments count on the stack (smi tagged).
+    __ bind(&convert_to_object);
+    __ EnterInternalFrame();  // In order to preserve argument count.
     __ SmiTag(eax);
     __ push(eax);
 
-    __ push(edi);  // save edi across the call
     __ push(ebx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ mov(ebx, eax);
-    __ pop(edi);  // restore edi after the call
 
-    // Get the arguments count and untag it.
     __ pop(eax);
     __ SmiUntag(eax);
-
     __ LeaveInternalFrame();
+    // Restore the function to edi.
+    __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
     __ jmp(&patch_receiver);
 
-    // Use the global receiver object from the called function as the receiver.
+    // Use the global receiver object from the called function as the
+    // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
@@ -509,50 +502,55 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&patch_receiver);
     __ mov(Operand(esp, eax, times_4, 0), ebx);
 
-    __ bind(&done);
+    __ jmp(&shift_arguments);
   }
 
-  // 4. Check that the function really is a function.
-  { Label done;
-    __ test(edi, Operand(edi));
-    __ j(not_zero, &done, taken);
-    __ xor_(ebx, Operand(ebx));
-    // CALL_NON_FUNCTION will expect to find the non-function callee on the
-    // expression stack of the caller.  Transfer it from receiver to the
-    // caller's expression stack (and make the first argument the receiver
-    // for CALL_NON_FUNCTION) by decrementing the argument count.
-    __ dec(eax);
-    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-           RelocInfo::CODE_TARGET);
-    __ bind(&done);
-  }
+  // 3b. Patch the first argument when calling a non-function.  The
+  //     CALL_NON_FUNCTION builtin expects the non-function callee as
+  //     receiver, so overwrite the first argument which will ultimately
+  //     become the receiver.
+  __ bind(&non_function);
+  __ mov(Operand(esp, eax, times_4, 0), edi);
+  // Clear edi to indicate a non-function being called.
+  __ xor_(edi, Operand(edi));
 
-  // 5. Shift arguments and return address one slot down on the stack
-  //    (overwriting the receiver).
+  // 4. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  __ bind(&shift_arguments);
   { Label loop;
     __ mov(ecx, eax);
     __ bind(&loop);
     __ mov(ebx, Operand(esp, ecx, times_4, 0));
     __ mov(Operand(esp, ecx, times_4, kPointerSize), ebx);
     __ dec(ecx);
-    __ j(not_sign, &loop);
+    __ j(not_sign, &loop);  // While non-negative (to copy return address).
     __ pop(ebx);  // Discard copy of return address.
     __ dec(eax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 6. Get the code to call from the function and check that the number of
-  //    expected arguments matches what we're providing.
-  { __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(ebx,
-           FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-    __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
-    __ cmp(eax, Operand(ebx));
-    __ j(not_equal, Handle<Code>(builtin(ArgumentsAdaptorTrampoline)));
+  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
+  { Label function;
+    __ test(edi, Operand(edi));
+    __ j(not_zero, &function, taken);
+    __ xor_(ebx, Operand(ebx));
+    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+           RelocInfo::CODE_TARGET);
+    __ bind(&function);
   }
 
-  // 7. Jump (tail-call) to the code in register edx without checking arguments.
+  // 5b. Get the code to call from the function and check that the number of
+  //     expected arguments matches what we're providing.  If so, jump
+  //     (tail-call) to the code in register edx without checking arguments.
+  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx,
+         FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ cmp(eax, Operand(ebx));
+  __ j(not_equal, Handle<Code>(builtin(ArgumentsAdaptorTrampoline)));
+
   ParameterCount expected(0);
   __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
 }
@@ -647,9 +645,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(eax, Operand(ebp, kIndexOffset));
   __ jmp(&entry);
   __ bind(&loop);
-  __ mov(ecx, Operand(ebp, 2 * kPointerSize));  // load arguments
-  __ push(ecx);
-  __ push(eax);
+  __ mov(edx, Operand(ebp, 2 * kPointerSize));  // load arguments
 
   // Use inline caching to speed up access to arguments.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -659,8 +655,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // we have generated an inline version of the keyed load.  In this
   // case, we know that we are not generating a test instruction next.
 
-  // Remove IC arguments from the stack and push the nth argument.
-  __ add(Operand(esp), Immediate(2 * kPointerSize));
+  // Push the nth argument.
   __ push(eax);
 
   // Update the index on the stack and in register eax.

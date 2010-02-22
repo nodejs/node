@@ -41,7 +41,6 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
-      unresolved_(0),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(Heap::undefined_value()) {
@@ -308,6 +307,13 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
     }
   }
 }
+
+void MacroAssembler::DebugBreak() {
+  Set(eax, Immediate(0));
+  mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak)));
+  CEntryStub ces(1);
+  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+}
 #endif
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
@@ -338,6 +344,19 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+void MacroAssembler::CheckMap(Register obj,
+                              Handle<Map> map,
+                              Label* fail,
+                              bool is_heap_object) {
+  if (!is_heap_object) {
+    test(obj, Immediate(kSmiTagMask));
+    j(zero, fail);
+  }
+  cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
+  j(not_equal, fail);
+}
+
+
 Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register map,
                                              Register instance_type) {
@@ -361,6 +380,17 @@ void MacroAssembler::FCmp() {
     sahf();
     pop(eax);
   }
+}
+
+
+void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+  Label ok;
+  test(object, Immediate(kSmiTagMask));
+  j(zero, &ok);
+  cmp(FieldOperand(object, HeapObject::kMapOffset),
+      Factory::heap_number_map());
+  Assert(equal, msg);
+  bind(&ok);
 }
 
 
@@ -396,12 +426,8 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
 
   // Reserve room for entry stack pointer and push the debug marker.
   ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
-  push(Immediate(0));  // saved entry sp, patched before call
-  if (mode == ExitFrame::MODE_DEBUG) {
-    push(Immediate(0));
-  } else {
-    push(Immediate(CodeObject()));
-  }
+  push(Immediate(0));  // Saved entry sp, patched before call.
+  push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
@@ -538,6 +564,7 @@ void MacroAssembler::PopTryHandler() {
 Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
                                    JSObject* holder, Register holder_reg,
                                    Register scratch,
+                                   int save_at_depth,
                                    Label* miss) {
   // Make sure there's no overlap between scratch and the other
   // registers.
@@ -545,7 +572,11 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
 
   // Keep track of the current object in register reg.
   Register reg = object_reg;
-  int depth = 1;
+  int depth = 0;
+
+  if (save_at_depth == depth) {
+    mov(Operand(esp, kPointerSize), object_reg);
+  }
 
   // Check the maps in the prototype chain.
   // Traverse the prototype chain from the object and do map checks.
@@ -577,7 +608,6 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
       // to it in the code. Load it from the map.
       reg = holder_reg;  // from now the object is in holder_reg
       mov(reg, FieldOperand(scratch, Map::kPrototypeOffset));
-
     } else {
       // Check the map of the current object.
       cmp(FieldOperand(reg, HeapObject::kMapOffset),
@@ -595,6 +625,10 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
       mov(reg, Handle<JSObject>(prototype));
     }
 
+    if (save_at_depth == depth) {
+      mov(Operand(esp, kPointerSize), reg);
+    }
+
     // Go to the next object in the prototype chain.
     object = prototype;
   }
@@ -605,7 +639,7 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
   j(not_equal, miss, not_taken);
 
   // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth));
+  LOG(IntEvent("check-maps-depth", depth + 1));
 
   // Perform security check for access to the global object and return
   // the holder register.
@@ -1122,6 +1156,16 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 }
 
 
+void MacroAssembler::CallExternalReference(ExternalReference ref,
+                                           int num_arguments) {
+  mov(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ref));
+
+  CEntryStub stub(1);
+  CallStub(&stub);
+}
+
+
 Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
                                        int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
@@ -1342,10 +1386,22 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
+void MacroAssembler::InvokeFunction(JSFunction* function,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  ASSERT(function->is_compiled());
+  // Get the function and setup the context.
+  mov(edi, Immediate(Handle<JSFunction>(function)));
+  mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+}
+
+
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -1353,55 +1409,22 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  InvokeCode(Handle<Code>(code), expected, expected,
-             RelocInfo::CODE_TARGET, flag);
-
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
-    unresolved_.Add(entry);
-  }
+  GetBuiltinEntry(edx, id);
+  InvokeCode(Operand(edx), expected, expected, flag);
 }
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-
-  mov(Operand(target), Immediate(code));
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
-    unresolved_.Add(entry);
-  }
-  add(Operand(target), Immediate(Code::kHeaderSize - kHeapObjectTag));
-}
-
-
-Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
-                                            bool* resolved) {
-  // Move the builtin function into the temporary function slot by
-  // reading it from the builtins object. NOTE: We should be able to
-  // reduce this to two instructions by putting the function table in
-  // the global object instead of the "builtins" object and by using a
-  // real register for the function.
-  mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(edx, FieldOperand(edx, GlobalObject::kBuiltinsOffset));
+  // Load the JavaScript builtin function from the builtins object.
+  mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(edi, FieldOperand(edi, GlobalObject::kBuiltinsOffset));
   int builtins_offset =
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  mov(edi, FieldOperand(edx, builtins_offset));
-
-  return Builtins::GetCode(id, resolved);
+  mov(edi, FieldOperand(edi, builtins_offset));
+  // Load the code entry point from the function into the target register.
+  mov(target, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  mov(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
+  add(Operand(target), Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 
@@ -1543,6 +1566,20 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   int3();
+}
+
+
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
+    Register instance_type,
+    Register scratch,
+    Label *failure) {
+  if (!scratch.is(instance_type)) {
+    mov(scratch, instance_type);
+  }
+  and_(scratch,
+       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
+  cmp(scratch, kStringTag | kSeqStringTag | kAsciiStringTag);
+  j(not_equal, failure);
 }
 
 

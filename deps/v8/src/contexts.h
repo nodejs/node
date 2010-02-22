@@ -76,7 +76,6 @@ enum ContextLookupFlags {
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun) \
   V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun) \
   V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun) \
-  V(TO_BOOLEAN_FUN_INDEX, JSFunction, to_boolean_fun) \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun) \
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \

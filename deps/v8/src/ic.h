@@ -45,6 +45,7 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(KeyedLoadIC_Miss)                               \
   ICU(CallIC_Miss)                                    \
   ICU(StoreIC_Miss)                                   \
+  ICU(StoreIC_ArrayLength)                            \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
   /* Utilities for IC stubs. */                       \
@@ -53,6 +54,7 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(LoadPropertyWithInterceptorOnly)                \
   ICU(LoadPropertyWithInterceptorForLoad)             \
   ICU(LoadPropertyWithInterceptorForCall)             \
+  ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)
 
 //
@@ -223,8 +225,10 @@ class LoadIC: public IC {
   Object* Load(State state, Handle<Object> object, Handle<String> name);
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm);
-  static void GeneratePreMonomorphic(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm);
+  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
@@ -240,8 +244,6 @@ class LoadIC: public IC {
   static const int kOffsetToLoadInstruction;
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
@@ -279,8 +281,11 @@ class KeyedLoadIC: public IC {
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm);
-  static void GeneratePreMonomorphic(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm);
+  }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
 
@@ -290,6 +295,7 @@ class KeyedLoadIC: public IC {
   // for all other types.
   static void GenerateExternalArray(MacroAssembler* masm,
                                     ExternalArrayType array_type);
+  static void GenerateIndexedInterceptor(MacroAssembler* masm);
 
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
@@ -301,8 +307,6 @@ class KeyedLoadIC: public IC {
   // map checks.
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
-
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
 
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
@@ -328,6 +332,10 @@ class KeyedLoadIC: public IC {
   }
   static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
+  static Code* indexed_interceptor_stub() {
+    return Builtins::builtin(Builtins::KeyedLoadIC_IndexedInterceptor);
+  }
+
   static void Clear(Address address, Code* target);
 
   // Support for patching the map that is checked in an inlined
@@ -351,7 +359,7 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
-  static void GenerateExtendStorage(MacroAssembler* masm);
+  static void GenerateArrayLength(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the
@@ -384,10 +392,10 @@ class KeyedStoreIC: public IC {
                 Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
-  static void GenerateExtendStorage(MacroAssembler* masm);
 
   // Generators for external array types. See objects.h.
   // These are similar to the generic IC; they optimize the case of
@@ -403,8 +411,6 @@ class KeyedStoreIC: public IC {
   static void RestoreInlinedVersion(Address address);
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,

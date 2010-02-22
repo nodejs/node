@@ -64,13 +64,28 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
-static int dash_dash_index = 0;
+static int option_end_index = 0;
 static bool use_debug_agent = false;
+static bool debug_wait_connect = false;
+static int debug_port=5858;
 
 
 static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
+
+static ev_timer  gc_timer;
+#define GC_INTERVAL 2.0
+
+
+// Node calls this every GC_INTERVAL seconds in order to try and call the
+// GC. This watcher is run with maximum priority, so ev_pending_count() == 0
+// is an effective measure of idleness.
+static void GCTimeout(EV_P_ ev_timer *watcher, int revents) {
+  assert(watcher == &gc_timer);
+  assert(revents == EV_TIMER);
+  if (ev_pending_count(EV_DEFAULT_UC) == 0) V8::IdleNotification();
+}
 
 
 static void DoPoll(EV_P_ ev_idle *watcher, int revents) {
@@ -159,7 +174,7 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
 Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
   HandleScope scope;
 
-  if (!len) return scope.Close(Null());
+  if (!len) return scope.Close(String::Empty());
 
   if (encoding == BINARY) {
     const unsigned char *cbuf = static_cast<const unsigned char*>(buf);
@@ -900,6 +915,7 @@ void FatalException(TryCatch &try_catch) {
 
 
 static ev_async debug_watcher;
+volatile static bool debugger_msg_pending = false;
 
 static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
   HandleScope scope;
@@ -914,7 +930,47 @@ static void DebugMessageDispatch(void) {
 
   // Send a signal to our main thread saying that it should enter V8 to
   // handle the message.
+  debugger_msg_pending = true;
   ev_async_send(EV_DEFAULT_UC_ &debug_watcher);
+}
+
+static Handle<Value> CheckBreak(const Arguments& args) {
+  HandleScope scope;
+
+  // TODO FIXME This function is a hack to wait until V8 is ready to accept
+  // commands. There seems to be a bug in EnableAgent( _ , _ , true) which
+  // makes it unusable here. Ideally we'd be able to bind EnableAgent and
+  // get it to halt until Eclipse connects.
+
+  if (!debug_wait_connect)
+    return Undefined();
+
+  printf("Waiting for remote debugger connection...\n");
+
+  const int halfSecond = 50;
+  const int tenMs=10000;
+  debugger_msg_pending = false;
+  for (;;) {
+    if (debugger_msg_pending) {
+      Debug::DebugBreak();
+      Debug::ProcessDebugMessages();
+      debugger_msg_pending = false;
+
+      // wait for 500 msec of silence from remote debugger
+      int cnt = halfSecond;
+        while (cnt --) {
+        debugger_msg_pending = false;
+        usleep(tenMs);
+        if (debugger_msg_pending) {
+          debugger_msg_pending = false;
+          cnt = halfSecond;
+        }
+      }
+      break;
+    }
+    usleep(tenMs);
+  }
+  return Undefined();
 }
 
 
@@ -942,9 +998,9 @@ static void Load(int argc, char *argv[]) {
 
   // process.argv
   int i, j;
-  Local<Array> arguments = Array::New(argc - dash_dash_index + 1);
+  Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
-  for (j = 1, i = dash_dash_index + 1; i < argc; j++, i++) {
+  for (j = 1, i = option_end_index + 1; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(j), arg);
   }
@@ -986,6 +1042,7 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
+  NODE_SET_METHOD(process, "checkBreak", CheckBreak);
 
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
@@ -1064,6 +1121,7 @@ static void Load(int argc, char *argv[]) {
   // Node's I/O bindings may want to replace 'f' with their own function.
 
   Local<Value> args[1] = { Local<Value>::New(process) };
+
   f->Call(global, 1, args);
 
 #ifndef NDEBUG
@@ -1074,12 +1132,43 @@ static void Load(int argc, char *argv[]) {
 #endif
 }
 
+static void PrintHelp();
+
+static void ParseDebugOpt(const char* arg) {
+  const char *p = 0;
+
+  use_debug_agent = true;
+  if (!strcmp (arg, "--debug-brk")) {
+    debug_wait_connect = true;
+    return;
+  } else if (!strcmp(arg, "--debug")) {
+    return;
+  } else if (strstr(arg, "--debug-brk=") == arg) {
+    debug_wait_connect = true;
+    p = 1 + strchr(arg, '=');
+    debug_port = atoi(p);
+  } else if (strstr(arg, "--debug=") == arg) {
+    p = 1 + strchr(arg, '=');
+    debug_port = atoi(p);
+  }
+  if (p && debug_port > 1024 && debug_port <  65536)
+      return;
+
+  fprintf(stderr, "Bad debug option.\n");
+  if (p) fprintf(stderr, "Debug port must be in range 1025 to 65535.\n");
+
+  PrintHelp();
+  exit(1);
+}
+
 static void PrintHelp() {
-  printf("Usage: node [options] [--] script.js [arguments] \n"
-         "  -v, --version    print node's version\n"
-         "  --debug          enable remote debugging\n" // TODO specify port
-         "  --cflags         print pre-processor and compiler flags\n"
-         "  --v8-options     print v8 command line options\n\n"
+  printf("Usage: node [options] script.js [arguments] \n"
+         "  -v, --version      print node's version\n"
+         "  --debug[=port]     enable remote debugging via given TCP port\n"
+         "  --debug-brk[=port] as above, but break in node.js and\n"
+         "                     wait for remote debugger to connect\n"
+         "  --cflags           print pre-processor and compiler flags\n"
+         "  --v8-options       print v8 command line options\n\n"
          "Documentation can be found at http://nodejs.org/api.html"
          " or with 'man node'\n");
 }
@@ -1089,13 +1178,10 @@ static void ParseArgs(int *argc, char **argv) {
   // TODO use parse opts
   for (int i = 1; i < *argc; i++) {
     const char *arg = argv[i];
-    if (strcmp(arg, "--") == 0) {
-      dash_dash_index = i;
-      break;
-    } else if (strcmp(arg, "--debug") == 0) {
+    if (strstr(arg, "--debug") == arg) {
+      ParseDebugOpt(arg);
       argv[i] = reinterpret_cast<const char*>("");
-      use_debug_agent = true;
-      dash_dash_index = i;
+      option_end_index = i;
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -1107,7 +1193,10 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = reinterpret_cast<const char*>("--help");
-      dash_dash_index = i+1;
+      option_end_index = i+1;
+    } else if (argv[i][0] != '-') {
+      option_end_index = i-1;
+      break;
     }
   }
 }
@@ -1118,9 +1207,9 @@ static void ParseArgs(int *argc, char **argv) {
 int main(int argc, char *argv[]) {
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);
-  // Parse the rest of the args (up to the 'dash_dash_index' (where '--' was
+  // Parse the rest of the args (up to the 'option_end_index' (where '--' was
   // in the command line))
-  V8::SetFlagsFromCommandLine(&node::dash_dash_index, argv, false);
+  V8::SetFlagsFromCommandLine(&node::option_end_index, argv, false);
 
   // Error out if we don't have a script argument.
   if (argc < 2) {
@@ -1134,6 +1223,18 @@ int main(int argc, char *argv[]) {
 
   // Initialize the default ev loop.
   ev_default_loop(EVFLAG_AUTO);
+
+
+  ev_timer_init(&node::gc_timer, node::GCTimeout, GC_INTERVAL, GC_INTERVAL);
+  // Set the gc_timer to max priority so that it runs before all other
+  // watchers. In this way it can check if the 'tick' has other pending
+  // watchers by using ev_pending_count() - if it ran with lower priority
+  // then the other watchers might run before it - not giving us good idea
+  // of loop idleness.
+  ev_set_priority(&node::gc_timer, EV_MAXPRI);
+  ev_timer_start(EV_DEFAULT_UC_ &node::gc_timer);
+  ev_unref(EV_DEFAULT_UC);
+
 
   // Setup the EIO thread pool
   { // It requires 3, yes 3, watchers.
@@ -1176,12 +1277,12 @@ int main(int argc, char *argv[]) {
     ev_unref(EV_DEFAULT_UC);
 
     // Start the debug thread and it's associated TCP server on port 5858.
-    bool r = Debug::EnableAgent("node " NODE_VERSION, 5858);
+    bool r = Debug::EnableAgent("node " NODE_VERSION, node::debug_port);
+
     // Crappy check that everything went well. FIXME
     assert(r);
-    // Print out some information. REMOVEME
-    printf("debugger listening on port 5858\n"
-           "Use 'd8 --remote_debugger' to access it.\n");
+    // Print out some information.
+    printf("debugger listening on port %d\n", node::debug_port);
   }
 
   // Create the one and only Context.

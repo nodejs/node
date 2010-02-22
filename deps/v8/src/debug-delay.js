@@ -1934,10 +1934,14 @@ DebugCommandProcessor.prototype.profileRequest_ = function(request, response) {
   if (isNaN(modules)) {
     return response.failed('Modules is not an integer');
   }
+  var tag = parseInt(request.arguments.tag);
+  if (isNaN(tag)) {
+    tag = 0;
+  }
   if (request.arguments.command == 'resume') {
-    %ProfilerResume(modules);
+    %ProfilerResume(modules, tag);
   } else if (request.arguments.command == 'pause') {
-    %ProfilerPause(modules);
+    %ProfilerPause(modules, tag);
   } else {
     return response.failed('Unknown command');
   }

@@ -114,8 +114,11 @@ bool V8::Initialize(Deserializer *des) {
 
   OProfileAgent::Initialize();
 
-  if (FLAG_log_code) {
+  // If we are deserializing, log non-function code objects and compiled
+  // functions found in the snapshot.
+  if (des != NULL && FLAG_log_code) {
     HandleScope scope;
+    LOG(LogCodeObjects());
     LOG(LogCompiledFunctions());
   }
 

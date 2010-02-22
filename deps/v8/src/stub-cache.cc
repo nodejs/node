@@ -484,7 +484,10 @@ Object* StubCache::ComputeCallField(int argc,
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, in_loop);
-    code = compiler.CompileCallField(object, holder, index, name);
+    code = compiler.CompileCallField(JSObject::cast(object),
+                                     holder,
+                                     index,
+                                     name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
@@ -518,7 +521,9 @@ Object* StubCache::ComputeCallInterceptor(int argc,
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, NOT_IN_LOOP);
-    code = compiler.CompileCallInterceptor(object, holder, name);
+    code = compiler.CompileCallInterceptor(JSObject::cast(object),
+                                           holder,
+                                           name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
@@ -920,6 +925,13 @@ Object* StoreInterceptorProperty(Arguments args) {
 }
 
 
+Object* KeyedLoadPropertyWithInterceptor(Arguments args) {
+  JSObject* receiver = JSObject::cast(args[0]);
+  uint32_t index = Smi::cast(args[1])->value();
+  return receiver->GetElementWithInterceptor(receiver, index);
+}
+
+
 Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
@@ -1058,11 +1070,13 @@ Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, String* name) {
   return GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
 }
 
+
 void StubCompiler::LookupPostInterceptor(JSObject* holder,
                                          String* name,
                                          LookupResult* lookup) {
   holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsNotFound()) {
+  if (!lookup->IsProperty()) {
+    lookup->NotFound();
     Object* proto = holder->GetPrototype();
     if (proto != Heap::null_value()) {
       proto->Lookup(name, lookup);

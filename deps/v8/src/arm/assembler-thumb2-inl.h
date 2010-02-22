@@ -174,20 +174,6 @@ Operand::Operand(const ExternalReference& f)  {
 }
 
 
-Operand::Operand(Object** opp) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(opp);
-  rmode_ = RelocInfo::NONE;
-}
-
-
-Operand::Operand(Context** cpp) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(cpp);
-  rmode_ = RelocInfo::NONE;
-}
-
-
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);
@@ -229,14 +215,24 @@ void Assembler::emit(Instr x) {
 
 
 Address Assembler::target_address_address_at(Address pc) {
-  Instr instr = Memory::int32_at(pc);
-  // Verify that the instruction at pc is a ldr<cond> <Rd>, [pc +/- offset_12].
+  Address target_pc = pc;
+  Instr instr = Memory::int32_at(target_pc);
+  // If we have a bx instruction, the instruction before the bx is
+  // what we need to patch.
+  static const int32_t kBxInstMask = 0x0ffffff0;
+  static const int32_t kBxInstPattern = 0x012fff10;
+  if ((instr & kBxInstMask) == kBxInstPattern) {
+    target_pc -= kInstrSize;
+    instr = Memory::int32_at(target_pc);
+  }
+  // Verify that the instruction to patch is a
+  // ldr<cond> <Rd>, [pc +/- offset_12].
   ASSERT((instr & 0x0f7f0000) == 0x051f0000);
   int offset = instr & 0xfff;  // offset_12 is unsigned
   if ((instr & (1 << 23)) == 0) offset = -offset;  // U bit defines offset sign
   // Verify that the constant pool comes after the instruction referencing it.
   ASSERT(offset >= -4);
-  return pc + offset + 8;
+  return target_pc + offset + 8;
 }
 
 

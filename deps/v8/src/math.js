@@ -233,7 +233,7 @@ function SetupMath() {
                "SQRT2",
                1.4142135623730951,
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %TransformToFastProperties($Math);
+  %ToFastProperties($Math);
 
   // Setup non-enumerable functions of the Math object and
   // set their names.

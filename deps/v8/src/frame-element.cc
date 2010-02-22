@@ -32,10 +32,6 @@
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// FrameElement implementation.
-
-
 FrameElement::ZoneObjectList* FrameElement::ConstantList() {
   static ZoneObjectList list(10);
   return &list;

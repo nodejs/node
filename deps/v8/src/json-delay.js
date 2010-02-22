@@ -80,8 +80,9 @@ var characterQuoteCache = {
 };
 
 function QuoteSingleJSONCharacter(c) {
-  if (c in characterQuoteCache)
+  if (c in characterQuoteCache) {
     return characterQuoteCache[c];
+  }
   var charCode = c.charCodeAt(0);
   var result;
   if (charCode < 16) result = '\\u000';
@@ -101,15 +102,17 @@ function QuoteJSONString(str) {
 function StackContains(stack, val) {
   var length = stack.length;
   for (var i = 0; i < length; i++) {
-    if (stack[i] === val)
+    if (stack[i] === val) {
       return true;
+    }
   }
   return false;
 }
 
 function SerializeArray(value, replacer, stack, indent, gap) {
-  if (StackContains(stack, value))
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
+  }
   stack.push(value);
   var stepback = indent;
   indent += gap;
@@ -117,9 +120,10 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   var len = value.length;
   for (var i = 0; i < len; i++) {
     var strP = JSONSerialize($String(i), value, replacer, stack,
-        indent, gap);
-    if (IS_UNDEFINED(strP))
+                             indent, gap);
+    if (IS_UNDEFINED(strP)) {
       strP = "null";
+    }
     partial.push(strP);
   }
   var final;
@@ -137,8 +141,9 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 }
 
 function SerializeObject(value, replacer, stack, indent, gap) {
-  if (StackContains(stack, value))
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
+  }
   stack.push(value);
   var stepback = indent;
   indent += gap;
@@ -188,17 +193,21 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
   if (IS_OBJECT(value) && value) {
     var toJSON = value.toJSON;
-    if (IS_FUNCTION(toJSON))
+    if (IS_FUNCTION(toJSON)) {
       value = toJSON.call(value, key);
+    }
   }
-  if (IS_FUNCTION(replacer))
+  if (IS_FUNCTION(replacer)) {
     value = replacer.call(holder, key, value);
+  }
   // Unwrap value if necessary
   if (IS_OBJECT(value)) {
     if (IS_NUMBER_WRAPPER(value)) {
       value = $Number(value);
     } else if (IS_STRING_WRAPPER(value)) {
       value = $String(value);
+    } else if (IS_BOOLEAN_WRAPPER(value)) {
+      value = $Boolean(value);
     }
   }
   switch (typeof value) {
@@ -232,12 +241,17 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $Math.min(space, 100);
+    space = $Math.min(space, 10);
     gap = "";
-    for (var i = 0; i < space; i++)
+    for (var i = 0; i < space; i++) {
       gap += " ";
+    }
   } else if (IS_STRING(space)) {
-    gap = space;
+    if (space.length > 10) {
+      gap = space.substring(0, 10);
+    } else {
+      gap = space;
+    }
   } else {
     gap = "";
   }

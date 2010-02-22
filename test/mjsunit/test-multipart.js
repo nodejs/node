@@ -17,9 +17,8 @@ var http = require("http"),
   };
 
 var emails = fixture.messages.slice(0),
-  chunkSize = 1, // set to minimum to forcibly expose boundary conditions.
+  chunkSize = 1; // set to minimum to forcibly expose boundary conditions.
                  // in a real scenario, this would be much much bigger.
-  firstPart = new (events.Promise);
 
 // test streaming messages through directly, as if they were in a file or something.
 sys.puts("test "+emails.length+" emails");
@@ -30,7 +29,7 @@ sys.puts("test "+emails.length+" emails");
 
   if (!email) {
     sys.puts("done testing emails");
-    firstPart.emitSuccess();
+    testGoodMessages();
     return;
   }
   sys.puts("testing email "+emails.length);
@@ -62,8 +61,7 @@ sys.puts("test "+emails.length+" emails");
 })();
 
 // run good HTTP messages test after previous test ends.
-var secondPart = new (events.Promise),
-  server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
     sys.puts("HTTP mp request");
     var mp = multipart.parse(req),
       curr = 0;
@@ -79,12 +77,12 @@ var secondPart = new (events.Promise),
     }
     mp.addListener("error", function (er) {
       sys.puts("!! error occurred");
-      res.sendHeader(400, {});
+      res.writeHeader(400, {});
       res.write("bad");
       res.close();
     });
     mp.addListener("complete", function () {
-      res.sendHeader(200, {});
+      res.writeHeader(200, {});
       res.write("ok");
       res.close();
     });
@@ -94,13 +92,13 @@ var secondPart = new (events.Promise),
 server.listen(PORT);
 
 // could dry these two up a bit.
-firstPart.addCallback(function testGoodMessages () {
+function testGoodMessages () {
   var httpMessages = fixture.messages.slice(0);
   sys.puts("testing "+httpMessages.length+" good messages");
   (function testHTTP () {
     message = httpMessages.pop();
     if (!message) {
-      secondPart.emitSuccess();
+      testBadMessages();
       return;
     }
     sys.puts("test message "+httpMessages.length);
@@ -116,8 +114,9 @@ firstPart.addCallback(function testGoodMessages () {
     });
     req.close();
   })();
-});
-secondPart.addCallback(function testBadMessages () {
+}
+
+function testBadMessages () {
   var httpMessages = fixture.badMessages.slice(0);
   sys.puts("testing "+httpMessages.length+" bad messages");
   (function testHTTP () {
@@ -139,4 +138,4 @@ secondPart.addCallback(function testBadMessages () {
     });
     req.close();
   })();
-});
+}

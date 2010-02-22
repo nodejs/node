@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -52,6 +53,7 @@ static int After(eio_req *req) {
       case EIO_RMDIR:
       case EIO_MKDIR:
       case EIO_FTRUNCATE:
+      case EIO_CHMOD:
         argc = 0;
         break;
 
@@ -67,6 +69,7 @@ static int After(eio_req *req) {
         break;
 
       case EIO_STAT:
+      case EIO_LSTAT:
       {
         struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
         argc = 2;
@@ -153,6 +156,7 @@ static Handle<Value> Close(const Arguments& args) {
   } else {
     int ret = close(fd);
     if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
   }
 }
 
@@ -170,6 +174,25 @@ static Handle<Value> Stat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = stat(*path, &s);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return scope.Close(BuildStatsObject(&s));
+  }
+}
+
+static Handle<Value> LStat(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  String::Utf8Value path(args[0]->ToString());
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(lstat, args[1], *path)
+  } else {
+    struct stat s;
+    int ret = lstat(*path, &s);
     if (ret != 0) return ThrowException(errno_exception(errno));
     return scope.Close(BuildStatsObject(&s));
   }
@@ -305,9 +328,27 @@ static Handle<Value> ReadDir(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
-    // TODO 
-    return ThrowException(Exception::Error(
-          String::New("synchronous readdir() not yet supported.")));
+    DIR *dir = opendir(*path);
+    if (!dir) return ThrowException(errno_exception(errno));
+
+    struct dirent *ent;
+
+    Local<Array> files = Array::New();
+    char *name;
+    int i = 0;
+
+    while (ent = readdir(dir)) {
+      name = ent->d_name;
+
+      if (name[0] != '.' || (name[1] && (name[1] != '.' || name[2]))) {
+        files->Set(Integer::New(i), String::New(name));
+        i++;
+      }
+    }
+
+    closedir(dir);
+
+    return scope.Close(files);
   }
 }
 
@@ -419,6 +460,28 @@ static Handle<Value> Read(const Arguments& args) {
   }
 }
 
+/* node.fs.chmod(fd, mode);
+ * Wrapper for chmod(1) / EIO_CHMOD
+ */
+static Handle<Value> Chmod(const Arguments& args){
+  HandleScope scope;
+  
+  if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+  String::Utf8Value path(args[0]->ToString());
+  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  
+  if(args[2]->IsFunction()) {
+    ASYNC_CALL(chmod, args[2], *path, mode);
+  } else {
+    int ret = chmod(*path, mode);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
+}
+
+
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -432,8 +495,11 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "sendfile", SendFile);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
+  NODE_SET_METHOD(target, "lstat", LStat);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
+  
+  NODE_SET_METHOD(target, "chmod", Chmod);
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");

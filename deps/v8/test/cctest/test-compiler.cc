@@ -115,7 +115,8 @@ static void SetGlobalProperty(const char* name, Object* value) {
 static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code(Factory::NewStringFromUtf8(CStrVector(source)));
   Handle<JSFunction> boilerplate =
-      Compiler::Compile(source_code, Handle<String>(), 0, 0, NULL, NULL);
+      Compiler::Compile(source_code, Handle<String>(), 0, 0, NULL, NULL,
+                        Handle<String>::null());
   return Factory::NewFunctionFromBoilerplate(boilerplate,
                                              Top::global_context());
 }
@@ -316,4 +317,28 @@ TEST(Regression236) {
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));
   CHECK_EQ(-1, GetScriptLineNumber(script, -1));
+}
+
+
+TEST(GetScriptLineNumber) {
+  LocalContext env;
+  v8::HandleScope scope;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  const char function_f[] = "function f() {}";
+  const int max_rows = 1000;
+  const int buffer_size = max_rows + sizeof(function_f);
+  ScopedVector<char> buffer(buffer_size);
+  memset(buffer.start(), '\n', buffer_size - 1);
+  buffer[buffer_size - 1] = '\0';
+
+  for (int i = 0; i < max_rows; ++i) {
+    if (i > 0)
+      buffer[i - 1] = '\n';
+    memcpy(&buffer[i], function_f, sizeof(function_f) - 1);
+    v8::Handle<v8::String> script_body = v8::String::New(buffer.start());
+    v8::Script::Compile(script_body, &origin)->Run();
+    v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+        env->Global()->Get(v8::String::New("f")));
+    CHECK_EQ(i, f->GetScriptLineNumber());
+  }
 }

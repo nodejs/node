@@ -154,4 +154,18 @@ function compute_mod(dividend, divisor) {
       doTest(-a,-b);
     }
   }
-})()
+})();
+
+
+(function () {
+  // Edge cases
+  var zero = 0;
+  var minsmi32 = -0x40000000;
+  var minsmi64 = -0x80000000;
+  var somenum = 3532;
+  assertEquals(-0, zero / -1, "0 / -1");
+  assertEquals(1, minsmi32 / -0x40000000, "minsmi/minsmi-32");
+  assertEquals(1, minsmi64 / -0x80000000, "minsmi/minsmi-64");
+  assertEquals(somenum, somenum % -0x40000000, "%minsmi-32");
+  assertEquals(somenum, somenum % -0x80000000, "%minsmi-64");
+})();

@@ -80,19 +80,3 @@
   assertEquals('bbbbaaaa', reader.expandBackRef_('bbbb#2:4'));
   assertEquals('"#1:1"', reader.expandBackRef_('"#1:1"'));
 })();
-
-
-// See http://code.google.com/p/v8/issues/detail?id=420
-(function testReadingTruncatedLog() {
-  // Having an incorrect event in the middle of a log should throw an exception.
-  var reader1 = new devtools.profiler.LogReader({});
-  assertThrows(function() {
-    reader1.processLogChunk('alias,a,b\nxxxx\nalias,c,d\n');
-  });
-
-  // But having it as the last record should not.
-  var reader2 = new devtools.profiler.LogReader({});
-  assertDoesNotThrow(function() {
-    reader2.processLogChunk('alias,a,b\nalias,c,d\nxxxx');
-  });
-})();

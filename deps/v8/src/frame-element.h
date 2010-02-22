@@ -28,7 +28,8 @@
 #ifndef V8_FRAME_ELEMENT_H_
 #define V8_FRAME_ELEMENT_H_
 
-#include "register-allocator-inl.h"
+#include "number-info.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -52,11 +53,28 @@ class FrameElement BASE_EMBEDDED {
     SYNCED
   };
 
+  inline NumberInfo::Type number_info() {
+    // Copied elements do not have number info. Instead
+    // we have to inspect their backing element in the frame.
+    ASSERT(!is_copy());
+    if (!is_constant()) return NumberInfoField::decode(value_);
+    Handle<Object> value = handle();
+    if (value->IsSmi()) return NumberInfo::kSmi;
+    if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
+    return NumberInfo::kUnknown;
+  }
+
+  inline void set_number_info(NumberInfo::Type info) {
+    value_ = value_ & ~NumberInfoField::mask();
+    value_ = value_ | NumberInfoField::encode(info);
+  }
+
   // The default constructor creates an invalid frame element.
   FrameElement() {
     value_ = TypeField::encode(INVALID)
         | CopiedField::encode(false)
         | SyncedField::encode(false)
+        | NumberInfoField::encode(NumberInfo::kUninitialized)
         | DataField::encode(0);
   }
 
@@ -67,15 +85,16 @@ class FrameElement BASE_EMBEDDED {
   }
 
   // Factory function to construct an in-memory frame element.
-  static FrameElement MemoryElement() {
-    FrameElement result(MEMORY, no_reg, SYNCED);
+  static FrameElement MemoryElement(NumberInfo::Type info) {
+    FrameElement result(MEMORY, no_reg, SYNCED, info);
     return result;
   }
 
   // Factory function to construct an in-register frame element.
   static FrameElement RegisterElement(Register reg,
-                                      SyncFlag is_synced) {
-    return FrameElement(REGISTER, reg, is_synced);
+                                      SyncFlag is_synced,
+                                      NumberInfo::Type info) {
+    return FrameElement(REGISTER, reg, is_synced, info);
   }
 
   // Factory function to construct a frame element whose value is known at
@@ -185,10 +204,14 @@ class FrameElement BASE_EMBEDDED {
   };
 
   // Used to construct memory and register elements.
-  FrameElement(Type type, Register reg, SyncFlag is_synced) {
+  FrameElement(Type type,
+               Register reg,
+               SyncFlag is_synced,
+               NumberInfo::Type info) {
     value_ = TypeField::encode(type)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
+        | NumberInfoField::encode(info)
         | DataField::encode(reg.code_ > 0 ? reg.code_ : 0);
   }
 
@@ -197,6 +220,7 @@ class FrameElement BASE_EMBEDDED {
     value_ = TypeField::encode(CONSTANT)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
+        | NumberInfoField::encode(NumberInfo::kUninitialized)
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -223,9 +247,10 @@ class FrameElement BASE_EMBEDDED {
   uint32_t value_;
 
   class TypeField: public BitField<Type, 0, 3> {};
-  class CopiedField: public BitField<uint32_t, 3, 1> {};
-  class SyncedField: public BitField<uint32_t, 4, 1> {};
-  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
+  class CopiedField: public BitField<bool, 3, 1> {};
+  class SyncedField: public BitField<bool, 4, 1> {};
+  class NumberInfoField: public BitField<NumberInfo::Type, 5, 3> {};
+  class DataField: public BitField<uint32_t, 8, 32 - 9> {};
 
   friend class VirtualFrame;
 };

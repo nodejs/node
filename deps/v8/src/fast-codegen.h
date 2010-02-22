@@ -42,7 +42,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
       : info_(NULL), has_supported_syntax_(true) {
   }
 
-  void Check(FunctionLiteral* fun, CompilationInfo* info);
+  void Check(CompilationInfo* info);
 
   CompilationInfo* info() { return info_; }
   bool has_supported_syntax() { return has_supported_syntax_; }
@@ -65,62 +65,86 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
-      : masm_(masm),
-        script_(script),
-        is_eval_(is_eval),
-        function_(NULL),
-        info_(NULL) {
+  explicit FastCodeGenerator(MacroAssembler* masm)
+      : masm_(masm), info_(NULL), destination_(no_reg), smi_bits_(0) {
   }
 
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval,
-                               CompilationInfo* info);
+  static Handle<Code> MakeCode(CompilationInfo* info);
 
-  void Generate(FunctionLiteral* fun, CompilationInfo* info);
+  void Generate(CompilationInfo* compilation_info);
 
  private:
   MacroAssembler* masm() { return masm_; }
-  FunctionLiteral* function() { return function_; }
+  CompilationInfo* info() { return info_; }
   Label* bailout() { return &bailout_; }
 
-  bool has_receiver() { return !info_->receiver().is_null(); }
-  Handle<Object> receiver() { return info_->receiver(); }
-  bool has_this_properties() { return info_->has_this_properties(); }
+  Register destination() { return destination_; }
+  void set_destination(Register reg) { destination_ = reg; }
+
+  FunctionLiteral* function() { return info_->function(); }
+  Scope* scope() { return info_->scope(); }
+
+  // Platform-specific fixed registers, all guaranteed distinct.
+  Register accumulator0();
+  Register accumulator1();
+  Register scratch0();
+  Register scratch1();
+  Register receiver_reg();
+  Register context_reg();
+
+  Register other_accumulator(Register reg) {
+    ASSERT(reg.is(accumulator0()) || reg.is(accumulator1()));
+    return (reg.is(accumulator0())) ? accumulator1() : accumulator0();
+  }
+
+  // Flags are true if the respective register is statically known to hold a
+  // smi.  We do not track every register, only the accumulator registers.
+  bool is_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    return (smi_bits_ & reg.bit()) != 0;
+  }
+  void set_as_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    smi_bits_ = smi_bits_ | reg.bit();
+  }
+  void clear_as_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    smi_bits_ = smi_bits_ & ~reg.bit();
+  }
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  // Emit code to load the receiver from the stack into a given register.
-  void EmitLoadReceiver(Register reg);
+  // Emit code to load the receiver from the stack into receiver_reg.
+  void EmitLoadReceiver();
 
-  // Emit code to check that the receiver has the same map as the
-  // compile-time receiver.  Receiver is expected in {ia32-edx, x64-rdx,
-  // arm-r1}.  Emit a branch to the (single) bailout label if check fails.
-  void EmitReceiverMapCheck();
-
-  // Emit code to load a global variable value into {is32-eax, x64-rax,
-  // arm-r0}.  Register {ia32-edx, x64-rdx, arm-r1} is preserved if it is
-  // holding the receiver and {is32-ecx, x64-rcx, arm-r2} is always
-  // clobbered.
-  void EmitGlobalVariableLoad(Handle<String> name);
+  // Emit code to load a global variable directly from a global property
+  // cell into the destination register.
+  void EmitGlobalVariableLoad(Handle<Object> cell);
 
   // Emit a store to an own property of this.  The stored value is expected
-  // in {ia32-eax, x64-rax, arm-r0} and the receiver in {is32-edx, x64-rdx,
-  // arm-r1}.  Both are preserve.
+  // in accumulator0 and the receiver in receiver_reg.  The receiver
+  // register is preserved and the result (the stored value) is left in the
+  // destination register.
   void EmitThisPropertyStore(Handle<String> name);
 
+  // Emit a load from an own property of this.  The receiver is expected in
+  // receiver_reg.  The receiver register is preserved and the result is
+  // left in the destination register.
+  void EmitThisPropertyLoad(Handle<String> name);
+
+  // Emit a bitwise or operation.  The left operand is in accumulator1 and
+  // the right is in accumulator0.  The result should be left in the
+  // destination register.
+  void EmitBitOr();
+
   MacroAssembler* masm_;
-  Handle<Script> script_;
-  bool is_eval_;
-
-  FunctionLiteral* function_;
   CompilationInfo* info_;
-
   Label bailout_;
+  Register destination_;
+  uint32_t smi_bits_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

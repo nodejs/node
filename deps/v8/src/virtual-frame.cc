@@ -48,7 +48,13 @@ VirtualFrame::VirtualFrame(VirtualFrame* original)
 }
 
 
-FrameElement VirtualFrame::CopyElementAt(int index) {
+// Create a duplicate of an existing valid frame element.
+// We can pass an optional number type information that will override the
+// existing information about the backing element. The new information must
+// not conflict with the existing type information and must be equally or
+// more precise. The default parameter value kUninitialized means that there
+// is no additional information.
+FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo::Type info) {
   ASSERT(index >= 0);
   ASSERT(index < element_count());
 
@@ -71,15 +77,26 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
       // Fall through.
 
     case FrameElement::MEMORY:  // Fall through.
-    case FrameElement::REGISTER:
+    case FrameElement::REGISTER: {
       // All copies are backed by memory or register locations.
       result.set_type(FrameElement::COPY);
       result.clear_copied();
       result.clear_sync();
       result.set_index(index);
       elements_[index].set_copied();
+      // Update backing element's number information.
+      NumberInfo::Type existing = elements_[index].number_info();
+      ASSERT(existing != NumberInfo::kUninitialized);
+      // Assert that the new type information (a) does not conflict with the
+      // existing one and (b) is equally or more precise.
+      ASSERT((info == NumberInfo::kUninitialized) ||
+             (existing | info) != NumberInfo::kUninitialized);
+      ASSERT(existing <= info);
+      elements_[index].set_number_info(info != NumberInfo::kUninitialized
+                                       ? info
+                                       : existing);
       break;
-
+    }
     case FrameElement::INVALID:
       // We should not try to copy invalid elements.
       UNREACHABLE();
@@ -98,7 +115,7 @@ void VirtualFrame::Adjust(int count) {
   ASSERT(stack_pointer_ == element_count() - 1);
 
   for (int i = 0; i < count; i++) {
-    elements_.Add(FrameElement::MemoryElement());
+    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
   }
   stack_pointer_ += count;
 }
@@ -144,8 +161,16 @@ void VirtualFrame::SpillElementAt(int index) {
   if (!elements_[index].is_valid()) return;
 
   SyncElementAt(index);
+  // Number type information is preserved.
+  // Copies get their number information from their backing element.
+  NumberInfo::Type info;
+  if (!elements_[index].is_copy()) {
+    info = elements_[index].number_info();
+  } else {
+    info = elements_[elements_[index].index()].number_info();
+  }
   // The element is now in memory.  Its copied flag is preserved.
-  FrameElement new_element = FrameElement::MemoryElement();
+  FrameElement new_element = FrameElement::MemoryElement(info);
   if (elements_[index].is_copied()) {
     new_element.set_copied();
   }
@@ -268,7 +293,6 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
   InvalidateFrameSlotAt(frame_index);
 
-  FrameElement new_element;
   if (value->is_register()) {
     if (is_used(value->reg())) {
       // The register already appears on the frame.  Either the existing
@@ -301,7 +325,8 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       Use(value->reg(), frame_index);
       elements_[frame_index] =
           FrameElement::RegisterElement(value->reg(),
-                                        FrameElement::NOT_SYNCED);
+                                        FrameElement::NOT_SYNCED,
+                                        value->number_info());
     }
   } else {
     ASSERT(value->is_constant());
@@ -318,16 +343,15 @@ void VirtualFrame::PushFrameSlotAt(int index) {
 }
 
 
-void VirtualFrame::Push(Register reg) {
+void VirtualFrame::Push(Register reg, NumberInfo::Type info) {
   if (is_used(reg)) {
     int index = register_location(reg);
-    FrameElement element = CopyElementAt(index);
+    FrameElement element = CopyElementAt(index, info);
     elements_.Add(element);
   } else {
     Use(reg, element_count());
     FrameElement element =
-        FrameElement::RegisterElement(reg,
-                                      FrameElement::NOT_SYNCED);
+        FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED, info);
     elements_.Add(element);
   }
 }

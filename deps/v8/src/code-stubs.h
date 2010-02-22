@@ -55,6 +55,7 @@ namespace internal {
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
+  V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
   V(DebuggerStatement)
@@ -100,7 +101,7 @@ class CodeStub BASE_EMBEDDED {
   static int MinorKeyFromKey(uint32_t key) {
     return MinorKeyBits::decode(key);
   };
-  static const char* MajorName(Major major_key);
+  static const char* MajorName(Major major_key, bool allow_unknown_keys);
 
   virtual ~CodeStub() {}
 
@@ -138,7 +139,7 @@ class CodeStub BASE_EMBEDDED {
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
   // Returns a name for logging/debugging purposes.
-  virtual const char* GetName() { return MajorName(MajorKey()); }
+  virtual const char* GetName() { return MajorName(MajorKey(), false); }
 
 #ifdef DEBUG
   virtual void Print() { PrintF("%s\n", GetName()); }

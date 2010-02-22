@@ -219,7 +219,7 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(
     LookupResult* result,
     String* name,
     PropertyAttributes* attributes) {
-  if (result->IsValid()) {
+  if (result->IsProperty()) {
     switch (result->type()) {
       case CALLBACKS: {
         // Only allow API accessors.
@@ -242,7 +242,7 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r;
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
-        if (r.IsValid()) {
+        if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(receiver,
                                                   &r,
                                                   name,
@@ -255,16 +255,16 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(
         // No access check in GetPropertyAttributeWithInterceptor.
         LookupResult r;
         result->holder()->LookupRealNamedProperty(name, &r);
-        if (r.IsValid()) {
+        if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(receiver,
                                                   &r,
                                                   name,
                                                   attributes);
         }
-      }
-      default: {
         break;
       }
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -280,7 +280,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     LookupResult* result,
     String* name,
     bool continue_search) {
-  if (result->IsValid()) {
+  if (result->IsProperty()) {
     switch (result->type()) {
       case CALLBACKS: {
         // Only allow API accessors.
@@ -301,7 +301,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r;
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
-        if (r.IsValid()) {
+        if (r.IsProperty()) {
           return GetPropertyAttributeWithFailedAccessCheck(receiver,
                                                            &r,
                                                            name,
@@ -319,7 +319,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         } else {
           result->holder()->LocalLookupRealNamedProperty(name, &r);
         }
-        if (r.IsValid()) {
+        if (r.IsProperty()) {
           return GetPropertyAttributeWithFailedAccessCheck(receiver,
                                                            &r,
                                                            name,
@@ -328,9 +328,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         break;
       }
 
-      default: {
-        break;
-      }
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -505,7 +504,7 @@ Object* Object::GetProperty(Object* receiver,
   // holder will always be the interceptor holder and the search may
   // only continue with a current object just after the interceptor
   // holder in the prototype chain.
-  Object* last = result->IsValid() ? result->holder() : Heap::null_value();
+  Object* last = result->IsProperty() ? result->holder() : Heap::null_value();
   for (Object* current = this; true; current = current->GetPrototype()) {
     if (current->IsAccessCheckNeeded()) {
       // Check if we're allowed to read from the current object. Note
@@ -1463,8 +1462,12 @@ Object* JSObject::SetPropertyPostInterceptor(String* name,
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsValid()) return SetProperty(&result, name, value, attributes);
-  // Add real property.
+  if (result.IsFound()) {
+    // An existing property, a map transition or a null descriptor was
+    // found.  Use set property to handle all these cases.
+    return SetProperty(&result, name, value, attributes);
+  }
+  // Add a new real property.
   return AddProperty(name, value, attributes);
 }
 
@@ -1696,8 +1699,8 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
        pt != Heap::null_value();
        pt = pt->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsValid()) {
-      if (!result->IsTransitionType() && result->IsReadOnly()) {
+    if (result->IsProperty()) {
+      if (result->IsReadOnly()) {
         result->NotFound();
         return;
       }
@@ -1758,7 +1761,11 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
 
   if (HasFastProperties()) {
     LookupInDescriptor(name, result);
-    if (result->IsValid()) {
+    if (result->IsFound()) {
+      // A property, a map transition or a null descriptor was found.
+      // We return all of these result types because
+      // LocalLookupRealNamedProperty is used when setting properties
+      // where map transitions and null descriptors are handled.
       ASSERT(result->holder() == this && result->type() != NORMAL);
       // Disallow caching for uninitialized constants. These can only
       // occur as fields.
@@ -1808,16 +1815,7 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
        pt != Heap::null_value();
        pt = JSObject::cast(pt)->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsValid()) {
-      switch (result->type()) {
-        case NORMAL:
-        case FIELD:
-        case CONSTANT_FUNCTION:
-        case CALLBACKS:
-          return;
-        default: break;
-      }
-    }
+    if (result->IsProperty() && (result->type() != INTERCEPTOR)) return;
   }
   result->NotFound();
 }
@@ -1903,14 +1901,15 @@ Object* JSObject::SetProperty(LookupResult* result,
     // accessor that wants to handle the property.
     LookupResult accessor_result;
     LookupCallbackSetterInPrototypes(name, &accessor_result);
-    if (accessor_result.IsValid()) {
+    if (accessor_result.IsProperty()) {
       return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
                                      name,
                                      value,
                                      accessor_result.holder());
     }
   }
-  if (result->IsNotFound()) {
+  if (!result->IsFound()) {
+    // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
   if (!result->IsLoaded()) {
@@ -1972,15 +1971,12 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
-  // ADDED TO CLONE
-  LookupResult result_struct;
-  LocalLookup(name, &result_struct);
-  LookupResult* result = &result_struct;
-  // END ADDED TO CLONE
+  LookupResult result;
+  LocalLookup(name, &result);
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
-    && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result, name, value);
+      && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
+    return SetPropertyWithFailedAccessCheck(&result, name, value);
   }
 
   if (IsJSGlobalProxy()) {
@@ -1994,31 +1990,34 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   }
 
   // Check for accessor in prototype chain removed here in clone.
-  if (result->IsNotFound()) {
+  if (!result.IsFound()) {
+    // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
-  if (!result->IsLoaded()) {
-    return SetLazyProperty(result, name, value, attributes);
+  if (!result.IsLoaded()) {
+    return SetLazyProperty(&result, name, value, attributes);
   }
+  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+
   // Check of IsReadOnly removed from here in clone.
-  switch (result->type()) {
+  switch (result.type()) {
     case NORMAL:
-      return SetNormalizedProperty(result, value);
+      return SetNormalizedProperty(name, value, details);
     case FIELD:
-      return FastPropertyAtPut(result->GetFieldIndex(), value);
+      return FastPropertyAtPut(result.GetFieldIndex(), value);
     case MAP_TRANSITION:
-      if (attributes == result->GetAttributes()) {
+      if (attributes == result.GetAttributes()) {
         // Only use map transition if the attributes match.
-        return AddFastPropertyUsingMap(result->GetTransitionMap(),
+        return AddFastPropertyUsingMap(result.GetTransitionMap(),
                                        name,
                                        value);
       }
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       // Only replace the function if necessary.
-      if (value == result->GetConstantFunction()) return value;
+      if (value == result.GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
-      attributes = result->GetAttributes();
+      attributes = result.GetAttributes();
       return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
@@ -2134,7 +2133,7 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
                                                      name,
                                                      continue_search);
   }
-  if (result->IsValid()) {
+  if (result->IsProperty()) {
     switch (result->type()) {
       case NORMAL:  // fall through
       case FIELD:
@@ -2144,13 +2143,8 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
       case INTERCEPTOR:
         return result->holder()->
           GetPropertyAttributeWithInterceptor(receiver, name, continue_search);
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
-        return ABSENT;
       default:
         UNREACHABLE();
-        break;
     }
   }
   return ABSENT;
@@ -2323,7 +2317,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
-  if (!result.IsValid()) return Heap::true_value();
+  if (!result.IsProperty()) return Heap::true_value();
 
   // Normalize object if needed.
   Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -2507,7 +2501,7 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   } else {
     LookupResult result;
     LocalLookup(name, &result);
-    if (!result.IsValid()) return Heap::true_value();
+    if (!result.IsProperty()) return Heap::true_value();
     // Ignore attributes if forcing a deletion.
     if (result.IsDontDelete() && mode != FORCE_DELETION) {
       return Heap::false_value();
@@ -2742,7 +2736,7 @@ void JSObject::Lookup(String* name, LookupResult* result) {
        current != Heap::null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookup(name, result);
-    if (result->IsValid() && !result->IsTransitionType()) return;
+    if (result->IsProperty()) return;
   }
   result->NotFound();
 }
@@ -2754,7 +2748,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
        current != Heap::null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsValid() && result->type() == CALLBACKS) return;
+    if (result->IsProperty() && result->type() == CALLBACKS) return;
   }
   result->NotFound();
 }
@@ -2784,7 +2778,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   // cause security problems.
   LookupResult callback_result;
   LookupCallback(name, &callback_result);
-  if (callback_result.IsValid()) {
+  if (callback_result.IsFound()) {
     Object* obj = callback_result.GetCallbackObject();
     if (obj->IsAccessorInfo() &&
         AccessorInfo::cast(obj)->prohibits_overwriting()) {
@@ -2835,11 +2829,16 @@ Object* JSObject::DefineGetterSetter(String* name,
     // Lookup the name.
     LookupResult result;
     LocalLookup(name, &result);
-    if (result.IsValid()) {
+    if (result.IsProperty()) {
       if (result.IsReadOnly()) return Heap::undefined_value();
       if (result.type() == CALLBACKS) {
         Object* obj = result.GetCallbackObject();
         if (obj->IsFixedArray()) {
+          // The object might be in fast mode even though it has
+          // a getter/setter.
+          Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+          if (ok->IsFailure()) return ok;
+
           PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
           SetNormalizedProperty(name, obj, details);
           return obj;
@@ -2952,7 +2951,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
          obj = JSObject::cast(obj)->GetPrototype()) {
       LookupResult result;
       JSObject::cast(obj)->LocalLookup(name, &result);
-      if (result.IsValid()) {
+      if (result.IsProperty()) {
         if (result.IsReadOnly()) return Heap::undefined_value();
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
@@ -4820,6 +4819,40 @@ int SharedFunctionInfo::CalculateInObjectProperties() {
 }
 
 
+bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
+  // Check the basic conditions for generating inline constructor code.
+  if (!FLAG_inline_new
+      || !has_only_simple_this_property_assignments()
+      || this_property_assignments_count() == 0) {
+    return false;
+  }
+
+  // If the prototype is null inline constructors cause no problems.
+  if (!prototype->IsJSObject()) {
+    ASSERT(prototype->IsNull());
+    return true;
+  }
+
+  // Traverse the proposed prototype chain looking for setters for properties of
+  // the same names as are set by the inline constructor.
+  for (Object* obj = prototype;
+       obj != Heap::null_value();
+       obj = obj->GetPrototype()) {
+    JSObject* js_object = JSObject::cast(obj);
+    for (int i = 0; i < this_property_assignments_count(); i++) {
+      LookupResult result;
+      String* name = GetThisPropertyAssignmentName(i);
+      js_object->LocalLookupRealNamedProperty(name, &result);
+      if (result.IsProperty() && result.type() == CALLBACKS) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+
 void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
@@ -4873,7 +4906,6 @@ Object* SharedFunctionInfo::GetThisPropertyAssignmentConstant(int index) {
       FixedArray::cast(this_property_assignments())->get(index * 3 + 2);
   return obj;
 }
-
 
 
 // Support function for printing the source code to a StringStream
@@ -5273,7 +5305,7 @@ static Object* ArrayLengthRangeError() {
 
 Object* JSObject::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(AllowsSetElementsLength());
 
   Object* smi_length = len->ToSmi();
   if (smi_length->IsSmi()) {
@@ -5350,6 +5382,48 @@ Object* JSObject::SetElementsLength(Object* len) {
   if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(1));
   set_elements(FixedArray::cast(obj));
   return this;
+}
+
+
+Object* JSObject::SetPrototype(Object* value,
+                               bool skip_hidden_prototypes) {
+  // Silently ignore the change if value is not a JSObject or null.
+  // SpiderMonkey behaves this way.
+  if (!value->IsJSObject() && !value->IsNull()) return value;
+
+  // Before we can set the prototype we need to be sure
+  // prototype cycles are prevented.
+  // It is sufficient to validate that the receiver is not in the new prototype
+  // chain.
+  for (Object* pt = value; pt != Heap::null_value(); pt = pt->GetPrototype()) {
+    if (JSObject::cast(pt) == this) {
+      // Cycle detected.
+      HandleScope scope;
+      return Top::Throw(*Factory::NewError("cyclic_proto",
+                                           HandleVector<Object>(NULL, 0)));
+    }
+  }
+
+  JSObject* real_receiver = this;
+
+  if (skip_hidden_prototypes) {
+    // Find the first object in the chain whose prototype object is not
+    // hidden and set the new prototype on that object.
+    Object* current_proto = real_receiver->GetPrototype();
+    while (current_proto->IsJSObject() &&
+          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
+      real_receiver = JSObject::cast(current_proto);
+      current_proto = current_proto->GetPrototype();
+    }
+  }
+
+  // Set the new prototype of the object.
+  Object* new_map = real_receiver->map()->CopyDropTransitions();
+  if (new_map->IsFailure()) return new_map;
+  Map::cast(new_map)->set_prototype(value);
+  real_receiver->set_map(Map::cast(new_map));
+
+  return value;
 }
 
 
@@ -6170,7 +6244,9 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
   // Check local property in holder, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsValid()) return GetProperty(receiver, &result, name, attributes);
+  if (result.IsProperty()) {
+    return GetProperty(receiver, &result, name, attributes);
+  }
   // Continue searching via the prototype chain.
   Object* pt = GetPrototype();
   *attributes = ABSENT;
@@ -6186,8 +6262,10 @@ Object* JSObject::GetLocalPropertyPostInterceptor(
   // Check local property in holder, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
-  if (!result.IsValid()) return Heap::undefined_value();
-  return GetProperty(receiver, &result, name, attributes);
+  if (result.IsProperty()) {
+    return GetProperty(receiver, &result, name, attributes);
+  }
+  return Heap::undefined_value();
 }
 
 
@@ -6239,24 +6317,7 @@ bool JSObject::HasRealNamedProperty(String* key) {
 
   LookupResult result;
   LocalLookupRealNamedProperty(key, &result);
-  if (result.IsValid()) {
-    switch (result.type()) {
-      case NORMAL:    // fall through.
-      case FIELD:     // fall through.
-      case CALLBACKS:  // fall through.
-      case CONSTANT_FUNCTION:
-        return true;
-      case INTERCEPTOR:
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
-        return false;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  return false;
+  return result.IsProperty() && (result.type() != INTERCEPTOR);
 }
 
 
@@ -6318,7 +6379,7 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
   LookupResult result;
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsValid() && (result.type() == CALLBACKS);
+  return result.IsProperty() && (result.type() == CALLBACKS);
 }
 
 

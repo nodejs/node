@@ -379,9 +379,7 @@ function driveTickProcessorTest(
   var tp = new TickProcessor(
       new CppEntriesProviderMock(), separateIc, ignoreUnknown, stateFilter);
   var pm = new PrintMonitor(testsPath + refOutput);
-  tp.processLogFile(testsPath + logInput);
-  // Hack file name to avoid dealing with platform specifics.
-  tp.lastLogFileName_ = 'v8.log';
+  tp.processLogFileInTest(testsPath + logInput);
   tp.printStatistics();
   pm.finish();
 };

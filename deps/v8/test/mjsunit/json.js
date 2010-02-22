@@ -200,8 +200,10 @@ TestInvalid('"Unterminated string');
 TestInvalid('"Unterminated string\\"');
 TestInvalid('"Unterminated string\\\\\\"');
 
-// Test bad JSON that would be good JavaScript (ES5).
+// JavaScript RegExp literals not valid in JSON.
+TestInvalid('/true/');
 
+// Test bad JSON that would be good JavaScript (ES5).
 TestInvalid("{true:42}");
 TestInvalid("{false:42}");
 TestInvalid("{null:42}");
@@ -211,7 +213,6 @@ TestInvalid("{0:42}");
 TestInvalid("{-1:42}");
 
 // Test for trailing garbage detection.
-
 TestInvalid('42 px');
 TestInvalid('42 .2');
 TestInvalid('42 2');
@@ -277,8 +278,35 @@ assertEquals('{\n "a": "b",\n "c": "d"\n}',
              JSON.stringify({a:"b",c:"d"}, null, 1));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 
+// The gap is capped at ten characters if specified as string.
+assertEquals('{\n          "a": "b",\n          "c": "d"\n}',
+              JSON.stringify({a:"b",c:"d"}, null, 
+                             "          /*characters after 10th*/"));
+
+//The gap is capped at ten characters if specified as number.
+assertEquals('{\n          "a": "b",\n          "c": "d"\n}',
+              JSON.stringify({a:"b",c:"d"}, null, 15));
+
+// Replaced wrapped primitives are unwrapped.
+function newx(k, v)  { return (k == "x") ? new v(42) : v; }
+assertEquals('{"x":"42"}', JSON.stringify({x: String}, newx));
+assertEquals('{"x":42}', JSON.stringify({x: Number}, newx));
+assertEquals('{"x":true}', JSON.stringify({x: Boolean}, newx));
+
 assertEquals(undefined, JSON.stringify(undefined));
 assertEquals(undefined, JSON.stringify(function () { }));
+// Arrays with missing, undefined or function elements have those elements 
+// replaced by null.
+assertEquals("[null,null,null]", 
+             JSON.stringify([undefined,,function(){}]));
+
+// Objects with undefined or function properties (including replaced properties)
+// have those properties ignored.
+assertEquals('{}', 
+             JSON.stringify({a: undefined, b: function(){}, c: 42, d: 42},
+                            function(k, v) { if (k == "c") return undefined; 
+                                             if (k == "d") return function(){};
+                                             return v; }));
 
 TestInvalid('1); throw "foo"; (1');
 

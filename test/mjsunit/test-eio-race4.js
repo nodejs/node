@@ -4,14 +4,15 @@ var N = 100;
 var j = 0;
 
 for (var i = 0; i < N; i++) {
-  fs.stat("does-not-exist-" + i) // these files don't exist
-  .addErrback(function (e) {
-    j++; // only makes it to about 17
-    puts("finish " + j);
-  })
-  .addCallback(function () {
-    puts("won't be called");
-  });
+  // these files don't exist
+  fs.stat("does-not-exist-" + i, function (err) {
+    if (err) {
+      j++; // only makes it to about 17
+      puts("finish " + j);
+    } else {
+      throw new Error("this shouldn't be called");
+    }
+  }); 
 }
 
 process.addListener("exit", function () {

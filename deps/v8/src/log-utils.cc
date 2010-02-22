@@ -351,15 +351,6 @@ void LogMessageBuilder::WriteToLogFile() {
 }
 
 
-void LogMessageBuilder::WriteCStringToLogFile(const char* str) {
-  const int len = StrLength(str);
-  const int written = Log::Write(str, len);
-  if (written != len && write_failure_handler != NULL) {
-    write_failure_handler();
-  }
-}
-
-
 // Formatting string for back references to the whole line. E.g. "#2" means
 // "the second line above".
 const char* LogRecordCompressor::kLineBackwardReferenceFormat = "#%d";

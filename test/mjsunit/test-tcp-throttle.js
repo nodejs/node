@@ -33,21 +33,21 @@ setTimeout(function () {
   chars_recved = recv.length;
   puts("pause at: " + chars_recved);
   assert.equal(true, chars_recved > 1);
-  client.readPause();
+  client.pause();
   setTimeout(function () {
     puts("resume at: " + chars_recved);
     assert.equal(chars_recved, recv.length);
-    client.readResume();
+    client.resume();
 
     setTimeout(function () {
       chars_recved = recv.length;
       puts("pause at: " + chars_recved);
-      client.readPause();
+      client.pause();
 
       setTimeout(function () {
         puts("resume at: " + chars_recved);
         assert.equal(chars_recved, recv.length);
-        client.readResume();
+        client.resume();
 
       }, 500);
 

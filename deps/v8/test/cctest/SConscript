@@ -63,7 +63,10 @@ SOURCES = {
     'test-utils.cc',
     'test-version.cc'
   ],
-  'arch:arm':  ['test-assembler-arm.cc', 'test-disasm-arm.cc'],
+  'arch:arm':  [
+    'test-assembler-arm.cc',
+    'test-disasm-arm.cc'
+  ],
   'arch:ia32': [
     'test-assembler-ia32.cc',
     'test-disasm-ia32.cc',
@@ -72,6 +75,7 @@ SOURCES = {
   'arch:x64': ['test-assembler-x64.cc',
                'test-macro-assembler-x64.cc',
                'test-log-stack-tracer.cc'],
+  'arch:mips': ['test-assembler-mips.cc'],
   'os:linux':  ['test-platform-linux.cc'],
   'os:macos':  ['test-platform-macos.cc'],
   'os:nullos': ['test-platform-nullos.cc'],

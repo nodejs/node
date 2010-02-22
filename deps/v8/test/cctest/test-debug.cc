@@ -550,6 +550,15 @@ const char* frame_script_data_source =
 v8::Local<v8::Function> frame_script_data;
 
 
+// Source for The JavaScript function which picks out the script data from
+// AfterCompile event
+const char* compiled_script_data_source =
+    "function compiled_script_data(event_data) {"
+    "  return event_data.script().data();"
+    "}";
+v8::Local<v8::Function> compiled_script_data;
+
+
 // Source for The JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
@@ -646,6 +655,19 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
         v8::Handle<v8::String> script_data(result->ToString());
         script_data->WriteAscii(last_script_data_hit);
       }
+    }
+  } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
+    const int argc = 1;
+    v8::Handle<v8::Value> argv[argc] = { event_data };
+    v8::Handle<v8::Value> result = compiled_script_data->Call(exec_state,
+                                                              argc, argv);
+    if (result->IsUndefined()) {
+      last_script_data_hit[0] = '\0';
+    } else {
+      result = result->ToString();
+      CHECK(result->IsString());
+      v8::Handle<v8::String> script_data(result->ToString());
+      script_data->WriteAscii(last_script_data_hit);
     }
   }
 }
@@ -3884,6 +3906,11 @@ bool IsEvaluateResponseMessage(char* message) {
 }
 
 
+static int StringToInt(const char* s) {
+  return atoi(s);  // NOLINT
+}
+
+
 // We match parts of the message to get evaluate result int value.
 int GetEvaluateIntResult(char *message) {
   const char* value = "\"value\":";
@@ -3892,7 +3919,7 @@ int GetEvaluateIntResult(char *message) {
     return -1;
   }
   int res = -1;
-  res = atoi(pos + strlen(value));
+  res = StringToInt(pos + strlen(value));
   return res;
 }
 
@@ -3905,7 +3932,7 @@ int GetBreakpointIdFromBreakEventMessage(char *message) {
     return -1;
   }
   int res = -1;
-  res = atoi(pos + strlen(breakpoints));
+  res = StringToInt(pos + strlen(breakpoints));
   return res;
 }
 
@@ -3918,11 +3945,7 @@ int GetTotalFramesInt(char *message) {
     return -1;
   }
   pos += strlen(prefix);
-  char* pos_end = pos;
-  int res = static_cast<int>(strtol(pos, &pos_end, 10));
-  if (pos_end == pos) {
-    return -1;
-  }
+  int res = StringToInt(pos);
   return res;
 }
 
@@ -5231,6 +5254,9 @@ TEST(ScriptNameAndData) {
   frame_script_data = CompileFunction(&env,
                                       frame_script_data_source,
                                       "frame_script_data");
+  compiled_script_data = CompileFunction(&env,
+                                         compiled_script_data_source,
+                                         "compiled_script_data");
 
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
@@ -5277,6 +5303,16 @@ TEST(ScriptNameAndData) {
   CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
   CHECK_EQ("abc 123", last_script_data_hit);
+
+  v8::Handle<v8::Script> script3 =
+      v8::Script::Compile(script, &origin2, NULL,
+                          v8::String::New("in compile"));
+  CHECK_EQ("in compile", last_script_data_hit);
+  script3->Run();
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(4, break_point_hit_count);
+  CHECK_EQ("in compile", last_script_data_hit);
 }
 
 

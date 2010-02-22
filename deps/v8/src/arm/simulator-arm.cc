@@ -1741,7 +1741,7 @@ void Simulator::DecodeType2(Instr* instr) {
 
 
 void Simulator::DecodeType3(Instr* instr) {
-  ASSERT(instr->Bit(4) == 0);
+  ASSERT(instr->Bits(6, 4) == 0x5 || instr->Bit(4) == 0);
   int rd = instr->RdField();
   int rn = instr->RnField();
   int32_t rn_val = get_register(rn);
@@ -1768,10 +1768,26 @@ void Simulator::DecodeType3(Instr* instr) {
       break;
     }
     case 3: {
-      // Format(instr, "'memop'cond'b 'rd, ['rn, +'shift_rm]'w");
-      addr = rn_val + shifter_operand;
-      if (instr->HasW()) {
-        set_register(rn, addr);
+      if (instr->HasW() && (instr->Bits(6, 4) == 0x5)) {
+        uint32_t widthminus1 = static_cast<uint32_t>(instr->Bits(20, 16));
+        uint32_t lsbit = static_cast<uint32_t>(instr->ShiftAmountField());
+        uint32_t msbit = widthminus1 + lsbit;
+        if (msbit <= 31) {
+          uint32_t rm_val =
+              static_cast<uint32_t>(get_register(instr->RmField()));
+          uint32_t extr_val = rm_val << (31 - msbit);
+          extr_val = extr_val >> (31 - widthminus1);
+          set_register(instr->RdField(), extr_val);
+        } else {
+          UNREACHABLE();
+        }
+        return;
+      } else {
+        // Format(instr, "'memop'cond'b 'rd, ['rn, +'shift_rm]'w");
+        addr = rn_val + shifter_operand;
+        if (instr->HasW()) {
+          set_register(rn, addr);
+        }
       }
       break;
     }
@@ -1785,7 +1801,8 @@ void Simulator::DecodeType3(Instr* instr) {
       uint8_t byte = ReadB(addr);
       set_register(rd, byte);
     } else {
-      UNIMPLEMENTED();
+      uint8_t byte = get_register(rd);
+      WriteB(addr, byte);
     }
   } else {
     if (instr->HasL()) {

@@ -170,21 +170,110 @@ static void SigProfSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif  // __linux__
 
 
-static int CheckThatProfilerWorks(int log_pos) {
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU);
+namespace {
+
+class ScopedLoggerInitializer {
+ public:
+  explicit ScopedLoggerInitializer(bool log, bool prof_lazy)
+      : saved_log_(i::FLAG_log),
+        saved_prof_lazy_(i::FLAG_prof_lazy),
+        saved_prof_(i::FLAG_prof),
+        saved_prof_auto_(i::FLAG_prof_auto),
+        trick_to_run_init_flags_(init_flags_(log, prof_lazy)),
+        need_to_set_up_logger_(i::V8::IsRunning()),
+        scope_(),
+        env_(v8::Context::New()) {
+    if (need_to_set_up_logger_) Logger::Setup();
+    env_->Enter();
+  }
+
+  ~ScopedLoggerInitializer() {
+    env_->Exit();
+    Logger::TearDown();
+    i::FLAG_prof_lazy = saved_prof_lazy_;
+    i::FLAG_prof = saved_prof_;
+    i::FLAG_prof_auto = saved_prof_auto_;
+    i::FLAG_log = saved_log_;
+  }
+
+  v8::Handle<v8::Context>& env() { return env_; }
+
+ private:
+  static bool init_flags_(bool log, bool prof_lazy) {
+    i::FLAG_log = log;
+    i::FLAG_prof = true;
+    i::FLAG_prof_lazy = prof_lazy;
+    i::FLAG_prof_auto = false;
+    i::FLAG_logfile = "*";
+    return prof_lazy;
+  }
+
+  const bool saved_log_;
+  const bool saved_prof_lazy_;
+  const bool saved_prof_;
+  const bool saved_prof_auto_;
+  const bool trick_to_run_init_flags_;
+  const bool need_to_set_up_logger_;
+  v8::HandleScope scope_;
+  v8::Handle<v8::Context> env_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
+};
+
+
+class LogBufferMatcher {
+ public:
+  LogBufferMatcher() {
+    // Skip all initially logged stuff.
+    log_pos_ = GetLogLines(0, &buffer_);
+  }
+
+  int log_pos() { return log_pos_; }
+
+  int GetNextChunk() {
+    int chunk_size = GetLogLines(log_pos_, &buffer_);
+    CHECK_GT(buffer_.length(), chunk_size);
+    buffer_[chunk_size] = '\0';
+    log_pos_ += chunk_size;
+    return chunk_size;
+  }
+
+  const char* Find(const char* substr) {
+    return strstr(buffer_.start(), substr);
+  }
+
+  const char* Find(const i::Vector<char>& substr) {
+    return Find(substr.start());
+  }
+
+  bool IsInSequence(const char* s1, const char* s2) {
+    const char* s1_pos = Find(s1);
+    const char* s2_pos = Find(s2);
+    CHECK_NE(NULL, s1_pos);
+    CHECK_NE(NULL, s2_pos);
+    return s1_pos < s2_pos;
+  }
+
+  void PrintBuffer() {
+    puts(buffer_.start());
+  }
+
+ private:
+  EmbeddedVector<char, 102400> buffer_;
+  int log_pos_;
+};
+
+}  // namespace
+
+
+static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
   CHECK(LoggerTestHelper::IsSamplerActive());
 
   // Verify that the current map of compiled functions has been logged.
-  EmbeddedVector<char, 102400> buffer;
-  int map_log_size = GetLogLines(log_pos, &buffer);
-  printf("map_log_size: %d\n", map_log_size);
-  CHECK_GT(map_log_size, 0);
-  CHECK_GT(buffer.length(), map_log_size);
-  log_pos += map_log_size;
-  // Check buffer contents.
-  buffer[map_log_size] = '\0';
+  CHECK_GT(matcher->GetNextChunk(), 0);
   const char* code_creation = "\ncode-creation,";  // eq. to /^code-creation,/
-  CHECK_NE(NULL, strstr(buffer.start(), code_creation));
+  CHECK_NE(NULL, matcher->Find(code_creation));
 
 #ifdef __linux__
   // Intercept SIGPROF handler to make sure that the test process
@@ -204,7 +293,7 @@ static int CheckThatProfilerWorks(int log_pos) {
   i::OS::SNPrintF(script_src,
                   "function f%d(x) { return %d * x; }"
                   "for (var i = 0; i < 10000; ++i) { f%d(i); }",
-                  log_pos, log_pos, log_pos);
+                  matcher->log_pos(), matcher->log_pos(), matcher->log_pos());
   // Run code for 200 msecs to get some ticks.
   const double end_time = i::OS::TimeCurrentMillis() + 200;
   while (i::OS::TimeCurrentMillis() < end_time) {
@@ -213,7 +302,7 @@ static int CheckThatProfilerWorks(int log_pos) {
     i::OS::Sleep(1);
   }
 
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU);
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
   CHECK(!LoggerTestHelper::IsSamplerActive());
 
   // Wait 50 msecs to allow Profiler thread to process the last
@@ -221,68 +310,39 @@ static int CheckThatProfilerWorks(int log_pos) {
   i::OS::Sleep(50);
 
   // Now we must have compiler and tick records.
-  int log_size = GetLogLines(log_pos, &buffer);
-  printf("log_size: %d\n", log_size);
-  CHECK_GT(log_size, 0);
-  CHECK_GT(buffer.length(), log_size);
-  log_pos += log_size;
-  // Check buffer contents.
-  buffer[log_size] = '\0';
-  printf("%s", buffer.start());
+  CHECK_GT(matcher->GetNextChunk(), 0);
+  matcher->PrintBuffer();
+  CHECK_NE(NULL, matcher->Find(code_creation));
   const char* tick = "\ntick,";
-  CHECK_NE(NULL, strstr(buffer.start(), code_creation));
-  const bool ticks_found = strstr(buffer.start(), tick) != NULL;
+  const bool ticks_found = matcher->Find(tick) != NULL;
   CHECK_EQ(was_sigprof_received, ticks_found);
-
-  return log_pos;
 }
 
 
 TEST(ProfLazyMode) {
-  const bool saved_prof_lazy = i::FLAG_prof_lazy;
-  const bool saved_prof = i::FLAG_prof;
-  const bool saved_prof_auto = i::FLAG_prof_auto;
-  i::FLAG_prof = true;
-  i::FLAG_prof_lazy = true;
-  i::FLAG_prof_auto = false;
-  i::FLAG_logfile = "*";
-
-  // If tests are being run manually, V8 will be already initialized
-  // by the bottom test.
-  const bool need_to_set_up_logger = i::V8::IsRunning();
-  v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  if (need_to_set_up_logger) Logger::Setup();
-  env->Enter();
+  ScopedLoggerInitializer initialize_logger(false, true);
 
   // No sampling should happen prior to resuming profiler.
   CHECK(!LoggerTestHelper::IsSamplerActive());
 
-  EmbeddedVector<char, 102400> buffer;
+  LogBufferMatcher matcher;
   // Nothing must be logged until profiling is resumed.
-  int log_pos = GetLogLines(0, &buffer);
-  CHECK_EQ(0, log_pos);
+  CHECK_EQ(0, matcher.log_pos());
 
   CompileAndRunScript("var a = (function(x) { return x + 1; })(10);");
 
   // Nothing must be logged while profiling is suspended.
-  CHECK_EQ(0, GetLogLines(log_pos, &buffer));
+  CHECK_EQ(0, matcher.GetNextChunk());
 
-  log_pos = CheckThatProfilerWorks(log_pos);
+  CheckThatProfilerWorks(&matcher);
 
   CompileAndRunScript("var a = (function(x) { return x + 1; })(10);");
 
   // No new data beyond last retrieved position.
-  CHECK_EQ(0, GetLogLines(log_pos, &buffer));
+  CHECK_EQ(0, matcher.GetNextChunk());
 
   // Check that profiling can be resumed again.
-  CheckThatProfilerWorks(log_pos);
-
-  env->Exit();
-  Logger::TearDown();
-  i::FLAG_prof_lazy = saved_prof_lazy;
-  i::FLAG_prof = saved_prof;
-  i::FLAG_prof_auto = saved_prof_auto;
+  CheckThatProfilerWorks(&matcher);
 }
 
 
@@ -480,25 +540,8 @@ static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
 }
 
 TEST(LogCallbacks) {
-  const bool saved_prof_lazy = i::FLAG_prof_lazy;
-  const bool saved_prof = i::FLAG_prof;
-  const bool saved_prof_auto = i::FLAG_prof_auto;
-  i::FLAG_prof = true;
-  i::FLAG_prof_lazy = false;
-  i::FLAG_prof_auto = false;
-  i::FLAG_logfile = "*";
-
-  // If tests are being run manually, V8 will be already initialized
-  // by the bottom test.
-  const bool need_to_set_up_logger = i::V8::IsRunning();
-  v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  if (need_to_set_up_logger) Logger::Setup();
-  env->Enter();
-
-  // Skip all initially logged stuff.
-  EmbeddedVector<char, 102400> buffer;
-  int log_pos = GetLogLines(0, &buffer);
+  ScopedLoggerInitializer initialize_logger(false, false);
+  LogBufferMatcher matcher;
 
   v8::Persistent<v8::FunctionTemplate> obj =
       v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
@@ -511,16 +554,14 @@ TEST(LogCallbacks) {
                                        signature),
              static_cast<v8::PropertyAttribute>(v8::DontDelete));
 
-  env->Global()->Set(v8_str("Obj"), obj->GetFunction());
+  initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
   CompileAndRunScript("Obj.prototype.method1.toString();");
 
   i::Logger::LogCompiledFunctions();
-  log_pos = GetLogLines(log_pos, &buffer);
-  CHECK_GT(log_pos, 0);
-  buffer[log_pos] = 0;
+  CHECK_GT(matcher.GetNextChunk(), 0);
 
   const char* callback_rec = "code-creation,Callback,";
-  char* pos = strstr(buffer.start(), callback_rec);
+  char* pos = const_cast<char*>(matcher.Find(callback_rec));
   CHECK_NE(NULL, pos);
   pos += strlen(callback_rec);
   EmbeddedVector<char, 100> ref_data;
@@ -530,12 +571,6 @@ TEST(LogCallbacks) {
   CHECK_EQ(ref_data.start(), pos);
 
   obj.Dispose();
-
-  env->Exit();
-  Logger::TearDown();
-  i::FLAG_prof_lazy = saved_prof_lazy;
-  i::FLAG_prof = saved_prof;
-  i::FLAG_prof_auto = saved_prof_auto;
 }
 
 
@@ -555,25 +590,8 @@ static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
 }
 
 TEST(LogAccessorCallbacks) {
-  const bool saved_prof_lazy = i::FLAG_prof_lazy;
-  const bool saved_prof = i::FLAG_prof;
-  const bool saved_prof_auto = i::FLAG_prof_auto;
-  i::FLAG_prof = true;
-  i::FLAG_prof_lazy = false;
-  i::FLAG_prof_auto = false;
-  i::FLAG_logfile = "*";
-
-  // If tests are being run manually, V8 will be already initialized
-  // by the bottom test.
-  const bool need_to_set_up_logger = i::V8::IsRunning();
-  v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  if (need_to_set_up_logger) Logger::Setup();
-  env->Enter();
-
-  // Skip all initially logged stuff.
-  EmbeddedVector<char, 102400> buffer;
-  int log_pos = GetLogLines(0, &buffer);
+  ScopedLoggerInitializer initialize_logger(false, false);
+  LogBufferMatcher matcher;
 
   v8::Persistent<v8::FunctionTemplate> obj =
       v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
@@ -583,34 +601,112 @@ TEST(LogAccessorCallbacks) {
   inst->SetAccessor(v8::String::New("prop2"), Prop2Getter);
 
   i::Logger::LogAccessorCallbacks();
-  log_pos = GetLogLines(log_pos, &buffer);
-  CHECK_GT(log_pos, 0);
-  buffer[log_pos] = 0;
-  printf("%s", buffer.start());
+  CHECK_GT(matcher.GetNextChunk(), 0);
+  matcher.PrintBuffer();
 
   EmbeddedVector<char, 100> prop1_getter_record;
   i::OS::SNPrintF(prop1_getter_record,
                   "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop1\"",
                   Prop1Getter);
-  CHECK_NE(NULL, strstr(buffer.start(), prop1_getter_record.start()));
+  CHECK_NE(NULL, matcher.Find(prop1_getter_record));
   EmbeddedVector<char, 100> prop1_setter_record;
   i::OS::SNPrintF(prop1_setter_record,
                   "code-creation,Callback,0x%" V8PRIxPTR ",1,\"set prop1\"",
                   Prop1Setter);
-  CHECK_NE(NULL, strstr(buffer.start(), prop1_setter_record.start()));
+  CHECK_NE(NULL, matcher.Find(prop1_setter_record));
   EmbeddedVector<char, 100> prop2_getter_record;
   i::OS::SNPrintF(prop2_getter_record,
                   "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop2\"",
                   Prop2Getter);
-  CHECK_NE(NULL, strstr(buffer.start(), prop2_getter_record.start()));
+  CHECK_NE(NULL, matcher.Find(prop2_getter_record));
 
   obj.Dispose();
+}
 
-  env->Exit();
-  Logger::TearDown();
-  i::FLAG_prof_lazy = saved_prof_lazy;
-  i::FLAG_prof = saved_prof;
-  i::FLAG_prof_auto = saved_prof_auto;
+
+TEST(LogTags) {
+  ScopedLoggerInitializer initialize_logger(true, false);
+  LogBufferMatcher matcher;
+
+  const char* open_tag = "open-tag,";
+  const char* close_tag = "close-tag,";
+
+  // Check compatibility with the old style behavior.
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  CHECK_EQ(NULL, matcher.Find(open_tag));
+  CHECK_EQ(NULL, matcher.Find(close_tag));
+
+  const char* open_tag1 = "open-tag,1\n";
+  const char* close_tag1 = "close-tag,1\n";
+
+  // Check non-nested tag case.
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  CHECK_GT(matcher.GetNextChunk(), 0);
+  CHECK(matcher.IsInSequence(open_tag1, close_tag1));
+
+  const char* open_tag2 = "open-tag,2\n";
+  const char* close_tag2 = "close-tag,2\n";
+
+  // Check nested tags case.
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  CHECK_GT(matcher.GetNextChunk(), 0);
+  // open_tag1 < open_tag2 < close_tag2 < close_tag1
+  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
+  CHECK(matcher.IsInSequence(open_tag2, close_tag2));
+  CHECK(matcher.IsInSequence(close_tag2, close_tag1));
+
+  // Check overlapped tags case.
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  CHECK_GT(matcher.GetNextChunk(), 0);
+  // open_tag1 < open_tag2 < close_tag1 < close_tag2
+  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
+  CHECK(matcher.IsInSequence(open_tag2, close_tag1));
+  CHECK(matcher.IsInSequence(close_tag1, close_tag2));
+
+  const char* open_tag3 = "open-tag,3\n";
+  const char* close_tag3 = "close-tag,3\n";
+
+  // Check pausing overflow case.
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
+  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 3);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 3);
+  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
+  // Must be no tags, because logging must be disabled.
+  CHECK_EQ(NULL, matcher.Find(open_tag3));
+  CHECK_EQ(NULL, matcher.Find(close_tag3));
 }
 
 

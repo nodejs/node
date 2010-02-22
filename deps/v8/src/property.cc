@@ -33,7 +33,7 @@ namespace internal {
 
 #ifdef DEBUG
 void LookupResult::Print() {
-  if (!IsValid()) {
+  if (!IsFound()) {
     PrintF("Not Found\n");
     return;
   }

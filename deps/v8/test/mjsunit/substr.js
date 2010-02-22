@@ -44,9 +44,6 @@ assertEquals(s1, s.substr(1.1));
 assertEquals(s1, s.substr({ valueOf: function() { return 1; } }));
 assertEquals(s1, s.substr({ toString: function() { return '1'; } }));
 
-for (var i = 0; i < s.length; i++)
-  for (var j = i; j < s.length + 5; j++)
-    assertEquals(s.substring(i, j), s.substr(i, j - i));
 
 assertEquals(s.substring(s.length - 1), s.substr(-1));
 assertEquals(s.substring(s.length - 1), s.substr(-1.2));
@@ -63,3 +60,78 @@ assertEquals('abcdefghijklmn', s.substr(0, void 0));  // kjs and v8
 assertEquals('', s.substr(0, null));
 assertEquals(s, s.substr(0, String(s.length)));
 assertEquals('a', s.substr(0, true));
+
+
+// Test substrings of different lengths and alignments.
+// First ASCII.
+var x = "ASCII";
+for (var i = 0; i < 25; i++) {
+  x += (i >> 4).toString(16) + (i & 0x0f).toString(16);
+}
+/x/.exec(x);  // Try to force a flatten.
+for (var i = 5; i < 25; i++) {
+  for (var j = 0; j < 25; j++) {
+    var z = x.substring(i, i+j);
+    var w = Math.random() * 42;  // Allocate something new in new-space.
+    assertEquals(j, z.length);
+    for (var k = 0; k < j; k++) {
+      assertEquals(x.charAt(i+k), z.charAt(k));
+    }
+  }
+}
+
+
+// Then two-byte strings.
+x = "UC16\u2028";  // Non-ascii char forces two-byte string.
+for (var i = 0; i < 25; i++) {
+  x += (i >> 4).toString(16) + (i & 0x0f).toString(16);
+}
+/x/.exec(x);  // Try to force a flatten.
+for (var i = 5; i < 25; i++) {
+  for (var j = 0; j < 25; j++) {
+    var z = x.substring(i, i + j);
+    var w = Math.random() * 42;  // Allocate something new in new-space.
+    assertEquals(j, z.length);
+    for (var k = 0; k < j; k++) {
+      assertEquals(x.charAt(i+k), z.charAt(k));
+    }
+  }
+}
+
+
+// Keep creating strings to to force allocation failure on substring creation.
+var x = "0123456789ABCDEF";
+x += x;  // 2^5
+x += x;
+x += x;
+x += x;
+x += x;
+x += x;  // 2^10
+x += x;
+x += x;
+var xl = x.length;
+var cache = [];
+for (var i = 0; i < 10000; i++) {
+  var z = x.substring(i % xl);
+  assertEquals(xl - (i % xl), z.length);
+  cache.push(z);
+}
+
+
+// Same with two-byte strings
+var x = "\u2028123456789ABCDEF";
+x += x;  // 2^5
+x += x;
+x += x;
+x += x;
+x += x;
+x += x;  // 2^10
+x += x;
+x += x;
+var xl = x.length;
+var cache = [];
+for (var i = 0; i < 10000; i++) {
+  var z = x.substring(i % xl);
+  assertEquals(xl - (i % xl), z.length);
+  cache.push(z);
+}

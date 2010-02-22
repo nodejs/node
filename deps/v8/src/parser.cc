@@ -1690,7 +1690,8 @@ void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
   // Propagate the collected information on this property assignments.
   if (top_scope_->is_function_scope()) {
     bool only_simple_this_property_assignments =
-        this_property_assignment_finder.only_simple_this_property_assignments();
+        this_property_assignment_finder.only_simple_this_property_assignments()
+        && top_scope_->declarations()->length() == 0;
     if (only_simple_this_property_assignments) {
       temp_scope_->SetThisPropertyAssignmentInfo(
           only_simple_this_property_assignments,

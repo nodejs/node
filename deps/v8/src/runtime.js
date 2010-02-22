@@ -178,7 +178,7 @@ function STRING_ADD_LEFT(y) {
       y = %_ValueOf(y);
     } else {
       y = IS_NUMBER(y)
-          ? %NumberToString(y)
+          ? %_NumberToString(y)
           : %ToString(%ToPrimitive(y, NO_HINT));
     }
   }
@@ -194,7 +194,7 @@ function STRING_ADD_RIGHT(y) {
       x = %_ValueOf(x);
     } else {
       x = IS_NUMBER(x)
-          ? %NumberToString(x)
+          ? %_NumberToString(x)
           : %ToString(%ToPrimitive(x, NO_HINT));
     }
   }
@@ -395,26 +395,20 @@ function FILTER_KEY(key) {
 
 
 function CALL_NON_FUNCTION() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetFunctionDelegate(callee);
+  var delegate = %GetFunctionDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetConstructorDelegate(callee);
+  var delegate = %GetConstructorDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
@@ -506,6 +500,16 @@ function ToPrimitive(x, hint) {
 }
 
 
+// ECMA-262, section 9.2, page 30
+function ToBoolean(x) {
+  if (IS_BOOLEAN(x)) return x;
+  if (IS_STRING(x)) return x.length != 0;
+  if (x == null) return false;
+  if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
+  return true;
+}
+
+
 // ECMA-262, section 9.3, page 31.
 function ToNumber(x) {
   if (IS_NUMBER(x)) return x;
@@ -519,20 +523,10 @@ function ToNumber(x) {
 // ECMA-262, section 9.8, page 35.
 function ToString(x) {
   if (IS_STRING(x)) return x;
-  if (IS_NUMBER(x)) return %NumberToString(x);
+  if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
-}
-
-
-// ... where did this come from?
-function ToBoolean(x) {
-  if (IS_BOOLEAN(x)) return x;
-  if (IS_STRING(x)) return x.length != 0;
-  if (x == null) return false;
-  if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
-  return true;
 }
 
 
@@ -568,6 +562,25 @@ function ToInt32(x) {
   return %NumberToJSInt32(ToNumber(x));
 }
 
+
+// ES5, section 9.12
+function SameValue(x, y) {
+  if (typeof x != typeof y) return false;
+  if (IS_NULL_OR_UNDEFINED(x)) return true;
+  if (IS_NUMBER(x)) {
+    if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
+    // x is +0 and y is -0 or vice versa
+    if (x === 0 && y === 0 && !%_IsSmi(x) && !%_IsSmi(y) && 
+        ((1 / x < 0 && 1 / y > 0) || (1 / x > 0 && 1 / y < 0))) {
+      return false;
+    }
+    return x == y;    
+  }
+  if (IS_STRING(x)) return %StringEquals(x, y);
+  if (IS_BOOLEAN(x))return %NumberEquals(%ToNumber(x),%ToNumber(y));
+
+  return %_ObjectEquals(x, y);
+}
 
 
 /* ---------------------------------

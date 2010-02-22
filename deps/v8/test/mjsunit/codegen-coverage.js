@@ -25,64 +25,110 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test the paths in the code generator where values in specific
-// registers get moved around so that the shift operation can use
-// register ECX on ia32 for the shift amount.  Other codegen coverage
-// tests should go here too.
+// Flags: --nofull-compiler --nofast-compiler
 
-
-
+// Test paths in the code generator where values in specific registers
+// get moved around.
 function identity(x) {
   return x;
 }
 
 function cover_codegen_paths() {
   var x = 1;
-  var a;  // Register EAX
-  var b;  // Register EBX
-  var c;  // Register ECX
-  var d;  // Register EDX
-  // Register ESI is already used.
-  var di;  // Register EDI
+
+  // This test depends on the fixed order of register allocation.  We try to
+  // get values in specific registers (ia32, x64):
+  var a;   // Register eax, rax.
+  var b;   // Register ebx, rbx.
+  var c;   // Register ecx, rcx.
+  var d;   // Register edx, rdx.
+  var di;  // Register edi, rdi.
 
   while (x == 1) {
+    // The call will spill registers and leave x in {eax,rax}.
     x = identity(1);
+    // The add will spill x and reuse {eax,rax} for the result.
     a = x + 1;
+    // A fresh register {ebx,rbx} will be allocated for x, then reused for
+    // the result.
+    b = x + 1;
+    // Et cetera.
     c = x + 1;
     d = x + 1;
-    b = x + 1;
     di = x + 1;
     // Locals are in the corresponding registers here.
-    assertEquals(c << a, 8);
+    assertEquals(8, c << a);
 
     x = identity(1);
     a = x + 1;
+    b = x + 1;
     c = x + 1;
     d = x + 1;
-    b = x + 1;
     di = x + 1;
-    // Locals are in the corresponding registers here.
-    assertEquals(a << c, 8);
+    assertEquals(8, a << c);
 
     x = identity(1);
     a = x + 1;
+    b = x + 1;
     c = x + 1;
     d = x + 1;
-    b = x + 1;
     di = x + 1;
-    // Locals are in the corresponding registers here.
     c = 0; // Free register ecx.
-    assertEquals(a << d, 8);
+    assertEquals(8, a << d);
 
     x = identity(1);
     a = x + 1;
+    b = x + 1;
     c = x + 1;
     d = x + 1;
-    b = x + 1;
     di = x + 1;
-    // Locals are in the corresponding registers here.
     b = 0; // Free register ebx.
-    assertEquals(a << d, 8);
+    assertEquals(8, a << d);
+
+    // Test the non-commutative subtraction operation with a smi on the
+    // left, all available registers on the right, and a non-smi result.
+    x = identity(-1073741824);  // Least (31-bit) smi.
+    a = x + 1;  // Still a smi, the greatest smi negated.
+    b = x + 1;
+    c = x + 1;
+    d = x + 1;
+    di = x + 1;
+    // Subtraction should overflow the 31-bit smi range.  The result
+    // (1073741824) is outside the 31-bit smi range so it doesn't hit the
+    // "unsafe smi" code that spills a register.
+    assertEquals(1073741824, 1 - a);
+
+    x = identity(-1073741824);
+    a = x + 1;
+    b = x + 1;
+    c = x + 1;
+    d = x + 1;
+    di = x + 1;
+    assertEquals(1073741824, 1 - b);
+
+    x = identity(-1073741824);
+    a = x + 1;
+    b = x + 1;
+    c = x + 1;
+    d = x + 1;
+    di = x + 1;
+    assertEquals(1073741824, 1 - c);
+
+    x = identity(-1073741824);
+    a = x + 1;
+    b = x + 1;
+    c = x + 1;
+    d = x + 1;
+    di = x + 1;
+    assertEquals(1073741824, 1 - d);
+
+    x = identity(-1073741824);
+    a = x + 1;
+    b = x + 1;
+    c = x + 1;
+    d = x + 1;
+    di = x + 1;
+    assertEquals(1073741824, 1 - di);
 
     x = 3;
   }

@@ -31,14 +31,14 @@ client.addListener("data", function (d) {
   chars_recved += d.length;
   puts("got " + chars_recved);
   if (!paused) {
-    client.readPause();
+    client.pause();
     npauses += 1;
     paused = true;
     puts("pause");
     x = chars_recved;
     setTimeout(function () {
       assert.equal(chars_recved, x);
-      client.readResume();
+      client.resume();
       puts("resume");
       paused = false;
     }, 100);

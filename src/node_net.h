@@ -32,8 +32,8 @@ class Connection : public EventEmitter {
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
   static v8::Handle<v8::Value> ForceClose(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetEncoding(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadPause(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadResume(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Pause(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Resume(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetTimeout(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetNoDelay(const v8::Arguments& args);
 
@@ -74,11 +74,11 @@ class Connection : public EventEmitter {
     evcom_stream_force_close(&stream_);
   }
 
-  void ReadPause() {
+  void Pause() {
     evcom_stream_read_pause(&stream_);
   }
 
-  void ReadResume() {
+  void Resume() {
     evcom_stream_read_resume(&stream_);
   }
 

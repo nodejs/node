@@ -408,12 +408,7 @@ Object*& ExitFrame::code_slot() const {
 
 
 Code* ExitFrame::code() const {
-  Object* code = code_slot();
-  if (code->IsSmi()) {
-    return Heap::debugger_statement_code();
-  } else {
-    return Code::cast(code);
-  }
+  return Code::cast(code_slot());
 }
 
 

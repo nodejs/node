@@ -34,6 +34,8 @@
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/constants-mips.h"
 #endif
 
 //
@@ -1101,7 +1103,6 @@ class HeapNumber: public HeapObject {
 # define BIG_ENDIAN_FLOATING_POINT 1
 #endif
   static const int kSize = kValueOffset + kDoubleSize;
-
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
@@ -1160,6 +1161,7 @@ class JSObject: public HeapObject {
   inline bool HasExternalIntElements();
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
+  inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Collects elements starting at index 0.
@@ -1315,6 +1317,9 @@ class JSObject: public HeapObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
+
+  // Set the object's prototype (only JSObject and null are allowed).
+  Object* SetPrototype(Object* value, bool skip_hidden_prototypes);
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -3229,6 +3234,10 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool try_full_codegen();
   inline void set_try_full_codegen(bool flag);
+
+  // Check whether a inlined constructor can be generated with the given
+  // prototype.
+  bool CanGenerateInlineConstructor(Object* prototype);
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.

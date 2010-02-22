@@ -27,7 +27,7 @@ test-debug: all
 benchmark: all
 	build/default/node benchmark/run.js
 
-doc: doc/node.1 doc/api.html doc/index.html
+doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
 doc/api.html: doc/api.txt
 	asciidoc --unsafe              \
@@ -36,6 +36,11 @@ doc/api.html: doc/api.txt
 		-a toclevels=1               \
 		-a linkcss                   \
 		-o doc/api.html doc/api.txt
+
+doc/changelog.html: ChangeLog
+	echo '<html><head><title>Node.js ChangeLog</title> <link rel="stylesheet" href="./pipe.css" type="text/css" /> <link rel="stylesheet" href="./pipe-quirks.css" type="text/css" /> <body><h1>Node.js ChangeLog</h1> <pre>' > doc/changelog.html
+	cat ChangeLog >> doc/changelog.html
+	echo '</pre></body></html>' >> doc/changelog.html
 
 doc/api.xml: doc/api.txt
 	asciidoc -b docbook -d manpage -o doc/api.xml doc/api.txt
@@ -47,7 +52,7 @@ website-upload: doc
 	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
 
 docclean:
-	@-rm -f doc/node.1 doc/api.xml doc/api.html
+	@-rm -f doc/node.1 doc/api.xml doc/api.html doc/changelog.html
 
 clean: docclean
 	@$(WAF) clean

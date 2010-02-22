@@ -102,6 +102,7 @@ namespace internal {
 // Forward declarations
 class TargetCollector;
 class MaterializedLiteral;
+class DefinitionInfo;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -182,7 +183,7 @@ class Expression: public AstNode {
 
   static const int kNoLabel = -1;
 
-  Expression() : num_(kNoLabel) {}
+  Expression() : num_(kNoLabel), def_(NULL), defined_vars_(NULL) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -192,6 +193,11 @@ class Expression: public AstNode {
   // names.  We do not treat symbols that can be array indexes as property
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() { return false; }
+
+  // True if the expression does not have (evaluated) subexpressions.
+  // Function literals are leaves because their subexpressions are not
+  // evaluated.
+  virtual bool IsLeaf() { return false; }
 
   // Mark the expression as being compiled as an expression
   // statement. This is used to transform postfix increments to
@@ -206,9 +212,20 @@ class Expression: public AstNode {
   // AST node numbering ordered by evaluation order.
   void set_num(int n) { num_ = n; }
 
+  // Data flow information.
+  DefinitionInfo* var_def() { return def_; }
+  void set_var_def(DefinitionInfo* def) { def_ = def; }
+
+  ZoneList<DefinitionInfo*>* defined_vars() { return defined_vars_; }
+  void set_defined_vars(ZoneList<DefinitionInfo*>* defined_vars) {
+    defined_vars_ = defined_vars;
+  }
+
  private:
   StaticType type_;
   int num_;
+  DefinitionInfo* def_;
+  ZoneList<DefinitionInfo*>* defined_vars_;
 };
 
 
@@ -720,6 +737,8 @@ class Literal: public Expression {
     return false;
   }
 
+  virtual bool IsLeaf() { return true; }
+
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
   bool IsTrue() const { return handle_.is_identical_to(Factory::true_value()); }
@@ -802,6 +821,8 @@ class ObjectLiteral: public MaterializedLiteral {
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
 
+  virtual bool IsLeaf() { return properties()->is_empty(); }
+
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
@@ -824,6 +845,8 @@ class RegExpLiteral: public MaterializedLiteral {
         flags_(flags) {}
 
   virtual void Accept(AstVisitor* v);
+
+  virtual bool IsLeaf() { return true; }
 
   Handle<String> pattern() const { return pattern_; }
   Handle<String> flags() const { return flags_; }
@@ -848,6 +871,8 @@ class ArrayLiteral: public MaterializedLiteral {
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
+
+  virtual bool IsLeaf() { return values()->is_empty(); }
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -894,6 +919,11 @@ class VariableProxy: public Expression {
 
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
+  }
+
+  virtual bool IsLeaf() {
+    ASSERT(var_ != NULL);  // Variable must be resolved.
+    return var()->is_global() || var()->rewrite()->IsLeaf();
   }
 
   bool IsVariable(Handle<String> n) {
@@ -980,6 +1010,8 @@ class Slot: public Expression {
 
   // Type testing & conversion
   virtual Slot* AsSlot() { return this; }
+
+  virtual bool IsLeaf() { return true; }
 
   // Accessors
   Variable* var() const { return var_; }
@@ -1337,6 +1369,8 @@ class FunctionLiteral: public Expression {
   // Type testing & conversion
   virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
 
+  virtual bool IsLeaf() { return true; }
+
   Handle<String> name() const  { return name_; }
   Scope* scope() const  { return scope_; }
   ZoneList<Statement*>* body() const  { return body_; }
@@ -1403,6 +1437,8 @@ class FunctionBoilerplateLiteral: public Expression {
 
   Handle<JSFunction> boilerplate() const { return boilerplate_; }
 
+  virtual bool IsLeaf() { return true; }
+
   virtual void Accept(AstVisitor* v);
 
  private:
@@ -1413,6 +1449,7 @@ class FunctionBoilerplateLiteral: public Expression {
 class ThisFunction: public Expression {
  public:
   virtual void Accept(AstVisitor* v);
+  virtual bool IsLeaf() { return true; }
 };
 
 

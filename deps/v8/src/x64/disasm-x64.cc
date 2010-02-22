@@ -993,56 +993,22 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   byte* current = data + 2;
   // At return, "current" points to the start of the next instruction.
   const char* mnemonic = TwoByteMnemonic(opcode);
-  if (opcode == 0x1F) {
-    // NOP
+  if (operand_size_ == 0x66) {
+    // 0x66 0x0F prefix.
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
-    current++;
-    if (regop == 4) {  // SIB byte present.
-      current++;
-    }
-    if (mod == 1) {  // Byte displacement.
-      current += 1;
-    } else if (mod == 2) {  // 32-bit displacement.
-      current += 4;
-    }  // else no immediate displacement.
-    AppendToBuffer("nop");
-
-  } else  if (opcode == 0xA2 || opcode == 0x31) {
-    // RDTSC or CPUID
-    AppendToBuffer("%s", mnemonic);
-
-  } else if ((opcode & 0xF0) == 0x40) {
-    // CMOVcc: conditional move.
-    int condition = opcode & 0x0F;
-    const InstructionDesc& idesc = cmov_instructions[condition];
-    byte_size_operand_ = idesc.byte_size_operation;
-    current += PrintOperands(idesc.mnem, idesc.op_order_, current);
-
-  } else if ((opcode & 0xF0) == 0x80) {
-    // Jcc: Conditional jump (branch).
-    current = data + JumpConditional(data);
-
-  } else if (opcode == 0xBE || opcode == 0xBF || opcode == 0xB6 ||
-             opcode == 0xB7 || opcode == 0xAF) {
-    // Size-extending moves, IMUL.
-    current += PrintOperands(mnemonic, REG_OPER_OP_ORDER, current);
-
-  } else if ((opcode & 0xF0) == 0x90) {
-    // SETcc: Set byte on condition. Needs pointer to beginning of instruction.
-    current = data + SetCC(data);
-
-  } else if (opcode == 0xAB || opcode == 0xA5 || opcode == 0xAD) {
-    // SHLD, SHRD (double-precision shift), BTS (bit set).
-    AppendToBuffer("%s ", mnemonic);
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-    current += PrintRightOperand(current);
-    if (opcode == 0xAB) {
-      AppendToBuffer(",%s", NameOfCPURegister(regop));
+    const char* mnemonic = "?";
+    if (opcode == 0x57) {
+      mnemonic = "xorpd";
+    } else if (opcode == 0x2E) {
+      mnemonic = "comisd";
+    } else if (opcode == 0x2F) {
+      mnemonic = "ucomisd";
     } else {
-      AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
+      UnimplementedInstruction();
     }
+    AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
 
@@ -1080,6 +1046,55 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     // Assert that mod is not 3, so source is memory, not an XMM register.
     ASSERT_NE(0xC0, *current & 0xC0);
     current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+  } else if (opcode == 0x1F) {
+    // NOP
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current++;
+    if (regop == 4) {  // SIB byte present.
+      current++;
+    }
+    if (mod == 1) {  // Byte displacement.
+      current += 1;
+    } else if (mod == 2) {  // 32-bit displacement.
+      current += 4;
+    }  // else no immediate displacement.
+    AppendToBuffer("nop");
+  } else if (opcode == 0xA2 || opcode == 0x31) {
+    // RDTSC or CPUID
+    AppendToBuffer("%s", mnemonic);
+
+  } else if ((opcode & 0xF0) == 0x40) {
+    // CMOVcc: conditional move.
+    int condition = opcode & 0x0F;
+    const InstructionDesc& idesc = cmov_instructions[condition];
+    byte_size_operand_ = idesc.byte_size_operation;
+    current += PrintOperands(idesc.mnem, idesc.op_order_, current);
+
+  } else if ((opcode & 0xF0) == 0x80) {
+    // Jcc: Conditional jump (branch).
+    current = data + JumpConditional(data);
+
+  } else if (opcode == 0xBE || opcode == 0xBF || opcode == 0xB6 ||
+             opcode == 0xB7 || opcode == 0xAF) {
+    // Size-extending moves, IMUL.
+    current += PrintOperands(mnemonic, REG_OPER_OP_ORDER, current);
+
+  } else if ((opcode & 0xF0) == 0x90) {
+    // SETcc: Set byte on condition. Needs pointer to beginning of instruction.
+    current = data + SetCC(data);
+
+  } else if (opcode == 0xAB || opcode == 0xA5 || opcode == 0xAD) {
+    // SHLD, SHRD (double-precision shift), BTS (bit set).
+    AppendToBuffer("%s ", mnemonic);
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current += PrintRightOperand(current);
+    if (opcode == 0xAB) {
+      AppendToBuffer(",%s", NameOfCPURegister(regop));
+    } else {
+      AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
+    }
   } else {
     UnimplementedInstruction();
   }

@@ -128,7 +128,7 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-  // Registers r0 and r2 contain objects that needs to be pushed on the
+  // Registers r0 and r2 contain objects that need to be pushed on the
   // expression stack of the fake JS frame.
   Generate_DebugBreakCallHelper(masm, r0.bit() | r2.bit());
 }
@@ -137,14 +137,14 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC store (from ic-arm.cc).
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
+  //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
-  // Registers r0 and r2 contain objects that needs to be pushed on the
+  // Registers r0, r1, and r2 contain objects that need to be pushed on the
   // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, r0.bit() | r2.bit());
+  Generate_DebugBreakCallHelper(masm, r0.bit() | r1.bit() | r2.bit());
 }
 
 

@@ -68,11 +68,9 @@ class FullCodeGenerator: public AstVisitor {
     SECONDARY
   };
 
-  FullCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
+  explicit FullCodeGenerator(MacroAssembler* masm)
       : masm_(masm),
-        script_(script),
-        is_eval_(is_eval),
-        function_(NULL),
+        info_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
         location_(kStack),
@@ -80,11 +78,9 @@ class FullCodeGenerator: public AstVisitor {
         false_label_(NULL) {
   }
 
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval);
+  static Handle<Code> MakeCode(CompilationInfo* info);
 
-  void Generate(FunctionLiteral* fun, Mode mode);
+  void Generate(CompilationInfo* info, Mode mode);
 
  private:
   class Breakable;
@@ -408,6 +404,12 @@ class FullCodeGenerator: public AstVisitor {
   }
 
   MacroAssembler* masm() { return masm_; }
+
+  Handle<Script> script() { return info_->script(); }
+  bool is_eval() { return info_->is_eval(); }
+  FunctionLiteral* function() { return info_->function(); }
+  Scope* scope() { return info_->scope(); }
+
   static Register result_register();
   static Register context_register();
 
@@ -427,10 +429,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitLogicalOperation(BinaryOperation* expr);
 
   MacroAssembler* masm_;
-  Handle<Script> script_;
-  bool is_eval_;
-
-  FunctionLiteral* function_;
+  CompilationInfo* info_;
 
   Label return_label_;
   NestedStatement* nesting_stack_;

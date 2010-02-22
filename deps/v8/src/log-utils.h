@@ -268,9 +268,6 @@ class LogMessageBuilder BASE_EMBEDDED {
   // Write the log message to the log file currently opened.
   void WriteToLogFile();
 
-  // Write a null-terminated string to to the log file currently opened.
-  void WriteCStringToLogFile(const char* str);
-
   // A handler that is called when Log::Write fails.
   typedef void (*WriteFailureHandler)();
 

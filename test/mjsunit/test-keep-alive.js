@@ -6,7 +6,7 @@ PORT = 8891;
 
 body = "hello world\n";
 server = http.createServer(function (req, res) {
-  res.sendHeader(200, { 
+  res.writeHeader(200, { 
     "Content-Length": body.length, 
     "Content-Type": "text/plain", 
   });
@@ -18,27 +18,29 @@ server.listen(PORT);
 var keepAliveReqSec = 0;
 var normalReqSec = 0;
 
-function error (msg) {
-  throw new Error("ERROR. 'ab' not installed? " + msg);
-}
 
 function runAb(opts, callback) {
-  sys.exec("ab " + opts + " http://127.0.0.1:" + PORT + "/")
-    .addErrback(error)
-    .addCallback(function (out) {
-      var matches = /Requests per second:\s*(\d+)\./mi.exec(out);
-      var reqSec = parseInt(matches[1]);
+  var command = "ab " + opts + " http://127.0.0.1:" + PORT + "/";
+  sys.exec(command, function (err, stdout, stderr) {
+    if (err) {
+      puts("ab not installed? skipping test.\n" + stderr);
+      process.exit();
+      return;
+    }
+    if (err) throw err;
+    var matches = /Requests per second:\s*(\d+)\./mi.exec(stdout);
+    var reqSec = parseInt(matches[1]);
 
-      matches = /Keep-Alive requests:\s*(\d+)/mi.exec(out);
-      var keepAliveRequests;
-      if (matches) {
-        keepAliveRequests = parseInt(matches[1]);
-      } else {
-        keepAliveRequests = 0;
-      }
+    matches = /Keep-Alive requests:\s*(\d+)/mi.exec(stdout);
+    var keepAliveRequests;
+    if (matches) {
+      keepAliveRequests = parseInt(matches[1]);
+    } else {
+      keepAliveRequests = 0;
+    }
 
-      callback(reqSec, keepAliveRequests);
-    });
+    callback(reqSec, keepAliveRequests);
+  });
 }
 
 runAb("-k -c 100 -t 2", function (reqSec, keepAliveRequests) {

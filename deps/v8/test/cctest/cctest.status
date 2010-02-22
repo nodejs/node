@@ -52,3 +52,23 @@ test-api/OutOfMemoryNested: SKIP
 
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
+
+[ $arch == mips ]
+test-accessors: SKIP
+test-alloc: SKIP
+test-api: SKIP
+test-compiler: SKIP
+test-debug: SKIP
+test-decls: SKIP
+test-func-name-inference: SKIP
+test-heap: SKIP
+test-heap-profiler: SKIP
+test-log: SKIP
+test-log-utils: SKIP
+test-mark-compact: SKIP
+test-regexp: SKIP
+test-serialize: SKIP
+test-sockets: SKIP
+test-strings: SKIP
+test-threads: SKIP
+test-thread-termination: SKIP

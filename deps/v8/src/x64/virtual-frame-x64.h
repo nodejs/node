@@ -28,6 +28,7 @@
 #ifndef V8_X64_VIRTUAL_FRAME_X64_H_
 #define V8_X64_VIRTUAL_FRAME_X64_H_
 
+#include "number-info.h"
 #include "register-allocator.h"
 #include "scopes.h"
 
@@ -81,7 +82,8 @@ class VirtualFrame : public ZoneObject {
   MacroAssembler* masm() { return cgen()->masm(); }
 
   // Create a duplicate of an existing valid frame element.
-  FrameElement CopyElementAt(int index);
+  FrameElement CopyElementAt(int index,
+    NumberInfo::Type info = NumberInfo::kUninitialized);
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -321,6 +323,10 @@ class VirtualFrame : public ZoneObject {
   Result CallRuntime(Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  void DebugBreak();
+#endif
+
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
   Result InvokeBuiltin(Builtins::JavaScript id,
@@ -343,9 +349,9 @@ class VirtualFrame : public ZoneObject {
   // of the frame.  Key and receiver are not dropped.
   Result CallKeyedStoreIC();
 
-  // Call call IC.  Arguments, receiver, and function name are found
-  // on top of the frame.  Function name slot is not dropped.  The
-  // argument count does not include the receiver.
+  // Call call IC.  Function name, arguments, and receiver are found on top
+  // of the frame and dropped by the call.
+  // The argument count does not include the receiver.
   Result CallCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
 
   // Allocate and call JS function as constructor.  Arguments,
@@ -376,16 +382,20 @@ class VirtualFrame : public ZoneObject {
 
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
-  void EmitPush(Register reg);
-  void EmitPush(const Operand& operand);
-  void EmitPush(Heap::RootListIndex index);
-  void EmitPush(Immediate immediate);
+  void EmitPush(Register reg,
+                NumberInfo::Type info = NumberInfo::kUnknown);
+  void EmitPush(const Operand& operand,
+                NumberInfo::Type info = NumberInfo::kUnknown);
+  void EmitPush(Heap::RootListIndex index,
+                NumberInfo::Type info = NumberInfo::kUnknown);
+  void EmitPush(Immediate immediate,
+                NumberInfo::Type info = NumberInfo::kUnknown);
   void EmitPush(Smi* value);
   // Uses kScratchRegister, emits appropriate relocation info.
   void EmitPush(Handle<Object> value);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
@@ -393,7 +403,7 @@ class VirtualFrame : public ZoneObject {
   // frame).
   void Push(Result* result) {
     if (result->is_register()) {
-      Push(result->reg());
+      Push(result->reg(), result->number_info());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());

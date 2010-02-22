@@ -21,9 +21,9 @@ var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = "";
 var body1 = "";
-var caPem = fs.readFile(fixturesDir+"/test_ca.pem").wait();
-var certPem = fs.readFile(fixturesDir+"/test_cert.pem").wait();
-var keyPem = fs.readFile(fixturesDir+"/test_key.pem").wait();
+var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem");
+var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem");
+var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem");
 
 
 var http_server=http.createServer(function (req, res) {
@@ -52,7 +52,7 @@ var http_server=http.createServer(function (req, res) {
   }
 
   req.addListener('end', function () {
-    res.sendHeader(200, {"Content-Type": "text/plain"});
+    res.writeHeader(200, {"Content-Type": "text/plain"});
     res.write("The path was " + url.parse(req.url).pathname);
     res.close();
     responses_sent += 1;

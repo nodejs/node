@@ -51,43 +51,6 @@ uint32_t RoundUpToPowerOf2(uint32_t x) {
 }
 
 
-byte* EncodeInt(byte* p, int x) {
-  while (x < -64 || x >= 64) {
-    *p++ = static_cast<byte>(x & 127);
-    x = ArithmeticShiftRight(x, 7);
-  }
-  // -64 <= x && x < 64
-  *p++ = static_cast<byte>(x + 192);
-  return p;
-}
-
-
-byte* DecodeInt(byte* p, int* x) {
-  int r = 0;
-  unsigned int s = 0;
-  byte b = *p++;
-  while (b < 128) {
-    r |= static_cast<int>(b) << s;
-    s += 7;
-    b = *p++;
-  }
-  // b >= 128
-  *x = r | ((static_cast<int>(b) - 192) << s);
-  return p;
-}
-
-
-byte* EncodeUnsignedIntBackward(byte* p, unsigned int x) {
-  while (x >= 128) {
-    *--p = static_cast<byte>(x & 127);
-    x = x >> 7;
-  }
-  // x < 128
-  *--p = static_cast<byte>(x + 128);
-  return p;
-}
-
-
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm
 uint32_t ComputeIntegerHash(uint32_t key) {
