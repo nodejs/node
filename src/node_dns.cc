@@ -86,7 +86,13 @@ static void ResolveError(Handle<Function> *cb) {
   Local<Object> obj = e->ToObject();
   obj->Set(errno_symbol, Integer::New(status));
 
+  TryCatch try_catch;
+
   (*cb)->Call(Context::GetCurrent()->Global(), 1, &e);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
 }
 
 static void AfterResolveA4(struct dns_ctx *ctx,
@@ -121,11 +127,11 @@ static void AfterResolveA4(struct dns_ctx *ctx,
     addresses->Set(Integer::New(i), address);
   }
 
-  Local<Value> argv[3] = { addresses, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), addresses, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -166,11 +172,11 @@ static void AfterResolveA6(struct dns_ctx *ctx,
     addresses->Set(Integer::New(i), address);
   }
 
-  Local<Value> argv[3] = { addresses, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), addresses, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -213,11 +219,11 @@ static void AfterResolveMX(struct dns_ctx *ctx,
     exchanges->Set(Integer::New(i), exchange);
   }
 
-  Local<Value> argv[3] = { exchanges, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), exchanges, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -256,11 +262,11 @@ static void AfterResolveTXT(struct dns_ctx *ctx,
     records->Set(Integer::New(i), String::New(txt));
   }
   
-  Local<Value> argv[3] = { records, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), records, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -305,11 +311,11 @@ static void AfterResolveSRV(struct dns_ctx *ctx,
     records->Set(Integer::New(i), record);
   }
 
-  Local<Value> argv[3] = { records, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), records, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -411,11 +417,11 @@ static void AfterReverse(struct dns_ctx *ctx,
     domains->Set(Integer::New(i), domain);
   }
 
-  Local<Value> argv[3] = { domains, ttl, cname };
+  Local<Value> argv[4] = { Local<Value>::New(Null()), domains, ttl, cname };
 
   TryCatch try_catch;
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 3, argv);
+  (*cb)->Call(Context::GetCurrent()->Global(), 4, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
