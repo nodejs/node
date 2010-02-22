@@ -13,6 +13,16 @@ fs.stat(".", function (err, stats) {
   }
 });
 
+fs.lstat(".", function (err, stats) {
+  if (err) {
+    got_error = true;
+  } else {
+    p(stats);
+    assert.ok(stats.mtime instanceof Date);
+    success_count++;
+  }
+});
+
 puts("stating: " + __filename);
 fs.stat(__filename, function (err, s) {
   if (err) {
@@ -47,7 +57,7 @@ fs.stat(__filename, function (err, s) {
 });
 
 process.addListener("exit", function () {
-  assert.equal(2, success_count);
+  assert.equal(3, success_count);
   assert.equal(false, got_error);
 });
 

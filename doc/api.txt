@@ -578,7 +578,8 @@ Synchronous rename(2).
 
   
 +fs.stat(path, callback)+ ::
-Asynchronous stat(2). The callback gets two arguments +(err, stats)+ where
++fs.lstat(path, callback)+ ::
+Asynchronous stat(2) or lstat(2). The callback gets two arguments +(err, stats)+ where
 +stats+ is a +fs.Stats+ object. It looks like this:
 +
 ---------------------------------
@@ -601,7 +602,8 @@ Asynchronous stat(2). The callback gets two arguments +(err, stats)+ where
 See the +fs.Stats+ section below for more information.
 
 +fs.statSync(path)+ ::
-Synchronous stat(2). Returns an instance of +fs.Stats+.
++fs.lstatSync(path)+ ::
+Synchronous stat(2) or lstat(2). Returns an instance of +fs.Stats+.
 
 
 +fs.unlink(path, callback)+ ::
@@ -713,7 +715,7 @@ The synchronous version of +fs.writeFile+.
 
 === +fs.Stats+
 
-Objects returned from +fs.stat()+ are of this type.
+Objects returned from +fs.stat()+ and +fs.lstat()+ are of this type.
 
 +stats.isFile()+::
 

@@ -480,8 +480,16 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.readdir(path);
   };
 
+  exports.lstat = function (path, callback) {
+    process.fs.lstat(path, callback || noop);
+  };
+
   exports.stat = function (path, callback) {
     process.fs.stat(path, callback || noop);
+  };
+
+  exports.lstatSync = function (path) {
+    return process.fs.lstat(path);
   };
 
   exports.statSync = function (path) {
