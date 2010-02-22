@@ -56,6 +56,13 @@ static const struct addrinfo client_tcp_hints =
 
 Persistent<FunctionTemplate> Connection::constructor_template;
 
+Handle<Value> ThrottleMissingError(const Arguments& args) {
+  HandleScope scope;
+  return ThrowException(Exception::Error(String::New(
+          "readPause() and readResume() have been renamed to pause() and "
+          "resume() respectively.")));
+}
+
 // Initialize the tcp.Connection object.
 void Connection::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
@@ -102,6 +109,8 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setEncoding", SetEncoding);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "pause", Pause);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "resume", Resume);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readPause", ThrottleMissingError);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readResume", ThrottleMissingError);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setTimeout", SetTimeout);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "setNoDelay", SetNoDelay);
   #if EVCOM_HAVE_GNUTLS
