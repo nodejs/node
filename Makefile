@@ -52,7 +52,7 @@ website-upload: doc
 	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
 
 docclean:
-	@-rm -f doc/node.1 doc/api.xml doc/api.html
+	@-rm -f doc/node.1 doc/api.xml doc/api.html doc/changelog.html
 
 clean: docclean
 	@$(WAF) clean
