@@ -19,7 +19,7 @@ World":
 var sys = require("sys"), 
    http = require("http");
 http.createServer(function (request, response) {
-  response.sendHeader(200, {"Content-Type": "text/plain"});
+  response.writeHeader(200, {"Content-Type": "text/plain"});
   response.write("Hello World\n");
   response.close();
 }).listen(8000);
@@ -916,16 +916,18 @@ The +http.Connection+ object.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the +"request"+ event.
 
-+response.sendHeader(statusCode, headers)+ ::
++response.writeHeader(statusCode[, reasonPhrase] , headers)+ ::
 
 Sends a response header to the request. The status code is a 3-digit HTTP
-status code, like +404+. The second argument, +headers+, are the response headers.
+status code, like +404+. The last argument, +headers+, are the response headers.
+Optionally one can give a human-readable +reasonPhrase+ as the second
+argument.
 +
 Example:
 +
 ----------------------------------------
 var body = "hello world";
-response.sendHeader(200, {
+response.writeHeader(200, {
   "Content-Length": body.length,
   "Content-Type": "text/plain"
 });
@@ -936,7 +938,7 @@ be called before +response.close()+ is called.
 
 +response.write(chunk, encoding="ascii")+ ::
 
-This method must be called after +sendHeader+ was
+This method must be called after +writeHeader+ was
 called. It sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 +
@@ -1260,7 +1262,7 @@ http.createServer(function (req, res) {
     fields = {},
     name, filename;
   mp.addListener("error", function (er) {
-    res.sendHeader(400, {"content-type":"text/plain"});
+    res.writeHeader(400, {"content-type":"text/plain"});
     res.write("You sent a bad message!\n"+er.message);
     res.close();
   });
@@ -1280,7 +1282,7 @@ http.createServer(function (req, res) {
   });
   mp.addListener("complete", function () {
     var response = "You posted: \n" + sys.inspect(fields);
-    res.sendHeader(200, {
+    res.writeHeader(200, {
       "content-type" : "text/plain",
       "content-length" : response.length
     });

@@ -16,7 +16,7 @@ for (var i = 0; i < bytes; i++) {
 }
 
 var server = http.createServer(function (req, res) {
-  res.sendHeader(200, {
+  res.writeHeader(200, {
     "Content-Type": "text/plain",
     "Content-Length": body.length
   });

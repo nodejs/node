@@ -7,7 +7,7 @@ var BACKEND_PORT = 8870;
 
 var backend = http.createServer(function (req, res) {
   // debug("backend");
-  res.sendHeader(200, {"content-type": "text/plain"});
+  res.writeHeader(200, {"content-type": "text/plain"});
   res.write("hello world\n");
   res.close();
 });
@@ -19,7 +19,7 @@ var proxy = http.createServer(function (req, res) {
   debug("proxy req headers: " + JSON.stringify(req.headers));
   var proxy_req = proxy_client.request(url.parse(req.url).pathname);
   proxy_req.addListener('response', function(proxy_res) {
-    res.sendHeader(proxy_res.statusCode, proxy_res.headers);
+    res.writeHeader(proxy_res.statusCode, proxy_res.headers);
     proxy_res.addListener("data", function(chunk) {
       res.write(chunk);
     });

@@ -11,7 +11,7 @@ var server = http.createServer(function(req, res) {
              'return '+JSON.stringify(url.parse(req.url).pathname)+';'+
              '};';
 
-  res.sendHeader(200, {'Content-Type': 'text/javascript'});
+  res.writeHeader(200, {'Content-Type': 'text/javascript'});
   res.write(body);
   res.close();
 });

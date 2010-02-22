@@ -5,7 +5,7 @@ PORT = 8888;
 var body = "exports.A = function() { return 'A';}";
 var server = http.createServer(function (req, res) {
   puts("got request");
-  res.sendHeader(200, [
+  res.writeHeader(200, [
     ["Content-Length", body.length],
     ["Content-Type", "text/plain"]
   ]);

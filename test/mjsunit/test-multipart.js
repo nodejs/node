@@ -77,12 +77,12 @@ var server = http.createServer(function (req, res) {
     }
     mp.addListener("error", function (er) {
       sys.puts("!! error occurred");
-      res.sendHeader(400, {});
+      res.writeHeader(400, {});
       res.write("bad");
       res.close();
     });
     mp.addListener("complete", function () {
-      res.sendHeader(200, {});
+      res.writeHeader(200, {});
       res.write("ok");
       res.close();
     });
