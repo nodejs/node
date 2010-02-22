@@ -1,4 +1,45 @@
-2010.02.17, Version 0.1.29
+2010.02.22, Version 0.1.30
+
+  * Major API Changes
+
+    - Promises removed. See
+      http://groups.google.com/group/nodejs/msg/426f3071f3eec16b
+      http://groups.google.com/group/nodejs/msg/df199d233ff17efa
+      The API for fs was
+
+         fs.readdir("/usr").addCallback(function (files) {
+           puts("/usr files: " + files);
+         });
+
+      It is now
+
+         fs.readdir("/usr", function (err, files) {
+           if (err) throw err;
+           puts("/usr files: " + files);
+         });
+
+    - Synchronous fs operations exposed, use with care.
+
+    - tcp.Connection.prototype.readPause() and readResume()
+      renamed to pause() and resume()
+
+    - http.ServerResponse.prototype.sendHeader() renamed to
+      writeHeader(). Now accepts reasonPhrase.
+
+  * Compact garbage on idle.
+
+  * Configurable debug ports, and --debug-brk (Zoran Tomicic)
+
+  * Better command line option parsing (Jeremy Ashkenas)
+
+  * Add fs.chmod (Micheil Smith), fs.lstat (Isaac Z. Schlueter)
+
+  * Fixes to process.mixin (Rasmus Andersson, Benjamin Thomas)
+
+  * Upgrade V8 to 2.1.1
+
+
+2010.02.17, Version 0.1.29, 87d5e5b316a4276bcf881f176971c1a237dcdc7a
 
   * Major API Changes
     - Remove 'file' module
