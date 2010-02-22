@@ -13,7 +13,7 @@ var fakeDomElement = {deep: {nodeType: 4}};
 target = {};
 process.mixin(true, target, fakeDomElement);
 
-assert.notStrictEqual(target.deep, fakeDomElement.deep);
+assert.deepEqual(target.deep, fakeDomElement.deep);
 
 var objectWithUndefinedValue = {foo: undefined};
 target = {};

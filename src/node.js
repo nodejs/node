@@ -135,18 +135,20 @@ process.mixin = function() {
         var d = Object.getOwnPropertyDescriptor(source, k);
         if (d.get) {
           target.__defineGetter__(k, d.get);
-          if (d.set)
+          if (d.set) {
             target.__defineSetter__(k, d.set);
+          }
         }
         else {
           // Prevent never-ending loop
-          if (target === d.value)
+          if (target === d.value) {
             continue;
-          
+          }
+
           if (deep && d.value && typeof d.value === "object") {
             target[k] = process.mixin(deep,
               // Never move original objects, clone them
-              source || (d.value.length != null ? [] : {})
+              source[k] || (d.value.length != null ? [] : {})
             , d.value);
           }
           else {
