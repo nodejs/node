@@ -138,6 +138,9 @@ Returns the current working directory of the process.
 +process.getuid(), process.setuid(id)+::
 Gets/sets the user identity of the process. (See setuid(2).)
 
++process.getgid(), process.setgid(id)+::
+Gets/sets the group identity of the process. (See setgid(2).)
+
 +process.chdir(directory)+::
 Changes the current working directory of the process.
 

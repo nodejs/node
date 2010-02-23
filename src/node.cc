@@ -488,6 +488,29 @@ static Handle<Value> GetUid(const Arguments& args) {
   return scope.Close(Integer::New(uid));
 }
 
+static Handle<Value> GetGid(const Arguments& args) {
+  HandleScope scope;
+  int gid = getgid();
+  return scope.Close(Integer::New(gid));
+}
+
+
+static Handle<Value> SetGid(const Arguments& args) {
+  HandleScope scope;
+  
+  if (args.Length() < 1) {
+    return ThrowException(Exception::Error(
+	  String::New("setgid requires 1 argument")));
+  }
+
+  Local<Integer> given_gid = args[0]->ToInteger();
+  int gid = given_gid->Int32Value();
+  int result;
+  if ((result == setgid(gid)) != 0) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+  return Undefined();
+}
 
 static Handle<Value> SetUid(const Arguments& args) {
   HandleScope scope;
@@ -1034,6 +1057,10 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "cwd", Cwd);
   NODE_SET_METHOD(process, "getuid", GetUid);
   NODE_SET_METHOD(process, "setuid", SetUid);
+
+  NODE_SET_METHOD(process, "setgid", SetGid);
+  NODE_SET_METHOD(process, "getgid", GetGid);
+
   NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
