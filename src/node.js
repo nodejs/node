@@ -498,6 +498,30 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.stat(path);
   };
 
+  exports.readlink = function (path, callback) {
+    process.fs.readlink(path, callback || noop);
+  };
+
+  exports.readlinkSync = function (path) {
+    return process.fs.readlink(path);
+  };
+
+  exports.symlink = function (destination, path, callback) {
+    process.fs.symlink(destination, path, callback || noop);
+  };
+
+  exports.symlinkSync = function (destination, path) {
+    return process.fs.symlink(destination, path);
+  };
+
+  exports.link = function (srcpath, dstpath, callback) {
+    process.fs.link(srcpath, dstpath, callback || noop);
+  };
+
+  exports.linkSync = function (srcpath, dstpath) {
+    return process.fs.link(srcpath, dstpath);
+  };
+
   exports.unlink = function (path, callback) {
     process.fs.unlink(path, callback || noop);
   };
