@@ -554,7 +554,7 @@ var fsModule = createInternalModule("fs", function (exports) {
     });
   }
 
-  exports.writeFile = function (path, data, encoding_) {
+  exports.writeFile = function (path, data, encoding_, callback) {
     var encoding = (typeof(encoding_) == 'string' ? encoding_ : 'utf8');
     var callback_ = arguments[arguments.length - 1];
     var callback = (typeof(callback_) == 'function' ? callback_ : null);
@@ -598,7 +598,7 @@ var fsModule = createInternalModule("fs", function (exports) {
     });
   }
 
-  exports.readFile = function (path, encoding_) {
+  exports.readFile = function (path, encoding_, callback) {
     var encoding = typeof(encoding_) == 'string' ? encoding : 'utf8';
     var callback_ = arguments[arguments.length - 1];
     var callback = (typeof(callback_) == 'function' ? callback_ : null);
