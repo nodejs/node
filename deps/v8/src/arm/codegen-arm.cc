@@ -142,7 +142,7 @@ Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -174,7 +174,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     }
 #endif
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
       // tos: code slot
 
@@ -277,6 +277,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       frame_->Adjust(4);
       allocator_->Unuse(r1);
       allocator_->Unuse(lr);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set
@@ -3415,6 +3421,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   answer.Branch(ne);
   // It is a heap object - get the map. Check if the object is a JS array.
   __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
+  answer.Bind();
+  cc_reg_ = eq;
+}
+
+
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  JumpTarget answer;
+  // We need the CC bits to come out as not_equal in the case where the
+  // object is a smi.  This can't be done with the usual test opcode so
+  // we use XOR to get the right CC bits.
+  frame_->EmitPop(r0);
+  __ and_(r1, r0, Operand(kSmiTagMask));
+  __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
+  answer.Branch(ne);
+  // It is a heap object - get the map. Check if the object is a regexp.
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
   answer.Bind();
   cc_reg_ = eq;
 }

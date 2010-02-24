@@ -456,7 +456,8 @@ Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   // macro assembler.
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
-  cgen.Generate(info, CodeGenerator::SECONDARY);
+  info->set_mode(CompilationInfo::SECONDARY);
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();

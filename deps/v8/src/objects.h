@@ -179,7 +179,7 @@ class PropertyDetails BASE_EMBEDDED {
   class TypeField:       public BitField<PropertyType,       0, 3> {};
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
   class DeletedField:    public BitField<uint32_t,           6, 1> {};
-  class IndexField:      public BitField<uint32_t,           7, 31-7> {};
+  class IndexField:      public BitField<uint32_t,           7, 32-7> {};
 
   static const int kInitialIndex = 1;
  private:

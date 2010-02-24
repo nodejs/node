@@ -118,51 +118,23 @@ struct Register {
   int code_;
 };
 
-extern Register rax;
-extern Register rcx;
-extern Register rdx;
-extern Register rbx;
-extern Register rsp;
-extern Register rbp;
-extern Register rsi;
-extern Register rdi;
-extern Register r8;
-extern Register r9;
-extern Register r10;
-extern Register r11;
-extern Register r12;
-extern Register r13;
-extern Register r14;
-extern Register r15;
-extern Register no_reg;
-
-
-struct MMXRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 2; }
-  int code() const  {
-    ASSERT(is_valid());
-    return code_;
-  }
-
-  int code_;
-};
-
-extern MMXRegister mm0;
-extern MMXRegister mm1;
-extern MMXRegister mm2;
-extern MMXRegister mm3;
-extern MMXRegister mm4;
-extern MMXRegister mm5;
-extern MMXRegister mm6;
-extern MMXRegister mm7;
-extern MMXRegister mm8;
-extern MMXRegister mm9;
-extern MMXRegister mm10;
-extern MMXRegister mm11;
-extern MMXRegister mm12;
-extern MMXRegister mm13;
-extern MMXRegister mm14;
-extern MMXRegister mm15;
+const Register rax = { 0 };
+const Register rcx = { 1 };
+const Register rdx = { 2 };
+const Register rbx = { 3 };
+const Register rsp = { 4 };
+const Register rbp = { 5 };
+const Register rsi = { 6 };
+const Register rdi = { 7 };
+const Register r8 = { 8 };
+const Register r9 = { 9 };
+const Register r10 = { 10 };
+const Register r11 = { 11 };
+const Register r12 = { 12 };
+const Register r13 = { 13 };
+const Register r14 = { 14 };
+const Register r15 = { 15 };
+const Register no_reg = { -1 };
 
 
 struct XMMRegister {
@@ -186,22 +158,22 @@ struct XMMRegister {
   int code_;
 };
 
-extern XMMRegister xmm0;
-extern XMMRegister xmm1;
-extern XMMRegister xmm2;
-extern XMMRegister xmm3;
-extern XMMRegister xmm4;
-extern XMMRegister xmm5;
-extern XMMRegister xmm6;
-extern XMMRegister xmm7;
-extern XMMRegister xmm8;
-extern XMMRegister xmm9;
-extern XMMRegister xmm10;
-extern XMMRegister xmm11;
-extern XMMRegister xmm12;
-extern XMMRegister xmm13;
-extern XMMRegister xmm14;
-extern XMMRegister xmm15;
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
+const XMMRegister xmm8 = { 8 };
+const XMMRegister xmm9 = { 9 };
+const XMMRegister xmm10 = { 10 };
+const XMMRegister xmm11 = { 11 };
+const XMMRegister xmm12 = { 12 };
+const XMMRegister xmm13 = { 13 };
+const XMMRegister xmm14 = { 14 };
+const XMMRegister xmm15 = { 15 };
 
 enum Condition {
   // any value < 0 is considered no_condition

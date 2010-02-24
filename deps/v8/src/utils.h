@@ -157,7 +157,9 @@ class BitField {
 
   // Returns a uint32_t mask of bit field.
   static uint32_t mask() {
-    return (1U << (size + shift)) - (1U << shift);
+    // To use all bits of a uint32 in a bitfield without compiler warnings we
+    // have to compute 2^32 without using a shift count of 32.
+    return ((1U << shift) << size) - (1U << shift);
   }
 
   // Returns a uint32_t with the bit field value encoded.
@@ -168,7 +170,7 @@ class BitField {
 
   // Extracts the bit field from the value.
   static T decode(uint32_t value) {
-    return static_cast<T>((value >> shift) & ((1U << (size)) - 1));
+    return static_cast<T>((value & mask()) >> shift);
   }
 };
 

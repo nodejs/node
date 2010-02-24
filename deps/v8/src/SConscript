@@ -57,7 +57,6 @@ SOURCES = {
     disassembler.cc
     execution.cc
     factory.cc
-    fast-codegen.cc
     flags.cc
     frame-element.cc
     frames.cc
@@ -109,6 +108,7 @@ SOURCES = {
     zone.cc
     """),
   'arch:arm': Split("""
+    fast-codegen.cc
     arm/builtins-arm.cc
     arm/codegen-arm.cc
     arm/constants-arm.cc
@@ -133,6 +133,7 @@ SOURCES = {
     arm/assembler-thumb2.cc
     """),
   'arch:mips': Split("""
+    fast-codegen.cc
     mips/assembler-mips.cc
     mips/builtins-mips.cc
     mips/codegen-mips.cc
@@ -169,6 +170,7 @@ SOURCES = {
     ia32/virtual-frame-ia32.cc
     """),
   'arch:x64': Split("""
+    fast-codegen.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
     x64/codegen-x64.cc

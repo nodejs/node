@@ -4111,7 +4111,7 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
-  return (addr_hash ^ name->Hash()) & kCapacityMask;
+  return static_cast<uint32_t>((addr_hash ^ name->Hash()) & kCapacityMask);
 }
 
 

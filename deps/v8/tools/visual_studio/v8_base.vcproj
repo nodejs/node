@@ -401,7 +401,7 @@
                                 >
                         </File>
                         <File
-                                RelativePath="..\..\src\fast-codegen.cc"
+                                RelativePath="..\..\src\ia32\fast-codegen-ia32.h"
                                 >
                         </File>
                         <File

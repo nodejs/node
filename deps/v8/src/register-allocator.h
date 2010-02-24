@@ -141,7 +141,7 @@ class Result BASE_EMBEDDED {
 
   class TypeField: public BitField<Type, 0, 2> {};
   class NumberInfoField : public BitField<NumberInfo::Type, 2, 3> {};
-  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
+  class DataField: public BitField<uint32_t, 5, 32 - 5> {};
 
   inline void CopyTo(Result* destination) const;
 

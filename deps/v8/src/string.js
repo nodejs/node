@@ -34,7 +34,7 @@
 
 // Set the String function and constructor.
 %SetCode($String, function(x) {
-  var value = %_ArgumentsLength() == 0 ? '' : ToString(x);
+  var value = %_ArgumentsLength() == 0 ? '' : TO_STRING_INLINE(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
@@ -64,7 +64,7 @@ function StringValueOf() {
 function StringCharAt(pos) {
   var char_code = %_FastCharCodeAt(this, pos);
   if (!%_IsSmi(char_code)) {
-    var subject = ToString(this);
+    var subject = TO_STRING_INLINE(this);
     var index = TO_INTEGER(pos);
     if (index >= subject.length || index < 0) return "";
     char_code = %StringCharCodeAt(subject, index);
@@ -79,7 +79,7 @@ function StringCharCodeAt(pos) {
   if (%_IsSmi(fast_answer)) {
     return fast_answer;
   }
-  var subject = ToString(this);
+  var subject = TO_STRING_INLINE(this);
   var index = TO_INTEGER(pos);
   return %StringCharCodeAt(subject, index);
 }
@@ -88,7 +88,7 @@ function StringCharCodeAt(pos) {
 // ECMA-262, section 15.5.4.6
 function StringConcat() {
   var len = %_ArgumentsLength();
-  var this_as_string = IS_STRING(this) ? this : ToString(this);
+  var this_as_string = TO_STRING_INLINE(this);
   if (len === 1) {
     return this_as_string + %_Arguments(0);
   }
@@ -96,7 +96,7 @@ function StringConcat() {
   parts[0] = this_as_string;
   for (var i = 0; i < len; i++) {
     var part = %_Arguments(i);
-    parts[i + 1] = IS_STRING(part) ? part : ToString(part);
+    parts[i + 1] = TO_STRING_INLINE(part);
   }
   return %StringBuilderConcat(parts, len + 1, "");
 }
@@ -107,8 +107,8 @@ function StringConcat() {
 
 // ECMA-262 section 15.5.4.7
 function StringIndexOf(searchString /* position */) {  // length == 1
-  var subject_str = ToString(this);
-  var pattern_str = ToString(searchString);
+  var subject_str = TO_STRING_INLINE(this);
+  var pattern_str = TO_STRING_INLINE(searchString);
   var subject_str_len = subject_str.length;
   var pattern_str_len = pattern_str.length;
   var index = 0;
@@ -125,9 +125,9 @@ function StringIndexOf(searchString /* position */) {  // length == 1
 
 // ECMA-262 section 15.5.4.8
 function StringLastIndexOf(searchString /* position */) {  // length == 1
-  var sub = ToString(this);
+  var sub = TO_STRING_INLINE(this);
   var subLength = sub.length;
-  var pat = ToString(searchString);
+  var pat = TO_STRING_INLINE(searchString);
   var patLength = pat.length;
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
@@ -156,8 +156,8 @@ function StringLastIndexOf(searchString /* position */) {  // length == 1
 function StringLocaleCompare(other) {
   if (%_ArgumentsLength() === 0) return 0;
 
-  var this_str = ToString(this);
-  var other_str = ToString(other);
+  var this_str = TO_STRING_INLINE(this);
+  var other_str = TO_STRING_INLINE(other);
   return %StringLocaleCompare(this_str, other_str);
 }
 
@@ -165,7 +165,7 @@ function StringLocaleCompare(other) {
 // ECMA-262 section 15.5.4.10
 function StringMatch(regexp) {
   if (!IS_REGEXP(regexp)) regexp = new ORIGINAL_REGEXP(regexp);
-  var subject = ToString(this);
+  var subject = TO_STRING_INLINE(this);
 
   if (!regexp.global) return regexp.exec(subject);
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
@@ -200,7 +200,7 @@ var reusableMatchInfo = [2, "", "", -1, -1];
 
 // ECMA-262, section 15.5.4.11
 function StringReplace(search, replace) {
-  var subject = IS_STRING(this) ? this : ToString(this);
+  var subject = TO_STRING_INLINE(this);
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
@@ -213,7 +213,7 @@ function StringReplace(search, replace) {
   }
 
   // Convert the search argument to a string and search for it.
-  search = IS_STRING(search) ? search : ToString(search);
+  search = TO_STRING_INLINE(search);
   var start = %StringIndexOf(subject, search, 0);
   if (start < 0) return subject;
   var end = start + search.length;
@@ -228,7 +228,7 @@ function StringReplace(search, replace) {
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
-    if (!IS_STRING(replace)) replace = ToString(replace);
+    replace = TO_STRING_INLINE(replace);
     ExpandReplacement(replace, subject, reusableMatchInfo, builder);
   }
 
@@ -241,7 +241,7 @@ function StringReplace(search, replace) {
 
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
-  replace = ToString(replace);
+  replace = TO_STRING_INLINE(replace);
   return %StringReplaceRegExpWithString(subject,
                                         regexp,
                                         replace,
@@ -462,7 +462,7 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {
   var regexp = new ORIGINAL_REGEXP(re);
-  var s = ToString(this);
+  var s = TO_STRING_INLINE(this);
   var last_idx = regexp.lastIndex; // keep old lastIndex
   regexp.lastIndex = 0;            // ignore re.global property
   var result = regexp.exec(s);
@@ -476,7 +476,7 @@ function StringSearch(re) {
 
 // ECMA-262 section 15.5.4.13
 function StringSlice(start, end) {
-  var s = ToString(this);
+  var s = TO_STRING_INLINE(this);
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
   var end_i = s_len;
@@ -511,7 +511,7 @@ function StringSlice(start, end) {
 
 // ECMA-262 section 15.5.4.14
 function StringSplit(separator, limit) {
-  var subject = ToString(this);
+  var subject = TO_STRING_INLINE(this);
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
   if (limit === 0) return [];
 
@@ -525,17 +525,34 @@ function StringSplit(separator, limit) {
   }
 
   var length = subject.length;
-  if (IS_REGEXP(separator)) {
-    %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
-  } else {
-    separator = ToString(separator);
+  if (!IS_REGEXP(separator)) {
+    separator = TO_STRING_INLINE(separator);
+    var separator_length = separator.length;
+
     // If the separator string is empty then return the elements in the subject.
-    if (separator.length == 0) {
+    if (separator_length === 0) {
       var result = $Array(length);
       for (var i = 0; i < length; i++) result[i] = subject[i];
       return result;
     }
+
+    var result = [];
+    var start_index = 0;
+    var index;
+    while (true) {
+      if (start_index + separator_length > length ||
+          (index = %StringIndexOf(subject, separator, start_index)) === -1) {
+        result.push(SubString(subject, start_index, length));
+        break;
+      }
+      if (result.push(SubString(subject, start_index, index)) === limit) break;
+      start_index = index + separator_length;
+    }
+
+    return result;
   }
+
+  %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
     if (splitMatch(separator, subject, 0, 0) != null) return [];
@@ -571,7 +588,8 @@ function StringSplit(separator, limit) {
     result[result.length] = SubString(subject, currentIndex, matchInfo[CAPTURE0]);
     if (result.length === limit) return result;
 
-    for (var i = 2; i < NUMBER_OF_CAPTURES(matchInfo); i += 2) {
+    var num_captures = NUMBER_OF_CAPTURES(matchInfo);
+    for (var i = 2; i < num_captures; i += 2) {
       var start = matchInfo[CAPTURE(i)];
       var end = matchInfo[CAPTURE(i + 1)];
       if (start != -1 && end != -1) {
@@ -591,28 +609,18 @@ function StringSplit(separator, limit) {
 // Helper function used by split.  This version returns the matchInfo
 // instead of allocating a new array with basically the same information.
 function splitMatch(separator, subject, current_index, start_index) {
-  if (IS_REGEXP(separator)) {
-    var matchInfo = DoRegExpExec(separator, subject, start_index);
-    if (matchInfo == null) return null;
-    // Section 15.5.4.14 paragraph two says that we do not allow zero length
-    // matches at the end of the string.
-    if (matchInfo[CAPTURE0] === subject.length) return null;
-    return matchInfo;
-  }
-
-  var separatorIndex = subject.indexOf(separator, start_index);
-  if (separatorIndex === -1) return null;
-
-  reusableMatchInfo[CAPTURE0] = separatorIndex;
-  reusableMatchInfo[CAPTURE1] = separatorIndex + separator.length;
-  return reusableMatchInfo;
-};
+  var matchInfo = DoRegExpExec(separator, subject, start_index);
+  if (matchInfo == null) return null;
+  // Section 15.5.4.14 paragraph two says that we do not allow zero length
+  // matches at the end of the string.
+  if (matchInfo[CAPTURE0] === subject.length) return null;
+  return matchInfo;
+}
 
 
 // ECMA-262 section 15.5.4.15
 function StringSubstring(start, end) {
-  var s = this;
-  if (!IS_STRING(s)) s = ToString(s);
+  var s = TO_STRING_INLINE(this);
   var s_len = s.length;
 
   var start_i = TO_INTEGER(start);
@@ -643,7 +651,7 @@ function StringSubstring(start, end) {
 
 // This is not a part of ECMA-262.
 function StringSubstr(start, n) {
-  var s = ToString(this);
+  var s = TO_STRING_INLINE(this);
   var len;
 
   // Correct n: If not given, set to string length; if explicitly
@@ -681,38 +689,38 @@ function StringSubstr(start, n) {
 
 // ECMA-262, 15.5.4.16
 function StringToLowerCase() {
-  return %StringToLowerCase(ToString(this));
+  return %StringToLowerCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.17
 function StringToLocaleLowerCase() {
-  return %StringToLowerCase(ToString(this));
+  return %StringToLowerCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.18
 function StringToUpperCase() {
-  return %StringToUpperCase(ToString(this));
+  return %StringToUpperCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.19
 function StringToLocaleUpperCase() {
-  return %StringToUpperCase(ToString(this));
+  return %StringToUpperCase(TO_STRING_INLINE(this));
 }
 
 // ES5, 15.5.4.20
 function StringTrim() {
-  return %StringTrim(ToString(this), true, true);
+  return %StringTrim(TO_STRING_INLINE(this), true, true);
 }
 
 function StringTrimLeft() {
-  return %StringTrim(ToString(this), true, false);
+  return %StringTrim(TO_STRING_INLINE(this), true, false);
 }
 
 function StringTrimRight() {
-  return %StringTrim(ToString(this), false, true);
+  return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
 // ECMA-262, section 15.5.3.2
@@ -731,10 +739,10 @@ function StringFromCharCode(code) {
 
 // Helper function for very basic XSS protection.
 function HtmlEscape(str) {
-  return ToString(str).replace(/</g, "&lt;")
-                      .replace(/>/g, "&gt;")
-                      .replace(/"/g, "&quot;")
-                      .replace(/'/g, "&#039;");
+  return TO_STRING_INLINE(str).replace(/</g, "&lt;")
+                              .replace(/>/g, "&gt;")
+                              .replace(/"/g, "&quot;")
+                              .replace(/'/g, "&#039;");
 };
 
 
@@ -813,7 +821,7 @@ function ReplaceResultBuilder(str) {
 
 
 ReplaceResultBuilder.prototype.add = function(str) {
-  if (!IS_STRING(str)) str = ToString(str);
+  str = TO_STRING_INLINE(str);
   if (str.length > 0) {
     var elements = this.elements;
     elements[elements.length] = str;

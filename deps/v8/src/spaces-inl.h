@@ -183,7 +183,7 @@ Page* MemoryAllocator::GetNextPage(Page* p) {
 
 int MemoryAllocator::GetChunkId(Page* p) {
   ASSERT(p->is_valid());
-  return p->opaque_header & Page::kPageAlignmentMask;
+  return static_cast<int>(p->opaque_header & Page::kPageAlignmentMask);
 }
 
 

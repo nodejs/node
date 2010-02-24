@@ -518,14 +518,14 @@ class CallFunctionStub: public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 31 bits AAAAAAAAAAAAAAAAAAAAAFI A(rgs)F(lag)I(nloop).
+  // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class InLoopBits: public BitField<InLoopFlag, 0, 1> {};
   class FlagBits: public BitField<CallFunctionFlags, 1, 1> {};
-  class ArgcBits: public BitField<int, 2, 29> {};
+  class ArgcBits: public BitField<int, 2, 32 - 2> {};
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() {
-    // Encode the parameters in a unique 31 bit value.
+    // Encode the parameters in a unique 32 bit value.
     return InLoopBits::encode(in_loop_)
            | FlagBits::encode(flags_)
            | ArgcBits::encode(argc_);

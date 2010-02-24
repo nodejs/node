@@ -536,7 +536,7 @@ int ContextSlotCache::Hash(Code* code, String* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)) >> 2;
-  return (addr_hash ^ name->Hash()) % kLength;
+  return static_cast<int>((addr_hash ^ name->Hash()) % kLength);
 }
 
 

@@ -553,14 +553,16 @@ StringMirror.prototype.length = function() {
   return this.value_.length;
 };
 
+StringMirror.prototype.getTruncatedValue = function(maxLength) {
+  if (maxLength != -1 && this.length() > maxLength) {
+    return this.value_.substring(0, maxLength) +
+           '... (length: ' + this.length() + ')';
+  }
+  return this.value_;
+}
 
 StringMirror.prototype.toText = function() {
-  if (this.length() > kMaxProtocolStringLength) {
-    return this.value_.substring(0, kMaxProtocolStringLength) +
-           '... (length: ' + this.length() + ')';
-  } else {
-    return this.value_;
-  }
+  return this.getTruncatedValue(kMaxProtocolStringLength);
 }
 
 
@@ -1955,6 +1957,15 @@ JSONProtocolSerializer.prototype.inlineRefs_ = function() {
 }
 
 
+JSONProtocolSerializer.prototype.maxStringLength_ = function() {
+  if (IS_UNDEFINED(this.options_) ||
+      IS_UNDEFINED(this.options_.maxStringLength)) {
+    return kMaxProtocolStringLength;
+  }
+  return this.options_.maxStringLength;
+}
+
+
 JSONProtocolSerializer.prototype.add_ = function(mirror) {
   // If this mirror is already in the list just return.
   for (var i = 0; i < this.mirrors_.length; i++) {
@@ -1987,8 +1998,7 @@ JSONProtocolSerializer.prototype.serializeReferenceWithDisplayData_ =
       o.value = mirror.value();
       break;
     case STRING_TYPE:
-      // Limit string length.
-      o.value = mirror.toText();
+      o.value = mirror.getTruncatedValue(this.maxStringLength_());
       break;
     case FUNCTION_TYPE:
       o.name = mirror.name();
@@ -2052,11 +2062,12 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
 
     case STRING_TYPE:
       // String values might have their value cropped to keep down size.
-      if (mirror.length() > kMaxProtocolStringLength) {
-        var str = mirror.value().substring(0, kMaxProtocolStringLength);
+      if (this.maxStringLength_() != -1 &&
+          mirror.length() > this.maxStringLength_()) {
+        var str = mirror.getTruncatedValue(this.maxStringLength_());
         content.value = str;
         content.fromIndex = 0;
-        content.toIndex = kMaxProtocolStringLength;
+        content.toIndex = this.maxStringLength_();
       } else {
         content.value = mirror.value();
       }

@@ -105,7 +105,7 @@ Object* StubCache::ComputeLoadField(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -124,7 +124,7 @@ Object* StubCache::ComputeLoadCallback(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -143,7 +143,7 @@ Object* StubCache::ComputeLoadConstant(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -160,7 +160,7 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -189,7 +189,7 @@ Object* StubCache::ComputeLoadGlobal(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -351,7 +351,7 @@ Object* StubCache::ComputeStoreGlobal(String* name,
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -566,7 +566,7 @@ Object* StubCache::ComputeCallGlobal(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return code;
+    if (result->IsFailure()) return result;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }

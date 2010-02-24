@@ -210,6 +210,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSmi(ZoneList<Expression*>* args);
   void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   void GenerateIsArray(ZoneList<Expression*>* args);
+  void GenerateIsRegExp(ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);
@@ -241,6 +242,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateSubString(ZoneList<Expression*>* args);
   void GenerateStringCompare(ZoneList<Expression*>* args);
   void GenerateRegExpExec(ZoneList<Expression*>* args);
+  void GenerateNumberToString(ZoneList<Expression*>* args);
+
 
   // Fast support for Math.sin and Math.cos.
   inline void GenerateMathSin(ZoneList<Expression*>* args);
@@ -308,4 +311,3 @@ class CodeGenerator: public AstVisitor {
 } }  // namespace v8::internal
 
 #endif  // V8_MIPS_CODEGEN_MIPS_H_
-

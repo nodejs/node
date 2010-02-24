@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,28 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+// When this bug is corrected move to object-define-property and add
+// additional tests for configurable in the same manner as existing tests
+// there.
 
-namespace v8 {
-namespace internal {
+var obj = {};
+obj[1] = 42;
+assertEquals(42, obj[1]);
+Object.defineProperty(obj, '1', {value:10, writable:false});
+assertEquals(10, obj[1]);
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+// We should not be able to override obj[1].
+obj[1] = 5;
+assertEquals(10, obj[1]);
+
+// Try on a range of numbers.
+for(var i = 0; i < 1024; i++) {
+  obj[i] = 42;
 }
 
-void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
-  entry_frame_->elements_[index].clear_copied();
-  if (target->is_register()) {
-    entry_frame_->set_register_location(target->reg(), index);
-  } else if (target->is_copy()) {
-    entry_frame_->elements_[target->index()].set_copied();
-  }
-  if (direction_ == BIDIRECTIONAL && !target->is_copy()) {
-    entry_frame_->elements_[index].set_number_info(NumberInfo::kUnknown);
-  }
+for(var i = 0; i < 1024; i++) {
+  Object.defineProperty(obj, i, {value: i, writable:false});
 }
 
-} }  // namespace v8::internal
+for(var i = 0; i < 1024; i++) {
+  assertEquals(i, obj[i]);
+}
 
-#endif  // V8_JUMP_TARGET_INL_H_
+for(var i = 0; i < 1024; i++) {
+  obj[1] = 5;
+}
+
+for(var i = 0; i < 1024; i++) {
+  assertEquals(i, obj[i]);
+}
+
