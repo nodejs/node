@@ -6,7 +6,7 @@ PORT = 8891;
 
 body = "hello world\n";
 server = http.createServer(function (req, res) {
-  res.writeHeader(200, { 
+  res.writeHead(200, { 
     "Content-Length": body.length, 
     "Content-Type": "text/plain", 
   });

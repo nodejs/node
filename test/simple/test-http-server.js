@@ -38,7 +38,7 @@ http.createServer(function (req, res) {
   }
 
   setTimeout(function () {
-    res.writeHeader(200, {"Content-Type": "text/plain"});
+    res.writeHead(200, {"Content-Type": "text/plain"});
     res.write(url.parse(req.url).pathname);
     res.close();
   }, 1);

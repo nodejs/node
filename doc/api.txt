@@ -19,7 +19,7 @@ World":
 var sys = require("sys"), 
    http = require("http");
 http.createServer(function (request, response) {
-  response.writeHeader(200, {"Content-Type": "text/plain"});
+  response.writeHead(200, {"Content-Type": "text/plain"});
   response.write("Hello World\n");
   response.close();
 }).listen(8000);
@@ -951,7 +951,7 @@ The +http.Connection+ object.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the +"request"+ event.
 
-+response.writeHeader(statusCode[, reasonPhrase] , headers)+ ::
++response.writeHead(statusCode[, reasonPhrase] , headers)+ ::
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like +404+. The last argument, +headers+, are the response headers.
@@ -962,7 +962,7 @@ Example:
 +
 ----------------------------------------
 var body = "hello world";
-response.writeHeader(200, {
+response.writeHead(200, {
   "Content-Length": body.length,
   "Content-Type": "text/plain"
 });
@@ -973,7 +973,7 @@ be called before +response.close()+ is called.
 
 +response.write(chunk, encoding="ascii")+ ::
 
-This method must be called after +writeHeader+ was
+This method must be called after +writeHead+ was
 called. It sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 +
@@ -1297,7 +1297,7 @@ http.createServer(function (req, res) {
     fields = {},
     name, filename;
   mp.addListener("error", function (er) {
-    res.writeHeader(400, {"content-type":"text/plain"});
+    res.writeHead(400, {"content-type":"text/plain"});
     res.write("You sent a bad message!\n"+er.message);
     res.close();
   });
@@ -1317,7 +1317,7 @@ http.createServer(function (req, res) {
   });
   mp.addListener("complete", function () {
     var response = "You posted: \n" + sys.inspect(fields);
-    res.writeHeader(200, {
+    res.writeHead(200, {
       "content-type" : "text/plain",
       "content-length" : response.length
     });
