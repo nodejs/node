@@ -201,17 +201,29 @@ These function are in the module +"sys"+. Use +require("sys")+ to access
 them.
 
 +puts(string)+::
-Outputs the +string+ and a trailing new-line to +stdout+.
+Outputs +string+ and a trailing new-line to +stdout+.
+
 
 +print(string)+::
 Like +puts()+ but without the trailing new-line.
 
+
 +debug(string)+::
 A synchronous output function. Will block the process and
-output the string immediately to stdout.
+output +string+ immediately to +stdout+.
 
-+inspect(object, showHidden)+ ::
-Return a string representation of the +object+. (For debugging.)  If showHidden is true, then the object's non-enumerable properties will be shown too.
+
+
++inspect(object, showHidden, depth)+ ::
+Return a string representation of +object+. (For debugging.) 
++
+If +showHidden+ is +true+, then the object's non-enumerable properties will be
+shown too.
++
+If +depth+ is provided, it tells +inspect+ how many times to recurse while
+formatting the object. This is useful for inspecting large complicated objects.
+The defualt is to recurse indefinitely.
+
 
 +exec(command, callback)+::
 Executes the command as a child process, buffers the output and returns it
@@ -228,7 +240,6 @@ sys.exec("ls /", function (err, stdout, stderr) {
 The callback gets the arguments +(err, stdout, stderr)+. On success +err+
 will be +null+. On error +err+ will be an instance of +Error+ and +err.code+
 will be the exit code of the child process.
-
 
 
 == Events

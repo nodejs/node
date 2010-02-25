@@ -27,6 +27,8 @@ assert.equal('{\n "a": 1,\n "b": 2\n}', inspect({a: 1, b: 2}));
 assert.equal('{\n "a": {}\n}', inspect({'a': {}}));
 assert.equal('{\n "a": {\n  "b": 2\n }\n}', inspect({'a': {'b': 2}}));
 assert.equal('[\n 1,\n 2,\n 3,\n [length]: 3\n]', inspect([1,2,3], true));
+assert.equal('{\n \"a\": [object Object]\n}', inspect({'a': {'b': { 'c': 2}}},false,0));
+assert.equal('{\n \"a\": {\n  \"b\": [object Object]\n }\n}', inspect({'a': {'b': { 'c': 2}}},false,1));
 assert.equal("{\n \"visible\": 1\n}",
   inspect(Object.create({}, {visible:{value:1,enumerable:true},hidden:{value:2}}))
 );
