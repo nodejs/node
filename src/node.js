@@ -498,6 +498,30 @@ var fsModule = createInternalModule("fs", function (exports) {
     return process.fs.stat(path);
   };
 
+  exports.readlink = function (path, callback) {
+    process.fs.readlink(path, callback || noop);
+  };
+
+  exports.readlinkSync = function (path) {
+    return process.fs.readlink(path);
+  };
+
+  exports.symlink = function (destination, path, callback) {
+    process.fs.symlink(destination, path, callback || noop);
+  };
+
+  exports.symlinkSync = function (destination, path) {
+    return process.fs.symlink(destination, path);
+  };
+
+  exports.link = function (srcpath, dstpath, callback) {
+    process.fs.link(srcpath, dstpath, callback || noop);
+  };
+
+  exports.linkSync = function (srcpath, dstpath) {
+    return process.fs.link(srcpath, dstpath);
+  };
+
   exports.unlink = function (path, callback) {
     process.fs.unlink(path, callback || noop);
   };
@@ -530,7 +554,7 @@ var fsModule = createInternalModule("fs", function (exports) {
     });
   }
 
-  exports.writeFile = function (path, data, encoding_) {
+  exports.writeFile = function (path, data, encoding_, callback) {
     var encoding = (typeof(encoding_) == 'string' ? encoding_ : 'utf8');
     var callback_ = arguments[arguments.length - 1];
     var callback = (typeof(callback_) == 'function' ? callback_ : null);
@@ -574,7 +598,7 @@ var fsModule = createInternalModule("fs", function (exports) {
     });
   }
 
-  exports.readFile = function (path, encoding_) {
+  exports.readFile = function (path, encoding_, callback) {
     var encoding = typeof(encoding_) == 'string' ? encoding : 'utf8';
     var callback_ = arguments[arguments.length - 1];
     var callback = (typeof(callback_) == 'function' ? callback_ : null);

@@ -28,10 +28,15 @@
 #ifndef V8_FAST_CODEGEN_H_
 #define V8_FAST_CODEGEN_H_
 
+#if V8_TARGET_ARCH_IA32
+#include "ia32/fast-codegen-ia32.h"
+#else
+
 #include "v8.h"
 
 #include "ast.h"
 #include "compiler.h"
+#include "list.h"
 
 namespace v8 {
 namespace internal {
@@ -76,7 +81,6 @@ class FastCodeGenerator: public AstVisitor {
  private:
   MacroAssembler* masm() { return masm_; }
   CompilationInfo* info() { return info_; }
-  Label* bailout() { return &bailout_; }
 
   Register destination() { return destination_; }
   void set_destination(Register reg) { destination_ = reg; }
@@ -142,7 +146,6 @@ class FastCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
-  Label bailout_;
   Register destination_;
   uint32_t smi_bits_;
 
@@ -151,5 +154,7 @@ class FastCodeGenerator: public AstVisitor {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32
 
 #endif  // V8_FAST_CODEGEN_H_

@@ -105,7 +105,6 @@ void JumpTarget::ComputeEntryFrame() {
         FrameElement* other = &reaching_frames_[j]->elements_[i];
         if (element != NULL && !element->is_copy()) {
           ASSERT(other != NULL);
-          ASSERT(!other->is_copy());
           // We overwrite the number information of one of the incoming frames.
           // This is safe because we only use the frame for emitting merge code.
           // The number information of incoming frames is not used anymore.
@@ -128,7 +127,6 @@ void JumpTarget::ComputeEntryFrame() {
     // elements as copied exactly when they have a copy.  Undetermined
     // elements are initially recorded as if in memory.
     if (target != NULL) {
-      ASSERT(!target->is_copy());  // These initial elements are never copies.
       entry_frame_->elements_[index] = *target;
       InitializeEntryElement(index, target);
     }

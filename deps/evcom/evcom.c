@@ -1018,6 +1018,11 @@ on_timeout (EV_P_ ev_timer *watcher, int revents)
 
   if (stream->on_timeout) stream->on_timeout(stream);
 
+  // Hack to get error in Node on 'close' event.
+  // should probably be made into a proper error code.
+  stream->errorno = 1;
+
+  ev_timer_stop(EV_A_ watcher);
   evcom_stream_force_close(stream);
 
   if (stream->on_close) stream->on_close(stream);

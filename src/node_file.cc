@@ -10,6 +10,12 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
+
+/* used for readlink, AIX doesn't provide it */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 namespace node {
 
@@ -53,6 +59,8 @@ static int After(eio_req *req) {
       case EIO_RMDIR:
       case EIO_MKDIR:
       case EIO_FTRUNCATE:
+      case EIO_LINK:
+      case EIO_SYMLINK:
       case EIO_CHMOD:
         argc = 0;
         break;
@@ -74,6 +82,13 @@ static int After(eio_req *req) {
         struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
         argc = 2;
         argv[1] = BuildStatsObject(s);
+        break;
+      }
+      
+      case EIO_READLINK:
+      {
+        argc = 2;
+        argv[1] = String::New(static_cast<char*>(req->ptr2), req->result);
         break;
       }
 
@@ -195,6 +210,63 @@ static Handle<Value> LStat(const Arguments& args) {
     int ret = lstat(*path, &s);
     if (ret != 0) return ThrowException(errno_exception(errno));
     return scope.Close(BuildStatsObject(&s));
+  }
+}
+
+static Handle<Value> Symlink(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  String::Utf8Value dest(args[0]->ToString());
+  String::Utf8Value path(args[1]->ToString());
+
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(symlink, args[2], *dest, *path)
+  } else {
+    int ret = symlink(*dest, *path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
+}
+
+static Handle<Value> Link(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  String::Utf8Value orig_path(args[0]->ToString());
+  String::Utf8Value new_path(args[1]->ToString());
+
+  if (args[2]->IsFunction()) {
+    ASYNC_CALL(link, args[2], *orig_path, *new_path)
+  } else {
+    int ret = link(*orig_path, *new_path);
+    if (ret != 0) return ThrowException(errno_exception(errno));
+    return Undefined();
+  }
+}
+
+static Handle<Value> ReadLink(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  String::Utf8Value path(args[0]->ToString());
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(readlink, args[1], *path)
+  } else {
+    char buf[PATH_MAX];
+    ssize_t bz = readlink(*path, buf, PATH_MAX);
+    if (bz == -1) return ThrowException(errno_exception(errno));
+    return scope.Close(String::New(buf));
   }
 }
 
@@ -496,6 +568,9 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "lstat", LStat);
+  NODE_SET_METHOD(target, "link", Link);
+  NODE_SET_METHOD(target, "symlink", Symlink);
+  NODE_SET_METHOD(target, "readlink", ReadLink);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
   

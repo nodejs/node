@@ -305,6 +305,11 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
@@ -361,6 +366,11 @@ void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -498,4 +508,3 @@ int CompareStub::MinorKey() {
 #undef __
 
 } }  // namespace v8::internal
-

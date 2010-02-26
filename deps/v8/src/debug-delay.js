@@ -1202,11 +1202,16 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         throw new Error('Command not specified');
       }
 
-      // TODO(yurys): remove request.arguments.compactFormat check once
-      // ChromeDevTools are switched to 'inlineRefs'
-      if (request.arguments && (request.arguments.inlineRefs ||
-                                request.arguments.compactFormat)) {
-        response.setOption('inlineRefs', true);
+      if (request.arguments) {
+        var args = request.arguments;
+        // TODO(yurys): remove request.arguments.compactFormat check once
+        // ChromeDevTools are switched to 'inlineRefs'
+        if (args.inlineRefs || args.compactFormat) {
+          response.setOption('inlineRefs', true);
+        }
+        if (!IS_UNDEFINED(args.maxStringLength)) {
+          response.setOption('maxStringLength', args.maxStringLength);
+        }
       }
 
       if (request.command == 'continue') {

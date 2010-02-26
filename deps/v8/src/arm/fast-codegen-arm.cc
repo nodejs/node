@@ -148,17 +148,25 @@ void FastCodeGenerator::EmitBitOr() {
     if (!destination().is(no_reg)) {
       __ orr(destination(), accumulator1(), Operand(accumulator0()));
     }
-  } else if (destination().is(no_reg)) {
-    // Result is not needed but do not clobber the operands in case of
-    // bailout.
-    __ orr(scratch0(), accumulator1(), Operand(accumulator0()));
-    __ BranchOnNotSmi(scratch0(), bailout());
   } else {
-    // Preserve the destination operand in a scratch register in case of
-    // bailout.
-    __ mov(scratch0(), destination());
-    __ orr(destination(), accumulator1(), Operand(accumulator0()));
-    __ BranchOnNotSmi(destination(), bailout());
+    // Left is in accumulator1, right in accumulator0.
+    if (destination().is(accumulator0())) {
+      __ mov(scratch0(), accumulator0());
+      __ orr(destination(), accumulator1(), Operand(accumulator1()));
+      Label* bailout =
+          info()->AddBailout(accumulator1(), scratch0());  // Left, right.
+      __ BranchOnNotSmi(destination(), bailout);
+    } else if (destination().is(accumulator1())) {
+      __ mov(scratch0(), accumulator1());
+      __ orr(destination(), accumulator1(), Operand(accumulator0()));
+      Label* bailout = info()->AddBailout(scratch0(), accumulator0());
+      __ BranchOnNotSmi(destination(), bailout);
+    } else {
+      ASSERT(destination().is(no_reg));
+      __ orr(scratch0(), accumulator1(), Operand(accumulator0()));
+      Label* bailout = info()->AddBailout(accumulator1(), accumulator0());
+      __ BranchOnNotSmi(scratch0(), bailout);
+    }
   }
 
   // If we didn't bailout, the result (in fact, both inputs too) is known to
@@ -179,6 +187,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   // Note that we keep a live register reference to cp (context) at
   // this point.
 
+  Label* bailout_to_beginning = info()->AddBailout();
   // Receiver (this) is allocated to a fixed register.
   if (info()->has_this_properties()) {
     Comment cmnt(masm(), ";; MapCheck(this)");
@@ -189,7 +198,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
     Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
     Handle<Map> map(object->map());
     EmitLoadReceiver();
-    __ CheckMap(receiver_reg(), scratch0(), map, bailout(), false);
+    __ CheckMap(receiver_reg(), scratch0(), map, bailout_to_beginning, false);
   }
 
   // If there is a global variable access check if the global object is the
@@ -202,7 +211,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
     ASSERT(info()->has_global_object());
     Handle<Map> map(info()->global_object()->map());
     __ ldr(scratch0(), CodeGenerator::GlobalObject());
-    __ CheckMap(scratch0(), scratch1(), map, bailout(), true);
+    __ CheckMap(scratch0(), scratch1(), map, bailout_to_beginning, true);
   }
 
   VisitStatements(function()->body());
@@ -217,8 +226,6 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
   __ add(sp, sp, Operand(sp_delta));
   __ Jump(lr);
-
-  __ bind(&bailout_);
 }
 
 

@@ -1,3 +1,11 @@
+2010-02-23: Version 2.1.2
+
+        Fix a crash bug caused by wrong assert.
+
+        Fix a bug with register names on 64-bit V8 (issue 615).
+
+        Performance improvements on all platforms.
+
 2010-02-19: Version 2.1.1
 
         [ES5] Implemented Object.defineProperty.

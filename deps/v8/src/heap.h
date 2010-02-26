@@ -1383,9 +1383,9 @@ class DescriptorLookupCache {
  private:
   static int Hash(DescriptorArray* array, String* name) {
     // Uses only lower 32 bits if pointers are larger.
-    uintptr_t array_hash =
+    uint32_t array_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array)) >> 2;
-    uintptr_t name_hash =
+    uint32_t name_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >> 2;
     return (array_hash ^ name_hash) % kLength;
   }

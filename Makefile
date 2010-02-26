@@ -24,6 +24,15 @@ test-all: all
 test-debug: all
 	python tools/test.py --mode=debug
 
+test-simple: all
+	python tools/test.py simple
+     
+test-pummel: all
+	python tools/test.py pummel
+	
+test-internet: all
+	python tools/test.py internet
+
 benchmark: all
 	build/default/node benchmark/run.js
 

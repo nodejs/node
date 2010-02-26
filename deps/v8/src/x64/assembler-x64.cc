@@ -34,46 +34,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Implementation of Register
-
-Register rax = { 0 };
-Register rcx = { 1 };
-Register rdx = { 2 };
-Register rbx = { 3 };
-Register rsp = { 4 };
-Register rbp = { 5 };
-Register rsi = { 6 };
-Register rdi = { 7 };
-Register r8 = { 8 };
-Register r9 = { 9 };
-Register r10 = { 10 };
-Register r11 = { 11 };
-Register r12 = { 12 };
-Register r13 = { 13 };
-Register r14 = { 14 };
-Register r15 = { 15 };
-
-Register no_reg = { -1 };
-
-XMMRegister xmm0 = { 0 };
-XMMRegister xmm1 = { 1 };
-XMMRegister xmm2 = { 2 };
-XMMRegister xmm3 = { 3 };
-XMMRegister xmm4 = { 4 };
-XMMRegister xmm5 = { 5 };
-XMMRegister xmm6 = { 6 };
-XMMRegister xmm7 = { 7 };
-XMMRegister xmm8 = { 8 };
-XMMRegister xmm9 = { 9 };
-XMMRegister xmm10 = { 10 };
-XMMRegister xmm11 = { 11 };
-XMMRegister xmm12 = { 12 };
-XMMRegister xmm13 = { 13 };
-XMMRegister xmm14 = { 14 };
-XMMRegister xmm15 = { 15 };
-
-
-// -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
 // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):

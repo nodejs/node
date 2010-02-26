@@ -339,12 +339,12 @@ class VirtualFrame: public ZoneObject {
   Result CallLoadIC(RelocInfo::Mode mode);
 
   // Call keyed load IC.  Key and receiver are found on top of the
-  // frame.  They are not dropped.
+  // frame.  Both are dropped.
   Result CallKeyedLoadIC(RelocInfo::Mode mode);
 
-  // Call store IC.  Name, value, and receiver are found on top of the
-  // frame.  Receiver is not dropped.
-  Result CallStoreIC();
+  // Call store IC.  If the load is contextual, value is found on top of the
+  // frame.  If not, value and receiver are on the frame.  Both are dropped.
+  Result CallStoreIC(Handle<String> name, bool is_contextual);
 
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  Key and receiver are not dropped.
@@ -414,6 +414,10 @@ class VirtualFrame: public ZoneObject {
     }
     result->Unuse();
   }
+
+  // Pushing an expression expects that the expression is trivial (according
+  // to Expression::IsTrivial).
+  void Push(Expression* expr);
 
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of

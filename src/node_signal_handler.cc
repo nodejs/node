@@ -56,6 +56,9 @@ Handle<Value> SignalHandler::New(const Arguments& args) {
 
   ev_signal_init(&handler->watcher_, SignalHandler::OnSignal, sig);
   handler->watcher_.data = handler;
+  // Give signal handlers very high priority. The only thing that has higher
+  // priority is the garbage collector check.
+  ev_set_priority(&handler->watcher_, EV_MAXPRI-1);
   ev_signal_start(EV_DEFAULT_UC_ &handler->watcher_);
   ev_unref(EV_DEFAULT_UC);
 

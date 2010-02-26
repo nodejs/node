@@ -125,7 +125,7 @@ Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 // edi: called JS function
 // esi: callee's context
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -164,7 +164,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     // esi: callee's context
     allocator_->Initialize();
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
 
       // Allocate space for locals and initialize them.
@@ -255,6 +255,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       // frame to match this state.
       frame_->Adjust(3);
       allocator_->Unuse(edi);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set
@@ -689,6 +695,11 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
+      // If eax is free, the register allocator prefers it.  Thus the code
+      // generator will load the global object into eax, which is where
+      // LoadIC wants it.  Most uses of Reference call LoadIC directly
+      // after the reference is created.
+      frame_->Spill(eax);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
@@ -4307,6 +4318,10 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
+  // The register allocator prefers eax if it is free, so the code generator
+  // will load the global object directly into eax, which is where the LoadIC
+  // expects it.
+  frame_->Spill(eax);
   LoadGlobal();
   frame_->Push(slot->var()->name());
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
@@ -4592,8 +4607,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          frame_->Push(key);
-          Result ignored = frame_->CallStoreIC();
+          Result dummy = frame_->CallStoreIC(Handle<String>::cast(key), false);
+          dummy.Unuse();
           break;
         }
         // Fall through
@@ -4762,26 +4777,33 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   Property* prop = node->target()->AsProperty();
   ASSERT(var == NULL || (prop == NULL && var->is_global()));
 
-  // Initialize name and evaluate the receiver subexpression.
+  // Initialize name and evaluate the receiver subexpression if necessary.
   Handle<String> name;
+  bool is_trivial_receiver = false;
   if (var != NULL) {
     name = var->name();
-    LoadGlobal();
   } else {
     Literal* lit = prop->key()->AsLiteral();
-    ASSERT(lit != NULL);
+    ASSERT_NOT_NULL(lit);
     name = Handle<String>::cast(lit->handle());
-    Load(prop->obj());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
   }
 
   if (node->starts_initialization_block()) {
+    ASSERT_EQ(NULL, var);
     // Change to slow case in the beginning of an initialization block to
     // avoid the quadratic behavior of repeatedly adding fast properties.
-    frame()->Dup();
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      frame()->Dup();
+    }
     Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
-  if (node->ends_initialization_block()) {
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
     // Add an extra copy of the receiver to the frame, so that it can be
     // converted back to fast case after the assignment.
     frame()->Dup();
@@ -4789,7 +4811,16 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 
   // Evaluate the right-hand side.
   if (node->is_compound()) {
-    frame()->Dup();
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else if (var != NULL) {
+      // The LoadIC stub expects the object in eax.
+      // Freeing eax causes the code generator to load the global into it.
+      frame_->Spill(eax);
+      LoadGlobal();
+    } else {
+      frame()->Dup();
+    }
     Result value = EmitNamedLoad(name, var != NULL);
     frame()->Push(&value);
     Load(node->value());
@@ -4806,23 +4837,34 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(var == NULL || var->mode() != Variable::CONST);
-  ASSERT(node->op() != Token::INIT_CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
+  if (is_trivial_receiver) {
+    Result value = frame()->Pop();
+    frame()->Push(prop->obj());
+    frame()->Push(&value);
+  }
   CodeForSourcePosition(node->position());
-  Result answer = EmitNamedStore(name);
+  bool is_contextual = (var != NULL);
+  Result answer = EmitNamedStore(name, is_contextual);
   frame()->Push(&answer);
 
   if (node->ends_initialization_block()) {
-    // The argument to the runtime call is the extra copy of the receiver,
-    // which is below the value of the assignment.  Swap the receiver and
-    // the value of the assignment expression.
-    Result result = frame()->Pop();
-    Result receiver = frame()->Pop();
-    frame()->Push(&result);
-    frame()->Push(&receiver);
+    ASSERT_EQ(NULL, var);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment.  Swap
+      // the receiver and the value of the assignment expression.
+      Result result = frame()->Pop();
+      Result receiver = frame()->Pop();
+      frame()->Push(&result);
+      frame()->Push(&receiver);
+    }
     Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
   }
 
-  ASSERT(frame()->height() == original_height + 1);
+  ASSERT_EQ(frame()->height(), original_height + 1);
 }
 
 
@@ -4832,7 +4874,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
 #endif
   Comment cmnt(masm_, "[ Named Property Assignment");
   Property* prop = node->target()->AsProperty();
-  ASSERT(prop != NULL);
+  ASSERT_NOT_NULL(prop);
 
   // Evaluate the receiver subexpression.
   Load(prop->obj());
@@ -5393,6 +5435,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(temp.is_valid());
   // Check if the object is a JS array or not.
   __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, temp.reg());
+  value.Unuse();
+  temp.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(equal);
+  // It is a heap object - get map.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  // Check if the object is a regexp.
+  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, temp.reg());
   value.Unuse();
   temp.Unuse();
   destination()->Split(equal);
@@ -6347,13 +6408,10 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kBitFieldOffset));
       __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
-      __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(),
-                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
-      __ cmp(temp.reg(), FIRST_NONSTRING_TYPE);
+      __ CmpObjectType(answer.reg(), FIRST_NONSTRING_TYPE, temp.reg());
       temp.Unuse();
       answer.Unuse();
-      destination()->Split(less);
+      destination()->Split(below);
 
     } else if (check->Equals(Heap::boolean_symbol())) {
       __ cmp(answer.reg(), Factory::true_value());
@@ -6734,14 +6792,13 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 }
 
 
-Result CodeGenerator::EmitNamedStore(Handle<String> name) {
+Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 #ifdef DEBUG
-  int original_height = frame()->height();
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
-  frame()->Push(name);
-  Result result = frame()->CallStoreIC();
+  Result result = frame()->CallStoreIC(name, is_contextual);
 
-  ASSERT(frame()->height() == original_height - 2);
+  ASSERT_EQ(expected_height, frame()->height());
   return result;
 }
 
@@ -7058,7 +7115,7 @@ void Reference::SetValue(InitState init_state) {
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      Result answer = cgen_->EmitNamedStore(GetName());
+      Result answer = cgen_->EmitNamedStore(GetName(), false);
       cgen_->frame()->Push(&answer);
       set_unloaded();
       break;

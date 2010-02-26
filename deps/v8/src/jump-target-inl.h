@@ -42,7 +42,7 @@ void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
   } else if (target->is_copy()) {
     entry_frame_->elements_[target->index()].set_copied();
   }
-  if (direction_ == BIDIRECTIONAL) {
+  if (direction_ == BIDIRECTIONAL && !target->is_copy()) {
     entry_frame_->elements_[index].set_number_info(NumberInfo::kUnknown);
   }
 }

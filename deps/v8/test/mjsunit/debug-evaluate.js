@@ -87,6 +87,37 @@ function listener(event, exec_state, event_data, data) {
       testRequest(dcp, '{"expression":"a","global":true}', true, 1);
       testRequest(dcp, '{"expression":"this.a","global":true}', true, 1);
 
+      // Test that the whole string text is returned if maxStringLength
+      // parameter is passed.
+      testRequest(
+          dcp,
+          '{"expression":"this.longString","global":true,maxStringLength:-1}',
+          true,
+          longString);
+      testRequest(
+          dcp,
+          '{"expression":"this.longString","global":true,maxStringLength:' +
+              longString.length + '}',
+          true,
+          longString);
+      var truncatedStringSuffix = '... (length: ' + longString.length + ')';
+      testRequest(
+          dcp,
+          '{"expression":"this.longString","global":true,maxStringLength:0}',
+          true,
+          truncatedStringSuffix);
+      testRequest(
+          dcp,
+          '{"expression":"this.longString","global":true,maxStringLength:1}',
+          true,
+          longString.charAt(0) + truncatedStringSuffix);
+      // Test that by default string is truncated to first 80 chars.
+      testRequest(
+          dcp,
+          '{"expression":"this.longString","global":true}',
+          true,
+          longString.substring(0, 80) + truncatedStringSuffix);
+
       // Indicate that all was processed.
       listenerComplete = true;
     }
@@ -108,6 +139,12 @@ function g() {
 };
 
 a = 1;
+
+// String which is longer than 80 chars.
+var longString = "1234567890_";
+for (var i = 0; i < 4; i++) {
+  longString += longString;
+}
 
 // Set a break point at return in f and invoke g to hit the breakpoint.
 Debug.setBreakPoint(f, 2, 0);

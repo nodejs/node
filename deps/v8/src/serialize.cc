@@ -852,10 +852,10 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   const int max_shift = ((kPointerSize * kBitsPerByte) / 7) * 7;
   for (int shift = max_shift; shift > 0; shift -= 7) {
     if (integer >= static_cast<uintptr_t>(1u) << shift) {
-      Put(((integer >> shift) & 0x7f) | 0x80, "IntPart");
+      Put((static_cast<int>((integer >> shift)) & 0x7f) | 0x80, "IntPart");
     }
   }
-  PutSection(integer & 0x7f, "IntLastPart");
+  PutSection(static_cast<int>(integer & 0x7f), "IntLastPart");
 }
 
 #ifdef DEBUG

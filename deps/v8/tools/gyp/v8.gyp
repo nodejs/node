@@ -269,7 +269,6 @@
         '../../src/execution.h',
         '../../src/factory.cc',
         '../../src/factory.h',
-        '../../src/fast-codegen.cc',
         '../../src/fast-codegen.h',
         '../../src/flag-definitions.h',
         '../../src/flags.cc',
@@ -404,6 +403,7 @@
             '../../src/arm',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
             '../../src/arm/assembler-arm-inl.h',
             '../../src/arm/assembler-arm.cc',
             '../../src/arm/assembler-arm.h',
@@ -455,6 +455,7 @@
             '../../src/ia32/debug-ia32.cc',
             '../../src/ia32/disasm-ia32.cc',
             '../../src/ia32/fast-codegen-ia32.cc',
+            '../../src/ia32/fast-codegen-ia32.h',
             '../../src/ia32/frames-ia32.cc',
             '../../src/ia32/frames-ia32.h',
             '../../src/ia32/full-codegen-ia32.cc',
@@ -475,6 +476,7 @@
             '../../src/x64',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
             '../../src/x64/assembler-x64.h',

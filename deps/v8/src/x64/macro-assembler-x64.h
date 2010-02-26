@@ -36,7 +36,7 @@ namespace internal {
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-static const Register kScratchRegister = r10;
+static const Register kScratchRegister = { 10 };  // r10.
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;

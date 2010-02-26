@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -198,6 +198,10 @@ class Expression: public AstNode {
   // Function literals are leaves because their subexpressions are not
   // evaluated.
   virtual bool IsLeaf() { return false; }
+
+  // True if the expression has no side effects and is safe to
+  // evaluate out of order.
+  virtual bool IsTrivial() { return false; }
 
   // Mark the expression as being compiled as an expression
   // statement. This is used to transform postfix increments to
@@ -738,6 +742,7 @@ class Literal: public Expression {
   }
 
   virtual bool IsLeaf() { return true; }
+  virtual bool IsTrivial() { return true; }
 
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
@@ -925,6 +930,10 @@ class VariableProxy: public Expression {
     ASSERT(var_ != NULL);  // Variable must be resolved.
     return var()->is_global() || var()->rewrite()->IsLeaf();
   }
+
+  // Reading from a mutable variable is a side effect, but 'this' is
+  // immutable.
+  virtual bool IsTrivial() { return is_this(); }
 
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);

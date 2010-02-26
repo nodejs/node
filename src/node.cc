@@ -492,6 +492,29 @@ static Handle<Value> GetUid(const Arguments& args) {
   return scope.Close(Integer::New(uid));
 }
 
+static Handle<Value> GetGid(const Arguments& args) {
+  HandleScope scope;
+  int gid = getgid();
+  return scope.Close(Integer::New(gid));
+}
+
+
+static Handle<Value> SetGid(const Arguments& args) {
+  HandleScope scope;
+  
+  if (args.Length() < 1) {
+    return ThrowException(Exception::Error(
+	  String::New("setgid requires 1 argument")));
+  }
+
+  Local<Integer> given_gid = args[0]->ToInteger();
+  int gid = given_gid->Int32Value();
+  int result;
+  if ((result == setgid(gid)) != 0) {
+    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  }
+  return Undefined();
+}
 
 static Handle<Value> SetUid(const Arguments& args) {
   HandleScope scope;
@@ -1038,6 +1061,10 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "cwd", Cwd);
   NODE_SET_METHOD(process, "getuid", GetUid);
   NODE_SET_METHOD(process, "setuid", SetUid);
+
+  NODE_SET_METHOD(process, "setgid", SetGid);
+  NODE_SET_METHOD(process, "getgid", GetGid);
+
   NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "kill", Kill);
@@ -1165,7 +1192,8 @@ static void PrintHelp() {
   printf("Usage: node [options] script.js [arguments] \n"
          "  -v, --version      print node's version\n"
          "  --debug[=port]     enable remote debugging via given TCP port\n"
-         "  --debug-brk[=port] as above, but break in node.js and\n"
+         "                     without stopping the execution\n"
+         "  --debug-brk[=port] as above, but break in script.js and\n"
          "                     wait for remote debugger to connect\n"
          "  --cflags           print pre-processor and compiler flags\n"
          "  --v8-options       print v8 command line options\n\n"
@@ -1180,7 +1208,7 @@ static void ParseArgs(int *argc, char **argv) {
     const char *arg = argv[i];
     if (strstr(arg, "--debug") == arg) {
       ParseDebugOpt(arg);
-      argv[i] = reinterpret_cast<const char*>("");
+      argv[i] = const_cast<char*>("");
       option_end_index = i;
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
@@ -1192,7 +1220,7 @@ static void ParseArgs(int *argc, char **argv) {
       PrintHelp();
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
-      argv[i] = reinterpret_cast<const char*>("--help");
+      argv[i] = const_cast<char*>("--help");
       option_end_index = i+1;
     } else if (argv[i][0] != '-') {
       option_end_index = i-1;

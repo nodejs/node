@@ -19,7 +19,7 @@ World":
 var sys = require("sys"), 
    http = require("http");
 http.createServer(function (request, response) {
-  response.writeHeader(200, {"Content-Type": "text/plain"});
+  response.writeHead(200, {"Content-Type": "text/plain"});
   response.write("Hello World\n");
   response.close();
 }).listen(8000);
@@ -113,11 +113,10 @@ What platform you're running on. +"linux2"+, +"darwin"+, etc.
 Returns the memory usage of the Node process. It looks like this
 +
 ----------------------
-{
- "rss": 4935680,
- "vsize": 41893888,
- "heapTotal": 1826816,
- "heapUsed": 650472
+{ rss: 4935680
+, vsize: 41893888
+, heapTotal: 1826816
+, heapUsed: 650472
 }
 ----------------------
 +
@@ -137,6 +136,9 @@ Returns the current working directory of the process.
 
 +process.getuid(), process.setuid(id)+::
 Gets/sets the user identity of the process. (See setuid(2).)
+
++process.getgid(), process.setgid(id)+::
+Gets/sets the group identity of the process. (See setgid(2).)
 
 +process.chdir(directory)+::
 Changes the current working directory of the process.
@@ -198,17 +200,30 @@ These function are in the module +"sys"+. Use +require("sys")+ to access
 them.
 
 +puts(string)+::
-Outputs the +string+ and a trailing new-line to +stdout+.
+Outputs +string+ and a trailing new-line to +stdout+.
+
 
 +print(string)+::
 Like +puts()+ but without the trailing new-line.
 
+
 +debug(string)+::
 A synchronous output function. Will block the process and
-output the string immediately to stdout.
+output +string+ immediately to +stdout+.
 
-+inspect(object, showHidden)+ ::
-Return a string representation of the +object+. (For debugging.)  If showHidden is true, then the object's non-enumerable properties will be shown too.
+
+
++inspect(object, showHidden, depth)+ ::
+Return a string representation of +object+. (For debugging.) 
++
+If +showHidden+ is +true+, then the object's non-enumerable properties will be
+shown too.
++
+If +depth+ is provided, it tells +inspect+ how many times to recurse while
+formatting the object. This is useful for inspecting large complicated objects.
+The default is to only recurse twice.  To make it recurse indefinitely, pass
+in +null+ for +depth+.
+
 
 +exec(command, callback)+::
 Executes the command as a child process, buffers the output and returns it
@@ -225,7 +240,6 @@ sys.exec("ls /", function (err, stdout, stderr) {
 The callback gets the arguments +(err, stdout, stderr)+. On success +err+
 will be +null+. On error +err+ will be an instance of +Error+ and +err.code+
 will be the exit code of the child process.
-
 
 
 == Events
@@ -608,6 +622,30 @@ See the +fs.Stats+ section below for more information.
 Synchronous stat(2) or lstat(2). Returns an instance of +fs.Stats+.
 
 
++fs.link(srcpath, dstpath, callback)+ ::
+Asynchronous link(2). 
+No arguments other than a possible exception are given to the completion callback.
+
++fs.linkSync(dstpath, srcpath)+ ::
+Synchronous link(2).
+
+
++fs.symlink(linkdata, path, callback)+ ::
+Asynchronous symlink(2). 
+No arguments other than a possible exception are given to the completion callback.
+
++fs.symlinkSync(linkdata, path)+ ::
+Synchronous symlink(2).
+
+
++fs.readlink(path, callback)+ ::
+Asynchronous readlink(2). 
+The callback gets two arguments +(err, resolvedPath)+. 
+
++fs.readlinkSync(path)+ ::
+Synchronous readlink(2). Returns the resolved path.
+
+
 +fs.unlink(path, callback)+ ::
 Asynchronous unlink(2).
 No arguments other than a possible exception are given to the completion callback.
@@ -867,11 +905,10 @@ If you would like to parse the URL into its parts, you can use
 +
 ----------------------------------------
 node> require("url").parse("/status?name=ryan")
-{
- "href": "/status?name=ryan",
- "search": "?name=ryan",
- "query": "name=ryan",
- "pathname": "/status"
+{ href: '/status?name=ryan'
+, search: '?name=ryan'
+, query: 'name=ryan'
+, pathname: '/status'
 }
 ----------------------------------------
 +
@@ -881,13 +918,10 @@ you can use the +require("querystring").parse+ function, or pass
 +
 ----------------------------------------
 node> require("url").parse("/status?name=ryan", true)
-{
- "href": "/status?name=ryan",
- "search": "?name=ryan",
- "query": {
-  "name": "ryan"
- },
- "pathname": "/status"
+{ href: '/status?name=ryan'
+, search: '?name=ryan'
+, query: { name: 'ryan' }
+, pathname: '/status'
 }
 ----------------------------------------
 +
@@ -924,7 +958,7 @@ The +http.Connection+ object.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the +"request"+ event.
 
-+response.writeHeader(statusCode[, reasonPhrase] , headers)+ ::
++response.writeHead(statusCode[, reasonPhrase] , headers)+ ::
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like +404+. The last argument, +headers+, are the response headers.
@@ -935,7 +969,7 @@ Example:
 +
 ----------------------------------------
 var body = "hello world";
-response.writeHeader(200, {
+response.writeHead(200, {
   "Content-Length": body.length,
   "Content-Type": "text/plain"
 });
@@ -946,7 +980,7 @@ be called before +response.close()+ is called.
 
 +response.write(chunk, encoding="ascii")+ ::
 
-This method must be called after +writeHeader+ was
+This method must be called after +writeHead+ was
 called. It sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 +
@@ -1270,7 +1304,7 @@ http.createServer(function (req, res) {
     fields = {},
     name, filename;
   mp.addListener("error", function (er) {
-    res.writeHeader(400, {"content-type":"text/plain"});
+    res.writeHead(400, {"content-type":"text/plain"});
     res.write("You sent a bad message!\n"+er.message);
     res.close();
   });
@@ -1290,7 +1324,7 @@ http.createServer(function (req, res) {
   });
   mp.addListener("complete", function () {
     var response = "You posted: \n" + sys.inspect(fields);
-    res.writeHeader(200, {
+    res.writeHead(200, {
       "content-type" : "text/plain",
       "content-length" : response.length
     });
@@ -1656,13 +1690,7 @@ Normalize an array of path parts, taking care of +".."+ and +"."+ parts.  Exampl
 path.normalizeArray(["", 
   "foo", "bar", "baz", "asdf", "quux", ".."])
 // returns
-[
-  "",
-  "foo",
-  "bar",
-  "baz",
-  "asdf"
-]
+[ '', 'foo', 'bar', 'baz', 'asdf' ]
 ------------------------------------
 +
 

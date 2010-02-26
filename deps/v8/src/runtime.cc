@@ -2276,6 +2276,20 @@ static int SingleCharIndexOf(Vector<const schar> string,
   return -1;
 }
 
+
+template <typename schar>
+static int SingleCharLastIndexOf(Vector<const schar> string,
+                                 schar pattern_char,
+                                 int start_index) {
+  for (int i = start_index; i >= 0; i--) {
+    if (pattern_char == string[i]) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+
 // Trivial string search for shorter strings.
 // On return, if "complete" is set to true, the return value is the
 // final result of searching for the patter in the subject.
@@ -2352,7 +2366,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
   // We have an ASCII haystack and a non-ASCII needle. Check if there
   // really is a non-ASCII character in the needle and bail out if there
   // is.
-  if (sizeof(pchar) > 1 && sizeof(schar) == 1) {
+  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
     for (int i = 0; i < pat.length(); i++) {
       uc16 c = pat[i];
       if (c > String::kMaxAsciiCharCode) {
@@ -2455,39 +2469,115 @@ static Object* Runtime_StringIndexOf(Arguments args) {
 }
 
 
+template <typename schar, typename pchar>
+static int StringMatchBackwards(Vector<const schar> sub,
+                                Vector<const pchar> pat,
+                                int idx) {
+  ASSERT(pat.length() >= 1);
+  ASSERT(idx + pat.length() <= sub.length());
+
+  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
+    for (int i = 0; i < pat.length(); i++) {
+      uc16 c = pat[i];
+      if (c > String::kMaxAsciiCharCode) {
+        return -1;
+      }
+    }
+  }
+
+  pchar pattern_first_char = pat[0];
+  for (int i = idx; i >= 0; i--) {
+    if (sub[i] != pattern_first_char) continue;
+    int j = 1;
+    while (j < pat.length()) {
+      if (pat[j] != sub[i+j]) {
+        break;
+      }
+      j++;
+    }
+    if (j == pat.length()) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 static Object* Runtime_StringLastIndexOf(Arguments args) {
-  NoHandleAllocation ha;
+  HandleScope scope;  // create a new handle scope
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
+  CONVERT_ARG_CHECKED(String, sub, 0);
+  CONVERT_ARG_CHECKED(String, pat, 1);
+
   Object* index = args[2];
-
-  sub->TryFlattenIfNotFlat();
-  pat->TryFlattenIfNotFlat();
-
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  uint32_t pattern_length = pat->length();
+  uint32_t pat_length = pat->length();
   uint32_t sub_length = sub->length();
 
-  if (start_index + pattern_length > sub_length) {
-    start_index = sub_length - pattern_length;
+  if (start_index + pat_length > sub_length) {
+    start_index = sub_length - pat_length;
   }
 
-  for (int i = start_index; i >= 0; i--) {
-    bool found = true;
-    for (uint32_t j = 0; j < pattern_length; j++) {
-      if (sub->Get(i + j) != pat->Get(j)) {
-        found = false;
-        break;
+  if (pat_length == 0) {
+    return Smi::FromInt(start_index);
+  }
+
+  if (!sub->IsFlat()) {
+    FlattenString(sub);
+  }
+
+  if (pat_length == 1) {
+    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+    if (sub->IsAsciiRepresentation()) {
+      uc16 pchar = pat->Get(0);
+      if (pchar > String::kMaxAsciiCharCode) {
+        return Smi::FromInt(-1);
       }
+      return Smi::FromInt(SingleCharLastIndexOf(sub->ToAsciiVector(),
+                                                static_cast<char>(pat->Get(0)),
+                                                start_index));
+    } else {
+      return Smi::FromInt(SingleCharLastIndexOf(sub->ToUC16Vector(),
+                                                pat->Get(0),
+                                                start_index));
     }
-    if (found) return Smi::FromInt(i);
   }
 
-  return Smi::FromInt(-1);
+  if (!pat->IsFlat()) {
+    FlattenString(pat);
+  }
+
+  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+
+  int position = -1;
+
+  if (pat->IsAsciiRepresentation()) {
+    Vector<const char> pat_vector = pat->ToAsciiVector();
+    if (sub->IsAsciiRepresentation()) {
+      position = StringMatchBackwards(sub->ToAsciiVector(),
+                                      pat_vector,
+                                      start_index);
+    } else {
+      position = StringMatchBackwards(sub->ToUC16Vector(),
+                                      pat_vector,
+                                      start_index);
+    }
+  } else {
+    Vector<const uc16> pat_vector = pat->ToUC16Vector();
+    if (sub->IsAsciiRepresentation()) {
+      position = StringMatchBackwards(sub->ToAsciiVector(),
+                                      pat_vector,
+                                      start_index);
+    } else {
+      position = StringMatchBackwards(sub->ToUC16Vector(),
+                                      pat_vector,
+                                      start_index);
+    }
+  }
+
+  return Smi::FromInt(position);
 }
 
 

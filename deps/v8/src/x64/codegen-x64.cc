@@ -277,7 +277,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -316,7 +316,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     // rsi: callee's context
     allocator_->Initialize();
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
 
       // Allocate space for locals and initialize them.
@@ -407,6 +407,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       // frame to match this state.
       frame_->Adjust(3);
       allocator_->Unuse(rdi);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set
@@ -3622,6 +3628,22 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   // It is a heap object - get map.
   // Check if the object is a JS array or not.
   __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // It is a heap object - get map.
+  // Check if the object is a regexp.
+  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, kScratchRegister);
   value.Unuse();
   destination()->Split(equal);
 }
