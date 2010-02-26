@@ -1,6 +1,5 @@
 process.mixin(require("../common.js"));
 http = require("/http.js");
-PORT = 8888;
 
 puts("hello world");
 

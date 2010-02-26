@@ -2,8 +2,6 @@ process.mixin(require("../common"));
 tcp = require("tcp");
 http = require("http");
 
-var port = 7333;
-
 var body = "hello world\n";
 var server_response = "";
 var client_got_eof = false;
@@ -13,9 +11,9 @@ var server = http.createServer(function (req, res) {
   res.write(body);
   res.close();
 })
-server.listen(port);
+server.listen(PORT);
 
-var c = tcp.createConnection(port);
+var c = tcp.createConnection(PORT);
 
 c.setEncoding("utf8");
 

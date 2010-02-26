@@ -110,8 +110,8 @@ if (have_tls) {
   var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem");
 
   /* All are run at once, so run on different ports */
-  tlsTest(20443, "localhost", caPem, keyPem, certPem);
-  tlsTest(21443, null, caPem, keyPem, certPem);
+  tlsTest(PORT, "localhost", caPem, keyPem, certPem);
+  tlsTest(PORT+1, null, caPem, keyPem, certPem);
 
   process.addListener("exit", function () {
     assert.equal(2, tests_run);

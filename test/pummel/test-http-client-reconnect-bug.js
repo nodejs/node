@@ -4,8 +4,6 @@ var tcp = require("tcp"),
     sys = require("sys"),
     http = require("http");
 
-var PORT = 2143;
-
 var errorCount = 0;
 var eofCount = 0;
 

@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
-PORT = 23123;
 
 binaryString = "";
 for (var i = 255; i >= 0; i--) {

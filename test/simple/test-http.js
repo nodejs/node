@@ -1,7 +1,6 @@
 process.mixin(require("../common"));
 http = require("http");
 url = require("url");
-PORT = 8888;
 
 var responses_sent = 0;
 var responses_recvd = 0;

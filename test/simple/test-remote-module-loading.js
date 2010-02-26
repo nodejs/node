@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 
-var PORT = 8889;
 var http = require('http');
 var sys = require('sys');
 var url = require("url");

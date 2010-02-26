@@ -84,7 +84,7 @@ function pingPongTest (port, host, on_complete) {
   });
 }
 
-pingPongTest(21988);
+pingPongTest(PORT);
 
 process.addListener("exit", function () {
   assert.equal(1, tests_run);

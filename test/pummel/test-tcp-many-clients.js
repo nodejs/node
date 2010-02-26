@@ -1,7 +1,6 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
 // settings
-var port = 20743;
 var bytes = 1024*40;
 var concurrency = 100;
 var connections_per_client = 5;
@@ -22,10 +21,10 @@ var server = tcp.createServer(function (c) {
     c.close();
   });
 });
-server.listen(port);
+server.listen(PORT);
 
 function runClient (callback) {
-  var client = tcp.createConnection(port);
+  var client = tcp.createConnection(PORT);
   client.connections = 0;
   client.setEncoding("utf8");
 
@@ -48,7 +47,7 @@ function runClient (callback) {
     assert.equal(false, had_error);
     assert.equal(bytes, client.recved.length);
     if (this.connections < connections_per_client) {
-      this.connect(port);
+      this.connect(PORT);
     } else {
       callback();
     }

@@ -1,7 +1,6 @@
 process.mixin(require("../common"));
 http = require("http");
 url = require("url");
-PORT = 8888;
 
 var body1_s = "1111111111111111";
 var body2_s = "22222";

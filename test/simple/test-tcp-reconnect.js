@@ -1,7 +1,6 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
 var N = 50;
-var port = 8921;
 
 var c = 0;
 var client_recv_count = 0;
@@ -21,9 +20,9 @@ var server = tcp.createServer(function (socket) {
     assert.equal(false, had_error);
   });
 });
-server.listen(port);
+server.listen(PORT);
 
-var client = tcp.createConnection(port);
+var client = tcp.createConnection(PORT);
 
 client.setEncoding("UTF8");
 
@@ -42,7 +41,7 @@ client.addListener("close", function (had_error) {
   puts("disconnect");
   assert.equal(false, had_error);
   if (disconnect_count++ < N)
-    client.connect(port); // reconnect
+    client.connect(PORT); // reconnect
   else
     server.close();
 });
