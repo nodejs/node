@@ -1,30 +1,27 @@
 process.mixin(require("../common"));
 
-var got_error = false;
+var got_error = false,
+    readdirDir = path.join(fixturesDir, "readdir")
 
-var files = ['a.js'
-            , 'b'
-            , 'cycles'
-            , 'echo.js'
-            , 'multipart.js'
-            , 'nested-index'
-            , 'print-chars.js'
-            , 'test_ca.pem'
-            , 'test_cert.pem'
-            , 'test_key.pem'
-            , 'throws_error.js'
-            , 'x.txt'
+var files = ['are'
+            , 'dir'
+            , 'empty'
+            , 'files'
+            , 'for'
+            , 'just'
+            , 'testing.js'
+            , 'these'
             ];
 
 
-puts('readdirSync ' + fixturesDir);
-var f = fs.readdirSync(fixturesDir);
+puts('readdirSync ' + readdirDir);
+var f = fs.readdirSync(readdirDir);
 p(f);
 assert.deepEqual(files, f.sort());
 
 
-puts("readdir " + fixturesDir);
-fs.readdir(fixturesDir, function (err, f) {
+puts("readdir " + readdirDir);
+fs.readdir(readdirDir, function (err, f) {
   if (err) {
     puts("error");
     got_error = true;
