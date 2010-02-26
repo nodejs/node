@@ -113,11 +113,10 @@ What platform you're running on. +"linux2"+, +"darwin"+, etc.
 Returns the memory usage of the Node process. It looks like this
 +
 ----------------------
-{
- "rss": 4935680,
- "vsize": 41893888,
- "heapTotal": 1826816,
- "heapUsed": 650472
+{ rss: 4935680
+, vsize: 41893888
+, heapTotal: 1826816
+, heapUsed: 650472
 }
 ----------------------
 +
@@ -906,11 +905,10 @@ If you would like to parse the URL into its parts, you can use
 +
 ----------------------------------------
 node> require("url").parse("/status?name=ryan")
-{
- "href": "/status?name=ryan",
- "search": "?name=ryan",
- "query": "name=ryan",
- "pathname": "/status"
+{ href: '/status?name=ryan'
+, search: '?name=ryan'
+, query: 'name=ryan'
+, pathname: '/status'
 }
 ----------------------------------------
 +
@@ -920,13 +918,10 @@ you can use the +require("querystring").parse+ function, or pass
 +
 ----------------------------------------
 node> require("url").parse("/status?name=ryan", true)
-{
- "href": "/status?name=ryan",
- "search": "?name=ryan",
- "query": {
-  "name": "ryan"
- },
- "pathname": "/status"
+{ href: '/status?name=ryan'
+, search: '?name=ryan'
+, query: { name: 'ryan' }
+, pathname: '/status'
 }
 ----------------------------------------
 +
@@ -1695,13 +1690,7 @@ Normalize an array of path parts, taking care of +".."+ and +"."+ parts.  Exampl
 path.normalizeArray(["", 
   "foo", "bar", "baz", "asdf", "quux", ".."])
 // returns
-[
-  "",
-  "foo",
-  "bar",
-  "baz",
-  "asdf"
-]
+[ '', 'foo', 'bar', 'baz', 'asdf' ]
 ------------------------------------
 +
 
