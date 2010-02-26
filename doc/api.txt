@@ -222,7 +222,8 @@ shown too.
 +
 If +depth+ is provided, it tells +inspect+ how many times to recurse while
 formatting the object. This is useful for inspecting large complicated objects.
-The defualt is to recurse indefinitely.
+The default is to only recurse twice.  To make it recurse indefinitely, pass
+in +null+ for +depth+.
 
 
 +exec(command, callback)+::

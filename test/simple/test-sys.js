@@ -4,8 +4,8 @@ process.mixin(require("sys"));
 assert.equal("0", inspect(0));
 assert.equal("1", inspect(1));
 assert.equal("false", inspect(false));
-assert.equal('""', inspect(""));
-assert.equal('"hello"', inspect("hello"));
+assert.equal("''", inspect(""));
+assert.equal("'hello'", inspect("hello"));
 assert.equal("[Function]", inspect(function() {}));
 assert.equal('undefined', inspect(undefined));
 assert.equal('null', inspect(null));
@@ -13,58 +13,68 @@ assert.equal('/foo(bar\\n)?/gi', inspect(/foo(bar\n)?/gi));
 assert.equal('Sun, 14 Feb 2010 11:48:40 GMT',
         inspect(new Date("Sun, 14 Feb 2010 11:48:40 GMT")));
 
-assert.equal("\"\\n\\u0001\"", inspect("\n\u0001"));
+assert.equal("'\\n\\u0001'", inspect("\n\u0001"));
 
 assert.equal('[]', inspect([]));
 assert.equal('[]', inspect(Object.create([])));
-assert.equal('[\n 1,\n 2\n]', inspect([1, 2]));
-assert.equal('[\n 1,\n [\n  2,\n  3\n ]\n]', inspect([1, [2, 3]]));
+assert.equal('[ 1, 2 ]', inspect([1, 2]));
+assert.equal('[ 1, [ 2, 3 ] ]', inspect([1, [2, 3]]));
 
 assert.equal('{}', inspect({}));
-assert.equal('{\n "a": 1\n}', inspect({a: 1}));
-assert.equal('{\n "a": [Function]\n}', inspect({a: function() {}}));
-assert.equal('{\n "a": 1,\n "b": 2\n}', inspect({a: 1, b: 2}));
-assert.equal('{\n "a": {}\n}', inspect({'a': {}}));
-assert.equal('{\n "a": {\n  "b": 2\n }\n}', inspect({'a': {'b': 2}}));
-assert.equal('[\n 1,\n 2,\n 3,\n [length]: 3\n]', inspect([1,2,3], true));
-assert.equal('{\n \"a\": [object Object]\n}', inspect({'a': {'b': { 'c': 2}}},false,0));
-assert.equal('{\n \"a\": {\n  \"b\": [object Object]\n }\n}', inspect({'a': {'b': { 'c': 2}}},false,1));
-assert.equal("{\n \"visible\": 1\n}",
+assert.equal('{ a: 1 }', inspect({a: 1}));
+assert.equal('{ a: [Function] }', inspect({a: function() {}}));
+assert.equal('{ a: 1, b: 2 }', inspect({a: 1, b: 2}));
+assert.equal('{ a: {} }', inspect({'a': {}}));
+assert.equal('{ a: { b: 2 } }', inspect({'a': {'b': 2}}));
+assert.equal('{ a: { b: { c: [object Object] } } }', inspect({'a': {'b': { 'c': { 'd': 2 }}}}));
+assert.equal('{ a: { b: { c: { d: 2 } } } }', inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null));
+assert.equal('[ 1, 2, 3, [length]: 3 ]', inspect([1,2,3], true));
+assert.equal('{ a: [object Object] }', inspect({'a': {'b': { 'c': 2}}},false,0));
+assert.equal('{ a: { b: [object Object] } }', inspect({'a': {'b': { 'c': 2}}},false,1));
+assert.equal("{ visible: 1 }",
   inspect(Object.create({}, {visible:{value:1,enumerable:true},hidden:{value:2}}))
 );
-assert.equal("{\n [hidden]: 2,\n \"visible\": 1\n}",
+assert.equal("{ [hidden]: 2, visible: 1 }",
   inspect(Object.create({}, {visible:{value:1,enumerable:true},hidden:{value:2}}), true)
 );
 
 // Objects without prototype
 assert.equal(
-  "{\n [hidden]: \"secret\",\n \"name\": \"Tim\"\n}",
+  "{ [hidden]: 'secret', name: 'Tim' }",
   inspect(Object.create(null, {name: {value: "Tim", enumerable: true}, hidden: {value: "secret"}}), true)
 );
 assert.equal(
-  "{\n \"name\": \"Tim\"\n}",
+  "{ name: 'Tim' }",
   inspect(Object.create(null, {name: {value: "Tim", enumerable: true}, hidden: {value: "secret"}}))
 );
 
 
 // Dynamic properties
 assert.equal(
-  "{\n \"readonly\": [Getter],\n \"readwrite\": [Getter/Setter],\n \"writeonly\": [Setter]\n}",
-  inspect({get readonly(){},get readwrite(){},set readwrite(val){},set writeonly(val){}})
+  "{ readonly: [Getter] }",
+  inspect({get readonly(){}})
+);
+assert.equal(
+  "{ readwrite: [Getter/Setter] }",
+  inspect({get readwrite(){},set readwrite(val){}})
+);
+assert.equal(
+  "{ writeonly: [Setter] }",
+  inspect({set writeonly(val){}})
 );
 
 var value = {};
 value['a'] = value;
-assert.equal('{\n "a": [Circular]\n}', inspect(value));
+assert.equal('{ a: [Circular] }', inspect(value));
 value = Object.create([]);
 value.push(1);
-assert.equal("[\n 1,\n \"length\": 1\n]", inspect(value));
+assert.equal("[ 1, length: 1 ]", inspect(value));
 
 // Array with dynamic properties
 value = [1,2,3];
 value.__defineGetter__('growingLength', function () { this.push(true); return this.length; });
 assert.equal(
-  "[\n 1,\n 2,\n 3,\n \"growingLength\": [Getter]\n]",
+  "[ 1, 2, 3, growingLength: [Getter] ]",
   inspect(value)
 );
 
@@ -72,7 +82,7 @@ assert.equal(
 value = function () {};
 value.aprop = 42;
 assert.equal(
-  "{ [Function]\n \"aprop\": 42\n}",
+  "{ [Function] aprop: 42 }",
   inspect(value)
 );
 
@@ -80,7 +90,7 @@ assert.equal(
 value = /123/ig;
 value.aprop = 42;
 assert.equal(
-  "{ /123/gi\n \"aprop\": 42\n}",
+  "{ /123/gi aprop: 42 }",
   inspect(value)
 );
 
@@ -88,6 +98,6 @@ assert.equal(
 value = new Date("Sun, 14 Feb 2010 11:48:40 GMT");
 value.aprop = 42;
 assert.equal(
-  "{ Sun, 14 Feb 2010 11:48:40 GMT\n \"aprop\": 42\n}",
+  "{ Sun, 14 Feb 2010 11:48:40 GMT aprop: 42 }",
   inspect(value)
 );
