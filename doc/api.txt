@@ -143,10 +143,11 @@ Gets/sets the group identity of the process. (See setgid(2).)
 +process.chdir(directory)+::
 Changes the current working directory of the process.
 
-+process.umask(mask)+ ::
-Sets the process's file mode creation mask. Child processes inherit the mask 
-from the parent process.
-  - returns the old mask.
++process.umask([mask])+ ::
+Sets or read the process's file mode creation mask. Child processes inherit
+the mask from the parent process.
+  - returns the old mask if +mask+ argument is given, otherwise returns 
+the current mask.
 
 +process.kill(pid, signal="SIGTERM")+ ::
 Send a signal to a process. +pid+ is the process id and +signal+ is the

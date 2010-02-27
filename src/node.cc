@@ -471,14 +471,18 @@ static Handle<Value> Cwd(const Arguments& args) {
 
 static Handle<Value> Umask(const Arguments& args){
   HandleScope scope;
-
-  if(args.Length() < 1 || !args[0]->IsInt32()) {
+  unsigned int old;
+  if(args.Length() < 1) {
+    old = umask(0);
+    umask((mode_t)old);
+  }
+  else if(!args[0]->IsInt32()) {
     return ThrowException(Exception::TypeError(
           String::New("argument must be an integer.")));
   }
-  unsigned int mask = args[0]->Uint32Value();
-  unsigned int old = umask((mode_t)mask);
-
+  else {
+    old = umask((mode_t)args[0]->Uint32Value());
+  }
   return scope.Close(Uint32::New(old));
 }
 
