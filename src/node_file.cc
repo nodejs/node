@@ -275,7 +275,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
     char buf[PATH_MAX];
     ssize_t bz = readlink(*path, buf, PATH_MAX);
     if (bz == -1) return ThrowException(errno_exception(errno));
-    return scope.Close(String::New(buf));
+    return scope.Close(String::New(buf, bz));
   }
 }
 
