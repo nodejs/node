@@ -153,30 +153,6 @@ Send a signal to a process. +pid+ is the process id and +signal+ is the
 signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
 information.
 
-+process.watchFile(filename, [options,] listener)+::
-Watch for changes on +filename+. The callback +listener+ will be called each
-time the file changes.
-+
-The second argument is optional. The +options+ if provided should be an
-object containing two members a boolean, +persistent+, and +interval+, a
-polling value in milliseconds. The default is +{persistent: true, interval:
-0}+.
-+
-The +listener+ gets two arguments the current stat object and the previous
-stat object:
-+
--------------------------
-process.watchFile(f, function (curr, prev) {
-  sys.puts("the current mtime is: " + curr.mtime);
-  sys.puts("the previous mtime was: " + prev.mtime);
-});
--------------------------
-+
-These stat objects are instances of +fs.Stat+. 
-
-+process.unwatchFile(filename)+::
-Stop watching for changes on +filename+.
-
 +process.compile(source, scriptOrigin)+::
 Just like +eval()+ except that you can specify a +scriptOrigin+ for better
 error reporting.
@@ -754,6 +730,30 @@ fs.writeFile("message.txt", "Hello Node", function (err) {
 
 +fs.writeFileSync(filename, data, encoding="utf8")+::
 The synchronous version of +fs.writeFile+.
+
++fs.watchFile(filename, [options,] listener)+::
+Watch for changes on +filename+. The callback +listener+ will be called each
+time the file changes.
++
+The second argument is optional. The +options+ if provided should be an
+object containing two members a boolean, +persistent+, and +interval+, a
+polling value in milliseconds. The default is +{persistent: true, interval:
+0}+.
++
+The +listener+ gets two arguments the current stat object and the previous
+stat object:
++
+-------------------------
+fs.watchFile(f, function (curr, prev) {
+  sys.puts("the current mtime is: " + curr.mtime);
+  sys.puts("the previous mtime was: " + prev.mtime);
+});
+-------------------------
++
+These stat objects are instances of +fs.Stat+. 
+
++fs.unwatchFile(filename)+::
+Stop watching for changes on +filename+.
 
 
 

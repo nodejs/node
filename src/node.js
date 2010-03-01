@@ -19,6 +19,8 @@ GLOBAL.print = removed("print() has moved. Use require('sys') to bring it back."
 GLOBAL.p = removed("p() has moved. Use require('sys') to bring it back.");
 process.debug = removed("process.debug() has moved. Use require('sys') to bring it back.");
 process.error = removed("process.error() has moved. Use require('sys') to bring it back.");
+process.watchFile = removed("process.watchFile() has moved to fs.watchFile()");
+process.unwatchFile = removed("process.unwatchFile() has moved to fs.unwatchFile()");
 
 GLOBAL.node = {};
 
@@ -244,46 +246,6 @@ process.addListener("newListener", function (event) {
     });
   }
 });
-
-
-// Stat Change Watchers
-
-var statWatchers = {};
-
-process.watchFile = function (filename) {
-  var stat;
-  var options;
-  var listener;
-
-  if ("object" == typeof arguments[1]) {
-    options = arguments[1];
-    listener = arguments[2];
-  } else {
-    options = {};
-    listener = arguments[1];
-  }
-
-  if (options.persistent === undefined) options.persistent = true;
-  if (options.interval === undefined) options.interval = 0;
-
-  if (filename in statWatchers) {
-    stat = statWatchers[filename];
-  } else {
-    statWatchers[filename] = new process.Stat();
-    stat = statWatchers[filename];
-    stat.start(filename, options.persistent, options.interval);
-  }
-  stat.addListener("change", listener);
-  return stat;
-};
-
-process.unwatchFile = function (filename) {
-  if (filename in statWatchers) {
-    stat = statWatchers[filename];
-    stat.stop();
-    statWatchers[filename] = undefined;
-  }
-};
 
 
 // Timers

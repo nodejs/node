@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
 
+var fs = require("fs");
 var path = require("path");
 
 var f = path.join(fixturesDir, "x.txt");
@@ -8,15 +9,13 @@ var f2 = path.join(fixturesDir, "x2.txt");
 puts("watching for changes of " + f);
 
 var changes = 0;
-process.watchFile(f, function (curr, prev) {
+fs.watchFile(f, function (curr, prev) {
   puts(f + " change");
   changes++;
   assert.ok(curr.mtime != prev.mtime);
-  process.unwatchFile(f);
+  fs.unwatchFile(f);
 });
 
-
-var fs = require("fs");
 
 var fd = fs.openSync(f, "w+");
 fs.writeSync(fd, 'xyz\n');
