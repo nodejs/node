@@ -239,7 +239,9 @@ make install</pre>
       <pre class="sh_none">
 git clone git://github.com/ry/node.git
 cd node
-# edit/compile/test
+(make your changes)
+./configure --debug
+make test-all # Check your patch with both debug and release builds
 git commit -m "Good description of what your patch does"
 git format-patch HEAD^
 </pre>
