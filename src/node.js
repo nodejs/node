@@ -27,6 +27,7 @@ GLOBAL.node = {};
 node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
 node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
 node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
+process.inherits = removed("process.inherits() has moved to sys.inherits.");
 
 node.http = {};
 node.http.createServer = removed("node.http.createServer() has moved. Use require('http') to access it.");
@@ -69,15 +70,6 @@ function createInternalModule (id, constructor) {
   m.loaded = true;
   internalModuleCache[id] = m;
   return m;
-};
-
-
-process.inherits = function (ctor, superCtor) {
-  var tempCtor = function(){};
-  tempCtor.prototype = superCtor.prototype;
-  ctor.super_ = superCtor;
-  ctor.prototype = new tempCtor();
-  ctor.prototype.constructor = ctor;
 };
 
 
