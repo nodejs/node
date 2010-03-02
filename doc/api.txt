@@ -622,6 +622,14 @@ The callback gets two arguments +(err, resolvedPath)+.
 Synchronous readlink(2). Returns the resolved path.
 
 
++fs.realpath(path, callback)+ ::
+Asynchronous realpath(2).
+The callback gets two arguments +(err, resolvedPath)+.
+
++fs.realpathSync(path)+ ::
+Synchronous realpath(2). Returns the resolved path.
+
+
 +fs.unlink(path, callback)+ ::
 Asynchronous unlink(2).
 No arguments other than a possible exception are given to the completion callback.
