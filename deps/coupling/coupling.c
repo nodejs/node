@@ -180,7 +180,7 @@ pull_pump (int pullfd, int pushfd)
       /* eof */
       close(pullfd);
       pullfd = -1;
-    } else if (r < 0 && errno != EINTR && errno != EAGAIN) {
+    } else if (r < 0 && errno && errno != EINTR && errno != EAGAIN) {
       /* error */
       perror("pull_pump read()");
       close(pullfd);
@@ -192,7 +192,7 @@ pull_pump (int pullfd, int pushfd)
       /* non-blocking write() to the pipe */
       r = ring_buffer_push(&ring, pushfd);
 
-      if (r < 0 && errno != EAGAIN && errno != EINTR) {
+      if (r < 0 && errno && errno != EAGAIN && errno != EINTR) {
         if (errno == EPIPE) {
           /* This happens if someone closes the other end of the pipe.  This
            * is a normal forced close of STDIN. Hopefully there wasn't data
@@ -274,7 +274,7 @@ push_pump (int pullfd, int pushfd)
       /* eof */
       close(pullfd);
       pullfd = -1;
-    } else if (r < 0 && errno != EINTR && errno != EAGAIN) {
+    } else if (r < 0 && errno && errno != EINTR && errno != EAGAIN) {
       perror("push_pump read()");
       close(pullfd);
       pullfd = -1;
@@ -288,14 +288,14 @@ push_pump (int pullfd, int pushfd)
 
       /* If there was a problem, just exit the entire function */
 
-      if (r < 0 && errno != EINTR) {
+      if (r < 0 && errno && errno != EINTR && errno != EAGAIN) {
         close(pushfd);
         close(pullfd);
         pushfd = pullfd = -1;
         return;
       }
     }
-    
+
     if (pullfd >= 0) {
       /* select for readability on the pullfd */
       r = select(pullfd+1, &readfds, NULL, &exceptfds, NULL);
