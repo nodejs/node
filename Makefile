@@ -16,10 +16,13 @@ uninstall:
 	@$(WAF) uninstall
 
 test: all
-	python tools/test.py --mode=release
+	python tools/test.py --mode=release simple
 
 test-all: all
 	python tools/test.py --mode=debug,release
+
+test-release: all
+	python tools/test.py --mode=release
 
 test-debug: all
 	python tools/test.py --mode=debug
