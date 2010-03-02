@@ -28,10 +28,19 @@ var source = {
   get foo(){ return this._foo; },
   set foo(value){ this._foo = "did set to "+value; }
 };
-var target = {};
+target = {};
 process.mixin(target, source);
 target._foo = 'b';
 assert.equal(source.foo, 'a');
 assert.equal('b', target.foo, 'target.foo != "b" -- value/result was copied instead of getter function');
 source.foo = 'c';
 assert.equal('did set to c', source.foo, 'source.foo != "c" -- value was set instead of calling setter function');
+
+// Test that nested arrays are handled properly
+target = {};
+process.mixin(true, target, {
+  foo: ['bar'],
+});
+
+assert.notStrictEqual(['bar'], target.foo);
+assert.deepEqual(['bar'], target.foo);

@@ -26,11 +26,11 @@ assert.equal('{ a: [Function] }', inspect({a: function() {}}));
 assert.equal('{ a: 1, b: 2 }', inspect({a: 1, b: 2}));
 assert.equal('{ a: {} }', inspect({'a': {}}));
 assert.equal('{ a: { b: 2 } }', inspect({'a': {'b': 2}}));
-assert.equal('{ a: { b: { c: [object Object] } } }', inspect({'a': {'b': { 'c': { 'd': 2 }}}}));
+assert.equal('{ a: { b: { c: [Object] } } }', inspect({'a': {'b': { 'c': { 'd': 2 }}}}));
 assert.equal('{ a: { b: { c: { d: 2 } } } }', inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null));
 assert.equal('[ 1, 2, 3, [length]: 3 ]', inspect([1,2,3], true));
-assert.equal('{ a: [object Object] }', inspect({'a': {'b': { 'c': 2}}},false,0));
-assert.equal('{ a: { b: [object Object] } }', inspect({'a': {'b': { 'c': 2}}},false,1));
+assert.equal('{ a: [Object] }', inspect({'a': {'b': { 'c': 2}}},false,0));
+assert.equal('{ a: { b: [Object] } }', inspect({'a': {'b': { 'c': 2}}},false,1));
 assert.equal("{ visible: 1 }",
   inspect(Object.create({}, {visible:{value:1,enumerable:true},hidden:{value:2}}))
 );

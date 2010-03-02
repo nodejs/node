@@ -5,7 +5,6 @@ url = require("url");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.
-port = 9999;
 
 nrequests_completed = 0;
 nrequests_expected = 1;
@@ -19,9 +18,9 @@ var s = http.createServer(function (req, res) {
 
   if (++nrequests_completed == nrequests_expected) s.close();
 });
-s.listen(port);
+s.listen(PORT);
 
-var c = tcp.createConnection(port);
+var c = tcp.createConnection(PORT);
 c.addListener("connect", function () {
   c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.close();

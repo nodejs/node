@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
-PORT = 20443;
 N = 200;
 
 server = tcp.createServer(function (connection) {

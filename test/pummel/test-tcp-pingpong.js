@@ -1,7 +1,6 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
 
-
 var tests_run = 0;
 
 function pingPongTest (port, host, on_complete) {
@@ -81,9 +80,9 @@ function pingPongTest (port, host, on_complete) {
 }
 
 /* All are run at once, so run on different ports */
-pingPongTest(20989, "localhost");
-pingPongTest(20988, null);
-pingPongTest(20997, "::1");
+pingPongTest(PORT, "localhost");
+pingPongTest(PORT+1, null);
+pingPongTest(PORT+2, "::1");
 
 process.addListener("exit", function () {
   assert.equal(3, tests_run);

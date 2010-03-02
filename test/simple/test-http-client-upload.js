@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 http = require("http");
-var PORT = 18032;
 
 var sent_body = "";
 var server_req_complete = false;

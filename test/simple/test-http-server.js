@@ -4,8 +4,6 @@ http = require("http");
 url = require("url");
 qs = require("querystring");
 
-var port = 8222;
-
 var request_number = 0;
 var requests_sent = 0;
 var server_response = "";
@@ -43,9 +41,9 @@ http.createServer(function (req, res) {
     res.close();
   }, 1);
 
-}).listen(port);
+}).listen(PORT);
 
-var c = tcp.createConnection(port);
+var c = tcp.createConnection(PORT);
 
 c.setEncoding("utf8");
 

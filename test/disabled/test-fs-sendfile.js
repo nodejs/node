@@ -1,8 +1,7 @@
-process.mixin(require("./common"));
+process.mixin(require("../common"));
 
 tcp = require("tcp");
 sys = require("sys");
-PORT = 23123;
 var x = path.join(fixturesDir, "x.txt");
 var expected = "xyz";
 

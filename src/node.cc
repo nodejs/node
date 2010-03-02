@@ -1250,7 +1250,13 @@ int main(int argc, char *argv[]) {
   evcom_ignore_sigpipe();
 
   // Initialize the default ev loop.
+#ifdef __sun
+  // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
+  // EVBACKEND_PORT. Temporarally forcing select() until I debug.
+  ev_default_loop(EVBACKEND_SELECT);
+#else
   ev_default_loop(EVFLAG_AUTO);
+#endif
 
 
   ev_timer_init(&node::gc_timer, node::GCTimeout, GC_INTERVAL, GC_INTERVAL);

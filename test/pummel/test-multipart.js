@@ -3,7 +3,6 @@ process.mixin(require("../common"));
 var http = require("http"),
   multipart = require("multipart"),
   sys = require("sys"),
-  PORT = 8222,
   fixture = require("../fixtures/multipart"),
   events = require("events"),
   testPart = function (expect, part) {

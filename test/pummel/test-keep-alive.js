@@ -2,7 +2,6 @@
 process.mixin(require("../common"));
 http = require("http");
 sys = require("sys");
-PORT = 8891;
 
 body = "hello world\n";
 server = http.createServer(function (req, res) {

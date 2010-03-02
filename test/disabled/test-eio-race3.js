@@ -1,6 +1,6 @@
 /* XXX Can this test be modified to not call the now-removed wait()? */
 
-process.mixin(require("./common"));
+process.mixin(require("../common"));
 
 
 puts('first stat ...');

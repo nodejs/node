@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 var http = require("http");
-var PORT = 8888;
 
 var UTF8_STRING = "Il était tué";
 

@@ -2,8 +2,8 @@ process.mixin(require("../common"));
 http = require("http");
 url = require("url");
 
-var PROXY_PORT = 8869;
-var BACKEND_PORT = 8870;
+var PROXY_PORT = PORT;
+var BACKEND_PORT = PORT+1;
 
 var backend = http.createServer(function (req, res) {
   // debug("backend");

@@ -1,6 +1,5 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
-port = 9992;
 exchanges = 0;
 starttime = null;
 timeouttime = null;
@@ -25,10 +24,10 @@ var echo_server = tcp.createServer(function (socket) {
   });
 });
 
-echo_server.listen(port);
-puts("server listening at " + port);
+echo_server.listen(PORT);
+puts("server listening at " + PORT);
 
-var client = tcp.createConnection(port);
+var client = tcp.createConnection(PORT);
 client.setEncoding("UTF8");
 client.setTimeout(0); // disable the timeout for client
 client.addListener("connect", function () {

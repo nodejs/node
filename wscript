@@ -1,4 +1,4 @@
-# /usr/bin/env python
+#!/usr/bin/env python
 import re
 import Options
 import sys, os, shutil

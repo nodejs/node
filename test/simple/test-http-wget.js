@@ -17,8 +17,6 @@ http = require("http");
 // content-length is not provided, that the connection is in fact 
 // closed.
 
-var port = 7333;
-
 var server_response = "";
 var client_got_eof = false;
 var connection_was_closed = false;
@@ -29,9 +27,9 @@ var server = http.createServer(function (req, res) {
   res.write("world\n");
   res.close();
 })
-server.listen(port);
+server.listen(PORT);
 
-var c = tcp.createConnection(port);
+var c = tcp.createConnection(PORT);
 
 c.setEncoding("utf8");
 

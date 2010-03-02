@@ -1,6 +1,5 @@
 process.mixin(require('../common.js'));
 
-var PORT = 8003;
 var request_count = 1000;
 var response_body = '{"ok": true}';
 
