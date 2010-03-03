@@ -187,6 +187,8 @@ Like +puts()+ but without the trailing new-line.
 A synchronous output function. Will block the process and
 output +string+ immediately to +stdout+.
 
++log(string)+::
+Output with timestamp.
 
 
 +inspect(object, showHidden, depth)+ ::
