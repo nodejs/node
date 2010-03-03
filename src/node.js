@@ -310,7 +310,7 @@ function readAll (fd, pos, content, encoding, callback) {
 }
 
 process.fs.readFile = function (path, encoding_, callback) {
-  var encoding = typeof(encoding_) == 'string' ? encoding : 'utf8';
+  var encoding = typeof(encoding_) == 'string' ? encoding_ : 'utf8';
   var callback_ = arguments[arguments.length - 1];
   var callback = (typeof(callback_) == 'function' ? callback_ : null);
   process.fs.open(path, process.O_RDONLY, 0666, function (err, fd) {
