@@ -1493,6 +1493,10 @@ Sets the encoding (either +"ascii"+, +"utf8"+, or +"binary"+) for data that is r
 Sends data on the connection. The second parameter specifies the encoding
 in the case of a string--it defaults to ASCII because encoding to UTF8 is
 rather slow.
++
+Returns +true+ if the entire data was flushed successfully to the kernel
+buffer. Returns +false+ if all or part of the data was queued in user memory.
++'drain'+ will be emitted when the buffer is again free.
 
 
 +connection.close()+::

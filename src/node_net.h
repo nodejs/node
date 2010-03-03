@@ -62,8 +62,8 @@ class Connection : public EventEmitter {
     return evcom_stream_connect(&stream_, address);
   }
 
-  void Write(const char *buf, size_t len) {
-    evcom_stream_write(&stream_, buf, len);
+  ssize_t Write(const char *buf, size_t len) {
+    return evcom_stream_write(&stream_, buf, len);
   }
 
   void Close() {
