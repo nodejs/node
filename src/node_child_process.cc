@@ -302,6 +302,10 @@ int ChildProcess::Spawn(const char *file, char *const args[], char **env) {
     return -3;
   }
 
+  // Save environ in the case that we get it clobbered
+  // by the child process.
+  char **save_our_env = environ;
+
   switch (pid_ = vfork()) {
     case -1:  // Error.
       Shutdown();
@@ -323,6 +327,9 @@ int ChildProcess::Spawn(const char *file, char *const args[], char **env) {
       perror("execvp()");
       _exit(127);
   }
+
+  // Restore environment.
+  environ = save_our_env;
 
   // Parent.
 
