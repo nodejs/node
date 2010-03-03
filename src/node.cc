@@ -506,7 +506,7 @@ static Handle<Value> SetGid(const Arguments& args) {
   Local<Integer> given_gid = args[0]->ToInteger();
   int gid = given_gid->Int32Value();
   int result;
-  if ((result == setgid(gid)) != 0) {
+  if ((result = setgid(gid)) != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
   return Undefined();
