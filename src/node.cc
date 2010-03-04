@@ -1240,10 +1240,12 @@ int main(int argc, char *argv[]) {
   evcom_ignore_sigpipe();
 
   // Initialize the default ev loop.
-#ifdef __sun
+#if defined(__sun)
   // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
   // EVBACKEND_PORT. Temporarally forcing select() until I debug.
   ev_default_loop(EVBACKEND_SELECT);
+#elif defined(__APPLE__)
+  ev_default_loop(EVBACKEND_KQUEUE);
 #else
   ev_default_loop(EVFLAG_AUTO);
 #endif

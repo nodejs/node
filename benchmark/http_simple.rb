@@ -86,10 +86,12 @@ end
 if $0 == __FILE__
   #require DIR + '/../lib/ebb'
   require 'rubygems'
-  require 'rack'
-  require 'thin'
-  require 'ebb'
+#  require 'rack'
 #  Rack::Handler::Mongrel.run(SimpleApp.new, :Port => 8000)
+  
+  require 'thin'
   Thin::Server.start("0.0.0.0", 8000, SimpleApp.new) 
+
+#  require 'ebb'
 #  Ebb::start_server(SimpleApp.new, :port => 8000)
 end
