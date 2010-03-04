@@ -17,6 +17,9 @@ file
     callbacks.open++;
     assert.equal('number', typeof fd);
   })
+  .addListener('error', function(err) {
+    throw err;
+  })
   .addListener('drain', function() {
     callbacks.drain++;
     if (callbacks.drain == -1) {
