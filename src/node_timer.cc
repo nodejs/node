@@ -9,6 +9,7 @@ Persistent<FunctionTemplate> Timer::constructor_template;
 
 static Persistent<String> timeout_symbol;
 static Persistent<String> repeat_symbol;
+static Persistent<String> callback_symbol;
 
 void
 Timer::Initialize (Handle<Object> target)
@@ -17,12 +18,12 @@ Timer::Initialize (Handle<Object> target)
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Timer::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Timer"));
 
   timeout_symbol = NODE_PSYMBOL("timeout");
   repeat_symbol = NODE_PSYMBOL("repeat");
+  callback_symbol = NODE_PSYMBOL("callback");
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Timer::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Timer::Stop);
@@ -66,7 +67,23 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
   assert(revents == EV_TIMEOUT);
 
-  timer->Emit(timeout_symbol, 0, NULL);
+  HandleScope scope;
+
+  Local<Value> callback_v = timer->handle_->Get(callback_symbol);
+  if (!callback_v->IsFunction()) {
+    timer->Stop();
+    return;
+  }
+
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+
+  TryCatch try_catch;
+
+  callback->Call(timer->handle_, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
 
   if (timer->watcher_.repeat == 0) timer->Unref();
 }
@@ -90,8 +107,8 @@ Timer::New (const Arguments& args)
 Handle<Value>
 Timer::Start (const Arguments& args)
 {
-  Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
   HandleScope scope;
+  Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
 
   if (args.Length() != 2)
     return ThrowException(String::New("Bad arguments"));
@@ -108,13 +125,18 @@ Timer::Start (const Arguments& args)
   return Undefined();
 }
 
-Handle<Value>
-Timer::Stop (const Arguments& args)
-{
+
+Handle<Value> Timer::Stop(const Arguments& args) {
+  HandleScope scope;
   Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
-  if (ev_is_active(&timer->watcher_)) {
-    ev_timer_stop(EV_DEFAULT_UC_ &timer->watcher_);
-    timer->Unref();
-  }
+  timer->Stop();
   return Undefined();
+}
+
+
+void Timer::Stop () {
+  if (watcher_.active) {
+    ev_timer_stop(EV_DEFAULT_UC_ &watcher_);
+    Unref();
+  }
 }
