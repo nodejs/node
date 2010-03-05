@@ -824,6 +824,45 @@ Resumes the stream. Together with +pause()+ this useful to throttle reading.
 Allows to close the stream before the +"end"+ is reached. No more events other
 than +"close"+ will be fired after this method has been called.
 
+=== +fs.FileWriteStream+
+
+[cols="1,2,10",options="header"]
+|=========================================================
+|Event           | Parameters          | Notes
+
+|+"open"+        | +fd+                | The file descriptor was opened.
+|+"drain"+       |                     | No more data needs to be written.
+|+"error"+       | +err+               | An error occured. This stops the stream.
+|+"close"+       |                     | The file descriptor was closed.
+|=========================================================
+
++fs.createWriteStream(path, [options]);+ ::
+Returns a new FileWriteStream object.
++
++options+ is an object with the following defaults:
++
+----------------------------------------
+{ "flags": "r"
+, "encoding": "binary"
+, "mode": 0666
+}
+----------------------------------------
+
++writeStream.writeable+ ::
+A boolean that is +true+ by default, but turns +false+ after an +"error"+
+occured or +close()+ / +forceClose()+ was called.
+
++writeStream.write(data)+ ::
+Returns +true+ if the data was flushed to the kernel, and +false+ if it was
+queued up for being written later. A +"drain"+ will fire after all queued data
+has been written.
+
++writeStream.close()+ ::
+Closes the stream right after all queued +write()+ calls have finished.
+
++writeStream.forceClose()+ ::
+Allows to close the stream regardless of its current state.
+
 == HTTP
 
 To use the HTTP server and client one must +require("http")+.
