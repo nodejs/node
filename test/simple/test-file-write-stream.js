@@ -2,7 +2,7 @@ process.mixin(require('../common'));
 
 var
   fn = path.join(fixturesDir, "write.txt"),
-  file = fs.fileWriteStream(fn),
+  file = fs.createWriteStream(fn),
 
   EXPECTED = '0123456789',
 

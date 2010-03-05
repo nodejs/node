@@ -2,7 +2,7 @@ process.mixin(require('../common'));
 
 var
   fn = path.join(fixturesDir, 'multipart.js'),
-  file = fs.fileReadStream(fn),
+  file = fs.createReadStream(fn),
 
   callbacks = {
     open: -1,
