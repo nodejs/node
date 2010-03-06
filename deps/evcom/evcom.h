@@ -194,7 +194,7 @@ void evcom_stream_read_resume   (evcom_stream *);
 void evcom_stream_read_pause    (evcom_stream *);
 void evcom_stream_reset_timeout (evcom_stream *, float timeout);
 void evcom_stream_set_no_delay  (evcom_stream *, int no_delay);
-void evcom_stream_write         (evcom_stream *, const char *str, size_t len);
+ssize_t evcom_stream_write      (evcom_stream *, const char *str, size_t len);
 /* Once the write buffer is drained, evcom_stream_close will shutdown the
  * writing end of the stream and will close the read end once the server
  * replies with an EOF.

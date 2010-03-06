@@ -246,35 +246,33 @@ function addTimerListener (callback) {
   // Special case the no param case to avoid the extra object creation.
   if (arguments.length > 2) {
     var args = Array.prototype.slice.call(arguments, 2);
-    timer.addListener("timeout", function(){
-      callback.apply(timer, args);
-    });
+    timer.callback = function () { callback.apply(timer, args); };
   } else {
-    timer.addListener("timeout", callback);
+    timer.callback = callback;
   }
 }
 
-GLOBAL.setTimeout = function (callback, after) {
+global.setTimeout = function (callback, after) {
   var timer = new process.Timer();
   addTimerListener.apply(timer, arguments);
   timer.start(after, 0);
   return timer;
 };
 
-GLOBAL.setInterval = function (callback, repeat) {
+global.setInterval = function (callback, repeat) {
   var timer = new process.Timer();
   addTimerListener.apply(timer, arguments);
   timer.start(repeat, repeat);
   return timer;
 };
 
-GLOBAL.clearTimeout = function (timer) {
+global.clearTimeout = function (timer) {
   if (timer instanceof process.Timer) {
     timer.stop();
   }
 };
 
-GLOBAL.clearInterval = GLOBAL.clearTimeout;
+global.clearInterval = global.clearTimeout;
 
 
 
@@ -310,7 +308,7 @@ function readAll (fd, pos, content, encoding, callback) {
 }
 
 process.fs.readFile = function (path, encoding_, callback) {
-  var encoding = typeof(encoding_) == 'string' ? encoding : 'utf8';
+  var encoding = typeof(encoding_) == 'string' ? encoding_ : 'utf8';
   var callback_ = arguments[arguments.length - 1];
   var callback = (typeof(callback_) == 'function' ? callback_ : null);
   process.fs.open(path, process.O_RDONLY, 0666, function (err, fd) {

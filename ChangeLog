@@ -1,4 +1,32 @@
-2010.02.22, Version 0.1.30
+2010.03.05, Version 0.1.31
+
+  * API: - Move process.watchFile into fs module
+         - Move process.inherits to sys
+
+  * Improve Solaris port
+
+  * tcp.Connection.prototype.write now returns boolean to indicate if
+    argument was flushed to the kernel buffer.
+
+  * Added fs.link, fs.symlink, fs.readlink, fs.realpath
+    (Rasmus Andersson)
+
+  * Add setgid,getgid (James Duncan)
+
+  * Improve sys.inspect (Benjamin Thomas)
+
+  * Allow passing env to child process (Isaac Schlueter)
+
+  * fs.createWriteStream, fs.createReadStream (Felix Geisendörfer)
+
+  * Add INI parser (Rob Ellis)
+
+  * Bugfix: fs.readFile handling encoding (Jacek Becela)
+
+  * Upgrade V8 to 2.1.2
+
+
+2010.02.22, Version 0.1.30, bb0d1e65e1671aaeb21fac186b066701da0bc33b
 
   * Major API Changes
 

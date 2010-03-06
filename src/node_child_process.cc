@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+extern char **environ;
+
 namespace node {
 
 using namespace v8;
@@ -276,7 +278,7 @@ static inline int SetNonBlocking(int fd) {
 
 // Note that args[0] must be the same as the "file" param.  This is an
 // execvp() requirement.
-int ChildProcess::Spawn(const char *file, char *const args[], char *const env[]) {
+int ChildProcess::Spawn(const char *file, char *const args[], char **env) {
   assert(pid_ == 0);
   assert(stdout_fd_ == -1);
   assert(stderr_fd_ == -1);
@@ -300,6 +302,10 @@ int ChildProcess::Spawn(const char *file, char *const args[], char *const env[])
     return -3;
   }
 
+  // Save environ in the case that we get it clobbered
+  // by the child process.
+  char **save_our_env = environ;
+
   switch (pid_ = vfork()) {
     case -1:  // Error.
       Shutdown();
@@ -315,12 +321,15 @@ int ChildProcess::Spawn(const char *file, char *const args[], char *const env[])
       close(stdin_pipe[1]);  // close write end
       dup2(stdin_pipe[0],  STDIN_FILENO);
 
+      environ = env;
+
       execvp(file, args);
       perror("execvp()");
       _exit(127);
-
-      // TODO search PATH and use: execve(file, argv, env);
   }
+
+  // Restore environment.
+  environ = save_our_env;
 
   // Parent.
 

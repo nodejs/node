@@ -633,12 +633,12 @@ Handle<Value> Connection::Write(const Arguments& args) {
   }
 
   char * buf = new char[len];
-  ssize_t written = DecodeWrite(buf, len, args[0], enc);
-  assert(written == len);
-  connection->Write(buf, written);
+  ssize_t bufsize = DecodeWrite(buf, len, args[0], enc);
+  assert(bufsize == len);
+  ssize_t sent = connection->Write(buf, bufsize);
   delete [] buf;
 
-  return scope.Close(Integer::New(written));
+  return sent == bufsize ? True() : False();
 }
 
 void Connection::OnReceive(const void *buf, size_t len) {

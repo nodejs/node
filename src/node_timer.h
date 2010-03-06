@@ -2,20 +2,20 @@
 #define node_timer_h
 
 #include <node.h>
-#include <node_events.h>
+#include <node_object_wrap.h>
 #include <v8.h>
 #include <ev.h>
 
 namespace node {
 
-class Timer : EventEmitter {
+class Timer : ObjectWrap {
  public:
   static void Initialize (v8::Handle<v8::Object> target);
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Timer () : EventEmitter () { }
+  Timer () : ObjectWrap () { }
   ~Timer();
 
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
@@ -26,6 +26,7 @@ class Timer : EventEmitter {
 
  private:
   static void OnTimeout (EV_P_ ev_timer *watcher, int revents);
+  void Stop ();
   ev_timer watcher_;
 };
 

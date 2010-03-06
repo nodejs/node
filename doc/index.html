@@ -21,10 +21,8 @@
         <li><a href="changelog.html">ChangeLog</a></li>
         <li><a href="#build">Build</a></li>
         <li><a href="#about">About</a></li>
-        <li><a href="#demo">Demo</a></li>
-        <li><a href="#community">Community</a></li>
-        <li><a href="#contribute">Contribute</a></li>
-        <li><a href="#benchmarks">Benchmarks</a></li>
+        <li><a href="#links">Links</a></li>
+        <li><a href="#contributing">Contributing</a></li>
         <li><a href="api.html">Documentation</a></li>
       </ol>
     </div>
@@ -98,8 +96,8 @@ server.listen(7000, "localhost");</pre>
         <a href="http://github.com/ry/node/tree/master">git repo</a>
       </p>
       <p>
-        2010.02.22
-        <a href="http://nodejs.org/dist/node-v0.1.30.tar.gz">node-v0.1.30.tar.gz</a>
+        2010.03.05
+        <a href="http://nodejs.org/dist/node-v0.1.31.tar.gz">node-v0.1.31.tar.gz</a>
       </p>
 
       <h2 id="build">Build</h2>
@@ -208,32 +206,42 @@ make install</pre>
       </p>
 
 
-      <h2 id="demo">Demo</h2>
-      <p>
-        A chat room demo is running at <a
+      <h2 id="links">Links</h2>
+
+      <ul>
+
+      <li>
+        A chat room <b>demo</b> is running at <a
           href="http://chat.nodejs.org">chat.nodejs.org</a>. The
         source code for the chat room is at <a
           href="http://github.com/ry/node_chat/tree/master">http://github.com/ry/node_chat</a>.
         The chat room is not stable and might occasionally be down.
-      </p>
+      </li>
 
-      <h2 id="community">Community</h2>
-      <p>
-        For help and discussion subscribe to the mailing list at
+      <li>
+        For help and discussion, subscribe to the mailing list at
         <a href="http://groups.google.com/group/nodejs">http://groups.google.com/group/nodejs</a>
         or send an email to <a href="mailto:nodejs+subscribe@googlegroups.com">nodejs+subscribe@googlegroups.com</a>.
-      </p>
+        For real-time discussion, check irc.freenode.net <code>#node.js</code>.
+      </li>
 
-      <p>
-        For real-time discussion, check irc.freenode.net #node.js.
-      </p>
+      <li>
+        <a href="http://nodejs.debuggable.com/">IRC logs</a>
+      </li>
 
-      <p>
+      <li>
         <a href="http://wiki.github.com/ry/node">Projects/libraries which are using/for Node.js</a>
-      </p>
-      <h2 id="contribute">Contribute</h2>
+      </li>
+
+      <li>
+        <a href="http://buildbot.nodejs.org:8010/">Node.js buildbot</a>
+      </li>
+
+      </ul>
+
+      <h2 id="contributing">Contributing</h2>
       <p>
-        Patches are always welcome. The process is simple:
+        Patches are welcome. The process is simple:
       </p>
 
       <pre class="sh_none">
@@ -253,13 +261,10 @@ git format-patch HEAD^
       </p>
 
       <p>
-        Feature patches should usually be discussed before putting in the work.
+        You should ask the mailing list if a new feature is wanted before
+        working on a patch. 
       </p>
 
-      <h2 id="benchmarks">Benchmarks</h2>
-      <p>
-        2009.09.06 <a href="http://four.livejournal.com/1019177.html">narwhal, node, v8cgi, thin/eventmachine</a>
-      </p>
     </div>
     <script type="text/javascript">
       var gaJsHost = (("https:" == document.location.protocol) ?

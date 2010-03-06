@@ -1,60 +1,48 @@
 process.mixin(require("../common"));
 tcp = require("tcp");
-N = 200;
+N = 60*1024; // 30kb
+
+puts("build big string");
+var body = "";
+for (var i = 0; i < N; i++) {
+  body += "C";
+}
+
+puts("start server on port " + PORT);
 
 server = tcp.createServer(function (connection) {
-  function write (j) {
-    if (j >= N) {
-      connection.close();
-      return;
-    }
-    setTimeout(function () {
-      connection.write("C");
-      write(j+1);
-    }, 10);
-  }
-  write(0);
+  connection.addListener("connect", function () {
+    assert.equal(false, connection.write(body));
+    connection.close();
+  });
 });
 server.listen(PORT);
 
 
-recv = "";
 chars_recved = 0;
+npauses = 0;
 
+
+var paused = false;
 client = tcp.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
-    print(d);
-    recv += d;
-});
-
-setTimeout(function () {
-  chars_recved = recv.length;
-  puts("pause at: " + chars_recved);
-  assert.equal(true, chars_recved > 1);
-  client.pause();
-  setTimeout(function () {
-    puts("resume at: " + chars_recved);
-    assert.equal(chars_recved, recv.length);
-    client.resume();
-
+  chars_recved += d.length;
+  puts("got " + chars_recved);
+  if (!paused) {
+    client.pause();
+    npauses += 1;
+    paused = true;
+    puts("pause");
+    x = chars_recved;
     setTimeout(function () {
-      chars_recved = recv.length;
-      puts("pause at: " + chars_recved);
-      client.pause();
-
-      setTimeout(function () {
-        puts("resume at: " + chars_recved);
-        assert.equal(chars_recved, recv.length);
-        client.resume();
-
-      }, 500);
-
-    }, 500);
-
-  }, 500);
-
-}, 500);
+      assert.equal(chars_recved, x);
+      client.resume();
+      puts("resume");
+      paused = false;
+    }, 100);
+  }
+});
 
 client.addListener("end", function () {
   server.close();
@@ -62,6 +50,6 @@ client.addListener("end", function () {
 });
 
 process.addListener("exit", function () {
-  assert.equal(N, recv.length);
-  debug("Exit");
+  assert.equal(N, chars_recved);
+  assert.equal(true, npauses > 2);
 });
