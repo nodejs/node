@@ -7,7 +7,8 @@ var
   callbacks = {
     open: -1,
     end: -1,
-    close: -1
+    close: -1,
+    forceClose: -1
   },
 
   paused = false,
@@ -46,6 +47,12 @@ file
 
     assert.equal(fs.readFileSync(fn), fileContent);
   });
+
+var file2 = fs.createReadStream(fn);
+file2.forceClose(function(err) {
+  assert.ok(!err);
+  callbacks.forceClose++;
+});
 
 process.addListener('exit', function() {
   for (var k in callbacks) {

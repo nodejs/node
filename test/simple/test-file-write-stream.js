@@ -4,12 +4,14 @@ var
   fn = path.join(fixturesDir, "write.txt"),
   file = fs.createWriteStream(fn),
 
-  EXPECTED = '0123456789',
+  EXPECTED = '012345678910',
 
   callbacks = {
     open: -1,
     drain: -2,
-    close: -1
+    close: -1,
+    closeCb: -1,
+    write: -11,
   };
 
 file
@@ -27,7 +29,10 @@ file
       file.write(EXPECTED);
     } else if (callbacks.drain == 0) {
       assert.equal(EXPECTED+EXPECTED, fs.readFileSync(fn));
-      file.close();
+      file.close(function(err) {
+        assert.ok(!err);
+        callbacks.closeCb++;
+      });
     }
   })
   .addListener('close', function() {
@@ -39,8 +44,13 @@ file
     fs.unlinkSync(fn);
   });
 
-for (var i = 0; i < 10; i++) {
-  assert.strictEqual(false, file.write(i));
+for (var i = 0; i < 11; i++) {
+  (function(i) {
+    assert.strictEqual(false, file.write(i, function(err, bytesWritten) {
+      callbacks.write++;
+      assert.equal(new String(i).length, bytesWritten);
+    }));
+  })(i);
 }
 
 process.addListener('exit', function() {

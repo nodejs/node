@@ -823,7 +823,7 @@ until the stream is resumed.
 +readStream.resume()+ ::
 Resumes the stream. Together with +pause()+ this useful to throttle reading.
 
-+readStream.forceClose()+ ::
++readStream.forceClose([callback])+ ::
 Allows to close the stream before the +"end"+ is reached. No more events other
 than +"close"+ will be fired after this method has been called.
 
@@ -855,15 +855,18 @@ Returns a new FileWriteStream object.
 A boolean that is +true+ by default, but turns +false+ after an +"error"+
 occured or +close()+ / +forceClose()+ was called.
 
-+writeStream.write(data)+ ::
++writeStream.write(data, [callback])+ ::
 Returns +true+ if the data was flushed to the kernel, and +false+ if it was
 queued up for being written later. A +"drain"+ will fire after all queued data
 has been written.
++
+You can also specify +callback+ to be notified when the data from this write
+has been flushed. The first param is +err+, the second is +bytesWritten+.
 
-+writeStream.close()+ ::
++writeStream.close([callback])+ ::
 Closes the stream right after all queued +write()+ calls have finished.
 
-+writeStream.forceClose()+ ::
++writeStream.forceClose([callback])+ ::
 Allows to close the stream regardless of its current state.
 
 == HTTP
