@@ -845,7 +845,7 @@ Returns a new FileWriteStream object.
 +options+ is an object with the following defaults:
 +
 ----------------------------------------
-{ "flags": "r"
+{ "flags": "w"
 , "encoding": "binary"
 , "mode": 0666
 }
