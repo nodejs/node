@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
-
+var path = require('path');
+var fs = require('fs');
 var got_error = false;
 var success_count = 0;
 

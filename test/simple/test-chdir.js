@@ -1,9 +1,7 @@
 process.mixin(require("../common"));
 
-var dirname = path.dirname(__filename);
+assert.equal(true, process.cwd() !== __dirname);
 
-assert.equal(true, process.cwd() !== dirname);
+process.chdir(__dirname);
 
-process.chdir(dirname);
-
-assert.equal(true, process.cwd() === dirname);
+assert.equal(true, process.cwd() === __dirname);

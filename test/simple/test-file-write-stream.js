@@ -1,6 +1,8 @@
 process.mixin(require('../common'));
 
 var
+  path = require('path'),
+  fs = require('fs'),
   fn = path.join(fixturesDir, "write.txt"),
   file = fs.createWriteStream(fn),
 

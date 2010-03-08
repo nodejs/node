@@ -1,4 +1,5 @@
 process.mixin(require("../common"));
+var path = require('path');
 
 debug("load test-module-loading.js");
 

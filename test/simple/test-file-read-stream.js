@@ -1,6 +1,8 @@
 process.mixin(require('../common'));
 
 var
+  path = require('path'),
+  fs = require('fs'),
   fn = path.join(fixturesDir, 'multipart.js'),
   file = fs.createReadStream(fn),
 
