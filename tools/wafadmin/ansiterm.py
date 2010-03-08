@@ -1,5 +1,8 @@
 import sys, os
 try:
+	if (not sys.stderr.isatty()) or (not sys.stdout.isatty()):
+		raise ValueError('not a tty')
+
 	from ctypes import *
 
 	class COORD(Structure):
@@ -8,19 +11,25 @@ try:
 	class SMALL_RECT(Structure):
 		_fields_ = [("Left", c_short), ("Top", c_short), ("Right", c_short), ("Bottom", c_short)]
 
-	
 	class CONSOLE_SCREEN_BUFFER_INFO(Structure):
 		_fields_ = [("Size", COORD), ("CursorPosition", COORD), ("Attributes", c_short), ("Window", SMALL_RECT), ("MaximumWindowSize", COORD)]
 
+	class CONSOLE_CURSOR_INFO(Structure):
+		_fields_ = [('dwSize',c_ulong), ('bVisible', c_int)]
+
 	sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
+	csinfo = CONSOLE_CURSOR_INFO()
 	hconsole = windll.kernel32.GetStdHandle(-11)
 	windll.kernel32.GetConsoleScreenBufferInfo(hconsole, byref(sbinfo))
+	if sbinfo.Size.X < 10 or sbinfo.Size.Y < 10: raise Exception('small console')
+	windll.kernel32.GetConsoleCursorInfo(hconsole, byref(csinfo))
 except Exception:
 	pass
 else:
-	import re
+	import re, threading
 
 	to_int = lambda number, default: number and int(number) or default
+	wlock = threading.Lock()
 
 	STD_OUTPUT_HANDLE = -11
 	STD_ERROR_HANDLE = -12
@@ -63,8 +72,7 @@ else:
 				windll.kernel32.SetConsoleCursorPosition(self.hconsole, clear_start)
 			else: # Clear from cursor position to end of screen
 				clear_start = sbinfo.CursorPosition
-				clear_length = ((sbinfo.Size.X - sbinfo.CursorPosition.X) + 
-					sbinfo.Size.X * (sbinfo.Size.Y - sbinfo.CursorPosition.Y))
+				clear_length = ((sbinfo.Size.X - sbinfo.CursorPosition.X) + sbinfo.Size.X * (sbinfo.Size.Y - sbinfo.CursorPosition.Y))
 			chars_written = c_int()
 			windll.kernel32.FillConsoleOutputCharacterA(self.hconsole, c_char(' '), clear_length, clear_start, byref(chars_written))
 			windll.kernel32.FillConsoleOutputAttribute(self.hconsole, sbinfo.Attributes, clear_length, clear_start, byref(chars_written))
@@ -159,6 +167,14 @@ else:
 			attrib = self.escape_to_color.get((intensity, color), 0x7)
 			windll.kernel32.SetConsoleTextAttribute(self.hconsole, attrib)
 
+		def show_cursor(self,param):
+			csinfo.bVisible = 1
+			windll.kernel32.SetConsoleCursorInfo(self.hconsole, byref(csinfo))
+
+		def hide_cursor(self,param):
+			csinfo.bVisible = 0
+			windll.kernel32.SetConsoleCursorInfo(self.hconsole, byref(csinfo))
+
 		ansi_command_table = {
 			'A': move_up,
 			'B': move_down,
@@ -171,13 +187,16 @@ else:
 			'f': set_cursor,
 			'J': clear_screen,
 			'K': clear_line,
+			'h': show_cursor,
+			'l': hide_cursor,
 			'm': set_color,
 			's': push_cursor,
 			'u': pop_cursor,
 		}
 		# Match either the escape sequence or text not containing escape sequence
-		ansi_tokans = re.compile('(?:\x1b\[([0-9;]*)([a-zA-Z])|([^\x1b]+))')
+		ansi_tokans = re.compile('(?:\x1b\[([0-9?;]*)([a-zA-Z])|([^\x1b]+))')
 		def write(self, text):
+			wlock.acquire()
 			for param, cmd, txt in self.ansi_tokans.findall(text):
 				if cmd:
 					cmd_func = self.ansi_command_table.get(cmd)
@@ -189,7 +208,7 @@ else:
 						windll.kernel32.WriteConsoleW(self.hconsole, txt, len(txt), byref(chars_written), None)
 					else:
 						windll.kernel32.WriteConsoleA(self.hconsole, txt, len(txt), byref(chars_written), None)
-					
+			wlock.release()
 
 		def flush(self):
 			pass

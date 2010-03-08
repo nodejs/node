@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
-
+var path = require('path');
+var fs = require('fs');
 var fn = path.join(fixturesDir, "write.txt");
 var expected = "hello";
 var found;

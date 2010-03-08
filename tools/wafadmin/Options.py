@@ -260,6 +260,8 @@ class Handler(Utils.Context):
 
 		for tool in tools:
 			tool = tool.replace('++', 'xx')
+			if tool == 'java': tool = 'javaw'
+			if tool.lower() == 'unittest': tool = 'unittestw'
 			module = Utils.load_tool(tool, path)
 			try:
 				fun = module.set_options

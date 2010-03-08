@@ -23,12 +23,13 @@ colors_lst = {
 'cursor_off' :'\x1b[?25l',
 }
 
-got_tty = not os.environ.get('TERM', 'dumb') in ['dumb', 'emacs']
-if got_tty:
+got_tty = False
+term = os.environ.get('TERM', 'dumb')
+if not term in ['dumb', 'emacs']:
 	try:
-		got_tty = sys.stderr.isatty()
+		got_tty = sys.stderr.isatty() or (sys.platform == 'win32' and term in ['xterm', 'msys'])
 	except AttributeError:
-		got_tty = False
+		pass
 
 import Utils
 
@@ -93,17 +94,17 @@ class formatter(logging.Formatter):
 				return rec.c1+rec.msg+rec.c2
 		return logging.Formatter.format(self, rec)
 
-def debug(msg):
+def debug(*k, **kw):
 	if verbose:
-		# FIXME why does it eat the newlines????
-		msg = msg.replace('\n', ' ')
-		logging.debug(msg)
+		k = list(k)
+		k[0] = k[0].replace('\n', ' ')
+		logging.debug(*k, **kw)
 
-def error(msg):
-	logging.error(msg)
+def error(*k, **kw):
+	logging.error(*k, **kw)
 	if verbose > 1:
-		if isinstance(msg, Utils.WafError):
-			st = msg.stack
+		if isinstance(k[0], Utils.WafError):
+			st = k[0].stack
 		else:
 			st = traceback.extract_stack()
 		if st:

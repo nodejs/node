@@ -62,7 +62,7 @@ class VirtualFrame : public ZoneObject {
   VirtualFrame();
 
   // Construct a virtual frame as a clone of an existing one.
-  explicit VirtualFrame(VirtualFrame* original);
+  explicit inline VirtualFrame(VirtualFrame* original);
 
   CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
   MacroAssembler* masm() { return cgen()->masm(); }
@@ -344,9 +344,9 @@ class VirtualFrame : public ZoneObject {
   void EmitPushMultiple(int count, int src_regs);
 
   // Push an element on the virtual frame.
-  void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
-  void Push(Handle<Object> value);
-  void Push(Smi* value) { Push(Handle<Object>(value)); }
+  inline void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
+  inline void Push(Handle<Object> value);
+  inline void Push(Smi* value);
 
   // Pushing a result invalidates it (its contents become owned by the frame).
   void Push(Result* result) {
@@ -362,7 +362,7 @@ class VirtualFrame : public ZoneObject {
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
-  void Nip(int num_dropped);
+  inline void Nip(int num_dropped);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
@@ -457,7 +457,7 @@ class VirtualFrame : public ZoneObject {
 
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
-  void PushFrameSlotAt(int index);
+  inline void PushFrameSlotAt(int index);
 
   // Push a the value of a frame slot (typically a local or parameter) on
   // top of the frame and invalidate the slot.
@@ -500,7 +500,7 @@ class VirtualFrame : public ZoneObject {
   // Register counts are correctly updated.
   int InvalidateFrameSlotAt(int index);
 
-  bool Equals(VirtualFrame* other);
+  inline bool Equals(VirtualFrame* other);
 
   // Classes that need raw access to the elements_ array.
   friend class DeferredCode;

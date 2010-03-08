@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "fast-codegen.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {

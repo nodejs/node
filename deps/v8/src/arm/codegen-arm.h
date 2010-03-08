@@ -203,7 +203,7 @@ class CodeGenerator: public AstVisitor {
 
   // Accessors
   inline bool is_eval();
-  Scope* scope();
+  inline Scope* scope();
 
   // Generating deferred code.
   void ProcessDeferred();

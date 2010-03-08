@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "full-codegen.h"
 #include "parser.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {

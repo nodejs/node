@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
-
+var fs = require('fs');
+var path = require('path');
 var async_completed = 0, async_expected = 0, unlink = [];
 
 function asynctest(testBlock, args, callback, assertBlock) {

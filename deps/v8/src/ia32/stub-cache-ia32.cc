@@ -479,17 +479,14 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:
-  explicit CallOptimization(LookupResult* lookup)
-    : constant_function_(NULL),
-      is_simple_api_call_(false),
-      expected_receiver_type_(NULL),
-      api_call_info_(NULL) {
-    if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
-
-    // We only optimize constant function calls.
-    if (lookup->type() != CONSTANT_FUNCTION) return;
-
-    Initialize(lookup->GetConstantFunction());
+  explicit CallOptimization(LookupResult* lookup) {
+    if (!lookup->IsProperty() || !lookup->IsCacheable() ||
+        lookup->type() != CONSTANT_FUNCTION) {
+      Initialize(NULL);
+    } else {
+      // We only optimize constant function calls.
+      Initialize(lookup->GetConstantFunction());
+    }
   }
 
   explicit CallOptimization(JSFunction* function) {
@@ -537,11 +534,14 @@ class CallOptimization BASE_EMBEDDED {
 
  private:
   void Initialize(JSFunction* function) {
-    if (!function->is_compiled()) return;
+    constant_function_ = NULL;
+    is_simple_api_call_ = false;
+    expected_receiver_type_ = NULL;
+    api_call_info_ = NULL;
+
+    if (function == NULL || !function->is_compiled()) return;
 
     constant_function_ = function;
-    is_simple_api_call_ = false;
-
     AnalyzePossibleApiFunction(function);
   }
 
@@ -1223,7 +1223,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  Label miss;
+  Label miss_in_smi_check;
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1232,7 +1232,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &miss, not_taken);
+    __ j(zero, &miss_in_smi_check, not_taken);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
@@ -1241,6 +1241,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   CallOptimization optimization(function);
   int depth = kInvalidProtoDepth;
+  Label miss;
 
   switch (check) {
     case RECEIVER_MAP_CHECK:
@@ -1359,6 +1360,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (depth != kInvalidProtoDepth) {
     FreeSpaceForFastApiCall(masm(), eax);
   }
+  __ bind(&miss_in_smi_check);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
   __ jmp(ic, RelocInfo::CODE_TARGET);
 

@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
+#include "virtual-frame-inl.h"
 
 namespace v8 {
 namespace internal {

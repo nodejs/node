@@ -115,7 +115,7 @@ int Heap::gc_count_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
-bool Heap::context_disposed_pending_ = false;
+int Heap::contexts_disposed_ = 0;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
@@ -371,21 +371,8 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectAllGarbageIfContextDisposed() {
-  // If the garbage collector interface is exposed through the global
-  // gc() function, we avoid being clever about forcing GCs when
-  // contexts are disposed and leave it to the embedder to make
-  // informed decisions about when to force a collection.
-  if (!FLAG_expose_gc && context_disposed_pending_) {
-    HistogramTimerScope scope(&Counters::gc_context);
-    CollectAllGarbage(false);
-  }
-  context_disposed_pending_ = false;
-}
-
-
 void Heap::NotifyContextDisposed() {
-  context_disposed_pending_ = true;
+  contexts_disposed_++;
 }
 
 
@@ -620,7 +607,8 @@ void Heap::MarkCompact(GCTracer* tracer) {
   Shrink();
 
   Counters::objs_since_last_full.Set(0);
-  context_disposed_pending_ = false;
+
+  contexts_disposed_ = 0;
 }
 
 
@@ -3071,6 +3059,13 @@ bool Heap::IdleNotification() {
   static const int kIdlesBeforeMarkCompact = 8;
   static int number_idle_notifications = 0;
   static int last_gc_count = gc_count_;
+
+  if (!FLAG_expose_gc && (contexts_disposed_ > 0)) {
+    HistogramTimerScope scope(&Counters::gc_context);
+    CollectAllGarbage(false);
+    ASSERT(contexts_disposed_ == 0);
+    return false;
+  }
 
   bool finished = false;
 

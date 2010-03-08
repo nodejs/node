@@ -39,6 +39,7 @@
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "stub-cache.h"
+#include "virtual-frame-inl.h"
 
 namespace v8 {
 namespace internal {

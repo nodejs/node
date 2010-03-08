@@ -123,16 +123,15 @@ def apply_java(self):
 		tsk.env.append_value('JAVACFLAGS', ['-sourcepath', names])
 
 	if self.jarname:
-		tsk = self.create_task('jar_create')
-		tsk.set_inputs(bld_nodes)
-		tsk.set_outputs(self.path.find_or_declare(self.jarname))
+		jtsk = self.create_task('jar_create', bld_nodes, self.path.find_or_declare(self.jarname))
+		jtsk.set_run_after(tsk)
 
-		if not self.env['JAROPTS']:
+		if not self.env.JAROPTS:
 			if self.jaropts:
-				self.env['JAROPTS'] = self.jaropts
+				self.env.JAROPTS = self.jaropts
 			else:
 				dirs = '.'
-				self.env['JAROPTS'] = ['-C', ''.join(self.env['OUTDIR']), dirs]
+				self.env.JAROPTS = ['-C', ''.join(self.env['OUTDIR']), dirs]
 
 Task.simple_task_type('jar_create', '${JAR} ${JARCREATE} ${TGT} ${JAROPTS}', color='GREEN')
 cls = Task.simple_task_type('javac', '${JAVAC} -classpath ${CLASSPATH} -d ${OUTDIR} ${JAVACFLAGS} ${SRC}')

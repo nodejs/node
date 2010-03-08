@@ -132,7 +132,7 @@ def scan(self):
 		node = self.inputs[0]
 		(nodes, names) = preproc.get_deps(node, self.env, nodepaths = self.env['INC_PATHS'])
 		if Logs.verbose:
-			debug('deps: deps for %s: %r; unresolved %r' % (str(node), nodes, names))
+			debug('deps: deps for %s: %r; unresolved %r', str(node), nodes, names)
 		return (nodes, names)
 
 	all_nodes = []
@@ -141,7 +141,7 @@ def scan(self):
 	for node in self.inputs:
 		(nodes, names) = preproc.get_deps(node, self.env, nodepaths = self.env['INC_PATHS'])
 		if Logs.verbose:
-			debug('deps: deps for %s: %r; unresolved %r' % (str(node), nodes, names))
+			debug('deps: deps for %s: %r; unresolved %r', str(node), nodes, names)
 		for x in nodes:
 			if id(x) in seen: continue
 			seen.add(id(x))
@@ -209,7 +209,7 @@ def default_cc(self):
 @feature('cprogram', 'dprogram', 'cstaticlib', 'dstaticlib', 'cshlib', 'dshlib')
 def apply_verif(self):
 	"""no particular order, used for diagnostic"""
-	if not (self.source or getattr(self, 'add_objects', None)):
+	if not (self.source or getattr(self, 'add_objects', None) or getattr(self, 'uselib_local', None)):
 		raise Utils.WafError('no source files specified for %s' % self)
 	if not self.target:
 		raise Utils.WafError('no target for %s' % self)
@@ -329,10 +329,13 @@ def apply_link(self):
 	self.link_task = tsk
 
 @feature('cc', 'cxx')
-@after('apply_link', 'init_cc', 'init_cxx')
+@after('apply_link', 'init_cc', 'init_cxx', 'apply_core')
 def apply_lib_vars(self):
 	"""after apply_link because of 'link_task'
 	after default_cc because of the attribute 'uselib'"""
+
+	# after 'apply_core' in case if 'cc' if there is no link
+
 	env = self.env
 
 	# 1. the case of the libs defined in the project (visit ancestors first)

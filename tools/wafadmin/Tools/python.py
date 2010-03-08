@@ -360,10 +360,10 @@ def check_python_version(conf, minver=None):
 		conf.check_message_custom('Python version', '', pyver_full)
 	else:
 		minver_str = '.'.join(map(str, minver))
-		conf.check_message('Python version', ">= %s" % (minver_str,), result, option=pyver_full)
+		conf.check_message('Python version', ">= %s" % minver_str, result, option=pyver_full)
 
 	if not result:
-		conf.fatal('The python version is too old (%r)' % minver)
+		conf.fatal('The python version is too old (%r)' % pyver_full)
 
 @conf
 def check_python_module(conf, module_name):

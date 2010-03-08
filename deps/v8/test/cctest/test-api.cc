@@ -6433,6 +6433,45 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   CHECK_GE(interceptor_call_count, 50);
 }
 
+THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::TryCatch try_catch;
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = 333;"
+      "  }"
+      "}");
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
+           try_catch.Exception()->ToString());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+  CHECK_GE(interceptor_call_count, 50);
+}
+
 THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   int interceptor_call_count = 0;
   v8::HandleScope scope;
@@ -6521,7 +6560,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature) {
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
-THREADED_TEST(CallICFastApi_SimpleSignature_Miss) {
+THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   v8::HandleScope scope;
   v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
   v8::Handle<v8::FunctionTemplate> method_templ =
@@ -6549,6 +6588,40 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss) {
       "  }"
       "}");
   CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+}
+
+THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::TryCatch try_catch;
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = 333;"
+      "  }"
+      "}");
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
+           try_catch.Exception()->ToString());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
 

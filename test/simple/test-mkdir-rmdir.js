@@ -1,4 +1,6 @@
 process.mixin(require("../common"));
+var path = require('path');
+var fs = require('fs');
 
 var dirname = path.dirname(__filename);
 var fixtures = path.join(dirname, "../fixtures");

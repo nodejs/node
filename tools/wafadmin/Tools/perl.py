@@ -36,31 +36,29 @@ def check_perl_version(conf, minver=None):
 	Perl binary can be overridden by --with-perl-binary config variable
 
 	"""
-	res = True
 
-	if not getattr(Options.options, 'perlbinary', None):
-		perl = conf.find_program("perl", var="PERL")
-		if not perl:
-			return False
+	if getattr(Options.options, 'perlbinary', None):
+		conf.env.PERL = Options.options.perlbinary
 	else:
-		perl = Options.options.perlbinary
-		conf.env['PERL'] = perl
+		conf.find_program('perl', var='PERL', mandatory=True)
 
-	version = Utils.cmd_output(perl + " -e'printf \"%vd\", $^V'")
-	if not version:
-		res = False
-		version = "Unknown"
-	elif not minver is None:
-		ver = tuple(map(int, version.split(".")))
+	try:
+		version = Utils.cmd_output([conf.env.PERL, '-e', 'printf "%vd",$^V'])
+	except:
+		conf.fatal('could not determine the perl version')
+
+	conf.env.PERL_VERSION = version
+	cver = ''
+	if minver:
+		try:
+			ver = tuple(map(int, version.split('.')))
+		except:
+			conf.fatal('unsupported perl version %r' % version)
 		if ver < minver:
-			res = False
+			conf.fatal('perl is too old')
 
-	if minver is None:
-		cver = ""
-	else:
-		cver = ".".join(map(str,minver))
-	conf.check_message("perl", cver, res, version)
-	return res
+		cver = '.'.join(map(str,minver))
+	conf.check_message('perl', cver, True, version)
 
 @conf
 def check_perl_module(conf, module):
@@ -85,31 +83,25 @@ def check_perl_ext_devel(conf):
 	Sets different xxx_PERLEXT variables in the environment.
 
 	Also sets the ARCHDIR_PERL variable useful as installation path,
-	which can be overridden by --with-perl-archdir option.
+	which can be overridden by --with-perl-archdir
 	"""
-	if not conf.env['PERL']:
-		return False
-
-	perl = conf.env['PERL']
+	if not conf.env.PERL:
+		conf.fatal('perl detection is required first')
 
 	def read_out(cmd):
-		return Utils.to_list(Utils.cmd_output(perl + cmd))
+		return Utils.to_list(Utils.cmd_output([conf.env.PERL, '-MConfig', '-e', cmd]))
 
-	conf.env["LINKFLAGS_PERLEXT"] = read_out(" -MConfig -e'print $Config{lddlflags}'")
-	conf.env["CPPPATH_PERLEXT"] = read_out(" -MConfig -e'print \"$Config{archlib}/CORE\"'")
-	conf.env["CCFLAGS_PERLEXT"] = read_out(" -MConfig -e'print \"$Config{ccflags} $Config{cccdlflags}\"'")
+	conf.env.LINKFLAGS_PERLEXT = read_out('print $Config{lddlflags}')
+	conf.env.CPPPATH_PERLEXT   = read_out('print "$Config{archlib}/CORE"')
+	conf.env.CCFLAGS_PERLEXT   = read_out('print "$Config{ccflags} $Config{cccdlflags}"')
+	conf.env.XSUBPP            = read_out('print "$Config{privlib}/ExtUtils/xsubpp$Config{exe_ext}"')
+	conf.env.EXTUTILS_TYPEMAP  = read_out('print "$Config{privlib}/ExtUtils/typemap"')
+	conf.env.perlext_PATTERN   = '%s.' + read_out('print $Config{dlext}')[0]
 
-	conf.env["XSUBPP"] = read_out(" -MConfig -e'print \"$Config{privlib}/ExtUtils/xsubpp$Config{exe_ext}\"'")
-	conf.env["EXTUTILS_TYPEMAP"] = read_out(" -MConfig -e'print \"$Config{privlib}/ExtUtils/typemap\"'")
-
-	if not getattr(Options.options, 'perlarchdir', None):
-		conf.env["ARCHDIR_PERL"] = Utils.cmd_output(perl + " -MConfig -e'print $Config{sitearch}'")
+	if getattr(Options.options, 'perlarchdir', None):
+		conf.env.ARCHDIR_PERL = Options.options.perlarchdir
 	else:
-		conf.env["ARCHDIR_PERL"] = getattr(Options.options, 'perlarchdir')
-
-	conf.env['perlext_PATTERN'] = '%s.' + Utils.cmd_output(perl + " -MConfig -e'print $Config{dlext}'")
-
-	return True
+		conf.env.ARCHDIR_PERL = read_out('print $Config{sitearch}')[0]
 
 def set_options(opt):
 	opt.add_option("--with-perl-binary", type="string", dest="perlbinary", help = 'Specify alternate perl binary', default=None)

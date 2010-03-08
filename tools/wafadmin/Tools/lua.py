@@ -12,7 +12,7 @@ TaskGen.declare_chain(
 	rule = '${LUAC} -s -o ${TGT} ${SRC}',
 	ext_in = '.lua',
 	ext_out = '.luac',
-	reentrant = 0,
+	reentrant = False,
 	install = 'LUADIR', # env variable
 )
 

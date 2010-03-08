@@ -1,5 +1,5 @@
 process.mixin(require("../common"));
-
+var fs = require('fs');
 var N = 100;
 var j = 0;
 

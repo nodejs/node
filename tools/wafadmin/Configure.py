@@ -157,6 +157,7 @@ class ConfigurationContext(Utils.Context):
 		for tool in tools:
 			tool = tool.replace('++', 'xx')
 			if tool == 'java': tool = 'javaw'
+			if tool.lower() == 'unittest': tool = 'unittestw'
 			# avoid loading the same tool more than once with the same functions
 			# used by composite projects
 
@@ -166,10 +167,14 @@ class ConfigurationContext(Utils.Context):
 			self.tool_cache.append(mag)
 
 			module = Utils.load_tool(tool, tooldir)
-			func = getattr(module, 'detect', None)
-			if func:
-				if type(func) is type(find_file): func(self)
-				else: self.eval_rules(funs or func)
+
+			if funs:
+				self.eval_rules(funs)
+			else:
+				func = getattr(module, 'detect', None)
+				if func:
+					if type(func) is type(find_file): func(self)
+					else: self.eval_rules(func)
 
 			self.tools.append({'tool':tool, 'tooldir':tooldir, 'funs':funs})
 
@@ -232,17 +237,20 @@ class ConfigurationContext(Utils.Context):
 
 	def check_message_1(self, sr):
 		self.line_just = max(self.line_just, len(sr))
-		self.log.write(sr + '\n\n')
+		for x in ('\n', self.line_just * '-', '\n', sr, '\n'):
+			self.log.write(x)
 		Utils.pprint('NORMAL', "%s :" % sr.ljust(self.line_just), sep='')
 
 	def check_message_2(self, sr, color='GREEN'):
+		self.log.write(sr)
+		self.log.write('\n')
 		Utils.pprint(color, sr)
 
 	def check_message(self, th, msg, state, option=''):
 		sr = 'Checking for %s %s' % (th, msg)
 		self.check_message_1(sr)
 		p = self.check_message_2
-		if state: p('ok ' + option)
+		if state: p('ok ' + str(option))
 		else: p('not found', 'YELLOW')
 
 	# FIXME remove in waf 1.6
@@ -268,10 +276,15 @@ class ConfigurationContext(Utils.Context):
 				ret = find_program_impl(self.env, x, path_list, var, environ=self.environ)
 				if ret: break
 
-		self.check_message('program', ','.join(filename), ret, ret)
-		self.log.write('find program=%r paths=%r var=%r -> %r\n\n' % (filename, path_list, var, ret))
-		if not ret and mandatory:
-			self.fatal('The program %r could not be found' % filename)
+		self.check_message_1('Check for program %s' % ' or '.join(filename))
+		self.log.write('  find program=%r paths=%r var=%r\n  -> %r\n' % (filename, path_list, var, ret))
+		if ret:
+			Utils.pprint('GREEN', str(ret))
+		else:
+			Utils.pprint('YELLOW', 'not found')
+			if mandatory:
+				self.fatal('The program %r is required' % filename)
+
 		if var:
 			self.env[var] = ret
 		return ret

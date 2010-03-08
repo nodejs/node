@@ -201,19 +201,20 @@ def configure(conf):
 
 	src = getattr(Options.options, SRCDIR, None)
 	if not src: src = getattr(Utils.g_module, SRCDIR, None)
+	if not src: src = getattr(Utils.g_module, 'top', None)
 	if not src:
 		src = '.'
 		incomplete_src = 1
 	src = os.path.abspath(src)
 
 	bld = getattr(Options.options, BLDDIR, None)
-	if not bld:
-		bld = getattr(Utils.g_module, BLDDIR, None)
-		if bld == '.':
-			raise Utils.WafError('Setting blddir="." may cause distclean problems')
+	if not bld: bld = getattr(Utils.g_module, BLDDIR, None)
+	if not bld: bld = getattr(Utils.g_module, 'out', None)
 	if not bld:
 		bld = 'build'
 		incomplete_bld = 1
+	if bld == '.':
+		raise Utils.WafError('Setting blddir="." may cause distclean problems')
 	bld = os.path.abspath(bld)
 
 	try: os.makedirs(bld)
@@ -418,7 +419,7 @@ def dont_dist(name, src, build_dir):
 
 	if (name.startswith(',,')
 		or name.startswith('++')
-		or name.startswith('.waf-1.')
+		or name.startswith('.waf')
 		or (src == '.' and name == Options.lockfile)
 		or name in excludes
 		or name == build_dir
@@ -451,6 +452,7 @@ def copytree(src, dst, build_dir):
 # TODO in waf 1.6, change this method if "srcdir == blddir" is allowed
 def distclean(ctx=None):
 	'''removes the build directory'''
+	global commands
 	lst = os.listdir('.')
 	for f in lst:
 		if f == Options.lockfile:
@@ -475,7 +477,7 @@ def distclean(ctx=None):
 					Logs.warn('file %r cannot be removed' % f)
 
 		# remove the local waf cache
-		if f.startswith('.waf-'):
+		if not commands and f.startswith('.waf'):
 			shutil.rmtree(f, ignore_errors=True)
 
 # FIXME waf 1.6 a unique ctx parameter, and remove the optional appname and version
@@ -488,7 +490,10 @@ def dist(appname='', version=''):
 	if not version: version = getattr(Utils.g_module, VERSION, '1.0')
 
 	tmp_folder = appname + '-' + version
-	arch_name = tmp_folder+'.tar.'+g_gz
+	if g_gz in ['gz', 'bz2']:
+		arch_name = tmp_folder + '.tar.' + g_gz
+	else:
+		arch_name = tmp_folder + '.' + 'zip'
 
 	# remove the previous dir
 	try:
@@ -516,9 +521,12 @@ def dist(appname='', version=''):
 			# go back to the root directory
 			os.chdir(back)
 
-	tar = tarfile.open(arch_name, 'w:' + g_gz)
-	tar.add(tmp_folder)
-	tar.close()
+	if g_gz in ['gz', 'bz2']:
+		tar = tarfile.open(arch_name, 'w:' + g_gz)
+		tar.add(tmp_folder)
+		tar.close()
+	else:
+		Utils.zip_folder(tmp_folder, arch_name, tmp_folder)
 
 	try: from hashlib import sha1 as sha
 	except ImportError: from sha import sha

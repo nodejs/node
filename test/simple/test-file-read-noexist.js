@@ -1,4 +1,6 @@
 process.mixin(require("../common"));
+var path = require('path');
+var fs = require('fs');
 var got_error = false;
 
 var filename = path.join(fixturesDir, "does_not_exist.txt");

@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
-require("fs");
+var path = require('path');
+var fs = require("fs");
 parse = require("ini").parse;
 
 debug("load fixtures/fixture.ini");

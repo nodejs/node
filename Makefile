@@ -66,12 +66,12 @@ website-upload: doc
 docclean:
 	@-rm -f doc/node.1 doc/api.xml doc/api.html doc/changelog.html
 
-clean: docclean
+clean:
 	@$(WAF) clean
-
-distclean: docclean
-	@-rm -rf build/
 	@-find tools/ -name "*.pyc" -delete
+
+distclean: clean docclean
+	@-rm -rf build/
 
 check:
 	@tools/waf-light check

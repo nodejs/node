@@ -1,5 +1,6 @@
 process.mixin(require("../common"));
-
+var path = require('path');
+var fs = require('fs');
 var completed = 0;
 
 // test creating and reading symbolic link

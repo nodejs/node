@@ -72,6 +72,7 @@ def apply_copy(self):
 		tsk = self.create_task('copy', node, newnode)
 		tsk.fun = self.fun
 		tsk.chmod = self.chmod
+		tsk.install_path = self.install_path
 
 		if not tsk.env:
 			tsk.debug()

@@ -42,7 +42,7 @@ The role of the Task Manager is to give the tasks in order (groups of task that 
 
 """
 
-import os, shutil, sys, re, random, datetime
+import os, shutil, sys, re, random, datetime, tempfile
 from Utils import md5
 import Build, Runner, Utils, Node, Logs, Options
 from Logs import debug, warn, error
@@ -346,6 +346,7 @@ class store_task_type(type):
 
 		if name.endswith('_task'):
 			name = name.replace('_task', '')
+		if name != 'TaskBase':
 			TaskBase.classes[name] = cls
 
 class TaskBase(object):
@@ -502,9 +503,9 @@ class Task(TaskBase):
 	* persistence: do not re-execute tasks that have already run
 	* caching: same files can be saved and retrieved from a cache directory
 	* dependencies:
-	   implicit, like .c files depending on .h files
-       explicit, like the input nodes or the dep_nodes
-       environment variables, like the CXXFLAGS in self.env
+		implicit, like .c files depending on .h files
+		explicit, like the input nodes or the dep_nodes
+		environment variables, like the CXXFLAGS in self.env
 	"""
 	vars = []
 	def __init__(self, env, **kw):
@@ -612,18 +613,14 @@ class Task(TaskBase):
 		bld = self.generator.bld
 
 		# first compute the signature
-		try:
-			new_sig = self.signature()
-		except KeyError:
-			debug("task: something is wrong, computing the task %r signature failed" % self)
-			return RUN_ME
+		new_sig = self.signature()
 
 		# compare the signature to a signature computed previously
 		key = self.unique_id()
 		try:
 			prev_sig = bld.task_sigs[key][0]
 		except KeyError:
-			debug("task: task %r must run as it was never run before or the task code changed" % self)
+			debug("task: task %r must run as it was never run before or the task code changed", self)
 			return RUN_ME
 
 		# compare the signatures of the outputs
@@ -633,7 +630,7 @@ class Task(TaskBase):
 				if bld.node_sigs[variant][node.id] != new_sig:
 					return RUN_ME
 			except KeyError:
-				debug("task: task %r must run as the output nodes do not exist" % self)
+				debug("task: task %r must run as the output nodes do not exist", self)
 				return RUN_ME
 
 		# debug if asked to
@@ -648,8 +645,8 @@ class Task(TaskBase):
 		bld = self.generator.bld
 		env = self.env
 		sig = self.signature()
+		ssig = sig.encode('hex')
 
-		cnt = 0
 		variant = env.variant()
 		for node in self.outputs:
 			# check if the node exists ..
@@ -662,35 +659,78 @@ class Task(TaskBase):
 
 			# important, store the signature for the next run
 			bld.node_sigs[variant][node.id] = sig
-
-			# We could re-create the signature of the task with the signature of the outputs
-			# in practice, this means hashing the output files
-			# this is unnecessary
-			if Options.cache_global:
-				ssig = sig.encode('hex')
-				dest = os.path.join(Options.cache_global, '%s_%d_%s' % (ssig, cnt, node.name))
-				try: shutil.copy2(node.abspath(env), dest)
-				except IOError: warn('Could not write the file to the cache')
-				cnt += 1
-
 		bld.task_sigs[self.unique_id()] = self.cache_sig
 
+		# file caching, if possible
+		# try to avoid data corruption as much as possible
+		if not Options.cache_global or Options.options.nocache or not self.outputs:
+			return None
+
+		if getattr(self, 'cached', None):
+			return None
+
+		dname = os.path.join(Options.cache_global, ssig)
+		tmpdir = tempfile.mkdtemp(prefix=Options.cache_global)
+
+		try:
+			shutil.rmtree(dname)
+		except:
+			pass
+
+		try:
+			for node in self.outputs:
+				variant = node.variant(env)
+				dest = os.path.join(tmpdir, node.name)
+				shutil.copy2(node.abspath(env), dest)
+		except (OSError, IOError):
+			try:
+				shutil.rmtree(tmpdir)
+			except:
+				pass
+		else:
+			try:
+				os.rename(tmpdir, dname)
+			except OSError:
+				try:
+					shutil.rmtree(tmpdir)
+				except:
+					pass
+			else:
+				try:
+					os.chmod(dname, O755)
+				except:
+					pass
+
 	def can_retrieve_cache(self):
-		"""Retrieve build nodes from the cache - the file time stamps are updated
-		for cleaning the least used files from the cache dir - be careful when overridding"""
-		if not Options.cache_global: return None
-		if Options.options.nocache: return None
-		if not self.outputs: return None
+		"""
+		Retrieve build nodes from the cache
+		update the file timestamps to help cleaning the least used entries from the cache
+		additionally, set an attribute 'cached' to avoid re-creating the same cache files
+
+		suppose there are files in cache/dir1/file1 and cache/dir2/file2
+		first, read the timestamp of dir1
+		then try to copy the files
+		then look at the timestamp again, if it has changed, the data may have been corrupt (cache update by another process)
+		should an exception occur, ignore the data
+		"""
+		if not Options.cache_global or Options.options.nocache or not self.outputs:
+			return None
 
 		env = self.env
 		sig = self.signature()
+		ssig = sig.encode('hex')
 
-		cnt = 0
+		# first try to access the cache folder for the task
+		dname = os.path.join(Options.cache_global, ssig)
+		try:
+			t1 = os.stat(dname).st_mtime
+		except OSError:
+			return None
+
 		for node in self.outputs:
 			variant = node.variant(env)
 
-			ssig = sig.encode('hex')
-			orig = os.path.join(Options.cache_global, '%s_%d_%s' % (ssig, cnt, node.name))
+			orig = os.path.join(dname, node.name)
 			try:
 				shutil.copy2(orig, node.abspath(env))
 				# mark the cache file as used recently (modified)
@@ -698,13 +738,21 @@ class Task(TaskBase):
 			except (OSError, IOError):
 				debug('task: failed retrieving file')
 				return None
-			else:
-				cnt += 1
+
+		# is it the same folder?
+		try:
+			t2 = os.stat(dname).st_mtime
+		except OSError:
+			return None
+
+		if t1 != t2:
+			return None
 
 		for node in self.outputs:
 			self.generator.bld.node_sigs[variant][node.id] = sig
 			self.generator.bld.printout('restoring from cache %r\n' % node.bldpath(env))
 
+		self.cached = True
 		return 1
 
 	def debug_why(self, old_sigs):
@@ -714,12 +762,12 @@ class Task(TaskBase):
 		def v(x):
 			return x.encode('hex')
 
-		debug("Task %r" % self)
+		debug("Task %r", self)
 		msgs = ['Task must run', '* Source file or manual dependency', '* Implicit dependency', '* Environment variable']
 		tmp = 'task: -> %s: %s %s'
 		for x in xrange(len(msgs)):
 			if (new_sigs[x] != old_sigs[x]):
-				debug(tmp % (msgs[x], v(old_sigs[x]), v(new_sigs[x])))
+				debug(tmp, msgs[x], v(old_sigs[x]), v(new_sigs[x]))
 
 	def sig_explicit_deps(self):
 		bld = self.generator.bld
@@ -731,7 +779,10 @@ class Task(TaskBase):
 				bld.rescan(x.parent)
 
 			variant = x.variant(self.env)
-			m.update(bld.node_sigs[variant][x.id])
+			try:
+				m.update(bld.node_sigs[variant][x.id])
+			except KeyError:
+				raise Utils.WafError('Missing node signature for %r (required by %r)' % (x, self))
 
 		# manual dependencies, they can slow down the builds
 		if bld.deps_man:
@@ -748,8 +799,8 @@ class Task(TaskBase):
 						variant = v.variant(self.env)
 						try:
 							v = bld.node_sigs[variant][v.id]
-						except KeyError: # make it fatal?
-							v = ''
+						except KeyError:
+							raise Utils.WafError('Missing node signature for %r (required by %r)' % (v, self))
 					elif hasattr(v, '__call__'):
 						v = v() # dependency is a function, call it
 					m.update(v)
@@ -805,14 +856,21 @@ class Task(TaskBase):
 		# no previous run or the signature of the dependencies has changed, rescan the dependencies
 		(nodes, names) = self.scan()
 		if Logs.verbose:
-			debug('deps: scanner for %s returned %s %s' % (str(self), str(nodes), str(names)))
+			debug('deps: scanner for %s returned %s %s', str(self), str(nodes), str(names))
 
 		# store the dependencies in the cache
 		bld.node_deps[key] = nodes
 		bld.raw_deps[key] = names
 
 		# recompute the signature and return it
-		sig = self.compute_sig_implicit_deps()
+		try:
+			sig = self.compute_sig_implicit_deps()
+		except KeyError:
+			try:
+				nodes = bld.node_deps.get(self.unique_id(), [])
+			except:
+				nodes = '?'
+			raise Utils.WafError('Missing node signature for %r (for implicit dependencies %r)' % (nodes, self))
 
 		return sig
 
@@ -855,7 +913,7 @@ def compile_fun_shell(name, line):
 	The reserved keywords TGT and SRC represent the task input and output nodes
 
 	quick test:
-	bld.new_task_gen(source='wscript', rule='echo "foo\\${SRC[0].name}\\bar"')
+	bld(source='wscript', rule='echo "foo\\${SRC[0].name}\\bar"')
 	"""
 
 	extr = []
@@ -886,7 +944,7 @@ def compile_fun_shell(name, line):
 
 	c = COMPILE_TEMPLATE_SHELL % (line, parm)
 
-	debug('action: %s' % c)
+	debug('action: %s', c)
 	return (funex(c), dvars)
 
 def compile_fun_noshell(name, line):
@@ -924,7 +982,7 @@ def compile_fun_noshell(name, line):
 			app("lst.extend(%r)" % params[-1].split())
 
 	fun = COMPILE_TEMPLATE_NOSHELL % "\n\t".join(buf)
-	debug('action: %s' % fun)
+	debug('action: %s', fun)
 	return (funex(fun), dvars)
 
 def compile_fun(name, line, shell=None):
@@ -992,9 +1050,28 @@ def update_outputs(cls):
 	def post_run(self):
 		old_post_run(self)
 		bld = self.outputs[0].__class__.bld
-		bld.node_sigs[self.env.variant()][self.outputs[0].id] = \
-		Utils.h_file(self.outputs[0].abspath(self.env))
+		for output in self.outputs:
+			bld.node_sigs[self.env.variant()][output.id] = Utils.h_file(output.abspath(self.env))
 	cls.post_run = post_run
+
+	old_runnable_status = cls.runnable_status
+	def runnable_status(self):
+		status = old_runnable_status(self)
+		if status != RUN_ME:
+			return status
+
+		try:
+			bld = self.outputs[0].__class__.bld
+			new_sig  = self.signature()
+			prev_sig = bld.task_sigs[self.unique_id()][0]
+			if prev_sig == new_sig:
+				return SKIP_ME
+		except KeyError:
+			pass
+		except IndexError:
+			pass
+		return RUN_ME
+	cls.runnable_status = runnable_status
 
 def extract_outputs(tasks):
 	"""file_deps: Infer additional dependencies from task input and output nodes

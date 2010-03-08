@@ -12,5 +12,3 @@ var sys = require("sys");
 
 process.mixin(exports, sys);
 exports.assert = require('assert');
-exports.fs = require("fs");
-exports.path = path;

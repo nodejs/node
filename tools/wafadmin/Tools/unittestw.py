@@ -201,7 +201,7 @@ Total number of tests: %i
 New unit test system
 
 The targets with feature 'test' are executed after they are built
-bld.new_task_gen(features='cprogram cc test', ...)
+bld(features='cprogram cc test', ...)
 
 To display the results:
 import UnitTest
@@ -211,6 +211,9 @@ bld.add_post_fun(UnitTest.summary)
 import threading
 testlock = threading.Lock()
 
+def set_options(opt):
+	opt.add_option('--alltests', action='store_true', default=True, help='Exec all unit tests', dest='all_tests')
+
 @feature('test')
 @after('apply_link', 'vars_target_cprogram')
 def make_test(self):
@@ -219,52 +222,58 @@ def make_test(self):
 		return
 
 	self.default_install_path = None
-	tsk = self.create_task('utest')
-	tsk.set_inputs(self.link_task.outputs)
+	self.create_task('utest', self.link_task.outputs)
 
 def exec_test(self):
-	testlock.acquire()
-	fail = False
+
+	status = 0
+
+	variant = self.env.variant()
+	filename = self.inputs[0].abspath(self.env)
+
 	try:
-		filename = self.inputs[0].abspath(self.env)
+		fu = getattr(self.generator.bld, 'all_test_paths')
+	except AttributeError:
+		fu = os.environ.copy()
+		self.generator.bld.all_test_paths = fu
 
-		try:
-			fu = getattr(self.generator.bld, 'all_test_paths')
-		except AttributeError:
-			fu = os.environ.copy()
-			self.generator.bld.all_test_paths = fu
+		lst = []
+		for obj in self.generator.bld.all_task_gen:
+			link_task = getattr(obj, 'link_task', None)
+			if link_task and link_task.env.variant() == variant:
+				lst.append(link_task.outputs[0].parent.abspath(obj.env))
 
-			lst = []
-			for obj in self.generator.bld.all_task_gen:
-				link_task = getattr(obj, 'link_task', None)
-				if link_task:
-					lst.append(link_task.outputs[0].parent.abspath(obj.env))
+		def add_path(dct, path, var):
+			dct[var] = os.pathsep.join(Utils.to_list(path) + [os.environ.get(var, '')])
 
-			def add_path(dct, path, var):
-				dct[var] = os.pathsep.join(Utils.to_list(path) + [os.environ.get(var, '')])
-			if sys.platform == 'win32':
-				add_path(fu, lst, 'PATH')
-			elif sys.platform == 'darwin':
-				add_path(fu, lst, 'DYLD_LIBRARY_PATH')
-				add_path(fu, lst, 'LD_LIBRARY_PATH')
-			else:
-				add_path(fu, lst, 'LD_LIBRARY_PATH')
-
-		try:
-			ret = Utils.cmd_output(filename, cwd=self.inputs[0].parent.abspath(self.env), env=fu)
-		except Exception, e:
-			fail = True
-			ret = '' + str(e)
+		if sys.platform == 'win32':
+			add_path(fu, lst, 'PATH')
+		elif sys.platform == 'darwin':
+			add_path(fu, lst, 'DYLD_LIBRARY_PATH')
+			add_path(fu, lst, 'LD_LIBRARY_PATH')
 		else:
-			pass
+			add_path(fu, lst, 'LD_LIBRARY_PATH')
 
-		stats = getattr(self.generator.bld, 'utest_results', [])
-		stats.append((filename, fail, ret))
-		self.generator.bld.utest_results = stats
+
+	cwd = getattr(self.generator, 'ut_cwd', '') or self.inputs[0].parent.abspath(self.env)
+	proc = Utils.pproc.Popen(filename, cwd=cwd, env=fu, stderr=Utils.pproc.PIPE, stdout=Utils.pproc.PIPE)
+	(stdout, stderr) = proc.communicate()
+
+	tup = (filename, proc.returncode, stdout, stderr)
+	self.generator.utest_result = tup
+
+	testlock.acquire()
+	try:
+		bld = self.generator.bld
+		Logs.debug("ut: %r", tup)
+		try:
+			bld.utest_results.append(tup)
+		except AttributeError:
+			bld.utest_results = [tup]
 	finally:
 		testlock.release()
 
-cls = Task.task_type_from_func('utest', func=exec_test, color='RED', ext_in='.bin')
+cls = Task.task_type_from_func('utest', func=exec_test, color='PINK', ext_in='.bin')
 
 old = cls.runnable_status
 def test_status(self):
@@ -279,11 +288,18 @@ def summary(bld):
 	lst = getattr(bld, 'utest_results', [])
 	if lst:
 		Utils.pprint('CYAN', 'execution summary')
-		for (f, fail, ret) in lst:
-			col = fail and 'RED' or 'GREEN'
-			Utils.pprint(col, (fail and 'FAIL' or 'ok') + " " + f)
-			if fail: Utils.pprint('NORMAL', ret.replace('\\n', '\n'))
 
-def set_options(opt):
-	opt.add_option('--alltests', action='store_true', default=False, help='Exec all unit tests', dest='all_tests')
+		total = len(lst)
+		tfail = len([x for x in lst if x[1]])
+
+		Utils.pprint('CYAN', '  tests that pass %d/%d' % (total-tfail, total))
+		for (f, code, out, err) in lst:
+			if not code:
+				Utils.pprint('CYAN', '    %s' % f)
+
+		Utils.pprint('CYAN', '  tests that fail %d/%d' % (tfail, total))
+		for (f, code, out, err) in lst:
+			if code:
+				Utils.pprint('CYAN', '    %s' % f)
+
 

@@ -1,4 +1,5 @@
 process.mixin(require("../common"));
+var path = require('path');
 
 var sub = path.join(fixturesDir, 'print-chars.js');
 

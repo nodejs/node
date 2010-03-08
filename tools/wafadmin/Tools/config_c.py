@@ -100,6 +100,11 @@ def validate_cfg(self, kw):
 	if 'modversion' in kw:
 		return
 
+	if 'variables' in kw:
+		if not 'msg' in kw:
+			kw['msg'] = 'Checking for %s variables' % kw['package']
+		return
+
 	# checking for the version of a module, for the moment, one thing at a time
 	for x in cfg_ver.keys():
 		y = x.replace('-', '_')
@@ -112,7 +117,7 @@ def validate_cfg(self, kw):
 			return
 
 	if not 'msg' in kw:
-		kw['msg'] = 'Checking for %s' % kw['package']
+		kw['msg'] = 'Checking for %s' % (kw['package'] or kw['path'])
 	if not 'okmsg' in kw:
 		kw['okmsg'] = 'ok'
 	if not 'errmsg' in kw:
@@ -121,22 +126,31 @@ def validate_cfg(self, kw):
 @conf
 def cmd_and_log(self, cmd, kw):
 	Logs.debug('runner: %s\n' % cmd)
-	if self.log: self.log.write('%s\n' % cmd)
+	if self.log:
+		self.log.write('%s\n' % cmd)
 
 	try:
-		p = Utils.pproc.Popen(cmd, stdout=Utils.pproc.PIPE, shell=True)
-		output = p.communicate()[0]
-	except OSError:
-		self.fatal('fail')
+		p = Utils.pproc.Popen(cmd, stdout=Utils.pproc.PIPE, stderr=Utils.pproc.PIPE, shell=True)
+		(out, err) = p.communicate()
+	except OSError, e:
+		self.log.write('error %r' % e)
+		self.fatal(str(e))
+
+	out = str(out)
+	err = str(err)
+
+	if self.log:
+		self.log.write(out)
+		self.log.write(err)
 
 	if p.returncode:
 		if not kw.get('errmsg', ''):
 			if kw.get('mandatory', False):
-				kw['errmsg'] = output.strip()
+				kw['errmsg'] = out.strip()
 			else:
 				kw['errmsg'] = 'fail'
 		self.fatal('fail')
-	return output
+	return out
 
 @conf
 def exec_cfg(self, kw):
@@ -165,6 +179,18 @@ def exec_cfg(self, kw):
 		self.define('%s_VERSION' % Utils.quote_define_name(kw.get('uselib_store', kw['modversion'])), version)
 		return version
 
+	# retrieving variables of a module
+	if 'variables' in kw:
+		env = kw.get('env', self.env)
+		uselib = kw.get('uselib_store', kw['package'].upper())
+		vars = Utils.to_list(kw['variables'])
+		for v in vars:
+			val = self.cmd_and_log('%s --variable=%s %s' % (kw['path'], v, kw['package']), kw).strip()
+			env.append_unique('%s_%s' % (uselib, v), val)
+		if not 'okmsg' in kw:
+			kw['okmsg'] = 'ok'
+		return
+
 	lst = [kw['path']]
 	for key, val in kw.get('define_variable', {}).iteritems():
 		lst.append('--define-variable=%s=%s' % (key, val))
@@ -184,6 +210,12 @@ def exec_cfg(self, kw):
 
 @conf
 def check_cfg(self, *k, **kw):
+	"""
+	for pkg-config mostly, but also all the -config tools
+	conf.check_cfg(path='mpicc', args='--showme:compile --showme:link', package='', uselib_store='OPEN_MPI')
+	conf.check_cfg(package='dbus-1', variables='system_bus_default_address session_bus_services_dir')
+	"""
+
 	self.validate_cfg(kw)
 	if 'msg' in kw:
 		self.check_message_1(kw['msg'])
@@ -213,7 +245,7 @@ def check_cfg(self, *k, **kw):
 
 # env: an optional environment (modified -> provide a copy)
 # compiler: cc or cxx - it tries to guess what is best
-# type: program, shlib, staticlib, objects
+# type: cprogram, cshlib, cstaticlib
 # code: a c code to execute
 # uselib_store: where to add the variables
 # uselib: parameters to use for building
@@ -364,23 +396,26 @@ def validate_c(self, kw):
 def post_check(self, *k, **kw):
 	"set the variables after a test was run successfully"
 
-	is_success = 0
+	is_success = False
 	if kw['execute']:
 		if kw['success']:
-			is_success = kw['success']
+			is_success = True
 	else:
 		is_success = (kw['success'] == 0)
 
-	def define_or_stuff():
-		nm = kw['define_name']
-		if kw['execute'] and kw.get('define_ret', None) and isinstance(is_success, str):
-			self.define(kw['define_name'], is_success, quote=kw.get('quote', 1))
-		else:
-			self.define_cond(kw['define_name'], is_success)
-
 	if 'define_name' in kw:
 		if 'header_name' in kw or 'function_name' in kw or 'type_name' in kw or 'fragment' in kw:
-			define_or_stuff()
+			if kw['execute']:
+				key = kw['success']
+				if isinstance(key, str):
+					if key:
+						self.define(kw['define_name'], key, quote=kw.get('quote', 1))
+					else:
+						self.define_cond(kw['define_name'], True)
+				else:
+					self.define_cond(kw['define_name'], False)
+			else:
+				self.define_cond(kw['define_name'], is_success)
 
 	if is_success and 'uselib_store' in kw:
 		import cc, cxx
@@ -478,7 +513,7 @@ def run_c_code(self, *k, **kw):
 
 	bld.rescan(bld.srcnode)
 
-	o = bld.new_task_gen(features=[kw['compile_mode'], kw['type']], source=test_f_name, target='testprog')
+	o = bld(features=[kw['compile_mode'], kw['type']], source=test_f_name, target='testprog')
 
 	for k, v in kw.iteritems():
 		setattr(o, k, v)
@@ -507,11 +542,18 @@ def run_c_code(self, *k, **kw):
 	# if we need to run the program, try to get its result
 	if kw['execute']:
 		args = Utils.to_list(kw.get('exec_args', []))
-		try:
-			data = Utils.cmd_output([lastprog] + args).strip()
-		except ValueError, e:
+		proc = Utils.pproc.Popen([lastprog], *args, stdout=Utils.pproc.PIPE, stderr=Utils.pproc.PIPE)
+		(out, err) = proc.communicate()
+		w = self.log.write
+		w(str(out))
+		w('\n')
+		w(str(err))
+		w('\n')
+		w('returncode %r' % proc.returncode)
+		w('\n')
+		if proc.returncode:
 			self.fatal(Utils.ex_stack())
-		ret = data
+		ret = out
 
 	return ret
 
@@ -540,7 +582,7 @@ def define(self, define, value, quote=1):
 	# the user forgot to tell if the value is quoted or not
 	if isinstance(value, str):
 		if quote:
-			tbl[define] = '"%s"' % str(value)
+			tbl[define] = '"%s"' % repr('"'+value)[2:-1].replace('"', '\\"')
 		else:
 			tbl[define] = value
 	elif isinstance(value, int):
@@ -643,8 +685,6 @@ def get_config_header(self):
 			config_header.append('#define %s' % key)
 		elif value is UNDEFINED:
 			config_header.append('/* #undef %s */' % key)
-		elif isinstance(value, str):
-			config_header.append('#define %s %s' % (key, repr(value)[1:-1]))
 		else:
 			config_header.append('#define %s %s' % (key, value))
 	return "\n".join(config_header)
