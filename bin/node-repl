@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-process.mixin(require('sys'));
+puts = require("sys").puts;
+
 puts("Welcome to the Node.js REPL.");
 puts("Enter ECMAScript at the prompt.");
 puts("Tip 1: Use 'rlwrap node-repl' for a better interface");
