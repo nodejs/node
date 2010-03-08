@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 var events = require('events');
 
 var callbacks_called = [ ];

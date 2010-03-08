@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var WINDOW = 200; // why is does this need to be so big?
 

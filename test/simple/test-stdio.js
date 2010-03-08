@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 var path = require('path');
 
 var sub = path.join(fixturesDir, 'echo.js');

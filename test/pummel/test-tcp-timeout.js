@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 tcp = require("tcp");
 exchanges = 0;
 starttime = null;

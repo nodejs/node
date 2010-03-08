@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 child = process.createChildProcess('/usr/bin/env', [], {'HELLO' : 'WORLD'});
 response = "";
 

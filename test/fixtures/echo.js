@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 process.stdio.open();
 
 print("hello world\r\n");

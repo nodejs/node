@@ -1,4 +1,4 @@
-process.mixin(require("../common.js"));
+require("../common.js");
 http = require("/http.js");
 
 puts("hello world");

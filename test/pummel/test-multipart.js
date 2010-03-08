@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var http = require("http"),
   multipart = require("multipart"),

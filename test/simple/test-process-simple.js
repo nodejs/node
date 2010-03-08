@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var cat = process.createChildProcess("cat");
 

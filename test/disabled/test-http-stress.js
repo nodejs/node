@@ -1,4 +1,4 @@
-process.mixin(require('../common.js'));
+require("../common");
 
 var request_count = 1000;
 var response_body = '{"ok": true}';
