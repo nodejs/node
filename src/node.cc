@@ -1185,13 +1185,21 @@ static void ParseDebugOpt(const char* arg) {
 
 static void PrintHelp() {
   printf("Usage: node [options] script.js [arguments] \n"
+         "Options:\n"
          "  -v, --version      print node's version\n"
          "  --debug[=port]     enable remote debugging via given TCP port\n"
          "                     without stopping the execution\n"
          "  --debug-brk[=port] as above, but break in script.js and\n"
          "                     wait for remote debugger to connect\n"
          "  --cflags           print pre-processor and compiler flags\n"
-         "  --v8-options       print v8 command line options\n\n"
+         "  --v8-options       print v8 command line options\n"
+         "\n"
+         "Enviromental variables:\n"
+         "NODE_PATH            ':'-separated list of directories\n"
+         "                     prefixed to the module search path,\n"
+         "                     require.paths.\n"
+         "NODE_DEBUG           Print additional debugging output.\n"
+         "\n"
          "Documentation can be found at http://nodejs.org/api.html"
          " or with 'man node'\n");
 }
