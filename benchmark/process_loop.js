@@ -1,7 +1,8 @@
 var path = require("path");
 libDir = path.join(path.dirname(__filename), "../lib");
 require.paths.unshift(libDir);
-process.mixin(require("sys"));
+var sys = (require("sys"));
+for (var i in sys) global[i] = sys[i];
 function next (i) {
   if (i <= 0) return;
 
