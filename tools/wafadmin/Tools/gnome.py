@@ -66,13 +66,18 @@ def apply_gnome_doc(self):
 	self.env['APPNAME'] = self.doc_module
 	lst = self.to_list(self.doc_linguas)
 	bld = self.bld
+	lst.append('C')
+
 	for x in lst:
-		tsk = self.create_task('xml2po')
-		node = self.path.find_resource(x+'/'+x+'.po')
-		src = self.path.find_resource('C/%s.xml' % self.doc_module)
-		out = self.path.find_or_declare('%s/%s.xml' % (x, self.doc_module))
-		tsk.set_inputs([node, src])
-		tsk.set_outputs(out)
+		if not x == 'C':
+			tsk = self.create_task('xml2po')
+			node = self.path.find_resource(x+'/'+x+'.po')
+			src = self.path.find_resource('C/%s.xml' % self.doc_module)
+			out = self.path.find_or_declare('%s/%s.xml' % (x, self.doc_module))
+			tsk.set_inputs([node, src])
+			tsk.set_outputs(out)
+		else:
+			out = self.path.find_resource('%s/%s.xml' % (x, self.doc_module))
 
 		tsk2 = self.create_task('xsltproc2po')
 		out2 = self.path.find_or_declare('%s/%s-%s.omf' % (x, self.doc_module, x))
@@ -83,8 +88,8 @@ def apply_gnome_doc(self):
 		tsk2.run_after.append(tsk)
 
 		if bld.is_install:
-			path = self.install_path + 'gnome/help/%s/%s' % (self.doc_module, x)
-			bld.install_files(self.install_path + 'omf', out2, env=self.env)
+			path = self.install_path + '/gnome/help/%s/%s' % (self.doc_module, x)
+			bld.install_files(self.install_path + '/omf', out2, env=self.env)
 			for y in self.to_list(self.doc_figures):
 				try:
 					os.stat(self.path.abspath() + '/' + x + '/' + y)
@@ -92,6 +97,12 @@ def apply_gnome_doc(self):
 				except:
 					bld.install_as(path + '/' + y, self.path.abspath() + '/C/' + y)
 			bld.install_as(path + '/%s.xml' % self.doc_module, out.abspath(self.env))
+			if x == 'C':
+				xmls = self.to_list(self.doc_includes)
+				xmls.append(self.doc_entities)
+				for z in xmls:
+					out = self.path.find_resource('%s/%s' % (x, z))
+					bld.install_as(path + '/%s' % z, out.abspath(self.env))
 
 # OBSOLETE
 class xml_to_taskgen(TaskGen.task_gen):
@@ -180,7 +191,7 @@ Task.simple_task_type('xml2po', '${XML2PO} ${XML2POFLAGS} ${SRC} > ${TGT}', colo
 xslt_magic = """${XSLTPROC2PO} -o ${TGT[0].abspath(env)} \
 --stringparam db2omf.basename ${APPNAME} \
 --stringparam db2omf.format docbook \
---stringparam db2omf.lang C \
+--stringparam db2omf.lang ${TGT[0].abspath(env)[:-4].split('-')[-1]} \
 --stringparam db2omf.dtd '-//OASIS//DTD DocBook XML V4.3//EN' \
 --stringparam db2omf.omf_dir ${PREFIX}/share/omf \
 --stringparam db2omf.help_dir ${PREFIX}/share/gnome/help \

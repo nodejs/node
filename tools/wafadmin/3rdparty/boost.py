@@ -17,7 +17,7 @@
 #   conf.check_boost(lib='signals filesystem', static='onlystatic', score_version=(-1000, 1000), tag_minscore=1000)
 #
 #def build(bld):
-#   bld.new_task_gen(source='main.c', target='bar', uselib="BOOST BOOST_SYSTEM")
+#   bld(source='main.c', target='bar', uselib="BOOST BOOST_SYSTEM")
 #
 #ISSUES:
 # * find_includes should be called only once!
@@ -28,7 +28,7 @@
 ##      * the rest of the code has not really been tried
 #       * make certain a demo is provided (in demos/adv for example)
 
-# TODO: boost.py will be removed in waf 1.6
+# TODO: bad and underdocumented code -> boost.py will be removed in waf 1.6 to be rewritten later
 
 import os.path, glob, types, re, sys
 import Configure, config_c, Options, Utils, Logs
@@ -52,6 +52,7 @@ is_versiontag = re.compile('^\d+_\d+_?\d*$')
 is_threadingtag = re.compile('^mt$')
 is_abitag = re.compile('^[sgydpn]+$')
 is_toolsettag = re.compile('^(acc|borland|como|cw|dmc|darwin|gcc|hp_cxx|intel|kylix|vc|mgw|qcc|sun|vacpp)\d*$')
+is_pythontag=re.compile('^py[0-9]{2}$')
 
 def set_options(opt):
 	opt.add_option('--boost-includes', type='string', default='', dest='boostincludes', help='path to the boost directory where the includes are e.g. /usr/local/include/boost-1_35')
@@ -74,8 +75,8 @@ def version_string(version):
 def libfiles(lib, pattern, lib_paths):
 	result = []
 	for lib_path in lib_paths:
-		libname = pattern % ('boost_' + lib + '*')
-		result += glob.glob(lib_path + '/' + libname)
+		libname = pattern % ('boost_%s[!_]*' % lib)
+		result += glob.glob(os.path.join(lib_path, libname))
 	return result
 
 @conf
@@ -99,9 +100,10 @@ def tags_score(tags, kw):
 	score = 0
 	needed_tags = {
 		'threading': kw['tag_threading'],
-		'abi': kw['tag_abi'],
-		'toolset': kw['tag_toolset'],
-		'version': kw['tag_version']
+		'abi':       kw['tag_abi'],
+		'toolset':   kw['tag_toolset'],
+		'version':   kw['tag_version'],
+		'python':    kw['tag_python']
 	}
 
 	if kw['tag_toolset'] is None:
@@ -120,6 +122,7 @@ def tags_score(tags, kw):
 		if is_threadingtag.match(tag): found_tags['threading'] = tag
 		if is_abitag.match(tag): found_tags['abi'] = tag
 		if is_toolsettag.match(tag): found_tags['toolset'] = tag
+		if is_pythontag.match(tag): found_tags['python'] = tag
 
 	for tagname in needed_tags.iterkeys():
 		if needed_tags[tagname] is not None and tagname in found_tags:
@@ -148,8 +151,12 @@ def validate_boost(self, kw):
 		set_default(kw, x, None)
 	set_default(kw, 'tag_abi', '^[^d]*$')
 
+	set_default(kw, 'python', str(sys.version_info[0]) + str(sys.version_info[1]) )
+	set_default(kw, 'tag_python', '^py' + kw['python'] + '$')
+
 	set_default(kw, 'score_threading', (10, -10))
 	set_default(kw, 'score_abi', (10, -10))
+	set_default(kw, 'score_python', (10,-10))
 	set_default(kw, 'score_toolset', (1, -1))
 	set_default(kw, 'score_version', (100, -100))
 

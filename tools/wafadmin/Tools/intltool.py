@@ -12,11 +12,10 @@ from Logs import error
 """
 Usage:
 
-bld.new_task_gen(features='intltool_in', source='a.po b.po', podir='po', cache='.intlcache', flags='')
-
-
+bld(features='intltool_in', source='a.po b.po', podir='po', cache='.intlcache', flags='')
 
 """
+
 class intltool_in_taskgen(TaskGen.task_gen):
 	"""deprecated"""
 	def __init__(self, *k, **kw):

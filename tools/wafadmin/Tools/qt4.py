@@ -21,7 +21,7 @@ else:
 
 import os, sys
 import ccroot, cxx
-import TaskGen, Task, Utils, Runner, Options, Node
+import TaskGen, Task, Utils, Runner, Options, Node, Configure
 from TaskGen import taskgen, feature, after, extension
 from Logs import error
 from Constants import *
@@ -261,12 +261,8 @@ def apply_qt4(self):
 			k = create_rcc_task(self, t.outputs[0])
 			self.link_task.inputs.append(k.outputs[0])
 
-	lst = []
-	for flag in self.to_list(self.env['CXXFLAGS']):
-		if len(flag) < 2: continue
-		if flag[0:2] == '-D' or flag[0:2] == '-I':
-			lst.append(flag)
-	self.env['MOC_FLAGS'] = lst
+	self.env.append_value('MOC_FLAGS', self.env._CXXDEFFLAGS)
+	self.env.append_value('MOC_FLAGS', self.env._CXXINCFLAGS)
 
 @extension(EXT_QT4)
 def cxx_hook(self, node):
@@ -366,7 +362,7 @@ def detect_qt4(conf):
 
 	if not qtlibs:
 		try:
-			qtlibs = Utils.cmd_output([qmake, '-query', 'QT_LIBRARIES']).strip() + os.sep
+			qtlibs = Utils.cmd_output([qmake, '-query', 'QT_INSTALL_LIBS']).strip() + os.sep
 		except ValueError:
 			qtlibs = os.path.join(qtdir, 'lib')
 
@@ -409,12 +405,41 @@ def detect_qt4(conf):
 
 	vars_debug = [a+'_debug' for a in vars]
 
-	pkgconfig = env['pkg-config'] or 'PKG_CONFIG_PATH=%s:%s/pkgconfig:/usr/lib/qt4/lib/pkgconfig:/opt/qt4/lib/pkgconfig:/usr/lib/qt4/lib:/opt/qt4/lib pkg-config --silence-errors' % (qtlibs, qtlibs)
-	for i in vars_debug+vars:
-		try:
-			conf.check_cfg(package=i, args='--cflags --libs', path=pkgconfig)
-		except ValueError:
-			pass
+	try:
+		conf.find_program('pkg-config', var='pkgconfig', path_list=paths, mandatory=True)
+
+	except Configure.ConfigurationError:
+
+		for lib in vars_debug+vars:
+			uselib = lib.upper()
+
+			d = (lib.find('_debug') > 0) and 'd' or ''
+
+			# original author seems to prefer static to shared libraries
+			for (pat, kind) in ((conf.env.staticlib_PATTERN, 'STATIC'), (conf.env.shlib_PATTERN, '')):
+
+				conf.check_message_1('Checking for %s %s' % (lib, kind))
+
+				for ext in ['', '4']:
+					path = os.path.join(qtlibs, pat % (lib + d + ext))
+					if os.path.exists(path):
+						env.append_unique(kind + 'LIB_' + uselib, lib + d + ext)
+						conf.check_message_2('ok ' + path, 'GREEN')
+						break
+				else:
+					conf.check_message_2('not found', 'YELLOW')
+					continue
+				break
+
+			env.append_unique('LIBPATH_' + uselib, qtlibs)
+			env.append_unique('CPPPATH_' + uselib, qtincludes)
+			env.append_unique('CPPPATH_' + uselib, qtincludes + os.sep + lib)
+	else:
+		for i in vars_debug+vars:
+			try:
+				conf.check_cfg(package=i, args='--cflags --libs --silence-errors', path=conf.env.pkgconfig)
+			except ValueError:
+				pass
 
 	# the libpaths are set nicely, unfortunately they make really long command-lines
 	# remove the qtcore ones from qtgui, etc

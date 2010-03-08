@@ -196,13 +196,13 @@ class task_gen(object):
 		self.meths = out
 
 		# then we run the methods in order
-		debug('task_gen: posting %s %d' % (self, id(self)))
+		debug('task_gen: posting %s %d', self, id(self))
 		for x in out:
 			try:
 				v = getattr(self, x)
 			except AttributeError:
 				raise Utils.WafError("tried to retrieve %s which is not a valid method" % x)
-			debug('task_gen: -> %s (%d)' % (x, id(self)))
+			debug('task_gen: -> %s (%d)', x, id(self))
 			v()
 
 	def post(self):
@@ -217,7 +217,7 @@ class task_gen(object):
 			#error("OBJECT ALREADY POSTED" + str( self))
 			return
 		self.apply()
-		debug('task_gen: posted %s' % self.name)
+		debug('task_gen: posted %s', self.name)
 		self.posted = True
 
 	def get_hook(self, ext):
@@ -342,7 +342,7 @@ def declare_order(*k):
 		if not f1 in task_gen.prec[f2]:
 			task_gen.prec[f2].append(f1)
 
-def declare_chain(name='', action='', ext_in='', ext_out='', reentrant=1, color='BLUE',
+def declare_chain(name='', action='', ext_in='', ext_out='', reentrant=True, color='BLUE',
 	install=0, before=[], after=[], decider=None, rule=None, scan=None):
 	"""
 	see Tools/flex.py for an example
@@ -363,7 +363,7 @@ def declare_chain(name='', action='', ext_in='', ext_out='', reentrant=1, color=
 	def x_file(self, node):
 		if decider:
 			ext = decider(self, node)
-		elif isinstance(ext_out, str):
+		else:
 			ext = ext_out
 
 		if isinstance(ext, str):
@@ -373,7 +373,7 @@ def declare_chain(name='', action='', ext_in='', ext_out='', reentrant=1, color=
 		elif isinstance(ext, list):
 			out_source = [node.change_ext(x) for x in ext]
 			if reentrant:
-				for i in xrange(reentrant):
+				for i in xrange((reentrant is True) and len(out_source) or reentrant):
 					self.allnodes.append(out_source[i])
 		else:
 			# XXX: useless: it will fail on Utils.to_list above...
@@ -405,6 +405,7 @@ Intelligent compilers binding aspect-oriented programming and parallelization, w
 """
 def taskgen(func):
 	setattr(task_gen, func.__name__, func)
+	return func
 
 def feature(*k):
 	def deco(func):
@@ -502,6 +503,8 @@ def exec_rule(self):
 
 	# create the task class
 	name = getattr(self, 'name', None) or self.target or self.rule
+	if not isinstance(name, str):
+		name = str(self.idx)
 	cls = Task.task_type_from_func(name, func, vars)
 
 	# now create one instance
@@ -524,9 +527,6 @@ def exec_rule(self):
 				raise Utils.WafError('input file %r could not be found (%r)' % (x, self.path.abspath()))
 			tsk.inputs.append(y)
 
-	if getattr(self, 'always', None):
-		Task.always_run(cls)
-
 	if getattr(self, 'scan', None):
 		cls.scan = self.scan
 
@@ -539,7 +539,10 @@ def exec_rule(self):
 	if getattr(self, 'on_results', None):
 		Task.update_outputs(cls)
 
-	for x in ['after', 'before']:
+	if getattr(self, 'always', None):
+		Task.always_run(cls)
+
+	for x in ['after', 'before', 'ext_in', 'ext_out']:
 		setattr(cls, x, getattr(self, x, []))
 feature('*')(exec_rule)
 before('apply_core')(exec_rule)
@@ -552,8 +555,8 @@ def sequence_order(self):
 	there is also an awesome trick for executing the method in last position
 
 	to use:
-	bld.new_task_gen(features='javac seq')
-	bld.new_task_gen(features='jar seq')
+	bld(features='javac seq')
+	bld(features='jar seq')
 
 	to start a new sequence, set the attribute seq_start, for example:
 	obj.seq_start = True

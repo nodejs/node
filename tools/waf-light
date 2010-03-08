@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# encoding: utf-8
-# Thomas Nagy, 2005-2009
+# encoding: ISO8859-1
+# Thomas Nagy, 2005-2010
 
 """
 Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ if 'PSYCOWAF' in os.environ:
 	try:import psyco;psyco.full()
 	except:pass
 
-VERSION="1.5.10"
+VERSION="1.5.14"
 REVISION="x"
 INSTALL="x"
 C1='x'
@@ -149,7 +149,7 @@ t = join(w, 'Tools')
 f = join(w, '3rdparty')
 sys.path = [w, t, f] + sys.path
 
-import Scripting
-Scripting.prepare(t, cwd, VERSION, wafdir)
-sys.exit(0)
+if __name__ == '__main__':
+	import Scripting
+	Scripting.prepare(t, cwd, VERSION, wafdir)
 

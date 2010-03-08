@@ -53,8 +53,13 @@ class Environment(object):
 	def __setitem__(self, key, value):
 		self.table[key] = value
 
-	def __delitem__(self, key, value):
+	def __delitem__(self, key):
 		del self.table[key]
+	
+	def pop(self, key, *args):
+		if len(args):
+			return self.table.pop(key, *args)
+		return self.table.pop(key)
 
 	def set_variant(self, name):
 		self.table[VARIANT] = name
@@ -173,7 +178,7 @@ class Environment(object):
 		for m in re_imp.finditer(code):
 			g = m.group
 			tbl[g(2)] = eval(g(3))
-		Logs.debug('env: %s' % str(self.table))
+		Logs.debug('env: %s', self.table)
 
 	def get_destdir(self):
 		"return the destdir, useful for installing"
@@ -197,9 +202,9 @@ class Environment(object):
 		else:
 			self[name] = value
 
-	def __detattr__(self, name):
+	def __delattr__(self, name):
 		if name in self.__slots__:
-			object.__detattr__(self, name)
+			object.__delattr__(self, name)
 		else:
 			del self[name]
 

@@ -80,15 +80,15 @@ def setup_msvc(conf, versions):
 			for target in platforms:
 				try:
 					arch,(p1,p2,p3) = targets[target]
-					compiler,version = version.split()
-					return compiler,p1,p2,p3
+					compiler,revision = version.split()
+					return compiler,revision,p1,p2,p3
 				except KeyError: continue
 		except KeyError: continue
 	conf.fatal('msvc: Impossible to find a valid architecture for building (in setup_msvc)')
 
 @conf
 def get_msvc_version(conf, compiler, version, target, vcvars):
-	debug('msvc: get_msvc_version: ' + compiler + ' ' + version + ' ' + target + ' ...')
+	debug('msvc: get_msvc_version: %r %r %r', compiler, version, target)
 	batfile = os.path.join(conf.blddir, 'waf-print-msvc.bat')
 	f = open(batfile, 'w')
 	f.write("""@echo off
@@ -107,7 +107,7 @@ echo LIB=%%LIB%%
 		if lines[0].find(x) != -1:
 			break
 	else:
-		debug('msvc: get_msvc_version: %r %r %r -> not found' % (compiler, version, target))
+		debug('msvc: get_msvc_version: %r %r %r -> not found', compiler, version, target)
 		conf.fatal('msvc: Impossible to find a valid architecture for building (in get_msvc_version)')
 
 	for line in lines[1:]:
@@ -136,11 +136,11 @@ echo LIB=%%LIB%%
 		if p.returncode != 0:
 			raise Exception('return code: %r: %r' % (p.returncode, err))
 	except Exception, e:
-		debug('msvc: get_msvc_version: %r %r %r -> failure' % (compiler, version, target))
+		debug('msvc: get_msvc_version: %r %r %r -> failure', compiler, version, target)
 		debug(str(e))
 		conf.fatal('msvc: cannot run the compiler (in get_msvc_version)')
 	else:
-		debug('msvc: get_msvc_version: %r %r %r -> OK' % (compiler, version, target))
+		debug('msvc: get_msvc_version: %r %r %r -> OK', compiler, version, target)
 
 	return (MSVC_PATH, MSVC_INCDIR, MSVC_LIBDIR)
 
@@ -297,12 +297,13 @@ def gather_icl_versions(conf, versions):
 
 @conf
 def get_msvc_versions(conf):
-	if not conf.env['MSVC_INSTALLED_VERSIONS']:
-		conf.env['MSVC_INSTALLED_VERSIONS'] = []
-		conf.gather_msvc_versions(conf.env['MSVC_INSTALLED_VERSIONS'])
-		conf.gather_wsdk_versions(conf.env['MSVC_INSTALLED_VERSIONS'])
-		conf.gather_icl_versions(conf.env['MSVC_INSTALLED_VERSIONS'])
-	return conf.env['MSVC_INSTALLED_VERSIONS']
+	if not conf.env.MSVC_INSTALLED_VERSIONS:
+		lst = []
+		conf.gather_msvc_versions(lst)
+		conf.gather_wsdk_versions(lst)
+		conf.gather_icl_versions(lst)
+		conf.env.MSVC_INSTALLED_VERSIONS = lst
+	return conf.env.MSVC_INSTALLED_VERSIONS
 
 @conf
 def print_all_msvc_detected(conf):
@@ -401,7 +402,7 @@ def libname_msvc(self, libname, is_static=False, mandatory=False):
 	for path in _libpaths:
 		for libn in libnames:
 			if os.path.exists(os.path.join(path, libn)):
-				debug('msvc: lib found: %s' % os.path.join(path,libn))
+				debug('msvc: lib found: %s', os.path.join(path,libn))
 				return re.sub('\.lib$', '',libn)
 
 	#if no lib can be found, just return the libname as msvc expects it
@@ -449,7 +450,7 @@ link_add_flags
 @conftest
 def autodetect(conf):
 	v = conf.env
-	compiler, path, includes, libdirs = detect_msvc(conf)
+	compiler, version, path, includes, libdirs = detect_msvc(conf)
 	v['PATH'] = path
 	v['CPPPATH'] = includes
 	v['LIBPATH'] = libdirs
@@ -475,19 +476,16 @@ def find_msvc(conf):
 
 	v = conf.env
 
-	compiler, path, includes, libdirs = detect_msvc(conf)
-	v['PATH'] = path
-	v['CPPPATH'] = includes
-	v['LIBPATH'] = libdirs
+	compiler, version, path, includes, libdirs = detect_msvc(conf)
 
 	compiler_name, linker_name, lib_name = _get_prog_names(conf, compiler)
+	has_msvc_manifest = (compiler == 'msvc' and float(version) >= 8) or (compiler == 'wsdk' and float(version) >= 6)	or (compiler == 'intel' and float(version) >= 11)
 
 	# compiler
 	cxx = None
-	if v['CXX']: cxx = v['CXX']
+	if v.CXX: cxx = v.CXX
 	elif 'CXX' in conf.environ: cxx = conf.environ['CXX']
-	if not cxx: cxx = conf.find_program(compiler_name, var='CXX', path_list=path)
-	if not cxx: conf.fatal('%s was not found (compiler)' % compiler_name)
+	if not cxx: cxx = conf.find_program(compiler_name, var='CXX', path_list=path, mandatory=True)
 	cxx = conf.cmd_to_list(cxx)
 
 	# before setting anything, check if the compiler is really msvc
@@ -496,42 +494,49 @@ def find_msvc(conf):
 	if not Utils.cmd_output([cxx, '/nologo', '/?'], silent=True, env=env):
 		conf.fatal('the msvc compiler could not be identified')
 
+	link = v.LINK_CXX
+	if not link:
+		link = conf.find_program(linker_name, path_list=path, mandatory=True)
+	ar = v.AR
+	if not ar:
+		ar = conf.find_program(lib_name, path_list=path, mandatory=True)
+
+	# manifest tool. Not required for VS 2003 and below. Must have for VS 2005 and later
+	mt = v.MT
+	if has_msvc_manifest:
+		mt = conf.find_program('MT', path_list=path, mandatory=True)
+
+	# no more possibility of failure means the data state will be consistent
+	# we may store the data safely now
+
+	v.MSVC_MANIFEST = has_msvc_manifest
+	v.PATH = path
+	v.CPPPATH = includes
+	v.LIBPATH = libdirs
+
 	# c/c++ compiler
-	v['CC'] = v['CXX'] = cxx
-	v['CC_NAME'] = v['CXX_NAME'] = 'msvc'
+	v.CC = v.CXX = cxx
+	v.CC_NAME = v.CXX_NAME = 'msvc'
+
+	v.LINK = v.LINK_CXX = link
+	if not v.LINK_CC:
+		v.LINK_CC = v.LINK_CXX
+
+	v.AR = ar
+	v.MT = mt
+	v.MTFLAGS = v.ARFLAGS = ['/NOLOGO']
+
+
+	conf.check_tool('winres')
+
+	if not conf.env.WINRC:
+		warn('Resource compiler not found. Compiling resource file is disabled')
 
 	# environment flags
 	try: v.prepend_value('CPPPATH', conf.environ['INCLUDE'])
 	except KeyError: pass
 	try: v.prepend_value('LIBPATH', conf.environ['LIB'])
 	except KeyError: pass
-
-	# linker
-	if not v['LINK_CXX']:
-		link = conf.find_program(linker_name, path_list=path)
-		if link: v['LINK_CXX'] = link
-		else: conf.fatal('%s was not found (linker)' % linker_name)
-	v['LINK'] = link
-
-	if not v['LINK_CC']: v['LINK_CC'] = v['LINK_CXX']
-
-	# staticlib linker
-	if not v['AR']:
-		stliblink = conf.find_program(lib_name, path_list=path)
-		if not stliblink: return
-		v['AR']   = stliblink
-		v['ARFLAGS'] = ['/NOLOGO']
-
-	# manifest tool. Not required for VS 2003 and below. Must have for VS 2005 and later
-	manifesttool = conf.find_program('MT', path_list=path)
-	if manifesttool:
-		v['MT'] = manifesttool
-		v['MTFLAGS'] = ['/NOLOGO']
-
-	conf.check_tool('winres')
-
-	if not conf.env['WINRC']:
-		warn('Resource compiler not found. Compiling resource file is disabled')
 
 @conftest
 def msvc_common_flags(conf):
@@ -702,52 +707,47 @@ def apply_manifest(self):
 	"""Special linker for MSVC with support for embedding manifests into DLL's
 	and executables compiled by Visual Studio 2005 or probably later. Without
 	the manifest file, the binaries are unusable.
-	See: http://msdn2.microsoft.com/en-us/library/ms235542(VS.80).aspx
-	Problems with this tool: it is always called whether MSVC creates manifests or not."""
+	See: http://msdn2.microsoft.com/en-us/library/ms235542(VS.80).aspx"""
 
-	if self.env.CC_NAME != 'msvc':
-		return
-
-	tsk = self.create_task('msvc_manifest')
-	tsk.set_inputs(self.link_task.outputs[0])
+	if self.env.CC_NAME == 'msvc' and self.env.MSVC_MANIFEST:
+		out_node = self.link_task.outputs[0]
+		man_node = out_node.parent.find_or_declare(out_node.name + '.manifest')
+		self.link_task.outputs.append(man_node)
+		self.link_task.do_manifest = True
 
 def exec_mf(self):
 	env = self.env
-	outfile = self.inputs[0].bldpath(env)
-	manifest = outfile + '.manifest'
-	if os.path.exists(manifest):
-		debug('msvc: manifesttool')
-		mtool = env['MT']
-		if not mtool:
-			return 0
+	mtool = env['MT']
+	if not mtool:
+		return 0
 
-		mode = ''
-		# embedding mode. Different for EXE's and DLL's.
-		# see: http://msdn2.microsoft.com/en-us/library/ms235591(VS.80).aspx
-		if 'cprogram' in self.generator.features:
-			mode = '1'
-		elif 'cshlib' in self.generator.features:
-			mode = '2'
+	self.do_manifest = False
 
-		debug('msvc: embedding manifest')
-		#flags = ' '.join(env['MTFLAGS'] or [])
+	outfile = self.outputs[0].bldpath(env)
+	manifest = self.outputs[-1].bldpath(env)
 
-		lst = []
-		lst.extend(Utils.to_list(env['MT']))
-		lst.extend(Utils.to_list(env['MTFLAGS']))
-		lst.extend(Utils.to_list("-manifest"))
-		lst.extend(Utils.to_list(manifest))
-		lst.extend(Utils.to_list("-outputresource:%s;%s" % (outfile, mode)))
+	# embedding mode. Different for EXE's and DLL's.
+	# see: http://msdn2.microsoft.com/en-us/library/ms235591(VS.80).aspx
+	mode = ''
+	if 'cprogram' in self.generator.features:
+		mode = '1'
+	elif 'cshlib' in self.generator.features:
+		mode = '2'
 
-		#cmd='%s %s -manifest "%s" -outputresource:"%s";#%s' % (mtool, flags,
-		#	manifest, outfile, mode)
-		lst = [lst]
-		ret = self.exec_command(*lst)
+	debug('msvc: embedding manifest')
+	#flags = ' '.join(env['MTFLAGS'] or [])
 
-	return ret
+	lst = []
+	lst.extend(Utils.to_list(env['MT']))
+	lst.extend(Utils.to_list(env['MTFLAGS']))
+	lst.extend(Utils.to_list("-manifest"))
+	lst.extend(Utils.to_list(manifest))
+	lst.extend(Utils.to_list("-outputresource:%s;%s" % (outfile, mode)))
 
-cls = Task.task_type_from_func('msvc_manifest', vars=['MT', 'MTFLAGS'], color='BLUE', func=exec_mf, ext_in='.bin')
-cls.quiet = 1
+	#cmd='%s %s -manifest "%s" -outputresource:"%s";#%s' % (mtool, flags,
+	#	manifest, outfile, mode)
+	lst = [lst]
+	return self.exec_command(*lst)
 
 ########## stupid evil command modification: concatenate the tokens /Fx, /doc, and /x: with the next token
 
@@ -769,7 +769,11 @@ def exec_command_msvc(self, *k, **kw):
 		env.update(PATH = ';'.join(self.env['PATH']))
 		kw['env'] = env
 
-	return self.generator.bld.exec_command(*k, **kw)
+	ret = self.generator.bld.exec_command(*k, **kw)
+	if ret: return ret
+	if getattr(self, 'do_manifest', None):
+		ret = exec_mf(self)
+	return ret
 
 for k in 'cc cxx winrc cc_link cxx_link static_link qxx'.split():
 	cls = Task.TaskBase.classes.get(k, None)

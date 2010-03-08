@@ -23,14 +23,13 @@ def asm_hook(self, node):
 	self.compiled_tasks.append(task)
 	self.meths.append('asm_incflags')
 
-@taskgen
 @after('apply_obj_vars_cc')
 @after('apply_obj_vars_cxx')
 @before('apply_link')
 def asm_incflags(self):
-	if self.env['ASINCFLAGS']: self.env['_ASINCFLAGS'] = self.env['ASINCFLAGS']
-	if 'cxx' in self.features: self.env['_ASINCFLAGS'] = self.env['_CXXINCFLAGS']
-	else: self.env['_ASINCFLAGS'] = self.env['_CCINCFLAGS']
+	self.env.append_value('_ASINCFLAGS', self.env.ASINCFLAGS)
+	var = ('cxx' in self.features) and 'CXX' or 'CC'
+	self.env.append_value('_ASINCFLAGS', self.env['_%sINCFLAGS' % var])
 
 def detect(conf):
 	conf.find_program(['gas', 'as'], var='AS')

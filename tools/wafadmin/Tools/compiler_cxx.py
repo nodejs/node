@@ -11,7 +11,7 @@ cxx_compiler = {
 'win32':  ['msvc', 'g++'],
 'cygwin': ['g++'],
 'darwin': ['g++'],
-'aix':    ['g++'],
+'aix':    ['xlc++', 'g++'],
 'linux':  ['g++', 'icpc', 'sunc++'],
 'sunos':  ['g++', 'sunc++'],
 'irix':   ['g++'],
@@ -28,17 +28,24 @@ def __list_possible_compiler(platform):
 def detect(conf):
 	try: test_for_compiler = Options.options.check_cxx_compiler
 	except AttributeError: raise Configure.ConfigurationError("Add set_options(opt): opt.tool_options('compiler_cxx')")
+	orig = conf.env
 	for compiler in test_for_compiler.split():
 		try:
+			conf.env = orig.copy()
 			conf.check_tool(compiler)
 		except Configure.ConfigurationError, e:
 			debug('compiler_cxx: %r' % e)
 		else:
 			if conf.env['CXX']:
+				orig.table = conf.env.get_merged_dict()
+				conf.env = orig
 				conf.check_message(compiler, '', True)
 				conf.env['COMPILER_CXX'] = compiler
 				break
 			conf.check_message(compiler, '', False)
+			break
+	else:
+		conf.fatal('could not configure a cxx compiler!')
 
 def set_options(opt):
 	build_platform = Utils.unversioned_sys_platform()
@@ -51,11 +58,4 @@ def set_options(opt):
 
 	for cxx_compiler in test_for_compiler.split():
 		opt.tool_options('%s' % cxx_compiler, option_group=cxx_compiler_opts)
-
-	"""opt.add_option('-d', '--debug-level',
-		action = 'store',
-		default = ccroot.DEBUG_LEVELS.RELEASE,
-		help = "Specify the debug level, does nothing if CXXFLAGS is set in the environment. [Allowed Values: '%s']" % "', '".join(ccroot.DEBUG_LEVELS.ALL),
-		choices = ccroot.DEBUG_LEVELS.ALL,
-		dest = 'debug_level')"""
 
