@@ -13,7 +13,7 @@ function removed (reason) {
 }
 
 GLOBAL.__module = removed("'__module' has been renamed to 'module'");
-GLOBAL.include = removed("include(module) has been removed. Use process.mixin(GLOBAL, require(module)) to get the same effect.");
+GLOBAL.include = removed("include(module) has been removed. Use require(module)");
 GLOBAL.puts = removed("puts() has moved. Use require('sys') to bring it back.");
 GLOBAL.print = removed("print() has moved. Use require('sys') to bring it back.");
 GLOBAL.p = removed("p() has moved. Use require('sys') to bring it back.");
