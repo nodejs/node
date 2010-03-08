@@ -1,6 +1,7 @@
 process.mixin(require("../common"));
-http = require("http");
-url = require("url");
+var http = require("http");
+var url = require("url");
+var fs = require('fs');
 
 HOST = "localhost";
 
