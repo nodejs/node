@@ -938,6 +938,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\virtual-frame-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\virtual-frame.h"
 				>
 			</File>

@@ -28,6 +28,8 @@
 #ifndef V8_JUMP_TARGET_INL_H_
 #define V8_JUMP_TARGET_INL_H_
 
+#include "virtual-frame-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -36,14 +38,15 @@ CodeGenerator* JumpTarget::cgen() {
 }
 
 void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
-  entry_frame_->elements_[index].clear_copied();
+  FrameElement* element = &entry_frame_->elements_[index];
+  element->clear_copied();
   if (target->is_register()) {
     entry_frame_->set_register_location(target->reg(), index);
   } else if (target->is_copy()) {
     entry_frame_->elements_[target->index()].set_copied();
   }
   if (direction_ == BIDIRECTIONAL && !target->is_copy()) {
-    entry_frame_->elements_[index].set_number_info(NumberInfo::kUnknown);
+    element->set_number_info(NumberInfo::kUnknown);
   }
 }
 

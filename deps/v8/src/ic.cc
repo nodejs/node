@@ -1049,20 +1049,6 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
-
-  // Use specialized code for setting the length of arrays.
-  if (receiver->IsJSArray()
-      && name->Equals(Heap::length_symbol())
-      && receiver->AllowsSetElementsLength()) {
-#ifdef DEBUG
-    if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
-#endif
-    Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
-    set_target(target);
-    StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
-    return receiver->SetProperty(*name, *value, NONE);
-  }
-
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;

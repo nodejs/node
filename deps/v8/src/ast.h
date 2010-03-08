@@ -931,10 +931,6 @@ class VariableProxy: public Expression {
     return var()->is_global() || var()->rewrite()->IsLeaf();
   }
 
-  // Reading from a mutable variable is a side effect, but 'this' is
-  // immutable.
-  virtual bool IsTrivial() { return is_this(); }
-
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);
   }

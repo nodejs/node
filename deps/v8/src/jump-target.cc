@@ -100,9 +100,8 @@ void JumpTarget::ComputeEntryFrame() {
         // change our decision about undetermined or invalid elements.
         if (element == NULL || !element->is_valid()) break;
 
-        element = element->Combine(&reaching_frames_[j]->elements_[i]);
-
         FrameElement* other = &reaching_frames_[j]->elements_[i];
+        element = element->Combine(other);
         if (element != NULL && !element->is_copy()) {
           ASSERT(other != NULL);
           // We overwrite the number information of one of the incoming frames.

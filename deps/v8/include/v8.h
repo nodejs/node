@@ -2442,6 +2442,16 @@ class V8EXPORT V8 {
   static void TerminateExecution();
 
   /**
+   * Is V8 terminating JavaScript execution.
+   *
+   * Returns true if JavaScript execution is currently terminating
+   * because of a call to TerminateExecution.  In that case there are
+   * still JavaScript frames on the stack and the termination
+   * exception is still active.
+   */
+  static bool IsExecutionTerminating();
+
+  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -2472,6 +2482,12 @@ class V8EXPORT V8 {
    * V8 uses these notifications to attempt to free memory.
    */
   static void LowMemoryNotification();
+
+  /**
+   * Optional notification that a context has been disposed. V8 uses
+   * these notifications to guide the garbage collection heuristic.
+   */
+  static void ContextDisposedNotification();
 
  private:
   V8();

@@ -40,6 +40,7 @@ v8::Handle<v8::Value> Signal(const v8::Arguments& args) {
 
 
 v8::Handle<v8::Value> TerminateCurrentThread(const v8::Arguments& args) {
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::V8::TerminateExecution();
   return v8::Undefined();
 }
@@ -52,15 +53,19 @@ v8::Handle<v8::Value> Fail(const v8::Arguments& args) {
 
 
 v8::Handle<v8::Value> Loop(const v8::Arguments& args) {
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::Handle<v8::String> source =
       v8::String::New("try { doloop(); fail(); } catch(e) { fail(); }");
-  v8::Script::Compile(source)->Run();
+  v8::Handle<v8::Value> result = v8::Script::Compile(source)->Run();
+  CHECK(result.IsEmpty());
+  CHECK(v8::V8::IsExecutionTerminating());
   return v8::Undefined();
 }
 
 
 v8::Handle<v8::Value> DoLoop(const v8::Arguments& args) {
   v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() {"
                                       "  var term = true;"
                                       "  try {"
@@ -78,12 +83,14 @@ v8::Handle<v8::Value> DoLoop(const v8::Arguments& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
+  CHECK(v8::V8::IsExecutionTerminating());
   return v8::Undefined();
 }
 
 
 v8::Handle<v8::Value> DoLoopNoCall(const v8::Arguments& args) {
   v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("var term = true;"
                                       "while(true) {"
                                       "  if (term) terminate();"
@@ -93,6 +100,7 @@ v8::Handle<v8::Value> DoLoopNoCall(const v8::Arguments& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
+  CHECK(v8::V8::IsExecutionTerminating());
   return v8::Undefined();
 }
 
@@ -118,11 +126,13 @@ TEST(TerminateOnlyV8ThreadFromThreadItself) {
       CreateGlobalTemplate(TerminateCurrentThread, DoLoop);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
   // Test that we can run the code again after thread termination.
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(source)->Run();
   context.Dispose();
 }
@@ -136,10 +146,12 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
       CreateGlobalTemplate(TerminateCurrentThread, DoLoopNoCall);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   v8::Script::Compile(source)->Run();
+  CHECK(!v8::V8::IsExecutionTerminating());
   // Test that we can run the code again after thread termination.
   v8::Script::Compile(source)->Run();
   context.Dispose();
@@ -149,6 +161,7 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 class TerminatorThread : public v8::internal::Thread {
   void Run() {
     semaphore->Wait();
+    CHECK(!v8::V8::IsExecutionTerminating());
     v8::V8::TerminateExecution();
   }
 };
@@ -165,6 +178,7 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(Signal, DoLoop);
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
@@ -187,6 +201,7 @@ class LoopingThread : public v8::internal::Thread {
         CreateGlobalTemplate(Signal, DoLoop);
     v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
     v8::Context::Scope context_scope(context);
+    CHECK(!v8::V8::IsExecutionTerminating());
     // Run a loop that will be infinite if thread termination does not work.
     v8::Handle<v8::String> source =
         v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
@@ -235,6 +250,7 @@ int call_count = 0;
 
 v8::Handle<v8::Value> TerminateOrReturnObject(const v8::Arguments& args) {
   if (++call_count == 10) {
+    CHECK(!v8::V8::IsExecutionTerminating());
     v8::V8::TerminateExecution();
     return v8::Undefined();
   }
@@ -246,6 +262,7 @@ v8::Handle<v8::Value> TerminateOrReturnObject(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
   v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::New("function f() {"
                                       "  try {"
                                       "    while(true) {"
@@ -261,6 +278,7 @@ v8::Handle<v8::Value> LoopGetProperty(const v8::Arguments& args) {
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
+  CHECK(v8::V8::IsExecutionTerminating());
   return v8::Undefined();
 }
 
@@ -278,12 +296,14 @@ TEST(TerminateLoadICException) {
 
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
   v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source =
       v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
   call_count = 0;
   v8::Script::Compile(source)->Run();
   // Test that we can run the code again after thread termination.
+  CHECK(!v8::V8::IsExecutionTerminating());
   call_count = 0;
   v8::Script::Compile(source)->Run();
   context.Dispose();

@@ -30,7 +30,6 @@
 
 #include "codegen.h"
 #include "register-allocator.h"
-#include "virtual-frame.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/register-allocator-ia32-inl.h"

@@ -35,7 +35,7 @@
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
-
+#include "virtual-frame-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -131,9 +131,6 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       state_(NULL),
       function_return_is_shadowed_(false) {
 }
-
-
-Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 
 
 // Calling conventions:

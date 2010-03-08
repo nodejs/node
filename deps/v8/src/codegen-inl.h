@@ -50,7 +50,10 @@ namespace v8 {
 namespace internal {
 
 Handle<Script> CodeGenerator::script() { return info_->script(); }
+
 bool CodeGenerator::is_eval() { return info_->is_eval(); }
+
+Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 
 } }  // namespace v8::internal
 
