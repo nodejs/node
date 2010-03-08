@@ -1191,8 +1191,8 @@ static void PrintHelp() {
          "                     without stopping the execution\n"
          "  --debug-brk[=port] as above, but break in script.js and\n"
          "                     wait for remote debugger to connect\n"
-         "  --cflags           print pre-processor and compiler flags\n"
          "  --v8-options       print v8 command line options\n"
+         "  --vars             print various compiled-in variables\n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH            ':'-separated list of directories\n"
@@ -1216,8 +1216,10 @@ static void ParseArgs(int *argc, char **argv) {
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
-    } else if (strcmp(arg, "--cflags") == 0) {
-      printf("%s\n", NODE_CFLAGS);
+    } else if (strcmp(arg, "--vars") == 0) {
+      printf("NODE_PREFIX: %s\n", NODE_PREFIX);
+      printf("NODE_LIBRARIES_PREFIX: %s/%s\n", NODE_PREFIX, "lib/node/libraries");
+      printf("NODE_CFLAGS: %s\n", NODE_CFLAGS);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
