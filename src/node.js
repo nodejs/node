@@ -45,6 +45,7 @@ node.dns.createConnection = removed("node.dns.createConnection() has moved. Use 
 // Module 
 
 var internalModuleCache = {};
+var extensionCache = {};
 
 function Module (id, parent) {
   this.id = id;
@@ -481,6 +482,12 @@ function findModulePath (id, dirs, callback) {
     path.join(dir, id, "index.addon")
   ];
 
+  var ext;
+  for (ext in extensionCache) {
+    locations.push(path.join(dir, id + ext));
+    locations.push(path.join(dir, id, 'index' + ext));
+  }
+
   function searchLocations () {
     var location = locations.shift();
     if (!location) {
@@ -515,8 +522,13 @@ function resolveModulePath(request, parent) {
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
+    var exts = ['js', 'node'], ext;
+    for (ext in extensionCache) {
+      exts.push(ext.slice(1));
+    }
+
     var parentIdPath = path.dirname(parent.id +
-      (path.basename(parent.filename).match(/^index\.(js|addon)$/) ? "/" : ""));
+      (path.basename(parent.filename).match(new RegExp('^index\\.(' + exts.join('|') + ')$')) ? "/" : ""));
     id = path.join(parentIdPath, request);
     // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
@@ -584,6 +596,32 @@ function loadModule (request, parent, callback) {
 };
 
 
+// This function allows the user to register file extensions to custom
+// Javascript 'compilers'.  It accepts 2 arguments, where ext is a file
+// extension as a string. E.g. '.coffee' for coffee-script files.  compiler
+// is the second argument, which is a function that gets called then the
+// specified file extension is found. The compiler is passed a single
+// argument, which is, the file contents, which need to be compiled.
+//
+// The function needs to return the compiled source, or an non-string
+// variable that will get attached directly to the module exports. Example:
+//
+//    require.registerExtension('.coffee', function(content) {
+//      return doCompileMagic(content);
+//    });
+function registerExtension(ext, compiler) {
+  if ('string' !== typeof ext && false === /\.\w+$/.test(ext)) {
+    throw new Error('require.registerExtension: First argument not a valid extension string.');
+  }
+
+  if ('function' !== typeof compiler) {
+    throw new Error('require.registerExtension: Second argument not a valid compiler function.');
+  }
+
+  extensionCache[ext] = compiler;
+}
+
+
 Module.prototype.loadSync = function (filename) {
   debug("loadSync " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
@@ -649,6 +687,12 @@ Module.prototype._loadContent = function (content, filename) {
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
 
+  // Compile content if needed
+  var ext = path.extname(filename);
+  if (extensionCache[ext]) {
+    content = extensionCache[ext](content);
+  }
+
   function requireAsync (url, cb) {
     loadModule(url, self, cb);
   }
@@ -660,19 +704,27 @@ Module.prototype._loadContent = function (content, filename) {
   require.paths = process.paths;
   require.async = requireAsync;
   require.main = process.mainModule;
-  // create wrapper function
-  var wrapper = "(function (exports, require, module, __filename, __dirname) { "
-              + content
-              + "\n});";
+  require.registerExtension = registerExtension;
 
-  try {
-    var compiledWrapper = process.compile(wrapper, filename);
-    var dirName = path.dirname(filename);
-    if (filename === process.argv[1])
-      process.checkBreak();
-    compiledWrapper.apply(self.exports, [self.exports, require, self, filename, dirName]);
-  } catch (e) {
-    return e;
+
+  if ('string' === typeof content) {
+    // create wrapper function
+    var wrapper = "(function (exports, require, module, __filename, __dirname) { "
+                + content
+                + "\n});";
+
+    try {
+      var compiledWrapper = process.compile(wrapper, filename);
+      var dirName = path.dirname(filename);
+      if (filename === process.argv[1]) {
+        process.checkBreak();
+      }
+      compiledWrapper.apply(self.exports, [self.exports, require, self, filename, dirName]);
+    } catch (e) {
+      return e;
+    }
+  } else {
+    self.exports = content;
   }
 };
 
