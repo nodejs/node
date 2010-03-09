@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 assert.equal(true, process.cwd() !== __dirname);
 

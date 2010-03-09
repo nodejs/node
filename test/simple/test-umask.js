@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var mask = 0664;
 var old = process.umask(mask);

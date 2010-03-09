@@ -1,5 +1,5 @@
 var path = require("path");
-process.mixin(require("../common"));
+require("../common");
 
 var f = __filename;
 

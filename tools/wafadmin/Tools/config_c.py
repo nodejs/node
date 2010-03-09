@@ -541,8 +541,10 @@ def run_c_code(self, *k, **kw):
 
 	# if we need to run the program, try to get its result
 	if kw['execute']:
+		ak = {} # syntax for python < 2.5, don't touch
+		ak['stdout'] = ak['stderr'] = Utils.pproc.PIPE
 		args = Utils.to_list(kw.get('exec_args', []))
-		proc = Utils.pproc.Popen([lastprog], *args, stdout=Utils.pproc.PIPE, stderr=Utils.pproc.PIPE)
+		proc = Utils.pproc.Popen([lastprog], *args, **ak)
 		(out, err) = proc.communicate()
 		w = self.log.write
 		w(str(out))

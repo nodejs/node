@@ -49,7 +49,6 @@ def configure(conf):
       int main() {
           struct timespec ts; 
           int status = syscall(SYS_clock_gettime, CLOCK_REALTIME, &ts);
-          puts("1"); // fucking waf...
           return 0;
       }
   """

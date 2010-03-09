@@ -1,5 +1,4 @@
-process.mixin(require("../common"));
-process.mixin(require("sys"));
+require("../common");
 
 assert.equal("0", inspect(0));
 assert.equal("1", inspect(1));

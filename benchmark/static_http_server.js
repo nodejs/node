@@ -1,7 +1,5 @@
-var path = require("path");
-libDir = path.join(path.dirname(__filename), "../lib");
-require.paths.unshift(libDir);
-http = require("http");
+var http = require("../lib/http");
+
 var concurrency = 30;
 var port = 8000;
 var n = 700;

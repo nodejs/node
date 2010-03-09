@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var target = function() {};
 process.mixin(target, {

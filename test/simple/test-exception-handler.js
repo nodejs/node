@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var MESSAGE = 'catch me if you can';
 var caughtException = false;

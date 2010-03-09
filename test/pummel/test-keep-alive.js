@@ -1,5 +1,5 @@
 // This test requires the program "ab"
-process.mixin(require("../common"));
+require("../common");
 http = require("http");
 sys = require("sys");
 

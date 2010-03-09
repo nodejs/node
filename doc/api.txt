@@ -263,6 +263,9 @@ server.addListener("connection", function (socket) {
 Remove a listener from the listener array for the specified event.
 *Caution*: changes array indices in the listener array behind the listener.
 
++emitter.removeAllListeners(event)+ ::
+Removes all listeners from the listener array for the specified event.
+
 +emitter.listeners(event)+ ::
 Returns an array of listeners for the specified event. This array can be
 manipulated, e.g. to remove listeners.

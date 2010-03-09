@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var fs = require("fs");
 var path = require("path");

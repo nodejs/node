@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 var path = require('path');
 var testTxt = path.join(fixturesDir, "x.txt");
 var fs = require('fs');

@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var dns = require("dns"),
     sys = require("sys");

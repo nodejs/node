@@ -1,4 +1,4 @@
-process.mixin(require("../common"));
+require("../common");
 
 var r = process.memoryUsage();
 puts(inspect(r));
