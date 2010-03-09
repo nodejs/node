@@ -3,7 +3,7 @@ import os, sys
 
 
 join = os.path.join
-bindir = os.path.dirname(__file__)
+bindir = os.path.dirname(os.path.realpath(__file__))
 prefix = join(bindir, "..")
 wafdir = join(prefix, "lib", "node")
 
