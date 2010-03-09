@@ -1,10 +1,7 @@
 path = require("path");
 
-libDir = path.join(path.dirname(__filename), "../lib");
-require.paths.unshift(libDir);
-
-var puts = require("sys").puts;
-http = require("http");
+var puts = require("../lib/sys").puts;
+http = require("../lib/http2");
 
 fixed = ""
 for (var i = 0; i < 20*1024; i++) {
