@@ -186,6 +186,12 @@ var eventsModule = createInternalModule('events', function (exports) {
     return this;
   };
 
+  process.EventEmitter.prototype.removeAllListeners = function (type) {
+    // does not use listeners(), so no side effect of creating _events[type]
+    if (!type || !this._events || !this._events.hasOwnProperty(type)) return this;
+    this._events[type].length = 0;
+  };
+
   process.EventEmitter.prototype.listeners = function (type) {
     if (!this._events) this._events = {};
     if (!this._events.hasOwnProperty(type)) this._events[type] = [];

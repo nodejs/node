@@ -30,3 +30,9 @@ assert.deepEqual(["callback1", "callback2"], callbacks_called);
 e.emit("foo");
 assert.equal(0, e.listeners("foo").length);
 assert.deepEqual(["callback1", "callback2"], callbacks_called);
+
+e.addListener("foo", callback1);
+e.addListener("foo", callback2);
+assert.equal(2, e.listeners("foo").length)
+e.removeAllListeners("foo")
+assert.equal(0, e.listeners("foo").length)
