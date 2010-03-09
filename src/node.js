@@ -136,7 +136,7 @@ process.mixin = function() {
         else {
           // Prevent never-ending loop
           if (target === d.value) {
-            continue;
+            return;
           }
 
           if (deep && d.value && typeof d.value === "object") {
