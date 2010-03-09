@@ -29,7 +29,7 @@ function fdPassingTest(path, port) {
         var client = net.createConnection(port);
 
         client.addListener("connect", function() {
-          client.send(message);
+          client.write(message);
         });
 
         client.addListener("data", function(data) {

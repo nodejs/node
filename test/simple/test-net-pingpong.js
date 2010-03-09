@@ -25,7 +25,7 @@ function pingPongTest (port, host) {
       assert.equal(true, socket.readable);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
-        socket.send("PONG");
+        socket.write("PONG");
       }
     });
 
@@ -50,7 +50,7 @@ function pingPongTest (port, host) {
     client.addListener("connect", function () {
       assert.equal(true, client.readable);
       assert.equal(true, client.writable);
-      client.send("PING");
+      client.write("PING");
     });
 
     client.addListener("data", function (data) {
@@ -69,10 +69,10 @@ function pingPongTest (port, host) {
       }
 
       if (count < N) {
-        client.send("PING");
+        client.write("PING");
       } else {
         sent_final_ping = true;
-        client.send("PING");
+        client.write("PING");
         client.close();
       }
     });
