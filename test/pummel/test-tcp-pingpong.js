@@ -1,5 +1,5 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 
 var tests_run = 0;
 
@@ -8,13 +8,13 @@ function pingPongTest (port, host, on_complete) {
   var count = 0;
   var sent_final_ping = false;
 
-  var server = tcp.createServer(function (socket) {
+  var server = net.createServer(function (socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
     if (host === "127.0.0.1")
       assert.equal(socket.remoteAddress, "127.0.0.1");
     else if (host == null)
-      assert.equal(socket.remoteAddress, "127.0.0.1");
+      assert.equal(socket.remoteAddress, "::1");
 
     socket.setEncoding("utf8");
     socket.setNoDelay();
@@ -42,7 +42,7 @@ function pingPongTest (port, host, on_complete) {
   });
   server.listen(port, host);
 
-  var client = tcp.createConnection(port, host);
+  var client = net.createConnection(port, host);
 
   client.setEncoding("utf8");
 
