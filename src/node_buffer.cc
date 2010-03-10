@@ -8,6 +8,8 @@
 
 #include <node.h>
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 namespace node {
 
 using namespace v8;
@@ -226,7 +228,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Not enough space in Buffer for string")));
   }
 
-  int written = s->WriteUtf8((char*)p);
+  int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
+
   return scope.Close(Integer::New(written));
 }
 
@@ -253,12 +256,9 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   const char *p = buffer->data_ + offset;
 
-  if (s->Length() + offset > buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Not enough space in Buffer for string")));
-  }
+  size_t towrite = MIN(s->Length(), buffer->length_ - offset);
 
-  int written = s->WriteAscii((char*)p);
+  int written = s->WriteAscii((char*)p, 0, towrite);
   return scope.Close(Integer::New(written));
 }
 
