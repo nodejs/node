@@ -1149,6 +1149,8 @@ function SetupArray() {
     ArrayReduce: 1,
     ArrayReduceRight: 1
   });
+
+  %FinishArrayPrototypeSetup($Array.prototype);
 }
 
 

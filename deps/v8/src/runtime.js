@@ -478,7 +478,7 @@ function STRING_CHAR_AT(pos) {
   if (!%_IsSmi(char_code)) {
     return %StringCharAt(this, pos);
   }
-  return %CharFromCode(char_code);
+  return %_CharFromCode(char_code);
 }
 
 

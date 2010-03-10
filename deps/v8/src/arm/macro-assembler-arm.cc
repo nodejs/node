@@ -220,7 +220,7 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   // remembered set bits in the new space.
   // object: heap object pointer (with tag)
   // offset: offset to store location from the object
-  and_(scratch, object, Operand(Heap::NewSpaceMask()));
+  and_(scratch, object, Operand(ExternalReference::new_space_mask()));
   cmp(scratch, Operand(ExternalReference::new_space_start()));
   b(eq, &done);
 
@@ -1234,19 +1234,26 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r0, Operand(num_arguments));
-  JumpToRuntime(ext);
+  JumpToExternalReference(ext);
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
@@ -1410,15 +1417,12 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
   ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
   ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
-  int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-  and_(scratch1, scratch1, Operand(kFlatAsciiStringMask));
-  and_(scratch2, scratch2, Operand(kFlatAsciiStringMask));
-  cmp(scratch1, Operand(kFlatAsciiStringTag));
-  // Ignore second test if first test failed.
-  cmp(scratch2, Operand(kFlatAsciiStringTag), eq);
-  b(ne, failure);
+
+  JumpIfBothInstanceTypesAreNotSequentialAscii(scratch1,
+                                               scratch2,
+                                               scratch1,
+                                               scratch2,
+                                               failure);
 }
 
 void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
@@ -1436,6 +1440,36 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                              scratch1,
                                              scratch2,
                                              failure);
+}
+
+
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  and_(scratch1, first, Operand(kFlatAsciiStringMask));
+  and_(scratch2, second, Operand(kFlatAsciiStringMask));
+  cmp(scratch1, Operand(kFlatAsciiStringTag));
+  // Ignore second test if first test failed.
+  cmp(scratch2, Operand(kFlatAsciiStringTag), eq);
+  b(ne, failure);
+}
+
+
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                                            Register scratch,
+                                                            Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  and_(scratch, type, Operand(kFlatAsciiStringMask));
+  cmp(scratch, Operand(kFlatAsciiStringTag));
+  b(ne, failure);
 }
 
 

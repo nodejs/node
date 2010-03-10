@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,16 +25,79 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_USAGE_ANALYZER_H_
-#define V8_USAGE_ANALYZER_H_
+#include <stdlib.h>
 
-namespace v8 {
-namespace internal {
+#include "v8.h"
 
-// Compute usage counts for all variables.
-// Used for variable allocation.
-bool AnalyzeVariableUsage(FunctionLiteral* lit);
+#include "data-flow.h"
+#include "cctest.h"
 
-} }  // namespace v8::internal
+using namespace v8::internal;
 
-#endif  // V8_USAGE_ANALYZER_H_
+TEST(BitVector) {
+  ZoneScope zone(DELETE_ON_EXIT);
+  {
+    BitVector v(15);
+    v.Add(1);
+    CHECK(v.Contains(1));
+    v.Remove(0);
+    CHECK(!v.Contains(0));
+    v.Add(0);
+    v.Add(1);
+    BitVector w(15);
+    w.Add(1);
+    v.Intersect(w);
+    CHECK(!v.Contains(0));
+    CHECK(v.Contains(1));
+  }
+
+  {
+    BitVector v(15);
+    v.Add(0);
+    BitVector w(15);
+    w.Add(1);
+    v.Union(w);
+    CHECK(v.Contains(0));
+    CHECK(v.Contains(1));
+  }
+
+  {
+    BitVector v(15);
+    v.Add(0);
+    BitVector w(15);
+    w = v;
+    CHECK(w.Contains(0));
+    w.Add(1);
+    BitVector u(w);
+    CHECK(u.Contains(0));
+    CHECK(u.Contains(1));
+    v.Union(w);
+    CHECK(v.Contains(0));
+    CHECK(v.Contains(1));
+  }
+
+  {
+    BitVector v(35);
+    v.Add(0);
+    BitVector w(35);
+    w.Add(33);
+    v.Union(w);
+    CHECK(v.Contains(0));
+    CHECK(v.Contains(33));
+  }
+
+  {
+    BitVector v(35);
+    v.Add(32);
+    v.Add(33);
+    BitVector w(35);
+    w.Add(33);
+    v.Intersect(w);
+    CHECK(!v.Contains(32));
+    CHECK(v.Contains(33));
+    BitVector r(35);
+    r.CopyFrom(v);
+    CHECK(!r.Contains(32));
+    CHECK(r.Contains(33));
+  }
+}

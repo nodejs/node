@@ -261,6 +261,10 @@ template <class T> class V8EXPORT_INLINE Handle {
     return Handle<T>(T::Cast(*that));
   }
 
+  template <class S> inline Handle<S> As() {
+    return Handle<S>::Cast(*this);
+  }
+
  private:
   T* val_;
 };
@@ -293,6 +297,10 @@ template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
     if (that.IsEmpty()) return Local<T>();
 #endif
     return Local<T>(T::Cast(*that));
+  }
+
+  template <class S> inline Local<S> As() {
+    return Local<S>::Cast(*this);
   }
 
   /** Create a local handle for the content of another handle.
@@ -366,6 +374,10 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
     if (that.IsEmpty()) return Persistent<T>();
 #endif
     return Persistent<T>(T::Cast(*that));
+  }
+
+  template <class S> inline Persistent<S> As() {
+    return Persistent<S>::Cast(*this);
   }
 
   /**
@@ -538,13 +550,13 @@ class V8EXPORT Script {
    * Compiles the specified script (context-independent).
    *
    * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept 
+   * \param origin Script origin, owned by caller, no references are kept
    *   when New() returns
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when New() returns.
    * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but allows data to be 
+   *   this has same effect as calling SetData(), but allows data to be
    *   available to compile event handlers.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
@@ -559,7 +571,7 @@ class V8EXPORT Script {
    * object (typically a string) as the script's origin.
    *
    * \param source Script source code.
-   * \patam file_name file name object (typically a string) to be used 
+   * \param file_name file name object (typically a string) to be used
    *   as the script's origin.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
@@ -571,7 +583,7 @@ class V8EXPORT Script {
    * Compiles the specified script (bound to current context).
    *
    * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept 
+   * \param origin Script origin, owned by caller, no references are kept
    *   when Compile() returns
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
@@ -753,6 +765,11 @@ class V8EXPORT Value : public Data {
    * Returns true if this value is a 32-bit signed integer.
    */
   bool IsInt32() const;
+
+  /**
+   * Returns true if this value is a 32-bit signed integer.
+   */
+  bool IsUint32() const;
 
   /**
    * Returns true if this value is a Date.
@@ -1178,6 +1195,9 @@ class V8EXPORT Object : public Value {
            Handle<Value> value,
            PropertyAttribute attribs = None);
 
+  bool Set(uint32_t index,
+           Handle<Value> value);
+
   // Sets a local property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
@@ -1191,6 +1211,8 @@ class V8EXPORT Object : public Value {
                 PropertyAttribute attribs = None);
 
   Local<Value> Get(Handle<Value> key);
+
+  Local<Value> Get(uint32_t index);
 
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.
@@ -2485,9 +2507,11 @@ class V8EXPORT V8 {
 
   /**
    * Optional notification that a context has been disposed. V8 uses
-   * these notifications to guide the garbage collection heuristic.
+   * these notifications to guide the GC heuristic. Returns the number
+   * of context disposals - including this one - since the last time
+   * V8 had a chance to clean up.
    */
-  static void ContextDisposedNotification();
+  static int ContextDisposedNotification();
 
  private:
   V8();

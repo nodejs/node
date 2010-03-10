@@ -72,6 +72,7 @@
 //             - Dictionary
 //             - SymbolTable
 //             - CompilationCacheTable
+//             - CodeCacheHashTable
 //             - MapCache
 //           - Context
 //           - GlobalContext
@@ -102,6 +103,7 @@
 //         - TypeSwitchInfo
 //         - DebugInfo
 //         - BreakPointInfo
+//         - CodeCache
 //
 // Formats of Object*:
 //  Smi:        [31 bit signed int] 0
@@ -269,6 +271,7 @@ enum PropertyNormalizationMode {
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
+  V(CODE_CACHE_TYPE)                                                           \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
   V(JS_OBJECT_TYPE)                                                            \
@@ -364,7 +367,8 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)            \
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
-  V(SCRIPT, Script, script)
+  V(SCRIPT, Script, script)                                                    \
+  V(CODE_CACHE, CodeCache, code_cache)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -468,6 +472,7 @@ enum InstanceType {
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
   SCRIPT_TYPE,
+  CODE_CACHE_TYPE,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
@@ -601,6 +606,7 @@ class Object BASE_EMBEDDED {
   inline bool IsDictionary();
   inline bool IsSymbolTable();
   inline bool IsCompilationCacheTable();
+  inline bool IsCodeCacheHashTable();
   inline bool IsMapCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
@@ -1626,6 +1632,9 @@ class FixedArray: public Array {
   inline void set_null(int index);
   inline void set_the_hole(int index);
 
+  // Gives access to raw memory which stores the array's data.
+  inline Object** data_start();
+
   // Copy operations.
   inline Object* Copy();
   Object* CopySize(int new_length);
@@ -1933,7 +1942,8 @@ class HashTable: public FixedArray {
   }
 
   // Returns a new HashTable object. Might return Failure.
-  static Object* Allocate(int at_least_space_for);
+  static Object* Allocate(int at_least_space_for,
+                          PretenureFlag pretenure = NOT_TENURED);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
@@ -1965,6 +1975,8 @@ class HashTable: public FixedArray {
   static const int kEntrySize = Shape::kEntrySize;
   static const int kElementsStartOffset =
       kHeaderSize + kElementsStartIndex * kPointerSize;
+  static const int kCapacityOffset =
+      kHeaderSize + kCapacityIndex * kPointerSize;
 
   // Constant used for denoting a absent entry.
   static const int kNotFound = -1;
@@ -2615,13 +2627,14 @@ class Code: public HeapObject {
     CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    // No more than eight kinds. The value currently encoded in three bits in
+    BINARY_OP_IC,
+    // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
 
     // Pseudo-kinds.
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = KEYED_STORE_IC
+    LAST_IC_KIND = BINARY_OP_IC
   };
 
   enum {
@@ -2667,7 +2680,7 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
 
-  // [major_key]: For kind STUB, the major key.
+  // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline CodeStub::Major major_key();
   inline void set_major_key(CodeStub::Major major);
 
@@ -2774,14 +2787,14 @@ class Code: public HeapObject {
   static const int kFlagsICStateShift        = 0;
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsKindShift           = 4;
-  static const int kFlagsTypeShift           = 7;
-  static const int kFlagsArgumentsCountShift = 10;
+  static const int kFlagsTypeShift           = 8;
+  static const int kFlagsArgumentsCountShift = 11;
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 0000000111
-  static const int kFlagsICInLoopMask       = 0x00000008;  // 0000001000
-  static const int kFlagsKindMask           = 0x00000070;  // 0001110000
-  static const int kFlagsTypeMask           = 0x00000380;  // 1110000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFFC00;
+  static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
+  static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
+  static const int kFlagsKindMask           = 0x000000F0;  // 00011110000
+  static const int kFlagsTypeMask           = 0x00000700;  // 11100000000
+  static const int kFlagsArgumentsCountMask = 0xFFFFF800;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask);
@@ -2922,7 +2935,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
 
   // [stub cache]: contains stubs compiled for this map.
-  DECL_ACCESSORS(code_cache, FixedArray)
+  DECL_ACCESSORS(code_cache, Object)
 
   Object* CopyDropDescriptors();
 
@@ -2958,10 +2971,10 @@ class Map: public HeapObject {
 
   // Returns the non-negative index of the code object if it is in the
   // cache and -1 otherwise.
-  int IndexInCodeCache(Code* code);
+  int IndexInCodeCache(String* name, Code* code);
 
   // Removes a code object from the code cache at the given index.
-  void RemoveFromCodeCache(int index);
+  void RemoveFromCodeCache(String* name, Code* code, int index);
 
   // For every transition in this map, makes the transition's
   // target's prototype pointer point back to this map.
@@ -3025,6 +3038,11 @@ class Map: public HeapObject {
   // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
   static const int kIsExtensible = 1;
+
+  // Layout of the default cache. It holds alternating name and code objects.
+  static const int kCodeCacheEntrySize = 2;
+  static const int kCodeCacheEntryNameOffset = 0;
+  static const int kCodeCacheEntryCodeOffset = 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
@@ -3275,11 +3293,22 @@ class SharedFunctionInfo: public HeapObject {
   static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
-  // (An even number of integers has a size that is a multiple of a pointer.)
+  // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
   static const int kConstructStubOffset = kCodeOffset + kPointerSize;
-  static const int kLengthOffset = kConstructStubOffset + kPointerSize;
+  static const int kInstanceClassNameOffset =
+      kConstructStubOffset + kPointerSize;
+  static const int kExternalReferenceDataOffset =
+      kInstanceClassNameOffset + kPointerSize;
+  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
+  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
+  static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsOffset =
+      kInferredNameOffset + kPointerSize;
+  // Integer fields.
+  static const int kLengthOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
@@ -3287,27 +3316,14 @@ class SharedFunctionInfo: public HeapObject {
       kExpectedNofPropertiesOffset + kIntSize;
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
-  static const int kInstanceClassNameOffset =
+  static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
-  static const int kExternalReferenceDataOffset =
-      kInstanceClassNameOffset + kPointerSize;
-  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
-  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
-  static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kCompilerHintsOffset = kInferredNameOffset + kPointerSize;
-  static const int kThisPropertyAssignmentsOffset =
-      kCompilerHintsOffset + kPointerSize;
   static const int kThisPropertyAssignmentsCountOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
-  static const int kSize = kThisPropertyAssignmentsCountOffset + kPointerSize;
+      kCompilerHintsOffset + kIntSize;
+  // Total size.
+  static const int kSize = kThisPropertyAssignmentsCountOffset + kIntSize;
 
  private:
-  // Bit positions in length_and_flg.
-  // The least significant bit is used as the flag.
-  static const int kFlagBit         = 0;
-  static const int kLengthShift     = 1;
-  static const int kLengthMask      = ~((1 << kLengthShift) - 1);
-
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
@@ -3711,6 +3727,97 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
 };
 
 
+class CodeCache: public Struct {
+ public:
+  DECL_ACCESSORS(default_cache, FixedArray)
+  DECL_ACCESSORS(normal_type_cache, Object)
+
+  // Add the code object to the cache.
+  Object* Update(String* name, Code* code);
+
+  // Lookup code object in the cache. Returns code object if found and undefined
+  // if not.
+  Object* Lookup(String* name, Code::Flags flags);
+
+  // Get the internal index of a code object in the cache. Returns -1 if the
+  // code object is not in that cache. This index can be used to later call
+  // RemoveByIndex. The cache cannot be modified between a call to GetIndex and
+  // RemoveByIndex.
+  int GetIndex(String* name, Code* code);
+
+  // Remove an object from the cache with the provided internal index.
+  void RemoveByIndex(String* name, Code* code, int index);
+
+  static inline CodeCache* cast(Object* obj);
+
+#ifdef DEBUG
+  void CodeCachePrint();
+  void CodeCacheVerify();
+#endif
+
+  static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
+  static const int kNormalTypeCacheOffset =
+      kDefaultCacheOffset + kPointerSize;
+  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
+
+ private:
+  Object* UpdateDefaultCache(String* name, Code* code);
+  Object* UpdateNormalTypeCache(String* name, Code* code);
+  Object* LookupDefaultCache(String* name, Code::Flags flags);
+  Object* LookupNormalTypeCache(String* name, Code::Flags flags);
+
+  // Code cache layout of the default cache. Elements are alternating name and
+  // code objects for non normal load/store/call IC's.
+  static const int kCodeCacheEntrySize = 2;
+  static const int kCodeCacheEntryNameOffset = 0;
+  static const int kCodeCacheEntryCodeOffset = 1;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCache);
+};
+
+
+class CodeCacheHashTableShape {
+ public:
+  static inline bool IsMatch(HashTableKey* key, Object* value) {
+    return key->IsMatch(value);
+  }
+
+  static inline uint32_t Hash(HashTableKey* key) {
+    return key->Hash();
+  }
+
+  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
+    return key->HashForObject(object);
+  }
+
+  static Object* AsObject(HashTableKey* key) {
+    return key->AsObject();
+  }
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+};
+
+
+class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
+                                           HashTableKey*> {
+ public:
+  Object* Lookup(String* name, Code::Flags flags);
+  Object* Put(String* name, Code* code);
+
+  int GetIndex(String* name, Code::Flags flags);
+  void RemoveByIndex(int index);
+
+  static inline CodeCacheHashTable* cast(Object* obj);
+
+  // Initial size of the fixed array backing the hash table.
+  static const int kInitialSize = 64;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);
+};
+
+
 enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
@@ -3837,13 +3944,13 @@ class String: public HeapObject {
   // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString.  Flatten
   // mutates the ConsString and might return a failure.
-  Object* TryFlatten();
+  Object* SlowTryFlatten(PretenureFlag pretenure);
 
   // Try to flatten the string.  Checks first inline to see if it is necessary.
-  // Do not handle allocation failures.  After calling TryFlattenIfNotFlat, the
+  // Do not handle allocation failures.  After calling TryFlatten, the
   // string could still be a ConsString, in which case a failure is returned.
   // Use FlattenString from Handles.cc to be sure to flatten.
-  inline Object* TryFlattenIfNotFlat();
+  inline Object* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -3853,7 +3960,7 @@ class String: public HeapObject {
   bool MarkAsUndetectable();
 
   // Return a substring.
-  Object* SubString(int from, int to);
+  Object* SubString(int from, int to, PretenureFlag pretenure = NOT_TENURED);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -4050,10 +4157,6 @@ class SeqString: public String {
 
   // Casting.
   static inline SeqString* cast(Object* obj);
-
-  // Dispatched behaviour.
-  // For regexp code.
-  uint16_t* SeqStringGetTwoByteAddress();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);

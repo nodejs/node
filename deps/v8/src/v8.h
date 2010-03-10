@@ -67,7 +67,7 @@
 #include "spaces-inl.h"
 #include "heap-inl.h"
 #include "log-inl.h"
-#include "messages.h"
+#include "handles-inl.h"
 
 namespace v8 {
 namespace internal {

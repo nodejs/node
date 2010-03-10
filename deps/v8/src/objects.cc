@@ -673,7 +673,7 @@ static bool AnWord(String* str) {
 }
 
 
-Object* String::TryFlatten() {
+Object* String::SlowTryFlatten(PretenureFlag pretenure) {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
   // allowed.  This is to avoid an assertion failure when allocating.
@@ -691,7 +691,7 @@ Object* String::TryFlatten() {
       // There's little point in putting the flat string in new space if the
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
-      PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
+      PretenureFlag tenure = Heap::InNewSpace(this) ? pretenure : TENURED;
       int len = length();
       Object* object;
       String* result;
@@ -2180,7 +2180,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     property_count += 2;  // Make space for two more properties.
   }
   Object* obj =
-      StringDictionary::Allocate(property_count * 2);
+      StringDictionary::Allocate(property_count);
   if (obj->IsFailure()) return obj;
   StringDictionary* dictionary = StringDictionary::cast(obj);
 
@@ -2768,7 +2768,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // Try to flatten before operating on the string.
-  name->TryFlattenIfNotFlat();
+  name->TryFlatten();
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
@@ -3033,19 +3033,79 @@ Object* Map::CopyDropTransitions() {
 
 
 Object* Map::UpdateCodeCache(String* name, Code* code) {
-  ASSERT(code->ic_state() == MONOMORPHIC);
-  FixedArray* cache = code_cache();
+  // Allocate the code cache if not present.
+  if (code_cache()->IsFixedArray()) {
+    Object* result = Heap::AllocateCodeCache();
+    if (result->IsFailure()) return result;
+    set_code_cache(result);
+  }
 
-  // When updating the code cache we disregard the type encoded in the
+  // Update the code cache.
+  return CodeCache::cast(code_cache())->Update(name, code);
+}
+
+
+Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
+  // Do a lookup if a code cache exists.
+  if (!code_cache()->IsFixedArray()) {
+    return CodeCache::cast(code_cache())->Lookup(name, flags);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+int Map::IndexInCodeCache(String* name, Code* code) {
+  // Get the internal index if a code cache exists.
+  if (!code_cache()->IsFixedArray()) {
+    return CodeCache::cast(code_cache())->GetIndex(name, code);
+  }
+  return -1;
+}
+
+
+void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
+  // No GC is supposed to happen between a call to IndexInCodeCache and
+  // RemoveFromCodeCache so the code cache must be there.
+  ASSERT(!code_cache()->IsFixedArray());
+  CodeCache::cast(code_cache())->RemoveByIndex(name, code, index);
+}
+
+
+Object* CodeCache::Update(String* name, Code* code) {
+  ASSERT(code->ic_state() == MONOMORPHIC);
+
+  // The number of monomorphic stubs for normal load/store/call IC's can grow to
+  // a large number and therefore they need to go into a hash table. They are
+  // used to load global properties from cells.
+  if (code->type() == NORMAL) {
+    // Make sure that a hash table is allocated for the normal load code cache.
+    if (normal_type_cache()->IsUndefined()) {
+      Object* result =
+          CodeCacheHashTable::Allocate(CodeCacheHashTable::kInitialSize);
+      if (result->IsFailure()) return result;
+      set_normal_type_cache(result);
+    }
+    return UpdateNormalTypeCache(name, code);
+  } else {
+    ASSERT(default_cache()->IsFixedArray());
+    return UpdateDefaultCache(name, code);
+  }
+}
+
+
+Object* CodeCache::UpdateDefaultCache(String* name, Code* code) {
+  // When updating the default code cache we disregard the type encoded in the
   // flags. This allows call constant stubs to overwrite call field
   // stubs, etc.
   Code::Flags flags = Code::RemoveTypeFromFlags(code->flags());
 
   // First check whether we can update existing code cache without
   // extending it.
+  FixedArray* cache = default_cache();
   int length = cache->length();
   int deleted_index = -1;
-  for (int i = 0; i < length; i += 2) {
+  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
     Object* key = cache->get(i);
     if (key->IsNull()) {
       if (deleted_index < 0) deleted_index = i;
@@ -3053,14 +3113,15 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
     }
     if (key->IsUndefined()) {
       if (deleted_index >= 0) i = deleted_index;
-      cache->set(i + 0, name);
-      cache->set(i + 1, code);
+      cache->set(i + kCodeCacheEntryNameOffset, name);
+      cache->set(i + kCodeCacheEntryCodeOffset, code);
       return this;
     }
     if (name->Equals(String::cast(key))) {
-      Code::Flags found = Code::cast(cache->get(i + 1))->flags();
+      Code::Flags found =
+          Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
       if (Code::RemoveTypeFromFlags(found) == flags) {
-        cache->set(i + 1, code);
+        cache->set(i + kCodeCacheEntryCodeOffset, code);
         return this;
       }
     }
@@ -3069,61 +3130,207 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
   // Reached the end of the code cache.  If there were deleted
   // elements, reuse the space for the first of them.
   if (deleted_index >= 0) {
-    cache->set(deleted_index + 0, name);
-    cache->set(deleted_index + 1, code);
+    cache->set(deleted_index + kCodeCacheEntryNameOffset, name);
+    cache->set(deleted_index + kCodeCacheEntryCodeOffset, code);
     return this;
   }
 
-  // Extend the code cache with some new entries (at least one).
-  int new_length = length + ((length >> 1) & ~1) + 2;
-  ASSERT((new_length & 1) == 0);  // must be a multiple of two
+  // Extend the code cache with some new entries (at least one). Must be a
+  // multiple of the entry size.
+  int new_length = length + ((length >> 1)) + kCodeCacheEntrySize;
+  new_length = new_length - new_length % kCodeCacheEntrySize;
+  ASSERT((new_length % kCodeCacheEntrySize) == 0);
   Object* result = cache->CopySize(new_length);
   if (result->IsFailure()) return result;
 
   // Add the (name, code) pair to the new cache.
   cache = FixedArray::cast(result);
-  cache->set(length + 0, name);
-  cache->set(length + 1, code);
-  set_code_cache(cache);
+  cache->set(length + kCodeCacheEntryNameOffset, name);
+  cache->set(length + kCodeCacheEntryCodeOffset, code);
+  set_default_cache(cache);
   return this;
 }
 
 
-Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
-  FixedArray* cache = code_cache();
+Object* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
+  // Adding a new entry can cause a new cache to be allocated.
+  CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+  Object* new_cache = cache->Put(name, code);
+  if (new_cache->IsFailure()) return new_cache;
+  set_normal_type_cache(new_cache);
+  return this;
+}
+
+
+Object* CodeCache::Lookup(String* name, Code::Flags flags) {
+  if (Code::ExtractTypeFromFlags(flags) == NORMAL) {
+    return LookupNormalTypeCache(name, flags);
+  } else {
+    return LookupDefaultCache(name, flags);
+  }
+}
+
+
+Object* CodeCache::LookupDefaultCache(String* name, Code::Flags flags) {
+  FixedArray* cache = default_cache();
   int length = cache->length();
-  for (int i = 0; i < length; i += 2) {
-    Object* key = cache->get(i);
+  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
+    Object* key = cache->get(i + kCodeCacheEntryNameOffset);
     // Skip deleted elements.
     if (key->IsNull()) continue;
     if (key->IsUndefined()) return key;
     if (name->Equals(String::cast(key))) {
-      Code* code = Code::cast(cache->get(i + 1));
-      if (code->flags() == flags) return code;
+      Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
+      if (code->flags() == flags) {
+        return code;
+      }
     }
   }
   return Heap::undefined_value();
 }
 
 
-int Map::IndexInCodeCache(Code* code) {
-  FixedArray* array = code_cache();
+Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
+  if (!normal_type_cache()->IsUndefined()) {
+    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+    return cache->Lookup(name, flags);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+int CodeCache::GetIndex(String* name, Code* code) {
+  // This is not used for normal load/store/call IC's.
+  if (code->type() == NORMAL) {
+    if (normal_type_cache()->IsUndefined()) return -1;
+    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+    return cache->GetIndex(name, code->flags());
+  }
+
+  FixedArray* array = default_cache();
   int len = array->length();
-  for (int i = 0; i < len; i += 2) {
-    if (array->get(i + 1) == code) return i + 1;
+  for (int i = 0; i < len; i += kCodeCacheEntrySize) {
+    if (array->get(i + kCodeCacheEntryCodeOffset) == code) return i + 1;
   }
   return -1;
 }
 
 
-void Map::RemoveFromCodeCache(int index) {
-  FixedArray* array = code_cache();
-  ASSERT(array->length() >= index && array->get(index)->IsCode());
-  // Use null instead of undefined for deleted elements to distinguish
-  // deleted elements from unused elements.  This distinction is used
-  // when looking up in the cache and when updating the cache.
-  array->set_null(index - 1);  // key
-  array->set_null(index);  // code
+void CodeCache::RemoveByIndex(String* name, Code* code, int index) {
+  if (code->type() == NORMAL) {
+    ASSERT(!normal_type_cache()->IsUndefined());
+    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+    ASSERT(cache->GetIndex(name, code->flags()) == index);
+    cache->RemoveByIndex(index);
+  } else {
+    FixedArray* array = default_cache();
+    ASSERT(array->length() >= index && array->get(index)->IsCode());
+    // Use null instead of undefined for deleted elements to distinguish
+    // deleted elements from unused elements.  This distinction is used
+    // when looking up in the cache and when updating the cache.
+    ASSERT_EQ(1, kCodeCacheEntryCodeOffset - kCodeCacheEntryNameOffset);
+    array->set_null(index - 1);  // Name.
+    array->set_null(index);  // Code.
+  }
+}
+
+
+// The key in the code cache hash table consists of the property name and the
+// code object. The actual match is on the name and the code flags. If a key
+// is created using the flags and not a code object it can only be used for
+// lookup not to create a new entry.
+class CodeCacheHashTableKey : public HashTableKey {
+ public:
+  CodeCacheHashTableKey(String* name, Code::Flags flags)
+      : name_(name), flags_(flags), code_(NULL) { }
+
+  CodeCacheHashTableKey(String* name, Code* code)
+      : name_(name),
+        flags_(code->flags()),
+        code_(code) { }
+
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* pair = FixedArray::cast(other);
+    String* name = String::cast(pair->get(0));
+    Code::Flags flags = Code::cast(pair->get(1))->flags();
+    if (flags != flags_) {
+      return false;
+    }
+    return name_->Equals(name);
+  }
+
+  static uint32_t NameFlagsHashHelper(String* name, Code::Flags flags) {
+    return name->Hash() ^ flags;
+  }
+
+  uint32_t Hash() { return NameFlagsHashHelper(name_, flags_); }
+
+  uint32_t HashForObject(Object* obj) {
+    FixedArray* pair = FixedArray::cast(obj);
+    String* name = String::cast(pair->get(0));
+    Code* code = Code::cast(pair->get(1));
+    return NameFlagsHashHelper(name, code->flags());
+  }
+
+  Object* AsObject() {
+    ASSERT(code_ != NULL);
+    Object* obj = Heap::AllocateFixedArray(2);
+    if (obj->IsFailure()) return obj;
+    FixedArray* pair = FixedArray::cast(obj);
+    pair->set(0, name_);
+    pair->set(1, code_);
+    return pair;
+  }
+
+ private:
+  String* name_;
+  Code::Flags flags_;
+  Code* code_;
+};
+
+
+Object* CodeCacheHashTable::Lookup(String* name, Code::Flags flags) {
+  CodeCacheHashTableKey key(name, flags);
+  int entry = FindEntry(&key);
+  if (entry == kNotFound) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
+Object* CodeCacheHashTable::Put(String* name, Code* code) {
+  CodeCacheHashTableKey key(name, code);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  // Don't use this, as the table might have grown.
+  CodeCacheHashTable* cache = reinterpret_cast<CodeCacheHashTable*>(obj);
+
+  int entry = cache->FindInsertionEntry(key.Hash());
+  Object* k = key.AsObject();
+  if (k->IsFailure()) return k;
+
+  cache->set(EntryToIndex(entry), k);
+  cache->set(EntryToIndex(entry) + 1, code);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+int CodeCacheHashTable::GetIndex(String* name, Code::Flags flags) {
+  CodeCacheHashTableKey key(name, flags);
+  int entry = FindEntry(&key);
+  return (entry == kNotFound) ? -1 : entry;
+}
+
+
+void CodeCacheHashTable::RemoveByIndex(int index) {
+  ASSERT(index >= 0);
+  set(EntryToIndex(index), Heap::null_value());
+  set(EntryToIndex(index) + 1, Heap::null_value());
+  ElementRemoved();
 }
 
 
@@ -3430,18 +3637,25 @@ void DescriptorArray::Sort() {
   int len = number_of_descriptors();
 
   // Bottom-up max-heap construction.
-  for (int i = 1; i < len; ++i) {
-    int child_index = i;
-    while (child_index > 0) {
-      int parent_index = ((child_index + 1) >> 1) - 1;
-      uint32_t parent_hash = GetKey(parent_index)->Hash();
+  // Index of the last node with children
+  const int max_parent_index = (len / 2) - 1;
+  for (int i = max_parent_index; i >= 0; --i) {
+    int parent_index = i;
+    const uint32_t parent_hash = GetKey(i)->Hash();
+    while (parent_index <= max_parent_index) {
+      int child_index = 2 * parent_index + 1;
       uint32_t child_hash = GetKey(child_index)->Hash();
-      if (parent_hash < child_hash) {
-        Swap(parent_index, child_index);
-      } else {
-        break;
+      if (child_index + 1 < len) {
+        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        if (right_child_hash > child_hash) {
+          child_index++;
+          child_hash = right_child_hash;
+        }
       }
-      child_index = parent_index;
+      if (child_hash <= parent_hash) break;
+      Swap(parent_index, child_index);
+      // Now element at child_index could be < its children.
+      parent_index = child_index;  // parent_hash remains correct.
     }
   }
 
@@ -3451,21 +3665,21 @@ void DescriptorArray::Sort() {
     Swap(0, i);
     // Sift down the new top element.
     int parent_index = 0;
-    while (true) {
-      int child_index = ((parent_index + 1) << 1) - 1;
-      if (child_index >= i) break;
-      uint32_t child1_hash = GetKey(child_index)->Hash();
-      uint32_t child2_hash = GetKey(child_index + 1)->Hash();
-      uint32_t parent_hash = GetKey(parent_index)->Hash();
-      if (child_index + 1 >= i || child1_hash > child2_hash) {
-        if (parent_hash > child1_hash) break;
-        Swap(parent_index, child_index);
-        parent_index = child_index;
-      } else {
-        if (parent_hash > child2_hash) break;
-        Swap(parent_index, child_index + 1);
-        parent_index = child_index + 1;
+    const uint32_t parent_hash = GetKey(parent_index)->Hash();
+    const int max_parent_index = (i / 2) - 1;
+    while (parent_index <= max_parent_index) {
+      int child_index = parent_index * 2 + 1;
+      uint32_t child_hash = GetKey(child_index)->Hash();
+      if (child_index + 1 < i) {
+        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        if (right_child_hash > child_hash) {
+          child_index++;
+          child_hash = right_child_hash;
+        }
       }
+      if (child_hash <= parent_hash) break;
+      Swap(parent_index, child_index);
+      parent_index = child_index;
     }
   }
 
@@ -3546,7 +3760,7 @@ int String::Utf8Length() {
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
-  TryFlattenIfNotFlat();
+  TryFlatten();
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(0, this);
   int result = 0;
@@ -4637,9 +4851,9 @@ uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
 }
 
 
-Object* String::SubString(int start, int end) {
+Object* String::SubString(int start, int end, PretenureFlag pretenure) {
   if (start == 0 && end == length()) return this;
-  Object* result = Heap::AllocateSubString(this, start, end);
+  Object* result = Heap::AllocateSubString(this, start, end, pretenure);
   return result;
 }
 
@@ -4951,11 +5165,9 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
 
 
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
-  IteratePointers(v, kNameOffset, kConstructStubOffset + kPointerSize);
-  IteratePointers(v, kInstanceClassNameOffset, kScriptOffset + kPointerSize);
-  IteratePointers(v, kDebugInfoOffset, kInferredNameOffset + kPointerSize);
-  IteratePointers(v, kThisPropertyAssignmentsOffset,
-      kThisPropertyAssignmentsOffset + kPointerSize);
+  IteratePointers(v,
+                  kNameOffset,
+                  kThisPropertyAssignmentsOffset + kPointerSize);
 }
 
 
@@ -5126,6 +5338,7 @@ const char* Code::Kind2String(Kind kind) {
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
+    case BINARY_OP_IC: return "BINARY_OP_IC";
   }
   UNREACHABLE();
   return NULL;
@@ -5247,7 +5460,7 @@ Object* JSObject::SetSlowElements(Object* len) {
     case DICTIONARY_ELEMENTS: {
       if (IsJSArray()) {
         uint32_t old_length =
-        static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
+            static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
         element_dictionary()->RemoveNumberEntries(new_length, old_length),
         JSArray::cast(this)->set_length(len);
       }
@@ -6903,15 +7116,17 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 
 template<typename Shape, typename Key>
-Object* HashTable<Shape, Key>::Allocate(int at_least_space_for) {
-  int capacity = RoundUpToPowerOf2(at_least_space_for);
-  if (capacity < 4) {
-    capacity = 4;  // Guarantee min capacity.
+Object* HashTable<Shape, Key>::Allocate(int at_least_space_for,
+                                        PretenureFlag pretenure) {
+  const int kMinCapacity = 32;
+  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  if (capacity < kMinCapacity) {
+    capacity = kMinCapacity;  // Guarantee min capacity.
   } else if (capacity > HashTable::kMaxCapacity) {
     return Failure::OutOfMemoryException();
   }
 
-  Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
+  Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity), pretenure);
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
     HashTable::cast(obj)->SetNumberOfDeletedElements(0);
@@ -6946,10 +7161,15 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   // Return if:
   //   50% is still free after adding n elements and
   //   at most 50% of the free elements are deleted elements.
-  if ((nof + (nof >> 1) <= capacity) &&
-      (nod <= (capacity - nof) >> 1)) return this;
+  if (nod <= (capacity - nof) >> 1) {
+    int needed_free = nof >> 1;
+    if (nof + needed_free <= capacity) return this;
+  }
 
-  Object* obj = Allocate(nof * 2);
+  const int kMinCapacityForPretenure = 256;
+  bool pretenure =
+      (capacity > kMinCapacityForPretenure) && !Heap::InNewSpace(this);
+  Object* obj = Allocate(nof * 2, pretenure ? TENURED : NOT_TENURED);
   if (obj->IsFailure()) return obj;
 
   AssertNoAllocation no_gc;
@@ -6979,7 +7199,6 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   table->SetNumberOfDeletedElements(0);
   return table;
 }
-
 
 
 template<typename Shape, typename Key>
@@ -7091,8 +7310,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
     result_double = HeapNumber::cast(new_double);
   }
 
-  int capacity = dict->Capacity();
-  Object* obj = NumberDictionary::Allocate(dict->Capacity());
+  Object* obj = NumberDictionary::Allocate(dict->NumberOfElements());
   if (obj->IsFailure()) return obj;
   NumberDictionary* new_dict = NumberDictionary::cast(obj);
 
@@ -7100,6 +7318,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
+  int capacity = dict->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dict->KeyAt(i);
     if (dict->IsKey(k)) {

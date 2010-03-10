@@ -309,7 +309,7 @@ void Scope::CollectUsedVariables(List<Variable*, Allocator>* locals) {
   // which is the current user of this function).
   for (int i = 0; i < temps_.length(); i++) {
     Variable* var = temps_[i];
-    if (var->var_uses()->is_used()) {
+    if (var->is_used()) {
       locals->Add(var);
     }
   }
@@ -317,7 +317,7 @@ void Scope::CollectUsedVariables(List<Variable*, Allocator>* locals) {
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    if (var->var_uses()->is_used()) {
+    if (var->is_used()) {
       locals->Add(var);
     }
   }
@@ -418,17 +418,16 @@ static void PrintName(Handle<String> name) {
 
 
 static void PrintVar(PrettyPrinter* printer, int indent, Variable* var) {
-  if (var->var_uses()->is_used() || var->rewrite() != NULL) {
+  if (var->is_used() || var->rewrite() != NULL) {
     Indent(indent, Variable::Mode2String(var->mode()));
     PrintF(" ");
     PrintName(var->name());
     PrintF(";  // ");
-    if (var->rewrite() != NULL) PrintF("%s, ", printer->Print(var->rewrite()));
-    if (var->is_accessed_from_inner_scope()) PrintF("inner scope access, ");
-    PrintF("var ");
-    var->var_uses()->Print();
-    PrintF(", obj ");
-    var->obj_uses()->Print();
+    if (var->rewrite() != NULL) {
+      PrintF("%s, ", printer->Print(var->rewrite()));
+      if (var->is_accessed_from_inner_scope()) PrintF(", ");
+    }
+    if (var->is_accessed_from_inner_scope()) PrintF("inner scope access");
     PrintF("\n");
   }
 }
@@ -738,10 +737,10 @@ bool Scope::MustAllocate(Variable* var) {
       (var->is_accessed_from_inner_scope_ ||
        scope_calls_eval_ || inner_scope_calls_eval_ ||
        scope_contains_with_)) {
-    var->var_uses()->RecordAccess(1);
+    var->set_is_used(true);
   }
   // Global variables do not need to be allocated.
-  return !var->is_global() && var->var_uses()->is_used();
+  return !var->is_global() && var->is_used();
 }
 
 
@@ -847,7 +846,7 @@ void Scope::AllocateParameterLocals() {
                        new Literal(Handle<Object>(Smi::FromInt(i))),
                        RelocInfo::kNoPosition,
                        Property::SYNTHETIC);
-        arguments_shadow->var_uses()->RecordUses(var->var_uses());
+        if (var->is_used()) arguments_shadow->set_is_used(true);
       }
     }
 

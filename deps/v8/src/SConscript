@@ -97,7 +97,6 @@ SOURCES = {
     token.cc
     top.cc
     unicode.cc
-    usage-analyzer.cc
     utils.cc
     v8-counters.cc
     v8.cc
@@ -249,6 +248,7 @@ math.js
 messages.js
 apinatives.js
 debug-delay.js
+liveedit-delay.js
 mirror-delay.js
 date-delay.js
 regexp-delay.js

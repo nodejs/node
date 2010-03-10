@@ -127,6 +127,7 @@ function FormatMessage(message) {
       malformed_regexp:             "Invalid regular expression: /%0/: %1",
       unterminated_regexp:          "Invalid regular expression: missing /",
       regexp_flags:                 "Cannot supply flags when constructing one RegExp from another",
+      incompatible_method_receiver: "Method %0 called on incompatible receiver %1",
       invalid_lhs_in_assignment:    "Invalid left-hand side in assignment",
       invalid_lhs_in_for_in:        "Invalid left-hand side in for-in",
       invalid_lhs_in_postfix_op:    "Invalid left-hand side expression in postfix operation",

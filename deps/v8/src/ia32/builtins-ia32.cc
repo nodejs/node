@@ -63,10 +63,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
-  // JumpToRuntime expects eax to contain the number of arguments
+  // JumpToExternalReference expects eax to contain the number of arguments
   // including the receiver and the extra arguments.
   __ add(Operand(eax), Immediate(num_extra_args + 1));
-  __ JumpToRuntime(ExternalReference(id));
+  __ JumpToExternalReference(ExternalReference(id));
 }
 
 
@@ -797,38 +797,23 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 // register elements_array is scratched.
 static void AllocateJSArray(MacroAssembler* masm,
                             Register array_function,  // Array function.
-                            Register array_size,  // As a smi.
+                            Register array_size,  // As a smi, cannot be 0.
                             Register result,
                             Register elements_array,
                             Register elements_array_end,
                             Register scratch,
                             bool fill_with_hole,
                             Label* gc_required) {
-  Label not_empty, allocated;
+  ASSERT(scratch.is(edi));  // rep stos destination
+  ASSERT(!fill_with_hole || array_size.is(ecx));  // rep stos count
 
   // Load the initial map from the array function.
   __ mov(elements_array,
          FieldOperand(array_function,
                       JSFunction::kPrototypeOrInitialMapOffset));
 
-  // Check whether an empty sized array is requested.
-  __ test(array_size, Operand(array_size));
-  __ j(not_zero, &not_empty);
-
-  // If an empty array is requested allocate a small elements array anyway. This
-  // keeps the code below free of special casing for the empty array.
-  int size = JSArray::kSize + FixedArray::SizeFor(kPreallocatedArrayElements);
-  __ AllocateInNewSpace(size,
-                        result,
-                        elements_array_end,
-                        scratch,
-                        gc_required,
-                        TAG_OBJECT);
-  __ jmp(&allocated);
-
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
-  __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
                         times_half_pointer_size,  // array_size is a smi.
@@ -845,7 +830,6 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array: initial map
   // elements_array_end: start of next object
   // array_size: size of array (smi)
-  __ bind(&allocated);
   __ mov(FieldOperand(result, JSObject::kMapOffset), elements_array);
   __ mov(elements_array, Factory::empty_fixed_array());
   __ mov(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
@@ -869,15 +853,6 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ SmiUntag(array_size);  // Convert from smi to value.
   __ mov(FieldOperand(elements_array, JSObject::kMapOffset),
          Factory::fixed_array_map());
-  Label not_empty_2, fill_array;
-  __ test(array_size, Operand(array_size));
-  __ j(not_zero, &not_empty_2);
-  // Length of the FixedArray is the number of pre-allocated elements even
-  // though the actual JSArray has length 0.
-  __ mov(FieldOperand(elements_array, Array::kLengthOffset),
-         Immediate(kPreallocatedArrayElements));
-  __ jmp(&fill_array);
-  __ bind(&not_empty_2);
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ mov(FieldOperand(elements_array, Array::kLengthOffset), array_size);
@@ -885,20 +860,18 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
   // elements_array: elements array
-  // elements_array_end: start of next object
-  __ bind(&fill_array);
   if (fill_with_hole) {
-    Label loop, entry;
-    __ mov(scratch, Factory::the_hole_value());
-    __ lea(elements_array, Operand(elements_array,
-                                   FixedArray::kHeaderSize - kHeapObjectTag));
-    __ jmp(&entry);
-    __ bind(&loop);
-    __ mov(Operand(elements_array, 0), scratch);
-    __ add(Operand(elements_array), Immediate(kPointerSize));
-    __ bind(&entry);
-    __ cmp(elements_array, Operand(elements_array_end));
-    __ j(below, &loop);
+    __ lea(edi, Operand(elements_array,
+                        FixedArray::kHeaderSize - kHeapObjectTag));
+
+    __ push(eax);
+    __ mov(eax, Factory::the_hole_value());
+
+    __ cld();
+    __ rep_stos();
+
+    // Restore saved registers.
+    __ pop(eax);
   }
 }
 
@@ -920,7 +893,8 @@ static void AllocateJSArray(MacroAssembler* masm,
 static void ArrayNativeCode(MacroAssembler* masm,
                             bool construct_call,
                             Label* call_generic_code) {
-  Label argc_one_or_more, argc_two_or_more, prepare_generic_code_call;
+  Label argc_one_or_more, argc_two_or_more, prepare_generic_code_call,
+        empty_array, not_empty_array;
 
   // Push the constructor and argc. No need to tag argc as a smi, as there will
   // be no garbage collection with this on the stack.
@@ -936,6 +910,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ test(eax, Operand(eax));
   __ j(not_zero, &argc_one_or_more);
 
+  __ bind(&empty_array);
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
                        edi,
@@ -958,30 +933,46 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ cmp(eax, 1);
   __ j(not_equal, &argc_two_or_more);
   ASSERT(kSmiTag == 0);
-  __ test(Operand(esp, (push_count + 1) * kPointerSize),
-          Immediate(kIntptrSignBit | kSmiTagMask));
+  __ mov(ecx, Operand(esp, (push_count + 1) * kPointerSize));
+  __ test(ecx, Operand(ecx));
+  __ j(not_zero, &not_empty_array);
+
+  // The single argument passed is zero, so we jump to the code above used to
+  // handle the case of no arguments passed. To adapt the stack for that we move
+  // the return address and the pushed constructor (if pushed) one stack slot up
+  // thereby removing the passed argument. Argc is also on the stack - at the
+  // bottom - and it needs to be changed from 1 to 0 to have the call into the
+  // runtime system work in case a GC is required.
+  for (int i = push_count; i > 0; i--) {
+    __ mov(eax, Operand(esp, i * kPointerSize));
+    __ mov(Operand(esp, (i + 1) * kPointerSize), eax);
+  }
+  __ add(Operand(esp), Immediate(2 * kPointerSize));  // Drop two stack slots.
+  __ push(Immediate(0));  // Treat this as a call with argc of zero.
+  __ jmp(&empty_array);
+
+  __ bind(&not_empty_array);
+  __ test(ecx, Immediate(kIntptrSignBit | kSmiTagMask));
   __ j(not_zero, &prepare_generic_code_call);
 
   // Handle construction of an empty array of a certain size. Get the size from
   // the stack and bail out if size is to large to actually allocate an elements
   // array.
-  __ mov(edx, Operand(esp, (push_count + 1) * kPointerSize));
-  ASSERT(kSmiTag == 0);
-  __ cmp(edx, JSObject::kInitialMaxFastElementArray << kSmiTagSize);
+  __ cmp(ecx, JSObject::kInitialMaxFastElementArray << kSmiTagSize);
   __ j(greater_equal, &prepare_generic_code_call);
 
   // edx: array_size (smi)
   // edi: constructor
-  // esp[0]: argc
+  // esp[0]: argc (cannot be 0 here)
   // esp[4]: constructor (only if construct_call)
   // esp[8]: return address
   // esp[C]: argument
   AllocateJSArray(masm,
                   edi,
-                  edx,
+                  ecx,
                   eax,
                   ebx,
-                  ecx,
+                  edx,
                   edi,
                   true,
                   &prepare_generic_code_call);

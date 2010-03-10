@@ -233,6 +233,9 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
+Handle<Object> GetElement(Handle<Object> obj,
+                          uint32_t index);
+
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
@@ -287,7 +290,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
                                Handle<FixedArray> second);
 
-Handle<String> SubString(Handle<String> str, int start, int end);
+Handle<String> SubString(Handle<String> str,
+                         int start,
+                         int end,
+                         PretenureFlag pretenure = NOT_TENURED);
 
 
 // Sets the expected number of properties for the function's instances.

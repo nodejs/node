@@ -27,7 +27,6 @@
 
 {
   'variables': {
-    'chromium_code': 1,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
     'target_arch%': 'ia32',
@@ -377,8 +376,6 @@
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
-        '../../src/usage-analyzer.cc',
-        '../../src/usage-analyzer.h',
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8-counters.cc',
@@ -391,9 +388,9 @@
         '../../src/variables.h',
         '../../src/version.cc',
         '../../src/version.h',
-        '../../src/virtual-frame-inl.h',	
-        '../../src/virtual-frame.h',
+        '../../src/virtual-frame-inl.h',
         '../../src/virtual-frame.cc',
+        '../../src/virtual-frame.h',
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
@@ -563,6 +560,7 @@
           '../../src/messages.js',
           '../../src/apinatives.js',
           '../../src/debug-delay.js',
+          '../../src/liveedit-delay.js',
           '../../src/mirror-delay.js',
           '../../src/date-delay.js',
           '../../src/json-delay.js',

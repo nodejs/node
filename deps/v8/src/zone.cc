@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "zone-inl.h"
+#include "splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {

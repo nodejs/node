@@ -329,7 +329,7 @@ VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
 CompressionHelper* Logger::compression_helper_ = NULL;
-bool Logger::is_logging_ = false;
+int Logger::logging_nesting_ = 0;
 int Logger::cpu_profiler_nesting_ = 0;
 int Logger::heap_profiler_nesting_ = 0;
 
@@ -389,12 +389,19 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
 
 void Logger::IntEvent(const char* name, int value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log) return;
+  if (FLAG_log) UncheckedIntEvent(name, value);
+#endif
+}
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedIntEvent(const char* name, int value) {
+  if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("%s,%d\n", name, value);
   msg.WriteToLogFile();
-#endif
 }
+#endif
 
 
 void Logger::HandleEvent(const char* name, Object** location) {
@@ -1169,19 +1176,18 @@ void Logger::PauseProfiler(int flags, int tag) {
         // Must be the same message as Log::kDynamicBufferSeal.
         LOG(UncheckedStringEvent("profiler", "pause"));
       }
+      --logging_nesting_;
     }
   }
   if (flags &
       (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
     if (--heap_profiler_nesting_ == 0) {
       FLAG_log_gc = false;
+      --logging_nesting_;
     }
   }
   if (tag != 0) {
-    IntEvent("close-tag", tag);
-  }
-  if (GetActiveProfilerModules() == PROFILER_MODULE_NONE) {
-    is_logging_ = false;
+    UncheckedIntEvent("close-tag", tag);
   }
 }
 
@@ -1189,11 +1195,11 @@ void Logger::PauseProfiler(int flags, int tag) {
 void Logger::ResumeProfiler(int flags, int tag) {
   if (!Log::IsEnabled()) return;
   if (tag != 0) {
-    IntEvent("open-tag", tag);
+    UncheckedIntEvent("open-tag", tag);
   }
   if (flags & PROFILER_MODULE_CPU) {
     if (cpu_profiler_nesting_++ == 0) {
-      is_logging_ = true;
+      ++logging_nesting_;
       if (FLAG_prof_lazy) {
         profiler_->Engage();
         LOG(UncheckedStringEvent("profiler", "resume"));
@@ -1209,7 +1215,7 @@ void Logger::ResumeProfiler(int flags, int tag) {
   if (flags &
       (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
     if (heap_profiler_nesting_++ == 0) {
-      is_logging_ = true;
+      ++logging_nesting_;
       FLAG_log_gc = true;
     }
   }
@@ -1261,6 +1267,8 @@ void Logger::LogCodeObject(Object* object) {
     switch (code_object->kind()) {
       case Code::FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
+      case Code::BINARY_OP_IC:
+        // fall through
       case Code::STUB:
         description = CodeStub::MajorName(code_object->major_key(), true);
         if (description == NULL)
@@ -1482,14 +1490,16 @@ bool Logger::Setup() {
     compression_helper_ = new CompressionHelper(kCompressionWindowSize);
   }
 
-  is_logging_ = start_logging;
+  if (start_logging) {
+    logging_nesting_ = 1;
+  }
 
   if (FLAG_prof) {
     profiler_ = new Profiler();
     if (!FLAG_prof_auto) {
       profiler_->pause();
     } else {
-      is_logging_ = true;
+      logging_nesting_ = 1;
     }
     if (!FLAG_prof_lazy) {
       profiler_->Engage();

@@ -31,6 +31,7 @@
 #include "bootstrapper.h"
 #include "debug.h"
 #include "execution.h"
+#include "messages.h"
 #include "platform.h"
 #include "simulator.h"
 #include "string-stream.h"

@@ -135,7 +135,7 @@ void JumpTarget::ComputeEntryFrame() {
     FrameElement* target = elements[index];
     if (target == NULL) {
       entry_frame_->elements_.Add(
-          FrameElement::MemoryElement(NumberInfo::kUninitialized));
+          FrameElement::MemoryElement(NumberInfo::Uninitialized()));
     } else {
       entry_frame_->elements_.Add(*target);
       InitializeEntryElement(index, target);
@@ -152,12 +152,12 @@ void JumpTarget::ComputeEntryFrame() {
       RegisterFile candidate_registers;
       int best_count = kMinInt;
       int best_reg_num = RegisterAllocator::kInvalidRegister;
-      NumberInfo::Type info = NumberInfo::kUninitialized;
+      NumberInfo info = NumberInfo::Uninitialized();
 
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
         if (direction_ == BIDIRECTIONAL) {
-            info = NumberInfo::kUnknown;
+          info = NumberInfo::Unknown();
         } else if (!element.is_copy()) {
           info = NumberInfo::Combine(info, element.number_info());
         } else {
@@ -181,7 +181,7 @@ void JumpTarget::ComputeEntryFrame() {
 
       // We must have a number type information now (not for copied elements).
       ASSERT(entry_frame_->elements_[i].is_copy()
-             || info != NumberInfo::kUninitialized);
+             || !info.IsUninitialized());
 
       // If the value is synced on all frames, put it in memory.  This
       // costs nothing at the merge code but will incur a
@@ -211,7 +211,7 @@ void JumpTarget::ComputeEntryFrame() {
         Register reg = RegisterAllocator::ToRegister(best_reg_num);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED,
-                                          NumberInfo::kUninitialized);
+                                          NumberInfo::Uninitialized());
         if (is_copied) entry_frame_->elements_[i].set_copied();
         entry_frame_->set_register_location(reg, i);
       }
@@ -225,8 +225,7 @@ void JumpTarget::ComputeEntryFrame() {
   if (direction_ == BIDIRECTIONAL) {
     for (int i = 0; i < length; ++i) {
       if (!entry_frame_->elements_[i].is_copy()) {
-        ASSERT(entry_frame_->elements_[i].number_info() ==
-               NumberInfo::kUnknown);
+        ASSERT(entry_frame_->elements_[i].number_info().IsUnknown());
       }
     }
   }

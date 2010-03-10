@@ -152,3 +152,17 @@ assertEquals('o', S2);
 var s2 = (s[-2] = 't');
 assertEquals('undefined', typeof(s[-2]));
 assertEquals('t', s2);
+
+// Make sure enough of the one-char string cache is filled.
+var alpha = ['@'];
+for (var i = 1; i < 128; i++) {
+  var c = String.fromCharCode(i);
+  alpha[i] = c[0];
+}
+var alphaStr = alpha.join("");
+
+// Now test chars.
+for (var i = 1; i < 128; i++) {
+  assertEquals(alpha[i], alphaStr[i]);
+  assertEquals(String.fromCharCode(i), alphaStr[i]);
+}

@@ -32,11 +32,12 @@ namespace v8 {
 namespace internal {
 
 
-// The fast double-to-int conversion routine does not guarantee
+// The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
 // The result is unspecified if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 static inline int FastD2I(double x);
+static inline unsigned int FastD2UI(double x);
 
 
 static inline double FastI2D(int x) {

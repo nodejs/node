@@ -335,7 +335,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif
     __ push(backtrack_stackpointer());
 
-    int num_arguments = 3;
+    static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments);
 
     // Put arguments into parameter registers. Parameters are
@@ -849,7 +849,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #endif
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 2;
+    static const int num_arguments = 2;
     __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx.
@@ -1029,7 +1029,7 @@ void RegExpMacroAssemblerX64::WriteStackPointerToRegister(int reg) {
 void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // This function call preserves no register values. Caller should
   // store anything volatile in a C call or overwritten by this function.
-  int num_arguments = 3;
+  static const int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).

@@ -494,7 +494,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kLoadIC_Miss)), 2, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -531,7 +532,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedLoadIC_Miss)), 2, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -545,7 +547,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2, 1);
+  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
 
 
@@ -662,7 +664,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ push(r0);  // key
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(
+  __ TailCallExternalReference(ExternalReference(
         IC_Utility(kKeyedLoadPropertyWithInterceptor)), 2, 1);
 
   __ bind(&slow);
@@ -681,7 +683,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedStoreIC_Miss)), 3, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
@@ -695,7 +698,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
   __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
 }
 
 
@@ -854,7 +857,8 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   __ stm(db_w, sp, r2.bit() | r0.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
@@ -897,7 +901,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ push(receiver);
   __ push(value);
 
-  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ArrayLength)), 2, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_ArrayLength));
+  __ TailCallExternalReference(ref, 2, 1);
 
   __ bind(&miss);
 

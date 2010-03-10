@@ -33,35 +33,6 @@
 namespace v8 {
 namespace internal {
 
-class UseCount BASE_EMBEDDED {
- public:
-  UseCount();
-
-  // Inform the node of a "use". The weight can be used to indicate
-  // heavier use, for instance if the variable is accessed inside a loop.
-  void RecordRead(int weight);
-  void RecordWrite(int weight);
-  void RecordAccess(int weight);  // records a read & write
-  void RecordUses(UseCount* uses);
-
-  int nreads() const  { return nreads_; }
-  int nwrites() const  { return nwrites_; }
-  int nuses() const  { return nreads_ + nwrites_; }
-
-  bool is_read() const  { return nreads() > 0; }
-  bool is_written() const  { return nwrites() > 0; }
-  bool is_used() const  { return nuses() > 0; }
-
-#ifdef DEBUG
-  void Print();
-#endif
-
- private:
-  int nreads_;
-  int nwrites_;
-};
-
-
 // Variables and AST expression nodes can track their "type" to enable
 // optimizations and removal of redundant checks when generating code.
 
@@ -168,12 +139,14 @@ class Variable: public ZoneObject {
   bool is_accessed_from_inner_scope() const  {
     return is_accessed_from_inner_scope_;
   }
-  UseCount* var_uses()  { return &var_uses_; }
-  UseCount* obj_uses()  { return &obj_uses_; }
+  bool is_used() { return is_used_; }
+  void set_is_used(bool flag) { is_used_ = flag; }
 
   bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
   }
+
+  bool IsStackAllocated() const;
 
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||
@@ -216,8 +189,7 @@ class Variable: public ZoneObject {
 
   // Usage info.
   bool is_accessed_from_inner_scope_;  // set by variable resolver
-  UseCount var_uses_;  // uses of the variable value
-  UseCount obj_uses_;  // uses of the object the variable points to
+  bool is_used_;
 
   // Static type information
   StaticType type_;

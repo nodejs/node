@@ -261,6 +261,8 @@ template<class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
 class Script;
 class Slot;
 class Smi;
+template <typename Config, class Allocator = FreeStoreAllocationPolicy>
+    class SplayTree;
 class Statement;
 class String;
 class Struct;

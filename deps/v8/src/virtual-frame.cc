@@ -43,7 +43,7 @@ namespace internal {
 // not conflict with the existing type information and must be equally or
 // more precise. The default parameter value kUninitialized means that there
 // is no additional information.
-FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo::Type info) {
+FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo info) {
   ASSERT(index >= 0);
   ASSERT(index < element_count());
 
@@ -74,14 +74,14 @@ FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo::Type info) {
       result.set_index(index);
       elements_[index].set_copied();
       // Update backing element's number information.
-      NumberInfo::Type existing = elements_[index].number_info();
-      ASSERT(existing != NumberInfo::kUninitialized);
+      NumberInfo existing = elements_[index].number_info();
+      ASSERT(!existing.IsUninitialized());
       // Assert that the new type information (a) does not conflict with the
       // existing one and (b) is equally or more precise.
-      ASSERT((info == NumberInfo::kUninitialized) ||
-             (existing | info) != NumberInfo::kUninitialized);
-      ASSERT(existing <= info);
-      elements_[index].set_number_info(info != NumberInfo::kUninitialized
+      ASSERT((info.ToInt() & existing.ToInt()) == existing.ToInt());
+      ASSERT((info.ToInt() | existing.ToInt()) == info.ToInt());
+
+      elements_[index].set_number_info(!info.IsUninitialized()
                                        ? info
                                        : existing);
       break;
@@ -104,7 +104,7 @@ void VirtualFrame::Adjust(int count) {
   ASSERT(stack_pointer_ == element_count() - 1);
 
   for (int i = 0; i < count; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
+    elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
   }
   stack_pointer_ += count;
 }
@@ -152,7 +152,7 @@ void VirtualFrame::SpillElementAt(int index) {
   SyncElementAt(index);
   // Number type information is preserved.
   // Copies get their number information from their backing element.
-  NumberInfo::Type info;
+  NumberInfo info;
   if (!elements_[index].is_copy()) {
     info = elements_[index].number_info();
   } else {

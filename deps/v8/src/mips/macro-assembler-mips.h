@@ -115,11 +115,7 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Condition cond, Register src1, const Operand& src2);
 
-  // Sets the remembered set bit for [address+offset], where address is the
-  // address of the heap object 'object'.  The address must be in the first 8K
-  // of an allocated page. The 'scratch' register is used in the
-  // implementation and all 3 registers are clobbered by the operation, as
-  // well as the ip register.
+  // Sets the remembered set bit for [address+offset].
   void RecordWrite(Register object, Register offset, Register scratch);
 
 
@@ -182,19 +178,8 @@ class MacroAssembler: public Assembler {
 
 
   // Push multiple registers on the stack.
-  // With MultiPush, lower registers are pushed first on the stack.
-  // For example if you push t0, t1, s0, and ra you get:
-  // |                       |
-  // |-----------------------|
-  // |         t0            |                     +
-  // |-----------------------|                    |
-  // |         t1            |                    |
-  // |-----------------------|                    |
-  // |         s0            |                    v
-  // |-----------------------|                     -
-  // |         ra            |
-  // |-----------------------|
-  // |                       |
+  // Registers are saved in numerical order, with higher numbered registers
+  // saved in higher memory addresses
   void MultiPush(RegList regs);
   void MultiPushReversed(RegList regs);
   void Push(Register src) {
@@ -222,6 +207,20 @@ class MacroAssembler: public Assembler {
   void Pop() {
     Add(sp, sp, Operand(kPointerSize));
   }
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void SaveRegistersToMemory(RegList regs);
+  void RestoreRegistersFromMemory(RegList regs);
+  void CopyRegistersFromMemoryToStack(Register base, RegList regs);
+  void CopyRegistersFromStackToMemory(Register base,
+                                      Register scratch,
+                                      RegList regs);
+  void DebugBreak();
+#endif
 
 
   // ---------------------------------------------------------------------------
@@ -268,21 +267,25 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  // Eventually this should be used for all C calls.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments);
 
   // Tail call of a runtime routine (jump).
-  // Like JumpToRuntime, but also takes care of passing the number
+  // Like JumpToExternalReference, but also takes care of passing the number
   // of parameters.
-  void TailCallRuntime(const ExternalReference& ext,
+  void TailCallExternalReference(const ExternalReference& ext,
+                                 int num_arguments,
+                                 int result_size);
+
+  // Convenience function: tail call a runtime routine (jump).
+  void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
   // Jump to the builtin routine.
-  void JumpToRuntime(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.

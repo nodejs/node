@@ -8,6 +8,7 @@
 #include "heap-profiler.h"
 #include "string-stream.h"
 #include "cctest.h"
+#include "zone-inl.h"
 
 namespace i = v8::internal;
 using i::ClustersCoarser;

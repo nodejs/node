@@ -84,7 +84,7 @@ function MathCeil(x) {
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_cos(x);
+  return %_Math_cos(x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -159,7 +159,7 @@ function MathMin(arg1, arg2) {  // length == 2
 function MathPow(x, y) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %Math_pow(x, y);
+  return %_Math_pow(x, y);
 }
 
 // ECMA 262 - 15.8.2.14
@@ -176,13 +176,13 @@ function MathRound(x) {
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_sin(x);
+  return %_Math_sin(x);
 }
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_sqrt(x);
+  return %_Math_sqrt(x);
 }
 
 // ECMA 262 - 15.8.2.18

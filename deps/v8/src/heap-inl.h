@@ -187,6 +187,18 @@ void Heap::RecordWrite(Address address, int offset) {
 }
 
 
+void Heap::RecordWrites(Address address, int start, int len) {
+  if (new_space_.Contains(address)) return;
+  ASSERT(!new_space_.FromSpaceContains(address));
+  for (int offset = start;
+       offset < start + len * kPointerSize;
+       offset += kPointerSize) {
+    SLOW_ASSERT(Contains(address + offset));
+    Page::SetRSet(address, offset);
+  }
+}
+
+
 OldSpace* Heap::TargetSpace(HeapObject* object) {
   InstanceType type = object->map()->instance_type();
   AllocationSpace space = TargetSpaceId(type);

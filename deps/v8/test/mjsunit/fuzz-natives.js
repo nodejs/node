@@ -147,7 +147,19 @@ var knownProblems = {
   "DeclareGlobals": true,
 
   "PromoteScheduledException": true,
-  "DeleteHandleScopeExtensions": true
+  "DeleteHandleScopeExtensions": true,
+
+  // That can only be invoked on Array.prototype.
+  "FinishArrayPrototypeSetup": true,
+
+  // LiveEdit feature is under development currently and has fragile input.
+  "LiveEditFindSharedFunctionInfosForScript": true,
+  "LiveEditGatherCompileInfo": true,
+  "LiveEditReplaceScript": true,
+  "LiveEditReplaceFunctionCode": true,
+  "LiveEditRelinkFunctionToScript": true,
+  "LiveEditPatchFunctionPositions": true,
+  "LiveEditCheckStackActivations": true
 };
 
 var currentlyUncallable = {

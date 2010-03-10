@@ -82,7 +82,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   List<Variable*, Allocator> heap_locals(locals.length());
   for (int i = 0; i < locals.length(); i++) {
     Variable* var = locals[i];
-    if (var->var_uses()->is_used()) {
+    if (var->is_used()) {
       Slot* slot = var->slot();
       if (slot != NULL) {
         switch (slot->type()) {
@@ -130,7 +130,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   if (scope->is_function_scope()) {
     Variable* var = scope->function();
     if (var != NULL &&
-        var->var_uses()->is_used() &&
+        var->is_used() &&
         var->slot()->type() == Slot::CONTEXT) {
       function_name_ = var->name();
       // Note that we must not find the function name in the context slot

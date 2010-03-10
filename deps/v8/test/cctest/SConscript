@@ -40,6 +40,7 @@ SOURCES = {
     'test-ast.cc',
     'test-compiler.cc',
     'test-conversions.cc',
+    'test-dataflow.cc',
     'test-debug.cc',
     'test-decls.cc',
     'test-flags.cc',

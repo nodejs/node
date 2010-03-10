@@ -331,8 +331,8 @@ void OS::LogSharedLibraryAddresses() {
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
 
     int c;
-    if (attr_r == 'r' && attr_x == 'x') {
-      // Found a readable and executable entry. Skip characters until we reach
+    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
+      // Found a read-only executable entry. Skip characters until we reach
       // the beginning of the filename or the end of the line.
       do {
         c = getc(fp);
@@ -728,6 +728,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
   TickSample sample;
 
+  // We always sample the VM state.
+  sample.state = Logger::state();
+
   // If profiling, we extract the current pc and sp.
   if (active_sampler_->IsProfiling()) {
     // Extracting the sample from the context is extremely machine dependent.
@@ -759,9 +762,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     if (IsVmThread())
       active_sampler_->SampleStack(&sample);
   }
-
-  // We always sample the VM state.
-  sample.state = Logger::state();
 
   active_sampler_->Tick(&sample);
 #endif

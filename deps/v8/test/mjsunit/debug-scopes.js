@@ -84,16 +84,16 @@ function CheckScopeChain(scopes, exec_state) {
     var scope = exec_state.frame().scope(i);
     assertTrue(scope.isScope());
     assertEquals(scopes[i], scope.scopeType());
-    
+
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
       assertEquals(this, scope.scopeObject().value());
     }
   }
-  
+
   // Get the debug command processor.
   var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-  
+
   // Send a scopes request and check the result.
   var json;
   request_json = '{"seq":0,"type":"request","command":"scopes"}'
@@ -133,7 +133,7 @@ function CheckScopeContent(content, number, exec_state) {
     }
     count++;
   }
-  
+
   // 'arguments' and might be exposed in the local and closure scope. Just
   // ignore this.
   var scope_size = scope.scopeObject().properties().length;
@@ -156,7 +156,7 @@ function CheckScopeContent(content, number, exec_state) {
 
   // Get the debug command processor.
   var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
-  
+
   // Send a scope request for information on a single scope and check the
   // result.
   request_json = '{"seq":0,"type":"request","command":"scope","arguments":{"number":'
@@ -622,7 +622,7 @@ function the_full_monty(a, b) {
     with ({j:13}){
       return function() {
         var x = 14;
-        with ({a:15}) {      
+        with ({a:15}) {
           with ({b:16}) {
             debugger;
             some_global = a;
@@ -707,7 +707,7 @@ EndTest();
 
 
 BeginTest("Catch block 3");
-function catch_block_1() {
+function catch_block_3() {
   // Do eval to dynamically declare a local variable so that the context's
   // extension slot is initialized with JSContextExtensionObject.
   eval("var y = 78;");
@@ -726,12 +726,12 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({e:'Exception'}, 0, exec_state);
   CheckScopeContent({y:78}, 1, exec_state);
 }
-catch_block_1()
+catch_block_3()
 EndTest();
 
 
 BeginTest("Catch block 4");
-function catch_block_2() {
+function catch_block_4() {
   // Do eval to dynamically declare a local variable so that the context's
   // extension slot is initialized with JSContextExtensionObject.
   eval("var y = 98;");
@@ -753,7 +753,7 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({e:'Exception'}, 1, exec_state);
   CheckScopeContent({y:98}, 2, exec_state);
 }
-catch_block_2()
+catch_block_4()
 EndTest();
 
 

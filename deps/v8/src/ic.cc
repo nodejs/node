@@ -63,7 +63,9 @@ void IC::TraceIC(const char* type,
                  Code* new_target,
                  const char* extra_info) {
   if (FLAG_trace_ic) {
-    State new_state = StateFrom(new_target, Heap::undefined_value());
+    State new_state = StateFrom(new_target,
+                                Heap::undefined_value(),
+                                Heap::undefined_value());
     PrintF("[%s (%c->%c)%s", type,
            TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state),
@@ -132,7 +134,7 @@ Address IC::OriginalCodeAddress() {
 }
 #endif
 
-IC::State IC::StateFrom(Code* target, Object* receiver) {
+IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   IC::State state = target->ic_state();
 
   if (state != MONOMORPHIC) return state;
@@ -148,7 +150,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(target);
+  int index = map->IndexInCodeCache(String::cast(name), target);
   if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
@@ -160,7 +162,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
 
     // Remove the target from the code cache to avoid hitting the same
     // invalid stub again.
-    map->RemoveFromCodeCache(index);
+    map->RemoveFromCodeCache(String::cast(name), target, index);
 
     return MONOMORPHIC_PROTOTYPE_FAILURE;
   }
@@ -222,6 +224,7 @@ void IC::Clear(Address address) {
     case Code::STORE_IC: return StoreIC::Clear(address, target);
     case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
+    case Code::BINARY_OP_IC: return BinaryOpIC::Clear(address, target);
     default: UNREACHABLE();
   }
 }
@@ -1049,6 +1052,20 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
+
+  // Use specialized code for setting the length of arrays.
+  if (receiver->IsJSArray()
+      && name->Equals(Heap::length_symbol())
+      && receiver->AllowsSetElementsLength()) {
+#ifdef DEBUG
+    if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
+#endif
+    Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
+    set_target(target);
+    StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+    return receiver->SetProperty(*name, *value, NONE);
+  }
+
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
@@ -1285,7 +1302,7 @@ Object* CallIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   CallIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Object* result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
 
@@ -1318,7 +1335,7 @@ Object* LoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   LoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<String>(1));
 }
 
@@ -1328,7 +1345,7 @@ Object* KeyedLoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedLoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1));
 }
 
@@ -1338,7 +1355,7 @@ Object* StoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   StoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<String>(1),
                   args.at<Object>(2));
 }
@@ -1351,7 +1368,9 @@ Object* StoreIC_ArrayLength(Arguments args) {
   JSObject* receiver = JSObject::cast(args[0]);
   Object* len = args[1];
 
-  return receiver->SetElementsLength(len);
+  Object* result = receiver->SetElementsLength(len);
+  if (result->IsFailure()) return result;
+  return len;
 }
 
 
@@ -1394,9 +1413,115 @@ Object* KeyedStoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   KeyedStoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
+}
+
+
+void BinaryOpIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+void BinaryOpIC::Clear(Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+
+  // At the end of a fast case stub there should be a reference to
+  // a corresponding UNINITIALIZED stub, so look for the last reloc info item.
+  RelocInfo* rinfo = NULL;
+  for (RelocIterator it(target, RelocInfo::kCodeTargetMask);
+       !it.done(); it.next()) {
+    rinfo = it.rinfo();
+  }
+
+  ASSERT(rinfo != NULL);
+  Code* uninit_stub = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  ASSERT(uninit_stub->ic_state() == UNINITIALIZED &&
+         uninit_stub->kind() == Code::BINARY_OP_IC);
+  SetTargetAtAddress(address, uninit_stub);
+}
+
+
+const char* BinaryOpIC::GetName(TypeInfo type_info) {
+  switch (type_info) {
+    case DEFAULT: return "Default";
+    case GENERIC: return "Generic";
+    case HEAP_NUMBERS: return "HeapNumbers";
+    case STRINGS: return "Strings";
+    default: return "Invalid";
+  }
+}
+
+
+BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
+  switch (type_info) {
+    // DEFAULT is mapped to UNINITIALIZED so that calls to DEFAULT stubs
+    // are not cleared at GC.
+    case DEFAULT: return UNINITIALIZED;
+
+    // Could have mapped GENERIC to MONOMORPHIC just as well but MEGAMORPHIC is
+    // conceptually closer.
+    case GENERIC: return MEGAMORPHIC;
+
+    default: return MONOMORPHIC;
+  }
+}
+
+
+BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
+                                             Object* right) {
+  // Patching is never requested for the two smis.
+  ASSERT(!left->IsSmi() || !right->IsSmi());
+
+  if (left->IsNumber() && right->IsNumber()) {
+    return HEAP_NUMBERS;
+  }
+
+  if (left->IsString() || right->IsString()) {
+    // Patching for fast string ADD makes sense even if only one of the
+    // arguments is a string.
+    return STRINGS;
+  }
+
+  return GENERIC;
+}
+
+
+// defined in codegen-<arch>.cc
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
+
+
+Object* BinaryOp_Patch(Arguments args) {
+  ASSERT(args.length() == 6);
+
+  Handle<Object> left = args.at<Object>(0);
+  Handle<Object> right = args.at<Object>(1);
+  Handle<Object> result = args.at<Object>(2);
+  int key = Smi::cast(args[3])->value();
+#ifdef DEBUG
+  Token::Value op = static_cast<Token::Value>(Smi::cast(args[4])->value());
+  BinaryOpIC::TypeInfo prev_type_info =
+      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[5])->value());
+#endif  // DEBUG
+  { HandleScope scope;
+    BinaryOpIC::TypeInfo type_info = BinaryOpIC::GetTypeInfo(*left, *right);
+    Handle<Code> code = GetBinaryOpStub(key, type_info);
+    if (!code.is_null()) {
+      BinaryOpIC ic;
+      ic.patch(*code);
+#ifdef DEBUG
+      if (FLAG_trace_ic) {
+        PrintF("[BinaryOpIC (%s->%s)#%s]\n",
+            BinaryOpIC::GetName(prev_type_info),
+            BinaryOpIC::GetName(type_info),
+            Token::Name(op));
+      }
+#endif  // DEBUG
+    }
+  }
+
+  return *result;
 }
 
 

@@ -130,3 +130,11 @@
     assertEquals(bigNum + 7, new Array(bigNum).unshift(1, 2, 3, 4, 5, 6, 7));
   }
 })();
+
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var a = [6, 7, 8, 9];
+    a.unshift(1, 2, 3, 4, 5);
+    assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], a);
+  }
+})();

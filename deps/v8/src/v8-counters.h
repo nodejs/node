@@ -169,7 +169,24 @@ namespace internal {
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \
   SC(regexp_entry_native, V8.RegExpEntryNative)                       \
   SC(number_to_string_native, V8.NumberToStringNative)                \
-  SC(number_to_string_runtime, V8.NumberToStringRuntime)
+  SC(number_to_string_runtime, V8.NumberToStringRuntime)              \
+  SC(math_abs, V8.MathAbs)                                            \
+  SC(math_acos, V8.MathAcos)                                          \
+  SC(math_asin, V8.MathAsin)                                          \
+  SC(math_atan, V8.MathAtan)                                          \
+  SC(math_atan2, V8.MathAtan2)                                        \
+  SC(math_ceil, V8.MathCeil)                                          \
+  SC(math_cos, V8.MathCos)                                            \
+  SC(math_exp, V8.MathExp)                                            \
+  SC(math_floor, V8.MathFloor)                                        \
+  SC(math_log, V8.MathLog)                                            \
+  SC(math_pow, V8.MathPow)                                            \
+  SC(math_round, V8.MathRound)                                        \
+  SC(math_sin, V8.MathSin)                                            \
+  SC(math_sqrt, V8.MathSqrt)                                          \
+  SC(math_tan, V8.MathTan)                                            \
+  SC(transcendental_cache_hit, V8.TranscendentalCacheHit)             \
+  SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)
 
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {

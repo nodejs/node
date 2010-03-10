@@ -67,8 +67,6 @@ VariableProxy::VariableProxy(Handle<String> name,
     inside_with_(inside_with) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
-  // at least one access, otherwise no need for a VariableProxy
-  var_uses_.RecordRead(1);
 }
 
 
@@ -87,8 +85,7 @@ void VariableProxy::BindTo(Variable* var) {
   // eval() etc.  Const-ness and variable declarations are a complete mess
   // in JS. Sigh...
   var_ = var;
-  var->var_uses()->RecordUses(&var_uses_);
-  var->obj_uses()->RecordUses(&obj_uses_);
+  var->set_is_used(true);
 }
 
 

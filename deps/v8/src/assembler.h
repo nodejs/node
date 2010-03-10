@@ -37,7 +37,6 @@
 
 #include "runtime.h"
 #include "top.h"
-#include "zone-inl.h"
 #include "token.h"
 
 namespace v8 {
@@ -400,6 +399,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference perform_gc_function();
   static ExternalReference random_positive_smi_function();
+  static ExternalReference transcendental_cache_array_address();
 
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys();
@@ -427,6 +427,7 @@ class ExternalReference BASE_EMBEDDED {
 
   // Static variable Heap::NewSpaceStart()
   static ExternalReference new_space_start();
+  static ExternalReference new_space_mask();
   static ExternalReference heap_always_allocate_scope_depth();
 
   // Used for fast allocation in generated code.

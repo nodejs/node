@@ -324,8 +324,8 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(backtrack_stackpointer());
     __ push(ebx);
 
-    const int argument_count = 3;
-    FrameAlign(argument_count, ecx);
+    static const int argument_count = 3;
+    __ PrepareCallCFunction(argument_count, ecx);
     // Put arguments into allocated stack area, last argument highest on stack.
     // Parameters are
     //   Address byte_offset1 - Address captured substring's start.
@@ -346,7 +346,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
 
     ExternalReference compare =
         ExternalReference::re_case_insensitive_compare_uc16();
-    CallCFunction(compare, argument_count);
+    __ CallCFunction(compare, argument_count);
     // Pop original values before reacting on result value.
     __ pop(ebx);
     __ pop(backtrack_stackpointer());
@@ -784,13 +784,13 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(edi);
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 2;
-    FrameAlign(num_arguments, ebx);
+    static const int num_arguments = 2;
+    __ PrepareCallCFunction(num_arguments, ebx);
     __ lea(eax, Operand(ebp, kStackHighEnd));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
     __ mov(Operand(esp, 0 * kPointerSize), backtrack_stackpointer());
     ExternalReference grow_stack = ExternalReference::re_grow_stack();
-    CallCFunction(grow_stack, num_arguments);
+    __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ or_(eax, Operand(eax));
@@ -951,8 +951,8 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
-  int num_arguments = 3;
-  FrameAlign(num_arguments, scratch);
+  static const int num_arguments = 3;
+  __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(Operand(esp, 2 * kPointerSize), ebp);
   // Code* of self.
@@ -962,7 +962,7 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   __ mov(Operand(esp, 0 * kPointerSize), eax);
   ExternalReference check_stack_guard =
       ExternalReference::re_check_stack_guard_state();
-  CallCFunction(check_stack_guard, num_arguments);
+  __ CallCFunction(check_stack_guard, num_arguments);
 }
 
 
@@ -1150,37 +1150,6 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   SafeCall(&stack_overflow_label_);
 
   __ bind(&no_stack_overflow);
-}
-
-
-void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments, Register scratch) {
-  // TODO(lrn): Since we no longer use the system stack arbitrarily (but we do
-  // use it, e.g., for SafeCall), we know the number of elements on the stack
-  // since the last frame alignment. We might be able to do this simpler then.
-  int frameAlignment = OS::ActivationFrameAlignment();
-  if (frameAlignment != 0) {
-    // Make stack end at alignment and make room for num_arguments words
-    // and the original value of esp.
-    __ mov(scratch, esp);
-    __ sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
-    ASSERT(IsPowerOf2(frameAlignment));
-    __ and_(esp, -frameAlignment);
-    __ mov(Operand(esp, num_arguments * kPointerSize), scratch);
-  } else {
-    __ sub(Operand(esp), Immediate(num_arguments * kPointerSize));
-  }
-}
-
-
-void RegExpMacroAssemblerIA32::CallCFunction(ExternalReference function,
-                                             int num_arguments) {
-  __ mov(Operand(eax), Immediate(function));
-  __ call(Operand(eax));
-  if (OS::ActivationFrameAlignment() != 0) {
-    __ mov(esp, Operand(esp, num_arguments * kPointerSize));
-  } else {
-    __ add(Operand(esp), Immediate(num_arguments * sizeof(int32_t)));
-  }
 }
 
 

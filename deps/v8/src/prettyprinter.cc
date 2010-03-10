@@ -604,7 +604,7 @@ class IndentedScope BASE_EMBEDDED {
         ast_printer_->Print(StaticType::Type2String(expr->type()));
         printed_first = true;
       }
-      if (expr->num() != Expression::kNoLabel) {
+      if (expr->num() != AstNode::kNoNumber) {
         ast_printer_->Print(printed_first ? ", num = " : " (num = ");
         ast_printer_->Print("%d", expr->num());
         printed_first = true;
@@ -679,7 +679,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
       pos += OS::SNPrintF(buf + pos, ", type = %s",
                           StaticType::Type2String(type));
     }
-    if (num != Expression::kNoLabel) {
+    if (num != AstNode::kNoNumber) {
       pos += OS::SNPrintF(buf + pos, ", num = %d", num);
     }
     OS::SNPrintF(buf + pos, ")");
@@ -740,7 +740,7 @@ void AstPrinter::PrintParameters(Scope* scope) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
                                    scope->parameter(i)->type(),
-                                   Expression::kNoLabel);
+                                   AstNode::kNoNumber);
     }
   }
 }
@@ -786,7 +786,7 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
                                  node->proxy()->AsVariable(),
                                  node->proxy()->name(),
                                  node->proxy()->AsVariable()->type(),
-                                 Expression::kNoLabel);
+                                 AstNode::kNoNumber);
   } else {
     // function declarations
     PrintIndented("FUNCTION ");

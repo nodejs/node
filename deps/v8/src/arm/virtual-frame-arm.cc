@@ -35,26 +35,7 @@
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
 #define __ ACCESS_MASM(masm())
-
-
-// On entry to a function, the virtual frame already contains the
-// receiver and the parameters.  All initial frame elements are in
-// memory.
-VirtualFrame::VirtualFrame()
-    : elements_(parameter_count() + local_count() + kPreallocatedElements),
-      stack_pointer_(parameter_count()) {  // 0-based index of TOS.
-  for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
-  }
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
-
 
 void VirtualFrame::SyncElementBelowStackPointer(int index) {
   UNREACHABLE();
@@ -314,7 +295,7 @@ void VirtualFrame::EmitPop(Register reg) {
 
 void VirtualFrame::EmitPush(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
+  elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
   stack_pointer_++;
   __ push(reg);
 }

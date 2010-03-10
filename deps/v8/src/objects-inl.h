@@ -564,6 +564,11 @@ bool Object::IsCompilationCacheTable() {
 }
 
 
+bool Object::IsCodeCacheHashTable() {
+  return IsHashTable();
+}
+
+
 bool Object::IsMapCache() {
   return IsHashTable();
 }
@@ -840,15 +845,17 @@ Failure* Failure::OutOfMemoryException() {
 
 
 intptr_t Failure::value() const {
-  return reinterpret_cast<intptr_t>(this) >> kFailureTagSize;
+  return static_cast<intptr_t>(
+      reinterpret_cast<uintptr_t>(this) >> kFailureTagSize);
 }
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
   // Assert that the space encoding fits in the three bytes allotted for it.
   ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  intptr_t requested = requested_bytes >> kObjectAlignmentBits;
-  int tag_bits = kSpaceTagSize + kFailureTypeTagSize;
+  uintptr_t requested =
+      static_cast<uintptr_t>(requested_bytes >> kObjectAlignmentBits);
+  int tag_bits = kSpaceTagSize + kFailureTypeTagSize + kFailureTagSize;
   if (((requested << tag_bits) >> tag_bits) != requested) {
     // No room for entire requested size in the bits. Round down to
     // maximally representable size.
@@ -861,7 +868,8 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 
 
 Failure* Failure::Construct(Type type, intptr_t value) {
-  intptr_t info = (static_cast<intptr_t>(value) << kFailureTypeTagSize) | type;
+  uintptr_t info =
+      (static_cast<uintptr_t>(value) << kFailureTypeTagSize) | type;
   ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
   return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
 }
@@ -1394,6 +1402,11 @@ void FixedArray::set_the_hole(int index) {
 }
 
 
+Object** FixedArray::data_start() {
+  return HeapObject::RawField(this, kHeaderSize);
+}
+
+
 bool DescriptorArray::IsEmpty() {
   ASSERT(this == Heap::empty_descriptor_array() ||
          this->length() > 2);
@@ -1560,6 +1573,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
+CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
@@ -1637,13 +1651,11 @@ bool String::Equals(String* other) {
 }
 
 
-Object* String::TryFlattenIfNotFlat() {
+Object* String::TryFlatten(PretenureFlag pretenure) {
   // We don't need to flatten strings that are already flat.  Since this code
   // is inlined, it can be helpful in the flat case to not call out to Flatten.
-  if (!IsFlat()) {
-    return TryFlatten();
-  }
-  return this;
+  if (IsFlat()) return this;
+  return SlowTryFlatten(pretenure);
 }
 
 
@@ -2143,14 +2155,14 @@ int Code::arguments_count() {
 
 
 CodeStub::Major Code::major_key() {
-  ASSERT(kind() == STUB);
+  ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
   return static_cast<CodeStub::Major>(READ_BYTE_FIELD(this,
                                                       kStubMajorKeyOffset));
 }
 
 
 void Code::set_major_key(CodeStub::Major major) {
-  ASSERT(kind() == STUB);
+  ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
 }
@@ -2252,7 +2264,7 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 ACCESSORS(Map, instance_descriptors, DescriptorArray,
           kInstanceDescriptorsOffset)
-ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
+ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -2389,6 +2401,9 @@ INT_ACCESSORS(SharedFunctionInfo, compiler_hints,
 INT_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 
+
+ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
+ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 
 bool Script::HasValidSource() {
   Object* src = this->source();

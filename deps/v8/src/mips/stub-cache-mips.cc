@@ -72,20 +72,6 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-// Generate code to load the length from a string object and return the length.
-// If the receiver object is not a string or a wrapped string object the
-// execution continues at the miss label. The register containing the
-// receiver is potentially clobbered.
-void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
-                                             Register receiver,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* miss) {
-  UNIMPLEMENTED_MIPS();
-  __ break_(0x249);
-}
-
-
 void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register receiver,
                                                  Register scratch1,
@@ -99,7 +85,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Builtins::Name storage_extend,
                                       JSObject* object,
                                       int index,
                                       Map* transition,
@@ -118,18 +103,6 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 
 #undef __
 #define __ ACCESS_MASM(masm())
-
-
-Register StubCompiler::CheckPrototypes(JSObject* object,
-                                       Register object_reg,
-                                       JSObject* holder,
-                                       Register holder_reg,
-                                       Register scratch,
-                                       String* name,
-                                       Label* miss) {
-  UNIMPLEMENTED_MIPS();
-  return at;    // UNIMPLEMENTED RETURN
-}
 
 
 void StubCompiler::GenerateLoadField(JSObject* object,
@@ -192,7 +165,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
-Object* CallStubCompiler::CompileCallField(Object* object,
+Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
                                            String* name) {
@@ -211,7 +184,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallInterceptor(Object* object,
+Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   UNIMPLEMENTED_MIPS();

@@ -40,6 +40,7 @@ Register FastCodeGenerator::accumulator0() { return r0; }
 Register FastCodeGenerator::accumulator1() { return r1; }
 Register FastCodeGenerator::scratch0() { return r3; }
 Register FastCodeGenerator::scratch1() { return r4; }
+Register FastCodeGenerator::scratch2() { return r5; }
 Register FastCodeGenerator::receiver_reg() { return r2; }
 Register FastCodeGenerator::context_reg() { return cp; }
 
@@ -100,7 +101,7 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 
   if (needs_write_barrier) {
     __ mov(scratch1(), Operand(offset));
-    __ RecordWrite(scratch0(), scratch1(), ip);
+    __ RecordWrite(scratch0(), scratch1(), scratch2());
   }
 
   if (destination().is(accumulator1())) {
@@ -180,6 +181,7 @@ void FastCodeGenerator::EmitBitOr() {
 void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   ASSERT(info_ == NULL);
   info_ = compilation_info;
+  Comment cmnt(masm_, "[ function compiled by fast code generator");
 
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");

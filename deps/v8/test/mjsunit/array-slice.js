@@ -36,6 +36,17 @@
 })();
 
 
+// Check various variants of empty array's slicing.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    assertEquals([], [].slice(0, 0));
+    assertEquals([], [].slice(1, 0));
+    assertEquals([], [].slice(0, 1));
+    assertEquals([], [].slice(-1, 0));
+  }
+})();
+
+
 // Check various forms of arguments omission.
 (function() {
   var array = new Array(7);

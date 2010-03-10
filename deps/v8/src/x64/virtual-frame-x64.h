@@ -73,7 +73,7 @@ class VirtualFrame : public ZoneObject {
   static const int kIllegalIndex = -1;
 
   // Construct an initial virtual frame on entry to a JS function.
-  VirtualFrame();
+  inline VirtualFrame();
 
   // Construct a virtual frame as a clone of an existing one.
   explicit inline VirtualFrame(VirtualFrame* original);
@@ -83,7 +83,7 @@ class VirtualFrame : public ZoneObject {
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index,
-    NumberInfo::Type info = NumberInfo::kUninitialized);
+    NumberInfo info = NumberInfo::Uninitialized());
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -383,19 +383,19 @@ class VirtualFrame : public ZoneObject {
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(const Operand& operand,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(Heap::RootListIndex index,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(Immediate immediate,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(Smi* value);
   // Uses kScratchRegister, emits appropriate relocation info.
   void EmitPush(Handle<Object> value);
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
+  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 

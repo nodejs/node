@@ -264,6 +264,25 @@ THREADED_TEST(Access) {
 }
 
 
+THREADED_TEST(AccessElement) {
+  v8::HandleScope scope;
+  LocalContext env;
+  Local<v8::Object> obj = v8::Object::New();
+  Local<Value> before = obj->Get(1);
+  CHECK(before->IsUndefined());
+  Local<String> bar_str = v8_str("bar");
+  obj->Set(1, bar_str);
+  Local<Value> after = obj->Get(1);
+  CHECK(!after->IsUndefined());
+  CHECK(after->IsString());
+  CHECK_EQ(bar_str, after);
+
+  Local<v8::Array> value = CompileRun("[\"a\", \"b\"]").As<v8::Array>();
+  CHECK_EQ(v8_str("a"), value->Get(0));
+  CHECK_EQ(v8_str("b"), value->Get(1));
+}
+
+
 THREADED_TEST(Script) {
   v8::HandleScope scope;
   LocalContext env;
@@ -1254,7 +1273,7 @@ static v8::Handle<Value> CallFunctionRecursivelyCall(
   args.This()->Set(v8_str("depth"), v8::Integer::New(depth + 1));
   v8::Handle<Value> function =
       args.This()->Get(v8_str("callFunctionRecursively"));
-  return v8::Handle<Function>::Cast(function)->Call(args.This(), 0, NULL);
+  return function.As<Function>()->Call(args.This(), 0, NULL);
 }
 
 
@@ -1331,6 +1350,20 @@ THREADED_TEST(InternalFields) {
   CHECK(obj->GetInternalField(0)->IsUndefined());
   obj->SetInternalField(0, v8_num(17));
   CHECK_EQ(17, obj->GetInternalField(0)->Int32Value());
+}
+
+
+THREADED_TEST(GlobalObjectInternalFields) {
+  v8::HandleScope scope;
+  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetInternalFieldCount(1);
+  LocalContext env(NULL, global_template);
+  v8::Handle<v8::Object> global_proxy = env->Global();
+  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  CHECK_EQ(1, global->InternalFieldCount());
+  CHECK(global->GetInternalField(0)->IsUndefined());
+  global->SetInternalField(0, v8_num(17));
+  CHECK_EQ(17, global->GetInternalField(0)->Int32Value());
 }
 
 
@@ -1514,7 +1547,7 @@ THREADED_TEST(External) {
   LocalContext env;
   env->Global()->Set(v8_str("ext"), ext);
   Local<Value> reext_obj = Script::Compile(v8_str("this.ext"))->Run();
-  v8::Handle<v8::External> reext = v8::Handle<v8::External>::Cast(reext_obj);
+  v8::Handle<v8::External> reext = reext_obj.As<v8::External>();
   int* ptr = static_cast<int*>(reext->Value());
   CHECK_EQ(x, 3);
   *ptr = 10;
@@ -1646,22 +1679,22 @@ THREADED_TEST(Array) {
   LocalContext context;
   Local<v8::Array> array = v8::Array::New();
   CHECK_EQ(0, array->Length());
-  CHECK(array->Get(v8::Integer::New(0))->IsUndefined());
+  CHECK(array->Get(0)->IsUndefined());
   CHECK(!array->Has(0));
-  CHECK(array->Get(v8::Integer::New(100))->IsUndefined());
+  CHECK(array->Get(100)->IsUndefined());
   CHECK(!array->Has(100));
-  array->Set(v8::Integer::New(2), v8_num(7));
+  array->Set(2, v8_num(7));
   CHECK_EQ(3, array->Length());
   CHECK(!array->Has(0));
   CHECK(!array->Has(1));
   CHECK(array->Has(2));
-  CHECK_EQ(7, array->Get(v8::Integer::New(2))->Int32Value());
+  CHECK_EQ(7, array->Get(2)->Int32Value());
   Local<Value> obj = Script::Compile(v8_str("[1, 2, 3]"))->Run();
-  Local<v8::Array> arr = Local<v8::Array>::Cast(obj);
+  Local<v8::Array> arr = obj.As<v8::Array>();
   CHECK_EQ(3, arr->Length());
-  CHECK_EQ(1, arr->Get(v8::Integer::New(0))->Int32Value());
-  CHECK_EQ(2, arr->Get(v8::Integer::New(1))->Int32Value());
-  CHECK_EQ(3, arr->Get(v8::Integer::New(2))->Int32Value());
+  CHECK_EQ(1, arr->Get(0)->Int32Value());
+  CHECK_EQ(2, arr->Get(1)->Int32Value());
+  CHECK_EQ(3, arr->Get(2)->Int32Value());
 }
 
 
@@ -1670,7 +1703,7 @@ v8::Handle<Value> HandleF(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
   Local<v8::Array> result = v8::Array::New(args.Length());
   for (int i = 0; i < args.Length(); i++)
-    result->Set(v8::Integer::New(i), args[i]);
+    result->Set(i, args[i]);
   return scope.Close(result);
 }
 
@@ -1682,39 +1715,34 @@ THREADED_TEST(Vector) {
   LocalContext context(0, global);
 
   const char* fun = "f()";
-  Local<v8::Array> a0 =
-      Local<v8::Array>::Cast(Script::Compile(String::New(fun))->Run());
+  Local<v8::Array> a0 = CompileRun(fun).As<v8::Array>();
   CHECK_EQ(0, a0->Length());
 
   const char* fun2 = "f(11)";
-  Local<v8::Array> a1 =
-      Local<v8::Array>::Cast(Script::Compile(String::New(fun2))->Run());
+  Local<v8::Array> a1 = CompileRun(fun2).As<v8::Array>();
   CHECK_EQ(1, a1->Length());
-  CHECK_EQ(11, a1->Get(v8::Integer::New(0))->Int32Value());
+  CHECK_EQ(11, a1->Get(0)->Int32Value());
 
   const char* fun3 = "f(12, 13)";
-  Local<v8::Array> a2 =
-      Local<v8::Array>::Cast(Script::Compile(String::New(fun3))->Run());
+  Local<v8::Array> a2 = CompileRun(fun3).As<v8::Array>();
   CHECK_EQ(2, a2->Length());
-  CHECK_EQ(12, a2->Get(v8::Integer::New(0))->Int32Value());
-  CHECK_EQ(13, a2->Get(v8::Integer::New(1))->Int32Value());
+  CHECK_EQ(12, a2->Get(0)->Int32Value());
+  CHECK_EQ(13, a2->Get(1)->Int32Value());
 
   const char* fun4 = "f(14, 15, 16)";
-  Local<v8::Array> a3 =
-      Local<v8::Array>::Cast(Script::Compile(String::New(fun4))->Run());
+  Local<v8::Array> a3 = CompileRun(fun4).As<v8::Array>();
   CHECK_EQ(3, a3->Length());
-  CHECK_EQ(14, a3->Get(v8::Integer::New(0))->Int32Value());
-  CHECK_EQ(15, a3->Get(v8::Integer::New(1))->Int32Value());
-  CHECK_EQ(16, a3->Get(v8::Integer::New(2))->Int32Value());
+  CHECK_EQ(14, a3->Get(0)->Int32Value());
+  CHECK_EQ(15, a3->Get(1)->Int32Value());
+  CHECK_EQ(16, a3->Get(2)->Int32Value());
 
   const char* fun5 = "f(17, 18, 19, 20)";
-  Local<v8::Array> a4 =
-      Local<v8::Array>::Cast(Script::Compile(String::New(fun5))->Run());
+  Local<v8::Array> a4 = CompileRun(fun5).As<v8::Array>();
   CHECK_EQ(4, a4->Length());
-  CHECK_EQ(17, a4->Get(v8::Integer::New(0))->Int32Value());
-  CHECK_EQ(18, a4->Get(v8::Integer::New(1))->Int32Value());
-  CHECK_EQ(19, a4->Get(v8::Integer::New(2))->Int32Value());
-  CHECK_EQ(20, a4->Get(v8::Integer::New(3))->Int32Value());
+  CHECK_EQ(17, a4->Get(0)->Int32Value());
+  CHECK_EQ(18, a4->Get(1)->Int32Value());
+  CHECK_EQ(19, a4->Get(2)->Int32Value());
+  CHECK_EQ(20, a4->Get(3)->Int32Value());
 }
 
 
@@ -1932,6 +1960,95 @@ static void CheckUncle(v8::TryCatch* try_catch) {
 }
 
 
+THREADED_TEST(ConversionNumber) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // Very large number.
+  CompileRun("var obj = Math.pow(2,32) * 1237;");
+  Local<Value> obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(5312874545152.0, obj->ToNumber()->Value());
+  CHECK_EQ(0, obj->ToInt32()->Value());
+  CHECK(0u == obj->ToUint32()->Value());  // NOLINT - no CHECK_EQ for unsigned.
+  // Large number.
+  CompileRun("var obj = -1234567890123;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-1234567890123.0, obj->ToNumber()->Value());
+  CHECK_EQ(-1912276171, obj->ToInt32()->Value());
+  CHECK(2382691125u == obj->ToUint32()->Value());  // NOLINT
+  // Small positive integer.
+  CompileRun("var obj = 42;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(42.0, obj->ToNumber()->Value());
+  CHECK_EQ(42, obj->ToInt32()->Value());
+  CHECK(42u == obj->ToUint32()->Value());  // NOLINT
+  // Negative integer.
+  CompileRun("var obj = -37;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-37.0, obj->ToNumber()->Value());
+  CHECK_EQ(-37, obj->ToInt32()->Value());
+  CHECK(4294967259u == obj->ToUint32()->Value());  // NOLINT
+  // Positive non-int32 integer.
+  CompileRun("var obj = 0x81234567;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(2166572391.0, obj->ToNumber()->Value());
+  CHECK_EQ(-2128394905, obj->ToInt32()->Value());
+  CHECK(2166572391u == obj->ToUint32()->Value());  // NOLINT
+  // Fraction.
+  CompileRun("var obj = 42.3;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(42.3, obj->ToNumber()->Value());
+  CHECK_EQ(42, obj->ToInt32()->Value());
+  CHECK(42u == obj->ToUint32()->Value());  // NOLINT
+  // Large negative fraction.
+  CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-5726623061.75, obj->ToNumber()->Value());
+  CHECK_EQ(-1431655765, obj->ToInt32()->Value());
+  CHECK(2863311531u == obj->ToUint32()->Value());  // NOLINT
+}
+
+
+THREADED_TEST(isNumberType) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // Very large number.
+  CompileRun("var obj = Math.pow(2,32) * 1237;");
+  Local<Value> obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Large negative number.
+  CompileRun("var obj = -1234567890123;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Small positive integer.
+  CompileRun("var obj = 42;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Negative integer.
+  CompileRun("var obj = -37;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Positive non-int32 integer.
+  CompileRun("var obj = 0x81234567;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Fraction.
+  CompileRun("var obj = 42.3;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Large negative fraction.
+  CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+}
+
+
 THREADED_TEST(ConversionException) {
   v8::HandleScope scope;
   LocalContext env;
@@ -2130,8 +2247,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
                                  args[3] };
     if (count % cInterval == 0) {
       v8::TryCatch try_catch;
-      Local<Value> result =
-          v8::Handle<Function>::Cast(fun)->Call(global, 4, argv);
+      Local<Value> result = fun.As<Function>()->Call(global, 4, argv);
       int expected = args[3]->Int32Value();
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
@@ -2142,7 +2258,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       }
       return result;
     } else {
-      return v8::Handle<Function>::Cast(fun)->Call(global, 4, argv);
+      return fun.As<Function>()->Call(global, 4, argv);
     }
   }
 }
@@ -2532,7 +2648,7 @@ static v8::Handle<Value> SetXOnPrototypeGetter(Local<String> property,
                                                const AccessorInfo& info) {
   // Set x on the prototype object and do not handle the get request.
   v8::Handle<v8::Value> proto = info.Holder()->GetPrototype();
-  v8::Handle<v8::Object>::Cast(proto)->Set(v8_str("x"), v8::Integer::New(23));
+  proto.As<v8::Object>()->Set(v8_str("x"), v8::Integer::New(23));
   return v8::Handle<Value>();
 }
 
@@ -2868,22 +2984,22 @@ THREADED_TEST(FunctionPrototypeAcrossContexts) {
   v8::Handle<v8::Object> global0 =
       env0->Global();
   v8::Handle<v8::Object> object0 =
-      v8::Handle<v8::Object>::Cast(global0->Get(v8_str("Object")));
+      global0->Get(v8_str("Object")).As<v8::Object>();
   v8::Handle<v8::Object> tostring0 =
-      v8::Handle<v8::Object>::Cast(object0->Get(v8_str("toString")));
+      object0->Get(v8_str("toString")).As<v8::Object>();
   v8::Handle<v8::Object> proto0 =
-      v8::Handle<v8::Object>::Cast(tostring0->Get(v8_str("__proto__")));
+      tostring0->Get(v8_str("__proto__")).As<v8::Object>();
   proto0->Set(v8_str("custom"), v8_num(1234));
 
   LocalContext env1;
   v8::Handle<v8::Object> global1 =
       env1->Global();
   v8::Handle<v8::Object> object1 =
-      v8::Handle<v8::Object>::Cast(global1->Get(v8_str("Object")));
+      global1->Get(v8_str("Object")).As<v8::Object>();
   v8::Handle<v8::Object> tostring1 =
-      v8::Handle<v8::Object>::Cast(object1->Get(v8_str("toString")));
+      object1->Get(v8_str("toString")).As<v8::Object>();
   v8::Handle<v8::Object> proto1 =
-      v8::Handle<v8::Object>::Cast(tostring1->Get(v8_str("__proto__")));
+      tostring1->Get(v8_str("__proto__")).As<v8::Object>();
   CHECK(!proto1->Has(v8_str("custom")));
 }
 
@@ -3505,7 +3621,7 @@ THREADED_TEST(Arguments) {
   v8::Handle<v8::ObjectTemplate> global = ObjectTemplate::New();
   global->Set(v8_str("f"), v8::FunctionTemplate::New(ArgumentsTestCallback));
   LocalContext context(NULL, global);
-  args_fun = v8::Handle<Function>::Cast(context->Global()->Get(v8_str("f")));
+  args_fun = context->Global()->Get(v8_str("f")).As<Function>();
   v8_compile("f(1, 2, 3)")->Run();
 }
 
@@ -3843,21 +3959,20 @@ THREADED_TEST(ErrorConstruction) {
   v8::Handle<String> message = v8_str("message");
   v8::Handle<Value> range_error = v8::Exception::RangeError(foo);
   CHECK(range_error->IsObject());
-  v8::Handle<v8::Object> range_obj(v8::Handle<v8::Object>::Cast(range_error));
-  CHECK(v8::Handle<v8::Object>::Cast(range_error)->Get(message)->Equals(foo));
+  v8::Handle<v8::Object> range_obj = range_error.As<v8::Object>();
+  CHECK(range_error.As<v8::Object>()->Get(message)->Equals(foo));
   v8::Handle<Value> reference_error = v8::Exception::ReferenceError(foo);
   CHECK(reference_error->IsObject());
-  CHECK(
-      v8::Handle<v8::Object>::Cast(reference_error)->Get(message)->Equals(foo));
+  CHECK(reference_error.As<v8::Object>()->Get(message)->Equals(foo));
   v8::Handle<Value> syntax_error = v8::Exception::SyntaxError(foo);
   CHECK(syntax_error->IsObject());
-  CHECK(v8::Handle<v8::Object>::Cast(syntax_error)->Get(message)->Equals(foo));
+  CHECK(syntax_error.As<v8::Object>()->Get(message)->Equals(foo));
   v8::Handle<Value> type_error = v8::Exception::TypeError(foo);
   CHECK(type_error->IsObject());
-  CHECK(v8::Handle<v8::Object>::Cast(type_error)->Get(message)->Equals(foo));
+  CHECK(type_error.As<v8::Object>()->Get(message)->Equals(foo));
   v8::Handle<Value> error = v8::Exception::Error(foo);
   CHECK(error->IsObject());
-  CHECK(v8::Handle<v8::Object>::Cast(error)->Get(message)->Equals(foo));
+  CHECK(error.As<v8::Object>()->Get(message)->Equals(foo));
 }
 
 
@@ -4780,13 +4895,13 @@ static bool NamedAccessFlatten(Local<v8::Object> global,
   CHECK(name->IsString());
 
   memset(buf, 0x1, sizeof(buf));
-  len = Local<String>::Cast(name)->WriteAscii(buf);
+  len = name.As<String>()->WriteAscii(buf);
   CHECK_EQ(4, len);
 
   uint16_t buf2[100];
 
   memset(buf, 0x1, sizeof(buf));
-  len = Local<String>::Cast(name)->Write(buf2);
+  len = name.As<String>()->Write(buf2);
   CHECK_EQ(4, len);
 
   return true;
@@ -5135,7 +5250,7 @@ THREADED_TEST(HiddenPrototype) {
   // object.
   Local<Value> proto = o0->Get(v8_str("__proto__"));
   CHECK(proto->IsObject());
-  CHECK(Local<v8::Object>::Cast(proto)->Get(v8_str("z"))->IsUndefined());
+  CHECK(proto.As<v8::Object>()->Get(v8_str("z"))->IsUndefined());
 }
 
 
@@ -5179,20 +5294,20 @@ THREADED_TEST(SetPrototype) {
   // object.
   Local<Value> proto = o0->Get(v8_str("__proto__"));
   CHECK(proto->IsObject());
-  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto), o3);
+  CHECK_EQ(proto.As<v8::Object>(), o3);
 
   // However, Object::GetPrototype ignores hidden prototype.
   Local<Value> proto0 = o0->GetPrototype();
   CHECK(proto0->IsObject());
-  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto0), o1);
+  CHECK_EQ(proto0.As<v8::Object>(), o1);
 
   Local<Value> proto1 = o1->GetPrototype();
   CHECK(proto1->IsObject());
-  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto1), o2);
+  CHECK_EQ(proto1.As<v8::Object>(), o2);
 
   Local<Value> proto2 = o2->GetPrototype();
   CHECK(proto2->IsObject());
-  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto2), o3);
+  CHECK_EQ(proto2.As<v8::Object>(), o3);
 }
 
 
@@ -6904,7 +7019,7 @@ THREADED_TEST(ObjectProtoToString) {
 
   // Check ordinary object
   Local<Value> object = v8_compile("new Object()")->Run();
-  value = Local<v8::Object>::Cast(object)->ObjectProtoToString();
+  value = object.As<v8::Object>()->ObjectProtoToString();
   CHECK(value->IsString() && value->Equals(v8_str("[object Object]")));
 }
 
@@ -7524,12 +7639,12 @@ THREADED_TEST(DateAccess) {
   LocalContext context;
   v8::Handle<v8::Value> date = v8::Date::New(1224744689038.0);
   CHECK(date->IsDate());
-  CHECK_EQ(1224744689038.0, v8::Handle<v8::Date>::Cast(date)->NumberValue());
+  CHECK_EQ(1224744689038.0, date.As<v8::Date>()->NumberValue());
 }
 
 
 void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
-  v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(val);
+  v8::Handle<v8::Object> obj = val.As<v8::Object>();
   v8::Handle<v8::Array> props = obj->GetPropertyNames();
   CHECK_EQ(elmc, props->Length());
   for (int i = 0; i < elmc; i++) {
@@ -7551,7 +7666,7 @@ THREADED_TEST(PropertyEnumeration) {
       "var x = { __proto__: proto, w: 0, z: 1 };"
       "result[3] = x;"
       "result;"))->Run();
-  v8::Handle<v8::Array> elms = v8::Handle<v8::Array>::Cast(obj);
+  v8::Handle<v8::Array> elms = obj.As<v8::Array>();
   CHECK_EQ(4, elms->Length());
   int elmc0 = 0;
   const char** elmv0 = NULL;
@@ -8073,7 +8188,7 @@ TEST(ObjectClone) {
   // Create an object, verify basics.
   Local<Value> val = CompileRun(sample);
   CHECK(val->IsObject());
-  Local<v8::Object> obj = Local<v8::Object>::Cast(val);
+  Local<v8::Object> obj = val.As<v8::Object>();
   obj->Set(v8_str("gamma"), v8_str("cloneme"));
 
   CHECK_EQ(v8_str("hello"), obj->Get(v8_str("alpha")));
@@ -9714,7 +9829,7 @@ static void SetterWhichSetsYOnThisTo23(Local<String> name,
 }
 
 
-THREADED_TEST(SetterOnConstructorPrototype) {
+TEST(SetterOnConstructorPrototype) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetAccessor(v8_str("x"),
@@ -9794,5 +9909,49 @@ THREADED_TEST(InterceptorOnConstructorPrototype) {
     v8::Handle<v8::Object> c2 = v8::Handle<v8::Object>::Cast(script->Run());
     CHECK_EQ(23, c2->Get(v8_str("x"))->Int32Value());
     CHECK_EQ(42, c2->Get(v8_str("y"))->Int32Value());
+  }
+}
+
+
+TEST(Bug618) {
+  const char* source = "function C1() {"
+                       "  this.x = 23;"
+                       "};"
+                       "C1.prototype = P;";
+
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Local<v8::Script> script;
+
+  // Use a simple object as prototype.
+  v8::Local<v8::Object> prototype = v8::Object::New();
+  prototype->Set(v8_str("y"), v8_num(42));
+  context->Global()->Set(v8_str("P"), prototype);
+
+  // This compile will add the code to the compilation cache.
+  CompileRun(source);
+
+  script = v8::Script::Compile(v8_str("new C1();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c1 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(23, c1->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(42, c1->Get(v8_str("y"))->Int32Value());
+  }
+
+  // Use an API object with accessors as prototype.
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("x"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
+
+  // This compile will get the code from the compilation cache.
+  CompileRun(source);
+
+  script = v8::Script::Compile(v8_str("new C1();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c1 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(42, c1->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(23, c1->Get(v8_str("y"))->Int32Value());
   }
 }

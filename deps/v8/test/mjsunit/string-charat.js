@@ -51,3 +51,16 @@ assertEquals(116, s.charCodeAt(NaN));
 assertTrue(isNaN(s.charCodeAt(-1)));
 assertTrue(isNaN(s.charCodeAt(4)));
 
+// Make sure enough of the one-char string cache is filled.
+var alpha = ['@'];
+for (var i = 1; i < 128; i++) {
+  var c = String.fromCharCode(i);
+  alpha[i] = c.charAt(0);
+}
+var alphaStr = alpha.join("");
+
+// Now test chars.
+for (var i = 1; i < 128; i++) {
+  assertEquals(alpha[i], alphaStr.charAt(i));
+  assertEquals(String.fromCharCode(i), alphaStr.charAt(i));
+}

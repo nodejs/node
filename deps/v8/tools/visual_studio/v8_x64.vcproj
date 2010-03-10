@@ -143,6 +143,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\liveedit-delay.js"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\macros.py"
 				>
 			</File>

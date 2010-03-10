@@ -149,14 +149,9 @@ TEST(HeapObjects) {
   CHECK(Heap::nan_value()->IsNumber());
   CHECK(isnan(Heap::nan_value()->Number()));
 
-  Object* str = Heap::AllocateStringFromAscii(CStrVector("fisk hest "));
-  if (!str->IsFailure()) {
-    String* s =  String::cast(str);
-    CHECK(s->IsString());
-    CHECK_EQ(10, s->length());
-  } else {
-    CHECK(false);
-  }
+  Handle<String> s = Factory::NewStringFromAscii(CStrVector("fisk hest "));
+  CHECK(s->IsString());
+  CHECK_EQ(10, s->length());
 
   String* object_symbol = String::cast(Heap::Object_symbol());
   CHECK(Top::context()->global()->HasLocalProperty(object_symbol));
@@ -201,69 +196,68 @@ TEST(GarbageCollection) {
   InitializeVM();
 
   v8::HandleScope sc;
-  // check GC when heap is empty
+  // Check GC.
   int free_bytes = Heap::MaxObjectSizeInPagedSpace();
   CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
 
-  // allocate a function and keep it in global object's property
-  String* func_name  = String::cast(Heap::LookupAsciiSymbol("theFunction"));
-  SharedFunctionInfo* function_share =
-    SharedFunctionInfo::cast(Heap::AllocateSharedFunctionInfo(func_name));
-  JSFunction* function =
-      JSFunction::cast(Heap::AllocateFunction(*Top::function_map(),
-                                              function_share,
-                                              Heap::undefined_value()));
-  Map* initial_map =
-      Map::cast(Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
-  function->set_initial_map(initial_map);
-  Top::context()->global()->SetProperty(func_name, function, NONE);
+  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
+  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
+  Handle<String> prop_namex = Factory::LookupAsciiSymbol("theSlotx");
+  Handle<String> obj_name = Factory::LookupAsciiSymbol("theObject");
 
-  // allocate an object, but it is unrooted
-  String* prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
-  String* prop_namex = String::cast(Heap::LookupAsciiSymbol("theSlotx"));
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(function));
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
-  obj->SetProperty(prop_namex, Smi::FromInt(24), NONE);
+  {
+    v8::HandleScope inner_scope;
+    // Allocate a function and keep it in global object's property.
+    Handle<JSFunction> function =
+        Factory::NewFunction(name, Factory::undefined_value());
+    Handle<Map> initial_map =
+        Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    function->set_initial_map(*initial_map);
+    Top::context()->global()->SetProperty(*name, *function, NONE);
+    // Allocate an object.  Unrooted after leaving the scope.
+    Handle<JSObject> obj = Factory::NewJSObject(function);
+    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+    obj->SetProperty(*prop_namex, Smi::FromInt(24), NONE);
 
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(prop_name));
-  CHECK_EQ(Smi::FromInt(24), obj->GetProperty(prop_namex));
+    CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
+    CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
+  }
 
   CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
 
-  // function should be alive, func_name might be invalid after GC
-  func_name  = String::cast(Heap::LookupAsciiSymbol("theFunction"));
-  CHECK(Top::context()->global()->HasLocalProperty(func_name));
-  // check function is retained
-  Object* func_value = Top::context()->global()->GetProperty(func_name);
+  // Function should be alive.
+  CHECK(Top::context()->global()->HasLocalProperty(*name));
+  // Check function is retained.
+  Object* func_value = Top::context()->global()->GetProperty(*name);
   CHECK(func_value->IsJSFunction());
-  // old function pointer may not be valid
-  function = JSFunction::cast(func_value);
+  Handle<JSFunction> function(JSFunction::cast(func_value));
 
-  // allocate another object, make it reachable from global
-  obj = JSObject::cast(Heap::AllocateJSObject(function));
-  String* obj_name = String::cast(Heap::LookupAsciiSymbol("theObject"));
-  Top::context()->global()->SetProperty(obj_name, obj, NONE);
-  // set property
-  prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
+  {
+    HandleScope inner_scope;
+    // Allocate another object, make it reachable from global.
+    Handle<JSObject> obj = Factory::NewJSObject(function);
+    Top::context()->global()->SetProperty(*obj_name, *obj, NONE);
+    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+  }
 
-  // after gc, it should survive
+  // After gc, it should survive.
   CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
 
-  obj_name = String::cast(Heap::LookupAsciiSymbol("theObject"));
-  CHECK(Top::context()->global()->HasLocalProperty(obj_name));
-  CHECK(Top::context()->global()->GetProperty(obj_name)->IsJSObject());
-  obj = JSObject::cast(Top::context()->global()->GetProperty(obj_name));
-  prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(prop_name));
+  CHECK(Top::context()->global()->HasLocalProperty(*obj_name));
+  CHECK(Top::context()->global()->GetProperty(*obj_name)->IsJSObject());
+  JSObject* obj =
+      JSObject::cast(Top::context()->global()->GetProperty(*obj_name));
+  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 }
 
 
 static void VerifyStringAllocation(const char* string) {
-  String* s = String::cast(Heap::AllocateStringFromUtf8(CStrVector(string)));
+  v8::HandleScope scope;
+  Handle<String> s = Factory::NewStringFromUtf8(CStrVector(string));
   CHECK_EQ(StrLength(string), s->length());
   for (int index = 0; index < s->length(); index++) {
-    CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));  }
+    CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
+  }
 }
 
 
@@ -291,13 +285,22 @@ TEST(LocalHandles) {
 TEST(GlobalHandles) {
   InitializeVM();
 
-  Object* i = Heap::AllocateStringFromAscii(CStrVector("fisk"));
-  Object* u = Heap::AllocateHeapNumber(1.12344);
+  Handle<Object> h1;
+  Handle<Object> h2;
+  Handle<Object> h3;
+  Handle<Object> h4;
 
-  Handle<Object> h1 = GlobalHandles::Create(i);
-  Handle<Object> h2 = GlobalHandles::Create(u);
-  Handle<Object> h3 = GlobalHandles::Create(i);
-  Handle<Object> h4 = GlobalHandles::Create(u);
+  {
+    HandleScope scope;
+
+    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = Factory::NewNumber(1.12344);
+
+    h1 = GlobalHandles::Create(*i);
+    h2 = GlobalHandles::Create(*u);
+    h3 = GlobalHandles::Create(*i);
+    h4 = GlobalHandles::Create(*u);
+  }
 
   // after gc, it should survive
   CHECK(Heap::CollectGarbage(0, NEW_SPACE));
@@ -331,11 +334,18 @@ TEST(WeakGlobalHandlesScavenge) {
 
   WeakPointerCleared = false;
 
-  Object* i = Heap::AllocateStringFromAscii(CStrVector("fisk"));
-  Object* u = Heap::AllocateHeapNumber(1.12344);
+  Handle<Object> h1;
+  Handle<Object> h2;
 
-  Handle<Object> h1 = GlobalHandles::Create(i);
-  Handle<Object> h2 = GlobalHandles::Create(u);
+  {
+    HandleScope scope;
+
+    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = Factory::NewNumber(1.12344);
+
+    h1 = GlobalHandles::Create(*i);
+    h2 = GlobalHandles::Create(*u);
+  }
 
   GlobalHandles::MakeWeak(h2.location(),
                           reinterpret_cast<void*>(1234),
@@ -361,11 +371,18 @@ TEST(WeakGlobalHandlesMark) {
 
   WeakPointerCleared = false;
 
-  Object* i = Heap::AllocateStringFromAscii(CStrVector("fisk"));
-  Object* u = Heap::AllocateHeapNumber(1.12344);
+  Handle<Object> h1;
+  Handle<Object> h2;
 
-  Handle<Object> h1 = GlobalHandles::Create(i);
-  Handle<Object> h2 = GlobalHandles::Create(u);
+  {
+    HandleScope scope;
+
+    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = Factory::NewNumber(1.12344);
+
+    h1 = GlobalHandles::Create(*i);
+    h2 = GlobalHandles::Create(*u);
+  }
 
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
   CHECK(Heap::CollectGarbage(0, NEW_SPACE));
@@ -401,8 +418,14 @@ TEST(DeleteWeakGlobalHandle) {
 
   WeakPointerCleared = false;
 
-  Object* i = Heap::AllocateStringFromAscii(CStrVector("fisk"));
-  Handle<Object> h = GlobalHandles::Create(i);
+  Handle<Object> h;
+
+  {
+    HandleScope scope;
+
+    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
+    h = GlobalHandles::Create(*i);
+  }
 
   GlobalHandles::MakeWeak(h.location(),
                           reinterpret_cast<void*>(1234),
@@ -509,24 +532,20 @@ TEST(FunctionAllocation) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* name  = String::cast(Heap::LookupAsciiSymbol("theFunction"));
-  SharedFunctionInfo* function_share =
-    SharedFunctionInfo::cast(Heap::AllocateSharedFunctionInfo(name));
-  JSFunction* function =
-    JSFunction::cast(Heap::AllocateFunction(*Top::function_map(),
-                                            function_share,
-                                            Heap::undefined_value()));
-  Map* initial_map =
-      Map::cast(Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
-  function->set_initial_map(initial_map);
+  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
+  Handle<JSFunction> function =
+      Factory::NewFunction(name, Factory::undefined_value());
+  Handle<Map> initial_map =
+      Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  function->set_initial_map(*initial_map);
 
-  String* prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(function));
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(prop_name));
+  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
+  Handle<JSObject> obj = Factory::NewJSObject(function);
+  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
-  function->SetProperty(prop_name, Smi::FromInt(24), NONE);
-  CHECK_EQ(Smi::FromInt(24), function->GetProperty(prop_name));
+  function->SetProperty(*prop_name, Smi::FromInt(24), NONE);
+  CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
 }
 
 
@@ -534,64 +553,64 @@ TEST(ObjectProperties) {
   InitializeVM();
 
   v8::HandleScope sc;
-  JSFunction* constructor =
-      JSFunction::cast(
-          Top::context()->global()->GetProperty(String::cast(
-                                                    Heap::Object_symbol())));
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(constructor));
-  String* first = String::cast(Heap::LookupAsciiSymbol("first"));
-  String* second = String::cast(Heap::LookupAsciiSymbol("second"));
+  String* object_symbol = String::cast(Heap::Object_symbol());
+  JSFunction* object_function =
+      JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
+  Handle<JSFunction> constructor(object_function);
+  Handle<JSObject> obj = Factory::NewJSObject(constructor);
+  Handle<String> first = Factory::LookupAsciiSymbol("first");
+  Handle<String> second = Factory::LookupAsciiSymbol("second");
 
   // check for empty
-  CHECK(!obj->HasLocalProperty(first));
+  CHECK(!obj->HasLocalProperty(*first));
 
   // add first
-  obj->SetProperty(first, Smi::FromInt(1), NONE);
-  CHECK(obj->HasLocalProperty(first));
+  obj->SetProperty(*first, Smi::FromInt(1), NONE);
+  CHECK(obj->HasLocalProperty(*first));
 
   // delete first
-  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
-  CHECK(!obj->HasLocalProperty(first));
+  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  CHECK(!obj->HasLocalProperty(*first));
 
   // add first and then second
-  obj->SetProperty(first, Smi::FromInt(1), NONE);
-  obj->SetProperty(second, Smi::FromInt(2), NONE);
-  CHECK(obj->HasLocalProperty(first));
-  CHECK(obj->HasLocalProperty(second));
+  obj->SetProperty(*first, Smi::FromInt(1), NONE);
+  obj->SetProperty(*second, Smi::FromInt(2), NONE);
+  CHECK(obj->HasLocalProperty(*first));
+  CHECK(obj->HasLocalProperty(*second));
 
   // delete first and then second
-  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
-  CHECK(obj->HasLocalProperty(second));
-  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
-  CHECK(!obj->HasLocalProperty(first));
-  CHECK(!obj->HasLocalProperty(second));
+  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  CHECK(obj->HasLocalProperty(*second));
+  CHECK(obj->DeleteProperty(*second, JSObject::NORMAL_DELETION));
+  CHECK(!obj->HasLocalProperty(*first));
+  CHECK(!obj->HasLocalProperty(*second));
 
   // add first and then second
-  obj->SetProperty(first, Smi::FromInt(1), NONE);
-  obj->SetProperty(second, Smi::FromInt(2), NONE);
-  CHECK(obj->HasLocalProperty(first));
-  CHECK(obj->HasLocalProperty(second));
+  obj->SetProperty(*first, Smi::FromInt(1), NONE);
+  obj->SetProperty(*second, Smi::FromInt(2), NONE);
+  CHECK(obj->HasLocalProperty(*first));
+  CHECK(obj->HasLocalProperty(*second));
 
   // delete second and then first
-  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
-  CHECK(obj->HasLocalProperty(first));
-  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
-  CHECK(!obj->HasLocalProperty(first));
-  CHECK(!obj->HasLocalProperty(second));
+  CHECK(obj->DeleteProperty(*second, JSObject::NORMAL_DELETION));
+  CHECK(obj->HasLocalProperty(*first));
+  CHECK(obj->DeleteProperty(*first, JSObject::NORMAL_DELETION));
+  CHECK(!obj->HasLocalProperty(*first));
+  CHECK(!obj->HasLocalProperty(*second));
 
   // check string and symbol match
   static const char* string1 = "fisk";
-  String* s1 =
-      String::cast(Heap::AllocateStringFromAscii(CStrVector(string1)));
-  obj->SetProperty(s1, Smi::FromInt(1), NONE);
-  CHECK(obj->HasLocalProperty(String::cast(Heap::LookupAsciiSymbol(string1))));
+  Handle<String> s1 = Factory::NewStringFromAscii(CStrVector(string1));
+  obj->SetProperty(*s1, Smi::FromInt(1), NONE);
+  Handle<String> s1_symbol = Factory::LookupAsciiSymbol(string1);
+  CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
   static const char* string2 = "fugl";
-  String* s2 = String::cast(Heap::LookupAsciiSymbol(string2));
-  obj->SetProperty(s2, Smi::FromInt(1), NONE);
-  CHECK(obj->HasLocalProperty(
-            String::cast(Heap::AllocateStringFromAscii(CStrVector(string2)))));
+  Handle<String> s2_symbol = Factory::LookupAsciiSymbol(string2);
+  obj->SetProperty(*s2_symbol, Smi::FromInt(1), NONE);
+  Handle<String> s2 = Factory::NewStringFromAscii(CStrVector(string2));
+  CHECK(obj->HasLocalProperty(*s2));
 }
 
 
@@ -599,25 +618,22 @@ TEST(JSObjectMaps) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* name  = String::cast(Heap::LookupAsciiSymbol("theFunction"));
-  SharedFunctionInfo* function_share =
-    SharedFunctionInfo::cast(Heap::AllocateSharedFunctionInfo(name));
-  JSFunction* function =
-    JSFunction::cast(Heap::AllocateFunction(*Top::function_map(),
-                                            function_share,
-                                            Heap::undefined_value()));
-  Map* initial_map =
-      Map::cast(Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
-  function->set_initial_map(initial_map);
-  String* prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(function));
+  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
+  Handle<JSFunction> function =
+      Factory::NewFunction(name, Factory::undefined_value());
+  Handle<Map> initial_map =
+      Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  function->set_initial_map(*initial_map);
+
+  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
+  Handle<JSObject> obj = Factory::NewJSObject(function);
 
   // Set a propery
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(prop_name));
+  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 
   // Check the map has changed
-  CHECK(initial_map != obj->map());
+  CHECK(*initial_map != obj->map());
 }
 
 
@@ -625,12 +641,13 @@ TEST(JSArray) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* name = String::cast(Heap::LookupAsciiSymbol("Array"));
-  JSFunction* function =
-      JSFunction::cast(Top::context()->global()->GetProperty(name));
+  Handle<String> name = Factory::LookupAsciiSymbol("Array");
+  Handle<JSFunction> function = Handle<JSFunction>(
+      JSFunction::cast(Top::context()->global()->GetProperty(*name)));
 
   // Allocate the object.
-  JSArray* array = JSArray::cast(Heap::AllocateJSObject(function));
+  Handle<JSObject> object = Factory::NewJSObject(function);
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
   array->Initialize(0);
 
   // Set array length to 0.
@@ -639,27 +656,27 @@ TEST(JSArray) {
   CHECK(array->HasFastElements());  // Must be in fast mode.
 
   // array[length] = name.
-  array->SetElement(0, name);
+  array->SetElement(0, *name);
   CHECK_EQ(Smi::FromInt(1), array->length());
-  CHECK_EQ(array->GetElement(0), name);
+  CHECK_EQ(array->GetElement(0), *name);
 
-// Set array length with larger than smi value.
-  Object* length =
-      Heap::NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  array->SetElementsLength(length);
+  // Set array length with larger than smi value.
+  Handle<Object> length =
+      Factory::NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  array->SetElementsLength(*length);
 
   uint32_t int_length = 0;
-  CHECK(Array::IndexFromObject(length, &int_length));
-  CHECK_EQ(length, array->length());
+  CHECK(Array::IndexFromObject(*length, &int_length));
+  CHECK_EQ(*length, array->length());
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  array->SetElement(int_length, name);
+  array->SetElement(int_length, *name);
   uint32_t new_int_length = 0;
   CHECK(Array::IndexFromObject(array->length(), &new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  CHECK_EQ(array->GetElement(int_length), name);
-  CHECK_EQ(array->GetElement(0), name);
+  CHECK_EQ(array->GetElement(int_length), *name);
+  CHECK_EQ(array->GetElement(0), *name);
 }
 
 
@@ -667,41 +684,42 @@ TEST(JSObjectCopy) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* name = String::cast(Heap::Object_symbol());
-  JSFunction* constructor =
-      JSFunction::cast(Top::context()->global()->GetProperty(name));
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(constructor));
-  String* first = String::cast(Heap::LookupAsciiSymbol("first"));
-  String* second = String::cast(Heap::LookupAsciiSymbol("second"));
+  String* object_symbol = String::cast(Heap::Object_symbol());
+  JSFunction* object_function =
+      JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
+  Handle<JSFunction> constructor(object_function);
+  Handle<JSObject> obj = Factory::NewJSObject(constructor);
+  Handle<String> first = Factory::LookupAsciiSymbol("first");
+  Handle<String> second = Factory::LookupAsciiSymbol("second");
 
-  obj->SetProperty(first, Smi::FromInt(1), NONE);
-  obj->SetProperty(second, Smi::FromInt(2), NONE);
+  obj->SetProperty(*first, Smi::FromInt(1), NONE);
+  obj->SetProperty(*second, Smi::FromInt(2), NONE);
 
-  obj->SetElement(0, first);
-  obj->SetElement(1, second);
+  obj->SetElement(0, *first);
+  obj->SetElement(1, *second);
 
   // Make the clone.
-  JSObject* clone = JSObject::cast(Heap::CopyJSObject(obj));
-  CHECK(clone != obj);
+  Handle<JSObject> clone = Copy(obj);
+  CHECK(!clone.is_identical_to(obj));
 
   CHECK_EQ(obj->GetElement(0), clone->GetElement(0));
   CHECK_EQ(obj->GetElement(1), clone->GetElement(1));
 
-  CHECK_EQ(obj->GetProperty(first), clone->GetProperty(first));
-  CHECK_EQ(obj->GetProperty(second), clone->GetProperty(second));
+  CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*first));
+  CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
 
   // Flip the values.
-  clone->SetProperty(first, Smi::FromInt(2), NONE);
-  clone->SetProperty(second, Smi::FromInt(1), NONE);
+  clone->SetProperty(*first, Smi::FromInt(2), NONE);
+  clone->SetProperty(*second, Smi::FromInt(1), NONE);
 
-  clone->SetElement(0, second);
-  clone->SetElement(1, first);
+  clone->SetElement(0, *second);
+  clone->SetElement(1, *first);
 
   CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
   CHECK_EQ(obj->GetElement(0), clone->GetElement(1));
 
-  CHECK_EQ(obj->GetProperty(second), clone->GetProperty(first));
-  CHECK_EQ(obj->GetProperty(first), clone->GetProperty(second));
+  CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*first));
+  CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*second));
 }
 
 

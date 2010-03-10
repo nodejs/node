@@ -146,9 +146,10 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-ia32.cc).
   // ----------- S t a t e -------------
-  //  No registers used on entry.
+  //  -- edx    : receiver
+  //  -- eax    : key
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | edx.bit(), false);
 }
 
 
@@ -156,10 +157,12 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-ia32.cc).
   // ----------- S t a t e -------------
   //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
   // -----------------------------------
   // Register eax contains an object that needs to be pushed on the
   // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, eax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit() | edx.bit(), false);
 }
 
 

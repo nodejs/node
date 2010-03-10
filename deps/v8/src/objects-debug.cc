@@ -644,6 +644,24 @@ void Map::MapVerify() {
 }
 
 
+void CodeCache::CodeCachePrint() {
+  HeapObject::PrintHeader("CodeCache");
+  PrintF("\n - default_cache: ");
+  default_cache()->ShortPrint();
+  PrintF("\n - normal_type_cache: ");
+  normal_type_cache()->ShortPrint();
+}
+
+
+void CodeCache::CodeCacheVerify() {
+  VerifyHeapPointer(default_cache());
+  VerifyHeapPointer(normal_type_cache());
+  ASSERT(default_cache()->IsFixedArray());
+  ASSERT(normal_type_cache()->IsUndefined()
+         || normal_type_cache()->IsCodeCacheHashTable());
+}
+
+
 void FixedArray::FixedArrayPrint() {
   HeapObject::PrintHeader("FixedArray");
   PrintF(" - length: %d", length());

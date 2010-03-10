@@ -547,6 +547,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for charCodeAt(n).
   void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 
+  // Fast support for string.charAt(n) and string[n].
+  void GenerateCharFromCode(ZoneList<Expression*>* args);
+
   // Fast support for object equality testing.
   void GenerateObjectEquals(ZoneList<Expression*>* args);
 
@@ -572,7 +575,17 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
-  // Simple condition analysis.
+  // Fast support for Math.pow().
+  void GenerateMathPow(ZoneList<Expression*>* args);
+
+  // Fast call to math functions.
+  void GenerateMathSin(ZoneList<Expression*>* args);
+  void GenerateMathCos(ZoneList<Expression*>* args);
+
+  // Fast case for sqrt
+  void GenerateMathSqrt(ZoneList<Expression*>* args);
+
+// Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
     ALWAYS_FALSE,
@@ -651,7 +664,7 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags,
-                      NumberInfo::Type operands_type = NumberInfo::kUnknown)
+                      NumberInfo operands_type = NumberInfo::Unknown())
       : op_(op),
         mode_(mode),
         flags_(flags),
@@ -683,7 +696,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
   char* name_;
-  NumberInfo::Type operands_type_;
+  NumberInfo operands_type_;
 
   const char* GetName();
 
@@ -697,7 +710,7 @@ class GenericBinaryOpStub: public CodeStub {
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
            static_cast<int>(args_reversed_),
-           NumberInfo::ToString(operands_type_));
+           operands_type_.ToString());
   }
 #endif
 
@@ -708,7 +721,7 @@ class GenericBinaryOpStub: public CodeStub {
   class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
   class ArgsReversedBits: public BitField<bool, 11, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
-  class NumberInfoBits: public BitField<NumberInfo::Type, 13, 3> {};
+  class NumberInfoBits: public BitField<int, 13, 3> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -719,7 +732,7 @@ class GenericBinaryOpStub: public CodeStub {
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
            | ArgsReversedBits::encode(args_reversed_)
-           | NumberInfoBits::encode(operands_type_);
+           | NumberInfoBits::encode(operands_type_.ThreeBitRepresentation());
   }
 
   void Generate(MacroAssembler* masm);
@@ -763,6 +776,33 @@ class StringStubBase: public CodeStub {
                                  Register src,      // Must be rsi.
                                  Register count,    // Must be rcx.
                                  bool ascii);
+
+
+  // Probe the symbol table for a two character string. If the string is
+  // not found by probing a jump to the label not_found is performed. This jump
+  // does not guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in register rax.
+  void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                            Register c1,
+                                            Register c2,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Register scratch3,
+                                            Register scratch4,
+                                            Label* not_found);
+
+  // Generate string hash.
+  void GenerateHashInit(MacroAssembler* masm,
+                        Register hash,
+                        Register character,
+                        Register scratch);
+  void GenerateHashAddCharacter(MacroAssembler* masm,
+                                Register hash,
+                                Register character,
+                                Register scratch);
+  void GenerateHashGetHash(MacroAssembler* masm,
+                           Register hash,
+                           Register scratch);
 };
 
 

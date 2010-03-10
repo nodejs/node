@@ -567,6 +567,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
   TickSample sample;
 
+  // We always sample the VM state.
+  sample.state = Logger::state();
+
   // If profiling, we extract the current pc and sp.
   if (active_sampler_->IsProfiling()) {
     // Extracting the sample from the context is extremely machine dependent.
@@ -587,9 +590,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif
     active_sampler_->SampleStack(&sample);
   }
-
-  // We always sample the VM state.
-  sample.state = Logger::state();
 
   active_sampler_->Tick(&sample);
 }

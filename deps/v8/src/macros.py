@@ -73,6 +73,16 @@ const kDayMask            = 0x01f;
 const kYearShift          = 9;
 const kMonthShift         = 5;
 
+# Limits for parts of the date, so that we support all the dates that
+# ECMA 262 - 15.9.1.1 requires us to, but at the same time be sure that
+# the date (days since 1970) is in SMI range.
+const kMinYear  = -1000000;
+const kMaxYear  = 1000000;
+const kMinMonth = -10000000;
+const kMaxMonth = 10000000;
+const kMinDate  = -100000000;
+const kMaxDate  = 100000000;
+
 # Type query macros.
 #
 # Note: We have special support for typeof(foo) === 'bar' in the compiler.

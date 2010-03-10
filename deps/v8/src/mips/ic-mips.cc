@@ -90,11 +90,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
-}
-
-
-void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -120,11 +115,6 @@ Object* KeyedLoadIC_Miss(Arguments args);
 
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
-}
-
-
-void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -145,12 +135,6 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::Generate(MacroAssembler* masm,
-                            const ExternalReference& f) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
@@ -162,7 +146,12 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -172,12 +161,12 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void StoreIC::GenerateMiss(MacroAssembler* masm) {
+void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 

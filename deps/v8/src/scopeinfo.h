@@ -29,6 +29,7 @@
 #define V8_SCOPEINFO_H_
 
 #include "variables.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
