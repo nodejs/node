@@ -35,6 +35,14 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+Register FastCodeGenerator::accumulator0() { return no_reg; }
+Register FastCodeGenerator::accumulator1() { return no_reg; }
+Register FastCodeGenerator::scratch0() { return no_reg; }
+Register FastCodeGenerator::scratch1() { return no_reg; }
+Register FastCodeGenerator::receiver_reg() { return no_reg; }
+Register FastCodeGenerator::context_reg() { return no_reg; }
+
+
 void FastCodeGenerator::Generate(CompilationInfo* info) {
   UNIMPLEMENTED_MIPS();
 }
@@ -45,7 +53,17 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 }
 
 
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<String> name) {
+void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> name) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
   UNIMPLEMENTED_MIPS();
 }
 

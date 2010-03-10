@@ -113,8 +113,11 @@ function EquivalentTime(t) {
   // we must do this, but for compatibility with other browsers, we use
   // the actual year if it is in the range 1970..2037
   if (t >= 0 && t <= 2.1e12) return t;
-  var day = MakeDay(EquivalentYear(YEAR_FROM_TIME(t)), MONTH_FROM_TIME(t), DATE_FROM_TIME(t));
-  return TimeClip(MakeDate(day, TimeWithinDay(t)));
+
+  var day = MakeDay(EquivalentYear(YEAR_FROM_TIME(t)),
+                    MONTH_FROM_TIME(t),
+                    DATE_FROM_TIME(t));
+  return MakeDate(day, TimeWithinDay(t));
 }
 
 
@@ -257,14 +260,6 @@ function TimeInYear(year) {
 }
 
 
-// Compute modified Julian day from year, month, date.
-function ToJulianDay(year, month, date) {
-  var jy = (month > 1) ? year : year - 1;
-  var jm = (month > 1) ? month + 2 : month + 14;
-  var ja = FLOOR(jy / 100);
-  return FLOOR(FLOOR(365.25*jy) + FLOOR(30.6001*jm) + date + 1720995) + 2 - ja + FLOOR(0.25*ja);
-}
-
 var four_year_cycle_table = CalculateDateTable();
 
 
@@ -359,20 +354,18 @@ function FromJulianDay(julian) {
 function MakeDay(year, month, date) {
   if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return $NaN;
 
-  // Conversion to integers.
   year = TO_INTEGER(year);
   month = TO_INTEGER(month);
   date = TO_INTEGER(date);
 
-  // Overflow months into year.
-  year = year + FLOOR(month/12);
-  month = month % 12;
-  if (month < 0) {
-    month += 12;
+  if (year < kMinYear || year > kMaxYear ||
+      month < kMinMonth || month > kMaxMonth ||
+      date < kMinDate || date > kMaxDate) {
+    return $NaN;
   }
 
-  // Return days relative to Jan 1 1970.
-  return ToJulianDay(year, month, date) - kDayZeroInJulianDay;
+  // Now we rely on year, month and date being SMIs.
+  return %DateMakeDay(year, month, date);
 }
 
 

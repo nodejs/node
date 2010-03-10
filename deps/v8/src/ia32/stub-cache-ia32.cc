@@ -446,7 +446,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-      __ TailCallRuntime(ref, 5, 1);
+      __ TailCallExternalReference(ref, 5, 1);
 
       __ bind(&cleanup);
       __ pop(scratch1);
@@ -468,7 +468,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
-    __ TailCallRuntime(ref, 5, 1);
+    __ TailCallExternalReference(ref, 5, 1);
   }
 
  private:
@@ -907,7 +907,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ push(Immediate(Handle<Map>(transition)));
     __ push(eax);
     __ push(scratch);
-    __ TailCallRuntime(
+    __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)), 3, 1);
     return;
   }
@@ -1589,7 +1589,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
-  __ TailCallRuntime(store_callback_property, 4, 1);
+  __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1638,7 +1638,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallRuntime(store_ic_property, 3, 1);
+  __ TailCallExternalReference(store_ic_property, 3, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1691,22 +1691,17 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : key
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
   __ IncrementCounter(&Counters::keyed_store_field, 1);
 
-  // Get the name from the stack.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
   // Check that the name has not changed.
   __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
-
-  // Get the object from the stack.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),

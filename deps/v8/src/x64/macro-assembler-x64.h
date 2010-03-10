@@ -426,6 +426,20 @@ class MacroAssembler: public Assembler {
                                            Register scratch2,
                                            Label* on_not_both_flat_ascii);
 
+  // Check whether the instance type represents a flat ascii string. Jump to the
+  // label if not. If the instance type can be scratched specify same register
+  // for both instance type and scratch.
+  void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
+                                              Register scratch,
+                                              Label *on_not_flat_ascii_string);
+
+  void JumpIfBothInstanceTypesAreNotSequentialAscii(
+      Register first_object_instance_type,
+      Register second_object_instance_type,
+      Register scratch1,
+      Register scratch2,
+      Label* on_fail);
+
   // ---------------------------------------------------------------------------
   // Macro instructions.
 
@@ -645,7 +659,6 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  // Eventually this should be used for all C calls.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -656,14 +669,19 @@ class MacroAssembler: public Assembler {
                              int num_arguments);
 
   // Tail call of a runtime routine (jump).
-  // Like JumpToRuntime, but also takes care of passing the number
-  // of arguments.
-  void TailCallRuntime(const ExternalReference& ext,
+  // Like JumpToExternalReference, but also takes care of passing the number
+  // of parameters.
+  void TailCallExternalReference(const ExternalReference& ext,
+                                 int num_arguments,
+                                 int result_size);
+
+  // Convenience function: tail call a runtime routine (jump).
+  void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
   // Jump to a runtime routine.
-  void JumpToRuntime(const ExternalReference& ext, int result_size);
+  void JumpToExternalReference(const ExternalReference& ext, int result_size);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],

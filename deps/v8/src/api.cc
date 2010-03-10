@@ -34,9 +34,11 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "messages.h"
 #include "platform.h"
 #include "serialize.h"
 #include "snapshot.h"
+#include "top.h"
 #include "utils.h"
 #include "v8threads.h"
 #include "version.h"
@@ -1569,6 +1571,18 @@ bool Value::IsInt32() const {
 }
 
 
+bool Value::IsUint32() const {
+  if (IsDeadCheck("v8::Value::IsUint32()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) return i::Smi::cast(*obj)->value() >= 0;
+  if (obj->IsNumber()) {
+    double value = obj->Number();
+    return i::FastUI2D(i::FastD2UI(value)) == value;
+  }
+  return false;
+}
+
+
 bool Value::IsDate() const {
   if (IsDeadCheck("v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1974,6 +1988,23 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
+bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
+  ON_BAILOUT("v8::Object::Set()", return false);
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::SetElement(
+      self,
+      index,
+      value_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 bool v8::Object::ForceSet(v8::Handle<Value> key,
                           v8::Handle<Value> value,
                           v8::PropertyAttribute attribs) {
@@ -2016,6 +2047,18 @@ Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = i::GetProperty(self, key_obj);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  return Utils::ToLocal(result);
+}
+
+
+Local<Value> v8::Object::Get(uint32_t index) {
+  ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> result = i::GetElement(self, index);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Value>());
   return Utils::ToLocal(result);
@@ -2614,7 +2657,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   StringTracker::RecordWrite(str);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat();
+  str->TryFlatten();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2727,6 +2770,17 @@ int32_t Int32::Value() const {
 }
 
 
+uint32_t Uint32::Value() const {
+  if (IsDeadCheck("v8::Uint32::Value()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) {
+    return i::Smi::cast(*obj)->value();
+  } else {
+    return static_cast<uint32_t>(obj->Number());
+  }
+}
+
+
 int v8::Object::InternalFieldCount() {
   if (IsDeadCheck("v8::Object::InternalFieldCount()")) return 0;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
@@ -2820,9 +2874,9 @@ void v8::V8::LowMemoryNotification() {
 }
 
 
-void v8::V8::ContextDisposedNotification() {
-  if (!i::V8::IsRunning()) return;
-  i::Heap::NotifyContextDisposed();
+int v8::V8::ContextDisposedNotification() {
+  if (!i::V8::IsRunning()) return 0;
+  return i::Heap::NotifyContextDisposed();
 }
 
 

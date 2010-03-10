@@ -29,6 +29,7 @@
 #define V8_JUMP_TARGET_H_
 
 #include "macro-assembler.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {

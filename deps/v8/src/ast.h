@@ -117,6 +117,9 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 class AstNode: public ZoneObject {
  public:
+  static const int kNoNumber = -1;
+
+  AstNode() : num_(kNoNumber) {}
   virtual ~AstNode() { }
   virtual void Accept(AstVisitor* v) = 0;
 
@@ -141,6 +144,13 @@ class AstNode: public ZoneObject {
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
   virtual CompareOperation* AsCompareOperation() { return NULL; }
+
+  int num() { return num_; }
+  void set_num(int n) { num_ = n; }
+
+ private:
+  // Support for ast node numbering.
+  int num_;
 };
 
 
@@ -181,9 +191,10 @@ class Expression: public AstNode {
     kTestValue
   };
 
-  static const int kNoLabel = -1;
-
-  Expression() : num_(kNoLabel), def_(NULL), defined_vars_(NULL) {}
+  Expression()
+      : bitfields_(0),
+        def_(NULL),
+        defined_vars_(NULL) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -211,11 +222,6 @@ class Expression: public AstNode {
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
-  int num() { return num_; }
-
-  // AST node numbering ordered by evaluation order.
-  void set_num(int n) { num_ = n; }
-
   // Data flow information.
   DefinitionInfo* var_def() { return def_; }
   void set_var_def(DefinitionInfo* def) { def_ = def; }
@@ -225,11 +231,36 @@ class Expression: public AstNode {
     defined_vars_ = defined_vars;
   }
 
+  // AST analysis results
+
+  // True if the expression rooted at this node can be compiled by the
+  // side-effect free compiler.
+  bool side_effect_free() { return SideEffectFreeField::decode(bitfields_); }
+  void set_side_effect_free(bool is_side_effect_free) {
+    bitfields_ &= ~SideEffectFreeField::mask();
+    bitfields_ |= SideEffectFreeField::encode(is_side_effect_free);
+  }
+
+  // Will ToInt32 (ECMA 262-3 9.5) or ToUint32 (ECMA 262-3 9.6)
+  // be applied to the value of this expression?
+  // If so, we may be able to optimize the calculation of the value.
+  bool to_int32() { return ToInt32Field::decode(bitfields_); }
+  void set_to_int32(bool to_int32) {
+    bitfields_ &= ~ToInt32Field::mask();
+    bitfields_ |= ToInt32Field::encode(to_int32);
+  }
+
+
  private:
+  uint32_t bitfields_;
   StaticType type_;
-  int num_;
+
   DefinitionInfo* def_;
   ZoneList<DefinitionInfo*>* defined_vars_;
+
+  // Using template BitField<type, start, size>.
+  class SideEffectFreeField : public BitField<bool, 0, 1> {};
+  class ToInt32Field : public BitField<bool, 1, 1> {};
 };
 
 
@@ -931,6 +962,10 @@ class VariableProxy: public Expression {
     return var()->is_global() || var()->rewrite()->IsLeaf();
   }
 
+  // Reading from a mutable variable is a side effect, but 'this' is
+  // immutable.
+  virtual bool IsTrivial() { return is_this(); }
+
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);
   }
@@ -942,8 +977,6 @@ class VariableProxy: public Expression {
 
   Handle<String> name() const  { return name_; }
   Variable* var() const  { return var_; }
-  UseCount* var_uses()  { return &var_uses_; }
-  UseCount* obj_uses()  { return &obj_uses_; }
   bool is_this() const  { return is_this_; }
   bool inside_with() const  { return inside_with_; }
 
@@ -955,10 +988,6 @@ class VariableProxy: public Expression {
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
   bool inside_with_;
-
-  // VariableProxy usage info.
-  UseCount var_uses_;  // uses of the variable value
-  UseCount obj_uses_;  // uses of the object the variable points to
 
   VariableProxy(Handle<String> name, bool is_this, bool inside_with);
   explicit VariableProxy(bool is_this);
@@ -1017,6 +1046,8 @@ class Slot: public Expression {
   virtual Slot* AsSlot() { return this; }
 
   virtual bool IsLeaf() { return true; }
+
+  bool IsStackAllocated() { return type_ == PARAMETER || type_ == LOCAL; }
 
   // Accessors
   Variable* var() const { return var_; }

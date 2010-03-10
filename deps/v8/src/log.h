@@ -265,7 +265,7 @@ class Logger {
   }
 
   static bool is_logging() {
-    return is_logging_;
+    return logging_nesting_ > 0;
   }
 
   // Pause/Resume collection of profiling data.
@@ -330,6 +330,9 @@ class Logger {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
 
+  // Logs an IntEvent regardless of whether FLAG_log is true.
+  static void UncheckedIntEvent(const char* name, int value);
+
   // Stops logging and profiling in case of insufficient resources.
   static void StopLoggingAndProfiling();
 
@@ -372,7 +375,7 @@ class Logger {
 
   friend class LoggerTestHelper;
 
-  static bool is_logging_;
+  static int logging_nesting_;
   static int cpu_profiler_nesting_;
   static int heap_profiler_nesting_;
 #else

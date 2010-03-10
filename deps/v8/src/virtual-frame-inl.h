@@ -33,6 +33,21 @@
 namespace v8 {
 namespace internal {
 
+
+// On entry to a function, the virtual frame already contains the receiver,
+// the parameters, and a return address.  All frame elements are in memory.
+VirtualFrame::VirtualFrame()
+    : elements_(parameter_count() + local_count() + kPreallocatedElements),
+      stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
+  for (int i = 0; i <= stack_pointer_; i++) {
+    elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+  }
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    register_locations_[i] = kIllegalIndex;
+  }
+}
+
+
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : elements_(original->element_count()),
@@ -50,7 +65,7 @@ void VirtualFrame::PushFrameSlotAt(int index) {
 }
 
 
-void VirtualFrame::Push(Register reg, NumberInfo::Type info) {
+void VirtualFrame::Push(Register reg, NumberInfo info) {
   if (is_used(reg)) {
     int index = register_location(reg);
     FrameElement element = CopyElementAt(index, info);

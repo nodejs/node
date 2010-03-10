@@ -39,6 +39,7 @@
 #include "global-handles.h"
 #include "ic.h"
 #include "ic-inl.h"
+#include "messages.h"
 #include "natives.h"
 #include "stub-cache.h"
 #include "log.h"
@@ -123,7 +124,9 @@ void BreakLocationIterator::Next() {
     if (RelocInfo::IsCodeTarget(rmode())) {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
-      if (code->is_inline_cache_stub() || RelocInfo::IsConstructCall(rmode())) {
+      if ((code->is_inline_cache_stub() &&
+           code->kind() != Code::BINARY_OP_IC) ||
+          RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
       }
@@ -755,6 +758,12 @@ bool Debug::Load() {
   bool caught_exception =
       !CompileDebuggerScript(Natives::GetIndex("mirror")) ||
       !CompileDebuggerScript(Natives::GetIndex("debug"));
+
+  if (FLAG_enable_liveedit) {
+    caught_exception = caught_exception ||
+        !CompileDebuggerScript(Natives::GetIndex("liveedit"));
+  }
+
   Debugger::set_compiling_natives(false);
 
   // Make sure we mark the debugger as not loading before we might
@@ -1337,24 +1346,26 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
   if (code->is_inline_cache_stub()) {
-    if (code->is_call_stub()) {
-      return ComputeCallDebugBreak(code->arguments_count());
-    }
-    if (code->is_load_stub()) {
-      return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
-    }
-    if (code->is_store_stub()) {
-      return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
-    }
-    if (code->is_keyed_load_stub()) {
-      Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
-      return result;
-    }
-    if (code->is_keyed_store_stub()) {
-      Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
-      return result;
+    switch (code->kind()) {
+      case Code::CALL_IC:
+        return ComputeCallDebugBreak(code->arguments_count());
+
+      case Code::LOAD_IC:
+        return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
+
+      case Code::STORE_IC:
+        return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
+
+      case Code::KEYED_LOAD_IC:
+        return Handle<Code>(
+            Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
+
+      case Code::KEYED_STORE_IC:
+        return Handle<Code>(
+            Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
+
+      default:
+        UNREACHABLE();
     }
   }
   if (RelocInfo::IsConstructCall(mode)) {
@@ -1959,7 +1970,8 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
 
 // Handle debugger actions when a new script is compiled.
-void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
+void Debugger::OnAfterCompile(Handle<Script> script,
+                              AfterCompileFlags after_compile_flags) {
   HandleScope scope;
 
   // Add the newly compiled script to the script cache.
@@ -2006,7 +2018,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Bail out based on state or if there is no listener for this event
-  if (in_debugger) return;
+  if (in_debugger && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
   if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.

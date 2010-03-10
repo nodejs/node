@@ -73,7 +73,7 @@ class VirtualFrame: public ZoneObject {
   static const int kIllegalIndex = -1;
 
   // Construct an initial virtual frame on entry to a JS function.
-  VirtualFrame();
+  inline VirtualFrame();
 
   // Construct a virtual frame as a clone of an existing one.
   explicit inline VirtualFrame(VirtualFrame* original);
@@ -84,7 +84,7 @@ class VirtualFrame: public ZoneObject {
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index,
-    NumberInfo::Type info = NumberInfo::kUninitialized);
+    NumberInfo info = NumberInfo::Uninitialized());
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -388,14 +388,14 @@ class VirtualFrame: public ZoneObject {
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(Operand operand,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
   void EmitPush(Immediate immediate,
-                NumberInfo::Type info = NumberInfo::kUnknown);
+                NumberInfo info = NumberInfo::Unknown());
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
+  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
@@ -570,6 +570,14 @@ class VirtualFrame: public ZoneObject {
   // is returned.  Otherwise, returns kIllegalIndex.
   // Register counts are correctly updated.
   int InvalidateFrameSlotAt(int index);
+
+  // This function assumes that a and b are the only results that could be in
+  // the registers a_reg or b_reg.  Other results can be live, but must not
+  //  be in the registers a_reg or b_reg.  The results a and b are invalidated.
+  void MoveResultsToRegisters(Result* a,
+                              Result* b,
+                              Register a_reg,
+                              Register b_reg);
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).

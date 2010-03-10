@@ -359,79 +359,87 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       7,
       "Heap::NewSpaceStart()");
-  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
+  Add(ExternalReference::new_space_mask().address(),
       UNCLASSIFIED,
       8,
+      "Heap::NewSpaceMask()");
+  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
+      UNCLASSIFIED,
+      9,
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address().address(),
       UNCLASSIFIED,
-      9,
+      10,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address().address(),
       UNCLASSIFIED,
-      10,
+      11,
       "Heap::NewSpaceAllocationTopAddress()");
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break().address(),
       UNCLASSIFIED,
-      11,
+      12,
       "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      12,
+      13,
       "Debug::step_in_fp_addr()");
 #endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
-      13,
+      14,
       "add_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::SUB).address(),
       UNCLASSIFIED,
-      14,
+      15,
       "sub_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MUL).address(),
       UNCLASSIFIED,
-      15,
+      16,
       "mul_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::DIV).address(),
       UNCLASSIFIED,
-      16,
+      17,
       "div_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MOD).address(),
       UNCLASSIFIED,
-      17,
+      18,
       "mod_two_doubles");
   Add(ExternalReference::compare_doubles().address(),
       UNCLASSIFIED,
-      18,
+      19,
       "compare_doubles");
 #ifdef V8_NATIVE_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
-      19,
+      20,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state().address(),
       UNCLASSIFIED,
-      20,
+      21,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack().address(),
       UNCLASSIFIED,
-      21,
+      22,
       "NativeRegExpMacroAssembler::GrowStack()");
   Add(ExternalReference::re_word_character_map().address(),
       UNCLASSIFIED,
-      22,
+      23,
       "NativeRegExpMacroAssembler::word_character_map");
 #endif
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      23,
+      24,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      24,
+      25,
       "KeyedLookupCache::field_offsets()");
+  Add(ExternalReference::transcendental_cache_array_address().address(),
+      UNCLASSIFIED,
+      26,
+      "TranscendentalCache::caches()");
 }
 
 

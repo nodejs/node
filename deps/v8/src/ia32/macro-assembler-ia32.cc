@@ -164,7 +164,10 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   if (Serializer::enabled()) {
     // Can't do arithmetic on external references if it might get serialized.
     mov(value, Operand(object));
-    and_(value, Heap::NewSpaceMask());
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    and_(Operand(value), Immediate(ExternalReference::new_space_mask()));
     cmp(Operand(value), Immediate(ExternalReference::new_space_start()));
     j(equal, &done);
   } else {
@@ -1186,15 +1189,22 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  JumpToRuntime(ext);
+  JumpToExternalReference(ext);
+}
+
+
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
 }
 
 
@@ -1264,7 +1274,7 @@ Object* MacroAssembler::TryPopHandleScope(Register saved, Register scratch) {
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& ext) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
@@ -1612,6 +1622,41 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
   j(not_equal, failure);
+}
+
+
+void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  int frameAlignment = OS::ActivationFrameAlignment();
+  if (frameAlignment != 0) {
+    // Make stack end at alignment and make room for num_arguments words
+    // and the original value of esp.
+    mov(scratch, esp);
+    sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frameAlignment));
+    and_(esp, -frameAlignment);
+    mov(Operand(esp, num_arguments * kPointerSize), scratch);
+  } else {
+    sub(Operand(esp), Immediate(num_arguments * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  // Trashing eax is ok as it will be the return value.
+  mov(Operand(eax), Immediate(function));
+  CallCFunction(eax, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                   int num_arguments) {
+  call(Operand(function));
+  if (OS::ActivationFrameAlignment() != 0) {
+    mov(esp, Operand(esp, num_arguments * kPointerSize));
+  } else {
+    add(Operand(esp), Immediate(num_arguments * sizeof(int32_t)));
+  }
 }
 
 

@@ -65,12 +65,12 @@ class Result BASE_EMBEDDED {
   Result() { invalidate(); }
 
   // Construct a register Result.
-  explicit Result(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
+  explicit Result(Register reg, NumberInfo info = NumberInfo::Unknown());
 
   // Construct a Result whose value is a compile-time constant.
   explicit Result(Handle<Object> value) {
     value_ = TypeField::encode(CONSTANT)
-        | NumberInfoField::encode(NumberInfo::kUninitialized)
+        | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -101,13 +101,12 @@ class Result BASE_EMBEDDED {
 
   void invalidate() { value_ = TypeField::encode(INVALID); }
 
-  NumberInfo::Type number_info();
-  void set_number_info(NumberInfo::Type info);
-  bool is_number() {
-    return (number_info() & NumberInfo::kNumber) != 0;
-  }
-  bool is_smi() { return number_info() == NumberInfo::kSmi; }
-  bool is_heap_number() { return number_info() == NumberInfo::kHeapNumber; }
+  inline NumberInfo number_info() const;
+  inline void set_number_info(NumberInfo info);
+  inline bool is_number() const;
+  inline bool is_smi() const;
+  inline bool is_integer32() const;
+  inline bool is_heap_number() const;
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
@@ -140,8 +139,8 @@ class Result BASE_EMBEDDED {
   uint32_t value_;
 
   class TypeField: public BitField<Type, 0, 2> {};
-  class NumberInfoField : public BitField<NumberInfo::Type, 2, 3> {};
-  class DataField: public BitField<uint32_t, 5, 32 - 5> {};
+  class NumberInfoField : public BitField<int, 2, 4> {};
+  class DataField: public BitField<uint32_t, 6, 32 - 6> {};
 
   inline void CopyTo(Result* destination) const;
 

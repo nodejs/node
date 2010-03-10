@@ -153,6 +153,9 @@ DEFINE_bool(always_fast_compiler, false,
             "try to use the speculative optimizing backend for all code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for falling back to using the classic V8 backend")
+DEFINE_bool(safe_int32_compiler, false,
+            "enable optimized side-effect-free int32 expressions.")
+DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -163,6 +166,7 @@ DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
+DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
@@ -229,9 +233,6 @@ DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions")
 DEFINE_bool(preallocate_message_memory, false,
             "preallocate some memory to build stack traces.")
-
-// usage-analyzer.cc
-DEFINE_bool(usage_computation, true, "compute variable usage counts")
 
 // v8.cc
 DEFINE_bool(preemption, false,
@@ -304,6 +305,8 @@ DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_bool(print_scopes, false, "print scopes")
 DEFINE_bool(print_ir, false, "print the AST as seen by the backend")
+DEFINE_bool(print_graph_text, false,
+            "print a text representation of the flow graph")
 
 // contexts.cc
 DEFINE_bool(trace_contexts, false, "trace contexts operations")

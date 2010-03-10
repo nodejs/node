@@ -37,23 +37,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
-// On entry to a function, the virtual frame already contains the receiver,
-// the parameters, and a return address.  All frame elements are in memory.
-VirtualFrame::VirtualFrame()
-    : elements_(parameter_count() + local_count() + kPreallocatedElements),
-      stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
-  for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
-  }
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
-
-
 void VirtualFrame::SyncElementBelowStackPointer(int index) {
   // Emit code to write elements below the stack pointer to their
   // (already allocated) stack address.
@@ -179,7 +162,7 @@ void VirtualFrame::MakeMergable() {
     if (element.is_constant() || element.is_copy()) {
       if (element.is_synced()) {
         // Just spill.
-        elements_[i] = FrameElement::MemoryElement(NumberInfo::kUnknown);
+        elements_[i] = FrameElement::MemoryElement(NumberInfo::Unknown());
       } else {
         // Allocate to a register.
         FrameElement backing_element;  // Invalid if not a copy.
@@ -191,7 +174,7 @@ void VirtualFrame::MakeMergable() {
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
                                           FrameElement::NOT_SYNCED,
-                                          NumberInfo::kUnknown);
+                                          NumberInfo::Unknown());
         Use(fresh.reg(), i);
 
         // Emit a move.
@@ -224,7 +207,7 @@ void VirtualFrame::MakeMergable() {
       // The copy flag is not relied on before the end of this loop,
       // including when registers are spilled.
       elements_[i].clear_copied();
-      elements_[i].set_number_info(NumberInfo::kUnknown);
+      elements_[i].set_number_info(NumberInfo::Unknown());
     }
   }
 }
@@ -896,30 +879,39 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
 }
 
 
+// This function assumes that the only results that could be in a_reg or b_reg
+// are a and b.  Other results can be live, but must not be in a_reg or b_reg.
+void VirtualFrame::MoveResultsToRegisters(Result* a,
+                                          Result* b,
+                                          Register a_reg,
+                                          Register b_reg) {
+  if (a->is_register() && a->reg().is(a_reg)) {
+    b->ToRegister(b_reg);
+  } else if (!cgen()->allocator()->is_used(a_reg)) {
+    a->ToRegister(a_reg);
+    b->ToRegister(b_reg);
+  } else if (cgen()->allocator()->is_used(b_reg)) {
+    // a must be in b_reg, b in a_reg.
+    __ xchg(a_reg, b_reg);
+    // Results a and b will be invalidated, so it is ok if they are switched.
+  } else {
+    b->ToRegister(b_reg);
+    a->ToRegister(a_reg);
+  }
+  a->Unuse();
+  b->Unuse();
+}
+
+
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  The IC expects
   // name in ecx and receiver in eax.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);  // No stack arguments.
-  // Move results to the right registers:
-  if (name.is_register() && name.reg().is(eax)) {
-    if (receiver.is_register() && receiver.reg().is(ecx)) {
-      // Wrong registers.
-      __ xchg(eax, ecx);
-    } else {
-      // Register ecx is free for name, which frees eax for receiver.
-      name.ToRegister(ecx);
-      receiver.ToRegister(eax);
-    }
-  } else {
-    // Register eax is free for receiver, which frees ecx for name.
-    receiver.ToRegister(eax);
-    name.ToRegister(ecx);
-  }
-  name.Unuse();
-  receiver.Unuse();
+  MoveResultsToRegisters(&name, &receiver, ecx, eax);
+
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
 }
 
@@ -929,20 +921,7 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   Result key = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
-
-  if (!key.is_register() || !key.reg().is(edx)) {
-    // Register edx is available for receiver.
-    receiver.ToRegister(edx);
-    key.ToRegister(eax);
-  } else if (!receiver.is_register() || !receiver.reg().is(eax)) {
-    // Register eax is available for key.
-    key.ToRegister(eax);
-    receiver.ToRegister(edx);
-  } else {
-    __ xchg(edx, eax);
-  }
-  key.Unuse();
-  receiver.Unuse();
+  MoveResultsToRegisters(&key, &receiver, eax, edx);
 
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
@@ -958,42 +937,57 @@ Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
     PrepareForCall(0, 0);
     value.ToRegister(eax);
     __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ mov(ecx, name);
+    value.Unuse();
   } else {
     Result receiver = Pop();
     PrepareForCall(0, 0);
-
-    if (value.is_register() && value.reg().is(edx)) {
-      if (receiver.is_register() && receiver.reg().is(eax)) {
-        // Wrong registers.
-        __ xchg(eax, edx);
-      } else {
-        // Register eax is free for value, which frees edx for receiver.
-        value.ToRegister(eax);
-        receiver.ToRegister(edx);
-      }
-    } else {
-      // Register edx is free for receiver, which guarantees eax is free for
-      // value.
-      receiver.ToRegister(edx);
-      value.ToRegister(eax);
-    }
+    MoveResultsToRegisters(&value, &receiver, eax, edx);
   }
   __ mov(ecx, name);
-  value.Unuse();
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
 
 Result VirtualFrame::CallKeyedStoreIC() {
   // Value, key, and receiver are on the top of the frame.  The IC
-  // expects value in eax and key and receiver on the stack.  It does
-  // not drop the key and receiver.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  // expects value in eax, key in ecx, and receiver in edx.
   Result value = Pop();
-  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
-  value.ToRegister(eax);
-  value.Unuse();
+  Result key = Pop();
+  Result receiver = Pop();
+  PrepareForCall(0, 0);
+  if (!cgen()->allocator()->is_used(eax) ||
+      (value.is_register() && value.reg().is(eax))) {
+    value.ToRegister(eax);  // No effect if value is in eax already.
+    MoveResultsToRegisters(&key, &receiver, ecx, edx);
+    value.Unuse();
+  } else if (!cgen()->allocator()->is_used(ecx) ||
+             (key.is_register() && key.reg().is(ecx))) {
+    // Receiver and/or key are in eax.
+    key.ToRegister(ecx);
+    MoveResultsToRegisters(&value, &receiver, eax, edx);
+    key.Unuse();
+  } else if (!cgen()->allocator()->is_used(edx) ||
+             (receiver.is_register() && receiver.reg().is(edx))) {
+    receiver.ToRegister(edx);
+    MoveResultsToRegisters(&key, &value, ecx, eax);
+    receiver.Unuse();
+  } else {
+    // All three registers are used, and no value is in the correct place.
+    // We have one of the two circular permutations of eax, ecx, edx.
+    ASSERT(value.is_register());
+    if (value.reg().is(ecx)) {
+      __ xchg(eax, edx);
+      __ xchg(eax, ecx);
+    } else {
+      __ xchg(eax, ecx);
+      __ xchg(eax, edx);
+    }
+    value.Unuse();
+    key.Unuse();
+    receiver.Unuse();
+  }
+
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1068,7 +1062,7 @@ Result VirtualFrame::Pop() {
   ASSERT(element.is_valid());
 
   // Get number type information of the result.
-  NumberInfo::Type info;
+  NumberInfo info;
   if (!element.is_copy()) {
     info = element.number_info();
   } else {
@@ -1143,7 +1137,7 @@ void VirtualFrame::EmitPop(Operand operand) {
 }
 
 
-void VirtualFrame::EmitPush(Register reg, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Register reg, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -1151,7 +1145,7 @@ void VirtualFrame::EmitPush(Register reg, NumberInfo::Type info) {
 }
 
 
-void VirtualFrame::EmitPush(Operand operand, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Operand operand, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -1159,7 +1153,7 @@ void VirtualFrame::EmitPush(Operand operand, NumberInfo::Type info) {
 }
 
 
-void VirtualFrame::EmitPush(Immediate immediate, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Immediate immediate, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;

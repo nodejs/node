@@ -881,14 +881,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\usage-analyzer.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\usage-analyzer.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\utils.cc"
 				>
 			</File>

@@ -31,13 +31,34 @@
     var array = new Array(10);
     var spliced = array.splice(1, 1, 'one', 'two');
     assertEquals(1, spliced.length);
-    assertFalse(0 in spliced);
+    assertFalse(0 in spliced, "0 in spliced");
 
     assertEquals(11, array.length);
-    assertFalse(0 in array);
+    assertFalse(0 in array, "0 in array");
     assertTrue(1 in array);
     assertTrue(2 in array);
-    assertFalse(3 in array);
+    assertFalse(3 in array, "3 in array");
+  }
+})();
+
+
+// Check various variants of empty array's splicing.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    assertEquals([], [].splice(0, 0));
+    assertEquals([], [].splice(1, 0));
+    assertEquals([], [].splice(0, 1));
+    assertEquals([], [].splice(-1, 0));
+  }
+})();
+
+
+// Check that even if result array is empty, receiver gets sliced.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var a = [1, 2, 3];
+    assertEquals([], a.splice(1, 0, 'a', 'b', 'c'));
+    assertEquals([1, 'a', 'b', 'c', 2, 3], a);
   }
 })();
 
@@ -249,23 +270,23 @@
     assertEquals(undefined, array[7]);
 
     // and now check hasOwnProperty
-    assertFalse(array.hasOwnProperty(0));
-    assertFalse(array.hasOwnProperty(1));
+    assertFalse(array.hasOwnProperty(0), "array.hasOwnProperty(0)");
+    assertFalse(array.hasOwnProperty(1), "array.hasOwnProperty(1)");
     assertTrue(array.hasOwnProperty(2));
     assertTrue(array.hasOwnProperty(3));
     assertTrue(array.hasOwnProperty(4));
-    assertFalse(array.hasOwnProperty(5));
-    assertFalse(array.hasOwnProperty(6));
-    assertFalse(array.hasOwnProperty(7));
+    assertFalse(array.hasOwnProperty(5), "array.hasOwnProperty(5)");
+    assertFalse(array.hasOwnProperty(6), "array.hasOwnProperty(6)");
+    assertFalse(array.hasOwnProperty(7), "array.hasOwnProperty(7)");
     assertTrue(array.hasOwnProperty(8));
-    assertFalse(array.hasOwnProperty(9));
+    assertFalse(array.hasOwnProperty(9), "array.hasOwnProperty(9)");
 
     // and now check couple of indices above length.
-    assertFalse(array.hasOwnProperty(10));
-    assertFalse(array.hasOwnProperty(15));
-    assertFalse(array.hasOwnProperty(31));
-    assertFalse(array.hasOwnProperty(63));
-    assertFalse(array.hasOwnProperty(2 << 32 - 1));
+    assertFalse(array.hasOwnProperty(10), "array.hasOwnProperty(10)");
+    assertFalse(array.hasOwnProperty(15), "array.hasOwnProperty(15)");
+    assertFalse(array.hasOwnProperty(31), "array.hasOwnProperty(31)");
+    assertFalse(array.hasOwnProperty(63), "array.hasOwnProperty(63)");
+    assertFalse(array.hasOwnProperty(2 << 32 - 1), "array.hasOwnProperty(2 << 31 - 1)");
   }
 })();
 
@@ -285,5 +306,15 @@
     var array = new Array(bigNum);
     array.splice(-1, 0, 1, 2, 3, 4, 5, 6, 7);
     assertEquals(bigNum + 7, array.length);
+  }
+})();
+
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var a = [7, 8, 9];
+    a.splice(0, 0, 1, 2, 3, 4, 5, 6);
+    assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], a);
+    assertFalse(a.hasOwnProperty(10), "a.hasOwnProperty(10)");
+    assertEquals(undefined, a[10]);
   }
 })();

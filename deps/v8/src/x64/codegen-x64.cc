@@ -278,6 +278,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
+  Comment cmnt(masm_, "[ function compiled by virtual frame code generator");
 
   // Initialize state.
   info_ = info;
@@ -3876,6 +3877,49 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateCharFromCode");
+  ASSERT(args->length() == 1);
+
+  Load(args->at(0));
+  Result code = frame_->Pop();
+  code.ToRegister();
+  ASSERT(code.is_valid());
+
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+
+  JumpTarget slow_case;
+  JumpTarget exit;
+
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  Condition is_smi = __ CheckSmi(code.reg());
+  slow_case.Branch(NegateCondition(is_smi), &code, not_taken);
+
+  __ SmiToInteger32(kScratchRegister, code.reg());
+  __ cmpl(kScratchRegister, Immediate(String::kMaxAsciiCharCode));
+  slow_case.Branch(above, &code, not_taken);
+
+  __ Move(temp.reg(), Factory::single_character_string_cache());
+  __ movq(temp.reg(), FieldOperand(temp.reg(),
+                                   kScratchRegister, times_pointer_size,
+                                   FixedArray::kHeaderSize));
+  __ CompareRoot(temp.reg(), Heap::kUndefinedValueRootIndex);
+  slow_case.Branch(equal, &code, not_taken);
+  code.Unuse();
+
+  frame_->Push(&temp);
+  exit.Jump();
+
+  slow_case.Bind(&code);
+  frame_->Push(&code);
+  Result result = frame_->CallRuntime(Runtime::kCharFromCode, 1);
+  frame_->Push(&result);
+
+  exit.Bind();
+}
+
+
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
@@ -3885,6 +3929,25 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   Condition positive_smi = masm_->CheckPositiveSmi(value.reg());
   value.Unuse();
   destination()->Split(positive_smi);
+}
+
+
+// Generates the Math.pow method - currently just calls runtime.
+void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(0));
+  Load(args->at(1));
+  Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
+  frame_->Push(&res);
+}
+
+
+// Generates the Math.sqrt method - currently just calls runtime.
+void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result res = frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+  frame_->Push(&res);
 }
 
 
@@ -3955,21 +4018,12 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   frame_->SpillAll();
   __ push(rsi);
 
-  // Make sure the frame is aligned like the OS expects.
-  static const int kFrameAlignment = OS::ActivationFrameAlignment();
-  if (kFrameAlignment > 0) {
-    ASSERT(IsPowerOf2(kFrameAlignment));
-    __ movq(rbx, rsp);  // Save in AMD-64 abi callee-saved register.
-    __ and_(rsp, Immediate(-kFrameAlignment));
-  }
+  static const int num_arguments = 0;
+  __ PrepareCallCFunction(num_arguments);
 
   // Call V8::RandomPositiveSmi().
-  __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
-
-  // Restore stack pointer from callee-saved register.
-  if (kFrameAlignment > 0) {
-    __ movq(rsp, rbx);
-  }
+  __ CallCFunction(ExternalReference::random_positive_smi_function(),
+                   num_arguments);
 
   __ pop(rsi);
   Result result = allocator_->Allocate(rax);
@@ -3998,6 +4052,24 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   Load(args->at(0));
 
   Result answer = frame_->CallRuntime(Runtime::kNumberToString, 1);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+  Result answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+  Result answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
   frame_->Push(&answer);
 }
 
@@ -5217,7 +5289,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo::Type operands_type =
+  NumberInfo operands_type =
       NumberInfo::Combine(left.number_info(), right.number_info());
 
   Result answer;
@@ -5253,7 +5325,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   // Set NumberInfo of result according to the operation performed.
   // We rely on the fact that smis have a 32 bit payload on x64.
   ASSERT(kSmiValueSize == 32);
-  NumberInfo::Type result_type = NumberInfo::kUnknown;
+  NumberInfo result_type = NumberInfo::Unknown();
   switch (op) {
     case Token::COMMA:
       result_type = right.number_info();
@@ -5267,32 +5339,32 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND:
       // Result is always a smi.
-      result_type = NumberInfo::kSmi;
+      result_type = NumberInfo::Smi();
       break;
     case Token::SAR:
     case Token::SHL:
       // Result is always a smi.
-      result_type = NumberInfo::kSmi;
+      result_type = NumberInfo::Smi();
       break;
     case Token::SHR:
       // Result of x >>> y is always a smi if y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
                      && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::kSmi
-          : NumberInfo::kNumber;
+          ? NumberInfo::Smi()
+          : NumberInfo::Number();
       break;
     case Token::ADD:
       // Result could be a string or a number. Check types of inputs.
-      result_type = NumberInfo::IsNumber(operands_type)
-          ? NumberInfo::kNumber
-          : NumberInfo::kUnknown;
+      result_type = operands_type.IsNumber()
+          ? NumberInfo::Number()
+          : NumberInfo::Unknown();
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
       // Result is always a number.
-      result_type = NumberInfo::kNumber;
+      result_type = NumberInfo::Number();
       break;
     default:
       UNREACHABLE();
@@ -6324,7 +6396,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ push(rsi);
   __ push(rdx);
   __ push(rcx);  // Restore return address.
-  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+  __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
 }
 
 
@@ -6366,7 +6438,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
+  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
 }
 
 
@@ -6422,8 +6494,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ ret(3 * kPointerSize);
 
   __ bind(&slow_case);
-  ExternalReference runtime(Runtime::kCreateArrayLiteralShallow);
-  __ TailCallRuntime(runtime, 3, 1);
+  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
 }
 
 
@@ -6782,10 +6853,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
 #ifndef V8_NATIVE_REGEXP
-  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_NATIVE_REGEXP
   if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
     return;
   }
 
@@ -7129,7 +7200,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #endif  // V8_NATIVE_REGEXP
 }
 
@@ -7540,7 +7611,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 
@@ -7597,9 +7668,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ pop(rbx);  // Return address.
   __ push(rdx);
   __ push(rbx);
-  Runtime::Function* f =
-      Runtime::FunctionForId(Runtime::kGetArgumentsProperty);
-  __ TailCallRuntime(ExternalReference(f), 1, f->result_size);
+  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
 
 
@@ -8088,8 +8157,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(rax);
 
   // Do tail-call to runtime routine.
-  Runtime::Function* f = Runtime::FunctionForId(Runtime::kStackGuard);
-  __ TailCallRuntime(ExternalReference(f), 1, f->result_size);
+  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
 }
 
 
@@ -8273,7 +8341,7 @@ const char* GenericBinaryOpStub::GetName() {
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
                use_sse3_ ? "SSE3" : "SSE2",
-               NumberInfo::ToString(operands_type_));
+               operands_type_.ToString());
   return name_;
 }
 
@@ -8597,7 +8665,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // rax: y
       // rdx: x
-      if (NumberInfo::IsNumber(operands_type_)) {
+      if (operands_type_.IsNumber()) {
         if (FLAG_debug_code) {
           // Assert at runtime that inputs are only numbers.
           __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
@@ -8839,6 +8907,11 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 }
 
 
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
+  return Handle<Code>::null();
+}
+
+
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value.
   ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
@@ -8936,16 +9009,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rbx: length of first string
   // rcx: length of second string
   // rdx: second string
-  // r8: instance type of first string if string check was performed above
-  // r9: instance type of first string if string check was performed above
-  Label string_add_flat_result;
+  // r8: map of first string if string check was performed above
+  // r9: map of second string if string check was performed above
+  Label string_add_flat_result, longer_than_two;
   __ bind(&both_not_zero_length);
-  // Look at the length of the result of adding the two strings.
-  __ addl(rbx, rcx);
-  // Use the runtime system when adding two one character strings, as it
-  // contains optimizations for this specific case using the symbol table.
-  __ cmpl(rbx, Immediate(2));
-  __ j(equal, &string_add_runtime);
+
   // If arguments where known to be strings, maps are not loaded to r8 and r9
   // by the code above.
   if (!string_check_) {
@@ -8955,6 +9023,35 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Get the instance types of the two strings as they will be needed soon.
   __ movzxbl(r8, FieldOperand(r8, Map::kInstanceTypeOffset));
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
+
+  // Look at the length of the result of adding the two strings.
+  __ addl(rbx, rcx);
+  // Use the runtime system when adding two one character strings, as it
+  // contains optimizations for this specific case using the symbol table.
+  __ cmpl(rbx, Immediate(2));
+  __ j(not_equal, &longer_than_two);
+
+  // Check that both strings are non-external ascii strings.
+  __ JumpIfBothInstanceTypesAreNotSequentialAscii(r8, r9, rbx, rcx,
+                                                 &string_add_runtime);
+
+  // Get the two characters forming the sub string.
+  __ movzxbq(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rcx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+
+  // Try to lookup two character string in symbol table. If it is not found
+  // just allocate a new one.
+  Label make_two_character_string, make_flat_ascii_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, rbx, rcx, r14, r12, rdi, r15,
+                                       &make_two_character_string);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&make_two_character_string);
+  __ Set(rbx, 2);
+  __ jmp(&make_flat_ascii_string);
+
+  __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ cmpl(rbx, Immediate(String::kMinNonFlatLength));
   __ j(below, &string_add_flat_result);
@@ -9021,6 +9118,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &non_ascii_string_add_flat_result);
   __ testl(r9, Immediate(kAsciiStringTag));
   __ j(zero, &string_add_runtime);
+
+  __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings. As they are short they are both flat.
   __ AllocateAsciiString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
   // rcx: result string
@@ -9087,7 +9186,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&string_add_runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 }
 
 
@@ -9171,6 +9270,179 @@ void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ bind(&done);
 }
 
+void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                          Register c1,
+                                                          Register c2,
+                                                          Register scratch1,
+                                                          Register scratch2,
+                                                          Register scratch3,
+                                                          Register scratch4,
+                                                          Label* not_found) {
+  // Register scratch3 is the general scratch register in this function.
+  Register scratch = scratch3;
+
+  // Make sure that both characters are not digits as such strings has a
+  // different hash algorithm. Don't try to look for these in the symbol table.
+  Label not_array_index;
+  __ movq(scratch, c1);
+  __ subq(scratch, Immediate(static_cast<int>('0')));
+  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ j(above, &not_array_index);
+  __ movq(scratch, c2);
+  __ subq(scratch, Immediate(static_cast<int>('0')));
+  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ j(below_equal, not_found);
+
+  __ bind(&not_array_index);
+  // Calculate the two character string hash.
+  Register hash = scratch1;
+  GenerateHashInit(masm, hash, c1, scratch);
+  GenerateHashAddCharacter(masm, hash, c2, scratch);
+  GenerateHashGetHash(masm, hash, scratch);
+
+  // Collect the two characters in a register.
+  Register chars = c1;
+  __ shl(c2, Immediate(kBitsPerByte));
+  __ orl(chars, c2);
+
+  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:  hash of two character string.
+
+  // Load the symbol table.
+  Register symbol_table = c2;
+  __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
+
+  // Calculate capacity mask from the symbol table capacity.
+  Register mask = scratch2;
+  __ movq(mask, FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
+  __ SmiToInteger32(mask, mask);
+  __ decl(mask);
+
+  Register undefined = scratch4;
+  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
+
+  // Registers
+  // chars:        two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:         hash of two character string (32-bit int)
+  // symbol_table: symbol table
+  // mask:         capacity mask (32-bit int)
+  // undefined:    undefined value
+  // scratch:      -
+
+  // Perform a number of probes in the symbol table.
+  static const int kProbes = 4;
+  Label found_in_symbol_table;
+  Label next_probe[kProbes];
+  for (int i = 0; i < kProbes; i++) {
+    // Calculate entry in symbol table.
+    __ movl(scratch, hash);
+    if (i > 0) {
+      __ addl(scratch, Immediate(SymbolTable::GetProbeOffset(i)));
+    }
+    __ andl(scratch, mask);
+
+    // Load the entry from the symble table.
+    Register candidate = scratch;  // Scratch register contains candidate.
+    ASSERT_EQ(1, SymbolTable::kEntrySize);
+    __ movq(candidate,
+           FieldOperand(symbol_table,
+                        scratch,
+                        times_pointer_size,
+                        SymbolTable::kElementsStartOffset));
+
+    // If entry is undefined no string with this hash can be found.
+    __ cmpq(candidate, undefined);
+    __ j(equal, not_found);
+
+    // If length is not 2 the string is not a candidate.
+    __ cmpl(FieldOperand(candidate, String::kLengthOffset), Immediate(2));
+    __ j(not_equal, &next_probe[i]);
+
+    // We use kScratchRegister as a temporary register in assumption that
+    // JumpIfInstanceTypeIsNotSequentialAscii does not use it implicitly
+    Register temp = kScratchRegister;
+
+    // Check that the candidate is a non-external ascii string.
+    __ movq(temp, FieldOperand(candidate, HeapObject::kMapOffset));
+    __ movzxbl(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ JumpIfInstanceTypeIsNotSequentialAscii(
+        temp, temp, &next_probe[i]);
+
+    // Check if the two characters match.
+    __ movl(temp, FieldOperand(candidate, SeqAsciiString::kHeaderSize));
+    __ andl(temp, Immediate(0x0000ffff));
+    __ cmpl(chars, temp);
+    __ j(equal, &found_in_symbol_table);
+    __ bind(&next_probe[i]);
+  }
+
+  // No matching 2 character string found by probing.
+  __ jmp(not_found);
+
+  // Scratch register contains result when we fall through to here.
+  Register result = scratch;
+  __ bind(&found_in_symbol_table);
+  if (!result.is(rax)) {
+    __ movq(rax, result);
+  }
+}
+
+
+void StringStubBase::GenerateHashInit(MacroAssembler* masm,
+                                      Register hash,
+                                      Register character,
+                                      Register scratch) {
+  // hash = character + (character << 10);
+  __ movl(hash, character);
+  __ shll(hash, Immediate(10));
+  __ addl(hash, character);
+  // hash ^= hash >> 6;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(6));
+  __ xorl(hash, scratch);
+}
+
+
+void StringStubBase::GenerateHashAddCharacter(MacroAssembler* masm,
+                                              Register hash,
+                                              Register character,
+                                              Register scratch) {
+  // hash += character;
+  __ addl(hash, character);
+  // hash += hash << 10;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(10));
+  __ addl(hash, scratch);
+  // hash ^= hash >> 6;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(6));
+  __ xorl(hash, scratch);
+}
+
+
+void StringStubBase::GenerateHashGetHash(MacroAssembler* masm,
+                                         Register hash,
+                                         Register scratch) {
+  // hash += hash << 3;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(3));
+  __ addl(hash, scratch);
+  // hash ^= hash >> 11;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(11));
+  __ xorl(hash, scratch);
+  // hash += hash << 15;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(15));
+  __ addl(hash, scratch);
+
+  // if (hash == 0) hash = 27;
+  Label hash_not_zero;
+  __ testl(hash, hash);
+  __ j(not_zero, &hash_not_zero);
+  __ movl(hash, Immediate(27));
+  __ bind(&hash_not_zero);
+}
 
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
@@ -9197,25 +9469,55 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rax: string
   // rbx: instance type
   // Calculate length of sub string using the smi values.
+  Label result_longer_than_two;
   __ movq(rcx, Operand(rsp, kToOffset));
   __ movq(rdx, Operand(rsp, kFromOffset));
   __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
   __ j(negative, &runtime);
-  // Handle sub-strings of length 2 and less in the runtime system.
+  // Special handling of sub-strings of length 1 and 2. One character strings
+  // are handled in the runtime system (looked up in the single character
+  // cache). Two character strings are looked for in the symbol cache.
   __ SmiToInteger32(rcx, rcx);
   __ cmpl(rcx, Immediate(2));
-  __ j(below_equal, &runtime);
+  __ j(greater, &result_longer_than_two);
+  __ j(less, &runtime);
+
+  // Sub string of length 2 requested.
+  // rax: string
+  // rbx: instance type
+  // rcx: sub string length (value is 2)
+  // rdx: from index (smi)
+  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &runtime);
+
+  // Get the two characters forming the sub string.
+  __ SmiToInteger32(rdx, rdx);  // From index is no longer smi.
+  __ movzxbq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rcx,
+             FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize + 1));
+
+  // Try to lookup two character string in symbol table.
+  Label make_two_character_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, rbx, rcx, rax, rdx, rdi, r14,
+                                       &make_two_character_string);
+  __ ret(3 * kPointerSize);
+
+  __ bind(&make_two_character_string);
+  // Setup registers for allocating the two character string.
+  __ movq(rax, Operand(rsp, kStringOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ Set(rcx, 2);
+
+  __ bind(&result_longer_than_two);
 
   // rax: string
   // rbx: instance type
   // rcx: result string length
   // Check for flat ascii string
   Label non_ascii_flat;
-  __ and_(rbx, Immediate(kStringRepresentationMask | kStringEncodingMask));
-  __ cmpb(rbx, Immediate(kSeqStringTag | kAsciiStringTag));
-  __ j(not_equal, &non_ascii_flat);
+  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &non_ascii_flat);
 
   // Allocate the result.
   __ AllocateAsciiString(rax, rcx, rbx, rdx, rdi, &runtime);
@@ -9281,7 +9583,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+  __ TailCallRuntime(Runtime::kSubString, 3, 1);
 }
 
 
@@ -9401,7 +9703,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kStringCompare), 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 
 #undef __

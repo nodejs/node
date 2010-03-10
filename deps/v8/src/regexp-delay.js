@@ -142,7 +142,7 @@ function DoRegExpExec(regexp, string, index) {
 
 function RegExpExec(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('method_called_on_incompatible',
+    throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.exec', this]);
   }
   if (%_ArgumentsLength() == 0) {
@@ -152,8 +152,12 @@ function RegExpExec(string) {
     }
     string = regExpInput;
   }
-  var s = ToString(string);
-  var length = s.length;
+  var s;
+  if (IS_STRING(string)) {
+    s = string;
+  } else {
+    s = ToString(string);
+  }
   var lastIndex = this.lastIndex;
   var i = this.global ? TO_INTEGER(lastIndex) : 0;
 
@@ -172,16 +176,23 @@ function RegExpExec(string) {
   }
 
   var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
-  var result = new $Array(numResults);
-  for (var i = 0; i < numResults; i++) {
-    var matchStart = lastMatchInfo[CAPTURE(i << 1)];
-    var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
-    if (matchStart != -1 && matchEnd != -1) {
-      result[i] = SubString(s, matchStart, matchEnd);
-    } else {
-      // Make sure the element is present. Avoid reading the undefined
-      // property from the global object since this may change.
-      result[i] = void 0;
+  var result;
+  if (numResults === 1) {
+    var matchStart = lastMatchInfo[CAPTURE(0)];
+    var matchEnd = lastMatchInfo[CAPTURE(1)];
+    result = [SubString(s, matchStart, matchEnd)];
+  } else {
+    result = new $Array(numResults);
+    for (var i = 0; i < numResults; i++) {
+      var matchStart = lastMatchInfo[CAPTURE(i << 1)];
+      var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
+      if (matchStart != -1 && matchEnd != -1) {
+        result[i] = SubString(s, matchStart, matchEnd);
+      } else {
+        // Make sure the element is present. Avoid reading the undefined
+        // property from the global object since this may change.
+        result[i] = void 0;
+      }
     }
   }
 
@@ -199,7 +210,7 @@ function RegExpExec(string) {
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('method_called_on_incompatible',
+    throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.test', this]);
   }
   if (%_ArgumentsLength() == 0) {

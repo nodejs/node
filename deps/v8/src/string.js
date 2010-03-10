@@ -69,7 +69,7 @@ function StringCharAt(pos) {
     if (index >= subject.length || index < 0) return "";
     char_code = %StringCharCodeAt(subject, index);
   }
-  return %CharFromCode(char_code);
+  return %_CharFromCode(char_code);
 }
 
 
@@ -184,7 +184,7 @@ function SubString(string, start, end) {
     if (!%_IsSmi(char_code)) {
       char_code = %StringCharCodeAt(string, start);
     }
-    return %CharFromCode(char_code);
+    return %_CharFromCode(char_code);
   }
   return %_SubString(string, start, end);
 }
@@ -530,11 +530,7 @@ function StringSplit(separator, limit) {
     var separator_length = separator.length;
 
     // If the separator string is empty then return the elements in the subject.
-    if (separator_length === 0) {
-      var result = $Array(length);
-      for (var i = 0; i < length; i++) result[i] = subject[i];
-      return result;
-    }
+    if (separator_length === 0) return %StringToArray(subject);
 
     var result = [];
     var start_index = 0;
@@ -726,7 +722,7 @@ function StringTrimRight() {
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) return %CharFromCode(ToNumber(code) & 0xffff)
+  if (n == 1) return %_CharFromCode(ToNumber(code) & 0xffff)
 
   // NOTE: This is not super-efficient, but it is necessary because we
   // want to avoid converting to numbers from within the virtual

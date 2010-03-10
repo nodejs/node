@@ -39,6 +39,13 @@ array = [
   "every", "map", "indexOf", "lastIndexOf", "reduce", "reduceRight"];
 CheckJSCSemantics(Array.prototype, array, "Array prototype");
 
+var old_Array_prototype = Array.prototype;
+var new_Array_prototype = {};
+for (var i = 0; i < 7; i++) {
+  Array.prototype = new_Array_prototype;
+  assertEquals(old_Array_prototype, Array.prototype);
+}
+
 array = [
   "toString", "toDateString", "toTimeString", "toLocaleString",
   "toLocaleDateString", "toLocaleTimeString", "valueOf", "getTime",
@@ -78,6 +85,13 @@ array = [
   "isPrototypeOf", "propertyIsEnumerable", "__defineGetter__",
   "__lookupGetter__", "__defineSetter__", "__lookupSetter__"];
 CheckEcmaSemantics(Object.prototype, array, "Object prototype");
+
+var old_Object_prototype = Object.prototype;
+var new_Object_prototype = {};
+for (var i = 0; i < 7; i++) {
+  Object.prototype = new_Object_prototype;
+  assertEquals(old_Object_prototype, Object.prototype);
+}
 
 array = [
   "toString", "valueOf", "toJSON"];

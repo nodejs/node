@@ -49,6 +49,7 @@ void Result::ToRegister() {
                                                  Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
+    fresh.set_number_info(number_info());
     *this = fresh;
   }
   ASSERT(is_register());

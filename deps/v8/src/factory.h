@@ -30,11 +30,12 @@
 
 #include "globals.h"
 #include "heap.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class ZoneScopeInfo;
 
 // Interface for handle based allocation.
 

@@ -765,7 +765,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 2;
+    static const int num_arguments = 2;
     FrameAlign(num_arguments, r0);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
@@ -966,7 +966,7 @@ void RegExpMacroAssemblerARM::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
-  int num_arguments = 3;
+  static const int num_arguments = 3;
   FrameAlign(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(r2, frame_pointer());

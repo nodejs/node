@@ -37,23 +37,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
-// On entry to a function, the virtual frame already contains the receiver,
-// the parameters, and a return address.  All frame elements are in memory.
-VirtualFrame::VirtualFrame()
-    : elements_(parameter_count() + local_count() + kPreallocatedElements),
-      stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
-  for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
-  }
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
-
-
 void VirtualFrame::Enter() {
   // Registers live on entry to a JS frame:
   //   rsp: stack pointer, points to return address from this function.
@@ -194,7 +177,7 @@ void VirtualFrame::EmitPop(const Operand& operand) {
 }
 
 
-void VirtualFrame::EmitPush(Register reg, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Register reg, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -202,7 +185,7 @@ void VirtualFrame::EmitPush(Register reg, NumberInfo::Type info) {
 }
 
 
-void VirtualFrame::EmitPush(const Operand& operand, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(const Operand& operand, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -210,7 +193,7 @@ void VirtualFrame::EmitPush(const Operand& operand, NumberInfo::Type info) {
 }
 
 
-void VirtualFrame::EmitPush(Immediate immediate, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Immediate immediate, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -220,7 +203,7 @@ void VirtualFrame::EmitPush(Immediate immediate, NumberInfo::Type info) {
 
 void VirtualFrame::EmitPush(Smi* smi_value) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement(NumberInfo::kSmi));
+  elements_.Add(FrameElement::MemoryElement(NumberInfo::Smi()));
   stack_pointer_++;
   __ Push(smi_value);
 }
@@ -228,11 +211,11 @@ void VirtualFrame::EmitPush(Smi* smi_value) {
 
 void VirtualFrame::EmitPush(Handle<Object> value) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  NumberInfo::Type info = NumberInfo::kUnknown;
+  NumberInfo info = NumberInfo::Unknown();
   if (value->IsSmi()) {
-    info = NumberInfo::kSmi;
+    info = NumberInfo::Smi();
   } else if (value->IsHeapNumber()) {
-    info = NumberInfo::kHeapNumber;
+    info = NumberInfo::HeapNumber();
   }
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -240,7 +223,7 @@ void VirtualFrame::EmitPush(Handle<Object> value) {
 }
 
 
-void VirtualFrame::EmitPush(Heap::RootListIndex index, NumberInfo::Type info) {
+void VirtualFrame::EmitPush(Heap::RootListIndex index, NumberInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -497,7 +480,7 @@ void VirtualFrame::MakeMergable() {
     if (element.is_constant() || element.is_copy()) {
       if (element.is_synced()) {
         // Just spill.
-        elements_[i] = FrameElement::MemoryElement(NumberInfo::kUnknown);
+        elements_[i] = FrameElement::MemoryElement(NumberInfo::Unknown());
       } else {
         // Allocate to a register.
         FrameElement backing_element;  // Invalid if not a copy.
@@ -509,7 +492,7 @@ void VirtualFrame::MakeMergable() {
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
                                           FrameElement::NOT_SYNCED,
-                                          NumberInfo::kUnknown);
+                                          NumberInfo::Unknown());
         Use(fresh.reg(), i);
 
         // Emit a move.
@@ -538,7 +521,7 @@ void VirtualFrame::MakeMergable() {
       // The copy flag is not relied on before the end of this loop,
       // including when registers are spilled.
       elements_[i].clear_copied();
-      elements_[i].set_number_info(NumberInfo::kUnknown);
+      elements_[i].set_number_info(NumberInfo::Unknown());
     }
   }
 }
@@ -745,7 +728,7 @@ Result VirtualFrame::Pop() {
   ASSERT(element.is_valid());
 
   // Get number type information of the result.
-  NumberInfo::Type info;
+  NumberInfo info;
   if (!element.is_copy()) {
     info = element.number_info();
   } else {

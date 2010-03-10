@@ -276,6 +276,13 @@ class Compiler : public AllStatic {
 };
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info);
+
+#endif
+
+
 // During compilation we need a global list of handles to constants
 // for frame elements.  When the zone gets deleted, we make sure to
 // clear this list of handles as well.

@@ -146,6 +146,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
+void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   UNIMPLEMENTED_MIPS();
 }

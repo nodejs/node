@@ -131,7 +131,7 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::address_of_real_stack_limit();
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
            encoder.Encode(real_stack_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 11),
+  CHECK_EQ(make_code(UNCLASSIFIED, 12),
            encoder.Encode(ExternalReference::debug_break().address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 7),
            encoder.Encode(ExternalReference::new_space_start().address()));
@@ -165,7 +165,7 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(ExternalReference::address_of_real_stack_limit().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
   CHECK_EQ(ExternalReference::debug_break().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 11)));
+           decoder.Decode(make_code(UNCLASSIFIED, 12)));
   CHECK_EQ(ExternalReference::new_space_start().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 7)));
 }
@@ -302,6 +302,10 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
+  // BUG(632): Disable this test until the partial_snapshots branch is
+  // merged back.
+  return;
+
   v8::HandleScope scope;
 
   Deserialize();
@@ -330,6 +334,10 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
+  // BUG(632): Disable this test until the partial_snapshots branch is
+  // merged back.
+  return;
+
   v8::HandleScope scope;
 
   Deserialize();
@@ -481,8 +489,8 @@ TEST(LinearAllocation) {
          i += kSmallFixedArraySize) {
       Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength);
       if (new_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
       }
       new_last = obj;
     }
@@ -500,8 +508,8 @@ TEST(LinearAllocation) {
         pointer_last = NULL;
       }
       if (pointer_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
       }
       pointer_last = obj;
     }
@@ -517,8 +525,8 @@ TEST(LinearAllocation) {
         data_last = NULL;
       }
       if (data_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(data_last) + kSmallStringSize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(data_last) + kSmallStringSize);
       }
       data_last = obj;
     }
@@ -534,8 +542,8 @@ TEST(LinearAllocation) {
         map_last = NULL;
       }
       if (map_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(map_last) + kMapSize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(map_last) + kMapSize);
       }
       map_last = obj;
     }

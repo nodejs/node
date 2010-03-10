@@ -61,10 +61,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
-  // JumpToRuntime expects r0 to contain the number of arguments
+  // JumpToExternalReference expects r0 to contain the number of arguments
   // including the receiver and the extra arguments.
   __ add(r0, r0, Operand(num_extra_args + 1));
-  __ JumpToRuntime(ExternalReference(id));
+  __ JumpToExternalReference(ExternalReference(id));
 }
 
 

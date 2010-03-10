@@ -30,6 +30,7 @@
 
 #include "api.h"
 #include "execution.h"
+#include "messages.h"
 #include "spaces-inl.h"
 #include "top.h"
 

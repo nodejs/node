@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "handles.h"
 #include "scanner.h"
 
 namespace v8 {
@@ -86,12 +87,7 @@ void UTF8Buffer::AddCharSlow(uc32 c) {
 
 
 UTF16Buffer::UTF16Buffer()
-    : pos_(0), size_(0) { }
-
-
-Handle<String> UTF16Buffer::SubString(int start, int end) {
-  return internal::SubString(data_, start, end);
-}
+    : pos_(0), end_(Scanner::kNoEndPosition) { }
 
 
 // CharacterStreamUTF16Buffer
@@ -100,10 +96,14 @@ CharacterStreamUTF16Buffer::CharacterStreamUTF16Buffer()
 
 
 void CharacterStreamUTF16Buffer::Initialize(Handle<String> data,
-                                            unibrow::CharacterStream* input) {
-  data_ = data;
-  pos_ = 0;
+                                            unibrow::CharacterStream* input,
+                                            int start_position,
+                                            int end_position) {
   stream_ = input;
+  if (start_position > 0) {
+    SeekForward(start_position);
+  }
+  end_ = end_position != Scanner::kNoEndPosition ? end_position : kMaxInt;
 }
 
 
@@ -115,6 +115,8 @@ void CharacterStreamUTF16Buffer::PushBack(uc32 ch) {
 
 
 uc32 CharacterStreamUTF16Buffer::Advance() {
+  ASSERT(end_ != Scanner::kNoEndPosition);
+  ASSERT(end_ >= 0);
   // NOTE: It is of importance to Persian / Farsi resources that we do
   // *not* strip format control characters in the scanner; see
   //
@@ -126,7 +128,7 @@ uc32 CharacterStreamUTF16Buffer::Advance() {
   if (!pushback_buffer()->is_empty()) {
     pos_++;
     return last_ = pushback_buffer()->RemoveLast();
-  } else if (stream_->has_more()) {
+  } else if (stream_->has_more() && pos_ < end_) {
     pos_++;
     uc32 next = stream_->GetNext();
     return last_ = next;
@@ -146,25 +148,32 @@ void CharacterStreamUTF16Buffer::SeekForward(int pos) {
 }
 
 
-// TwoByteStringUTF16Buffer
-TwoByteStringUTF16Buffer::TwoByteStringUTF16Buffer()
+// ExternalStringUTF16Buffer
+template <typename StringType, typename CharType>
+ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
     : raw_data_(NULL) { }
 
 
-void TwoByteStringUTF16Buffer::Initialize(
-     Handle<ExternalTwoByteString> data) {
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
+     Handle<StringType> data,
+     int start_position,
+     int end_position) {
   ASSERT(!data.is_null());
-
-  data_ = data;
-  pos_ = 0;
-
   raw_data_ = data->resource()->data();
-  size_ = data->length();
+
+  ASSERT(end_position <= data->length());
+  if (start_position > 0) {
+    SeekForward(start_position);
+  }
+  end_ =
+      end_position != Scanner::kNoEndPosition ? end_position : data->length();
 }
 
 
-uc32 TwoByteStringUTF16Buffer::Advance() {
-  if (pos_ < size_) {
+template <typename StringType, typename CharType>
+uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
+  if (pos_ < end_) {
     return raw_data_[pos_++];
   } else {
     // note: currently the following increment is necessary to avoid a
@@ -175,14 +184,16 @@ uc32 TwoByteStringUTF16Buffer::Advance() {
 }
 
 
-void TwoByteStringUTF16Buffer::PushBack(uc32 ch) {
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
   pos_--;
   ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
   ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
 }
 
 
-void TwoByteStringUTF16Buffer::SeekForward(int pos) {
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
   pos_ = pos;
 }
 
@@ -327,21 +338,56 @@ Scanner::Scanner(ParserMode pre)
     : stack_overflow_(false), is_pre_parsing_(pre == PREPARSE) { }
 
 
+void Scanner::Initialize(Handle<String> source,
+                         ParserLanguage language) {
+  safe_string_input_buffer_.Reset(source.location());
+  Init(source, &safe_string_input_buffer_, 0, source->length(), language);
+}
+
+
+void Scanner::Initialize(Handle<String> source,
+                         unibrow::CharacterStream* stream,
+                         ParserLanguage language) {
+  Init(source, stream, 0, kNoEndPosition, language);
+}
+
+
+void Scanner::Initialize(Handle<String> source,
+                         int start_position,
+                         int end_position,
+                         ParserLanguage language) {
+  safe_string_input_buffer_.Reset(source.location());
+  Init(source, &safe_string_input_buffer_,
+       start_position, end_position, language);
+}
+
+
 void Scanner::Init(Handle<String> source,
                    unibrow::CharacterStream* stream,
-                   int position,
+                   int start_position,
+                   int end_position,
                    ParserLanguage language) {
   // Initialize the source buffer.
   if (!source.is_null() && StringShape(*source).IsExternalTwoByte()) {
     two_byte_string_buffer_.Initialize(
-        Handle<ExternalTwoByteString>::cast(source));
+        Handle<ExternalTwoByteString>::cast(source),
+        start_position,
+        end_position);
     source_ = &two_byte_string_buffer_;
+  } else if (!source.is_null() && StringShape(*source).IsExternalAscii()) {
+    ascii_string_buffer_.Initialize(
+        Handle<ExternalAsciiString>::cast(source),
+        start_position,
+        end_position);
+    source_ = &ascii_string_buffer_;
   } else {
-    char_stream_buffer_.Initialize(source, stream);
+    char_stream_buffer_.Initialize(source,
+                                   stream,
+                                   start_position,
+                                   end_position);
     source_ = &char_stream_buffer_;
   }
 
-  position_ = position;
   is_parsing_json_ = (language == JSON);
 
   // Set c0_ (one character ahead)
@@ -355,11 +401,6 @@ void Scanner::Init(Handle<String> source,
   has_line_terminator_before_next_ = true;
   SkipWhiteSpace();
   Scan();
-}
-
-
-Handle<String> Scanner::SubString(int start, int end) {
-  return source_->SubString(start - position_, end - position_);
 }
 
 

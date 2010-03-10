@@ -32,7 +32,6 @@
 #include "factory.h"
 #include "scopeinfo.h"
 #include "top.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {

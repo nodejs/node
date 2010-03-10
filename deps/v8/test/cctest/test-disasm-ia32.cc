@@ -234,7 +234,9 @@ TEST(DisasmIa320) {
   __ imul(edx, ecx, 12);
   __ imul(edx, ecx, 1000);
 
+  __ cld();
   __ rep_movs();
+  __ rep_stos();
 
   __ sub(edx, Operand(ebx, ecx, times_4, 10000));
   __ sub(edx, Operand(ebx));

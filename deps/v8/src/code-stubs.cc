@@ -83,6 +83,11 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
 }
 
 
+int CodeStub::GetCodeKind() {
+  return Code::STUB;
+}
+
+
 Handle<Code> CodeStub::GetCode() {
   Code* code;
   if (!FindCodeInCache(&code)) {
@@ -97,7 +102,10 @@ Handle<Code> CodeStub::GetCode() {
     masm.GetCode(&desc);
 
     // Copy the generated code into a heap object.
-    Code::Flags flags = Code::ComputeFlags(Code::STUB, InLoop());
+    Code::Flags flags = Code::ComputeFlags(
+        static_cast<Code::Kind>(GetCodeKind()),
+        InLoop(),
+        GetICState());
     Handle<Code> new_object =
         Factory::NewCode(desc, NULL, flags, masm.CodeObject());
     RecordCodeGeneration(*new_object, &masm);
@@ -132,7 +140,10 @@ Object* CodeStub::TryGetCode() {
     masm.GetCode(&desc);
 
     // Try to copy the generated code into a heap object.
-    Code::Flags flags = Code::ComputeFlags(Code::STUB, InLoop());
+    Code::Flags flags = Code::ComputeFlags(
+        static_cast<Code::Kind>(GetCodeKind()),
+        InLoop(),
+        GetICState());
     Object* new_object =
         Heap::CreateCode(desc, NULL, flags, masm.CodeObject());
     if (new_object->IsFailure()) return new_object;

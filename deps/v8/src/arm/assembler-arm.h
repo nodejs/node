@@ -84,25 +84,24 @@ struct Register {
   int code_;
 };
 
+const Register no_reg = { -1 };
 
-extern Register no_reg;
-extern Register r0;
-extern Register r1;
-extern Register r2;
-extern Register r3;
-extern Register r4;
-extern Register r5;
-extern Register r6;
-extern Register r7;
-extern Register r8;
-extern Register r9;
-extern Register r10;
-extern Register fp;
-extern Register ip;
-extern Register sp;
-extern Register lr;
-extern Register pc;
-
+const Register r0  = {  0 };
+const Register r1  = {  1 };
+const Register r2  = {  2 };
+const Register r3  = {  3 };
+const Register r4  = {  4 };
+const Register r5  = {  5 };
+const Register r6  = {  6 };
+const Register r7  = {  7 };
+const Register r8  = {  8 };  // Used as context register.
+const Register r9  = {  9 };
+const Register r10 = { 10 };  // Used as roots register.
+const Register fp  = { 11 };
+const Register ip  = { 12 };
+const Register sp  = { 13 };
+const Register lr  = { 14 };
+const Register pc  = { 15 };
 
 // Single word VFP register.
 struct SwVfpRegister {
@@ -139,57 +138,57 @@ struct DwVfpRegister {
 };
 
 
-// Support for VFP registers s0 to s31 (d0 to d15).
+// Support for the VFP registers s0 to s31 (d0 to d15).
 // Note that "s(N):s(N+1)" is the same as "d(N/2)".
-extern SwVfpRegister s0;
-extern SwVfpRegister s1;
-extern SwVfpRegister s2;
-extern SwVfpRegister s3;
-extern SwVfpRegister s4;
-extern SwVfpRegister s5;
-extern SwVfpRegister s6;
-extern SwVfpRegister s7;
-extern SwVfpRegister s8;
-extern SwVfpRegister s9;
-extern SwVfpRegister s10;
-extern SwVfpRegister s11;
-extern SwVfpRegister s12;
-extern SwVfpRegister s13;
-extern SwVfpRegister s14;
-extern SwVfpRegister s15;
-extern SwVfpRegister s16;
-extern SwVfpRegister s17;
-extern SwVfpRegister s18;
-extern SwVfpRegister s19;
-extern SwVfpRegister s20;
-extern SwVfpRegister s21;
-extern SwVfpRegister s22;
-extern SwVfpRegister s23;
-extern SwVfpRegister s24;
-extern SwVfpRegister s25;
-extern SwVfpRegister s26;
-extern SwVfpRegister s27;
-extern SwVfpRegister s28;
-extern SwVfpRegister s29;
-extern SwVfpRegister s30;
-extern SwVfpRegister s31;
+const SwVfpRegister s0  = {  0 };
+const SwVfpRegister s1  = {  1 };
+const SwVfpRegister s2  = {  2 };
+const SwVfpRegister s3  = {  3 };
+const SwVfpRegister s4  = {  4 };
+const SwVfpRegister s5  = {  5 };
+const SwVfpRegister s6  = {  6 };
+const SwVfpRegister s7  = {  7 };
+const SwVfpRegister s8  = {  8 };
+const SwVfpRegister s9  = {  9 };
+const SwVfpRegister s10 = { 10 };
+const SwVfpRegister s11 = { 11 };
+const SwVfpRegister s12 = { 12 };
+const SwVfpRegister s13 = { 13 };
+const SwVfpRegister s14 = { 14 };
+const SwVfpRegister s15 = { 15 };
+const SwVfpRegister s16 = { 16 };
+const SwVfpRegister s17 = { 17 };
+const SwVfpRegister s18 = { 18 };
+const SwVfpRegister s19 = { 19 };
+const SwVfpRegister s20 = { 20 };
+const SwVfpRegister s21 = { 21 };
+const SwVfpRegister s22 = { 22 };
+const SwVfpRegister s23 = { 23 };
+const SwVfpRegister s24 = { 24 };
+const SwVfpRegister s25 = { 25 };
+const SwVfpRegister s26 = { 26 };
+const SwVfpRegister s27 = { 27 };
+const SwVfpRegister s28 = { 28 };
+const SwVfpRegister s29 = { 29 };
+const SwVfpRegister s30 = { 30 };
+const SwVfpRegister s31 = { 31 };
 
-extern DwVfpRegister d0;
-extern DwVfpRegister d1;
-extern DwVfpRegister d2;
-extern DwVfpRegister d3;
-extern DwVfpRegister d4;
-extern DwVfpRegister d5;
-extern DwVfpRegister d6;
-extern DwVfpRegister d7;
-extern DwVfpRegister d8;
-extern DwVfpRegister d9;
-extern DwVfpRegister d10;
-extern DwVfpRegister d11;
-extern DwVfpRegister d12;
-extern DwVfpRegister d13;
-extern DwVfpRegister d14;
-extern DwVfpRegister d15;
+const DwVfpRegister d0  = {  0 };
+const DwVfpRegister d1  = {  1 };
+const DwVfpRegister d2  = {  2 };
+const DwVfpRegister d3  = {  3 };
+const DwVfpRegister d4  = {  4 };
+const DwVfpRegister d5  = {  5 };
+const DwVfpRegister d6  = {  6 };
+const DwVfpRegister d7  = {  7 };
+const DwVfpRegister d8  = {  8 };
+const DwVfpRegister d9  = {  9 };
+const DwVfpRegister d10 = { 10 };
+const DwVfpRegister d11 = { 11 };
+const DwVfpRegister d12 = { 12 };
+const DwVfpRegister d13 = { 13 };
+const DwVfpRegister d14 = { 14 };
+const DwVfpRegister d15 = { 15 };
 
 
 // Coprocessor register
@@ -210,23 +209,24 @@ struct CRegister {
 };
 
 
-extern CRegister no_creg;
-extern CRegister cr0;
-extern CRegister cr1;
-extern CRegister cr2;
-extern CRegister cr3;
-extern CRegister cr4;
-extern CRegister cr5;
-extern CRegister cr6;
-extern CRegister cr7;
-extern CRegister cr8;
-extern CRegister cr9;
-extern CRegister cr10;
-extern CRegister cr11;
-extern CRegister cr12;
-extern CRegister cr13;
-extern CRegister cr14;
-extern CRegister cr15;
+const CRegister no_creg = { -1 };
+
+const CRegister cr0  = {  0 };
+const CRegister cr1  = {  1 };
+const CRegister cr2  = {  2 };
+const CRegister cr3  = {  3 };
+const CRegister cr4  = {  4 };
+const CRegister cr5  = {  5 };
+const CRegister cr6  = {  6 };
+const CRegister cr7  = {  7 };
+const CRegister cr8  = {  8 };
+const CRegister cr9  = {  9 };
+const CRegister cr10 = { 10 };
+const CRegister cr11 = { 11 };
+const CRegister cr12 = { 12 };
+const CRegister cr13 = { 13 };
+const CRegister cr14 = { 14 };
+const CRegister cr15 = { 15 };
 
 
 // Coprocessor number

@@ -30,6 +30,7 @@
 
 #include "number-info.h"
 #include "macro-assembler.h"
+#include "zone.h"
 
 namespace v8 {
 namespace internal {
@@ -53,23 +54,25 @@ class FrameElement BASE_EMBEDDED {
     SYNCED
   };
 
-  inline NumberInfo::Type number_info() {
+  inline NumberInfo number_info() {
     // Copied elements do not have number info. Instead
     // we have to inspect their backing element in the frame.
     ASSERT(!is_copy());
-    if (!is_constant()) return NumberInfoField::decode(value_);
+    if (!is_constant()) {
+      return NumberInfo::FromInt(NumberInfoField::decode(value_));
+    }
     Handle<Object> value = handle();
-    if (value->IsSmi()) return NumberInfo::kSmi;
-    if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
-    return NumberInfo::kUnknown;
+    if (value->IsSmi()) return NumberInfo::Smi();
+    if (value->IsHeapNumber()) return NumberInfo::HeapNumber();
+    return NumberInfo::Unknown();
   }
 
-  inline void set_number_info(NumberInfo::Type info) {
+  inline void set_number_info(NumberInfo info) {
     // Copied elements do not have number info. Instead
     // we have to inspect their backing element in the frame.
     ASSERT(!is_copy());
     value_ = value_ & ~NumberInfoField::mask();
-    value_ = value_ | NumberInfoField::encode(info);
+    value_ = value_ | NumberInfoField::encode(info.ToInt());
   }
 
   // The default constructor creates an invalid frame element.
@@ -77,7 +80,7 @@ class FrameElement BASE_EMBEDDED {
     value_ = TypeField::encode(INVALID)
         | CopiedField::encode(false)
         | SyncedField::encode(false)
-        | NumberInfoField::encode(NumberInfo::kUninitialized)
+        | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
         | DataField::encode(0);
   }
 
@@ -88,7 +91,7 @@ class FrameElement BASE_EMBEDDED {
   }
 
   // Factory function to construct an in-memory frame element.
-  static FrameElement MemoryElement(NumberInfo::Type info) {
+  static FrameElement MemoryElement(NumberInfo info) {
     FrameElement result(MEMORY, no_reg, SYNCED, info);
     return result;
   }
@@ -96,7 +99,7 @@ class FrameElement BASE_EMBEDDED {
   // Factory function to construct an in-register frame element.
   static FrameElement RegisterElement(Register reg,
                                       SyncFlag is_synced,
-                                      NumberInfo::Type info) {
+                                      NumberInfo info) {
     return FrameElement(REGISTER, reg, is_synced, info);
   }
 
@@ -210,11 +213,11 @@ class FrameElement BASE_EMBEDDED {
   FrameElement(Type type,
                Register reg,
                SyncFlag is_synced,
-               NumberInfo::Type info) {
+               NumberInfo info) {
     value_ = TypeField::encode(type)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
-        | NumberInfoField::encode(info)
+        | NumberInfoField::encode(info.ToInt())
         | DataField::encode(reg.code_ > 0 ? reg.code_ : 0);
   }
 
@@ -223,7 +226,7 @@ class FrameElement BASE_EMBEDDED {
     value_ = TypeField::encode(CONSTANT)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
-        | NumberInfoField::encode(NumberInfo::kUninitialized)
+        | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -252,8 +255,8 @@ class FrameElement BASE_EMBEDDED {
   class TypeField: public BitField<Type, 0, 3> {};
   class CopiedField: public BitField<bool, 3, 1> {};
   class SyncedField: public BitField<bool, 4, 1> {};
-  class NumberInfoField: public BitField<NumberInfo::Type, 5, 3> {};
-  class DataField: public BitField<uint32_t, 8, 32 - 8> {};
+  class NumberInfoField: public BitField<int, 5, 4> {};
+  class DataField: public BitField<uint32_t, 9, 32 - 9> {};
 
   friend class VirtualFrame;
 };

@@ -579,6 +579,11 @@ ExternalReference ExternalReference::random_positive_smi_function() {
 }
 
 
+ExternalReference ExternalReference::transcendental_cache_array_address() {
+  return ExternalReference(TranscendentalCache::cache_array_address());
+}
+
+
 ExternalReference ExternalReference::keyed_lookup_cache_keys() {
   return ExternalReference(KeyedLookupCache::keys_address());
 }
@@ -616,6 +621,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit() {
 
 ExternalReference ExternalReference::new_space_start() {
   return ExternalReference(Heap::NewSpaceStart());
+}
+
+
+ExternalReference ExternalReference::new_space_mask() {
+  return ExternalReference(reinterpret_cast<Address>(Heap::NewSpaceMask()));
 }
 
 

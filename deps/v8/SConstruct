@@ -46,8 +46,8 @@ if ANDROID_TOP is None:
 # on linux we need these compiler flags to avoid crashes in the v8 test suite
 # and avoid dtoa.c strict aliasing issues
 if os.environ.get('GCC_VERSION') == '44':
-    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp']
-    GCC_DTOA_EXTRA_CCFLAGS = ['-fno-strict-aliasing']
+    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp', '-fno-strict-aliasing']
+    GCC_DTOA_EXTRA_CCFLAGS = []
 else:
     GCC_EXTRA_CCFLAGS = []
     GCC_DTOA_EXTRA_CCFLAGS = []
@@ -255,8 +255,16 @@ LIBRARY_FLAGS = {
       },
       'msvcltcg:on': {
         'CCFLAGS':      ['/GL'],
-        'LINKFLAGS':    ['/LTCG'],
         'ARFLAGS':      ['/LTCG'],
+        'pgo:off': {
+          'LINKFLAGS':    ['/LTCG'],
+        },
+        'pgo:instrument': {
+          'LINKFLAGS':    ['/LTCG:PGI']
+        },
+        'pgo:optimize': {
+          'LINKFLAGS':    ['/LTCG:PGO']
+        }
       }
     }
   }
@@ -267,6 +275,7 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Wall',
+                       '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
                        '-Wnon-virtual-dtor']
@@ -526,7 +535,15 @@ SAMPLE_FLAGS = {
       },
       'msvcltcg:on': {
         'CCFLAGS':      ['/GL'],
-        'LINKFLAGS':    ['/LTCG'],
+        'pgo:off': {
+          'LINKFLAGS':    ['/LTCG'],
+        },
+      },
+      'pgo:instrument': {
+        'LINKFLAGS':    ['/LTCG:PGI']
+      },
+      'pgo:optimize': {
+        'LINKFLAGS':    ['/LTCG:PGO']
       }
     },
     'arch:ia32': {
@@ -710,6 +727,11 @@ SIMPLE_OPTIONS = {
     'values': ['arm', 'thumb2', 'none'],
     'default': 'none',
     'help': 'generate thumb2 instructions instead of arm instructions (default)'
+  },
+  'pgo': {
+    'values': ['off', 'instrument', 'optimize'],
+    'default': 'off',
+    'help': 'select profile guided optimization variant',
   }
 }
 
@@ -797,6 +819,8 @@ def VerifyOptions(env):
     Abort("Shared Object soname not applicable for Windows.")
   if env['soname'] == 'on' and env['library'] == 'static':
     Abort("Shared Object soname not applicable for static library.")
+  if env['os'] != 'win32' and env['pgo'] != 'off':
+    Abort("Profile guided optimization only supported on Windows.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
@@ -882,7 +906,7 @@ class BuildContext(object):
       env['ENV'] = self.env_overrides
 
 
-def PostprocessOptions(options):
+def PostprocessOptions(options, os):
   # Adjust architecture if the simulator option has been set
   if (options['simulator'] != 'none') and (options['arch'] != options['simulator']):
     if 'arch' in ARGUMENTS:
@@ -893,6 +917,10 @@ def PostprocessOptions(options):
     # Print a warning if profiling is enabled without profiling support
     print "Warning: forcing profilingsupport on when prof is on"
     options['profilingsupport'] = 'on'
+  if os == 'win32' and options['pgo'] != 'off' and options['msvcltcg'] == 'off':
+    if 'msvcltcg' in ARGUMENTS:
+      print "Warning: forcing msvcltcg on as it is required for pgo (%s)" % options['pgo']
+    options['msvcltcg'] = 'on'
   if (options['armvariant'] == 'none' and options['arch'] == 'arm'):
     options['armvariant'] = 'arm'
   if (options['armvariant'] != 'none' and options['arch'] != 'arm'):
@@ -923,7 +951,7 @@ def BuildSpecific(env, mode, env_overrides):
   options = {'mode': mode}
   for option in SIMPLE_OPTIONS:
     options[option] = env[option]
-  PostprocessOptions(options)
+  PostprocessOptions(options, env['os'])
 
   context = BuildContext(options, env_overrides, samples=SplitList(env['sample']))
 

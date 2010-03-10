@@ -32,7 +32,6 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "top.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {

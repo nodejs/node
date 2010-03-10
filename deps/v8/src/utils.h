@@ -528,11 +528,11 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {
-    // Number of characters in a uint32_t.
-    static const int kStepSize = sizeof(uint32_t) / sizeof(*dest);  // NOLINT
+    // Number of characters in a uintptr_t.
+    static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
     while (dest <= limit - kStepSize) {
-      *reinterpret_cast<uint32_t*>(dest) =
-          *reinterpret_cast<const uint32_t*>(src);
+      *reinterpret_cast<uintptr_t*>(dest) =
+          *reinterpret_cast<const uintptr_t*>(src);
       dest += kStepSize;
       src += kStepSize;
     }
@@ -541,6 +541,58 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   while (dest < limit) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
+}
+
+
+// Compare ASCII/16bit chars to ASCII/16bit chars.
+template <typename lchar, typename rchar>
+static inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+  const lchar* limit = lhs + chars;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+  if (sizeof(*lhs) == sizeof(*rhs)) {
+    // Number of characters in a uintptr_t.
+    static const int kStepSize = sizeof(uintptr_t) / sizeof(*lhs);  // NOLINT
+    while (lhs <= limit - kStepSize) {
+      if (*reinterpret_cast<const uintptr_t*>(lhs) !=
+          *reinterpret_cast<const uintptr_t*>(rhs)) {
+        break;
+      }
+      lhs += kStepSize;
+      rhs += kStepSize;
+    }
+  }
+#endif
+  while (lhs < limit) {
+    int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
+    if (r != 0) return r;
+    ++lhs;
+    ++rhs;
+  }
+  return 0;
+}
+
+
+template <typename T>
+static inline void MemsetPointer(T** dest, T* value, int counter) {
+#if defined(V8_HOST_ARCH_IA32)
+#define STOS "stosl"
+#elif defined(V8_HOST_ARCH_X64)
+#define STOS "stosq"
+#endif
+
+#if defined(__GNUC__) && defined(STOS)
+  asm("cld;"
+      "rep ; " STOS
+      : /* no output */
+      : "c" (counter), "a" (value), "D" (dest)
+      : /* no clobbered list as all inputs are considered clobbered */);
+#else
+  for (int i = 0; i < counter; i++) {
+    dest[i] = value;
+  }
+#endif
+
+#undef STOS
 }
 
 

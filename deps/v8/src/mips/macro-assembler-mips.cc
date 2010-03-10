@@ -422,7 +422,7 @@ void MacroAssembler::MultiPopReversed(RegList regs) {
 // Trashes the at register if no scratch register is provided.
 void MacroAssembler::Branch(Condition cond, int16_t offset, Register rs,
                             const Operand& rt, Register scratch) {
-  Register r2;
+  Register r2 = no_reg;
   if (rt.is_reg()) {
     // We don't want any other register but scratch clobbered.
     ASSERT(!scratch.is(rs) && !scratch.is(rt.rm_));
@@ -489,7 +489,7 @@ void MacroAssembler::Branch(Condition cond, int16_t offset, Register rs,
 
 void MacroAssembler::Branch(Condition cond,  Label* L, Register rs,
                             const Operand& rt, Register scratch) {
-  Register r2;
+  Register r2 = no_reg;
   if (rt.is_reg()) {
     r2 = rt.rm_;
   } else if (cond != cc_always) {
@@ -559,7 +559,7 @@ void MacroAssembler::Branch(Condition cond,  Label* L, Register rs,
 // cases, so we keep slt and add an intermediate third instruction.
 void MacroAssembler::BranchAndLink(Condition cond, int16_t offset, Register rs,
                                    const Operand& rt, Register scratch) {
-  Register r2;
+  Register r2 = no_reg;
   if (rt.is_reg()) {
     r2 = rt.rm_;
   } else if (cond != cc_always) {
@@ -634,7 +634,7 @@ void MacroAssembler::BranchAndLink(Condition cond, int16_t offset, Register rs,
 
 void MacroAssembler::BranchAndLink(Condition cond, Label* L, Register rs,
                                    const Operand& rt, Register scratch) {
-  Register r2;
+  Register r2 = no_reg;
   if (rt.is_reg()) {
     r2 = rt.rm_;
   } else if (cond != cc_always) {
@@ -787,6 +787,16 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void MacroAssembler::DebugBreak() {
+    UNIMPLEMENTED_MIPS();
+  }
+#endif
+
+
 // ---------------------------------------------------------------------------
 // Exception handling
 
@@ -826,14 +836,21 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   UNIMPLEMENTED_MIPS();
 }
 

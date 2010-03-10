@@ -57,6 +57,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
   ASSERT(info_ == NULL);
   info_ = info;
   SetFunctionPosition(function());
+  Comment cmnt(masm_, "[ function compiled by full code generator");
 
   if (mode == PRIMARY) {
     int locals_count = scope()->num_stack_slots();

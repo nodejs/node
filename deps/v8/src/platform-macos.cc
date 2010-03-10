@@ -548,6 +548,9 @@ class Sampler::PlatformData : public Malloced {
     while (sampler_->IsActive()) {
       TickSample sample;
 
+      // We always sample the VM state.
+      sample.state = Logger::state();
+
       // If profiling, we record the pc and sp of the profiled thread.
       if (sampler_->IsProfiling()
           && KERN_SUCCESS == thread_suspend(profiled_thread_)) {
@@ -585,8 +588,6 @@ class Sampler::PlatformData : public Malloced {
         thread_resume(profiled_thread_);
       }
 
-      // We always sample the VM state.
-      sample.state = Logger::state();
       // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(&sample);
 

@@ -28,6 +28,8 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -48,6 +50,7 @@ namespace internal {
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
+  V(TranscendentalCache)                 \
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
@@ -137,6 +140,14 @@ class CodeStub BASE_EMBEDDED {
   // The CallFunctionStub needs to override this so it can encode whether a
   // lazily generated function should be fully optimized or not.
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
+
+  // GenericBinaryOpStub needs to override this.
+  virtual int GetCodeKind();
+
+  // GenericBinaryOpStub needs to override this.
+  virtual InlineCacheState GetICState() {
+    return UNINITIALIZED;
+  }
 
   // Returns a name for logging/debugging purposes.
   virtual const char* GetName() { return MajorName(MajorKey(), false); }

@@ -28,6 +28,8 @@
 #ifndef V8_IA32_CODEGEN_IA32_H_
 #define V8_IA32_CODEGEN_IA32_H_
 
+#include "ic-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -494,8 +496,8 @@ class CodeGenerator: public AstVisitor {
 
   // To prevent long attacker-controlled byte sequences, integer constants
   // from the JavaScript source are loaded in two parts if they are larger
-  // than 16 bits.
-  static const int kMaxSmiInlinedBits = 16;
+  // than 17 bits.
+  static const int kMaxSmiInlinedBits = 17;
   bool IsUnsafeSmi(Handle<Object> value);
   // Load an integer constant x into a register target or into the stack using
   // at most 16 bits of user-controlled data per assembly operation.
@@ -563,6 +565,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for charCodeAt(n).
   void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 
+  // Fast support for string.charAt(n) and string[n].
+  void GenerateCharFromCode(ZoneList<Expression*>* args);
+
   // Fast support for object equality testing.
   void GenerateObjectEquals(ZoneList<Expression*>* args);
 
@@ -587,6 +592,16 @@ class CodeGenerator: public AstVisitor {
 
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
+
+  // Fast support for Math.pow().
+  void GenerateMathPow(ZoneList<Expression*>* args);
+
+  // Fast call to transcendental functions.
+  void GenerateMathSin(ZoneList<Expression*>* args);
+  void GenerateMathCos(ZoneList<Expression*>* args);
+
+  // Fast case for sqrt
+  void GenerateMathSqrt(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {
@@ -655,6 +670,22 @@ class CodeGenerator: public AstVisitor {
 };
 
 
+// Compute a transcendental math function natively, or call the
+// TranscendentalCache runtime function.
+class TranscendentalCacheStub: public CodeStub {
+ public:
+  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+  Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
+  void GenerateOperation(MacroAssembler* masm);
+};
+
+
 // Flag that indicates how to generate code for the stub GenericBinaryOpStub.
 enum GenericBinaryFlags {
   NO_GENERIC_BINARY_FLAGS = 0,
@@ -667,16 +698,33 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags,
-                      NumberInfo::Type operands_type = NumberInfo::kUnknown)
+                      NumberInfo operands_type)
       : op_(op),
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false),
-        name_(NULL),
-        operands_type_(operands_type) {
+        static_operands_type_(operands_type),
+        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        name_(NULL) {
+    if (static_operands_type_.IsSmi()) {
+      mode_ = NO_OVERWRITE;
+    }
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo runtime_operands_type)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        flags_(FlagBits::decode(key)),
+        args_in_registers_(ArgsInRegistersBits::decode(key)),
+        args_reversed_(ArgsReversedBits::decode(key)),
+        use_sse3_(SSE3Bits::decode(key)),
+        static_operands_type_(NumberInfo::ExpandedRepresentation(
+            StaticTypeInfoBits::decode(key))),
+        runtime_operands_type_(runtime_operands_type),
+        name_(NULL) {
   }
 
   // Generate code to call the stub with the supplied arguments. This will add
@@ -698,8 +746,14 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
+
+  // Number type information of operands, determined by code generator.
+  NumberInfo static_operands_type_;
+
+  // Operand type information determined at runtime.
+  BinaryOpIC::TypeInfo runtime_operands_type_;
+
   char* name_;
-  NumberInfo::Type operands_type_;  // Number type information of operands.
 
   const char* GetName();
 
@@ -713,29 +767,32 @@ class GenericBinaryOpStub: public CodeStub {
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
            static_cast<int>(args_reversed_),
-           NumberInfo::ToString(operands_type_));
+           static_operands_type_.ToString());
   }
 #endif
 
-  // Minor key encoding in 16 bits NNNFRASOOOOOOOMM.
+  // Minor key encoding in 18 bits RRNNNFRASOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
   class SSE3Bits: public BitField<bool, 9, 1> {};
   class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
   class ArgsReversedBits: public BitField<bool, 11, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
-  class NumberInfoBits: public BitField<NumberInfo::Type, 13, 3> {};
+  class StaticTypeInfoBits: public BitField<int, 13, 3> {};
+  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 16, 2> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
+    // Encode the parameters in a unique 18 bit value.
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
            | FlagBits::encode(flags_)
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
            | ArgsReversedBits::encode(args_reversed_)
-           | NumberInfoBits::encode(operands_type_);
+           | StaticTypeInfoBits::encode(
+                 static_operands_type_.ThreeBitRepresentation())
+           | RuntimeTypeInfoBits::encode(runtime_operands_type_);
   }
 
   void Generate(MacroAssembler* masm);
@@ -743,6 +800,8 @@ class GenericBinaryOpStub: public CodeStub {
   void GenerateLoadArguments(MacroAssembler* masm);
   void GenerateReturn(MacroAssembler* masm);
   void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
+  void GenerateRegisterArgsPush(MacroAssembler* masm);
+  void GenerateTypeTransition(MacroAssembler* masm);
 
   bool ArgsInRegistersSupported() {
     return op_ == Token::ADD || op_ == Token::SUB
@@ -757,6 +816,22 @@ class GenericBinaryOpStub: public CodeStub {
   bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
   bool HasArgsInRegisters() { return args_in_registers_; }
   bool HasArgsReversed() { return args_reversed_; }
+
+  bool ShouldGenerateSmiCode() {
+    return HasSmiCodeInStub() &&
+        runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+        runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  bool ShouldGenerateFPCode() {
+    return runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return BinaryOpIC::ToState(runtime_operands_type_);
+  }
 };
 
 

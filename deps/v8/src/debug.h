@@ -604,8 +604,13 @@ class Debugger {
   static void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   static void OnException(Handle<Object> exception, bool uncaught);
   static void OnBeforeCompile(Handle<Script> script);
+
+  enum AfterCompileFlags {
+    NO_AFTER_COMPILE_FLAGS,
+    SEND_WHEN_DEBUGGING
+  };
   static void OnAfterCompile(Handle<Script> script,
-                           Handle<JSFunction> fun);
+                             AfterCompileFlags after_compile_flags);
   static void OnNewFunction(Handle<JSFunction> fun);
   static void OnScriptCollected(int id);
   static void ProcessDebugEvent(v8::DebugEvent event,
