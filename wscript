@@ -32,6 +32,12 @@ def set_options(opt):
                 , help='Build with -lefence for debugging [Default: False]'
                 , dest='efence'
                 )
+  opt.add_option( '--system'
+                , action='store_true'
+                , default=False
+                , help='Build using system libraries and headers (like a debian build) [Default: False]'
+                , dest='system'
+                )
 
 def mkdir_p(dir):
   if not os.path.exists (dir):
@@ -106,6 +112,7 @@ def configure(conf):
   if not conf.env.CC: conf.fatal('c compiler not found')
 
   conf.env["USE_DEBUG"] = Options.options.debug
+  conf.env["USE_SYSTEM"] = Options.options.system
 
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos"):
@@ -145,12 +152,19 @@ def configure(conf):
       conf.fatal("Cannot find nsl library")
 
   conf.sub_config('deps/libeio')
-  conf.sub_config('deps/libev')
-
-  if sys.platform.startswith("sunos"):
-    conf_subproject(conf, 'deps/udns', 'LIBS="-lsocket -lnsl" ./configure')
+  if not Options.options.system:
+    conf.sub_config('deps/libev')
+    if sys.platform.startswith("sunos"):
+      conf_subproject(conf, 'deps/udns', 'LIBS="-lsocket -lnsl" ./configure')
+    else:
+      conf_subproject(conf, 'deps/udns', './configure')
   else:
-    conf_subproject(conf, 'deps/udns', './configure')
+    if not conf.check(lib='v8', uselib_store='V8'):
+      conf.fatal("Cannot find V8")
+    if not conf.check(lib='ev', uselib_store='EV'):
+      conf.fatal("Cannot find libev")
+    if conf.check(lib='udns', uselib_store='UDNS'):
+      conf.fatal("Cannot find udns")
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -278,15 +292,22 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
-  bld.add_subdirs('deps/libeio deps/libev')
+  if not bld.env["USE_SYSTEM"]:
+    bld.add_subdirs('deps/libeio deps/libev')
+    build_udns(bld)
+    build_v8(bld)
+  else:
+    bld.add_subdirs('deps/libeio')
 
-  build_udns(bld)
-  build_v8(bld)
+
 
   ### evcom
   evcom = bld.new_task_gen("cc")
   evcom.source = "deps/evcom/evcom.c"
-  evcom.includes = "deps/evcom/ deps/libev/"
+  if not bld.env["USE_SYSTEM"]:
+    evcom.includes = "deps/evcom/ deps/libev/"
+  else:
+    evcom.includes = "deps/evcom/"
   evcom.name = "evcom"
   evcom.target = "evcom"
   evcom.uselib = "GPGERROR GNUTLS"
@@ -357,19 +378,31 @@ def build(bld):
     src/node_timer.cc
     src/node_idle_watcher.cc
   """
-  node.includes = """
-    src/ 
-    deps/v8/include
-    deps/libev
-    deps/udns
-    deps/libeio
-    deps/evcom 
-    deps/http_parser
-    deps/coupling
-  """
-  node.add_objects = 'ev eio evcom http_parser coupling'
-  node.uselib_local = ''
-  node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+  if not bld.env["USE_SYSTEM"]:
+    node.includes = """
+      src/ 
+      deps/v8/include
+      deps/libev
+      deps/udns
+      deps/libeio
+      deps/evcom 
+      deps/http_parser
+      deps/coupling
+    """
+    node.add_objects = 'ev eio evcom http_parser coupling'
+    node.uselib_local = ''
+    node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+  else:
+    node.includes = """
+      src/
+      deps/libeio
+      deps/evcom 
+      deps/http_parser
+      deps/coupling
+    """
+    node.add_objects = 'eio evcom http_parser coupling'
+    node.uselib_local = 'eio'
+    node.uselib = 'EV GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
