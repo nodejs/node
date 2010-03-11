@@ -1,6 +1,8 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node.h>
 
+#include <locale.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -533,6 +535,13 @@ static Handle<Value> SetUid(const Arguments& args) {
   return Undefined();
 }
 
+Handle<Value>
+NowGetter (Local<String> property, const AccessorInfo& info)
+{
+  HandleScope scope;
+  return scope.Close(Integer::New(ev_now(EV_DEFAULT_UC)));
+}
+
 
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   HandleScope scope;
@@ -1002,6 +1011,8 @@ static void Load(int argc, char *argv[]) {
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
+
+  process_template->InstanceTemplate()->SetAccessor(String::NewSymbol("now"), NowGetter, NULL);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
