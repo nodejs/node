@@ -60,6 +60,10 @@ typedef int (*eio_cb)(eio_req *req);
 # define EIO_STRUCT_STAT struct stat
 #endif
 
+#ifndef EIO_STRUCT_STATVFS
+# define EIO_STRUCT_STATVFS struct statvfs
+#endif
+
 /* for readdir */
 
 /* eio_readdir flags */
@@ -133,6 +137,7 @@ enum {
   EIO_READ, EIO_WRITE,
   EIO_READAHEAD, EIO_SENDFILE,
   EIO_STAT, EIO_LSTAT, EIO_FSTAT,
+  EIO_STATVFS, EIO_FSTATVFS,
   EIO_TRUNCATE, EIO_FTRUNCATE,
   EIO_UTIME, EIO_FUTIME,
   EIO_CHMOD, EIO_FCHMOD,
@@ -239,6 +244,7 @@ eio_req *eio_readahead (int fd, off_t offset, size_t length, int pri, eio_cb cb,
 eio_req *eio_read      (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data);
 eio_req *eio_write     (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data);
 eio_req *eio_fstat     (int fd, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_fstatvfs  (int fd, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_futime    (int fd, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data);
 eio_req *eio_ftruncate (int fd, off_t offset, int pri, eio_cb cb, void *data);
 eio_req *eio_fchmod    (int fd, mode_t mode, int pri, eio_cb cb, void *data);
@@ -257,6 +263,7 @@ eio_req *eio_unlink    (const char *path, int pri, eio_cb cb, void *data);
 eio_req *eio_readlink  (const char *path, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
 eio_req *eio_stat      (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_lstat     (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_statvfs   (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_mknod     (const char *path, mode_t mode, dev_t dev, int pri, eio_cb cb, void *data);
 eio_req *eio_link      (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
 eio_req *eio_symlink   (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
@@ -277,13 +284,14 @@ void eio_grp_cancel    (eio_req *grp); /* cancels all sub requests but not the g
 /* request api */
 
 /* true if the request was cancelled, useful in the invoke callback */
-#define EIO_CANCELLED(req) ((req)->flags & EIO_FLAG_CANCELLED)
+#define EIO_CANCELLED(req)   ((req)->flags & EIO_FLAG_CANCELLED)
 
-#define EIO_RESULT(req)    ((req)->result)
+#define EIO_RESULT(req)      ((req)->result)
 /* returns a pointer to the result buffer allocated by eio */
-#define EIO_BUF(req)       ((req)->ptr2)
-#define EIO_STAT_BUF(req)  ((EIO_STRUCT_STAT *)EIO_BUF(req))
-#define EIO_PATH(req)      ((char *)(req)->ptr1)
+#define EIO_BUF(req)         ((req)->ptr2)
+#define EIO_STAT_BUF(req)    ((EIO_STRUCT_STAT    *)EIO_BUF(req))
+#define EIO_STATVFS_BUF(req) ((EIO_STRUCT_STATVFS *)EIO_BUF(req))
+#define EIO_PATH(req)        ((char *)(req)->ptr1)
 
 /* submit a request for execution */
 void eio_submit (eio_req *req);

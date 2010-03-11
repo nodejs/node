@@ -18,7 +18,9 @@ TODO: maybe add mincore support? available on at least darwin, solaris, linux, f
 	- "outbundled" from IO::AIO.
         - eio_set_max_polltime did not properly convert time to ticks.
         - tentatively support darwin in sendfile.
+        - fix freebsd/darwin sendfile.
         - also use sendfile emulation for ENOTSUP and EOPNOTSUPP
           error codes.
         - add OS-independent EIO_MT_* and EIO_MS_* flag enums.
+        - add eio_statvfs/eio_fstatvfs.
 
