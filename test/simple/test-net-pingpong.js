@@ -35,7 +35,12 @@ function pingPongTest (port, host) {
       socket.close();
     });
 
+    socket.addListener("error", function (e) {
+      throw e;
+    });
+
     socket.addListener("close", function () {
+      puts('server socket closed');
       assert.equal(false, socket.writable);
       assert.equal(false, socket.readable);
       socket.server.close();
@@ -78,9 +83,14 @@ function pingPongTest (port, host) {
     });
 
     client.addListener("close", function () {
+      puts('client closed');
       assert.equal(N+1, count);
       assert.equal(true, sent_final_ping);
       tests_run += 1;
+    });
+
+    client.addListener("error", function (e) {
+      throw e;
     });
   });
 
