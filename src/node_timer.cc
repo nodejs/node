@@ -27,6 +27,7 @@ Timer::Initialize (Handle<Object> target)
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Timer::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Timer::Stop);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "again", Timer::Again);
 
   constructor_template->InstanceTemplate()->SetAccessor(repeat_symbol,
       RepeatGetter, RepeatSetter);
@@ -139,4 +140,16 @@ void Timer::Stop () {
     ev_timer_stop(EV_DEFAULT_UC_ &watcher_);
     Unref();
   }
+}
+
+
+Handle<Value> Timer::Again(const Arguments& args) {
+  HandleScope scope;
+  Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
+
+  ev_tstamp repeat = NODE_V8_UNIXTIME(args[0]);
+  if (repeat > 0) timer->watcher_.repeat = repeat;
+  ev_timer_again(EV_DEFAULT_UC_ &timer->watcher_);
+
+  return Undefined();
 }
