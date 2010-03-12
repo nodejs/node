@@ -502,7 +502,7 @@ function findModulePath (id, dirs, callback) {
         } else {
           return searchLocations();
         }
-      })
+      });
 
     // if sync
     } else {
@@ -815,4 +815,4 @@ process.loop();
 
 process.emit("exit");
 
-})
+});
