@@ -64,7 +64,7 @@ AC_CACHE_CHECK(for sendfile, ac_cv_sendfile, [AC_LINK_IFELSE([
 # include <sys/types.h>
 #if __linux
 # include <sys/sendfile.h>
-#elif __freebsd || defined __APPLE__
+#elif __FreeBSD__ || defined __APPLE__
 # include <sys/socket.h>
 # include <sys/uio.h>
 #elif __hpux
@@ -80,7 +80,7 @@ int main(void)
    ssize_t res;
 #if __linux
    res = sendfile (fd, fd, offset, count);
-#elif __freebsd
+#elif __FreeBSD__
    res = sendfile (fd, fd, offset, count, 0, &offset, 0);
 #elif __hpux
    res = sendfile (fd, fd, offset, count, 0, 0);

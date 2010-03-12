@@ -51,6 +51,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <assert.h>
@@ -82,7 +83,7 @@
 # include <dirent.h>
 
 /* POSIX_SOURCE is useless on bsd's, and XOPEN_SOURCE is unreliable there, too */
-# if __freebsd || defined __NetBSD__ || defined __OpenBSD__
+# if __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__
 #  define _DIRENT_HAVE_D_TYPE /* sigh */
 #  define D_INO(de) (de)->d_fileno
 #  define D_NAMLEN(de) (de)->d_namlen
@@ -108,7 +109,7 @@
 #if HAVE_SENDFILE
 # if __linux
 #  include <sys/sendfile.h>
-# elif __freebsd || defined __APPLE__
+# elif __FreeBSD__ || defined __APPLE__
 #  include <sys/socket.h>
 #  include <sys/uio.h>
 # elif __hpux
@@ -136,6 +137,11 @@
 /* used for struct dirent, AIX doesn't provide it */
 #ifndef NAME_MAX
 # define NAME_MAX 4096
+#endif
+
+/* used for readlink etc. */
+#ifndef PATH_MAX
+# define PATH_MAX 4096
 #endif
 
 /* buffer size for various temporary buffers */
@@ -911,7 +917,7 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
 # if __linux
   res = sendfile (ofd, ifd, &offset, count);
 
-# elif __freebsd
+# elif __FreeBSD__
   /*
    * Of course, the freebsd sendfile is a dire hack with no thoughts
    * wasted on making it similar to other I/O functions.
@@ -920,8 +926,16 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
     off_t sbytes;
     res = sendfile (ifd, ofd, offset, count, 0, &sbytes, 0);
 
-    if (res < 0 && sbytes)
-      /* maybe only on EAGAIN: as usual, the manpage leaves you guessing */
+    #if 0 /* according to the manpage, this is correct, but broken behaviour */
+    /* freebsd' sendfile will return 0 on success */
+    /* freebsd 8 documents it as only setting *sbytes on EINTR and EAGAIN, but */
+    /* not on e.g. EIO or EPIPE - sounds broken */
+    if ((res < 0 && (errno == EAGAIN || errno == EINTR) && sbytes) || res == 0)
+      res = sbytes;
+    #endif
+
+    /* according to source inspection, this is correct, and useful behaviour */
+    if (sbytes)
       res = sbytes;
   }
 
@@ -931,7 +945,8 @@ eio__sendfile (int ofd, int ifd, off_t offset, size_t count, etp_worker *self)
     off_t sbytes = count;
     res = sendfile (ifd, ofd, offset, &sbytes, 0, 0);
 
-    if (res < 0 && errno == EAGAIN && sbytes)
+    /* according to the manpage, sbytes is always valid */
+    if (sbytes)
       res = sbytes;
   }
 
@@ -1577,6 +1592,11 @@ static void eio_execute (etp_worker *self, eio_req *req)
       case EIO_FSTAT:     ALLOC (sizeof (EIO_STRUCT_STAT));
                           req->result = fstat     (req->int1, (EIO_STRUCT_STAT *)req->ptr2); break;
 
+      case EIO_STATVFS:   ALLOC (sizeof (EIO_STRUCT_STATVFS));
+                          req->result = statvfs   (req->ptr1, (EIO_STRUCT_STATVFS *)req->ptr2); break;
+      case EIO_FSTATVFS:  ALLOC (sizeof (EIO_STRUCT_STATVFS));
+                          req->result = fstatvfs  (req->int1, (EIO_STRUCT_STATVFS *)req->ptr2); break;
+
       case EIO_CHOWN:     req->result = chown     (req->ptr1, req->int2, req->int3); break;
       case EIO_FCHOWN:    req->result = fchown    (req->int1, req->int2, req->int3); break;
       case EIO_CHMOD:     req->result = chmod     (req->ptr1, (mode_t)req->int2); break;
@@ -1595,8 +1615,8 @@ static void eio_execute (etp_worker *self, eio_req *req)
       case EIO_SYMLINK:   req->result = symlink   (req->ptr1, req->ptr2); break;
       case EIO_MKNOD:     req->result = mknod     (req->ptr1, (mode_t)req->int2, (dev_t)req->int3); break;
 
-      case EIO_READLINK:  ALLOC (NAME_MAX);
-                          req->result = readlink  (req->ptr1, req->ptr2, NAME_MAX); break;
+      case EIO_READLINK:  ALLOC (PATH_MAX);
+                          req->result = readlink  (req->ptr1, req->ptr2, PATH_MAX); break;
 
       case EIO_SYNC:      req->result = 0; sync (); break;
       case EIO_FSYNC:     req->result = fsync     (req->int1); break;
@@ -1733,6 +1753,11 @@ eio_req *eio_fstat (int fd, int pri, eio_cb cb, void *data)
   REQ (EIO_FSTAT); req->int1 = fd; SEND;
 }
 
+eio_req *eio_fstatvfs (int fd, int pri, eio_cb cb, void *data)
+{
+  REQ (EIO_FSTATVFS); req->int1 = fd; SEND;
+}
+
 eio_req *eio_futime (int fd, double atime, double mtime, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_FUTIME); req->int1 = fd; req->nv1 = atime; req->nv2 = mtime; SEND;
@@ -1812,6 +1837,11 @@ eio_req *eio_stat (const char *path, int pri, eio_cb cb, void *data)
 eio_req *eio_lstat (const char *path, int pri, eio_cb cb, void *data)
 {
   return eio__1path (EIO_LSTAT, path, pri, cb, data);
+}
+
+eio_req *eio_statvfs (const char *path, int pri, eio_cb cb, void *data)
+{
+  return eio__1path (EIO_STATVFS, path, pri, cb, data);
 }
 
 eio_req *eio_unlink (const char *path, int pri, eio_cb cb, void *data)

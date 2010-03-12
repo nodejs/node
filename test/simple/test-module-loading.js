@@ -63,6 +63,24 @@ require.async('../fixtures/a', function (err, a) {
   assert.equal("A", a.A());
 });
 
+debug('load custom file types with registerExtension');
+require.registerExtension('.test', function(content) {
+  assert.equal("this is custom source\n", content);
+
+  return content.replace("this is custom source", "exports.test = 'passed'");
+});
+
+assert.equal(require('../fixtures/registerExt').test, "passed");
+
+debug('load custom file types that return non-strings');
+require.registerExtension('.test', function(content) {
+  return {
+    custom: 'passed'
+  };
+});
+
+assert.equal(require('../fixtures/registerExt2').custom, 'passed');
+
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);
   assert.equal("A done", a.A());
