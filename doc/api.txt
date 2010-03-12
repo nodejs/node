@@ -158,18 +158,6 @@ information.
 Similar to +eval()+ except that you can specify a +scriptOrigin+ for better
 error reporting and the +code+ cannot see the local scope.
 
-+process.mixin([deep], target, object1, [objectN])+ ::
-Extend one object with one or more others, returning the modified object.
-If no target is specified, the +GLOBAL+ namespace itself is extended. 
-Keep in mind that the target object will be modified, and will be returned
-from +process.mixin()+.
-+
-If a boolean true is specified as the first argument, Node performs a deep
-copy, recursively copying any objects it finds. Otherwise, the copy will
-share structure with the original object(s).
-+
-Undefined properties are not copied. However, properties inherited from the
-object's prototype will be copied over.
 
 == System module
 

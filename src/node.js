@@ -100,7 +100,12 @@ process.assert = function (x, msg) {
 // Dual licensed under the MIT and GPL licenses.
 // http://docs.jquery.com/License
 // Modified for node.js (formely for copying properties correctly)
+var mixinMessage;
 process.mixin = function() {
+  if (!mixinMessage) {
+    mixinMessage = 'deprecation warning: process.mixin will be removed from node-core future releases.\n'
+    process.stdio.writeError(mixinMessage);
+  }
   // copy reference to target object
   var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, source;
 
