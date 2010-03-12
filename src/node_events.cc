@@ -43,8 +43,8 @@ static bool ReallyEmit(Handle<Object> self,
                        Handle<String> event,
                        int argc,
                        Handle<Value> argv[]) {
-  HandleScope scope;
-
+  // HandleScope not needed here because only called from one of the two
+  // functions below
   Local<Value> events_v = self->Get(events_symbol);
   if (!events_v->IsObject()) return false;
   Local<Object> events = events_v->ToObject();
@@ -52,11 +52,11 @@ static bool ReallyEmit(Handle<Object> self,
   Local<Value> listeners_v = events->Get(event);
   Local<Function> listener;
 
+  TryCatch try_catch;
+
   if (listeners_v->IsFunction()) {
     // Optimized one-listener case
     Local<Function> listener = Local<Function>::Cast(listeners_v);
-
-    TryCatch try_catch;
 
     listener->Call(self, argc, argv);
 
@@ -68,14 +68,10 @@ static bool ReallyEmit(Handle<Object> self,
   } else if (listeners_v->IsArray()) {
     Local<Array> listeners = Local<Array>::Cast(listeners_v);
 
-    for (unsigned int i = 0; i < listeners->Length(); i++) {
-      HandleScope scope;
-
-      Local<Value> listener_v = listeners->Get(Integer::New(i));
+    for (uint32_t i = 0; i < listeners->Length(); i++) {
+      Local<Value> listener_v = listeners->Get(i);
       if (!listener_v->IsFunction()) continue;
       Local<Function> listener = Local<Function>::Cast(listener_v);
-
-      TryCatch try_catch;
 
       listener->Call(self, argc, argv);
 
