@@ -149,8 +149,10 @@ Handle<Value> Timer::Again(const Arguments& args) {
 
   int was_active = ev_is_active(&timer->watcher_);
 
-  ev_tstamp repeat = NODE_V8_UNIXTIME(args[0]);
-  if (repeat > 0) timer->watcher_.repeat = repeat;
+  if (args.Length() > 0) {
+    ev_tstamp repeat = NODE_V8_UNIXTIME(args[0]);
+    if (repeat > 0) timer->watcher_.repeat = repeat;
+  }
 
   ev_timer_again(EV_DEFAULT_UC_ &timer->watcher_);
 

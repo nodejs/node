@@ -15,7 +15,10 @@ class Timer : ObjectWrap {
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Timer () : ObjectWrap () { }
+  Timer () : ObjectWrap () {
+    // dummy timeout values
+    ev_timer_init(&watcher_, OnTimeout, 0., 1.);
+  }
   ~Timer();
 
   static v8::Handle<v8::Value> New (const v8::Arguments& args);
