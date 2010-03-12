@@ -167,7 +167,7 @@ Buffer::~Buffer() {
   assert(blob_->refs > 0);
   //fprintf(stderr, "free buffer (%d refs left)\n", blob_->refs);
   blob_unref(blob_);
-  V8::AdjustAmountOfExternalAllocatedMemory(-sizeof(Buffer));
+  V8::AdjustAmountOfExternalAllocatedMemory(-static_cast<long int>(sizeof(Buffer)));
 }
 
 
@@ -196,7 +196,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-  const char *data = reinterpret_cast<const char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data_ + start);
   Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
@@ -265,7 +265,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   const char *p = buffer->data_ + offset;
 
-  size_t towrite = MIN(s->Length(), buffer->length_ - offset);
+  size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
   int written = s->WriteAscii((char*)p, 0, towrite);
   return scope.Close(Integer::New(written));
@@ -290,7 +290,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
   }
 
   String::AsciiValue format(args[0]->ToString());
-  int index = args[1]->IntegerValue();
+  uint32_t index = args[1]->Uint32Value();
 
 #define OUT_OF_BOUNDS ThrowException(Exception::Error(String::New("Out of bounds")))
 
