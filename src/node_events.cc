@@ -50,15 +50,11 @@ static bool ReallyEmit(Handle<Object> self,
   Local<Object> events = events_v->ToObject();
 
   Local<Value> listeners_v = events->Get(event);
-  if (!listeners_v->IsArray()) return false;
-  Local<Array> listeners = Local<Array>::Cast(listeners_v);
+  Local<Function> listener;
 
-  for (unsigned int i = 0; i < listeners->Length(); i++) {
-    HandleScope scope;
-
-    Local<Value> listener_v = listeners->Get(Integer::New(i));
-    if (!listener_v->IsFunction()) continue;
-    Local<Function> listener = Local<Function>::Cast(listener_v);
+  if (listeners_v->IsFunction()) {
+    // Optimized one-listener case
+    Local<Function> listener = Local<Function>::Cast(listeners_v);
 
     TryCatch try_catch;
 
@@ -68,6 +64,29 @@ static bool ReallyEmit(Handle<Object> self,
       FatalException(try_catch);
       return false;
     }
+
+  } else if (listeners_v->IsArray()) {
+    Local<Array> listeners = Local<Array>::Cast(listeners_v);
+
+    for (unsigned int i = 0; i < listeners->Length(); i++) {
+      HandleScope scope;
+
+      Local<Value> listener_v = listeners->Get(Integer::New(i));
+      if (!listener_v->IsFunction()) continue;
+      Local<Function> listener = Local<Function>::Cast(listener_v);
+
+      TryCatch try_catch;
+
+      listener->Call(self, argc, argv);
+
+      if (try_catch.HasCaught()) {
+        FatalException(try_catch);
+        return false;
+      }
+    }
+
+  } else {
+    return false;
   }
 
   return true;
