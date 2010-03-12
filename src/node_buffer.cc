@@ -77,7 +77,7 @@ static inline void blob_unref(Blob *blob) {
   }
 }
 
-
+#if 0
 // When someone calls buffer.asciiSlice, data is not copied. Instead V8
 // references in the underlying Blob with this ExternalAsciiStringResource.
 class AsciiSliceExt: public String::ExternalAsciiStringResource {
@@ -89,7 +89,7 @@ class AsciiSliceExt: public String::ExternalAsciiStringResource {
 
     assert(start <= end);
     length_ = end - start;
-    assert(length_ <= parent->length());
+    assert(start + length_ <= parent->length());
     data_ = parent->data() + start;
   }
 
@@ -108,6 +108,7 @@ class AsciiSliceExt: public String::ExternalAsciiStringResource {
   size_t length_;
   Blob *blob_;
 };
+#endif
 
 
 Handle<Value> Buffer::New(const Arguments &args) {
@@ -174,11 +175,19 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
+
+#if 0
   AsciiSliceExt *ext = new AsciiSliceExt(parent, start, end);
   Local<String> string = String::NewExternal(ext);
   // There should be at least two references to the blob now - the parent
   // and the slice.
   assert(parent->blob_->refs >= 2);
+#endif
+
+  const char *data = const_cast<char*>(parent->data_ + start);
+  Local<String> string = String::New(data, end - start);
+
+
   return scope.Close(string);
 }
 
