@@ -147,9 +147,22 @@ Handle<Value> Timer::Again(const Arguments& args) {
   HandleScope scope;
   Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
 
+  int was_active = ev_is_active(&timer->watcher_);
+
   ev_tstamp repeat = NODE_V8_UNIXTIME(args[0]);
   if (repeat > 0) timer->watcher_.repeat = repeat;
+
   ev_timer_again(EV_DEFAULT_UC_ &timer->watcher_);
+
+  // ev_timer_again can start or stop the watcher.
+  // So we need to check what happened and adjust the ref count
+  // appropriately.
+
+  if (ev_is_active(&timer->watcher_)) {
+    if (!was_active) timer->Ref();
+  } else {
+    if (was_active) timer->Unref();
+  }
 
   return Undefined();
 }
