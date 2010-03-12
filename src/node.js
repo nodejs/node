@@ -479,7 +479,7 @@ function findModulePath (id, dirs, callback) {
     path.join(dir, id + ".js"),
     path.join(dir, id + ".node"),
     path.join(dir, id, "index.js"),
-    path.join(dir, id, "index.addon")
+    path.join(dir, id, "index.node")
   ];
 
   var ext;
