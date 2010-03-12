@@ -67,7 +67,7 @@ def configure(conf):
     # include <sys/types.h>
     #if __linux
     # include <sys/sendfile.h>
-    #elif __freebsd
+    #elif __FreeBSD__ || defined(__APPLE__)
     # include <sys/socket.h>
     # include <sys/uio.h>
     #elif __hpux
@@ -83,8 +83,10 @@ def configure(conf):
        ssize_t res;
     #if __linux
        res = sendfile (fd, fd, offset, count);
-    #elif __freebsd
+    #elif __FreeBSD__
        res = sendfile (fd, fd, offset, count, 0, &offset, 0);
+    #elif __APPLE__
+       res = sendfile (fd, fd, offset, &offset, 0, 0);
     #elif __hpux
        res = sendfile (fd, fd, offset, count, 0, 0);
     #endif
