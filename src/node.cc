@@ -597,6 +597,7 @@ int getmem(size_t *rss, size_t *vsize) {
   struct kinfo_proc *kinfo = NULL;
   pid_t pid;
   int nprocs;
+  size_t page_size = getpagesize();
 
   pid = getpid();
 
@@ -606,7 +607,7 @@ int getmem(size_t *rss, size_t *vsize) {
   kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
   if (kinfo == NULL) goto error;
 
-  *rss = kinfo->ki_rssize * PAGE_SIZE;
+  *rss = kinfo->ki_rssize * page_size;
   *vsize = kinfo->ki_size;
 
   kvm_close(kd);
