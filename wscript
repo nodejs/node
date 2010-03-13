@@ -163,7 +163,7 @@ def configure(conf):
       conf.fatal("Cannot find V8")
     if not conf.check(lib='ev', uselib_store='EV'):
       conf.fatal("Cannot find libev")
-    if conf.check(lib='udns', uselib_store='UDNS'):
+    if not conf.check(lib='udns', uselib_store='UDNS'):
       conf.fatal("Cannot find udns")
 
   conf.define("HAVE_CONFIG_H", 1)
