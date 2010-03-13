@@ -1,6 +1,6 @@
 require("../common");
 tcp = require("tcp");
-http = require("http");
+http = require("http2");
 
 var body = "hello world\n";
 var server_response = "";

@@ -1,5 +1,5 @@
 require("../common");
-http = require("http");
+http = require("http2");
 
 var body = "exports.A = function() { return 'A';}";
 var server = http.createServer(function (req, res) {
