@@ -88,14 +88,17 @@ Handle<Value> IdleWatcher::New(const Arguments& args) {
 
 Handle<Value> IdleWatcher::Start(const Arguments& args) {
   HandleScope scope;
-
   IdleWatcher *idle = ObjectWrap::Unwrap<IdleWatcher>(args.Holder());
-
-  ev_idle_start(EV_DEFAULT_UC_ &idle->watcher_);
-
-  idle->Ref();
-
+  idle->Start();
   return Undefined();
+}
+
+
+void IdleWatcher::Start () {
+  if (!watcher_.active) {
+    ev_idle_start(EV_DEFAULT_UC_ &watcher_);
+    Ref();
+  }
 }
 
 

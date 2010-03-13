@@ -31,6 +31,7 @@ class IdleWatcher : ObjectWrap {
  private:
   static void Callback(EV_P_ ev_idle *watcher, int revents);
 
+  void Start();
   void Stop();
 
   ev_idle watcher_;
