@@ -1,4 +1,26 @@
-2010.03.05, Version 0.1.31
+2010.03.12, Version 0.1.32
+
+  * Optimize event emitter for single listener
+
+  * Add process.evalcx, require.registerExtension (Tim Smart)
+
+  * Replace --cflags with --vars
+
+  * Fix bugs in fs.create*Stream (Felix Geisendörfer)
+
+  * Deprecate process.mixin, process.unloop
+
+  * Remove the 'Error: (no message)' exceptions, print stack
+    trace instead
+
+  * INI parser bug fixes (Isaac Schlueter)
+
+  * FreeBSD fixes (Vanilla Hsu)
+
+  * Upgrade to V8 2.1.3, WAF 1.5.14a, libev
+
+
+2010.03.05, Version 0.1.31, 39b63dfe1737d46a8c8818c92773ef181fd174b3
 
   * API: - Move process.watchFile into fs module
          - Move process.inherits to sys
