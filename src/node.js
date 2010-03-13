@@ -630,7 +630,7 @@ function loadModule (request, parent, callback) {
 // This function allows the user to register file extensions to custom
 // Javascript 'compilers'.  It accepts 2 arguments, where ext is a file
 // extension as a string. E.g. '.coffee' for coffee-script files.  compiler
-// is the second argument, which is a function that gets called then the
+// is the second argument, which is a function that gets called when the
 // specified file extension is found. The compiler is passed a single
 // argument, which is, the file contents, which need to be compiled.
 //
