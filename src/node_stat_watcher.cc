@@ -21,7 +21,7 @@ void StatWatcher::Initialize(Handle<Object> target) {
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("StatWatcherWatcher"));
+  constructor_template->SetClassName(String::NewSymbol("StatWatcher"));
 
   change_symbol = NODE_PSYMBOL("change");
   stop_symbol = NODE_PSYMBOL("stop");
@@ -29,7 +29,7 @@ void StatWatcher::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", StatWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", StatWatcher::Stop);
 
-  target->Set(String::NewSymbol("StatWatcherWatcher"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("StatWatcher"), constructor_template->GetFunction());
 }
 
 
