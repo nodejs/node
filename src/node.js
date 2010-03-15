@@ -461,14 +461,14 @@ function existsSync (path) {
 
 
 
-process.paths = [];
+var modulePaths = [];
 
 if (process.env["HOME"]) {
-  process.paths.unshift(path.join(process.env["HOME"], ".node_libraries"));
+  modulePaths.unshift(path.join(process.env["HOME"], ".node_libraries"));
 }
 
 if (process.env["NODE_PATH"]) {
-  process.paths = process.env["NODE_PATH"].split(":").concat(process.paths);
+  modulePaths = process.env["NODE_PATH"].split(":").concat(modulePaths);
 }
 
 
@@ -566,7 +566,7 @@ function resolveModulePath(request, parent) {
   } else {
     id = request;
     // debug("ABSOLUTE: id="+id);
-    paths = process.paths;
+    paths = modulePaths;
   }
 
   return [id, paths];
@@ -738,7 +738,7 @@ Module.prototype._compile = function (content, filename) {
     return loadModule(path, self);
   }
 
-  require.paths = process.paths;
+  require.paths = modulePaths;
   require.async = requireAsync;
   require.main = process.mainModule;
   require.registerExtension = registerExtension;
