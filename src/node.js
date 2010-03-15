@@ -42,7 +42,7 @@ node.dns.createConnection = removed("node.dns.createConnection() has moved. Use 
 
 /**********************************************************************/
 
-// Module 
+// Module
 
 var internalModuleCache = {};
 var extensionCache = {};
@@ -351,7 +351,7 @@ process.fs.readFile = function (path, encoding_, callback) {
   var callback = (typeof(callback_) == 'function' ? callback_ : null);
   process.fs.open(path, process.O_RDONLY, 0666, function (err, fd) {
     if (err) {
-      if (callback) callback(err); 
+      if (callback) callback(err);
     } else {
       readAll(fd, 0, "", encoding, callback);
     }
