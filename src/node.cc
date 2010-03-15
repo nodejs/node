@@ -18,8 +18,8 @@
 #include <node_file.h>
 #include <node_idle_watcher.h>
 #include <node_http.h>
-#include <node_signal_handler.h>
-#include <node_stat.h>
+#include <node_signal_watcher.h>
+#include <node_stat_watcher.h>
 #include <node_timer.h>
 #include <node_child_process.h>
 #include <node_constants.h>
@@ -1103,17 +1103,17 @@ static Handle<Value> Binding(const Arguments& args) {
       stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
       exports->Set(String::NewSymbol("Stats"),
                    stats_constructor_template->GetFunction());
-      Stat::Initialize(exports);
+      StatWatcher::Initialize(exports);
       File::Initialize(exports);
       binding_cache->Set(module, exports);
     }
 
-  } else if (!strcmp(*module_v, "signal_handler")) {
+  } else if (!strcmp(*module_v, "signal_watcher")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
       exports = Object::New();
-      SignalHandler::Initialize(exports);
+      SignalWatcher::Initialize(exports);
       binding_cache->Set(module, exports);
     }
 

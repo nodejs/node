@@ -1,6 +1,6 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#ifndef NODE_STAT_H_
-#define NODE_STAT_H_
+#ifndef NODE_STAT_WATCHER_H_
+#define NODE_STAT_WATCHER_H_
 
 #include <node.h>
 #include <node_events.h>
@@ -8,21 +8,21 @@
 
 namespace node {
 
-class Stat : EventEmitter {
+class StatWatcher : EventEmitter {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Stat() : EventEmitter() {
+  StatWatcher() : EventEmitter() {
     persistent_ = false;
     path_ = NULL;
-    ev_init(&watcher_, Stat::Callback);
+    ev_init(&watcher_, StatWatcher::Callback);
     watcher_.data = this;
   }
 
-  ~Stat() {
+  ~StatWatcher() {
     Stop();
     assert(path_ == NULL);
   }
@@ -42,5 +42,4 @@ class Stat : EventEmitter {
 };
 
 }  // namespace node
-#endif  // NODE_STAT_H_
-
+#endif  // NODE_STAT_WATCHER_H_

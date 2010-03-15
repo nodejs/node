@@ -1,5 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#include <node_stat.h>
+#include <node_stat_watcher.h>
 
 #include <assert.h>
 #include <string.h>
@@ -9,33 +9,33 @@ namespace node {
 
 using namespace v8;
 
-Persistent<FunctionTemplate> Stat::constructor_template;
+Persistent<FunctionTemplate> StatWatcher::constructor_template;
 
 static Persistent<String> change_symbol;
 static Persistent<String> stop_symbol;
 
-void Stat::Initialize(Handle<Object> target) {
+void StatWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(Stat::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("StatWatcher"));
+  constructor_template->SetClassName(String::NewSymbol("StatWatcherWatcher"));
 
   change_symbol = NODE_PSYMBOL("change");
   stop_symbol = NODE_PSYMBOL("stop");
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", Stat::Start);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", Stat::Stop);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", StatWatcher::Start);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", StatWatcher::Stop);
 
-  target->Set(String::NewSymbol("StatWatcher"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("StatWatcherWatcher"), constructor_template->GetFunction());
 }
 
 
-void Stat::Callback(EV_P_ ev_stat *watcher, int revents) {
+void StatWatcher::Callback(EV_P_ ev_stat *watcher, int revents) {
   assert(revents == EV_STAT);
-  Stat *handler = static_cast<Stat*>(watcher->data);
+  StatWatcher *handler = static_cast<StatWatcher*>(watcher->data);
   assert(watcher == &handler->watcher_);
   HandleScope scope;
   Handle<Value> argv[2];
@@ -45,22 +45,22 @@ void Stat::Callback(EV_P_ ev_stat *watcher, int revents) {
 }
 
 
-Handle<Value> Stat::New(const Arguments& args) {
+Handle<Value> StatWatcher::New(const Arguments& args) {
   HandleScope scope;
-  Stat *s = new Stat();
+  StatWatcher *s = new StatWatcher();
   s->Wrap(args.Holder());
   return args.This();
 }
 
 
-Handle<Value> Stat::Start(const Arguments& args) {
+Handle<Value> StatWatcher::Start(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return ThrowException(Exception::TypeError(String::New("Bad arguments")));
   }
 
-  Stat *handler = ObjectWrap::Unwrap<Stat>(args.Holder());
+  StatWatcher *handler = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
   String::Utf8Value path(args[0]->ToString());
 
   assert(handler->path_ == NULL);
@@ -86,16 +86,16 @@ Handle<Value> Stat::Start(const Arguments& args) {
 }
 
 
-Handle<Value> Stat::Stop(const Arguments& args) {
+Handle<Value> StatWatcher::Stop(const Arguments& args) {
   HandleScope scope;
-  Stat *handler = ObjectWrap::Unwrap<Stat>(args.Holder());
+  StatWatcher *handler = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
   handler->Emit(stop_symbol, 0, NULL);
   handler->Stop();
   return Undefined();
 }
 
 
-void Stat::Stop () {
+void StatWatcher::Stop () {
   if (watcher_.active) {
     if (!persistent_) ev_ref(EV_DEFAULT_UC);
     ev_stat_stop(EV_DEFAULT_UC_ &watcher_);

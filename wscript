@@ -372,8 +372,8 @@ def build(bld):
     src/node_file.cc
     src/node_http.cc
     src/node_net.cc
-    src/node_signal_handler.cc
-    src/node_stat.cc
+    src/node_signal_watcher.cc
+    src/node_stat_watcher.cc
     src/node_stdio.cc
     src/node_timer.cc
     src/node_idle_watcher.cc

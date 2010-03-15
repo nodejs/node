@@ -281,9 +281,9 @@ function isSignal (event) {
 
 process.addListener("newListener", function (event) {
   if (isSignal(event) && process.listeners(event).length === 0) {
-    var b = process.binding('signal_handler');
-    var handler = new b.SignalHandler(process[event]);
-    handler.addListener("signal", function () {
+    var b = process.binding('signal_watcher');
+    var w = new b.SignalWatcher(process[event]);
+    w.addListener("signal", function () {
       process.emit(event);
     });
   }
