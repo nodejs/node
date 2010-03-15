@@ -1117,6 +1117,32 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
+  } else if (!strcmp(*module_v, "natives")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      // Explicitly define native sources.
+      // TODO DRY/automate this?
+      exports->Set(String::New("assert"),       String::New(native_assert));
+      exports->Set(String::New("dns"),          String::New(native_dns));
+      exports->Set(String::New("file"),         String::New(native_file));
+      exports->Set(String::New("fs"),           String::New(native_fs));
+      exports->Set(String::New("http"),         String::New(native_http));
+      exports->Set(String::New("ini"),          String::New(native_ini));
+      exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
+      exports->Set(String::New("multipart"),    String::New(native_multipart));
+      exports->Set(String::New("posix"),        String::New(native_posix));
+      exports->Set(String::New("querystring"),  String::New(native_querystring));
+      exports->Set(String::New("repl"),         String::New(native_repl));
+      exports->Set(String::New("sys"),          String::New(native_sys));
+      exports->Set(String::New("tcp"),          String::New(native_tcp));
+      exports->Set(String::New("uri"),          String::New(native_uri));
+      exports->Set(String::New("url"),          String::New(native_url));
+      exports->Set(String::New("utils"),        String::New(native_utils));
+      binding_cache->Set(module, exports);
+    }
+
   } else {
     assert(0);
     return ThrowException(Exception::Error(String::New("No such module")));
@@ -1215,28 +1241,6 @@ static void Load(int argc, char *argv[]) {
   Timer::Initialize(process);                  // timer.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
-
-
-  Local<Object> natives = Object::New();
-  process->Set(String::New("natives"), natives);
-  // Explicitly define native sources.
-  natives->Set(String::New("assert"),       String::New(native_assert));
-  natives->Set(String::New("dns"),          String::New(native_dns));
-  natives->Set(String::New("file"),         String::New(native_file));
-  natives->Set(String::New("fs"),           String::New(native_fs));
-  natives->Set(String::New("http"),         String::New(native_http));
-  natives->Set(String::New("ini"),          String::New(native_ini));
-  natives->Set(String::New("mjsunit"),      String::New(native_mjsunit));
-  natives->Set(String::New("multipart"),    String::New(native_multipart));
-  natives->Set(String::New("posix"),        String::New(native_posix));
-  natives->Set(String::New("querystring"),  String::New(native_querystring));
-  natives->Set(String::New("repl"),         String::New(native_repl));
-  natives->Set(String::New("sys"),          String::New(native_sys));
-  natives->Set(String::New("tcp"),          String::New(native_tcp));
-  natives->Set(String::New("uri"),          String::New(native_uri));
-  natives->Set(String::New("url"),          String::New(native_url));
-  natives->Set(String::New("utils"),        String::New(native_utils));
-
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that

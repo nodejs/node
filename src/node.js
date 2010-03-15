@@ -74,12 +74,16 @@ function createInternalModule (id, constructor) {
 };
 
 
+// This contains the source code for the files in lib/
+// Like, natives.fs is the contents of lib/fs.js
+var natives = process.binding('natives');
+
 function requireNative (id) {
   if (internalModuleCache[id]) return internalModuleCache[id].exports;
-  if (!process.natives[id]) throw new Error('No such native module ' + id);
+  if (!natives[id]) throw new Error('No such native module ' + id);
   var m = new Module(id);
   internalModuleCache[id] = m;
-  var e = m._compile(process.natives[id], id);
+  var e = m._compile(natives[id], id);
   if (e) throw e;
   return m.exports;
 }
@@ -540,10 +544,10 @@ function loadModule (request, parent, callback) {
 
   if (!cachedModule) {
     // Try to compile from native modules
-    if (process.natives[id]) {
+    if (natives[id]) {
       debug('load native module ' + id);
       cachedModule = new Module(id);
-      var e = cachedModule._compile(process.natives[id], id);
+      var e = cachedModule._compile(natives[id], id);
       if (e) throw e;
       internalModuleCache[id] = cachedModule;
     }
