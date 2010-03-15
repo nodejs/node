@@ -1046,6 +1046,85 @@ static Handle<Value> CheckBreak(const Arguments& args) {
   return Undefined();
 }
 
+Persistent<Object> binding_cache;
+
+static Handle<Value> Binding(const Arguments& args) {
+  HandleScope scope;
+
+  Local<String> module = args[0]->ToString();
+  String::Utf8Value module_v(module);
+
+  if (binding_cache.IsEmpty()) {
+    binding_cache = Persistent<Object>::New(Object::New());
+  }
+
+  Local<Object> exports;
+
+  if (!strcmp(*module_v, "http")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      // Warning: When calling requireBinding('http') from javascript then
+      // be sure that you call requireBinding('tcp') before it.
+      assert(binding_cache->Has(String::New("tcp")));
+      exports = Object::New();
+      HTTPServer::Initialize(exports);
+      HTTPConnection::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "tcp")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Server::Initialize(exports);
+      Connection::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "dns")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      DNS::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "fs")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+
+      // Initialize the stats object
+      Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
+      stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
+      exports->Set(String::NewSymbol("Stats"),
+                   stats_constructor_template->GetFunction());
+      Stat::Initialize(exports);
+      File::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "signal_handler")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      SignalHandler::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else {
+    assert(0);
+    return ThrowException(Exception::Error(String::New("No such module")));
+  }
+
+  return scope.Close(exports);
+}
+
 
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
@@ -1122,44 +1201,20 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
   NODE_SET_METHOD(process, "checkBreak", CheckBreak);
 
+  NODE_SET_METHOD(process, "binding", Binding);
+
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
                EventEmitter::constructor_template->GetFunction());
 
-  // Initialize the stats object
-  Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-  stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
-  process->Set(String::NewSymbol("Stats"),
-      stats_constructor_template->GetFunction());
 
 
   // Initialize the C++ modules..................filename of module
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
-  SignalHandler::Initialize(process);          // signal_handler.cc
-  Stat::Initialize(process);                   // stat.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
-  // Create node.dns
-  Local<Object> dns = Object::New();
-  process->Set(String::NewSymbol("dns"), dns);
-  DNS::Initialize(dns);                         // dns.cc
-  Local<Object> fs = Object::New();
-  process->Set(String::NewSymbol("fs"), fs);
-  File::Initialize(fs);                         // file.cc
-  // Create node.tcp. Note this separate from lib/tcp.js which is the public
-  // frontend.
-  Local<Object> tcp = Object::New();
-  process->Set(String::New("tcp"), tcp);
-  Server::Initialize(tcp);                      // tcp.cc
-  Connection::Initialize(tcp);                  // tcp.cc
-  // Create node.http.  Note this separate from lib/http.js which is the
-  // public frontend.
-  Local<Object> http = Object::New();
-  process->Set(String::New("http"), http);
-  HTTPServer::Initialize(http);                 // http.cc
-  HTTPConnection::Initialize(http);             // http.cc
 
 
   Local<Object> natives = Object::New();

@@ -281,7 +281,8 @@ function isSignal (event) {
 
 process.addListener("newListener", function (event) {
   if (isSignal(event) && process.listeners(event).length === 0) {
-    var handler = new process.SignalHandler(process[event]);
+    var b = process.binding('signal_handler');
+    var handler = new b.SignalHandler(process[event]);
     handler.addListener("signal", function () {
       process.emit(event);
     });
@@ -407,7 +408,7 @@ var path = pathModule.exports;
 
 function existsSync (path) {
   try {
-    process.fs.stat(path);
+    process.binding('fs').stat(path);
     return true;
   } catch (e) {
     return false;
