@@ -410,6 +410,7 @@ static Handle<Value> ByteLength(const Arguments& args) {
 
 static Handle<Value> Loop(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   // TODO Probably don't need to start this each time.
   // Avoids failing on test/mjsunit/test-eio-race3.js though
@@ -453,6 +454,7 @@ static Handle<Value> Chdir(const Arguments& args) {
 
 static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   char output[PATH_MAX];
   char *r = getcwd(output, PATH_MAX);
@@ -484,12 +486,14 @@ static Handle<Value> Umask(const Arguments& args){
 
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
   int uid = getuid();
   return scope.Close(Integer::New(uid));
 }
 
 static Handle<Value> GetGid(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
   int gid = getgid();
   return scope.Close(Integer::New(gid));
 }
@@ -497,10 +501,10 @@ static Handle<Value> GetGid(const Arguments& args) {
 
 static Handle<Value> SetGid(const Arguments& args) {
   HandleScope scope;
-  
+
   if (args.Length() < 1) {
     return ThrowException(Exception::Error(
-	  String::New("setgid requires 1 argument")));
+      String::New("setgid requires 1 argument")));
   }
 
   Local<Integer> given_gid = args[0]->ToInteger();
@@ -735,6 +739,7 @@ error:
 
 v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
 #ifndef HAVE_GETMEM
   return ThrowException(Exception::Error(String::New("Not support on your platform. (Talk to Ryan.)")));
@@ -860,7 +865,7 @@ Handle<Value> EvalCX(const Arguments& args) {
   // Copy objects from global context, to our brand new context
   Handle<Array> keys = sandbox->GetPropertyNames();
 
-  int i;
+  unsigned int i;
   for (i = 0; i < keys->Length(); i++) {
     Handle<String> key = keys->Get(Integer::New(i))->ToString();
     Handle<Value> value = sandbox->Get(key);
@@ -1003,6 +1008,7 @@ static void DebugMessageDispatch(void) {
 
 static Handle<Value> CheckBreak(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   // TODO FIXME This function is a hack to wait until V8 is ready to accept
   // commands. There seems to be a bug in EnableAgent( _ , _ , true) which
