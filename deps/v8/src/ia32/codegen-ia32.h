@@ -339,6 +339,10 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code() const { return in_spilled_code_; }
   void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
+  // If the name is an inline runtime function call return the number of
+  // expected arguments. Otherwise return -1.
+  static int InlineRuntimeCallArgumentsCount(Handle<String> name);
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -522,6 +526,7 @@ class CodeGenerator: public AstVisitor {
   struct InlineRuntimeLUT {
     void (CodeGenerator::*method)(ZoneList<Expression*>*);
     const char* name;
+    int nargs;
   };
 
   static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
@@ -555,7 +560,7 @@ class CodeGenerator: public AstVisitor {
 
   // Support for arguments.length and arguments[?].
   void GenerateArgumentsLength(ZoneList<Expression*>* args);
-  void GenerateArgumentsAccess(ZoneList<Expression*>* args);
+  void GenerateArguments(ZoneList<Expression*>* args);
 
   // Support for accessing the class and value fields of an object.
   void GenerateClassOf(ZoneList<Expression*>* args);
@@ -593,14 +598,10 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
-  // Fast support for Math.pow().
+  // Fast call to math functions.
   void GenerateMathPow(ZoneList<Expression*>* args);
-
-  // Fast call to transcendental functions.
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
-
-  // Fast case for sqrt
   void GenerateMathSqrt(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
@@ -973,6 +974,42 @@ class NumberToStringStub: public CodeStub {
     PrintF("NumberToStringStub\n");
   }
 #endif
+};
+
+
+class RecordWriteStub : public CodeStub {
+ public:
+  RecordWriteStub(Register object, Register addr, Register scratch)
+      : object_(object), addr_(addr), scratch_(scratch) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register object_;
+  Register addr_;
+  Register scratch_;
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
+           object_.code(), addr_.code(), scratch_.code());
+  }
+#endif
+
+  // Minor key encoding in 12 bits of three registers (object, address and
+  // scratch) OOOOAAAASSSS.
+  class ScratchBits: public BitField<uint32_t, 0, 4> {};
+  class AddressBits: public BitField<uint32_t, 4, 4> {};
+  class ObjectBits: public BitField<uint32_t, 8, 4> {};
+
+  Major MajorKey() { return RecordWrite; }
+
+  int MinorKey() {
+    // Encode the registers.
+    return ObjectBits::encode(object_.code()) |
+           AddressBits::encode(addr_.code()) |
+           ScratchBits::encode(scratch_.code());
+  }
 };
 
 

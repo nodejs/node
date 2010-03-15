@@ -197,9 +197,9 @@ void MacroAssembler::RecordWrite(Register object,
   // avoid having the fast case for smis leave the registers
   // unchanged.
   if (FLAG_debug_code) {
-    movq(object, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(value, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(smi_index, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -270,9 +270,9 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    movq(object, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(scratch, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(smi_index, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 

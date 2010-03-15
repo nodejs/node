@@ -218,9 +218,7 @@ void CompilationSubCache::Iterate(ObjectVisitor* v) {
 
 
 void CompilationSubCache::Clear() {
-  for (int i = 0; i < generations_; i++) {
-    tables_[i] = Heap::undefined_value();
-  }
+  MemsetPointer(tables_, Heap::undefined_value(), generations_);
 }
 
 

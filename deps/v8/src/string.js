@@ -239,14 +239,29 @@ function StringReplace(search, replace) {
 }
 
 
+var cachedReplaceSubject;
+var cachedReplaceRegexp;
+var cachedReplaceReplacement;
+var cachedReplaceAnswer;
+
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
+  if (%_ObjectEquals(replace, cachedReplaceReplacement) &&
+      %_ObjectEquals(subject, cachedReplaceSubject) &&
+      %_ObjectEquals(regexp, cachedReplaceRegexp)) {
+    return cachedReplaceAnswer;
+  }
   replace = TO_STRING_INLINE(replace);
-  return %StringReplaceRegExpWithString(subject,
-                                        regexp,
-                                        replace,
-                                        lastMatchInfo);
-};
+  var answer = %StringReplaceRegExpWithString(subject,
+                                              regexp,
+                                              replace,
+                                              lastMatchInfo);
+  cachedReplaceSubject = subject;
+  cachedReplaceRegexp = regexp;
+  cachedReplaceReplacement = replace;
+  cachedReplaceAnswer = answer;
+  return answer;
+}
 
 
 // Expand the $-expressions in the string and return a new string with
@@ -387,43 +402,68 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   // Unfortunately, that means this code is nearly duplicated, here and in
   // jsregexp.cc.
   if (regexp.global) {
-    var numberOfCaptures = NUMBER_OF_CAPTURES(matchInfo) >> 1;
     var previous = 0;
-    do {
-      var startOfMatch = matchInfo[CAPTURE0];
-      result.addSpecialSlice(previous, startOfMatch);
-      previous = matchInfo[CAPTURE1];
-      if (numberOfCaptures == 1) {
+    var startOfMatch;
+    if (NUMBER_OF_CAPTURES(matchInfo) == 2) {
+      // Both branches contain essentially the same loop except for the call
+      // to the replace function. The branch is put outside of the loop for
+      // speed
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
         var match = SubString(subject, startOfMatch, previous);
         // Don't call directly to avoid exposing the built-in global object.
         result.add(replace.call(null, match, startOfMatch, subject));
-      } else {
-        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
-      }
-      // Can't use matchInfo any more from here, since the function could
-      // overwrite it.
-      // Continue with the next match.
-      // Increment previous if we matched an empty string, as per ECMA-262
-      // 15.5.4.10.
-      if (previous == startOfMatch) {
-        // Add the skipped character to the output, if any.
-        if (previous < subject.length) {
-          result.addSpecialSlice(previous, previous + 1);
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
         }
-        previous++;
-      }
-
-      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-      // string length, there is no match
-      matchInfo = (previous > subject.length)
-          ? null
-          : DoRegExpExec(regexp, subject, previous);
-    } while (!IS_NULL(matchInfo));
-
-    // Tack on the final right substring after the last match, if necessary.
-    if (previous < subject.length) {
-      result.addSpecialSlice(previous, subject.length);
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
+    } else {
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
+        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
+        }
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
     }
+
+    // Tack on the final right substring after the last match.
+    result.addSpecialSlice(previous, subject.length);
+
   } else { // Not a global regexp, no need to loop.
     result.addSpecialSlice(0, matchInfo[CAPTURE0]);
     var endOfMatch = matchInfo[CAPTURE1];
@@ -719,16 +759,26 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
+var static_charcode_array = new $Array(4);
+
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) return %_CharFromCode(ToNumber(code) & 0xffff)
+  if (n == 1) {
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    return %_CharFromCode(code & 0xffff);
+  }
 
   // NOTE: This is not super-efficient, but it is necessary because we
   // want to avoid converting to numbers from within the virtual
   // machine. Maybe we can find another way of doing this?
-  var codes = new $Array(n);
-  for (var i = 0; i < n; i++) codes[i] = ToNumber(%_Arguments(i));
+  var codes = static_charcode_array;
+  for (var i = 0; i < n; i++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    codes[i] = code;
+  }
+  codes.length = n;
   return %StringFromCharCodeArray(codes);
 }
 

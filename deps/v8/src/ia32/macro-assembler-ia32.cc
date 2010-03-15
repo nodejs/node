@@ -47,33 +47,32 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
-static void RecordWriteHelper(MacroAssembler* masm,
-                              Register object,
-                              Register addr,
-                              Register scratch) {
+void MacroAssembler::RecordWriteHelper(Register object,
+                                       Register addr,
+                                       Register scratch) {
   Label fast;
 
   // Compute the page start address from the heap object pointer, and reuse
   // the 'object' register for it.
-  masm->and_(object, ~Page::kPageAlignmentMask);
+  and_(object, ~Page::kPageAlignmentMask);
   Register page_start = object;
 
   // Compute the bit addr in the remembered set/index of the pointer in the
   // page. Reuse 'addr' as pointer_offset.
-  masm->sub(addr, Operand(page_start));
-  masm->shr(addr, kObjectAlignmentBits);
+  sub(addr, Operand(page_start));
+  shr(addr, kObjectAlignmentBits);
   Register pointer_offset = addr;
 
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
-  masm->cmp(pointer_offset, Page::kPageSize / kPointerSize);
-  masm->j(less, &fast);
+  cmp(pointer_offset, Page::kPageSize / kPointerSize);
+  j(less, &fast);
 
   // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
   // extra remembered set after the large object.
 
   // Find the length of the large object (FixedArray).
-  masm->mov(scratch, Operand(page_start, Page::kObjectStartOffset
+  mov(scratch, Operand(page_start, Page::kObjectStartOffset
                                          + FixedArray::kLengthOffset));
   Register array_length = scratch;
 
@@ -83,59 +82,40 @@ static void RecordWriteHelper(MacroAssembler* masm,
   // Add the delta between the end of the normal RSet and the start of the
   // extra RSet to 'page_start', so that addressing the bit using
   // 'pointer_offset' hits the extra RSet words.
-  masm->lea(page_start,
-            Operand(page_start, array_length, times_pointer_size,
-                    Page::kObjectStartOffset + FixedArray::kHeaderSize
-                        - Page::kRSetEndOffset));
+  lea(page_start,
+      Operand(page_start, array_length, times_pointer_size,
+              Page::kObjectStartOffset + FixedArray::kHeaderSize
+                  - Page::kRSetEndOffset));
 
   // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
   // to limit code size. We should probably evaluate this decision by
   // measuring the performance of an equivalent implementation using
   // "simpler" instructions
-  masm->bind(&fast);
-  masm->bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
+  bind(&fast);
+  bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
 }
 
 
-class RecordWriteStub : public CodeStub {
- public:
-  RecordWriteStub(Register object, Register addr, Register scratch)
-      : object_(object), addr_(addr), scratch_(scratch) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Register object_;
-  Register addr_;
-  Register scratch_;
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
-           object_.code(), addr_.code(), scratch_.code());
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch) {
+  if (Serializer::enabled()) {
+    // Can't do arithmetic on external references if it might get serialized.
+    mov(scratch, Operand(object));
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
+    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
+    j(cc, branch);
+  } else {
+    int32_t new_space_start = reinterpret_cast<int32_t>(
+        ExternalReference::new_space_start().address());
+    lea(scratch, Operand(object, -new_space_start));
+    and_(scratch, Heap::NewSpaceMask());
+    j(cc, branch);
   }
-#endif
-
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
-  class ScratchBits: public BitField<uint32_t, 0, 4> {};
-  class AddressBits: public BitField<uint32_t, 4, 4> {};
-  class ObjectBits: public BitField<uint32_t, 8, 4> {};
-
-  Major MajorKey() { return RecordWrite; }
-
-  int MinorKey() {
-    // Encode the registers.
-    return ObjectBits::encode(object_.code()) |
-           AddressBits::encode(addr_.code()) |
-           ScratchBits::encode(scratch_.code());
-  }
-};
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  RecordWriteHelper(masm, object_, addr_, scratch_);
-  masm->ret(0);
 }
 
 
@@ -161,22 +141,7 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
 
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    mov(value, Operand(object));
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    and_(Operand(value), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(value), Immediate(ExternalReference::new_space_start()));
-    j(equal, &done);
-  } else {
-    int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
-    lea(value, Operand(object, -new_space_start));
-    and_(value, Heap::NewSpaceMask());
-    j(equal, &done);
-  }
+  InNewSpace(object, value, equal, &done);
 
   if ((offset > 0) && (offset < Page::kMaxHeapObjectSize)) {
     // Compute the bit offset in the remembered set, leave it in 'value'.
@@ -209,7 +174,7 @@ void MacroAssembler::RecordWrite(Register object, int offset,
     // If we are already generating a shared stub, not inlining the
     // record write code isn't going to save us any memory.
     if (generating_stub()) {
-      RecordWriteHelper(this, object, dst, value);
+      RecordWriteHelper(object, dst, value);
     } else {
       RecordWriteStub stub(object, dst, value);
       CallStub(&stub);
@@ -221,9 +186,9 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(object, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(scratch, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -394,6 +359,12 @@ void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
       Factory::heap_number_map());
   Assert(equal, msg);
   bind(&ok);
+}
+
+
+void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
+  test(object, Immediate(kSmiTagMask));
+  Assert(equal, msg);
 }
 
 

@@ -866,6 +866,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
     map->set_instance_descriptors(*array);
   }
 
+  ASSERT(result->shared()->IsApiFunction());
   return result;
 }
 

@@ -2422,6 +2422,14 @@ class V8EXPORT V8 {
   static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
   /**
+   * The minimum allowed size for a log lines buffer.  If the size of
+   * the buffer given will not be enough to hold a line of the maximum
+   * length, an attempt to find a log line end in GetLogLines will
+   * fail, and an empty result will be returned.
+   */
+  static const int kMinimumSizeForLogLinesBuffer = 2048;
+
+  /**
    * Retrieve the V8 thread id of the calling thread.
    *
    * The thread id for a thread should only be retrieved after the V8

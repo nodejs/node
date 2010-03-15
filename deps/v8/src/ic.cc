@@ -150,7 +150,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(String::cast(name), target);
+  int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
@@ -458,17 +458,6 @@ Object* CallIC::LoadFunction(State state,
   ASSERT(result != Heap::the_hole_value());
 
   if (result->IsJSFunction()) {
-    // Check if there is an optimized (builtin) version of the function.
-    // Ignored this will degrade performance for some Array functions.
-    // Please note we only return the optimized function iff
-    // the JSObject has FastElements.
-    if (object->IsJSObject() && JSObject::cast(*object)->HasFastElements()) {
-      Object* opt = Top::LookupSpecialFunction(JSObject::cast(*object),
-                                               lookup.holder(),
-                                               JSFunction::cast(result));
-      if (opt->IsJSFunction()) return opt;
-    }
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
     if (Debug::StepInActive()) {

@@ -319,6 +319,24 @@ static bool ArrayPrototypeHasNoElements() {
 }
 
 
+static bool IsJSArrayWithFastElements(Object* receiver,
+                                      FixedArray** elements) {
+  if (!receiver->IsJSArray()) {
+    return false;
+  }
+
+  JSArray* array = JSArray::cast(receiver);
+
+  HeapObject* elms = HeapObject::cast(array->elements());
+  if (elms->map() != Heap::fixed_array_map()) {
+    return false;
+  }
+
+  *elements = FixedArray::cast(elms);
+  return true;
+}
+
+
 static Object* CallJsBuiltin(const char* name,
                              BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   HandleScope handleScope;
@@ -331,7 +349,7 @@ static Object* CallJsBuiltin(const char* name,
   Vector<Object**> argv(Vector<Object**>::New(args.length() - 1));
   int n_args = args.length() - 1;
   for (int i = 0; i < n_args; i++) {
-    argv[i] = &args[i + 1];
+    argv[i] = args.at<Object>(i + 1).location();
   }
   bool pending_exception = false;
   Handle<Object> result = Execution::Call(function,
@@ -346,8 +364,12 @@ static Object* CallJsBuiltin(const char* name,
 
 
 BUILTIN(ArrayPush) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)) {
+    return CallJsBuiltin("ArrayPush", args);
+  }
+  JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -359,7 +381,6 @@ BUILTIN(ArrayPush) {
   ASSERT(to_add <= (Smi::kMaxValue - len));
 
   int new_length = len + to_add;
-  FixedArray* elms = FixedArray::cast(array->elements());
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
@@ -390,14 +411,17 @@ BUILTIN(ArrayPush) {
 
 
 BUILTIN(ArrayPop) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)) {
+    return CallJsBuiltin("ArrayPop", args);
+  }
+  JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return Heap::undefined_value();
 
   // Get top element
-  FixedArray* elms = FixedArray::cast(array->elements());
   Object* top = elms->get(len - 1);
 
   // Set the length.
@@ -420,17 +444,17 @@ BUILTIN(ArrayPop) {
 
 
 BUILTIN(ArrayShift) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)
+      || !ArrayPrototypeHasNoElements()) {
     return CallJsBuiltin("ArrayShift", args);
   }
-
-  JSArray* array = JSArray::cast(*args.receiver());
+  JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return Heap::undefined_value();
-
-  FixedArray* elms = FixedArray::cast(array->elements());
 
   // Get first element
   Object* first = elms->get(0);
@@ -451,25 +475,21 @@ BUILTIN(ArrayShift) {
 
 
 BUILTIN(ArrayUnshift) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)
+      || !ArrayPrototypeHasNoElements()) {
     return CallJsBuiltin("ArrayUnshift", args);
   }
-
-  JSArray* array = JSArray::cast(*args.receiver());
+  JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
-  // Note that we cannot quit early if to_add == 0 as
-  // values should be lifted from prototype into
-  // the array.
-
   int new_length = len + to_add;
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
-
-  FixedArray* elms = FixedArray::cast(array->elements());
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
@@ -503,11 +523,13 @@ BUILTIN(ArrayUnshift) {
 
 
 BUILTIN(ArraySlice) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)
+      || !ArrayPrototypeHasNoElements()) {
     return CallJsBuiltin("ArraySlice", args);
   }
-
-  JSArray* array = JSArray::cast(*args.receiver());
+  JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
   int len = Smi::cast(array->length())->value();
@@ -558,8 +580,6 @@ BUILTIN(ArraySlice) {
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
-  FixedArray* elms = FixedArray::cast(array->elements());
-
   AssertNoAllocation no_gc;
   CopyElements(&no_gc, result_elms, 0, elms, k, result_len);
 
@@ -573,11 +593,13 @@ BUILTIN(ArraySlice) {
 
 
 BUILTIN(ArraySplice) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Object* receiver = *args.receiver();
+  FixedArray* elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver, &elms)
+      || !ArrayPrototypeHasNoElements()) {
     return CallJsBuiltin("ArraySplice", args);
   }
-
-  JSArray* array = JSArray::cast(*args.receiver());
+  JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
   int len = Smi::cast(array->length())->value();
@@ -617,8 +639,6 @@ BUILTIN(ArraySplice) {
     }
   }
   int actual_delete_count = Min(Max(delete_count, 0), len - actual_start);
-
-  FixedArray* elms = FixedArray::cast(array->elements());
 
   JSArray* result_array = NULL;
   if (actual_delete_count == 0) {
@@ -766,20 +786,19 @@ static Object* HandleApiCallHelper(
 
   HandleScope scope;
   Handle<JSFunction> function = args.called_function();
+  ASSERT(function->shared()->IsApiFunction());
 
+  FunctionTemplateInfo* fun_data = function->shared()->get_api_func_data();
   if (is_construct) {
-    Handle<FunctionTemplateInfo> desc =
-        Handle<FunctionTemplateInfo>(
-            FunctionTemplateInfo::cast(function->shared()->function_data()));
+    Handle<FunctionTemplateInfo> desc(fun_data);
     bool pending_exception = false;
     Factory::ConfigureInstance(desc, Handle<JSObject>::cast(args.receiver()),
                                &pending_exception);
     ASSERT(Top::has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
+    fun_data = *desc;
   }
 
-  FunctionTemplateInfo* fun_data =
-      FunctionTemplateInfo::cast(function->shared()->function_data());
   Object* raw_holder = TypeCheck(args.length(), &args[0], fun_data);
 
   if (raw_holder->IsNull()) {
@@ -850,8 +869,8 @@ BUILTIN(HandleApiCallConstruct) {
 
 static void VerifyTypeCheck(Handle<JSObject> object,
                             Handle<JSFunction> function) {
-  FunctionTemplateInfo* info =
-      FunctionTemplateInfo::cast(function->shared()->function_data());
+  ASSERT(function->shared()->IsApiFunction());
+  FunctionTemplateInfo* info = function->shared()->get_api_func_data();
   if (info->signature()->IsUndefined()) return;
   SignatureInfo* signature = SignatureInfo::cast(info->signature());
   Object* receiver_type = signature->receiver();
@@ -935,9 +954,9 @@ static Object* HandleApiCallAsFunctionOrConstructor(
   // used to create the called object.
   ASSERT(obj->map()->has_instance_call_handler());
   JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* handler =
-      FunctionTemplateInfo::cast(template_info)->instance_call_handler();
+      constructor->shared()->get_api_func_data()->instance_call_handler();
   ASSERT(!handler->IsUndefined());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();

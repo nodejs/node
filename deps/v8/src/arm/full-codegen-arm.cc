@@ -783,15 +783,16 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
-  __ ldr(r2, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
-  __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
-  __ mov(r1, Operand(Smi::FromInt(expr->literal_index())));
-  __ mov(r0, Operand(expr->constant_properties()));
-  __ stm(db_w, sp, r2.bit() | r1.bit() | r0.bit());
+  __ ldr(r3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
+  __ mov(r1, Operand(expr->constant_properties()));
+  __ mov(r0, Operand(Smi::FromInt(expr->fast_elements() ? 1 : 0)));
+  __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit() | r0.bit());
   if (expr->depth() > 1) {
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
 
   // If result_saved is true the result is on top of the stack.  If

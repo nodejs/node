@@ -435,14 +435,6 @@ Object* StubCache::ComputeCallConstant(int argc,
                                     argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    if (object->IsJSObject()) {
-      Object* opt =
-          Top::LookupSpecialFunction(JSObject::cast(object), holder, function);
-      if (opt->IsJSFunction()) {
-        check = StubCompiler::JSARRAY_HAS_FAST_ELEMENTS_CHECK;
-        function = JSFunction::cast(opt);
-      }
-    }
     // If the function hasn't been compiled yet, we cannot do it now
     // because it may cause GC. To avoid this issue, we return an
     // internal error which will make sure we do not update any

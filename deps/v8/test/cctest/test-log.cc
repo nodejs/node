@@ -52,13 +52,9 @@ TEST(GetMessages) {
   CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
   char log_lines[100];
   memset(log_lines, 0, sizeof(log_lines));
-  // Requesting data size which is smaller than first log message length.
-  CHECK_EQ(0, Logger::GetLogLines(0, log_lines, 3));
   // See Logger::StringEvent.
   const char* line_1 = "aaa,\"bbb\"\n";
   const int line_1_len = StrLength(line_1);
-  // Still smaller than log message length.
-  CHECK_EQ(0, Logger::GetLogLines(0, log_lines, line_1_len - 1));
   // The exact size.
   CHECK_EQ(line_1_len, Logger::GetLogLines(0, log_lines, line_1_len));
   CHECK_EQ(line_1, log_lines);
@@ -72,8 +68,6 @@ TEST(GetMessages) {
   const int line_2_len = StrLength(line_2);
   // Now start with line_2 beginning.
   CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, 0));
-  CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, 3));
-  CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, line_2_len - 1));
   CHECK_EQ(line_2_len, Logger::GetLogLines(line_1_len, log_lines, line_2_len));
   CHECK_EQ(line_2, log_lines);
   memset(log_lines, 0, sizeof(log_lines));

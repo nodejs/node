@@ -50,12 +50,6 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-// Comment for special_function_table:
-// Table for providing optimized/specialized functions.
-// The array contains triplets [object, general_function, optimized_function].
-// Primarily added to support built-in optimized variants of
-// Array.prototype.{push,pop}.
-
 #define GLOBAL_CONTEXT_FIELDS(V) \
   V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object) \
   V(SECURITY_TOKEN_INDEX, Object, security_token) \
@@ -82,7 +76,6 @@ enum ContextLookupFlags {
   V(FUNCTION_MAP_INDEX, Map, function_map) \
   V(FUNCTION_INSTANCE_MAP_INDEX, Map, function_instance_map) \
   V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
-  V(SPECIAL_FUNCTION_TABLE_INDEX, FixedArray, special_function_table) \
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun) \
@@ -206,7 +199,6 @@ class Context: public FixedArray {
     GLOBAL_EVAL_FUN_INDEX,
     INSTANTIATE_FUN_INDEX,
     CONFIGURE_INSTANCE_FUN_INDEX,
-    SPECIAL_FUNCTION_TABLE_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
     GET_STACK_TRACE_LINE_INDEX,

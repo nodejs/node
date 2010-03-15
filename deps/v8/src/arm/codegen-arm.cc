@@ -2709,18 +2709,20 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   // Load the function of this activation.
-  __ ldr(r2, frame_->Function());
+  __ ldr(r3, frame_->Function());
   // Literal array.
-  __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
   // Literal index.
-  __ mov(r1, Operand(Smi::FromInt(node->literal_index())));
+  __ mov(r2, Operand(Smi::FromInt(node->literal_index())));
   // Constant properties.
-  __ mov(r0, Operand(node->constant_properties()));
-  frame_->EmitPushMultiple(3, r2.bit() | r1.bit() | r0.bit());
+  __ mov(r1, Operand(node->constant_properties()));
+  // Should the object literal have fast elements?
+  __ mov(r0, Operand(Smi::FromInt(node->fast_elements() ? 1 : 0)));
+  frame_->EmitPushMultiple(4, r3.bit() | r2.bit() | r1.bit() | r0.bit());
   if (node->depth() > 1) {
-    frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->EmitPush(r0);  // save the result
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -3597,7 +3599,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
 

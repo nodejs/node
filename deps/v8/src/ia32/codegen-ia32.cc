@@ -2286,61 +2286,69 @@ void CodeGenerator::Comparison(AstNode* node,
       // a jump target and branching to duplicate the virtual frame at
       // the first split.  We manually handle the off-frame references
       // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-      __ test(left_side.reg(), Immediate(kSmiTagMask));
-      is_smi.Branch(zero, taken);
 
-      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-          && node->AsCompareOperation()->is_for_loop_condition();
-      if (!is_for_loop_compare
-          && CpuFeatures::IsSupported(SSE2)
-          && right_val->IsSmi()) {
-        // Right side is a constant smi and left side has been checked
-        // not to be a smi.
-        CpuFeatures::Scope use_sse2(SSE2);
-        JumpTarget not_number;
-        __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
-        not_number.Branch(not_equal, &left_side);
-        __ movdbl(xmm1,
-                  FieldOperand(left_reg, HeapNumber::kValueOffset));
-        int value = Smi::cast(*right_val)->value();
-        if (value == 0) {
-          __ xorpd(xmm0, xmm0);
-        } else {
-          Result temp = allocator()->Allocate();
-          __ mov(temp.reg(), Immediate(value));
-          __ cvtsi2sd(xmm0, Operand(temp.reg()));
-          temp.Unuse();
+      if (left_side.is_smi()) {
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left_side.reg(), "Argument not a smi");
         }
-        __ comisd(xmm1, xmm0);
-        // Jump to builtin for NaN.
-        not_number.Branch(parity_even, &left_side);
-        left_side.Unuse();
-        Condition double_cc = cc;
-        switch (cc) {
-          case less:          double_cc = below;       break;
-          case equal:         double_cc = equal;       break;
-          case less_equal:    double_cc = below_equal; break;
-          case greater:       double_cc = above;       break;
-          case greater_equal: double_cc = above_equal; break;
-          default: UNREACHABLE();
+      } else {
+        JumpTarget is_smi;
+        __ test(left_side.reg(), Immediate(kSmiTagMask));
+        is_smi.Branch(zero, taken);
+
+        bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
+            && node->AsCompareOperation()->is_for_loop_condition();
+        if (!is_for_loop_compare
+            && CpuFeatures::IsSupported(SSE2)
+            && right_val->IsSmi()) {
+          // Right side is a constant smi and left side has been checked
+          // not to be a smi.
+          CpuFeatures::Scope use_sse2(SSE2);
+          JumpTarget not_number;
+          __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+                 Immediate(Factory::heap_number_map()));
+          not_number.Branch(not_equal, &left_side);
+          __ movdbl(xmm1,
+                    FieldOperand(left_reg, HeapNumber::kValueOffset));
+          int value = Smi::cast(*right_val)->value();
+          if (value == 0) {
+            __ xorpd(xmm0, xmm0);
+          } else {
+            Result temp = allocator()->Allocate();
+            __ mov(temp.reg(), Immediate(value));
+            __ cvtsi2sd(xmm0, Operand(temp.reg()));
+            temp.Unuse();
+          }
+          __ comisd(xmm1, xmm0);
+          // Jump to builtin for NaN.
+          not_number.Branch(parity_even, &left_side);
+          left_side.Unuse();
+          Condition double_cc = cc;
+          switch (cc) {
+            case less:          double_cc = below;       break;
+            case equal:         double_cc = equal;       break;
+            case less_equal:    double_cc = below_equal; break;
+            case greater:       double_cc = above;       break;
+            case greater_equal: double_cc = above_equal; break;
+            default: UNREACHABLE();
+          }
+          dest->true_target()->Branch(double_cc);
+          dest->false_target()->Jump();
+          not_number.Bind(&left_side);
         }
-        dest->true_target()->Branch(double_cc);
+
+        // Setup and call the compare stub.
+        CompareStub stub(cc, strict, kCantBothBeNaN);
+        Result result = frame_->CallStub(&stub, &left_side, &right_side);
+        result.ToRegister();
+        __ cmp(result.reg(), 0);
+        result.Unuse();
+        dest->true_target()->Branch(cc);
         dest->false_target()->Jump();
-        not_number.Bind(&left_side);
+
+        is_smi.Bind();
       }
 
-      // Setup and call the compare stub.
-      CompareStub stub(cc, strict, kCantBothBeNaN);
-      Result result = frame_->CallStub(&stub, &left_side, &right_side);
-      result.ToRegister();
-      __ cmp(result.reg(), 0);
-      result.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
@@ -3579,6 +3587,24 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  // If we have (a) a loop with a compile-time constant trip count
+  // and (b) the loop induction variable is not assignend inside the
+  // loop we update the number type of the induction variable to be smi.
+
+  if (node->is_fast_smi_loop()) {
+    // Set number type of the loop variable to smi.
+    Slot* slot = node->loop_variable()->slot();
+    ASSERT(slot->type() == Slot::LOCAL);
+    frame_->SetTypeForLocalAt(slot->index(), NumberInfo::Smi());
+    if (FLAG_debug_code) {
+      frame_->PushLocalAt(slot->index());
+      Result var = frame_->Pop();
+      var.ToRegister();
+      __ AbortIfNotSmi(var.reg(), "Loop variable not a smi.");
+    }
+  }
+
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -4754,11 +4780,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->Push(Smi::FromInt(node->literal_index()));
   // Constant properties.
   frame_->Push(node->constant_properties());
+  // Should the object literal have fast elements?
+  frame_->Push(Smi::FromInt(node->fast_elements() ? 1 : 0));
   Result clone;
   if (node->depth() > 1) {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->Push(&clone);
 
@@ -5912,7 +5940,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // ArgumentsAccessStub expects the key in edx and the formal
@@ -6624,15 +6652,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       __ Set(tmp.reg(), Immediate(0));
     }
 
-    DeferredCode* deferred = NULL;
-    if (is_postfix) {
-      deferred = new DeferredPostfixCountOperation(new_value.reg(),
-                                                   old_value.reg(),
-                                                   is_increment);
-    } else {
-      deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                  is_increment);
-    }
 
     if (is_increment) {
       __ add(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
@@ -6640,24 +6659,41 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       __ sub(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
     }
 
-    // If the count operation didn't overflow and the result is a valid
-    // smi, we're done. Otherwise, we jump to the deferred slow-case
-    // code.
-    if (tmp.is_valid()) {
-      // We combine the overflow and the smi tag check if we could
-      // successfully allocate a temporary byte register.
-      __ setcc(overflow, tmp.reg());
-      __ or_(Operand(tmp.reg()), new_value.reg());
-      __ test(tmp.reg(), Immediate(kSmiTagMask));
-      tmp.Unuse();
-      deferred->Branch(not_zero);
+    if (new_value.is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(new_value.reg(), "Argument not a smi");
+      }
+      if (tmp.is_valid()) tmp.Unuse();
     } else {
-      // Otherwise we test separately for overflow and smi tag.
-      deferred->Branch(overflow);
-      __ test(new_value.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      DeferredCode* deferred = NULL;
+      if (is_postfix) {
+        deferred = new DeferredPostfixCountOperation(new_value.reg(),
+                                                     old_value.reg(),
+                                                     is_increment);
+      } else {
+        deferred = new DeferredPrefixCountOperation(new_value.reg(),
+                                                    is_increment);
+      }
+
+      // If the count operation didn't overflow and the result is a valid
+      // smi, we're done. Otherwise, we jump to the deferred slow-case
+      // code.
+      if (tmp.is_valid()) {
+        // We combine the overflow and the smi tag check if we could
+        // successfully allocate a temporary byte register.
+        __ setcc(overflow, tmp.reg());
+        __ or_(Operand(tmp.reg()), new_value.reg());
+        __ test(tmp.reg(), Immediate(kSmiTagMask));
+        tmp.Unuse();
+        deferred->Branch(not_zero);
+      } else {
+        // Otherwise we test separately for overflow and smi tag.
+        deferred->Branch(overflow);
+        __ test(new_value.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+      }
+      deferred->BindExit();
     }
-    deferred->BindExit();
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -6823,8 +6859,15 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       overwrite_mode = OVERWRITE_RIGHT;
     }
 
-    Load(node->left());
-    Load(node->right());
+    if (node->left()->IsTrivial()) {
+      Load(node->right());
+      Result right = frame_->Pop();
+      frame_->Push(node->left());
+      frame_->Push(&right);
+    } else {
+      Load(node->left());
+      Load(node->right());
+    }
     GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
   }
 }
@@ -7024,8 +7067,20 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-  if (!left_already_loaded) Load(left);
-  Load(right);
+
+  if (left->IsTrivial()) {
+    if (!left_already_loaded) {
+      Load(right);
+      Result right_result = frame_->Pop();
+      frame_->Push(left);
+      frame_->Push(&right_result);
+    } else {
+      Load(right);
+    }
+  } else {
+    if (!left_already_loaded) Load(left);
+    Load(right);
+  }
   Comparison(node, cc, strict, destination());
 }
 
@@ -10159,6 +10214,12 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+}
+
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  masm->RecordWriteHelper(object_, addr_, scratch_);
+  masm->ret(0);
 }
 
 

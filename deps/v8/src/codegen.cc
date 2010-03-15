@@ -351,42 +351,18 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
+// List of special runtime calls which are generated inline. For some of these
+// functions the code will be generated inline, and for others a call to a code
+// stub will be inlined.
 
-// Special cases: These 'runtime calls' manipulate the current
-// frame and are only used 1 or two places, so we generate them
-// inline instead of generating calls to them.  They are used
-// for implementing Function.prototype.call() and
-// Function.prototype.apply().
+#define INLINE_RUNTIME_ENTRY(Name, argc, ressize)                             \
+    {&CodeGenerator::Generate##Name,  "_" #Name, argc},                       \
+
 CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
-  {&CodeGenerator::GenerateIsSmi, "_IsSmi"},
-  {&CodeGenerator::GenerateIsNonNegativeSmi, "_IsNonNegativeSmi"},
-  {&CodeGenerator::GenerateIsArray, "_IsArray"},
-  {&CodeGenerator::GenerateIsRegExp, "_IsRegExp"},
-  {&CodeGenerator::GenerateIsConstructCall, "_IsConstructCall"},
-  {&CodeGenerator::GenerateArgumentsLength, "_ArgumentsLength"},
-  {&CodeGenerator::GenerateArgumentsAccess, "_Arguments"},
-  {&CodeGenerator::GenerateClassOf, "_ClassOf"},
-  {&CodeGenerator::GenerateValueOf, "_ValueOf"},
-  {&CodeGenerator::GenerateSetValueOf, "_SetValueOf"},
-  {&CodeGenerator::GenerateFastCharCodeAt, "_FastCharCodeAt"},
-  {&CodeGenerator::GenerateCharFromCode, "_CharFromCode"},
-  {&CodeGenerator::GenerateObjectEquals, "_ObjectEquals"},
-  {&CodeGenerator::GenerateLog, "_Log"},
-  {&CodeGenerator::GenerateRandomPositiveSmi, "_RandomPositiveSmi"},
-  {&CodeGenerator::GenerateIsObject, "_IsObject"},
-  {&CodeGenerator::GenerateIsFunction, "_IsFunction"},
-  {&CodeGenerator::GenerateIsUndetectableObject, "_IsUndetectableObject"},
-  {&CodeGenerator::GenerateStringAdd, "_StringAdd"},
-  {&CodeGenerator::GenerateSubString, "_SubString"},
-  {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
-  {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
-  {&CodeGenerator::GenerateNumberToString, "_NumberToString"},
-  {&CodeGenerator::GenerateMathPow, "_Math_pow"},
-  {&CodeGenerator::GenerateMathSin, "_Math_sin"},
-  {&CodeGenerator::GenerateMathCos, "_Math_cos"},
-  {&CodeGenerator::GenerateMathSqrt, "_Math_sqrt"},
+  INLINE_RUNTIME_FUNCTION_LIST(INLINE_RUNTIME_ENTRY)
 };
 
+#undef INLINE_RUNTIME_ENTRY
 
 CodeGenerator::InlineRuntimeLUT* CodeGenerator::FindInlineRuntimeLUT(
     Handle<String> name) {
@@ -428,6 +404,14 @@ bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
   entry->name = new_entry.name;
   entry->method = new_entry.method;
   return true;
+}
+
+
+int CodeGenerator::InlineRuntimeCallArgumentsCount(Handle<String> name) {
+  CodeGenerator::InlineRuntimeLUT* f =
+      CodeGenerator::FindInlineRuntimeLUT(name);
+  if (f != NULL) return f->nargs;
+  return -1;
 }
 
 

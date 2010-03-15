@@ -2154,24 +2154,24 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
+    return this->get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(
-        Smi::cast(get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
+        Smi::cast(this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
   // Sorting support
@@ -2194,7 +2194,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
-    fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
+    this->fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
   int NextEnumerationIndex() {
@@ -2971,7 +2971,7 @@ class Map: public HeapObject {
 
   // Returns the non-negative index of the code object if it is in the
   // cache and -1 otherwise.
-  int IndexInCodeCache(String* name, Code* code);
+  int IndexInCodeCache(Object* name, Code* code);
 
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(String* name, Code* code, int index);
@@ -3186,11 +3186,17 @@ class SharedFunctionInfo: public HeapObject {
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
 
-  // [function data]: This field has been added for make benefit the API.
+  // [function data]: This field holds some additional data for function.
+  // Currently it either has FunctionTemplateInfo to make benefit the API
+  // or Proxy wrapping CustomCallGenerator.
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
   DECL_ACCESSORS(function_data, Object)
+
+  inline bool IsApiFunction();
+  inline FunctionTemplateInfo* get_api_func_data();
+  inline bool HasCustomCallGenerator();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
@@ -3299,9 +3305,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kConstructStubOffset = kCodeOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
-  static const int kExternalReferenceDataOffset =
+  static const int kFunctionDataOffset =
       kInstanceClassNameOffset + kPointerSize;
-  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
+  static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
@@ -3743,10 +3749,10 @@ class CodeCache: public Struct {
   // code object is not in that cache. This index can be used to later call
   // RemoveByIndex. The cache cannot be modified between a call to GetIndex and
   // RemoveByIndex.
-  int GetIndex(String* name, Code* code);
+  int GetIndex(Object* name, Code* code);
 
   // Remove an object from the cache with the provided internal index.
-  void RemoveByIndex(String* name, Code* code, int index);
+  void RemoveByIndex(Object* name, Code* code, int index);
 
   static inline CodeCache* cast(Object* obj);
 

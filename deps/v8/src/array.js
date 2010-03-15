@@ -1088,15 +1088,6 @@ function ArrayIsArray(obj) {
   return IS_ARRAY(obj);
 }
 
-// -------------------------------------------------------------------
-
-
-function UpdateFunctionLengths(lengths) {
-  for (var key in lengths) {
-    %FunctionSetLength(this[key], lengths[key]);
-  }
-}
-
 
 // -------------------------------------------------------------------
 function SetupArray() {
@@ -1109,47 +1100,47 @@ function SetupArray() {
     "isArray", ArrayIsArray
   ));
 
+  var specialFunctions = %SpecialArrayFunctions({});
+
+  function getFunction(name, jsBuiltin, len) {
+    var f = jsBuiltin;
+    if (specialFunctions.hasOwnProperty(name)) {
+      f = specialFunctions[name];
+    }
+    if (!IS_UNDEFINED(len)) {
+      %FunctionSetLength(f, len);
+    }
+    return f;
+  }
+
   // Setup non-enumerable functions of the Array.prototype object and
   // set their names.
-  InstallFunctionsOnHiddenPrototype($Array.prototype, DONT_ENUM, $Array(
-    "toString", ArrayToString,
-    "toLocaleString", ArrayToLocaleString,
-    "join", ArrayJoin,
-    "pop", ArrayPop,
-    "push", ArrayPush,
-    "concat", ArrayConcat,
-    "reverse", ArrayReverse,
-    "shift", ArrayShift,
-    "unshift", ArrayUnshift,
-    "slice", ArraySlice,
-    "splice", ArraySplice,
-    "sort", ArraySort,
-    "filter", ArrayFilter,
-    "forEach", ArrayForEach,
-    "some", ArraySome,
-    "every", ArrayEvery,
-    "map", ArrayMap,
-    "indexOf", ArrayIndexOf,
-    "lastIndexOf", ArrayLastIndexOf,
-    "reduce", ArrayReduce,
-    "reduceRight", ArrayReduceRight
-  ));
-    
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
-  UpdateFunctionLengths({
-    ArrayFilter: 1,
-    ArrayForEach: 1,
-    ArraySome: 1,
-    ArrayEvery: 1,
-    ArrayMap: 1,
-    ArrayIndexOf: 1,
-    ArrayLastIndexOf: 1,
-    ArrayPush: 1,
-    ArrayReduce: 1,
-    ArrayReduceRight: 1
-  });
-
+  InstallFunctionsOnHiddenPrototype($Array.prototype, DONT_ENUM, $Array(
+    "toString", getFunction("toString", ArrayToString),
+    "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
+    "join", getFunction("join", ArrayJoin),
+    "pop", getFunction("pop", ArrayPop),
+    "push", getFunction("push", ArrayPush, 1),
+    "concat", getFunction("concat", ArrayConcat),
+    "reverse", getFunction("reverse", ArrayReverse),
+    "shift", getFunction("shift", ArrayShift),
+    "unshift", getFunction("unshift", ArrayUnshift, 1),
+    "slice", getFunction("slice", ArraySlice, 2),
+    "splice", getFunction("splice", ArraySplice, 2),
+    "sort", getFunction("sort", ArraySort),
+    "filter", getFunction("filter", ArrayFilter, 1),
+    "forEach", getFunction("forEach", ArrayForEach, 1),
+    "some", getFunction("some", ArraySome, 1),
+    "every", getFunction("every", ArrayEvery, 1),
+    "map", getFunction("map", ArrayMap, 1),
+    "indexOf", getFunction("indexOf", ArrayIndexOf, 1),
+    "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
+    "reduce", getFunction("reduce", ArrayReduce, 1),
+    "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1)
+  ));
+    
   %FinishArrayPrototypeSetup($Array.prototype);
 }
 

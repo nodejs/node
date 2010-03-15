@@ -277,7 +277,6 @@ class Scope: public ZoneObject {
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
-
   // ---------------------------------------------------------------------------
   // Debugging.
 

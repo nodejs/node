@@ -45,7 +45,8 @@ $Math.__proto__ = global.Object.prototype;
 function MathAbs(x) {
   if (%_IsSmi(x)) return x >= 0 ? x : -x;
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_abs(x);
+  if (x === 0) return 0;  // To handle -0.
+  return x > 0 ? x : -x;
 }
 
 // ECMA 262 - 15.8.2.2
@@ -84,7 +85,7 @@ function MathCeil(x) {
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_cos(x);
+  return %_MathCos(x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -159,7 +160,7 @@ function MathMin(arg1, arg2) {  // length == 2
 function MathPow(x, y) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %_Math_pow(x, y);
+  return %_MathPow(x, y);
 }
 
 // ECMA 262 - 15.8.2.14
@@ -176,13 +177,13 @@ function MathRound(x) {
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_sin(x);
+  return %_MathSin(x);
 }
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_sqrt(x);
+  return %_MathSqrt(x);
 }
 
 // ECMA 262 - 15.8.2.18

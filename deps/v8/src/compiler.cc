@@ -79,12 +79,32 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     return Handle<Code>::null();
   }
 
+  if (function->scope()->num_parameters() > 0 ||
+      function->scope()->num_stack_slots()) {
+    AssignedVariablesAnalyzer ava(function);
+    ava.Analyze();
+    if (ava.HasStackOverflow()) {
+      return Handle<Code>::null();
+    }
+  }
+
   if (FLAG_use_flow_graph) {
     FlowGraphBuilder builder;
     builder.Build(function);
 
+    if (!builder.HasStackOverflow()) {
+      int variable_count =
+          function->num_parameters() + function->scope()->num_stack_slots();
+      if (variable_count > 0 && builder.definitions()->length() > 0) {
+        ReachingDefinitions rd(builder.postorder(),
+                               builder.definitions(),
+                               variable_count);
+        rd.Compute();
+      }
+    }
+
 #ifdef DEBUG
-    if (FLAG_print_graph_text) {
+    if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
       builder.graph()->PrintText(builder.postorder());
     }
 #endif
@@ -463,12 +483,32 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       return Handle<JSFunction>::null();
     }
 
+    if (literal->scope()->num_parameters() > 0 ||
+        literal->scope()->num_stack_slots()) {
+      AssignedVariablesAnalyzer ava(literal);
+      ava.Analyze();
+      if (ava.HasStackOverflow()) {
+        return Handle<JSFunction>::null();
+      }
+    }
+
     if (FLAG_use_flow_graph) {
       FlowGraphBuilder builder;
       builder.Build(literal);
 
+    if (!builder.HasStackOverflow()) {
+      int variable_count =
+          literal->num_parameters() + literal->scope()->num_stack_slots();
+      if (variable_count > 0 && builder.definitions()->length() > 0) {
+        ReachingDefinitions rd(builder.postorder(),
+                               builder.definitions(),
+                               variable_count);
+        rd.Compute();
+      }
+    }
+
 #ifdef DEBUG
-      if (FLAG_print_graph_text) {
+      if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
         builder.graph()->PrintText(builder.postorder());
       }
 #endif

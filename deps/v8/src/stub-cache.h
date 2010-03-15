@@ -326,8 +326,7 @@ class StubCompiler BASE_EMBEDDED {
     RECEIVER_MAP_CHECK,
     STRING_CHECK,
     NUMBER_CHECK,
-    BOOLEAN_CHECK,
-    JSARRAY_HAS_FAST_ELEMENTS_CHECK
+    BOOLEAN_CHECK
   };
 
   StubCompiler() : scope_(), masm_(NULL, 256), failure_(NULL) { }
@@ -549,7 +548,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
 class CallStubCompiler: public StubCompiler {
  public:
-  explicit CallStubCompiler(int argc, InLoopFlag in_loop)
+  CallStubCompiler(int argc, InLoopFlag in_loop)
       : arguments_(argc), in_loop_(in_loop) { }
 
   Object* CompileCallField(JSObject* object,
@@ -570,6 +569,18 @@ class CallStubCompiler: public StubCompiler {
                             JSFunction* function,
                             String* name);
 
+  Object* CompileArrayPushCall(Object* object,
+                               JSObject* holder,
+                               JSFunction* function,
+                               String* name,
+                               CheckType check);
+
+  Object* CompileArrayPopCall(Object* object,
+                              JSObject* holder,
+                              JSFunction* function,
+                              String* name,
+                              CheckType check);
+
  private:
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
@@ -589,6 +600,14 @@ class ConstructStubCompiler: public StubCompiler {
  private:
   Object* GetCode();
 };
+
+
+typedef Object* (*CustomCallGenerator)(CallStubCompiler* compiler,
+                                       Object* object,
+                                       JSObject* holder,
+                                       JSFunction* function,
+                                       String* name,
+                                       StubCompiler::CheckType check);
 
 
 } }  // namespace v8::internal

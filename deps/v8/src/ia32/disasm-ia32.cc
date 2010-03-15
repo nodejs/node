@@ -1069,12 +1069,26 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else {
               UnimplementedInstruction();
             }
-          } else if (*data == 0x2F) {
+          } else if (*data == 0x2E || *data == 0x2F) {
+            const char* mnem = (*data == 0x2E) ? "ucomisd" : "comisd";
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("comisd %s,%s",
-                           NameOfXMMRegister(regop),
+            if (mod == 0x3) {
+              AppendToBuffer("%s %s,%s", mnem,
+                             NameOfXMMRegister(regop),
+                             NameOfXMMRegister(rm));
+              data++;
+            } else {
+              AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
+              data += PrintRightOperand(data);
+            }
+          } else if (*data == 0x50) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movmskpd %s,%s",
+                           NameOfCPURegister(regop),
                            NameOfXMMRegister(rm));
             data++;
           } else if (*data == 0x57) {
@@ -1198,6 +1212,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             const char* mnem = "?";
             switch (b2) {
               case 0x2A: mnem = "cvtsi2sd"; break;
+              case 0x2C: mnem = "cvttsd2si"; break;
               case 0x51: mnem = "sqrtsd"; break;
               case 0x58: mnem = "addsd"; break;
               case 0x59: mnem = "mulsd"; break;
@@ -1208,14 +1223,38 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             if (b2 == 0x2A) {
-              AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
-              data += PrintRightOperand(data);
+              if (mod != 0x3) {
+                AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
+                data += PrintRightOperand(data);
+              } else {
+                AppendToBuffer("%s %s,%s",
+                               mnem,
+                               NameOfXMMRegister(regop),
+                               NameOfCPURegister(rm));
+                data++;
+              }
+            } else if (b2 == 0x2C) {
+              if (mod != 0x3) {
+                AppendToBuffer("%s %s,", mnem, NameOfCPURegister(regop));
+                data += PrintRightOperand(data);
+              } else {
+                AppendToBuffer("%s %s,%s",
+                               mnem,
+                               NameOfCPURegister(regop),
+                               NameOfXMMRegister(rm));
+                data++;
+              }
             } else {
-              AppendToBuffer("%s %s,%s",
-                             mnem,
-                             NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm));
-              data++;
+              if (mod != 0x3) {
+                AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
+                data += PrintRightOperand(data);
+              } else {
+                AppendToBuffer("%s %s,%s",
+                               mnem,
+                               NameOfXMMRegister(regop),
+                               NameOfXMMRegister(rm));
+                data++;
+              }
             }
           }
         } else {
