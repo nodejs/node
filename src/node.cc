@@ -1126,6 +1126,7 @@ static Handle<Value> Binding(const Arguments& args) {
       // TODO DRY/automate this?
       exports->Set(String::New("assert"),       String::New(native_assert));
       exports->Set(String::New("dns"),          String::New(native_dns));
+      exports->Set(String::New("events"),       String::New(native_events));
       exports->Set(String::New("file"),         String::New(native_file));
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
