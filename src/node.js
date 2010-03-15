@@ -74,6 +74,17 @@ function createInternalModule (id, constructor) {
 };
 
 
+function requireNative (id) {
+  if (internalModuleCache[id]) return internalModuleCache[id].exports;
+  if (!process.natives[id]) throw new Error('No such native module ' + id);
+  var m = new Module(id);
+  internalModuleCache[id] = m;
+  var e = m._compile(process.natives[id], id);
+  if (e) throw e;
+  return m.exports;
+}
+
+
 process.createChildProcess = function (file, args, env) {
   var child = new process.ChildProcess();
   args = args || [];
@@ -327,62 +338,6 @@ function debug (x) {
 }
 
 
-
-
-function readAll (fd, pos, content, encoding, callback) {
-  process.fs.read(fd, 4*1024, pos, encoding, function (err, chunk, bytesRead) {
-    if (err) {
-      if (callback) callback(err);
-    } else if (chunk) {
-      content += chunk;
-      pos += bytesRead;
-      readAll(fd, pos, content, encoding, callback);
-    } else {
-      process.fs.close(fd, function (err) {
-        if (callback) callback(err, content);
-      });
-    }
-  });
-}
-
-process.fs.readFile = function (path, encoding_, callback) {
-  var encoding = typeof(encoding_) == 'string' ? encoding_ : 'utf8';
-  var callback_ = arguments[arguments.length - 1];
-  var callback = (typeof(callback_) == 'function' ? callback_ : null);
-  process.fs.open(path, process.O_RDONLY, 0666, function (err, fd) {
-    if (err) {
-      if (callback) callback(err);
-    } else {
-      readAll(fd, 0, "", encoding, callback);
-    }
-  });
-};
-
-process.fs.readFileSync = function (path, encoding) {
-  encoding = encoding || "utf8"; // default to utf8
-
-  debug('readFileSync open');
-
-  var fd = process.fs.open(path, process.O_RDONLY, 0666);
-  var content = '';
-  var pos = 0;
-  var r;
-
-  while ((r = process.fs.read(fd, 4*1024, pos, encoding)) && r[0]) {
-    debug('readFileSync read ' + r[1]);
-    content += r[0];
-    pos += r[1]
-  }
-
-  debug('readFileSync close');
-
-  process.fs.close(fd);
-
-  debug('readFileSync done');
-
-  return content;
-};
-
 var pathModule = createInternalModule("path", function (exports) {
   exports.join = function () {
     return exports.normalize(Array.prototype.join.call(arguments, "/"));
@@ -442,7 +397,7 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    process.fs.stat(path, function (err, stats) {
+    requireNative('fs').stat(path, function (err, stats) {
       if (callback) callback(err ? false : true);
     });
   };
@@ -713,7 +668,7 @@ function cat (id, callback) {
       }
     });
   } else {
-    process.fs.readFile(id, callback);
+    requireNative('fs').readFile(id, callback);
   }
 }
 
@@ -767,7 +722,7 @@ Module.prototype._compile = function (content, filename) {
 
 
 Module.prototype._loadScriptSync = function (filename) {
-  var content = process.fs.readFileSync(filename);
+  var content = requireNative('fs').readFileSync(filename);
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
 
