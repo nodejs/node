@@ -2,9 +2,7 @@
 #define node_stdio_h
 
 #include <node.h>
-
 #include <v8.h>
-#include <evcom.h>
 
 namespace node {
 
@@ -14,5 +12,5 @@ public:
   static void Flush ();
 };
 
-} // namespace node
-#endif
+}  // namespace node
+#endif  // node_stdio_h

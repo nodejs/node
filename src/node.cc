@@ -1073,7 +1073,16 @@ static Handle<Value> Binding(const Arguments& args) {
 
   Local<Object> exports;
 
-  if (!strcmp(*module_v, "http")) {
+  if (!strcmp(*module_v, "stdio")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Stdio::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "http")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
@@ -1258,7 +1267,6 @@ static void Load(int argc, char *argv[]) {
   IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
-  Stdio::Initialize(process);                  // stdio.cc
   InitNet2(process);                           // net2.cc
   InitHttpParser(process);                     // http_parser.cc
   ChildProcess::Initialize(process);           // child_process.cc

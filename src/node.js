@@ -106,9 +106,11 @@ process.createChildProcess = function (file, args, env) {
   return child;
 };
 
+
 process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
+
 
 // From jQuery.extend in the jQuery JavaScript Library v1.3.2
 // Copyright (c) 2009 John Resig
@@ -119,7 +121,7 @@ var mixinMessage;
 process.mixin = function() {
   if (!mixinMessage) {
     mixinMessage = 'deprecation warning: process.mixin will be removed from node-core future releases.\n'
-    process.stdio.writeError(mixinMessage);
+    process.binding('stdio').writeError(mixinMessage);
   }
   // copy reference to target object
   var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, source;
@@ -338,7 +340,7 @@ if ("NODE_DEBUG" in process.env) debugLevel = 1;
 
 function debug (x) {
   if (debugLevel > 0) {
-    process.stdio.writeError(x + "\n");
+    process.binding('stdio').writeError(x + "\n");
   }
 }
 
@@ -778,6 +780,27 @@ Module.prototype._waitChildrenLoad = function (callback) {
     }
   }
   if (children.length == nloaded && callback) callback();
+};
+
+
+var stdout;
+process.__defineGetter__('stdout', function () {
+  if (stdout) return stdout;
+  var net = requireNative('net');
+  stdout = new net.Socket(process.binding('stdio').stdoutFD);
+  return stdout;
+});
+
+var stdin;
+process.openStdin = function () {
+  if (stdin) return stdin;
+  var net = requireNative('net');
+  var fd = process.binding('stdio').openStdin();
+  stdin = new net.Socket(fd);
+  process.stdout.write(stdin.fd + "\n");
+  stdin.resume();
+  stdin.readable = true;
+  return stdin;
 };
 
 

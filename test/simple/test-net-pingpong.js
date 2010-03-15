@@ -1,4 +1,5 @@
-process.mixin(require("../common"));
+require("../common");
+
 net = require("net");
 
 process.Buffer.prototype.toString = function () {
