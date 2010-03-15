@@ -1139,6 +1139,24 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
+  } else if (!strcmp(*module_v, "net")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      InitNet2(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "http_parser")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      InitHttpParser(exports);
+      binding_cache->Set(module, exports);
+    }
+
   } else if (!strcmp(*module_v, "natives")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1267,8 +1285,6 @@ static void Load(int argc, char *argv[]) {
   IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
-  InitNet2(process);                           // net2.cc
-  InitHttpParser(process);                     // http_parser.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
 
