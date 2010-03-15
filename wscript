@@ -344,11 +344,11 @@ def build(bld):
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
-    source='src/node.js',
+    source='src/node.js ' + bld.path.ant_glob('lib/*.js'),
     target="src/node_natives.h",
-    before="cxx"
+    before="cxx",
+    install_path=None
   )
-  native_cc.install_path = None
 
   # Add the rule /after/ cloning the debug
   # This is a work around for an error had in python 2.4.3 (I'll paste the
@@ -457,8 +457,6 @@ def build(bld):
   # Why am I using two lines? Because WAF SUCKS.
   bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
-
-  bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js')
 
 def shutdown():
   Options.options.debug

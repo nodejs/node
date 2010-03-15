@@ -1156,6 +1156,26 @@ static void Load(int argc, char *argv[]) {
   HTTPConnection::Initialize(http);             // http.cc
 
 
+  Local<Object> natives = Object::New();
+  process->Set(String::New("natives"), natives);
+  // Explicitly define native sources.
+  natives->Set(String::New("assert"),       String::New(native_assert));
+  natives->Set(String::New("dns"),          String::New(native_dns));
+  natives->Set(String::New("file"),         String::New(native_file));
+  natives->Set(String::New("fs"),           String::New(native_fs));
+  natives->Set(String::New("http"),         String::New(native_http));
+  natives->Set(String::New("ini"),          String::New(native_ini));
+  natives->Set(String::New("mjsunit"),      String::New(native_mjsunit));
+  natives->Set(String::New("multipart"),    String::New(native_multipart));
+  natives->Set(String::New("posix"),        String::New(native_posix));
+  natives->Set(String::New("querystring"),  String::New(native_querystring));
+  natives->Set(String::New("repl"),         String::New(native_repl));
+  natives->Set(String::New("sys"),          String::New(native_sys));
+  natives->Set(String::New("tcp"),          String::New(native_tcp));
+  natives->Set(String::New("uri"),          String::New(native_uri));
+  natives->Set(String::New("url"),          String::New(native_url));
+  natives->Set(String::New("utils"),        String::New(native_utils));
+
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
@@ -1262,7 +1282,6 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--vars") == 0) {
       printf("NODE_PREFIX: %s\n", NODE_PREFIX);
-      printf("NODE_LIBRARIES_PREFIX: %s/%s\n", NODE_PREFIX, "lib/node/libraries");
       printf("NODE_CFLAGS: %s\n", NODE_CFLAGS);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {

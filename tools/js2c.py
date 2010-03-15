@@ -35,11 +35,22 @@ import os, re, sys, string
 import jsmin
 
 
-def ToCArray(lines):
+def ToCArray(filename, lines):
   result = []
+  row = 1
+  col = 0
   for chr in lines:
+    col += 1
+    if chr == "\n" or chr == "\r":
+      row += 1
+      col = 0
+
     value = ord(chr)
-    assert value < 128
+
+    if value > 128:
+      print 'non-ascii value ' + filename + ':' + str(row) + ':' + str(col)
+      sys.exit(1);
+
     result.append(str(value))
   result.append("0")
   return ", ".join(result)
@@ -231,6 +242,7 @@ def JS2C(source, target):
   # Locate the macros file name.
   consts = {}
   macros = {}
+
   for s in source:
     if 'macros.py' == (os.path.split(str(s))[1]):
       (consts, macros) = ReadMacros(ReadLines(str(s)))
@@ -244,10 +256,11 @@ def JS2C(source, target):
     delay = str(s).endswith('-delay.js')
     lines = ReadFile(str(s))
     do_jsmin = lines.find('// jsminify this file, js2c: jsmin') != -1
+
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
-    data = ToCArray(lines)
+    data = ToCArray(s, lines)
     id = (os.path.split(str(s))[1])[:-3]
     if delay: id = id[:-6]
     if delay:

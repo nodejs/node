@@ -461,8 +461,7 @@ function existsSync (path) {
 
 
 
-process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
-               ];
+process.paths = [];
 
 if (process.env["HOME"]) {
   process.paths.unshift(path.join(process.env["HOME"], ".node_libraries"));
@@ -553,6 +552,8 @@ function resolveModulePath(request, parent) {
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
+    debug("RELATIVE: requested:" + request + " set ID to: "+id+" from "+parent.id);
+
     var exts = ['js', 'node'], ext;
     for (ext in extensionCache) {
       exts.push(ext.slice(1));
@@ -561,7 +562,6 @@ function resolveModulePath(request, parent) {
     var parentIdPath = path.dirname(parent.id +
       (path.basename(parent.filename).match(new RegExp('^index\\.(' + exts.join('|') + ')$')) ? "/" : ""));
     id = path.join(parentIdPath, request);
-    // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
   } else {
     id = request;
@@ -573,56 +573,61 @@ function resolveModulePath(request, parent) {
 }
 
 
-function loadModuleSync (request, parent) {
-  var resolvedModule = resolveModulePath(request, parent);
-  var id = resolvedModule[0];
-  var paths = resolvedModule[1];
-
-  debug("loadModuleSync REQUEST  " + (request) + " parent: " + parent.id);
-
-  var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
-
-  if (cachedModule) {
-    debug("found  " + JSON.stringify(id) + " in cache");
-    return cachedModule.exports;
-  } else {
-    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
-    var filename = findModulePath(request, paths);
-    if (!filename) {
-      throw new Error("Cannot find module '" + request + "'");
-    } else {
-      var module = new Module(id, parent);
-      module.loadSync(filename);
-      return module.exports;
-    }
-  }
-}
-
-
 function loadModule (request, parent, callback) {
-  var
-    resolvedModule = resolveModulePath(request, parent),
-    id = resolvedModule[0],
-    paths = resolvedModule[1];
+  var resolvedModule = resolveModulePath(request, parent),
+      id = resolvedModule[0],
+      paths = resolvedModule[1];
 
   debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
   var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
+
+  if (!cachedModule) {
+    // Try to compile from native modules
+    if (process.natives[id]) {
+      debug('load native module ' + id);
+      cachedModule = new Module(id);
+      var e = cachedModule._compile(process.natives[id], id);
+      if (e) throw e;
+      internalModuleCache[id] = cachedModule;
+    }
+  }
+
   if (cachedModule) {
     debug("found  " + JSON.stringify(id) + " in cache");
-    if (callback) callback(null, cachedModule.exports);
-   } else {
-    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+    if (callback) {
+      callback(null, cachedModule.exports);
+    } else {
+      return cachedModule.exports;
+    }
+
+  } else {
     // Not in cache
-    findModulePath(request, paths, function (filename) {
+    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+
+    if (!callback) {
+      // sync
+      var filename = findModulePath(request, paths);
       if (!filename) {
-        var err = new Error("Cannot find module '" + request + "'");
-        if (callback) callback(err);
+        throw new Error("Cannot find module '" + request + "'");
       } else {
         var module = new Module(id, parent);
-        module.load(filename, callback);
+        module.loadSync(filename);
+        return module.exports;
       }
-    });
+
+    } else {
+      // async
+      findModulePath(request, paths, function (filename) {
+        if (!filename) {
+          var err = new Error("Cannot find module '" + request + "'");
+          callback(err);
+        } else {
+          var module = new Module(id, parent);
+          module.load(filename, callback);
+        }
+      });
+    }
   }
 };
 
@@ -713,7 +718,8 @@ function cat (id, callback) {
 }
 
 
-Module.prototype._loadContent = function (content, filename) {
+// Returns exception if any
+Module.prototype._compile = function (content, filename) {
   var self = this;
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
@@ -729,7 +735,7 @@ Module.prototype._loadContent = function (content, filename) {
   }
 
   function require (path) {
-    return loadModuleSync(path, self);
+    return loadModule(path, self);
   }
 
   require.paths = process.paths;
@@ -765,7 +771,7 @@ Module.prototype._loadScriptSync = function (filename) {
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
 
-  var e = this._loadContent(content, filename);
+  var e = this._compile(content, filename);
   if (e) {
     throw e;
   } else {
@@ -781,7 +787,7 @@ Module.prototype._loadScript = function (filename, callback) {
     if (err) {
       if (callback) callback(err);
     } else {
-      var e = self._loadContent(content, filename);
+      var e = self._compile(content, filename);
       if (e) {
         if (callback) callback(e);
       } else {
