@@ -55,7 +55,7 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
   void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(bit_cast<Object**, FixedArray**>(&cache_));
+    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
   }
 
 
@@ -244,12 +244,6 @@ class Genesis BASE_EMBEDDED {
       bool make_prototype_read_only,
       bool make_prototype_enumerable = false);
   void MakeFunctionInstancePrototypeWritable();
-
-  void AddSpecialFunction(Handle<JSObject> prototype,
-                          const char* name,
-                          Handle<Code> code);
-
-  void BuildSpecialFunctionTable();
 
   static bool CompileBuiltin(int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
@@ -776,8 +770,6 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->set_call_as_constructor_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
-
-  global_context()->set_special_function_table(Heap::empty_fixed_array());
 
   // Initialize the out of memory slot.
   global_context()->set_out_of_memory(Heap::false_value());
@@ -1457,65 +1449,6 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 }
 
 
-void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
-                                 const char* name,
-                                 Handle<Code> code) {
-  Handle<String> key = Factory::LookupAsciiSymbol(name);
-  Handle<Object> value = Handle<Object>(prototype->GetProperty(*key));
-  if (value->IsJSFunction()) {
-    Handle<JSFunction> optimized = Factory::NewFunction(key,
-                                                        JS_OBJECT_TYPE,
-                                                        JSObject::kHeaderSize,
-                                                        code,
-                                                        false);
-    optimized->shared()->DontAdaptArguments();
-    int len = global_context()->special_function_table()->length();
-    Handle<FixedArray> new_array = Factory::NewFixedArray(len + 3);
-    for (int index = 0; index < len; index++) {
-      new_array->set(index,
-                     global_context()->special_function_table()->get(index));
-    }
-    new_array->set(len+0, *prototype);
-    new_array->set(len+1, *value);
-    new_array->set(len+2, *optimized);
-    global_context()->set_special_function_table(*new_array);
-  }
-}
-
-
-void Genesis::BuildSpecialFunctionTable() {
-  HandleScope scope;
-  Handle<JSObject> global = Handle<JSObject>(global_context()->global());
-  // Add special versions for some Array.prototype functions.
-  Handle<JSFunction> function =
-      Handle<JSFunction>(
-          JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
-  Handle<JSObject> visible_prototype =
-      Handle<JSObject>(JSObject::cast(function->prototype()));
-  // Remember to put those specializations on the hidden prototype if present.
-  Handle<JSObject> special_prototype;
-  Handle<Object> superproto(visible_prototype->GetPrototype());
-  if (superproto->IsJSObject() &&
-      JSObject::cast(*superproto)->map()->is_hidden_prototype()) {
-    special_prototype = Handle<JSObject>::cast(superproto);
-  } else {
-    special_prototype = visible_prototype;
-  }
-  AddSpecialFunction(special_prototype, "pop",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  AddSpecialFunction(special_prototype, "push",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
-  AddSpecialFunction(special_prototype, "shift",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
-  AddSpecialFunction(special_prototype, "unshift",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
-  AddSpecialFunction(special_prototype, "slice",
-                     Handle<Code>(Builtins::builtin(Builtins::ArraySlice)));
-  AddSpecialFunction(special_prototype, "splice",
-                     Handle<Code>(Builtins::builtin(Builtins::ArraySplice)));
-}
-
-
 Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
@@ -1539,7 +1472,6 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!InstallNatives()) return;
 
   MakeFunctionInstancePrototypeWritable();
-  BuildSpecialFunctionTable();
 
   if (!ConfigureGlobalObjects(global_template)) return;
 

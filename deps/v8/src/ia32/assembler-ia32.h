@@ -769,6 +769,7 @@ class Assembler : public Malloced {
 
   void comisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void movmskpd(Register dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -828,7 +829,7 @@ class Assembler : public Malloced {
 
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
-
+  void emit_sse_operand(Register dst, XMMRegister src);
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }

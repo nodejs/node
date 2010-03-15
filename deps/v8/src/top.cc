@@ -92,15 +92,15 @@ void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
   v->VisitPointer(
-      bit_cast<Object**, Script**>(&(thread->pending_message_script_)));
-  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
+      BitCast<Object**, Script**>(&(thread->pending_message_script_)));
+  v->VisitPointer(BitCast<Object**, Context**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->TryCatchHandler();
        block != NULL;
        block = TRY_CATCH_FROM_ADDRESS(block->next_)) {
-    v->VisitPointer(bit_cast<Object**, void**>(&(block->exception_)));
-    v->VisitPointer(bit_cast<Object**, void**>(&(block->message_)));
+    v->VisitPointer(BitCast<Object**, void**>(&(block->exception_)));
+    v->VisitPointer(BitCast<Object**, void**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -439,10 +439,9 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   // Get the data object from access check info.
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return;
-
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  if (!constructor->shared()->IsApiFunction()) return;
+  Object* data_obj =
+      constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return;
 
   HandleScope scope;
@@ -502,10 +501,10 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   // Get named access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return false;
+  if (!constructor->shared()->IsApiFunction()) return false;
 
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  Object* data_obj =
+     constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->named_callback();
@@ -547,10 +546,10 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 
   // Get indexed access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return false;
+  if (!constructor->shared()->IsApiFunction()) return false;
 
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  Object* data_obj =
+      constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->indexed_callback();
@@ -947,27 +946,6 @@ Handle<Context> Top::GetCallingGlobalContext() {
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
   return Handle<Context>(context->global_context());
-}
-
-
-bool Top::CanHaveSpecialFunctions(JSObject* object) {
-  return object->IsJSArray();
-}
-
-
-Object* Top::LookupSpecialFunction(JSObject* receiver,
-                                   JSObject* prototype,
-                                   JSFunction* function) {
-  if (CanHaveSpecialFunctions(receiver)) {
-    FixedArray* table = context()->global_context()->special_function_table();
-    for (int index = 0; index < table->length(); index +=3) {
-      if ((prototype == table->get(index)) &&
-          (function == table->get(index+1))) {
-        return table->get(index+2);
-      }
-    }
-  }
-  return Heap::undefined_value();
 }
 
 

@@ -480,7 +480,7 @@ bool JSObject::IsDirty() {
   if (!cons_obj->IsJSFunction())
     return true;
   JSFunction* fun = JSFunction::cast(cons_obj);
-  if (!fun->shared()->function_data()->IsFunctionTemplateInfo())
+  if (!fun->shared()->IsApiFunction())
     return true;
   // If the object is fully fast case and has the same map it was
   // created with then no changes can have been made to it.
@@ -3055,7 +3055,7 @@ Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
 }
 
 
-int Map::IndexInCodeCache(String* name, Code* code) {
+int Map::IndexInCodeCache(Object* name, Code* code) {
   // Get the internal index if a code cache exists.
   if (!code_cache()->IsFixedArray()) {
     return CodeCache::cast(code_cache())->GetIndex(name, code);
@@ -3200,12 +3200,11 @@ Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
 }
 
 
-int CodeCache::GetIndex(String* name, Code* code) {
-  // This is not used for normal load/store/call IC's.
+int CodeCache::GetIndex(Object* name, Code* code) {
   if (code->type() == NORMAL) {
     if (normal_type_cache()->IsUndefined()) return -1;
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    return cache->GetIndex(name, code->flags());
+    return cache->GetIndex(String::cast(name), code->flags());
   }
 
   FixedArray* array = default_cache();
@@ -3217,11 +3216,11 @@ int CodeCache::GetIndex(String* name, Code* code) {
 }
 
 
-void CodeCache::RemoveByIndex(String* name, Code* code, int index) {
+void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
   if (code->type() == NORMAL) {
     ASSERT(!normal_type_cache()->IsUndefined());
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    ASSERT(cache->GetIndex(name, code->flags()) == index);
+    ASSERT(cache->GetIndex(String::cast(name), code->flags()) == index);
     cache->RemoveByIndex(index);
   } else {
     FixedArray* array = default_cache();
@@ -6434,9 +6433,9 @@ void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
 InterceptorInfo* JSObject::GetNamedInterceptor() {
   ASSERT(map()->has_named_interceptor());
   JSFunction* constructor = JSFunction::cast(map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* result =
-      FunctionTemplateInfo::cast(template_info)->named_property_handler();
+      constructor->shared()->get_api_func_data()->named_property_handler();
   return InterceptorInfo::cast(result);
 }
 
@@ -6444,9 +6443,9 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
 InterceptorInfo* JSObject::GetIndexedInterceptor() {
   ASSERT(map()->has_indexed_interceptor());
   JSFunction* constructor = JSFunction::cast(map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* result =
-      FunctionTemplateInfo::cast(template_info)->indexed_property_handler();
+      constructor->shared()->get_api_func_data()->indexed_property_handler();
   return InterceptorInfo::cast(result);
 }
 

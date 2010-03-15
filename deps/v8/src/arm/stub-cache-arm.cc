@@ -815,6 +815,104 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 }
 
 
+Object* CallStubCompiler::CompileArrayPushCall(Object* object,
+                                               JSObject* holder,
+                                               JSFunction* function,
+                                               String* name,
+                                               CheckType check) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  // TODO(639): faster implementation.
+  ASSERT(check == RECEIVER_MAP_CHECK);
+
+  Label miss;
+
+  // Get the receiver from the stack
+  const int argc = arguments().immediate();
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
+
+  if (object->IsGlobalObject()) {
+    __ ldr(r3, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc * kPointerSize));
+  }
+
+  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
+                               argc + 1,
+                               1);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  String* function_name = NULL;
+  if (function->shared()->name()->IsString()) {
+    function_name = String::cast(function->shared()->name());
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
+}
+
+
+Object* CallStubCompiler::CompileArrayPopCall(Object* object,
+                                              JSObject* holder,
+                                              JSFunction* function,
+                                              String* name,
+                                              CheckType check) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  // TODO(642): faster implementation.
+  ASSERT(check == RECEIVER_MAP_CHECK);
+
+  Label miss;
+
+  // Get the receiver from the stack
+  const int argc = arguments().immediate();
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
+
+  if (object->IsGlobalObject()) {
+    __ ldr(r3, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc * kPointerSize));
+  }
+
+  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
+                               argc + 1,
+                               1);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  String* function_name = NULL;
+  if (function->shared()->name()->IsString()) {
+    function_name = String::cast(function->shared()->name());
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
@@ -824,6 +922,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   //  -- r2    : name
   //  -- lr    : return address
   // -----------------------------------
+  SharedFunctionInfo* function_info = function->shared();
+  if (function_info->HasCustomCallGenerator()) {
+    CustomCallGenerator generator =
+        ToCData<CustomCallGenerator>(function_info->function_data());
+    return generator(this, object, holder, function, name, check);
+  }
+
   Label miss;
 
   // Get the receiver from the stack
@@ -915,18 +1020,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       }
       break;
     }
-
-    case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
-      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
-      // Make sure object->HasFastElements().
-      // Get the elements array of the object.
-      __ ldr(r3, FieldMemOperand(r1, JSObject::kElementsOffset));
-      // Check that the object is in fast mode (not dictionary).
-      __ ldr(r0, FieldMemOperand(r3, HeapObject::kMapOffset));
-      __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-      __ cmp(r0, ip);
-      __ b(ne, &miss);
-      break;
 
     default:
       UNREACHABLE();

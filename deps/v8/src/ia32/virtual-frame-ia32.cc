@@ -1171,11 +1171,17 @@ void VirtualFrame::Push(Expression* expr) {
   }
 
   VariableProxy* proxy = expr->AsVariableProxy();
-  if (proxy != NULL && proxy->is_this()) {
-    PushParameterAt(-1);
-    return;
+  if (proxy != NULL) {
+    Slot* slot = proxy->var()->slot();
+    if (slot->type() == Slot::LOCAL) {
+      PushLocalAt(slot->index());
+      return;
+    }
+    if (slot->type() == Slot::PARAMETER) {
+      PushParameterAt(slot->index());
+      return;
+    }
   }
-
   UNREACHABLE();
 }
 

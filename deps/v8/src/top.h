@@ -342,11 +342,6 @@ class Top {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());
   }
 
-  static bool CanHaveSpecialFunctions(JSObject* object);
-  static Object* LookupSpecialFunction(JSObject* receiver,
-                                       JSObject* prototype,
-                                       JSFunction* value);
-
   static void RegisterTryCatchHandler(v8::TryCatch* that);
   static void UnregisterTryCatchHandler(v8::TryCatch* that);
 

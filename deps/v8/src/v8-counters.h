@@ -170,7 +170,6 @@ namespace internal {
   SC(regexp_entry_native, V8.RegExpEntryNative)                       \
   SC(number_to_string_native, V8.NumberToStringNative)                \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)              \
-  SC(math_abs, V8.MathAbs)                                            \
   SC(math_acos, V8.MathAcos)                                          \
   SC(math_asin, V8.MathAsin)                                          \
   SC(math_atan, V8.MathAtan)                                          \

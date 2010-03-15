@@ -837,7 +837,7 @@ Handle<Value> Server::Listen(const Arguments& args) {
       host : NULL, *port, &server_tcp_hints, &address_list);
 
   if (r != 0) {
-    Local<Value> exception = Exception::Error(String::New(strerror(errno)));
+    Local<Value> exception = Exception::Error(String::New(gai_strerror(r)));
     return ThrowException(exception);
   }
 

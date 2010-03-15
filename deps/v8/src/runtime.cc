@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser-inl.h"
@@ -247,7 +248,8 @@ static Handle<Object> CreateLiteralBoilerplate(
 
 static Handle<Object> CreateObjectLiteralBoilerplate(
     Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties) {
+    Handle<FixedArray> constant_properties,
+    bool should_have_fast_elements) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -263,6 +265,10 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                             &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
+
+  // Normalize the elements of the boilerplate to save space if needed.
+  if (!should_have_fast_elements) NormalizeElements(boilerplate);
+
   {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
@@ -344,34 +350,16 @@ static Handle<Object> CreateLiteralBoilerplate(
     Handle<FixedArray> array) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   switch (CompileTimeValue::GetType(array)) {
-    case CompileTimeValue::OBJECT_LITERAL:
-      return CreateObjectLiteralBoilerplate(literals, elements);
+    case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, true);
+    case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, false);
     case CompileTimeValue::ARRAY_LITERAL:
       return CreateArrayLiteralBoilerplate(literals, elements);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
   }
-}
-
-
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
-  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-
-  Handle<Object> result =
-    CreateObjectLiteralBoilerplate(literals, constant_properties);
-
-  if (result.is_null()) return Failure::Exception();
-
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *result);
-
-  return *result;
 }
 
 
@@ -398,15 +386,19 @@ static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteral(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -417,15 +409,19 @@ static Object* Runtime_CreateObjectLiteral(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -1242,6 +1238,70 @@ static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
 }
 
 
+static void SetCustomCallGenerator(Handle<JSFunction> function,
+                                   CustomCallGenerator generator) {
+  if (function->shared()->function_data()->IsUndefined()) {
+    function->shared()->set_function_data(*FromCData(generator));
+  }
+}
+
+
+static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
+                                         const char* name,
+                                         Builtins::Name builtin_name,
+                                         CustomCallGenerator generator = NULL) {
+  Handle<String> key = Factory::LookupAsciiSymbol(name);
+  Handle<Code> code(Builtins::builtin(builtin_name));
+  Handle<JSFunction> optimized = Factory::NewFunction(key,
+                                                      JS_OBJECT_TYPE,
+                                                      JSObject::kHeaderSize,
+                                                      code,
+                                                      false);
+  optimized->shared()->DontAdaptArguments();
+  if (generator != NULL) {
+    SetCustomCallGenerator(optimized, generator);
+  }
+  SetProperty(holder, key, optimized, NONE);
+  return optimized;
+}
+
+
+static Object* CompileArrayPushCall(CallStubCompiler* compiler,
+                                    Object* object,
+                                    JSObject* holder,
+                                    JSFunction* function,
+                                    String* name,
+                                    StubCompiler::CheckType check) {
+  return compiler->CompileArrayPushCall(object, holder, function, name, check);
+}
+
+
+static Object* CompileArrayPopCall(CallStubCompiler* compiler,
+                                   Object* object,
+                                   JSObject* holder,
+                                   JSFunction* function,
+                                   String* name,
+                                   StubCompiler::CheckType check) {
+  return compiler->CompileArrayPopCall(object, holder, function, name, check);
+}
+
+
+static Object* Runtime_SpecialArrayFunctions(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, holder, 0);
+
+  InstallBuiltin(holder, "pop", Builtins::ArrayPop, CompileArrayPopCall);
+  InstallBuiltin(holder, "push", Builtins::ArrayPush, CompileArrayPushCall);
+  InstallBuiltin(holder, "shift", Builtins::ArrayShift);
+  InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
+  InstallBuiltin(holder, "slice", Builtins::ArraySlice);
+  InstallBuiltin(holder, "splice", Builtins::ArraySplice);
+
+  return *holder;
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -1376,10 +1436,8 @@ static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, f, args[0]);
-  // The function_data field of the shared function info is used exclusively by
-  // the API.
-  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
-                                                      : Heap::false_value();
+  return f->shared()->IsApiFunction() ? Heap::true_value()
+                                      : Heap::false_value();
 }
 
 static Object* Runtime_FunctionIsBuiltin(Arguments args) {
@@ -4847,16 +4905,6 @@ static Object* Runtime_StringCompare(Arguments args) {
 }
 
 
-static Object* Runtime_Math_abs(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  Counters::math_abs.Increment();
-
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(fabs(x));
-}
-
-
 static Object* Runtime_Math_acos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -5090,14 +5138,7 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
-static Object* Runtime_DateMakeDay(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
-  CONVERT_SMI_CHECKED(year, args[0]);
-  CONVERT_SMI_CHECKED(month, args[1]);
-  CONVERT_SMI_CHECKED(date, args[2]);
-
+static int MakeDay(int year, int month, int day) {
   static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
                                        181, 212, 243, 273, 304, 334};
   static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
@@ -5119,7 +5160,7 @@ static Object* Runtime_DateMakeDay(Arguments args) {
   //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
   //    Jan 1 1970. This is required so that we don't run into integer
   //    division of negative numbers.
-  // c) there shouldn't be overflow for 32-bit integers in the following
+  // c) there shouldn't be an overflow for 32-bit integers in the following
   //    operations.
   static const int year_delta = 399999;
   static const int base_day = 365 * (1970 + year_delta) +
@@ -5135,10 +5176,327 @@ static Object* Runtime_DateMakeDay(Arguments args) {
                       base_day;
 
   if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
-    return Smi::FromInt(day_from_year + day_from_month[month] + date - 1);
+    return day_from_year + day_from_month[month] + day - 1;
   }
 
-  return Smi::FromInt(day_from_year + day_from_month_leap[month] + date - 1);
+  return day_from_year + day_from_month_leap[month] + day - 1;
+}
+
+
+static Object* Runtime_DateMakeDay(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_SMI_CHECKED(year, args[0]);
+  CONVERT_SMI_CHECKED(month, args[1]);
+  CONVERT_SMI_CHECKED(date, args[2]);
+
+  return Smi::FromInt(MakeDay(year, month, date));
+}
+
+
+static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
+static const int kDaysIn4Years = 4 * 365 + 1;
+static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
+static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
+static const int kDays1970to2000 = 30 * 365 + 7;
+static const int kDaysOffset = 1000 * kDaysIn400Years + 5 * kDaysIn400Years -
+                               kDays1970to2000;
+static const int kYearsOffset = 400000;
+
+static const char kDayInYear[] = {
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+
+static const char kMonthInYear[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11};
+
+
+// This function works for dates from 1970 to 2099.
+static inline void DateYMDFromTimeAfter1970(int date,
+                                            int &year, int &month, int &day) {
+#ifdef DEBUG
+  int save_date = date;  // Need this for ASSERT in the end.
+#endif
+
+  year = 1970 + (4 * date + 2) / kDaysIn4Years;
+  date %= kDaysIn4Years;
+
+  month = kMonthInYear[date];
+  day = kDayInYear[date];
+
+  ASSERT(MakeDay(year, month, day) == save_date);
+}
+
+
+static inline void DateYMDFromTimeSlow(int date,
+                                       int &year, int &month, int &day) {
+#ifdef DEBUG
+  int save_date = date;  // Need this for ASSERT in the end.
+#endif
+
+  date += kDaysOffset;
+  year = 400 * (date / kDaysIn400Years) - kYearsOffset;
+  date %= kDaysIn400Years;
+
+  ASSERT(MakeDay(year, 0, 1) + date == save_date);
+
+  date--;
+  int yd1 = date / kDaysIn100Years;
+  date %= kDaysIn100Years;
+  year += 100 * yd1;
+
+  date++;
+  int yd2 = date / kDaysIn4Years;
+  date %= kDaysIn4Years;
+  year += 4 * yd2;
+
+  date--;
+  int yd3 = date / 365;
+  date %= 365;
+  year += yd3;
+
+  bool is_leap = (!yd1 || yd2) && !yd3;
+
+  ASSERT(date >= -1);
+  ASSERT(is_leap || date >= 0);
+  ASSERT(date < 365 || is_leap && date < 366);
+  ASSERT(is_leap == (year % 4 == 0 && (year % 100 || (year % 400 == 0))));
+  ASSERT(is_leap || MakeDay(year, 0, 1) + date == save_date);
+  ASSERT(!is_leap || MakeDay(year, 0, 1) + date + 1 == save_date);
+
+  if (is_leap) {
+    day = kDayInYear[2*365 + 1 + date];
+    month = kMonthInYear[2*365 + 1 + date];
+  } else {
+    day = kDayInYear[date];
+    month = kMonthInYear[date];
+  }
+
+  ASSERT(MakeDay(year, month, day) == save_date);
+}
+
+
+static inline void DateYMDFromTime(int date,
+                                   int &year, int &month, int &day) {
+  if (date >= 0 && date < 32 * kDaysIn4Years) {
+    DateYMDFromTimeAfter1970(date, year, month, day);
+  } else {
+    DateYMDFromTimeSlow(date, year, month, day);
+  }
+}
+
+
+static Object* Runtime_DateYMDFromTime(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  CONVERT_DOUBLE_CHECKED(t, args[0]);
+  CONVERT_CHECKED(JSArray, res_array, args[1]);
+
+  int year, month, day;
+  DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
+
+  res_array->SetElement(0, Smi::FromInt(year));
+  res_array->SetElement(1, Smi::FromInt(month));
+  res_array->SetElement(2, Smi::FromInt(day));
+
+  return Heap::undefined_value();
 }
 
 
@@ -8675,18 +9033,28 @@ static Object* Runtime_ListNatives(Arguments args) {
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;
+  bool inline_runtime_functions = false;
 #define ADD_ENTRY(Name, argc, ressize)                                       \
   {                                                                          \
     HandleScope inner;                                                       \
-    Handle<String> name =                                                    \
-      Factory::NewStringFromAscii(                                           \
-          Vector<const char>(#Name, StrLength(#Name)));       \
+    Handle<String> name;                                                     \
+    /* Inline runtime functions have an underscore in front of the name. */  \
+    if (inline_runtime_functions) {                                          \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>("_" #Name, StrLength("_" #Name)));              \
+    } else {                                                                 \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>(#Name, StrLength(#Name)));                      \
+    }                                                                        \
     Handle<JSArray> pair = Factory::NewJSArray(0);                           \
     SetElement(pair, 0, name);                                               \
     SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \
     SetElement(result, index++, pair);                                       \
   }
+  inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  inline_runtime_functions = true;
+  INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   return *result;
 }

@@ -1,7 +1,7 @@
 NODE(1)
 =======
 Ryan Dahl <ry@tinyclouds.org>
-Version, 0.1.31, 2010.03.05
+Version, 0.1.32, 2010.03.12
 
 
 == NAME
@@ -337,33 +337,20 @@ A module prefixed with +"./"+ is relative to the file calling +require()+.
 That is, +circle.js+ must be in the same directory as +foo.js+ for
 +require("./circle")+ to find it.
 
-Without the leading +"./"+, like +require("mjsunit")+ the module is searched
+Without the leading +"./"+, like +require("assert")+ the module is searched
 for in the +require.paths+ array. +require.paths+ on my system looks like
 this: 
 
 ----------------------------------------
-[ "/home/ryan/.node_libraries"
-, "/usr/local/lib/node/libraries" 
-]
+[ "/home/ryan/.node_libraries" ]
 ----------------------------------------
 
-That is, when +require("mjsunit")+ is called Node looks for 
+That is, when +require("assert")+ is called Node looks for 
 
-  1. +"/home/ryan/.node_libraries/mjsunit.js"+ 
-
-  2. +"/home/ryan/.node_libraries/mjsunit.node"+ 
-
-  3. +"/home/ryan/.node_libraries/mjsunit/index.js"+ 
-
-  4. +"/home/ryan/.node_libraries/mjsunit/index.node"+ 
-
-  5. +"/usr/local/lib/node/libraries/mjsunit.js"+ 
-
-  6. +"/usr/local/lib/node/libraries/mjsunit.node"+ 
-
-  7. +"/usr/local/lib/node/libraries/mjsunit/index.js"+ 
-
-  8. +"/usr/local/lib/node/libraries/mjsunit/index.node"+ 
+  1. +"/home/ryan/.node_libraries/assert.js"+
+  2. +"/home/ryan/.node_libraries/assert.node"+
+  3. +"/home/ryan/.node_libraries/assert/index.js"+
+  4. +"/home/ryan/.node_libraries/assert/index.node"+
 
 interrupting once a file is found. Files ending in +".node"+ are binary Addon
 Modules; see the section below about addons. +"index.js"+ allows one to

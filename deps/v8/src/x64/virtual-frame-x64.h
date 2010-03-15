@@ -416,6 +416,8 @@ class VirtualFrame : public ZoneObject {
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
   inline void Nip(int num_dropped);
 
+  inline void SetTypeForLocalAt(int index, NumberInfo info);
+
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
   static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;

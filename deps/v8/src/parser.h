@@ -168,7 +168,8 @@ FunctionLiteral* MakeLazyAST(Handle<Script> script,
 class CompileTimeValue: public AllStatic {
  public:
   enum Type {
-    OBJECT_LITERAL,
+    OBJECT_LITERAL_FAST_ELEMENTS,
+    OBJECT_LITERAL_SLOW_ELEMENTS,
     ARRAY_LITERAL
   };
 

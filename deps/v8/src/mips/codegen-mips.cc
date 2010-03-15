@@ -31,6 +31,7 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "ic-inl.h"
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
@@ -297,6 +298,16 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
@@ -335,7 +346,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -427,6 +438,11 @@ bool CodeGenerator::HasValidEntryRegisters() { return true; }
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
+  return Handle<Code>::null();
+}
 
 
 // On entry a0 and a1 are the things to be compared.  On exit v0 is 0,

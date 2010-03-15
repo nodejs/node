@@ -38,16 +38,6 @@ namespace internal {
 
 void DeferredCode::Jump() { __ b(&entry_label_); }
 
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
 #undef __
 
 } }  // namespace v8::internal

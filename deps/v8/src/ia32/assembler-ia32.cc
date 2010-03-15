@@ -2148,6 +2148,17 @@ void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::movmskpd(Register dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x50);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::movdqa(const Operand& dst, XMMRegister src ) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2279,6 +2290,11 @@ void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
 
 
 void Assembler::emit_sse_operand(XMMRegister dst, XMMRegister src) {
+  EMIT(0xC0 | dst.code() << 3 | src.code());
+}
+
+
+void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
   EMIT(0xC0 | dst.code() << 3 | src.code());
 }
 

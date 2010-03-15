@@ -196,6 +196,9 @@ int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
   char* end_pos = dest_buf + actual_size - 1;
   while (end_pos >= dest_buf && *end_pos != '\n') --end_pos;
   actual_size = static_cast<int>(end_pos - dest_buf + 1);
+  // If the assertion below is hit, it means that there was no line end
+  // found --- something wrong has happened.
+  ASSERT(actual_size > 0);
   ASSERT(actual_size <= max_size);
   return actual_size;
 }

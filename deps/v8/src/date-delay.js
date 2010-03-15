@@ -293,55 +293,48 @@ function CalculateDateTable() {
 }
 
 
-// Constructor for creating objects holding year, month, and date.
-// Introduced to ensure the two return points in FromJulianDay match same map.
-function DayTriplet(year, month, date) {
-  this.year = year;
-  this.month = month;
-  this.date = date;
+var ymd_from_time_cache = [$NaN, $NaN, $NaN];
+var ymd_from_time_cached_time = $NaN;
+
+function YearFromTime(t) {
+  if (t !== ymd_from_time_cached_time) {
+    // Limits according to ECMA 262 15.9.1.1
+    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+      return $NaN;
+    }
+
+    %DateYMDFromTime(t, ymd_from_time_cache);
+    ymd_from_time_cached_time = t
+  }
+
+  return ymd_from_time_cache[0];
 }
 
-var julian_day_cache_triplet;
-var julian_day_cache_day = $NaN;
+function MonthFromTime(t) {
+  if (t !== ymd_from_time_cached_time) {
+    // Limits according to ECMA 262 15.9.1.1
+    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+      return $NaN;
+    }
+    %DateYMDFromTime(t, ymd_from_time_cache);
+    ymd_from_time_cached_time = t
+  }
 
-// Compute year, month, and day from modified Julian day.
-// The missing days in 1582 are ignored for JavaScript compatibility.
-function FromJulianDay(julian) {
-  if (julian_day_cache_day == julian) {
-    return julian_day_cache_triplet;
+  return ymd_from_time_cache[1];
+}
+
+function DateFromTime(t) {
+  if (t !== ymd_from_time_cached_time) {
+    // Limits according to ECMA 262 15.9.1.1
+    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+      return $NaN;
+    }
+
+    %DateYMDFromTime(t, ymd_from_time_cache);
+    ymd_from_time_cached_time = t
   }
-  var result;
-  // Avoid floating point and non-Smi maths in common case.  This is also a period of
-  // time where leap years are very regular.  The range is not too large to avoid overflow
-  // when doing the multiply-to-divide trick.
-  if (julian > kDayZeroInJulianDay &&
-      (julian - kDayZeroInJulianDay) < 40177) { // 1970 - 2080
-    var jsimple = (julian - kDayZeroInJulianDay) + 731; // Day 0 is 1st January 1968
-    var y = 1968;
-    // Divide by 1461 by multiplying with 22967 and shifting down by 25!
-    var after_1968 = (jsimple * 22967) >> 25;
-    y += after_1968 << 2;
-    jsimple -= 1461 * after_1968;
-    var four_year_cycle = four_year_cycle_table[jsimple];
-    result = new DayTriplet(y + (four_year_cycle >> kYearShift),
-                            (four_year_cycle & kMonthMask) >> kMonthShift,
-                            four_year_cycle & kDayMask);
-  } else {
-    var jalpha = FLOOR((julian - 1867216.25) / 36524.25);
-    var jb = julian + 1 + jalpha - FLOOR(0.25 * jalpha) + 1524;
-    var jc = FLOOR(6680.0 + ((jb-2439870) - 122.1)/365.25);
-    var jd = FLOOR(365 * jc + (0.25 * jc));
-    var je = FLOOR((jb - jd)/30.6001);
-    var m = je - 1;
-    if (m > 12) m -= 13;
-    var y = jc - 4715;
-    if (m > 2) { --y; --m; }
-    var d = jb - jd - FLOOR(30.6001 * je);
-    result = new DayTriplet(y, m, d);
-  }
-  julian_day_cache_day = julian;
-  julian_day_cache_triplet = result;
-  return result;
+
+  return ymd_from_time_cache[2];
 }
 
 
@@ -577,11 +570,10 @@ function TwoDigitString(value) {
 
 
 function DateString(time) {
-  var YMD = FromJulianDay(DAY(time) + kDayZeroInJulianDay);
   return WeekDays[WeekDay(time)] + ' '
-      + Months[YMD.month] + ' '
-      + TwoDigitString(YMD.date) + ' '
-      + YMD.year;
+      + Months[MonthFromTime(time)] + ' '
+      + TwoDigitString(DateFromTime(time)) + ' '
+      + YearFromTime(time);
 }
 
 
@@ -590,11 +582,10 @@ var LongMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July'
 
 
 function LongDateString(time) {
-  var YMD = FromJulianDay(DAY(time) + kDayZeroInJulianDay);
   return LongWeekDays[WeekDay(time)] + ', '
-      + LongMonths[YMD.month] + ' '
-      + TwoDigitString(YMD.date) + ', '
-      + YMD.year;
+      + LongMonths[MonthFromTime(time)] + ' '
+      + TwoDigitString(DateFromTime(time)) + ', '
+      + YearFromTime(time);
 }
 
 

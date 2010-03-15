@@ -119,6 +119,12 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
   return true;
 }
 
+
+void VirtualFrame::SetTypeForLocalAt(int index, NumberInfo info) {
+  elements_[local0_index() + index].set_number_info(info);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_INL_H_

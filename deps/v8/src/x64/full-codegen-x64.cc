@@ -903,10 +903,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ push(FieldOperand(rdi, JSFunction::kLiteralsOffset));
   __ Push(Smi::FromInt(expr->literal_index()));
   __ Push(expr->constant_properties());
+  __ Push(Smi::FromInt(expr->fast_elements() ? 1 : 0));
   if (expr->depth() > 1) {
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
 
   // If result_saved is true the result is on top of the stack.  If

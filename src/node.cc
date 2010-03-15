@@ -24,8 +24,8 @@
 #include <node_idle_watcher.h>
 #include <node_http.h>
 #include <node_http_parser.h>
-#include <node_signal_handler.h>
-#include <node_stat.h>
+#include <node_signal_watcher.h>
+#include <node_stat_watcher.h>
 #include <node_timer.h>
 #include <node_child_process.h>
 #include <node_constants.h>
@@ -416,6 +416,7 @@ static Handle<Value> ByteLength(const Arguments& args) {
 
 static Handle<Value> Loop(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   // TODO Probably don't need to start this each time.
   // Avoids failing on test/mjsunit/test-eio-race3.js though
@@ -459,6 +460,7 @@ static Handle<Value> Chdir(const Arguments& args) {
 
 static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   char output[PATH_MAX];
   char *r = getcwd(output, PATH_MAX);
@@ -490,12 +492,14 @@ static Handle<Value> Umask(const Arguments& args){
 
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
   int uid = getuid();
   return scope.Close(Integer::New(uid));
 }
 
 static Handle<Value> GetGid(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
   int gid = getgid();
   return scope.Close(Integer::New(gid));
 }
@@ -503,10 +507,10 @@ static Handle<Value> GetGid(const Arguments& args) {
 
 static Handle<Value> SetGid(const Arguments& args) {
   HandleScope scope;
-  
+
   if (args.Length() < 1) {
     return ThrowException(Exception::Error(
-	  String::New("setgid requires 1 argument")));
+      String::New("setgid requires 1 argument")));
   }
 
   Local<Integer> given_gid = args[0]->ToInteger();
@@ -748,6 +752,7 @@ error:
 
 v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
 #ifndef HAVE_GETMEM
   return ThrowException(Exception::Error(String::New("Not support on your platform. (Talk to Ryan.)")));
@@ -873,7 +878,7 @@ Handle<Value> EvalCX(const Arguments& args) {
   // Copy objects from global context, to our brand new context
   Handle<Array> keys = sandbox->GetPropertyNames();
 
-  int i;
+  unsigned int i;
   for (i = 0; i < keys->Length(); i++) {
     Handle<String> key = keys->Get(Integer::New(i))->ToString();
     Handle<Value> value = sandbox->Get(key);
@@ -1016,6 +1021,7 @@ static void DebugMessageDispatch(void) {
 
 static Handle<Value> CheckBreak(const Arguments& args) {
   HandleScope scope;
+  assert(args.Length() == 0);
 
   // TODO FIXME This function is a hack to wait until V8 is ready to accept
   // commands. There seems to be a bug in EnableAgent( _ , _ , true) which
@@ -1051,6 +1057,114 @@ static Handle<Value> CheckBreak(const Arguments& args) {
     usleep(tenMs);
   }
   return Undefined();
+}
+
+Persistent<Object> binding_cache;
+
+static Handle<Value> Binding(const Arguments& args) {
+  HandleScope scope;
+
+  Local<String> module = args[0]->ToString();
+  String::Utf8Value module_v(module);
+
+  if (binding_cache.IsEmpty()) {
+    binding_cache = Persistent<Object>::New(Object::New());
+  }
+
+  Local<Object> exports;
+
+  if (!strcmp(*module_v, "http")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      // Warning: When calling requireBinding('http') from javascript then
+      // be sure that you call requireBinding('tcp') before it.
+      assert(binding_cache->Has(String::New("tcp")));
+      exports = Object::New();
+      HTTPServer::Initialize(exports);
+      HTTPConnection::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "tcp")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Server::Initialize(exports);
+      Connection::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "dns")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      DNS::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "fs")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+
+      // Initialize the stats object
+      Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
+      stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
+      exports->Set(String::NewSymbol("Stats"),
+                   stats_constructor_template->GetFunction());
+      StatWatcher::Initialize(exports);
+      File::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "signal_watcher")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      SignalWatcher::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "natives")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      // Explicitly define native sources.
+      // TODO DRY/automate this?
+      exports->Set(String::New("assert"),       String::New(native_assert));
+      exports->Set(String::New("dns"),          String::New(native_dns));
+      exports->Set(String::New("events"),       String::New(native_events));
+      exports->Set(String::New("file"),         String::New(native_file));
+      exports->Set(String::New("fs"),           String::New(native_fs));
+      exports->Set(String::New("http"),         String::New(native_http));
+      exports->Set(String::New("http2"),        String::New(native_http2));
+      exports->Set(String::New("ini"),          String::New(native_ini));
+      exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
+      exports->Set(String::New("multipart"),    String::New(native_multipart));
+      exports->Set(String::New("net"),          String::New(native_net));
+      exports->Set(String::New("posix"),        String::New(native_posix));
+      exports->Set(String::New("querystring"),  String::New(native_querystring));
+      exports->Set(String::New("repl"),         String::New(native_repl));
+      exports->Set(String::New("sys"),          String::New(native_sys));
+      exports->Set(String::New("tcp"),          String::New(native_tcp));
+      exports->Set(String::New("uri"),          String::New(native_uri));
+      exports->Set(String::New("url"),          String::New(native_url));
+      exports->Set(String::New("utils"),        String::New(native_utils));
+      binding_cache->Set(module, exports);
+    }
+
+  } else {
+    assert(0);
+    return ThrowException(Exception::Error(String::New("No such module")));
+  }
+
+  return scope.Close(exports);
 }
 
 
@@ -1131,15 +1245,12 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
   NODE_SET_METHOD(process, "checkBreak", CheckBreak);
 
+  NODE_SET_METHOD(process, "binding", Binding);
+
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
                EventEmitter::constructor_template->GetFunction());
 
-  // Initialize the stats object
-  Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-  stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
-  process->Set(String::NewSymbol("Stats"),
-      stats_constructor_template->GetFunction());
 
 
   // Initialize the C++ modules..................filename of module
@@ -1147,36 +1258,11 @@ static void Load(int argc, char *argv[]) {
   IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
-  Stat::Initialize(process);                   // stat.cc
-  SignalHandler::Initialize(process);          // signal_handler.cc
-
+  Stdio::Initialize(process);                  // stdio.cc
   InitNet2(process);                           // net2.cc
   InitHttpParser(process);                     // http_parser.cc
-
-  Stdio::Initialize(process);                  // stdio.cc
   ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
-  // Create node.dns
-  Local<Object> dns = Object::New();
-  process->Set(String::NewSymbol("dns"), dns);
-  DNS::Initialize(dns);                         // dns.cc
-  Local<Object> fs = Object::New();
-  process->Set(String::NewSymbol("fs"), fs);
-  File::Initialize(fs);                         // file.cc
-  // Create node.tcp. Note this separate from lib/tcp.js which is the public
-  // frontend.
-  Local<Object> tcp = Object::New();
-  process->Set(String::New("tcp"), tcp);
-  Server::Initialize(tcp);                      // tcp.cc
-  Connection::Initialize(tcp);                  // tcp.cc
-  // Create node.http.  Note this separate from lib/http.js which is the
-  // public frontend.
-  Local<Object> http = Object::New();
-  process->Set(String::New("http"), http);
-  HTTPServer::Initialize(http);                 // http.cc
-  HTTPConnection::Initialize(http);             // http.cc
-
-
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
@@ -1283,7 +1369,6 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--vars") == 0) {
       printf("NODE_PREFIX: %s\n", NODE_PREFIX);
-      printf("NODE_LIBRARIES_PREFIX: %s/%s\n", NODE_PREFIX, "lib/node/libraries");
       printf("NODE_CFLAGS: %s\n", NODE_CFLAGS);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {

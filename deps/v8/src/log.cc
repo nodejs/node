@@ -1346,10 +1346,9 @@ void Logger::LogCompiledFunctions() {
         LOG(CodeCreateEvent(
             Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
       }
-    } else if (shared->function_data()->IsFunctionTemplateInfo()) {
+    } else if (shared->IsApiFunction()) {
       // API function.
-      FunctionTemplateInfo* fun_data =
-          FunctionTemplateInfo::cast(shared->function_data());
+      FunctionTemplateInfo* fun_data = shared->get_api_func_data();
       Object* raw_call_data = fun_data->call_code();
       if (!raw_call_data->IsUndefined()) {
         CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);

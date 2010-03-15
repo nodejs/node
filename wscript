@@ -7,7 +7,7 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.31"
+VERSION="0.1.32"
 APPNAME="node.js"
 
 import js2c
@@ -163,7 +163,7 @@ def configure(conf):
       conf.fatal("Cannot find V8")
     if not conf.check(lib='ev', uselib_store='EV'):
       conf.fatal("Cannot find libev")
-    if conf.check(lib='udns', uselib_store='UDNS'):
+    if not conf.check(lib='udns', uselib_store='UDNS'):
       conf.fatal("Cannot find udns")
 
   conf.define("HAVE_CONFIG_H", 1)
@@ -344,11 +344,11 @@ def build(bld):
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
-    source='src/node.js',
+    source='src/node.js ' + bld.path.ant_glob('lib/*.js'),
     target="src/node_natives.h",
-    before="cxx"
+    before="cxx",
+    install_path=None
   )
-  native_cc.install_path = None
 
   # Add the rule /after/ cloning the debug
   # This is a work around for an error had in python 2.4.3 (I'll paste the
@@ -376,8 +376,8 @@ def build(bld):
     src/node_file.cc
     src/node_http.cc
     src/node_net.cc
-    src/node_signal_handler.cc
-    src/node_stat.cc
+    src/node_signal_watcher.cc
+    src/node_stat_watcher.cc
     src/node_stdio.cc
     src/node_timer.cc
     src/node_idle_watcher.cc
@@ -461,8 +461,6 @@ def build(bld):
   # Why am I using two lines? Because WAF SUCKS.
   bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
-
-  bld.install_files('${PREFIX}/lib/node/libraries/', 'lib/*.js')
 
 def shutdown():
   Options.options.debug

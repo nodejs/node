@@ -100,6 +100,13 @@ class BitVector: public ZoneObject {
     }
   }
 
+  void Subtract(const BitVector& other) {
+    ASSERT(other.length() == length());
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] &= ~other.data_[i];
+    }
+  }
+
   void Clear() {
     for (int i = 0; i < data_length_; i++) {
       data_[i] = 0;
@@ -113,6 +120,13 @@ class BitVector: public ZoneObject {
     return true;
   }
 
+  bool Equals(const BitVector& other) {
+    for (int i = 0; i < data_length_; i++) {
+      if (data_[i] != other.data_[i]) return false;
+    }
+    return true;
+  }
+
   int length() const { return length_; }
 
  private:
@@ -122,56 +136,68 @@ class BitVector: public ZoneObject {
 };
 
 
-// Forward declarations of Node types.
-class Node;
-class BranchNode;
-class JoinNode;
-
-// Flow graphs have a single entry and single exit.  The empty flowgraph is
-// represented by both entry and exit being NULL.
-class FlowGraph BASE_EMBEDDED {
+// Simple fixed-capacity list-based worklist (managed as a queue) of
+// pointers to T.
+template<typename T>
+class WorkList BASE_EMBEDDED {
  public:
-  FlowGraph() : entry_(NULL), exit_(NULL) {}
+  // The worklist cannot grow bigger than size.  We keep one item empty to
+  // distinguish between empty and full.
+  explicit WorkList(int size)
+      : capacity_(size + 1), head_(0), tail_(0), queue_(capacity_) {
+    for (int i = 0; i < capacity_; i++) queue_.Add(NULL);
+  }
 
-  static FlowGraph Empty() { return FlowGraph(); }
+  bool is_empty() { return head_ == tail_; }
 
-  bool is_empty() const { return entry_ == NULL; }
-  Node* entry() const { return entry_; }
-  Node* exit() const { return exit_; }
+  bool is_full() {
+    // The worklist is full if head is at 0 and tail is at capacity - 1:
+    //   head == 0 && tail == capacity-1 ==> tail - head == capacity - 1
+    // or if tail is immediately to the left of head:
+    //   tail+1 == head  ==> tail - head == -1
+    int diff = tail_ - head_;
+    return (diff == -1 || diff == capacity_ - 1);
+  }
 
-  // Add a single instruction to the end of this flowgraph.
-  void AppendInstruction(AstNode* instruction);
+  void Insert(T* item) {
+    ASSERT(!is_full());
+    queue_[tail_++] = item;
+    if (tail_ == capacity_) tail_ = 0;
+  }
 
-  // Add a single node to the end of this flow graph.
-  void AppendNode(Node* node);
-
-  // Add a flow graph fragment to the end of this one.
-  void AppendGraph(FlowGraph* graph);
-
-  // Concatenate an if-then-else flow-graph to this one.  Control is split
-  // and merged, so the graph remains single-entry, single-exit.
-  void Split(BranchNode* branch,
-             FlowGraph* left,
-             FlowGraph* right,
-             JoinNode* merge);
-
-  // Concatenate a forward loop (e.g., while or for loop) flow-graph to this
-  // one.  Control is split by the condition and merged back from the back
-  // edge at end of the body to the beginning of the condition.  The single
-  // (free) exit of the result graph is the right (false) arm of the branch
-  // node.
-  void Loop(JoinNode* merge,
-            FlowGraph* condition,
-            BranchNode* branch,
-            FlowGraph* body);
-
-#ifdef DEBUG
-  void PrintText(ZoneList<Node*>* postorder);
-#endif
+  T* Remove() {
+    ASSERT(!is_empty());
+    T* item = queue_[head_++];
+    if (head_ == capacity_) head_ = 0;
+    return item;
+  }
 
  private:
-  Node* entry_;
-  Node* exit_;
+  int capacity_;  // Including one empty slot.
+  int head_;      // Where the first item is.
+  int tail_;      // Where the next inserted item will go.
+  List<T*> queue_;
+};
+
+
+struct ReachingDefinitionsData BASE_EMBEDDED {
+ public:
+  ReachingDefinitionsData() : rd_in_(NULL), kill_(NULL), gen_(NULL) {}
+
+  void Initialize(int definition_count) {
+    rd_in_ = new BitVector(definition_count);
+    kill_ = new BitVector(definition_count);
+    gen_ = new BitVector(definition_count);
+  }
+
+  BitVector* rd_in() { return rd_in_; }
+  BitVector* kill() { return kill_; }
+  BitVector* gen() { return gen_; }
+
+ private:
+  BitVector* rd_in_;
+  BitVector* kill_;
+  BitVector* gen_;
 };
 
 
@@ -182,7 +208,9 @@ class Node: public ZoneObject {
 
   virtual ~Node() {}
 
+  virtual bool IsExitNode() { return false; }
   virtual bool IsBlockNode() { return false; }
+  virtual bool IsBranchNode() { return false; }
   virtual bool IsJoinNode() { return false; }
 
   virtual void AddPredecessor(Node* predecessor) = 0;
@@ -200,10 +228,22 @@ class Node: public ZoneObject {
   int number() { return number_; }
   void set_number(int number) { number_ = number; }
 
+  // Functions used by data-flow analyses.
+  virtual void InitializeReachingDefinitions(int definition_count,
+                                             List<BitVector*>* variables,
+                                             WorkList<Node>* worklist,
+                                             bool mark);
+  virtual void ComputeRDOut(BitVector* result) = 0;
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark) = 0;
+
 #ifdef DEBUG
-  virtual void AssignNumbers();
+  void AssignNodeNumber();
+  void PrintReachingDefinitions();
   virtual void PrintText() = 0;
 #endif
+
+ protected:
+  ReachingDefinitionsData rd_;
 
  private:
   int number_;
@@ -213,48 +253,26 @@ class Node: public ZoneObject {
 };
 
 
-// An entry node has no predecessors and a single successor.
-class EntryNode: public Node {
- public:
-  EntryNode() : successor_(NULL) {}
-
-  void AddPredecessor(Node* predecessor) { UNREACHABLE(); }
-
-  void AddSuccessor(Node* successor) {
-    ASSERT(successor_ == NULL && successor != NULL);
-    successor_ = successor;
-  }
-
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
-
-#ifdef DEBUG
-  void PrintText();
-#endif
-
- private:
-  Node* successor_;
-
-  DISALLOW_COPY_AND_ASSIGN(EntryNode);
-};
-
-
 // An exit node has a arbitrarily many predecessors and no successors.
 class ExitNode: public Node {
  public:
   ExitNode() : predecessors_(4) {}
+
+  bool IsExitNode() { return true; }
 
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor != NULL);
     predecessors_.Add(predecessor);
   }
 
-  void AddSuccessor(Node* successor) { /* Do nothing. */ }
+  void AddSuccessor(Node* successor) { UNREACHABLE(); }
 
   void Traverse(bool mark,
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
+
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
   void PrintText();
@@ -280,6 +298,8 @@ class BlockNode: public Node {
 
   bool IsBlockNode() { return true; }
 
+  bool is_empty() { return instructions_.is_empty(); }
+
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
     predecessor_ = predecessor;
@@ -298,8 +318,14 @@ class BlockNode: public Node {
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
 
+  void InitializeReachingDefinitions(int definition_count,
+                                     List<BitVector*>* variables,
+                                     WorkList<Node>* worklist,
+                                     bool mark);
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+
 #ifdef DEBUG
-  void AssignNumbers();
   void PrintText();
 #endif
 
@@ -316,6 +342,8 @@ class BlockNode: public Node {
 class BranchNode: public Node {
  public:
   BranchNode() : predecessor_(NULL), successor0_(NULL), successor1_(NULL) {}
+
+  bool IsBranchNode() { return true; }
 
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
@@ -334,6 +362,9 @@ class BranchNode: public Node {
   void Traverse(bool mark,
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
+
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
   void PrintText();
@@ -374,6 +405,9 @@ class JoinNode: public Node {
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
 
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+
 #ifdef DEBUG
   void PrintText();
 #endif
@@ -386,12 +420,68 @@ class JoinNode: public Node {
 };
 
 
+// Flow graphs have a single entry and single exit.  The empty flowgraph is
+// represented by both entry and exit being NULL.
+class FlowGraph BASE_EMBEDDED {
+ public:
+  static FlowGraph Empty() {
+    FlowGraph graph;
+    graph.entry_ = new BlockNode();
+    graph.exit_ = graph.entry_;
+    return graph;
+  }
+
+  bool is_empty() const {
+    return entry_ == exit_ && BlockNode::cast(entry_)->is_empty();
+  }
+  Node* entry() const { return entry_; }
+  Node* exit() const { return exit_; }
+
+  // Add a single instruction to the end of this flowgraph.
+  void AppendInstruction(AstNode* instruction);
+
+  // Add a single node to the end of this flow graph.
+  void AppendNode(Node* node);
+
+  // Add a flow graph fragment to the end of this one.
+  void AppendGraph(FlowGraph* graph);
+
+  // Concatenate an if-then-else flow-graph to this one.  Control is split
+  // and merged, so the graph remains single-entry, single-exit.
+  void Split(BranchNode* branch,
+             FlowGraph* left,
+             FlowGraph* right,
+             JoinNode* merge);
+
+  // Concatenate a forward loop (e.g., while or for loop) flow-graph to this
+  // one.  Control is split by the condition and merged back from the back
+  // edge at end of the body to the beginning of the condition.  The single
+  // (free) exit of the result graph is the right (false) arm of the branch
+  // node.
+  void Loop(JoinNode* merge,
+            FlowGraph* condition,
+            BranchNode* branch,
+            FlowGraph* body);
+
+#ifdef DEBUG
+  void PrintText(ZoneList<Node*>* postorder);
+#endif
+
+ private:
+  FlowGraph() : entry_(NULL), exit_(NULL) {}
+
+  Node* entry_;
+  Node* exit_;
+};
+
+
 // Construct a flow graph from a function literal.  Build pre- and postorder
 // traversal orders as a byproduct.
 class FlowGraphBuilder: public AstVisitor {
  public:
   FlowGraphBuilder()
-      : global_exit_(NULL),
+      : graph_(FlowGraph::Empty()),
+        global_exit_(NULL),
         preorder_(4),
         postorder_(4),
         definitions_(4) {
@@ -400,8 +490,8 @@ class FlowGraphBuilder: public AstVisitor {
   void Build(FunctionLiteral* lit);
 
   FlowGraph* graph() { return &graph_; }
-
   ZoneList<Node*>* postorder() { return &postorder_; }
+  ZoneList<Expression*>* definitions() { return &definitions_; }
 
  private:
   ExitNode* global_exit() { return global_exit_; }
@@ -418,8 +508,9 @@ class FlowGraphBuilder: public AstVisitor {
 
   // The flow graph builder collects a list of definitions (assignments and
   // count operations) to stack-allocated variables to use for reaching
-  // definitions analysis.
-  ZoneList<AstNode*> definitions_;
+  // definitions analysis.  AST node numbers in the AST are used to refer
+  // into this list.
+  ZoneList<Expression*> definitions_;
 
   DISALLOW_COPY_AND_ASSIGN(FlowGraphBuilder);
 };
@@ -499,6 +590,74 @@ class LivenessAnalyzer : public AstVisitor {
   VarUseMap live_vars_;
 
   DISALLOW_COPY_AND_ASSIGN(LivenessAnalyzer);
+};
+
+
+// Computes the set of assigned variables and annotates variables proxies
+// that are trivial sub-expressions and for-loops where the loop variable
+// is guaranteed to be a smi.
+class AssignedVariablesAnalyzer : public AstVisitor {
+ public:
+  explicit AssignedVariablesAnalyzer(FunctionLiteral* fun);
+
+  void Analyze();
+
+ private:
+  Variable* FindSmiLoopVariable(ForStatement* stmt);
+
+  int BitIndex(Variable* var);
+
+  void RecordAssignedVar(Variable* var);
+
+  void MarkIfTrivial(Expression* expr);
+
+  // Visits an expression saving the accumulator before, clearing
+  // it before visting and restoring it after visiting.
+  void ProcessExpression(Expression* expr);
+
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  FunctionLiteral* fun_;
+
+  // Accumulator for assigned variables set.
+  BitVector av_;
+
+  DISALLOW_COPY_AND_ASSIGN(AssignedVariablesAnalyzer);
+};
+
+
+class ReachingDefinitions BASE_EMBEDDED {
+ public:
+  ReachingDefinitions(ZoneList<Node*>* postorder,
+                      ZoneList<Expression*>* definitions,
+                      int variable_count)
+      : postorder_(postorder),
+        definitions_(definitions),
+        variables_(variable_count) {
+    int definition_count = definitions->length();
+    for (int i = 0; i < variable_count; i++) {
+      variables_.Add(new BitVector(definition_count));
+    }
+  }
+
+  static int IndexFor(Variable* var, int variable_count);
+
+  void Compute();
+
+ private:
+  // A (postorder) list of flow-graph nodes in the body.
+  ZoneList<Node*>* postorder_;
+
+  // A list of all the definitions in the body.
+  ZoneList<Expression*>* definitions_;
+
+  // For each variable, the set of all its definitions.
+  List<BitVector*> variables_;
+
+  DISALLOW_COPY_AND_ASSIGN(ReachingDefinitions);
 };
 
 

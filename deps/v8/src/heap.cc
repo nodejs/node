@@ -2571,11 +2571,9 @@ Object* Heap::CopyJSObject(JSObject* source) {
               reinterpret_cast<Object**>(source->address()),
               object_size);
     // Update write barrier for all fields that lie beyond the header.
-    for (int offset = JSObject::kHeaderSize;
-         offset < object_size;
-         offset += kPointerSize) {
-      RecordWrite(clone_address, offset);
-    }
+    RecordWrites(clone_address,
+                 JSObject::kHeaderSize,
+                 object_size - JSObject::kHeaderSize);
   } else {
     clone = new_space_.AllocateRaw(object_size);
     if (clone->IsFailure()) return clone;
@@ -2906,12 +2904,9 @@ Object* Heap::AllocateFixedArray(int length) {
     reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
     FixedArray* array = FixedArray::cast(result);
     array->set_length(length);
-    Object* value = undefined_value();
     // Initialize body.
-    for (int index = 0; index < length; index++) {
-      ASSERT(!Heap::InNewSpace(value));  // value = undefined
-      array->set(index, value, SKIP_WRITE_BARRIER);
-    }
+    ASSERT(!Heap::InNewSpace(undefined_value()));
+    MemsetPointer(array->data_start(), undefined_value(), length);
   }
   return result;
 }
@@ -2963,11 +2958,8 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
-  Object* value = undefined_value();
-  for (int index = 0; index < length; index++) {
-    ASSERT(!Heap::InNewSpace(value));  // value = undefined
-    array->set(index, value, SKIP_WRITE_BARRIER);
-  }
+  ASSERT(!Heap::InNewSpace(undefined_value()));
+  MemsetPointer(array->data_start(), undefined_value(), length);
   return array;
 }
 
@@ -2994,9 +2986,7 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     array->set_length(length);
     // Initialize body.
     ASSERT(!Heap::InNewSpace(the_hole_value()));
-    MemsetPointer(HeapObject::RawField(array, FixedArray::kHeaderSize),
-                  the_hole_value(),
-                  length);
+    MemsetPointer(array->data_start(), the_hole_value(), length);
   }
   return result;
 }
@@ -3409,7 +3399,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize("strong_root_list");
 
-  v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
+  v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
   Bootstrapper::Iterate(v);

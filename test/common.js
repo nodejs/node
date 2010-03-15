@@ -7,8 +7,6 @@ exports.fixturesDir = path.join(exports.testDir, "fixtures");
 exports.libDir = path.join(exports.testDir, "../lib");
 exports.PORT = 12346;
 
-require.paths.unshift(exports.libDir);
-
 var sys = require("sys");
 for (var i in sys) exports[i] = sys[i];
 exports.assert = require('assert');

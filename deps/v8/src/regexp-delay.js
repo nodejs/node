@@ -95,6 +95,16 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
     %IgnoreAttributesAndSetProperty(object, 'ignoreCase', ignoreCase);
     %IgnoreAttributesAndSetProperty(object, 'multiline', multiline);
     %IgnoreAttributesAndSetProperty(object, 'lastIndex', 0);
+    // Clear the regexp result cache.
+    cachedRegexp = 0;
+    cachedSubject = 0;
+    cachedLastIndex = 0;
+    cachedAnswer = 0;
+    // These are from string.js.
+    cachedReplaceSubject = 0;
+    cachedReplaceRegexp = 0;
+    cachedReplaceReplacement = 0;
+    cachedReplaceAnswer = 0;
   }
 
   // Call internal function to compile the pattern.
@@ -140,7 +150,36 @@ function DoRegExpExec(regexp, string, index) {
 }
 
 
+var cachedRegexp;
+var cachedSubject;
+var cachedLastIndex;
+var cachedAnswer;
+
+
+function CloneRegexpAnswer(array) {
+  var len = array.length;
+  var answer = new $Array(len);
+  for (var i = 0; i < len; i++) {
+    answer[i] = array[i];
+  }
+  answer.index = array.index;
+  answer.input = array.input;
+  return answer;
+}
+
+
 function RegExpExec(string) {
+  if (%_ObjectEquals(cachedLastIndex, this.lastIndex) &&
+      %_ObjectEquals(cachedRegexp, this) &&
+      %_ObjectEquals(cachedSubject, string)) {
+    var last = cachedAnswer;
+    if (last == null) {
+      return last;
+    } else {
+      return CloneRegexpAnswer(last);
+    }
+  }
+
   if (!IS_REGEXP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.exec', this]);
@@ -159,6 +198,7 @@ function RegExpExec(string) {
     s = ToString(string);
   }
   var lastIndex = this.lastIndex;
+
   var i = this.global ? TO_INTEGER(lastIndex) : 0;
 
   if (i < 0 || i > s.length) {
@@ -172,7 +212,11 @@ function RegExpExec(string) {
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;
-    return matchIndices; // no match
+    cachedLastIndex = lastIndex;
+    cachedRegexp = this;
+    cachedSubject = s;
+    cachedAnswer = matchIndices;  // Null.
+    return matchIndices;        // No match.
   }
 
   var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
@@ -196,11 +240,18 @@ function RegExpExec(string) {
     }
   }
 
-  if (this.global)
-    this.lastIndex = lastMatchInfo[CAPTURE1];
   result.index = lastMatchInfo[CAPTURE0];
   result.input = s;
-  return result;
+  if (this.global) {
+    this.lastIndex = lastMatchInfo[CAPTURE1];
+    return result;
+  } else {
+    cachedRegexp = this;
+    cachedSubject = s;
+    cachedLastIndex = lastIndex;
+    cachedAnswer = result;
+    return CloneRegexpAnswer(result);
+  }
 }
 
 

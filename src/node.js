@@ -42,7 +42,7 @@ node.dns.createConnection = removed("node.dns.createConnection() has moved. Use 
 
 /**********************************************************************/
 
-// Module 
+// Module
 
 var internalModuleCache = {};
 var extensionCache = {};
@@ -72,6 +72,21 @@ function createInternalModule (id, constructor) {
   internalModuleCache[id] = m;
   return m;
 };
+
+
+// This contains the source code for the files in lib/
+// Like, natives.fs is the contents of lib/fs.js
+var natives = process.binding('natives');
+
+function requireNative (id) {
+  if (internalModuleCache[id]) return internalModuleCache[id].exports;
+  if (!natives[id]) throw new Error('No such native module ' + id);
+  var m = new Module(id);
+  internalModuleCache[id] = m;
+  var e = m._compile(natives[id], id);
+  if (e) throw e;
+  return m.exports;
+}
 
 
 process.createChildProcess = function (file, args, env) {
@@ -270,8 +285,9 @@ function isSignal (event) {
 
 process.addListener("newListener", function (event) {
   if (isSignal(event) && process.listeners(event).length === 0) {
-    var handler = new process.SignalHandler(process[event]);
-    handler.addListener("signal", function () {
+    var b = process.binding('signal_watcher');
+    var w = new b.SignalWatcher(process[event]);
+    w.addListener("signal", function () {
       process.emit(event);
     });
   }
@@ -326,62 +342,6 @@ function debug (x) {
   }
 }
 
-
-
-
-function readAll (fd, pos, content, encoding, callback) {
-  process.fs.read(fd, 4*1024, pos, encoding, function (err, chunk, bytesRead) {
-    if (err) {
-      if (callback) callback(err);
-    } else if (chunk) {
-      content += chunk;
-      pos += bytesRead;
-      readAll(fd, pos, content, encoding, callback);
-    } else {
-      process.fs.close(fd, function (err) {
-        if (callback) callback(err, content);
-      });
-    }
-  });
-}
-
-process.fs.readFile = function (path, encoding_, callback) {
-  var encoding = typeof(encoding_) == 'string' ? encoding_ : 'utf8';
-  var callback_ = arguments[arguments.length - 1];
-  var callback = (typeof(callback_) == 'function' ? callback_ : null);
-  process.fs.open(path, process.O_RDONLY, 0666, function (err, fd) {
-    if (err) {
-      if (callback) callback(err); 
-    } else {
-      readAll(fd, 0, "", encoding, callback);
-    }
-  });
-};
-
-process.fs.readFileSync = function (path, encoding) {
-  encoding = encoding || "utf8"; // default to utf8
-
-  debug('readFileSync open');
-
-  var fd = process.fs.open(path, process.O_RDONLY, 0666);
-  var content = '';
-  var pos = 0;
-  var r;
-
-  while ((r = process.fs.read(fd, 4*1024, pos, encoding)) && r[0]) {
-    debug('readFileSync read ' + r[1]);
-    content += r[0];
-    pos += r[1]
-  }
-
-  debug('readFileSync close');
-
-  process.fs.close(fd);
-
-  debug('readFileSync done');
-
-  return content;
-};
 
 var pathModule = createInternalModule("path", function (exports) {
   exports.join = function () {
@@ -442,7 +402,7 @@ var pathModule = createInternalModule("path", function (exports) {
   };
 
   exports.exists = function (path, callback) {
-    process.fs.stat(path, function (err, stats) {
+    requireNative('fs').stat(path, function (err, stats) {
       if (callback) callback(err ? false : true);
     });
   };
@@ -452,7 +412,7 @@ var path = pathModule.exports;
 
 function existsSync (path) {
   try {
-    process.fs.stat(path);
+    process.binding('fs').stat(path);
     return true;
   } catch (e) {
     return false;
@@ -461,15 +421,14 @@ function existsSync (path) {
 
 
 
-process.paths = [ path.join(process.installPrefix, "lib/node/libraries")
-               ];
+var modulePaths = [];
 
 if (process.env["HOME"]) {
-  process.paths.unshift(path.join(process.env["HOME"], ".node_libraries"));
+  modulePaths.unshift(path.join(process.env["HOME"], ".node_libraries"));
 }
 
 if (process.env["NODE_PATH"]) {
-  process.paths = process.env["NODE_PATH"].split(":").concat(process.paths);
+  modulePaths = process.env["NODE_PATH"].split(":").concat(modulePaths);
 }
 
 
@@ -553,6 +512,8 @@ function resolveModulePath(request, parent) {
   var id, paths;
   if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
     // Relative request
+    debug("RELATIVE: requested:" + request + " set ID to: "+id+" from "+parent.id);
+
     var exts = ['js', 'node'], ext;
     for (ext in extensionCache) {
       exts.push(ext.slice(1));
@@ -561,68 +522,72 @@ function resolveModulePath(request, parent) {
     var parentIdPath = path.dirname(parent.id +
       (path.basename(parent.filename).match(new RegExp('^index\\.(' + exts.join('|') + ')$')) ? "/" : ""));
     id = path.join(parentIdPath, request);
-    // debug("RELATIVE: requested:"+request+" set ID to: "+id+" from "+parent.id+"("+parentIdPath+")");
     paths = [path.dirname(parent.filename)];
   } else {
     id = request;
     // debug("ABSOLUTE: id="+id);
-    paths = process.paths;
+    paths = modulePaths;
   }
 
   return [id, paths];
 }
 
 
-function loadModuleSync (request, parent) {
-  var resolvedModule = resolveModulePath(request, parent);
-  var id = resolvedModule[0];
-  var paths = resolvedModule[1];
-
-  debug("loadModuleSync REQUEST  " + (request) + " parent: " + parent.id);
-
-  var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
-
-  if (cachedModule) {
-    debug("found  " + JSON.stringify(id) + " in cache");
-    return cachedModule.exports;
-  } else {
-    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
-    var filename = findModulePath(request, paths);
-    if (!filename) {
-      throw new Error("Cannot find module '" + request + "'");
-    } else {
-      var module = new Module(id, parent);
-      module.loadSync(filename);
-      return module.exports;
-    }
-  }
-}
-
-
 function loadModule (request, parent, callback) {
-  var
-    resolvedModule = resolveModulePath(request, parent),
-    id = resolvedModule[0],
-    paths = resolvedModule[1];
+  var resolvedModule = resolveModulePath(request, parent),
+      id = resolvedModule[0],
+      paths = resolvedModule[1];
 
   debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
   var cachedModule = internalModuleCache[id] || parent.moduleCache[id];
+
+  if (!cachedModule) {
+    // Try to compile from native modules
+    if (natives[id]) {
+      debug('load native module ' + id);
+      cachedModule = new Module(id);
+      var e = cachedModule._compile(natives[id], id);
+      if (e) throw e;
+      internalModuleCache[id] = cachedModule;
+    }
+  }
+
   if (cachedModule) {
     debug("found  " + JSON.stringify(id) + " in cache");
-    if (callback) callback(null, cachedModule.exports);
-   } else {
-    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+    if (callback) {
+      callback(null, cachedModule.exports);
+    } else {
+      return cachedModule.exports;
+    }
+
+  } else {
     // Not in cache
-    findModulePath(request, paths, function (filename) {
+    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+
+    if (!callback) {
+      // sync
+      var filename = findModulePath(request, paths);
       if (!filename) {
-        var err = new Error("Cannot find module '" + request + "'");
-        if (callback) callback(err);
+        throw new Error("Cannot find module '" + request + "'");
       } else {
         var module = new Module(id, parent);
-        module.load(filename, callback);
+        module.loadSync(filename);
+        return module.exports;
       }
-    });
+
+    } else {
+      // async
+      findModulePath(request, paths, function (filename) {
+        if (!filename) {
+          var err = new Error("Cannot find module '" + request + "'");
+          callback(err);
+        } else {
+          var module = new Module(id, parent);
+          module.load(filename, callback);
+        }
+      });
+    }
   }
 };
 
@@ -630,7 +595,7 @@ function loadModule (request, parent, callback) {
 // This function allows the user to register file extensions to custom
 // Javascript 'compilers'.  It accepts 2 arguments, where ext is a file
 // extension as a string. E.g. '.coffee' for coffee-script files.  compiler
-// is the second argument, which is a function that gets called then the
+// is the second argument, which is a function that gets called when the
 // specified file extension is found. The compiler is passed a single
 // argument, which is, the file contents, which need to be compiled.
 //
@@ -708,12 +673,13 @@ function cat (id, callback) {
       }
     });
   } else {
-    process.fs.readFile(id, callback);
+    requireNative('fs').readFile(id, callback);
   }
 }
 
 
-Module.prototype._loadContent = function (content, filename) {
+// Returns exception if any
+Module.prototype._compile = function (content, filename) {
   var self = this;
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
@@ -729,10 +695,10 @@ Module.prototype._loadContent = function (content, filename) {
   }
 
   function require (path) {
-    return loadModuleSync(path, self);
+    return loadModule(path, self);
   }
 
-  require.paths = process.paths;
+  require.paths = modulePaths;
   require.async = requireAsync;
   require.main = process.mainModule;
   require.registerExtension = registerExtension;
@@ -761,11 +727,11 @@ Module.prototype._loadContent = function (content, filename) {
 
 
 Module.prototype._loadScriptSync = function (filename) {
-  var content = process.fs.readFileSync(filename);
+  var content = requireNative('fs').readFileSync(filename);
   // remove shebang
   content = content.replace(/^\#\!.*/, '');
 
-  var e = this._loadContent(content, filename);
+  var e = this._compile(content, filename);
   if (e) {
     throw e;
   } else {
@@ -781,7 +747,7 @@ Module.prototype._loadScript = function (filename, callback) {
     if (err) {
       if (callback) callback(err);
     } else {
-      var e = self._loadContent(content, filename);
+      var e = self._compile(content, filename);
       if (e) {
         if (callback) callback(e);
       } else {

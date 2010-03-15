@@ -232,10 +232,12 @@ class CodeGeneratorPatcher {
  public:
   CodeGeneratorPatcher() {
     CodeGenerator::InlineRuntimeLUT genGetFramePointer =
-        {&CodeGenerator::GenerateGetFramePointer, "_GetFramePointer"};
-    // _FastCharCodeAt is not used in our tests.
+        {&CodeGenerator::GenerateGetFramePointer, "_GetFramePointer", 0};
+    // _RandomPositiveSmi is not used in our tests. The one we replace need to
+    // have the same number of arguments as the one we put in, which is zero in
+    // this case.
     bool result = CodeGenerator::PatchInlineRuntimeEntry(
-        NewString("_FastCharCodeAt"),
+        NewString("_RandomPositiveSmi"),
         genGetFramePointer, &oldInlineEntry);
     CHECK(result);
   }

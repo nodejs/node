@@ -3580,6 +3580,7 @@ int V8::GetActiveProfilerModules() {
 
 int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  ASSERT(max_size >= kMinimumSizeForLogLinesBuffer);
   return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
 #endif
   return 0;

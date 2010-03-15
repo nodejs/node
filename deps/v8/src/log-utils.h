@@ -115,7 +115,7 @@ class Log : public AllStatic {
   }
 
   // Size of buffer used for formatting log messages.
-  static const int kMessageBufferSize = 2048;
+  static const int kMessageBufferSize = v8::V8::kMinimumSizeForLogLinesBuffer;
 
  private:
   typedef int (*WritePtr)(const char* msg, int length);

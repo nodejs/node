@@ -803,7 +803,7 @@ void Debug::PreemptionWhileInDebugger() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_)));
+  v->VisitPointer(BitCast<Object**, Code**>(&(debug_break_return_)));
 }
 
 
