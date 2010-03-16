@@ -862,6 +862,9 @@ Handle<Value> EvalCX(const Arguments& args) {
   // Create the new context
   Persistent<Context> context = Context::New();
 
+  // Enter and compile script
+  context->Enter();
+
   // Copy objects from global context, to our brand new context
   Handle<Array> keys = sandbox->GetPropertyNames();
 
@@ -869,11 +872,12 @@ Handle<Value> EvalCX(const Arguments& args) {
   for (i = 0; i < keys->Length(); i++) {
     Handle<String> key = keys->Get(Integer::New(i))->ToString();
     Handle<Value> value = sandbox->Get(key);
-    context->Global()->Set(key, value->ToObject()->Clone());
+    if (value->IsFunction()) continue;
+    if (value->IsObject()) {
+      value = value->ToObject()->Clone();
+    }
+    context->Global()->Set(key, value);
   }
-
-  // Enter and compile script
-  context->Enter();
 
   // Catch errors
   TryCatch try_catch;
@@ -887,6 +891,18 @@ Handle<Value> EvalCX(const Arguments& args) {
     result = script->Run();
     if (result.IsEmpty()) {
       result = ThrowException(try_catch.Exception());
+    } else {
+      // success! copy changes back onto the sandbox object.
+      keys = context->Global()->GetPropertyNames();
+      for (i = 0; i < keys->Length(); i++) {
+        Handle<String> key = keys->Get(Integer::New(i))->ToString();
+        Handle<Value> value = context->Global()->Get(key);
+        if (value->IsFunction()) continue;
+        if (value->IsObject()) {
+          value = value->ToObject()->Clone();
+        }
+        sandbox->Set(key, value);
+      }
     }
   }
 
