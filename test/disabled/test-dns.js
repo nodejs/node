@@ -3,6 +3,14 @@ require("../common");
 var dns = require("dns"),
     sys = require("sys");
 
+
+// Try resolution without callback
+
+assert.throws(function () {
+  dns.resolve('google.com', 'A');
+})
+
+
 var hosts = ['example.com', 'example.org',
              'ietf.org', // AAAA
              'google.com', // MX, multiple A records

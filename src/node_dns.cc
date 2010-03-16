@@ -332,6 +332,11 @@ static Handle<Value> ResolveA(int type, const Arguments& args) {
           String::New("Argument must be a string.")));
   }
 
+  if (!args[1]->IsFunction()) {
+    return ThrowException(Exception::Error(
+          String::New("Missing callback argument")));
+  }
+
   String::Utf8Value name(args[0]->ToString());
 
   struct dns_query *query;
