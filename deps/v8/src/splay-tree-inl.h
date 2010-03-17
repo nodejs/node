@@ -58,16 +58,7 @@ bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
     }
     // Insert the new node.
     Node* node = new Node(key, Config::kNoValue);
-    if (cmp > 0) {
-      node->left_ = root_;
-      node->right_ = root_->right_;
-      root_->right_ = NULL;
-    } else {
-      node->right_ = root_;
-      node->left_ = root_->left_;
-      root_->left_ = NULL;
-    }
-    root_ = node;
+    InsertInternal(cmp, node);
   }
   locator->bind(root_);
   return true;
@@ -75,11 +66,32 @@ bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
 
 
 template<typename Config, class Allocator>
-bool SplayTree<Config, Allocator>::Find(const Key& key, Locator* locator) {
+void SplayTree<Config, Allocator>::InsertInternal(int cmp, Node* node) {
+  if (cmp > 0) {
+    node->left_ = root_;
+    node->right_ = root_->right_;
+    root_->right_ = NULL;
+  } else {
+    node->right_ = root_;
+    node->left_ = root_->left_;
+    root_->left_ = NULL;
+  }
+  root_ = node;
+}
+
+
+template<typename Config, class Allocator>
+bool SplayTree<Config, Allocator>::FindInternal(const Key& key) {
   if (is_empty())
     return false;
   Splay(key);
-  if (Config::Compare(key, root_->key_) == 0) {
+  return Config::Compare(key, root_->key_) == 0;
+}
+
+
+template<typename Config, class Allocator>
+bool SplayTree<Config, Allocator>::Find(const Key& key, Locator* locator) {
+  if (FindInternal(key)) {
     locator->bind(root_);
     return true;
   } else {
@@ -161,15 +173,38 @@ bool SplayTree<Config, Allocator>::FindLeast(Locator* locator) {
 
 
 template<typename Config, class Allocator>
+bool SplayTree<Config, Allocator>::Move(const Key& old_key,
+                                        const Key& new_key) {
+  if (!FindInternal(old_key))
+    return false;
+  Node* node_to_move = root_;
+  RemoveRootNode(old_key);
+  Splay(new_key);
+  int cmp = Config::Compare(new_key, root_->key_);
+  if (cmp == 0) {
+    // A node with the target key already exists.
+    delete node_to_move;
+    return false;
+  }
+  node_to_move->key_ = new_key;
+  InsertInternal(cmp, node_to_move);
+  return true;
+}
+
+
+template<typename Config, class Allocator>
 bool SplayTree<Config, Allocator>::Remove(const Key& key) {
-  // Bail if the tree is empty
-  if (is_empty())
+  if (!FindInternal(key))
     return false;
-  // Splay on the key to move the node with the given key to the top.
-  Splay(key);
-  // Bail if the key is not in the tree
-  if (Config::Compare(key, root_->key_) != 0)
-    return false;
+  Node* node_to_remove = root_;
+  RemoveRootNode(key);
+  delete node_to_remove;
+  return true;
+}
+
+
+template<typename Config, class Allocator>
+void SplayTree<Config, Allocator>::RemoveRootNode(const Key& key) {
   if (root_->left_ == NULL) {
     // No left child, so the new tree is just the right child.
     root_ = root_->right_;
@@ -184,7 +219,6 @@ bool SplayTree<Config, Allocator>::Remove(const Key& key) {
     // root.
     root_->right_ = right;
   }
-  return true;
 }
 
 

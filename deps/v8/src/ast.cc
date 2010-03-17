@@ -78,14 +78,16 @@ VariableProxy::VariableProxy(Handle<String> name,
     var_(NULL),
     is_this_(is_this),
     inside_with_(inside_with),
-    is_trivial_(false) {
+    is_trivial_(false),
+    reaching_definitions_(NULL) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
 }
 
 
 VariableProxy::VariableProxy(bool is_this)
-  : is_this_(is_this) {
+  : is_this_(is_this),
+    reaching_definitions_(NULL) {
 }
 
 

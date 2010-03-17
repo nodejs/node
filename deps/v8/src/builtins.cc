@@ -727,6 +727,68 @@ BUILTIN(ArraySplice) {
 }
 
 
+BUILTIN(ArrayConcat) {
+  if (!ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArrayConcat", args);
+  }
+
+  // Iterate through all the arguments performing checks
+  // and calculating total length.
+  int n_arguments = args.length();
+  int result_len = 0;
+  for (int i = 0; i < n_arguments; i++) {
+    Object* arg = args[i];
+    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastElements()) {
+      return CallJsBuiltin("ArrayConcat", args);
+    }
+
+    int len = Smi::cast(JSArray::cast(arg)->length())->value();
+
+    // We shouldn't overflow when adding another len.
+    const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+    STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
+    USE(kHalfOfMaxInt);
+    result_len += len;
+    ASSERT(result_len >= 0);
+
+    if (result_len > FixedArray::kMaxLength) {
+      return CallJsBuiltin("ArrayConcat", args);
+    }
+  }
+
+  if (result_len == 0) {
+    return AllocateEmptyJSArray();
+  }
+
+  // Allocate result.
+  Object* result = AllocateJSArray();
+  if (result->IsFailure()) return result;
+  JSArray* result_array = JSArray::cast(result);
+
+  result = Heap::AllocateUninitializedFixedArray(result_len);
+  if (result->IsFailure()) return result;
+  FixedArray* result_elms = FixedArray::cast(result);
+
+  // Copy data.
+  AssertNoAllocation no_gc;
+  int start_pos = 0;
+  for (int i = 0; i < n_arguments; i++) {
+    JSArray* array = JSArray::cast(args[i]);
+    FixedArray* elms = FixedArray::cast(array->elements());
+    int len = Smi::cast(array->length())->value();
+    CopyElements(&no_gc, result_elms, start_pos, elms, 0, len);
+    start_pos += len;
+  }
+  ASSERT(start_pos == result_len);
+
+  // Set the length and elements.
+  result_array->set_length(Smi::FromInt(result_len));
+  result_array->set_elements(result_elms);
+
+  return result_array;
+}
+
+
 // -----------------------------------------------------------------------------
 //
 

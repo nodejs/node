@@ -60,7 +60,8 @@ static inline int FastD2I(double x) {
 
 
 // The fast double-to-unsigned-int conversion routine does not guarantee
-// rounding towards zero.
+// rounding towards zero, or any reasonable value if the argument is larger
+// than what fits in an unsigned 32-bit integer.
 static inline unsigned int FastD2UI(double x) {
   // There is no unsigned version of lrint, so there is no fast path
   // in this function as there is in FastD2I. Using lrint doesn't work
@@ -77,7 +78,13 @@ static inline unsigned int FastD2UI(double x) {
   if (x < k2Pow52) {
     x += k2Pow52;
     uint32_t result;
-    memcpy(&result, &x, sizeof(result));  // Copy low 32 bits.
+#ifdef BIG_ENDIAN_FLOATING_POINT
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+#else
+    Address mantissa_ptr = reinterpret_cast<Address>(&x);
+#endif
+    // Copy least significant 32 bits of mantissa.
+    memcpy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
   }
   // Large number (outside uint32 range), Infinity or NaN.

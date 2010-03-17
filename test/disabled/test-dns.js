@@ -3,6 +3,17 @@ require("../common");
 var dns = require("dns"),
     sys = require("sys");
 
+
+// Try resolution without callback
+
+assert.throws(function () {
+  dns.resolve('google.com', 'A');
+});
+assert.throws(function () {
+  dns.resolve('127.0.0.1', 'PTR');
+});
+
+
 var hosts = ['example.com', 'example.org',
              'ietf.org', // AAAA
              'google.com', // MX, multiple A records
@@ -21,22 +32,24 @@ while (i--) {
                   "| sed -E 's/[[:space:]]+/ /g' | cut -d ' ' -f 5- " +
                   "| sed -e 's/\\.$//'";
 
-    sys.exec(hostCmd).addCallback(checkDnsRecord(hosts[i], records[j]));
+    sys.exec(hostCmd, checkDnsRecord(hosts[i], records[j]));
   }
 }
 
 function checkDnsRecord(host, record) {
   var myHost = host,
       myRecord = record;
-  return function(stdout) {
-    var expected = stdout.substr(0, stdout.length - 1).split("\n");
-    
-    var resolution = dns.resolve(myHost, myRecord);
+  return function(err, stdout) {
+    var expected = [];
+    if(stdout.length)
+      expected = stdout.substr(0, stdout.length - 1).split("\n");
 
     switch (myRecord) {
       case "A":
       case "AAAA":
-        resolution.addCallback(function (result, ttl, cname) {
+        dns.resolve(myHost, myRecord, function (error, result, ttl, cname) {
+            if(error) result = [];
+
             cmpResults(expected, result, ttl, cname);
 
             // do reverse lookup check
@@ -48,12 +61,14 @@ function checkDnsRecord(host, record) {
                                "| cut -d \" \" -f 5-" + 
                                "| sed -e 's/\\.$//'";
 
-              sys.exec(reverseCmd).addCallback(checkReverse(ip));
+              sys.exec(reverseCmd, checkReverse(ip));
             }
           }); 
         break;
       case "MX":
-        resolution.addCallback(function (result, ttl, cname) {
+        dns.resolve(myHost, myRecord, function (error, result, ttl, cname) {
+            if(error) result = [];
+
             var strResult = [];
             var ll = result.length;
             while (ll--) {
@@ -64,7 +79,9 @@ function checkDnsRecord(host, record) {
         });
         break;
       case "TXT":
-        resolution.addCallback(function (result, ttl, cname) {
+        dns.resolve(myHost, myRecord, function (error, result, ttl, cname) {
+            if(error) result = [];
+
             var strResult = [];
             var ll = result.length;
             while (ll--) {
@@ -74,7 +91,9 @@ function checkDnsRecord(host, record) {
         });
         break;
       case "SRV":
-        resolution.addCallback(function (result, ttl, cname) {
+        dns.resolve(myHost, myRecord, function (error, result, ttl, cname) {
+            if(error) result = [];
+
             var strResult = [];
             var ll = result.length;
             while (ll--) {
@@ -93,15 +112,13 @@ function checkDnsRecord(host, record) {
 function checkReverse(ip) {
   var myIp = ip;
 
-  return function (stdout) {
+  return function (errr, stdout) {
     var expected = stdout.substr(0, stdout.length - 1).split("\n");
 
-    var reversing = dns.reverse(myIp);
-
-    reversing.addCallback(
-      function (domains, ttl, cname) {
-        cmpResults(expected, domains, ttl, cname);
-      });
+    reversing = dns.reverse(myIp, function (error, domains, ttl, cname) {
+      if(error) domains = [];
+      cmpResults(expected, domains, ttl, cname);
+    });
   }
 }
 
@@ -114,6 +131,6 @@ function cmpResults(expected, result, ttl, cname) {
   ll = expected.length;
   while (ll--) {
     assert.equal(result[ll], expected[ll]);
-//    puts("Result " + result[ll] + " was equal to expected " + expected[ll]);
+    puts("Result " + result[ll] + " was equal to expected " + expected[ll]);
   }
 }

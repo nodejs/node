@@ -560,6 +560,11 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 }
 
 
+Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
+  CALL_HEAP_FUNCTION(Heap::CopyCode(*code, reloc_info), Code);
+}
+
+
 static inline Object* DoCopyInsert(DescriptorArray* array,
                                    String* key,
                                    Object* value,

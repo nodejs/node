@@ -357,6 +357,23 @@ class CodeGenerator: public AstVisitor {
   // State
   ControlDestination* destination() const { return state_->destination(); }
 
+  // Control of side-effect-free int32 expression compilation.
+  bool in_safe_int32_mode() { return in_safe_int32_mode_; }
+  void set_in_safe_int32_mode(bool value) { in_safe_int32_mode_ = value; }
+  bool safe_int32_mode_enabled() {
+    return FLAG_safe_int32_compiler && safe_int32_mode_enabled_;
+  }
+  void set_safe_int32_mode_enabled(bool value) {
+    safe_int32_mode_enabled_ = value;
+  }
+  void set_unsafe_bailout(BreakTarget* unsafe_bailout) {
+    unsafe_bailout_ = unsafe_bailout;
+  }
+
+  // Take the Result that is an untagged int32, and convert it to a tagged
+  // Smi or HeapNumber.  Remove the untagged_int32 flag from the result.
+  void ConvertInt32ResultToNumber(Result* value);
+
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }
   void IncrementLoopNesting() { loop_nesting_++; }
@@ -413,7 +430,7 @@ class CodeGenerator: public AstVisitor {
     return ContextOperand(esi, Context::GLOBAL_INDEX);
   }
 
-  void LoadCondition(Expression* x,
+  void LoadCondition(Expression* expr,
                      ControlDestination* destination,
                      bool force_control);
   void Load(Expression* expr);
@@ -424,6 +441,11 @@ class CodeGenerator: public AstVisitor {
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
   void LoadAndSpill(Expression* expression);
+
+  // Evaluate an expression and place its value on top of the frame,
+  // using, or not using, the side-effect-free expression compiler.
+  void LoadInSafeInt32Mode(Expression* expr, BreakTarget* unsafe_bailout);
+  void LoadWithSafeInt32ModeDisabled(Expression* expr);
 
   // Read a value from a slot and leave it on top of the expression stack.
   Result LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -469,7 +491,8 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(
       Token::Value op,
       StaticType* type,
-      OverwriteMode overwrite_mode);
+      OverwriteMode overwrite_mode,
+      bool no_negative_zero);
 
   // If possible, combine two constant smi values using op to produce
   // a smi result, and push it on the virtual frame, all at compile time.
@@ -483,7 +506,8 @@ class CodeGenerator: public AstVisitor {
                                     Handle<Object> constant_operand,
                                     StaticType* type,
                                     bool reversed,
-                                    OverwriteMode overwrite_mode);
+                                    OverwriteMode overwrite_mode,
+                                    bool no_negative_zero);
 
   // Emit code to perform a binary operation on two likely smis.
   // The code to handle smi arguments is produced inline.
@@ -491,7 +515,14 @@ class CodeGenerator: public AstVisitor {
   Result LikelySmiBinaryOperation(Token::Value op,
                                   Result* left,
                                   Result* right,
-                                  OverwriteMode overwrite_mode);
+                                  OverwriteMode overwrite_mode,
+                                  bool no_negative_zero);
+
+
+  // Emit code to perform a binary operation on two untagged int32 values.
+  // The values are on top of the frame, and the result is pushed on the frame.
+  void Int32BinaryOperation(BinaryOperation* node);
+
 
   void Comparison(AstNode* node,
                   Condition cc,
@@ -639,10 +670,14 @@ class CodeGenerator: public AstVisitor {
   RegisterAllocator* allocator_;
   CodeGenState* state_;
   int loop_nesting_;
+  bool in_safe_int32_mode_;
+  bool safe_int32_mode_enabled_;
 
   // Jump targets.
   // The target of the return from the function.
   BreakTarget function_return_;
+  // The target of the bailout from a side-effect-free int32 subexpression.
+  BreakTarget* unsafe_bailout_;
 
   // True if the function return is shadowed (ie, jumping to the target
   // function_return_ does not jump to the true function return, but rather

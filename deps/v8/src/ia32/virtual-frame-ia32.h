@@ -242,6 +242,11 @@ class VirtualFrame: public ZoneObject {
     PushFrameSlotAt(local0_index() + index);
   }
 
+  // Push a copy of the value of a local frame slot on top of the frame.
+  void UntaggedPushLocalAt(int index) {
+    UntaggedPushFrameSlotAt(local0_index() + index);
+  }
+
   // Push the value of a local frame slot on top of the frame and invalidate
   // the local slot.  The slot should be written to before trying to read
   // from it again.
@@ -280,6 +285,11 @@ class VirtualFrame: public ZoneObject {
   // Push a copy of the value of a parameter frame slot on top of the frame.
   void PushParameterAt(int index) {
     PushFrameSlotAt(param0_index() + index);
+  }
+
+  // Push a copy of the value of a parameter frame slot on top of the frame.
+  void UntaggedPushParameterAt(int index) {
+    UntaggedPushFrameSlotAt(param0_index() + index);
   }
 
   // Push the value of a paramter frame slot on top of the frame and
@@ -399,6 +409,8 @@ class VirtualFrame: public ZoneObject {
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
+  void PushUntaggedElement(Handle<Object> value);
+
   // Pushing a result invalidates it (its contents become owned by the
   // frame).
   void Push(Result* result) {
@@ -409,6 +421,10 @@ class VirtualFrame: public ZoneObject {
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());
+    }
+    if (cgen()->in_safe_int32_mode()) {
+      ASSERT(result->is_untagged_int32());
+      elements_[element_count() - 1].set_untagged_int32(true);
     }
     result->Unuse();
   }
@@ -421,6 +437,14 @@ class VirtualFrame: public ZoneObject {
   // of the frame, leaving the previous top-of-frame value on top of
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
   inline void Nip(int num_dropped);
+
+  // Check that the frame has no elements containing untagged int32 elements.
+  bool HasNoUntaggedInt32Elements() {
+    for (int i = 0; i < element_count(); ++i) {
+      if (elements_[i].is_untagged_int32()) return false;
+    }
+    return true;
+  }
 
   // Update the type information of a local variable frame element directly.
   inline void SetTypeForLocalAt(int index, NumberInfo info);
@@ -532,6 +556,11 @@ class VirtualFrame: public ZoneObject {
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
   inline void PushFrameSlotAt(int index);
+
+  // Push a copy of a frame slot (typically a local or parameter) on top of
+  // the frame, at an untagged int32 value.  Bails out if the value is not
+  // an int32.
+  void UntaggedPushFrameSlotAt(int index);
 
   // Push a the value of a frame slot (typically a local or parameter) on
   // top of the frame and invalidate the slot.

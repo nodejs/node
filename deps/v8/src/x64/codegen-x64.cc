@@ -4053,8 +4053,9 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
 
-  Result answer = frame_->CallRuntime(Runtime::kNumberToString, 1);
-  frame_->Push(&answer);
+  NumberToStringStub stub;
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
 }
 
 
@@ -7207,6 +7208,77 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
+void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                                         Register object,
+                                                         Register result,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         bool object_is_smi,
+                                                         Label* not_found) {
+  // Currently only lookup for smis. Check for smi if object is not known to be
+  // a smi.
+  if (!object_is_smi) {
+    __ JumpIfNotSmi(object, not_found);
+  }
+
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  __ movl(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  __ shrl(mask, Immediate(1));  // Divide length by two (length is not a smi).
+  __ subl(mask, Immediate(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value.
+  __ movq(scratch, object);
+  __ SmiToInteger32(scratch, scratch);
+  __ andl(scratch, mask);
+
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup
+  __ shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  // Check if the entry is the smi we are looking for.
+  __ cmpq(object,
+          FieldOperand(number_string_cache,
+                       scratch,
+                       times_1,
+                       FixedArray::kHeaderSize));
+  __ j(not_equal, not_found);
+
+  // Get the result from the cache.
+  __ movq(result,
+          FieldOperand(number_string_cache,
+                       scratch,
+                       times_1,
+                       FixedArray::kHeaderSize + kPointerSize));
+  __ IncrementCounter(&Counters::number_to_string_native, 1);
+}
+
+
+void NumberToStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  __ movq(rbx, Operand(rsp, kPointerSize));
+
+  // Generate code to lookup number in the number string cache.
+  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
+  __ ret(1 * kPointerSize);
+
+  __ bind(&runtime);
+  // Handle number to string in the runtime system if not found in the cache.
+  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+}
+
+
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 
@@ -8794,6 +8866,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // result. If arguments was passed in registers now place them on the
   // stack in the correct order below the return address.
   __ bind(&call_runtime);
+
   if (HasArgsInRegisters()) {
     __ pop(rcx);
     if (HasArgsReversed()) {
@@ -8805,48 +8878,63 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     }
     __ push(rcx);
   }
+
   switch (op_) {
     case Token::ADD: {
+      // Registers containing left and right operands respectively.
+      Register lhs, rhs;
+
+      if (HasArgsReversed()) {
+        lhs = rax;
+        rhs = rdx;
+      } else {
+        lhs = rdx;
+        rhs = rax;
+      }
+
       // Test for string arguments before calling runtime.
-      Label not_strings, both_strings, not_string1, string1;
+      Label not_strings, both_strings, not_string1, string1, string1_smi2;
       Condition is_smi;
       Result answer;
-      is_smi = masm->CheckSmi(rdx);
+      is_smi = masm->CheckSmi(lhs);
       __ j(is_smi, &not_string1);
-      __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rdx);
+      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, r8);
       __ j(above_equal, &not_string1);
 
       // First argument is a a string, test second.
-      is_smi = masm->CheckSmi(rax);
-      __ j(is_smi, &string1);
-      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      is_smi = masm->CheckSmi(rhs);
+      __ j(is_smi, &string1_smi2);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, r9);
       __ j(above_equal, &string1);
 
       // First and second argument are strings.
-      StringAddStub stub(NO_STRING_CHECK_IN_STUB);
-      __ TailCallStub(&stub);
+      StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+      __ TailCallStub(&string_add_stub);
+
+      __ bind(&string1_smi2);
+      // First argument is a string, second is a smi. Try to lookup the number
+      // string for the smi in the number string cache.
+      NumberToStringStub::GenerateLookupNumberStringCache(
+          masm, rhs, rbx, rcx, r8, true, &string1);
+
+      // Replace second argument on stack and tailcall string add stub to make
+      // the result.
+      __ movq(Operand(rsp, 1 * kPointerSize), rbx);
+      __ TailCallStub(&string_add_stub);
 
       // Only first argument is a string.
       __ bind(&string1);
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_RIGHT :
-              Builtins::STRING_ADD_LEFT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
 
       // First argument was not a string, test second.
       __ bind(&not_string1);
-      is_smi = masm->CheckSmi(rax);
+      is_smi = masm->CheckSmi(rhs);
       __ j(is_smi, &not_strings);
-      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, rhs);
       __ j(above_equal, &not_strings);
 
       // Only second argument is a string.
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_LEFT :
-              Builtins::STRING_ADD_RIGHT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
 
       __ bind(&not_strings);
       // Neither argument is a string.

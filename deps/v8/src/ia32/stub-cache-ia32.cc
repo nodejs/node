@@ -1251,7 +1251,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_rset_update;
+      Label call_builtin, exit, with_rset_update,
+            attempt_to_grow_elements, finish_push;
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1263,9 +1264,9 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
       __ SmiTag(ecx);
 
-      // Check if we could survive without allocation, go to builtin otherwise.
+      // Check if we could survive without allocation.
       __ cmp(eax, Operand(ecx));
-      __ j(greater, &call_builtin);
+      __ j(greater, &attempt_to_grow_elements);
 
       // Save new length.
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
@@ -1276,6 +1277,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ mov(ecx, Operand(esp, argc * kPointerSize));
       __ mov(Operand(edx, 0), ecx);
+
+      __ bind(&finish_push);
 
       // Check if value is a smi.
       __ test(ecx, Immediate(kSmiTagMask));
@@ -1291,6 +1294,45 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       RecordWriteStub stub(ebx, edx, ecx);
       __ CallStub(&stub);
       __ ret((argc + 1) * kPointerSize);
+
+      __ bind(&attempt_to_grow_elements);
+      ExternalReference new_space_allocation_top =
+          ExternalReference::new_space_allocation_top_address();
+      ExternalReference new_space_allocation_limit =
+          ExternalReference::new_space_allocation_limit_address();
+
+      const int kAllocationDelta = 4;
+      // Load top.
+      __ mov(ecx, Operand::StaticVariable(new_space_allocation_top));
+
+      // Check if it's the end of elements.
+      __ lea(edx, FieldOperand(ebx,
+                               eax, times_half_pointer_size,
+                               FixedArray::kHeaderSize - argc * kPointerSize));
+      __ cmp(edx, Operand(ecx));
+      __ j(not_equal, &call_builtin);
+      __ add(Operand(ecx), Immediate(kAllocationDelta * kPointerSize));
+      __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
+      __ j(greater, &call_builtin);
+
+      // We fit and could grow elements.
+      __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
+      __ mov(ecx, Operand(esp, argc * kPointerSize));
+      __ mov(Operand(edx, 0), ecx);
+      for (int i = 1; i < kAllocationDelta; i++) {
+        __ mov(Operand(edx, i * kPointerSize),
+               Immediate(Factory::undefined_value()));
+      }
+
+      // Restore receiver to edx as finish sequence assumes it's here.
+      __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+      // Increment element's and array's sizes.
+      __ add(FieldOperand(ebx, FixedArray::kLengthOffset),
+             Immediate(kAllocationDelta));
+      __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+
+      __ jmp(&finish_push);
 
       __ bind(&call_builtin);
     }

@@ -34,6 +34,22 @@ namespace v8 {
 namespace internal {
 
 
+#ifdef DEBUG
+void BitVector::Print() {
+  bool first = true;
+  PrintF("{");
+  for (int i = 0; i < length(); i++) {
+    if (Contains(i)) {
+      if (!first) PrintF(",");
+      first = false;
+      PrintF("%d");
+    }
+  }
+  PrintF("}");
+}
+#endif
+
+
 void FlowGraph::AppendInstruction(AstNode* instruction) {
   // Add a (non-null) AstNode to the end of the graph fragment.
   ASSERT(instruction != NULL);
@@ -357,6 +373,7 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
   // not both.
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
+    if (expr->is_compound()) Visit(expr->target());
     Visit(expr->value());
     if (var->IsStackAllocated()) {
       expr->set_num(definitions_.length());
@@ -1100,6 +1117,12 @@ Variable* AssignedVariablesAnalyzer::FindSmiLoopVariable(ForStatement* stmt) {
   if (init_value < term_value && update->op() != Token::INC) return NULL;
   if (init_value > term_value && update->op() != Token::DEC) return NULL;
 
+  // Check that the update operation cannot overflow the smi range. This can
+  // occur in the two cases where the loop bound is equal to the largest or
+  // smallest smi.
+  if (update->op() == Token::INC && term_value == Smi::kMaxValue) return NULL;
+  if (update->op() == Token::DEC && term_value == Smi::kMinValue) return NULL;
+
   // Found a smi loop variable.
   return loop_var;
 }
@@ -1333,7 +1356,7 @@ void AssignedVariablesAnalyzer::VisitObjectLiteral(ObjectLiteral* expr) {
     result.Union(av_);
     av_.Clear();
   }
-  av_.CopyFrom(result);
+  av_ = result;
 }
 
 
@@ -1345,7 +1368,7 @@ void AssignedVariablesAnalyzer::VisitArrayLiteral(ArrayLiteral* expr) {
     result.Union(av_);
     av_.Clear();
   }
-  av_.CopyFrom(result);
+  av_ = result;
 }
 
 
@@ -1405,7 +1428,7 @@ void AssignedVariablesAnalyzer::VisitCall(Call* expr) {
     Visit(expr->arguments()->at(i));
     result.Union(av_);
   }
-  av_.CopyFrom(result);
+  av_ = result;
 }
 
 
@@ -1418,7 +1441,7 @@ void AssignedVariablesAnalyzer::VisitCallNew(CallNew* expr) {
     Visit(expr->arguments()->at(i));
     result.Union(av_);
   }
-  av_.CopyFrom(result);
+  av_ = result;
 }
 
 
@@ -1430,7 +1453,7 @@ void AssignedVariablesAnalyzer::VisitCallRuntime(CallRuntime* expr) {
     Visit(expr->arguments()->at(i));
     result.Union(av_);
   }
-  av_.CopyFrom(result);
+  av_ = result;
 }
 
 
@@ -1626,6 +1649,9 @@ void TextInstructionPrinter::VisitVariableProxy(VariableProxy* expr) {
   Variable* var = expr->AsVariable();
   if (var != NULL) {
     PrintF("%s", *var->name()->ToCString());
+    if (var->IsStackAllocated() && expr->reaching_definitions() != NULL) {
+      expr->reaching_definitions()->Print();
+    }
   } else {
     ASSERT(expr->AsProperty() != NULL);
     VisitProperty(expr->AsProperty());
@@ -1663,30 +1689,50 @@ void TextInstructionPrinter::VisitAssignment(Assignment* expr) {
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Property* prop = expr->target()->AsProperty();
 
-  if (var != NULL) {
-    PrintF("%s %s @%d",
-           *var->name()->ToCString(),
-           Token::String(expr->op()),
-           expr->value()->num());
-  } else if (prop != NULL) {
-    if (prop->key()->IsPropertyName()) {
-      PrintF("@%d.", prop->obj()->num());
-      ASSERT(prop->key()->AsLiteral() != NULL);
-      prop->key()->AsLiteral()->handle()->Print();
-      PrintF(" %s @%d",
-             Token::String(expr->op()),
-             expr->value()->num());
-    } else {
-      PrintF("@%d[@%d] %s @%d",
-             prop->obj()->num(),
-             prop->key()->num(),
-             Token::String(expr->op()),
-             expr->value()->num());
-    }
-  } else {
+  if (var == NULL && prop == NULL) {
     // Throw reference error.
     Visit(expr->target());
+    return;
   }
+
+  // Print the left-hand side.
+  if (var != NULL) {
+    PrintF("%s", *var->name()->ToCString());
+  } else if (prop != NULL) {
+    PrintF("@%d", prop->obj()->num());
+    if (prop->key()->IsPropertyName()) {
+      PrintF(".");
+      ASSERT(prop->key()->AsLiteral() != NULL);
+      prop->key()->AsLiteral()->handle()->Print();
+    } else {
+      PrintF("[@%d]", prop->key()->num());
+    }
+  }
+
+  // Print the operation.
+  if (expr->is_compound()) {
+    PrintF(" = ");
+    // Print the left-hand side again when compound.
+    if (var != NULL) {
+      PrintF("@%d", expr->target()->num());
+    } else {
+      PrintF("@%d", prop->obj()->num());
+      if (prop->key()->IsPropertyName()) {
+        PrintF(".");
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        prop->key()->AsLiteral()->handle()->Print();
+      } else {
+        PrintF("[@%d]", prop->key()->num());
+      }
+    }
+    // Print the corresponding binary operator.
+    PrintF(" %s ", Token::String(expr->binary_op()));
+  } else {
+    PrintF(" %s ", Token::String(expr->op()));
+  }
+
+  // Print the right-hand side.
+  PrintF("@%d", expr->value()->num());
 
   if (expr->num() != AstNode::kNoNumber) {
     PrintF(" ;; D%d", expr->num());
@@ -1798,38 +1844,17 @@ void Node::PrintReachingDefinitions() {
   if (rd_.rd_in() != NULL) {
     ASSERT(rd_.kill() != NULL && rd_.gen() != NULL);
 
-    PrintF("RD_in = {");
-    bool first = true;
-    for (int i = 0; i < rd_.rd_in()->length(); i++) {
-      if (rd_.rd_in()->Contains(i)) {
-        if (!first) PrintF(",");
-        PrintF("%d");
-        first = false;
-      }
-    }
-    PrintF("}\n");
+    PrintF("RD_in = ");
+    rd_.rd_in()->Print();
+    PrintF("\n");
 
-    PrintF("RD_kill = {");
-    first = true;
-    for (int i = 0; i < rd_.kill()->length(); i++) {
-      if (rd_.kill()->Contains(i)) {
-        if (!first) PrintF(",");
-        PrintF("%d");
-        first = false;
-      }
-    }
-    PrintF("}\n");
+    PrintF("RD_kill = ");
+    rd_.kill()->Print();
+    PrintF("\n");
 
-    PrintF("RD_gen = {");
-    first = true;
-    for (int i = 0; i < rd_.gen()->length(); i++) {
-      if (rd_.gen()->Contains(i)) {
-        if (!first) PrintF(",");
-        PrintF("%d");
-        first = false;
-      }
-    }
-    PrintF("}\n");
+    PrintF("RD_gen = ");
+    rd_.gen()->Print();
+    PrintF("\n");
   }
 }
 
@@ -1961,7 +1986,7 @@ void ExitNode::ComputeRDOut(BitVector* result) {
 
 void BlockNode::ComputeRDOut(BitVector* result) {
   // All definitions reaching this block ...
-  result->CopyFrom(*rd_.rd_in());
+  *result = *rd_.rd_in();
   // ... except those killed by the block ...
   result->Subtract(*rd_.kill());
   // ... but including those generated by the block.
@@ -1971,13 +1996,13 @@ void BlockNode::ComputeRDOut(BitVector* result) {
 
 void BranchNode::ComputeRDOut(BitVector* result) {
   // Branch nodes don't kill or generate definitions.
-  result->CopyFrom(*rd_.rd_in());
+  *result = *rd_.rd_in();
 }
 
 
 void JoinNode::ComputeRDOut(BitVector* result) {
   // Join nodes don't kill or generate definitions.
-  result->CopyFrom(*rd_.rd_in());
+  *result = *rd_.rd_in();
 }
 
 
@@ -2008,7 +2033,7 @@ void BlockNode::UpdateRDIn(WorkList<Node>* worklist, bool mark) {
   if (rd_.rd_in()->Equals(new_rd_in)) return;
 
   // Update RD_in.
-  rd_.rd_in()->CopyFrom(new_rd_in);
+  *rd_.rd_in() = new_rd_in;
   // Add the successor to the worklist if not already present.
   if (!successor_->IsMarkedWith(mark)) {
     successor_->MarkWith(mark);
@@ -2024,7 +2049,7 @@ void BranchNode::UpdateRDIn(WorkList<Node>* worklist, bool mark) {
   if (rd_.rd_in()->Equals(new_rd_in)) return;
 
   // Update RD_in.
-  rd_.rd_in()->CopyFrom(new_rd_in);
+  *rd_.rd_in() = new_rd_in;
   // Add the successors to the worklist if not already present.
   if (!successor0_->IsMarkedWith(mark)) {
     successor0_->MarkWith(mark);
@@ -2051,11 +2076,71 @@ void JoinNode::UpdateRDIn(WorkList<Node>* worklist, bool mark) {
   if (rd_.rd_in()->Equals(new_rd_in)) return;
 
   // Update RD_in.
-  rd_.rd_in()->CopyFrom(new_rd_in);
+  *rd_.rd_in() = new_rd_in;
   // Add the successor to the worklist if not already present.
   if (!successor_->IsMarkedWith(mark)) {
     successor_->MarkWith(mark);
     worklist->Insert(successor_);
+  }
+}
+
+
+void Node::PropagateReachingDefinitions(List<BitVector*>* variables) {
+  // Nothing to do.
+}
+
+
+void BlockNode::PropagateReachingDefinitions(List<BitVector*>* variables) {
+  // Propagate RD_in from the start of the block to all the variable
+  // references.
+  int variable_count = variables->length();
+  BitVector rd = *rd_.rd_in();
+  for (int i = 0, len = instructions_.length(); i < len; i++) {
+    Expression* expr = instructions_[i]->AsExpression();
+    if (expr == NULL) continue;
+
+    // Look for a variable reference to record its reaching definitions.
+    VariableProxy* proxy = expr->AsVariableProxy();
+    if (proxy == NULL) {
+      // Not a VariableProxy?  Maybe it's a count operation.
+      CountOperation* count_operation = expr->AsCountOperation();
+      if (count_operation != NULL) {
+        proxy = count_operation->expression()->AsVariableProxy();
+      }
+    }
+    if (proxy == NULL) {
+      // OK, Maybe it's a compound assignment.
+      Assignment* assignment = expr->AsAssignment();
+      if (assignment != NULL && assignment->is_compound()) {
+        proxy = assignment->target()->AsVariableProxy();
+      }
+    }
+
+    if (proxy != NULL &&
+        proxy->var()->IsStackAllocated() &&
+        !proxy->var()->is_this()) {
+      // All definitions for this variable.
+      BitVector* definitions =
+          variables->at(ReachingDefinitions::IndexFor(proxy->var(),
+                                                      variable_count));
+      BitVector* reaching_definitions = new BitVector(*definitions);
+      // Intersected with all definitions (of any variable) reaching this
+      // instruction.
+      reaching_definitions->Intersect(rd);
+      proxy->set_reaching_definitions(reaching_definitions);
+    }
+
+    // It may instead (or also) be a definition.  If so update the running
+    // value of reaching definitions for the block.
+    Variable* var = expr->AssignedVar();
+    if (var == NULL || !var->IsStackAllocated()) continue;
+
+    // All definitions of this variable are killed.
+    BitVector* def_set =
+        variables->at(ReachingDefinitions::IndexFor(var, variable_count));
+    rd.Subtract(*def_set);
+    // This definition is generated.
+    rd.Add(expr->num());
   }
 }
 
@@ -2088,7 +2173,7 @@ void ReachingDefinitions::Compute() {
               PrintF("Def[%s] = {%d", *var->name()->ToCString(), j);
               first = false;
             } else {
-              PrintF(", %d", j);
+              PrintF(",%d", j);
             }
           }
         }
@@ -2116,6 +2201,12 @@ void ReachingDefinitions::Compute() {
     Node* node = worklist.Remove();
     node->MarkWith(!mark);
     node->UpdateRDIn(&worklist, mark);
+  }
+
+  // Step 4: Based on RD_in for block nodes, propagate reaching definitions
+  // to all variable uses in the block.
+  for (int i = 0; i < node_count; i++) {
+    postorder_->at(i)->PropagateReachingDefinitions(&variables_);
   }
 }
 

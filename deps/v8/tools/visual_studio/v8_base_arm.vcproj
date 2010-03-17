@@ -689,6 +689,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\profile-generator.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\profile-generator.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\profile-generator-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\platform-win32.cc"
 				>
 			</File>

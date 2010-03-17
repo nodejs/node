@@ -71,6 +71,7 @@ class Result BASE_EMBEDDED {
   explicit Result(Handle<Object> value) {
     value_ = TypeField::encode(CONSTANT)
         | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
+        | IsUntaggedInt32Field::encode(false)
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -112,6 +113,19 @@ class Result BASE_EMBEDDED {
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
 
+  // An untagged int32 Result contains a signed int32 in a register
+  // or as a constant.  These are only allowed in a side-effect-free
+  // int32 calculation, and if a non-int32 input shows up or an overflow
+  // occurs, we bail out and drop all the int32 values.  Constants are
+  // not converted to int32 until they are loaded into a register.
+  bool is_untagged_int32() const {
+    return IsUntaggedInt32Field::decode(value_);
+  }
+  void set_untagged_int32(bool value) {
+    value_ &= ~IsUntaggedInt32Field::mask();
+    value_ |= IsUntaggedInt32Field::encode(value);
+  }
+
   Register reg() const {
     ASSERT(is_register());
     uint32_t reg = DataField::decode(value_);
@@ -140,7 +154,8 @@ class Result BASE_EMBEDDED {
 
   class TypeField: public BitField<Type, 0, 2> {};
   class NumberInfoField : public BitField<int, 2, 4> {};
-  class DataField: public BitField<uint32_t, 6, 32 - 6> {};
+  class IsUntaggedInt32Field : public BitField<bool, 6, 1> {};
+  class DataField: public BitField<uint32_t, 7, 32 - 7> {};
 
   inline void CopyTo(Result* destination) const;
 

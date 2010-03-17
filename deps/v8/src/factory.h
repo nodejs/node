@@ -230,6 +230,8 @@ class Factory : public AllStatic {
 
   static Handle<Code> CopyCode(Handle<Code> code);
 
+  static Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
+
   static Handle<Object> ToObject(Handle<Object> object);
   static Handle<Object> ToObject(Handle<Object> object,
                                  Handle<Context> global_context);

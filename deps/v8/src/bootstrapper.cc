@@ -816,8 +816,15 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
     ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
-        Compiler::Compile(source, script_name, 0, 0, extension, NULL,
-                          Handle<String>::null());
+        Compiler::Compile(
+            source,
+            script_name,
+            0,
+            0,
+            extension,
+            NULL,
+            Handle<String>::null(),
+            use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
     if (boilerplate.is_null()) return false;
     cache->Add(name, boilerplate);
   }

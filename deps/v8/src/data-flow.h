@@ -129,6 +129,10 @@ class BitVector: public ZoneObject {
 
   int length() const { return length_; }
 
+#ifdef DEBUG
+  void Print();
+#endif
+
  private:
   int length_;
   int data_length_;
@@ -235,6 +239,7 @@ class Node: public ZoneObject {
                                              bool mark);
   virtual void ComputeRDOut(BitVector* result) = 0;
   virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark) = 0;
+  virtual void PropagateReachingDefinitions(List<BitVector*>* variables);
 
 #ifdef DEBUG
   void AssignNodeNumber();
@@ -324,6 +329,7 @@ class BlockNode: public Node {
                                      bool mark);
   void ComputeRDOut(BitVector* result);
   void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+  void PropagateReachingDefinitions(List<BitVector*>* variables);
 
 #ifdef DEBUG
   void PrintText();

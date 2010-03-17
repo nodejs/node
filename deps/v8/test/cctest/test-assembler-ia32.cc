@@ -167,6 +167,8 @@ TEST(AssemblerIa322) {
 typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   InitializeVM();
   v8::HandleScope scope;
 
@@ -201,6 +203,8 @@ TEST(AssemblerIa323) {
 typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   InitializeVM();
   v8::HandleScope scope;
 
@@ -258,6 +262,8 @@ TEST(AssemblerIa325) {
 typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   InitializeVM();
   v8::HandleScope scope;
   CHECK(CpuFeatures::IsSupported(SSE2));
@@ -303,6 +309,8 @@ TEST(AssemblerIa326) {
 typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   InitializeVM();
   v8::HandleScope scope;
   CHECK(CpuFeatures::IsSupported(SSE2));

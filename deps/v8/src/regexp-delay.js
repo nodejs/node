@@ -95,16 +95,7 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
     %IgnoreAttributesAndSetProperty(object, 'ignoreCase', ignoreCase);
     %IgnoreAttributesAndSetProperty(object, 'multiline', multiline);
     %IgnoreAttributesAndSetProperty(object, 'lastIndex', 0);
-    // Clear the regexp result cache.
-    cachedRegexp = 0;
-    cachedSubject = 0;
-    cachedLastIndex = 0;
-    cachedAnswer = 0;
-    // These are from string.js.
-    cachedReplaceSubject = 0;
-    cachedReplaceRegexp = 0;
-    cachedReplaceReplacement = 0;
-    cachedReplaceAnswer = 0;
+    regExpCache.type = 'none';
   }
 
   // Call internal function to compile the pattern.
@@ -150,10 +141,17 @@ function DoRegExpExec(regexp, string, index) {
 }
 
 
-var cachedRegexp;
-var cachedSubject;
-var cachedLastIndex;
-var cachedAnswer;
+function RegExpCache() {
+  this.type = 'none';
+  this.regExp = 0;
+  this.subject = 0;
+  this.replaceString = 0;
+  this.lastIndex = 0;
+  this.answer = 0;
+}
+
+
+var regExpCache = new RegExpCache();
 
 
 function CloneRegexpAnswer(array) {
@@ -169,10 +167,18 @@ function CloneRegexpAnswer(array) {
 
 
 function RegExpExec(string) {
-  if (%_ObjectEquals(cachedLastIndex, this.lastIndex) &&
-      %_ObjectEquals(cachedRegexp, this) &&
-      %_ObjectEquals(cachedSubject, string)) {
-    var last = cachedAnswer;
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.exec', this]);
+  }
+
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'exec') &&
+      %_ObjectEquals(cache.lastIndex, this.lastIndex) &&
+      %_ObjectEquals(cache.regExp, this) &&
+      %_ObjectEquals(cache.subject, string)) {
+    var last = cache.answer;
     if (last == null) {
       return last;
     } else {
@@ -180,10 +186,6 @@ function RegExpExec(string) {
     }
   }
 
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.exec', this]);
-  }
   if (%_ArgumentsLength() == 0) {
     var regExpInput = LAST_INPUT(lastMatchInfo);
     if (IS_UNDEFINED(regExpInput)) {
@@ -212,10 +214,11 @@ function RegExpExec(string) {
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;
-    cachedLastIndex = lastIndex;
-    cachedRegexp = this;
-    cachedSubject = s;
-    cachedAnswer = matchIndices;  // Null.
+    cache.lastIndex = lastIndex;
+    cache.regExp = this;
+    cache.subject = s;
+    cache.answer = matchIndices;  // Null.
+    cache.type = 'exec';
     return matchIndices;        // No match.
   }
 
@@ -246,10 +249,11 @@ function RegExpExec(string) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
     return result;
   } else {
-    cachedRegexp = this;
-    cachedSubject = s;
-    cachedLastIndex = lastIndex;
-    cachedAnswer = result;
+    cache.regExp = this;
+    cache.subject = s;
+    cache.lastIndex = lastIndex;
+    cache.answer = result;
+    cache.type = 'exec';
     return CloneRegexpAnswer(result);
   }
 }
@@ -271,13 +275,35 @@ function RegExpTest(string) {
     }
     string = regExpInput;
   }
-  var s = ToString(string);
-  var length = s.length;
+  var s;
+  if (IS_STRING(string)) {
+    s = string;
+  } else {
+    s = ToString(string);
+  }
+
   var lastIndex = this.lastIndex;
+
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'test') &&
+      %_ObjectEquals(cache.regExp, this) &&
+      %_ObjectEquals(cache.subject, string) &&
+      %_ObjectEquals(cache.lastIndex, lastIndex)) {
+    return cache.answer;
+  }
+
+  var length = s.length;
   var i = this.global ? TO_INTEGER(lastIndex) : 0;
+
+  cache.type = 'test';
+  cache.regExp = this;
+  cache.subject = s;
+  cache.lastIndex = i;
 
   if (i < 0 || i > s.length) {
     this.lastIndex = 0;
+    cache.answer = false;
     return false;
   }
 
@@ -287,10 +313,12 @@ function RegExpTest(string) {
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;
+    cache.answer = false;
     return false;
   }
 
   if (this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
+  cache.answer = true;
   return true;
 }
 
@@ -409,6 +437,7 @@ function SetupRegExp() {
     return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
   }
   function RegExpSetInput(string) {
+    regExpCache.type = 'none';
     LAST_INPUT(lastMatchInfo) = ToString(string);
   };
 

@@ -686,8 +686,14 @@ bool Debug::CompileDebuggerScript(int index) {
   bool allow_natives_syntax = FLAG_allow_natives_syntax;
   FLAG_allow_natives_syntax = true;
   Handle<JSFunction> boilerplate;
-  boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
-                                  Handle<String>::null());
+  boilerplate = Compiler::Compile(source_code,
+                                  script_name,
+                                  0,
+                                  0,
+                                  NULL,
+                                  NULL,
+                                  Handle<String>::null(),
+                                  NATIVES_CODE);
   FLAG_allow_natives_syntax = allow_natives_syntax;
 
   // Silently ignore stack overflows during compilation.

@@ -1297,6 +1297,7 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
   InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
   InstallBuiltin(holder, "slice", Builtins::ArraySlice);
   InstallBuiltin(holder, "splice", Builtins::ArraySplice);
+  InstallBuiltin(holder, "concat", Builtins::ArrayConcat);
 
   return *holder;
 }
@@ -2146,10 +2147,23 @@ class BMGoodSuffixBuffers {
 static int bad_char_occurrence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
+// State of the string match tables.
+// SIMPLE: No usable content in the buffers.
+// BOYER_MOORE_HORSPOOL: The bad_char_occurences table has been populated.
+// BOYER_MOORE: The bmgs_buffers tables have also been populated.
+// Whenever starting with a new needle, one should call InitializeStringSearch
+// to determine which search strategy to use, and in the case of a long-needle
+// strategy, the call also initializes the algorithm to SIMPLE.
+enum StringSearchAlgorithm { SIMPLE_SEARCH, BOYER_MOORE_HORSPOOL, BOYER_MOORE };
+static StringSearchAlgorithm algorithm;
+
+
 // Compute the bad-char table for Boyer-Moore in the static buffer.
 template <typename pchar>
-static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
-                                          int start) {
+static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern) {
+  // Only preprocess at most kBMMaxShift last characters of pattern.
+  int start = pattern.length() < kBMMaxShift ? 0
+                                             : pattern.length() - kBMMaxShift;
   // Run forwards to populate bad_char_table, so that *last* instance
   // of character equivalence class is the one registered.
   // Notice: Doesn't include the last character.
@@ -2169,10 +2183,11 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   }
 }
 
+
 template <typename pchar>
-static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
-                                              int start) {
+static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern) {
   int m = pattern.length();
+  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
   int len = m - start;
   // Compute Good Suffix tables.
   bmgs_buffers.init(m);
@@ -2219,6 +2234,7 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
   }
 }
 
+
 template <typename schar, typename pchar>
 static inline int CharOccurrence(int char_code) {
   if (sizeof(schar) == 1) {
@@ -2233,6 +2249,7 @@ static inline int CharOccurrence(int char_code) {
   return bad_char_occurrence[char_code % kBMAlphabetSize];
 }
 
+
 // Restricted simplified Boyer-Moore string matching.
 // Uses only the bad-shift table of Boyer-Moore and only uses it
 // for the character compared to the last character of the needle.
@@ -2241,14 +2258,13 @@ static int BoyerMooreHorspool(Vector<const schar> subject,
                               Vector<const pchar> pattern,
                               int start_index,
                               bool* complete) {
+  ASSERT(algorithm <= BOYER_MOORE_HORSPOOL);
   int n = subject.length();
   int m = pattern.length();
-  // Only preprocess at most kBMMaxShift last characters of pattern.
-  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
 
-  BoyerMoorePopulateBadCharTable(pattern, start);
+  int badness = -m;
 
-  int badness = -m;  // How bad we are doing without a good-suffix table.
+  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
   pchar last_char = pattern[m - 1];
   int last_char_shift = m - 1 - CharOccurrence<schar, pchar>(last_char);
@@ -2293,13 +2309,12 @@ template <typename schar, typename pchar>
 static int BoyerMooreIndexOf(Vector<const schar> subject,
                              Vector<const pchar> pattern,
                              int idx) {
+  ASSERT(algorithm <= BOYER_MOORE);
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
   int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
 
-  // Build the Good Suffix table and continue searching.
-  BoyerMoorePopulateGoodSuffixTable(pattern, start);
   pchar last_char = pattern[m - 1];
   // Continue search from i.
   while (idx <= n - m) {
@@ -2335,9 +2350,9 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
 
 
 template <typename schar>
-static int SingleCharIndexOf(Vector<const schar> string,
-                             schar pattern_char,
-                             int start_index) {
+static inline int SingleCharIndexOf(Vector<const schar> string,
+                                    schar pattern_char,
+                                    int start_index) {
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -2375,10 +2390,10 @@ static int SimpleIndexOf(Vector<const schar> subject,
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
   int badness = -10 - (pattern.length() << 2);
+
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
   pchar pattern_first_char = pattern[0];
-
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
     badness++;
     if (badness > 0) {
@@ -2426,38 +2441,83 @@ static int SimpleIndexOf(Vector<const schar> subject,
 }
 
 
-// Dispatch to different algorithms.
-template <typename schar, typename pchar>
-static int StringMatchStrategy(Vector<const schar> sub,
-                               Vector<const pchar> pat,
-                               int start_index) {
-  ASSERT(pat.length() > 1);
+// Strategy for searching for a string in another string.
+enum StringSearchStrategy { SEARCH_FAIL, SEARCH_SHORT, SEARCH_LONG };
 
+
+template <typename pchar>
+static inline StringSearchStrategy InitializeStringSearch(
+    Vector<const pchar> pat, bool ascii_subject) {
+  ASSERT(pat.length() > 1);
   // We have an ASCII haystack and a non-ASCII needle. Check if there
   // really is a non-ASCII character in the needle and bail out if there
   // is.
-  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
+  if (ascii_subject && sizeof(pchar) > 1) {
     for (int i = 0; i < pat.length(); i++) {
       uc16 c = pat[i];
       if (c > String::kMaxAsciiCharCode) {
-        return -1;
+        return SEARCH_FAIL;
       }
     }
   }
   if (pat.length() < kBMMinPatternLength) {
-    // We don't believe fancy searching can ever be more efficient.
-    // The max shift of Boyer-Moore on a pattern of this length does
-    // not compensate for the overhead.
-    return SimpleIndexOf(sub, pat, start_index);
+    return SEARCH_SHORT;
   }
+  algorithm = SIMPLE_SEARCH;
+  return SEARCH_LONG;
+}
+
+
+// Dispatch long needle searches to different algorithms.
+template <typename schar, typename pchar>
+static int ComplexIndexOf(Vector<const schar> sub,
+                          Vector<const pchar> pat,
+                          int start_index) {
+  ASSERT(pat.length() >= kBMMinPatternLength);
   // Try algorithms in order of increasing setup cost and expected performance.
   bool complete;
-  int idx = SimpleIndexOf(sub, pat, start_index, &complete);
-  if (complete) return idx;
-  idx = BoyerMooreHorspool(sub, pat, idx, &complete);
-  if (complete) return idx;
-  return BoyerMooreIndexOf(sub, pat, idx);
+  int idx = start_index;
+  switch (algorithm) {
+    case SIMPLE_SEARCH:
+      idx = SimpleIndexOf(sub, pat, idx, &complete);
+      if (complete) return idx;
+      BoyerMoorePopulateBadCharTable(pat);
+      algorithm = BOYER_MOORE_HORSPOOL;
+      // FALLTHROUGH.
+    case BOYER_MOORE_HORSPOOL:
+      idx = BoyerMooreHorspool(sub, pat, idx, &complete);
+      if (complete) return idx;
+      // Build the Good Suffix table and continue searching.
+      BoyerMoorePopulateGoodSuffixTable(pat);
+      algorithm = BOYER_MOORE;
+      // FALLTHROUGH.
+    case BOYER_MOORE:
+      return BoyerMooreIndexOf(sub, pat, idx);
+  }
+  UNREACHABLE();
+  return -1;
 }
+
+
+// Dispatch to different search strategies for a single search.
+// If searching multiple times on the same needle, the search
+// strategy should only be computed once and then dispatch to different
+// loops.
+template <typename schar, typename pchar>
+static int StringSearch(Vector<const schar> sub,
+                        Vector<const pchar> pat,
+                        int start_index) {
+  bool ascii_subject = (sizeof(schar) == 1);
+  StringSearchStrategy strategy = InitializeStringSearch(pat, ascii_subject);
+  switch (strategy) {
+    case SEARCH_FAIL: return -1;
+    case SEARCH_SHORT: return SimpleIndexOf(sub, pat, start_index);
+    case SEARCH_LONG: return ComplexIndexOf(sub, pat, start_index);
+  }
+  UNREACHABLE();
+  return -1;
+}
+
 
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
@@ -2477,6 +2537,7 @@ int Runtime::StringMatch(Handle<String> sub,
   if (!sub->IsFlat()) {
     FlattenString(sub);
   }
+
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
@@ -2510,15 +2571,15 @@ int Runtime::StringMatch(Handle<String> sub,
   if (pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
     if (sub->IsAsciiRepresentation()) {
-      return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
+      return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
+    return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
   if (sub->IsAsciiRepresentation()) {
-    return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
+    return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
+  return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -4273,6 +4334,169 @@ static Object* Runtime_StringTrim(Arguments args) {
 }
 
 
+template <typename schar, typename pchar>
+void FindStringIndices(Vector<const schar> subject,
+                       Vector<const pchar> pattern,
+                       ZoneList<int>* indices,
+                       unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject, and the end-of-string index.
+  // Stop after finding at most limit values.
+  StringSearchStrategy strategy =
+      InitializeStringSearch(pattern, sizeof(schar) == 1);
+  switch (strategy) {
+    case SEARCH_FAIL: return;
+    case SEARCH_SHORT: {
+      int pattern_length = pattern.length();
+      int index = 0;
+      while (limit > 0) {
+        index = SimpleIndexOf(subject, pattern, index);
+        if (index < 0) return;
+        indices->Add(index);
+        index += pattern_length;
+        limit--;
+      }
+      return;
+    }
+    case SEARCH_LONG: {
+      int pattern_length = pattern.length();
+      int index = 0;
+      while (limit > 0) {
+        index = ComplexIndexOf(subject, pattern, index);
+        if (index < 0) return;
+        indices->Add(index);
+        index += pattern_length;
+        limit--;
+      }
+      return;
+    }
+    default:
+      UNREACHABLE();
+      return;
+  }
+}
+
+template <typename schar>
+inline void FindCharIndices(Vector<const schar> subject,
+                            const schar pattern_char,
+                            ZoneList<int>* indices,
+                            unsigned int limit) {
+  // Collect indices of pattern_char in subject, and the end-of-string index.
+  // Stop after finding at most limit values.
+  int index = 0;
+  while (limit > 0) {
+    index = SingleCharIndexOf(subject, pattern_char, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index++;
+    limit--;
+  }
+}
+
+
+static Object* Runtime_StringSplit(Arguments args) {
+  ASSERT(args.length() == 3);
+  HandleScope handle_scope;
+  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_CHECKED(String, pattern, 1);
+  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[2]);
+
+  int subject_length = subject->length();
+  int pattern_length = pattern->length();
+  RUNTIME_ASSERT(pattern_length > 0);
+
+  // The limit can be very large (0xffffffffu), but since the pattern
+  // isn't empty, we can never create more parts than ~half the length
+  // of the subject.
+
+  if (!subject->IsFlat()) FlattenString(subject);
+
+  static const int kMaxInitialListCapacity = 16;
+
+  ZoneScope scope(DELETE_ON_EXIT);
+
+  // Find (up to limit) indices of separator and end-of-string in subject
+  int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
+  ZoneList<int> indices(initial_capacity);
+  if (pattern_length == 1) {
+    // Special case, go directly to fast single-character split.
+    AssertNoAllocation nogc;
+    uc16 pattern_char = pattern->Get(0);
+    if (subject->IsTwoByteRepresentation()) {
+      FindCharIndices(subject->ToUC16Vector(), pattern_char,
+                      &indices,
+                      limit);
+    } else if (pattern_char <= String::kMaxAsciiCharCode) {
+      FindCharIndices(subject->ToAsciiVector(),
+                      static_cast<char>(pattern_char),
+                      &indices,
+                      limit);
+    }
+  } else {
+    if (!pattern->IsFlat()) FlattenString(pattern);
+    AssertNoAllocation nogc;
+    if (subject->IsAsciiRepresentation()) {
+      Vector<const char> subject_vector = subject->ToAsciiVector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
+    } else {
+      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
+    }
+  }
+  if (static_cast<uint32_t>(indices.length()) < limit) {
+    indices.Add(subject_length);
+  }
+  // The list indices now contains the end of each part to create.
+
+
+  // Create JSArray of substrings separated by separator.
+  int part_count = indices.length();
+
+  Handle<JSArray> result = Factory::NewJSArray(part_count);
+  result->set_length(Smi::FromInt(part_count));
+
+  ASSERT(result->HasFastElements());
+
+  if (part_count == 1 && indices.at(0) == subject_length) {
+    FixedArray::cast(result->elements())->set(0, *subject);
+    return *result;
+  }
+
+  Handle<FixedArray> elements(FixedArray::cast(result->elements()));
+  int part_start = 0;
+  for (int i = 0; i < part_count; i++) {
+    HandleScope local_loop_handle;
+    int part_end = indices.at(i);
+    Handle<String> substring =
+        Factory::NewSubString(subject, part_start, part_end);
+    elements->set(i, *substring);
+    part_start = part_end + pattern_length;
+  }
+
+  return *result;
+}
+
+
 // Copies ascii characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
@@ -4849,7 +5073,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     Vector<const char> x_chars = x->ToAsciiVector();
     if (y->IsAsciiRepresentation()) {
       Vector<const char> y_chars = y->ToAsciiVector();
-      r = memcmp(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y->ToUC16Vector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
@@ -4897,8 +5121,10 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten();
-  y->TryFlatten();
+  Object* obj = Heap::PrepareForCompare(x);
+  if (obj->IsFailure()) return obj;
+  obj = Heap::PrepareForCompare(y);
+  if (obj->IsFailure()) return obj;
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
                                       : StringInputBufferCompare(x, y);
@@ -8836,6 +9062,36 @@ static Object* Runtime_LiveEditCheckStackActivations(Arguments args) {
   }
 
   return *result;
+}
+
+
+// A testing entry. Returns statement position which is the closest to
+// source_position.
+static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
+
+  Handle<Code> code(function->code());
+
+  RelocIterator it(*code, 1 << RelocInfo::STATEMENT_POSITION);
+  int closest_pc = 0;
+  int distance = kMaxInt;
+  while (!it.done()) {
+    int statement_position = static_cast<int>(it.rinfo()->data());
+    // Check if this break point is closer that what was previously found.
+    if (source_position <= statement_position &&
+        statement_position - source_position < distance) {
+      closest_pc = it.rinfo()->pc() - code->instruction_start();
+      distance = statement_position - source_position;
+      // Check whether we can't get any closer.
+      if (distance == 0) break;
+    }
+    it.next();
+  }
+
+  return Smi::FromInt(closest_pc);
 }
 
 

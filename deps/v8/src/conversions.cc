@@ -31,7 +31,6 @@
 
 #include "conversions-inl.h"
 #include "factory.h"
-#include "grisu3.h"
 #include "scanner.h"
 
 namespace v8 {
@@ -383,17 +382,8 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int decimal_point;
       int sign;
 
-      char* decimal_rep;
-      bool used_dtoa = false;
-      char grisu_buffer[kGrisu3MaximalLength + 1];
-      int length;
-      if (grisu3(v, grisu_buffer, &sign, &length, &decimal_point)) {
-        decimal_rep = grisu_buffer;
-      } else {
-        decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-        used_dtoa = true;
-        length = StrLength(decimal_rep);
-      }
+      char* decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
+      int length = StrLength(decimal_rep);
 
       if (sign) builder.AddCharacter('-');
 
@@ -428,7 +418,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         builder.AddFormatted("%d", exponent);
       }
 
-      if (used_dtoa) freedtoa(decimal_rep);
+      freedtoa(decimal_rep);
     }
   }
   return builder.Finalize();
