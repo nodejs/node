@@ -859,6 +859,8 @@ Handle<Value> EvalCX(const Arguments& args) {
   Local<String> code = args[0]->ToString();
   Local<Object> sandbox = args.Length() > 1 ? args[1]->ToObject()
                                             : Object::New();
+  Local<String> filename = args.Length() > 2 ? args[2]->ToString()
+                                             : String::New("evalcx");
   // Create the new context
   Persistent<Context> context = Context::New();
 
@@ -878,7 +880,7 @@ Handle<Value> EvalCX(const Arguments& args) {
   // Catch errors
   TryCatch try_catch;
 
-  Local<Script> script = Script::Compile(code, String::New("evalcx"));
+  Local<Script> script = Script::Compile(code, filename);
   Handle<Value> result;
 
   if (script.IsEmpty()) {
