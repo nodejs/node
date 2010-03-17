@@ -695,7 +695,7 @@ Asynchronously reads the entire contents of a file. Example:
 --------------------------------
 fs.readFile("/etc/passwd", function (err, data) {
   if (err) throw err;
-  sys.puts(content);
+  sys.puts(data);
 });
 --------------------------------
 +
