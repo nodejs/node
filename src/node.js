@@ -770,7 +770,7 @@ var stdout;
 process.__defineGetter__('stdout', function () {
   if (stdout) return stdout;
   var net = requireNative('net');
-  stdout = new net.Socket(process.binding('stdio').stdoutFD);
+  stdout = new net.Stream(process.binding('stdio').stdoutFD);
   return stdout;
 });
 
@@ -779,7 +779,7 @@ process.openStdin = function () {
   if (stdin) return stdin;
   var net = requireNative('net');
   var fd = process.binding('stdio').openStdin();
-  stdin = new net.Socket(fd);
+  stdin = new net.Stream(fd);
   stdin.resume();
   stdin.readable = true;
   return stdin;
