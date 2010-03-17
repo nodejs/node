@@ -25,6 +25,7 @@ process.unwatchFile = removed("process.unwatchFile() has moved to fs.unwatchFile
 GLOBAL.node = {};
 
 node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
+process.createChildProcess = removed("childProcess API has changed. See doc/api.txt.");
 node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
 node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
 process.inherits = removed("process.inherits() has moved to sys.inherits.");
@@ -87,24 +88,6 @@ function requireNative (id) {
   if (e) throw e;
   return m.exports;
 }
-
-
-process.createChildProcess = function (file, args, env) {
-  var child = new process.ChildProcess();
-  args = args || [];
-  env = env || process.env;
-  var envPairs = [];
-  for (var key in env) {
-    if (env.hasOwnProperty(key)) {
-      envPairs.push(key + "=" + env[key]);
-    }
-  }
-  // TODO Note envPairs is not currently used in child_process.cc. The PATH
-  // needs to be searched for the 'file' command if 'file' does not contain
-  // a '/' character.
-  child.spawn(file, args, envPairs);
-  return child;
-};
 
 
 process.assert = function (x, msg) {
@@ -797,7 +780,6 @@ process.openStdin = function () {
   var net = requireNative('net');
   var fd = process.binding('stdio').openStdin();
   stdin = new net.Socket(fd);
-  process.stdout.write(stdin.fd + "\n");
   stdin.resume();
   stdin.readable = true;
   return stdin;

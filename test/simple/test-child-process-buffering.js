@@ -1,14 +1,19 @@
 require("../common");
 
+var spawn = require('child_process').spawn;
+
 var pwd_called = false;
 
 function pwd (callback) {
   var output = "";
-  var child = process.createChildProcess("pwd");
-  child.addListener("output", function (s) {
+  var child = spawn("pwd");
+
+  child.stdout.setEncoding('utf8');
+  child.stdout.addListener("data", function (s) {
     puts("stdout: " + JSON.stringify(s));
-    if (s) output += s;
+    output += s;
   });
+
   child.addListener("exit", function (c) {
     puts("exit: " + c);
     assert.equal(0, c);

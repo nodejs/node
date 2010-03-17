@@ -1,10 +1,15 @@
 require("../common");
-child = process.createChildProcess('/usr/bin/env', [], {'HELLO' : 'WORLD'});
+
+var spawn = require('child_process').spawn;
+child = spawn('/usr/bin/env', [], {'HELLO' : 'WORLD'});
+
 response = "";
 
-child.addListener("output", function (chunk) {
-  puts("stdout: " + JSON.stringify(chunk));
-  if (chunk) response += chunk;
+child.stdout.setEncoding('utf8');
+
+child.stdout.addListener("data", function (chunk) {
+  puts("stdout: " + chunk);
+  response += chunk;
 });
 
 process.addListener('exit', function () {

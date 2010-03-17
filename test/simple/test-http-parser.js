@@ -1,12 +1,13 @@
-process.mixin(require("../common"));
+require("../common");
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
 // upstream to http://github.com/ry/http-parser for inclusion into
 // deps/http-parser/test.c
 
+var HTTPParser = process.binding('http_parser').HTTPParser;
 
-var parser = new process.HTTPParser("request");
+var parser = new HTTPParser("request");
 
 var buffer = new process.Buffer(1024);
 

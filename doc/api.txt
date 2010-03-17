@@ -192,23 +192,6 @@ The default is to only recurse twice.  To make it recurse indefinitely, pass
 in +null+ for +depth+.
 
 
-+exec(command, callback)+::
-Executes the command as a child process, buffers the output and returns it
-in a callback.
-+
-----------------------------------------
-var sys = require("sys");
-sys.exec("ls /", function (err, stdout, stderr) {
-  if (err) throw err;
-  sys.puts(stdout);
-});
-----------------------------------------
-+
-The callback gets the arguments +(err, stdout, stderr)+. On success +err+
-will be +null+. On error +err+ will be an instance of +Error+ and +err.code+
-will be the exit code of the child process.
-
-
 == Events
 
 Many objects in Node emit events: a TCP server emits an event each time
@@ -399,25 +382,18 @@ Stops a interval from triggering.
 == Child Processes
 
 Node provides a tridirectional +popen(3)+ facility through the class
-+process.ChildProcess+. It is possible to stream data through the child's +stdin+,
-+stdout+, and +stderr+ in a fully non-blocking way.
++ChildProcess+ class. It is possible to stream data through the child's
++stdin+, +stdout+, and +stderr+ in a fully non-blocking way.
 
-=== +process.ChildProcess+
+To create a child process use +require("child_process").spawn()+.
+
+Child processes always have three streams associated with them.
++child.stdin+, +child.stdout+, and +child.stderr+. 
+
 
 [cols="1,2,10",options="header"]
 |=========================================================
 | Event      | Parameters |Notes
-
-| +"output"+ | +data+     | Each time the child process 
-                            sends data to its +stdout+, this event is
-                            emitted. +data+ is a string. If the child
-                            process closes its +stdout+ stream (a common
-                            thing to do on exit), this event will be emitted
-                            with +data === null+.
-
-| +"error"+  | +data+     | Identical to the +"output"+ event except for
-                            +stderr+ instead of +stdout+.
-
 | +"exit"+   | +code+     | This event is emitted after the child process
                             ends. +code+ is the final exit code of the
                             process. One can be assured that after this
@@ -425,19 +401,18 @@ Node provides a tridirectional +popen(3)+ facility through the class
                             +"error"+ callbacks will no longer be made.
 |=========================================================
 
-+process.createChildProcess(command, args=[], env=process.env)+::
++require("child_process").spawn(command, args=[], env=process.env)+::
 Launches a new process with the given +command+, command line arguments, and
 environmental variables. For example:
 +
 ----------------------------------------
-var ls = process.createChildProcess("ls", ["-lh", "/usr"]);
-ls.addListener("output", function (data) {
-  sys.puts(data);
+// Pipe a child process output to
+// parent process output
+var ls = spawn("ls", ["-lh", "/usr"]);
+ls.stdout.addListener("data", function (data) {
+  process.stdout.write(data);
 });
 ----------------------------------------
-+
-Note, if you just want to buffer the output of a command and return it, then
-+exec()+ in +/sys.js+ might be better.
 
 
 +child.pid+ ::
@@ -457,6 +432,23 @@ Closes the process's +stdin+ stream.
 +child.kill(signal="SIGTERM")+ ::
 Send a signal to the child process.  If no argument is given, the process
 will be sent +"SIGTERM"+. See signal(7) for a list of available signals.
+
+
++require("child_process").exec(command, callback)+::
+High-level way to executes a command as a child process and buffer the
+output and return it in a callback.
++
+----------------------------------------
+var exec = require("child_process").exec;
+exec("ls /", function (err, stdout, stderr) {
+  if (err) throw err;
+  sys.puts(stdout);
+});
+----------------------------------------
++
+The callback gets the arguments +(err, stdout, stderr)+. On success +err+
+will be +null+. On error +err+ will be an instance of +Error+ and +err.code+
+will be the exit code of the child process.
 
 
 
