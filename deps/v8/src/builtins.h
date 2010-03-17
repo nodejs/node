@@ -52,6 +52,7 @@ enum BuiltinExtraArguments {
   V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                               \
   V(ArraySlice, NO_EXTRA_ARGUMENTS)                                 \
   V(ArraySplice, NO_EXTRA_ARGUMENTS)                                \
+  V(ArrayConcat, NO_EXTRA_ARGUMENTS)                                \
                                                                     \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
   V(FastHandleApiCall, NO_EXTRA_ARGUMENTS)                          \

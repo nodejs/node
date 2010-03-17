@@ -115,8 +115,14 @@ static void SetGlobalProperty(const char* name, Object* value) {
 static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code(Factory::NewStringFromUtf8(CStrVector(source)));
   Handle<JSFunction> boilerplate =
-      Compiler::Compile(source_code, Handle<String>(), 0, 0, NULL, NULL,
-                        Handle<String>::null());
+      Compiler::Compile(source_code,
+                        Handle<String>(),
+                        0,
+                        0,
+                        NULL,
+                        NULL,
+                        Handle<String>::null(),
+                        NOT_NATIVES_CODE);
   return Factory::NewFunctionFromBoilerplate(boilerplate,
                                              Top::global_context());
 }

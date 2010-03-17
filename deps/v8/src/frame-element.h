@@ -145,6 +145,16 @@ class FrameElement BASE_EMBEDDED {
   void set_copied() { value_ = value_ | CopiedField::encode(true); }
   void clear_copied() { value_ = value_ & ~CopiedField::mask(); }
 
+  // An untagged int32 FrameElement represents a signed int32
+  // on the stack.  These are only allowed in a side-effect-free
+  // int32 calculation, and if a non-int32 input shows up or an overflow
+  // occurs, we bail out and drop all the int32 values.
+  void set_untagged_int32(bool value) {
+    value_ &= ~UntaggedInt32Field::mask();
+    value_ |= UntaggedInt32Field::encode(value);
+  }
+  bool is_untagged_int32() const { return UntaggedInt32Field::decode(value_); }
+
   Register reg() const {
     ASSERT(is_register());
     uint32_t reg = DataField::decode(value_);
@@ -255,8 +265,9 @@ class FrameElement BASE_EMBEDDED {
   class TypeField: public BitField<Type, 0, 3> {};
   class CopiedField: public BitField<bool, 3, 1> {};
   class SyncedField: public BitField<bool, 4, 1> {};
-  class NumberInfoField: public BitField<int, 5, 4> {};
-  class DataField: public BitField<uint32_t, 9, 32 - 9> {};
+  class UntaggedInt32Field: public BitField<bool, 5, 1> {};
+  class NumberInfoField: public BitField<int, 6, 4> {};
+  class DataField: public BitField<uint32_t, 10, 32 - 10> {};
 
   friend class VirtualFrame;
 };

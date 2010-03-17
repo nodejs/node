@@ -1137,8 +1137,14 @@ Local<Script> Script::New(v8::Handle<String> source,
     pre_data_impl = NULL;
   }
   i::Handle<i::JSFunction> boilerplate =
-      i::Compiler::Compile(str, name_obj, line_offset, column_offset, NULL,
-                           pre_data_impl, Utils::OpenHandle(*script_data));
+      i::Compiler::Compile(str,
+                           name_obj,
+                           line_offset,
+                           column_offset,
+                           NULL,
+                           pre_data_impl,
+                           Utils::OpenHandle(*script_data),
+                           i::NOT_NATIVES_CODE);
   has_pending_exception = boilerplate.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Script>());
   return Local<Script>(ToApi<Script>(boilerplate));

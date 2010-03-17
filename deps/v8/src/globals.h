@@ -98,11 +98,6 @@ typedef byte* Address;
 #define V8_PTR_PREFIX ""
 #endif  // V8_HOST_ARCH_64_BIT
 
-// The following macro works on both 32 and 64-bit platforms.
-// Usage: instead of writing 0x1234567890123456
-//      write V8_2PART_UINT64_C(0x12345678,90123456);
-#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
-
 #define V8PRIxPTR V8_PTR_PREFIX "x"
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 
@@ -320,6 +315,10 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
+
+
+// Flag indicating whether code is built into the VM (one of the natives files).
+enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
 
 
 // A CodeDesc describes a buffer holding instructions and relocation

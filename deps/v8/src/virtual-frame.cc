@@ -163,6 +163,9 @@ void VirtualFrame::SpillElementAt(int index) {
   if (elements_[index].is_copied()) {
     new_element.set_copied();
   }
+  if (elements_[index].is_untagged_int32()) {
+    new_element.set_untagged_int32(true);
+  }
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }

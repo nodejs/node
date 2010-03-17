@@ -212,6 +212,8 @@
 		9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
 		9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
+		9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F73E3AF114E61A100F84A5A /* profile-generator.cc */; };
+		9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F73E3AF114E61A100F84A5A /* profile-generator.cc */; };
 		9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
 		9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
 		9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
@@ -552,6 +554,9 @@
 		9F11D99F105AF0A300EBE5B2 /* heap-profiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "heap-profiler.h"; sourceTree = "<group>"; };
 		9F4B7B870FCC877A00DC4117 /* log-utils.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "log-utils.cc"; sourceTree = "<group>"; };
 		9F4B7B880FCC877A00DC4117 /* log-utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-utils.h"; sourceTree = "<group>"; };
+		9F73E3AE114E61A100F84A5A /* profile-generator-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "profile-generator-inl.h"; sourceTree = "<group>"; };
+		9F73E3AF114E61A100F84A5A /* profile-generator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "profile-generator.cc"; sourceTree = "<group>"; };
+		9F73E3B0114E61A100F84A5A /* profile-generator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "profile-generator.h"; sourceTree = "<group>"; };
 		9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "func-name-inferrer.cc"; sourceTree = "<group>"; };
 		9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "func-name-inferrer.h"; sourceTree = "<group>"; };
 		9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fast-codegen.cc"; sourceTree = "<group>"; };
@@ -804,6 +809,9 @@
 				897FF16A0E719B8F00D62E90 /* platform.h */,
 				897FF16B0E719B8F00D62E90 /* prettyprinter.cc */,
 				897FF16C0E719B8F00D62E90 /* prettyprinter.h */,
+				9F73E3AE114E61A100F84A5A /* profile-generator-inl.h */,
+				9F73E3AF114E61A100F84A5A /* profile-generator.cc */,
+				9F73E3B0114E61A100F84A5A /* profile-generator.h */,
 				897FF16D0E719B8F00D62E90 /* property.cc */,
 				897FF16E0E719B8F00D62E90 /* property.h */,
 				89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */,
@@ -1239,6 +1247,7 @@
 				9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 				9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */,
 				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
+				9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1348,6 +1357,7 @@
 				9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 				9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */,
 				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
+				9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

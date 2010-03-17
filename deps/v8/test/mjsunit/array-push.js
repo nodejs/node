@@ -66,3 +66,40 @@
       "after .push(22, 23, 24, 25, 26, 27, 28)");
   }
 })();
+
+// Excerises various pushes to the array at the end of new space.
+(function() {
+  var a = undefined;
+  for (var i = 0; i < 7; i++) {
+    a = [];
+    assertEquals(1, a.push(1));
+    assertEquals(2, a.push(2));
+    assertEquals(3, a.push(3));
+    assertEquals(4, a.push(4));
+    assertEquals(5, a.push(5));
+    assertEquals(6, a.push(6));
+    assertEquals(7, a.push(7));
+    assertEquals(8, a.push(8));
+    assertEquals(9, a.push(9));
+    assertEquals(10, a.push(10));
+    assertEquals(11, a.push(11));
+    assertEquals(12, a.push(12));
+    assertEquals(13, a.push(13));
+    assertEquals(14, a.push(14));
+    assertEquals(15, a.push(15));
+    assertEquals(16, a.push(16));
+    assertEquals(17, a.push(17));
+    assertEquals(18, a.push(18));
+    assertEquals(19, a.push(19));
+    assertEquals(20, a.push(20));
+    assertEquals(21, a.push(21));
+    assertEquals(22, a.push(22));
+    assertEquals(23, a.push(23));
+    assertEquals(24, a.push(24));
+    assertEquals(25, a.push(25));
+    assertEquals(26, a.push(26));
+    assertEquals(27, a.push(27));
+    assertEquals(28, a.push(28));
+    assertEquals(29, a.push(29));
+  }
+})();

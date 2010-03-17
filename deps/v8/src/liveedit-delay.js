@@ -424,3 +424,8 @@ Debug.LiveEditChangeScript.Failure = function(message) {
 Debug.LiveEditChangeScript.Failure.prototype.toString = function() {
   return "LiveEdit Failure: " + this.message;     
 }
+
+// A testing entry.
+Debug.LiveEditChangeScript.GetPcFromSourcePos = function(func, source_pos) {
+  return %GetFunctionCodePositionFromSource(func, source_pos);
+}

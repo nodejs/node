@@ -80,7 +80,6 @@ static inline void CheckEqualsHelper(const char* file, int line,
   }
 }
 
-
 // Helper function used by the CHECK_EQ function when given int64_t
 // arguments.  Should not be called directly.
 static inline void CheckEqualsHelper(const char* file, int line,
@@ -197,27 +196,6 @@ static inline void CheckEqualsHelper(const char* file,
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
              expected_source, value_source, *exp, *val);
-  }
-  delete[] exp;
-  delete[] val;
-}
-
-
-static inline void CheckNonEqualsHelper(const char* file,
-                                     int line,
-                                     const char* expected_source,
-                                     double expected,
-                                     const char* value_source,
-                                     double value) {
-  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
-  volatile double* exp = new double[1];
-  *exp = expected;
-  volatile double* val = new double[1];
-  *val = value;
-  if (*exp == *val) {
-    V8_Fatal(file, line,
-             "CHECK_NE(%s, %s) failed\n#   Value: %f",
-             expected_source, value_source, *val);
   }
   delete[] exp;
   delete[] val;

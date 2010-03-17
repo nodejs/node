@@ -42,7 +42,33 @@ void Result::ToRegister() {
   if (is_constant()) {
     Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+    if (is_untagged_int32()) {
+      fresh.set_untagged_int32(true);
+      if (handle()->IsSmi()) {
+      CodeGeneratorScope::Current()->masm()->Set(
+          fresh.reg(),
+          Immediate(Smi::cast(*handle())->value()));
+      } else if (handle()->IsHeapNumber()) {
+        double double_value = HeapNumber::cast(*handle())->value();
+        int32_t value = DoubleToInt32(double_value);
+        if (double_value == 0 && signbit(double_value)) {
+          // Negative zero must not be converted to an int32 unless
+          // the context allows it.
+          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
+          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+        } else if (double_value == value) {
+          CodeGeneratorScope::Current()->masm()->Set(
+              fresh.reg(), Immediate(value));
+        } else {
+          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
+          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+        }
+      } else {
+        // Constant is not a number.  This was not predicted by AST analysis.
+        CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
+        CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+      }
+    } else if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
       CodeGeneratorScope::Current()->MoveUnsafeSmi(fresh.reg(), handle());
     } else {
       CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
@@ -65,13 +91,39 @@ void Result::ToRegister(Register target) {
       CodeGeneratorScope::Current()->masm()->mov(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-        CodeGeneratorScope::Current()->MoveUnsafeSmi(fresh.reg(), handle());
+      if (is_untagged_int32()) {
+        if (handle()->IsSmi()) {
+          CodeGeneratorScope::Current()->masm()->Set(
+              fresh.reg(),
+              Immediate(Smi::cast(*handle())->value()));
+        } else {
+          ASSERT(handle()->IsHeapNumber());
+          double double_value = HeapNumber::cast(*handle())->value();
+          int32_t value = DoubleToInt32(double_value);
+          if (double_value == 0 && signbit(double_value)) {
+            // Negative zero must not be converted to an int32 unless
+            // the context allows it.
+            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
+            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+          } else if (double_value == value) {
+            CodeGeneratorScope::Current()->masm()->Set(
+                fresh.reg(), Immediate(value));
+          } else {
+            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
+            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+          }
+        }
       } else {
-        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                   Immediate(handle()));
+        if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+          CodeGeneratorScope::Current()->MoveUnsafeSmi(fresh.reg(), handle());
+        } else {
+          CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                     Immediate(handle()));
+        }
       }
     }
+    fresh.set_number_info(number_info());
+    fresh.set_untagged_int32(is_untagged_int32());
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
     ASSERT(CodeGeneratorScope::Current()->has_valid_frame());

@@ -865,6 +865,39 @@ class StringCompareStub: public CodeStub {
 };
 
 
+class NumberToStringStub: public CodeStub {
+ public:
+  NumberToStringStub() { }
+
+  // Generate code to do a lookup in the number string cache. If the number in
+  // the register object is found in the cache the generated code falls through
+  // with the result in the result register. The object and the result register
+  // can be the same. If the number is not found in the cache the code jumps to
+  // the label not_found with only the content of register object unchanged.
+  static void GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                              Register object,
+                                              Register result,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              bool object_is_smi,
+                                              Label* not_found);
+
+ private:
+  Major MajorKey() { return NumberToString; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "NumberToStringStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("NumberToStringStub\n");
+  }
+#endif
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_X64_CODEGEN_X64_H_

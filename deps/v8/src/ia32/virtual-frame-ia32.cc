@@ -775,6 +775,89 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 }
 
 
+void VirtualFrame::UntaggedPushFrameSlotAt(int index) {
+  ASSERT(index >= 0);
+  ASSERT(index <= element_count());
+  FrameElement original = elements_[index];
+  if (original.is_copy()) {
+    original = elements_[original.index()];
+    index = original.index();
+  }
+
+  switch (original.type()) {
+    case FrameElement::MEMORY:
+    case FrameElement::REGISTER:  {
+      Label done;
+      // Emit code to load the original element's data into a register.
+      // Push that register as a FrameElement on top of the frame.
+      Result fresh = cgen()->allocator()->Allocate();
+      ASSERT(fresh.is_valid());
+      Register fresh_reg = fresh.reg();
+      FrameElement new_element =
+          FrameElement::RegisterElement(fresh_reg,
+                                        FrameElement::NOT_SYNCED,
+                                        original.number_info());
+      new_element.set_untagged_int32(true);
+      Use(fresh_reg, element_count());
+      fresh.Unuse();  // BreakTarget does not handle a live Result well.
+      elements_.Add(new_element);
+      if (original.is_register()) {
+        __ mov(fresh_reg, original.reg());
+      } else {
+        ASSERT(original.is_memory());
+        __ mov(fresh_reg, Operand(ebp, fp_relative(index)));
+      }
+      // Now convert the value to int32, or bail out.
+      if (original.number_info().IsSmi()) {
+        __ SmiUntag(fresh_reg);
+        // Pushing the element is completely done.
+      } else {
+        __ test(fresh_reg, Immediate(kSmiTagMask));
+        Label not_smi;
+        __ j(not_zero, &not_smi);
+        __ SmiUntag(fresh_reg);
+        __ jmp(&done);
+
+        __ bind(&not_smi);
+        if (!original.number_info().IsNumber()) {
+          __ cmp(FieldOperand(fresh_reg, HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          cgen()->unsafe_bailout_->Branch(not_equal);
+        }
+
+        if (!CpuFeatures::IsSupported(SSE2)) {
+          UNREACHABLE();
+        } else {
+          CpuFeatures::Scope use_sse2(SSE2);
+          __ movdbl(xmm0, FieldOperand(fresh_reg, HeapNumber::kValueOffset));
+          __ cvttsd2si(fresh_reg, Operand(xmm0));
+          __ cvtsi2sd(xmm1, Operand(fresh_reg));
+          __ ucomisd(xmm0, xmm1);
+          cgen()->unsafe_bailout_->Branch(not_equal);
+          cgen()->unsafe_bailout_->Branch(parity_even);  // NaN.
+          // Test for negative zero.
+          __ test(fresh_reg, Operand(fresh_reg));
+          __ j(not_zero, &done);
+          __ movmskpd(fresh_reg, xmm0);
+          __ and_(fresh_reg, 0x1);
+          cgen()->unsafe_bailout_->Branch(not_equal);
+        }
+        __ bind(&done);
+      }
+      break;
+    }
+    case FrameElement::CONSTANT:
+      elements_.Add(CopyElementAt(index));
+      elements_[element_count() - 1].set_untagged_int32(true);
+      break;
+    case FrameElement::COPY:
+    case FrameElement::INVALID:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
 void VirtualFrame::PushTryHandler(HandlerType type) {
   ASSERT(cgen()->HasValidEntryRegisters());
   // Grow the expression stack by handler size less one (the return
@@ -1060,6 +1143,7 @@ Result VirtualFrame::Pop() {
   FrameElement element = elements_.RemoveLast();
   int index = element_count();
   ASSERT(element.is_valid());
+  ASSERT(element.is_untagged_int32() == cgen()->in_safe_int32_mode());
 
   // Get number type information of the result.
   NumberInfo info;
@@ -1077,6 +1161,7 @@ Result VirtualFrame::Pop() {
       ASSERT(temp.is_valid());
       __ pop(temp.reg());
       temp.set_number_info(info);
+      temp.set_untagged_int32(element.is_untagged_int32());
       return temp;
     }
 
@@ -1089,6 +1174,7 @@ Result VirtualFrame::Pop() {
   if (element.is_register()) {
     Unuse(element.reg());
   } else if (element.is_copy()) {
+    ASSERT(!element.is_untagged_int32());
     ASSERT(element.index() < index);
     index = element.index();
     element = elements_[index];
@@ -1100,6 +1186,7 @@ Result VirtualFrame::Pop() {
     // Memory elements could only be the backing store of a copy.
     // Allocate the original to a register.
     ASSERT(index <= stack_pointer_);
+    ASSERT(!element.is_untagged_int32());
     Result temp = cgen()->allocator()->Allocate();
     ASSERT(temp.is_valid());
     Use(temp.reg(), index);
@@ -1113,10 +1200,14 @@ Result VirtualFrame::Pop() {
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
     return Result(temp.reg(), info);
   } else if (element.is_register()) {
-    return Result(element.reg(), info);
+    Result return_value(element.reg(), info);
+    return_value.set_untagged_int32(element.is_untagged_int32());
+    return return_value;
   } else {
     ASSERT(element.is_constant());
-    return Result(element.handle());
+    Result return_value(element.handle());
+    return_value.set_untagged_int32(element.is_untagged_int32());
+    return return_value;
   }
 }
 
@@ -1158,6 +1249,12 @@ void VirtualFrame::EmitPush(Immediate immediate, NumberInfo info) {
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ push(immediate);
+}
+
+
+void VirtualFrame::PushUntaggedElement(Handle<Object> value) {
+  elements_.Add(FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED));
+  elements_[element_count() - 1].set_untagged_int32(true);
 }
 
 

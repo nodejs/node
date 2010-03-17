@@ -346,8 +346,82 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
 }
 
 
+// Visitor that collects all references to a particular code object,
+// including "CODE_TARGET" references in other code objects.
+// It works in context of ZoneScope.
+class ReferenceCollectorVisitor : public ObjectVisitor {
+ public:
+  explicit ReferenceCollectorVisitor(Code* original)
+      : original_(original), rvalues_(10), reloc_infos_(10) {
+  }
+
+  virtual void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; p++) {
+      if (*p == original_) {
+        rvalues_.Add(p);
+      }
+    }
+  }
+
+  void VisitCodeTarget(RelocInfo* rinfo) {
+    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    if (Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
+      reloc_infos_.Add(*rinfo);
+    }
+  }
+
+  virtual void VisitDebugTarget(RelocInfo* rinfo) {
+    VisitCodeTarget(rinfo);
+  }
+
+  // Post-visiting method that iterates over all collected references and
+  // modifies them.
+  void Replace(Code* substitution) {
+    for (int i = 0; i < rvalues_.length(); i++) {
+      *(rvalues_[i]) = substitution;
+    }
+    for (int i = 0; i < reloc_infos_.length(); i++) {
+      reloc_infos_[i].set_target_address(substitution->instruction_start());
+    }
+  }
+
+ private:
+  Code* original_;
+  ZoneList<Object**> rvalues_;
+  ZoneList<RelocInfo> reloc_infos_;
+};
+
+// Finds all references to original and replaces them with substitution.
+static void ReplaceCodeObject(Code* original, Code* substitution) {
+  ASSERT(!Heap::InNewSpace(substitution));
+
+  AssertNoAllocation no_allocations_please;
+
+  // A zone scope for ReferenceCollectorVisitor.
+  ZoneScope scope(DELETE_ON_EXIT);
+
+  ReferenceCollectorVisitor visitor(original);
+
+  // Iterate over all roots. Stack frames may have pointer into original code,
+  // so temporary replace the pointers with offset numbers
+  // in prologue/epilogue.
+  ThreadManager::MarkCompactPrologue(true);
+  Heap::IterateStrongRoots(&visitor, VISIT_ALL);
+  ThreadManager::MarkCompactEpilogue(true);
+
+  // Now iterate over all pointers of all objects, including code_target
+  // implicit pointers.
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    obj->Iterate(&visitor);
+  }
+
+  visitor.Replace(substitution);
+}
+
+
 void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                 Handle<JSArray> shared_info_array) {
+                                   Handle<JSArray> shared_info_array) {
   HandleScope scope;
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
@@ -355,8 +429,9 @@ void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  shared_info->set_code(*(compile_info_wrapper.GetFunctionCode()),
-                        UPDATE_WRITE_BARRIER);
+  ReplaceCodeObject(shared_info->code(),
+                       *(compile_info_wrapper.GetFunctionCode()));
+
   shared_info->set_start_position(compile_info_wrapper.GetStartPosition());
   shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
   // update breakpoints, original code, constructor stub
@@ -389,19 +464,134 @@ static int TranslatePosition(int original_position,
   for (int i = 0; i < array_len; i += 3) {
     int chunk_start =
         Smi::cast(position_change_array->GetElement(i))->value();
-    int chunk_end =
-        Smi::cast(position_change_array->GetElement(i + 1))->value();
-    int chunk_changed_end =
-        Smi::cast(position_change_array->GetElement(i + 2))->value();
-    position_diff = chunk_changed_end - chunk_end;
     if (original_position < chunk_start) {
       break;
     }
+    int chunk_end =
+        Smi::cast(position_change_array->GetElement(i + 1))->value();
     // Position mustn't be inside a chunk.
     ASSERT(original_position >= chunk_end);
+    int chunk_changed_end =
+        Smi::cast(position_change_array->GetElement(i + 2))->value();
+    position_diff = chunk_changed_end - chunk_end;
   }
 
   return original_position + position_diff;
+}
+
+
+// Auto-growing buffer for writing relocation info code section. This buffer
+// is a simplified version of buffer from Assembler. Unlike Assembler, this
+// class is platform-independent and it works without dealing with instructions.
+// As specified by RelocInfo format, the buffer is filled in reversed order:
+// from upper to lower addresses.
+// It uses NewArray/DeleteArray for memory management.
+class RelocInfoBuffer {
+ public:
+  RelocInfoBuffer(int buffer_initial_capicity, byte* pc) {
+    buffer_size_ = buffer_initial_capicity + kBufferGap;
+    buffer_ = NewArray<byte>(buffer_size_);
+
+    reloc_info_writer_.Reposition(buffer_ + buffer_size_, pc);
+  }
+  ~RelocInfoBuffer() {
+    DeleteArray(buffer_);
+  }
+
+  // As specified by RelocInfo format, the buffer is filled in reversed order:
+  // from upper to lower addresses.
+  void Write(const RelocInfo* rinfo) {
+    if (buffer_ + kBufferGap >= reloc_info_writer_.pos()) {
+      Grow();
+    }
+    reloc_info_writer_.Write(rinfo);
+  }
+
+  Vector<byte> GetResult() {
+    // Return the bytes from pos up to end of buffer.
+    return Vector<byte>(reloc_info_writer_.pos(),
+                        buffer_ + buffer_size_ - reloc_info_writer_.pos());
+  }
+
+ private:
+  void Grow() {
+    // Compute new buffer size.
+    int new_buffer_size;
+    if (buffer_size_ < 2 * KB) {
+      new_buffer_size = 4 * KB;
+    } else {
+      new_buffer_size = 2 * buffer_size_;
+    }
+    // Some internal data structures overflow for very large buffers,
+    // they must ensure that kMaximalBufferSize is not too large.
+    if (new_buffer_size > kMaximalBufferSize) {
+      V8::FatalProcessOutOfMemory("RelocInfoBuffer::GrowBuffer");
+    }
+
+    // Setup new buffer.
+    byte* new_buffer = NewArray<byte>(new_buffer_size);
+
+    // Copy the data.
+    int curently_used_size = buffer_ + buffer_size_ - reloc_info_writer_.pos();
+    memmove(new_buffer + new_buffer_size - curently_used_size,
+            reloc_info_writer_.pos(), curently_used_size);
+
+    reloc_info_writer_.Reposition(
+        new_buffer + new_buffer_size - curently_used_size,
+        reloc_info_writer_.last_pc());
+
+    DeleteArray(buffer_);
+    buffer_ = new_buffer;
+    buffer_size_ = new_buffer_size;
+  }
+
+  RelocInfoWriter reloc_info_writer_;
+  byte* buffer_;
+  int buffer_size_;
+
+  static const int kBufferGap = 8;
+  static const int kMaximalBufferSize = 512*MB;
+};
+
+// Patch positions in code (changes relocation info section) and possibly
+// returns new instance of code.
+static Handle<Code> PatchPositionsInCode(Handle<Code> code,
+    Handle<JSArray> position_change_array) {
+
+  RelocInfoBuffer buffer_writer(code->relocation_size(),
+                                code->instruction_start());
+
+  {
+    AssertNoAllocation no_allocations_please;
+    for (RelocIterator it(*code); !it.done(); it.next()) {
+      RelocInfo* rinfo = it.rinfo();
+      if (RelocInfo::IsPosition(rinfo->rmode())) {
+        int position = static_cast<int>(rinfo->data());
+        int new_position = TranslatePosition(position,
+                                             position_change_array);
+        if (position != new_position) {
+          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position);
+          buffer_writer.Write(&info_copy);
+          continue;
+        }
+      }
+      buffer_writer.Write(it.rinfo());
+    }
+  }
+
+  Vector<byte> buffer = buffer_writer.GetResult();
+
+  if (buffer.length() == code->relocation_size()) {
+    // Simply patch relocation area of code.
+    memcpy(code->relocation_start(), buffer.start(), buffer.length());
+    return code;
+  } else {
+    // Relocation info section now has different size. We cannot simply
+    // rewrite it inside code object. Instead we have to create a new
+    // code object.
+    Handle<Code> result(Factory::CopyCode(code, buffer));
+    return result;
+  }
 }
 
 
@@ -415,7 +605,45 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_end_position(TranslatePosition(info->end_position(),
                                            position_change_array));
 
-  // Also patch rinfos (both in working code and original code), breakpoints.
+  info->set_function_token_position(
+      TranslatePosition(info->function_token_position(),
+      position_change_array));
+
+  // Patch relocation info section of the code.
+  Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
+                                                   position_change_array);
+  if (*patched_code != info->code()) {
+    // Replace all references to the code across the heap. In particular,
+    // some stubs may refer to this code and this code may be being executed
+    // on stack (it is safe to substitute the code object on stack, because
+    // we only change the structure of rinfo and leave instructions untouched).
+    ReplaceCodeObject(info->code(), *patched_code);
+  }
+
+  if (info->debug_info()->IsDebugInfo()) {
+    Handle<DebugInfo> debug_info(DebugInfo::cast(info->debug_info()));
+    Handle<Code> patched_orig_code =
+        PatchPositionsInCode(Handle<Code>(debug_info->original_code()),
+                             position_change_array);
+    if (*patched_orig_code != debug_info->original_code()) {
+      // Do not use expensive ReplaceCodeObject for original_code, because we
+      // do not expect any other references except this one.
+      debug_info->set_original_code(*patched_orig_code);
+    }
+
+    Handle<FixedArray> break_point_infos(debug_info->break_points());
+    for (int i = 0; i < break_point_infos->length(); i++) {
+      if (!break_point_infos->get(i)->IsBreakPointInfo()) {
+        continue;
+      }
+      Handle<BreakPointInfo> info(
+          BreakPointInfo::cast(break_point_infos->get(i)));
+      int new_position = TranslatePosition(info->source_position()->value(),
+          position_change_array);
+      info->set_source_position(Smi::FromInt(new_position));
+    }
+  }
+  // TODO(635): Also patch breakpoint objects in JS.
 }
 
 

@@ -1123,7 +1123,7 @@ function SetupArray() {
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
     "push", getFunction("push", ArrayPush, 1),
-    "concat", getFunction("concat", ArrayConcat),
+    "concat", getFunction("concat", ArrayConcat, 1),
     "reverse", getFunction("reverse", ArrayReverse),
     "shift", getFunction("shift", ArrayShift),
     "unshift", getFunction("unshift", ArrayUnshift, 1),

@@ -93,6 +93,7 @@ namespace internal {
   F(StringParseFloat, 1, 1) \
   F(StringToLowerCase, 1, 1) \
   F(StringToUpperCase, 1, 1) \
+  F(StringSplit, 3, 1) \
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
@@ -332,7 +333,8 @@ namespace internal {
   F(LiveEditReplaceFunctionCode, 2, 1) \
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
-  F(LiveEditCheckStackActivations, 1, 1)
+  F(LiveEditCheckStackActivations, 1, 1) \
+  F(GetFunctionCodePositionFromSource, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif

@@ -314,6 +314,12 @@ Operand::Operand(Register reg) {
 }
 
 
+Operand::Operand(XMMRegister xmm_reg) {
+  Register reg = { xmm_reg.code() };
+  set_modrm(3, reg);
+}
+
+
 Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
   // [disp/r]
   set_modrm(0, ebp);

@@ -88,6 +88,9 @@ class SplayTree {
   // Find the mapping with the least key in this tree.
   bool FindLeast(Locator* locator);
 
+  // Move the node from one key to another.
+  bool Move(const Key& old_key, const Key& new_key);
+
   // Remove the node with the given key from the tree.
   bool Remove(const Key& key);
 
@@ -151,6 +154,15 @@ class SplayTree {
   void ResetRoot() { root_ = NULL; }
 
  private:
+  // Search for a node with a given key. If found, root_ points
+  // to the node.
+  bool FindInternal(const Key& key);
+
+  // Inserts a node assuming that root_ is already set up.
+  void InsertInternal(int cmp, Node* node);
+
+  // Removes root_ node.
+  void RemoveRootNode(const Key& key);
 
   template<class Callback>
   class NodeToPairAdaptor BASE_EMBEDDED {

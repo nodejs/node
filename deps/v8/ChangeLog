@@ -1,3 +1,9 @@
+2010-03-17: Version 2.1.5
+
+        Performance improvements for arithmetic operations.
+
+        Performance improvements for string operations.
+
 2010-03-10: Version 2.1.4
 
         Fixed code cache lookup for keyed IC's (issue http://crbug.com/37853).

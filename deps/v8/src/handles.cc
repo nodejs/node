@@ -780,7 +780,7 @@ void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
     bool allow_natives_syntax = FLAG_allow_natives_syntax;
     FLAG_allow_natives_syntax = true;
     boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
-                                    Handle<String>::null());
+                                    Handle<String>::null(), NATIVES_CODE);
     FLAG_allow_natives_syntax = allow_natives_syntax;
     // If the compilation failed (possibly due to stack overflows), we
     // should never enter the result in the natives cache. Instead we
