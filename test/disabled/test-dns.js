@@ -8,7 +8,10 @@ var dns = require("dns"),
 
 assert.throws(function () {
   dns.resolve('google.com', 'A');
-})
+});
+assert.throws(function () {
+  dns.resolve('127.0.0.1', 'PTR');
+});
 
 
 var hosts = ['example.com', 'example.org',
