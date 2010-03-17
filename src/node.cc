@@ -872,10 +872,6 @@ Handle<Value> EvalCX(const Arguments& args) {
   for (i = 0; i < keys->Length(); i++) {
     Handle<String> key = keys->Get(Integer::New(i))->ToString();
     Handle<Value> value = sandbox->Get(key);
-    if (value->IsFunction()) continue;
-    if (value->IsObject()) {
-      value = value->ToObject()->Clone();
-    }
     context->Global()->Set(key, value);
   }
 
@@ -897,10 +893,6 @@ Handle<Value> EvalCX(const Arguments& args) {
       for (i = 0; i < keys->Length(); i++) {
         Handle<String> key = keys->Get(Integer::New(i))->ToString();
         Handle<Value> value = context->Global()->Get(key);
-        if (value->IsFunction()) continue;
-        if (value->IsObject()) {
-          value = value->ToObject()->Clone();
-        }
         sandbox->Set(key, value);
       }
     }
