@@ -728,9 +728,6 @@ Module.prototype._compile = function (content, filename) {
 
 Module.prototype._loadScriptSync = function (filename) {
   var content = requireNative('fs').readFileSync(filename);
-  // remove shebang
-  content = content.replace(/^\#\!.*/, '');
-
   var e = this._compile(content, filename);
   if (e) {
     throw e;
