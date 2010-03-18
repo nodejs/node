@@ -1,5 +1,5 @@
 require("../common");
-http = require("http");
+http = require("http2");
 url = require("url");
 
 var body1_s = "1111111111111111";

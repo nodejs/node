@@ -1,6 +1,6 @@
 require("../common");
-tcp = require("tcp");
-http = require("http");
+net = require("net");
+http = require("http2");
 url = require("url");
 qs = require("querystring");
 
@@ -43,7 +43,7 @@ http.createServer(function (req, res) {
 
 }).listen(PORT);
 
-var c = tcp.createConnection(PORT);
+var c = net.createConnection(PORT);
 
 c.setEncoding("utf8");
 
