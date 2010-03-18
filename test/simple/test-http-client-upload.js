@@ -1,5 +1,5 @@
 require("../common");
-http = require("http");
+http = require("http2");
 
 var sent_body = "";
 var server_req_complete = false;
@@ -33,7 +33,7 @@ req.write('3\n');
 
 puts("client finished sending request");
 req.addListener('response', function(res) {
-  res.setBodyEncoding("utf8");
+  res.setEncoding("utf8");
   res.addListener('data', function(chunk) {
     puts(chunk);
   });
