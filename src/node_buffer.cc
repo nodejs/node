@@ -232,11 +232,6 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   const char *p = buffer->data_ + offset;
 
-  if (s->Length() + offset > buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Not enough space in Buffer for string")));
-  }
-
   int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
 
   return scope.Close(Integer::New(written));
