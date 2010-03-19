@@ -331,15 +331,22 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
 }
 
 
-// var nbytes = Buffer.utf8ByteLength("string")
-Handle<Value> Buffer::Utf8ByteLength(const Arguments &args) {
+// var nbytes = Buffer.byteLength("string", "utf8")
+Handle<Value> Buffer::ByteLength(const Arguments &args) {
   HandleScope scope;
+
   if (!args[0]->IsString()) {
     return ThrowException(Exception::TypeError(String::New(
             "Argument must be a string")));
   }
+
   Local<String> s = args[0]->ToString();
-  return scope.Close(Integer::New(s->Utf8Length()));
+  enum encoding e = ParseEncoding(args[1], UTF8);
+
+  Local<Integer> length =
+    Integer::New(e == UTF8 ? s->Utf8Length() : s->Length()); 
+  
+  return scope.Close(length);
 }
 
 
@@ -365,8 +372,8 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
 
   NODE_SET_METHOD(constructor_template->GetFunction(),
-                  "utf8ByteLength",
-                  Buffer::Utf8ByteLength);
+                  "byteLength",
+                  Buffer::ByteLength);
 
   target->Set(String::NewSymbol("Buffer"), constructor_template->GetFunction());
 }
