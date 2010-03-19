@@ -20,6 +20,7 @@ function pingPongTest (port, host) {
     socket.setNoDelay();
     socket.timeout = 0;
 
+    socket.setEncoding('utf8');
     socket.addListener("data", function (data) {
       puts("server got: " + data);
       assert.equal(true, socket.writable);
@@ -53,6 +54,7 @@ function pingPongTest (port, host) {
 
     var client = net.createConnection(port, host);
 
+    client.setEncoding('ascii');
     client.addListener("connect", function () {
       assert.equal(true, client.readable);
       assert.equal(true, client.writable);
@@ -106,4 +108,5 @@ pingPongTest("/tmp/pingpong.sock");
 
 process.addListener("exit", function () {
   assert.equal(4, tests_run);
+  puts('done');
 });
