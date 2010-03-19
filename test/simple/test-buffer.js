@@ -18,7 +18,7 @@ for (var i = 0; i < 1024; i++) {
 
 var asciiString = "hello world";
 var offset = 100;
-for (var j = 0; j < 50000; j++) {
+for (var j = 0; j < 500; j++) {
 
   for (var i = 0; i < asciiString.length; i++) {
     b[i] = asciiString.charCodeAt(i);
@@ -41,7 +41,7 @@ for (var j = 0; j < 50000; j++) {
 }
 
 
-for (var j = 0; j < 10000; j++) {
+for (var j = 0; j < 100; j++) {
   var slice = b.slice(100, 150);
   assert.equal(50, slice.length);
   for (var i = 0; i < 50; i++) {
