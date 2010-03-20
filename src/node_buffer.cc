@@ -171,6 +171,20 @@ Buffer::~Buffer() {
 }
 
 
+Handle<Value> Buffer::BinarySlice(const Arguments &args) {
+  HandleScope scope;
+  Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
+  SLICE_ARGS(args[0], args[1])
+
+  const char *data = const_cast<char*>(parent->data_ + start);
+  //Local<String> string = String::New(data, end - start);
+
+  Local<Value> b =  Encode(data, end - start, BINARY);
+
+  return scope.Close(b);
+}
+
+
 Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
@@ -263,6 +277,34 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
   int written = s->WriteAscii((char*)p, 0, towrite);
+  return scope.Close(Integer::New(written));
+}
+
+
+Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
+  HandleScope scope;
+
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+
+  Local<String> s = args[0]->ToString();
+
+  size_t offset = args[1]->Int32Value();
+
+  if (offset >= buffer->length_) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Offset is out of bounds")));
+  }
+
+  char *p = (char*)buffer->data_ + offset;
+
+  size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
+
+  int written = DecodeWrite(p, towrite, s, BINARY);
   return scope.Close(Integer::New(written));
 }
 
@@ -361,6 +403,7 @@ void Buffer::Initialize(Handle<Object> target) {
   constructor_template->SetClassName(String::NewSymbol("Buffer"));
 
   // copy free
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "binarySlice", Buffer::BinarySlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", Buffer::AsciiSlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "slice", Buffer::Slice);
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
@@ -369,6 +412,7 @@ void Buffer::Initialize(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Write", Buffer::Utf8Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
 
   NODE_SET_METHOD(constructor_template->GetFunction(),

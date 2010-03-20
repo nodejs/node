@@ -45,8 +45,10 @@ class Buffer : public ObjectWrap {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Slice(const v8::Arguments &args);
+  static v8::Handle<v8::Value> BinarySlice(const v8::Arguments &args);
   static v8::Handle<v8::Value> AsciiSlice(const v8::Arguments &args);
   static v8::Handle<v8::Value> Utf8Slice(const v8::Arguments &args);
+  static v8::Handle<v8::Value> BinaryWrite(const v8::Arguments &args);
   static v8::Handle<v8::Value> AsciiWrite(const v8::Arguments &args);
   static v8::Handle<v8::Value> Utf8Write(const v8::Arguments &args);
   static v8::Handle<v8::Value> ByteLength(const v8::Arguments &args);
