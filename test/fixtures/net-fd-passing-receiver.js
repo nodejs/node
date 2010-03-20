@@ -1,11 +1,6 @@
 process.mixin(require("../common"));
 net = require("net");
 
-process.Buffer.prototype.toString = function () {
-  return this.utf8Slice(0, this.length);
-};
-
-
 path = process.ARGV[2];
 greeting = process.ARGV[3];
 

@@ -1176,6 +1176,15 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
+  } else if (!strcmp(*module_v, "buffer")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Buffer::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
   } else if (!strcmp(*module_v, "natives")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1184,6 +1193,7 @@ static Handle<Value> Binding(const Arguments& args) {
       // Explicitly define native sources.
       // TODO DRY/automate this?
       exports->Set(String::New("assert"),       String::New(native_assert));
+      exports->Set(String::New("buffer"),       String::New(native_buffer));
       exports->Set(String::New("child_process"),String::New(native_child_process));
       exports->Set(String::New("dns"),          String::New(native_dns));
       exports->Set(String::New("events"),       String::New(native_events));
@@ -1301,7 +1311,6 @@ static void Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
-  Buffer::Initialize(process);                 // buffer.cc
   IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc

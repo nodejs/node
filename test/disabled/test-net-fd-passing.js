@@ -1,10 +1,6 @@
 process.mixin(require("../common"));
 net = require("net");
 
-process.Buffer.prototype.toString = function () {
-  return this.utf8Slice(0, this.length);
-};
-
 var tests_run = 0;
 
 function fdPassingTest(path, port) {

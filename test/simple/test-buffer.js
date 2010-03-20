@@ -1,8 +1,9 @@
 require("../common");
 assert = require("assert");
 
+var Buffer = require('buffer').Buffer;
 
-var b = new process.Buffer(1024);
+var b = new Buffer(1024);
 
 puts("b.length == " + b.length);
 assert.equal(1024, b.length);
@@ -52,7 +53,7 @@ for (var j = 0; j < 100; j++) {
 
 // unpack
 
-var b = new process.Buffer(10);
+var b = new Buffer(10);
 b[0] = 0x00;
 b[1] = 0x01;
 b[2] = 0x03;

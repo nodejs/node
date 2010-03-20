@@ -9,7 +9,8 @@ var HTTPParser = process.binding('http_parser').HTTPParser;
 
 var parser = new HTTPParser("request");
 
-var buffer = new process.Buffer(1024);
+var Buffer = require('buffer').Buffer;
+var buffer = new Buffer(1024);
 
 var request = "GET /hello HTTP/1.1\r\n\r\n";
 
