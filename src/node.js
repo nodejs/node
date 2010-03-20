@@ -25,6 +25,7 @@ process.unwatchFile = removed("process.unwatchFile() has moved to fs.unwatchFile
 GLOBAL.node = {};
 
 node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
+process.createChildProcess = removed("childProcess API has changed. See doc/api.txt.");
 node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
 node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
 process.inherits = removed("process.inherits() has moved to sys.inherits.");
@@ -94,26 +95,10 @@ function requireNative (id) {
 }
 
 
-process.createChildProcess = function (file, args, env) {
-  var child = new process.ChildProcess();
-  args = args || [];
-  env = env || process.env;
-  var envPairs = [];
-  for (var key in env) {
-    if (env.hasOwnProperty(key)) {
-      envPairs.push(key + "=" + env[key]);
-    }
-  }
-  // TODO Note envPairs is not currently used in child_process.cc. The PATH
-  // needs to be searched for the 'file' command if 'file' does not contain
-  // a '/' character.
-  child.spawn(file, args, envPairs);
-  return child;
-};
-
 process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
+
 
 // From jQuery.extend in the jQuery JavaScript Library v1.3.2
 // Copyright (c) 2009 John Resig
@@ -124,7 +109,7 @@ var mixinMessage;
 process.mixin = function() {
   if (!mixinMessage) {
     mixinMessage = 'deprecation warning: process.mixin will be removed from node-core future releases.\n'
-    process.stdio.writeError(mixinMessage);
+    process.binding('stdio').writeError(mixinMessage);
   }
   // copy reference to target object
   var target = arguments[0] || {}, i = 1, length = arguments.length, deep = false, source;
@@ -162,7 +147,7 @@ process.mixin = function() {
         else {
           // Prevent never-ending loop
           if (target === d.value) {
-            continue;
+            return;
           }
 
           if (deep && d.value && typeof d.value === "object") {
@@ -343,7 +328,7 @@ if ("NODE_DEBUG" in process.env) debugLevel = 1;
 
 function debug (x) {
   if (debugLevel > 0) {
-    process.stdio.writeError(x + "\n");
+    process.binding('stdio').writeError(x + "\n");
   }
 }
 
@@ -777,6 +762,26 @@ Module.prototype._waitChildrenLoad = function (callback) {
     }
   }
   if (children.length == nloaded && callback) callback();
+};
+
+
+var stdout;
+process.__defineGetter__('stdout', function () {
+  if (stdout) return stdout;
+  var net = requireNative('net');
+  stdout = new net.Stream(process.binding('stdio').stdoutFD);
+  return stdout;
+});
+
+var stdin;
+process.openStdin = function () {
+  if (stdin) return stdin;
+  var net = requireNative('net');
+  var fd = process.binding('stdio').openStdin();
+  stdin = new net.Stream(fd);
+  stdin.resume();
+  stdin.readable = true;
+  return stdin;
 };
 
 

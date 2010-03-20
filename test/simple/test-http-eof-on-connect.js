@@ -1,5 +1,5 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 http = require("http");
 
 // This is a regression test for http://github.com/ry/node/issues/#issue/44
@@ -9,8 +9,8 @@ http = require("http");
 server = http.createServer(function (req, res) {});
 server.listen(PORT);
 
-tcp.createConnection(PORT).addListener("connect", function () {
-        this.close();
+net.createConnection(PORT).addListener("connect", function () {
+  this.close();
 }).addListener("close", function () {
 	server.close();
 });

@@ -1,6 +1,8 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node.h>
 
+#include <locale.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,12 +14,16 @@
 #include <sys/types.h>
 #include <unistd.h> /* setuid, getuid */
 
+#include <node_buffer.h>
+#include <node_io_watcher.h>
+#include <node_net2.h>
 #include <node_events.h>
 #include <node_dns.h>
 #include <node_net.h>
 #include <node_file.h>
 #include <node_idle_watcher.h>
 #include <node_http.h>
+#include <node_http_parser.h>
 #include <node_signal_watcher.h>
 #include <node_stat_watcher.h>
 #include <node_timer.h>
@@ -531,6 +537,13 @@ static Handle<Value> SetUid(const Arguments& args) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
   return Undefined();
+}
+
+Handle<Value>
+NowGetter (Local<String> property, const AccessorInfo& info)
+{
+  HandleScope scope;
+  return scope.Close(Integer::New(ev_now(EV_DEFAULT_UC)));
 }
 
 
@@ -1070,7 +1083,18 @@ static Handle<Value> Binding(const Arguments& args) {
 
   Local<Object> exports;
 
-  if (!strcmp(*module_v, "http")) {
+  // TODO DRY THIS UP!
+
+  if (!strcmp(*module_v, "stdio")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Stdio::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "http")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
@@ -1127,6 +1151,42 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
+  } else if (!strcmp(*module_v, "net")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      InitNet2(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "http_parser")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      InitHttpParser(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "child_process")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      ChildProcess::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
+  } else if (!strcmp(*module_v, "buffer")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Buffer::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
   } else if (!strcmp(*module_v, "natives")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1135,19 +1195,24 @@ static Handle<Value> Binding(const Arguments& args) {
       // Explicitly define native sources.
       // TODO DRY/automate this?
       exports->Set(String::New("assert"),       String::New(native_assert));
+      exports->Set(String::New("buffer"),       String::New(native_buffer));
+      exports->Set(String::New("child_process"),String::New(native_child_process));
       exports->Set(String::New("dns"),          String::New(native_dns));
       exports->Set(String::New("events"),       String::New(native_events));
       exports->Set(String::New("file"),         String::New(native_file));
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
+      exports->Set(String::New("http_old"),     String::New(native_http_old));
       exports->Set(String::New("ini"),          String::New(native_ini));
       exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
       exports->Set(String::New("multipart"),    String::New(native_multipart));
+      exports->Set(String::New("net"),          String::New(native_net));
       exports->Set(String::New("posix"),        String::New(native_posix));
       exports->Set(String::New("querystring"),  String::New(native_querystring));
       exports->Set(String::New("repl"),         String::New(native_repl));
       exports->Set(String::New("sys"),          String::New(native_sys));
       exports->Set(String::New("tcp"),          String::New(native_tcp));
+      exports->Set(String::New("tcp_old"),     String::New(native_tcp_old));
       exports->Set(String::New("uri"),          String::New(native_uri));
       exports->Set(String::New("url"),          String::New(native_url));
       exports->Set(String::New("utils"),        String::New(native_utils));
@@ -1168,6 +1233,8 @@ static void Load(int argc, char *argv[]) {
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
+
+  process_template->InstanceTemplate()->SetAccessor(String::NewSymbol("now"), NowGetter, NULL);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
@@ -1247,10 +1314,9 @@ static void Load(int argc, char *argv[]) {
 
 
   // Initialize the C++ modules..................filename of module
+  IOWatcher::Initialize(process);              // io_watcher.cc
   IdleWatcher::Initialize(process);            // idle_watcher.cc
-  Stdio::Initialize(process);                  // stdio.cc
   Timer::Initialize(process);                  // timer.cc
-  ChildProcess::Initialize(process);           // child_process.cc
   DefineConstants(process);                    // constants.cc
 
   // Compile, execute the src/node.js file. (Which was included as static C

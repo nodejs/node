@@ -1,5 +1,5 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 
 
 var tests_run = 0;
@@ -10,7 +10,7 @@ function pingPongTest (port, host, on_complete) {
   var count = 0;
   var client_closed = false;
 
-  var server = tcp.createServer(function (socket) {
+  var server = net.createServer(function (socket) {
     socket.setEncoding("utf8");
 
     socket.addListener("data", function (data) {
@@ -44,7 +44,7 @@ function pingPongTest (port, host, on_complete) {
   });
   server.listen(port, host);
 
-  var client = tcp.createConnection(port, host);
+  var client = net.createConnection(port, host);
 
   client.setEncoding("utf8");
 

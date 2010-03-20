@@ -1,6 +1,6 @@
 require("../common");
-tcp = require("tcp");
-N = 60*1024; // 30kb
+net = require("net");
+N = 160*1024; // 30kb
 
 puts("build big string");
 var body = "";
@@ -10,7 +10,7 @@ for (var i = 0; i < N; i++) {
 
 puts("start server on port " + PORT);
 
-server = tcp.createServer(function (connection) {
+server = net.createServer(function (connection) {
   connection.addListener("connect", function () {
     assert.equal(false, connection.write(body));
     connection.close();
@@ -24,7 +24,7 @@ npauses = 0;
 
 
 var paused = false;
-client = tcp.createConnection(PORT);
+client = net.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
   chars_recved += d.length;

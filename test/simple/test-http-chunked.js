@@ -10,7 +10,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(PORT);
 
-http.cat("http://localhost:"+PORT+"/", "utf8", function (err, data) {
+http.cat("http://127.0.0.1:"+PORT+"/", "utf8", function (err, data) {
   if (err) throw err;
   assert.equal(UTF8_STRING, data);
   server.close();

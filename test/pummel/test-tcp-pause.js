@@ -1,8 +1,8 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 N = 200;
 
-server = tcp.createServer(function (connection) {
+server = net.createServer(function (connection) {
   function write (j) {
     if (j >= N) {
       connection.close();
@@ -21,7 +21,7 @@ server.listen(PORT);
 recv = "";
 chars_recved = 0;
 
-client = tcp.createConnection(PORT);
+client = net.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
     print(d);

@@ -58,5 +58,24 @@ ssize_t DecodeWrite(char *buf,
 v8::Local<v8::Object> BuildStatsObject(struct stat * s);
 
 
+static inline v8::Persistent<v8::Function>* cb_persist(
+    const v8::Local<v8::Value> &v) {
+  v8::Persistent<v8::Function> *fn = new v8::Persistent<v8::Function>();
+  *fn = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(v));
+  return fn;
+}
+
+static inline v8::Persistent<v8::Function>* cb_unwrap(void *data) {
+  v8::Persistent<v8::Function> *cb =
+    reinterpret_cast<v8::Persistent<v8::Function>*>(data);
+  assert((*cb)->IsFunction());
+  return cb;
+}
+
+static inline void cb_destroy(v8::Persistent<v8::Function> * cb) {
+  cb->Dispose();
+  delete cb;
+}
+
 }  // namespace node
 #endif  // SRC_NODE_H_

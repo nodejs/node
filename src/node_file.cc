@@ -1,5 +1,6 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_file.h>
+#include <node_buffer.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,9 +38,7 @@ static inline Local<Value> errno_exception(int errorno) {
 static int After(eio_req *req) {
   HandleScope scope;
 
-  Persistent<Function> *callback =
-    reinterpret_cast<Persistent<Function>*>(req->data);
-  assert((*callback)->IsFunction());
+  Persistent<Function> *callback = cb_unwrap(req->data);
 
   ev_unref(EV_DEFAULT_UC);
 
@@ -86,7 +85,7 @@ static int After(eio_req *req) {
         argv[1] = BuildStatsObject(s);
         break;
       }
-      
+
       case EIO_READLINK:
       {
         argc = 2;
@@ -133,7 +132,7 @@ static int After(eio_req *req) {
     }
   }
 
-  if (req->type == EIO_WRITE) {
+  if (req->type == EIO_WRITE && req->int3 == 1) {
     assert(req->ptr2);
     delete [] reinterpret_cast<char*>(req->ptr2);
   }
@@ -147,21 +146,14 @@ static int After(eio_req *req) {
   }
 
   // Dispose of the persistent handle
-  callback->Dispose();
-  delete callback;
+  cb_destroy(callback);
 
   return 0;
 }
 
-static Persistent<Function>* persistent_callback(const Local<Value> &v) {
-  Persistent<Function> *fn = new Persistent<Function>();
-  *fn = Persistent<Function>::New(Local<Function>::Cast(v));
-  return fn;
-}
-
 #define ASYNC_CALL(func, callback, ...)                           \
   eio_req *req = eio_##func(__VA_ARGS__, EIO_PRI_DEFAULT, After,  \
-    persistent_callback(callback));                               \
+    cb_persist(callback));                                        \
   assert(req);                                                    \
   ev_ref(EV_DEFAULT_UC);                                          \
   return Undefined();
@@ -456,43 +448,118 @@ static Handle<Value> Open(const Arguments& args) {
   }
 }
 
-/* node.fs.write(fd, data, position, enc, callback)
- * Wrapper for write(2).
- *
- * 0 fd        integer. file descriptor
- * 1 data      the data to write (string = utf8, array = raw)
- * 2 position  if integer, position to write at in the file.
- *             if null, write from the current position
- * 3 encoding  
- */
+// write(fd, data, position, enc, callback)
+// Wrapper for write(2).
+//
+// 0 fd        integer. file descriptor
+// 1 buffer    the data to write
+// 2 offset    where in the buffer to start from
+// 3 length    how much to write
+// 4 position  if integer, position to write at in the file.
+//             if null, write from the current position
+//
+//           - OR -
+//
+// 0 fd        integer. file descriptor
+// 1 string    the data to write
+// 2 position  if integer, position to write at in the file.
+//             if null, write from the current position
+// 3 encoding
 static Handle<Value> Write(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 4 || !args[0]->IsInt32()) {
+  if (!args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
 
   int fd = args[0]->Int32Value();
-  off_t offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
 
-  enum encoding enc = ParseEncoding(args[3]);
-  ssize_t len = DecodeBytes(args[1], enc);
-  if (len < 0) {
-    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
-    return ThrowException(exception);
+  off_t pos;
+  ssize_t len;
+  char * buf;
+  ssize_t written;
+
+  Local<Value> cb;
+  bool legacy;
+
+  if (Buffer::HasInstance(args[1])) {
+    legacy = false;
+    // buffer
+    //
+    // 0 fd        integer. file descriptor
+    // 1 buffer    the data to write
+    // 2 offset    where in the buffer to start from
+    // 3 length    how much to write
+    // 4 position  if integer, position to write at in the file.
+    //             if null, write from the current position
+
+    Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+
+    size_t off = args[2]->Int32Value();
+    if (off >= buffer->length()) {
+      return ThrowException(Exception::Error(
+            String::New("Offset is out of bounds")));
+    }
+
+    len = args[3]->Int32Value();
+    if (off + len > buffer->length()) {
+      return ThrowException(Exception::Error(
+            String::New("Length is extends beyond buffer")));
+    }
+
+    pos = args[4]->IsNumber() ? args[4]->IntegerValue() : -1;
+
+    buf = (char*)buffer->data() + off;
+
+    cb = args[5];
+
+  } else {
+    legacy = true;
+    // legacy interface.. args[1] is a string
+
+    pos = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
+
+    enum encoding enc = ParseEncoding(args[3]);
+
+    len = DecodeBytes(args[1], enc);
+    if (len < 0) {
+      Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+      return ThrowException(exception);
+    }
+
+    buf = new char[len];
+    written = DecodeWrite(buf, len, args[1], enc);
+    assert(written == len);
+
+    cb = args[4];
   }
 
-  char * buf = new char[len];
-  ssize_t written = DecodeWrite(buf, len, args[1], enc);
-  assert(written == len);
+  if (cb->IsFunction()) {
+    // WARNING: HACK AHEAD, PROCEED WITH CAUTION
+    // Normally here I would do
+    //   ASYNC_CALL(write, cb, fd, buf, len, pos)
+    // however, I'm trying to support a legacy interface; where in the
+    // String version a buffer is allocated to encode into. In the After()
+    // function it is freed. However in the other version, we just increase
+    // the reference count to a buffer. We have to let After() know which
+    // version is being done so it can know if it needs to free 'buf' or
+    // not. We do that by using req->int3.
+    //   req->int3 == 1 legacy, String version. Need to free `buf`.
+    //   req->int3 == 0 Buffer version. Don't do anything.
+    eio_req *req = eio_write(fd, buf, len, pos,
+                             EIO_PRI_DEFAULT,
+                             After,
+                             cb_persist(cb));
+    assert(req);
+    req->int3 = legacy ? 1 : 0;
+    ev_ref(EV_DEFAULT_UC);
+    return Undefined();
 
-  if (args[4]->IsFunction()) {
-    ASYNC_CALL(write, args[4], fd, buf, len, offset)
   } else {
-    if (offset < 0) {
+    if (pos < 0) {
       written = write(fd, buf, len);
     } else {
-      written = pwrite(fd, buf, len, offset);
+      written = pwrite(fd, buf, len, pos);
     }
     if (written < 0) return ThrowException(errno_exception(errno));
     return scope.Close(Integer::New(written));

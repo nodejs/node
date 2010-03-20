@@ -33,7 +33,7 @@ req.write('3\n');
 
 puts("client finished sending request");
 req.addListener('response', function(res) {
-  res.setBodyEncoding("utf8");
+  res.setEncoding("utf8");
   res.addListener('data', function(chunk) {
     puts(chunk);
   });

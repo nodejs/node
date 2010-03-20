@@ -1,65 +1,68 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
-#ifndef SRC_CHILD_PROCESS_H_
-#define SRC_CHILD_PROCESS_H_
+#ifndef NODE_CHILD_PROCESS_H_
+#define NODE_CHILD_PROCESS_H_
 
 #include <node.h>
-#include <node_events.h>
-
+#include <node_object_wrap.h>
 #include <v8.h>
 #include <ev.h>
-#include <evcom.h>
+
+// ChildProcess is a thin wrapper around ev_child. It has the extra
+// functionality that it can spawn a child process with pipes connected to
+// its stdin, stdout, stderr. This class is not meant to be exposed to but
+// wrapped up in a more friendly EventEmitter with streams for each of the
+// pipes.
+//
+// When the child process exits (when the parent receives SIGCHLD) the
+// callback child.onexit will be called.
 
 namespace node {
 
-class ChildProcess : EventEmitter {
+class ChildProcess : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
  protected:
-  static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Spawn(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Write(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Close(const v8::Arguments& args);
   static v8::Handle<v8::Value> Kill(const v8::Arguments& args);
-  static v8::Handle<v8::Value> PIDGetter(v8::Local<v8::String> _,
-                                         const v8::AccessorInfo& info);
 
-  ChildProcess();
-  ~ChildProcess();
+  ChildProcess() : ObjectWrap() {
+    ev_init(&child_watcher_, ChildProcess::on_chld);
+    child_watcher_.data = this;
+    pid_ = -1;
+  }
 
-  int Spawn(const char *file, char *const argv[], char **env);
-  int Write(const char *str, size_t len);
-  int Close(void);
+  ~ChildProcess() {
+    Stop();
+  }
+
+  // Returns 0 on success. stdio_fds will contain file desciptors for stdin,
+  // stdout, and stderr of the subprocess. stdin is writable; the other two
+  // are readable.
+  // The user of this class has responsibility to close these pipes after
+  // the child process exits.
+  int Spawn(const char *file, char *const argv[], char **env, int stdio_fds[3]);
+
+  // Simple syscall wrapper. Does not disable the watcher. onexit will be
+  // called still.
   int Kill(int sig);
 
  private:
-  static void on_read(evcom_reader *r, const void *buf, size_t len);
-  static void reader_closed(evcom_reader *r);
-  static void stdin_closed(evcom_writer *w);
-  static void OnCHLD(EV_P_ ev_child *watcher, int revents);
+  void OnExit(int code);
+  void Stop(void);
 
-  void MaybeShutdown(void);
-  void Shutdown(void);
-
-  evcom_reader stdout_reader_;
-  evcom_reader stderr_reader_;
-  evcom_writer stdin_writer_;
+  static void on_chld(EV_P_ ev_child *watcher, int revents) {
+    ChildProcess *child = static_cast<ChildProcess*>(watcher->data);
+    assert(revents == EV_CHILD);
+    assert(child->pid_ == watcher->rpid);
+    assert(&child->child_watcher_ == watcher);
+    child->OnExit(watcher->rstatus);
+  }
 
   ev_child child_watcher_;
-
-  int stdout_fd_;
-  int stderr_fd_;
-  int stdin_fd_;
-
-  enum encoding stdout_encoding_;
-  enum encoding stderr_encoding_;
-
   pid_t pid_;
-
-  bool got_chld_;
-  int exit_code_;
 };
 
 }  // namespace node
-#endif  // SRC_CHILD_PROCESS_H_
+#endif  // NODE_CHILD_PROCESS_H_

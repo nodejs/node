@@ -1,5 +1,5 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 http = require("http");
 url = require("url");
 
@@ -20,7 +20,7 @@ var s = http.createServer(function (req, res) {
 });
 s.listen(PORT);
 
-var c = tcp.createConnection(PORT);
+var c = net.createConnection(PORT);
 c.addListener("connect", function () {
   c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.close();
