@@ -1080,6 +1080,9 @@ struct resolve_request {
   char hostname[1];
 };
 
+#ifndef EAI_NODATA // EAI_NODATA is deprecated, FreeBSD already thrown it away in favor of EAI_NONAME
+#define EAI_NODATA EAI_NONAME
+#endif
 
 static int AfterResolve(eio_req *req) {
   ev_unref(EV_DEFAULT_UC);
