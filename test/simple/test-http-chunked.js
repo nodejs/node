@@ -1,5 +1,5 @@
 require("../common");
-var http = require("http2");
+var http = require("http");
 
 var UTF8_STRING = "Il était tué";
 

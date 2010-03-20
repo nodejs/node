@@ -1,6 +1,6 @@
 require("../common");
 net = require("net");
-http = require("http2");
+http = require("http");
 
 // wget sends an HTTP/1.0 request with Connection: Keep-Alive
 //

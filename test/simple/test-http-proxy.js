@@ -1,5 +1,5 @@
 require("../common");
-http = require("http2");
+http = require("http");
 url = require("url");
 
 var PROXY_PORT = PORT;

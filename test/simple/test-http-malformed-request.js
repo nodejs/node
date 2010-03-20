@@ -1,6 +1,6 @@
 require("../common");
 net = require("net");
-http = require("http2");
+http = require("http");
 url = require("url");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP

@@ -1,6 +1,6 @@
 require("../common");
 
-var http = require('http2');
+var http = require('http');
 var sys = require('sys');
 var url = require("url");
 var modulesLoaded = 0;

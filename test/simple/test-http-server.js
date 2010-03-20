@@ -1,6 +1,6 @@
 require("../common");
 net = require("net");
-http = require("http2");
+http = require("http");
 url = require("url");
 qs = require("querystring");
 

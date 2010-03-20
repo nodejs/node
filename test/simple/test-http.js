@@ -1,5 +1,5 @@
 require("../common");
-http = require("http2");
+http = require("http");
 url = require("url");
 
 var responses_sent = 0;

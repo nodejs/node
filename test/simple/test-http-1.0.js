@@ -1,6 +1,6 @@
 require("../common");
 net = require("net");
-http = require("http2");
+http = require("http");
 
 var body = "hello world\n";
 var server_response = "";

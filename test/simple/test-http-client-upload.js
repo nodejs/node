@@ -1,5 +1,5 @@
 require("../common");
-http = require("http2");
+http = require("http");
 
 var sent_body = "";
 var server_req_complete = false;
