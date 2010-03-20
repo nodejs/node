@@ -1,4 +1,15 @@
-2010.03.12, Version 0.1.32
+2010.03.19, Version 0.1.33
+
+  * Include lib/ directory in node executable. Compile on demand.
+
+  * evalcx clean ups (Isaac Z. Schlueter, Tim-Smart)
+
+  * Various fixes, clean ups
+
+  * V8 upgraded to 2.1.5
+
+
+2010.03.12, Version 0.1.32, 61c801413544a50000faa7f58376e9b33ba6254f
 
   * Optimize event emitter for single listener
 
