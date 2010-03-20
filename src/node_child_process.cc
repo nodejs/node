@@ -129,6 +129,10 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
   ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
   assert(child);
 
+  if (child->pid_ < 1) {
+    return ThrowException(Exception::Error(String::New("No such process")));
+  }
+
   int sig = SIGTERM;
 
   if (args.Length() > 0) {
@@ -266,6 +270,7 @@ void ChildProcess::OnExit(int code) {
 
 
 int ChildProcess::Kill(int sig) {
+  if (pid_ > 0) return -1;
   return kill(pid_, sig);
 }
 
