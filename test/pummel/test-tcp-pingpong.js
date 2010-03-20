@@ -52,6 +52,8 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("data", function (data) {
+    puts('client got: ' + data);
+
     assert.equal("PONG", data);
     count += 1;
 
