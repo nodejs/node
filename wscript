@@ -337,10 +337,37 @@ def build(bld):
     coupling.clone("debug")
 
   ### src/native.cc
+  def make_macros(loc, content):
+    f = open(loc, 'w')
+    f.write(content)
+    f.close
+
+  macros_loc_debug   = join(
+     bld.srcnode.abspath(bld.env_of_name("debug")),
+     "macros.py"
+  )
+
+  macros_loc_default = join(
+    bld.srcnode.abspath(bld.env_of_name("default")),
+    "macros.py"
+  )
+
+  make_macros(macros_loc_debug, "")  # leave debug(x) as is in debug build
+  # replace debug(x) with nothing in release build
+  make_macros(macros_loc_default, "macro debug(x) = ;\n")
+
   def javascript_in_c(task):
     env = task.env
     source = map(lambda x: x.srcpath(env), task.inputs)
     targets = map(lambda x: x.srcpath(env), task.outputs)
+    source.append(macros_loc_default)
+    js2c.JS2C(source, targets)
+
+  def javascript_in_c_debug(task):
+    env = task.env
+    source = map(lambda x: x.srcpath(env), task.inputs)
+    targets = map(lambda x: x.srcpath(env), task.outputs)
+    source.append(macros_loc_debug)
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
@@ -356,7 +383,8 @@ def build(bld):
   # where.)
   if bld.env["USE_DEBUG"]:
     native_cc_debug = native_cc.clone("debug")
-    native_cc_debug.rule = javascript_in_c
+    native_cc_debug.rule = javascript_in_c_debug
+
   native_cc.rule = javascript_in_c
 
   ### node lib
