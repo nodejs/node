@@ -54,6 +54,8 @@ static int After(eio_req *req) {
       case EIO_RMDIR:
       case EIO_MKDIR:
       case EIO_FTRUNCATE:
+      case EIO_FSYNC:
+      case EIO_FDATASYNC:
       case EIO_LINK:
       case EIO_SYMLINK:
       case EIO_CHMOD:
@@ -325,6 +327,46 @@ static Handle<Value> Truncate(const Arguments& args) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
   } else {
     int ret = ftruncate(fd, len);
+    if (ret != 0) return ThrowException(ErrnoException(errno));
+    return Undefined();
+  }
+}
+
+static Handle<Value> Fdatasync(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+
+  int fd = args[0]->Int32Value();
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(fdatasync, args[1], fd)
+  } else {
+#if HAVE_FDATASYNC
+    int ret = fdatasync(fd);
+#else
+    int ret = fsync(fd);
+#endif
+    if (ret != 0) return ThrowException(ErrnoException(errno));
+    return Undefined();
+  }
+}
+
+static Handle<Value> Fsync(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+
+  int fd = args[0]->Int32Value();
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(fsync, args[1], fd)
+  } else {
+    int ret = fsync(fd);
     if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
@@ -756,6 +798,8 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "close", Close);
   NODE_SET_METHOD(target, "open", Open);
   NODE_SET_METHOD(target, "read", Read);
+  NODE_SET_METHOD(target, "fdatasync", Fdatasync);
+  NODE_SET_METHOD(target, "fsync", Fsync);
   NODE_SET_METHOD(target, "rename", Rename);
   NODE_SET_METHOD(target, "truncate", Truncate);
   NODE_SET_METHOD(target, "rmdir", RMDir);

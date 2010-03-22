@@ -133,6 +133,22 @@ def configure(conf):
   conf.env.append_value('CCFLAGS',  '-D_FILE_OFFSET_BITS=64')
   conf.env.append_value('CXXFLAGS', '-D_FILE_OFFSET_BITS=64')
 
+  ## needed for node_file.cc fdatasync
+  ## Strangely on OSX 10.6 the g++ doesn't see fdatasync but gcc does?
+  code =  """
+    #include <unistd.h>
+    int main(void)
+    {
+       int fd = 0;
+       fdatasync (fd);
+       return 0;
+    }
+  """
+  if conf.check_cxx(msg="Checking for fdatasync(2) with c++", fragment=code):
+    conf.env.append_value('CXXFLAGS', '-DHAVE_FDATASYNC=1')
+  else:
+    conf.env.append_value('CXXFLAGS', '-DHAVE_FDATASYNC=0')
+
   # platform
   platform_def = '-DPLATFORM=' + sys.platform
   conf.env.append_value('CCFLAGS', platform_def)
