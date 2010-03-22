@@ -270,7 +270,7 @@ void ChildProcess::OnExit(int code) {
 
 
 int ChildProcess::Kill(int sig) {
-  if (pid_ > 0) return -1;
+  if (pid_ < 1) return -1;
   return kill(pid_, sig);
 }
 
