@@ -46,6 +46,8 @@ static Persistent<String> proppatch_sym;
 static Persistent<String> unlock_sym;
 static Persistent<String> unknown_method_sym;
 
+static struct http_parser_settings settings;
+
 void
 HTTPConnection::Initialize (Handle<Object> target)
 {
@@ -68,6 +70,16 @@ HTTPConnection::Initialize (Handle<Object> target)
 
   end_symbol = NODE_PSYMBOL("end");
 
+  settings.on_message_begin    = on_message_begin;
+  settings.on_path             = on_path;
+  settings.on_query_string     = on_query_string;
+  settings.on_url              = on_url;
+  settings.on_fragment         = on_fragment;
+  settings.on_header_field     = on_header_field;
+  settings.on_header_value     = on_header_value;
+  settings.on_headers_complete = on_headers_complete;
+  settings.on_body             = on_body;
+  settings.on_message_complete = on_message_complete;
 }
 
 Handle<Value>
@@ -109,7 +121,7 @@ HTTPConnection::OnReceive (const void *buf, size_t len)
   assert(refs_);
   size_t nparsed;
 
-  nparsed = http_parser_execute(&parser_, static_cast<const char*>(buf), len);
+  nparsed = http_parser_execute(&parser_, settings, static_cast<const char*>(buf), len);
 
   if (nparsed != len) {
     ForceClose();
@@ -122,7 +134,7 @@ HTTPConnection::OnEOF ()
   HandleScope scope;
   assert(refs_);
   size_t nparsed;
-  nparsed = http_parser_execute(&parser_, NULL, 0);
+  nparsed = http_parser_execute(&parser_, settings, NULL, 0);
   Emit(end_symbol, 0, NULL);
 }
 

@@ -27,8 +27,6 @@ namespace node {
 
 using namespace v8;
 
-  static int deep = 0;
-
 static Persistent<String> on_message_begin_sym;
 static Persistent<String> on_path_sym;
 static Persistent<String> on_query_string_sym;
@@ -63,6 +61,8 @@ static Persistent<String> http_version_sym;
 static Persistent<String> version_major_sym;
 static Persistent<String> version_minor_sym;
 static Persistent<String> should_keep_alive_sym;
+
+static struct http_parser_settings settings;
 
 // Callback prototype for http_cb
 #define DEFINE_HTTP_CB(name)                                             \
@@ -231,7 +231,7 @@ class Parser : public ObjectWrap {
     parser->buffer_ = buffer;
 
     size_t nparsed =
-      http_parser_execute(&parser->parser_, buffer->data()+off, len);
+      http_parser_execute(&parser->parser_, settings, buffer->data()+off, len);
 
     // Unassign the 'buffer_' variable
     assert(parser->buffer_);
@@ -261,7 +261,7 @@ class Parser : public ObjectWrap {
 
     assert(!parser->buffer_);
 
-    http_parser_execute(&(parser->parser_), NULL, 0);
+    http_parser_execute(&(parser->parser_), settings, NULL, 0);
 
     return Undefined();
   }
@@ -289,17 +289,6 @@ class Parser : public ObjectWrap {
   void Init (enum http_parser_type type) {
     assert(buffer_ == NULL); // don't call this during Execute()
     http_parser_init(&parser_, type);
-
-    parser_.on_message_begin    = on_message_begin;
-    parser_.on_path             = on_path;
-    parser_.on_query_string     = on_query_string;
-    parser_.on_url              = on_url;
-    parser_.on_fragment         = on_fragment;
-    parser_.on_header_field     = on_header_field;
-    parser_.on_header_value     = on_header_value;
-    parser_.on_headers_complete = on_headers_complete;
-    parser_.on_body             = on_body;
-    parser_.on_message_complete = on_message_complete;
 
     parser_.data = this;
   }
@@ -356,6 +345,17 @@ void InitHttpParser(Handle<Object> target) {
   version_major_sym = NODE_PSYMBOL("versionMajor");
   version_minor_sym = NODE_PSYMBOL("versionMinor");
   should_keep_alive_sym = NODE_PSYMBOL("shouldKeepAlive");
+
+  settings.on_message_begin    = Parser::on_message_begin;
+  settings.on_path             = Parser::on_path;
+  settings.on_query_string     = Parser::on_query_string;
+  settings.on_url              = Parser::on_url;
+  settings.on_fragment         = Parser::on_fragment;
+  settings.on_header_field     = Parser::on_header_field;
+  settings.on_header_value     = Parser::on_header_value;
+  settings.on_headers_complete = Parser::on_headers_complete;
+  settings.on_body             = Parser::on_body;
+  settings.on_message_complete = Parser::on_message_complete;
 }
 
 }  // namespace node

@@ -63,14 +63,6 @@ struct message {
 
 static int currently_parsing_eof;
 
-inline size_t parse (const char *buf, size_t len)
-{
-  size_t nparsed;
-  currently_parsing_eof = (len == 0);
-  nparsed = http_parser_execute(parser, buf, len);
-  return nparsed;
-}
-
 static struct message messages[5];
 static int num_messages;
 
@@ -802,6 +794,19 @@ message_complete_cb (http_parser *p)
   return 0;
 }
 
+static http_parser_settings settings = 
+  {.on_message_begin = message_begin_cb
+  ,.on_header_field = header_field_cb
+  ,.on_header_value = header_value_cb
+  ,.on_path = request_path_cb
+  ,.on_url = request_url_cb
+  ,.on_fragment = fragment_cb
+  ,.on_query_string = query_string_cb
+  ,.on_body = body_cb
+  ,.on_headers_complete = headers_complete_cb
+  ,.on_message_complete = message_complete_cb
+  };
+
 void
 parser_init (enum http_parser_type type)
 {
@@ -815,16 +820,6 @@ parser_init (enum http_parser_type type)
 
   memset(&messages, 0, sizeof messages);
 
-  parser->on_message_begin     = message_begin_cb;
-  parser->on_header_field      = header_field_cb;
-  parser->on_header_value      = header_value_cb;
-  parser->on_path              = request_path_cb;
-  parser->on_url               = request_url_cb;
-  parser->on_fragment          = fragment_cb;
-  parser->on_query_string      = query_string_cb;
-  parser->on_body              = body_cb;
-  parser->on_headers_complete  = headers_complete_cb;
-  parser->on_message_complete  = message_complete_cb;
 }
 
 void
@@ -833,6 +828,14 @@ parser_free ()
   assert(parser);
   free(parser);
   parser = NULL;
+}
+
+inline size_t parse (const char *buf, size_t len)
+{
+  size_t nparsed;
+  currently_parsing_eof = (len == 0);
+  nparsed = http_parser_execute(parser, settings, buf, len);
+  return nparsed;
 }
 
 static inline int
@@ -950,7 +953,7 @@ print_error (const char *raw, size_t error_location)
   for (j = 0; j < error_location_line; j++) {
     fputc(' ', stderr);
   }
-  fprintf(stderr, "^\n\nerror location: %d\n", error_location);
+  fprintf(stderr, "^\n\nerror location: %u\n", (unsigned int)error_location);
 }
 
 
@@ -1142,9 +1145,9 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
 
 error:
   fprintf(stderr, "i=%d  j=%d\n", i, j);
-  fprintf(stderr, "buf1 (%d) %s\n\n", buf1_len, buf1);
-  fprintf(stderr, "buf2 (%d) %s\n\n", buf2_len , buf2);
-  fprintf(stderr, "buf3 (%d) %s\n", buf3_len, buf3);
+  fprintf(stderr, "buf1 (%u) %s\n\n", (unsigned int)buf1_len, buf1);
+  fprintf(stderr, "buf2 (%u) %s\n\n", (unsigned int)buf2_len , buf2);
+  fprintf(stderr, "buf3 (%u) %s\n", (unsigned int)buf3_len, buf3);
   exit(1);
 }
 
@@ -1156,7 +1159,7 @@ main (void)
   int request_count;
   int response_count;
 
-  printf("sizeof(http_parser) = %d\n", sizeof(http_parser));
+  printf("sizeof(http_parser) = %u\n", (unsigned int)sizeof(http_parser));
 
   for (request_count = 0; requests[request_count].name; request_count++);
   for (response_count = 0; responses[response_count].name; response_count++);

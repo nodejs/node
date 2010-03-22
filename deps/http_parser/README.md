@@ -4,8 +4,9 @@ HTTP Parser
 This is a parser for HTTP messages written in C. It parses both requests
 and responses. The parser is designed to be used in performance HTTP
 applications. It does not make any allocations, it does not buffer data, and
-it can be interrupted at anytime. It only requires about 136 bytes of data
-per message stream (in a web server that is per connection).
+it can be interrupted at anytime. Depending on your architecture, it only
+requires between 100 and 200 bytes of data per message stream (in a web
+server that is per connection).
 
 Features:
 
@@ -31,12 +32,14 @@ One `http_parser` object is used per TCP connection. Initialize the struct
 using `http_parser_init()` and set the callbacks. That might look something
 like this for a request parser:
 
+    http_parser_settings settings;
+    settings.on_path = my_path_callback;
+    settings.on_header_field = my_header_field_callback;
+    /* ... */
+    settings.data = my_socket;
+
     http_parser *parser = malloc(sizeof(http_parser));
     http_parser_init(parser, HTTP_REQUEST);
-    parser->on_path = my_path_callback;
-    parser->on_header_field = my_header_field_callback;
-    /* ... */
-    parser->data = my_socket;
 
 When data is received on the socket execute the parser and check for errors.
 
@@ -54,7 +57,7 @@ When data is received on the socket execute the parser and check for errors.
      * Note we pass the recved==0 to http_parse_requests to signal
      * that EOF has been recieved.
      */
-    nparsed = http_parser_execute(parser, buf, recved);
+    nparsed = http_parser_execute(parser, settings, buf, recved);
 
     if (nparsed != recved) {
       /* Handle error. Usually just close the connection. */
@@ -63,13 +66,13 @@ When data is received on the socket execute the parser and check for errors.
 HTTP needs to know where the end of the stream is. For example, sometimes
 servers send responses without Content-Length and expect the client to
 consume input (for the body) until EOF. To tell http_parser about EOF, give
-`0` as the third parameter to `http_parser_execute()`. Callbacks and errors
+`0` as the forth parameter to `http_parser_execute()`. Callbacks and errors
 can still be encountered during an EOF, so one must still be prepared
 to receive them.
 
 Scalar valued message information such as `status_code`, `method`, and the
 HTTP version are stored in the parser structure. This data is only
-temporarlly stored in `http_parser` and gets reset on each new message. If
+temporally stored in `http_parser` and gets reset on each new message. If
 this information is needed later, copy it out of the structure during the
 `headers_complete` callback.
 
@@ -85,10 +88,10 @@ parser, for example, would not want such a feature.
 Callbacks
 ---------
 
-During the `http_parser_execute()` call, the callbacks set in `http_parser`
-will be executed. The parser maintains state and never looks behind, so
-buffering the data is not necessary. If you need to save certain data for
-later usage, you can do that from the callbacks.
+During the `http_parser_execute()` call, the callbacks set in
+`http_parser_settings` will be executed. The parser maintains state and
+never looks behind, so buffering the data is not necessary. If you need to
+save certain data for later usage, you can do that from the callbacks.
 
 There are two types of callbacks:
 
@@ -97,6 +100,9 @@ There are two types of callbacks:
 * data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
     Callbacks: (requests only) on_path, on_query_string, on_uri, on_fragment,
                (common) on_header_field, on_header_value, on_body;
+
+Callbacks must return 0 on success. Returning a non-zero value indicates
+error to the parser, making it exit immediately.
 
 In case you parse HTTP message in chunks (i.e. `read()` request line
 from socket, parse, read half headers, parse, etc) your data callbacks

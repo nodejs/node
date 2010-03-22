@@ -28,16 +28,6 @@ protected:
 
   void ResetParser() {
     http_parser_init (&parser_, type_);
-    parser_.on_message_begin    = on_message_begin;
-    parser_.on_url              = on_url;
-    parser_.on_path             = on_path;
-    parser_.on_fragment         = on_fragment;
-    parser_.on_query_string     = on_query_string;
-    parser_.on_header_field     = on_header_field;
-    parser_.on_header_value     = on_header_value;
-    parser_.on_headers_complete = on_headers_complete;
-    parser_.on_body             = on_body;
-    parser_.on_message_complete = on_message_complete;
     parser_.data = this;
   }
 
