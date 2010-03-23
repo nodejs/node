@@ -267,6 +267,8 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script);
 // Script line number computations.
 void InitScriptLineEnds(Handle<Script> script);
 int GetScriptLineNumber(Handle<Script> script, int code_position);
+// The safe version does not make heap allocations but may work much slower.
+int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
 
 // Computes the enumerable keys from interceptors. Used for debug mirrors and
 // by GetKeysInFixedArrayFor below.

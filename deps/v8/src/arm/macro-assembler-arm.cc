@@ -58,11 +58,6 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 #endif
 
 
-// Using blx may yield better code, so use it when required or when available
-#if defined(USE_THUMB_INTERWORK) || defined(CAN_USE_ARMV5_INSTRUCTIONS)
-#define USE_BLX 1
-#endif
-
 // Using bx does not yield better code, so use it only when required
 #if defined(USE_THUMB_INTERWORK)
 #define USE_BX 1
@@ -117,16 +112,33 @@ void MacroAssembler::Call(Register target, Condition cond) {
 
 void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
+#if USE_BLX
+  // On ARMv5 and after the recommended call sequence is:
+  //  ldr ip, [pc, #...]
+  //  blx ip
+
+  // The two instructions (ldr and blx) could be separated by a literal
+  // pool and the code would still work. The issue comes from the
+  // patching code which expect the ldr to be just above the blx.
+  BlockConstPoolFor(2);
+  // Statement positions are expected to be recorded when the target
+  // address is loaded. The mov method will automatically record
+  // positions when pc is the target, since this is not the case here
+  // we have to do it explicitly.
+  WriteRecordedPositions();
+
+  mov(ip, Operand(target, rmode), LeaveCC, cond);
+  blx(ip, cond);
+
+  ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
+#else
   // Set lr for return at current pc + 8.
   mov(lr, Operand(pc), LeaveCC, cond);
   // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
   mov(pc, Operand(target, rmode), LeaveCC, cond);
-  // If USE_BLX is defined, we could emit a 'mov ip, target', followed by a
-  // 'blx ip'; however, the code would not be shorter than the above sequence
-  // and the target address of the call would be referenced by the first
-  // instruction rather than the second one, which would make it harder to patch
-  // (two instructions before the return address, instead of one).
+
   ASSERT(kCallTargetAddressOffset == kInstrSize);
+#endif
 }
 
 

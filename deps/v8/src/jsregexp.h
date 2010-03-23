@@ -77,10 +77,10 @@ class RegExpImpl {
                              Handle<JSArray> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
-  static void IrregexpPrepare(Handle<JSRegExp> re,
-                              Handle<String> pattern,
-                              JSRegExp::Flags flags,
-                              int capture_register_count);
+  static void IrregexpInitialize(Handle<JSRegExp> re,
+                                 Handle<String> pattern,
+                                 JSRegExp::Flags flags,
+                                 int capture_register_count);
 
 
   static void AtomCompile(Handle<JSRegExp> re,
@@ -92,6 +92,29 @@ class RegExpImpl {
                                  Handle<String> subject,
                                  int index,
                                  Handle<JSArray> lastMatchInfo);
+
+  enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
+
+  // Prepare a RegExp for being executed one or more times (using
+  // IrregexpExecOnce) on the subject.
+  // This ensures that the regexp is compiled for the subject, and that
+  // the subject is flat.
+  // Returns the number of integer spaces required by IrregexpExecOnce
+  // as its "registers" argument. If the regexp cannot be compiled,
+  // an exception is set as pending, and this function returns negative.
+  static int IrregexpPrepare(Handle<JSRegExp> regexp,
+                             Handle<String> subject);
+
+  // Execute a regular expression once on the subject, starting from
+  // character "index".
+  // If successful, returns RE_SUCCESS and set the capture positions
+  // in the first registers.
+  // If matching fails, returns RE_FAILURE.
+  // If execution fails, sets a pending exception and returns RE_EXCEPTION.
+  static IrregexpResult IrregexpExecOnce(Handle<JSRegExp> regexp,
+                                         Handle<String> subject,
+                                         int index,
+                                         Vector<int32_t> registers);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing

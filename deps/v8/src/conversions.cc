@@ -31,6 +31,7 @@
 
 #include "conversions-inl.h"
 #include "factory.h"
+#include "fast-dtoa.h"
 #include "scanner.h"
 
 namespace v8 {
@@ -382,8 +383,17 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int decimal_point;
       int sign;
 
-      char* decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-      int length = StrLength(decimal_rep);
+      char* decimal_rep;
+      bool used_gay_dtoa = false;
+      char fast_dtoa_buffer[kFastDtoaMaximalLength + 1];
+      int length;
+      if (FastDtoa(v, fast_dtoa_buffer, &sign, &length, &decimal_point)) {
+        decimal_rep = fast_dtoa_buffer;
+      } else {
+        decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
+        used_gay_dtoa = true;
+        length = StrLength(decimal_rep);
+      }
 
       if (sign) builder.AddCharacter('-');
 
@@ -418,7 +428,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         builder.AddFormatted("%d", exponent);
       }
 
-      freedtoa(decimal_rep);
+      if (used_gay_dtoa) freedtoa(decimal_rep);
     }
   }
   return builder.Finalize();

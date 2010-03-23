@@ -351,20 +351,20 @@ void MacroAssembler::FCmp() {
 }
 
 
-void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
   test(object, Immediate(kSmiTagMask));
   j(zero, &ok);
   cmp(FieldOperand(object, HeapObject::kMapOffset),
       Factory::heap_number_map());
-  Assert(equal, msg);
+  Assert(equal, "Operand not a number");
   bind(&ok);
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(equal, msg);
+  Assert(equal, "Operand not a smi");
 }
 
 
@@ -1553,7 +1553,7 @@ void MacroAssembler::Abort(const char* msg) {
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
     Register instance_type,
     Register scratch,
-    Label *failure) {
+    Label* failure) {
   if (!scratch.is(instance_type)) {
     mov(scratch, instance_type);
   }

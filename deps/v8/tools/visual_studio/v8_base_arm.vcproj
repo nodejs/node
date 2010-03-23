@@ -253,6 +253,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\circular-queue-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\circular-queue.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\circular-queue.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\code-stubs.cc"
 				>
 			</File>
@@ -342,6 +354,18 @@
 			</File>
 			<File
 				RelativePath="..\..\src\cpu.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\cpu-profiler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\cpu-profiler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\cpu-profiler-inl.h"
 				>
 			</File>
 			<File

@@ -53,3 +53,40 @@ function f5() {
   return i;
 }
 assertEquals(-0x40000001, f5());
+
+
+function f6() { var x = 0x3fffffff; x++; return x+1; }
+assertEquals(0x40000001, f6());
+
+
+function f7() {
+  var i;
+  for (i = 0x3ffffffd; i <= 0x3ffffffe; i++) {}
+  i++; i = i + 1;
+  return i;
+}
+assertEquals(0x40000001, f7());
+
+
+function f8() {
+  var i;
+  for (i = 0x3ffffffd; i <= 0x3fffffff; i++) {}
+  i++; i++;
+  return i;
+}
+assertEquals(0x40000002, f8());
+
+
+function f9() {
+  var i;
+  for (i = 0; i < 42; i++) {
+    return 42;
+  }
+}
+assertEquals(42, f9());
+
+
+function f10(x) {
+  for (x = 0; x < 4; x++) {}
+}
+f10(42);

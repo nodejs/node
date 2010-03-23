@@ -306,14 +306,12 @@ void SafeStackTraceFrameIterator::Advance() {
 
 
 void StackHandler::Cook(Code* code) {
-  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(code->contains(pc()));
   set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
 }
 
 
 void StackHandler::Uncook(Code* code) {
-  ASSERT(MarkCompactCollector::HasCompacted());
   set_pc(code->instruction_start() + OffsetFrom(pc()));
   ASSERT(code->contains(pc()));
 }
@@ -329,9 +327,6 @@ bool StackFrame::HasHandler() const {
 
 
 void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
-  // Only cooking frames when the collector is compacting and thus moving code
-  // around.
-  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(!thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Cook();
@@ -341,9 +336,6 @@ void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
 
 
 void StackFrame::UncookFramesForThread(ThreadLocalTop* thread) {
-  // Only uncooking frames when the collector is compacting and thus moving code
-  // around.
-  ASSERT(MarkCompactCollector::HasCompacted());
   ASSERT(thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Uncook();
@@ -520,6 +512,31 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   Code* code = NULL;
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
+
+  if (function->IsJSFunction()) {
+    Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());
+    Object* script_obj = shared->script();
+    if (script_obj->IsScript()) {
+      Handle<Script> script(Script::cast(script_obj));
+      accumulator->Add(" [");
+      accumulator->PrintName(script->name());
+
+      Address pc = this->pc();
+      if (code != NULL && code->kind() == Code::FUNCTION &&
+          pc >= code->instruction_start() && pc < code->relocation_start()) {
+        int source_pos = code->SourcePosition(pc);
+        int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+        accumulator->Add(":%d", line);
+      } else {
+        int function_start_pos = shared->start_position();
+        int line = GetScriptLineNumberSafe(script, function_start_pos) + 1;
+        accumulator->Add(":~%d", line);
+      }
+
+      accumulator->Add("] ");
+    }
+  }
+
   accumulator->Add("(this=%o", receiver);
 
   // Get scope information for nicer output, if possible. If code is

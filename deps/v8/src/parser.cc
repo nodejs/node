@@ -1585,13 +1585,15 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   }
 
   void HandleThisPropertyAssignment(Scope* scope, Assignment* assignment) {
-    // Check that the property assigned to is a named property.
+    // Check that the property assigned to is a named property, which is not
+    // __proto__.
     Property* property = assignment->target()->AsProperty();
     ASSERT(property != NULL);
     Literal* literal = property->key()->AsLiteral();
     uint32_t dummy;
     if (literal != NULL &&
         literal->handle()->IsString() &&
+        !String::cast(*(literal->handle()))->Equals(Heap::Proto_symbol()) &&
         !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       Handle<String> key = Handle<String>::cast(literal->handle());
 

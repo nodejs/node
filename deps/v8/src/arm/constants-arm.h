@@ -72,6 +72,11 @@
 # define CAN_USE_THUMB_INSTRUCTIONS 1
 #endif
 
+// Using blx may yield better code, so use it when required or when available
+#if defined(USE_THUMB_INTERWORK) || defined(CAN_USE_ARMV5_INSTRUCTIONS)
+#define USE_BLX 1
+#endif
+
 namespace assembler {
 namespace arm {
 

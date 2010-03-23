@@ -711,9 +711,15 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
   __ subq(rdi, rsi);
-  // Set rax to address of char before start of input
+  // Set rax to address of char before start of the string
   // (effectively string position -1).
-  __ lea(rax, Operand(rdi, -char_size()));
+  __ movq(rbx, Operand(rbp, kStartIndex));
+  __ neg(rbx);
+  if (mode_ == UC16) {
+    __ lea(rax, Operand(rdi, rbx, times_2, -char_size()));
+  } else {
+    __ lea(rax, Operand(rdi, rbx, times_1, -char_size()));
+  }
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ movq(Operand(rbp, kInputStartMinusOne), rax);
@@ -770,9 +776,15 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ bind(&success_label_);
     if (num_saved_registers_ > 0) {
       // copy captures to output
+      __ movq(rdx, Operand(rbp, kStartIndex));
       __ movq(rbx, Operand(rbp, kRegisterOutput));
       __ movq(rcx, Operand(rbp, kInputEnd));
       __ subq(rcx, Operand(rbp, kInputStart));
+      if (mode_ == UC16) {
+        __ lea(rcx, Operand(rcx, rdx, times_2, 0));
+      } else {
+        __ addq(rcx, rdx);
+      }
       for (int i = 0; i < num_saved_registers_; i++) {
         __ movq(rax, register_location(i));
         __ addq(rax, rcx);  // Convert to index from start, not end.

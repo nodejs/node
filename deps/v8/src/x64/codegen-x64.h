@@ -28,6 +28,8 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
+#include "ic-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -671,10 +673,24 @@ class GenericBinaryOpStub: public CodeStub {
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false),
-        name_(NULL),
-        operands_type_(operands_type) {
+        static_operands_type_(operands_type),
+        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        name_(NULL) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        flags_(FlagBits::decode(key)),
+        args_in_registers_(ArgsInRegistersBits::decode(key)),
+        args_reversed_(ArgsReversedBits::decode(key)),
+        use_sse3_(SSE3Bits::decode(key)),
+        static_operands_type_(NumberInfo::ExpandedRepresentation(
+            StaticTypeInfoBits::decode(key))),
+        runtime_operands_type_(type_info),
+        name_(NULL) {
   }
 
   // Generate code to call the stub with the supplied arguments. This will add
@@ -696,8 +712,14 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
+
+  // Number type information of operands, determined by code generator.
+  NumberInfo static_operands_type_;
+
+  // Operand type information determined at runtime.
+  BinaryOpIC::TypeInfo runtime_operands_type_;
+
   char* name_;
-  NumberInfo operands_type_;
 
   const char* GetName();
 
@@ -711,35 +733,40 @@ class GenericBinaryOpStub: public CodeStub {
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
            static_cast<int>(args_reversed_),
-           operands_type_.ToString());
+           static_operands_type_.ToString());
   }
 #endif
 
-  // Minor key encoding in 16 bits NNNFRASOOOOOOOMM.
+  // Minor key encoding in 18 bits TTNNNFRASOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
   class SSE3Bits: public BitField<bool, 9, 1> {};
   class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
   class ArgsReversedBits: public BitField<bool, 11, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
-  class NumberInfoBits: public BitField<int, 13, 3> {};
+  class StaticTypeInfoBits: public BitField<int, 13, 3> {};
+  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 16, 2> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
+    // Encode the parameters in a unique 18 bit value.
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
            | FlagBits::encode(flags_)
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
            | ArgsReversedBits::encode(args_reversed_)
-           | NumberInfoBits::encode(operands_type_.ThreeBitRepresentation());
+           | StaticTypeInfoBits::encode(
+               static_operands_type_.ThreeBitRepresentation())
+           | RuntimeTypeInfoBits::encode(runtime_operands_type_);
   }
 
   void Generate(MacroAssembler* masm);
   void GenerateSmiCode(MacroAssembler* masm, Label* slow);
   void GenerateLoadArguments(MacroAssembler* masm);
   void GenerateReturn(MacroAssembler* masm);
+  void GenerateRegisterArgsPush(MacroAssembler* masm);
+  void GenerateTypeTransition(MacroAssembler* masm);
 
   bool ArgsInRegistersSupported() {
     return (op_ == Token::ADD) || (op_ == Token::SUB)
@@ -754,6 +781,22 @@ class GenericBinaryOpStub: public CodeStub {
   bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
   bool HasArgsInRegisters() { return args_in_registers_; }
   bool HasArgsReversed() { return args_reversed_; }
+
+  bool ShouldGenerateSmiCode() {
+    return HasSmiCodeInStub() &&
+        runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+        runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  bool ShouldGenerateFPCode() {
+    return runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return BinaryOpIC::ToState(runtime_operands_type_);
+  }
 };
 
 

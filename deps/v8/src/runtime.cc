@@ -2353,6 +2353,14 @@ template <typename schar>
 static inline int SingleCharIndexOf(Vector<const schar> string,
                                     schar pattern_char,
                                     int start_index) {
+  if (sizeof(schar) == 1) {
+    const schar* pos = reinterpret_cast<const schar*>(
+        memchr(string.start() + start_index,
+               pattern_char,
+               string.length() - start_index));
+    if (pos == NULL) return -1;
+    return pos - string.start();
+  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -2400,7 +2408,19 @@ static int SimpleIndexOf(Vector<const schar> subject,
       *complete = false;
       return i;
     }
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
+      if (pos == NULL) {
+        *complete = true;
+        return -1;
+      }
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
@@ -2425,7 +2445,16 @@ static int SimpleIndexOf(Vector<const schar> subject,
                          int idx) {
   pchar pattern_first_char = pattern[0];
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
+      if (pos == NULL) return -1;
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
@@ -5321,16 +5350,38 @@ static Object* Runtime_Math_pow_cfunction(Arguments args) {
 }
 
 
-static Object* Runtime_Math_round(Arguments args) {
+static Object* Runtime_RoundNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Counters::math_round.Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
-  double integer = ceil(x);
-  if (integer - x > 0.5) { integer -= 1.0; }
-  return Heap::NumberFromDouble(integer);
+  if (!args[0]->IsHeapNumber()) {
+    // Must be smi. Return the argument unchanged for all the other types
+    // to make fuzz-natives test happy.
+    return args[0];
+  }
+
+  HeapNumber* number = reinterpret_cast<HeapNumber*>(args[0]);
+
+  double value = number->value();
+  int exponent = number->get_exponent();
+  int sign = number->get_sign();
+
+  // We compare with kSmiValueSize - 3 because (2^30 - 0.1) has exponent 29 and
+  // should be rounded to 2^30, which is not smi.
+  if (!sign && exponent <= kSmiValueSize - 3) {
+    return Smi::FromInt(static_cast<int>(value + 0.5));
+  }
+
+  // If the magnitude is big enough, there's no place for fraction part. If we
+  // try to add 0.5 to this number, 1.0 will be added instead.
+  if (exponent >= 52) {
+    return number;
+  }
+
+  if (sign && value >= -0.5) return Heap::minus_zero_value();
+
+  return Heap::NumberFromDouble(floor(value + 0.5));
 }
 
 
@@ -5635,7 +5686,7 @@ static const char kMonthInYear[] = {
 
 // This function works for dates from 1970 to 2099.
 static inline void DateYMDFromTimeAfter1970(int date,
-                                            int &year, int &month, int &day) {
+                                            int& year, int& month, int& day) {
 #ifdef DEBUG
   int save_date = date;  // Need this for ASSERT in the end.
 #endif
@@ -5651,7 +5702,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
 
 
 static inline void DateYMDFromTimeSlow(int date,
-                                       int &year, int &month, int &day) {
+                                       int& year, int& month, int& day) {
 #ifdef DEBUG
   int save_date = date;  // Need this for ASSERT in the end.
 #endif
@@ -5680,11 +5731,11 @@ static inline void DateYMDFromTimeSlow(int date,
   bool is_leap = (!yd1 || yd2) && !yd3;
 
   ASSERT(date >= -1);
-  ASSERT(is_leap || date >= 0);
-  ASSERT(date < 365 || is_leap && date < 366);
-  ASSERT(is_leap == (year % 4 == 0 && (year % 100 || (year % 400 == 0))));
-  ASSERT(is_leap || MakeDay(year, 0, 1) + date == save_date);
-  ASSERT(!is_leap || MakeDay(year, 0, 1) + date + 1 == save_date);
+  ASSERT(is_leap || (date >= 0));
+  ASSERT((date < 365) || (is_leap && (date < 366)));
+  ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
+  ASSERT(is_leap || ((MakeDay(year, 0, 1) + date) == save_date));
+  ASSERT(!is_leap || ((MakeDay(year, 0, 1) + date + 1) == save_date));
 
   if (is_leap) {
     day = kDayInYear[2*365 + 1 + date];
@@ -5699,7 +5750,7 @@ static inline void DateYMDFromTimeSlow(int date,
 
 
 static inline void DateYMDFromTime(int date,
-                                   int &year, int &month, int &day) {
+                                   int& year, int& month, int& day) {
   if (date >= 0 && date < 32 * kDaysIn4Years) {
     DateYMDFromTimeAfter1970(date, year, month, day);
   } else {

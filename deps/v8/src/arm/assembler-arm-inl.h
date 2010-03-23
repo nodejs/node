@@ -144,12 +144,21 @@ void RelocInfo::set_call_object(Object* target) {
 
 
 bool RelocInfo::IsPatchedReturnSequence() {
-  // On ARM a "call instruction" is actually two instructions.
-  //   mov lr, pc
-  //   ldr pc, [pc, #XXX]
-  return (Assembler::instr_at(pc_) == kMovLrPc)
-          && ((Assembler::instr_at(pc_ + Assembler::kInstrSize) & kLdrPCPattern)
-              == kLdrPCPattern);
+  Instr current_instr = Assembler::instr_at(pc_);
+  Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
+#ifdef USE_BLX
+  // A patched return sequence is:
+  //  ldr ip, [pc, #0]
+  //  blx ip
+  return ((current_instr & kLdrPCMask) == kLdrPCPattern)
+          && ((next_instr & kBlxRegMask) == kBlxRegPattern);
+#else
+  // A patched return sequence is:
+  //  mov lr, pc
+  //  ldr pc, [pc, #-4]
+  return (current_instr == kMovLrPc)
+          && ((next_instr & kLdrPCMask) == kLdrPCPattern);
+#endif
 }
 
 
@@ -225,6 +234,16 @@ Address Assembler::target_address_address_at(Address pc) {
     target_pc -= kInstrSize;
     instr = Memory::int32_at(target_pc);
   }
+
+#ifdef USE_BLX
+  // If we have a blx instruction, the instruction before it is
+  // what needs to be patched.
+  if ((instr & kBlxRegMask) == kBlxRegPattern) {
+    target_pc -= kInstrSize;
+    instr = Memory::int32_at(target_pc);
+  }
+#endif
+
   // Verify that the instruction to patch is a
   // ldr<cond> <Rd>, [pc +/- offset_12].
   ASSERT((instr & 0x0f7f0000) == 0x051f0000);

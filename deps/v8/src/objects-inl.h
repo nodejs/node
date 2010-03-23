@@ -1121,6 +1121,17 @@ void HeapNumber::set_value(double value) {
 }
 
 
+int HeapNumber::get_exponent() {
+  return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
+          kExponentShift) - kExponentBias;
+}
+
+
+int HeapNumber::get_sign() {
+  return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
+}
+
+
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 

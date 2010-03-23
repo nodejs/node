@@ -514,6 +514,30 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
 }
 
 
+int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
+  AssertNoAllocation no_allocation;
+  if (!script->line_ends()->IsUndefined()) {
+    return GetScriptLineNumber(script, code_pos);
+  }
+  // Slow mode: we do not have line_ends. We have to iterate through source.
+  if (!script->source()->IsString()) {
+    return -1;
+  }
+  String* source = String::cast(script->source());
+  int line = 0;
+  int len = source->length();
+  for (int pos = 0; pos < len; pos++) {
+    if (pos == code_pos) {
+      break;
+    }
+    if (source->Get(pos) == '\n') {
+      line++;
+    }
+  }
+  return line;
+}
+
+
 void CustomArguments::IterateInstance(ObjectVisitor* v) {
   v->VisitPointers(values_, values_ + 4);
 }

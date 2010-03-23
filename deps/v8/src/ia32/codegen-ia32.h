@@ -500,7 +500,7 @@ class CodeGenerator: public AstVisitor {
   bool FoldConstantSmis(Token::Value op, int left, int right);
 
   // Emit code to perform a binary operation on a constant
-  // smi and a likely smi.  Consumes the Result *operand.
+  // smi and a likely smi.  Consumes the Result operand.
   Result ConstantSmiBinaryOperation(Token::Value op,
                                     Result* operand,
                                     Handle<Object> constant_operand,
@@ -511,7 +511,7 @@ class CodeGenerator: public AstVisitor {
 
   // Emit code to perform a binary operation on two likely smis.
   // The code to handle smi arguments is produced inline.
-  // Consumes the Results *left and *right.
+  // Consumes the Results left and right.
   Result LikelySmiBinaryOperation(Token::Value op,
                                   Result* left,
                                   Result* right,
@@ -651,6 +651,8 @@ class CodeGenerator: public AstVisitor {
   void CodeForStatementPosition(Statement* stmt);
   void CodeForDoWhileConditionPosition(DoWhileStatement* stmt);
   void CodeForSourcePosition(int pos);
+
+  void SetTypeForStackSlot(Slot* slot, NumberInfo info);
 
 #ifdef DEBUG
   // True if the registers are valid for entry to a block.  There should

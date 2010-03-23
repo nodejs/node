@@ -648,16 +648,17 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   __ ldr(r0, MemOperand(frame_pointer(), kInputStart));
   // Find negative length (offset of start relative to end).
   __ sub(current_input_offset(), r0, end_of_input_address());
-  // Set r0 to address of char before start of input
+  // Set r0 to address of char before start of the input string
   // (effectively string position -1).
+  __ ldr(r1, MemOperand(frame_pointer(), kStartIndex));
   __ sub(r0, current_input_offset(), Operand(char_size()));
+  __ sub(r0, r0, Operand(r1, LSL, (mode_ == UC16) ? 1 : 0));
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ str(r0, MemOperand(frame_pointer(), kInputStartMinusOne));
 
   // Determine whether the start index is zero, that is at the start of the
   // string, and store that value in a local variable.
-  __ ldr(r1, MemOperand(frame_pointer(), kStartIndex));
   __ tst(r1, Operand(r1));
   __ mov(r1, Operand(1), LeaveCC, eq);
   __ mov(r1, Operand(0), LeaveCC, ne);
@@ -700,12 +701,15 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
       // copy captures to output
       __ ldr(r1, MemOperand(frame_pointer(), kInputStart));
       __ ldr(r0, MemOperand(frame_pointer(), kRegisterOutput));
+      __ ldr(r2, MemOperand(frame_pointer(), kStartIndex));
       __ sub(r1, end_of_input_address(), r1);
       // r1 is length of input in bytes.
       if (mode_ == UC16) {
         __ mov(r1, Operand(r1, LSR, 1));
       }
       // r1 is length of input in characters.
+      __ add(r1, r1, Operand(r2));
+      // r1 is length of string in characters.
 
       ASSERT_EQ(0, num_saved_registers_ % 2);
       // Always an even number of capture registers. This allows us to

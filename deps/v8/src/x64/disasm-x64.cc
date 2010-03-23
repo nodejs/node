@@ -1273,7 +1273,9 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         get_modrm(*(data + 1), &mod, &regop, &rm);
         int32_t imm = *data == 0x6B ? *(data + 2)
             : *reinterpret_cast<int32_t*>(data + 2);
-        AppendToBuffer("imul %s,%s,0x%x", NameOfCPURegister(regop),
+        AppendToBuffer("imul%c %s,%s,0x%x",
+                       operand_size_code(),
+                       NameOfCPURegister(regop),
                        NameOfCPURegister(rm), imm);
         data += 2 + (*data == 0x6B ? 1 : 4);
         break;

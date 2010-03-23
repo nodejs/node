@@ -196,10 +196,7 @@ class Expression: public AstNode {
     kTestValue
   };
 
-  Expression()
-      : bitfields_(0),
-        def_(NULL),
-        defined_vars_(NULL) {}
+  Expression() : bitfields_(0) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -232,15 +229,6 @@ class Expression: public AstNode {
 
   // Static type information for this expression.
   StaticType* type() { return &type_; }
-
-  // Data flow information.
-  DefinitionInfo* var_def() { return def_; }
-  void set_var_def(DefinitionInfo* def) { def_ = def; }
-
-  ZoneList<DefinitionInfo*>* defined_vars() { return defined_vars_; }
-  void set_defined_vars(ZoneList<DefinitionInfo*>* defined_vars) {
-    defined_vars_ = defined_vars;
-  }
 
   // AST analysis results
 
@@ -283,9 +271,6 @@ class Expression: public AstNode {
 
   uint32_t bitfields_;
   StaticType type_;
-
-  DefinitionInfo* def_;
-  ZoneList<DefinitionInfo*>* defined_vars_;
 
   // Using template BitField<type, start, size>.
   class SideEffectFreeField : public BitField<bool, 0, 1> {};

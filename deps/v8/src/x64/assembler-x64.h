@@ -742,14 +742,16 @@ class Assembler : public Malloced {
   void imul(Register dst, Register src);                 // dst = dst * src.
   void imul(Register dst, const Operand& src);           // dst = dst * src.
   void imul(Register dst, Register src, Immediate imm);  // dst = src * imm.
-  // Multiply 32 bit registers
-  void imull(Register dst, Register src);                // dst = dst * src.
+  // Signed 32-bit multiply instructions.
+  void imull(Register dst, Register src);                 // dst = dst * src.
+  void imull(Register dst, Register src, Immediate imm);  // dst = src * imm.
 
   void incq(Register dst);
   void incq(const Operand& dst);
   void incl(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
+  void leal(Register dst, const Operand& src);
 
   // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
@@ -760,6 +762,7 @@ class Assembler : public Malloced {
 
   void not_(Register dst);
   void not_(const Operand& dst);
+  void notl(Register dst);
 
   void or_(Register dst, Register src) {
     arithmetic_op(0x0B, dst, src);

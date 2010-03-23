@@ -1165,26 +1165,26 @@ class Heap : public AllStatic {
 
 class HeapStats {
  public:
-  int *start_marker;
-  int *new_space_size;
-  int *new_space_capacity;
-  int *old_pointer_space_size;
-  int *old_pointer_space_capacity;
-  int *old_data_space_size;
-  int *old_data_space_capacity;
-  int *code_space_size;
-  int *code_space_capacity;
-  int *map_space_size;
-  int *map_space_capacity;
-  int *cell_space_size;
-  int *cell_space_capacity;
-  int *lo_space_size;
-  int *global_handle_count;
-  int *weak_global_handle_count;
-  int *pending_global_handle_count;
-  int *near_death_global_handle_count;
-  int *destroyed_global_handle_count;
-  int *end_marker;
+  int* start_marker;
+  int* new_space_size;
+  int* new_space_capacity;
+  int* old_pointer_space_size;
+  int* old_pointer_space_capacity;
+  int* old_data_space_size;
+  int* old_data_space_capacity;
+  int* code_space_size;
+  int* code_space_capacity;
+  int* map_space_size;
+  int* map_space_capacity;
+  int* cell_space_size;
+  int* cell_space_capacity;
+  int* lo_space_size;
+  int* global_handle_count;
+  int* weak_global_handle_count;
+  int* pending_global_handle_count;
+  int* near_death_global_handle_count;
+  int* destroyed_global_handle_count;
+  int* end_marker;
 };
 
 

@@ -365,6 +365,7 @@ class VirtualFrame : public ZoneObject {
   inline void Nip(int num_dropped);
 
   inline void SetTypeForLocalAt(int index, NumberInfo info);
+  inline void SetTypeForParamAt(int index, NumberInfo info);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;

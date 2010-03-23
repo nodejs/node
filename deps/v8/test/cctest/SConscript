@@ -34,15 +34,21 @@ Import('context object_files')
 
 SOURCES = {
   'all': [
+    'gay-shortest.cc',
     'test-accessors.cc',
     'test-alloc.cc',
     'test-api.cc',
     'test-ast.cc',
+    'test-circular-queue.cc',
     'test-compiler.cc',
     'test-conversions.cc',
+    'test-cpu-profiler.cc',
     'test-dataflow.cc',
     'test-debug.cc',
     'test-decls.cc',
+    'test-diy-fp.cc',
+    'test-double.cc',
+    'test-fast-dtoa.cc',
     'test-flags.cc',
     'test-func-name-inference.cc',
     'test-hashmap.cc',

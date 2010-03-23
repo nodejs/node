@@ -79,6 +79,20 @@ class ThreadState {
 };
 
 
+// Defined in top.h
+class ThreadLocalTop;
+
+
+class ThreadVisitor {
+ public:
+  // ThreadLocalTop may be only available during this call.
+  virtual void VisitThread(ThreadLocalTop* top) = 0;
+
+ protected:
+  virtual ~ThreadVisitor() {}
+};
+
+
 class ThreadManager : public AllStatic {
  public:
   static void Lock();
@@ -90,6 +104,7 @@ class ThreadManager : public AllStatic {
   static bool IsArchived();
 
   static void Iterate(ObjectVisitor* v);
+  static void IterateThreads(ThreadVisitor* v);
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
   static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }

@@ -653,6 +653,8 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ j(not_zero, &exit_label_);
 
   __ bind(&stack_ok);
+  // Load start index for later use.
+  __ mov(ebx, Operand(ebp, kStartIndex));
 
   // Allocate space on stack for registers.
   __ sub(Operand(esp), Immediate(num_registers_ * kPointerSize));
@@ -662,17 +664,23 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(edi, Operand(ebp, kInputStart));
   // Set up edi to be negative offset from string end.
   __ sub(edi, Operand(esi));
-  // Set eax to address of char before start of input
+
+  // Set eax to address of char before start of the string.
   // (effectively string position -1).
-  __ lea(eax, Operand(edi, -char_size()));
+  __ neg(ebx);
+  if (mode_ == UC16) {
+    __ lea(eax, Operand(edi, ebx, times_2, -char_size()));
+  } else {
+    __ lea(eax, Operand(edi, ebx, times_1, -char_size()));
+  }
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
 
   // Determine whether the start index is zero, that is at the start of the
   // string, and store that value in a local variable.
-  __ mov(ebx, Operand(ebp, kStartIndex));
   __ xor_(Operand(ecx), ecx);  // setcc only operates on cl (lower byte of ecx).
+  // Register ebx still holds -stringIndex.
   __ test(ebx, Operand(ebx));
   __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
   __ mov(Operand(ebp, kAtStart), ecx);
@@ -721,10 +729,17 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       // copy captures to output
       __ mov(ebx, Operand(ebp, kRegisterOutput));
       __ mov(ecx, Operand(ebp, kInputEnd));
+      __ mov(edx, Operand(ebp, kStartIndex));
       __ sub(ecx, Operand(ebp, kInputStart));
+      if (mode_ == UC16) {
+        __ lea(ecx, Operand(ecx, edx, times_2, 0));
+      } else {
+        __ add(ecx, Operand(edx));
+      }
       for (int i = 0; i < num_saved_registers_; i++) {
         __ mov(eax, register_location(i));
-        __ add(eax, Operand(ecx));  // Convert to index from start, not end.
+        // Convert to index from start of string, not end.
+        __ add(eax, Operand(ecx));
         if (mode_ == UC16) {
           __ sar(eax, 1);  // Convert byte index to character index.
         }

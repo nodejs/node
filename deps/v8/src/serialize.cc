@@ -477,7 +477,7 @@ int ExternalReferenceEncoder::IndexOf(Address key) const {
 
 void ExternalReferenceEncoder::Put(Address key, int index) {
   HashMap::Entry* entry = encodings_.Lookup(key, Hash(key), true);
-  entry->value = reinterpret_cast<void *>(index);
+  entry->value = reinterpret_cast<void*>(index);
 }
 
 
@@ -977,7 +977,7 @@ int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
 // the startup snapshot that correspond to the elements of this cache array.  On
 // deserialization we therefore need to visit the cache array.  This fills it up
 // with pointers to deserialized objects.
-void SerializerDeserializer::Iterate(ObjectVisitor *visitor) {
+void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
   visitor->VisitPointers(
       &partial_snapshot_cache_[0],
       &partial_snapshot_cache_[partial_snapshot_cache_length_]);

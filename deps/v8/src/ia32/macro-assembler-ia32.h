@@ -182,17 +182,18 @@ class MacroAssembler: public Assembler {
   // Smi tagging support.
   void SmiTag(Register reg) {
     ASSERT(kSmiTag == 0);
-    shl(reg, kSmiTagSize);
+    ASSERT(kSmiTagSize == 1);
+    add(reg, Operand(reg));
   }
   void SmiUntag(Register reg) {
     sar(reg, kSmiTagSize);
   }
 
   // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object, const char* msg);
+  void AbortIfNotNumber(Register object);
 
   // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object, const char* msg);
+  void AbortIfNotSmi(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -476,7 +477,7 @@ class MacroAssembler: public Assembler {
   // for both instance type and scratch.
   void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
                                               Register scratch,
-                                              Label *on_not_flat_ascii_string);
+                                              Label* on_not_flat_ascii_string);
 
   // Checks if both objects are sequential ASCII strings, and jumps to label
   // if either is not.
@@ -484,7 +485,7 @@ class MacroAssembler: public Assembler {
                                            Register object2,
                                            Register scratch1,
                                            Register scratch2,
-                                           Label *on_not_flat_ascii_strings);
+                                           Label* on_not_flat_ascii_strings);
 
  private:
   bool generating_stub_;

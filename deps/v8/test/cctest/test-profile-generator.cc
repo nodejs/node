@@ -10,25 +10,27 @@ namespace i = v8::internal;
 
 using i::CodeEntry;
 using i::CodeMap;
+using i::CpuProfilesCollection;
 using i::ProfileNode;
 using i::ProfileTree;
-using i::StaticNameCodeEntry;
+using i::ProfileGenerator;
+using i::TickSample;
 using i::Vector;
 
 
 TEST(ProfileNodeFindOrAddChild) {
   ProfileNode node(NULL);
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
   ProfileNode* childNode2 = node.FindOrAddChild(&entry2);
   CHECK_NE(NULL, childNode2);
   CHECK_NE(childNode1, childNode2);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
   CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
-  StaticNameCodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
   ProfileNode* childNode3 = node.FindOrAddChild(&entry3);
   CHECK_NE(NULL, childNode3);
   CHECK_NE(childNode1, childNode3);
@@ -69,9 +71,9 @@ class ProfileTreeTestHelper {
 }  // namespace
 
 TEST(ProfileTreeAddPathFromStart) {
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  StaticNameCodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -136,9 +138,9 @@ TEST(ProfileTreeAddPathFromStart) {
 
 
 TEST(ProfileTreeAddPathFromEnd) {
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  StaticNameCodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -216,8 +218,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(1, empty_tree.root()->total_ticks());
   CHECK_EQ(1, empty_tree.root()->self_ticks());
 
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
   CodeEntry* e1_path[] = {&entry1};
   Vector<CodeEntry*> e1_path_vec(
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
@@ -255,7 +257,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CodeEntry* e2_path[] = {&entry2};
   Vector<CodeEntry*> e2_path_vec(
       e2_path, sizeof(e2_path) / sizeof(e2_path[0]));
-  StaticNameCodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
   CodeEntry* e3_path[] = {&entry3};
   Vector<CodeEntry*> e3_path_vec(
       e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
@@ -316,10 +318,10 @@ static inline i::Address ToAddress(int n) {
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  StaticNameCodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  StaticNameCodeEntry entry4(i::Logger::FUNCTION_TAG, "ddd");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
+  CodeEntry entry4(i::Logger::FUNCTION_TAG, "ddd", "", 0);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
@@ -346,8 +348,8 @@ TEST(CodeMapAddCode) {
 
 TEST(CodeMapMoveAndDeleteCode) {
   CodeMap code_map;
-  StaticNameCodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  StaticNameCodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
@@ -359,4 +361,61 @@ TEST(CodeMapMoveAndDeleteCode) {
   code_map.DeleteCode(ToAddress(0x1700));
   CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1700)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1800)));
+}
+
+
+TEST(RecordTickSample) {
+  CpuProfilesCollection profiles;
+  profiles.AddProfile(0);
+  ProfileGenerator generator(&profiles);
+  CodeEntry* entry1 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "ccc");
+  generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
+  generator.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
+  generator.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
+
+  ProfileTreeTestHelper top_down_test_helper(profiles.profile()->top_down());
+  CHECK_EQ(NULL, top_down_test_helper.Walk(entry1));
+  CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
+  CHECK_EQ(NULL, top_down_test_helper.Walk(entry3));
+
+  // We are building the following calls tree:
+  //      -> aaa         - sample1
+  //  aaa -> bbb -> ccc  - sample2
+  //      -> ccc -> aaa  - sample3
+  TickSample sample1;
+  sample1.pc = ToAddress(0x1600);
+  sample1.function = ToAddress(0x1500);
+  sample1.stack[0] = ToAddress(0x1510);
+  sample1.frames_count = 1;
+  generator.RecordTickSample(sample1);
+  TickSample sample2;
+  sample2.pc = ToAddress(0x1925);
+  sample2.function = ToAddress(0x1900);
+  sample2.stack[0] = ToAddress(0x1780);
+  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
+  sample2.stack[2] = ToAddress(0x1620);
+  sample2.frames_count = 3;
+  generator.RecordTickSample(sample2);
+  TickSample sample3;
+  sample3.pc = ToAddress(0x1510);
+  sample3.function = ToAddress(0x1500);
+  sample3.stack[0] = ToAddress(0x1910);
+  sample3.stack[1] = ToAddress(0x1610);
+  sample3.frames_count = 2;
+  generator.RecordTickSample(sample3);
+
+  ProfileNode* node1 = top_down_test_helper.Walk(entry1);
+  CHECK_NE(NULL, node1);
+  CHECK_EQ(entry1, node1->entry());
+  ProfileNode* node2 = top_down_test_helper.Walk(entry1, entry1);
+  CHECK_NE(NULL, node2);
+  CHECK_EQ(entry1, node2->entry());
+  ProfileNode* node3 = top_down_test_helper.Walk(entry1, entry2, entry3);
+  CHECK_NE(NULL, node3);
+  CHECK_EQ(entry3, node3->entry());
+  ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
+  CHECK_NE(NULL, node4);
+  CHECK_EQ(entry1, node4->entry());
 }

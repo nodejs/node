@@ -34,28 +34,21 @@ namespace v8 {
 namespace internal {
 
 
+CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
+                     const char* name,
+                     const char* resource_name,
+                     int line_number)
+    : tag_(tag),
+      name_(name),
+      resource_name_(resource_name),
+      line_number_(line_number) {
+}
+
+
 bool CodeEntry::is_js_function() {
   return tag_ == Logger::FUNCTION_TAG
       || tag_ == Logger::LAZY_COMPILE_TAG
       || tag_ == Logger::SCRIPT_TAG;
-}
-
-
-StaticNameCodeEntry::StaticNameCodeEntry(Logger::LogEventsAndTags tag,
-                                         const char* name)
-    : CodeEntry(tag),
-      name_(name) {
-}
-
-
-ManagedNameCodeEntry::ManagedNameCodeEntry(Logger::LogEventsAndTags tag,
-                                           String* name,
-                                           const char* resource_name,
-                                           int line_number)
-    : CodeEntry(tag),
-      name_(name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach()),
-      resource_name_(resource_name),
-      line_number_(line_number) {
 }
 
 

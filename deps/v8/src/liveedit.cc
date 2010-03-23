@@ -391,6 +391,26 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
   ZoneList<RelocInfo> reloc_infos_;
 };
 
+
+class FrameCookingThreadVisitor : public ThreadVisitor {
+ public:
+  void VisitThread(ThreadLocalTop* top) {
+    StackFrame::CookFramesForThread(top);
+  }
+};
+
+class FrameUncookingThreadVisitor : public ThreadVisitor {
+ public:
+  void VisitThread(ThreadLocalTop* top) {
+    StackFrame::UncookFramesForThread(top);
+  }
+};
+
+static void IterateAllThreads(ThreadVisitor* visitor) {
+  Top::IterateThread(visitor);
+  ThreadManager::IterateThreads(visitor);
+}
+
 // Finds all references to original and replaces them with substitution.
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!Heap::InNewSpace(substitution));
@@ -405,9 +425,15 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
   // Iterate over all roots. Stack frames may have pointer into original code,
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
-  ThreadManager::MarkCompactPrologue(true);
-  Heap::IterateStrongRoots(&visitor, VISIT_ALL);
-  ThreadManager::MarkCompactEpilogue(true);
+  {
+    FrameCookingThreadVisitor cooking_visitor;
+    IterateAllThreads(&cooking_visitor);
+
+    Heap::IterateStrongRoots(&visitor, VISIT_ALL);
+
+    FrameUncookingThreadVisitor uncooking_visitor;
+    IterateAllThreads(&uncooking_visitor);
+  }
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.

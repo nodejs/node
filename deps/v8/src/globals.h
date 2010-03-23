@@ -98,6 +98,11 @@ typedef byte* Address;
 #define V8_PTR_PREFIX ""
 #endif  // V8_HOST_ARCH_64_BIT
 
+// The following macro works on both 32 and 64-bit platforms.
+// Usage: instead of writing 0x1234567890123456
+//      write V8_2PART_UINT64_C(0x12345678,90123456);
+#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
+
 #define V8PRIxPTR V8_PTR_PREFIX "x"
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 

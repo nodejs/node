@@ -65,7 +65,7 @@ class StatsTable : public AllStatic {
   // may receive a different location to store it's counter.
   // The return value must not be cached and re-used across
   // threads, although a single thread is free to cache it.
-  static int *FindLocation(const char* name) {
+  static int* FindLocation(const char* name) {
     if (!lookup_function_) return NULL;
     return lookup_function_(name);
   }

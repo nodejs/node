@@ -151,6 +151,108 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
+static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
+                                         Label* miss,
+                                         Register elements,
+                                         Register key,
+                                         Register r0,
+                                         Register r1,
+                                         Register r2) {
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver and is unchanged.
+  //
+  // key      - holds the smi key on entry and is unchanged if a branch is
+  //            performed to the miss label.
+  //
+  // Scratch registers:
+  //
+  // r0 - holds the untagged key on entry and holds the hash once computed.
+  //      Holds the result on exit if the load succeeded.
+  //
+  // r1 - used to hold the capacity mask of the dictionary
+  //
+  // r2 - used for the index into the dictionary.
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  __ movl(r1, r0);
+  __ notl(r0);
+  __ shll(r1, Immediate(15));
+  __ addl(r0, r1);
+  // hash = hash ^ (hash >> 12);
+  __ movl(r1, r0);
+  __ shrl(r1, Immediate(12));
+  __ xorl(r0, r1);
+  // hash = hash + (hash << 2);
+  __ leal(r0, Operand(r0, r0, times_4, 0));
+  // hash = hash ^ (hash >> 4);
+  __ movl(r1, r0);
+  __ shrl(r1, Immediate(4));
+  __ xorl(r0, r1);
+  // hash = hash * 2057;
+  __ imull(r0, r0, Immediate(2057));
+  // hash = hash ^ (hash >> 16);
+  __ movl(r1, r0);
+  __ shrl(r1, Immediate(16));
+  __ xorl(r0, r1);
+
+  // Compute capacity mask.
+  const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+  __ movq(r1, FieldOperand(elements, kCapacityOffset));
+  __ SmiToInteger32(r1, r1);
+  __ decl(r1);
+
+  const int kElementsStartOffset =
+      NumberDictionary::kHeaderSize +
+      NumberDictionary::kElementsStartIndex * kPointerSize;
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use r2 for index calculations and keep the hash intact in r0.
+    __ movq(r2, r0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      __ addl(r2, Immediate(NumberDictionary::GetProbeOffset(i)));
+    }
+    __ and_(r2, r1);
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    __ lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
+
+    // Check if the key matches.
+    __ cmpq(key, FieldOperand(elements,
+                              r2,
+                              times_pointer_size,
+                              kElementsStartOffset));
+    if (i != (kProbes - 1)) {
+      __ j(equal, &done);
+    } else {
+      __ j(not_equal, miss);
+    }
+  }
+
+  __ bind(&done);
+  // Check that the value is a normal propety.
+  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  ASSERT_EQ(NORMAL, 0);
+  __ Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
+          Smi::FromInt(PropertyDetails::TypeField::mask()));
+  __ j(not_zero, miss);
+
+  // Get the value at the masked, scaled index.
+  const int kValueOffset = kElementsStartOffset + kPointerSize;
+  __ movq(r0, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
+}
+
+
 // Helper function used to check that a value is either not an object
 // or is loaded if it is an object.
 static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
@@ -271,6 +373,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // -----------------------------------
   Label slow, check_string, index_int, index_string;
   Label check_pixel_array, probe_dictionary;
+  Label check_number_dictionary;
 
   // Load name and receiver.
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -294,6 +397,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &check_string);
+  // Save key in rbx in case we want it for the number dictionary
+  // case.
+  __ movq(rbx, rax);
   __ SmiToInteger32(rax, rax);
   // Get the elements array of the object.
   __ bind(&index_int);
@@ -321,12 +427,23 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_pixel_array);
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &check_number_dictionary);
   __ cmpl(rax, FieldOperand(rcx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   __ movq(rcx, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
   __ movzxbq(rax, Operand(rcx, rax, times_1, 0));
   __ Integer32ToSmi(rax, rax);
+  __ ret(0);
+
+  __ bind(&check_number_dictionary);
+  // Check whether the elements is a number dictionary.
+  // rax: untagged index
+  // rbx: key
+  // rcx: elements
+  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
+                 Heap::kHashTableMapRootIndex);
+  __ j(not_equal, &slow);
+  GenerateNumberDictionaryLoad(masm, &slow, rcx, rbx, rax, rdx, rdi);
   __ ret(0);
 
   // Slow case: Load name and receiver from stack and jump to runtime.

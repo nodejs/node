@@ -125,6 +125,11 @@ void VirtualFrame::SetTypeForLocalAt(int index, NumberInfo info) {
 }
 
 
+void VirtualFrame::SetTypeForParamAt(int index, NumberInfo info) {
+  elements_[param0_index() + index].set_number_info(info);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_INL_H_

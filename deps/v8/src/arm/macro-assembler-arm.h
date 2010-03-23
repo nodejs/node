@@ -415,7 +415,7 @@ class MacroAssembler: public Assembler {
                                                   Register object2,
                                                   Register scratch1,
                                                   Register scratch2,
-                                                  Label *failure);
+                                                  Label* failure);
 
   // Checks if both objects are sequential ASCII strings and jumps to label
   // if either is not.

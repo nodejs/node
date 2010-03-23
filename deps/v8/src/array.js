@@ -994,11 +994,16 @@ function ArrayIndexOf(element, index) {
     // If index is still negative, search the entire array.
     if (index < 0) index = 0;
   }
+  if (!IS_UNDEFINED(element)) {
+    for (var i = index; i < length; i++) {
+      if (this[i] === element) return i;
+    }
+    return -1;
+  }
   // Lookup through the array.
   for (var i = index; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      if (current === element) return i;
+    if (IS_UNDEFINED(this[i]) && i in this) {
+      return i;
     }
   }
   return -1;
@@ -1018,10 +1023,15 @@ function ArrayLastIndexOf(element, index) {
     else if (index >= length) index = length - 1;
   }
   // Lookup through the array.
+  if (!IS_UNDEFINED(element)) {
+    for (var i = index; i >= 0; i--) {
+      if (this[i] === element) return i;
+    }
+    return -1;
+  }
   for (var i = index; i >= 0; i--) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      if (current === element) return i;
+    if (IS_UNDEFINED(this[i]) && i in this) {
+      return i;
     }
   }
   return -1;

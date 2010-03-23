@@ -240,8 +240,14 @@ static const Instr kPopRegPattern =
     al | B26 | L | 4 | PostIndex | sp.code() * B16;
 // mov lr, pc
 const Instr kMovLrPc = al | 13*B21 | pc.code() | lr.code() * B12;
-// ldr pc, [pc, #XXX]
-const Instr kLdrPCPattern = al | B26 | L | pc.code() * B16;
+// ldr rd, [pc, #offset]
+const Instr kLdrPCMask = CondMask | 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPCPattern = al | 5 * B24 | L | pc.code() * B16;
+// blxcc rm
+const Instr kBlxRegMask =
+    15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
+const Instr kBlxRegPattern =
+    B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | 3 * B4;
 
 // Spare buffer.
 static const int kMinimalBufferSize = 4*KB;

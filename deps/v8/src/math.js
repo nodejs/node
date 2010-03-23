@@ -171,7 +171,7 @@ function MathRandom() {
 // ECMA 262 - 15.8.2.15
 function MathRound(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_round(x);
+  return %RoundNumber(x);
 }
 
 // ECMA 262 - 15.8.2.16

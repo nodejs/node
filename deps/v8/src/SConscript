@@ -43,6 +43,7 @@ SOURCES = {
     bootstrapper.cc
     builtins.cc
     checks.cc
+    circular-queue.cc
     code-stubs.cc
     codegen.cc
     compilation-cache.cc
@@ -50,11 +51,13 @@ SOURCES = {
     contexts.cc
     conversions.cc
     counters.cc
+    cpu-profiler.cc
     data-flow.cc
     dateparser.cc
     debug-agent.cc
     debug.cc
     disassembler.cc
+    diy-fp.cc
     execution.cc
     factory.cc
     flags.cc
@@ -63,6 +66,7 @@ SOURCES = {
     full-codegen.cc
     func-name-inferrer.cc
     global-handles.cc
+    fast-dtoa.cc
     handles.cc
     hashmap.cc
     heap-profiler.cc

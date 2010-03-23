@@ -36,50 +36,22 @@ namespace internal {
 
 class CodeEntry {
  public:
-  virtual ~CodeEntry() { }
+  // CodeEntry doesn't own name strings, just references them.
+  INLINE(CodeEntry(Logger::LogEventsAndTags tag_,
+                   const char* name_,
+                   const char* resource_name_,
+                   int line_number_));
 
-  virtual const char* name() = 0;
   INLINE(bool is_js_function());
-
- protected:
-  INLINE(explicit CodeEntry(Logger::LogEventsAndTags tag))
-      : tag_(tag) { }
+  INLINE(const char* name()) { return name_; }
 
  private:
   Logger::LogEventsAndTags tag_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEntry);
-};
-
-
-class StaticNameCodeEntry : public CodeEntry {
- public:
-  INLINE(StaticNameCodeEntry(Logger::LogEventsAndTags tag,
-                             const char* name));
-
-  INLINE(virtual const char* name()) { return name_ != NULL ? name_ : ""; }
-
- private:
   const char* name_;
-
-  DISALLOW_COPY_AND_ASSIGN(StaticNameCodeEntry);
-};
-
-
-class ManagedNameCodeEntry : public CodeEntry {
- public:
-  INLINE(ManagedNameCodeEntry(Logger::LogEventsAndTags tag,
-                              String* name,
-                              const char* resource_name, int line_number));
-
-  INLINE(virtual const char* name()) { return !name_.is_empty() ? *name_ : ""; }
-
- private:
-  SmartPointer<char> name_;
   const char* resource_name_;
   int line_number_;
 
-  DISALLOW_COPY_AND_ASSIGN(ManagedNameCodeEntry);
+  DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
 
 
@@ -92,17 +64,19 @@ class ProfileNode {
   INLINE(void IncrementSelfTicks()) { ++self_ticks_; }
   INLINE(void IncreaseTotalTicks(unsigned amount)) { total_ticks_ += amount; }
 
-  INLINE(unsigned total_ticks()) { return total_ticks_; }
-  INLINE(unsigned self_ticks()) { return self_ticks_; }
+  INLINE(CodeEntry* entry() const) { return entry_; }
+  INLINE(unsigned total_ticks() const) { return total_ticks_; }
+  INLINE(unsigned self_ticks() const) { return self_ticks_; }
+  void GetChildren(List<ProfileNode*>* children);
 
   void Print(int indent);
 
  private:
-  INLINE(static bool CodeEntriesMatch(void* key1, void* key2)) {
-    return key1 == key2;
+  INLINE(static bool CodeEntriesMatch(void* entry1, void* entry2)) {
+    return entry1 == entry2;
   }
 
-  INLINE(static bool CodeEntryHash(CodeEntry* entry)) {
+  INLINE(static uint32_t CodeEntryHash(CodeEntry* entry)) {
     return static_cast<int32_t>(reinterpret_cast<intptr_t>(entry));
   }
 
@@ -144,12 +118,15 @@ class ProfileTree BASE_EMBEDDED {
 };
 
 
-class CpuProfile BASE_EMBEDDED {
+class CpuProfile {
  public:
   CpuProfile() { }
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
+
+  INLINE(ProfileTree* top_down()) { return &top_down_; }
+  INLINE(ProfileTree* bottom_up()) { return &bottom_up_; }
 
   void ShortPrint();
   void Print();
@@ -196,33 +173,70 @@ class CodeMap BASE_EMBEDDED {
 };
 
 
-class ProfileGenerator {
+class CpuProfilesCollection {
  public:
-  ProfileGenerator();
-  ~ProfileGenerator();
+  CpuProfilesCollection();
+  ~CpuProfilesCollection();
+
+  void AddProfile(unsigned uid);
 
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
+  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
 
-  INLINE(CpuProfile* profile()) { return &profile_; }
+  INLINE(CpuProfile* profile()) { return profiles_.last(); }
+
+ private:
+  const char* GetName(String* name);
+  const char* GetName(int args_count);
+
+  INLINE(static bool StringsMatch(void* key1, void* key2)) {
+    return strcmp(reinterpret_cast<char*>(key1),
+                  reinterpret_cast<char*>(key2)) == 0;
+  }
+
+  // String::Hash -> const char*
+  HashMap function_and_resource_names_;
+  // args_count -> char*
+  List<char*> args_count_names_;
+  List<CodeEntry*> code_entries_;
+  List<CpuProfile*> profiles_;
+
+  DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
+};
+
+
+class ProfileGenerator {
+ public:
+  explicit ProfileGenerator(CpuProfilesCollection* profiles);
+
+  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                                 String* name,
+                                 String* resource_name,
+                                 int line_number)) {
+    return profiles_->NewCodeEntry(tag, name, resource_name, line_number);
+  }
+
+  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                                 const char* name)) {
+    return profiles_->NewCodeEntry(tag, name);
+  }
+
+  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                                 int args_count)) {
+    return profiles_->NewCodeEntry(tag, args_count);
+  }
+
+  void RecordTickSample(const TickSample& sample);
+
   INLINE(CodeMap* code_map()) { return &code_map_; }
 
  private:
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
-    return key1 == key2;
-  }
+  INLINE(CpuProfile* profile()) { return profiles_->profile(); }
 
-  INLINE(static bool StringEntryHash(String* entry)) {
-    return entry->Hash();
-  }
-
-  CpuProfile profile_;
+  CpuProfilesCollection* profiles_;
   CodeMap code_map_;
-  typedef List<CodeEntry*> CodeEntryList;
-  CodeEntryList code_entries_;
-  // String::Hash -> const char*
-  HashMap resource_names_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };

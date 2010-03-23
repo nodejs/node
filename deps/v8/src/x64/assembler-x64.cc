@@ -1030,6 +1030,22 @@ void Assembler::imull(Register dst, Register src) {
 }
 
 
+void Assembler::imull(Register dst, Register src, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  if (is_int8(imm.value_)) {
+    emit(0x6B);
+    emit_modrm(dst, src);
+    emit(imm.value_);
+  } else {
+    emit(0x69);
+    emit_modrm(dst, src);
+    emitl(imm.value_);
+  }
+}
+
+
 void Assembler::incq(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1190,6 +1206,15 @@ void Assembler::lea(Register dst, const Operand& src) {
 }
 
 
+void Assembler::leal(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x8D);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1219,6 +1244,7 @@ void Assembler::movb(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+
 void Assembler::movb(Register dst, Immediate imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1228,6 +1254,7 @@ void Assembler::movb(Register dst, Immediate imm) {
   emit(imm.value_);
 }
 
+
 void Assembler::movb(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1235,6 +1262,7 @@ void Assembler::movb(const Operand& dst, Register src) {
   emit(0x88);
   emit_operand(src, dst);
 }
+
 
 void Assembler::movw(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
@@ -1244,6 +1272,7 @@ void Assembler::movw(const Operand& dst, Register src) {
   emit(0x89);
   emit_operand(src, dst);
 }
+
 
 void Assembler::movl(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
@@ -1597,6 +1626,15 @@ void Assembler::not_(const Operand& dst) {
   emit_rex_64(dst);
   emit(0xF7);
   emit_operand(2, dst);
+}
+
+
+void Assembler::notl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xF7);
+  emit_modrm(0x2, dst);
 }
 
 

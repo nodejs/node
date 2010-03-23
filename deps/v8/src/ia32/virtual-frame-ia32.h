@@ -446,8 +446,9 @@ class VirtualFrame: public ZoneObject {
     return true;
   }
 
-  // Update the type information of a local variable frame element directly.
+  // Update the type information of a variable frame element directly.
   inline void SetTypeForLocalAt(int index, NumberInfo info);
+  inline void SetTypeForParamAt(int index, NumberInfo info);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;

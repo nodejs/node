@@ -53,6 +53,15 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 }
 
 
+void ProfileNode::GetChildren(List<ProfileNode*>* children) {
+  for (HashMap::Entry* p = children_.Start();
+       p != NULL;
+       p = children_.Next(p)) {
+    children->Add(reinterpret_cast<ProfileNode*>(p->value));
+  }
+}
+
+
 void ProfileNode::Print(int indent) {
   OS::Print("%4u %4u %*c %s\n",
             total_ticks_, self_ticks_,
@@ -233,63 +242,143 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
 }
 
 
-ProfileGenerator::ProfileGenerator()
-    : resource_names_(StringsMatch) {
+CpuProfilesCollection::CpuProfilesCollection()
+    : function_and_resource_names_(StringsMatch) {
 }
 
 
-static void CodeEntriesDeleter(CodeEntry** entry_ptr) {
+static void DeleteArgsCountName(char** name_ptr) {
+  DeleteArray(*name_ptr);
+}
+
+
+static void DeleteCodeEntry(CodeEntry** entry_ptr) {
   delete *entry_ptr;
 }
 
+static void DeleteCpuProfile(CpuProfile** profile_ptr) {
+  delete *profile_ptr;
+}
 
-ProfileGenerator::~ProfileGenerator() {
-  for (HashMap::Entry* p = resource_names_.Start();
+
+CpuProfilesCollection::~CpuProfilesCollection() {
+  profiles_.Iterate(DeleteCpuProfile);
+  code_entries_.Iterate(DeleteCodeEntry);
+  args_count_names_.Iterate(DeleteArgsCountName);
+  for (HashMap::Entry* p = function_and_resource_names_.Start();
        p != NULL;
-       p = resource_names_.Next(p)) {
+       p = function_and_resource_names_.Next(p)) {
     DeleteArray(reinterpret_cast<const char*>(p->value));
   }
-
-  code_entries_.Iterate(CodeEntriesDeleter);
 }
 
 
-CodeEntry* ProfileGenerator::NewCodeEntry(
-    Logger::LogEventsAndTags tag,
-    String* name,
-    String* resource_name, int line_number) {
-  const char* cached_resource_name = NULL;
-  if (resource_name->IsString()) {
-    // As we copy contents of resource names, and usually they are repeated,
-    // we cache names by string hashcode.
+void CpuProfilesCollection::AddProfile(unsigned uid) {
+  profiles_.Add(new CpuProfile());
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               String* name,
+                                               String* resource_name,
+                                               int line_number) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   GetName(name),
+                                   GetName(resource_name),
+                                   line_number);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               const char* name) {
+  CodeEntry* entry = new CodeEntry(tag, name, "", 0);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               int args_count) {
+  CodeEntry* entry = new CodeEntry(tag, GetName(args_count), "", 0);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+const char* CpuProfilesCollection::GetName(String* name) {
+  if (name->IsString()) {
+    char* c_name =
+        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach();
     HashMap::Entry* cache_entry =
-        resource_names_.Lookup(resource_name,
-                               StringEntryHash(resource_name),
-                               true);
+        function_and_resource_names_.Lookup(c_name,
+                                            name->Hash(),
+                                            true);
     if (cache_entry->value == NULL) {
       // New entry added.
-      cache_entry->value =
-          resource_name->ToCString(DISALLOW_NULLS,
-                                   ROBUST_STRING_TRAVERSAL).Detach();
+      cache_entry->value = c_name;
+    } else {
+      DeleteArray(c_name);
     }
-    cached_resource_name = reinterpret_cast<const char*>(cache_entry->value);
+    return reinterpret_cast<const char*>(cache_entry->value);
+  } else {
+    return "";
+  }
+}
+
+
+const char* CpuProfilesCollection::GetName(int args_count) {
+  ASSERT(args_count >= 0);
+  if (args_count_names_.length() <= args_count) {
+    args_count_names_.AddBlock(
+        NULL, args_count - args_count_names_.length() + 1);
+  }
+  if (args_count_names_[args_count] == NULL) {
+    const int kMaximumNameLength = 32;
+    char* name = NewArray<char>(kMaximumNameLength);
+    OS::SNPrintF(Vector<char>(name, kMaximumNameLength),
+                 "args_count: %d", args_count);
+    args_count_names_[args_count] = name;
+  }
+  return args_count_names_[args_count];
+}
+
+
+ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
+    : profiles_(profiles) {
+}
+
+
+void ProfileGenerator::RecordTickSample(const TickSample& sample) {
+  // Allocate space for stack frames + pc + function.
+  ScopedVector<CodeEntry*> entries(sample.frames_count + 2);
+  CodeEntry** entry = entries.start();
+  *entry++ = code_map_.FindEntry(sample.pc);
+
+  if (sample.function != NULL) {
+    *entry = code_map_.FindEntry(sample.function);
+    if (*entry != NULL && !(*entry)->is_js_function()) {
+      *entry = NULL;
+    } else {
+      CodeEntry* pc_entry = *entries.start();
+      if (pc_entry == NULL || pc_entry->is_js_function())
+        *entry = NULL;
+    }
+    entry++;
+  } else {
+    *entry++ = NULL;
   }
 
-  CodeEntry* entry = new ManagedNameCodeEntry(tag,
-                                              name,
-                                              cached_resource_name,
-                                              line_number);
-  code_entries_.Add(entry);
-  return entry;
+  for (const Address *stack_pos = sample.stack,
+         *stack_end = stack_pos + sample.frames_count;
+       stack_pos != stack_end;
+       ++stack_pos) {
+    *entry++ = code_map_.FindEntry(*stack_pos);
+  }
+
+  profile()->AddPath(entries);
 }
 
-
-CodeEntry* ProfileGenerator::NewCodeEntry(
-    Logger::LogEventsAndTags tag,
-    const char* name) {
-  CodeEntry* entry = new StaticNameCodeEntry(tag, name);
-  code_entries_.Add(entry);
-  return entry;
-}
 
 } }  // namespace v8::internal

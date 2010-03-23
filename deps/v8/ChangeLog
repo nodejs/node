@@ -1,8 +1,22 @@
-2010-03-17: Version 2.1.5
+2010-03-22: Version 2.1.7
+
+        Fixed issue 650.
+
+        Fixed a bug where __proto__ was sometimes enumerated (issue 646).
 
         Performance improvements for arithmetic operations.
 
         Performance improvements for string operations.
+
+        Print script name and line number information in stack trace.
+
+
+2010-03-17: Version 2.1.6
+
+        Performance improvements for arithmetic operations.
+
+        Performance improvements for string operations.
+
 
 2010-03-10: Version 2.1.4
 
