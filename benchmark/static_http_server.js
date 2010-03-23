@@ -1,8 +1,8 @@
-var http = require("../lib/http");
+var http = require("http");
 
 var concurrency = 30;
-var port = 8000;
-var n = 700;
+var port = 12346;
+var n = 7; // several orders of magnitude slower
 var bytes = 1024*5;
 
 var requests = 0;

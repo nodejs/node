@@ -1,15 +1,16 @@
 var path = require("path");
-var sys = require("../lib/sys");
-var benchmarks = [ "static_http_server.js" 
-                 , "timers.js"
+var sys = require("sys");
+var childProcess = require("child_process");
+var benchmarks = [ "timers.js"
                  , "process_loop.js"
+                 , "static_http_server.js"
                  ];
 
 var benchmarkDir = path.dirname(__filename);
 
 function exec (script, callback) {
   var start = new Date();
-  var child = process.createChildProcess(process.ARGV[0], [path.join(benchmarkDir, script)]);
+  var child = childProcess.spawn(process.argv[0], [path.join(benchmarkDir, script)]);
   child.addListener("exit", function (code) {
     var elapsed = new Date() - start;
     callback(elapsed, code);
