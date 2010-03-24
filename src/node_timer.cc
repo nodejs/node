@@ -91,7 +91,7 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
 
 Timer::~Timer ()
 {
-  ev_timer_stop (EV_DEFAULT_UC_ &watcher_);
+  ev_timer_stop(EV_DEFAULT_UC_ &watcher_);
 }
 
 Handle<Value>
@@ -114,14 +114,15 @@ Timer::Start (const Arguments& args)
   if (args.Length() != 2)
     return ThrowException(String::New("Bad arguments"));
 
+  bool was_active = ev_is_active(&timer->watcher_);
+
   ev_tstamp after = NODE_V8_UNIXTIME(args[0]);
   ev_tstamp repeat = NODE_V8_UNIXTIME(args[1]);
-
   ev_timer_init(&timer->watcher_, Timer::OnTimeout, after, repeat);
   timer->watcher_.data = timer;
   ev_timer_start(EV_DEFAULT_UC_ &timer->watcher_);
 
-  timer->Ref();
+  if (!was_active) timer->Ref();
 
   return Undefined();
 }

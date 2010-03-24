@@ -1,21 +1,22 @@
 require("../common");
-tcp = require("tcp");
+net = require("net");
 exchanges = 0;
 starttime = null;
 timeouttime = null;
 timeout = 1000;
 
-var echo_server = tcp.createServer(function (socket) {
+var echo_server = net.createServer(function (socket) {
   socket.setTimeout(timeout);
 
-  socket.addListener("timeout", function (d) {
+  socket.addListener("timeout", function () {
     puts("server timeout");
     timeouttime = new Date;
     p(timeouttime);
+    socket.forceClose();
   });
 
   socket.addListener("data", function (d) {
-    p(d);
+    puts(d);
     socket.write(d);
   });
 
@@ -27,7 +28,7 @@ var echo_server = tcp.createServer(function (socket) {
 echo_server.listen(PORT);
 puts("server listening at " + PORT);
 
-var client = tcp.createConnection(PORT);
+var client = net.createConnection(PORT);
 client.setEncoding("UTF8");
 client.setTimeout(0); // disable the timeout for client
 client.addListener("connect", function () {
@@ -53,7 +54,7 @@ client.addListener("data", function (chunk) {
 
 client.addListener("timeout", function () {
   puts("client timeout - this shouldn't happen");
-  assert.equal(false, true);
+  assert.ok(false);
 });
 
 client.addListener("end", function () {

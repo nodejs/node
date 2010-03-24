@@ -18,6 +18,7 @@ class Timer : ObjectWrap {
   Timer () : ObjectWrap () {
     // dummy timeout values
     ev_timer_init(&watcher_, OnTimeout, 0., 1.);
+    watcher_.data = this;
   }
   ~Timer();
 
