@@ -1,7 +1,7 @@
 // This test requires the program "ab"
 require("../common");
 http = require("http");
-sys = require("sys");
+exec = require("child_process").exec;
 
 body = "hello world\n";
 server = http.createServer(function (req, res) {
@@ -20,7 +20,7 @@ var normalReqSec = 0;
 
 function runAb(opts, callback) {
   var command = "ab " + opts + " http://127.0.0.1:" + PORT + "/";
-  sys.exec(command, function (err, stdout, stderr) {
+  exec(command, function (err, stdout, stderr) {
     if (err) {
       puts("ab not installed? skipping test.\n" + stderr);
       process.exit();
