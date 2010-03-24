@@ -323,9 +323,7 @@ global.clearInterval = global.clearTimeout;
 
 // Modules
 
-var debugLevel = 0;
-if ("NODE_DEBUG" in process.env) debugLevel = 1;
-
+var debugLevel = parseInt(process.env["NODE_DEBUG"]);
 function debug (x) {
   if (debugLevel > 0) {
     process.binding('stdio').writeError(x + "\n");
