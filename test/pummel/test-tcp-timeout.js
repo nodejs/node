@@ -12,7 +12,6 @@ var echo_server = net.createServer(function (socket) {
     puts("server timeout");
     timeouttime = new Date;
     p(timeouttime);
-    socket.forceClose();
   });
 
   socket.addListener("data", function (d) {
@@ -62,19 +61,20 @@ client.addListener("end", function () {
   client.close();
 });
 
-client.addListener("close", function (had_error) {
+client.addListener("close", function () {
   puts("client disconnect");
   echo_server.close();
-  assert.equal(false, had_error);
 });
 
 process.addListener("exit", function () {
-  assert.equal(true, starttime != null);
-  assert.equal(true, timeouttime != null);
+  assert.ok(starttime != null);
+  assert.ok(timeouttime != null);
 
   diff = timeouttime - starttime;
   puts("diff = " + diff);
-  assert.equal(true, timeout < diff);
+
+  assert.ok(timeout < diff);
+
   // Allow for 800 milliseconds more
-  assert.equal(true, diff < timeout + 800);
+  assert.ok(diff < timeout + 800);
 });
